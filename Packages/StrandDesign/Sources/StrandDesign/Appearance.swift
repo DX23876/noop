@@ -50,6 +50,150 @@ public extension View {
     }
 }
 
+/// The user's CHROME accent colour (buttons, links, focus rings, selected states). Only the chrome
+/// accent — never the recovery/strain/sleep DATA colour worlds (those follow `ChartStyle`). Read globally
+/// via `StrandPalette.accentChoice` (+ `StrandPalette.customAccentHex` for `.custom`), set from
+/// `@AppStorage(AccentColor.storageKey)` / `@AppStorage(AccentColor.customHexKey)` at the app root; the
+/// `accent`/`accentHover`/`accentMuted`/`focusRing` accessors in `StrandPalette` branch on it. Mirror in
+/// Kotlin via `Palette.accentChoice` + `NoopPrefs.accentColor`/`accentCustomHex`.
+public enum AccentColor: String, CaseIterable, Identifiable, Sendable {
+    case mint        // the brand default (#1068 NoopVisualStyle.mint world)
+    case whoopBlue   // the classic WHOOP link blue
+    case custom      // a user-picked colour (hex stored separately)
+
+    public var id: String { rawValue }
+    public static let storageKey = "accent.color"
+    /// The custom colour's hex, kept separate so switching away from `.custom` and back keeps the choice.
+    public static let customHexKey = "accent.customHex"
+    /// Seeds the custom picker (mint) so a fresh `.custom` selection is not black.
+    public static let defaultCustomHex = "#149A78"
+
+    public var label: String {
+        switch self {
+        case .mint:      return String(localized: "Mint", bundle: .module)
+        case .whoopBlue: return String(localized: "WHOOP Blue", bundle: .module)
+        case .custom:    return String(localized: "Custom", bundle: .module)
+        }
+    }
+
+    public static func resolve(_ raw: String) -> AccentColor { AccentColor(rawValue: raw) ?? .mint }
+
+    /// The chrome accent. `.custom` resolves the stored hex at read time.
+    public var accent: Color {
+        switch self {
+        case .mint:      return NoopVisualStyle.mint
+        case .whoopBlue: return Color(light: "#234F9E", dark: "#60A0E0")
+        case .custom:    return Color(hex: StrandPalette.customAccentHex)
+        }
+    }
+
+    /// The brighter hover/pressed accent. For `.custom` it is the chosen colour lightened toward white.
+    public var accentHover: Color {
+        switch self {
+        case .mint:      return NoopVisualStyle.mintGlow
+        case .whoopBlue: return Color(light: "#3A6FC0", dark: "#8FBEEC")
+        case .custom:    return AccentColor.lighten(StrandPalette.customAccentHex)
+        }
+    }
+
+    /// A low-opacity tint of the accent for muted fills (chips, selected rows). Translucent so it
+    /// composites over whatever surface is behind it — the same 0.18 the mint world uses.
+    public var accentMuted: Color {
+        switch self {
+        case .mint:      return NoopVisualStyle.mintDeep.opacity(0.18)
+        case .whoopBlue: return Color(light: "#234F9E", dark: "#60A0E0").opacity(0.18)
+        case .custom:    return Color(hex: StrandPalette.customAccentHex).opacity(0.18)
+        }
+    }
+
+    public var focusRing: Color { accent }
+
+    /// Blend an sRGB hex toward white by `amount` (0…1) — the deterministic "hover" derivation for a
+    /// custom accent, so a single picked colour still gets a sensible brighter pressed state.
+    static func lighten(_ hex: String, by amount: Double = 0.24) -> Color {
+        let c = Color.sRGBComponents(hex: hex)
+        func up(_ x: Double) -> Double { min(1, x + (1 - x) * amount) }
+        return Color(.sRGB, red: up(c.r), green: up(c.g), blue: up(c.b), opacity: 1)
+    }
+}
+
+/// Applies the chrome accent: sets `StrandPalette.accentChoice` + `customAccentHex` (read by the accent
+/// accessors) and keys the content so a change re-renders live. Apply at each app root:
+/// `.noopAccent(accentRaw, customHex: accentCustomHex)`.
+public extension View {
+    func noopAccent(_ raw: String, customHex: String) -> some View {
+        StrandPalette.accentChoice = AccentColor.resolve(raw)
+        StrandPalette.customAccentHex = customHex
+        return self.id("noop.accent.\(raw).\(customHex)")
+    }
+}
+
+/// A named THEME preset — a one-tap bundle that coordinates the accent, the chart colour world, the
+/// day-cycle backdrop, and the card opacity. Purely an orchestration over settings that already exist:
+/// selecting a preset writes those four prefs, and the granular controls stay available underneath. There
+/// is NO stored "current theme" — it's DERIVED from the live prefs via [matching], so tweaking any one
+/// control simply resolves to `.custom`. Theme MODE (System/Light/Dark) is independent and never bundled.
+/// Twin of Kotlin `ThemePreset`.
+public enum ThemePreset: String, CaseIterable, Identifiable, Sendable {
+    case mint       // brand default: mint accent, Titanium charts, backdrop on, solid cards
+    case ocean      // WHOOP-blue accent, Titanium charts, backdrop on, solid
+    case classic    // WHOOP-blue accent, Classic throwback charts, backdrop on, solid
+    case midnight   // mint accent, Titanium charts, backdrop OFF (plain canvas), solid
+    case frosted    // mint accent, Titanium charts, backdrop on, translucent cards
+    case custom     // sentinel: the live combination matches no preset
+
+    public var id: String { rawValue }
+
+    public var label: String {
+        switch self {
+        case .mint:     return String(localized: "Mint", bundle: .module)
+        case .ocean:    return String(localized: "Ocean", bundle: .module)
+        case .classic:  return String(localized: "Classic", bundle: .module)
+        case .midnight: return String(localized: "Midnight", bundle: .module)
+        case .frosted:  return String(localized: "Frosted", bundle: .module)
+        case .custom:   return String(localized: "Custom", bundle: .module)
+        }
+    }
+
+    /// The four coordinated values a preset writes (nil for `.custom`, which sets nothing). Named `Recipe`
+    /// rather than `Bundle` deliberately — `Bundle` would shadow `Foundation.Bundle`, used just above in
+    /// `String(localized:bundle:)`.
+    public struct Recipe: Sendable {
+        public let accent: AccentColor
+        public let chart: ChartStyle
+        public let backdrop: Bool
+        public let cardOpacity: Int
+    }
+
+    public var recipe: Recipe? {
+        switch self {
+        case .mint:     return Recipe(accent: .mint,      chart: .titanium, backdrop: true,  cardOpacity: 100)
+        case .ocean:    return Recipe(accent: .whoopBlue, chart: .titanium, backdrop: true,  cardOpacity: 100)
+        case .classic:  return Recipe(accent: .whoopBlue, chart: .classic,  backdrop: true,  cardOpacity: 100)
+        case .midnight: return Recipe(accent: .mint,      chart: .titanium, backdrop: false, cardOpacity: 100)
+        case .frosted:  return Recipe(accent: .mint,      chart: .titanium, backdrop: true,  cardOpacity: 85)
+        case .custom:   return nil
+        }
+    }
+
+    /// The presets a user can pick (everything except the derived `.custom` sentinel).
+    public static var selectable: [ThemePreset] { allCases.filter { $0 != .custom } }
+
+    public static func resolve(_ raw: String) -> ThemePreset { ThemePreset(rawValue: raw) ?? .mint }
+
+    /// Which preset the live prefs correspond to, or `.custom` when none match.
+    public static func matching(accent: AccentColor, chart: ChartStyle,
+                                backdrop: Bool, cardOpacity: Int) -> ThemePreset {
+        for p in selectable {
+            if let r = p.recipe, r.accent == accent, r.chart == chart,
+               r.backdrop == backdrop, r.cardOpacity == cardOpacity {
+                return p
+            }
+        }
+        return .custom
+    }
+}
+
 /// The user's appearance preference for the whole app. Persisted via
 /// `@AppStorage(AppearanceMode.storageKey)`. `.system` follows the OS (the default);
 /// `.light` / `.dark` force a scheme regardless of the system setting.

@@ -51,6 +51,67 @@ struct SettingsView: View {
     /// BLE sensor for Garmin/Zwift/gym kit. See [PuffinExperiment.broadcastHrKey]. (#181)
     @AppStorage(PuffinExperiment.broadcastHrKey) private var broadcastHrEnabled = false
 
+    /// #891 opt-in: writes the device-config key `enable_raw_data_w_ecg` on an attested WHOOP MG. A
+    /// persistent strap write, so it gets its own deliberate switch like #174 and #181.
+    /// See [PuffinExperiment.ecgRawDataKey].
+    @AppStorage(PuffinExperiment.ecgRawDataKey) private var ecgRawDataEnabled = false
+
+    /// #103 opt-in: surfaces the WHOOP 5/MG `spo2_candidate_82` nightly mean in the Blood Oxygen tile
+    /// as a "strap estimate (unverified)" fallback when no calibrated `spo2Pct` exists. Display-only —
+    /// writes nothing to the strap. See [PuffinExperiment.spo2CandidateDisplayKey].
+    @AppStorage(PuffinExperiment.spo2CandidateDisplayKey) private var spo2CandidateDisplayEnabled = false
+
+    /// True when the connected strap has positively attested itself a WHOOP MG. The variant is published as
+    /// its label string (`LiveState.whoop5Variant`); "MG" is `Whoop5Variant.mg.label`. nil / not-yet-
+    /// identified / a plain 5.0 is not an MG.
+    private var ecgVariantIsMG: Bool { live.whoop5Variant == Whoop5Variant.mg.label }
+
+    /// The #891 ECG-gate buttons need the same encrypted bond the R22 writes do (a config write over the
+    /// live-HR-only link silently fails, #269) AND a strap that has positively attested itself an MG. Not
+    /// wear-gated: this stores a value, it does not start an on-wrist stream.
+    private var ecgGateReady: Bool {
+        #if os(macOS)
+        return false
+        #else
+        return live.encryptedBond && ecgVariantIsMG
+        #endif
+    }
+
+    /// The reason line under the #891 buttons. Each case names the ONE thing that is missing.
+    private var ecgGateReason: String {
+        #if os(macOS)
+        return String(localized: "The ECG gate needs an iPhone or Android. A Mac can't form the encrypted bond a 5/MG requires.")
+        #else
+        if !live.encryptedBond {
+            return String(localized: "Needs the full encrypted bond: close the official WHOOP app and pair the strap to NOOP first (a live-HR-only link can't carry a config write).")
+        }
+        if !ecgVariantIsMG {
+            // A nil / non-MG variant lands here too, and deliberately: an unattested strap is not an MG.
+            return String(localized: "Waiting for your strap to identify itself as an MG. Only a WHOOP MG has ECG electrodes, so NOOP won't write this key to anything else.")
+        }
+        return String(localized: "One tap writes the key; NOOP then reads it back off the strap and reports the value it actually stores — the write's own \"success\" is not treated as proof.")
+        #endif
+    }
+
+    /// Icon per read-back verdict. Only a confirmed read-back gets the success mark.
+    private func ecgGateIcon(_ v: EcgRawDataGateReport.Verdict) -> String {
+        switch v {
+        case .confirmed: return "checkmark.seal.fill"
+        case .unchanged: return "xmark.seal.fill"
+        case .pending:   return "ellipsis"
+        default:         return "questionmark.circle"
+        }
+    }
+
+    /// Tint per read-back verdict. Anything that isn't a confirmed read-back is never shown as positive.
+    private func ecgGateTint(_ v: EcgRawDataGateReport.Verdict) -> Color {
+        switch v {
+        case .confirmed: return StrandPalette.statusPositive
+        case .unchanged: return StrandPalette.statusWarning
+        default:         return StrandPalette.textSecondary
+        }
+    }
+
     /// WHOOP MG ECG ("Labrador") experiment. Unlocks the gated, user-initiated ECG probe on the Devices
     /// card. Default off; with it off the four ECG opcodes are dropped by the command allowlist, so no
     /// ECG byte can reach a strap. See [PuffinExperiment.ecgKey].
@@ -108,8 +169,14 @@ struct SettingsView: View {
     @AppStorage("appIcon.alt") private var useNavyIcon = false
     // Light/Dark/System theme. Read by both app roots' .preferredColorScheme; default follows the OS.
     @AppStorage(AppearanceMode.storageKey) private var appearanceRaw = AppearanceMode.system.rawValue
+    // App-owned copy language. Apple binds a bundle localization at process launch, so this writes the
+    // standard AppleLanguages override and takes effect after the user reopens NOOP.
+    @AppStorage(AppLanguage.storageKey) private var appLanguageRaw = AppLanguage.system.rawValue
     // Chart colour style: Titanium (brand) or Classic (throwback red→green). Re-colours gauges + charts.
     @AppStorage(ChartStyle.storageKey) private var chartStyleRaw = ChartStyle.health.rawValue
+    // Chrome accent colour (mint / WHOOP blue / custom). Chrome only — never the data colour worlds.
+    @AppStorage(AccentColor.storageKey) private var accentRaw = AccentColor.mint.rawValue
+    @AppStorage(AccentColor.customHexKey) private var accentCustomHex = AccentColor.defaultCustomHex
     // Day-cycle scene backdrop behind Today (#698). Default OFF. On adds the moving time-of-day scene;
     // off (the default) keeps the plain dark canvas. TodayView reads the same key to gate its
     // SceneScreenBackground.
@@ -770,6 +837,35 @@ struct SettingsView: View {
         }
     }
 
+    /// Bridges the SwiftUI `ColorPicker` (a `Color`) to the persisted custom-accent hex string.
+    private var customAccentBinding: Binding<Color> {
+        Binding(
+            get: { Color(hex: accentCustomHex) },
+            set: { accentCustomHex = $0.noopAccentHex ?? AccentColor.defaultCustomHex }
+        )
+    }
+
+    /// The Theme PRESET is derived from the four coordinated prefs (no stored value): reads which preset
+    /// the live combination matches (or `.custom`), and on pick writes accent + chart + backdrop + opacity.
+    private var themePresetBinding: Binding<ThemePreset> {
+        Binding(
+            get: {
+                ThemePreset.matching(
+                    accent: AccentColor.resolve(accentRaw),
+                    chart: ChartStyle.resolve(chartStyleRaw),
+                    backdrop: showDayCycleBackground,
+                    cardOpacity: cardOpacityPercent)
+            },
+            set: { preset in
+                guard let r = preset.recipe else { return }   // .custom → no-op
+                accentRaw = r.accent.rawValue
+                chartStyleRaw = r.chart.rawValue
+                showDayCycleBackground = r.backdrop
+                cardOpacityPercent = r.cardOpacity
+            }
+        )
+    }
+
     private var appearanceCard: some View {
         SettingsSection(
             icon: "circle.lefthalf.filled",
@@ -777,6 +873,42 @@ struct SettingsView: View {
             blurb: "Choose Light, Dark, or follow your system. Dark is the signature near-black; Light keeps the same clean look on a bright canvas."
         ) {
             VStack(spacing: 0) {
+                // App-owned copy language. Apple binds a bundle localization at process launch, so this
+                // takes effect after the user reopens NOOP (the note below says so). Sits above the theme
+                // controls because it re-words everything under it.
+                FormRow(label: "Language") {
+                    Picker("Language", selection: $appLanguageRaw) {
+                        ForEach(AppLanguage.allCases) { language in
+                            Text(language == .system ? String(localized: "System default") : language.autonym)
+                                .tag(language.rawValue)
+                        }
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.menu)
+                    .tint(StrandPalette.accent)
+                    .accessibilityLabel("Language")
+                    .onChangeCompat(of: appLanguageRaw) { AppLanguage.apply($0) }
+                }
+                Text("Language changes take effect after you reopen NOOP.")
+                    .font(StrandFont.footnote)
+                    .foregroundStyle(StrandPalette.textTertiary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.top, NoopMetrics.space1)
+                rowDivider
+                // Theme presets — one-tap bundles coordinating accent + chart world + backdrop + card
+                // opacity. Derived (no stored value): tweaking any control below flips this to Custom.
+                FormRow(label: "Preset") {
+                    Picker("Preset", selection: themePresetBinding) {
+                        ForEach(ThemePreset.allCases) { p in
+                            Text(p.label).tag(p)
+                        }
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.menu)
+                    .tint(StrandPalette.accent)
+                    .accessibilityLabel("Theme preset")
+                }
+                rowDivider
                 FormRow(label: "Theme") {
                     Picker("Theme", selection: $appearanceRaw) {
                         ForEach(AppearanceMode.allCases) { mode in
@@ -802,6 +934,28 @@ struct SettingsView: View {
                     .pickerStyle(.menu)
                     .appleInspiredTint("settings.controls")
                     .accessibilityLabel("Chart colours")
+                }
+                rowDivider
+                // Chrome accent colour — the links/buttons/selection tint only. The recovery/strain/sleep
+                // DATA colours follow "Chart colours" above, never this. Custom reveals a colour well.
+                FormRow(label: "Accent") {
+                    Picker("Accent", selection: $accentRaw) {
+                        ForEach(AccentColor.allCases) { c in
+                            Text(c.label).tag(c.rawValue)
+                        }
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.menu)
+                    .tint(StrandPalette.accent)
+                    .accessibilityLabel("Accent colour")
+                }
+                if AccentColor.resolve(accentRaw) == .custom {
+                    rowDivider
+                    FormRow(label: "Custom colour") {
+                        ColorPicker("Custom colour", selection: customAccentBinding, supportsOpacity: false)
+                            .labelsHidden()
+                            .accessibilityLabel("Custom accent colour")
+                    }
                 }
                 rowDivider
                 // Trend chart style (line vs bar). Display-only: flips the Trends tab's charts between the
@@ -1718,6 +1872,79 @@ struct SettingsView: View {
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .accessibilityElement(children: .combine)
+                }
+
+                // MARK: #103 SpO₂ strap estimate display — surface the @82 candidate as a fallback.
+                Divider().overlay(StrandPalette.hairline)
+
+                Toggle(isOn: $spo2CandidateDisplayEnabled) {
+                    Text("Blood Oxygen: strap estimate (WHOOP 5/MG)")
+                        .font(StrandFont.subhead)
+                        .foregroundStyle(StrandPalette.textPrimary)
+                }
+                .toggleStyle(.switch)
+                .tint(StrandPalette.accent)
+                .onChangeCompat(of: spo2CandidateDisplayEnabled) { _ in
+                    // Re-score immediately so the @82 candidate is computed and persisted on this
+                    // toggle flip — without this the user waits up to 15 min for the next analyze
+                    // loop, and the Blood Oxygen tile stays blank in the meantime. Same pattern as
+                    // the HRV window toggle above (analyzeRecent → refresh).
+                    Task { await model.intelligence.analyzeRecent(); await model.repo.refresh() }
+                }
+                Text("Your WHOOP 5.0/MG sends a strap-computed SpO₂ percentage (the @82 candidate byte) every second. An 8-night independent validation tracked it at corr +0.99 against the WHOOP app, but two nights on the original test device moved the OPPOSITE direction — device/firmware variance is unresolved. Turning this on surfaces the nightly mean in the Blood Oxygen tile as \"strap estimate (unverified)\" when no calibrated import exists. It never feeds recovery or illness scoring. WHOOP 4.0 has no @82 stream, so this does nothing there.")
+                    .font(StrandFont.caption)
+                    .foregroundStyle(StrandPalette.textTertiary)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                // MARK: #891 ECG raw-data gate — the second device-config key this app may write, MG-only.
+                Divider().overlay(StrandPalette.hairline)
+
+                Toggle(isOn: $ecgRawDataEnabled) {
+                    Text("ECG raw-data gate (WHOOP MG only)")
+                        .font(StrandFont.subhead)
+                        .foregroundStyle(StrandPalette.textPrimary)
+                }
+                .toggleStyle(.switch)
+                .tint(StrandPalette.accent)
+                Text("Your strap listed its own device-config keys, and one of them is enable_raw_data_w_ecg. On an MG with no ECG subscription it reads '0' — while all three ECG commands answer SUCCESS and send no data at all (#891). This is the leading guess for what's holding ECG shut. Nobody knows whether flipping it actually produces ECG data: finding out is the point, and \"still nothing\" is a useful answer worth posting to #891.")
+                    .font(StrandFont.caption)
+                    .foregroundStyle(StrandPalette.textTertiary)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                if ecgRawDataEnabled {
+                    HStack(alignment: .top, spacing: 8) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundStyle(StrandPalette.statusWarning)
+                            .accessibilityHidden(true)
+                        Text("This writes a setting that STAYS ON YOUR STRAP until you change it back — it isn't an app preference, and closing NOOP won't undo it. \"Turn gate off\" below writes '0' again, in one tap. Only this one key is ever written; the other six your strap listed are never touched.")
+                            .font(StrandFont.caption)
+                            .foregroundStyle(StrandPalette.statusWarning)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .accessibilityElement(children: .combine)
+
+                    NoopButton("Turn gate on (write '1')", systemImage: "waveform.path.ecg", kind: .primary) {
+                        model.ble.setEcgRawDataGate(true)
+                    }
+                    .disabled(!ecgGateReady)
+                    NoopButton("Turn gate off (write '0')", systemImage: "arrow.uturn.backward", kind: .secondary) {
+                        model.ble.setEcgRawDataGate(false)
+                    }
+                    .disabled(!ecgGateReady)
+                    Text(ecgGateReason)
+                        .font(StrandFont.caption)
+                        .foregroundStyle(StrandPalette.textTertiary)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    // The read-back — the ONLY thing reported as a result. The write's own ack is in the
+                    // strap log for the record and is deliberately not surfaced as an outcome here.
+                    if let report = live.ecgRawDataGate {
+                        Label(report.summary, systemImage: ecgGateIcon(report.verdict))
+                            .font(StrandFont.caption)
+                            .foregroundStyle(ecgGateTint(report.verdict))
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
                 }
 
                 Divider().overlay(StrandPalette.hairline)
@@ -3284,3 +3511,21 @@ private struct FormRow<Control: View>: View {
         .preferredColorScheme(.dark)
 }
 #endif
+
+// MARK: - Custom accent colour bridge
+
+private extension Color {
+    /// sRGB hex (`#RRGGBB`) for persisting a `ColorPicker` selection into `AccentColor.customHexKey`.
+    /// Falls back to nil if the colour can't resolve to sRGB (the caller then keeps the default).
+    var noopAccentHex: String? {
+        #if os(iOS)
+        var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+        guard UIColor(self).getRed(&r, green: &g, blue: &b, alpha: &a) else { return nil }
+        #elseif os(macOS)
+        guard let ns = NSColor(self).usingColorSpace(.sRGB) else { return nil }
+        let r = ns.redComponent, g = ns.greenComponent, b = ns.blueComponent
+        #endif
+        return String(format: "#%02X%02X%02X",
+                      Int((r * 255).rounded()), Int((g * 255).rounded()), Int((b * 255).rounded()))
+    }
+}

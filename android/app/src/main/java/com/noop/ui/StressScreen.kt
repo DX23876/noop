@@ -183,7 +183,11 @@ private suspend fun loadDaytimeStress(vm: AppViewModel): DaytimeReadout {
         return DaytimeReadout(DaytimeStress.Result.EMPTY, null, null)
     }
     val rr = vm.repo.rrIntervals("my-whoop", from, nowSeconds, limit = 200_000)
-    val daytime = DaytimeStress.analyze(hr, rr, tzOffsetSeconds)
+    // Wrist accelerometer for the motion gate: an ambulatory hour is EXERTION, not stress, so it is
+    // masked rather than scored (DaytimeStress). Same repo read as R-R; empty on hardware or imports
+    // with no gravity, which is exactly the "no masking, prior behaviour" degradation.
+    val gravity = vm.repo.gravitySamples("my-whoop", from, nowSeconds, limit = 200_000)
+    val daytime = DaytimeStress.analyze(hr, rr, gravity, tzOffsetSeconds)
     // ADDITIVE advanced readouts from the SAME `rr`. Each engine self-gates and returns null when
     // its requirement is not met, in which case its row is simply hidden in the UI.
     val si = StressIndex.components(rr)
@@ -247,7 +251,6 @@ private fun androidx.compose.foundation.lazy.LazyListScope.StressContent(
 // translucent near-black (mock rgba(13,14,20,.80)) so it floats over the day-of-sky; the vessel + white
 // count-up number read crisp on it. Radius 26 + a white@0.11 hairline give the frosted-glass edge. Same
 // numbers as the Today pilot's hero card.
-private val LIQUID_HERO_FILL: Color = Color(red = 13f / 255f, green = 14f / 255f, blue = 20f / 255f, alpha = 0.80f)
 private val LIQUID_HERO_RADIUS = 26.dp
 
 // MARK: - 1 · Hero — the liquid stress VESSEL (the flat PipBar is gone)
@@ -268,8 +271,8 @@ private fun StressHeroCard(model: StressModel, modifier: Modifier = Modifier) {
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(LIQUID_HERO_RADIUS))
-            .background(LIQUID_HERO_FILL.copy(alpha = LIQUID_HERO_FILL.alpha * CardAppearance.opacity))
-            .border(1.dp, Color.White.copy(alpha = 0.11f * CardAppearance.opacity), RoundedCornerShape(LIQUID_HERO_RADIUS))
+            .background(Palette.heroFill.copy(alpha = Palette.heroFill.alpha * CardAppearance.opacity))
+            .border(1.dp, Palette.heroBorder.copy(alpha = Palette.heroBorder.alpha * CardAppearance.opacity), RoundedCornerShape(LIQUID_HERO_RADIUS))
             .padding(Metrics.cardPadding),
     ) {
         Column(

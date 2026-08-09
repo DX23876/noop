@@ -762,6 +762,42 @@ extension WhoopStore {
                 t.add(column: "steps", .integer)
             }
         }
+        // #345 follow-up: per-session flag recording that a night was staged on SPARSE motion coverage
+        // (`SleepStager.isGravitySparse`), so the Sleep tab can honestly caption "sleep may be incomplete"
+        // when a sparse night likely under-detected (the "slept 8h, shows 1h" reports). Additive, nullable
+        // (existing rows / imported nights read null = unknown, never flagged); not part of the primary
+        // key. The v13 (`userEdited`) / v14 (`startTsAdjusted`) form. Byte-parity with Room MIGRATION_27_28.
+        migrator.registerMigration("v34-sleep-staging-sparse") { db in
+            // `.integer` (not `.boolean`) so the affinity is INTEGER on BOTH platforms — Room maps Kotlin
+            // Boolean? to INTEGER too — and this column carries no `grdb-boolean-affinity` divergence.
+            // The value is a 0/1 flag; GRDB binds/reads the Swift `Bool?` as 0/1 over an INTEGER column.
+            try db.alter(table: "sleepSession") { t in
+                t.add(column: "stagingSparse", .integer)
+            }
+        }
+        // v35 (#1073): quarantine R-R beats whose timestamp is in the FUTURE. An Oura ring's history
+        // timestamp is occasionally corrupt/misaligned and, before the OuraDriver gate was tightened to
+        // "now", converted to a date years ahead (measured on a live ring: ~1,600 beats stamped 2026→2034)
+        // and was banked — removed from the night it was measured in and queued to poison whichever future
+        // day it lands on. The ingest gate now rejects such samples, but rows already stored have to be
+        // taken out of scoring.
+        //
+        // NOT a delete: these are real heartbeats with a wrong timestamp, so — like the v32 srcChannel
+        // form — the column MARKS them and `Reads.rrIntervals` filters at READ, keeping them inspectable
+        // and recoverable if the ring-time offset is ever characterised (the migration rule warns against
+        // window-wide deletes). `strftime('%s','now')` runs once, at migration time; new rows are gated at
+        // ingest so never land future, and stay NULL. Additive nullable INTEGER, the v32 form: no table
+        // rebuild, no existing key touched, NOT in the primary key.
+        //
+        // Twin of Room MIGRATION_28_29.
+        migrator.registerMigration("v35-rr-future-quarantine") { db in
+            try db.alter(table: "rrInterval") { t in
+                t.add(column: "tsSuspect", .integer)
+            }
+            // CAST so the compare is numeric: `strftime` returns TEXT, and `ts` (INTEGER) > TEXT would
+            // otherwise lean on SQLite's affinity coercion rather than being explicit.
+            try db.execute(sql: "UPDATE rrInterval SET tsSuspect = 1 WHERE ts > CAST(strftime('%s','now') AS INTEGER)")
+        }
         return migrator
     }
 }

@@ -1059,11 +1059,23 @@ object SleepStager {
         // traceSink calls are the only addition and never alter `sessions`. `runIndex` counts only
         // sleep-stage runs so the trace numbers match the candidate ordinal.
         var runIndex = -1
+        // #737 follow-up: counters for the one-line detection summary emitted before `return` (below).
+        // Trace-only — never read back into `sessions`, so the untraced path stays byte-identical. They
+        // make the "slept 8h, app shows 1h" shape legible at a glance: a big detectedSpan with most runs
+        // dropped by the 60-min gate is the fragmentation signature. Mirrors Swift.
+        var sleepRunsSeen = 0
+        var minSleepDrops = 0
+        var firstSleepStart = Long.MAX_VALUE
+        var lastSleepEnd = 0L
         for (p in runs) {
             if (p.stage != "sleep") continue
             runIndex += 1
+            sleepRunsSeen += 1
+            firstSleepStart = minOf(firstSleepStart, p.start)
+            lastSleepEnd = maxOf(lastSleepEnd, p.end)
             val spanMin = ((p.end - p.start) / 60).toInt()
             if ((p.end - p.start) <= minSleepS) {
+                minSleepDrops += 1
                 traceSink?.invoke(SleepStagerTrace.runLine(runIndex, p.start, p.end,
                     SleepStagerTrace.Verdict.DROPPED, "minSleepMin", "spanMin=$spanMin minSleepMin=$minSleepMin"))
                 continue
@@ -1147,6 +1159,19 @@ object SleepStager {
             chainPrevEnd = p.end
         }
         sessions.sortBy { it.start }
+        // #737 follow-up: one glanceable line summarising the whole detection pass. A large
+        // detectedSpanMin with most runs droppedMinSleep and a small survivingSpanMin is exactly the
+        // "slept ~8h, only ~1h confirmed" fragmentation the field reports describe. Trace-only. Byte-
+        // identical string to Swift's summary line.
+        if (traceSink != null) {
+            val detectedSpanMin = if (lastSleepEnd > firstSleepStart) ((lastSleepEnd - firstSleepStart) / 60).toInt() else 0
+            val survivingSpanMin = (sessions.sumOf { it.end - it.start } / 60).toInt()
+            traceSink(
+                "sleep-detect summary: sleepRuns=$sleepRunsSeen droppedMinSleep=$minSleepDrops " +
+                    "kept=${sessions.size} detectedSpanMin=$detectedSpanMin survivingSpanMin=$survivingSpanMin " +
+                    "sparse=$sparse grav=${grav.size} hr=${hrS.size}"
+            )
+        }
         return sessions
     }
 
@@ -1579,7 +1604,7 @@ object SleepStager {
      * enough that only an unambiguous dropout trips it, and deliberately not tuned to a corpus.
      * Byte-parity twin of Swift `rsaGapToleranceS`.
      */
-    private const val rsaGapToleranceS: Double = 3.0
+    internal const val rsaGapToleranceS: Double = 3.0
 
     /** Physiologic breath-interval band (seconds): 0.1–0.4 Hz = 6–24 breaths/min. */
     private const val rsaMinBreathIntervalS: Double = 2.5  // 24 bpm
@@ -1639,6 +1664,43 @@ object SleepStager {
             .sortedBy { it.ts }
             .filter { it.rrMs.toDouble() >= HrvAnalyzer.RR_MIN_MS && it.rrMs.toDouble() <= HrvAnalyzer.RR_MAX_MS }
             .toList()
+
+        // Beat-accuracy gate (#882/#883): RSA needs per-beat-accurate TIMING - each row's wall-clock gap
+        // must be ≈ its own R-R value. A BANKED stream (an Oura overnight IBI stamps a whole record of
+        // intervals on one coarse ring-time) fails this, and the estimate it produces is not physiology;
+        // return NaN instead. Beat-accurate callers (WHOOP R-R, the synthetic RSA fixtures) measure ~100%
+        // and pass unchanged. Needs a few beats to judge; below that the count gate below handles it.
+        //
+        // Shares HrvAnalyzer's ONE definition of the judgement (#1108) rather than keeping a second copy:
+        // "is each stored interval a real beat-to-beat measurement?" is the same question SDNN asks, and
+        // one boundary deserves one set of constants. The range filter has already run, so an out-of-range
+        // R-R cannot fail the accuracy test spuriously.
+        //
+        // WHAT THIS ACTUALLY CATCHES, measured (2026-08-07, two Oura nights, 31,460 and 30,754 in-bed
+        // beats, fraction 0.0246 / 0.0235): NOT a corrupted time AXIS - the ring's records tile the night,
+        // sum(R-R) over wall span is 1.030 / 1.008, so beat-time reconstructs the night to 1-3%. What is
+        // unusable is the interval VALUES: the ring decomposes each ~6.6 s record into ~6 intervals whose
+        // SUM is right to ~1% while the individual values are not beat-to-beat measurements (the same
+        // decomposition documented on HrvAnalyzer.beatValuesAreTrustworthy). RSA reads the beat-to-beat
+        // variation, so it has nothing to read, and the peak-picker returns its own floor: on both nights
+        // the ungated estimate is 13.33 bpm, and SHUFFLING or REVERSING the night's R-R values returns the
+        // SAME 13.3333 to four decimals. It is a plausible-looking number carrying zero information -
+        // squarely inside respPlausibleRangeBpm, so the range clamp below never sees it. That is why the
+        // gate is on BANKED-ness rather than on the output value.
+        //
+        // DISTINCT FROM #977's splice skip below, and BOTH are needed - they catch opposite banking
+        // GEOMETRIES. #977 catches banking that TILES time (the real ring: a ~7 s record boundary against a
+        // ~1.1 s interval reads as a splice, and on those two nights it independently discards 113/113 and
+        // 114/114 windows). This catches banking that COMPRESSES time - respRateFromRR_batchedTimestampsIsNaN
+        // stamps 6 beats per single second, so no gap ever exceeds rsaGapToleranceS and the splice skip
+        // never fires. Neither subsumes the other; a firmware that changes its record period moves a stream
+        // from one geometry to the other without warning. Byte-identical twin of the Swift gate.
+        if (inBedRows.size >= 30) {
+            val fraction = HrvAnalyzer.beatAccurateFraction(
+                inBedRows.map { it.ts }, inBedRows.map { it.rrMs.toDouble() })
+            if (!HrvAnalyzer.beatValuesAreTrustworthy(fraction)) return nan
+        }
+
         val filtered = inBedRows.map { it.rrMs.toDouble() }
         if (filtered.size < 30) return nan // need enough beats for any RSA estimate
 

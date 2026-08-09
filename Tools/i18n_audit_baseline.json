@@ -473,40 +473,24 @@
       "r = %+.2f"
     ],
     [
+      "android/app/src/main/java/com/noop/ui/NoopLimitationsScreen.kt",
+      "${row.feature}: WHOOP 4.0 ${row.whoop4.spoken}, 5.0/MG ${row.whoop5.spoken}"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/NoopLimitationsScreen.kt",
+      "5.0/MG"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/NoopLimitationsScreen.kt",
+      "Feature"
+    ],
+    [
       "android/app/src/main/java/com/noop/ui/NotificationsSettingsScreen.kt",
       "Buzzes your wrist"
     ],
     [
       "android/app/src/main/java/com/noop/ui/NotificationsSettingsScreen.kt",
       "Off"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/OnboardingScreen.kt",
-      "Deep blue accent on a dark blue-grey canvas."
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/OnboardingScreen.kt",
-      "Deep blue accent on warm paper."
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/OnboardingScreen.kt",
-      "Following your phone's light/dark setting."
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/OnboardingScreen.kt",
-      "Re-scan"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/OnboardingScreen.kt",
-      "Scan again"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/OnboardingScreen.kt",
-      "Your strap is bonded and ready to stream."
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/OnboardingScreen.kt",
-      "Your strap is bonded · ${it.toInt()}% battery."
     ],
     [
       "android/app/src/main/java/com/noop/ui/PipBar.kt",
@@ -530,19 +514,15 @@
     ],
     [
       "android/app/src/main/java/com/noop/ui/SettingsScreen.kt",
+      "Blood Oxygen: strap estimate"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/SettingsScreen.kt",
       "Change photo"
     ],
     [
       "android/app/src/main/java/com/noop/ui/SettingsScreen.kt",
       "Choose photo"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/SettingsScreen.kt",
-      "Collapsed"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/SettingsScreen.kt",
-      "Expanded"
     ],
     [
       "android/app/src/main/java/com/noop/ui/SettingsScreen.kt",
@@ -567,6 +547,14 @@
     [
       "android/app/src/main/java/com/noop/ui/SettingsScreen.kt",
       "Searching…"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/SettingsScreen.kt",
+      "Sleep chart"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/SettingsScreen.kt",
+      "Surfaces the WHOOP 5/MG strap's nightly SpO₂ estimate (spo2_candidate_82) in the "
     ],
     [
       "android/app/src/main/java/com/noop/ui/SettingsScreen.kt",
@@ -647,6 +635,18 @@
     [
       "android/app/src/main/java/com/noop/ui/StressScreen.kt",
       "Today's value is your recorded daily stress score (0-3)."
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/TestCentreScreen.kt",
+      "Capturing… reproduce the issue, then share the log below."
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/TestCentreScreen.kt",
+      "Detailed capture to file"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/TestCentreScreen.kt",
+      "Share captured log"
     ],
     [
       "android/app/src/main/java/com/noop/ui/TodayScreen.kt",
@@ -859,26 +859,6 @@
       "\\(value), \\(label!)"
     ],
     [
-      "Packages/StrandDesign/Sources/StrandDesign/DayNavBar.swift",
-      "Next day"
-    ],
-    [
-      "Packages/StrandDesign/Sources/StrandDesign/DayNavBar.swift",
-      "Pick a date"
-    ],
-    [
-      "Packages/StrandDesign/Sources/StrandDesign/DayNavBar.swift",
-      "Previous day"
-    ],
-    [
-      "Packages/StrandDesign/Sources/StrandDesign/TrendChart.swift",
-      "Trend"
-    ],
-    [
-      "Packages/StrandDesign/Sources/StrandDesign/YearHeatStrip.swift",
-      "\\(DateFormatterCache.day.string(from: day.date)) · recovery \\(Int(score.rounded()))"
-    ],
-    [
       "Strand/Liquid/LiquidPrimitives.swift",
       "%.\\(decimals)f"
     ],
@@ -917,6 +897,14 @@
     [
       "Strand/Screens/SettingsView.swift",
       "%+.0f%%"
+    ],
+    [
+      "Strand/Screens/SettingsView.swift",
+      "Blood Oxygen: strap estimate (WHOOP 5/MG)"
+    ],
+    [
+      "Strand/Screens/SettingsView.swift",
+      "Your WHOOP 5.0/MG sends a strap-computed SpO₂ percentage (the @82 candidate byte) every second. An 8-night independent validation tracked it at corr +0.99 against the WHOOP app, but two nights on the original test device moved the OPPOSITE direction — device/firmware variance is unresolved. Turning this on surfaces the nightly mean in the Blood Oxygen tile as \\\"strap estimate (unverified)\\\" when no calibrated import exists. It never feeds recovery or illness scoring. WHOOP 4.0 has no @82 stream, so this does nothing there."
     ]
   ]
 }

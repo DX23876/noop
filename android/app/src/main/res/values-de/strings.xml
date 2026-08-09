@@ -31,6 +31,7 @@
     <string name="nav_automations">Automationen</string>
     <string name="nav_alarms">Wecker</string>
     <string name="nav_devices">Geräte</string>
+    <string name="nav_noop_limitations">NOOP-Grenzen</string>
     <string name="nav_data_sources">Datenquellen</string>
     <string name="nav_backup_sync">Backup &amp; Sync</string>
     <string name="nav_fused_record">Deine Daten, vereint</string>
@@ -55,6 +56,8 @@
     <string name="today_customize_title">Heute anpassen</string>
     <string name="today_customize_action">Anpassen</string>
     <string name="today_customize_description">Ordne sichtbare Elemente neu an oder verschiebe einen Abschnitt nach „Ausgeblendet“, ohne ihn zu löschen.</string>
+    <string name="sleep_customize_title">Schlaf anpassen</string>
+    <string name="sleep_customize_description">Ordne sichtbare Elemente neu an oder verschiebe einen Abschnitt nach „Ausgeblendet“, ohne ihn zu löschen.</string>
     <string name="today_customize_shown">ANGEZEIGT</string>
     <string name="today_customize_hidden">AUSGEBLENDET</string>
     <string name="today_customize_nothing_hidden">Nichts ausgeblendet</string>
@@ -1422,6 +1425,8 @@
     <string name="l10n_settings_screen_age_ff9f1ff3">Alter</string>
     <string name="l10n_settings_screen_app_icon_abde7a74">App-Symbol</string>
     <string name="l10n_settings_screen_appearance_41def7a0">Erscheinungsbild</string>
+    <string name="l10n_settings_screen_reduce_motion_in_noop_59a6180d">Bewegung in NOOP reduzieren</string>
+    <string name="l10n_settings_screen_holds_the_liquid_gauges_the_sky_41872b57">Hält die Flüssigkeitsanzeigen, den Himmel und die Neigungsreaktion still und schaltet den Bewegungssensor ab, der sie antreibt. Spart Akku. Der Stromsparmodus und die Systemeinstellung „Bewegung reduzieren“ tun dies bereits.</string>
     <string name="l10n_settings_screen_auto_detect_workouts_bed4cf2a">Workouts automatisch erkennen</string>
     <string name="l10n_settings_screen_automatic_backups_8a772f3c">Automatische Backups</string>
     <string name="l10n_settings_screen_backup_restore_a1616284">Sicherung &amp; Wiederherstellung</string>
@@ -1747,6 +1752,8 @@
     </plurals>
     <string name="timeline_spo2_not_on_whoop5">Dieses Band sendet kein SpO₂ über Bluetooth. Importiere einen WHOOP-Export oder Health Connect, um es zu sehen.</string>
     <string name="timeline_resp_not_on_whoop5">Dieses Band sendet keinen Rohdaten-Atemstrom. Deine geschätzte Atemfrequenz erscheint im Health-Bildschirm.</string>
+    <string name="settings_disclosure_expanded">Erweitert</string>
+    <string name="settings_disclosure_collapsed">Reduziert</string>
     <string name="l10n_data_sources_screen_last_shared_6bf8389c">"Zuletzt geteilt "</string>
     <string name="l10n_data_sources_screen_sharing_paused_health_connect_permission_was_e8950315">Teilen pausiert – die Health-Connect-Berechtigung wurde entzogen. Zum erneuten Erteilen tippen.</string>
     <string name="l10n_data_sources_screen_last_share_didn_t_finish_noop_0d6c27f0">Letztes Teilen unvollständig – NOOP versucht es automatisch erneut.</string>
@@ -1902,4 +1909,31 @@
     <string name="l10n_app_changelog_widgets_stop_inventing_numbers_naps_count_4f7491bb">Widgets erfinden keine Zahlen mehr, Nickerchen zählen für die Schlafschuld, und die Android-Statusanzeigen sprechen deine Sprache</string>
     <string name="l10n_app_changelog_your_hrv_is_measured_right_again_d635e316">Deine HRV wird wieder richtig gemessen, Oura-Ringe zählen Herzschläge nicht mehr doppelt, und die App spricht überall deine Sprache</string>
     <string name="l10n_app_changelog_home_and_lock_screen_widgets_now_999ac095">Home- und Sperrbildschirm-Widgets funktionieren jetzt beim Sideloading</string>
+    <string name="l10n_sleep_screen_may_be_incomplete_7230dc27">Möglicherweise unvollständig</string>
+    <string name="l10n_sleep_screen_little_motion_was_recorded_over_f061b7e4">Über Nacht wurde wenig Bewegung aufgezeichnet, daher wurde diese Nacht möglicherweise nicht vollständig erfasst und die Schlafdauer kann zu kurz erscheinen. Stelle sicher, dass das Band vollständig synchronisiert wurde.</string>
+    <string name="haptics_section_title">Haptik</string>
+    <string name="haptics_breathing_label">Atemtaktgeber</string>
+    <string name="haptics_intervals_label">Intervall-Timer</string>
+    <string name="haptics_live_session_label">Live-Session-Hinweise</string>
+    <string name="haptics_workout_label">Trainingsstart und -ende</string>
+    <string name="notif_timer_alarm_title">Timer &amp; Wecker</string>
+    <string name="l10n_settings_screen_ecg_raw_data_gate_whoop_mg_only">ECG-Rohdatensperre (nur WHOOP MG)</string>
+    <string name="l10n_settings_screen_ecg_gate_blurb">Dein Band hat seine eigenen Geräte-Konfigurationsschlüssel aufgelistet, darunter enable_raw_data_w_ecg. Auf einem MG ohne ECG-Abo steht er auf \'0\' — während alle drei ECG-Befehle mit SUCCESS antworten und trotzdem keine Daten senden (#891). Das ist die naheliegendste Vermutung, was ECG verschlossen hält. Ob das Umlegen tatsächlich ECG-Daten liefert, weiß niemand: genau das herauszufinden ist der Zweck, und „immer noch nichts“ ist ein brauchbares Ergebnis, das sich zu posten lohnt (#891).</string>
+    <string name="l10n_settings_screen_ecg_gate_persistent_warning">Dies schreibt eine Einstellung, die AUF DEINEM BAND BLEIBT, bis du sie zurücksetzt — es ist keine App-Einstellung, und das Schließen von NOOP macht sie nicht rückgängig. „Sperre ausschalten“ schreibt mit einem Tippen wieder \'0\'. Es wird ausschließlich dieser eine Schlüssel geschrieben; die anderen sechs, die dein Band aufgelistet hat, werden nie angefasst.</string>
+    <string name="l10n_settings_screen_ecg_gate_turn_on">Sperre einschalten (\'1\' schreiben)</string>
+    <string name="l10n_settings_screen_ecg_gate_turn_off">Sperre ausschalten (\'0\' schreiben)</string>
+    <string name="l10n_settings_screen_accent">Akzent</string>
+    <string name="l10n_settings_screen_preset">Vorlage</string>
+    <string name="settings_language">Sprache</string>
+    <string name="settings_choose_language">Sprache auswählen</string>
+    <string name="settings_language_system">Systemstandard</string>
+    <string name="settings_appearance_detail">Wähle Hell, Dunkel oder folge deinem System. Dunkel ist das charakteristische Fast-Schwarz; Hell behält denselben klaren Look auf heller Fläche.</string>
+    <string name="settings_theme_light">Hell</string>
+    <string name="settings_theme_dark">Dunkel</string>
+    <string name="settings_chart_default">Standard</string>
+    <string name="settings_chart_classic">Klassisch</string>
+    <string name="settings_trend_line">Linie</string>
+    <string name="settings_trend_bars">Balken</string>
+    <string name="spo2_strap_estimate_caption">Armband-Schätzung (unbestätigt)</string>
+    <string name="spo2_toggle_on_no_data">Schalter EIN · keine @82-Daten</string>
 </resources>

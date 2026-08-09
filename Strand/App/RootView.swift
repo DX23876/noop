@@ -26,6 +26,7 @@ enum NavItem: String, CaseIterable, Identifiable, Hashable {
     case backupSync = "Backup & Sync"
     case fusedRecord = "Your Data, Fused"
     case devices = "Devices"
+    case noopLimitations = "NOOP Limitations"
     case notifications = "Notifications"
     case automation = "Automations"
     case smartAlarm = "Smart Alarm"
@@ -62,6 +63,7 @@ enum NavItem: String, CaseIterable, Identifiable, Hashable {
         case .backupSync: return "Backup & Sync"
         case .fusedRecord: return "Your Data, Fused"
         case .devices: return "Devices"
+        case .noopLimitations: return "NOOP Limitations"
         case .notifications: return "Notifications"
         case .automation: return "Automations"
         // "Alarms" is the ONE alarm surface (#766): the strap's silent wake-alarm (moved in from
@@ -105,6 +107,7 @@ enum NavItem: String, CaseIterable, Identifiable, Hashable {
         case .backupSync: return String(localized: "Backup & Sync")
         case .fusedRecord: return String(localized: "Your Data, Fused")
         case .devices: return String(localized: "Devices")
+        case .noopLimitations: return String(localized: "NOOP Limitations")
         case .notifications: return String(localized: "Notifications")
         case .automation: return String(localized: "Automations")
         // Mirrors the `titleKey` remap above (#766): the row reads "Alarms", not the raw "Smart Alarm".
@@ -140,6 +143,7 @@ enum NavItem: String, CaseIterable, Identifiable, Hashable {
         case .backupSync: return "externaldrive.fill.badge.icloud"
         case .fusedRecord: return "square.stack.3d.up.fill"
         case .devices: return "badge.plus.radiowaves.right"
+        case .noopLimitations: return "list.bullet.rectangle"
         case .notifications: return "bell.badge.fill"
         case .automation: return "wand.and.stars"
         case .smartAlarm: return "alarm.fill"
@@ -177,7 +181,7 @@ struct NavGroup: Identifiable {
             .labBook, .rhythm, .trends,
         ]),
         NavGroup(title: "Data & App", id: "data_app", items: [
-            .devices, .dataSources, .appleHealth, .miBand, .backupSync, .fusedRecord,
+            .devices, .noopLimitations, .dataSources, .appleHealth, .miBand, .backupSync, .fusedRecord,
             .notifications, .automation, .smartAlarm, .settings, .testCentre,
         ]),
     ]
@@ -453,6 +457,7 @@ struct RootView: View {
         case .backupSync: BackupSyncView()
         case .fusedRecord: FusedRecordHost()
         case .devices: DevicesView()
+        case .noopLimitations: NoopLimitationsView()
         case .notifications: NotificationSettingsView()
         case .automation: AutomationsView()
         case .smartAlarm: SmartAlarmView()
@@ -558,7 +563,7 @@ private struct SidebarStatus: View {
             Spacer()
         }
         .padding(10)
-        .background(StrandPalette.surfaceRaised, in: RoundedRectangle(cornerRadius: 10))
+        .background(NoopPanelSurface(cornerRadius: 10))
     }
 
     // Shares LiveState.connectionStatus* with the Settings strap card so the two never disagree (#266):

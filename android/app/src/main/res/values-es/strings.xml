@@ -1252,6 +1252,8 @@
     <string name="l10n_settings_screen_age_ff9f1ff3">Edad</string>
     <string name="l10n_settings_screen_app_icon_abde7a74">Icono de la app</string>
     <string name="l10n_settings_screen_appearance_41def7a0">Apariencia</string>
+    <string name="l10n_settings_screen_reduce_motion_in_noop_59a6180d">Reducir movimiento en NOOP</string>
+    <string name="l10n_settings_screen_holds_the_liquid_gauges_the_sky_41872b57">Mantiene quietos los medidores líquidos, el cielo y la respuesta a la inclinación, y apaga el sensor de movimiento que los impulsa. Ahorra batería. El modo de bajo consumo y el ajuste del sistema «Reducir movimiento» ya hacen esto.</string>
     <string name="l10n_settings_screen_auto_detect_workouts_bed4cf2a">Detectar entrenamientos automáticamente</string>
     <string name="l10n_settings_screen_automatic_backups_8a772f3c">Respaldos automáticos</string>
     <string name="l10n_settings_screen_backup_restore_a1616284">Copia de seguridad y restauración</string>
@@ -1543,6 +1545,7 @@
     <string name="nav_automations">Automatizaciones</string>
     <string name="nav_alarms">Alarmas</string>
     <string name="nav_devices">Dispositivos</string>
+    <string name="nav_noop_limitations">Limitaciones de NOOP</string>
     <string name="nav_data_sources">Fuentes de datos</string>
     <string name="nav_backup_sync">Copia y sincronización</string>
     <string name="nav_fused_record">Tus datos, fusionados</string>
@@ -1563,6 +1566,8 @@
     <string name="today_customize_title">Personalizar Hoy</string>
     <string name="today_customize_action">Personalizar</string>
     <string name="today_customize_description">Reordena lo que se muestra o mueve una sección a Ocultos sin eliminarla.</string>
+    <string name="sleep_customize_title">Personalizar Sueño</string>
+    <string name="sleep_customize_description">Reordena lo que se muestra o mueve una sección a Ocultos sin eliminarla.</string>
     <string name="today_customize_shown">VISIBLES</string>
     <string name="today_customize_hidden">OCULTOS</string>
     <string name="today_customize_nothing_hidden">No hay nada oculto</string>
@@ -1732,6 +1737,8 @@
     </plurals>
     <string name="timeline_spo2_not_on_whoop5">Esta correa no envía SpO₂ por Bluetooth. Importa una exportación de WHOOP o Health Connect para verlo.</string>
     <string name="timeline_resp_not_on_whoop5">Esta correa no envía datos de respiración sin procesar. Tu frecuencia respiratoria estimada aparece en la pantalla Salud.</string>
+    <string name="settings_disclosure_expanded">Expandido</string>
+    <string name="settings_disclosure_collapsed">Contraído</string>
     <string name="l10n_data_sources_screen_last_shared_6bf8389c">"Compartido por última vez "</string>
     <string name="l10n_data_sources_screen_sharing_paused_health_connect_permission_was_e8950315">Uso compartido en pausa: se revocó el permiso de Health Connect. Toca para volver a concederlo.</string>
     <string name="l10n_data_sources_screen_last_share_didn_t_finish_noop_0d6c27f0">El último uso compartido no se completó: NOOP lo reintentará automáticamente.</string>
@@ -1887,4 +1894,31 @@
     <string name="l10n_app_changelog_widgets_stop_inventing_numbers_naps_count_4f7491bb">Los widgets dejan de inventar números, las siestas cuentan para la deuda de sueño y los indicadores de Android hablan tu idioma</string>
     <string name="l10n_app_changelog_your_hrv_is_measured_right_again_d635e316">Tu VFC vuelve a medirse bien, los anillos Oura dejan de contar cada latido dos veces y la app habla tu idioma en todas partes</string>
     <string name="l10n_app_changelog_home_and_lock_screen_widgets_now_999ac095">Los widgets de la pantalla de inicio y bloqueo ya funcionan al instalar por sideload</string>
+    <string name="l10n_sleep_screen_may_be_incomplete_7230dc27">Puede estar incompleto</string>
+    <string name="l10n_sleep_screen_little_motion_was_recorded_over_f061b7e4">Se registró poco movimiento durante la noche, por lo que esta noche puede haberse detectado de forma incompleta y el total de sueño puede parecer corto. Asegúrate de que la correa se haya sincronizado por completo.</string>
+    <string name="haptics_section_title">Vibración</string>
+    <string name="haptics_breathing_label">Guía de respiración</string>
+    <string name="haptics_intervals_label">Temporizador de intervalos</string>
+    <string name="haptics_live_session_label">Avisos de sesión en directo</string>
+    <string name="haptics_workout_label">Inicio y fin del entrenamiento</string>
+    <string name="notif_timer_alarm_title">Temporizador y alarma</string>
+    <string name="l10n_settings_screen_ecg_raw_data_gate_whoop_mg_only">Bloqueo de datos ECG sin procesar (solo WHOOP MG)</string>
+    <string name="l10n_settings_screen_ecg_gate_blurb">Tu correa ha enumerado sus propias claves de configuración, y una de ellas es enable_raw_data_w_ecg. En un MG sin suscripción de ECG vale \'0\', mientras que los tres comandos de ECG responden SUCCESS y no envían dato alguno (#891). Es la hipótesis principal sobre qué mantiene el ECG cerrado. Nadie sabe si cambiarla produce realmente datos de ECG: averiguarlo es el objetivo, y «sigue sin haber nada» es una respuesta útil que merece publicarse en #891.</string>
+    <string name="l10n_settings_screen_ecg_gate_persistent_warning">Esto escribe un ajuste que PERMANECE EN TU CORREA hasta que lo cambies de vuelta: no es una preferencia de la app y cerrar NOOP no lo deshace. «Desactivar bloqueo» vuelve a escribir \'0\' con un solo toque. Solo se escribe esta clave; las otras seis que enumeró tu correa nunca se tocan.</string>
+    <string name="l10n_settings_screen_ecg_gate_turn_on">Activar bloqueo (escribir \'1\')</string>
+    <string name="l10n_settings_screen_ecg_gate_turn_off">Desactivar bloqueo (escribir \'0\')</string>
+    <string name="l10n_settings_screen_accent">Acento</string>
+    <string name="l10n_settings_screen_preset">Preajuste</string>
+    <string name="settings_language">Idioma</string>
+    <string name="settings_choose_language">Elegir idioma</string>
+    <string name="settings_language_system">Predeterminado del sistema</string>
+    <string name="settings_appearance_detail">Elige Claro, Oscuro o seguir tu sistema. Oscuro es el casi negro característico; Claro mantiene el mismo aspecto limpio sobre un lienzo brillante.</string>
+    <string name="settings_theme_light">Claro</string>
+    <string name="settings_theme_dark">Oscuro</string>
+    <string name="settings_chart_default">Predeterminado</string>
+    <string name="settings_chart_classic">Clásico</string>
+    <string name="settings_trend_line">Línea</string>
+    <string name="settings_trend_bars">Barras</string>
+    <string name="spo2_strap_estimate_caption">estimación de la correa (sin verificar)</string>
+    <string name="spo2_toggle_on_no_data">activado · sin datos de @82</string>
 </resources>

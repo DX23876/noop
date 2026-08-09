@@ -275,12 +275,48 @@ final class Repository: ObservableObject {
     /// single returned row per day feeds the existing imported-vs-computed `mergeDaily` unchanged.
     private func unionDailyMetrics(store: WhoopStore, from: String, to: String) async -> [DailyMetric] {
         var byDay: [String: DailyMetric] = [:]
-        for id in importedReadIds {   // active strap FIRST → it claims each day, canonical only fills gaps
-            for m in (try? await store.dailyMetrics(deviceId: id, from: from, to: to)) ?? [] where byDay[m.day] == nil {
-                byDay[m.day] = m
+        for id in importedReadIds {   // active strap FIRST → it claims each column, canonical fills its gaps
+            for m in (try? await store.dailyMetrics(deviceId: id, from: from, to: to)) ?? [] {
+                byDay[m.day] = byDay[m.day].map { Self.coalesceDay($0, m) } ?? m
             }
         }
         return byDay.values.sorted { $0.day < $1.day }
+    }
+
+    /// One day held by two source ids in the SAME bucket, folded into `winner`'s row: `winner` keeps every
+    /// column it carries (NON-nil — a measured zero is a reading) and `filler` supplies only the ones it
+    /// left nil. Whole-row first-wins let a hollow row (steps and nothing else) discard a complete one, and
+    /// nothing downstream healed it — `mergeDaily` only bridges imported/computed/phone, never two straps.
+    /// Columns that only mean something together move as a GROUP, whole and from one row, so a sleep total
+    /// never sits beside another strap's stage minutes: the sleep block, and the raw red/IR PPG pair.
+    /// Across-bucket precedence (`mergeDaily`) is untouched. Ported from tanarchytan/noop @de370b85, reduced
+    /// to the columns this DailyMetric carries. Byte-identical twin of Kotlin WhoopRepository.coalesceDay.
+    nonisolated static func coalesceDay(_ winner: DailyMetric, _ filler: DailyMetric) -> DailyMetric {
+        let sleepFromFiller = winner.totalSleepMin == nil && winner.efficiency == nil &&
+            winner.deepMin == nil && winner.remMin == nil && winner.lightMin == nil &&
+            winner.disturbances == nil
+        let rawSpo2FromFiller = winner.spo2Red == nil && winner.spo2Ir == nil
+        return DailyMetric(
+            day: winner.day,
+            totalSleepMin: sleepFromFiller ? filler.totalSleepMin : winner.totalSleepMin,
+            efficiency: sleepFromFiller ? filler.efficiency : winner.efficiency,
+            deepMin: sleepFromFiller ? filler.deepMin : winner.deepMin,
+            remMin: sleepFromFiller ? filler.remMin : winner.remMin,
+            lightMin: sleepFromFiller ? filler.lightMin : winner.lightMin,
+            disturbances: sleepFromFiller ? filler.disturbances : winner.disturbances,
+            restingHr: winner.restingHr ?? filler.restingHr,
+            avgHrv: winner.avgHrv ?? filler.avgHrv,
+            recovery: winner.recovery ?? filler.recovery,
+            strain: winner.strain ?? filler.strain,
+            exerciseCount: winner.exerciseCount ?? filler.exerciseCount,
+            spo2Pct: winner.spo2Pct ?? filler.spo2Pct,
+            skinTempDevC: winner.skinTempDevC ?? filler.skinTempDevC,
+            respRateBpm: winner.respRateBpm ?? filler.respRateBpm,
+            steps: winner.steps ?? filler.steps,
+            activeKcalEst: winner.activeKcalEst ?? filler.activeKcalEst,
+            spo2Red: rawSpo2FromFiller ? filler.spo2Red : winner.spo2Red,
+            spo2Ir: rawSpo2FromFiller ? filler.spo2Ir : winner.spo2Ir
+        )
     }
 
     /// metricSeries points across the imported union for a key + day range, DEDUPED per day with the active
@@ -307,8 +343,8 @@ final class Repository: ObservableObject {
     private func unionComputedDailyMetrics(store: WhoopStore, from: String, to: String) async -> [DailyMetric] {
         var byDay: [String: DailyMetric] = [:]
         for id in computedReadIds {
-            for m in (try? await store.dailyMetrics(deviceId: id, from: from, to: to)) ?? [] where byDay[m.day] == nil {
-                byDay[m.day] = m
+            for m in (try? await store.dailyMetrics(deviceId: id, from: from, to: to)) ?? [] {
+                byDay[m.day] = byDay[m.day].map { Self.coalesceDay($0, m) } ?? m
             }
         }
         return byDay.values.sorted { $0.day < $1.day }
@@ -1137,6 +1173,19 @@ final class Repository: ObservableObject {
         return await unionSleepSessions(store: store, from: from, to: to, limit: limit)
     }
 
+    /// Computed ("-noop") sleep sessions for a ts range, oldest→newest by onset — the funnel/diagnostic
+    /// FALLBACK (#1150). A Bluetooth-only strap (no WHOOP/Apple-Health import) banks every night under the
+    /// COMPUTED source, so the imported-only `sleepSessions(from:to:)` returns nothing and the funnel
+    /// reported "no sleep session in the last 14 days to analyze" for a 4.0 user whose nights are all
+    /// computed. Sorted by start so `.last` is the newest, matching the imported path's ASC order. Callers
+    /// use this ONLY when the imported read is empty ⇒ a mixed/imported install's read is byte-unchanged.
+    /// Mirrors Android `WhoopRepository.computedSleepSessionsUnion`.
+    func computedSleepSessions(from: Int, to: Int, limit: Int = 100) async -> [CachedSleepSession] {
+        guard let store = await ensureStore() else { return [] }
+        return (await unionComputedSleepSessions(store: store, from: from, to: to, limit: limit))
+            .sorted { $0.startTs < $1.startTs }
+    }
+
     /// Every sleep BLOCK across BOTH sources, UN-deduplicated , so a split-sleep day (a nap
     /// + a main sleep, or any night recorded as multiple blocks) keeps ALL of its blocks.
     /// `sleeps` collapses each day to a single winner for the dashboard; this does not.
@@ -1672,24 +1721,28 @@ final class Repository: ObservableObject {
 
     /// Map each device id to the strap family that wrote its rows (#938), for the family-aware skin-temp
     /// raw→°C conversion. Reads the registry ONCE; the model-label → family mapping (and the `.whoop5`
-    /// fallback for unknowns) lives in `DeviceFamily.forRegistryModel` (#171). Best-effort: an unreadable
+    /// fallback for unknowns) lives in `DeviceFamily.forRegistryDevice` (#171, #1086). Best-effort: an unreadable
     /// registry yields an empty map, so every caller falls back to `.whoop5`.
     private static func skinTempFamilies(store: WhoopStore, ids: [String]) -> [String: DeviceFamily] {
         let devices = (try? DeviceRegistryStore(dbQueue: store.registryWriter).all()) ?? []
         var out: [String: DeviceFamily] = [:]
         for id in ids {
-            out[id] = DeviceFamily.forRegistryModel(devices.first(where: { $0.id == id })?.model)
+            let d = devices.first(where: { $0.id == id })
+            // A non-WHOOP device (nil) shares the non-4.0 raw→°C branch, so it coalesces to `.whoop5` —
+            // the exact scale it got before; brand-awareness just stops it *claiming* to be a WHOOP (#1086).
+            out[id] = DeviceFamily.forRegistryDevice(model: d?.model, brand: d?.brand) ?? .whoop5
         }
         return out
     }
 
     /// Family of the ACTIVE strap (#623), for the deep timeline's family-specific empty-state copy. Reuses
-    /// the canonical `DeviceFamily.forRegistryModel` (#171) with its `.whoop5` fallback for nil/unknown/
+    /// the canonical `DeviceFamily.forRegistryDevice` (#171, #1086) with its `.whoop5` fallback for nil/unknown/
     /// ambiguous, matching Android's `FullDayChartScreen`. Best-effort: no store / unreadable registry → `.whoop5`.
     func activeStrapFamily() -> DeviceFamily {
         guard let store else { return .whoop5 }
         let devices = (try? DeviceRegistryStore(dbQueue: store.registryWriter).all()) ?? []
-        return DeviceFamily.forRegistryModel(devices.first(where: { $0.id == deviceId })?.model)
+        let d = devices.first(where: { $0.id == deviceId })
+        return DeviceFamily.forRegistryDevice(model: d?.model, brand: d?.brand) ?? .whoop5
     }
 
     /// Whether the active strap has EVER banked a sample of `metric` (#623) — distinguishes a strap that

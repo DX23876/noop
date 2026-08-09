@@ -203,7 +203,6 @@ private var todayDidSnapToTodayThisLaunch = false
 // The hero card the score vessels float on, ported from the iOS LiquidTodayView. `heroFill` is a
 // translucent near-black (mock rgba(13,14,20,.80)) so it floats over the day-of-sky; the vessels + white
 // count-up numbers read crisp on it. Radius 26 + a white@0.11 hairline give the frosted-glass edge.
-private val LIQUID_HERO_FILL: Color = Color(red = 13f / 255f, green = 14f / 255f, blue = 20f / 255f, alpha = 0.80f)
 private val LIQUID_HERO_RADIUS: Dp = 26.dp
 
 // The Vitality vessel purple (#9b7bff) — no exact Palette token in this theme, so a fixed brand literal
@@ -238,6 +237,7 @@ private data class TodayLiveSnapshot(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
+@Suppress("UNUSED_PARAMETER")
 fun TodayScreen(
     viewModel: AppViewModel,
     onQuickActions: () -> Unit = {},
@@ -273,6 +273,7 @@ fun TodayScreen(
     val today by viewModel.today.collectAsStateWithLifecycle()
     val alert by viewModel.healthAlert.collectAsStateWithLifecycle()
     val days by viewModel.recentDays.collectAsStateWithLifecycle()
+    val spo2CandidateByDay by viewModel.spo2CandidateByDay.collectAsStateWithLifecycle()
     val live by viewModel.live.collectAsStateWithLifecycle()
     // The in-flight manual workout (single source of truth, survives an app kill via rehydration), so the
     // indicator card auto-appears/clears off this alone. Null↔non-null + the start drive the card; the
@@ -633,7 +634,6 @@ fun TodayScreen(
     // collapsed and are NOT persisted, so the home screen reopens compact. Mirrors iOS.
     var metricsExpanded by remember { mutableStateOf(false) }
     var sourcesExpanded by remember { mutableStateOf(false) }
-    var scoringCardSeen by remember { mutableStateOf(ScoringGuidePrefs.cardSeen(context)) }
 
     // Per-card "dismissed into the inbox" flags for the two Today info-cards. A small × on each card
     // sets these (and posts a `.dismissedCard` update); "Restore to Today" in the inbox flips them back
@@ -1377,10 +1377,10 @@ fun TodayScreen(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .background(
-                                        LIQUID_HERO_FILL.copy(alpha = LIQUID_HERO_FILL.alpha * CardAppearance.opacity),
+                                        Palette.heroFill.copy(alpha = Palette.heroFill.alpha * CardAppearance.opacity),
                                         RoundedCornerShape(LIQUID_HERO_RADIUS),
                                     )
-                                    .border(1.dp, Color.White.copy(alpha = 0.11f * CardAppearance.opacity), RoundedCornerShape(LIQUID_HERO_RADIUS))
+                                    .border(1.dp, Palette.heroBorder.copy(alpha = Palette.heroBorder.alpha * CardAppearance.opacity), RoundedCornerShape(LIQUID_HERO_RADIUS))
                                     .staggeredAppear(stagger),
                             ) {
                                 ScoreHeroRow(
@@ -1544,6 +1544,7 @@ fun TodayScreen(
                             onOpenSleep = onOpenSleep,
                             onOpenCoupled = onOpenCoupled,
                             onCustomise = { showDashboardEditor = true },
+                            spo2CandidateByDay = spo2CandidateByDay,
                         )
                         // #656: the persistent journal widget (last-7-days strip + tap-through). Now a
                         // reorderable section like the others — hold-drag or Arrange moves it. Today-only
@@ -2471,7 +2472,8 @@ private fun ScoreHeroRow(
                     if (heroSourceLabel != null) {
                         SourceBadge(
                             text = heroSourceLabel,
-                            tint = Palette.onDarkSecondary,
+                            // #1160: the hero is theme-aware now, so its badge uses the flip-able text token.
+                            tint = Palette.textSecondary,
                             modifier = Modifier
                                 .align(Alignment.TopEnd)
                                 // Measure the full label even when it is wider than the Rest vessel, then
@@ -2783,18 +2785,25 @@ private fun ReadinessHeroPill(word: String, level: ReadinessEngine.Level, onTap:
  *  and drawn as a dimmed FILLED ring in the carried branch (matching iOS chargeRing), so this overlay only
  *  covers the calibrating and no-data cases. Mirrors iOS TodayView.ringEmptyOverlay. */
 @Composable
+@Suppress("UNUSED_PARAMETER")
 private fun RingEmptyOverlay(
     calibratingNights: Int?,
     diameter: Dp,
 ) {
     if (calibratingNights != null) {
+        // AutoSizeValue shrink-to-fit + the centring Column, same as RingNeedsTrackedNight (#1168): a longer
+        // localized "N of M nights" would otherwise fill the narrow ring and left-align/clip like the Rest tile.
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(uiString(R.string.l10n_today_screen_calibrating_37c2c9bd), style = NoopType.headline, color = Palette.textTertiary, maxLines = 1)
-            Text(
+            AutoSizeValue(
+                uiString(R.string.l10n_today_screen_calibrating_37c2c9bd),
+                style = NoopType.headline,
+                color = Palette.textTertiary,
+                minScale = 0.7f,
+            )
+            AutoSizeValue(
                 uiString(R.string.l10n_today_screen_calibratingnights_of_baselines_minnightsseed_3b76e55c, calibratingNights, Baselines.minNightsSeed),
                 style = NoopType.footnote,
                 color = Palette.textSecondary,
-                maxLines = 1,
             )
         }
     } else {
@@ -2812,13 +2821,21 @@ private fun RingNoData() {
  *  instead of a bare "No Data", without fabricating a number. Mirrors iOS restRing's needs-a-night branch. */
 @Composable
 private fun RingNeedsTrackedNight() {
+    // AutoSizeValue (not plain Text): the subtext "needs a tracked night" is wider than the narrow ring,
+    // so a maxLines=1 Text filled the width and left-aligned + clipped the tail (#1168). Shrink-to-fit and
+    // let the centering Column place the content-sized line — the Android mirror of iOS ringNeedsTrackedNight's
+    // .minimumScaleFactor + centred VStack.
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(uiString(R.string.l10n_today_screen_calibrating_37c2c9bd), style = NoopType.headline, color = Palette.textTertiary, maxLines = 1)
-        Text(
+        AutoSizeValue(
+            uiString(R.string.l10n_today_screen_calibrating_37c2c9bd),
+            style = NoopType.headline,
+            color = Palette.textTertiary,
+            minScale = 0.7f,
+        )
+        AutoSizeValue(
             uiString(R.string.l10n_today_screen_needs_a_tracked_night_ccfd532a),
             style = NoopType.footnote,
             color = Palette.textSecondary,
-            maxLines = 1,
         )
     }
 }
@@ -2836,6 +2853,7 @@ private fun RingNeedsTrackedNight() {
  *  card to the Key-Metrics tiles, which already read per-field. Each row still falls through to "No Data"
  *  for a vital neither today nor the carry supplies. */
 @Composable
+@Suppress("UNUSED_PARAMETER")
 private fun HeroMetricRows(day: DailyMetric?, carriedDay: DailyMetric? = null, vitalsDay: DailyMetric? = null) {
     // Per-field, today-first: today's own value wins; the vitals carry only fills a field today lacks.
     val hrv = day?.avgHrv ?: vitalsDay?.avgHrv
@@ -2983,6 +3001,7 @@ private fun YourCardsSection(
     onOpenSleep: () -> Unit,
     onOpenCoupled: () -> Unit,
     onCustomise: () -> Unit,
+    spo2CandidateByDay: Map<String, Double> = emptyMap(),
 ) {
     Box(modifier = Modifier.fillMaxWidth().staggeredAppear(2)) {
         Column(verticalArrangement = Arrangement.spacedBy(Metrics.gap)) {
@@ -3012,6 +3031,7 @@ private fun YourCardsSection(
                         caloriesForDay = caloriesForDay,
                         hydrationTotalMl = hydrationTotalMl,
                         hydrationGoalMl = hydrationGoalMl,
+                        spo2CandidateByDay = spo2CandidateByDay,
                     ),
                     // The mini liquid vessel's fill — the SAME per-card fraction iOS `liquidCard` uses.
                     fraction = dashboardCardFraction(
@@ -3201,6 +3221,7 @@ private fun dashboardCardValue(
     caloriesForDay: Double?,
     hydrationTotalMl: Double,
     hydrationGoalMl: Int,
+    spo2CandidateByDay: Map<String, Double> = emptyMap(),
 ): String {
     fun withUnit(s: String): String =
         if (s == NO_DATA) NO_DATA else if (card.unit.isEmpty()) s else "$s ${card.unit}"
@@ -3218,7 +3239,12 @@ private fun dashboardCardValue(
         DashboardCard.BLOOD_OXYGEN ->
             // PER-FIELD carry: the whole-row carries (vd) land on rows whose spo2Pct is null (the engine
             // writes spo2Pct = null on computed rows), so fall through to the last row that HAS one.
-            (vd?.spo2Pct ?: spo2Day?.spo2Pct)?.let { String.format(Locale.US, "%.0f%%", it) } ?: NO_DATA
+            // #103: when no calibrated spo2Pct exists, fall back to the spo2_candidate_82 strap estimate
+            // (from metricSeries) when the experimental display toggle is ON. Labelled "estimate" in the
+            // Health vitals screen; here it just fills the card so it's not blank.
+            (vd?.spo2Pct ?: spo2Day?.spo2Pct)?.let { String.format(Locale.US, "%.0f%%", it) }
+                ?: (vd?.day ?: day?.day)?.let { spo2CandidateByDay[it] }?.let { String.format(Locale.US, "%.0f%%", it) }
+                ?: NO_DATA
         DashboardCard.SKIN_TEMP ->
             // Stored as a deviation from baseline (°C); show it signed so +/- reads honestly.
             // Same per-field carry as Blood Oxygen.
@@ -3382,7 +3408,7 @@ private fun intStringGrouped(v: Double): String {
  * the same ordering behavior in every editor. SnapshotStateList callers recompose on these mutations.
  */
 @Composable
-private fun <T> EditableVisibilityRows(
+internal fun <T> EditableVisibilityRows(
     shown: MutableList<T>,
     hidden: MutableList<T>,
     itemTitle: (T) -> String,
@@ -4299,6 +4325,7 @@ private fun RecordingStatusChip(state: RecordingState, onConnect: () -> Unit) {
  * grid tiles perfectly with no empty cells.
  */
 @Composable
+@Suppress("UNUSED_PARAMETER")
 private fun MetricGrid(
     d: DailyMetric?,
     w: Window,

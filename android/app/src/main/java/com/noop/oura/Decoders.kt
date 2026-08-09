@@ -243,21 +243,53 @@ object OuraDecoders {
     // MARK: - HRV / RMSSD (0x5D; s6.9)
 
     /**
-     * Decode the 0x5D hrv_event: samples each carrying a time_ms field + two int8 fields (b1, b2).
-     * Per OURA_PROTOCOL.md s6.9 the per-sample stride is time(2 LE) + b1(1) + b2(1) = 4 bytes.
-     * Returns null on a short body. NOOP consumes this as the ring's OWN RMSSD-derived HRV tag.
+     * Decode the 0x5D hrv_event: a run of (u8 avg HR bpm, u8 avg RMSSD ms) pairs, ONE per 5-min bucket
+     * (per open_oura decode_hrv / OURA_PROTOCOL.md s6.9). The previous layout read a 4-byte
+     * (u16 time, int8, int8) stride — a mis-framing that garbled the first (hr,rmssd) byte-pair into a
+     * bogus time_ms, sign-flipped the RMSSD byte, and only its b1 accidentally landed on a real HR byte.
+     * Both bytes are UNSIGNED (no scaling). Returns null on an empty or ODD-length body (no partial pair).
+     * Validated overnight: the hr byte tracks sleeping HR (~52 bpm, matching the #511 IBI-derived median).
+     * Twin of Swift decodeHRV.
+     *
+     * PADDING (#1128): a record that closes early pads its tail with a `00 00` pair, and that is NOT a
+     * reading — a stored `hr_bpm: 0` is a value the ring never asserted, indistinguishable downstream from
+     * a measurement. Observed on a real overnight: 2 of 22 records were partial, both padded, and both
+     * zero pairs persisted into the 5-min series beside 110 genuine buckets running 45-64 bpm. They are
+     * skipped here, at decode, so an absent bucket stays absent instead of becoming a zero one.
+     *
+     * The test is BOTH bytes zero — the exact padding signature — not `hrBpm == 0` alone. A lone zero HR
+     * beside a non-zero RMSSD has never been observed, and if it ever occurs it is a DIFFERENT fault (a
+     * real record with a bad byte) that should stay visible rather than be silently swallowed by a padding
+     * rule. Narrower is the honest choice while one night is all the evidence there is.
+     *
+     * `index` advances for EVERY pair, including a skipped one, because it is not a label: the consumer
+     * derives the bucket's wall-clock from it (`OuraStreamMapping`, `bucketTs = ts - index * 300`).
+     * Renumbering the survivors would slide every later bucket 5 minutes. That is invisible for TAIL
+     * padding — the only shape observed — which is exactly why it is pinned by test instead of by luck.
      */
     fun decodeHRV(rec: OuraRecord): List<OuraHRV>? {
         val b = rec.payload
-        if (b.size < 4) return null
+        if (b.size < 2 || b.size % 2 != 0) return null   // N complete (hr, rmssd) pairs
+        val pairCount = b.size / 2       // BEFORE any padding pair is dropped — see OuraHRV.count
         val out = ArrayList<OuraHRV>()
         var i = 0
-        while (i + 4 <= b.size) {
-            val timeMs = u16le(b, i)
-            val v1 = i8(b[i + 2])
-            val v2 = i8(b[i + 3])
-            out.add(OuraHRV(ringTimestamp = rec.ringTimestamp, timeMs = timeMs, b1 = v1, b2 = v2))
-            i += 4
+        var index = 0
+        while (i + 2 <= b.size) {
+            val hr = b[i]
+            val rmssd = b[i + 1]
+            if (!(hr == 0 && rmssd == 0)) {
+                out.add(
+                    OuraHRV(
+                        ringTimestamp = rec.ringTimestamp,
+                        index = index,
+                        hrBpm = hr,
+                        rmssdMs = rmssd,
+                        count = pairCount,
+                    ),
+                )
+            }
+            i += 2
+            index += 1
         }
         return if (out.isEmpty()) null else out
     }

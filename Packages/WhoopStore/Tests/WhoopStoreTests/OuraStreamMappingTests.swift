@@ -31,23 +31,24 @@ final class OuraStreamMappingTests: XCTestCase {
         XCTAssertTrue(s.hr.isEmpty)
     }
 
-    // MARK: - HRV 0x5D -> events[OURA_HRV] with RAW, units-neutral payload (no fabricated rmssd_ms)
+    // MARK: - HRV 0x5D -> events[OURA_HRV] with honest hr_bpm / rmssd_ms (layout pinned)
 
-    func testHRVMapsToEventWithRawNeutralPayload() {
+    func testHRVMapsToEventWithHrAndRmssd() {
         let s = OuraStreamMapping.streams(from: [
-            .hrv(OuraHRV(ringTimestamp: 100, timeMs: 5000, b1: 47, b2: 3)),
+            .hrv(OuraHRV(ringTimestamp: 100, index: 0, hrBpm: 52, rmssdMs: 47)),
         ], at: ts)
         XCTAssertEqual(s.events.count, 1)
         let ev = s.events[0]
         XCTAssertEqual(ev.kind, OuraStreamMapping.hrvEventKind)
         XCTAssertEqual(ev.kind, "OURA_HRV")
-        XCTAssertEqual(ev.ts, ts)
-        // HONEST: the ring's OWN raw tag fields only; the b1/b2 byte -> ms scale is not Tier-A, so we
-        // NEVER surface a fabricated rmssd_ms. Keys + values match the Kotlin twin exactly.
-        XCTAssertNil(ev.payload["rmssd_ms"], "must not fabricate rmssd_ms")
-        XCTAssertEqual(ev.payload["time_ms"], .int(5000))
-        XCTAssertEqual(ev.payload["b1"], .int(47))
-        XCTAssertEqual(ev.payload["b2"], .int(3))
+        // #1167: a 1-pair record's single bucket is the span [ts-300, ts) — its five minutes END at the
+        // record time, so it is stamped 300 s before it.
+        XCTAssertEqual(ev.ts, ts - 300)
+        // The byte->unit scaling is now pinned (u8 bpm, u8 ms), so the fields are honestly labelled.
+        // Keys + values match the Kotlin twin exactly.
+        XCTAssertEqual(ev.payload["pair_index"], .int(0))
+        XCTAssertEqual(ev.payload["hr_bpm"], .int(52))
+        XCTAssertEqual(ev.payload["rmssd_ms"], .int(47))
     }
 
     // MARK: - Motion 0x47 -> events[OURA_MOTION]
@@ -82,6 +83,43 @@ final class OuraStreamMappingTests: XCTestCase {
         XCTAssertEqual(ev.payload["motion_seconds"], .int(0))
         XCTAssertNil(ev.payload["low_intensity"], "absent intensity must not be faked")
         XCTAssertNil(ev.payload["high_intensity"], "absent intensity must not be faked")
+    }
+
+    // MARK: - HRV 0x5D -> events (per-bucket 5-min timestamps)
+
+    // Each 5-min bucket must land on its OWN timestamp: the event key is (deviceId, ts, kind), so pairs
+    // sharing the record `ts` would collide on insert and only one survive. #1167: the record's FIRST pair
+    // is its OLDEST bucket and the record `ts` marks the END of the covered span, so pair `index` sits
+    // `(count - index) * 300` s before `ts` and the LAST pair's five minutes end exactly at `ts`.
+    // Twin of the Kotlin OuraStreamMapping test.
+    func testHRVMultiBucketGetsDistinctFiveMinTimestamps() {
+        let s = OuraStreamMapping.streams(from: [
+            .hrv(OuraHRV(ringTimestamp: 100, index: 0, hrBpm: 52, rmssdMs: 47, count: 3)),
+            .hrv(OuraHRV(ringTimestamp: 100, index: 1, hrBpm: 54, rmssdMs: 44, count: 3)),
+            .hrv(OuraHRV(ringTimestamp: 100, index: 2, hrBpm: 55, rmssdMs: 41, count: 3)),
+        ], at: ts)
+        XCTAssertEqual(s.events.count, 3)
+        // Distinct, 300 s apart, ascending in time, ending at the record time.
+        XCTAssertEqual(s.events.map { $0.ts }, [ts - 900, ts - 600, ts - 300])
+        XCTAssertEqual(Set(s.events.map { $0.ts }).count, 3)
+        XCTAssertEqual(s.events.map { $0.payload["pair_index"] }, [.int(0), .int(1), .int(2)])
+        XCTAssertEqual(s.events.map { $0.payload["hr_bpm"] }, [.int(52), .int(54), .int(55)])
+        XCTAssertEqual(s.events.map { $0.payload["rmssd_ms"] }, [.int(47), .int(44), .int(41)])
+    }
+
+    // #1167 + #1131 together: a dropped `00 00` pad must still be COUNTED, or every surviving bucket in
+    // that record slides. Here the record had 4 pairs and the decoder dropped index 1, so the survivors
+    // must keep the exact slots they would have had with the pad present — a 300 s hole at `ts - 600`,
+    // NOT three buckets closing up. This is the mid-record shape observed in the field on 2026-08-08.
+    func testHRVDroppedPaddingPairStillConsumesItsSlot() {
+        let s = OuraStreamMapping.streams(from: [
+            .hrv(OuraHRV(ringTimestamp: 100, index: 0, hrBpm: 52, rmssdMs: 47, count: 4)),
+            // index 1 was the `00 00` pad — never emitted by the decoder.
+            .hrv(OuraHRV(ringTimestamp: 100, index: 2, hrBpm: 55, rmssdMs: 41, count: 4)),
+            .hrv(OuraHRV(ringTimestamp: 100, index: 3, hrBpm: 56, rmssdMs: 39, count: 4)),
+        ], at: ts)
+        XCTAssertEqual(s.events.map { $0.ts }, [ts - 1200, ts - 600, ts - 300])
+        XCTAssertEqual(s.events.map { $0.payload["pair_index"] }, [.int(0), .int(2), .int(3)])
     }
 
     // MARK: - SpO2 -> spo2:[SpO2Sample]
@@ -282,7 +320,7 @@ final class OuraStreamMappingTests: XCTestCase {
         let s = OuraStreamMapping.streams(from: [
             .hr(OuraHR(ringTimestamp: 1, bpm: 55, ibiMs: 1090)),
             .ibi(OuraIBI(ringTimestamp: 1, ibiMs: 1090)),
-            .hrv(OuraHRV(ringTimestamp: 1, timeMs: 0, b1: 40, b2: 1)),
+            .hrv(OuraHRV(ringTimestamp: 1, index: 0, hrBpm: 40, rmssdMs: 1)),
             .spo2(OuraSpO2(ringTimestamp: 1, value: 965)),
             .temp(OuraTemp(ringTimestamp: 1, celsius: 34.0)),
             .sleepPhase(OuraSleepPhase(ringTimestamp: 1, index: 0, stage: .light)),

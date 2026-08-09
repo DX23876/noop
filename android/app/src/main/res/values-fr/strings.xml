@@ -1252,6 +1252,8 @@
     <string name="l10n_settings_screen_age_ff9f1ff3">Âge</string>
     <string name="l10n_settings_screen_app_icon_abde7a74">Icône de l\'app</string>
     <string name="l10n_settings_screen_appearance_41def7a0">Apparence</string>
+    <string name="l10n_settings_screen_reduce_motion_in_noop_59a6180d">Réduire les animations dans NOOP</string>
+    <string name="l10n_settings_screen_holds_the_liquid_gauges_the_sky_41872b57">Fige les jauges liquides, le ciel et la réaction à l’inclinaison, et coupe le capteur de mouvement qui les anime. Économise la batterie. Le mode économie d’énergie et le réglage système « Réduire les animations » font déjà cela.</string>
     <string name="l10n_settings_screen_auto_detect_workouts_bed4cf2a">Détecter automatiquement les entraînements</string>
     <string name="l10n_settings_screen_automatic_backups_8a772f3c">Sauvegardes automatiques</string>
     <string name="l10n_settings_screen_backup_restore_a1616284">Sauvegarde et restauration</string>
@@ -1543,6 +1545,7 @@
     <string name="nav_automations">Automatisations</string>
     <string name="nav_alarms">Alarmes</string>
     <string name="nav_devices">Appareils</string>
+    <string name="nav_noop_limitations">Limites de NOOP</string>
     <string name="nav_data_sources">Sources de données</string>
     <string name="nav_backup_sync">Sauvegarde et synchronisation</string>
     <string name="nav_fused_record">Vos données, fusionnées</string>
@@ -1563,6 +1566,8 @@
     <string name="today_customize_title">Personnaliser Aujourd’hui</string>
     <string name="today_customize_action">Personnaliser</string>
     <string name="today_customize_description">Réorganisez les éléments affichés ou déplacez une section dans Masqués sans la supprimer.</string>
+    <string name="sleep_customize_title">Personnaliser le sommeil</string>
+    <string name="sleep_customize_description">Réorganisez les éléments affichés ou déplacez une section dans Masqués sans la supprimer.</string>
     <string name="today_customize_shown">AFFICHÉS</string>
     <string name="today_customize_hidden">MASQUÉS</string>
     <string name="today_customize_nothing_hidden">Aucun élément masqué</string>
@@ -1732,6 +1737,8 @@
     </plurals>
     <string name="timeline_spo2_not_on_whoop5">Ce bracelet n\'envoie pas de SpO₂ par Bluetooth. Importez un export WHOOP ou Health Connect pour le voir.</string>
     <string name="timeline_resp_not_on_whoop5">Ce bracelet n\'envoie aucun flux de respiration brut. Votre fréquence respiratoire estimée apparaît sur l\'écran Santé.</string>
+    <string name="settings_disclosure_expanded">Développé</string>
+    <string name="settings_disclosure_collapsed">Réduit</string>
     <string name="l10n_data_sources_screen_last_shared_6bf8389c">"Dernier partage "</string>
     <string name="l10n_data_sources_screen_sharing_paused_health_connect_permission_was_e8950315">Partage en pause — l’autorisation Health Connect a été révoquée. Touchez pour l’accorder à nouveau.</string>
     <string name="l10n_data_sources_screen_last_share_didn_t_finish_noop_0d6c27f0">Le dernier partage n’a pas abouti — NOOP réessaiera automatiquement.</string>
@@ -1887,4 +1894,31 @@
     <string name="l10n_app_changelog_widgets_stop_inventing_numbers_naps_count_4f7491bb">Les widgets n\'inventent plus de chiffres, les siestes comptent pour la dette de sommeil, et les indicateurs Android parlent votre langue</string>
     <string name="l10n_app_changelog_your_hrv_is_measured_right_again_d635e316">Votre VFC est de nouveau mesurée correctement, les bagues Oura cessent de compter chaque battement deux fois, et l\'app parle votre langue partout</string>
     <string name="l10n_app_changelog_home_and_lock_screen_widgets_now_999ac095">Les widgets de l\'écran d\'accueil et de verrouillage fonctionnent enfin en sideload</string>
+    <string name="l10n_sleep_screen_may_be_incomplete_7230dc27">Peut être incomplet</string>
+    <string name="l10n_sleep_screen_little_motion_was_recorded_over_f061b7e4">Peu de mouvement a été enregistré cette nuit ; cette nuit peut donc être sous-détectée et le total de sommeil peut sembler court. Assurez-vous que le bracelet est entièrement synchronisé.</string>
+    <string name="haptics_section_title">Retour haptique</string>
+    <string name="haptics_breathing_label">Guide de respiration</string>
+    <string name="haptics_intervals_label">Minuteur d’intervalles</string>
+    <string name="haptics_live_session_label">Signaux de séance en direct</string>
+    <string name="haptics_workout_label">Début et fin d’entraînement</string>
+    <string name="notif_timer_alarm_title">Minuteur et alarme</string>
+    <string name="l10n_settings_screen_ecg_raw_data_gate_whoop_mg_only">Verrou des données ECG brutes (WHOOP MG uniquement)</string>
+    <string name="l10n_settings_screen_ecg_gate_blurb">Votre bracelet a énuméré ses propres clés de configuration, dont enable_raw_data_w_ecg. Sur un MG sans abonnement ECG, elle vaut « 0 » — alors que les trois commandes ECG répondent SUCCESS sans envoyer la moindre donnée (#891). C\'est l\'hypothèse principale sur ce qui maintient l\'ECG fermé. Personne ne sait si la basculer produit réellement des données ECG : le savoir est justement le but, et « toujours rien » est une réponse utile à publier sur #891.</string>
+    <string name="l10n_settings_screen_ecg_gate_persistent_warning">Ceci écrit un réglage qui RESTE SUR VOTRE BRACELET jusqu\'à ce que vous le remettiez — ce n\'est pas une préférence de l\'app, et fermer NOOP ne l\'annule pas. « Désactiver le verrou » réécrit « 0 » en une seule touche. Seule cette clé est écrite ; les six autres que votre bracelet a énumérées ne sont jamais touchées.</string>
+    <string name="l10n_settings_screen_ecg_gate_turn_on">Activer le verrou (écrire « 1 »)</string>
+    <string name="l10n_settings_screen_ecg_gate_turn_off">Désactiver le verrou (écrire « 0 »)</string>
+    <string name="l10n_settings_screen_accent">Accent</string>
+    <string name="l10n_settings_screen_preset">Préréglage</string>
+    <string name="settings_language">Langue</string>
+    <string name="settings_choose_language">Choisir la langue</string>
+    <string name="settings_language_system">Réglage système</string>
+    <string name="settings_appearance_detail">Choisissez Clair, Sombre, ou suivez votre système. Sombre est le noir profond caractéristique ; Clair conserve le même look épuré sur un fond clair.</string>
+    <string name="settings_theme_light">Clair</string>
+    <string name="settings_theme_dark">Sombre</string>
+    <string name="settings_chart_default">Par défaut</string>
+    <string name="settings_chart_classic">Classique</string>
+    <string name="settings_trend_line">Courbe</string>
+    <string name="settings_trend_bars">Barres</string>
+    <string name="spo2_strap_estimate_caption">estimation du bracelet (non vérifiée)</string>
+    <string name="spo2_toggle_on_no_data">activé · aucune donnée @82</string>
 </resources>
