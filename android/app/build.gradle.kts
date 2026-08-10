@@ -20,7 +20,7 @@ val requestedReleaseBuild = gradle.startParameter.taskNames.any {
 
 android {
     namespace = "com.noop"
-    compileSdk = 34
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "com.noop.whoop"
