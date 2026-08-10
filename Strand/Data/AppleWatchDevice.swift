@@ -80,9 +80,31 @@ enum AppleWatchDevice {
             peripheralId: nil,                 // HealthKit source, not a BLE peripheral
             sourceKind: .liveAppleWatch,
             capabilities: caps,
-            status: .paired,
+            // Refreshing capabilities must not deactivate a source the user already had active.
+            status: existing?.status ?? .paired,
             addedAt: existing?.addedAt ?? ts,
             lastSeenAt: ts)
+    }
+
+    /// Apple Health starts feeding Today only when the active source is the seeded WHOOP row
+    /// from the migration and that row represents no strap and holds no recent data. So an
+    /// explicit Health authorization fixes a strap-less install, but never displaces a
+    /// real strap, an Oura, or any other source the user has chosen.
+    static func shouldAutoActivate(current: PairedDevice?, currentHasRecentData: Bool) -> Bool {
+        guard let current else { return true }
+        return current.id == Repository.whoopSource
+            && current.status == .active
+            && current.sourceKind == .liveBLE
+            && current.brand.caseInsensitiveCompare("WHOOP") == .orderedSame
+            && current.model.caseInsensitiveCompare("WHOOP") == .orderedSame
+            && current.peripheralId == nil
+            && !currentHasRecentData
+    }
+
+    /// Shared calendar window used by the registry and the active-source recency check.
+    static func recentDayRange(now: Date = Date()) -> (from: String, to: String) {
+        let fromDate = Calendar.current.date(byAdding: .day, value: -recentWindowDays, to: now) ?? now
+        return (dayString(fromDate), dayString(now))
     }
 
     // MARK: - Registration (live; iOS supplies `authorized` from HealthKitBridge)
@@ -98,12 +120,10 @@ enum AppleWatchDevice {
     static func registerIfAuthorized(registry: DeviceRegistry, store: WhoopStore,
                                      authorized: Bool, now: Date = Date()) async {
         guard authorized else { return }
-        let to = dayString(now)
-        let fromDate = Calendar.current.date(byAdding: .day, value: -recentWindowDays, to: now) ?? now
-        let from = dayString(fromDate)
+        let range = recentDayRange(now: now)
 
-        let daily = (try? await store.dailyMetrics(deviceId: deviceId, from: from, to: to)) ?? []
-        let apple = (try? await store.appleDaily(deviceId: deviceId, from: from, to: to)) ?? []
+        let daily = (try? await store.dailyMetrics(deviceId: deviceId, from: range.from, to: range.to)) ?? []
+        let apple = (try? await store.appleDaily(deviceId: deviceId, from: range.from, to: range.to)) ?? []
 
         let existing = registry.devices.first(where: { $0.id == deviceId })
         guard let device = device(daily: daily, apple: apple, authorized: authorized,
