@@ -190,11 +190,22 @@ struct TrendsView: View {
     private func changeChip(_ pts: [TrendPoint], higherIsBetter: Bool?, fmt: @escaping (Double) -> String) -> some View {
         if let d = periodChange(pts), abs(d) > 0.0001 {
             let sign = d >= 0 ? "+" : "−"
+            let deltaText = "\(sign)\(fmt(abs(d)))"
             let color: Color = {
                 guard let better = higherIsBetter else { return StrandPalette.textTertiary }
                 return (d > 0) == better ? StrandPalette.statusPositive : StrandPalette.metricRose
             }()
-            TrendChip(text: "\(sign)\(fmt(abs(d)))", color: color)
+            VStack(alignment: .leading, spacing: NoopMetrics.spaceHalf) {
+                // Match the neighbouring ChartFooter columns so the delta is self-describing instead
+                // of appearing as an unlabeled pill at the edge of the statistics row.
+                Text("Trend")
+                    .textCase(.uppercase)
+                    .font(StrandFont.footnote)
+                    .foregroundStyle(StrandPalette.textTertiary)
+                TrendChip(text: deltaText, color: color)
+            }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(Text(verbatim: "\(String(localized: "Trend")): \(deltaText)"))
         }
     }
 
@@ -202,6 +213,31 @@ struct TrendsView: View {
     private var rangeSubtitle: String {
         guard let n = range.days else { return String(localized: "All history") }
         return String(localized: "Trailing \(n) days")
+    }
+
+    /// The compact selector caption is intentionally split into two intrinsic-width lines.
+    /// Its leading edges line up while the surrounding spacer pins the widest line to the
+    /// screen's shared trailing content edge.
+    @ViewBuilder
+    private var rangeCaption: some View {
+        if let days = range.days {
+            VStack(alignment: .leading, spacing: .zero) {
+                Text("Trailing")
+                    .strandOverline()
+                    .lineLimit(1)
+                Text("\(days) days")
+                    .strandOverline()
+                    .lineLimit(1)
+            }
+            .fixedSize(horizontal: true, vertical: false)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(rangeSubtitle)
+        } else {
+            Text(rangeSubtitle)
+                .strandOverline()
+                .lineLimit(1)
+                .fixedSize(horizontal: true, vertical: false)
+        }
     }
 
     private func name(for r: Range) -> String {
@@ -522,12 +558,16 @@ struct TrendsView: View {
         let cap = recovery.caption
         let isWide = recovery.widened
         return VStack(alignment: .leading, spacing: NoopMetrics.space2) {
-            HStack {
-                SegmentedPillControl(
-                    Range.allCases,
-                    selection: $range,
-                    fillsAvailableWidth: true
-                ) { $0.label }
+            HStack(spacing: NoopMetrics.space2) {
+                // Six ranges plus the trailing-window caption need to share a compact iPhone row.
+                // Let the segmented control collapse to equal-width cells instead of squeezing the
+                // caption narrower than one word (which wrapped the final G in TRAILING by itself).
+                SegmentedPillControl(Range.allCases, selection: $range,
+                                     adaptsToAvailableWidth: true) { $0.label }
+                // Keep the caption's two lines internally leading-aligned, but anchor the whole
+                // caption column to the page's trailing edge.
+                Spacer(minLength: NoopMetrics.space2)
+                rangeCaption
             }
             Text(cap)
                 .font(StrandFont.footnote)
@@ -727,13 +767,23 @@ struct TrendsView: View {
 
     private var legend: some View {
         HStack(spacing: NoopMetrics.space2) {
-            Text("Depleted").font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+            Text("Depleted")
+                .font(StrandFont.footnote)
+                .foregroundStyle(StrandPalette.textTertiary)
+                .fixedSize()
             LinearGradient(gradient: StrandPalette.recoveryGradient, startPoint: .leading, endPoint: .trailing)
-                .frame(width: 120, height: 8)
+                .frame(maxWidth: .infinity)
+                .frame(height: NoopMetrics.indicatorTrackHeight)
                 .clipShape(Capsule())
-            Text("Peaked").font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
-            Spacer()
+                .accessibilityHidden(true)
+            Text("Peaked")
+                .font(StrandFont.footnote)
+                .foregroundStyle(StrandPalette.textTertiary)
+                .fixedSize()
         }
+        .frame(maxWidth: .infinity)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Charge scale, depleted to peaked")
     }
 
     // MARK: Shared bits
