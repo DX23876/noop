@@ -740,6 +740,97 @@ public enum SleepStager {
         return Double(asleep) / Double(inBlock.count) >= morningReonsetBandAsleepFrac
     }
 
+    // MARK: - Band sleep_state WAKE-veto (recover strap-disputed false wakes)
+
+    // NOOP's cardiorespiratory stager is known to OVER-CALL wake: an EEG-free stager reads a still, low-HR
+    // but not-quite-asleep epoch as wake far more often than the wearer was actually awake. WHOOP's OWN
+    // per-second sleep-state band (the persisted v18 @81 high-nibble `(sb>>4)&3`: 0 wake/1 still/2 asleep/
+    // 3 up — banked as `sleepStateJSON`, gridded by `sessionEpochSleepState`) is an INDEPENDENT scored
+    // signal, not a re-derivation of ours. On real banded nights the strap scores "asleep"
+    // (`bandStateAsleep`) across ~two-thirds of the epochs NOOP calls wake, while the reverse disagreement
+    // (NOOP asleep, strap wake) is an order of magnitude smaller. So letting the strap's OWN "asleep"
+    // verdict VETO an INTERIOR wake call recovers most of the spurious wake with near-zero downside.
+    // Unlike the H8 consume confirm (which only ever KEEPS a whole borderline re-onset session), this
+    // operates per EPOCH on the final hypnogram and only ever turns wake INTO sleep.
+
+    /// Default-OFF gate for the band sleep_state WAKE-veto — off until PSG supports it, and the PSG
+    /// harness currently says the OPPOSITE: against the 31-subject sleep-accel truth set the shipped
+    /// recipe UNDER-calls wake (wake% 4.15 vs ~9.1 true, bias −4.92 pp, wake sensitivity 30.8%), so a
+    /// veto that converts wake→light moves the population result AWAY from truth even though it fixes
+    /// real strap-disputed false wakes on HR-inflated nights (the n=12 that motivated it). Flip to true
+    /// only with PSG evidence in hand — `sleeppsg --section variants` prints the wake%/bias row this
+    /// decision keys on. The mechanism stays fully tested behind the flag (tests pass `enabled: true`
+    /// explicitly). An absent band stream (WHOOP 4.0 / unbanded window) is a no-op regardless.
+    public static let bandStateWakeVetoEnabled: Bool = false
+
+    /// The sleep stage a band-vetoed false-wake epoch is reclassified to. `bandStateAsleep` (band sleep_state == 2) means
+    /// only "asleep" — the band carries NO light/deep/REM resolution — so the veto maps it to the generic,
+    /// most-common sleep stage rather than inventing deep/REM detail the strap never asserted (deep/REM
+    /// minutes feed the recovery gate; the veto must not inflate them). "light" is the honest projection of a
+    /// bare "asleep".
+    static let bandVetoRecoverStage: String = "light"
+
+    /// Band sleep_state WAKE-veto. Given a staged hypnogram `stages` (StageSegments tiling `[start, end]`)
+    /// and the strap's OWN per-timestamp band sleep_state, reclassify INTERIOR wake epochs the strap itself
+    /// scored "asleep" (`bandStateAsleep`) to `bandVetoRecoverStage`. Conservative by construction:
+    ///   - ONLY `bandStateAsleep` (2) vetoes — a "still" (1) / "up" (3) / "wake" (0) band reading is LEFT as
+    ///     wake, so the veto never blind-trusts the band, only its explicit "asleep";
+    ///   - the LEADING wake block (sleep-onset latency, before the first sleep epoch) and the TRAILING wake
+    ///     block (final-morning wake, after the last sleep epoch) are NEVER touched — the veto cannot move
+    ///     sleep onset earlier or final wake later, it only recovers wake FLANKED by sleep;
+    ///   - it only ever turns wake INTO sleep (raising efficiency), never sleep into wake.
+    /// The band is gridded to the SAME 30 s epochs as `stagesJSON` / `sessionEpochMotion` via
+    /// `sessionEpochSleepState`, so epoch i here is epoch i of the persisted `sleepStateJSON`. Empty band
+    /// state, the flag off, or a hypnogram with no interior sleep → returns `stages` UNCHANGED (byte-
+    /// identical). Applies to whichever stager (V1 or V2) produced `stages`. Pure + deterministic.
+    /// (band sleep_state veto)
+    static func applyBandStateWakeVeto(_ stages: [StageSegment], start: Int, end: Int,
+                                       bandSleepState: [(ts: Int, state: Int)],
+                                       enabled: Bool = bandStateWakeVetoEnabled) -> [StageSegment] {
+        guard enabled, !bandSleepState.isEmpty, !stages.isEmpty, end > start else {
+            return stages
+        }
+        // Per-epoch band on the 30 s stagesJSON grid — byte-identical to the persisted sleepStateJSON.
+        let states = sessionEpochSleepState(start: start, end: end, sleepState: bandSleepState)
+        if states.isEmpty { return stages }
+        let n = states.count
+        // Epoch i spans [start + i·epochS, …); boundaries sit on 30 s edges, so expanding the segment tiling
+        // to a per-epoch stage array and re-collapsing it is an exact round-trip (no-op when nothing changes).
+        func epochStart(_ i: Int) -> Int { start + Int(Double(i) * epochS) }
+        var labels = [String](repeating: "wake", count: n)
+        for i in 0..<n {
+            let t = epochStart(i)
+            if let seg = stages.first(where: { $0.start <= t && t < $0.end })
+                ?? stages.first(where: { $0.start <= t && t <= $0.end }) {
+                labels[i] = seg.stage
+            }
+        }
+        // Interior = [firstSleep, lastSleep]; leading/trailing wake blocks are excluded from the veto.
+        guard let onset = labels.firstIndex(where: { $0 != "wake" }),
+              let finalWake = labels.lastIndex(where: { $0 != "wake" }), onset <= finalWake else {
+            return stages   // no sleep at all → nothing to recover
+        }
+        var changed = false
+        for i in onset...finalWake where labels[i] == "wake" && states[i] == bandStateAsleep {
+            labels[i] = bandVetoRecoverStage
+            changed = true
+        }
+        if !changed { return stages }   // the band disputed nothing → byte-identical hypnogram
+        // Re-collapse consecutive same-stage epochs back into segments tiling [start, end].
+        var out: [StageSegment] = []
+        for i in 0..<n {
+            let segStart = epochStart(i)
+            let segEnd = (i == n - 1) ? end : epochStart(i + 1)
+            if let last = out.last, last.stage == labels[i] {
+                out[out.count - 1].end = segEnd
+            } else {
+                out.append(StageSegment(start: segStart, end: segEnd, stage: labels[i]))
+            }
+        }
+        if !out.isEmpty { out[out.count - 1].end = end }
+        return out
+    }
+
     /// Off-wrist HR-gap spans (#500). The contiguous HR-coverage gaps of at least `offWristHRGapMin`
     /// minutes WITHIN [p.start, p.end], as concrete `[start, end)` sub-intervals — a strong wrist-OFF
     /// proxy. Worn, the strap streams ~1 Hz HR (or PPG-derived HR on a 5/MG), so a real night yields no
@@ -1060,11 +1151,17 @@ public enum SleepStager {
                     detail: "daytime=true restingHR=\(resting ?? -1) baseline=\(baseline.map { Int($0) } ?? -1) nightTail=false"))
                 continue
             }
-            let stages = useSleepStagerV2
+            let rawStages = useSleepStagerV2
                 ? SleepStagerV2.stageSession(start: p.start, end: p.end, grav: grav,
                                              hr: hrS, rr: rrS, resp: respS)
                 : stageSession(start: p.start, end: p.end, grav: grav,
                                hr: hrS, rr: rrS, resp: respS)
+            // Band sleep_state WAKE-veto: recover INTERIOR false-wake epochs the strap's OWN band
+            // (`bandSleepState`) scored "asleep". No-op when the band is absent (WHOOP 4.0) or the flag is
+            // off; stager-agnostic (corrects whichever hypnogram V1/V2 produced). Efficiency below is then
+            // computed on the corrected stages, so a night NOOP over-called wake on reports true efficiency.
+            let stages = applyBandStateWakeVeto(rawStages, start: p.start, end: p.end,
+                                                bandSleepState: bandSleepState)
             let eff = efficiency(start: p.start, end: p.end, stages: stages)
             let avgHrv = sessionAvgHRV(start: p.start, end: p.end, rr: rrS)
             sessions.append(SleepSession(start: p.start, end: p.end, efficiency: eff,
