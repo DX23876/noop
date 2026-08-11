@@ -4,6 +4,39 @@ import WhoopProtocol
 
 final class HRVAnalyzerTests: XCTestCase {
 
+    func testTrustedSdnnExportAcceptsCleanBeatTimedSeries() {
+        var ts = 1_700_000_000
+        let rr: [RRInterval] = (0..<30).map { i in
+            let ms = 900 + (i % 5) * 20
+            if i > 0 { ts += 1 }
+            return RRInterval(ts: ts, rrMs: ms)
+        }
+        let result = HRVAnalyzer.trustedSdnnForExport(rr)
+        XCTAssertNotNil(result.sdnn)
+        XCTAssertNil(result.rejection)
+        XCTAssertEqual(result.nInput, 30)
+    }
+
+    func testTrustedSdnnExportRejectsOverCountedSeries() {
+        let base = 1_700_000_000
+        let rr = (0..<30).flatMap { i in
+            [RRInterval(ts: base + i, rrMs: 1_000), RRInterval(ts: base + i, rrMs: 1_000)]
+        }
+        let result = HRVAnalyzer.trustedSdnnForExport(rr)
+        XCTAssertNil(result.sdnn)
+        XCTAssertEqual(result.rejection, .duplicateBeatCoverage)
+    }
+
+    func testTrustedSdnnExportRejectsBankedTiming() {
+        let base = 1_700_000_000
+        let rr = (0..<30).map { i in
+            RRInterval(ts: base + (i / 6) * 7, rrMs: 950 + (i % 4) * 15)
+        }
+        let result = HRVAnalyzer.trustedSdnnForExport(rr)
+        XCTAssertNil(result.sdnn)
+        XCTAssertEqual(result.rejection, .inaccurateBeatTiming)
+    }
+
     func testRMSSDRawHandComputed() {
         // NN = [800, 810, 800, 810] → diffs 10, -10, 10 → sqrt(300/3) = 10.
         let nn = [800.0, 810, 800, 810]

@@ -25,6 +25,70 @@ import WhoopProtocol
 
 public enum HRVAnalyzer {
 
+    /// Why an SDNN candidate must not leave NOOP under HealthKit's SDNN identifier.
+    public enum SdnnExportRejection: String, Equatable, Sendable {
+        case insufficientCleanBeats
+        case duplicateBeatCoverage
+        case inaccurateBeatTiming
+    }
+
+    /// Auditable result for Apple Health's SDNN-only HRV type. NOOP's own recovery metric remains RMSSD;
+    /// this result exists specifically so the bridge never relabels that RMSSD as SDNN.
+    public struct TrustedSdnnResult: Equatable, Sendable {
+        public let sdnn: Double?
+        public let rejection: SdnnExportRejection?
+        public let nInput: Int
+        public let nClean: Int
+        public let coverage: Double
+        public let collapsedCoverage: Double
+        public let beatAccurateFraction: Double
+        public init(sdnn: Double?, rejection: SdnnExportRejection?, nInput: Int, nClean: Int,
+                    coverage: Double, collapsedCoverage: Double, beatAccurateFraction: Double) {
+            self.sdnn = sdnn
+            self.rejection = rejection
+            self.nInput = nInput
+            self.nClean = nClean
+            self.coverage = coverage
+            self.collapsedCoverage = collapsedCoverage
+            self.beatAccurateFraction = beatAccurateFraction
+        }
+    }
+
+    /// Compute SDNN with the same cleaning and two independent trust gates used by the nightly
+    /// diagnostics. The timestamps are part of the contract: duplicate coverage and banked/coarse record
+    /// timing can both make the spread physiologically meaningless even when the arithmetic succeeds.
+    public static func trustedSdnnForExport(_ rr: [RRInterval]) -> TrustedSdnnResult {
+        let ts = rr.map(\.ts)
+        let values = rr.map { Double($0.rrMs) }
+        let analysis = analyze(rawRR: values)
+        let coverage = rrCoverage(tsSec: ts, rrMs: values)
+        let collapsed = collapsedCoverage(tsSec: ts, rrMs: values)
+        let accurate = beatAccurateFraction(tsSec: ts, rrMs: values)
+
+        guard let sdnn = analysis.sdnn else {
+            return .init(sdnn: nil, rejection: .insufficientCleanBeats,
+                         nInput: analysis.nInput, nClean: analysis.nClean,
+                         coverage: coverage, collapsedCoverage: collapsed,
+                         beatAccurateFraction: accurate)
+        }
+        guard beatSpreadIsTrustworthy(classifyCoverage(coverage: coverage, collapsed: collapsed)) else {
+            return .init(sdnn: nil, rejection: .duplicateBeatCoverage,
+                         nInput: analysis.nInput, nClean: analysis.nClean,
+                         coverage: coverage, collapsedCoverage: collapsed,
+                         beatAccurateFraction: accurate)
+        }
+        guard beatValuesAreTrustworthy(beatAccurateFraction: accurate) else {
+            return .init(sdnn: nil, rejection: .inaccurateBeatTiming,
+                         nInput: analysis.nInput, nClean: analysis.nClean,
+                         coverage: coverage, collapsedCoverage: collapsed,
+                         beatAccurateFraction: accurate)
+        }
+        return .init(sdnn: sdnn, rejection: nil,
+                     nInput: analysis.nInput, nClean: analysis.nClean,
+                     coverage: coverage, collapsedCoverage: collapsed,
+                     beatAccurateFraction: accurate)
+    }
+
     /// Minimum plausible RR interval (ms) — 300 ms ≈ 200 bpm.
     public static let rrMinMs: Double = 300
     /// Maximum plausible RR interval (ms) — 2000 ms ≈ 30 bpm.

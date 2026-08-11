@@ -5,6 +5,132 @@ import Foundation
 /// the parsing/clamping logic is covered by `swift test` — HealthKit itself can't be unit-tested.
 public enum HealthWriteback {
 
+    // MARK: - Heart-rate write-back
+
+    /// The two timestamp shapes the physical-device diagnostic compares. The value in either shape is
+    /// still the same measured one-minute mean; only HealthKit's temporal representation changes.
+    public enum HeartRateSampleEncoding: String, Codable, CaseIterable, Equatable, Sendable {
+        case interval60Seconds
+        case pointAtBucketMidpoint
+    }
+
+    /// HealthKit-independent input to the HR write planner.
+    public struct HeartRateBucket: Equatable, Sendable {
+        public let startTs: Int
+        public let bpm: Double
+        public init(startTs: Int, bpm: Double) {
+            self.startTs = startTs
+            self.bpm = bpm
+        }
+    }
+
+    /// One planned HR quantity sample. The bridge adds HealthKit types/units and source-scoped metadata.
+    public struct HeartRateSampleDescriptor: Equatable, Sendable {
+        public let bucketTs: Int
+        public let startTs: Int
+        public let endTs: Int
+        public let bpm: Double
+        public init(bucketTs: Int, startTs: Int, endTs: Int, bpm: Double) {
+            self.bucketTs = bucketTs
+            self.startTs = startTs
+            self.endTs = endTs
+            self.bpm = bpm
+        }
+    }
+
+    /// Convert minute means into the selected timestamp representation. A leading/trailing partial bucket
+    /// remains a valid measurement; intervals are clamped at `nowTs`, while point samples sit at the bucket
+    /// midpoint but never in the future.
+    public static func heartRateSamples(buckets: [HeartRateBucket],
+                                        encoding: HeartRateSampleEncoding,
+                                        nowTs: Int) -> [HeartRateSampleDescriptor] {
+        buckets.compactMap { bucket in
+            guard bucket.bpm.isFinite, bucket.bpm > 0, bucket.startTs <= nowTs else { return nil }
+            let start: Int
+            let end: Int
+            switch encoding {
+            case .interval60Seconds:
+                start = bucket.startTs
+                end = max(start, min(bucket.startTs + 60, nowTs))
+            case .pointAtBucketMidpoint:
+                let point = min(bucket.startTs + 30, nowTs)
+                start = point
+                end = point
+            }
+            return HeartRateSampleDescriptor(bucketTs: bucket.startTs, startTs: start, endTs: end,
+                                             bpm: bucket.bpm)
+        }
+    }
+
+    public struct HeartRateExperimentWindow: Codable, Equatable, Sendable {
+        public let startTs: Int
+        public let endTs: Int
+        public init(startTs: Int, endTs: Int) {
+            self.startTs = startTs
+            self.endTs = endTs
+        }
+    }
+
+    public struct HeartRateMigrationChunk: Equatable, Sendable {
+        public let window: HeartRateExperimentWindow
+        public let completesMigration: Bool
+        public init(window: HeartRateExperimentWindow, completesMigration: Bool) {
+            self.window = window
+            self.completesMigration = completesMigration
+        }
+    }
+
+    /// Next backward migration window. Kept HealthKit-independent so resume/final-boundary behavior
+    /// stays deterministic even when the app is terminated between chunks.
+    public static func heartRateMigrationChunk(endTs: Int, floorTs: Int,
+                                               chunkDays: Int = 14) -> HeartRateMigrationChunk? {
+        guard endTs > floorTs, floorTs > 0, chunkDays > 0 else { return nil }
+        let start = max(floorTs, endTs - chunkDays * 86_400)
+        return .init(window: .init(startTs: start, endTs: endTs),
+                     completesMigration: start <= floorTs)
+    }
+
+    /// Pick two non-overlapping dense two-hour runs for the reversible device experiment. A gap of one
+    /// missing bucket is tolerated; larger gaps split a run. The bridge supplies an old enough range that
+    /// normal 48-hour reconciliation cannot overwrite the experiment while the user checks Health.
+    public static func heartRateExperimentWindows(buckets: [HeartRateBucket],
+                                                   windowMinutes: Int = 120,
+                                                   minimumCoverage: Double = 0.75,
+                                                   maximumWindows: Int = 2)
+    -> [HeartRateExperimentWindow] {
+        guard windowMinutes > 0, maximumWindows > 0 else { return [] }
+        let required = max(1, Int((Double(windowMinutes) * minimumCoverage).rounded(.up)))
+        let sorted = buckets.sorted { $0.startTs < $1.startTs }
+        var runs: [[HeartRateBucket]] = []
+        var run: [HeartRateBucket] = []
+        for bucket in sorted {
+            if let last = run.last, bucket.startTs - last.startTs > 120 {
+                if !run.isEmpty { runs.append(run) }
+                run = []
+            }
+            run.append(bucket)
+        }
+        if !run.isEmpty { runs.append(run) }
+
+        var windows: [HeartRateExperimentWindow] = []
+        for dense in runs where dense.count >= required {
+            var i = 0
+            while i < dense.count, windows.count < maximumWindows {
+                let start = dense[i].startTs
+                let end = start + windowMinutes * 60
+                let covered = dense[i...].prefix { $0.startTs < end }
+                if covered.count >= required {
+                    windows.append(.init(startTs: start, endTs: end))
+                    i += covered.count
+                } else {
+                    break
+                }
+            }
+            if windows.count == maximumWindows { break }
+        }
+        return windows
+    }
+
     /// A HealthKit-agnostic sleep stage. The bridge maps these onto `HKCategoryValueSleepAnalysis`
     /// (`awake → .awake`, `light → .asleepCore`, `deep → .asleepDeep`, `rem → .asleepREM`,
     /// `unspecified → .asleepUnspecified` — the honest block for a fragment whose `stagesJSON`

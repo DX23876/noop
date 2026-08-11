@@ -2,6 +2,7 @@ import SwiftUI
 import StrandDesign
 import WhoopStore
 import Foundation
+import StrandImport
 
 // MARK: - Apple Health (per-source page) — locked component system
 //
@@ -505,6 +506,73 @@ struct AppleHealthView: View {
                         .font(StrandFont.footnote)
                         .foregroundStyle(StrandPalette.textTertiary)
                         .fixedSize(horizontal: false, vertical: true)
+
+                    Divider().overlay(StrandPalette.hairline)
+                    VStack(alignment: .leading, spacing: 8) {
+                        Label("Diagnostics", systemImage: "waveform.path.ecg.rectangle")
+                            .font(StrandFont.headline)
+                            .foregroundStyle(StrandPalette.textPrimary)
+
+                        if let report = health.lastWritebackReport {
+                            Text(verbatim: report.completedAt.formatted(date: .abbreviated, time: .shortened))
+                                .font(StrandFont.footnote)
+                                .foregroundStyle(StrandPalette.textTertiary)
+                            ForEach(report.entries) { entry in
+                                HStack(alignment: .firstTextBaseline) {
+                                    Text(LocalizedStringKey(entry.id))
+                                    Spacer()
+                                    Text(verbatim: entry.summary)
+                                        .foregroundStyle(StrandPalette.textTertiary)
+                                }
+                                .font(StrandFont.footnote)
+                                .foregroundStyle(StrandPalette.textSecondary)
+                            }
+                        }
+
+                        if let experiment = health.heartRateExperiment {
+                            Text("Heart rate")
+                                .font(StrandFont.subhead)
+                                .foregroundStyle(StrandPalette.textSecondary)
+                            diagnosticWindowRow("Intervals", experiment.intervalWindow,
+                                                overlap: experiment.intervalExternalOverlap)
+                            diagnosticWindowRow("Points", experiment.pointWindow,
+                                                overlap: experiment.pointExternalOverlap)
+                            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 8) {
+                                Button("Intervals") {
+                                    Task { await health.finishHeartRateGraphExperiment(result: .intervalVisible) }
+                                }
+                                Button("Points") {
+                                    Task { await health.finishHeartRateGraphExperiment(result: .pointVisible) }
+                                }
+                                Button("Both") {
+                                    Task { await health.finishHeartRateGraphExperiment(result: .bothVisible) }
+                                }
+                                Button("Nothing") {
+                                    Task { await health.finishHeartRateGraphExperiment(result: .neitherVisible) }
+                                }
+                            }
+                            .buttonStyle(.bordered)
+                            .tint(StrandPalette.metricCyan)
+                            .disabled(health.syncing)
+                        } else {
+                            HStack {
+                                Text("Heart rate")
+                                    .font(StrandFont.subhead)
+                                Spacer()
+                                Text(health.heartRateEncoding == .pointAtBucketMidpoint ? "Points" : "Intervals")
+                                    .font(StrandFont.footnote)
+                                    .foregroundStyle(StrandPalette.textTertiary)
+                            }
+                            Button {
+                                Task { await health.startHeartRateGraphExperiment() }
+                            } label: {
+                                Label("Start experiment", systemImage: "abacus")
+                            }
+                            .buttonStyle(.bordered)
+                            .tint(StrandPalette.metricCyan)
+                            .disabled(health.syncing)
+                        }
+                    }
                 }
 
                 if let err = health.lastError {
@@ -515,6 +583,24 @@ struct AppleHealthView: View {
                 }
             }
         }
+    }
+
+    private func diagnosticWindowRow(_ label: LocalizedStringKey,
+                                     _ window: HealthWriteback.HeartRateExperimentWindow,
+                                     overlap: Int) -> some View {
+        let from = Date(timeIntervalSince1970: TimeInterval(window.startTs))
+        let to = Date(timeIntervalSince1970: TimeInterval(window.endTs))
+        let range = from.formatted(date: .abbreviated, time: .shortened)
+        let end = to.formatted(date: .omitted, time: .shortened)
+        let summary = [range + "–" + end, "↔︎ " + String(overlap)].joined(separator: " · ")
+        return HStack(alignment: .firstTextBaseline) {
+            Text(label)
+            Spacer()
+            Text(verbatim: summary)
+                .multilineTextAlignment(.trailing)
+        }
+        .font(StrandFont.footnote)
+        .foregroundStyle(StrandPalette.textTertiary)
     }
     #endif
 
