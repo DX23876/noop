@@ -391,7 +391,7 @@ fun TodayScreen(
     var showMetricsEditor by remember { mutableStateOf(false) }
     var enabledKeyMetrics by remember { mutableStateOf(KeyMetricPrefs.enabled(context)) }
     // Detailed Key-Metrics tiles (squarer + trend graph), set from the same editor, plus the chosen
-    // trend window (2 days / 1 week / 2 weeks) the detailed graphs cover.
+    // trend window (1 week / 2 weeks / 1 month) the detailed graphs cover.
     var keyMetricsDetailed by remember { mutableStateOf(KeyMetricPrefs.detailed(context)) }
     var keyMetricsWindowDays by remember { mutableStateOf(KeyMetricPrefs.detailWindowDays(context)) }
     // #today-layout: the user-ordered below-hero section list + its editor dialog flag. Read once (prefs
@@ -1503,6 +1503,7 @@ fun TodayScreen(
                                     metricsExpanded = metricsExpanded,
                                     onToggleMetrics = { metricsExpanded = !metricsExpanded },
                                     detailed = keyMetricsDetailed,
+                                    windowDays = keyMetricsWindowDays,
                                     onOpenMetric = onOpenMetric,
                                 )
                             }
@@ -4415,8 +4416,12 @@ private fun MetricGrid(
     // grid fully expanded for any caller that doesn't opt into the cap.
     metricsExpanded: Boolean = true,
     onToggleMetrics: () -> Unit = {},
-    // Detailed tiles (the #251 editor's switch): squarer tiles with a 14-day trend graph under the bar.
+    // Detailed tiles (the #251 editor's switch): squarer tiles with a trend graph under the bar, drawn
+    // over the editor's chosen window (7 / 14 / 30 days).
     detailed: Boolean = false,
+    // The editor's trailing-window choice (7 / 14 / 30). Caps each tile's sparkline to that many trailing
+    // points so "1 month" draws its full span instead of a fixed 14 (matches the iOS windowedSpark cutoff).
+    windowDays: Int = 14,
     // Tile drill-ins: every tile opens its focused trend timeline (vital_detail/<key>, the Sleep
     // night-detail pattern) via [onOpenMetric].
     onOpenMetric: (String) -> Unit = {},
@@ -4583,6 +4588,7 @@ private fun MetricGrid(
                     LiquidKeyTile(
                         tile,
                         detailed = detailed,
+                        windowDays = windowDays,
                         onClick = tapFor(metric),
                         modifier = Modifier.weight(1f).then(if (detailed) Modifier.fillMaxHeight() else Modifier),
                     )
@@ -4615,8 +4621,9 @@ private fun MetricGrid(
 }
 
 /** One compact Key-Metrics tile's data: iOS `ktile`(label, value, unit, tint, frac). [spark] is the
- *  14-day trend series (oldest→newest) the DETAILED tile style graphs; empty hides the graph (a metric
- *  with no windowed series — Steps/Weight/Calories — stays tube-only even in detailed mode). */
+ *  trailing trend series (oldest→newest) the DETAILED tile style graphs, capped at render to the editor's
+ *  chosen window; empty hides the graph (a metric with no windowed series — Steps/Weight/Calories —
+ *  stays tube-only even in detailed mode). */
 private data class KeyTileData(
     val label: String,
     val value: String,
@@ -4632,14 +4639,16 @@ private data class KeyTileData(
  * Flat surfaceRaised fill + a 16dp-corner hairline (iOS ktile background), padding 12h / 11v. Replaces the
  * old tall 2-column SparkStatTile. A No-Data value dims and the tube reads empty.
  *
- * [detailed] (the #251 editor's "Detailed tiles" switch): the tile grows a 14-day trend [Sparkline] in the
- * metric's tint under the fill bar — taller/squarer, per the tester mock. A metric with no windowed series
- * (Steps/Weight/Calories) or fewer than two points stays tube-only, so no tile ever draws a fake flat line.
+ * [detailed] (the #251 editor's "Detailed tiles" switch): the tile grows a trend [Sparkline] in the
+ * metric's tint under the fill bar — taller/squarer, per the tester mock — over the editor's [windowDays]
+ * window (7 / 14 / 30). A metric with no windowed series (Steps/Weight/Calories) or fewer than two points
+ * stays tube-only, so no tile ever draws a fake flat line.
  */
 @Composable
 private fun LiquidKeyTile(
     data: KeyTileData,
     detailed: Boolean = false,
+    windowDays: Int = 14,
     onClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
@@ -4696,10 +4705,12 @@ private fun LiquidKeyTile(
             animated = false,
             modifier = Modifier.fillMaxWidth(),
         )
-        // Detailed tiles: the 14-day trend graph under the bar (same Sparkline leaf the Sleep tiles use,
+        // Detailed tiles: the windowed trend graph under the bar (same Sparkline leaf the Sleep tiles use,
         // at the shared tile spark height), tinted to the metric so the graph reads as the same signal.
+        // Cap to the editor's chosen window (7 / 14 / 30) so "1 month" draws its full span; the w-based
+        // series is already windowed, but calories/rest sparks run longer, so this trims them to match.
         if (detailed) {
-            val tail = data.spark.takeLast(14)
+            val tail = data.spark.takeLast(windowDays)
             if (tail.size >= 2) {
                 Sparkline(
                     values = tail,
@@ -5981,7 +5992,7 @@ private data class Window(
 )
 
 /**
- * Build the trailing trend windows from `recentDays` over the chosen span (2 / 7 / 14 calendar days —
+ * Build the trailing trend windows from `recentDays` over the chosen span (7 / 14 / 30 calendar days —
  * the editor's detailed-graph window). Each series drops null days from the trailing calendar window
  * only, so stale imports do not draw a current-day trend.
  */
@@ -6127,8 +6138,8 @@ private fun grouped(value: Int): String =
 
 /** The Key-Metrics header's trailing label for the chosen detailed-graph window. */
 private fun trendWindowLabel(days: Int): String = when (days) {
-    2 -> "2-day trend"
     7 -> "7-day trend"
+    30 -> "30-day trend"
     else -> "14-day trend"
 }
 
@@ -6141,7 +6152,7 @@ private fun KeyMetricsEditorDialog(
     onSave: (List<KeyMetric>, Boolean, Int) -> Unit,
 ) {
     // Detailed tiles: taller/squarer with a trend graph under the fill bar (display-only), over the
-    // chosen trailing window (2 days / 1 week / 2 weeks).
+    // chosen trailing window (1 week / 2 weeks / 1 month).
     var detailed by remember { mutableStateOf(initialDetailed) }
     var windowDays by remember { mutableStateOf(initialWindowDays) }
     val shown = remember { mutableStateListOf<KeyMetric>().apply { addAll(initial) } }
@@ -6195,13 +6206,13 @@ private fun KeyMetricsEditorDialog(
                         modifier = Modifier.semantics { contentDescription = uiString(R.string.l10n_today_screen_detailed_tiles_0801721b) },
                     )
                 }
-                // The detailed graphs' trailing window — 2 days / 1 week / 2 weeks (the NOOP signature
+                // The detailed graphs' trailing window — 1 week / 2 weeks / 1 month (the NOOP signature
                 // segmented pill, same control the trend screens use). Only shown while Detailed is on.
                 if (detailed) {
                     SegmentedPillControl(
-                        items = listOf(2, 7, 14),
+                        items = listOf(7, 14, 30),
                         selection = windowDays,
-                        label = { when (it) { 2 -> "2 days"; 7 -> "1 week"; else -> "2 weeks" } },
+                        label = { when (it) { 7 -> "1 week"; 14 -> "2 weeks"; else -> "1 month" } },
                         onSelect = { windowDays = it },
                         modifier = Modifier.fillMaxWidth(),
                     )
