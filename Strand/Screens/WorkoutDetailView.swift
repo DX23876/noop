@@ -1,6 +1,7 @@
 import SwiftUI
 import StrandDesign
 import StrandAnalytics
+import StrandImport
 import WhoopStore
 import Foundation
 #if canImport(MapKit)
@@ -54,6 +55,9 @@ struct WorkoutDetailView: View {
     /// The GPS route captured for this session on-device (#524), if any. Decoded from `RouteStore` by the
     /// row's natural key. nil = no route was recorded (honest — the map only shows when points exist).
     @State private var route: [RouteMath.LatLng] = []
+
+    /// Drives the GPX/FIT export chooser for the recorded route.
+    @State private var showRouteExport = false
 
     /// Steps over the session window for an on-foot sport (#398): the count plus whether it came from the
     /// strap's own counter (MG/5.0) or the phone pedometer (fallback for WHOOP 4.0 / not-yet-synced / CSV
@@ -298,7 +302,44 @@ struct WorkoutDetailView: View {
                     .font(StrandFont.footnote)
                     .foregroundStyle(StrandPalette.textTertiary)
                     .fixedSize(horizontal: false, vertical: true)
+
+                Button {
+                    showRouteExport = true
+                } label: {
+                    Label("Export route", systemImage: "square.and.arrow.up")
+                }
+                .buttonStyle(NoopButtonStyle(.secondary, fullWidth: true))
+                .confirmationDialog("Export route", isPresented: $showRouteExport, titleVisibility: .visible) {
+                    Button("GPX — Strava, Garmin, most apps") { exportRoute(.gpx) }
+                    Button("FIT — Garmin Connect") { exportRoute(.fit) }
+                    Button("Cancel", role: .cancel) {}
+                } message: {
+                    Text("Save this route as a standard file you can import into Strava, Garmin Connect, and other apps.")
+                }
             }
+        }
+    }
+
+    /// Write the route to a GPX/FIT file and hand it to the system share sheet (or a Save panel on macOS).
+    /// Points are decoded lat/lon only (the stored polyline), so the exporter interpolates per-point times
+    /// across the session window and carries the workout's summary (sport, distance, calories, HR).
+    ///
+    /// The build + disk write run OFF the main actor (a long route is a non-trivial encode, and blocking
+    /// file IO must never stall the UI); only the share-sheet present hops back to the main actor.
+    @MainActor private func exportRoute(_ format: RouteExporter.Format) {
+        guard route.count >= 2 else { return }
+        let points = route.map { RoutePoint(lat: $0.lat, lon: $0.lon) }
+        // Name the file by the workout's start (not export time) so it's stable + matches the Android twin.
+        let name = "noop-route-\(row.startTs).\(format.ext)"
+        let startTs = row.startTs, endTs = row.endTs, sport = row.sport
+        let distanceM = row.distanceM, energyKcal = row.energyKcal, avgHr = row.avgHr, maxHr = row.maxHr
+        Task.detached(priority: .userInitiated) {
+            let data = RouteExporter.render(
+                format, route: points, startTs: startTs, endTs: endTs, sport: sport,
+                distanceM: distanceM, energyKcal: energyKcal, avgHr: avgHr, maxHr: maxHr)
+            let url = FileManager.default.temporaryDirectory.appendingPathComponent(name)
+            do { try data.write(to: url) } catch { return }
+            await MainActor.run { FileExport.exportFile(at: url, suggestedName: name) }
         }
     }
 
