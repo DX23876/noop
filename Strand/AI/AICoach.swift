@@ -2659,7 +2659,11 @@ final class AICoachEngine: ObservableObject {
         let today = Repository.localDayKey(Date())
         if let last = UserDefaults.standard.string(forKey: Self.lastWeeklyReviewDayKey),
            let days = Self.dayKeyDistance(from: last, to: today), days < 7 { return }
-        guard CoachPlanStore.shared.proposals.contains(where: { $0.status.isDecided }) else { return }
+        let recentCutoff = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date()
+        let recentKey = Repository.localDayKey(recentCutoff)
+        guard CoachPlanStore.shared.proposals.contains(where: {
+            $0.status.isDecided && $0.day >= recentKey
+        }) else { return }
         // TODO(notifications): also post a `.statusReminder` CoachNotifier item here — same reasoning as
         // the goal-review TODO above, not built in this first pass.
         await runSeededTurnCancellable(
@@ -3126,7 +3130,7 @@ final class AICoachEngine: ObservableObject {
             break
         }
 
-        var parts = ["Goal: \(title)"]
+        var parts = ["Goal [id \(goal.id.uuidString)]: \(title)"]
         if goal.kind.isQuantified, let target = goal.target {
             var quantified = String(format: "target %g %@", target, goal.kind.unit)
             if let baseline = goal.baseline {
@@ -3263,11 +3267,23 @@ final class AICoachEngine: ObservableObject {
 
         let hrvBase = Baselines.foldHistory(repo.days.map(\.avgHrv), cfg: Baselines.hrvCfg)
         let byDay = Dictionary(repo.days.map { ($0.day, $0) }, uniquingKeysWith: { _, last in last })
+        let unresolved = Set(store.reconciliationResolutions.map(\.proposalId))
 
         var lines = ["PLAN vs WHAT HAPPENED (last \(days) days):"]
         for p in relevant.prefix(14) {
             var line = "  \(p.day): \(p.summary()) — \(p.status.rawValue)"
             if let reason = p.skipReason { line += " (\(reason.label))" }
+            if unresolved.contains(p.id) {
+                line += " — awaiting the user's confirmation; this is NOT a miss"
+            }
+            if let actual = p.completionEvidence {
+                line += " — matched actual: \(actual.sport)"
+                if let duration = actual.durationS {
+                    line += " \(Int((duration / 60).rounded())) min"
+                }
+                if let strain = actual.strain { line += String(format: ", effort %.1f", strain) }
+                line += " (\(actual.method.rawValue))"
+            }
             // Only quote the day's real Effort when the app actually trusts that day's numbers.
             if let row = byDay[p.day] {
                 let confidence = ScoreConfidence.charge(recovery: row.recovery, hrvBaseline: hrvBase)
@@ -3357,7 +3373,8 @@ final class AICoachEngine: ObservableObject {
     /// schedule, or activate anything. The proposal sits in `.proposed` until the user taps yes, and the
     /// returned string tells the model to say exactly that rather than describing it as settled.
     func proposePlanTool(day: String?, sport: String, intent: String,
-                         targetEffort: Double?, rationale: String, time: String?) -> String {
+                         targetEffort: Double?, rationale: String, time: String?,
+                         goalId: String? = nil) -> String {
         let trimmedSport = sport.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedSport.isEmpty else { return "Nothing proposed: name the activity." }
         guard let parsedIntent = PlanProposal.Intent(rawValue: intent.lowercased()) else {
@@ -3387,16 +3404,24 @@ final class AICoachEngine: ObservableObject {
         }
         if when == nil { when = adaptation.preferredTime }
 
-        // Link the session to the goal it serves, but ONLY when there is exactly one active goal. With
-        // several, the model didn't say which this is for and guessing would put a real session under the
-        // wrong goal's progress — an unlinked session still counts on the journey page, a misfiled one
-        // silently corrupts two goals at once.
+        // Link only to a validated ACTIVE goal. With one goal the historical implicit behaviour remains;
+        // with several the tool must use the opaque id from the goal context or leave a genuinely general
+        // session unlinked. Never guess between goals.
         let activeGoals = CoachGoalStore.shared.activeGoals
+        let requestedGoal: UUID?
+        if let raw = goalId?.trimmingCharacters(in: .whitespacesAndNewlines), !raw.isEmpty {
+            guard let parsed = UUID(uuidString: raw), activeGoals.contains(where: { $0.id == parsed }) else {
+                return "Nothing proposed: goal_id does not name an active goal. Use an exact id from the goal context."
+            }
+            requestedGoal = parsed
+        } else {
+            requestedGoal = activeGoals.count == 1 ? activeGoals[0].id : nil
+        }
         let proposal = PlanProposal(day: dayKey, time: when, sport: trimmedSport,
                                     intent: parsedIntent,
                                     targetEffort: targetEffort.map { max(0, min($0, 100)) },
                                     rationale: rationale,
-                                    goalId: activeGoals.count == 1 ? activeGoals[0].id : nil)
+                                    goalId: requestedGoal)
         guard CoachPlanStore.shared.propose(proposal) else {
             // The user already has this exact session committed for that day (their own routine, or a
             // proposal they accepted) — the store refused the duplicate (#P7 9.8/10.5). Tell the model so

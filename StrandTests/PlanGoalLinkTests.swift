@@ -3,9 +3,8 @@ import XCTest
 
 /// Linking a planned session to the goal it serves (#coach-bugs).
 ///
-/// The property defended here: linking can only ever make the Journey page's count MORE accurate, never
-/// less complete. Every session that counted before still counts — the link only stops one goal's work
-/// from being counted as another goal's progress now that several can be active at once.
+/// The property defended here: one completed session belongs to at most one Journey. General/unlinked
+/// sessions remain in plan history but cannot inflate several simultaneous goals.
 @MainActor
 final class PlanGoalLinkTests: XCTestCase {
 
@@ -47,12 +46,11 @@ final class PlanGoalLinkTests: XCTestCase {
 
     // MARK: - Counting for a goal
 
-    func testUnlinkedSessionsSinceTheGoalStartedStillCount() {
+    func testUnlinkedSessionsDoNotCountForASpecificGoal() {
         let store = makeStore()
         let goalId = UUID()
         completed(store, day: "2026-07-16", sport: "Zone 2 ride", goalId: nil)
-        XCTAssertEqual(store.completedSessions(forGoal: goalId, since: "2026-07-01").count, 1,
-                       "sessions predating the link must keep counting, or upgrading would erase progress")
+        XCTAssertTrue(store.completedSessions(forGoal: goalId, since: "2026-07-01").isEmpty)
     }
 
     func testUnlinkedSessionsBeforeTheGoalStartedDoNotCount() {
@@ -61,10 +59,17 @@ final class PlanGoalLinkTests: XCTestCase {
         XCTAssertTrue(store.completedSessions(forGoal: UUID(), since: "2026-07-01").isEmpty)
     }
 
-    func testSessionLinkedToThisGoalCountsEvenBeforeItsCutoff() {
+    func testSessionLinkedToThisGoalBeforeItsCutoffDoesNotCount() {
         let store = makeStore()
         let goalId = UUID()
         completed(store, day: "2026-06-01", sport: "Linked ride", goalId: goalId)
+        XCTAssertTrue(store.completedSessions(forGoal: goalId, since: "2026-07-01").isEmpty)
+    }
+
+    func testSessionLinkedToThisGoalAfterItsCutoffCounts() {
+        let store = makeStore()
+        let goalId = UUID()
+        completed(store, day: "2026-07-16", sport: "Linked ride", goalId: goalId)
         XCTAssertEqual(store.completedSessions(forGoal: goalId, since: "2026-07-01").count, 1)
     }
 

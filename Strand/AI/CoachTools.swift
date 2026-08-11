@@ -468,6 +468,11 @@ enum CoachTool: String, CaseIterable {
                     "time": [
                         "type": "string",
                         "description": "Optional time of day, HH:mm, if the user named one."
+                    ],
+                    "goal_id": [
+                        "type": "string",
+                        "description": "Optional UUID of the active goal this session serves. Use the "
+                            + "exact id shown in the goal context. Omit only for a genuinely general session."
                     ]
                 ],
                 "required": ["sport", "intent"]
@@ -909,7 +914,8 @@ extension AICoachEngine {
                 targetEffort: (input["target_effort"] as? Double)
                     ?? (input["target_effort"] as? Int).map(Double.init),
                 rationale: (input["rationale"] as? String) ?? "",
-                time: input["time"] as? String)
+                time: input["time"] as? String,
+                goalId: input["goal_id"] as? String)
         case .sessionOutlook:
             return await sessionOutlookTool(
                 sport: (input["sport"] as? String) ?? "",

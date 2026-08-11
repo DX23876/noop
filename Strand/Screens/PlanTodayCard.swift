@@ -58,8 +58,42 @@ struct PlanTodayCard: View {
         Self.next(from: store.proposals, today: today, now: Date())
     }
 
+    private var unresolved: (PlanReconciliationResolution, PlanProposal)? {
+        guard let resolution = store.reconciliationResolutions.first,
+              let proposal = store.proposals.first(where: { $0.id == resolution.proposalId })
+        else { return nil }
+        return (resolution, proposal)
+    }
+
     var body: some View {
-        if let p = next {
+        if let (resolution, proposal) = unresolved {
+            Button { showPlan = true } label: {
+                NoopCard(padding: 14, tint: StrandPalette.statusWarning) {
+                    HStack(spacing: 10) {
+                        Image(systemName: "questionmark.circle")
+                            .foregroundStyle(StrandPalette.statusWarning)
+                            .accessibilityHidden(true)
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text("Plan needs your check")
+                                .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
+                            Text(resolution.kind == .candidates
+                                 ? String(localized: "Possible workout found for \(proposal.sport)")
+                                 : String(localized: "\(proposal.sport) is still open"))
+                                .font(StrandFont.footnote)
+                                .foregroundStyle(StrandPalette.textTertiary)
+                                .lineLimit(1)
+                        }
+                        Spacer(minLength: 8)
+                        Image(systemName: "chevron.right")
+                            .font(StrandFont.footnote)
+                            .foregroundStyle(StrandPalette.textTertiary)
+                            .accessibilityHidden(true)
+                    }
+                }
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Plan needs your check. Opens your plan.")
+        } else if let p = next {
             let emphasis = Self.emphasis(for: p, now: Date())
             Button { showPlan = true } label: {
                 NoopCard(padding: 14, tint: tint(for: emphasis)) {

@@ -11,6 +11,7 @@ import StrandAnalytics
 /// than showing a confident-looking bar built on nothing.
 struct JourneyView: View {
     @EnvironmentObject private var coach: AICoachEngine
+    @EnvironmentObject private var repo: Repository
     @ObservedObject private var goalStore = CoachGoalStore.shared
     @ObservedObject private var planStore = CoachPlanStore.shared
     @Environment(\.dismiss) private var dismiss
@@ -34,6 +35,7 @@ struct JourneyView: View {
     /// The manual "I did something for this goal" logger (see `logSessionCard`).
     @State private var showLogSession = false
     @State private var logSessionText = ""
+    @State private var dismissedReachedCandidate = false
 
     var body: some View {
         NavigationStack {
@@ -65,6 +67,7 @@ struct JourneyView: View {
             .task {
                 guard !loaded else { return }
                 loaded = true
+                await PlanReconciliationCoordinator.reconcile(repo: repo)
                 evidence = await coach.goalEvidence()
                 latestWeightKg = await coach.latestLoggedWeightKg()
             }
@@ -116,6 +119,29 @@ struct JourneyView: View {
                     Text("Its story below stays yours. A new goal is one tap away in Coach settings.")
                         .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
                         .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+        case .active where goalAppearsReached(goal) && !dismissedReachedCandidate:
+            NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "target")
+                            .foregroundStyle(StrandPalette.accent)
+                            .accessibilityHidden(true)
+                        Text("Your measured target appears reached")
+                            .font(StrandFont.headline).foregroundStyle(StrandPalette.textPrimary)
+                    }
+                    Text("NOOP will not close the goal for you. Confirm it only if this measurement means the goal is complete to you.")
+                        .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    HStack(spacing: 10) {
+                        Button("Mark as achieved") { goalStore.markAchieved(goal.id) }
+                            .buttonStyle(.borderedProminent)
+                            .tint(StrandPalette.accent)
+                        Button("Keep working") { dismissedReachedCandidate = true }
+                            .buttonStyle(.plain)
+                            .foregroundStyle(StrandPalette.textSecondary)
+                    }
                 }
             }
         case .active where (ProactiveCoach.daysPastTarget(goal) ?? 0) >= 1:
@@ -400,6 +426,12 @@ struct JourneyView: View {
         case .consistency: return evidence.sessionsPerWeek
         case .strength, .stress, .recovery, .custom: return nil
         }
+    }
+
+    private func goalAppearsReached(_ goal: CoachGoal) -> Bool {
+        guard goal.kind.isQuantified, let baseline = goal.baseline, let target = goal.target,
+              target != baseline, let current = currentMeasurement(goal) else { return false }
+        return target > baseline ? current >= target : current <= target
     }
 
     // MARK: - Milestones

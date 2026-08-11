@@ -33,6 +33,7 @@ Strand/AI/
 ├── GoalSafetyGate.swift       Pace check — warn, require a reason, never block
 ├── GoalFeasibility.swift      "Is this realistic?" — evidence-based, from VO₂max, not a guess
 ├── CoachPlanStore.swift       The plan book: propose → accept/decline/swap, one active week
+├── PlanWorkoutMatcher.swift   Deterministic planned-vs-actual reconciliation + legacy goal attribution
 ├── PlanConsequence.swift      What a session or a swap actually costs, from your own history
 ├── CoachNotifier.swift        Bridges ProactiveSignal + PlanProposal into the bell (§11a) — never a
 │                                CoachTool, always additive to the existing chat-nudge path
@@ -171,7 +172,7 @@ breakpoint, and a per-request clock would invalidate the prefix cache every turn
 
 | Tool | Params | Effect |
 |---|---|---|
-| `propose_plan` | `day`, `sport`, `intent`, `rationale` | Creates a `PlanProposal` in status `.proposed`. **Not a schedule** — the user must accept, decline, reschedule or swap it in the app. The model is told to never describe a proposal as settled. |
+| `propose_plan` | `day`, `sport`, `intent`, `rationale`, optional `goal_id` | Creates a `PlanProposal` in status `.proposed`. `goal_id` must be one of the exact active-goal UUIDs supplied in context; an invalid id is rejected, one unambiguous active goal is linked automatically, and otherwise the session stays General. **Not a schedule** — the user must accept, decline, reschedule or swap it in the app. The model is told to never describe a proposal as settled. |
 
 ### Write
 
@@ -224,7 +225,8 @@ WHO the coach is and HOW it talks are two independent axes, both editable in Set
 
 ## 4. Goals & the two safety gates
 
-`CoachGoal` (`CoachGoal.swift`) is deliberately **one active goal, not a portfolio**: `kind`
+`CoachGoal` (`CoachGoal.swift`) supports a small, bounded portfolio of **up to five active goals, with
+at most one active goal of each kind**: `kind`
 (`run` / `consistency` / `sleep` / `strength` / `weight` / `custom`), a baseline, a target, a unit, an
 optional target date, a status (`active`/`paused`/`achieved`/`abandoned`/`archived`), local-only
 motivation text, and a history of adjustments. Setting one is entirely optional — NOOP works fully
@@ -275,7 +277,7 @@ than guessing.
 `CoachPlanStore.swift` is the participatory core: the model can *suggest*, the person *decides*.
 
 ```swift
-enum Status { case proposed, accepted, declined, modifiedByUser, completed, skipped, paused }
+enum Status { case proposed, accepted, declined, modifiedByUser, completed, skipped, paused, rescheduled }
 ```
 
 `propose_plan` is the **only** model-reachable entry point, and it force-resets status to
@@ -285,6 +287,30 @@ just "CrossFit sometime") is a UI action the person takes in `CoachPlanView`. **
 sheet** rather than committing untimed: `accept(_:at:)` always took a time, but the button didn't pass
 one, so agreeing and saying *when* were two steps and the second was easy never to take — leaving
 commitments no reminder can fire for. "Accept without a time" remains the escape hatch.
+
+When several goals are active, the time sheet also asks which concrete goal the commitment serves, or
+whether it is **General**. That link is stored on the proposal and is the sole attribution Journey uses;
+one completed session can therefore never inflate every goal merely because their date ranges overlap.
+Installations from before goal links are migrated once and conservatively: an old completed session is
+linked only when exactly one goal lifetime contains it. Ambiguous history remains General.
+
+### Closing the loop — planned vs. actual
+
+`PlanWorkoutMatcher.swift` reconciles accepted/modified/rescheduled commitments against the canonical,
+cross-source-deduplicated workout feed after imports, app activation, and when Plan or Journey opens.
+It is deterministic Swift, not a model judgment:
+
+- an untimed commitment matches only the same local day; a timed one uses a ±4-hour window;
+- known sport families (run, ride, strength, swim, and so on) must agree for automatic completion;
+- generic imports such as “Workout” may be suggested for confirmation but are never automatic;
+- one unique strong candidate completes the commitment and stores immutable workout evidence;
+- several candidates, cross-plan conflicts, or weak labels ask the person to confirm the link;
+- an old commitment with no candidate stays neutrally **open**. It is never silently marked skipped.
+
+Rejected candidates are remembered so they are not asked about again. The evidence snapshot records the
+workout key, timing, sport/source, duration, effort, distance, match method, and match time. Plan and
+Today show unresolved questions; the bell mirrors them without re-arming a row on every foreground pass.
+An automatic match posts a short informational receipt so background completion is quiet, not invisible.
 
 ### Swapping — with the consequence shown before you decide
 
@@ -333,6 +359,9 @@ travel, or a target that was never realistic, and the app cannot tell which.
 baseline and target. Without both, there is no percentage at all — the page falls back to what's
 actually known: sessions completed, consistency, recovery trend. A goal that's five minutes old
 correctly shows *nothing achieved yet*, and that's treated as a normal state, not an empty error.
+Quantified goals that reach their measured target are presented as a closure candidate: the person can
+mark the goal achieved or keep working. Measurement alone never changes goal status in the background.
+Session totals count only completed proposals explicitly linked to that goal and on/after its start.
 
 Milestones (`JourneyMilestones.achieved`) are **facts, not a streak counter**: first week in, N
 sessions completed, longest run, a stretch training pain-free, recovery trending up past a real
@@ -921,6 +950,10 @@ Swift that runs unconditionally, before any model call:
   succeeds. Posts an `.actionable`, `actionRequired: true`, `showOnToday: true` item pointing at the
   proposal's id. A re-proposal that `CoachPlanStore` collapses onto the same id (the existing
   same-`(day, sport)` dedup) refreshes the existing bell row in place rather than duplicating it.
+- `syncPlanReconciliation(_:)` — mirrors ambiguous/overdue plan questions as expiring status reminders,
+  removes them once the question disappears, and preserves the read state across foreground checks.
+- `postAutomaticCompletion(proposal:workout:)` — records one expiring informational receipt when an
+  unambiguous local workout closes a commitment automatically.
 
 **`UpdatesInboxView.swift` now varies its ROW, not just its icon**, by category: `.actionable` resolves
 the live `PlanProposal` and shows Accept / Change / Decline while it's still `.proposed`, or a read-only

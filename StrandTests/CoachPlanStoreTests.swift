@@ -360,6 +360,8 @@ final class CoachPlanStoreTests: XCTestCase {
         let decoded = try JSONDecoder().decode(PlanProposal.self, from: legacy)
         XCTAssertNil(decoded.effectFeedback)
         XCTAssertNil(decoded.feedbackNote)
+        XCTAssertNil(decoded.completionEvidence)
+        XCTAssertTrue(decoded.rejectedWorkoutKeys.isEmpty)
     }
 
     // MARK: - Consequence maths
