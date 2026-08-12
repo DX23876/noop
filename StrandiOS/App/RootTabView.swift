@@ -6,10 +6,16 @@ import StrandDesign
 /// natural analogue is a `TabView` with the most-used screens as tabs and everything else under a
 /// "More" list. Every screen is the same `StrandDesign`-built view the macOS app uses.
 struct RootTabView: View {
+    /// External entry points must wait until the mandatory first-run gates have completed. The root owns
+    /// that state; keeping it explicit here prevents this shell's window-level sheet from covering a gate.
+    let homeScreenQuickActionsEnabled: Bool
+
     @EnvironmentObject private var repo: Repository
     /// Cross-screen navigation requests (e.g. Live → "Manage devices"). Devices isn't a tab — it lives
     /// behind the More list — so a request presents it as a sheet, matching the quick-action screens.
     @EnvironmentObject private var router: NavRouter
+    /// The scene-local receiver for actions chosen from NOOP's Home Screen icon menu.
+    @EnvironmentObject private var homeScreenQuickActions: HomeScreenQuickActionSceneDelegate
 
     /// Which quick-action screen the centre FAB is presenting (nil = sheet closed).
     @State private var quickAction: QuickAction?
@@ -196,6 +202,38 @@ struct RootTabView: View {
                 withAnimation(Self.sheetEase) { quickAction = .menu }
                 router.quickActionsRequested = false
             }
+        }
+        // A cold-launch selection is already pending when this shell appears; a warm selection arrives
+        // through the change callback. Both route through the same screens as the centre FAB.
+        .onAppear {
+            presentPendingHomeScreenQuickActionIfPossible()
+        }
+        .onChange(of: homeScreenQuickActions.pendingAction) { _, _ in
+            presentPendingHomeScreenQuickActionIfPossible()
+        }
+        .onChange(of: homeScreenQuickActionsEnabled) { _, _ in
+            presentPendingHomeScreenQuickActionIfPossible()
+        }
+    }
+
+    /// Mandatory launch gates defer an external action. Once the shell is available, an explicit Home
+    /// Screen choice supersedes any ordinary shell sheet; choosing the already-open destination simply
+    /// consumes the request and leaves that screen in place.
+    private func presentPendingHomeScreenQuickActionIfPossible() {
+        guard homeScreenQuickActionsEnabled,
+              let action = homeScreenQuickActions.pendingAction else { return }
+
+        let destination: QuickAction = switch action {
+        case .liveHeartRate: .live
+        case .startWorkout: .workout
+        case .logJournal: .journal
+        case .breathe: .breathe
+        }
+        homeScreenQuickActions.consume(action)
+        withAnimation(Self.sheetEase) {
+            showDevices = false
+            routedPillar = nil
+            quickAction = destination
         }
     }
 
