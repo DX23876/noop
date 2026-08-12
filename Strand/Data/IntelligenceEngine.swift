@@ -140,6 +140,10 @@ final class IntelligenceEngine: ObservableObject {
         /// no session clears the coverage gate. Written to metricSeries as "rhr_primary_session" in pass 2 —
         /// instrumentation only, never shown and never fed to any score.
         let primarySessionRHR: Double?
+        /// #1169 coverage inputs for the shadow mean above (valid-sample count + primary-session duration),
+        /// written as "rhr_primary_session_valid_samples" / "rhr_primary_session_duration_s" in pass 2. nil
+        /// in lockstep with `primarySessionRHR`.
+        let primarySessionRHRCoverage: PrimarySessionRestingHR.Coverage?
     }
 
     struct Computed: Identifiable {
@@ -211,6 +215,43 @@ final class IntelligenceEngine: ObservableObject {
             : String(Int((Double(inBedBpms.reduce(0, +)) / Double(inBedBpms.count)).rounded()))
         return "rhr day=\(day) floor=\(floor) nightMean=\(meanLog) inBedSamples=\(inBedBpms.count) "
             + "(floor = WHOOP-style lowest-sustained = NOOP RHR; mean = sleeping-HR-app number)"
+    }
+
+    /// #1244: one line for a day that CLEARED the ≥200-HR gate yet detected NO in-bed session, so the
+    /// dashboard shows "HR tracked but no sleep". Today only the summary `sleep day=… totalSleepMin=nil`
+    /// rides the log — with no clue WHY, since every other night trace (`rhr`/`rrsample`/`hrv diag`) only
+    /// emits once a session exists. This names the raw inputs the stager was handed so the next capture
+    /// separates the causes: `grav=0` = no motion offloaded (the in-bed detector can't gate — the WHOOP
+    /// 4.0 sparse-motion path has no HR-only fallback); a large `hr` with a night still empty = coverage
+    /// gap or the sleep hours fell outside `window`; `provided=` = a persisted hypnogram was (not) available.
+    /// Counts + a window length only — same privacy class as the sibling `sleep day=` line, no PII. Pure so
+    /// it's unit-tested directly; byte-identical to the Android `sleepDetectNoNightLogLine`.
+    nonisolated static func sleepDetectNoNightLogLine(day: String, hrCount: Int, rrCount: Int,
+                                                      respCount: Int, gravCount: Int, stepCount: Int,
+                                                      providedCount: Int, windowHours: Int) -> String {
+        return "sleep-detect day=\(day) NO-NIGHT hr=\(hrCount) rr=\(rrCount) resp=\(respCount) "
+            + "grav=\(gravCount) steps=\(stepCount) provided=\(providedCount) window=\(windowHours)h"
+    }
+
+    /// #674/#1244: the "sleep total with no matched session" divergence line. A COMPUTED day whose fresh
+    /// scoring pass matched ZERO detected sleep sessions yet still carries a non-nil totalSleepMin — the
+    /// value comes from a folded edited/hand-logged block (sleepEditedDaily) on a day the detector staged
+    /// nothing (often a day absorbed into a neighbour's coupled window, so it never got its own pass). That
+    /// total leaks to Today/Coupled while the Sleep tab (session-backed) shows nothing. `editFold` = how
+    /// many edited/manual rows folded a total onto this session-less day, so the next capture proves whether
+    /// it's an orphaned edit. Counts only, no PII. Pure; byte-identical to the Kotlin `sleepDivergenceLogLine`.
+    nonisolated static func sleepDivergenceLogLine(day: String, totalSleepMin: Int, editFold: Int) -> String {
+        return "sleep divergence day=\(day) totalSleepMin=\(totalSleepMin) matched=0 editFold=\(editFold)"
+    }
+
+    /// #1248: the device ids the banked-sleep heal (#899) must sweep — the computed-scores id AND every
+    /// registered device id. A live source (an Oura ring) banks its OWN hypnogram under its OWN device id,
+    /// so a computedId-only heal never sees (or collapses) those rows, and they are re-read as
+    /// `providedSleep` and re-detected every pass — one night ballooned to 14 stored rows / 9 phantom
+    /// "naps". The de-duplicated union, sorted for a deterministic sweep order. Pure so it's unit-tested
+    /// directly; byte-identical to the Android `healDeviceIds`.
+    nonisolated static func healDeviceIds(computedId: String, registeredIds: [String]) -> [String] {
+        Set([computedId] + registeredIds).sorted()
     }
 
     /// The Saturday on-or-before a "yyyy-MM-dd" local-day string , the weekly key Fitness Age writes to.
@@ -394,7 +435,7 @@ final class IntelligenceEngine: ObservableObject {
     /// Compute on-device scores for each of the last `maxDays` that actually has raw HR data.
     /// Personal baselines (HRV / resting HR) are folded from the imported history, so even the first
     /// live night can be scored against your norm.
-    func analyzeRecent(maxDays: Int = 21, force: Bool = true) async {
+    func analyzeRecent(maxDays: Int = 21, force: Bool = true, skipIfUnchanged: Bool = false) async {
         // TEMP DIAGNOSTIC (#freeze-investigation) — remove once the Goal & Journey freeze is understood.
         // Logs WHO calls this, with WHAT window, and how long the pass takes, so a UI freeze can be tied
         // to a concrete caller + workload instead of guessed at from a paused stack.
@@ -438,6 +479,19 @@ final class IntelligenceEngine: ObservableObject {
         if !force, !wmKey.isEmpty,
            UserDefaults.standard.string(forKey: Self.analyzeWatermarkKey) == wmKey {
             NSLog("[FREEZE-DIAG] analyzeRecent SHORT-CIRCUIT (unchanged fingerprint) — no work done")
+            return
+        }
+        // #1196/#1146: a FORCED post-offload pass can opt into the same fingerprint gate. An empty/duplicate
+        // offload (fingerprint already == the watermark the last successful run advanced) has no new HR to
+        // score, so a re-score would reproduce IDENTICAL rows; skip the whole pass rather than churn the
+        // window. Over a flapping-link offload storm that churn made the reactive Trends/streak reads
+        // flicker between full and empty — a scare that looked like data loss (#1196). Scoped via
+        // `skipIfUnchanged` to the post-offload caller (refreshAfterCompletedBackfill) ONLY, so an
+        // import/edit/settings/recalibrate re-score — which changes scores WITHOUT changing the HR
+        // fingerprint — always runs. Twin of the Android WhoopBleClient post-offload `newData` gate.
+        if force, skipIfUnchanged, !wmKey.isEmpty,
+           UserDefaults.standard.string(forKey: Self.analyzeWatermarkKey) == wmKey {
+            diagnosticSink?("re-score: trigger=post-offload newData=no — skipped (nothing changed since last run)", nil)
             return
         }
         // Attribute a FORCED re-score. A completed offload / edit / recalibrate always re-scores
@@ -840,7 +894,22 @@ final class IntelligenceEngine: ObservableObject {
                 let sleepRr = sleepRrRows.map { Double($0.rrMs) }
                 let hrvDiag: String?
                 if sleepRr.isEmpty {
-                    hrvDiag = nil
+                    // #1244: no in-sleep R-R means no HRV summary. If the whole night also detected NO
+                    // session (past the ≥200-HR gate → this is the "HR tracked, no sleep" case), carry a
+                    // counts-only reason line on the SAME loop-1 diagnostic channel (emitted in the
+                    // main-actor replay below) so the report says WHY the stager found nothing. `window` is
+                    // the read span in whole hours (30 h back → next local midnight, or +18 h for today).
+                    if res.cachedSleep.isEmpty {
+                        // from/to are Int unix seconds; the span is always a whole-hour multiple
+                        // (30 h + 24 h, or 30 h + 18 h), so integer division is exact. Matches Kotlin.
+                        let windowHours = (to - from) / 3_600
+                        hrvDiag = Self.sleepDetectNoNightLogLine(
+                            day: day, hrCount: hr.count, rrCount: rr.count, respCount: resp.count,
+                            gravCount: grav.count, stepCount: steps.count,
+                            providedCount: providedSleep.count, windowHours: windowHours)
+                    } else {
+                        hrvDiag = nil
+                    }
                 } else {
                     let h = HRVAnalyzer.analyze(rawRR: sleepRr)
                     func ms(_ v: Double?) -> String { v.map { String(format: "%.0f", $0) } ?? "nil" }
@@ -955,12 +1024,14 @@ final class IntelligenceEngine: ObservableObject {
                 // comparison the issue asks for accrues on real devices. NEVER shown and NEVER fed to any
                 // score; #1174's definition is unchanged — this only records its per-night output. The
                 // windowing + delegation lives in the byte-identical, tested `AnalyticsEngine`.
-                let primarySessionRHR = AnalyticsEngine.primarySessionRestingHR(sessions: res.sleepSessions, hr: hr)
+                let (primarySessionRHR, primarySessionRHRCoverage) =
+                    AnalyticsEngine.primarySessionRestingHRWithCoverage(sessions: res.sleepSessions, hr: hr)
                 out.append(DayScan(result: res, rhrLine: rhrLine,
                                    readOwner: owner, hrRows: hr.count,
                                    sleepTrace: sleepTrace, stepsTrace: stepsTrace, hrvTrace: hrvTrace,
                                    hrvDiag: hrvDiag, spo2Candidate: spo2CandidateMean,
-                                   primarySessionRHR: primarySessionRHR))
+                                   primarySessionRHR: primarySessionRHR,
+                                   primarySessionRHRCoverage: primarySessionRHRCoverage))
             }
             return (out, skippedDayLines)
         }.value
@@ -980,6 +1051,8 @@ final class IntelligenceEngine: ObservableObject {
         var spo2CandidateByDay: [String: Int] = [:]
         // #1169: primary-session mean RHR shadow metric per day, carried from pass 1 for metricSeries persistence.
         var primarySessionRHRByDay: [String: Double] = [:]
+        // #1169: its coverage inputs (valid-sample count + primary-session duration), same lifetime as the mean.
+        var primarySessionRHRCoverageByDay: [String: PrimarySessionRestingHR.Coverage] = [:]
 
         // Back on the main actor: fold the off-actor results into the pass-2 state in the SAME order the
         // loop produced them. Pure assignment / appends , no further store reads , so this is cheap and the
@@ -1000,6 +1073,9 @@ final class IntelligenceEngine: ObservableObject {
             // #1169: carry the primary-session mean RHR shadow metric into pass 2 for persistence.
             if let v = scan.primarySessionRHR {
                 primarySessionRHRByDay[res.daily.day] = v
+            }
+            if let cov = scan.primarySessionRHRCoverage {
+                primarySessionRHRCoverageByDay[res.daily.day] = cov
             }
             if let line = scan.rhrLine { diagnosticSink?(line, nil) }
             // Sleep & Rest test mode (E5): replay this day's gate-trace + Rest lines tagged `.sleep` so they
@@ -1192,6 +1268,16 @@ final class IntelligenceEngine: ObservableObject {
                             + "stages=\(Self.sleepStagesLogToken(deep: daily.deepMin, rem: daily.remMin, light: daily.lightMin)) "
                             + "eff=\(effLog) "
                             + "matched=\(night.cachedSleep.count) source=\(source.logToken)", nil)
+            // #674/#1244: flag a COMPUTED day carrying a sleep total with NO matched session — the folded
+            // edited/hand-logged block on a day the detector staged nothing (see sleepDivergenceLogLine).
+            // Scoped to computed days: an imported-total-only day legitimately has a total without our
+            // sessions, so it is NOT a divergence.
+            let dayImported = importedWhoopDays.contains(daily.day) || appleHealthDays.contains(daily.day)
+            if !dayImported, let tsm = daily.totalSleepMin, night.cachedSleep.isEmpty {
+                diagnosticSink?(Self.sleepDivergenceLogLine(day: daily.day,
+                                                            totalSleepMin: Int(tsm.rounded()),
+                                                            editFold: dayEditedRows.count), nil)
+            }
             // #195: one always-on line per scored night with the computed HRV value + the window it used,
             // so an "HRV reads high / deep-sleep window not changing" report is self-diagnosing straight
             // from the strap log — the whole-night vs deep-sleep value, and `avgHrv=nil window=deep` when a
@@ -1242,6 +1328,12 @@ final class IntelligenceEngine: ObservableObject {
             // scored — so the mean-vs-floor comparison the issue needs can be evaluated from exports later.
             if let v = primarySessionRHRByDay[daily.day] {
                 restPoints.append(MetricPoint(day: daily.day, key: "rhr_primary_session", value: v))
+            }
+            // #1169: its coverage inputs beside the mean — valid-sample count + primary-session duration (s)
+            // — so a thin-coverage night can be down-weighted in the later holdout. Raw inputs, not a fraction.
+            if let cov = primarySessionRHRCoverageByDay[daily.day] {
+                restPoints.append(MetricPoint(day: daily.day, key: "rhr_primary_session_valid_samples", value: Double(cov.validSamples)))
+                restPoints.append(MetricPoint(day: daily.day, key: "rhr_primary_session_duration_s", value: cov.durationSec))
             }
             cachedSleep.append(contentsOf: night.cachedSleep)
             // Persist the detected workouts the pipeline already computes (previously discarded).
@@ -1417,10 +1509,18 @@ final class IntelligenceEngine: ObservableObject {
         // keys we just upserted, and delete each leftover day individually (from == to == key). This
         // removes #277's UTC/local duplicates WITHOUT the wide delete-then-reinsert dip. No-op in steady
         // state (the new keys cover the window), so it adds nothing once the migration has settled.
-        let freshKeys = Set(dailies.map { $0.day })
-        let existingWindow = (try? await store.dailyMetrics(deviceId: computedId, from: oldestDay, to: newestDay)) ?? []
-        for stale in existingWindow where !freshKeys.contains(stale.day) {
-            _ = try? await store.deleteDailyMetrics(deviceId: computedId, from: stale.day, to: stale.day)
+        // #1196: skip stale-eviction on an EMPTY pass so a transient/degenerate empty `dailies` (a read
+        // over a still-incomplete raw store during a reconnect/offload storm, or the active strap
+        // momentarily resolving to an empty id) never evicts the whole window. In steady state `dailies`
+        // covers the window, so eviction runs exactly as before; `persistComputedScores` is guarded the
+        // same way, so an empty pass leaves the persisted window untouched. Twin of the Android
+        // WhoopDao.replaceComputedScoreWindow empty guard.
+        if !dailies.isEmpty {
+            let freshKeys = Set(dailies.map { $0.day })
+            let existingWindow = (try? await store.dailyMetrics(deviceId: computedId, from: oldestDay, to: newestDay)) ?? []
+            for stale in existingWindow where !freshKeys.contains(stale.day) {
+                _ = try? await store.deleteDailyMetrics(deviceId: computedId, from: stale.day, to: stale.day)
+            }
         }
         // ── Fitness Age (Phase 2) , weekly, keyed to the week's Saturday ────────────────────────────
         // Roll the last 7 computed days into the Nes/HUNT inputs and upsert a weekly Fitness Age (+ an
@@ -1668,15 +1768,33 @@ final class IntelligenceEngine: ObservableObject {
         // stale copies. Scoped to sessions whose wake day lies inside the [oldestDay, newestDay] daily
         // reconcile window: exactly the days this pass re-scored/evicted, so a session row is never
         // deleted out from under a daily row the pass did not refresh. Edited rows are never dropped.
-        let storedSessions = (try? await store.sleepSessions(deviceId: computedId, from: windowStart,
-                                                             to: now, limit: 4000)) ?? []
-        let healable = storedSessions.filter {
-            (oldestDay...newestDay).contains(AnalyticsEngine.dayString($0.endTs, offsetSec: tzOffset))
+        // #1248: heal EVERY device that banks sleep in this window, not just `computedId`. A live source
+        // (an Oura ring) banks its OWN hypnogram under its device id; a night re-banked there accumulates
+        // overlapping copies the computedId-only heal never saw — and, worse, those un-healed ring rows are
+        // re-read as `providedSleep` and re-detected every pass, so one night ballooned to 14 rows / 9
+        // "naps". Dedup each device's rows AMONG THEMSELVES and delete stale copies under that SAME id
+        // (never across ids, so a survivor is never orphaned under an id the day-owner read skips).
+        // `freshStarts` (this pass's computed bank witness) only matches the computedId rows; the others
+        // fall back to longest-wins, the read-side dedup's own default. Sorted for a deterministic order.
+        let healDeviceIds = Self.healDeviceIds(computedId: computedId, registeredIds: regDevices.map { $0.id })
+        var healDropped: [CachedSleepSession] = []
+        for healId in healDeviceIds {
+            let storedSessions = (try? await store.sleepSessions(deviceId: healId, from: windowStart,
+                                                                 to: now, limit: 4000)) ?? []
+            let healable = storedSessions.filter {
+                (oldestDay...newestDay).contains(AnalyticsEngine.dayString($0.endTs, offsetSec: tzOffset))
+            }
+            let dropped = SleepSessionDedup.dedupe(healable, freshStarts: keptStarts).dropped
+            for stale in dropped {
+                _ = try? await store.deleteSleepSession(deviceId: healId, startTs: stale.startTs)
+            }
+            healDropped.append(contentsOf: dropped)
         }
-        let healDropped = SleepSessionDedup.dedupe(healable, freshStarts: keptStarts).dropped
-        for stale in healDropped {
-            _ = try? await store.deleteSleepSession(deviceId: computedId, startTs: stale.startTs)
-        }
+        // #1284: log the sweep ALWAYS, even at zero removals — a heal that collapsed rows was previously
+        // silent (the line below only fired on a non-empty drop), so from the strap log alone it was
+        // indistinguishable from never having run. Counts only, no PII.
+        diagnosticSink?("Dedup(#899): swept \(healDeviceIds.count) device id(s), removed "
+            + "\(healDropped.count) overlapping duplicate session(s).", nil)
         if !healDropped.isEmpty {
             diagnosticSink?("Dedup(#899): removed \(healDropped.count) overlapping duplicate sleep "
                 + "session(s) re-banked under a shifted strap timebase; re-scoring the affected days.", nil)

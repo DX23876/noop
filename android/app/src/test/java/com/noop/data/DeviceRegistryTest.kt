@@ -2,8 +2,10 @@ package com.noop.data
 
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
@@ -179,6 +181,16 @@ class DeviceRegistryTest {
         assertEquals("my-whoop", reg.activeDeviceId())
     }
 
+    /** #548: stale registry bits listing calibrated SpO₂ must not surface for a live WHOOP. */
+    @Test
+    fun allStripsSpo2FromWhoopCapabilities() = runBlocking {
+        val reg = registryWith(seededDao())
+        val caps = reg.all().first().capabilities
+        assertFalse(caps.split(',').contains("spo2"))
+        assertTrue(caps.contains("hr"))
+        assertTrue(caps.contains("skinTemp"))
+    }
+
     @Test
     fun setActiveDemotesPreviousAndKeepsExactlyOneActive() = runBlocking {
         val dao = seededDao()
@@ -210,6 +222,17 @@ class DeviceRegistryTest {
         assertEquals(1, reg.all().size)
         assertEquals(DeviceStatus.archived.name, reg.all().first().status)
         assertNull(reg.activeDeviceId())
+    }
+
+    @Test
+    fun forgetRemovesRegistryRowAndWipesData() = runBlocking {
+        // #1193: unlike archive (row kept, I4) and deleteDeviceData (row kept), forget PURGES the registry
+        // entry so a duplicate/stale strap disappears from the list entirely — after wiping its recordings.
+        val dao = seededDao()
+        val reg = registryWith(dao)
+        reg.forget("my-whoop")
+        assertTrue(reg.all().isEmpty())                               // registry row purged, not just archived
+        assertTrue(dao.deletedTables.any { it.second == "my-whoop" }) // its recorded data was wiped first
     }
 
     @Test

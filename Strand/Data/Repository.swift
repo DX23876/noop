@@ -209,6 +209,11 @@ final class Repository: ObservableObject {
     @Published private(set) var hydrationSeq = 0
     func noteHydrationChanged() { hydrationSeq += 1 }
 
+    /// Bumped whenever a period-start row is logged or removed. Cycle surfaces use this lightweight
+    /// signal to reload their sensitive local history without forcing a full strap-data refresh.
+    @Published private(set) var cycleTrackingSeq = 0
+    func noteCycleTrackingChanged() { cycleTrackingSeq += 1 }
+
     /// Workouts & GPS test mode (Test Centre): the tagged sink for the `.workouts` diagnostic lines
     /// (auto-detect inputs/thresholds/why, cross-source dedup decisions). Default nil (inert) so tests +
     /// non-prod inits get the byte-identical untraced path; AppModel wires it to `live.append(log:domain:)`.
@@ -562,10 +567,12 @@ final class Repository: ObservableObject {
     static let wearableImportSources = ["oura-import", "fitbit-import", "garmin-import", "oura-api", healthConnectSource]
 
     /// `yyyy-MM-dd` in the device's local zone, matching how `DailyMetric.day` is stored.
-    private static let dayKeyFormatter: DateFormatter = {
+    // `nonisolated` so pure callers off the main actor (e.g. the extracted `SleepModel.build`) can key a
+    // day the SAME way `DailyMetric.day` is stored. Pure date→string; no actor state is touched.
+    private nonisolated static let dayKeyFormatter: DateFormatter = {
         let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"; f.locale = Locale(identifier: "en_US_POSIX"); return f
     }()
-    static func localDayKey(_ date: Date) -> String { dayKeyFormatter.string(from: date) }
+    nonisolated static func localDayKey(_ date: Date) -> String { dayKeyFormatter.string(from: date) }
 
     /// The hour the LOGICAL day rolls (04:00 local). Between midnight and this hour, "Today" stays put.
     nonisolated static let logicalDayRolloverHour = 4
@@ -1735,14 +1742,20 @@ final class Repository: ObservableObject {
         return out
     }
 
-    /// Family of the ACTIVE strap (#623), for the deep timeline's family-specific empty-state copy. Reuses
-    /// the canonical `DeviceFamily.forRegistryDevice` (#171, #1086) with its `.whoop5` fallback for nil/unknown/
-    /// ambiguous, matching Android's `FullDayChartScreen`. Best-effort: no store / unreadable registry → `.whoop5`.
-    func activeStrapFamily() -> DeviceFamily {
-        guard let store else { return .whoop5 }
+    /// Is the ACTIVE strap a 5.0/MG-family WHOOP (#623)? Gates the deep timeline's family-specific
+    /// empty-state copy.
+    ///
+    /// Asks the canonical `DeviceFamily.isWhoop5Registry` (#171, #1086) rather than resolving a family and
+    /// comparing, because the old shape — `forRegistryDevice(…) ?? .whoop5` — answered **yes** for a
+    /// positively non-WHOOP brand and handed an Oura ring WHOOP-5 copy that told it to look for an
+    /// estimate the ring cannot produce. Best-effort: no store / unreadable registry → `false`, i.e. the
+    /// generic empty copy, which is the safe direction (`strapHasEverProduced` already returns `true`
+    /// without a store, so this changes no behaviour for a WHOOP). Twin of Android's `FullDayChartScreen`.
+    func activeStrapIsWhoop5() -> Bool {
+        guard let store else { return false }
         let devices = (try? DeviceRegistryStore(dbQueue: store.registryWriter).all()) ?? []
         let d = devices.first(where: { $0.id == deviceId })
-        return DeviceFamily.forRegistryDevice(model: d?.model, brand: d?.brand) ?? .whoop5
+        return DeviceFamily.isWhoop5Registry(model: d?.model, brand: d?.brand)
     }
 
     /// Whether the active strap has EVER banked a sample of `metric` (#623) — distinguishes a strap that

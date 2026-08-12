@@ -78,6 +78,22 @@ class DeviceConfigWriteGateTest {
         assertTrue(DeviceConfigWriteGate.admitsSend(119, p, ecgGateOptIn = true, isMG = false, broadcastHrOptIn = true))
     }
 
+    @Test
+    fun admitsBroadcastHrDisableWriteRegardlessOfOptIn() {
+        // #1061: turning the Broadcast-HR flag OFF is the safe UNDO and must NOT be gated on the opt-in — it
+        // is already false by the time the user disables, which made the toggle-off path dead (the disable
+        // refused here, strap left advertising). The OFF write must be admitted with NO opt-in.
+        val off = payload(DeviceConfigWriteGate.BROADCAST_HR_KEY, DeviceConfigWriteGate.DISABLED_VALUE)
+        assertTrue(DeviceConfigWriteGate.admitsSend(119, off, ecgGateOptIn = false, isMG = false, broadcastHrOptIn = false))
+        assertTrue(DeviceConfigWriteGate.admitsSend(119, off, ecgGateOptIn = false, isMG = false, broadcastHrOptIn = true))
+        // The ON write stays gated on the opt-in — the exemption is for OFF only.
+        val on = payload(DeviceConfigWriteGate.BROADCAST_HR_KEY, DeviceConfigWriteGate.ENABLED_VALUE)
+        assertFalse(DeviceConfigWriteGate.admitsSend(119, on, ecgGateOptIn = false, isMG = false, broadcastHrOptIn = false))
+        // The OFF exemption is Broadcast-HR ONLY: the ECG key's OFF write stays gated on its own opt-in (#891).
+        val ecgOff = payload(DeviceConfigWriteGate.ECG_RAW_DATA_KEY, DeviceConfigWriteGate.DISABLED_VALUE)
+        assertFalse(DeviceConfigWriteGate.admitsSend(119, ecgOff, ecgGateOptIn = false, isMG = true, broadcastHrOptIn = false))
+    }
+
     // The allowlist: what it refuses -----------------------------------------------------------------
 
     @Test
@@ -294,6 +310,43 @@ class DeviceConfigWriteGateTest {
             assertNotEquals(EcgRawDataGateReport.Verdict.CONFIRMED, r.verdict)
             assertTrue(r.summary.isNotEmpty())
         }
+    }
+
+    @Test
+    fun broadcastHrReadBackVerdictTable() {
+        // #1061: the broadcast-HR write now reads itself back, same discipline as the ECG gate. Confirmed
+        // only when the strap stores what was asked; a SUCCESS ack with an unmoved value is UNCHANGED.
+        val key = DeviceConfigWriteGate.BROADCAST_HR_KEY
+
+        val confirmed = BroadcastHrGateReport(true)
+        confirmed.noteWriteAck(1)
+        assertEquals(BroadcastHrGateReport.Verdict.PENDING, confirmed.verdict)   // ack alone decides nothing
+        confirmed.noteReadBack(parseReadBack(readBackFrame(echoRecord(key, "1"))))
+        assertEquals(BroadcastHrGateReport.Verdict.CONFIRMED, confirmed.verdict)
+        assertEquals("1", confirmed.storedValue)
+        assertTrue(confirmed.render().contains(key))
+        // A CONFIRMED read-back must still warn that a stored flag ≠ actually advertising 0x180D (#1061).
+        assertTrue(confirmed.render().contains("0x180D"))
+        assertTrue(confirmed.render().contains("#1061"))
+
+        val unchanged = BroadcastHrGateReport(true)
+        unchanged.noteWriteAck(1)                                               // acked SUCCESS…
+        unchanged.noteReadBack(parseReadBack(readBackFrame(echoRecord(key, "0"))))  // …but value unmoved
+        assertEquals(BroadcastHrGateReport.Verdict.UNCHANGED, unchanged.verdict)
+        assertTrue(unchanged.summary.contains("did NOT take"))
+
+        val off = BroadcastHrGateReport(false)
+        assertEquals("0", off.requested)
+        off.noteReadBack(parseReadBack(readBackFrame(echoRecord(key, "0"))))
+        assertEquals(BroadcastHrGateReport.Verdict.CONFIRMED, off.verdict)
+
+        val silent = BroadcastHrGateReport(true)
+        silent.noteReadBackTimeout(8)
+        assertEquals(BroadcastHrGateReport.Verdict.SILENT, silent.verdict)
+
+        val refused = BroadcastHrGateReport(true)
+        refused.noteReadBack(DeviceConfigReadProbe.ValueResponse(0, ByteArray(0)))
+        assertEquals(BroadcastHrGateReport.Verdict.REFUSED, refused.verdict)
     }
 
     @Test

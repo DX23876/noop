@@ -354,7 +354,7 @@ struct BackfillContinuation {
                                    strapNewestTs: Int?,
                                    ourFrontierTs: Int?,
                                    wallNowUnix: Int,
-                                   rowsPersistedThisSession: Int = 0,
+                                   persistedSensorRows: Bool = false,
                                    lastTrimAdvanced: Bool,
                                    consecutiveCount: Int,
                                    maxAutoContinues: Int = defaultMaxAutoContinues,
@@ -363,15 +363,21 @@ struct BackfillContinuation {
         guard stillConnected else { return false }                 // 1
         guard consecutiveCount < maxAutoContinues else { return false }   // 4 (cap)
         guard lastTrimAdvanced else { return false }               // 3 (don't spin on a frozen cursor)
-        // 3b (#1144): an EMPTY session (0 rows persisted) never auto-continues, whatever the reported
-        // frontier gap. When the strap advertises a `newest` AHEAD of our frontier but the offload for that
-        // range hands back 0 rows (a PHANTOM gap — a timestamp it won't actually offload), 2a below would
-        // latch `true` forever: the frontier can't advance without rows, so `newest - frontier` stays > gap
-        // and it re-fires to the full cap in empty offloads (the storm observed on a real 4.0). Guard 3
-        // doesn't catch it — the trim u32 climbs on empty ENDs. Stop and let the periodic floor retry;
-        // healthy backlog sessions persist real rows so this only bites the empty spin. (Makes 2b's row
-        // check the ONE authority for both cases.)
-        guard rowsPersistedThisSession > 0 else { return false }
+        // 3b (#1144/#1146): a session that persisted NO NEW sensor rows never auto-continues, whatever the
+        // reported frontier gap. When the strap advertises a `newest` AHEAD of our frontier but the offload
+        // for that range banks no new rows (a PHANTOM gap — a timestamp it won't actually offload, a
+        // console-only tail, or a dup re-offload of already-synced data), 2a below would latch `true` forever:
+        // the frontier can't advance without new rows, so `newest - frontier` stays > gap and it re-fires to
+        // the full cap in empty offloads (the storm re-observed on a real 4.0 in the 260810 capture — 145
+        // re-kicks/hr). Guard 3 doesn't catch it — the trim u32 climbs on empty ENDs. `persistedSensorRows` is
+        // `sessionRowsPersisted > 0` (the frontier ADVANCED this pass) captured ONCE in exitBackfilling — NOT
+        // a fresh `backfiller.sessionRowsPersisted` re-read at the decision site (that live counter, mutated
+        // by trailing frames / a re-kicked session across the offload boundary, disagreed with the empty
+        // verdict and spun to the cap), and NOT decodedChunks/bankedSensorRecords (a dup-only or reject-frame
+        // re-offload DECODES frames but banks 0 NEW rows — it must also stop, not spin on already-synced data).
+        // Stop and let the periodic floor retry; a real backlog pass persists new rows so this only bites the
+        // empty/dup spin.
+        guard persistedSensorRows else { return false }
         // #928: a strap clock set in the FUTURE makes "newest" read ahead of ANY real frontier, so 2a
         // would report backlog forever and drive up to the full cap in EMPTY offloads on every connect.
         // A newest more than futureSkewSeconds past the wall clock is implausible: exclude it from 2a.
@@ -396,10 +402,10 @@ struct BackfillContinuation {
         // epochs, and the data-range "newest" can latch an OLD one (e.g. 2024 when the real newest is 2026).
         // That false "we're already past it" would stop the drain after ONE session and make the user
         // tap the strap to re-trigger (exactly #364 / #451). But guard #3 already proved the trim advanced,
-        // so if this session also PERSISTED REAL SENSOR ROWS the strap is demonstrably still handing over
-        // real backlog — keep going. Empty / console-only ENDs persist 0 rows, so a genuinely stuck or
-        // caught-up strap still won't spin, and the consecutive cap bounds it either way.
-        return rowsPersistedThisSession > 0
+        // so if this session also PERSISTED NEW SENSOR ROWS the strap is demonstrably still handing over
+        // real backlog — keep going. Empty / console-only / dup ENDs persist no new rows, so a genuinely stuck
+        // or caught-up strap still won't spin, and the consecutive cap bounds it either way.
+        return persistedSensorRows
     }
 }
 
@@ -755,7 +761,9 @@ public final class BLEManager: NSObject, ObservableObject {
     private lazy var puffinDeepBufferLog = PuffinDeepBufferLog()
 
     /// Force the puffin capture buffer to disk so the Settings export/reveal targets a current file.
-    public func flushPuffinCaptures() { puffinRecorder.flush() }
+    /// `async` because the actual encode + write now happens off the main actor (#652); callers that
+    /// need the file to be current when this returns (export, reveal) must await it.
+    public func flushPuffinCaptures() async { await puffinRecorder.flush() }
 
     /// Record a local physical-phase marker for the passive optical experiment. This deliberately has
     /// no peripheral/write path: it only appends to `puffin-deepbuffers.jsonl` when capture is enabled.
@@ -1656,9 +1664,11 @@ public final class BLEManager: NSObject, ObservableObject {
                                                     ecgGateOptIn: PuffinExperiment.ecgRawDataEnabled,
                                                     isMG: isWhoop5MG,
                                                     broadcastHrOptIn: PuffinExperiment.broadcastHrEnabled)
-                // GET_DEVICE_CONFIG_VALUE(121) as the ECG gate's mandatory READ-BACK — gated on a write
-                // being verified, exactly like the R22 read-back above. The write ack is never the proof.
-                || (DeviceConfigWriteGate.isReadBackOpcode(command.rawValue) && ecgGateReport != nil)
+                // GET_DEVICE_CONFIG_VALUE(121) as a gate's mandatory READ-BACK — gated on a write being
+                // verified, exactly like the R22 read-back above. The write ack is never the proof. Both the
+                // ECG gate (#891) and the Broadcast-HR gate (#1061) read themselves back over this opcode.
+                || (DeviceConfigWriteGate.isReadBackOpcode(command.rawValue)
+                    && (ecgGateReport != nil || broadcastHrGateReport != nil))
                 // The WHOOP MG ECG ("Labrador") family — allowed ONLY when BOTH gates hold: the
                 // Experimental opt-in is on AND the strap has POSITIVELY attested itself an MG over the
                 // Device Information Service. A plain 5.0 has no electrodes and an unidentified strap
@@ -2013,7 +2023,12 @@ public final class BLEManager: NSObject, ObservableObject {
         // consecutiveEmptyOffloads). A 0-row session — clean HISTORY_COMPLETE-empty OR an idle-timeout STALL
         // — feeds BackfillPolicy's exponential backoff so the periodic poll stops spinning on a strap
         // handing over nothing; any banked rows reset it, and a productive auto-continue tail doesn't count.
-        if (backfiller?.sessionRowsPersisted ?? 0) > 0 { consecutiveEmptyOffloads = 0 }
+        // #1146: snapshot THIS completed session's persisted-row verdict ONCE (frontier advanced iff a new
+        // sensor row landed) at function scope, so the auto-continue decision below gates on this snapshot —
+        // never a fresh `backfiller.sessionRowsPersisted` re-read that a re-kicked session / trailing frames
+        // could have mutated across the offload boundary.
+        let persistedSensorRows = (backfiller?.sessionRowsPersisted ?? 0) > 0
+        if persistedSensorRows { consecutiveEmptyOffloads = 0 }
         else if consecutiveAutoContinues == 0 { consecutiveEmptyOffloads += 1 }
         if reason == "HISTORY_COMPLETE" {
             state.lastSyncedAt = Date().timeIntervalSince1970
@@ -2131,8 +2146,14 @@ public final class BLEManager: NSObject, ObservableObject {
         // returns false and stops; that else path is also where the consecutive streak is cleared. Bounded
         // by the consecutive-cap and the spin-detector inside the pure predicate either way.
         if reason == "timeout" || reason == "HISTORY_COMPLETE" {
+            // #1146: pass the ONCE-captured `persistedSensorRows` verdict (snapshotted at function scope
+            // above) — NOT a fresh `backfiller.sessionRowsPersisted` read. The live counter can be mutated by
+            // trailing frames / a re-kicked session across the offload boundary, so re-reading it here let an
+            // empty session (which persisted 0 new rows) still look like real backlog and spin to the cap.
+            // Snapshotting `> 0` = the auto-continue can't disagree with the empty verdict, and a dup-only
+            // re-offload (0 new rows) stops instead of spinning on already-synced data.
             maybeAutoContinueBackfill(trimAdvanced: trimAdvanced,
-                                      rowsPersisted: backfiller?.sessionRowsPersisted ?? 0)
+                                      persistedSensorRows: persistedSensorRows)
         }
     }
 
@@ -2147,7 +2168,7 @@ public final class BLEManager: NSObject, ObservableObject {
     /// `trimAdvanced` is the spin-detector signal computed in exitBackfilling (did this session move the
     /// trim cursor vs the previous one) — passed in because exitBackfilling has already advanced
     /// `lastSessionEndTrim` past the comparison point by the time this Task runs.
-    private func maybeAutoContinueBackfill(trimAdvanced: Bool, rowsPersisted: Int) {
+    private func maybeAutoContinueBackfill(trimAdvanced: Bool, persistedSensorRows: Bool) {
         // Cheap pre-checks first (no Task if we already know we won't continue): still connected, under
         // the cap, and the trim moved. The frontier read only happens when those already hold.
         guard state.connected, state.bonded else { return }
@@ -2162,7 +2183,7 @@ public final class BLEManager: NSObject, ObservableObject {
                 strapNewestTs: newest,
                 ourFrontierTs: frontier,
                 wallNowUnix: wallNow,
-                rowsPersistedThisSession: rowsPersisted,
+                persistedSensorRows: persistedSensorRows,
                 lastTrimAdvanced: trimAdvanced,
                 consecutiveCount: count) else {
                 // #1012: name the stop honestly when the future-clock gate is what ended the chain —
@@ -2170,7 +2191,7 @@ public final class BLEManager: NSObject, ObservableObject {
                 // tell "caught up" from "future-dated range refused". Fires ONLY when 2b would otherwise
                 // have continued (still connected, rows banked, trim advanced, under the cap), so a
                 // frozen-trim / cap / disconnect stop is never misattributed to the clock.
-                if stillConnected, rowsPersisted > 0, trimAdvanced,
+                if stillConnected, persistedSensorRows, trimAdvanced,
                    count < BackfillContinuation.defaultMaxAutoContinues,
                    BackfillContinuation.isFutureDatedNewest(newest, wallNowUnix: wallNow) {
                     let aheadH = ((newest ?? wallNow) - wallNow) / 3600
@@ -2708,11 +2729,77 @@ public final class BLEManager: NSObject, ObservableObject {
         guard state.connected, state.bonded else {
             log("Broadcast HR: connect and bond a 5/MG strap first — ignored."); return
         }
-        let value: UInt8 = on ? 0x31 : 0x30   // ASCII '1' / '0'
-        send(.setDeviceConfig,
-             payload: [0x01] + Whoop5Config.deviceConfigBody(name: "whoop_live_hr_in_adv_ind_pkt", value: value),
-             writeType: .withResponse)
-        log("Broadcast HR: wrote whoop_live_hr_in_adv_ind_pkt=\(on ? "1" : "0")")
+        // Mutually exclusive with the ECG gate: both verify over the SAME 121 read-back opcode, so if both
+        // were in flight one strap reply would be consumed by both handlers and cross-contaminate the other's
+        // verdict (its key isn't echoed → a spurious notClaimed). Only one device-config write verifies at once.
+        guard broadcastHrGateReport == nil, ecgGateReport == nil else {
+            log("Broadcast HR: a device-config write is already being verified — ignored."); return
+        }
+        let payload = [0x01] + Whoop5Config.deviceConfigBody(name: DeviceConfigWriteGate.broadcastHrKey,
+                                                             value: DeviceConfigWriteGate.value(on: on))
+        // #1061: `send` SILENTLY drops a command the 5/MG gate refuses, so consult the SAME gate and log
+        // honestly instead of a fire-and-forget "wrote". (The gate's OFF-write fix means the disable is now
+        // admitted; this keeps the log truthful if a write is ever refused.)
+        guard DeviceConfigWriteGate.admitsSend(opcode: DeviceConfigWriteGate.setDeviceConfigValueCmd,
+                                               payload: payload,
+                                               ecgGateOptIn: PuffinExperiment.ecgRawDataEnabled,
+                                               isMG: isWhoop5MG,
+                                               broadcastHrOptIn: PuffinExperiment.broadcastHrEnabled) else {
+            log("Broadcast HR: write whoop_live_hr_in_adv_ind_pkt=\(on ? "1" : "0") REFUSED by the 5/MG send gate — strap unchanged.")
+            return
+        }
+        // #1061: write, then READ IT BACK — the ack is not the proof. A reporter on FW 50.36.2.0 saw the
+        // flag written yet the strap never advertised 0x180D, with no way to tell "accepted but not
+        // advertised" from "write ignored". The 121 read-back settles that, same discipline as the ECG gate.
+        broadcastHrGateReport = BroadcastHrGateReport(on: on)
+        log("Broadcast HR: writing \(DeviceConfigWriteGate.broadcastHrKey)='\(DeviceConfigWriteGate.valueString(on: on))' via SET_DEVICE_CONFIG_VALUE(119); the ack is NOT the result — a GET_DEVICE_CONFIG_VALUE(121) read-back follows.")
+        send(.setDeviceConfig, payload: payload, writeType: .withResponse)
+
+        broadcastHrGateStep &+= 1
+        let armed = broadcastHrGateStep
+        DispatchQueue.main.asyncAfter(deadline: .now() + .milliseconds(200)) { [weak self] in
+            guard let self, self.broadcastHrGateReport != nil, self.broadcastHrGateStep == armed else { return }
+            self.send(.getDeviceConfigValue,
+                      payload: DeviceConfigReadProbe.requestBody(key: DeviceConfigWriteGate.broadcastHrKey))
+            DispatchQueue.main.asyncAfter(deadline: .now() + BLEManager.ecgGateReadBackTimeout) { [weak self] in
+                guard let self, self.broadcastHrGateReport != nil, self.broadcastHrGateStep == armed else { return }
+                self.broadcastHrGateReport?.noteReadBackTimeout(seconds: Int(BLEManager.ecgGateReadBackTimeout))
+                self.finishBroadcastHrWrite()
+            }
+        }
+    }
+
+    /// Non-nil only while a Broadcast-HR write is being verified (#1061) — same single-flight discipline as
+    /// the ECG gate. The send allowlist consults it so the 121 read-back can go out; the frame router routes
+    /// the ack + read-back replies here.
+    private var broadcastHrGateReport: BroadcastHrGateReport?
+    private var broadcastHrGateStep = 0
+
+    private func finishBroadcastHrWrite() {
+        guard let report = broadcastHrGateReport else { return }
+        broadcastHrGateReport = nil
+        log("Broadcast HR (#1061):\n\(report.render())")
+    }
+
+    /// The write's own COMMAND_RESPONSE — recorded, never treated as proof. Routed here when a 119 reply
+    /// lands while a Broadcast-HR write is being verified.
+    private func handleBroadcastHrGateWriteAck(_ frame: [UInt8], cmdOff: Int) {
+        guard broadcastHrGateReport != nil else { return }
+        let resultIndex = cmdOff + 2
+        let code: Int? = frame.count > resultIndex ? Int(frame[resultIndex]) : nil
+        broadcastHrGateReport?.noteWriteAck(resultCode: code)
+    }
+
+    /// The 121 read-back — the ONLY thing that decides the verdict. Routed here from the frame router.
+    private func handleBroadcastHrGateReadBack(_ frame: [UInt8], isWhoop5: Bool) {
+        guard broadcastHrGateReport != nil else { return }
+        let family: DeviceFamily = isWhoop5 ? .whoop5 : .whoop4
+        switch DeviceConfigReadProbe.parse(frame: frame, family: family,
+                                           expecting: DeviceConfigWriteGate.getDeviceConfigValueCmd) {
+        case .success(let r): broadcastHrGateReport?.noteReadBack(r)
+        case .failure(let f): broadcastHrGateReport?.noteReadBackFailure(f)
+        }
+        finishBroadcastHrWrite()
     }
 
     // MARK: - ECG raw-data gate (#891) — an opt-in write with a MANDATORY read-back
@@ -2744,8 +2831,9 @@ public final class BLEManager: NSObject, ObservableObject {
         guard state.connected, state.encryptedBond else {
             log("ECG gate (#891): needs the full encrypted bond, not the live-HR-only link — close the official WHOOP app and pair the strap to NOOP first. Ignored."); return
         }
-        guard ecgGateReport == nil else {
-            log("ECG gate (#891): a write is already being verified — ignored."); return
+        // Mutually exclusive with the Broadcast-HR gate (#1061): both verify over the same 121 read-back.
+        guard ecgGateReport == nil, broadcastHrGateReport == nil else {
+            log("ECG gate (#891): a device-config write is already being verified — ignored."); return
         }
 
         ecgGateReport = EcgRawDataGateReport(on: on)
@@ -4533,6 +4621,12 @@ extension BLEManager: @preconcurrency CBCentralManagerDelegate {
             ecgGateReport?.noteReadBackTimeout(seconds: Int(BLEManager.ecgGateReadBackTimeout))
             finishEcgGateWrite()
         }
+        // #1061: a Broadcast-HR write interrupted mid-verification is likewise RENDERED, not dropped —
+        // it has already written, so the user is told the read-back never landed (verdict silent).
+        if broadcastHrGateReport != nil {
+            broadcastHrGateReport?.noteReadBackTimeout(seconds: Int(BLEManager.ecgGateReadBackTimeout))
+            finishBroadcastHrWrite()
+        }
         state.clearBiometrics()       // and a stale HR / R-R must not outlive the link either
         state.liveFeedActive = false  // a drop while Live is open must not leave a stale "Stop live feed"
         didBond = false
@@ -4589,7 +4683,9 @@ extension BLEManager: @preconcurrency CBCentralManagerDelegate {
         keepAliveTimer?.cancel()
         keepAliveTimer = nil
         resetCharacteristics()
-        puffinRecorder.flush()   // persist any buffered puffin capture frames before reconnect
+        // Best-effort, fire-and-forget: nothing below depends on this write completing, and the
+        // recorder keeps writing the same session file after reconnect (#652: encode+write off-main).
+        Task { @MainActor in await puffinRecorder.flush() }   // persist any buffered puffin capture frames
         puffinEventLog.close()   // release the event-log handle so the file is safe to export
         puffinDeepBufferLog.close()   // same for the high-rate deep-buffer log (#423)
         Task { @MainActor in await collector?.flushStandardHR() }   // persist any buffered 0x2A37 HR
@@ -5430,11 +5526,15 @@ extension BLEManager: @preconcurrency CBPeripheralDelegate {
                     // write ack (recorded, never the proof) or the GET_DEVICE_CONFIG_VALUE(121) read-back that
                     // decides the verdict. Both handlers guard on ecgGateReport being live, so they no-op
                     // outside a verification (and the 121 read-probe clause above no-ops too, its run not live).
+                    // #1061 shares the SAME opcodes for its Broadcast-HR write read-back; only one gate is ever
+                    // in flight (both are single-flight), and each handler no-ops unless its own report is live.
                     if frame.count > 10, frame[8] == 0x24 {
                         if frame[10] == WhoopCommand.setDeviceConfig.rawValue {
                             handleEcgGateWriteAck(frame, cmdOff: 10)
+                            handleBroadcastHrGateWriteAck(frame, cmdOff: 10)
                         } else if frame[10] == WhoopCommand.getDeviceConfigValue.rawValue {
                             handleEcgGateReadBack(frame, isWhoop5: true)
+                            handleBroadcastHrGateReadBack(frame, isWhoop5: true)
                         }
                     }
                     // #695: a 5/MG GET_DATA_RANGE COMMAND_RESPONSE (puffin envelope: type @8, cmd @10). Feeds

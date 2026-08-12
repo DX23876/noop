@@ -2,6 +2,7 @@ package com.noop.ui
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -46,21 +47,20 @@ import kotlin.math.roundToInt
 @Composable
 internal fun StageBreakdownRows(s: Stages) {
     Column(verticalArrangement = Arrangement.spacedBy(Metrics.space12)) {
-        StageBreakdownRow("REM", s.rem, s.total, Palette.sleepREM)
-        StageBreakdownRow("Deep", s.deep, s.total, Palette.sleepDeep)
-        StageBreakdownRow("Light", s.light, s.total, Palette.sleepLight)
-        StageBreakdownRow("Awake", s.awake, s.total, Palette.sleepAwake)
+        StageBreakdownRow("REM", s.rem, s.total, Palette.sleepREM, stageSharePercent("REM", s))
+        StageBreakdownRow("Deep", s.deep, s.total, Palette.sleepDeep, stageSharePercent("Deep", s))
+        StageBreakdownRow("Light", s.light, s.total, Palette.sleepLight, stageSharePercent("Light", s))
+        StageBreakdownRow("Awake", s.awake, s.total, Palette.sleepAwake, stageSharePercent("Awake", s))
     }
 }
 
 /**
- * One WHOOP-style stage row. `fraction = minutes / total` sets both the % and the PipBar fill, so the
- * coloured percent and the segmented bar always agree. Mirrors the macOS SleepView.stageBreakdownRow.
+ * One WHOOP-style stage row. `fraction = minutes / total` sets the PipBar fill; `percent` is the night's
+ * apportioned share (so the four rows sum to 100). Mirrors the macOS SleepView.stageBreakdownRow.
  */
 @Composable
-private fun StageBreakdownRow(stage: String, minutes: Double, total: Double, color: Color) {
+private fun StageBreakdownRow(stage: String, minutes: Double, total: Double, color: Color, percent: Int) {
     val fraction = if (total > 0.0) (minutes / total).coerceIn(0.0, 1.0) else 0.0
-    val percent = (fraction * 100.0).roundToInt()
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(Metrics.space10),
@@ -212,6 +212,8 @@ internal fun FilledHypnogram(
     // true → each stage FILLS its column to the baseline (the stepped-area look). false → a slim uniform
     // RIBBON at each stage level (the WHOOP-style stepped line), which reads cleaner on a fragmented night.
     filled: Boolean = true,
+    // The stage-colour ramp: NOOP tokens (Fill), Garmin's (Garmin Fill), or Oura's (Ribbon).
+    palette: SleepStagePalette = SleepStagePalette.NOOP,
 ) {
     if (segments.isEmpty()) return
     val originSec = (onsetTs?.toDouble()) ?: segments.minOf { it.start }.toDouble()
@@ -280,13 +282,13 @@ internal fun FilledHypnogram(
                 val segW = (x1 - x0).coerceAtLeast(1.5f).coerceAtMost(w - x0)
                 if (filled) {
                     drawRect(
-                        color = stageColorFor(iv.stage),
+                        color = stageColorForRamp(iv.stage, palette),
                         topLeft = Offset(x0, y),
                         size = Size(segW, (h - y).coerceAtLeast(0f)),
                     )
                 } else {
                     drawRect(
-                        color = stageColorFor(iv.stage),
+                        color = stageColorForRamp(iv.stage, palette),
                         topLeft = Offset(x0, y - ribbonThickness / 2f),
                         size = Size(segW, ribbonThickness),
                     )
@@ -318,6 +320,27 @@ internal fun FilledHypnogram(
         }
         if (axisTicks.isNotEmpty()) {
             HypnogramTimeAxis(axisTicks)
+        }
+    }
+}
+
+/** A compact colour-coded key for the stepped hypnogram: one dot + label per stage in the chart's ramp, so
+ *  the bands are decodable (esp. the Garmin ramp's two pinks, Awake vs REM). Twin of Swift SleepStageLegend. */
+@Composable
+internal fun SleepStageLegend(palette: SleepStagePalette) {
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        for (label in listOf("Awake", "REM", "Light", "Deep")) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(5.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(stageColorForRamp(label, palette)))
+                Text(label, style = NoopType.caption, color = Palette.textSecondary, maxLines = 1)
+            }
         }
     }
 }
@@ -448,4 +471,70 @@ private fun stageColorFor(name: String): Color = when (canonicalStage(name)) {
     "light" -> Palette.sleepLight
     "awake" -> Palette.sleepAwake
     else -> Palette.sleepLight
+}
+
+// Brand sleep ramps for the stepped [FilledHypnogram]: Garmin's for Filled (blue light/deep + magenta REM),
+// Oura's for Ribbon (cream awake + blues, sampled from the ring's app), so the chart reads like the app it's
+// modelled on. Byte-identical hexes to the Swift `StrandPalette.BrandSleepRamp`. The classic hero strip
+// ([HypnogramWithAxis]) keeps the NOOP tokens via [stageColorFor]. (#sleep-chart-style)
+//
+// PER-SCHEME since the light-mode pass. The ramps shipped flat — one hex for both schemes — because both
+// source apps are dark-tuned; measured on the light card (near-white) the Oura ramp collapses, with `awake`
+// #EAE3D3 at 1.28:1, i.e. not drawn. The light values apply ONE uniform HLS-lightness scale per ramp
+// (Oura x0.575, Garmin x0.912), pinned so each ramp's lightest band reaches 3:1 on white: hue and
+// saturation untouched, ordering preserved, no stage pair collapsed. Clamping each band separately to 3:1
+// is the trap — it drives Oura `rem` and `light` to 1.00:1 apart. Properties pinned in [BrandSleepRampTest],
+// twin of the Swift `BrandSleepRampTests`.
+/**
+ * The eight brand hexes x two schemes, declared ONCE as ARGB longs — the [Color]s below and the ramp lists
+ * [BrandSleepRampTest] asserts on are both built from these, so there is no second copy to drift. Stage
+ * order is awake, rem, light, deep (which is NOT luminance order: Garmin's `light` is lighter than its
+ * `rem`; what the light pass preserves is each ramp's own order, whatever it is).
+ */
+internal object BrandSleepRamp {
+    const val OURA_AWAKE_DARK = 0xFFEAE3D3
+    const val OURA_REM_DARK = 0xFF90D0F0
+    const val OURA_LIGHT_DARK = 0xFF40B0E0
+    const val OURA_DEEP_DARK = 0xFF206080
+    const val GARMIN_AWAKE_DARK = 0xFFF26FE8
+    const val GARMIN_REM_DARK = 0xFFE22DD0
+    const val GARMIN_LIGHT_DARK = 0xFF4AA6F2
+    const val GARMIN_DEEP_DARK = 0xFF2472D8
+    const val OURA_AWAKE_LIGHT = 0xFFAD9153
+    const val OURA_REM_LIGHT = 0xFF1A8AC2
+    const val OURA_LIGHT_LIGHT = 0xFF176B8E
+    const val OURA_DEEP_LIGHT = 0xFF12374A
+    const val GARMIN_AWAKE_LIGHT = 0xFFEF52E3
+    const val GARMIN_REM_LIGHT = 0xFFD91EC7
+    const val GARMIN_LIGHT_LIGHT = 0xFF3099F0
+    const val GARMIN_DEEP_LIGHT = 0xFF2168C5
+
+    val ouraDark = listOf(OURA_AWAKE_DARK, OURA_REM_DARK, OURA_LIGHT_DARK, OURA_DEEP_DARK)
+    val ouraLight = listOf(OURA_AWAKE_LIGHT, OURA_REM_LIGHT, OURA_LIGHT_LIGHT, OURA_DEEP_LIGHT)
+    val garminDark = listOf(GARMIN_AWAKE_DARK, GARMIN_REM_DARK, GARMIN_LIGHT_DARK, GARMIN_DEEP_DARK)
+    val garminLight = listOf(GARMIN_AWAKE_LIGHT, GARMIN_REM_LIGHT, GARMIN_LIGHT_LIGHT, GARMIN_DEEP_LIGHT)
+}
+
+// The scheme-resolved ramp. `Palette.isLight` is snapshot state, so a theme flip re-resolves these inside a
+// Canvas DrawScope with no call-site change — the same per-scheme idiom the rest of the palette uses.
+private fun brand(light: Long, dark: Long) = Color(if (Palette.isLight) light else dark)
+private val ouraSleepAwake: Color get() = brand(BrandSleepRamp.OURA_AWAKE_LIGHT, BrandSleepRamp.OURA_AWAKE_DARK)
+private val ouraSleepREM: Color get() = brand(BrandSleepRamp.OURA_REM_LIGHT, BrandSleepRamp.OURA_REM_DARK)
+private val ouraSleepLight: Color get() = brand(BrandSleepRamp.OURA_LIGHT_LIGHT, BrandSleepRamp.OURA_LIGHT_DARK)
+private val ouraSleepDeep: Color get() = brand(BrandSleepRamp.OURA_DEEP_LIGHT, BrandSleepRamp.OURA_DEEP_DARK)
+private val garminSleepAwake: Color get() = brand(BrandSleepRamp.GARMIN_AWAKE_LIGHT, BrandSleepRamp.GARMIN_AWAKE_DARK)
+private val garminSleepREM: Color get() = brand(BrandSleepRamp.GARMIN_REM_LIGHT, BrandSleepRamp.GARMIN_REM_DARK)
+private val garminSleepLight: Color get() = brand(BrandSleepRamp.GARMIN_LIGHT_LIGHT, BrandSleepRamp.GARMIN_LIGHT_DARK)
+private val garminSleepDeep: Color get() = brand(BrandSleepRamp.GARMIN_DEEP_LIGHT, BrandSleepRamp.GARMIN_DEEP_DARK)
+
+private fun stageColorForRamp(name: String, palette: SleepStagePalette): Color = when (palette) {
+    SleepStagePalette.NOOP -> stageColorFor(name)
+    SleepStagePalette.OURA -> when (canonicalStage(name)) {
+        "deep" -> ouraSleepDeep; "rem" -> ouraSleepREM; "light" -> ouraSleepLight
+        "awake" -> ouraSleepAwake; else -> ouraSleepLight
+    }
+    SleepStagePalette.GARMIN -> when (canonicalStage(name)) {
+        "deep" -> garminSleepDeep; "rem" -> garminSleepREM; "light" -> garminSleepLight
+        "awake" -> garminSleepAwake; else -> garminSleepLight
+    }
 }

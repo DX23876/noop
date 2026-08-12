@@ -3,9 +3,12 @@ package com.noop.ui
 import com.noop.R
 import androidx.compose.ui.res.stringResource
 import android.content.Context
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -46,6 +49,7 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.font.FontWeight
@@ -55,6 +59,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.noop.data.DailyMetric
 import com.noop.data.MoodStore
 import com.noop.ingest.NutritionCsvImporter
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 import java.util.Locale
 import kotlin.math.abs
 import kotlin.math.sqrt
@@ -104,11 +110,20 @@ data class CompareMetric(
         return if (unit.isEmpty()) n else "$n $unit"
     }
 
-    /** Unit-aware format (D#103): weight/lean_mass (kg) and skin_temp (°C) convert + relabel via
-     *  [UnitFormatter]; everything else (%, bpm, ms, min, …) is unit-agnostic and falls through. */
+    /** Unit-aware format (D#103): weight/lean_mass (kg) and skin_temp (°C / Δ°C) convert + relabel via
+     *  [UnitFormatter] / [SkinTempDisplay]; everything else falls through. */
     fun format(v: Double, system: UnitSystem, temperature: TemperatureUnit): String = when (unit) {
         "kg" -> UnitFormatter.massFromKilograms(v, system)
-        "°C" -> UnitFormatter.temperatureFromCelsius(v, temperature, decimals)
+        "°C" -> if (key == "skin_temp") {
+            // #622: absolute vs baseline-deviation share the same key — label Δ°C when deviation.
+            com.noop.analytics.SkinTempDisplay.format(
+                v,
+                fahrenheit = temperature == TemperatureUnit.FAHRENHEIT,
+                decimals = decimals,
+            )
+        } else {
+            UnitFormatter.temperatureFromCelsius(v, temperature, decimals)
+        }
         else -> format(v)
     }
 
@@ -464,10 +479,10 @@ fun CompareScreen(vm: AppViewModel) {
         subtitle = "Overlay signals, draw conclusions.",
         // Liquid sky backdrop (LiquidScreenSky.kt) in the scaffold's topBackground slot, gated on the
         // day-cycle preference — the same pilot plumbing the liquid Today uses.
-        topBackground = if (showDayCycleBackground) { { LiquidScreenSky(fillHeight = skyBehindCards) } } else null,
+        topBackground = screenBackdropSlot(showDayCycleBackground, skyBehindCards),
         // Sky-behind-cards fills the viewport so the transparent cards reveal the sky the whole way
         // down (Today / Trends / Sleep / metric-detail parity - same two prefs, same two behaviours).
-        fullBleedBackground = showDayCycleBackground && skyBehindCards,
+        fullBleedBackground = screenBackdropFullBleed(showDayCycleBackground, skyBehindCards),
     ) {
 
         // ── Metric picker section (chips + range control)
@@ -837,103 +852,328 @@ private fun OverlayChart(series: List<CompareSeries>, modifier: Modifier) {
         // Per series: its rows reduced to (ordinal, norm0to1) pairs, dropping unparseable days exactly
         // as the old `mapNotNull { dayOrdinal(...) }` did — same order, same drop rule, same normalize.
         val perSeries = series.map { s ->
-            val pairs = s.rows.mapNotNull { (day, value) ->
+            val points = s.rows.mapNotNull { (day, value) ->
                 val ord = dayOrdinal(day) ?: return@mapNotNull null
-                ord to s.normalized(value).toFloat().coerceIn(0f, 1f)
+                OverlayPreparedPoint(
+                    day = day,
+                    ordinal = ord,
+                    normalized = s.normalized(value).toFloat().coerceIn(0f, 1f),
+                    value = value,
+                )
             }
-            Triple(s.color, pairs, s)
+            OverlayPreparedSeries(color = s.color, points = points, source = s)
         }
-        val allOrds = perSeries.flatMap { (_, pairs, _) -> pairs.map { it.first } }
-        OverlayPrepared(minOrd = allOrds.minOrNull(), maxOrd = allOrds.maxOrNull(), perSeries = perSeries)
+        val dayOrdinals = linkedMapOf<String, Long>()
+        perSeries.forEach { preparedSeries ->
+            preparedSeries.points.forEach { point -> dayOrdinals[point.day] = point.ordinal }
+        }
+        val dayIndex = dayOrdinals.entries
+            .map { it.key to it.value }
+            .sortedBy { it.second }
+        val allOrds = dayIndex.map { it.second }
+        OverlayPrepared(
+            minOrd = allOrds.minOrNull(),
+            maxOrd = allOrds.maxOrNull(),
+            dayIndex = dayIndex,
+            perSeries = perSeries,
+        )
     }
+    var selectedDay by remember(prepared) { mutableStateOf<String?>(null) }
+
+    fun selectDay(x: Float, width: Float) {
+        selectedDay = nearestCompareDayForX(
+            dayIndex = prepared.dayIndex,
+            minOrd = prepared.minOrd,
+            maxOrd = prepared.maxOrd,
+            width = width,
+            x = x,
+        )
+    }
+
+    val selectionModifier = Modifier
+        .pointerInput(prepared.dayIndex) {
+            detectTapGestures(onTap = { offset -> selectDay(offset.x, size.width.toFloat()) })
+        }
+        .pointerInput(prepared.dayIndex) {
+            detectHorizontalDragGestures(
+                onDragStart = { start -> selectDay(start.x, size.width.toFloat()) },
+                onHorizontalDrag = { change, _ ->
+                    selectDay(change.position.x, size.width.toFloat())
+                    change.consume()
+                },
+                onDragEnd = { selectedDay = null },
+                onDragCancel = { selectedDay = null },
+            )
+        }
 
     // Build the per-series Paths in drawWithCache — rebuilt only when the prepared pairs or the canvas
     // size change (NOT on unrelated recompositions), instead of allocating a fresh Path every frame.
     Box(
-        modifier = modifier.drawWithCache {
-            val w = size.width
-            val h = size.height
-            val topPad = 6f
-            val usableH = (h - topPad * 2f).coerceAtLeast(1f)
-            val minOrd = prepared.minOrd
-            val maxOrd = prepared.maxOrd
+        modifier = modifier.then(selectionModifier),
+    ) {
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .drawWithCache {
+                    val w = size.width
+                    val h = size.height
+                    val topPad = 6f
+                    val usableH = (h - topPad * 2f).coerceAtLeast(1f)
+                    val minOrd = prepared.minOrd
+                    val maxOrd = prepared.maxOrd
 
-            // Pre-place each series' pixel points + Path once (size-dependent, so it lives here, keyed
-            // on size by drawWithCache). x/y formulas are identical to the old per-frame computation.
-            data class Built(val color: Color, val path: Path?, val singleDot: Offset?, val last: Offset?)
-            val built = if (minOrd != null && maxOrd != null) {
-                val span = (maxOrd - minOrd).coerceAtLeast(1L).toFloat()
-                prepared.perSeries.map { (color, pairs, _) ->
-                    val pts = pairs.map { (ord, norm) ->
-                        val x = if (maxOrd > minOrd) (ord - minOrd).toFloat() / span * w else w / 2f
-                        val y = topPad + (1f - norm) * usableH
-                        Offset(x, y)
-                    }
-                    when {
-                        pts.size < 2 -> Built(color, null, pts.firstOrNull(), null)
-                        else -> {
-                            val path = Path().apply {
-                                moveTo(pts.first().x, pts.first().y)
-                                for (i in 1 until pts.size) lineTo(pts[i].x, pts[i].y)
+                    // Pre-place each series' pixel points + Path once (size-dependent, so it lives here, keyed
+                    // on size by drawWithCache). x/y formulas are identical to the old per-frame computation.
+                    data class Built(val color: Color, val path: Path?, val singleDot: Offset?, val last: Offset?)
+                    val built = if (minOrd != null && maxOrd != null) {
+                        val span = (maxOrd - minOrd).coerceAtLeast(1L).toFloat()
+                        prepared.perSeries.map { preparedSeries ->
+                            val pts = preparedSeries.points.map { point ->
+                                val x = if (maxOrd > minOrd) {
+                                    (point.ordinal - minOrd).toFloat() / span * w
+                                } else {
+                                    w / 2f
+                                }
+                                val y = topPad + (1f - point.normalized) * usableH
+                                Offset(x, y)
                             }
-                            Built(color, path, null, pts.last())
+                            when {
+                                pts.size < 2 -> Built(preparedSeries.color, null, pts.firstOrNull(), null)
+                                else -> {
+                                    val path = Path().apply {
+                                        moveTo(pts.first().x, pts.first().y)
+                                        for (i in 1 until pts.size) lineTo(pts[i].x, pts[i].y)
+                                    }
+                                    Built(preparedSeries.color, path, null, pts.last())
+                                }
+                            }
+                        }
+                    } else {
+                        emptyList()
+                    }
+
+                    val gridColor = Palette.hairline.copy(alpha = 0.4f)
+                    val tipCore = Palette.tipCore
+
+                    onDrawBehind {
+                        if (w <= 0f || h <= 0f) return@onDrawBehind
+
+                        // Faint low / mid / high gridlines.
+                        for (f in listOf(0f, 0.5f, 1f)) {
+                            val y = topPad + (1f - f) * usableH
+                            drawLine(
+                                color = gridColor,
+                                start = Offset(0f, y),
+                                end = Offset(w, y),
+                                strokeWidth = 1f,
+                            )
+                        }
+
+                        if (minOrd == null || maxOrd == null) return@onDrawBehind
+
+                        built.forEach { b ->
+                            if (b.singleDot != null) {
+                                // A single point still renders as a dot so the series is visible.
+                                drawCircle(b.color, radius = 3.5f, center = b.singleDot)
+                                return@forEach
+                            }
+                            if (b.path != null) {
+                                drawPath(
+                                    path = b.path,
+                                    color = b.color,
+                                    style = Stroke(width = 2.2f, cap = StrokeCap.Round, join = StrokeJoin.Round),
+                                )
+                            }
+                            // Bevel "now" end-cap on this series' latest point — soft halo + bright core + white centre.
+                            b.last?.let { last ->
+                                drawCircle(color = b.color.copy(alpha = 0.30f), radius = 8f, center = last)
+                                drawCircle(color = b.color.copy(alpha = 0.65f), radius = 5f, center = last)
+                                drawCircle(color = tipCore, radius = 2.2f, center = last)
+                            }
                         }
                     }
+                },
+        )
+
+        val selectedOrdinal = selectedDay?.let { day ->
+            prepared.dayIndex.firstOrNull { it.first == day }?.second
+        }
+        if (selectedDay != null && selectedOrdinal != null && prepared.minOrd != null && prepared.maxOrd != null) {
+            val selected = selectedDay!!
+            Canvas(modifier = Modifier.matchParentSize()) {
+                val w = size.width
+                val h = size.height
+                if (w <= 0f || h <= 0f) return@Canvas
+                val minOrd = prepared.minOrd
+                val maxOrd = prepared.maxOrd
+                val span = (maxOrd - minOrd).coerceAtLeast(1L).toFloat()
+                val x = if (maxOrd > minOrd) {
+                    (selectedOrdinal - minOrd).toFloat() / span * w
+                } else {
+                    w / 2f
                 }
-            } else {
-                emptyList()
-            }
+                val topPad = 6f
+                val usableH = (h - topPad * 2f).coerceAtLeast(1f)
 
-            val gridColor = Palette.hairline.copy(alpha = 0.4f)
-            val tipCore = Palette.tipCore
-
-            onDrawBehind {
-                if (w <= 0f || h <= 0f) return@onDrawBehind
-
-                // Faint low / mid / high gridlines.
-                for (f in listOf(0f, 0.5f, 1f)) {
-                    val y = topPad + (1f - f) * usableH
-                    drawLine(
-                        color = gridColor,
-                        start = Offset(0f, y),
-                        end = Offset(w, y),
-                        strokeWidth = 1f,
-                    )
-                }
-
-                if (minOrd == null || maxOrd == null) return@onDrawBehind
-
-                built.forEach { b ->
-                    if (b.singleDot != null) {
-                        // A single point still renders as a dot so the series is visible.
-                        drawCircle(b.color, radius = 3.5f, center = b.singleDot)
-                        return@forEach
-                    }
-                    if (b.path != null) {
-                        drawPath(
-                            path = b.path,
-                            color = b.color,
-                            style = Stroke(width = 2.2f, cap = StrokeCap.Round, join = StrokeJoin.Round),
+                drawLine(
+                    color = Palette.hairlineStrong,
+                    start = Offset(x, 0f),
+                    end = Offset(x, h),
+                    strokeWidth = 1.dp.toPx(),
+                )
+                prepared.perSeries.forEach { preparedSeries ->
+                    preparedSeries.pointsByDay[selected]?.let { point ->
+                        val y = topPad + (1f - point.normalized) * usableH
+                        drawCircle(
+                            color = Palette.surfaceBase,
+                            radius = 5.dp.toPx(),
+                            center = Offset(x, y),
+                        )
+                        drawCircle(
+                            color = preparedSeries.color,
+                            radius = 3.5.dp.toPx(),
+                            center = Offset(x, y),
                         )
                     }
-                    // Bevel "now" end-cap on this series' latest point — soft halo + bright core + white centre.
-                    b.last?.let { last ->
-                        drawCircle(color = b.color.copy(alpha = 0.30f), radius = 8f, center = last)
-                        drawCircle(color = b.color.copy(alpha = 0.65f), radius = 5f, center = last)
-                        drawCircle(color = tipCore, radius = 2.2f, center = last)
-                    }
                 }
             }
-        },
-    )
+
+            val selectedFraction = if (prepared.maxOrd > prepared.minOrd) {
+                (selectedOrdinal - prepared.minOrd).toFloat() / (prepared.maxOrd - prepared.minOrd).toFloat()
+            } else {
+                0.5f
+            }
+            CompareChartTooltip(
+                day = selected,
+                series = prepared.perSeries,
+                modifier = Modifier
+                    .align(if (selectedFraction < 0.5f) Alignment.TopEnd else Alignment.TopStart)
+                    .padding(4.dp),
+            )
+        }
+    }
 }
 
 /** Pre-parsed overlay inputs (size-independent): the shared x-domain + each series' (ordinal, norm) pairs. */
 private data class OverlayPrepared(
     val minOrd: Long?,
     val maxOrd: Long?,
-    val perSeries: List<Triple<Color, List<Pair<Long, Float>>, CompareSeries>>,
+    val dayIndex: List<Pair<String, Long>>,
+    val perSeries: List<OverlayPreparedSeries>,
 )
+
+private data class OverlayPreparedPoint(
+    val day: String,
+    val ordinal: Long,
+    val normalized: Float,
+    val value: Double,
+)
+
+private data class OverlayPreparedSeries(
+    val color: Color,
+    val points: List<OverlayPreparedPoint>,
+    val source: CompareSeries,
+) {
+    val pointsByDay: Map<String, OverlayPreparedPoint> = points.associateBy { it.day }
+}
+
+/**
+ * Maps a chart x-coordinate to the nearest day that has at least one value. The union may be sparse
+ * or irregular, so selecting by list index would snap to the wrong date; use the plotted day domain.
+ * Ties choose the earlier day, matching the Apple Compare chart.
+ */
+internal fun nearestCompareDayForX(
+    dayIndex: List<Pair<String, Long>>,
+    minOrd: Long?,
+    maxOrd: Long?,
+    width: Float,
+    x: Float,
+): String? {
+    if (dayIndex.isEmpty() || minOrd == null || maxOrd == null || width <= 0f) return null
+    if (dayIndex.size == 1 || maxOrd <= minOrd) return dayIndex.first().first
+
+    // Promote before division: Float rounding at an exact midpoint (e.g. 60f / 100f) can land just
+    // above the tie and incorrectly select the later day.
+    val fraction = (x.toDouble() / width.toDouble()).coerceIn(0.0, 1.0)
+    val target = minOrd.toDouble() + fraction * (maxOrd - minOrd).toDouble()
+    var low = 0
+    var high = dayIndex.size
+    while (low < high) {
+        val mid = (low + high) / 2
+        if (dayIndex[mid].second < target) low = mid + 1 else high = mid
+    }
+    if (low == 0) return dayIndex.first().first
+    if (low == dayIndex.size) return dayIndex.last().first
+    val before = dayIndex[low - 1]
+    val after = dayIndex[low]
+    return if (target - before.second <= after.second - target) before.first else after.first
+}
+
+@Composable
+private fun CompareChartTooltip(
+    day: String,
+    series: List<OverlayPreparedSeries>,
+    modifier: Modifier = Modifier,
+) {
+    val context = LocalContext.current
+    val unitSystem = UnitPrefs.system(context)
+    val tempUnit = UnitPrefs.temperature(context)
+    val shape = RoundedCornerShape(10.dp)
+    Column(
+        modifier = modifier
+            .width(220.dp)
+            .clip(shape)
+            .background(Palette.surfaceOverlay)
+            .border(1.dp, Palette.hairline, shape)
+            .padding(10.dp),
+        verticalArrangement = Arrangement.spacedBy(5.dp),
+    ) {
+        Text(
+            prettyCompareDay(day),
+            style = NoopType.footnote,
+            color = Palette.textTertiary,
+        )
+        series.forEach { preparedSeries ->
+            val source = preparedSeries.source
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(7.dp),
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(7.dp)
+                        .clip(CircleShape)
+                        .background(preparedSeries.color),
+                )
+                Text(
+                    source.metric.title,
+                    style = NoopType.caption,
+                    color = Palette.textSecondary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
+                )
+                Text(
+                    preparedSeries.pointsByDay[day]?.value?.let {
+                        source.metric.format(it, unitSystem, tempUnit)
+                    } ?: "\u2014",
+                    style = NoopType.captionNumber,
+                    color = Palette.textPrimary,
+                    maxLines = 1,
+                )
+            }
+        }
+    }
+}
+
+// Device locale so the weekday/month names translate (a non-English user shouldn't see an English
+// tooltip date). Same pattern + device locale as the iOS twin, so both localize consistently.
+private val compareTooltipDateFormatter: DateTimeFormatter =
+    DateTimeFormatter.ofPattern("EEE d MMM yyyy", Locale.getDefault())
+
+private fun prettyCompareDay(day: String): String =
+    runCatching { LocalDate.parse(day).format(compareTooltipDateFormatter) }.getOrDefault(day)
 
 @Composable
 private fun Legend(series: List<CompareSeries>) {

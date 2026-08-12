@@ -161,6 +161,16 @@ object DeviceConfigWriteGate {
         return name.toString()
     }
 
+    /** The single value byte a SET_DEVICE_CONFIG_VALUE payload carries immediately after the 32-byte
+     *  NUL-padded name field, or null when the payload is too short to hold one. The gate only ever writes
+     *  single-character values ('0'/'1'), so this one byte is the whole value. Used to tell a turn-OFF write
+     *  from a turn-ON write in [admitsSend]. Twin of Swift `DeviceConfigWriteGate.valueByte(inSendPayload:)`. */
+    fun valueByteInSendPayload(payload: ByteArray): Int? {
+        if (payload.size <= 1 + NAME_FIELD_BYTES) return null
+        if ((payload[0].toInt() and 0xFF) != 0x01) return null
+        return payload[1 + NAME_FIELD_BYTES].toInt() and 0xFF
+    }
+
     // The allowlist predicate -----------------------------------------------------------------------
 
     /**
@@ -198,6 +208,13 @@ object DeviceConfigWriteGate {
     ): Boolean {
         if (opcode != SET_DEVICE_CONFIG_VALUE_CMD) return false
         val key = keyNameInSendPayload(payload) ?: return false
+        // #1061: turning the Broadcast-HR flag OFF is the safe UNDO and must NEVER be gated on the opt-in.
+        // The opt-in is bound straight to the Settings switch, so it is already false by the time the user
+        // disables — gating the OFF write on it made the toggle-off path DEAD (the disable refused here, the
+        // strap left advertising, the app unable to clear it). Same lesson the #174 R22 disable clause
+        // records for SET_FF_VALUE. Admit the Broadcast-HR OFF write unconditionally; the ON write (and the
+        // ECG key, both directions) stay gated by [isWritableKey]. Byte-identical to the Swift twin.
+        if (key == BROADCAST_HR_KEY && valueByteInSendPayload(payload) == DISABLED_VALUE) return true
         return isWritableKey(key, ecgGateOptIn, isMG, broadcastHrOptIn)
     }
 
@@ -378,6 +395,149 @@ class EcgRawDataGateReport(on: Boolean) {
         sb.append("\nWhether this gate actually produces ECG data is UNKNOWN. If it now reads '1' and a ")
         sb.append("TOGGLE_LABRADOR listen still yields zero packets, that is a real result for #891 — ")
         sb.append("please share this report there either way.\n")
+        return sb.toString()
+    }
+}
+
+/**
+ * The result of one Broadcast-HR (#181) write + mandatory read-back, as a copyable report.
+ *
+ * #1061: the strap-flag write (`whoop_live_hr_in_adv_ind_pkt`) was fire-and-forget — NOOP never read it
+ * back, so a reporter on FW 50.36.2.0 could not tell whether the firmware ACCEPTED the flag (and simply
+ * doesn't advertise 0x180D) or IGNORED the write. That contradicts this file's own rule — read-back is the
+ * proof, not the ack — which the ECG gate on the SAME opcode already follows. So the write now reads itself
+ * back with GET_DEVICE_CONFIG_VALUE(121) and reports the value the strap actually stores.
+ *
+ * Same order-dependent, pure verdict machinery as [EcgRawDataGateReport]. Twin of the Swift
+ * `BroadcastHrGateReport`; [render] is byte-identical across platforms.
+ */
+class BroadcastHrGateReport(on: Boolean) {
+
+    /** Identical semantics to [EcgRawDataGateReport.Verdict]. */
+    enum class Verdict(val label: String) {
+        CONFIRMED("confirmed"),
+        UNCHANGED("unchanged"),
+        NOT_CLAIMED("notClaimed"),
+        REFUSED("refused"),
+        SILENT("silent"),
+        UNDECODABLE("undecodable"),
+        PENDING("pending"),
+    }
+
+    /** The value that was requested, as the strap stores it ("1" = advertise on / "0" = off). */
+    val requested: String = DeviceConfigWriteGate.valueString(on)
+
+    var writeResultCode: Int? = null
+        private set
+
+    var storedValue: String? = null
+        private set
+
+    var readBackResultCode: Int? = null
+        private set
+
+    var readBackRecordHex: String? = null
+        private set
+
+    private val _trace = mutableListOf<String>()
+
+    val trace: List<String> get() = _trace
+
+    var verdict: Verdict = Verdict.PENDING
+        private set
+
+    init {
+        _trace.add(
+            "SET_DEVICE_CONFIG_VALUE(119) key=\"${DeviceConfigWriteGate.BROADCAST_HR_KEY}\" " +
+                "value='$requested' sent",
+        )
+    }
+
+    /** Record the write's own ack. Logged and NOT used to decide anything (the #891 lesson applies to
+     *  every device-config write). */
+    fun noteWriteAck(resultCode: Int?) {
+        writeResultCode = resultCode
+        val label = resultCode?.let { "${FeatureFlagProbe.resultLabel(it)}($it)" } ?: "(unlabelled)"
+        _trace.add(
+            "write ack → result=$label — recorded, not treated as proof; the read-back below is the proof",
+        )
+    }
+
+    /** Record the decoded read-back and reach a verdict. */
+    fun noteReadBack(r: DeviceConfigReadProbe.ValueResponse) {
+        readBackResultCode = r.resultCode
+        readBackRecordHex = r.recordHex
+        val stored = r.valueFor(DeviceConfigWriteGate.BROADCAST_HR_KEY)
+            ?.takeIf { it in 0x20..0x7E }?.toChar()?.toString()
+        storedValue = stored
+        val sb = StringBuilder(
+            "GET_DEVICE_CONFIG_VALUE(121) key=\"${DeviceConfigWriteGate.BROADCAST_HR_KEY}\"",
+        )
+        val c = r.resultCode
+        if (c != null) sb.append(" → result=${FeatureFlagProbe.resultLabel(c)}($c)") else sb.append(" →")
+        if (stored != null) sb.append(" value='$stored'")
+        sb.append(" record=[${r.recordHex}]")
+        _trace.add(sb.toString())
+
+        verdict = when {
+            r.isUnsupported || r.isFailure -> Verdict.REFUSED
+            stored == null -> Verdict.NOT_CLAIMED
+            stored == requested -> Verdict.CONFIRMED
+            else -> Verdict.UNCHANGED
+        }
+    }
+
+    /** Record a read-back reply that could not be decoded. */
+    fun noteReadBackFailure(f: DeviceConfigReadProbe.ParseFailure) {
+        val why = when (f) {
+            DeviceConfigReadProbe.ParseFailure.CRC -> "CRC failed — frame rejected (never decoded)"
+            DeviceConfigReadProbe.ParseFailure.ENVELOPE -> "not a COMMAND_RESPONSE envelope"
+            DeviceConfigReadProbe.ParseFailure.WRONG_COMMAND -> "COMMAND_RESPONSE for a different command"
+            DeviceConfigReadProbe.ParseFailure.TRUNCATED -> "record too short to hold a response"
+        }
+        _trace.add("read-back reply not decoded: $why")
+        verdict = Verdict.UNDECODABLE
+    }
+
+    /** Record the strap answering nothing at all to the read-back. */
+    fun noteReadBackTimeout(seconds: Int) {
+        _trace.add("GET_DEVICE_CONFIG_VALUE(121) → no COMMAND_RESPONSE within ${seconds}s")
+        verdict = Verdict.SILENT
+    }
+
+    /** One-line summary, suitable for a strap-log line. */
+    val summary: String
+        get() = when (verdict) {
+            Verdict.CONFIRMED ->
+                "Strap now reports ${DeviceConfigWriteGate.BROADCAST_HR_KEY}='$requested' " +
+                    "(read back, not just acked)."
+            Verdict.UNCHANGED ->
+                "Write did NOT take: asked for '$requested', strap still reports '${storedValue ?: "?"}'."
+            Verdict.NOT_CLAIMED ->
+                "Strap answered the read-back but did not echo the key, so no value is claimed."
+            Verdict.REFUSED ->
+                "Strap refused the read-back for this key — the stored value is unknown."
+            Verdict.SILENT -> "No reply to the read-back — the stored value is unknown."
+            Verdict.UNDECODABLE ->
+                "The read-back reply did not decode — the stored value is unknown."
+            Verdict.PENDING -> "Waiting for the read-back…"
+        }
+
+    /** The full copyable report. */
+    fun render(): String {
+        val sb = StringBuilder()
+        sb.append("#1061 BROADCAST-HR FLAG — WHOOP 5/MG\n")
+        sb.append("Key: ${DeviceConfigWriteGate.BROADCAST_HR_KEY} ")
+        sb.append("(makes the strap advertise its HR as a standard 0x180D sensor)\n")
+        sb.append("Wrote '$requested' via SET_DEVICE_CONFIG_VALUE(119), then read it back with ")
+        sb.append("GET_DEVICE_CONFIG_VALUE(121). The write ack is never trusted; only the read-back decides.\n")
+        sb.append("\nVerdict: ${verdict.label} — $summary\n")
+        sb.append("\nExchange:\n")
+        for (line in _trace) sb.append("  ").append(line).append("\n")
+        sb.append("\nNOTE: a CONFIRMED read-back means the FLAG is stored, NOT that the strap advertises ")
+        sb.append("0x180D — some firmware (e.g. 50.36.x) stores it but doesn't advertise. If it reads '1' ")
+        sb.append("here yet no watch/nRF-Connect scan shows 0x180D while disconnected, that is a firmware ")
+        sb.append("result for #1061.\n")
         return sb.toString()
     }
 }

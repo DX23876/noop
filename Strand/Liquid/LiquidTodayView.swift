@@ -53,6 +53,9 @@ struct LiquidTodayView: View {
 
     /// Shared with the real Today's card-customise editor so the two stay in sync.
     @AppStorage(DashboardCardPrefs.selectionKey) private var dashboardCardsRaw = ""
+    /// #today-hosted-cards: the ordered Trends/Sleep cards the user has hosted in Today. Empty by default
+    /// (opt-in); rendered by the `.addedCards` section. Shared @AppStorage key with Android.
+    @AppStorage(HostedCardPrefs.selectionKey) private var hostedCardsRaw = ""
     /// #989 parity with classic Today + Android: the hydration card is opt-in twice over — the feature
     /// toggle AND an explicit add in CUSTOMISE. Liquid filtered on neither, so a user who added the card
     /// and later switched the feature off kept a permanently-blank row.
@@ -80,6 +83,11 @@ struct LiquidTodayView: View {
     /// a strap-off gap shifts every later index, so a derived clock would misdate the scrub readout.
     @State private var hrTimes: [Date] = []
     @State private var workouts: [WorkoutRow] = [] // newest-first
+    /// #today-hosted-cards: the shared SleepModel that backs every SleepModel-derived hosted sleep card
+    /// (Stages vs typical today; more to follow). Built ONCE in `load()` from the SAME inputs the Sleep tab
+    /// uses (`SleepModel.build`), and only when a sleep-origin card is actually hosted — so a Today with no
+    /// hosted sleep card pays none of the extra Repository work. nil until (and unless) it's built.
+    @State private var hostedSleepModel: SleepModel? = nil
 
     /// Wraps a tapped row so `.sheet(item:)` can present its detail (`WorkoutRow` isn't `Identifiable`) —
     /// mirrors `WorkoutsView.WorkoutDetailTarget` exactly.
@@ -131,12 +139,12 @@ struct LiquidTodayView: View {
         TodayLayoutPrefs.visibleOrder(orderRaw: sectionOrderRaw, hiddenRaw: hiddenSectionsRaw)
     }
     // #430 parity: the Key-Metrics grid honours the SAME editor selection/order + Detailed-tiles switch as
-    // Android (byte-identical @AppStorage keys). `kSparks` holds the trailing-14-day series the detailed
+    // Android (byte-identical @AppStorage keys). `kSparks` holds the trailing-30-day series the detailed
     // tiles graph (keyed by metric-catalog key), filled by the loader alongside everything else.
     @AppStorage(KeyMetricPrefs.layoutKey) private var keyMetricsRaw = ""
     @AppStorage("today.keyMetricsDetailed") private var keyMetricsDetailed = false
-    /// The detailed graphs' trailing window — 2 days / 1 week / 2 weeks (shared key with Android). The
-    /// loader banks a day-keyed 14-day superset; render filters down, so a window change applies instantly.
+    /// The detailed graphs' trailing window — 1 week / 2 weeks / 1 month (shared key with Android). The
+    /// loader banks a day-keyed 30-day superset; render filters down, so a window change applies instantly.
     @AppStorage("today.keyMetricsWindowDays") private var keyMetricsWindowDays = 14
     /// Tiles per row (2 or 3; 3 = the original layout). Set on the Key Metrics page of the customization sheet.
     @AppStorage(KeyMetricPrefs.columnsKey) private var keyMetricsColumnsRaw = 3
@@ -215,6 +223,8 @@ struct LiquidTodayView: View {
     /// (the default) keeps the plain dark canvas — parity with the classic TodayView, which already
     /// honours this pref. Mirrors Kotlin `NoopPrefs.showDayCycleBackground`.
     @AppStorage(SceneBackgroundPrefs.enabledKey) private var showDayCycleBackground = false
+    /// Custom background image (#custom-background): when active it overrides the sky in the backdrop below.
+    @ObservedObject private var backgroundStore = BackgroundImageStore.shared
 
     // MARK: - Day navigation (ported from classic Today: swipe + calendar, day-keyed reads)
 
@@ -438,6 +448,8 @@ struct LiquidTodayView: View {
                         case .heartRate: heartRateSection
                         case .recoveryVitals: recoveryVitalsSection
                         case .yourCards: yourCardsSection
+                        case .menstrualCycle:
+                            if selectedDayOffset == 0 { MenstrualCycleHomeCard() }
                         // #656: the persistent journal widget (last-7-days strip + tap-through). Now a
                         // reorderable section like the others — the Arrange sheet moves it. Today only;
                         // the card self-hides when the reminder toggle is off (an empty branch renders
@@ -446,6 +458,10 @@ struct LiquidTodayView: View {
                         // Data Sources is now a reorderable, hideable section (hidden by default, §4) rather
                         // than a fixed card pinned to the bottom.
                         case .dataSources: dataSourcesSection
+                        // #today-hosted-cards: cards the user pulled in from the Trends/Sleep tabs, in the
+                        // order they arranged. Empty (renders nothing) until they add one in Customise.
+                        // Today-only, matching Android's addedCards section gate + the classic TodayView.
+                        case .addedCards: if selectedDayOffset == 0 { hostedCardsSection }
                         }
                         }
                         .padding(.top, section.isMajorSection ? NoopMetrics.space1 : 0)
@@ -483,9 +499,14 @@ struct LiquidTodayView: View {
         .background(alignment: .top) {
             ZStack(alignment: .top) {
                 StrandPalette.surfaceBase
-                // Day-cycle scene (#698): the sky only paints when the toggle is ON; off = the plain
-                // surfaceBase canvas above (parity with Android + the classic TodayView).
-                if showDayCycleBackground {
+                // Custom background image (#custom-background): a picked photo OVERRIDES the sky, filling
+                // the whole backdrop (same cached image as every other tab, so it's seamless).
+                if backgroundStore.isActive {
+                    BackgroundImageBackdrop()
+                }
+                // Day-cycle scene (#698): the sky only paints when the toggle is ON AND no custom image is
+                // active; off = the plain surfaceBase canvas above (parity with Android + classic TodayView).
+                else if showDayCycleBackground {
                     // Reduce-motion (and low-power) users get the same sky posed still — no twinkle/breath.
                     // Also static until the first data load settles, so launch isn't fighting a live sky too.
                     // "Sky behind cards" (opt-in): fill the whole backdrop with a softer settle so the sky
@@ -544,7 +565,8 @@ struct LiquidTodayView: View {
                 keyMetricsDetailed: $keyMetricsDetailed,
                 keyMetricsWindowDays: $keyMetricsWindowDays,
                 keyMetricsColumns: $keyMetricsColumnsRaw,
-                dashboardCardsRaw: $dashboardCardsRaw
+                dashboardCardsRaw: $dashboardCardsRaw,
+                hostedCardsRaw: $hostedCardsRaw
             )
         }
         .sheet(isPresented: $showSettings) {
@@ -705,9 +727,7 @@ struct LiquidTodayView: View {
                     }
                     // Profile pic (the one set in Settings) → opens Settings, matching the classic Today.
                     Button { showSettings = true } label: {
-                        ProfileAvatarView(imageData: profile.avatarImageData,
-                                          size: LiquidHeaderMetrics.control)
-                            .frame(width: LiquidHeaderMetrics.control, height: LiquidHeaderMetrics.control)
+                        Color.clear.frame(width: LiquidHeaderMetrics.control, height: LiquidHeaderMetrics.control)
                     }
                     .nativeLiquidGlassHeaderButton()
                     .overlay {
@@ -777,7 +797,10 @@ struct LiquidTodayView: View {
                     .foregroundStyle(StrandPalette.onDarkSecondary)
                     .padding(.horizontal, 8).padding(.vertical, 2.5)
                     .background(Capsule().fill(StrandPalette.surfaceInset.opacity(0.72))
-                        .overlay(Capsule().strokeBorder(StrandPalette.hairline, lineWidth: 1)))
+                        .overlay(Capsule().strokeBorder(
+                            StrandPalette.hairline,
+                            lineWidth: NoopMetrics.hairlineWidth
+                        )))
                 Spacer(minLength: 8)
                 Image(systemName: "chevron.right").font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(StrandPalette.textTertiary)
@@ -931,6 +954,156 @@ struct LiquidTodayView: View {
                         .filter { hydrationEnabled || $0 != .hydration }) { card in
                 liquidCard(for: card)
             }
+        }
+    }
+
+    // MARK: - Added cards (#today-hosted-cards)
+
+    /// The Trends/Sleep cards the user hosted in Today, in their arranged order. Data-driven off the SAME
+    /// @AppStorage the Customise editor writes, so add / remove / reorder reflects live. Each hosted card
+    /// is the SAME view its home tab renders (a mirror, not a copy) and carries its own header, so this
+    /// section adds no header of its own. Renders nothing until the user hosts a card.
+    @ViewBuilder
+    private var hostedCardsSection: some View {
+        let cards = HostedCardPrefs.decodeEnabled(hostedCardsRaw)
+        if !cards.isEmpty {
+            VStack(spacing: NoopMetrics.sectionGap) {
+                ForEach(cards) { card in
+                    hostedCard(for: card)
+                }
+            }
+        }
+    }
+
+    /// Dispatch a hosted card id to its native view. Each case renders the exact view the originating tab
+    /// uses, so the Today copy and the home-tab copy never diverge. P0 hosts only Sleep marks.
+    @ViewBuilder
+    private func hostedCard(for card: HostedCard) -> some View {
+        switch card {
+        case .sleepMarks: SleepMarkCard()
+        case .asleepDuration: AsleepDurationCard(data: AsleepDurationData.build(days: repo.days))
+        case .stagesVsTypical:
+            // Renders from the shared SleepModel built in load() (same inputs as the Sleep tab). Until that
+            // async build lands — or on a device with no usable latest night — show the graceful placeholder
+            // rather than a half-built card, mirroring how AsleepDuration degrades on no data.
+            if let m = hostedSleepModel {
+                StagesVsTypicalCard(model: m)
+            } else {
+                hostedSleepPlaceholder
+            }
+        case .nightDetail:
+            // Renders from the same shared SleepModel built in load(). Until that async build lands — or on a
+            // device with no usable latest night — show the graceful placeholder, mirroring stagesVsTypical.
+            if let m = hostedSleepModel {
+                NightDetailCard(model: m)
+            } else {
+                hostedNightDetailPlaceholder
+            }
+        case .sleepDebt:
+            // Renders from the same shared SleepModel built in load(). Until that async build lands — or on a
+            // device with no usable latest night — show the graceful placeholder, mirroring stagesVsTypical.
+            if let m = hostedSleepModel {
+                SleepDebtLedgerCard(model: m)
+            } else {
+                hostedSleepDebtPlaceholder
+            }
+        case .stages:
+            // The READ-ONLY latest-night stage card — same shared SleepModel (same night + intervals as the
+            // Sleep tab), rendered without the Sleep tab's nav/edit/nap interaction. Until the async build
+            // lands — or on a device with no usable latest night — show the placeholder, as above.
+            if let m = hostedSleepModel {
+                StagesCard(model: m)
+            } else {
+                hostedSleepPlaceholder
+            }
+        case .hoursVsNeeded:
+            // The single hours-vs-need % metric, rendered from the same shared SleepModel built in load().
+            // Until that async build lands — or on a device with no usable latest night — show the graceful
+            // placeholder, mirroring stagesVsTypical.
+            if let m = hostedSleepModel {
+                HoursVsNeededCard(model: m)
+            } else {
+                hostedHoursVsNeededPlaceholder
+            }
+        case .consistency:
+            // The single sleep-consistency % metric, rendered from the same shared SleepModel built in
+            // load(). Until that async build lands — or on a device with no usable latest night — show the
+            // graceful placeholder, mirroring stagesVsTypical.
+            if let m = hostedSleepModel {
+                ConsistencyCard(model: m)
+            } else {
+                hostedConsistencyPlaceholder
+            }
+        }
+    }
+
+    /// Graceful empty state for a SleepModel-backed hosted card whose model hasn't built yet (first frame)
+    /// or is nil (no usable latest night). Keeps the hosted slot present + labelled so add/remove/reorder in
+    /// Customise still reads, without rendering a partial card. #today-hosted-cards.
+    private var hostedSleepPlaceholder: some View {
+        VStack(alignment: .leading, spacing: NoopMetrics.gap) {
+            SectionHeader("Stages vs typical", overline: "Last night")
+            Text("Not enough nights yet.")
+                .font(StrandFont.subhead)
+                .foregroundStyle(StrandPalette.textTertiary)
+                .frame(maxWidth: .infinity, minHeight: 60, alignment: .center)
+                .background(NoopPanelSurface(tint: StrandPalette.restColor, cornerRadius: 12))
+        }
+    }
+
+    /// Graceful empty state for the hosted "Night detail" grid before its shared SleepModel builds (first
+    /// frame) or when there is no usable latest night. Same treatment as `hostedSleepPlaceholder`, labelled
+    /// for this card so add/remove/reorder in Customise still reads. #today-hosted-cards.
+    private var hostedNightDetailPlaceholder: some View {
+        VStack(alignment: .leading, spacing: NoopMetrics.gap) {
+            SectionHeader("Night detail", overline: "Metrics")
+            Text("Not enough nights yet.")
+                .font(StrandFont.subhead)
+                .foregroundStyle(StrandPalette.textTertiary)
+                .frame(maxWidth: .infinity, minHeight: 60, alignment: .center)
+                .background(NoopPanelSurface(tint: StrandPalette.restColor, cornerRadius: 12))
+        }
+    }
+
+    /// Graceful empty state for the hosted "Sleep-debt ledger" before its shared SleepModel builds (first
+    /// frame) or when there is no usable latest night. Same treatment as `hostedSleepPlaceholder`, labelled
+    /// for this card so add/remove/reorder in Customise still reads. #today-hosted-cards.
+    private var hostedSleepDebtPlaceholder: some View {
+        VStack(alignment: .leading, spacing: NoopMetrics.gap) {
+            SectionHeader("Sleep-debt ledger", overline: "Last 14 nights")
+            Text("Not enough nights yet.")
+                .font(StrandFont.subhead)
+                .foregroundStyle(StrandPalette.textTertiary)
+                .frame(maxWidth: .infinity, minHeight: 60, alignment: .center)
+                .background(NoopPanelSurface(tint: StrandPalette.restColor, cornerRadius: 12))
+        }
+    }
+
+    /// Graceful empty state for the hosted "Hours vs Needed" card before its shared SleepModel builds (first
+    /// frame) or when there is no usable latest night. Same treatment as `hostedSleepPlaceholder`, labelled
+    /// for this card so add/remove/reorder in Customise still reads. #today-hosted-cards.
+    private var hostedHoursVsNeededPlaceholder: some View {
+        VStack(alignment: .leading, spacing: NoopMetrics.gap) {
+            SectionHeader("Hours vs Needed", overline: "Sleep")
+            Text("Not enough nights yet.")
+                .font(StrandFont.subhead)
+                .foregroundStyle(StrandPalette.textTertiary)
+                .frame(maxWidth: .infinity, minHeight: 60, alignment: .center)
+                .background(NoopPanelSurface(tint: StrandPalette.restColor, cornerRadius: 12))
+        }
+    }
+
+    /// Graceful empty state for the hosted "Consistency" card before its shared SleepModel builds (first
+    /// frame) or when there is no usable latest night. Same treatment as `hostedSleepPlaceholder`, labelled
+    /// for this card so add/remove/reorder in Customise still reads. #today-hosted-cards.
+    private var hostedConsistencyPlaceholder: some View {
+        VStack(alignment: .leading, spacing: NoopMetrics.gap) {
+            SectionHeader("Consistency", overline: "Sleep")
+            Text("Not enough nights yet.")
+                .font(StrandFont.subhead)
+                .foregroundStyle(StrandPalette.textTertiary)
+                .frame(maxWidth: .infinity, minHeight: 60, alignment: .center)
+                .background(NoopPanelSurface(tint: StrandPalette.restColor, cornerRadius: 12))
         }
     }
 
@@ -1373,11 +1546,11 @@ struct LiquidTodayView: View {
 
     // MARK: - Key metrics grid
 
-    /// The chosen detailed-graph window's oldest day key (2 days / 1 week / 2 weeks ending on the
-    /// selected day). The loader banks a 14-day superset; render filters down so a window change in the
+    /// The chosen detailed-graph window's oldest day key (1 week / 2 weeks / 1 month ending on the
+    /// selected day). The loader banks a 30-day superset; render filters down so a window change in the
     /// editor applies instantly, no reload.
     private var sparkWindowCutoffKey: String {
-        let days = (keyMetricsWindowDays == 2 || keyMetricsWindowDays == 7) ? keyMetricsWindowDays : 14
+        let days = (keyMetricsWindowDays == 7 || keyMetricsWindowDays == 30) ? keyMetricsWindowDays : 14
         let cal = Calendar.current
         let anchor = cal.startOfDay(for: selectedLogicalDay)
         return Repository.localDayKey(cal.date(byAdding: .day, value: -(days - 1), to: anchor) ?? anchor)
@@ -1411,8 +1584,8 @@ struct LiquidTodayView: View {
     /// The Key-Metrics header's trailing label for the chosen detailed-graph window (Android twin).
     private var trendWindowLabel: String {
         switch keyMetricsWindowDays {
-        case 2: return String(localized: "2-day trend")
         case 7: return String(localized: "7-day trend")
+        case 30: return String(localized: "30-day trend")
         default: return String(localized: "14-day trend")
         }
     }
@@ -1561,7 +1734,7 @@ struct LiquidTodayView: View {
                 Color.clear.frame(height: 8)
             }
             // #430 parity: DETAILED tiles grow the trend graph under the bar, tinted to the metric and
-            // windowed to the editor's 2-day / 1-week / 2-week choice (the Android twin). A metric with no
+            // windowed to the editor's 1-week / 2-week / 1-month choice (the Android twin). A metric with no
             // windowed series keeps a clear placeholder of the same height so every tile in a detailed row
             // stays equal-height with its bars aligned.
             if keyMetricsDetailed {
@@ -1805,11 +1978,11 @@ struct LiquidTodayView: View {
 
         // #430 parity: the day-keyed series the DETAILED Key-Metrics tiles graph — a trailing CALENDAR
         // window ending on the selected day (not the last-N stored rows, which on an old import showed
-        // months-old data as a fresh trend, issue #23). The loader banks the 14-day SUPERSET; the chosen
-        // 2-day/1-week/2-week window filters at render (windowedSpark), so a picker change applies without
+        // months-old data as a fresh trend, issue #23). The loader banks the 30-day SUPERSET; the chosen
+        // 1-week/2-week/1-month window filters at render (windowedSpark), so a picker change applies without
         // a reload. Keys mirror the metric catalog so a tile's graph, its tap-through detail and Android's
         // Window all read the same signal. Rest reuses the already-loaded sleep_performance series.
-        let sparkCutoff = Repository.localDayKey(cal.date(byAdding: .day, value: -13, to: dayStart) ?? dayStart)
+        let sparkCutoff = Repository.localDayKey(cal.date(byAdding: .day, value: -29, to: dayStart) ?? dayStart)
         let sparkRows = daysSnapshot.filter { $0.day >= sparkCutoff && $0.day <= selectedDayKey }
         // #616: imported-first calorie spark (the day's imported Apple active energy ?: NOOP's on-device
         // estimate) over the window, so a Health-Connect / Apple-only calorie user gets a trend too —
@@ -1893,6 +2066,27 @@ struct LiquidTodayView: View {
             }
         }
         heroProviderByMetric = providers
+
+        // #today-hosted-cards: build the shared SleepModel that backs the hosted sleep cards, but ONLY when
+        // at least one sleep-origin card is actually hosted — otherwise Today pays no extra Repository cost.
+        // The inputs (allSleepSessions / habitualMidsleepSec / sessionMotions) are loaded exactly as the
+        // Sleep tab loads them, then handed to the SAME pure `SleepModel.build`, so a hosted card renders
+        // numbers byte-identical to the Sleep tab. Reused by every SleepModel-backed hosted card (built once).
+        let sleepOrigin = String(localized: "Sleep")
+        if HostedCardPrefs.decodeEnabled(hostedCardsRaw).contains(where: { $0.origin == sleepOrigin }) {
+            let hostedSessions = await repo.allSleepSessions()
+            let hostedHabitual = await repo.habitualMidsleepSec()
+            let hostedMotion = await repo.sessionMotions(starts: hostedSessions.map { $0.startTs })
+            hostedSleepModel = SleepModel.build(SleepModelInputs(
+                days: repo.days,
+                sleeps: repo.sleeps,
+                allSessions: hostedSessions,
+                importedSleep: repo.importedSleep,
+                habitualMidsleepSec: hostedHabitual,
+                motionByStart: hostedMotion))
+        } else {
+            hostedSleepModel = nil
+        }
 
         // First load done — bring the hero gauges + sky to life now the launch churn has settled.
         if !dataLoaded { withAnimation(.easeIn(duration: 0.4)) { dataLoaded = true } }

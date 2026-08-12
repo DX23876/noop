@@ -56,6 +56,13 @@ public struct Hypnogram: View {
     /// WHOOP's tap-a-stage interaction: when set, this stage's segments (and its lane)
     /// render at full strength while every other stage recedes. Nil = everything full.
     public var highlightedStage: SleepStage?
+    /// When true, each stage band extends from its lane DOWN to the baseline (the FILLED stepped-area
+    /// look) instead of the slim ribbon band. The stage → lane mapping, risers and axis are identical;
+    /// only the band height changes. Mirrors the Android `FilledHypnogram(filled:)`.
+    public var filled: Bool
+    /// The stage-colour ramp: NOOP tokens (default, and every non-sleep caller), Oura's (Ribbon), or
+    /// Garmin's (Garmin Fill). Only the Sleep-tab stepped chart passes a non-default ramp.
+    public var stagePalette: SleepStagePalette
 
     public init(
         intervals: [SleepInterval],
@@ -65,7 +72,9 @@ public struct Hypnogram: View {
         nightStart: Date? = nil,
         showsTimeAxis: Bool = false,
         smoothingSeconds: TimeInterval = 300,
-        highlightedStage: SleepStage? = nil
+        highlightedStage: SleepStage? = nil,
+        filled: Bool = false,
+        stagePalette: SleepStagePalette = .noop
     ) {
         let sorted = intervals.sorted { $0.start < $1.start }
         self.intervals = smoothingSeconds > 0
@@ -77,6 +86,8 @@ public struct Hypnogram: View {
         self.nightStart = nightStart
         self.showsTimeAxis = showsTimeAxis
         self.highlightedStage = highlightedStage
+        self.filled = filled
+        self.stagePalette = stagePalette
     }
 
     // MARK: Display smoothing (WHOOP-style)
@@ -196,6 +207,12 @@ public struct Hypnogram: View {
     // 4 stage rows; awake = rank 0 (top), deep = rank 3 (bottom).
     private let rowCount = 4
 
+    /// The band/lane colour for a stage: the brand ramp (Garmin filled / Oura ribbon) when opted in, else
+    /// the NOOP sleep tokens.
+    private func stageColor(_ stage: SleepStage) -> Color {
+        StrandPalette.sleepStageColor(stage, palette: stagePalette)
+    }
+
     public var body: some View {
         HStack(alignment: .top, spacing: 12) {
             if showsStageAxis { axis }
@@ -220,7 +237,7 @@ public struct Hypnogram: View {
                                 // The highlighted stage's lane brightens (WHOOP's selected-stage wash).
                                 let lane = highlightedStage == stage ? 0.16 : 0.07
                                 RoundedRectangle(cornerRadius: 7, style: .continuous)
-                                    .fill(StrandPalette.sleepStageColor(stage).opacity(lane))
+                                    .fill(stageColor(stage).opacity(lane))
                                     .frame(width: geo.size.width, height: rowStep * 0.74)
                                     .position(x: geo.size.width / 2, y: rowY(rank, in: geo.size.height))
                             }
@@ -242,15 +259,21 @@ public struct Hypnogram: View {
 
                             // stage bands (visual only — a11y is the single collapsed plot summary below)
                             ForEach(Array(intervals.enumerated()), id: \.element.id) { idx, interval in
-                                let rect = bandRect(for: interval, in: geo.size)
-                                let color = StrandPalette.sleepStageColor(interval.stage)
+                                let band = bandRect(for: interval, in: geo.size)
+                                // FILLED: extend the band from its lane centre down to the baseline so the
+                                // night reads as a continuous stepped-area staircase. RIBBON: the slim band.
+                                let rect = filled
+                                    ? CGRect(x: band.minX, y: band.midY, width: band.width,
+                                             height: max(0, geo.size.height - band.midY))
+                                    : band
+                                let color = stageColor(interval.stage)
                                 let hoverDimmed = hoverIndex != nil && hoverIndex != idx
                                 let stageDimmed = highlightedStage != nil && interval.stage != highlightedStage
-                                // WHOOP hypnogram: squared, uniform ribbon segments — the night reads as
-                                // one continuous square-wave step line. No pill caps: a brief stage draws
+                                // WHOOP hypnogram: squared segments — the night reads as one continuous
+                                // step line (ribbon) or filled staircase. No pill caps: a brief stage draws
                                 // at its true duration as a thin tick, never inflated into a dot. When a
                                 // stage is highlighted (tap its legend row), everything else recedes.
-                                RoundedRectangle(cornerRadius: 2.5, style: .continuous)
+                                RoundedRectangle(cornerRadius: filled ? 0 : 2.5, style: .continuous)
                                     .fill(color)
                                     .frame(width: rect.width, height: rect.height)
                                     .opacity(stageDimmed ? 0.22 : (hoverDimmed ? 0.45 : 1.0))
@@ -266,7 +289,7 @@ public struct Hypnogram: View {
                         if showsHover, let idx = hoverIndex, idx < intervals.count {
                             let interval = intervals[idx]
                             let rect = bandRect(for: interval, in: geo.size)
-                            let color = StrandPalette.sleepStageColor(interval.stage)
+                            let color = stageColor(interval.stage)
                             // vertical crosshair across the full height at band centre
                             CrosshairRule(x: rect.midX, height: geo.size.height)
                             // ring around the hovered band
@@ -395,6 +418,35 @@ public struct Hypnogram: View {
         }
         .stroke(StrandPalette.textTertiary.opacity(highlightedStage == nil ? 0.35 : 0.15),
                 style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round))
+    }
+}
+
+/// A compact colour-coded key for a stepped hypnogram: one dot + label per stage in the chart's ramp, so a
+/// reader can decode the bands — which is what makes the Garmin ramp's two pinks (Awake vs REM) legible.
+/// (#sleep-chart-style)
+public struct SleepStageLegend: View {
+    public var palette: SleepStagePalette
+    public init(palette: SleepStagePalette) { self.palette = palette }
+
+    // Awake · REM · Light · Deep — the order Oura/Garmin list them.
+    private let order: [SleepStage] = [.awake, .rem, .light, .deep]
+
+    public var body: some View {
+        HStack(spacing: 14) {
+            ForEach(order, id: \.rawValue) { stage in
+                HStack(spacing: 5) {
+                    Circle()
+                        .fill(StrandPalette.sleepStageColor(stage, palette: palette))
+                        .frame(width: 8, height: 8)
+                    Text(stage.label)
+                        .font(StrandFont.caption)
+                        .foregroundStyle(StrandPalette.textSecondary)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        // Decorative colour key — the breakdown rows below carry the same stages for VoiceOver.
+        .accessibilityHidden(true)
     }
 }
 

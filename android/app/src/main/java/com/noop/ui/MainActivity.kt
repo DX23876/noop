@@ -100,6 +100,10 @@ class MainActivity : ComponentActivity() {
         // header + Settings avatars show it from the first frame. No-op when no photo is set.
         ProfileAvatarStore.load(this)
 
+        // Decode the optional custom background image (if set) + its toggles before first composition so
+        // the backdrop is right from the first frame on every tab. No-op when no image is set.
+        BackgroundImageStore.load(this)
+
         setContent {
             NoopTheme {
                 NoopRoot()
@@ -748,6 +752,52 @@ object NoopPrefs {
 
     fun setSkyBehindCards(context: Context, enabled: Boolean) {
         of(context).edit().putBoolean(KEY_SKY_BEHIND_CARDS, enabled).apply()
+    }
+
+    /** Custom background image (#custom-background): a user-picked photo drawn full-bleed behind every
+     *  screen, REPLACING the day-cycle sky when enabled (precedence: image > sky > flat canvas). The
+     *  image itself is a device-local file (see [BackgroundImageStore]) — like the avatar it is
+     *  deliberately kept OUT of the .noopbak whitelist. The three key strings are byte-identical to the
+     *  iOS BackgroundImagePrefs. */
+    const val KEY_BACKGROUND_IMAGE_ENABLED = "noop.backgroundImageEnabled"
+
+    fun backgroundImageEnabled(context: Context): Boolean =
+        of(context).getBoolean(KEY_BACKGROUND_IMAGE_ENABLED, false)
+
+    fun setBackgroundImageEnabled(context: Context, enabled: Boolean) {
+        of(context).edit().putBoolean(KEY_BACKGROUND_IMAGE_ENABLED, enabled).apply()
+    }
+
+    /** The [BackgroundFillMode] rawValue (default "fill"). */
+    const val KEY_BACKGROUND_FILL_MODE = "noop.backgroundFillMode"
+
+    fun backgroundFillMode(context: Context): BackgroundFillMode =
+        BackgroundFillMode.fromStorage(of(context).getString(KEY_BACKGROUND_FILL_MODE, null))
+
+    fun setBackgroundFillMode(context: Context, mode: BackgroundFillMode) {
+        of(context).edit().putString(KEY_BACKGROUND_FILL_MODE, mode.storageValue).apply()
+    }
+
+    /** Whether a background image file has been stored (so the UI can offer Remove and the backdrop can
+     *  skip a decode when absent). Default false. */
+    const val KEY_BACKGROUND_IMAGE_PRESENT = "noop.backgroundImagePresent"
+
+    fun backgroundImagePresent(context: Context): Boolean =
+        of(context).getBoolean(KEY_BACKGROUND_IMAGE_PRESENT, false)
+
+    fun setBackgroundImagePresent(context: Context, present: Boolean) {
+        of(context).edit().putBoolean(KEY_BACKGROUND_IMAGE_PRESENT, present).apply()
+    }
+
+    /** Recent background images (MRU, up to 3), serialized as `"<file>,<fillMode>;…"` — see
+     *  BackgroundImageStore. Default "". Device-local like the image files, NOT in the .noopbak whitelist. */
+    const val KEY_BACKGROUND_RECENTS = "noop.backgroundRecents"
+
+    fun backgroundRecents(context: Context): String =
+        of(context).getString(KEY_BACKGROUND_RECENTS, "") ?: ""
+
+    fun setBackgroundRecents(context: Context, value: String) {
+        of(context).edit().putString(KEY_BACKGROUND_RECENTS, value).apply()
     }
 
     /** "Reduce motion in NOOP" (opt-in, default OFF). The literal key matches Apple so the setting has

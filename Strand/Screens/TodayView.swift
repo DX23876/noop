@@ -242,11 +242,13 @@ struct TodayView: View {
     // Resting HR). The "CUSTOMISE" link on the section header opens a local sheet (no new nav destination).
     // Persistence is display-only, these cards read the SAME values the rest of Today already loads.
     @AppStorage(DashboardCardPrefs.selectionKey) private var dashboardCardsRaw = ""
-
     // #today-layout: the user-chosen section order, SAME `@AppStorage` key `LiquidTodayView` reads/writes
     // (`TodayLayoutPrefs.orderKey`) — a reorder on one Today screen is reflected on the other, since it's
     // one persisted layout, not two. Order and visibility are both edited in `TodayCustomizationSheet`,
     // which every Today edit affordance opens (#940).
+    /// #today-hosted-cards: the ordered Trends/Sleep cards hosted in Today (empty/opt-in). Shared key
+    /// with Android; rendered by the `.addedCards` section.
+    @AppStorage(HostedCardPrefs.selectionKey) private var hostedCardsRaw = ""
     @AppStorage(TodayLayoutPrefs.orderKey) private var sectionOrderRaw = ""
     @AppStorage(TodayLayoutPrefs.hiddenKey) private var hiddenSectionsRaw = ""
     @AppStorage(LiveSessionPrefs.betaKey) private var liveSessionsBeta = true
@@ -326,6 +328,11 @@ struct TodayView: View {
 
     // The night's sleep session overlapping the HR window. Feeds the sleep read-outs elsewhere on Today.
     @State private var sleepToday: CachedSleepSession?
+
+    // #today-hosted-cards: the shared SleepModel backing every SleepModel-derived hosted sleep card (Stages
+    // vs typical today; more to follow). Built in loadAll() from the SAME inputs the Sleep tab uses, and only
+    // when a sleep-origin card is hosted. Twin of the LiquidTodayView `hostedSleepModel`.
+    @State private var hostedSleepModel: SleepModel? = nil
 
     // TODAY's in-progress Effort (NOOP 0–100 axis), recomputed over the day's HR (local-midnight→now)
     // each load so the gauge tracks today as it accumulates rather than waiting on the heavy daily pass
@@ -1517,7 +1524,8 @@ struct TodayView: View {
                 keyMetricsDetailed: $keyMetricsDetailed,
                 keyMetricsWindowDays: $keyMetricsWindowDays,
                 keyMetricsColumns: $keyMetricsColumnsRaw,
-                dashboardCardsRaw: $dashboardCardsRaw
+                dashboardCardsRaw: $dashboardCardsRaw,
+                hostedCardsRaw: $hostedCardsRaw
             )
         }
         #if os(iOS)
@@ -1801,6 +1809,8 @@ struct TodayView: View {
             recoveryVitalsSection
         case .yourCards:
             yourCardsSection
+        case .menstrualCycle:
+            if selectedDayOffset == 0 { MenstrualCycleHomeCard() }
         case .journal:
             // #627: the persistent journal widget (last-7-days strip + tap-through).
             // Today only; self-hides when the reminder toggle is off.
@@ -1808,6 +1818,8 @@ struct TodayView: View {
         case .dataSources:
             // Fork-only as a REORDERABLE section — upstream pins it below the loop instead.
             sourcesSection
+        case .addedCards:
+            hostedCardsSection
         }
     }
 
@@ -2302,6 +2314,124 @@ struct TodayView: View {
                 }
                 ForEach(enabledDashboardCards) { card in
                     dashboardCardRow(card)
+                }
+            }
+        }
+    }
+
+    /// #today-hosted-cards: the Trends/Sleep cards the user hosted in Today, in arranged order. Each is the
+    /// SAME view its home tab renders, carrying its own header, so this section adds none. Renders nothing
+    /// until the user hosts a card (opt-in). TODAY only. Twin of the LiquidTodayView `hostedCardsSection`.
+    @ViewBuilder
+    private var hostedCardsSection: some View {
+        let cards = HostedCardPrefs.decodeEnabled(hostedCardsRaw)
+        if selectedDayOffset == 0 && !cards.isEmpty {
+            VStack(alignment: .leading, spacing: NoopMetrics.sectionGap) {
+                ForEach(cards) { card in
+                    hostedCard(for: card)
+                }
+            }
+        }
+    }
+
+    /// Dispatch a hosted card id to its native view (mirror, not a copy). P0 hosts only Sleep marks.
+    @ViewBuilder
+    private func hostedCard(for card: HostedCard) -> some View {
+        switch card {
+        case .sleepMarks: SleepMarkCard()
+        case .asleepDuration: AsleepDurationCard(data: AsleepDurationData.build(days: repo.days))
+        case .stagesVsTypical:
+            // Renders from the shared SleepModel built in loadAll() (same inputs as the Sleep tab). Until the
+            // async build lands — or on a device with no usable latest night — show the graceful placeholder,
+            // mirroring how AsleepDuration degrades on no data.
+            if let m = hostedSleepModel {
+                StagesVsTypicalCard(model: m)
+            } else {
+                VStack(alignment: .leading, spacing: NoopMetrics.gap) {
+                    SectionHeader("Stages vs typical", overline: "Last night")
+                    Text("Not enough nights yet.")
+                        .font(StrandFont.subhead)
+                        .foregroundStyle(StrandPalette.textTertiary)
+                        .frame(maxWidth: .infinity, minHeight: 60, alignment: .center)
+                        .background(NoopPanelSurface(tint: StrandPalette.restColor, cornerRadius: 12))
+                }
+            }
+        case .nightDetail:
+            // Renders from the shared SleepModel built in loadAll() (same inputs as the Sleep tab). Until the
+            // async build lands — or with no usable latest night — show the graceful placeholder, as above.
+            if let m = hostedSleepModel {
+                NightDetailCard(model: m)
+            } else {
+                VStack(alignment: .leading, spacing: NoopMetrics.gap) {
+                    SectionHeader("Night detail", overline: "Metrics")
+                    Text("Not enough nights yet.")
+                        .font(StrandFont.subhead)
+                        .foregroundStyle(StrandPalette.textTertiary)
+                        .frame(maxWidth: .infinity, minHeight: 60, alignment: .center)
+                        .background(NoopPanelSurface(tint: StrandPalette.restColor, cornerRadius: 12))
+                }
+            }
+        case .sleepDebt:
+            // Renders from the shared SleepModel built in loadAll() (same inputs as the Sleep tab). Until the
+            // async build lands — or with no usable latest night — show the graceful placeholder, as above.
+            if let m = hostedSleepModel {
+                SleepDebtLedgerCard(model: m)
+            } else {
+                VStack(alignment: .leading, spacing: NoopMetrics.gap) {
+                    SectionHeader("Sleep-debt ledger", overline: "Last 14 nights")
+                    Text("Not enough nights yet.")
+                        .font(StrandFont.subhead)
+                        .foregroundStyle(StrandPalette.textTertiary)
+                        .frame(maxWidth: .infinity, minHeight: 60, alignment: .center)
+                        .background(NoopPanelSurface(tint: StrandPalette.restColor, cornerRadius: 12))
+                }
+            }
+        case .stages:
+            // The READ-ONLY latest-night stage card — same shared SleepModel (same night + intervals as the
+            // Sleep tab), rendered without the Sleep tab's nav/edit/nap interaction. Null until the async
+            // build lands / no stage data — the graceful placeholder, as above.
+            if let m = hostedSleepModel {
+                StagesCard(model: m)
+            } else {
+                VStack(alignment: .leading, spacing: NoopMetrics.gap) {
+                    SectionHeader("Stages", overline: "Last night")
+                    Text("Not enough nights yet.")
+                        .font(StrandFont.subhead)
+                        .foregroundStyle(StrandPalette.textTertiary)
+                        .frame(maxWidth: .infinity, minHeight: 60, alignment: .center)
+                        .background(NoopPanelSurface(tint: StrandPalette.restColor, cornerRadius: 12))
+                }
+            }
+        case .hoursVsNeeded:
+            // The single hours-vs-need % metric, rendered from the shared SleepModel built in loadAll().
+            // Until the async build lands — or with no usable latest night — show the graceful placeholder,
+            // as above.
+            if let m = hostedSleepModel {
+                HoursVsNeededCard(model: m)
+            } else {
+                VStack(alignment: .leading, spacing: NoopMetrics.gap) {
+                    SectionHeader("Hours vs Needed", overline: "Sleep")
+                    Text("Not enough nights yet.")
+                        .font(StrandFont.subhead)
+                        .foregroundStyle(StrandPalette.textTertiary)
+                        .frame(maxWidth: .infinity, minHeight: 60, alignment: .center)
+                        .background(NoopPanelSurface(tint: StrandPalette.restColor, cornerRadius: 12))
+                }
+            }
+        case .consistency:
+            // The single sleep-consistency % metric, rendered from the shared SleepModel built in loadAll().
+            // Until the async build lands — or with no usable latest night — show the graceful placeholder,
+            // as above.
+            if let m = hostedSleepModel {
+                ConsistencyCard(model: m)
+            } else {
+                VStack(alignment: .leading, spacing: NoopMetrics.gap) {
+                    SectionHeader("Consistency", overline: "Sleep")
+                    Text("Not enough nights yet.")
+                        .font(StrandFont.subhead)
+                        .foregroundStyle(StrandPalette.textTertiary)
+                        .frame(maxWidth: .infinity, minHeight: 60, alignment: .center)
+                        .background(NoopPanelSurface(tint: StrandPalette.restColor, cornerRadius: 12))
                 }
             }
         }
@@ -3857,6 +3987,10 @@ struct TodayView: View {
         // #860 retired the launch auto-land, this pass no longer changes `selectedDayOffset`, so there's no
         // re-fire to bail for: the history-wide set + the new-day announce run straight through below.
         await loadDayScoped()
+        // #today-hosted-cards: refresh the shared SleepModel for the hosted sleep cards. Runs on EVERY load
+        // (before the cache-restore short-circuit below), so the card survives a tab-away/return; the gate
+        // inside makes it a no-op unless a sleep card is actually hosted.
+        await loadHostedSleepModel()
         // #849: a bare Today RE-MOUNT (tab-away + return, or an Apple-Health import that recreates the view)
         // re-fires this task with TodayView's `@State` reset, so the heavy history-wide pass re-ran in full
         // every time even when NOTHING in the data had changed: hundreds of redundant reads (incl. the
@@ -3895,6 +4029,29 @@ struct TodayView: View {
             repo.todayHistoryWideLoadedSeq = currentSeq
         }
         announceNewDaysIfNeeded()
+    }
+
+    /// #today-hosted-cards: build the shared SleepModel backing the hosted sleep cards, ONLY when a
+    /// sleep-origin card is actually hosted (else Today pays no extra cost). Loads the inputs the SAME way
+    /// SleepView does (`allSleepSessions` / `habitualMidsleepSec` / `sessionMotions`) and hands them to the
+    /// SAME pure `SleepModel.build`, so a hosted card's numbers match the Sleep tab. Twin of the
+    /// LiquidTodayView hostedSleepModel build.
+    private func loadHostedSleepModel() async {
+        let sleepOrigin = String(localized: "Sleep")
+        guard HostedCardPrefs.decodeEnabled(hostedCardsRaw).contains(where: { $0.origin == sleepOrigin }) else {
+            hostedSleepModel = nil
+            return
+        }
+        let hostedSessions = await repo.allSleepSessions()
+        let hostedHabitual = await repo.habitualMidsleepSec()
+        let hostedMotion = await repo.sessionMotions(starts: hostedSessions.map { $0.startTs })
+        hostedSleepModel = SleepModel.build(SleepModelInputs(
+            days: repo.days,
+            sleeps: repo.sleeps,
+            allSessions: hostedSessions,
+            importedSleep: repo.importedSleep,
+            habitualMidsleepSec: hostedHabitual,
+            motionByStart: hostedMotion))
     }
 
     /// True while the strap is mid history-offload, the SAME signal the "Syncing strap history…" note

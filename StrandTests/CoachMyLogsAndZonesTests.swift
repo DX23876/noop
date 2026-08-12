@@ -69,11 +69,11 @@ final class CoachMyLogsAndZonesTests: XCTestCase {
         XCTAssertTrue(engine.coachTools.contains(.zoneMinutes))
         XCTAssertTrue(engine.coachTools.contains(.dataCatalog))
         XCTAssertTrue(engine.coachTools.contains(.metricHistory))
-        XCTAssertEqual(engine.coachTools.count, 24,
+        XCTAssertEqual(engine.coachTools.count, 25,
                        "tool count changed — confirm the added per-round cost is intended")
 
         engine.toolConsent.enabled.insert(.patterns)
-        XCTAssertEqual(engine.coachTools.count, 26,
+        XCTAssertEqual(engine.coachTools.count, 27,
                        "the second opt-in adds personal patterns and training preferences")
     }
 

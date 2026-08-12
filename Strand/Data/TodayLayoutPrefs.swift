@@ -34,8 +34,13 @@ enum TodaySection: String, CaseIterable, Identifiable {
     case heartRate
     case recoveryVitals
     case yourCards
+    case menstrualCycle
     case journal
     case dataSources
+    /// Cards hosted from the Trends / Sleep tabs (#today-hosted-cards). Renders the `HostedCardPrefs`
+    /// selection in order; empty (and effectively invisible) until the user adds a card in Customise.
+    /// Appended last so `decodeOrder`'s back-fill lands it predictably for existing saved orders.
+    case addedCards
 
     var id: String { rawValue }
 
@@ -52,8 +57,10 @@ enum TodaySection: String, CaseIterable, Identifiable {
         case .heartRate:      return String(localized: "Heart Rate")
         case .recoveryVitals: return String(localized: "Recovery Vitals")
         case .yourCards:      return String(localized: "Your Cards")
+        case .menstrualCycle: return String(localized: "Menstrual Cycle")
         case .journal:        return String(localized: "Journal")
         case .dataSources:    return String(localized: "Data Sources")
+        case .addedCards:     return String(localized: "Added Cards")
         }
     }
 
@@ -62,7 +69,7 @@ enum TodaySection: String, CaseIterable, Identifiable {
     /// its full-width banner has always held on classic Today, before the hero scores.
     static let defaultOrder: [TodaySection] = [
         .coach, .hero, .liveSession, .synthesis, .goals, .keyMetrics, .workouts, .heartRate, .recoveryVitals,
-        .yourCards, .journal, .dataSources,
+        .yourCards, .menstrualCycle, .journal, .dataSources, .addedCards,
     ]
 
     /// Sections hidden by default on a new/never-customised install: none. The redesign originally

@@ -15,6 +15,8 @@ import UIKit
 /// `RootTabView` so the iOS app keeps the same gating without depending on the macOS-only shell.
 @main
 struct StrandiOSApp: App {
+    /// UIKit bridge for Home Screen quick actions. SwiftUI keeps ownership of the scene and window.
+    @UIApplicationDelegateAdaptor(HomeScreenQuickActionAppDelegate.self) private var appDelegate
     @StateObject private var model: AppModel
     @StateObject private var health: HealthKitBridge
     /// The phone→watch link. Built + activated here so the watch app actually receives snapshots on a
@@ -279,7 +281,13 @@ struct StrandiOSApp: App {
                 }
                 Task {
                     health.refreshAuthIfPreviouslyGranted()
-                    await health.sync()
+                    await HealthSyncRefreshCoordinator.run(
+                        sync: { await health.sync() },
+                        refresh: {
+                            await model.refreshAfterAppleHealthSync(
+                                authorized: health.auth == .authorized)
+                        }
+                    )
                     await PlanReconciliationCoordinator.reconcile(repo: model.repo)
                     await GoalTrackingStore.shared.refresh(repo: model.repo)
                     await WidgetSnapshot.publish(from: model)
@@ -316,6 +324,9 @@ private struct iOSRootView: View {
     @AppStorage("noop.lastSeenChangelogVersion") private var lastSeenChangelog = ""
     @AppStorage("noop.acceptedTermsVersion") private var acceptedTerms = ""
     @State private var showWhatsNew = false
+    /// Starts false so a cold-launch external action can't race this view's onAppear decision about the
+    /// automatic What's New sheet. It becomes true only when no sheet is due or its dismissal completes.
+    @State private var automaticLaunchSheetResolved = false
 
     var body: some View {
         #if DEBUG
@@ -339,7 +350,9 @@ private struct iOSRootView: View {
 
     private var shell: some View {
         ZStack {
-            RootTabView()
+            RootTabView(homeScreenQuickActionsEnabled:
+                demoBypass || (onboarded && acceptedTerms == Terms.currentVersion
+                    && automaticLaunchSheetResolved))
             if !onboarded && !demoBypass {
                 OnboardingWizard(onFinished: {
                     onboarded = true
@@ -353,14 +366,19 @@ private struct iOSRootView: View {
             // Terms acknowledgment gate — over EVERYTHING (before onboarding/pairing/Bluetooth) until
             // the current terms version is accepted; re-appears if the terms materially change.
             if acceptedTerms != Terms.currentVersion && !demoBypass {
-                TermsGateView(onAccept: { acceptedTerms = Terms.currentVersion })
+                TermsGateView(onAccept: {
+                    // Keep any external action behind the gate while the accepted-terms change decides
+                    // whether What's New must present next. This write must precede acceptedTerms.
+                    automaticLaunchSheetResolved = false
+                    acceptedTerms = Terms.currentVersion
+                })
                     .transition(.opacity)
                     .zIndex(2)
             }
         }
         .animation(.easeInOut(duration: 0.35), value: onboarded)
         .animation(.easeInOut(duration: 0.35), value: acceptedTerms)
-        .sheet(isPresented: $showWhatsNew) {
+        .sheet(isPresented: $showWhatsNew, onDismiss: { automaticLaunchSheetResolved = true }) {
             WhatsNewView(onClose: {
                 lastSeenChangelog = AppChangelog.currentVersion
                 showWhatsNew = false
@@ -389,11 +407,17 @@ private struct iOSRootView: View {
     }
 
     private func showWhatsNewIfDue() {
-        if demoBypass { return }
+        if demoBypass {
+            automaticLaunchSheetResolved = true
+            return
+        }
         // Existing users who updated: their last-seen version is behind the current one.
         if onboarded && acceptedTerms == Terms.currentVersion
             && lastSeenChangelog != AppChangelog.currentVersion {
+            automaticLaunchSheetResolved = false
             showWhatsNew = true
+        } else {
+            automaticLaunchSheetResolved = true
         }
     }
 }

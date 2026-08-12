@@ -33,7 +33,22 @@ class DeviceRegistry(
     )
 
     /** All paired devices, oldest first. */
-    suspend fun all(): List<PairedDeviceRow> = dao.pairedDevices()
+    suspend fun all(): List<PairedDeviceRow> =
+        dao.pairedDevices().map { honestWhoopCapabilities(it) }
+
+    /**
+     * #548: calibrated SpO₂ % is never produced from a live WHOOP path — drop a stale registry bit so
+     * Devices / day-owner UI never advertise a capability AnalyticsEngine will not fill. Twin of the
+     * Swift `DeviceRegistryStore.decode` strip.
+     */
+    private fun honestWhoopCapabilities(row: PairedDeviceRow): PairedDeviceRow {
+        val isWhoop = row.brand.equals("WHOOP", ignoreCase = true)
+            || row.id == "my-whoop"
+            || row.id.startsWith("whoop-")
+        if (!isWhoop) return row
+        val stripped = WhoopLiveCapabilities.stripSpo2Token(row.capabilities)
+        return if (stripped == row.capabilities) row else row.copy(capabilities = stripped)
+    }
 
     /** The single active device id, or null if none. */
     suspend fun activeDeviceId(): String? = dao.activeDeviceId()
@@ -107,6 +122,22 @@ class DeviceRegistry(
 
     /** Archive a device — keeps its row and samples (invariant I4). */
     suspend fun archive(id: String) = dao.archiveDevice(id)
+
+    /**
+     * Permanently FORGET a device: wipe all of its recorded data AND remove its registry entry (both the
+     * `pairedDevice` row the Devices screen lists and its `device` provenance row), so a duplicate/stale
+     * strap can be purged entirely instead of lingering in the archived "Removed" list forever (#1193).
+     * Twin of the Swift `DeviceRegistry.forget`. The data wipe runs first (its own transaction, via
+     * [deleteDeviceData]), then the small registry-row deletes — registry entry vs. recordings are separate
+     * ops, exactly as [adoptSerialIdentity] treats them.
+     */
+    suspend fun forget(id: String) {
+        deleteDeviceData(id)
+        transactor.run {
+            dao.deletePairedDeviceRow(id)
+            dao.deleteDeviceRow(id)
+        }
+    }
 
     /** Update the model label for a device. Mirrors the Swift store's `setModel`. */
     suspend fun setModel(id: String, model: String) = dao.setModel(id, model)

@@ -43,6 +43,7 @@ import com.noop.protocol.DeviceFamily
 import com.noop.protocol.DeviceConfigReadProbe
 import com.noop.protocol.DeviceConfigReadProbeReport
 import com.noop.protocol.DeviceConfigWriteGate
+import com.noop.protocol.BroadcastHrGateReport
 import com.noop.protocol.EcgRawDataGateReport
 import com.noop.protocol.FeatureFlagProbe
 import com.noop.protocol.FeatureFlagProbeReport
@@ -436,6 +437,23 @@ class WhoopBleClient(
          * ~1 MB — bounded, never unbounded. Matches the Swift `LiveState.maxLogLines`.
          */
         private const val LOG_BUFFER_MAX = 5000
+
+        /**
+         * #1263: durable strap-log tail + generation ring (Android parity for iOS `LiveState`). The in-memory
+         * [logBuffer] dies with the process, so an export taken after a restart would begin at the restart and
+         * lose the lines that explain it. We mirror a durable tail to SharedPreferences every
+         * [LOG_TAIL_PERSIST_EVERY] lines and, at the first log line of each process (and at export time), roll
+         * the surviving tail into a bounded generation ring so an export STILL carries the previous session.
+         * Keys mirror the iOS UserDefaults keys; the tail is newline-joined, the generations a JSON array of
+         * newline-joined blocks. Pure ring math lives in [com.noop.ui.StrapLogGenerations].
+         */
+        private const val STRAP_LOG_TAIL_KEY = "strapLog.tail"
+        private const val STRAP_LOG_GENERATIONS_KEY = "strapLog.generations"
+        /** Persist the durable tail every N lines (batched, not per-line — mirrors iOS `persistEveryNLines`). */
+        private const val LOG_TAIL_PERSIST_EVERY = 32
+        /** How many recent lines the durable tail retains — a sensible day's worth, larger than a single
+         *  generation's cap so a session's whole tail is available to roll. Mirrors iOS `tailLimit`. */
+        private const val LOG_DURABLE_TAIL_LIMIT = 2_000
 
         /**
          * Fallback device id when the registry has no active device yet (fresh install before the v8
@@ -1480,7 +1498,7 @@ class WhoopBleClient(
             wallNowUnix: Long,
             lastTrimAdvanced: Boolean,
             consecutiveCount: Int,
-            rowsPersistedThisSession: Int = 0,
+            persistedSensorRows: Boolean = false,
             maxAutoContinues: Int = MAX_AUTO_CONTINUES,
             behindGapSeconds: Long = AUTO_CONTINUE_BEHIND_GAP_SECONDS,
             futureSkewSeconds: Long = AUTO_CONTINUE_FUTURE_SKEW_SECONDS,
@@ -1488,15 +1506,21 @@ class WhoopBleClient(
             if (!stillConnected) return false                          // 1
             if (consecutiveCount >= maxAutoContinues) return false      // 4 (cap)
             if (!lastTrimAdvanced) return false                        // 3 (don't spin on a frozen cursor)
-            // 3b (#1144): an EMPTY session (0 rows persisted) never auto-continues, whatever the reported
-            // frontier gap. When the strap advertises a `newest` AHEAD of our frontier but the offload for
-            // that range hands back chunkRows=0 (a PHANTOM gap — a timestamp it won't actually offload), 2a
-            // below would latch `true` forever: the frontier can't advance without rows, so `newest -
-            // frontier` stays > gap and it re-fires to the full cap in empty offloads (the storm observed on
-            // a real 4.0). `lastTrimAdvanced` (3) doesn't catch it — the trim u32 climbs on empty ENDs. Stop
-            // and let the 15-min floor retry; healthy backlog sessions persist real rows so this only bites
-            // the empty spin. (Makes 2b's row check the ONE authority for both cases.)
-            if (rowsPersistedThisSession <= 0) return false
+            // 3b (#1144/#1146): a session that persisted NO NEW sensor rows never auto-continues, whatever the
+            // reported frontier gap. When the strap advertises a `newest` AHEAD of our frontier but the offload
+            // for that range banks no new rows (a PHANTOM gap — a timestamp it won't actually offload, a
+            // console-only tail, or a dup re-offload of already-synced data), 2a below would latch `true`
+            // forever: the frontier can't advance without new rows, so `newest - frontier` stays > gap and it
+            // re-fires to the full cap in empty offloads (the storm re-observed on a real 4.0 in the 260810
+            // capture — 145 re-kicks/hr). `lastTrimAdvanced` (3) doesn't catch it — the trim u32 climbs on
+            // empty ENDs. `persistedSensorRows` is `sessionRowsPersisted > 0` (the frontier ADVANCED this pass)
+            // captured ONCE in `exitBackfilling` — NOT a fresh `backfiller.sessionRowsPersisted` re-read at the
+            // decision site (that live counter, mutated by trailing frames / a re-kicked session across the
+            // main-looper↔BLE-thread boundary, disagreed with the empty verdict and spun to the cap), and NOT
+            // `decodedChunks`/`bankedSensorRecords` (a dup-only or reject-frame re-offload DECODES frames but
+            // banks 0 NEW rows — it must also stop, not spin on already-synced data). Stop and let the 15-min
+            // floor retry; a real backlog pass persists new rows so this only bites the empty/dup spin.
+            if (!persistedSensorRows) return false
             // #928: a strap clock set in the FUTURE makes "newest" read ahead of ANY real frontier, so 2a
             // would report backlog forever and drive up to the full cap in EMPTY offloads on every
             // connect. A newest more than [futureSkewSeconds] past [wallNowUnix] (the REAL wall clock,
@@ -1519,10 +1543,10 @@ class WhoopBleClient(
             // fully discharged (or carries a previous owner's history) banks records across multiple clock
             // epochs and can latch an OLD one (e.g. 2024 when the real newest is 2026). That false "already
             // past it" would stop the drain after ONE session and make the user tap the strap to re-trigger
-            // (#364 / #451). But guard #3 proved the trim advanced, so if this session also PERSISTED REAL
-            // SENSOR ROWS the strap is still handing over real backlog — keep going. Empty / console-only
-            // ENDs persist 0 rows, so a stuck or caught-up strap won't spin; the cap bounds it regardless.
-            return rowsPersistedThisSession > 0
+            // (#364 / #451). But guard #3 proved the trim advanced, so if this session also PERSISTED NEW
+            // SENSOR ROWS the strap is still handing over real backlog — keep going. Empty / console-only / dup
+            // ENDs persist no new rows, so a stuck or caught-up strap won't spin; the cap bounds it regardless.
+            return persistedSensorRows
         }
 
         // #927: Continuous HRV "overnight only" window (pure, unit-tested in ContinuousHrvWindowTest).
@@ -1692,7 +1716,14 @@ class WhoopBleClient(
             // paused, so it never sets the flag for a WHOOP. `bonded` stays false (no encrypted bond), so
             // the buzz/alarm/HRV feature gates keep keying off the WHOOP bond. Twin of iOS OuraLiveSource
             // → LiveState.streamingLiveHR (PR #56).
-            _state.update { it.copy(heartRate = hr, connected = true, streamingLiveHR = true) }
+            // Skip the per-frame it.copy() once HR is steady AND both flags are already set — StateFlow drops
+            // the equal state anyway, so this only avoids the throwaway LiveState allocation. The guard still
+            // fires whenever ANY of the three isn't at its target, so the connected/streamingLiveHR
+            // transitions are never missed (matches the WHOOP live-HR paths).
+            val s = _state.value
+            if (s.heartRate != hr || !s.connected || !s.streamingLiveHR) {
+                _state.update { it.copy(heartRate = hr, connected = true, streamingLiveHR = true) }
+            }
         }
     }
 
@@ -2022,6 +2053,86 @@ class WhoopBleClient(
     // PII scrubbers for the shareable strap log (#445) live at file scope as [redactStrapLogPii]
     // so they're unit-testable without constructing this Android-only client (#421).
 
+    // ── #1263 Durable strap-log tail + generation ring (Android parity for iOS LiveState) ───────────
+    // The in-memory [logBuffer] dies with the process. To make an export taken AFTER a restart still carry
+    // the previous session's tail (issues #1259/#1264), we mirror a durable tail to SharedPreferences and,
+    // once per process, roll the surviving tail into a bounded generation ring. The ring MATH is the pure,
+    // JVM-tested [com.noop.ui.StrapLogGenerations]; this is the thin, untested SharedPreferences wrapper
+    // (the same split iOS has with UserDefaults). All of it runs inside log()'s no-throw guard, and the
+    // roll latch + persistence are serialised on [genLock] because log() is called from BOTH the GATT binder
+    // thread and the main looper — the roll must happen exactly once and must not race the tail mirror.
+    private val genLock = Any()
+    /** Once-per-process latch: the roll must run BEFORE this process's first durable-tail mirror overwrites
+     *  the surviving tail, and exactly once, or a second roll would push this process's own partial tail in
+     *  as a "previous" session. Guarded by [genLock]. */
+    private var didRollGenerations = false
+    /** Durable-tail mirror counter, mutated only under [logBuffer]'s monitor (like [logBuffer] itself). */
+    private var logsSincePersist = 0
+
+    private fun strapLogPrefs() = context.getSharedPreferences("noop_prefs", Context.MODE_PRIVATE)
+
+    /** The persisted durable tail, newest-last. Empty when nothing has been logged on this device. */
+    private fun persistedLogTail(): List<String> {
+        val s = strapLogPrefs().getString(STRAP_LOG_TAIL_KEY, null)
+        return if (s.isNullOrEmpty()) emptyList() else s.split('\n')
+    }
+
+    /** Mirror the most recent [LOG_DURABLE_TAIL_LIMIT] lines to SharedPreferences (newline-joined). */
+    private fun persistLogTail(lines: List<String>) {
+        val tail = if (lines.size > LOG_DURABLE_TAIL_LIMIT)
+            lines.subList(lines.size - LOG_DURABLE_TAIL_LIMIT, lines.size) else lines
+        strapLogPrefs().edit().putString(STRAP_LOG_TAIL_KEY, tail.joinToString("\n")).apply()
+    }
+
+    /** The stored generations, oldest-first — each a newline-joined block whose first line is its own header.
+     *  Persisted as a JSON array of strings; a corrupt/absent value reads as none. */
+    private fun persistedLogGenerations(): List<List<String>> {
+        val s = strapLogPrefs().getString(STRAP_LOG_GENERATIONS_KEY, null) ?: return emptyList()
+        return runCatching {
+            val arr = org.json.JSONArray(s)
+            (0 until arr.length()).map { i ->
+                val block = arr.getString(i)
+                if (block.isEmpty()) emptyList() else block.split('\n')
+            }
+        }.getOrDefault(emptyList())
+    }
+
+    private fun persistLogGenerations(gens: List<List<String>>) {
+        val arr = org.json.JSONArray()
+        for (g in gens) arr.put(g.joinToString("\n"))
+        strapLogPrefs().edit().putString(STRAP_LOG_GENERATIONS_KEY, arr.toString()).apply()
+    }
+
+    /**
+     * Roll the surviving durable tail into the generation ring. Idempotent per process (latched) and a NO-OP
+     * when the tail is empty — so a launch that logs nothing (or a run right after a roll) never pushes an
+     * empty generation and never evicts a real one. Runs on the FIRST log() append of the process AND in the
+     * export path, so an export taken before the first append isn't empty (iOS #1264). Serialised on [genLock].
+     */
+    private fun rollLogGenerationsIfNeeded() {
+        synchronized(genLock) {
+            if (didRollGenerations) return
+            didRollGenerations = true
+            val tail = persistedLogTail()
+            if (tail.isEmpty()) return
+            val gens = com.noop.ui.StrapLogGenerations.roll(tail, persistedLogGenerations(), System.currentTimeMillis())
+            persistLogGenerations(gens)
+            // Clear the live slot: this tail now belongs to a generation, and leaving it would duplicate it
+            // in every export until the next mirror overwrites it. Empty string reads back as no tail.
+            strapLogPrefs().edit().putString(STRAP_LOG_TAIL_KEY, "").apply()
+        }
+    }
+
+    /** Flush the current in-memory tail to the durable slot (mirroring is batched every N lines, so a
+     *  disconnect / shutdown flushes the last partial batch — the twin of iOS flushing in clearBiometrics).
+     *  No-throw; called off the per-line path. */
+    private fun flushDurableLogTail() {
+        runCatching {
+            val snapshot = synchronized(logBuffer) { logsSincePersist = 0; logBuffer.toList() }
+            if (snapshot.isNotEmpty()) persistLogTail(snapshot)
+        }
+    }
+
     /** Fired if a scan finds nothing in [SCAN_TIMEOUT_MS]; stops scanning and explains why. */
     private val scanTimeoutRunnable = Runnable {
         if (scanning && !_state.value.connected) {
@@ -2156,10 +2267,19 @@ class WhoopBleClient(
                 // nothing changed since the last run — a re-score driven purely by the reconnect+offload, not
                 // by data. These lines quantify the background battery cost (#1005). Log-only; behaviour is
                 // unchanged (the pass still runs, matching Swift's force-re-score after a completed backfill).
+                // #1196/#1146: an empty/duplicate offload (newData=no) has no new HR to score — the
+                // fingerprint already equals the watermark the last successful run advanced, so a re-score
+                // would reproduce IDENTICAL rows. SKIP the whole-window pass rather than churn it; over a
+                // flapping-link offload storm (~186 passes in 7.5h were measured) that churn made the
+                // reactive Trends/streak Flows flicker between full and empty — a scare that looked like
+                // data loss (#1196). Scoped to THIS post-offload trigger only: import/edit/settings/
+                // recalibrate re-scores force regardless of the HR fingerprint and are untouched. Twin of
+                // the Swift `analyzeRecent(skipIfUnchanged:)` gate at the refreshAfterCompletedBackfill site.
+                val newData = analyzeFp != NoopPrefs.analyzeWatermark(context)
                 log("re-score: trigger=post-offload newData=" +
-                    if (analyzeFp != NoopPrefs.analyzeWatermark(context)) "yes"
-                    else "no (empty/duplicate offload — nothing changed since last run)")
-                runCatching {
+                    if (newData) "yes"
+                    else "no (empty/duplicate offload — nothing changed since last run) — skipping (#1146)")
+                if (newData) runCatching {
                     IntelligenceEngine.analyzeRecent(
                         repo = repository,
                         profile = profile,
@@ -3092,9 +3212,11 @@ class WhoopBleClient(
                     isMG = whoop5Variant().isMG,
                     broadcastHrOptIn = puffinExperiment.broadcastHr,
                 ) &&
-                // GET_DEVICE_CONFIG_VALUE(121) as the ECG gate's mandatory READ-BACK, gated on a write being
+                // GET_DEVICE_CONFIG_VALUE(121) as a gate's mandatory READ-BACK, gated on a write being
                 // verified — same discipline as the R22 read-back above. The write ack is never the proof.
-                !(DeviceConfigWriteGate.isReadBackOpcode(cmd.rawValue) && ecgGateReport != null)) {
+                // Both the ECG gate (#891) and the Broadcast-HR gate (#1061) read themselves back over this.
+                !(DeviceConfigWriteGate.isReadBackOpcode(cmd.rawValue) &&
+                    (ecgGateReport != null || broadcastHrGateReport != null))) {
                 log("send(${cmd.name}) skipped — no WHOOP 5/MG framing for this command yet")
                 return
             }
@@ -5196,12 +5318,16 @@ class WhoopBleClient(
                     // verdict. Both handlers guard on ecgGateReport being live, so these are byte compares on
                     // every other frame; 121 is also matched by the read-probe clause above, but the two
                     // paths guard on DIFFERENT in-flight sentinels, so exactly one acts.
+                    // #1061 shares the SAME opcodes for its Broadcast-HR write read-back; only one gate is
+                    // ever in flight (both single-flight), and each handler no-ops unless its report is live.
                     if (frame.size > cmdOff && (frame[cmdOff - 2].toInt() and 0xFF) == 0x24) {
                         val op = frame[cmdOff].toInt() and 0xFF
                         if (op == CommandNumber.SET_DEVICE_CONFIG.rawValue) {
                             handleEcgGateWriteAck(frame, cmdOff)
+                            handleBroadcastHrGateWriteAck(frame, cmdOff)
                         } else if (op == CommandNumber.GET_DEVICE_CONFIG_VALUE.rawValue) {
                             handleEcgGateReadBack(frame, connectedFamily == DeviceFamily.WHOOP5)
+                            handleBroadcastHrGateReadBack(frame, connectedFamily == DeviceFamily.WHOOP5)
                         }
                     }
                     if (frame.size > cmdOff && (frame[cmdOff].toInt() and 0xFF) == CommandNumber.GET_DATA_RANGE.rawValue) {
@@ -5413,7 +5539,10 @@ class WhoopBleClient(
             "REALTIME_DATA" -> {
                 // Reject 0 / out-of-range spikes; only accept physiologically plausible HR.
                 (parsed.parsed["heart_rate"] as? Int)?.let { hr ->
-                    if (hr in 30..220) _state.update { it.copy(heartRate = hr) }
+                    // Only republish when the value actually changed: a same-HR frame's it.copy() allocates a
+                    // whole throwaway LiveState that StateFlow drops as equal anyway — pure GC churn at ~1 Hz,
+                    // every frame. Matches the Swift FrameRouter guard (`state.heartRate != hr`).
+                    if (hr in 30..220 && _state.value.heartRate != hr) _state.update { it.copy(heartRate = hr) }
                 }
                 // The realtime stream usually reports rr_count=0; only update R-R when this frame
                 // actually carries intervals, so we don't wipe R-R sourced from the 0x2A37 profile.
@@ -5586,6 +5715,12 @@ class WhoopBleClient(
                             (parsed.parsed["battery_mV"] as? Int)?.let { mv ->
                                 _state.update { s -> s.copy(batteryMv = mv) }
                             }
+                            // The same pushed BATTERY_LEVEL event also carries the real SoC% (soc@17/10, what
+                            // history already banks) — drive the LIVE battery % from it too, not only from the
+                            // polled GET_BATTERY_LEVEL command-response. Otherwise a stalled/late poll (or fresh
+                            // state after relaunch) blanks the % while charging — read from THIS same event —
+                            // keeps updating (the WHOOP 4.0 report). Same live-only guard as charging above.
+                            doubleValue(parsed.parsed["battery_pct"])?.let { pct -> setBattery(pct) }
                         }
                         // The strap raises CHARGING_ON(7)/CHARGING_OFF(8) the instant a pack goes on or comes
                         // off — so flip the charging pill directly instead of waiting on the ~8-min
@@ -5693,7 +5828,10 @@ class WhoopBleClient(
         if (rr.isNotEmpty()) _state.update { it.withRRIntervals(rr) }
         // HR: accept only physiologically plausible values; reject 0/garbage (off-wrist).
         if (hr in 30..220) {
-            _state.update { it.copy(heartRate = hr) }
+            // Skip the redundant it.copy() when HR is unchanged — StateFlow drops an equal state anyway, so
+            // this only avoids the per-frame throwaway LiveState allocation (matches FrameRouter). The bonded
+            // transition below stays UNCONDITIONAL: it must still fire once even while HR sits steady.
+            if (_state.value.heartRate != hr) _state.update { it.copy(heartRate = hr) }
             // EXPERIMENTAL WHOOP 5.0/MG: there is no confirmed-write bond for a 5/MG strap, so once
             // live HR actually streams over the standard profile we treat the link as established —
             // otherwise the UI sits on "Connecting…" forever even though data is flowing (issue #8).
@@ -6022,13 +6160,84 @@ class WhoopBleClient(
         if (!s.connected || !s.bonded) {
             log("Broadcast HR: connect and bond a 5/MG strap first — ignored."); return
         }
-        val value = if (on) 0x31 else 0x30   // ASCII '1' / '0'
-        send(
-            CommandNumber.SET_DEVICE_CONFIG,
-            byteArrayOf(0x01) + Whoop5Config.deviceConfigBody("whoop_live_hr_in_adv_ind_pkt", value),
-            withResponse = true,
+        // Mutually exclusive with the ECG gate: both verify over the SAME 121 read-back opcode, so if both
+        // were in flight one strap reply would be consumed by both handlers and cross-contaminate the other's
+        // verdict (its key isn't echoed → a spurious notClaimed). Only one device-config write verifies at once.
+        if (broadcastHrGateReport != null || ecgGateReport != null) {
+            log("Broadcast HR: a device-config write is already being verified — ignored."); return
+        }
+        val payload = byteArrayOf(0x01) +
+            Whoop5Config.deviceConfigBody(DeviceConfigWriteGate.BROADCAST_HR_KEY, DeviceConfigWriteGate.value(on))
+        // #1061: send() SILENTLY drops a command the 5/MG gate refuses, so consult the SAME gate and log
+        // honestly instead of a fire-and-forget "wrote". (The gate's OFF-write fix means the disable is now
+        // admitted; this keeps the log truthful if a write is ever refused.)
+        if (!DeviceConfigWriteGate.admitsSend(
+                opcode = CommandNumber.SET_DEVICE_CONFIG.rawValue,
+                payload = payload,
+                ecgGateOptIn = puffinExperiment.ecgRawData,
+                isMG = whoop5Variant().isMG,
+                broadcastHrOptIn = puffinExperiment.broadcastHr,
+            )
+        ) {
+            log("Broadcast HR: write whoop_live_hr_in_adv_ind_pkt=" + (if (on) "1" else "0") +
+                " REFUSED by the 5/MG send gate — strap unchanged.")
+            return
+        }
+        // #1061: write, then READ IT BACK — the ack is not the proof. A reporter on FW 50.36.2.0 saw the
+        // flag written yet the strap never advertised 0x180D, with no way to tell "accepted but not
+        // advertised" from "write ignored". The 121 read-back settles that, same discipline as the ECG gate.
+        val report = BroadcastHrGateReport(on)
+        broadcastHrGateReport = report
+        log(
+            "Broadcast HR: writing ${DeviceConfigWriteGate.BROADCAST_HR_KEY}=" +
+                "'${DeviceConfigWriteGate.valueString(on)}' via SET_DEVICE_CONFIG_VALUE(119); the ack is NOT " +
+                "the result — a GET_DEVICE_CONFIG_VALUE(121) read-back follows.",
         )
-        log("Broadcast HR: wrote whoop_live_hr_in_adv_ind_pkt=" + (if (on) "1" else "0"))
+        send(CommandNumber.SET_DEVICE_CONFIG, payload, withResponse = true)
+
+        broadcastHrGateStep += 1
+        val armed = broadcastHrGateStep
+        handler.postDelayed({
+            if (broadcastHrGateReport == null || broadcastHrGateStep != armed) return@postDelayed
+            send(CommandNumber.GET_DEVICE_CONFIG_VALUE, DeviceConfigReadProbe.requestBody(DeviceConfigWriteGate.BROADCAST_HR_KEY))
+            handler.postDelayed(readBack@{
+                if (broadcastHrGateReport == null || broadcastHrGateStep != armed) return@readBack
+                broadcastHrGateReport?.noteReadBackTimeout((ecgGateReadBackTimeoutMs / 1000).toInt())
+                finishBroadcastHrWrite()
+            }, ecgGateReadBackTimeoutMs)
+        }, ecgGateSettleMs)
+    }
+
+    /** Non-null only while a Broadcast-HR write is being verified (#1061) — same single-flight discipline
+     *  as the ECG gate. The send allowlist consults it so the 121 read-back can go out; the frame router
+     *  routes the ack + read-back replies here. Log-surfaced only (no LiveState). */
+    private var broadcastHrGateReport: BroadcastHrGateReport? = null
+    private var broadcastHrGateStep = 0
+
+    private fun finishBroadcastHrWrite() {
+        val report = broadcastHrGateReport ?: return
+        broadcastHrGateReport = null
+        log("Broadcast HR (#1061):\n${report.render()}")
+    }
+
+    /** The write's own COMMAND_RESPONSE — recorded, never the proof. Routed here when a 119 reply lands
+     *  while a Broadcast-HR write is being verified. */
+    private fun handleBroadcastHrGateWriteAck(frame: ByteArray, cmdOff: Int) {
+        if (broadcastHrGateReport == null) return
+        val resultIndex = cmdOff + 2
+        val code = if (frame.size > resultIndex) frame[resultIndex].toInt() and 0xFF else null
+        broadcastHrGateReport?.noteWriteAck(code)
+    }
+
+    /** The 121 read-back — the ONLY thing that decides the verdict. */
+    private fun handleBroadcastHrGateReadBack(frame: ByteArray, isWhoop5: Boolean) {
+        if (broadcastHrGateReport == null) return
+        val family = if (isWhoop5) DeviceFamily.WHOOP5 else DeviceFamily.WHOOP4
+        val parsed = DeviceConfigReadProbe.parse(frame, family, CommandNumber.GET_DEVICE_CONFIG_VALUE.rawValue)
+        val value = parsed.value
+        if (value != null) broadcastHrGateReport?.noteReadBack(value)
+        else broadcastHrGateReport?.noteReadBackFailure(parsed.failure!!)
+        finishBroadcastHrWrite()
     }
 
     // ---- ECG raw-data gate (#891) — an opt-in write with a MANDATORY read-back ----
@@ -6083,8 +6292,9 @@ class WhoopBleClient(
         if (!s.connected || !s.bonded) {
             log("ECG gate (#891): connect and bond a 5/MG strap first — ignored."); return
         }
-        if (ecgGateReport != null) {
-            log("ECG gate (#891): a write is already being verified — ignored."); return
+        // Mutually exclusive with the Broadcast-HR gate (#1061): both verify over the same 121 read-back.
+        if (ecgGateReport != null || broadcastHrGateReport != null) {
+            log("ECG gate (#891): a device-config write is already being verified — ignored."); return
         }
 
         val report = EcgRawDataGateReport(on)
@@ -7020,10 +7230,16 @@ class WhoopBleClient(
         // sensor rows is ALSO "banked nothing", regardless of console-frame count. The #126 guard is
         // unchanged — the banner still only fires once SUSTAINED — so a genuinely caught-up strap that
         // banked rows on an earlier cycle won't trip it.
+        // #1146: snapshot THIS completed session's persisted-row verdict ONCE (frontier advanced iff a new
+        // sensor row landed), from the same read `classifyCompletedOffload` sees. The auto-continue decision
+        // below gates on this snapshot — never a fresh `backfiller.sessionRowsPersisted` re-read that a
+        // re-kicked session / trailing frames could have mutated across the main-looper↔BLE-thread boundary.
+        val rowsThisSession = backfiller.sessionRowsPersisted
+        val persistedSensorRows = rowsThisSession > 0
         val (bankedSensorRecords, bankedNothingRaw) = classifyCompletedOffload(
             decodedChunks = decodedChunksThisSession,
             consoleChunks = consoleChunksThisSession,
-            rowsPersisted = backfiller.sessionRowsPersisted,
+            rowsPersisted = rowsThisSession,
         )
         // #42: the empty tail of an auto-continue burst (consecutiveAutoContinues > 0) isn't a "banked
         // nothing" sync — an EARLIER session in the same burst handed over real rows and this pass just
@@ -7218,7 +7434,13 @@ class WhoopBleClient(
         // predicate proves we're caught up — inside maybeAutoContinueBackfill's else path. Bounded by the
         // cap + spin-detector either way.
         if (reason == "timeout" || reason == "HISTORY_COMPLETE") {
-            maybeAutoContinueBackfill(trimAdvanced, backfiller.sessionRowsPersisted)
+            // #1146: pass the ONCE-captured `persistedSensorRows` verdict (snapshotted with the classify read
+            // above) — NOT a fresh `backfiller.sessionRowsPersisted` read. The live counter can be mutated by
+            // trailing frames / a re-kicked session across the main-looper↔BLE-thread boundary, so re-reading
+            // it here let an empty session (which persisted 0 new rows) still look like real backlog and spin
+            // to the cap. Snapshotting `> 0` at classify time = the auto-continue can't disagree with the
+            // empty verdict, and a dup-only re-offload (0 new rows) stops instead of spinning.
+            maybeAutoContinueBackfill(trimAdvanced, persistedSensorRows)
         }
     }
 
@@ -7235,7 +7457,7 @@ class WhoopBleClient(
      * [BackfillTrigger.AUTO_CONTINUE], one of the un-floored triggers in [BackfillPolicy.shouldRun], so the
      * 15-min periodic floor can't suppress an in-progress backlog drain. Mirrors Swift `maybeAutoContinueBackfill`.
      */
-    private fun maybeAutoContinueBackfill(trimAdvanced: Boolean, rowsPersisted: Int) {
+    private fun maybeAutoContinueBackfill(trimAdvanced: Boolean, persistedSensorRows: Boolean) {
         val s = _state.value
         if (!s.connected || !s.bonded) return
         val newest = strapNewestTs
@@ -7255,7 +7477,7 @@ class WhoopBleClient(
                     wallNowUnix = wallNow,
                     lastTrimAdvanced = trimAdvanced,
                     consecutiveCount = count,
-                    rowsPersistedThisSession = rowsPersisted,
+                    persistedSensorRows = persistedSensorRows,
                 )
             ) {
                 // #1012: name the stop honestly when the future-clock gate is what ended the chain —
@@ -7264,7 +7486,7 @@ class WhoopBleClient(
                 // have continued (still connected, rows banked, trim advanced, under the cap), so a
                 // frozen-trim / cap / disconnect stop is never misattributed to the clock. Twin of the
                 // Swift maybeAutoContinueBackfill line.
-                if (stillConnected && rowsPersisted > 0 && trimAdvanced &&
+                if (stillConnected && persistedSensorRows && trimAdvanced &&
                     count < MAX_AUTO_CONTINUES && clockUntrusted   // just set above from isFutureDatedNewest(newest, wallNow)
                 ) {
                     val aheadH = ((newest ?: wallNow) - wallNow) / 3600L
@@ -7393,6 +7615,10 @@ class WhoopBleClient(
         // (not stranded), and the next connection starts a fresh window rather than spanning the gap. No-op
         // when capture is off. Do it BEFORE the connect-down line so the summary reads before the drop.
         flushFrameTimingSummary()
+        // #1263: flush the durable strap-log tail so a completed session's last partial batch survives to a
+        // later export even if the process is killed before the next 32-line mirror (twin of iOS's flush on
+        // disconnect). The connect-down line logged just below still mirrors again once it crosses a batch.
+        flushDurableLogTail()
         // Snapshot the hold time and clear it IMMEDIATELY: every drop log below reads the snapshot, and a
         // stale `linkUpSinceMs` surviving into the next drop would report a hold time for a link that never
         // reached STATE_CONNECTED — the diagnostic would then invent exactly the evidence it exists to find.
@@ -7541,6 +7767,12 @@ class WhoopBleClient(
         if (ecgGateReport != null) {
             ecgGateReport?.noteReadBackTimeout((ecgGateReadBackTimeoutMs / 1000).toInt())
             finishEcgGateWrite()
+        }
+        // #1061: a Broadcast-HR write interrupted mid-verification is likewise RENDERED, not dropped — it
+        // has already written, so the user is told the read-back never landed (verdict silent).
+        if (broadcastHrGateReport != null) {
+            broadcastHrGateReport?.noteReadBackTimeout((ecgGateReadBackTimeoutMs / 1000).toInt())
+            finishBroadcastHrWrite()
         }
         // #520/#891: the DIS strings belong to the link that just dropped; a stale variant must not keep an
         // MG-only capability unlocked for whatever connects next.
@@ -7743,6 +7975,7 @@ class WhoopBleClient(
      * (e.g. AppViewModel.onCleared) AFTER [disconnect]. Idempotent.
      */
     fun shutdown() {
+        flushDurableLogTail()   // #1263: persist the last partial tail batch before we go away
         ioScope.cancel()
     }
 
@@ -7954,6 +8187,10 @@ class WhoopBleClient(
         // in here may propagate. (The regex bug itself is also fixed; this guarantees the class can't
         // recur.)
         try {
+            // #1263: FIRST append of this process — rescue the previous process's durable tail into the
+            // generation ring BEFORE this process's own mirror overwrites it. Latched + a no-op on an empty
+            // tail, so this is one guarded check per line after the first.
+            rollLogGenerationsIfNeeded()
             // Scrub personal identifiers FIRST so a user can safely share the strap log (#445), THEN
             // apply the optional Test Centre domain tag in front of the already-safe line.
             val safe = taggedStrapLogLine(redactPii(s), domain)
@@ -7962,12 +8199,21 @@ class WhoopBleClient(
             if (debugLogcat) Log.d(TAG, safe)
             // Mirror into the in-app ring buffer (format under the lock — SimpleDateFormat isn't
             // thread-safe and log() is called from both the GATT binder thread and the main looper).
+            // #1263: while under the lock, snapshot the tail for the durable mirror every N lines (so the
+            // SharedPreferences write itself happens OUTSIDE the monitor, off the hot per-line path).
+            var tailToPersist: List<String>? = null
             val stamped = synchronized(logBuffer) {
                 val line = "${logTimeFmt.format(System.currentTimeMillis())}  $safe"
                 logBuffer.addLast(line)
                 while (logBuffer.size > LOG_BUFFER_MAX) logBuffer.removeFirst()
+                if (++logsSincePersist >= LOG_TAIL_PERSIST_EVERY) {
+                    logsSincePersist = 0
+                    tailToPersist = logBuffer.toList()
+                }
                 line
             }
+            // #1263: durable-tail mirror (batched), OUTSIDE the logBuffer monitor.
+            tailToPersist?.let { persistLogTail(it) }
             // #1121: when detailed capture is on, ALSO append the (already PII-scrubbed) line to the
             // rolling on-device file, so a long-running issue is captured for hours rather than only the
             // ~5000-line (~50 min) in-memory ring. No-op + near-zero cost when capture is off, and inside
@@ -8117,8 +8363,22 @@ class WhoopBleClient(
         log("bondState $detail", com.noop.testcentre.TestDomain.CONNECTION)
     }
 
-    /** Snapshot of the recent strap log, newest last, for the "Share strap log" diagnostics export. */
-    fun exportLogText(): String = synchronized(logBuffer) { logBuffer.joinToString("\n") }
+    /**
+     * Snapshot of the recent strap log, newest last, for the "Share strap log" diagnostics export.
+     *
+     * #1263: previous app sessions come FIRST (oldest-first, each with its own header, then a
+     * "===== current app session =====" marker), so `report.txt` stays chronological and the log-parsing
+     * tools read it unchanged — they just get the session a restart used to erase. We roll here too, not only
+     * in [log], because a user can open the app and export BEFORE this process logs its first line — at which
+     * point the surviving tail is still unrolled and [logBuffer] is empty. The roll is latched + a no-op on an
+     * empty tail, so it's harmless when [log] already ran.
+     */
+    fun exportLogText(): String {
+        rollLogGenerationsIfNeeded()
+        val previous = com.noop.ui.StrapLogGenerations.previousSessionsText(persistedLogGenerations())
+        val current = synchronized(logBuffer) { logBuffer.joinToString("\n") }
+        return previous + current
+    }
 }
 
 // PII scrubbers for the shareable strap log (#445). Kept at FILE scope (not inside WhoopBleClient) so

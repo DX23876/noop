@@ -560,7 +560,11 @@ final class AppModel: ObservableObject {
         // analyzeRecent tick , otherwise a just-synced night's Charge / Effort / Rest can take up to
         // 15 minutes to appear on a strap-only (no-import) dashboard. analyzeRecent no-ops if a tick is
         // already running and refreshes the dashboard itself once the new scores persist. (PR #218)
-        await intelligence.analyzeRecent()
+        // #1196/#1146: `skipIfUnchanged` gates THIS post-offload pass on the HR fingerprint — an empty/
+        // duplicate offload (nothing new banked, common on a flapping link) skips the whole-window rescore
+        // instead of churning it, which was surfacing as a Trends/streak "0 days" flicker. Only this
+        // post-offload caller opts in; every other analyzeRecent path still forces unconditionally.
+        await intelligence.analyzeRecent(skipIfUnchanged: true)
         await PlanReconciliationCoordinator.reconcile(repo: repo)
         await GoalTrackingStore.shared.refresh(repo: repo)
         await refreshV5Signals()
@@ -966,6 +970,49 @@ final class AppModel: ObservableObject {
             Task { [weak self] in await self?.adoptActiveDevice(device.id) }
         }
     }
+
+    #if os(iOS)
+    /// Materialize Apple Health as a device and update the source that feeds Today.
+    /// Only replaces the seeded WHOOP row while it is still a placeholder with no strap and no data;
+    /// a physical or user-selected source always keeps priority.
+    func refreshAfterAppleHealthSync(authorized: Bool, now: Date = Date()) async {
+        await wireSourceCoordinator()
+        guard let registry = deviceRegistry, let store = await repo.storeHandle() else {
+            await repo.refresh()
+            return
+        }
+
+        let current = registry.devices.first(where: { $0.id == registry.activeDeviceId })
+        var currentHasRecentData = false
+        if let current {
+            let range = AppleWatchDevice.recentDayRange(now: now)
+            let cutoff = Int(now.timeIntervalSince1970) - AppleWatchDevice.recentWindowDays * 86_400
+            let latestHR = (try? await store.latestHRSampleTs(deviceId: current.id)) ?? nil
+            let recentDaily = (try? await store.dailyMetrics(
+                deviceId: current.id, from: range.from, to: range.to)) ?? []
+            currentHasRecentData = (latestHR ?? 0) >= cutoff || !recentDaily.isEmpty
+        }
+
+        await AppleWatchDevice.registerIfAuthorized(
+            registry: registry, store: store, authorized: authorized, now: now)
+        guard registry.devices.contains(where: { $0.id == AppleWatchDevice.deviceId }) else {
+            await repo.refresh()
+            return
+        }
+
+        if AppleWatchDevice.shouldAutoActivate(
+            current: current, currentHasRecentData: currentHasRecentData) {
+            registry.setActive(AppleWatchDevice.deviceId)
+            await adoptActiveDevice(AppleWatchDevice.deviceId)
+        } else if registry.activeDeviceId == AppleWatchDevice.deviceId {
+            // Covers relaunches: the row was already active, but the read spine may still be initializing.
+            await adoptActiveDevice(AppleWatchDevice.deviceId)
+            await repo.refresh()
+        } else {
+            await repo.refresh()
+        }
+    }
+    #endif
 
     // MARK: - Oura adopt (factory-reset-and-adopt)
 
@@ -1656,7 +1703,13 @@ final class AppModel: ObservableObject {
             nights.append(CyclePhaseEngine.Night(day: d.day, tempZ: tempZ, rhrZ: rhrZ, hrvZ: hrvZ))
             if let fused = CyclePhaseEngine.fusedIndex(tempZ: tempZ, rhrZ: rhrZ, hrvZ: hrvZ) { curve.append(fused) }
         }
-        cyclePhase = CyclePhaseEngine.classify(nights, baselineUsable: skinState.usable)
+        // Optional user-entered cycle-day-1 anchors live under the isolated `noop-cycle` source.
+        // The pure engine cross-validates them against the temperature shift rather than trusting a
+        // mistimed log blindly.
+        let loggedPeriodStarts = await repo.periodStarts()
+        cyclePhase = CyclePhaseEngine.classify(nights,
+                                               baselineUsable: skinState.usable,
+                                               loggedPeriodStarts: loggedPeriodStarts)
         cycleCurve = curve
     }
 

@@ -24,6 +24,12 @@ struct SettingsView: View {
     /// Profile-photo picker selection (PhotosUI). Cleared back to nil once the bytes are loaded.
     @State private var avatarPickerItem: PhotosPickerItem?
 
+    /// Custom background image (#custom-background). The store owns the decoded image + toggles; the
+    /// picker selection + the file-importer flag are local UI state.
+    @ObservedObject private var backgroundStore = BackgroundImageStore.shared
+    @State private var backgroundPickerItem: PhotosPickerItem?
+    @State private var showBackgroundFileImporter = false
+
     /// Backup & restore UI state.
     @State private var backupBusy = false
     @State private var backupAlertTitle = ""
@@ -174,6 +180,8 @@ struct SettingsView: View {
     @AppStorage(AppLanguage.storageKey) private var appLanguageRaw = AppLanguage.system.rawValue
     // Chart colour style: Titanium (brand) or Classic (throwback red→green). Re-colours gauges + charts.
     @AppStorage(ChartStyle.storageKey) private var chartStyleRaw = ChartStyle.health.rawValue
+    // Sleep tab stage-CHART shape: Classic per-stage rows, or the WHOOP-style stepped hypnogram Filled/Ribbon.
+    @AppStorage(SleepChartStyle.storageKey) private var sleepChartStyleRaw = SleepChartStyle.classic.rawValue
     // Chrome accent colour (mint / WHOOP blue / custom). Chrome only — never the data colour worlds.
     @AppStorage(AccentColor.storageKey) private var accentRaw = AccentColor.mint.rawValue
     @AppStorage(AccentColor.customHexKey) private var accentCustomHex = AccentColor.defaultCustomHex
@@ -299,14 +307,13 @@ struct SettingsView: View {
                        topBackground: liquidScaffoldSky()) {
             VStack(alignment: .leading, spacing: NoopMetrics.sectionSpacing) {
                 // Everyday sections stay expanded (S3): the ones a first-run user actually needs.
-                profilePhotoCard.staggeredAppear(index: 0)
-                profileCard.staggeredAppear(index: 1)
-                unitsCard.staggeredAppear(index: 2)
-                appearanceCard.staggeredAppear(index: 3)
-                strapCard.staggeredAppear(index: 4)
-                powerSavingCard.staggeredAppear(index: 5)
-                streakCard.staggeredAppear(index: 6)
-                featuresCard.staggeredAppear(index: 7)
+                profileCard.staggeredAppear(index: 0)
+                unitsCard.staggeredAppear(index: 1)
+                appearanceCard.staggeredAppear(index: 2)
+                strapCard.staggeredAppear(index: 3)
+                powerSavingCard.staggeredAppear(index: 4)
+                streakCard.staggeredAppear(index: 5)
+                featuresCard.staggeredAppear(index: 6)
 
                 // Lower-frequency sections collapse behind a single default-closed disclosure so the
                 // screen opens at ~6 sections instead of 11. Nothing is removed; every section here
@@ -460,6 +467,8 @@ struct SettingsView: View {
             blurb: "These power your heart-rate zones, calorie estimates and recovery baselines. Keep them accurate."
         ) {
             VStack(spacing: 0) {
+                profilePhotoRow
+                rowDivider
                 FormRow(label: "Date of birth") {
                     HStack(spacing: 12) {
                         Text("\(profile.age)")
@@ -534,12 +543,7 @@ struct SettingsView: View {
                 rowDivider
                 FormRow(label: "Max heart rate") {
                     VStack(alignment: .trailing, spacing: 6) {
-                        HStack(spacing: 8) {
-                            hrMaxField
-                            Text("bpm")
-                                .font(StrandFont.caption)
-                                .foregroundStyle(StrandPalette.textTertiary)
-                        }
+                        hrMaxField
                         Text(profile.hrMaxOverride > 0
                              ? "Manual override"
                              : "Auto · \(profile.hrMax) bpm (Tanaka)")
@@ -604,6 +608,180 @@ struct SettingsView: View {
         }
     }
 
+    /// Compact profile-photo control kept inside the Profile card so the optional avatar does not
+    /// consume a second top-level settings section. PhotosUI works on both supported platforms.
+    private var profilePhotoRow: some View {
+        let hasAvatar = profile.hasAvatar
+        return VStack(alignment: .leading, spacing: NoopMetrics.space2) {
+            HStack(spacing: NoopMetrics.space3) {
+                ProfileAvatarView(
+                    imageData: profile.avatarImageData,
+                    size: NoopMetrics.profileAvatarDiameter
+                )
+                    .accessibilityLabel(hasAvatar ? "Your profile photo" : "No profile photo set")
+
+                PhotosPicker(selection: $avatarPickerItem, matching: .images) {
+                    Text(hasAvatar ? "Change photo" : "Choose photo")
+                }
+                .buttonStyle(NoopButtonStyle(.secondary, fullWidth: true))
+
+                if hasAvatar {
+                    Button {
+                        profile.clearAvatar()
+                    } label: {
+                        Image(systemName: "trash")
+                    }
+                    .buttonStyle(NoopButtonStyle(.tertiary))
+                    .accessibilityLabel("Remove photo")
+                    .accessibilityHint("Reverts to the default profile icon")
+                }
+            }
+
+            Text("Optional. Add a photo for your avatar. It stays on \(Platform.deviceNounPhrase) and is never uploaded.")
+                .font(StrandFont.footnote)
+                .foregroundStyle(StrandPalette.textTertiary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        // Load the picked photo's bytes, then hand them to the store (which downscales + persists).
+        // Clearing the selection afterwards lets the user re-pick the same photo if they want.
+        .onChange(of: avatarPickerItem) { newItem in
+            guard let newItem else { return }
+            Task {
+                let data = try? await newItem.loadTransferable(type: Data.self)
+                await MainActor.run {
+                    if let data { profile.setAvatar(data) }
+                    avatarPickerItem = nil
+                }
+            }
+        }
+    }
+
+    /// One recent-background preset: a small cropped thumbnail (accent-ringed when active) over its
+    /// fill-mode label. Tapping re-applies that image + scaling.
+    @ViewBuilder
+    private func backgroundRecentThumb(thumb: Image?, mode: BackgroundFillMode, active: Bool,
+                                       action: @escaping () -> Void) -> some View {
+        let shape = RoundedRectangle(cornerRadius: 10, style: .continuous)
+        Button(action: action) {
+            VStack(spacing: 3) {
+                Group {
+                    if let thumb { thumb.resizable().scaledToFill() } else { StrandPalette.surfaceInset }
+                }
+                .frame(width: 64, height: 64)
+                .clipShape(shape)
+                .overlay(shape.strokeBorder(active ? StrandPalette.accent : StrandPalette.hairline,
+                                            lineWidth: active ? 2 : 1))
+                Text(mode.label)
+                    .font(StrandFont.caption)
+                    .foregroundStyle(active ? StrandPalette.accent : StrandPalette.textTertiary)
+            }
+        }
+        .buttonStyle(.plain)
+    }
+
+    /// Custom background image controls (#custom-background): pick from Photos or Browse the files,
+    /// choose the fill mode, and (once set) enable / remove. The store downscales + persists a
+    /// device-local file — nothing here is uploaded (NOOP is offline), and it is left out of `.noopbak`.
+    /// Wrapped in a layout-transparent `Group` so the picker `onChange` + the file importer can hang off
+    /// the whole cluster while it still flows inside the appearance VStack.
+    @ViewBuilder
+    private var backgroundImageControls: some View {
+        let hasImage = backgroundStore.hasImage
+        Group {
+            HStack(spacing: NoopMetrics.space2) {
+                PhotosPicker(selection: $backgroundPickerItem, matching: .images) {
+                    Text(hasImage ? "Replace from Photos" : "Choose from Photos")
+                }
+                .buttonStyle(NoopButtonStyle(.secondary, fullWidth: true))
+
+                Button {
+                    showBackgroundFileImporter = true
+                } label: {
+                    Text("Browse files")
+                }
+                .buttonStyle(NoopButtonStyle(.secondary, fullWidth: true))
+            }
+
+            if hasImage {
+                // Recent presets: tap a thumbnail to re-apply that image + the scaling it was last shown
+                // with. The first (accent-ringed) one is the active background.
+                if !backgroundStore.recents.isEmpty {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Recent")
+                            .font(StrandFont.footnote)
+                            .foregroundStyle(StrandPalette.textSecondary)
+                        HStack(spacing: 10) {
+                            ForEach(backgroundStore.recents.indices, id: \.self) { index in
+                                backgroundRecentThumb(
+                                    thumb: backgroundStore.thumbnails.indices.contains(index)
+                                        ? backgroundStore.thumbnails[index] : nil,
+                                    mode: backgroundStore.recents[index].fillMode,
+                                    active: index == 0,
+                                    action: { backgroundStore.applyRecent(index) })
+                            }
+                        }
+                    }
+                }
+
+                Toggle(isOn: $backgroundStore.enabled) {
+                    Text("Show custom background")
+                        .font(StrandFont.subhead)
+                        .foregroundStyle(StrandPalette.textPrimary)
+                }
+                .toggleStyle(.switch)
+                .tint(StrandPalette.accent)
+
+                FormRow(label: "Scaling") {
+                    Picker("Scaling", selection: Binding(
+                        get: { backgroundStore.fillMode },
+                        set: { backgroundStore.setFillMode($0) })) {
+                        ForEach(BackgroundFillMode.allCases) { mode in
+                            Text(mode.label).tag(mode)
+                        }
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.menu)
+                    .tint(StrandPalette.accent)
+                    .accessibilityLabel("Background scaling")
+                }
+
+                Button {
+                    backgroundStore.clearImage()
+                } label: {
+                    Text("Remove image")
+                }
+                .buttonStyle(NoopButtonStyle(.tertiary))
+                .accessibilityHint("Removes the custom background and restores the day-cycle sky")
+            }
+
+            Text("Optional. Use your own photo behind every tab, in place of the day-cycle sky. It stays on \(Platform.deviceNounPhrase) and is never uploaded. Pair it with Transparent cards above to let it show through.")
+                .font(StrandFont.caption)
+                .foregroundStyle(StrandPalette.textTertiary)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        // Load the picked photo's bytes, hand them to the store (which downscales + persists), then clear
+        // the selection so the same photo can be re-picked. Mirrors the avatar row.
+        .onChange(of: backgroundPickerItem) { newItem in
+            guard let newItem else { return }
+            Task {
+                let data = try? await newItem.loadTransferable(type: Data.self)
+                await MainActor.run {
+                    if let data { backgroundStore.setImage(from: data) }
+                    backgroundPickerItem = nil
+                }
+            }
+        }
+        // "Browse files" — the system file browser. The picked URL is security-scoped (outside the
+        // sandbox), so bracket the one-time read; we copy the bytes into our own file immediately.
+        .fileImporter(isPresented: $showBackgroundFileImporter, allowedContentTypes: [.image]) { result in
+            guard case .success(let url) = result else { return }
+            let didAccess = url.startAccessingSecurityScopedResource()
+            defer { if didAccess { url.stopAccessingSecurityScopedResource() } }
+            if let data = try? Data(contentsOf: url) { backgroundStore.setImage(from: data) }
+        }
+    }
+
     /// One-line state for the "Steps estimate" tap-through row: manual, the auto-fit confidence, or a
     /// not-yet-calibrated prompt — so the row reflects the current calibration without opening the sheet.
     private var stepsCalibrationSummary: String {
@@ -618,20 +796,23 @@ struct SettingsView: View {
     private func measureField(value: Binding<Double>, unit: String,
                               range: ClosedRange<Double>, step: Double,
                               format: String, accessibility: String) -> some View {
-        HStack(spacing: 10) {
-            HStack(alignment: .firstTextBaseline, spacing: 4) {
+        HStack(spacing: NoopMetrics.space2) {
+            HStack(alignment: .firstTextBaseline, spacing: NoopMetrics.space1) {
                 Text(String(format: format, value.wrappedValue))
                     .font(StrandFont.bodyNumber)
                     .foregroundStyle(StrandPalette.textPrimary)
-                    .frame(minWidth: 48, alignment: .trailing)
+                    .frame(width: NoopMetrics.formValueColumnWidth, alignment: .center)
                 Text(unit)
                     .font(StrandFont.caption)
                     .foregroundStyle(StrandPalette.textTertiary)
+                    .fixedSize()
             }
+            .fixedSize()
             Stepper(accessibility, value: value, in: range, step: step)
                 .labelsHidden()
                 .accessibilityLabel(accessibility)
         }
+        .fixedSize()
     }
 
     /// Imperial weight entry: shows pounds, steps in 1-lb increments, and writes the kg equivalent back
@@ -641,20 +822,23 @@ struct SettingsView: View {
             get: { UnitFormatter.kgToPounds(weightKg.wrappedValue) },
             set: { weightKg.wrappedValue = $0 / UnitFormatter.poundsPerKilogram }
         )
-        return HStack(spacing: 10) {
-            HStack(alignment: .firstTextBaseline, spacing: 4) {
+        return HStack(spacing: NoopMetrics.space2) {
+            HStack(alignment: .firstTextBaseline, spacing: NoopMetrics.space1) {
                 Text(String(format: "%.0f", lb.wrappedValue))
                     .font(StrandFont.bodyNumber)
                     .foregroundStyle(StrandPalette.textPrimary)
-                    .frame(minWidth: 48, alignment: .trailing)
+                    .frame(width: NoopMetrics.formValueColumnWidth, alignment: .center)
                 Text("lb")
                     .font(StrandFont.caption)
                     .foregroundStyle(StrandPalette.textTertiary)
+                    .fixedSize()
             }
+            .fixedSize()
             Stepper("Weight in pounds", value: lb, in: 66...551, step: 1)
                 .labelsHidden()
                 .accessibilityLabel("Weight, \(Int(lb.wrappedValue.rounded())) pounds")
         }
+        .fixedSize()
     }
 
     /// Imperial height entry: shows feet′ inches″, steps in whole inches, and writes the cm equivalent
@@ -665,15 +849,16 @@ struct SettingsView: View {
             set: { heightCm.wrappedValue = $0 * UnitFormatter.centimetersPerInch }
         )
         let parts = UnitFormatter.cmToFeetInches(heightCm.wrappedValue)
-        return HStack(spacing: 10) {
+        return HStack(spacing: NoopMetrics.space2) {
             Text("\(parts.feet)′ \(parts.inches)″")
                 .font(StrandFont.bodyNumber)
                 .foregroundStyle(StrandPalette.textPrimary)
-                .frame(minWidth: 56, alignment: .trailing)
+                .frame(width: NoopMetrics.formWideValueColumnWidth, alignment: .center)
             Stepper("Height in inches", value: inches, in: 47...91, step: 1)
                 .labelsHidden()
                 .accessibilityLabel("Height, \(parts.feet) feet \(parts.inches) inches")
         }
+        .fixedSize()
     }
 
     /// Metric waist entry: 0 = unset (shows a muted "Not set" rather than a misleading 0 cm). Steps in
@@ -681,18 +866,20 @@ struct SettingsView: View {
     /// crawl up from the range floor. Mirrors `measureField` but tolerant of the optional empty state.
     private func waistCentimetresField(waistCm: Binding<Double>) -> some View {
         let set = waistCm.wrappedValue > 0
-        return HStack(spacing: 10) {
-            HStack(alignment: .firstTextBaseline, spacing: 4) {
+        return HStack(spacing: NoopMetrics.space2) {
+            HStack(alignment: .firstTextBaseline, spacing: NoopMetrics.space1) {
                 Text(set ? String(format: "%.0f", waistCm.wrappedValue) : String(localized: "Not set"))
                     .font(StrandFont.bodyNumber)
                     .foregroundStyle(set ? StrandPalette.textPrimary : StrandPalette.textTertiary)
-                    .frame(minWidth: 48, alignment: .trailing)
+                    .frame(minWidth: NoopMetrics.formValueColumnWidth, alignment: .center)
                 if set {
                     Text("cm")
                         .font(StrandFont.caption)
                         .foregroundStyle(StrandPalette.textTertiary)
+                        .fixedSize()
                 }
             }
+            .fixedSize()
             Stepper("Waist in centimetres") {
                 waistCm.wrappedValue = min(160, (set ? waistCm.wrappedValue : 79) + 1)
             } onDecrement: {
@@ -703,6 +890,7 @@ struct SettingsView: View {
                 .labelsHidden()
                 .accessibilityLabel(set ? "Waist, \(Int(waistCm.wrappedValue.rounded())) centimetres" : "Waist not set")
         }
+        .fixedSize()
     }
 
     /// Imperial waist entry: 0 = unset (muted "Not set"); otherwise shows whole inches and stores the cm
@@ -711,18 +899,20 @@ struct SettingsView: View {
     private func waistInchesField(waistCm: Binding<Double>) -> some View {
         let set = waistCm.wrappedValue > 0
         let inches = set ? UnitFormatter.cmToInches(waistCm.wrappedValue).rounded() : 0
-        return HStack(spacing: 10) {
-            HStack(alignment: .firstTextBaseline, spacing: 4) {
+        return HStack(spacing: NoopMetrics.space2) {
+            HStack(alignment: .firstTextBaseline, spacing: NoopMetrics.space1) {
                 Text(set ? "\(Int(inches))" : "Not set")
                     .font(StrandFont.bodyNumber)
                     .foregroundStyle(set ? StrandPalette.textPrimary : StrandPalette.textTertiary)
-                    .frame(minWidth: 48, alignment: .trailing)
+                    .frame(minWidth: NoopMetrics.formValueColumnWidth, alignment: .center)
                 if set {
                     Text("in")
                         .font(StrandFont.caption)
                         .foregroundStyle(StrandPalette.textTertiary)
+                        .fixedSize()
                 }
             }
+            .fixedSize()
             Stepper("Waist in inches") {
                 let nextIn = (set ? inches : 30) + 1
                 waistCm.wrappedValue = min(160, nextIn * UnitFormatter.centimetersPerInch)
@@ -734,22 +924,31 @@ struct SettingsView: View {
                 .labelsHidden()
                 .accessibilityLabel(set ? "Waist, \(Int(inches)) inches" : "Waist not set")
         }
+        .fixedSize()
     }
 
     /// HR-max override: 0 = auto. Shown as a compact tabular value with a stepper.
     private var hrMaxField: some View {
-        HStack(spacing: 10) {
-            Text(profile.hrMaxOverride > 0 ? "\(profile.hrMaxOverride)" : "Auto")
-                .font(StrandFont.bodyNumber)
-                .foregroundStyle(profile.hrMaxOverride > 0
-                                 ? StrandPalette.textPrimary
-                                 : StrandPalette.textTertiary)
-                .frame(minWidth: 44, alignment: .trailing)
+        HStack(spacing: NoopMetrics.space2) {
+            HStack(alignment: .firstTextBaseline, spacing: NoopMetrics.space1) {
+                Text(profile.hrMaxOverride > 0 ? "\(profile.hrMaxOverride)" : "Auto")
+                    .font(StrandFont.bodyNumber)
+                    .foregroundStyle(profile.hrMaxOverride > 0
+                                     ? StrandPalette.textPrimary
+                                     : StrandPalette.textTertiary)
+                    .frame(width: NoopMetrics.formValueColumnWidth, alignment: .center)
+                Text("bpm")
+                    .font(StrandFont.caption)
+                    .foregroundStyle(StrandPalette.textTertiary)
+                    .fixedSize()
+            }
+            .fixedSize()
             Stepper("Max heart rate override",
                     value: $profile.hrMaxOverride, in: 0...230, step: 1)
                 .labelsHidden()
                 .accessibilityLabel("Max heart rate override, \(profile.hrMaxOverride == 0 ? "automatic" : "\(profile.hrMaxOverride) bpm")")
         }
+        .fixedSize()
     }
 
     // MARK: - Units
@@ -936,6 +1135,21 @@ struct SettingsView: View {
                     .accessibilityLabel("Chart colours")
                 }
                 rowDivider
+                FormRow(label: "Sleep chart") {
+                    // Classic = the per-stage timeline rows (default). Filled/Ribbon = the WHOOP-style
+                    // single stepped hypnogram, filled to the baseline or as a slim band. Display-only —
+                    // same stages either way; falls back to Classic on a night with no timestamped segments.
+                    Picker("Sleep chart", selection: $sleepChartStyleRaw) {
+                        ForEach(SleepChartStyle.allCases) { style in
+                            Text(style.label).tag(style.rawValue)
+                        }
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.menu)
+                    .tint(StrandPalette.accent)
+                    .accessibilityLabel("Sleep chart")
+                }
+                rowDivider
                 // Chrome accent colour — the links/buttons/selection tint only. The recovery/strain/sleep
                 // DATA colours follow "Chart colours" above, never this. Custom reveals a colour well.
                 FormRow(label: "Accent") {
@@ -986,7 +1200,7 @@ struct SettingsView: View {
                 }
                 #endif
 
-                Divider().overlay(StrandPalette.hairline).padding(.vertical, 4)
+                rowDivider
                 // MARK: Reduce motion in NOOP — pose every looping animation still and stop the tilt
                 // sensor, WITHOUT requiring system Low Power Mode. Off by default; system Reduce Motion
                 // and Low Power Mode already force the same behaviour, this is the third, in-app signal.
@@ -1003,6 +1217,7 @@ struct SettingsView: View {
                     .fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: .infinity, alignment: .leading)
 
+                rowDivider
                 // MARK: Day-cycle background — the time-of-day scene behind Today (#698). On by default.
                 // Off swaps it for the plain dark canvas for people who find the moving scene distracting.
                 Toggle(isOn: $showDayCycleBackground) {
@@ -1052,6 +1267,26 @@ struct SettingsView: View {
                     .fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: .infinity, alignment: .leading)
 
+                // MARK: Transparent cards — a quick on/off over the SAME cardOpacityPercent (no separate
+                // pref), so it stays in lock-step with the slider below. Off = solid (100%); on = a sensible
+                // see-through default the slider then fine-tunes. Lets the custom background (or the sky)
+                // show through the cards. `isOn` is derived from the opacity, so dragging to solid flips off.
+                Toggle(isOn: Binding(
+                    get: { cardOpacityPercent < 100 },
+                    set: { on in cardOpacityPercent = on ? (cardOpacityPercent >= 100 ? 70 : cardOpacityPercent) : 100 }
+                )) {
+                    Text("Transparent cards")
+                        .font(StrandFont.subhead)
+                        .foregroundStyle(StrandPalette.textPrimary)
+                }
+                .toggleStyle(.switch)
+                .tint(StrandPalette.accent)
+                Text("Let the background show through every card. Tune how much just below.")
+                    .font(StrandFont.caption)
+                    .foregroundStyle(StrandPalette.textTertiary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
                 // MARK: Card transparency — fade every frosted card's glass toward the background. Reactive
                 // @AppStorage, so all cards (incl. the ones on this screen) update live as you drag. The
                 // slider shows TRANSPARENCY (0 = solid, 100 = clear); we store the OPACITY percent.
@@ -1080,6 +1315,8 @@ struct SettingsView: View {
 
                 rowDivider
                 appIconColorSection
+                rowDivider
+                backgroundImageControls
                 rowDivider
                 appearanceExperimentalSection
             }
@@ -1161,7 +1398,7 @@ struct SettingsView: View {
                     .disabled(!live.connected && !live.bonded)
                 }
 
-                Divider().overlay(StrandPalette.hairline)
+                rowDivider
                 // MARK: Strap log — a Settings shortcut so people don't have to hunt for it on the Live
                 // screen (#507: couldn't find it on Mac; #509: same on iPhone). Same text as the Live card.
                 HStack(spacing: 12) {
@@ -1194,7 +1431,7 @@ struct SettingsView: View {
                     .foregroundStyle(StrandPalette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
 
-                Divider().overlay(StrandPalette.hairline)
+                rowDivider
 
                 // MARK: Continuous HRV capture — keep the dense beat-to-beat (R-R) stream armed 24/7.
                 Toggle(isOn: $continuousHrvEnabled) {
@@ -1265,12 +1502,12 @@ struct SettingsView: View {
 
                 // MARK: Strap name — rename the WHOOP 4.0's BLE advertising name (Harvard command set).
                 if live.connected && selectedWhoopModelRaw == WhoopModel.whoop4.rawValue {
-                    Divider().overlay(StrandPalette.hairline)
+                    rowDivider
                     strapNameControl
                 }
 
                 #if os(iOS)
-                Divider().overlay(StrandPalette.hairline)
+                rowDivider
                 // MARK: Live Activity — show live HR on the Lock Screen + Dynamic Island (#336).
                 Toggle(isOn: $liveActivityEnabled) {
                     Text("Live heart rate in Dynamic Island")
@@ -1310,7 +1547,7 @@ struct SettingsView: View {
                     .fixedSize(horizontal: false, vertical: true)
 
                 if powerSavingEnabled {
-                    Divider().overlay(StrandPalette.hairline)
+                    rowDivider
                     HStack {
                         Text("Kick in at (strap battery)")
                             .font(StrandFont.subhead)
@@ -1327,7 +1564,7 @@ struct SettingsView: View {
                     )
                     .appleInspiredTint("settings.controls")
 
-                    Divider().overlay(StrandPalette.hairline)
+                    rowDivider
                     // HRV pause: a sub-option, ON by default when the master is on (stored inverted).
                     Toggle(isOn: Binding(get: { !pauseHrvDisabled }, set: { pauseHrvDisabled = !$0 })) {
                         Text("Pause HRV capture")
@@ -1505,7 +1742,7 @@ struct SettingsView: View {
                     .foregroundStyle(StrandPalette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
 
-                Divider().overlay(StrandPalette.hairline)
+                rowDivider
 
                 Toggle(isOn: $autoDetectWorkoutsEnabled) {
                     Text("Auto-detect workouts")
@@ -1521,7 +1758,7 @@ struct SettingsView: View {
                     .foregroundStyle(StrandPalette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
 
-                Divider().overlay(StrandPalette.hairline)
+                rowDivider
 
                 Toggle(isOn: $journalReminderEnabled) {
                     Text("Journal reminder")
@@ -1537,7 +1774,7 @@ struct SettingsView: View {
                     .foregroundStyle(StrandPalette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
 
-                Divider().overlay(StrandPalette.hairline)
+                rowDivider
 
                 Toggle(isOn: $workoutKeepScreenOn) {
                     Text("Keep screen on during a workout")
@@ -1657,7 +1894,7 @@ struct SettingsView: View {
                     .foregroundStyle(StrandPalette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
 
-                Divider().overlay(StrandPalette.hairline)
+                rowDivider
 
                 // MARK: Motion-aware wake refinement (#364 follow-up) — default OFF.
                 Toggle(isOn: $motionAwareWakeEnabled) {
@@ -1749,7 +1986,7 @@ struct SettingsView: View {
                     .foregroundStyle(StrandPalette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
 
-                Divider().overlay(StrandPalette.hairline)
+                rowDivider
 
                 // MARK: R22 deep-data unlock — the one probe that writes to the strap.
                 Toggle(isOn: $deepDataEnabled) {
@@ -1842,7 +2079,7 @@ struct SettingsView: View {
                     }
                 }
 
-                Divider().overlay(StrandPalette.hairline)
+                rowDivider
 
                 // MARK: Broadcast HR — make the strap a standard BLE HR sensor (Garmin/Zwift/gym).
                 Toggle(isOn: $broadcastHrEnabled) {
@@ -1996,7 +2233,7 @@ struct SettingsView: View {
                     .fixedSize(horizontal: false, vertical: true)
 
                 if puffinCapture {
-                    Divider().overlay(StrandPalette.hairline)
+                    rowDivider
                     Text("Optical block experiment")
                         .font(StrandFont.subhead)
                         .foregroundStyle(StrandPalette.textPrimary)
@@ -2173,29 +2410,31 @@ struct SettingsView: View {
     /// Flush the in-flight capture, then copy it to a user-chosen location (save panel on macOS) or
     /// hand it to the system share sheet (iOS).
     private func exportPuffinCaptures() {
-        model.ble.flushPuffinCaptures()
-        guard let src = live.puffinCaptureURL else { return }
-        // Suggest a friendly, timestamped name so a reporter saving several captures gets sortable,
-        // non-colliding files (#510) — e.g. noop-raw-capture-260617-1042.json.
-        let suggested = FileExport.timestampedName("noop-raw-capture", ext: "json")
-        #if os(macOS)
-        let panel = NSSavePanel()
-        panel.allowedContentTypes = [.json]
-        panel.nameFieldStringValue = suggested
-        panel.canCreateDirectories = true
-        guard panel.runModal() == .OK, let dest = panel.url else { return }
-        let fm = FileManager.default
-        do {
-            if fm.fileExists(atPath: dest.path) { try fm.removeItem(at: dest) }
-            try fm.copyItem(at: src, to: dest)
-        } catch {
-            backupAlertTitle = String(localized: "Export failed")
-            backupAlertMessage = error.localizedDescription
-            showBackupAlert = true
+        Task { @MainActor in
+            await model.ble.flushPuffinCaptures()
+            guard let src = live.puffinCaptureURL else { return }
+            // Suggest a friendly, timestamped name so a reporter saving several captures gets sortable,
+            // non-colliding files (#510) — e.g. noop-raw-capture-260617-1042.json.
+            let suggested = FileExport.timestampedName("noop-raw-capture", ext: "json")
+            #if os(macOS)
+            let panel = NSSavePanel()
+            panel.allowedContentTypes = [.json]
+            panel.nameFieldStringValue = suggested
+            panel.canCreateDirectories = true
+            guard panel.runModal() == .OK, let dest = panel.url else { return }
+            let fm = FileManager.default
+            do {
+                if fm.fileExists(atPath: dest.path) { try fm.removeItem(at: dest) }
+                try fm.copyItem(at: src, to: dest)
+            } catch {
+                backupAlertTitle = String(localized: "Export failed")
+                backupAlertMessage = error.localizedDescription
+                showBackupAlert = true
+            }
+            #else
+            FileExport.exportFile(at: src, suggestedName: suggested)
+            #endif
         }
-        #else
-        FileExport.exportFile(at: src, suggestedName: suggested)
-        #endif
     }
 
     private func markOpticalPhase(_ phase: PuffinOpticalExperimentPhase) {
@@ -2230,20 +2469,22 @@ struct SettingsView: View {
     /// `rawAndLogBusy` disables the button for the duration: without it a second tap mid-export fires a
     /// second `exportPair` (two staged zips, two save panels / stacked share sheets).
     private func exportRawAndLog() {
-        model.ble.flushPuffinCaptures()
-        guard let capture = live.puffinCaptureURL else {
-            backupAlertTitle = String(localized: "Nothing to export")
-            backupAlertMessage = String(localized: "No raw capture has been recorded yet this session.")
-            showBackupAlert = true
-            return
-        }
-        let stamp = FileExport.timestamp()
         rawAndLogBusy = true
-        Task {
+        Task { @MainActor in
             // `defer` so the flag is cleared on ANY exit (#961 follow-up), including cancellation. It
             // cleared correctly before, but only because `exportPair` is non-throwing — the guard should
             // not depend on that. Otherwise the button stays disabled behind a spinner that never stops.
             defer { rawAndLogBusy = false }
+            // #652: `flushPuffinCaptures` is async now (encode+write moved off the main actor), so await
+            // it here — the file must be current before we read `puffinCaptureURL` to export it.
+            await model.ble.flushPuffinCaptures()
+            guard let capture = live.puffinCaptureURL else {
+                backupAlertTitle = String(localized: "Nothing to export")
+                backupAlertMessage = String(localized: "No raw capture has been recorded yet this session.")
+                showBackupAlert = true
+                return
+            }
+            let stamp = FileExport.timestamp()
             // Carry the same diagnostics as the other two strap-log exports. This is the pair a bug
             // report is most likely to attach, so it is the last place that should be missing them.
             let extra = await DebugDataDiagnostics.dynamicLines(repo: model.repo)
@@ -2257,9 +2498,11 @@ struct SettingsView: View {
     #if os(macOS)
     /// Flush, then reveal the capture file in Finder so the user can grab it directly.
     private func revealPuffinCaptures() {
-        model.ble.flushPuffinCaptures()
-        guard let url = live.puffinCaptureURL else { return }
-        NSWorkspace.shared.activateFileViewerSelecting([url])
+        Task { @MainActor in
+            await model.ble.flushPuffinCaptures()
+            guard let url = live.puffinCaptureURL else { return }
+            NSWorkspace.shared.activateFileViewerSelecting([url])
+        }
     }
     #endif
 
@@ -3487,6 +3730,7 @@ private struct FormRow<Control: View>: View {
                 .foregroundStyle(StrandPalette.textPrimary)
                 .frame(maxWidth: .infinity, alignment: .leading)
             control()
+                .layoutPriority(1)
         }
         .frame(minHeight: 32)
     }

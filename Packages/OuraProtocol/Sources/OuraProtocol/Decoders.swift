@@ -15,6 +15,12 @@ import Foundation
 
 public enum OuraDecoders {
 
+    /// #1284: minimum length (in code bytes; 1 byte = 4 epochs = 16 min) of a TRAILING run of `0xFF` for
+    /// `decodeSleepPhase` to treat it as unwritten flash pad rather than continuous `awake`. Conservative
+    /// (a real end-of-page wake block shorter than this is left intact); tunable as hardware captures pin
+    /// the true padding lengths. 6 bytes = 24 min; the measured pads ran 9-10 bytes (36-40 min).
+    public static let minTrailingUnwritten = 6
+
     // MARK: - Little-endian helpers (body offset == spec offset - 6)
 
     @inline(__always) static func u16le(_ b: [UInt8], _ i: Int) -> Int {
@@ -476,15 +482,46 @@ public enum OuraDecoders {
         let b = rec.payload
         // body[0] is the header (spec offset 6); phase codes begin at body[1].
         guard b.count >= 2 else { return nil }
+        // #1246: a whole record of `0xFF` is an UNWRITTEN (erased-flash) hypnogram page, not sleep — the
+        // ring serves pages of it for a stretch it never classified (confirmed on-device: SpO2/R-R go dark
+        // in the SAME window). The 2-bit unpack would read each `0xFF` as `11 11 11 11` = four `awake`,
+        // manufacturing hours of fake wake (one night: 320 of 334 "awake" min were padding → 36 %
+        // efficiency). Detect it at the RECORD level (unambiguous; a byte-level filter would eat the four
+        // genuine `awake` epochs that also encode as `0xFF`) and flag the epochs `unwritten` so the
+        // assembler drops them as a GAP while they still hold their place in the time axis.
+        // Require ≥2 code bytes so a LONE 0xFF byte — four genuine `awake` epochs, which also encode as
+        // 0xFF (the reporter's explicit caution) — is never mistaken for an erased page. Observed erased
+        // pages are whole ~13-byte records; a single byte is real wake.
+        let codeBytes = b.dropFirst()
+        let codeCount = codeBytes.count
+        let allUnwritten = codeCount >= 2 && codeBytes.allSatisfy { $0 == 0xFF }
+        // #1284: a PARTLY-written page fills front-to-back and leaves the TAIL as 0xFF padding, which the
+        // whole-record rule above misses — so the trailing pad still unpacks as `run*4` epochs of fake
+        // `awake` (measured ~86-88 min/night on hardware, pushing efficiency far below WHOOP's). Flag a
+        // TRAILING run of >= `minTrailingUnwritten` consecutive 0xFF code bytes (to the record's end) as
+        // unwritten too. Trailing-only + a run floor, on purpose: a leading/interior 0xFF run is left as
+        // real wake (the ring wrote it; a genuinely pre-onset run is dropped separately by the assembler's
+        // onset clip), and a short trailing run is spared as possible real end-of-page wake. `minTrailing`
+        // is the tunable safety margin between "padding" and "a long real wake block at a page boundary".
+        // The floor is clamped to >= 2: a LONE trailing 0xFF is four genuine awake epochs (the #1246 case),
+        // and the whole-record rule above only fires at codeCount >= 2 — the trailing rule must never undercut
+        // that even if `minTrailingUnwritten` is lowered by someone who hasn't read #1284. So the constant is
+        // freely tunable upward, but can never drop low enough to eat a single real-wake byte.
+        let effectiveFloor = max(2, Self.minTrailingUnwritten)
+        let trailingFF = codeBytes.reversed().prefix { $0 == 0xFF }.count
+        let trailingStart = trailingFF >= effectiveFloor ? codeCount - trailingFF : codeCount
         var out: [OuraSleepPhase] = []
         var index = 0
         for k in 1..<b.count {
             let byte = b[k]
+            // Whole erased page (#1246), or this byte is inside the trailing 0xFF pad (#1284).
+            let byteUnwritten = allUnwritten || (k - 1) >= trailingStart
             // MSB-first within the byte: [7:6] is the first code.
             for shift in stride(from: 6, through: 0, by: -2) {
                 let code = Int((byte >> UInt8(shift)) & 0x03)
                 if let stage = OuraSleepStage(rawValue: code) {
-                    out.append(OuraSleepPhase(ringTimestamp: rec.ringTimestamp, index: index, stage: stage))
+                    out.append(OuraSleepPhase(ringTimestamp: rec.ringTimestamp, index: index,
+                                              stage: stage, unwritten: byteUnwritten))
                     index += 1
                 }
             }

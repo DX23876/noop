@@ -117,18 +117,35 @@ enum class SleepChartStyle(val raw: String) {
     /** The long-standing per-stage-rows timeline (Awake/Light/Deep/REM each on their own track). */
     CLASSIC("classic"),
 
-    /** A single stepped hypnogram with the stages stacked by depth and each column FILLED to the
-     *  baseline, WHOOP-style — needs the night's real timestamped segments, else falls back to CLASSIC. */
+    /** A single stepped hypnogram FILLED to the baseline, in NOOP's sleep colours. Needs the night's real
+     *  timestamped segments, else falls back to CLASSIC. */
     FILLED("filled"),
 
-    /** The same single stepped chart but drawn as a slim RIBBON (a uniform band at each stage level, not
-     *  filled to the baseline) — the WHOOP-style stepped line, which reads cleaner on a fragmented night. */
+    /** The same filled chart drawn in Garmin's blue/magenta ramp. */
+    GARMIN_FILLED("garminFilled"),
+
+    /** The stepped chart drawn as a slim RIBBON (a uniform band at each stage level, not filled to the
+     *  baseline), in Oura's cream/blue ramp. */
     RIBBON("ribbon");
+
+    /** Whether the stepped chart fills to the baseline (Fill / Garmin Fill) or draws a slim ribbon. */
+    val isFilled: Boolean get() = this == FILLED || this == GARMIN_FILLED
+
+    /** The stage-colour ramp this style draws with. */
+    val stagePalette: SleepStagePalette
+        get() = when (this) {
+            CLASSIC, FILLED -> SleepStagePalette.NOOP
+            GARMIN_FILLED -> SleepStagePalette.GARMIN
+            RIBBON -> SleepStagePalette.OURA
+        }
 
     companion object {
         fun fromRaw(raw: String?): SleepChartStyle = entries.firstOrNull { it.raw == raw } ?: CLASSIC
     }
 }
+
+/** Which stage-colour ramp a sleep chart draws with. Twin of the Swift `SleepStagePalette`. */
+enum class SleepStagePalette { NOOP, OURA, GARMIN }
 
 /**
  * Reads the two unit preferences from [NoopPrefs] and resolves the "match the system" default for
@@ -243,6 +260,21 @@ object UnitFormatter {
                 "${(meters * 1.09361).roundToInt()} yd"
             }
         }
+    }
+
+    /**
+     * Average pace for display: "m:ss /km" (metric) or "m:ss /mi" (imperial). "—" when pace is undefined
+     * (null or ≤ 0, i.e. no distance yet). [secPerKm] is the seconds-per-kilometre the GPS session
+     * publishes. Byte-identical to the Swift `UnitFormatter.paceFromSecPerKm`. (#1195)
+     */
+    fun paceFromSecPerKm(secPerKm: Double?, system: UnitSystem): String {
+        if (secPerKm == null || secPerKm <= 0) return "—"
+        val (secs, label) = when (system) {
+            UnitSystem.IMPERIAL -> (secPerKm / MILES_PER_KILOMETER) to "/mi"
+            UnitSystem.METRIC -> secPerKm to "/km"
+        }
+        val s = secs.roundToInt()
+        return "${s / 60}:${(s % 60).toString().padStart(2, '0')} $label"
     }
 
     /**
