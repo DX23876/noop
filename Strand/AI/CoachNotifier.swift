@@ -139,6 +139,42 @@ enum CoachNotifier {
         ))
     }
 
+    /// Mirror only the two states that merit durable attention. Dashboard-only `.attention` remains
+    /// calm; recovery removes the old row, and the state in the key means a genuine transition can post
+    /// one fresh item without foreground refreshes re-arming an already-read one.
+    static func syncGoalMonitoring(_ snapshots: [GoalTrackingSnapshot],
+                                   store suppliedStore: UpdateStore? = nil,
+                                   now: Date = Date()) {
+        let store = suppliedStore ?? UpdateStore.shared
+        let prefix = "goal-monitoring:"
+        let live = snapshots.filter {
+            $0.goal.status == .active && ($0.health == .decisionNeeded || $0.health == .atRisk)
+        }
+        let liveKeys = Set(live.map { prefix + $0.id.uuidString + ":" + String($0.health.rawValue) })
+
+        for item in store.items where item.alertKey?.hasPrefix(prefix) == true
+            && !liveKeys.contains(item.alertKey ?? "") {
+            store.remove(item.id)
+        }
+        for snapshot in live {
+            let key = prefix + snapshot.id.uuidString + ":" + String(snapshot.health.rawValue)
+            guard !store.items.contains(where: { $0.alertKey == key }) else { continue }
+            store.post(UpdateItem(
+                kind: .strapAlert,
+                title: snapshot.health == .decisionNeeded
+                    ? String(localized: "Goal needs a decision")
+                    : String(localized: "Goal needs a review"),
+                message: snapshot.reason,
+                date: now,
+                category: .statusReminder,
+                priority: snapshot.health == .decisionNeeded ? .high : .normal,
+                expiresAt: now.addingTimeInterval(14 * 24 * 3600),
+                alertKey: key,
+                showOnToday: true
+            ))
+        }
+    }
+
     // MARK: - Mapping
 
     private struct Mapped {

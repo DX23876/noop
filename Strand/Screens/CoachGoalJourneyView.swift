@@ -25,18 +25,24 @@ struct CoachGoalJourneyScreen: View {
 /// scaffold and the title.
 struct CoachGoalJourneyView: View {
     @EnvironmentObject private var coach: AICoachEngine
+    @EnvironmentObject private var repo: Repository
     @ObservedObject private var goalStore = CoachGoalStore.shared
+    @ObservedObject private var actionStore = GoalActionStore.shared
+    @ObservedObject private var trackingStore = GoalTrackingStore.shared
+    @ObservedObject private var proposalStore = CoachGoalSetupProposalStore.shared
     /// Apple-inspired leading-icon coloring (SettingsView's "Apple-inspired colors") — same switch that
     /// recolors the More tab and the rest of Coach's screens. See `CoachIconColors`.
     @AppStorage(AppleInspiredColorsPrefs.enabledKey) private var appleHealthColors = AppleInspiredColorsPrefs.defaultEnabled
 
     private enum GoalSheet: Identifiable {
-        case edit(UUID), newGoal, journey(UUID)
+        case edit(UUID), newGoal, journey(UUID), action(UUID?), proposal(UUID)
         var id: String {
             switch self {
             case .edit(let id):    return "edit-\(id)"
             case .newGoal:         return "newGoal"
             case .journey(let id): return "journey-\(id)"
+            case .action(let id):  return "action-\(id?.uuidString ?? "new")"
+            case .proposal(let id): return "proposal-\(id)"
             }
         }
     }
@@ -60,6 +66,9 @@ struct CoachGoalJourneyView: View {
     @State private var showSetAsideConfirm = false
     @State private var deleteGoalId: UUID?
     @State private var showDeleteConfirm = false
+    @State private var pauseGoalId: UUID?
+    @State private var showPauseConfirm = false
+    @State private var showPastGoals = false
 
     /// TEMP DIAGNOSTIC (#goal-journey-freeze): body-evaluation counter, see `body`.
     nonisolated(unsafe) static var diagBodyCount = 0
@@ -75,14 +84,18 @@ struct CoachGoalJourneyView: View {
                       NSLog("[FREEZE-DIAG] CoachGoalJourneyView body eval #\(Self.diagBodyCount) goals=\(activeGoals.count) expired=\(expiredGoals.count)")
                   } }()
         VStack(spacing: 16) {
-            ForEach(expiredGoals) { g in expiredGoalCard(g) }
-            ForEach(activeGoals) { g in goalCard(g) }
+            if !proposalStore.pending.isEmpty { pendingSetupSection }
+            if !activeGoals.isEmpty { portfolioSummary }
+            ForEach(sortedActiveGoals) { g in goalCard(g) }
+            if !activeGoals.isEmpty { goalActionsSection }
             if canAddMore {
                 addGoalSection
             } else {
                 maxReachedNote
             }
+            if !pastGoals.isEmpty { pastGoalsSection }
         }
+        .task { await trackingStore.refresh(repo: repo) }
         // ONE enum-driven sheet (#R2) — a second `.sheet(isPresented:)` alongside this used to stack two
         // sheet hosts on the same view, the classic SwiftUI glitch where dismissing one can intermittently
         // re-present or bounce back to whatever's underneath.
@@ -91,6 +104,8 @@ struct CoachGoalJourneyView: View {
             case .edit(let id): CoachGoalEditorView(isOnboarding: false, editingGoalId: id)
             case .newGoal:      CoachGoalEditorView(isOnboarding: false)
             case .journey(let id): JourneyView(goalId: id).environmentObject(coach)
+            case .action(let id): GoalActionEditorView(editingId: id, onSave: refreshTracking)
+            case .proposal(let id): CoachGoalSetupReviewView(proposalId: id, onFinish: refreshTracking)
             }
         }
         .navigationDestination(isPresented: $showGuidedSetup) {
@@ -106,10 +121,10 @@ struct CoachGoalJourneyView: View {
         .confirmationDialog("Set this goal aside?", isPresented: $showSetAsideConfirm,
                             titleVisibility: .visible) {
             if let id = setAsideGoalId {
-                Button("Injury or health") { goalStore.setAside(id, reason: "injury or health") }
-                Button("Life got busy") { goalStore.setAside(id, reason: "life got busy") }
-                Button("Priorities changed") { goalStore.setAside(id, reason: "priorities changed") }
-                Button("No particular reason") { goalStore.setAside(id, reason: "") }
+                Button("Injury or health") { goalStore.setAside(id, reason: "injury or health"); refreshTracking() }
+                Button("Life got busy") { goalStore.setAside(id, reason: "life got busy"); refreshTracking() }
+                Button("Priorities changed") { goalStore.setAside(id, reason: "priorities changed"); refreshTracking() }
+                Button("No particular reason") { goalStore.setAside(id, reason: ""); refreshTracking() }
             }
             Button("Cancel", role: .cancel) {}
         } message: {
@@ -118,11 +133,30 @@ struct CoachGoalJourneyView: View {
         .confirmationDialog("Delete this goal?", isPresented: $showDeleteConfirm,
                             titleVisibility: .visible) {
             if let id = deleteGoalId {
-                Button("Delete goal", role: .destructive) { goalStore.remove(id) }
+                Button("Delete goal", role: .destructive) {
+                    goalStore.remove(id)
+                    actionStore.removeGoal(id)
+                    GoalContributionStore.shared.removeGoal(id)
+                    refreshTracking()
+                }
             }
             Button("Cancel", role: .cancel) {}
         } message: {
             Text("This removes the goal and its history from the device. There is no undo.")
+        }
+        .confirmationDialog("Pause this goal?", isPresented: $showPauseConfirm,
+                            titleVisibility: .visible) {
+            if let id = pauseGoalId {
+                ForEach(CoachGoal.PauseReason.allCases) { reason in
+                    Button(reason.label.localizedCatalogValue) {
+                        goalStore.pause(id, reason: reason)
+                        refreshTracking()
+                    }
+                }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Goal monitoring and flexible streaks freeze. Existing planned sessions stay in Your plan.")
         }
     }
 
@@ -139,6 +173,111 @@ struct CoachGoalJourneyView: View {
     private func confirmDelete(_ id: UUID) {
         deleteGoalId = id
         showDeleteConfirm = true
+    }
+
+    private func confirmPause(_ id: UUID) {
+        pauseGoalId = id
+        showPauseConfirm = true
+    }
+
+    private func refreshTracking() {
+        Task { await trackingStore.refresh(repo: repo) }
+    }
+
+    private var pendingSetupSection: some View {
+        NoopCard(padding: 14, tint: StrandPalette.accent) {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 8) {
+                    Image(systemName: "sparkles")
+                        .foregroundStyle(StrandPalette.accent).accessibilityHidden(true)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Coach drafts").strandOverline()
+                        Text("Nothing changes until you review and confirm.")
+                            .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+                    }
+                }
+                ForEach(Array(proposalStore.pending.prefix(3))) { proposal in
+                    Button { goalSheet = .proposal(proposal.id) } label: {
+                        HStack(spacing: 10) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(proposal.goal?.goal.title ?? "Routine setup")
+                                    .font(StrandFont.footnote).foregroundStyle(StrandPalette.textPrimary)
+                                    .lineLimit(1)
+                                Text(setupSummary(proposal))
+                                    .font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
+                            }
+                            Spacer(minLength: 8)
+                            Text("Review").font(StrandFont.caption).foregroundStyle(StrandPalette.accent)
+                            Image(systemName: "chevron.right")
+                                .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+                                .accessibilityHidden(true)
+                        }
+                        .padding(.vertical, 3)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityElement(children: .combine)
+                }
+            }
+        }
+    }
+
+    private func setupSummary(_ proposal: CoachGoalSetupProposal) -> String {
+        let goalCount = proposal.goal == nil ? 0 : 1
+        let routineCount = proposal.routines.count
+        if goalCount == 1 && routineCount > 0 {
+            return "1 goal · \(routineCount) routine\(routineCount == 1 ? "" : "s")"
+        }
+        if goalCount == 1 { return "1 goal" }
+        return "\(routineCount) routine\(routineCount == 1 ? "" : "s")"
+    }
+
+    private var sortedActiveGoals: [CoachGoal] {
+        activeGoals.sorted { lhs, rhs in
+            let l = trackingStore.snapshot(for: lhs.id)
+            let r = trackingStore.snapshot(for: rhs.id)
+            let lh = l?.health.rawValue ?? GoalTrackingSnapshot.Health.building.rawValue
+            let rh = r?.health.rawValue ?? GoalTrackingSnapshot.Health.building.rawValue
+            if lh != rh { return lh < rh }
+            return (lhs.targetDate ?? .distantFuture) < (rhs.targetDate ?? .distantFuture)
+        }
+    }
+
+    private var pastGoals: [CoachGoal] {
+        goalStore.goals
+            .filter { $0.status == .achieved || $0.status == .abandoned || $0.status == .archived }
+            .sorted { ($0.closure?.date ?? $0.createdAt) > ($1.closure?.date ?? $1.createdAt) }
+    }
+
+    private var portfolioSummary: some View {
+        let snapshots = activeGoals.compactMap { trackingStore.snapshot(for: $0.id) }
+        let stable = snapshots.filter { $0.health == .onTrack }.count
+        let attention = snapshots.filter { $0.health == .attention }.count
+        let action = snapshots.filter { $0.health == .atRisk || $0.health == .decisionNeeded }.count
+        return NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Your goals at a glance").strandOverline()
+                HStack(spacing: 16) {
+                    portfolioCount(stable, label: "on track", icon: "checkmark.circle")
+                    portfolioCount(attention, label: "attention", icon: "eye.circle")
+                    portfolioCount(action, label: "action", icon: "exclamationmark.circle")
+                }
+                if let first = sortedActiveGoals.first,
+                   let snapshot = trackingStore.snapshot(for: first.id) {
+                    Text(snapshot.nextAction)
+                        .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+        }
+    }
+
+    private func portfolioCount(_ count: Int, label: String, icon: String) -> some View {
+        HStack(spacing: 5) {
+            Image(systemName: icon).accessibilityHidden(true)
+            Text("\(count) \(label)")
+        }
+        .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
+        .accessibilityElement(children: .combine)
     }
 
     // MARK: - Add a goal
@@ -195,6 +334,50 @@ struct CoachGoalJourneyView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
     }
 
+    private var goalActionsSection: some View {
+        NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Daily actions").strandOverline()
+                        Text("One action can support several goals.")
+                            .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+                    }
+                    Spacer()
+                    Button { goalSheet = .action(nil) } label: {
+                        Label("Add", systemImage: "plus")
+                    }
+                    .font(StrandFont.footnote).foregroundStyle(StrandPalette.accent)
+                    .buttonStyle(.plain)
+                }
+                if actionStore.actions.isEmpty {
+                    Text("Add steps, a workout, or a manual check-off to make progress concrete today.")
+                        .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                        .fixedSize(horizontal: false, vertical: true)
+                } else {
+                    ForEach(actionStore.actions) { action in
+                        Button { goalSheet = .action(action.id) } label: {
+                            HStack(spacing: 8) {
+                                Image(systemName: action.isActive ? "checkmark.circle" : "pause.circle")
+                                    .foregroundStyle(StrandPalette.accent)
+                                VStack(alignment: .leading, spacing: 1) {
+                                    Text(action.title).font(StrandFont.footnote)
+                                        .foregroundStyle(StrandPalette.textPrimary)
+                                    Text("\(action.requirement.label) · \(action.goalIds.count) goals")
+                                        .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+                                }
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+                            }
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+        }
+    }
+
     // MARK: - Cards
 
     private func goalCard(_ goal: CoachGoal) -> some View {
@@ -211,7 +394,8 @@ struct CoachGoalJourneyView: View {
                             Text(goal.title.isEmpty ? goal.kind.label.localizedCatalogValue : goal.title)
                                 .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
                                 .lineLimit(1)
-                            Text(goalSubtitle(goal))
+                            Text(trackingStore.snapshot(for: goal.id)?.health.label.localizedCatalogValue
+                                 ?? goalSubtitle(goal))
                                 .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
                                 .fixedSize(horizontal: false, vertical: true)
                         }
@@ -226,6 +410,10 @@ struct CoachGoalJourneyView: View {
                 .accessibilityLabel("Edit your \(goal.kind.label.localizedCatalogValue) goal")
 
                 Divider().overlay(StrandPalette.hairline)
+                if let snapshot = trackingStore.snapshot(for: goal.id) {
+                    goalTrackingSummary(snapshot)
+                    Divider().overlay(StrandPalette.hairline)
+                }
                 Button { goalSheet = .journey(goal.id) } label: {
                     HStack(spacing: 8) {
                         Image(systemName: "chart.line.uptrend.xyaxis")
@@ -254,7 +442,14 @@ struct CoachGoalJourneyView: View {
     /// A goal must be able to END: close it as reached, set it aside, or delete it entirely.
     private func goalLifecycleRow(_ goal: CoachGoal) -> some View {
         HStack(spacing: 16) {
-            Button("Mark as achieved") { goalStore.markAchieved(goal.id) }
+            if goal.status == .paused {
+                Button("Resume") { goalStore.resume(goal.id); refreshTracking() }
+                    .font(StrandFont.footnote).foregroundStyle(StrandPalette.accent)
+            } else {
+                Button("Pause") { confirmPause(goal.id) }
+                    .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
+            }
+            Button("Achieved") { goalStore.markAchieved(goal.id); refreshTracking() }
                 .font(StrandFont.footnote).foregroundStyle(StrandPalette.accent)
             Button("Set aside") { confirmSetAside(goal.id) }
                 .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
@@ -267,6 +462,98 @@ struct CoachGoalJourneyView: View {
             .accessibilityLabel("Delete goal")
         }
         .buttonStyle(.plain)
+    }
+
+    private func goalTrackingSummary(_ snapshot: GoalTrackingSnapshot) -> some View {
+        VStack(alignment: .leading, spacing: 7) {
+            if let measurement = snapshot.measurement {
+                HStack {
+                    Text(measurementLine(snapshot.goal, value: measurement.value))
+                        .font(StrandFont.footnote).foregroundStyle(StrandPalette.textPrimary)
+                    Spacer()
+                    Text(JourneyExplain.label(for: snapshot.trend.verdict))
+                        .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+                }
+                if let fraction = snapshot.progressFraction {
+                    ProgressView(value: fraction).appleInspiredTint("journey.nextStep")
+                }
+            }
+            HStack {
+                Text("Plan \(snapshot.currentWeek.planCompleted)/\(snapshot.currentWeek.planPlanned)")
+                Text("Actions \(snapshot.currentWeek.actionCompleted)/\(snapshot.currentWeek.actionPlanned)")
+                Spacer()
+                Text("Series \(snapshot.currentStreak) · best \(snapshot.bestStreak)")
+            }
+            .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
+            Text(snapshot.reason)
+                .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+                .fixedSize(horizontal: false, vertical: true)
+            Text(snapshot.nextAction)
+                .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+            if snapshot.health == .decisionNeeded,
+               (ProactiveCoach.daysPastTarget(snapshot.goal) ?? 0) >= 1 {
+                HStack(spacing: 14) {
+                    Button("I reached it") { goalStore.markAchieved(snapshot.id); refreshTracking() }
+                    Button("Extend") { goalSheet = .edit(snapshot.id) }
+                    Button("Set aside") { confirmSetAside(snapshot.id) }
+                }
+                .font(StrandFont.footnote).foregroundStyle(StrandPalette.accent)
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
+    private func measurementLine(_ goal: CoachGoal, value: Double) -> String {
+        if let target = goal.target {
+            return String(format: "%.1f %@ now · target %.1f %@", value, goal.kind.unit, target, goal.kind.unit)
+        }
+        return String(format: "%.1f %@ now", value, goal.kind.unit)
+    }
+
+    private var pastGoalsSection: some View {
+        NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
+            VStack(alignment: .leading, spacing: 10) {
+                Button { withAnimation(StrandMotion.fade) { showPastGoals.toggle() } } label: {
+                    HStack {
+                        Text("Past goals").strandOverline()
+                        Spacer()
+                        Text("\(pastGoals.count)")
+                            .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+                        Image(systemName: showPastGoals ? "chevron.up" : "chevron.down")
+                            .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+                    }
+                }
+                .buttonStyle(.plain)
+                if showPastGoals {
+                    ForEach(pastGoals) { goal in
+                        Button { goalSheet = .journey(goal.id) } label: {
+                            HStack(spacing: 8) {
+                                Image(systemName: goal.status == .achieved ? "checkmark.seal" : "archivebox")
+                                    .foregroundStyle(StrandPalette.textSecondary)
+                                    .accessibilityHidden(true)
+                                VStack(alignment: .leading, spacing: 1) {
+                                    Text(goal.title.isEmpty ? goal.kind.label.localizedCatalogValue : goal.title)
+                                        .font(StrandFont.footnote).foregroundStyle(StrandPalette.textPrimary)
+                                    Text(pastGoalLine(goal))
+                                        .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+                                }
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+                            }
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+        }
+    }
+
+    private func pastGoalLine(_ goal: CoachGoal) -> String {
+        let status = goal.status == .achieved ? "Achieved" : "Set aside"
+        guard let date = goal.closure?.date else { return status }
+        return status + " · " + date.formatted(date: .abbreviated, time: .omitted)
     }
 
     /// Active goals whose target date has passed — a decision card per goal, not a dead end. Same

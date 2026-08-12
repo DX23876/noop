@@ -119,6 +119,42 @@ struct CoachGoal: Codable, Identifiable, Equatable {
         case active, paused, achieved, abandoned, archived
     }
 
+    enum PauseReason: String, Codable, CaseIterable, Identifiable {
+        case illness, pain, travel, life, other
+
+        var id: String { rawValue }
+
+        var label: String {
+            switch self {
+            case .illness: return "Illness"
+            case .pain:    return "Pain"
+            case .travel:  return "Travel"
+            case .life:    return "Life got busy"
+            case .other:   return "Something else"
+            }
+        }
+    }
+
+    /// A structured pause interval. Unlike the prose history this remains machine-readable after a
+    /// resume, which lets flexible goal-week streaks protect the right historical weeks.
+    struct PauseInterval: Codable, Equatable {
+        let startedAt: Date
+        var endedAt: Date?
+        let reason: PauseReason
+
+        func intersects(_ interval: DateInterval) -> Bool {
+            let end = endedAt ?? .distantFuture
+            return startedAt < interval.end && end >= interval.start
+        }
+    }
+
+    struct Closure: Codable, Equatable {
+        enum Kind: String, Codable { case achieved, setAside, replaced }
+        let kind: Kind
+        let date: Date
+        let reason: String?
+    }
+
     /// The user's acknowledgement of a flagged goal rate. The gate WARNS and asks for a reason — it
     /// never blocks. Legitimate exceptions exist (a cut phase, a high starting body weight, medical
     /// supervision), and refusing them outright would be both paternalistic and wrong. Recording the
@@ -161,6 +197,8 @@ struct CoachGoal: Codable, Identifiable, Equatable {
     var acknowledgedRisk: RiskAcknowledgement?
     let createdAt: Date
     var history: [Event]
+    var pauseIntervals: [PauseInterval]
+    var closure: Closure?
 
     init(id: UUID = UUID(),
          kind: Kind = .custom,
@@ -174,7 +212,9 @@ struct CoachGoal: Codable, Identifiable, Equatable {
          shareMotivation: Bool = false,
          acknowledgedRisk: RiskAcknowledgement? = nil,
          createdAt: Date = Date(),
-         history: [Event] = []) {
+         history: [Event] = [],
+         pauseIntervals: [PauseInterval] = [],
+         closure: Closure? = nil) {
         self.id = id
         self.kind = kind
         self.title = title
@@ -188,6 +228,8 @@ struct CoachGoal: Codable, Identifiable, Equatable {
         self.acknowledgedRisk = acknowledgedRisk
         self.createdAt = createdAt
         self.history = history
+        self.pauseIntervals = pauseIntervals
+        self.closure = closure
     }
 
     // Back-compat: every field added after the first ship decodes with a default, so a stored goal
@@ -195,6 +237,7 @@ struct CoachGoal: Codable, Identifiable, Equatable {
     private enum CodingKeys: String, CodingKey {
         case id, kind, title, baseline, target, targetDate, status
         case motivation, motivationTags, shareMotivation, acknowledgedRisk, createdAt, history
+        case pauseIntervals, closure
     }
 
     init(from decoder: Decoder) throws {
@@ -212,6 +255,8 @@ struct CoachGoal: Codable, Identifiable, Equatable {
         acknowledgedRisk = try c.decodeIfPresent(RiskAcknowledgement.self, forKey: .acknowledgedRisk)
         createdAt = try c.decodeIfPresent(Date.self, forKey: .createdAt) ?? Date()
         history = try c.decodeIfPresent([Event].self, forKey: .history) ?? []
+        pauseIntervals = try c.decodeIfPresent([PauseInterval].self, forKey: .pauseIntervals) ?? []
+        closure = try c.decodeIfPresent(Closure.self, forKey: .closure)
     }
 
     // MARK: - Derived
@@ -353,7 +398,9 @@ final class CoachGoalStore: ObservableObject {
     func markAchieved(_ id: UUID, on date: Date = Date()) {
         guard let idx = goals.firstIndex(where: { $0.id == id }),
               goals[idx].status == .active || goals[idx].status == .paused else { return }
+        closeOpenPause(at: idx, on: date)
         goals[idx].status = .achieved
+        goals[idx].closure = .init(kind: .achieved, date: date, reason: nil)
         goals[idx].history.append(.init(date: date, what: "Goal achieved"))
     }
 
@@ -362,9 +409,29 @@ final class CoachGoalStore: ObservableObject {
     func setAside(_ id: UUID, reason: String, on date: Date = Date()) {
         guard let idx = goals.firstIndex(where: { $0.id == id }),
               goals[idx].status == .active || goals[idx].status == .paused else { return }
+        closeOpenPause(at: idx, on: date)
         goals[idx].status = .abandoned
         let why = reason.trimmingCharacters(in: .whitespacesAndNewlines)
+        goals[idx].closure = .init(kind: .setAside, date: date, reason: why.isEmpty ? nil : why)
         goals[idx].history.append(.init(date: date, what: why.isEmpty ? "Goal set aside" : "Goal set aside — \(why)"))
+    }
+
+    /// Pausing protects intersecting goal weeks but deliberately leaves scheduled plan rows untouched.
+    /// A goal lifecycle decision must not silently rewrite calendar commitments.
+    func pause(_ id: UUID, reason: CoachGoal.PauseReason, on date: Date = Date()) {
+        guard let idx = goals.firstIndex(where: { $0.id == id }), goals[idx].status == .active else { return }
+        goals[idx].status = .paused
+        goals[idx].pauseIntervals.append(.init(startedAt: date, endedAt: nil, reason: reason))
+        goals[idx].history.append(.init(date: date, what: "Goal paused — \(reason.label)"))
+        trimHistory(at: idx)
+    }
+
+    func resume(_ id: UUID, on date: Date = Date()) {
+        guard let idx = goals.firstIndex(where: { $0.id == id }), goals[idx].status == .paused else { return }
+        closeOpenPause(at: idx, on: date)
+        goals[idx].status = .active
+        goals[idx].history.append(.init(date: date, what: "Goal resumed"))
+        trimHistory(at: idx)
     }
 
     /// Delete a goal and its history entirely — the only irreversible one. Unlike `setAside`, nothing of
@@ -389,8 +456,11 @@ final class CoachGoalStore: ObservableObject {
     func commit(_ draft: CoachGoal, editingId: UUID? = nil, replacing: UUID? = nil,
                 acknowledgedRisk: CoachGoal.RiskAcknowledgement? = nil, clearStaleAck: Bool = false) {
         if let replacing, let idx = goals.firstIndex(where: { $0.id == replacing }) {
+            let replacedAt = Date()
+            closeOpenPause(at: idx, on: replacedAt)
             goals[idx].status = .abandoned
-            goals[idx].history.append(.init(date: Date(), what: "Replaced by a new goal"))
+            goals[idx].closure = .init(kind: .replaced, date: replacedAt, reason: nil)
+            goals[idx].history.append(.init(date: replacedAt, what: "Replaced by a new goal"))
         }
 
         var g = draft
@@ -402,7 +472,8 @@ final class CoachGoalStore: ObservableObject {
                           motivationTags: g.motivationTags,
                           shareMotivation: g.shareMotivation,
                           acknowledgedRisk: existing.acknowledgedRisk,
-                          createdAt: existing.createdAt, history: existing.history)
+                          createdAt: existing.createdAt, history: existing.history,
+                          pauseIntervals: existing.pauseIntervals, closure: existing.closure)
         }
         if let ack = acknowledgedRisk {
             g.acknowledgedRisk = ack
@@ -422,5 +493,16 @@ final class CoachGoalStore: ObservableObject {
     private func save() {
         guard let data = try? JSONEncoder().encode(goals) else { return }
         d.set(data, forKey: Self.goalsKey)
+    }
+
+    private func closeOpenPause(at index: Int, on date: Date) {
+        guard let pauseIndex = goals[index].pauseIntervals.lastIndex(where: { $0.endedAt == nil }) else { return }
+        goals[index].pauseIntervals[pauseIndex].endedAt = date
+    }
+
+    private func trimHistory(at index: Int) {
+        if goals[index].history.count > 20 {
+            goals[index].history.removeFirst(goals[index].history.count - 20)
+        }
     }
 }

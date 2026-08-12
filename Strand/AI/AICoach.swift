@@ -590,7 +590,9 @@ final class AICoachEngine: ObservableObject {
     /// user turn so they don't linger past the moment they belong to.
     @Published var cardSuggestions: [String] = []
 
-    private let repo: Repository
+    /// Internal so consent-gated tool extensions can resolve local proposal evidence without copying
+    /// Repository access into another owner. It is never exposed outside the app module.
+    let repo: Repository
     private let session: URLSession
 
     /// Closure `AppModel` wires right after constructing the engine, so the coach can read the LIVE
@@ -3093,9 +3095,15 @@ final class AICoachEngine: ObservableObject {
                 && (g.history.last?.date ?? .distantPast) >= recencyCutoff
         }
         let blocks = (store.activeGoals + recentlyClosed).compactMap { goalBlock(for: $0, profile: profile) }
-        guard !blocks.isEmpty else { return nil }
+        let pendingSetups = CoachGoalSetupProposalStore.shared.pending
+        guard !blocks.isEmpty || !pendingSetups.isEmpty else { return nil }
 
         var result = blocks.joined(separator: "\n\n")
+        if !pendingSetups.isEmpty {
+            result += (result.isEmpty ? "" : "\n\n")
+                + "PENDING GOAL/ROUTINE DRAFTS: \(pendingSetups.count). Do not create a duplicate; "
+                + "remind the user that the newest draft is waiting for review."
+        }
         if store.activeGoals.count > 1 {
             result += "\n\nThe user has \(store.activeGoals.count) active goals above — weigh and "
                     + "prioritise across ALL of them in your recommendations (e.g. don't suggest a hard "
@@ -3124,7 +3132,10 @@ final class AICoachEngine: ObservableObject {
         case .abandoned:
             return "The user's previous goal \"\(title)\" was set aside by them. Do not nag about it or "
                  + "treat it as a failure; whether and when to set a new goal is their call."
-        case .paused, .archived:
+        case .paused:
+            return "Goal [id \(goal.id.uuidString)]: \"\(title)\" is PAUSED by the user. Do not push "
+                 + "progression or treat protected weeks as misses; existing calendar commitments may still need their decision."
+        case .archived:
             return nil
         case .active:
             break
@@ -3147,6 +3158,32 @@ final class AICoachEngine: ObservableObject {
         }
         if let phase = goal.phase() { parts.append("phase: \(phase)") }
         var lines = [parts.joined(separator: " — ")]
+        if let tracking = GoalTrackingStore.shared.snapshot(for: goal.id) {
+            lines.append("DETERMINISTIC GOAL STATUS: \(tracking.health.label); "
+                         + "this week plan \(tracking.currentWeek.planCompleted)/\(tracking.currentWeek.planPlanned), "
+                         + "daily actions \(tracking.currentWeek.actionCompleted)/\(tracking.currentWeek.actionPlanned); "
+                         + "current flexible series \(tracking.currentStreak), best \(tracking.bestStreak).")
+            lines.append("Reason: \(tracking.reason) Next action: \(tracking.nextAction)")
+            lines.append("Treat these as computed facts. Do not calculate a different streak or risk label yourself.")
+        }
+        let linkedActions = GoalActionStore.shared.actions.filter { $0.isActive && $0.goalIds.contains(goal.id) }
+        if !linkedActions.isEmpty {
+            let today = Dictionary(uniqueKeysWithValues: GoalTrackingStore.shared.todayActions.map {
+                ($0.action.id, $0.isCompleted)
+            })
+            lines.append("CONFIRMED DAILY ACTIONS (execution evidence, never outcome proof): "
+                         + linkedActions.map { action in
+                            "\(action.title) [id \(action.id.uuidString), today: \(today[action.id] == true ? "done" : "open")]"
+                         }.joined(separator: "; "))
+        }
+        let contributions = GoalContributionStore.shared.contributions
+            .filter { $0.goalIds.contains(goal.id) }
+            .sorted { $0.workout.startTs > $1.workout.startTs }
+            .prefix(5)
+        if !contributions.isEmpty {
+            lines.append("CONFIRMED SUPPORTING ACTIVITIES (not outcome proof): "
+                         + contributions.map { $0.workout.sport }.joined(separator: ", "))
+        }
 
         // The rate verdict, decided in code before the model ever sees it.
         let gate = GoalSafetyGate.assess(goal: goal, bodyWeightKg: profile.weightKg)
@@ -3374,7 +3411,7 @@ final class AICoachEngine: ObservableObject {
     /// returned string tells the model to say exactly that rather than describing it as settled.
     func proposePlanTool(day: String?, sport: String, intent: String,
                          targetEffort: Double?, rationale: String, time: String?,
-                         goalId: String? = nil) -> String {
+                         goalId: String? = nil, goalIds: [String]? = nil) -> String {
         let trimmedSport = sport.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedSport.isEmpty else { return "Nothing proposed: name the activity." }
         guard let parsedIntent = PlanProposal.Intent(rawValue: intent.lowercased()) else {
@@ -3408,20 +3445,22 @@ final class AICoachEngine: ObservableObject {
         // with several the tool must use the opaque id from the goal context or leave a genuinely general
         // session unlinked. Never guess between goals.
         let activeGoals = CoachGoalStore.shared.activeGoals
-        let requestedGoal: UUID?
-        if let raw = goalId?.trimmingCharacters(in: .whitespacesAndNewlines), !raw.isEmpty {
+        let rawGoalIds = (goalIds ?? []) + (goalId.map { [$0] } ?? [])
+        var requestedGoals: [UUID] = []
+        for raw in rawGoalIds where !raw.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             guard let parsed = UUID(uuidString: raw), activeGoals.contains(where: { $0.id == parsed }) else {
-                return "Nothing proposed: goal_id does not name an active goal. Use an exact id from the goal context."
+                return "Nothing proposed: goal_ids must name active goals using exact ids from the goal context."
             }
-            requestedGoal = parsed
-        } else {
-            requestedGoal = activeGoals.count == 1 ? activeGoals[0].id : nil
+            if !requestedGoals.contains(parsed) { requestedGoals.append(parsed) }
+        }
+        if requestedGoals.isEmpty, activeGoals.count == 1 {
+            requestedGoals = [activeGoals[0].id]
         }
         let proposal = PlanProposal(day: dayKey, time: when, sport: trimmedSport,
                                     intent: parsedIntent,
                                     targetEffort: targetEffort.map { max(0, min($0, 100)) },
                                     rationale: rationale,
-                                    goalId: requestedGoal)
+                                    goalIds: requestedGoals)
         guard CoachPlanStore.shared.propose(proposal) else {
             // The user already has this exact session committed for that day (their own routine, or a
             // proposal they accepted) — the store refused the duplicate (#P7 9.8/10.5). Tell the model so

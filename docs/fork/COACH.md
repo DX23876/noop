@@ -19,7 +19,7 @@ Strand/AI/
 │                                presets or fully custom
 ├── CoachPersona.swift         Guardian / Friend / Commander — coaching STYLE only; the name lives
 │                                in CoachIdentity now
-├── CoachTools.swift           The 26 tools: schemas + dispatch
+├── CoachTools.swift           The 27 tools: schemas + dispatch
 ├── CoachDataCatalog.swift     Metadata-only local metric discovery + safe source labels
 ├── CoachLocalContextPlanner.swift  On-device, question-specific context-category selection for tool-less providers
 ├── CoachMetricHistory.swift   Bounded local long-range trend aggregation + source selection
@@ -38,6 +38,10 @@ Strand/AI/
 ├── CoachNotifier.swift        Bridges ProactiveSignal + PlanProposal into the bell (§11a) — never a
 │                                CoachTool, always additive to the existing chat-nudge path
 ├── JourneyMilestones.swift    Non-performance milestones — facts, never a streak counter
+├── GoalTrackingEngine.swift   Shared result trend, goal-week series, risk state, next action
+├── GoalActions.swift          Reusable daily actions, automatic completion + multi-goal attribution
+├── CoachGoalSetupProposal.swift Review-only goal/routine bundles + their validated apply boundary
+├── CoachGoalSetupTool.swift   Parses Coach drafts and resolves consented local baselines
 ├── CoachUsageLog.swift        Per-turn token accounting (all providers): cache hit/write/miss
 ├── CoachHistoryBudget.swift  Per-model token budget for the history window
 └── Providers/
@@ -61,6 +65,7 @@ Strand/Screens/
 ├── CoachGoalOnboardingFlow.swift Guided, step-by-step goal onboarding — sits alongside the quick editor
 ├── CoachGoalJourneyView.swift   Goal + Journey UI, extracted so it's reachable from Coach settings
 │                                  AND as its own top-level "Goal & Journey" destination
+├── CoachGoalSetupReviewView.swift Combined edit/select/confirm UI for Coach-authored setup drafts
 ├── CoachPlanView.swift          The plan book: accept, schedule, swap-with-consequence, one-tap skip
 ├── JourneyView.swift            Progress, milestones, plan history — no invented percentages
 ├── CoachHistoryView.swift       Conversation list: switch / rename / delete / archive — stale,
@@ -117,7 +122,7 @@ Three deliberate choices in there:
 
 ---
 
-## 2. The 26 tools
+## 2. The 27 tools
 
 Declared in `CoachTools.swift` as `CoachTool`, offered to the model as JSON Schema, dispatched in
 `runCoachTool(_:input:)`. **All of them are gated behind `dataConsent`** — without it the dispatcher
@@ -172,7 +177,8 @@ breakpoint, and a per-request clock would invalidate the prefix cache every turn
 
 | Tool | Params | Effect |
 |---|---|---|
-| `propose_plan` | `day`, `sport`, `intent`, `rationale`, optional `goal_id` | Creates a `PlanProposal` in status `.proposed`. `goal_id` must be one of the exact active-goal UUIDs supplied in context; an invalid id is rejected, one unambiguous active goal is linked automatically, and otherwise the session stays General. **Not a schedule** — the user must accept, decline, reschedule or swap it in the app. The model is told to never describe a proposal as settled. |
+| `propose_plan` | `day`, `sport`, `intent`, `rationale`, optional `goal_ids` (legacy `goal_id`) | Creates a `PlanProposal` in status `.proposed`. Every ID must be an exact active-goal UUID supplied in context; invalid IDs are rejected, one unambiguous active goal is linked automatically, and otherwise the session stays General. The accept sheet still asks the user to confirm the multi-selection. **Not a schedule** — the user must accept, decline, reschedule or swap it in the app. The model is told to never describe a proposal as settled. |
+| `propose_goal_setup` | optional `goal`, up to five `routines`, `rationale` | Stores a review-only create/update bundle. Exact IDs are required for edits; one routine may link to several goals. `use_current_baseline` resolves a consented local measurement and labels its source. Goal/action stores remain untouched until the user edits the bundle, selects individual routines and confirms it in Coach or Goal & Journey. Nutrition, medication, dosage and treatment routines are rejected. |
 
 ### Write
 
@@ -238,6 +244,19 @@ through the same `CoachGoalStore.commit(_:startsFresh:...)`, so neither path can
 other on what actually gets persisted. A re-startable "Set up with a few questions" entry also
 appears in Goal & Journey (see §6) whenever there's no active goal.
 
+Goals can be paused and resumed with a structured reason. Pause intervals survive a resume so past goal
+weeks remain machine-readable; achieving or setting aside a paused goal closes the open interval. A
+pause freezes monitoring but deliberately does not rewrite calendar commitments. New closures also keep
+a structured date/reason while legacy goals continue to decode with empty pause/closure fields.
+
+The Coach may prepare a new goal or changes to an existing goal together with up to five routines via
+`propose_goal_setup`, but this is deliberately a proposal inbox, not a write shortcut. A pending dot and
+chat action open one combined review where the user can change every value, omit the goal, and select
+routines individually. The shared `CoachGoalSetupApplier` validates stale update IDs, active-goal limits,
+multi-goal links and replacements before mutating either store, then records the proposal decision. A
+locally measured baseline is included only when the relevant data-purpose consent is enabled and is
+shown with its source in the review.
+
 **The governing principle for both gates: warn, require a reason, then allow. Never block.** A
 20 kg cut in 8 weeks might be irresponsible for one person and medically supervised for another — the
 app has no way to know which, so it states the concern, asks the person to own the decision, and gets
@@ -288,9 +307,11 @@ sheet** rather than committing untimed: `accept(_:at:)` always took a time, but 
 one, so agreeing and saying *when* were two steps and the second was easy never to take — leaving
 commitments no reminder can fire for. "Accept without a time" remains the escape hatch.
 
-When several goals are active, the time sheet also asks which concrete goal the commitment serves, or
-whether it is **General**. That link is stored on the proposal and is the sole attribution Journey uses;
-one completed session can therefore never inflate every goal merely because their date ranges overlap.
+When several goals are active, the time sheet asks which concrete goals the commitment serves, or
+whether it is **General**. The user confirms a multi-selection; conservative local suggestions only
+preselect likely goals. A walk can therefore support movement, weight and wellbeing while remaining one
+stored activity. Only explicitly linked goals count it, so it never leaks into every goal merely because
+their date ranges overlap.
 Installations from before goal links are migrated once and conservatively: an old completed session is
 linked only when exactly one goal lifetime contains it. Ambiguous history remains General.
 
@@ -363,11 +384,44 @@ Quantified goals that reach their measured target are presented as a closure can
 mark the goal achieved or keep working. Measurement alone never changes goal status in the background.
 Session totals count only completed proposals explicitly linked to that goal and on/after its start.
 
-Milestones (`JourneyMilestones.achieved`) are **facts, not a streak counter**: first week in, N
+Reusable **daily actions** live beside the plan: steps, a workout family with an optional minimum
+duration, or a manual check-off, scheduled daily or on selected weekdays. One action holds an ordered
+set of goal IDs and is evaluated only once per day even when it supports several goals. Steps and
+workouts complete from local data; manual actions require an explicit tap. If an imported workout was
+neither a plan completion nor an automatic daily-action match, Today may quietly ask which suggested
+goals it supported. That answer remains editable in Journey and is attribution evidence, not proof that
+an outcome changed.
+
+Milestones (`JourneyMilestones.achieved`) remain **facts, not a daily streak counter**: first week in, N
 sessions completed, longest run, a stretch training pain-free, recovery trending up past a real
 threshold (3.0 Charge points week-over-week, not week-to-week noise). Nothing here rewards a daily
 habit loop or penalises a gap — deliberately, since a streak mechanic shames exactly the people who
 get sick or travel, which is precisely when they need the app least judgmental.
+
+`GoalTrackingEngine` adds a flexible execution series with two visible lanes: **plan commitments** and
+**daily actions**. A completed local calendar week succeeds only when every non-empty lane reaches 80%
+(rounded up: 1/1, 2/2, 3/3, 4/5). This prevents a pile of easy check-offs from hiding missed plan work,
+or one hard session from hiding an abandoned daily routine. Weeks intersecting a goal pause or containing
+a linked illness/pain/travel skip are protected;
+weeks with no commitments are neutral. Neither extends nor breaks the series. An unresolved past
+commitment asks for a decision before the week is judged, and the live week never changes the series
+until it ends.
+
+Execution and outcome are deliberately separate. A completed walk can improve the execution lane for
+every goal it was linked to, but it cannot manufacture weight loss, mood improvement, distance or another
+result. Quantified outcome progress still comes only from the corresponding measurement and target trend.
+
+The same pure snapshot drives every surface: measured progress, target-date trend, current-week
+planned/completed counts, current/best series, and one ordered state (`decision needed` → `at risk` →
+`attention` → `on track` → `building evidence` → `paused`). At-risk requires either a measurable
+behind-trend or two evaluated weak weeks; an unmeasurable goal is never called risky merely for lacking
+data. Goal & Journey is the portfolio dashboard, sorted by that need before deadline, with an expandable
+past-goals history. Journey shows the same snapshot plus six goal weeks and the supporting activities.
+Today has a dedicated reorderable/hideable **Goals** section (alongside Coach), showing the highest-priority
+goal, separate plan/action counts, current series, up to three due actions and at most one quiet attribution
+question. The bell mirrors only decision-needed/at-risk states without re-arming read
+rows. The coach receives these as deterministic facts and is instructed not to invent another series or
+risk label.
 
 ---
 
@@ -648,7 +702,7 @@ tools on Custom just to get streaming.
 
 **Gemini's schema is a subset.** `CoachTool.geminiSchema` strips every JSON-Schema keyword Gemini's
 own `Schema` type doesn't model (`minimum`/`maximum` appear in several of ours). This is not tidiness:
-an unsupported keyword rejects the **entire request**, so one stray bound costs all 26 tools at once
+an unsupported keyword rejects the **entire request**, so one stray bound costs all 27 tools at once
 rather than degrading one. A test reduces every real schema and asserts nothing unsupported survives.
 
 **Reasoning tokens are tracked, never rendered.** OpenRouter's `delta.reasoning` (and the

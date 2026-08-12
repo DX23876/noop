@@ -83,7 +83,10 @@ struct StrandApp: App {
                         // check-in is on and set to .afterWake; keeps the repeating trigger in step with
                         // the user's actual wake time rather than a clock time that drifts.
                         Task { await CoachCheckIn.refreshDynamicScheduleIfNeeded(repo: model.repo) }
-                        Task { await PlanReconciliationCoordinator.reconcile(repo: model.repo) }
+                        Task {
+                            await PlanReconciliationCoordinator.reconcile(repo: model.repo)
+                            await GoalTrackingStore.shared.refresh(repo: model.repo)
+                        }
                     }
                 }
         }

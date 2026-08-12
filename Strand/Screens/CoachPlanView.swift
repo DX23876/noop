@@ -75,6 +75,7 @@ struct CoachPlanView: View {
             .task {
                 inputs = await coach.planInputs()
                 await PlanReconciliationCoordinator.reconcile(repo: repo)
+                await GoalTrackingStore.shared.refresh(repo: repo)
             }
             .sheet(item: $swapping) { p in
                 PlanSwapSheet(proposal: p, inputs: inputs)
@@ -597,7 +598,7 @@ struct PlanTimeSheet: View {
     @ObservedObject private var goalStore = CoachGoalStore.shared
     @Environment(\.dismiss) private var dismiss
     @State private var time = Date()
-    @State private var selectedGoal = ""
+    @State private var selectedGoalIds: Set<UUID> = []
 
     var body: some View {
         NavigationStack {
@@ -615,18 +616,30 @@ struct PlanTimeSheet: View {
                             .accessibilityLabel("Session time")
                     }
                 }
-                if goalStore.activeGoals.count > 1 && proposal.goalId == nil {
+                if !goalStore.activeGoals.isEmpty {
                     NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
                         VStack(alignment: .leading, spacing: 8) {
-                            Text("Which goal does this serve?").strandOverline()
-                            Picker("Goal", selection: $selectedGoal) {
-                                Text("General — no specific goal").tag("")
-                                ForEach(goalStore.activeGoals) { goal in
-                                    Text(goal.title.isEmpty ? goal.kind.label.localizedCatalogValue : goal.title)
-                                        .tag(goal.id.uuidString)
+                            Text("Which goals does this support?").strandOverline()
+                            Text("One activity can support several goals. Confirm the suggestions before saving.")
+                                .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+                                .fixedSize(horizontal: false, vertical: true)
+                            ForEach(goalStore.activeGoals) { goal in
+                                Button {
+                                    if selectedGoalIds.contains(goal.id) { selectedGoalIds.remove(goal.id) }
+                                    else { selectedGoalIds.insert(goal.id) }
+                                } label: {
+                                    HStack {
+                                        Image(systemName: selectedGoalIds.contains(goal.id)
+                                              ? "checkmark.circle.fill" : "circle")
+                                            .foregroundStyle(selectedGoalIds.contains(goal.id)
+                                                             ? StrandPalette.accent : StrandPalette.textTertiary)
+                                        Text(goal.title.isEmpty ? goal.kind.label.localizedCatalogValue : goal.title)
+                                            .foregroundStyle(StrandPalette.textPrimary)
+                                        Spacer()
+                                    }
                                 }
+                                .buttonStyle(.plain)
                             }
-                            .accessibilityLabel("Goal for this session")
                         }
                     }
                 }
@@ -679,14 +692,19 @@ struct PlanTimeSheet: View {
             }
             .onAppear {
                 time = proposal.time ?? Date()
-                selectedGoal = proposal.goalId?.uuidString ?? ""
+                if proposal.goalIds.isEmpty {
+                    selectedGoalIds = Set(GoalAttributionSuggester.suggestedGoalIds(
+                        for: proposal.sport, goals: goalStore.activeGoals))
+                } else {
+                    selectedGoalIds = Set(proposal.goalIds)
+                }
             }
         }
     }
 
     private func applyGoalLink() {
-        let goalId = selectedGoal.isEmpty ? nil : UUID(uuidString: selectedGoal)
-        store.linkGoal(goalId, to: proposal.id)
+        let ordered = goalStore.activeGoals.map(\.id).filter { selectedGoalIds.contains($0) }
+        store.linkGoals(ordered, to: proposal.id)
     }
 }
 

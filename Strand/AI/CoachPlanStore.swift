@@ -138,13 +138,16 @@ struct PlanProposal: Codable, Identifiable, Equatable {
     /// The day this session was originally on, when the user rescheduled it to another day.
     var rescheduledFrom: String?
     var skipReason: SkipReason?
-    /// The goal this session serves, when it was created in service of one.
-    ///
-    /// Optional on purpose and forever: sessions long predate goals, a session can legitimately belong to
-    /// no goal, and with several active goals a coach proposal often can't honestly claim one. What it
-    /// buys is that the Journey page can count what actually belongs to THIS goal instead of everything
-    /// that happened to fall after its start date.
-    var goalId: UUID?
+    /// Goals this session supports. Empty remains a legitimate general session. One activity is stored
+    /// once and may contribute to several goals; this avoids cloning a walk merely because it supports
+    /// movement, weight management and wellbeing at the same time.
+    var goalIds: [UUID]
+    /// Source-compatible bridge for older call sites and stored data. New UI uses `goalIds` and the
+    /// multi-select store API; assigning here deliberately replaces the selection with zero or one goal.
+    var goalId: UUID? {
+        get { goalIds.first }
+        set { goalIds = newValue.map { [$0] } ?? [] }
+    }
     let createdAt: Date
     var decidedAt: Date?
     var effectFeedback: EffectFeedback?
@@ -167,6 +170,7 @@ struct PlanProposal: Codable, Identifiable, Equatable {
          rescheduledFrom: String? = nil,
          skipReason: SkipReason? = nil,
          goalId: UUID? = nil,
+         goalIds: [UUID]? = nil,
          createdAt: Date = Date(),
          decidedAt: Date? = nil,
          effectFeedback: EffectFeedback? = nil,
@@ -185,7 +189,7 @@ struct PlanProposal: Codable, Identifiable, Equatable {
         self.swappedFrom = swappedFrom
         self.rescheduledFrom = rescheduledFrom
         self.skipReason = skipReason
-        self.goalId = goalId
+        self.goalIds = Self.uniqueGoalIds(goalIds ?? goalId.map { [$0] } ?? [])
         self.createdAt = createdAt
         self.decidedAt = decidedAt
         self.effectFeedback = effectFeedback
@@ -197,7 +201,7 @@ struct PlanProposal: Codable, Identifiable, Equatable {
     // Back-compat: fields added later decode with defaults so a stored plan never fails to load.
     private enum CodingKeys: String, CodingKey {
         case id, day, time, sport, intent, targetEffort, rationale, status
-        case source, swappedFrom, rescheduledFrom, skipReason, goalId, createdAt, decidedAt
+        case source, swappedFrom, rescheduledFrom, skipReason, goalId, goalIds, createdAt, decidedAt
         case effectFeedback, feedbackNote
         case completionEvidence, rejectedWorkoutKeys
     }
@@ -216,13 +220,46 @@ struct PlanProposal: Codable, Identifiable, Equatable {
         swappedFrom = try c.decodeIfPresent(String.self, forKey: .swappedFrom)
         rescheduledFrom = try c.decodeIfPresent(String.self, forKey: .rescheduledFrom)
         skipReason = try c.decodeIfPresent(SkipReason.self, forKey: .skipReason)
-        goalId = try c.decodeIfPresent(UUID.self, forKey: .goalId)
+        let modern = try c.decodeIfPresent([UUID].self, forKey: .goalIds)
+        let legacy = try c.decodeIfPresent(UUID.self, forKey: .goalId)
+        goalIds = Self.uniqueGoalIds(modern ?? legacy.map { [$0] } ?? [])
         createdAt = try c.decodeIfPresent(Date.self, forKey: .createdAt) ?? Date()
         decidedAt = try c.decodeIfPresent(Date.self, forKey: .decidedAt)
         effectFeedback = try c.decodeIfPresent(EffectFeedback.self, forKey: .effectFeedback)
         feedbackNote = try c.decodeIfPresent(String.self, forKey: .feedbackNote)
         completionEvidence = try c.decodeIfPresent(CompletionEvidence.self, forKey: .completionEvidence)
         rejectedWorkoutKeys = try c.decodeIfPresent([String].self, forKey: .rejectedWorkoutKeys) ?? []
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(id, forKey: .id)
+        try c.encode(day, forKey: .day)
+        try c.encodeIfPresent(time, forKey: .time)
+        try c.encode(sport, forKey: .sport)
+        try c.encode(intent, forKey: .intent)
+        try c.encodeIfPresent(targetEffort, forKey: .targetEffort)
+        try c.encode(rationale, forKey: .rationale)
+        try c.encode(status, forKey: .status)
+        try c.encode(source, forKey: .source)
+        try c.encodeIfPresent(swappedFrom, forKey: .swappedFrom)
+        try c.encodeIfPresent(rescheduledFrom, forKey: .rescheduledFrom)
+        try c.encodeIfPresent(skipReason, forKey: .skipReason)
+        try c.encode(goalIds, forKey: .goalIds)
+        try c.encodeIfPresent(goalIds.first, forKey: .goalId)
+        try c.encode(createdAt, forKey: .createdAt)
+        try c.encodeIfPresent(decidedAt, forKey: .decidedAt)
+        try c.encodeIfPresent(effectFeedback, forKey: .effectFeedback)
+        try c.encodeIfPresent(feedbackNote, forKey: .feedbackNote)
+        try c.encodeIfPresent(completionEvidence, forKey: .completionEvidence)
+        try c.encode(rejectedWorkoutKeys, forKey: .rejectedWorkoutKeys)
+    }
+
+    func serves(_ goalId: UUID) -> Bool { goalIds.contains(goalId) }
+
+    private static func uniqueGoalIds(_ values: [UUID]) -> [UUID] {
+        var seen = Set<UUID>()
+        return values.filter { seen.insert($0).inserted }
     }
 
     /// One-line description for the context / UI, e.g. "Zone 2 ride (easy) at 10:00".
@@ -349,7 +386,8 @@ final class CoachPlanStore: ObservableObject {
             proposals[idx] = PlanProposal(
                 id: existing.id, day: p.day, time: p.time, sport: p.sport, intent: p.intent,
                 targetEffort: p.targetEffort, rationale: p.rationale, status: .proposed,
-                source: .coachProposed, goalId: p.goalId ?? existing.goalId,
+                source: .coachProposed,
+                goalIds: p.goalIds.isEmpty ? existing.goalIds : p.goalIds,
                 createdAt: existing.createdAt,
                 rejectedWorkoutKeys: existing.rejectedWorkoutKeys)
             return true
@@ -444,6 +482,14 @@ final class CoachPlanStore: ObservableObject {
         update(proposalId) { $0.goalId = goalId }
     }
 
+    /// Assign the confirmed set of goals this one session supports. Order follows the user's selection;
+    /// duplicates are collapsed so one activity can never count twice for the same goal.
+    func linkGoals(_ goalIds: [UUID], to proposalId: UUID) {
+        var seen = Set<UUID>()
+        let unique = goalIds.filter { seen.insert($0).inserted }
+        update(proposalId) { $0.goalIds = unique }
+    }
+
     func recordEffect(_ id: UUID, feedback: PlanProposal.EffectFeedback, note: String? = nil) {
         update(id) { proposal in
             guard proposal.status == .completed else { return }
@@ -479,9 +525,10 @@ final class CoachPlanStore: ObservableObject {
     /// A session the USER planned themselves, already accepted (they don't need to approve their own idea).
     /// `goalId` links it to the goal it serves when the user logged it from that goal's journey.
     func addUserSession(day: String, time: Date?, sport: String, intent: PlanProposal.Intent,
-                        goalId: UUID? = nil) {
+                        goalId: UUID? = nil, goalIds: [UUID]? = nil) {
         var p = PlanProposal(day: day, time: time, sport: sport, intent: intent,
-                             status: .accepted, source: .userCreated, goalId: goalId)
+                             status: .accepted, source: .userCreated, goalId: goalId,
+                             goalIds: goalIds)
         p.decidedAt = Date()
         proposals.insert(p, at: 0)
         trim()
@@ -495,7 +542,7 @@ final class CoachPlanStore: ObservableObject {
     func completedSessions(forGoal goalId: UUID, since dayKey: String) -> [PlanProposal] {
         proposals.filter { p in
             guard p.status == .completed else { return false }
-            return p.goalId == goalId && p.day >= dayKey
+            return p.serves(goalId) && p.day >= dayKey
         }
     }
 

@@ -108,6 +108,7 @@ struct LiquidTodayView: View {
     @ObservedObject private var identityStore = CoachIdentityStore.shared
     @State private var showCoach = false
     @State private var showPlan = false
+    @State private var showGoalJourney = false
     /// The full-width coach banner, rendered as the reorderable `.coach` section (`TodaySection`).
     @AppStorage(CoachEntryPrefs.bannerKey) private var coachBannerEnabled = true
     /// The compact avatar/sparkle button in the header icon cluster (see `scene`).
@@ -430,6 +431,8 @@ struct LiquidTodayView: View {
                             EmptyView()
                             #endif
                         case .synthesis: synthesisSection
+                        case .goals:
+                            if selectedDayOffset == 0 { GoalTodaySection(showGoalJourney: $showGoalJourney) }
                         case .keyMetrics: keyMetricsSection
                         case .workouts: lastWorkoutsSection
                         case .heartRate: heartRateSection
@@ -450,7 +453,7 @@ struct LiquidTodayView: View {
                     // The committed "next up" session sits BELOW the metric sections on purpose: once
                     // accepted it's an ambient reminder, not a demand for the top of the screen. It draws
                     // attention on its own terms as its time nears (colour + breathe, see PlanTodayCard).
-                    PlanTodayCard(showPlan: $showPlan)
+                    PlanTodayCard(showPlan: $showPlan, showGoalJourney: $showGoalJourney)
                     // Opt-in "looks like a workout?" suggestion, dropped in the liquid Home rewrite. Its
                     // Settings toggle (PuffinExperiment.autoDetectWorkoutsKey) had no visible effect on the
                     // DEFAULT screen: the card's only mount was classic TodayView, so a user could switch
@@ -558,6 +561,7 @@ struct LiquidTodayView: View {
         .coachCover(isPresented: $showCoach, coach: coach)
         // The plan book, opened from PlanTodayCard when a committed session has a time coming up.
         .sheet(isPresented: $showPlan) { CoachPlanView().environmentObject(coach) }
+        .sheet(isPresented: $showGoalJourney) { CoachGoalJourneyScreen().environmentObject(coach) }
         // The bell — same store, same inbox, as the classic Today's (TodayView.swift).
         .sheet(isPresented: $showUpdatesInbox) {
             UpdatesInboxView(onClose: { showUpdatesInbox = false })

@@ -121,4 +121,53 @@ final class CoachNotifierTests: XCTestCase {
         CoachNotifier.postPlanProposal(proposal())
         XCTAssertEqual(UpdateStore.shared.items.count, 2)
     }
+
+    // MARK: - Goal monitoring
+
+    private func trackingSnapshot(current: Double,
+                                  status: CoachGoal.Status = .active) -> GoalTrackingSnapshot {
+        let cal = Calendar(identifier: .gregorian)
+        let created = Date(timeIntervalSince1970: 1_767_225_600) // 2026-01-01 UTC
+        let target = Date(timeIntervalSince1970: 1_798_761_600)  // 2027-01-01 UTC
+        let now = Date(timeIntervalSince1970: 1_788_192_000)     // 2026-09-01 UTC
+        let goal = CoachGoal(kind: .run, title: "10k", baseline: 0, target: 10,
+                             targetDate: target, status: status, createdAt: created)
+        return GoalTrackingEngine.evaluate(goal: goal, proposals: [],
+                                           measurement: .init(value: current, date: now),
+                                           now: now, calendar: cal)
+    }
+
+    func testAtRiskGoalPostsOnceAndShowsOnToday() {
+        let snapshot = trackingSnapshot(current: 1)
+        XCTAssertEqual(snapshot.health, .atRisk)
+
+        CoachNotifier.syncGoalMonitoring([snapshot])
+        CoachNotifier.syncGoalMonitoring([snapshot])
+
+        XCTAssertEqual(UpdateStore.shared.items.count, 1)
+        XCTAssertEqual(UpdateStore.shared.items.first?.category, .statusReminder)
+        XCTAssertTrue(UpdateStore.shared.items.first?.showOnToday ?? false)
+    }
+
+    func testRecoveredGoalRemovesMonitoringReminder() {
+        let risk = trackingSnapshot(current: 1)
+        CoachNotifier.syncGoalMonitoring([risk])
+        XCTAssertEqual(UpdateStore.shared.items.count, 1)
+
+        let recovered = trackingSnapshot(current: 8)
+        XCTAssertEqual(recovered.health, .onTrack)
+        CoachNotifier.syncGoalMonitoring([recovered])
+
+        XCTAssertTrue(UpdateStore.shared.items.isEmpty)
+    }
+
+    func testClosedGoalNeverPostsMonitoringReminder() {
+        let closed = trackingSnapshot(current: 1, status: .achieved)
+        XCTAssertEqual(closed.health, .atRisk, "the snapshot may retain its historical verdict")
+
+        CoachNotifier.syncGoalMonitoring([closed])
+
+        XCTAssertTrue(UpdateStore.shared.items.isEmpty,
+                      "historical verdicts must not re-arm reminders after the goal is closed")
+    }
 }

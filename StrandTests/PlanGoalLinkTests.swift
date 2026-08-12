@@ -1,10 +1,10 @@
 import XCTest
 @testable import Strand
 
-/// Linking a planned session to the goal it serves (#coach-bugs).
+/// Linking a planned session to every goal it genuinely serves (#coach-bugs).
 ///
-/// The property defended here: one completed session belongs to at most one Journey. General/unlinked
-/// sessions remain in plan history but cannot inflate several simultaneous goals.
+/// The property defended here: a session is stored once, may support several explicitly selected
+/// Journeys, and never leaks into an unselected goal. General sessions remain unlinked.
 @MainActor
 final class PlanGoalLinkTests: XCTestCase {
 
@@ -44,6 +44,41 @@ final class PlanGoalLinkTests: XCTestCase {
         XCTAssertEqual(decoded.goalId, goalId)
     }
 
+    func testLegacyGoalIdMigratesIntoGoalIds() throws {
+        let goalId = UUID()
+        let legacy = """
+        {
+          "id": "\(UUID().uuidString)",
+          "day": "2026-07-16",
+          "sport": "Walk",
+          "intent": "easy",
+          "rationale": "",
+          "status": "completed",
+          "source": "userCreated",
+          "goalId": "\(goalId.uuidString)",
+          "createdAt": 700000000
+        }
+        """.data(using: .utf8)!
+
+        let decoded = try JSONDecoder().decode(PlanProposal.self, from: legacy)
+
+        XCTAssertEqual(decoded.goalIds, [goalId])
+        XCTAssertEqual(decoded.goalId, goalId)
+    }
+
+    func testSeveralGoalIdsRoundTripWithoutDuplicates() throws {
+        let first = UUID(), second = UUID()
+        let proposal = PlanProposal(day: "2026-07-16", sport: "Walk", intent: .easy,
+                                    goalIds: [first, second, first])
+
+        let decoded = try JSONDecoder().decode(PlanProposal.self,
+                                               from: JSONEncoder().encode(proposal))
+
+        XCTAssertEqual(decoded.goalIds, [first, second])
+        XCTAssertTrue(decoded.serves(first))
+        XCTAssertTrue(decoded.serves(second))
+    }
+
     // MARK: - Counting for a goal
 
     func testUnlinkedSessionsDoNotCountForASpecificGoal() {
@@ -81,6 +116,18 @@ final class PlanGoalLinkTests: XCTestCase {
         XCTAssertTrue(store.completedSessions(forGoal: mine, since: "2026-07-01").isEmpty)
     }
 
+    func testOneSessionCanCountForTwoExplicitlyLinkedGoals() {
+        let store = makeStore()
+        let movement = UUID(), wellbeing = UUID(), unrelated = UUID()
+        store.addUserSession(day: "2026-07-16", time: nil, sport: "Walk", intent: .easy,
+                             goalIds: [movement, wellbeing])
+        store.complete(store.proposals[0].id)
+
+        XCTAssertEqual(store.completedSessions(forGoal: movement, since: "2026-07-01").count, 1)
+        XCTAssertEqual(store.completedSessions(forGoal: wellbeing, since: "2026-07-01").count, 1)
+        XCTAssertTrue(store.completedSessions(forGoal: unrelated, since: "2026-07-01").isEmpty)
+    }
+
     func testOnlyCompletedSessionsCount() {
         let store = makeStore()
         let goalId = UUID()
@@ -100,5 +147,15 @@ final class PlanGoalLinkTests: XCTestCase {
         XCTAssertEqual(store.proposals.count, 1)
         XCTAssertEqual(store.proposals.first?.goalId, goalId)
         XCTAssertEqual(store.proposals.first?.intent, .moderate, "the re-proposal still supersedes")
+    }
+
+    func testReProposalDoesNotDropExistingMultiGoalLinks() {
+        let store = makeStore()
+        let first = UUID(), second = UUID()
+        store.propose(PlanProposal(day: "2026-07-16", sport: "Walk", intent: .easy,
+                                   goalIds: [first, second]))
+        store.propose(PlanProposal(day: "2026-07-16", sport: "Walk", intent: .moderate))
+
+        XCTAssertEqual(store.proposals.first?.goalIds, [first, second])
     }
 }

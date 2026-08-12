@@ -198,6 +198,7 @@ struct TodayView: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var showCoach = false
     @State private var showPlan = false
+    @State private var showGoalJourney = false
     /// The full-width coach banner (`CoachTodayRow`), rendered as the reorderable `.coach` section.
     @AppStorage(CoachEntryPrefs.bannerKey) private var coachBannerEnabled = true
     /// Master switch (#R7): hides every Coach entry point when the coach UI is turned off.
@@ -1398,7 +1399,7 @@ struct TodayView: View {
                 // Data Sources is NOT pinned here (upstream renders it fixed at this spot): the fork keeps
                 // `.dataSources` a reorderable section in the loop above, so pinning it too would render it
                 // twice.
-                PlanTodayCard(showPlan: $showPlan)
+                PlanTodayCard(showPlan: $showPlan, showGoalJourney: $showGoalJourney)
             }
             #if os(iOS)
             // #817 - horizontal swipe to change day. A right-swipe (positive X) steps to the NEWER day
@@ -1486,6 +1487,7 @@ struct TodayView: View {
         .coachCover(isPresented: $showCoach, coach: coach)
         // The plan book, opened from PlanTodayCard when a committed session has a time coming up.
         .sheet(isPresented: $showPlan) { CoachPlanView().environmentObject(coach) }
+        .sheet(isPresented: $showGoalJourney) { CoachGoalJourneyScreen().environmentObject(coach) }
         // H6, the steps-calibration sheet, opened from an estimated Steps tile (the same sheet Settings
         // hosts). Presented from Today so a WHOOP 4.0 user can calibrate from where the "est." caption shows.
         .sheet(isPresented: $showStepsCalibration) {
@@ -1783,6 +1785,8 @@ struct TodayView: View {
             if liveSessionsBeta { liveSessionStartSection }
         case .synthesis:
             synthesisSection
+        case .goals:
+            if selectedDayOffset == 0 { GoalTodaySection(showGoalJourney: $showGoalJourney) }
         case .keyMetrics:
             // S4: the SEPARATE Readiness block is no longer a home-screen card, it folded into the
             // Charge-ring tap (chargeBreakdownSheet). A one-word readiness read (Push / Maintain / Rest,

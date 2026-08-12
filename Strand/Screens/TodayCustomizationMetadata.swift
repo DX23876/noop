@@ -11,6 +11,7 @@ extension TodaySection {
         case .hero: return "gauge.with.dots.needle.67percent"
         case .liveSession: return "figure.run.circle"
         case .synthesis: return "sparkles"
+        case .goals: return "target"
         case .keyMetrics: return "square.grid.2x2"
         case .workouts: return "figure.run"
         case .heartRate: return "waveform.path.ecg"
@@ -27,6 +28,7 @@ extension TodaySection {
         case .hero: return StrandPalette.chargeColor
         case .liveSession: return StrandPalette.metricCyan
         case .synthesis: return StrandPalette.accent
+        case .goals: return StrandPalette.chargeColor
         case .keyMetrics: return StrandPalette.metricPurple
         case .workouts: return StrandPalette.effortColor
         case .heartRate: return StrandPalette.metricRose

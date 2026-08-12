@@ -281,6 +281,7 @@ struct StrandiOSApp: App {
                     health.refreshAuthIfPreviouslyGranted()
                     await health.sync()
                     await PlanReconciliationCoordinator.reconcile(repo: model.repo)
+                    await GoalTrackingStore.shared.refresh(repo: model.repo)
                     await WidgetSnapshot.publish(from: model)
                     // Push the wrist on the SAME refresh as the Home-screen widget so the watch, the
                     // widget and Today never disagree about which day they describe. Without this the

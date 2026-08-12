@@ -74,6 +74,39 @@ final class CoachGoalLifecycleTests: XCTestCase {
 
         let reloaded = CoachGoalStore(defaults: d)
         XCTAssertEqual(reloaded.goal(id: goal.id)?.status, .achieved)
+        XCTAssertEqual(reloaded.goal(id: goal.id)?.closure?.kind, .achieved)
+        XCTAssertNotNil(reloaded.goal(id: goal.id)?.closure?.date)
+    }
+
+    func testPauseAndResumeKeepAMachineReadableInterval() {
+        let store = freshStore()
+        let goal = activeGoal()
+        let start = Date(timeIntervalSince1970: 1_700_000_000)
+        let end = start.addingTimeInterval(3 * 86_400)
+        store.goals = [goal]
+
+        store.pause(goal.id, reason: .travel, on: start)
+        XCTAssertEqual(store.goal(id: goal.id)?.status, .paused)
+        XCTAssertEqual(store.goal(id: goal.id)?.pauseIntervals.last?.reason, .travel)
+        XCTAssertNil(store.goal(id: goal.id)?.pauseIntervals.last?.endedAt)
+
+        store.resume(goal.id, on: end)
+        XCTAssertEqual(store.goal(id: goal.id)?.status, .active)
+        XCTAssertEqual(store.goal(id: goal.id)?.pauseIntervals.last?.endedAt, end)
+    }
+
+    func testClosingPausedGoalClosesOpenPauseToo() {
+        let store = freshStore()
+        let goal = activeGoal()
+        let pausedAt = Date(timeIntervalSince1970: 1_700_000_000)
+        let achievedAt = pausedAt.addingTimeInterval(86_400)
+        store.goals = [goal]
+        store.pause(goal.id, reason: .illness, on: pausedAt)
+
+        store.markAchieved(goal.id, on: achievedAt)
+
+        XCTAssertEqual(store.goal(id: goal.id)?.pauseIntervals.last?.endedAt, achievedAt)
+        XCTAssertEqual(store.goal(id: goal.id)?.closure?.date, achievedAt)
     }
 
     // MARK: - Multiple simultaneous goals (#R-multi-goal)

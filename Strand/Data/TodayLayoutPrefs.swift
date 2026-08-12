@@ -28,6 +28,7 @@ enum TodaySection: String, CaseIterable, Identifiable {
     case hero
     case liveSession
     case synthesis
+    case goals
     case keyMetrics
     case workouts
     case heartRate
@@ -45,6 +46,7 @@ enum TodaySection: String, CaseIterable, Identifiable {
         case .hero:           return String(localized: "Charge / Effort / Rest")
         case .liveSession:    return String(localized: "Start session")
         case .synthesis:      return String(localized: "Synthesis")
+        case .goals:          return String(localized: "Goals")
         case .keyMetrics:     return String(localized: "Key Metrics")
         case .workouts:       return String(localized: "Workouts")
         case .heartRate:      return String(localized: "Heart Rate")
@@ -59,7 +61,7 @@ enum TodaySection: String, CaseIterable, Identifiable {
     /// widget (#656) sits above the data-sources card, which is last. Coach leads the list — the same spot
     /// its full-width banner has always held on classic Today, before the hero scores.
     static let defaultOrder: [TodaySection] = [
-        .coach, .hero, .liveSession, .synthesis, .keyMetrics, .workouts, .heartRate, .recoveryVitals,
+        .coach, .hero, .liveSession, .synthesis, .goals, .keyMetrics, .workouts, .heartRate, .recoveryVitals,
         .yourCards, .journal, .dataSources,
     ]
 
@@ -77,7 +79,7 @@ enum TodaySection: String, CaseIterable, Identifiable {
     /// LiquidTodayView's section stack so the screen reads in clear groups instead of a uniform dense list.
     var isMajorSection: Bool {
         switch self {
-        case .hero, .synthesis, .keyMetrics, .recoveryVitals: return true
+        case .hero, .synthesis, .goals, .keyMetrics, .recoveryVitals: return true
         default: return false
         }
     }

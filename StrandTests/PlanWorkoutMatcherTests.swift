@@ -102,7 +102,9 @@ final class PlanWorkoutMatcherTests: XCTestCase {
         let schema = CoachTool.proposePlan.inputSchema
         let properties = schema["properties"] as? [String: Any]
         XCTAssertNotNil(properties?["goal_id"])
+        XCTAssertNotNil(properties?["goal_ids"])
         XCTAssertFalse((schema["required"] as? [String] ?? []).contains("goal_id"))
+        XCTAssertFalse((schema["required"] as? [String] ?? []).contains("goal_ids"))
     }
 
     @MainActor
