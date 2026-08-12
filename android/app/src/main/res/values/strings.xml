@@ -2002,4 +2002,5 @@
     <string name="skin_temp_missing_caption">No nightly skin-temp yet — needs ~4 worn nights (or import a WHOOP CSV)</string>
     <string name="skin_temp_delta_title">Skin Temp Δ</string>
     <string name="skin_temp_vs_baseline">vs baseline</string>
+    <string name="l10n_app_changelog_make_noop_yours_theme_colours_and_6bdef2a7">Make NOOP yours — theme colours and custom backgrounds, forty more sports with GPS routes, and a calorie heatmap</string>
 </resources>

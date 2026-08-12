@@ -1990,4 +1990,5 @@
     <string name="skin_temp_missing_caption">Noch keine nächtliche Hauttemperatur — benötigt ~4 getragene Nächte (oder importiere eine WHOOP-CSV)</string>
     <string name="skin_temp_delta_title">Hauttemperatur Δ</string>
     <string name="skin_temp_vs_baseline">ggü. Basiswert</string>
+    <string name="l10n_app_changelog_make_noop_yours_theme_colours_and_6bdef2a7">Mach NOOP zu deinem — Akzentfarben und eigene Hintergründe, vierzig weitere Sportarten mit GPS-Strecken und eine Kalorien-Heatmap</string>
 </resources>

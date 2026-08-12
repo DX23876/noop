@@ -7,7 +7,7 @@ enum AppChangelog {
 
     /// Bump this when you add a release below. The "What's New" sheet shows automatically when the
     /// stored last-seen version is behind this. (Decoupled from the bundle version on purpose.)
-    static let currentVersion = "9.3.1"
+    static let currentVersion = "10.0.0"
 
     struct Release: Identifiable {
         let version: String
@@ -19,6 +19,18 @@ enum AppChangelog {
 
     /// Newest first.
     static let releases: [Release] = [
+        Release(
+            version: "10.0.0",
+            title: "Make NOOP yours — theme colours and custom backgrounds, forty more sports with GPS routes, and a calorie heatmap",
+            date: "August 2026",
+            items: [
+                "**Make NOOP yours (#1171, #1172, #1177, #1234).** Pick a chrome accent — Mint, WHOOP Blue, or a custom colour from a full HSV picker — save a named theme preset that coordinates the accent, charts, backdrop and cards together, and set your own photo as the background behind every tab.",
+                "**Forty-plus more sports, with distance and GPS routes (#1273, #1274, #1202, #1238).** The workout picker gains dozens of sports; a manual workout takes a distance; a GPS workout records live distance and pace; and a finished route exports to GPX or FIT.",
+                "**A 13-week active-calorie heatmap (#1240).** A calendar of your recent effort on the Workouts screen, on both platforms.",
+                "**Choose how the sleep chart looks (#1129, #1283, #1291).** Classic, Fill, Garmin Fill, or Ribbon, each with a colour-coded stage legend, on iPhone, Android and Mac.",
+                "**Pick the app's language (#1181).** A language setting independent of the phone, so NOOP can speak a different language than the rest of your device.",
+            ]
+        ),
         Release(
             version: "9.3.1",
             title: "Widgets stop inventing numbers, naps count toward sleep debt, and the Android status chips speak your language",

@@ -1902,4 +1902,5 @@
     <string name="skin_temp_missing_caption">暂无夜间皮肤温度 — 需要约 4 个佩戴夜晚（或导入 WHOOP CSV）</string>
     <string name="skin_temp_delta_title">皮肤体温 Δ</string>
     <string name="skin_temp_vs_baseline">相对基线</string>
+    <string name="l10n_app_changelog_make_noop_yours_theme_colours_and_6bdef2a7">把 NOOP 变成你的——强调色与自定义背景、新增四十多项运动及 GPS 轨迹，还有卡路里热力图</string>
 </resources>

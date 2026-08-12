@@ -1975,4 +1975,5 @@
     <string name="skin_temp_missing_caption">Pas encore de température cutanée nocturne — nécessite ~4 nuits portées (ou importez un CSV WHOOP)</string>
     <string name="skin_temp_delta_title">Temp. cutanée Δ</string>
     <string name="skin_temp_vs_baseline">vs référence</string>
+    <string name="l10n_app_changelog_make_noop_yours_theme_colours_and_6bdef2a7">NOOP à votre image — couleurs d\'accent et fonds personnalisés, quarante sports de plus avec tracés GPS, et une carte de chaleur des calories</string>
 </resources>
