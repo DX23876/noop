@@ -325,6 +325,9 @@ struct RootView: View {
             case .breathe: selection = .breathe
             // The #627 Today journal widget routes to the Insights sidebar row (which hosts the journal card).
             case .journal: selection = .insights
+            // The Today goal card lands on the Goal & Journey sidebar item, which is its own top-level
+            // entry here (#R6) rather than a screen nested inside Coach.
+            case .goalJourney: selection = .goalJourney
             case nil: break
             }
             if dest != nil { router.requestedDestination = nil }

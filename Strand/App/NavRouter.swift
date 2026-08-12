@@ -30,6 +30,8 @@ final class NavRouter: ObservableObject {
         case liveSession
         case breathe
         case journal
+        /// Goal & Journey — where the Today goal card and the iOS goal widget both land.
+        case goalJourney
 
         var id: String { rawValue }
 
@@ -90,6 +92,9 @@ final class NavRouter: ObservableObject {
     /// Open Breathe. Raised by the coach chat's action row (P6) so a reply that suggests calming down
     /// leads somewhere in one tap instead of "go find it in the menu yourself".
     func openBreathe() { requestedDestination = .breathe }
+    /// Open Goal & Journey — the target, the pace and the progress. Raised by the Today goal card and by
+    /// the iOS goal widget's `noop://goal` deep link, so a goal is one tap from where it's shown.
+    func openGoalJourney() { requestedDestination = .goalJourney }
 
     /// A journal day-offset (daysBack; -1 = Tomorrow) the Today journal widget deep-linked to, so tapping
     /// a SPECIFIC day's bar opens the journal at THAT day instead of always today (#656). InsightsView

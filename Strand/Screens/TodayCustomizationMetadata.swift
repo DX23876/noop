@@ -7,6 +7,7 @@ extension TodaySection {
         // Fork-only sections. The same "sparkles" mark every Coach entry point uses (CoachEntry.swift),
         // so the editor row is recognisable as the Coach banner it reorders.
         case .coach: return "sparkles"
+        case .goal: return "target"
         case .dataSources: return "externaldrive.connected.to.line.below"
         case .hero: return "gauge.with.dots.needle.67percent"
         case .liveSession: return "figure.run.circle"
@@ -23,6 +24,7 @@ extension TodaySection {
     var customizationTint: Color {
         switch self {
         case .coach: return StrandPalette.accent
+        case .goal: return StrandPalette.chargeColor
         case .dataSources: return StrandPalette.textSecondary
         case .hero: return StrandPalette.chargeColor
         case .liveSession: return StrandPalette.metricCyan

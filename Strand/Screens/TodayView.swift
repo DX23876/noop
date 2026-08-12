@@ -1775,6 +1775,10 @@ struct TodayView: View {
             if coachFeatureEnabled, coachUIEnabled, coachBannerEnabled {
                 CoachTodayRow(isPresented: $showCoach)
             }
+        case .goal:
+            // Fork-only section: the active goal, one tap from Goal & Journey. Its own leaf, and silent
+            // (no empty tile) when there is no goal and the guided setup has already been offered.
+            GoalTodayCard()
         case .hero:
             classicHeroSection
         case .liveSession:

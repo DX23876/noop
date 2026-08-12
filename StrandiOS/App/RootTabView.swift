@@ -255,6 +255,13 @@ struct RootTabView: View {
                 // (InsightsView), matching the FAB's "Log journal" action. Calm sheet easing.
                 withAnimation(Self.sheetEase) { quickAction = .journal }
                 router.requestedDestination = nil
+            case .goalJourney:
+                // The Today goal card and the goal widget both land here. Goal & Journey is a More-tab
+                // screen, so this pushes the same `MoreDestination` value a tapped More row would — the
+                // path stays poppable on a More re-tap, unlike a closure destination.
+                withAnimation(.timingCurve(0.22, 1, 0.36, 1, duration: 0.24)) { selectedTab = 3 }
+                tabPaths[3] = NavigationPath([MoreDestination.goalJourney])
+                router.requestedDestination = nil
             case nil:
                 break
             }

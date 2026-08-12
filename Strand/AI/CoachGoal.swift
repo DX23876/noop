@@ -314,6 +314,21 @@ final class CoachGoalStore: ObservableObject {
 
     func goal(id: UUID) -> CoachGoal? { goals.first(where: { $0.id == id }) }
 
+    /// The goal to lead with wherever only ONE can be shown — the Today card, the iOS goal widget: the
+    /// nearest target date, since that's the one with a clock on it. Goals without a date sort last
+    /// among themselves, most recently set first. Shared rather than reimplemented per surface, so two
+    /// places can never quietly disagree about which goal is "the" goal.
+    var primaryActiveGoal: CoachGoal? {
+        activeGoals.min { lhs, rhs in
+            switch (lhs.targetDate, rhs.targetDate) {
+            case let (l?, r?): return l < r
+            case (nil, _?):    return false
+            case (_?, nil):    return true
+            case (nil, nil):   return lhs.createdAt > rhs.createdAt
+            }
+        }
+    }
+
     /// The active goal of this `Kind`, if any — at most one can exist at a time (`canAdd` enforces it).
     func activeGoal(for kind: CoachGoal.Kind) -> CoachGoal? {
         activeGoals.first(where: { $0.kind == kind })

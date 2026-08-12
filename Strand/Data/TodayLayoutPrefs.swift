@@ -25,6 +25,11 @@ import StrandDesign
 /// to the Android `TodaySection` enum so a backup/restore reads the same layout on either OS.
 enum TodaySection: String, CaseIterable, Identifiable {
     case coach
+    /// The active goal, where you'll actually look each morning. Fork-only and deliberately WITHOUT a
+    /// Kotlin twin: the coach and its goals don't exist on Android, and the parity contract that would
+    /// otherwise require one is retired here (see `docs/FORK_GUIDE.md`). The Android decoder drops an
+    /// unknown token, so a layout saved on Apple still reads correctly there.
+    case goal
     case hero
     case liveSession
     case synthesis
@@ -42,6 +47,7 @@ enum TodaySection: String, CaseIterable, Identifiable {
     var title: String {
         switch self {
         case .coach:          return String(localized: "Coach")
+        case .goal:           return String(localized: "Goal")
         case .hero:           return String(localized: "Charge / Effort / Rest")
         case .liveSession:    return String(localized: "Start session")
         case .synthesis:      return String(localized: "Synthesis")
@@ -57,10 +63,13 @@ enum TodaySection: String, CaseIterable, Identifiable {
 
     /// The original, hard-coded section order — the default when the layout isn't customised. The journal
     /// widget (#656) sits above the data-sources card, which is last. Coach leads the list — the same spot
-    /// its full-width banner has always held on classic Today, before the hero scores.
+    /// its full-width banner has always held on classic Today, before the hero scores — with the goal card
+    /// directly under it, since "what am I working towards" belongs beside the coach that holds it and
+    /// above the day's numbers. Existing saved orders get it inserted at exactly that position by
+    /// `decodeOrder`'s missing-section merge.
     static let defaultOrder: [TodaySection] = [
-        .coach, .hero, .liveSession, .synthesis, .keyMetrics, .workouts, .heartRate, .recoveryVitals,
-        .yourCards, .journal, .dataSources,
+        .coach, .goal, .hero, .liveSession, .synthesis, .keyMetrics, .workouts, .heartRate,
+        .recoveryVitals, .yourCards, .journal, .dataSources,
     ]
 
     /// Sections hidden by default on a new/never-customised install: none. The redesign originally

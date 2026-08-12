@@ -399,6 +399,10 @@ struct LiquidTodayView: View {
                         // `CoachTodayRow`, independent of the compact header-icon entry (see `scene`).
                         case .coach:
                             if coachFeatureEnabled, coachUIEnabled, coachBannerEnabled { coachBanner }
+                        // The active goal, directly under the coach that holds it. Silent when there is
+                        // no goal and the guided setup has already been offered — the slot stays in the
+                        // saved order either way, exactly like `.journal` below.
+                        case .goal: GoalTodayCard()
                         case .hero: heroCard
                         // Live Sessions (silent guardian) is an OPTIONAL, strap-dependent beta, so it no
                         // longer holds a prominent card between the scores and Synthesis. On iOS it lives in

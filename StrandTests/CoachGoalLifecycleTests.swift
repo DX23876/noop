@@ -135,6 +135,46 @@ final class CoachGoalLifecycleTests: XCTestCase {
         XCTAssertNil(store.goal(id: c.id), "remove deletes the goal entirely, unlike setAside")
     }
 
+    // MARK: - Which goal leads
+
+    /// The Today card and the iOS goal widget both show ONE goal, and they must show the SAME one — so
+    /// the rule lives on the store rather than in each surface.
+    func testPrimaryActiveGoalIsTheNearestTargetDate() {
+        let store = freshStore()
+        let far = CoachGoal(kind: .run, title: "Far", targetDate: Date().addingTimeInterval(90 * 86400))
+        let near = CoachGoal(kind: .sleep, title: "Near", targetDate: Date().addingTimeInterval(7 * 86400))
+        let undated = CoachGoal(kind: .custom, title: "Undated")
+        store.goals = [far, undated, near]
+
+        XCTAssertEqual(store.primaryActiveGoal?.title, "Near")
+    }
+
+    /// A goal with no date has no clock on it, so it never outranks one that has.
+    func testUndatedGoalsSortLastAndThenByRecency() {
+        let store = freshStore()
+        let older = CoachGoal(kind: .stress, title: "Older",
+                              createdAt: Date().addingTimeInterval(-10 * 86400))
+        let newer = CoachGoal(kind: .custom, title: "Newer", createdAt: Date())
+        store.goals = [older, newer]
+        XCTAssertEqual(store.primaryActiveGoal?.title, "Newer")
+
+        let dated = CoachGoal(kind: .run, title: "Dated",
+                              targetDate: Date().addingTimeInterval(365 * 86400))
+        store.goals = [older, newer, dated]
+        XCTAssertEqual(store.primaryActiveGoal?.title, "Dated",
+                       "a date, however distant, outranks no date at all")
+    }
+
+    /// Closed goals are history: nothing to lead with once they're all closed.
+    func testPrimaryActiveGoalIgnoresClosedGoals() {
+        let store = freshStore()
+        let goal = activeGoal()
+        store.goals = [goal]
+        store.markAchieved(goal.id)
+
+        XCTAssertNil(store.primaryActiveGoal)
+    }
+
     func testSingularLegacyGoalMigratesIntoTheArrayAsOneElement() {
         let suite = "goal-lifecycle-migrate-singular-\(UUID().uuidString)"
         let d = UserDefaults(suiteName: suite)!
