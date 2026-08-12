@@ -1,6 +1,9 @@
 #if os(iOS)
 import Foundation
 import WidgetKit
+// For `AppleInspiredColorsPrefs`, whose key resolves the goal tint at publish time (the extension
+// cannot read the app's plain UserDefaults).
+import StrandDesign
 
 extension WidgetSnapshot {
     /// Build a glance snapshot from the live app state and publish it to the shared App Group, then
@@ -59,6 +62,7 @@ extension WidgetSnapshot {
             }
             return "\(Int(stored.rounded()))"
         }
+        let goal = await goalFields(from: model)
         let snap = WidgetSnapshot(
             recovery: day?.recovery.map { Int($0.rounded()) },
             bpm: model.bpm ?? model.live.heartRate,
@@ -71,10 +75,71 @@ extension WidgetSnapshot {
             hrv: day?.avgHrv.map { Int($0.rounded()) },
             restingHr: day?.restingHr,
             effortDisplay: effortDisplay,
-            effortWhoop: effortScale == .whoop
+            effortWhoop: effortScale == .whoop,
+            goalTitle: goal.title,
+            goalSymbol: goal.symbol,
+            goalTintId: goal.tintId,
+            goalFraction: goal.fraction,
+            goalRunwayWeeks: goal.runwayWeeks,
+            goalLine: goal.line
         )
         snap.save()
         WidgetCenter.shared.reloadAllTimelines()
+    }
+
+    /// The active goal's fields for the goal widget, or all-nil when there is no goal.
+    ///
+    /// Deliberately NOT recomputed on every publish. A goal's progress reads the coach's evidence, which
+    /// costs real repository work, and `publish` also runs off the HR hook — recomputing there would put
+    /// a history query behind a value that moves every few seconds. So the reading is refreshed at most
+    /// once per `GoalPublishThrottle.interval` and otherwise CARRIED FORWARD from the last published
+    /// snapshot: an hour-old runway is fine, a stalled app is not, and either beats a query per heartbeat.
+    ///
+    /// The "which goal" rule matches `GoalTodayCard`: the nearest target date, since that's the one with
+    /// a clock on it.
+    @MainActor
+    private static func goalFields(from model: AppModel)
+        async -> (title: String?, symbol: String?, tintId: String?, fraction: Double?,
+                  runwayWeeks: Double?, line: String?) {
+        // No goal is a real answer, and it must clear the carried-forward fields — a deleted goal that
+        // lingered in the widget would be the one lie this whole path is written to avoid.
+        guard let goal = CoachGoalStore.shared.primaryActiveGoal else {
+            return (nil, nil, nil, nil, nil, nil)
+        }
+
+        let title = goal.title.isEmpty ? goal.kind.label.localizedCatalogValue : goal.title
+        // The colour preference lives in the app's plain UserDefaults, out of the extension's reach —
+        // resolved to an id here, exactly as `effortDisplay` resolves the Effort scale above.
+        let appleColors = UserDefaults.standard.object(forKey: AppleInspiredColorsPrefs.enabledKey) as? Bool
+            ?? AppleInspiredColorsPrefs.defaultEnabled
+        let tintId: String? = appleColors ? "coach.goal.\(goal.kind.rawValue)" : nil
+
+        guard GoalPublishThrottle.admit() else {
+            // Between refreshes: keep the previous reading, but re-derive the cheap parts (name, mark,
+            // runway) so an edited title or date shows up immediately rather than waiting out the window.
+            let previous = WidgetSnapshot.load()
+            return (title, goal.kind.icon, tintId, previous?.goalFraction,
+                    goal.weeksRemaining(), previous?.goalLine)
+        }
+        let evidence = await model.coach.goalEvidence()
+        let weight = await model.coach.latestLoggedWeightKg()
+        let reading = GoalProgress.reading(goal: goal, evidence: evidence, latestWeightKg: weight)
+        return (title, goal.kind.icon, tintId, reading.fraction, reading.runwayWeeks, reading.line)
+    }
+
+    /// Caps how often the goal reading behind the widget is recomputed — see `goalFields`. A goal moves
+    /// over weeks, so half an hour is generous; the point is only that a per-heartbeat publish can't drag
+    /// a repository query along with it. `@MainActor` (publish already runs there), so no locking.
+    @MainActor
+    enum GoalPublishThrottle {
+        static let interval: TimeInterval = 30 * 60
+        private static var lastComputedAt: Date = .distantPast
+        /// True (and stamps `now`) when at least `interval` has elapsed. The first call always admits.
+        static func admit(now: Date = Date()) -> Bool {
+            guard now.timeIntervalSince(lastComputedAt) >= interval else { return false }
+            lastComputedAt = now
+            return true
+        }
     }
 
     /// #114/#169: HR is the ONE high-frequency widget-publish trigger — `model.bpm` moves every few

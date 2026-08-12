@@ -204,8 +204,15 @@ struct StrandiOSApp: App {
                 // HealthKit-free payload. Filter on the host so other future schemes don't trip the
                 // importer; macOS never registers the scheme so this stays iOS-only.
                 .onOpenURL { url in
-                    if url.host == "import-health" {
+                    switch url.host {
+                    case "import-health":
                         model.handleHealthImportURL(url)
+                    // The goal widget's tap target. Routing (rather than presenting from here) keeps the
+                    // shell the single owner of navigation, exactly like the Today goal card's tap.
+                    case "goal":
+                        router.openGoalJourney()
+                    default:
+                        break
                     }
                 }
                 .alert("Import Apple Health data?", isPresented: Binding(

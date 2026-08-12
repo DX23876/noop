@@ -32,6 +32,8 @@ Strand/AI/
 ├── CoachGoal.swift            The structured goal: kind, target, date, status, history
 ├── GoalSafetyGate.swift       Pace check — warn, require a reason, never block
 ├── GoalFeasibility.swift      "Is this realistic?" — evidence-based, from VO₂max, not a guess
+├── GoalProgress.swift         Where a goal stands, as ONE reading — shared by the Journey page,
+│                                the Today goal card and the iOS goal widget
 ├── CoachPlanStore.swift       The plan book: propose → accept/decline/swap, one active week
 ├── PlanConsequence.swift      What a session or a swap actually costs, from your own history
 ├── CoachNotifier.swift        Bridges ProactiveSignal + PlanProposal into the bell (§11a) — never a
@@ -62,6 +64,8 @@ Strand/Screens/
 │                                  AND as its own top-level "Goal & Journey" destination
 ├── CoachPlanView.swift          The plan book: accept, schedule, swap-with-consequence, one-tap skip
 ├── JourneyView.swift            Progress, milestones, plan history — no invented percentages
+├── GoalTodayCard.swift          The active goal as a Today section (`TodaySection.goal`) — a ring when
+│                                  a measurement backs it, the goal's mark when it doesn't
 ├── CoachHistoryView.swift       Conversation list: switch / rename / delete / archive — stale,
 │                                  never-replied-to threads get their own Archived section
 └── CoachEntry.swift             Entry mode + the draggable floating button
@@ -234,7 +238,18 @@ that never nags twice; the one-page quick editor (`CoachGoalEditorView`, in `Coa
 stays reachable any time via the goal bar for anyone who'd rather fill it in all at once. Both save
 through the same `CoachGoalStore.commit(_:startsFresh:...)`, so neither path can diverge from the
 other on what actually gets persisted. A re-startable "Set up with a few questions" entry also
-appears in Goal & Journey (see §6) whenever there's no active goal.
+appears in Goal & Journey (see §6) whenever there's no active goal, and the Today goal card (§6a)
+carries the same invitation until the offer has been made once.
+
+**The guided flow is visual.** Each goal `kind` carries its own colour (`CoachIconColors`, gated on
+the same "Apple-inspired colors" switch as the rest of Coach) through the step pips (`PipBar`), the
+type tiles and the confirm step. The confirm step is the "plan card": the goal as it will be saved,
+plus a `GlowRing` showing **where the user is starting from** — drawn only when `GoalProgress` yields
+a real measurement, never as decoration — and, new here, the `GoalFeasibility` verdict, which until
+then only ever reached the model's own context. Only the verdict is surfaced, as a localized line:
+the assessment's `rationale` is English prose assembled for the prompt, and showing that in a
+translated wizard would put an English paragraph in front of a German user. The numbers behind it
+stay where they read properly (the Journey page, and the coach's own answer).
 
 **The governing principle for both gates: warn, require a reason, then allow. Never block.** A
 20 kg cut in 8 weeks might be irresponsible for one person and medically supervised for another — the
@@ -339,6 +354,31 @@ sessions completed, longest run, a stretch training pain-free, recovery trending
 threshold (3.0 Charge points week-over-week, not week-to-week noise). Nothing here rewards a daily
 habit loop or penalises a gap — deliberately, since a streak mechanic shames exactly the people who
 get sick or travel, which is precisely when they need the app least judgmental.
+
+---
+
+## 6a. The goal where you actually look: Today card and iOS widget
+
+A goal that lives only behind Coach → Goal & Journey is a goal nobody sees. Two surfaces put it in
+front of the user, both reading the SAME `GoalProgress.reading(...)` the Journey page does — one
+arithmetic, three renderings, so they cannot drift.
+
+**`GoalTodayCard`** is a reorderable Today section (`TodaySection.goal`, default position directly
+under the Coach banner; drag or hide it in Customize Today). It shows the goal with the nearest
+target date — `CoachGoalStore.primaryActiveGoal`, shared with the widget so both lead with the same
+one — as a ring plus one honest line, with any other active goals reduced to their marks. An overdue
+goal takes the warning wash on the same ≥1-day grace `ProactiveCoach.daysPastTarget` uses, so the
+card and the chat's look-back never disagree about whether a date has passed. A tap routes to Goal &
+Journey (`NavRouter.openGoalJourney()`). With no goal it renders **nothing** — except while the
+guided setup has never been offered, when a single "Set a goal" row takes its place.
+
+**`NOOPGoalWidget`** (iOS, `StrandiOSWidgets/`) is the home- and lock-screen version, fed by the
+goal fields on `WidgetSnapshot` — all optional, so a snapshot written by an older build still
+decodes. Recomputing the reading costs repository work and `publish` also runs off the HR tick, so
+`WidgetPublish` refreshes it at most every 30 minutes (`GoalPublishThrottle`) and carries the last
+values forward in between, while the cheap parts (name, mark, runway) re-derive every publish. No
+goal clears every field — a deleted goal lingering on the home screen would be the one lie this path
+exists to prevent. Tapping opens `noop://goal`, which the shell routes like any other destination.
 
 ---
 

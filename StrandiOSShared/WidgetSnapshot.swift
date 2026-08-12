@@ -21,10 +21,34 @@ public struct WidgetSnapshot: Codable, Equatable {
     public var effortDisplay: String?
     /// True when `effortDisplay` is on WHOOP's 0–21 axis; false/nil means 0–100. Accessibility only.
     public var effortWhoop: Bool?
+    // The active goal, for the goal widget. Optional for the same reason as the block above: a snapshot
+    // written by an older app build never encoded these keys, and Codable fills a missing optional with
+    // nil rather than failing the whole decode. All nil = no active goal (or a build that predates them),
+    // which the widget renders as its honest empty state — never as sample data.
+    /// The goal's own name, already resolved to its kind label when the user left it blank.
+    public var goalTitle: String?
+    /// The goal kind's SF Symbol, published from `CoachGoal.Kind.icon` rather than re-derived here: the
+    /// widget extension can't see the app's model, and a second copy of that mapping is a second thing to
+    /// keep in step. nil → the widget draws a generic mark.
+    public var goalSymbol: String?
+    /// The `CoachIconColors` id for the goal's colour (e.g. `"coach.goal.run"`), or nil when the user has
+    /// the "Apple-inspired colors" preference off. That preference lives in the app's plain UserDefaults,
+    /// which the extension cannot read — so it is resolved at publish time, exactly like `effortDisplay`.
+    public var goalTintId: String?
+    /// Measured progress 0…1 — present ONLY when a real measurement backs it (see `GoalProgress`). nil
+    /// means the widget draws the mark instead of a ring; it must never substitute a number of its own.
+    public var goalFraction: Double?
+    /// Whole weeks to the target date. Negative once it has passed; nil without a target date.
+    public var goalRunwayWeeks: Double?
+    /// The honest one-liner under the ring, already formatted by `GoalProgress`. nil when there is no
+    /// current measurement to describe.
+    public var goalLine: String?
 
     public init(recovery: Int?, bpm: Int?, batteryPct: Int?, bonded: Bool, updated: Date,
                 effort: Int? = nil, rest: Int? = nil, hrv: Int? = nil, restingHr: Int? = nil,
-                effortDisplay: String? = nil, effortWhoop: Bool? = nil) {
+                effortDisplay: String? = nil, effortWhoop: Bool? = nil,
+                goalTitle: String? = nil, goalSymbol: String? = nil, goalTintId: String? = nil,
+                goalFraction: Double? = nil, goalRunwayWeeks: Double? = nil, goalLine: String? = nil) {
         self.recovery = recovery
         self.bpm = bpm
         self.batteryPct = batteryPct
@@ -36,7 +60,16 @@ public struct WidgetSnapshot: Codable, Equatable {
         self.restingHr = restingHr
         self.effortDisplay = effortDisplay
         self.effortWhoop = effortWhoop
+        self.goalTitle = goalTitle
+        self.goalSymbol = goalSymbol
+        self.goalTintId = goalTintId
+        self.goalFraction = goalFraction
+        self.goalRunwayWeeks = goalRunwayWeeks
+        self.goalLine = goalLine
     }
+
+    /// True when this snapshot carries an active goal worth drawing.
+    public var hasGoal: Bool { goalTitle != nil }
 
     /// App Group suite the app and widget both use. Injected from the `APP_GROUP_ID` build setting
     /// (see project.yml) via the `AppGroupIdentifier` Info.plist key, so the value lives in exactly
@@ -96,7 +129,10 @@ public struct WidgetSnapshot: Codable, Equatable {
         // three-ring Home Screen layouts (and the large grid) preview with filled arcs, not dashes.
         WidgetSnapshot(recovery: 72, bpm: 58, batteryPct: 84, bonded: true, updated: Date(),
                        effort: 38, rest: 81, hrv: 64, restingHr: 52,
-                       effortDisplay: "38", effortWhoop: false)
+                       effortDisplay: "38", effortWhoop: false,
+                       goalTitle: "Half marathon", goalSymbol: "figure.run",
+                       goalTintId: "coach.goal.run", goalFraction: 0.57, goalRunwayWeeks: 9,
+                       goalLine: "12.0 km now, from 10.0 toward 21.1 km.")
     }
 
     /// Honest runtime state when the app has not published a readable snapshot yet. Unlike
