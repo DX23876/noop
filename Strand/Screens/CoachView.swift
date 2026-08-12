@@ -153,9 +153,13 @@ struct CoachView: View {
             case .goalOnboarding:
                 // First-run onboarding uses the GUIDED flow (#R12) — one question at a time — instead of
                 // the one-page editor. Skipping or finishing both mark it asked, so it never nags twice.
+                // The engine has to travel with it: a sheet does not inherit the presenter's environment
+                // objects, and the flow's confirm step reads `goalEvidence()` for its feasibility verdict.
+                // Without this the first-run path would trap the moment someone reached the last step.
                 CoachGoalOnboardingFlow {
                     UserDefaults.standard.set(true, forKey: Self.goalOnboardingAskedKey)
                 }
+                .environmentObject(coach)
             }
         }
         .task(id: coach.dataConsent) {

@@ -230,38 +230,13 @@ struct JourneyView: View {
     }
 
     /// A real, measured fraction — only when there's an actual current value AND both ends of the range
-    /// to place it in. Anything less falls through to `fallbackProgressLine`.
+    /// to place it in. The arithmetic itself lives in `GoalProgress` (pure, tested, and shared with the
+    /// Today card and the goal widget), so those three surfaces can never disagree about one goal; this
+    /// only reshapes it into what the Progress card draws.
     private func measuredProgress(_ goal: CoachGoal) -> (fraction: Double?, line: String)? {
-        func ranged(_ current: Double, unit: String) -> (fraction: Double?, line: String) {
-            guard let baseline = goal.baseline, let target = goal.target, target != baseline else {
-                return (nil, String(format: "Currently %.1f %@. Set a starting point and target to see a "
-                                    + "progress bar.", current, unit))
-            }
-            let frac = min(1, max(0, (current - baseline) / (target - baseline)))
-            let line = String(format: "%.1f %@ now, from %.1f toward %.1f %@.",
-                              current, unit, baseline, target, unit)
-            return (frac, line)
-        }
-        switch goal.kind {
-        case .run:
-            guard let km = evidence.longestRecentRunKm else { return nil }
-            return ranged(km, unit: "km")
-        case .sleep:
-            guard let hrs = evidence.meanSleepHours else { return nil }
-            return ranged(hrs, unit: "h")
-        case .weight:
-            guard let kg = latestWeightKg else { return nil }
-            return ranged(kg, unit: "kg")
-        case .consistency:
-            guard let sessions = evidence.sessionsPerWeek, let target = goal.target, target > 0 else {
-                return nil
-            }
-            let frac = min(1, max(0, sessions / target))
-            return (frac, String(format: "Averaging %.1f sessions/week toward a target of %.0f.",
-                                 sessions, target))
-        case .strength, .stress, .recovery, .custom:
-            return nil
-        }
+        let reading = GoalProgress.reading(goal: goal, evidence: evidence, latestWeightKg: latestWeightKg)
+        guard let line = reading.line else { return nil }
+        return (reading.fraction, line)
     }
 
     // MARK: - Explanations & manual logging
@@ -391,15 +366,9 @@ struct JourneyView: View {
     }
 
     /// The one real measurement this goal's progress is read from, or nil when there isn't one. The same
-    /// values `measuredProgress` places on the bar, so the bar and the trend can never disagree.
+    /// value `measuredProgress` places on the bar, so the bar and the trend can never disagree.
     private func currentMeasurement(_ goal: CoachGoal) -> Double? {
-        switch goal.kind {
-        case .run:         return evidence.longestRecentRunKm
-        case .sleep:       return evidence.meanSleepHours
-        case .weight:      return latestWeightKg
-        case .consistency: return evidence.sessionsPerWeek
-        case .strength, .stress, .recovery, .custom: return nil
-        }
+        GoalProgress.currentMeasurement(goal: goal, evidence: evidence, latestWeightKg: latestWeightKg)
     }
 
     // MARK: - Milestones

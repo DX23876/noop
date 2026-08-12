@@ -379,17 +379,25 @@ enum CoachGoalRisk {
 
 /// A tappable goal-type tile (#R12) — extracted so the one-page editor and the guided onboarding flow
 /// show the same visual directions instead of duplicating the layout. Pure over its inputs.
+///
+/// The mark sits in its own medallion in the kind's colour (`tint`, supplied by the caller so this stays
+/// free of the "Apple-inspired colors" preference lookup), which is what makes a grid of eight goal types
+/// scannable rather than eight identical grey glyphs.
 struct GoalKindTile: View {
     let kind: CoachGoal.Kind
     let selected: Bool
+    /// The kind's identity colour. Defaults to the app accent so existing call sites read unchanged.
+    var tint: Color = StrandPalette.accent
     let onTap: () -> Void
 
     var body: some View {
         Button(action: onTap) {
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: 8) {
                 Image(systemName: kind.icon)
-                    .font(.system(size: 20))
-                    .foregroundStyle(selected ? StrandPalette.accent : StrandPalette.textSecondary)
+                    .font(.system(size: 18))
+                    .foregroundStyle(selected ? tint : StrandPalette.textSecondary)
+                    .frame(width: 34, height: 34)
+                    .background(Circle().fill(selected ? tint.opacity(0.14) : StrandPalette.surfaceBase))
                     .accessibilityHidden(true)
                 Text(LocalizedStringKey(kind.label))
                     .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
@@ -397,12 +405,12 @@ struct GoalKindTile: View {
                     .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
                     .fixedSize(horizontal: false, vertical: true)
             }
-            .frame(maxWidth: .infinity, minHeight: 96, alignment: .topLeading)
+            .frame(maxWidth: .infinity, minHeight: 110, alignment: .topLeading)
             .padding(12)
             .background(RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(selected ? StrandPalette.accent.opacity(0.12) : StrandPalette.surfaceInset))
+                .fill(selected ? tint.opacity(0.12) : StrandPalette.surfaceInset))
             .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .strokeBorder(selected ? StrandPalette.accent : StrandPalette.hairline,
+                .strokeBorder(selected ? tint : StrandPalette.hairline,
                               lineWidth: selected ? 1.5 : 1))
         }
         .buttonStyle(.plain)
@@ -415,6 +423,9 @@ struct GoalKindTile: View {
 struct GoalMotivationChip: View {
     let tag: CoachGoal.MotivationTag
     let selected: Bool
+    /// The goal's identity colour, so the "why" chips belong to the same goal the rest of the flow is
+    /// wearing. Defaults to the app accent for existing call sites.
+    var tint: Color = StrandPalette.accent
     let onTap: () -> Void
 
     var body: some View {
@@ -422,7 +433,7 @@ struct GoalMotivationChip: View {
             HStack(spacing: 6) {
                 Image(systemName: tag.icon)
                     .font(StrandFont.footnote)
-                    .foregroundStyle(selected ? StrandPalette.accent : StrandPalette.textSecondary)
+                    .foregroundStyle(selected ? tint : StrandPalette.textSecondary)
                     .accessibilityHidden(true)
                 Text(LocalizedStringKey(tag.label))
                     .font(StrandFont.footnote)
@@ -433,9 +444,9 @@ struct GoalMotivationChip: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 10).padding(.vertical, 8)
             .background(RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(selected ? StrandPalette.accent.opacity(0.12) : StrandPalette.surfaceInset))
+                .fill(selected ? tint.opacity(0.12) : StrandPalette.surfaceInset))
             .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .strokeBorder(selected ? StrandPalette.accent : StrandPalette.hairline,
+                .strokeBorder(selected ? tint : StrandPalette.hairline,
                               lineWidth: selected ? 1.5 : 1))
         }
         .buttonStyle(.plain)

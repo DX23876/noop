@@ -100,6 +100,10 @@ struct CoachGoalJourneyView: View {
             CoachGoalOnboardingFlow(pushed: true) {
                 UserDefaults.standard.set(true, forKey: CoachView.goalOnboardingAskedKey)
             }
+            // Explicit rather than inherited: the flow's confirm step needs the engine for its
+            // feasibility verdict, and stating it here keeps both presentation paths readable as the
+            // same contract instead of one relying on the destination inheriting the environment.
+            .environmentObject(coach)
         }
         // Literal titles + stored bindings — see the `showSetAsideConfirm` declaration for why the
         // previous single computed-Binding dialog froze this screen.
