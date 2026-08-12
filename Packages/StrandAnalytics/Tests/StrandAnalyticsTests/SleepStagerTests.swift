@@ -1181,6 +1181,59 @@ final class SleepStagerTests: XCTestCase {
                        "default-off: efficiency is untouched by the band stream")
     }
 
+    func testBandVetoShadowLineIsNamespacedAndUncounted() {
+        // #1210 shadow: the validation line formats the recovered delta and is NEVER miscounted as a captured
+        // sleep day (carries no `sleep day=` / `gate run=` / `day=` token). Byte-identical format to Kotlin.
+        let line = SleepStager.bandVetoShadowLine(startTs: 1_723_000_000, recoveredMin: 31.4,
+                                                  rawEff: 0.742, shadowEff: 0.808)
+        XCTAssertEqual(line, "bandVeto(shadow): startTs=1723000000 recoveredMin=31 eff 74%->81%")
+        XCTAssertEqual(CaptureAccumulator.capturedDays(domain: .sleep, reportText: line, tzOffsetSeconds: 0), 0,
+                       "shadow line must not be counted as a captured sleep day")
+    }
+
+    func testBandVetoShadowTraceReportsRecoveryOutputNeutral() {
+        // #1210 shadow: veto DORMANT (default-off) + a band present + a collecting traceSink -> a
+        // `bandVeto(shadow):` line quantifying what the veto WOULD recover, WITHOUT changing the persisted
+        // hypnogram (detectSleep's documented trace contract). Same burst fixture as the default-off wiring
+        // test. (The line reports MAGNITUDE only; whether the move is toward truth needs the PSG harness.)
+        let start = nightStart(2)
+        let dur = 6 * 3600
+        var grav = stillGravity(start: start, durationS: dur)
+        var hr = hrStream(start: start, durationS: dur, bpm: 50)
+        for i in (3 * 3600)..<(3 * 3600 + 5 * 60) {   // interior 5-min burst -> false wake
+            grav[i] = GravitySample(ts: start + i, x: Double(i % 2) * 0.5, y: 0, z: 1.0)
+            hr[i] = HRSample(ts: start + i, bpm: 95)
+        }
+        let band = bandAllAsleep(start: start, end: start + dur)
+        let untraced = SleepStager.detectSleep(hr: hr, gravity: grav, bandSleepState: band)
+        var lines: [String] = []
+        let traced = SleepStager.detectSleep(hr: hr, gravity: grav, bandSleepState: band,
+                                             traceSink: { lines.append($0) })
+        XCTAssertEqual(traced[0].stages, untraced[0].stages,
+                       "shadow trace must not change the persisted hypnogram")
+        XCTAssertTrue(lines.contains { $0.hasPrefix("bandVeto(shadow):") && $0.contains("recoveredMin=") },
+                      "a banded night with interior false-wake emits a shadow line")
+    }
+
+    func testBandVetoCutoffSparesNightsBeforeCutoff() {
+        // #1210 item 2: with the veto ON, a non-zero cutoff spares a night that STARTED before it (history
+        // keeps its raw hypnogram) and applies to one starting at/after it. Boundary is inclusive. Kotlin twin.
+        let base = 1_000_000
+        let fixture = vetoHypnoFixture().map {
+            StageSegment(start: $0.start + base, end: $0.end + base, stage: $0.stage)
+        }
+        let band = bandAllAsleep(start: base, end: base + 960)
+        let recovered = SleepStager.applyBandStateWakeVeto(fixture, start: base, end: base + 960,
+                                                           bandSleepState: band, enabled: true, cutoffTs: 0)
+        XCTAssertNotEqual(recovered, fixture, "sanity: the veto does change this fixture")
+        XCTAssertEqual(SleepStager.applyBandStateWakeVeto(fixture, start: base, end: base + 960,
+                                                          bandSleepState: band, enabled: true, cutoffTs: base + 1),
+                       fixture, "a night starting before the cutoff keeps its raw hypnogram")
+        XCTAssertEqual(SleepStager.applyBandStateWakeVeto(fixture, start: base, end: base + 960,
+                                                          bandSleepState: band, enabled: true, cutoffTs: base),
+                       recovered, "a night starting at/after the cutoff (inclusive) gets the veto")
+    }
+
     // MARK: - REM-funnel diagnostic (#688)
 
     /// A still, REM-eligible epoch (still + cardiac-activated + irregular resp). The percentile
