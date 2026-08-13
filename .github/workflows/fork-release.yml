@@ -26,8 +26,13 @@ on:
         required: false
         default: ""
 
+# Workflow-level default is read-only; each job below that actually pushes a commit or
+# publishes/uploads a release grants itself `contents: write` explicitly (issue #657 — every job
+# here does end up needing it, since each one either commits a version bump, creates the release,
+# uploads a release asset, or pushes the AltStore manifest, but scoping it per-job means a future
+# job added to this workflow doesn't silently inherit write access it doesn't need).
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: release-build
@@ -36,13 +41,16 @@ concurrency:
 jobs:
   bump:
     runs-on: ubuntu-latest
+    # Pushes the version-bump commit to the dispatched branch and creates the GitHub release.
+    permissions:
+      contents: write
     outputs:
       ver: ${{ steps.b.outputs.ver }}
       tag: ${{ steps.b.outputs.tag }}
       sha: ${{ steps.b.outputs.sha }}
       buildVersion: ${{ steps.b.outputs.buildVersion }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
       - id: b
         env:
           GH_TOKEN: ${{ github.token }}
@@ -81,7 +89,7 @@ jobs:
             # from docs/releases/<TAG>.md's whatsnew: front-matter, so the in-app card ships in sync with
             # this version. Warn (don't fail) if the notes file / its front-matter is missing.
             if [ -f "docs/releases/${TAG}.md" ]; then
-              python3 -m pip install --quiet pyyaml >/dev/null 2>&1 || true
+              python3 -m pip install --quiet pyyaml==6.0.2 >/dev/null 2>&1 || true
               python3 Tools/appchangelog-gen.py "docs/releases/${TAG}.md" \
                 || echo "::warning::appchangelog-gen failed for ${TAG} — in-app 'What's New' not updated."
             else
@@ -151,19 +159,22 @@ jobs:
   android:
     needs: bump
     runs-on: ubuntu-latest
+    # Uploads the built APK to the release created by the `bump` job.
+    permissions:
+      contents: write
     defaults:
       run:
         working-directory: android
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           ref: ${{ needs.bump.outputs.sha }}   # build the bumped commit
-      - uses: actions/setup-java@v5
+      - uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.6.0
         with:
           distribution: temurin
           java-version: '17'
-      - uses: gradle/actions/wrapper-validation@v5
-      - uses: gradle/actions/setup-gradle@v5
+      - uses: gradle/actions/wrapper-validation@0723195856401067f7a2779048b490ace7a47d7c # v5.0.2
+      - uses: gradle/actions/setup-gradle@0723195856401067f7a2779048b490ace7a47d7c # v5.0.2
       # Release-only (no debug APK). Signed with the committed fork-debug.keystore via the debug
       # signingConfig storeFile (release falls back to it when no keystore.properties is present);
       # -PstagingRelease gives it the .staging app id so it installs beside the official app.
@@ -182,11 +193,18 @@ jobs:
     needs: bump
     runs-on: macos-15
     timeout-minutes: 40
+    # Uploads the built .app zip to the release created by the `bump` job.
+    permissions:
+      contents: write
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           ref: ${{ needs.bump.outputs.sha }}
       - name: Install XcodeGen
+        # Known unpinned-tooling gap (issue #657): Homebrew core doesn't keep old formula versions
+        # around, so `brew install xcodegen@<version>` / a version-pin syntax isn't available here —
+        # this always installs whatever xcodegen is current in homebrew-core on the runner image at
+        # run time. Left as a tracked gap rather than silently unaddressed.
         run: brew install xcodegen
       - name: Generate Xcode project
         run: xcodegen generate
@@ -232,11 +250,18 @@ jobs:
     # iOS 26 Liquid Glass (glassEffect) needs the iOS 26 SDK → Xcode 26 → macos-26.
     runs-on: macos-26
     timeout-minutes: 40
+    # Uploads the built .ipa to the release created by the `bump` job.
+    permissions:
+      contents: write
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           ref: ${{ needs.bump.outputs.sha }}
       - name: Install XcodeGen
+        # Known unpinned-tooling gap (issue #657): Homebrew core doesn't keep old formula versions
+        # around, so `brew install xcodegen@<version>` / a version-pin syntax isn't available here —
+        # this always installs whatever xcodegen is current in homebrew-core on the runner image at
+        # run time. Left as a tracked gap rather than silently unaddressed.
         run: brew install xcodegen
       - name: Generate Xcode project
         run: xcodegen generate
@@ -278,8 +303,11 @@ jobs:
   altstore:
     needs: [bump, ios]
     runs-on: ubuntu-latest
+    # Pushes the altstore-source.json update commit directly to main.
+    permissions:
+      contents: write
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           ref: main   # AltStore reads the manifest from main, so commit there regardless of the release branch.
       - name: Add this release to the AltStore source
