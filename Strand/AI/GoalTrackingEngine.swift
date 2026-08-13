@@ -1,10 +1,16 @@
 import Foundation
 import Combine
 import WhoopStore
+import StrandAnalytics
 
 struct GoalMeasurement: Equatable {
     let value: Double
     let date: Date?
+    /// True while the value rests on too little data to judge a goal on — a smoothed trend that is
+    /// still cold-starting. The number is worth SHOWING (it is the best estimate available) but must
+    /// not produce an "at risk" verdict, which is why this travels with the measurement rather than
+    /// being re-derived by each consumer.
+    var isProvisional: Bool = false
 }
 
 struct GoalTrackingSnapshot: Identifiable, Equatable {
@@ -131,10 +137,14 @@ enum GoalTrackingEngine {
         let actionImpossible = currentWeek.actionPlanned > 0
             && currentWeek.actionCompleted + currentWeek.actionOpen < requiredCompletions(for: currentWeek.actionPlanned)
         let currentImpossible = planImpossible || actionImpossible
-        let daysLeft = goal.targetDate.map {
-            calendar.dateComponents([.day], from: calendar.startOfDay(for: now),
-                                    to: calendar.startOfDay(for: $0)).day ?? Int.max
-        }
+        // A smoothed value that is still cold-starting may be SHOWN but must not produce a verdict —
+        // an "at risk" derived from four days of scale readings is noise wearing a conclusion's hat.
+        let judgeable = !(measurement?.isProvisional ?? false)
+        // A goal NOOP cannot measure at all (custom, or one without target/date). Previously such a
+        // goal sat on "building evidence" for its whole life and then flipped to "needs attention"
+        // inside the last 14 days before its target date — an alarm nobody could ever resolve,
+        // because no measurement was coming. It now keeps an honest held state instead.
+        let unmeasurable = trend.verdict == .notMeasurable && measurement == nil
 
         let health: GoalTrackingSnapshot.Health
         let reason: String
@@ -152,7 +162,7 @@ enum GoalTrackingEngine {
                 reason = "A past commitment still needs to be resolved."
                 nextAction = "Confirm what happened in Your plan."
             }
-        } else if trend.verdict == .behind || twoFailed {
+        } else if (trend.verdict == .behind && judgeable) || twoFailed {
             health = .atRisk
             if trend.verdict == .behind {
                 reason = "Measured progress is behind the pace of the target date."
@@ -161,27 +171,31 @@ enum GoalTrackingEngine {
                 reason = "Two evaluated goal weeks in a row fell below the execution plan."
                 nextAction = "Make the next week smaller or easier to schedule."
             }
-        } else if latestFailed || currentImpossible
-                    || ((daysLeft.map { (0...14).contains($0) } ?? false)
-                        && trend.verdict == .notMeasurable) {
+        } else if latestFailed || currentImpossible {
             health = .attention
             if currentImpossible {
-                reason = "This week's 80% execution threshold can no longer be reached."
+                // Name the REAL threshold. The copy used to claim a flat "80%", which was never what
+                // the rule computed for a small week.
+                let planned = max(currentWeek.planPlanned, currentWeek.actionPlanned)
+                reason = "This week needs \(requiredCompletions(for: planned)) of \(planned) — that can no longer be reached."
                 nextAction = "Adjust the remaining plan instead of trying to catch up blindly."
-            } else if latestFailed {
+            } else {
                 reason = "The latest evaluated goal week fell below the plan."
                 nextAction = "Check what would make the next commitment easier to keep."
-            } else {
-                reason = "The target date is close, but there is not enough measured progress to judge it."
-                nextAction = "Add a measurement or review the goal with the coach."
             }
-        } else if trend.verdict == .ahead || trend.verdict == .onTrack
+        } else if (trend.verdict == .ahead || trend.verdict == .onTrack) && judgeable
                     || evaluated.last?.state == .successful {
             health = .onTrack
             reason = trend.verdict == .ahead
                 ? "Measured progress is ahead of the target-date pace."
                 : "The latest available evidence is on track."
             nextAction = currentWeek.open > 0 ? "Complete the next planned commitment." : "Keep the next step realistic."
+        } else if unmeasurable {
+            health = .building
+            reason = "This goal is held, not measured — NOOP has no number that tracks it."
+            nextAction = currentWeek.planned == 0
+                ? "Plan a concrete step, or talk it through with the coach."
+                : "Keep the planned steps going."
         } else {
             health = .building
             reason = "There is not enough measured or planned history for a stable call yet."
@@ -195,9 +209,10 @@ enum GoalTrackingEngine {
                                     currentStreak: currentStreak, bestStreak: bestStreak)
     }
 
+    /// Forwards to the tested rule in `GoalMeasure`. Kept as an entry point here because call sites
+    /// (and the UI copy) already speak in terms of the engine.
     static func requiredCompletions(for planned: Int) -> Int {
-        guard planned > 0 else { return 0 }
-        return Int(ceil(Double(planned) * successFraction))
+        GoalMeasure.requiredCompletions(for: planned, successFraction: successFraction)
     }
 
     private static func week(start: Date, interval: DateInterval, goal: CoachGoal,
@@ -309,7 +324,10 @@ final class GoalTrackingStore: ObservableObject {
                  dismissedWorkoutKeys: Set<String> = []) async {
         let workouts = await repo.workoutRows(days: 365)
         let weights = await repo.series(key: "weight", source: "apple-health", days: 365)
-        let measurementByKind = measurements(workouts: workouts, weights: weights,
+        // The stored stress score, same key/source the Stress screen reads. Recovery needs no extra
+        // read — it is a field on the daily rows already in `repo.days`.
+        let stress = await repo.series(key: "stress", source: "my-whoop", days: 365)
+        let measurementByKind = measurements(workouts: workouts, weights: weights, stress: stress,
                                              days: repo.days, now: now)
         let calendar = Calendar.autoupdatingCurrent
         let start = calendar.date(byAdding: .day, value: -365, to: now) ?? now
@@ -360,29 +378,84 @@ final class GoalTrackingStore: ObservableObject {
         CoachNotifier.syncGoalMonitoring(snapshots)
     }
 
+    /// Derive "where am I now" per goal kind. The window lengths and the smoothing live in
+    /// `GoalMeasure` (StrandAnalytics) so they are unit-tested and defined once.
     private func measurements(workouts: [WorkoutRow], weights: [(day: String, value: Double)],
+                              stress: [(day: String, value: Double)],
                               days: [DailyMetric], now: Date) -> [CoachGoal.Kind: GoalMeasurement] {
         var result: [CoachGoal.Kind: GoalMeasurement] = [:]
-        let runs = workouts.filter { $0.sport.lowercased().contains("run") && ($0.distanceM ?? 0) > 0 }
+
+        func within(_ windowDays: Int) -> [WorkoutRow] {
+            let cutoff = now.addingTimeInterval(-Double(windowDays) * 86_400).timeIntervalSince1970
+            return workouts.filter { Double($0.startTs) >= cutoff }
+        }
+        func latestDate(_ rows: [WorkoutRow]) -> Date? {
+            rows.map(\.startTs).max().map { Date(timeIntervalSince1970: Double($0)) }
+        }
+
+        // Longest run inside a training block. Unwindowed this was "longest run ever": a half
+        // marathon eleven months ago kept the goal permanently satisfied and progress could never fall.
+        let runs = within(GoalMeasure.runWindowDays)
+            .filter { $0.sport.lowercased().contains("run") && ($0.distanceM ?? 0) > 0 }
         if let longest = runs.max(by: { ($0.distanceM ?? 0) < ($1.distanceM ?? 0) }) {
             result[.run] = GoalMeasurement(value: (longest.distanceM ?? 0) / 1000,
                                            date: Date(timeIntervalSince1970: Double(longest.startTs)))
         }
-        let cutoff = now.addingTimeInterval(-30 * 86_400).timeIntervalSince1970
-        let recentWorkouts = workouts.filter { Double($0.startTs) >= cutoff }
-        if !recentWorkouts.isEmpty {
-            let latest = recentWorkouts.map(\.startTs).max().map { Date(timeIntervalSince1970: Double($0)) }
-            result[.consistency] = GoalMeasurement(value: Double(recentWorkouts.count) / (30.0 / 7.0), date: latest)
+
+        // Sessions per week over four weeks. An empty window is a real 0/week, not "unknown": the
+        // goal IS measurable, it is simply not being served, and hiding that reads as no data.
+        let consistencyRows = within(GoalMeasure.consistencyWindowDays)
+        if let rate = GoalMeasure.perWeek(count: consistencyRows.count,
+                                          overDays: GoalMeasure.consistencyWindowDays) {
+            result[.consistency] = GoalMeasurement(value: rate, date: latestDate(consistencyRows))
         }
-        let recentDays = Array(days.sorted { $0.day < $1.day }.suffix(14))
-        let sleeps = recentDays.compactMap { $0.totalSleepMin }
-        if !sleeps.isEmpty {
-            let lastDay = recentDays.last(where: { $0.totalSleepMin != nil })?.day
-            result[.sleep] = GoalMeasurement(value: sleeps.reduce(0, +) / Double(sleeps.count) / 60,
-                                             date: lastDay.flatMap(parseDay))
+
+        // Strength as MINUTES PER WEEK. NOOP has no load tracking, so sets/reps/weight cannot be
+        // claimed — time can be counted honestly, and it is the same choice WHOOP's "Strength
+        // Activity Time" goal makes. Sport matching is the same lowercase-contains shape the run
+        // filter uses, and shares its limitation: a localized sport name would miss.
+        let strengthRows = consistencyRows.filter { row in
+            let sport = row.sport.lowercased()
+            return sport.contains("strength") || sport.contains("bodybuilding")
+                || sport.contains("weight training") || sport.contains("lifting")
         }
-        if let weight = weights.sorted(by: { $0.day < $1.day }).last {
-            result[.weight] = GoalMeasurement(value: weight.value, date: parseDay(weight.day))
+        if let minutes = GoalMeasure.minutesPerWeek(durationsS: strengthRows.compactMap(\.durationS),
+                                                    overDays: GoalMeasure.consistencyWindowDays) {
+            result[.strength] = GoalMeasurement(value: minutes, date: latestDate(strengthRows))
+        }
+
+        let ascending = days.sorted { $0.day < $1.day }
+
+        // Mean nightly sleep over a week — the same rhythm the weekly goal grid runs on.
+        let sleepDays = Array(ascending.suffix(GoalMeasure.sleepWindowNights))
+        if let mean = GoalMeasure.mean(sleepDays.compactMap { $0.totalSleepMin }) {
+            let lastDay = sleepDays.last(where: { $0.totalSleepMin != nil })?.day
+            result[.sleep] = GoalMeasurement(value: mean / 60, date: lastDay.flatMap(parseDay))
+        }
+
+        // Recovery / Charge, weekly mean. A derived score, not a clinical quantity — it answers
+        // "is this moving the way I wanted", nothing more, and it drives no gate.
+        let scoreDays = Array(ascending.suffix(GoalMeasure.scoreWindowDays))
+        if let mean = GoalMeasure.mean(scoreDays.compactMap { $0.recovery }) {
+            let lastDay = scoreDays.last(where: { $0.recovery != nil })?.day
+            result[.recovery] = GoalMeasurement(value: mean, date: lastDay.flatMap(parseDay))
+        }
+
+        // Stress score, weekly mean, from the stored "stress" series (the same one the Stress screen
+        // reads). Direction is carried by the goal's own baseline → target, so "lower is better"
+        // needs no special case here.
+        let stressWindow = Array(stress.sorted { $0.day < $1.day }.suffix(GoalMeasure.scoreWindowDays))
+        if let mean = GoalMeasure.mean(stressWindow.map(\.value)) {
+            result[.stress] = GoalMeasurement(value: mean, date: stressWindow.last.flatMap { parseDay($0.day) })
+        }
+
+        // Body weight as a SMOOTHED trend, not the last reading: 1-2 kg of daily water/food swing
+        // otherwise flipped progress and the on-track/at-risk verdict with it.
+        let weightSeries = weights.sorted { $0.day < $1.day }
+        if let trend = GoalMeasure.smoothedTrend(weightSeries.map(\.value), cfg: GoalMeasure.weightTrend) {
+            result[.weight] = GoalMeasurement(value: trend.value,
+                                              date: weightSeries.last.flatMap { parseDay($0.day) },
+                                              isProvisional: !trend.isReliable)
         }
         return result
     }

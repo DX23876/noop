@@ -34,10 +34,14 @@ final class GoalTrackingEngineTests: XCTestCase {
                                     isAutomatic: false)
     }
 
-    func testEightyPercentThresholdRoundsUp() {
+    /// The engine forwards to `GoalMeasure.requiredCompletions`, whose own tests pin the full table.
+    /// This one guards the forwarding — and documents the change: the old rule was a plain
+    /// `ceil(planned × 0.8)`, which demanded 100% of every week with 1-4 commitments (2→2, 3→3, 4→4)
+    /// and only ever applied the advertised 80% from five up. A small week may now drop one.
+    func testWeeklyThresholdAllowsOneMissInASmallWeek() {
         XCTAssertEqual(GoalTrackingEngine.requiredCompletions(for: 1), 1)
-        XCTAssertEqual(GoalTrackingEngine.requiredCompletions(for: 2), 2)
-        XCTAssertEqual(GoalTrackingEngine.requiredCompletions(for: 3), 3)
+        XCTAssertEqual(GoalTrackingEngine.requiredCompletions(for: 2), 1)
+        XCTAssertEqual(GoalTrackingEngine.requiredCompletions(for: 3), 2)
         XCTAssertEqual(GoalTrackingEngine.requiredCompletions(for: 5), 4)
     }
 
