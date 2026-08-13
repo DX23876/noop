@@ -90,7 +90,6 @@ import com.noop.ble.WhoopModel
 // (mock rgba(13,14,20,.80)) so it floats over the day-of-sky; the vessel + the white count-up number read
 // crisp on it. Radius 26 + a white@0.11 hairline give the frosted-glass edge. (Twins of the liquid Today
 // LIQUID_HERO_FILL / LIQUID_HERO_RADIUS, redeclared here since those are file-private to TodayScreen.)
-private val LIVE_HERO_FILL: Color = Color(red = 13f / 255f, green = 14f / 255f, blue = 20f / 255f, alpha = 0.80f)
 private val LIVE_HERO_RADIUS: Dp = 26.dp
 
 @Composable
@@ -213,10 +212,10 @@ fun LiveScreen(viewModel: AppViewModel, onManageDevices: () -> Unit = {}) {
         // behind the header + hero and the cards float over the flat canvas below. Reuses the shared
         // LiquidScreenSky() slot verbatim; when the day-cycle background is off, the scaffold paints the
         // plain surface instead (matching the liquid Today's showDayCycleBackground gate).
-        topBackground = if (showDayCycleBackground) { { LiquidScreenSky(fillHeight = skyBehindCards) } } else null,
+        topBackground = screenBackdropSlot(showDayCycleBackground, skyBehindCards),
         // Sky-behind-cards fills the viewport so the transparent cards reveal the sky the whole way
         // down (Today / Trends / Sleep / metric-detail parity - same two prefs, same two behaviours).
-        fullBleedBackground = showDayCycleBackground && skyBehindCards,
+        fullBleedBackground = screenBackdropFullBleed(showDayCycleBackground, skyBehindCards),
     ) {
 
         // Active band row (MW-6) — names the band the console is reading, with a "Manage devices"
@@ -936,8 +935,8 @@ private fun BodyConsole(live: LiveState, bpm: Int?, activeConnection: Boolean, z
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(LIVE_HERO_RADIUS))
-            .background(LIVE_HERO_FILL.copy(alpha = LIVE_HERO_FILL.alpha * CardAppearance.opacity))
-            .border(1.dp, Color.White.copy(alpha = 0.11f * CardAppearance.opacity), RoundedCornerShape(LIVE_HERO_RADIUS))
+            .background(Palette.heroFill.copy(alpha = Palette.heroFill.alpha * CardAppearance.opacity))
+            .border(1.dp, Palette.heroBorder.copy(alpha = Palette.heroBorder.alpha * CardAppearance.opacity), RoundedCornerShape(LIVE_HERO_RADIUS))
             .padding(20.dp),
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {

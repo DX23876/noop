@@ -33,6 +33,7 @@
     <string name="nav_automations">Automations</string>
     <string name="nav_alarms">Alarms</string>
     <string name="nav_devices">Devices</string>
+    <string name="nav_noop_limitations">NOOP Limitations</string>
     <string name="nav_data_sources">Data Sources</string>
     <string name="nav_backup_sync">Backup &amp; Sync</string>
     <string name="nav_fused_record">Your Data, Fused</string>
@@ -61,6 +62,11 @@
     <string name="today_customize_title">Customize Today</string>
     <string name="today_customize_action">Customize</string>
     <string name="today_customize_description">Reorder what is shown, or move a section to Hidden without deleting it.</string>
+    <string name="today_customize_edit_added_cards">Edit added cards</string>
+    <string name="today_hosted_editor_title">Added cards</string>
+    <string name="today_hosted_editor_desc">Choose which Trends and Sleep cards show on Today. They stay in their own tabs too.</string>
+    <string name="sleep_customize_title">Customize Sleep</string>
+    <string name="sleep_customize_description">Reorder what is shown, or move a section to Hidden without deleting it.</string>
     <string name="today_customize_shown">SHOWN</string>
     <string name="today_customize_hidden">HIDDEN</string>
     <string name="today_customize_nothing_hidden">Nothing hidden</string>
@@ -99,6 +105,15 @@
          hardcoded English throughout. Direct Compose copy and data-driven MetricSpec/TimelineMetric
          labels now live in resources; German wording follows the Apple catalogs where available. -->
     <string name="trends_subtitle">The thread of you over time.</string>
+    <string name="trends_trailing">Trailing</string>
+    <string name="trends_trailing_days">Trailing %1$d days</string>
+    <string name="trends_all_history">All history</string>
+    <string name="trends_trend">Trend</string>
+    <string name="trends_trend_a11y">Trend: %1$s</string>
+    <plurals name="trends_n_days">
+        <item quantity="one">%1$d day</item>
+        <item quantity="other">%1$d days</item>
+    </plurals>
     <string name="trends_charge">Charge</string>
     <string name="trends_effort">Effort</string>
     <string name="trends_rest">Rest</string>
@@ -767,8 +782,10 @@
     <string name="l10n_sleep_screen_about_your_main_sleep_1da8a640">About your main sleep</string>
     <string name="l10n_sleep_screen_as_of_latest_first_726f20bb">as of %1$s</string>
     <string name="l10n_sleep_screen_asleep_b9692bbe">Asleep</string>
+    <string name="l10n_sleep_screen_asleep_duration_3638413f">Asleep duration</string>
     <string name="l10n_sleep_screen_asleep_last_night_b969b068">asleep last night</string>
     <string name="l10n_sleep_screen_bedtime_wake_time_b2a22c32">Bedtime &amp; wake time</string>
+    <string name="l10n_sleep_screen_consistency_0ea7b95e">Consistency</string>
     <string name="l10n_sleep_screen_consistencypct_roundtoint_b23a9d40">%1$s%%</string>
     <string name="l10n_sleep_screen_delete_this_nap_1adf0a3f">Delete this nap</string>
     <string name="l10n_sleep_screen_fell_asleep_at_asleep_woke_at_80465b2d">Fell asleep at %1$s, woke at %2$s</string>
@@ -783,6 +800,7 @@
     <string name="l10n_sleep_screen_log_waking_up_2f9c230e">Log waking up</string>
     <string name="l10n_sleep_screen_logged_as_a_nap_wrong_tap_4285d23e">Logged as a nap. Wrong? Tap Edit to adjust your sleep and wake times.</string>
     <string name="l10n_sleep_screen_nap_window_durationtext_durmin_bbc35167">Nap %1$s, %2$s</string>
+    <string name="l10n_sleep_screen_night_detail_8f271bcf">Night detail</string>
     <string name="l10n_sleep_screen_no_movement_detail_for_this_night_a6f9736a">No movement detail for this night.</string>
     <string name="l10n_sleep_screen_no_nights_here_yet_607248f5">No nights here yet</string>
     <string name="l10n_sleep_screen_no_nights_with_sleep_data_yet_fa71b6b3">No nights with sleep data yet. Your ledger fills in as you wear the strap to bed.</string>
@@ -793,6 +811,7 @@
     <string name="l10n_sleep_screen_score_roundtoint_a2d1cc99">%1$s%%</string>
     <string name="l10n_sleep_screen_sleep_consistency_nightly_bed_and_wake_14526f89">Sleep consistency nightly bed and wake chart</string>
     <string name="l10n_sleep_screen_sleep_debt_3aec7d9c">Sleep Debt</string>
+    <string name="l10n_sleep_screen_sleep_debt_ledger_8cc9a992">Sleep-debt ledger</string>
     <string name="l10n_sleep_screen_sleep_debt_trend_chart_9e178776">Sleep debt trend chart</string>
     <string name="l10n_sleep_screen_sleep_hours_trend_chart_a6fbc46d">Sleep hours trend chart</string>
     <string name="l10n_sleep_screen_sleep_marks_8e9b86f0">Sleep marks</string>
@@ -804,6 +823,8 @@
     <string name="l10n_sleep_screen_spec_format_v_spec_unit_7a7f630c">%1$s %2$s</string>
     <string name="l10n_sleep_screen_spec_title_trend_chart_3085ac6e">%1$s trend chart</string>
     <string name="l10n_sleep_screen_stage_durationtext_minutes_percent_percent_of_477dbf14">%1$s: %2$s, %3$s percent of the night</string>
+    <string name="l10n_sleep_screen_stages_c1d33ad5">Stages</string>
+    <string name="l10n_sleep_screen_stages_vs_typical_28463f24">Stages vs typical</string>
     <string name="l10n_sleep_screen_tap_when_you_re_heading_to_1f401690">Tap when you\'re heading to bed or when you wake. Each tap is logged with the time. It doesn\'t change tonight\'s detected sleep.</string>
     <string name="l10n_sleep_screen_this_metric_needs_at_least_two_2de1d37a">This metric needs at least two nights of data.</string>
     <string name="l10n_sleep_screen_undo_39fc7212">Undo</string>
@@ -1431,6 +1452,8 @@
     <string name="l10n_settings_screen_age_ff9f1ff3">Age</string>
     <string name="l10n_settings_screen_app_icon_abde7a74">App icon</string>
     <string name="l10n_settings_screen_appearance_41def7a0">Appearance</string>
+    <string name="l10n_settings_screen_reduce_motion_in_noop_59a6180d">Reduce motion in NOOP</string>
+    <string name="l10n_settings_screen_holds_the_liquid_gauges_the_sky_41872b57">Holds the liquid gauges, the sky and the tilt response still, and turns off the motion sensor that drives them. Saves battery. Low Power Mode and the system Reduce Motion setting already do this.</string>
     <string name="l10n_settings_screen_auto_detect_workouts_bed4cf2a">Auto-detect workouts</string>
     <string name="l10n_settings_screen_automatic_backups_8a772f3c">Automatic backups</string>
     <string name="l10n_settings_screen_backup_restore_a1616284">Backup &amp; restore</string>
@@ -1756,6 +1779,8 @@
     </plurals>
     <string name="timeline_spo2_not_on_whoop5">This strap doesn\'t send SpO₂ over Bluetooth. Import a WHOOP export or Health Connect to see it.</string>
     <string name="timeline_resp_not_on_whoop5">This strap sends no raw respiration stream. Your estimated respiratory rate appears on the Health screen.</string>
+    <string name="settings_disclosure_expanded">Expanded</string>
+    <string name="settings_disclosure_collapsed">Collapsed</string>
     <string name="l10n_data_sources_screen_last_shared_6bf8389c">"Last shared "</string>
     <string name="l10n_data_sources_screen_sharing_paused_health_connect_permission_was_e8950315">Sharing paused — Health Connect permission was revoked. Tap to re-grant.</string>
     <string name="l10n_data_sources_screen_last_share_didn_t_finish_noop_0d6c27f0">Last share didn’t finish — NOOP will retry automatically.</string>
@@ -1913,4 +1938,75 @@
     <string name="l10n_app_changelog_widgets_stop_inventing_numbers_naps_count_4f7491bb">Widgets stop inventing numbers, naps count toward sleep debt, and the Android status chips speak your language</string>
     <string name="l10n_app_changelog_your_hrv_is_measured_right_again_d635e316">Your HRV is measured right again, Oura rings stop counting every beat twice, and the app speaks your language everywhere</string>
     <string name="l10n_app_changelog_home_and_lock_screen_widgets_now_999ac095">Home and Lock Screen widgets now work when you sideload</string>
+    <string name="l10n_sleep_screen_may_be_incomplete_7230dc27">May be incomplete</string>
+    <string name="l10n_sleep_screen_little_motion_was_recorded_over_f061b7e4">Little motion was recorded overnight, so this night may be under-detected and the sleep total can read short. Make sure the strap fully synced.</string>
+    <string name="haptics_section_title">Haptics</string>
+    <string name="haptics_breathing_label">Breathing pacer</string>
+    <string name="haptics_intervals_label">Interval timer</string>
+    <string name="haptics_live_session_label">Live Session cues</string>
+    <string name="haptics_workout_label">Workout start &amp; end</string>
+    <string name="notif_timer_alarm_title">Timer &amp; alarm</string>
+    <string name="l10n_settings_screen_ecg_raw_data_gate_whoop_mg_only">ECG raw-data gate (WHOOP MG only)</string>
+    <string name="l10n_settings_screen_ecg_gate_blurb">Your strap listed its own device-config keys, and one of them is enable_raw_data_w_ecg. On an MG with no ECG subscription it reads \'0\' — while all three ECG commands answer SUCCESS and send no data at all (#891). This is the leading guess for what\'s holding ECG shut. Nobody knows whether flipping it actually produces ECG data: finding out is the point, and \"still nothing\" is a useful answer worth posting to #891.</string>
+    <string name="l10n_settings_screen_ecg_gate_persistent_warning">This writes a setting that STAYS ON YOUR STRAP until you change it back — it isn\'t an app preference, and closing NOOP won\'t undo it. \"Turn gate off\" writes \'0\' again, in one tap. Only this one key is ever written; the other six your strap listed are never touched.</string>
+    <string name="l10n_settings_screen_ecg_gate_turn_on">Turn gate on (write \'1\')</string>
+    <string name="l10n_settings_screen_ecg_gate_turn_off">Turn gate off (write \'0\')</string>
+    <string name="l10n_settings_screen_accent">Accent</string>
+    <string name="l10n_settings_screen_preset">Preset</string>
+    <string name="settings_language">Language</string>
+    <string name="settings_choose_language">Choose language</string>
+    <string name="settings_language_system">System default</string>
+    <string name="settings_appearance_detail">Choose Light, Dark, or follow your system. Dark is the signature near-black; Light keeps the same clean look on a bright canvas.</string>
+    <string name="settings_theme_light">Light</string>
+    <string name="settings_theme_dark">Dark</string>
+    <string name="settings_chart_default">Default</string>
+    <string name="settings_chart_classic">Classic</string>
+    <string name="settings_trend_line">Line</string>
+    <string name="settings_trend_bars">Bars</string>
+    <!-- #103: Blood Oxygen tile captions for the experimental WHOOP 5/MG @82 strap estimate. -->
+    <string name="spo2_strap_estimate_caption">strap estimate (unverified)</string>
+    <string name="spo2_toggle_on_no_data">toggle ON · no @82 data</string>
+    <string name="l10n_devices_screen_forget_device_d6eb6209">Forget device…</string>
+    <string name="l10n_devices_screen_forget_device_926e503d">Forget device</string>
+    <string name="l10n_devices_screen_forget_this_device_8dbbc3f3">Forget this device?</string>
+    <string name="l10n_devices_screen_noop_removes_this_device_503aff9e">NOOP removes this device from your list and deletes its recorded data here. You can re-pair the strap to pull its recent history back.</string>
+    <string name="l10n_backup_sync_screen_auto_backup_hasn_t_run_in_e3cd484e">Auto-backup hasn\'t run in a few days. Check the backup folder is still available — a moved or disconnected cloud folder stops backups silently.</string>
+    <string name="cycle_tracker_title">Cycle tracker</string>
+    <string name="cycle_tracker_current_estimate">Current estimate</string>
+    <string name="cycle_tracker_likely_window">Likely period window: %1$s–%2$s. This is a range, not a fixed date.</string>
+    <string name="cycle_tracker_log_heading">Log a period start</string>
+    <string name="cycle_tracker_already_logged">Already logged</string>
+    <string name="cycle_tracker_log_action">Log period start</string>
+    <string name="cycle_tracker_anchor_help">This optional date anchors cycle day 1 and is checked against your nightly temperature pattern.</string>
+    <string name="cycle_tracker_logged_starts">Logged starts</string>
+    <string name="cycle_tracker_delete_all">Delete all</string>
+    <string name="cycle_tracker_empty">No period starts logged yet.</string>
+    <string name="cycle_tracker_delete_day">Delete %1$s</string>
+    <string name="cycle_tracker_privacy">This never leaves your device unless you export a backup yourself.</string>
+    <string name="cycle_tracker_done">Done</string>
+    <string name="cycle_tracker_delete_title">Delete all logged period starts?</string>
+    <string name="cycle_tracker_delete_message">This permanently removes the on-device period-start history. Sensor history is not changed.</string>
+    <string name="cycle_tracker_cancel">Cancel</string>
+    <string name="cycle_tracker_day_single">~day %1$d</string>
+    <string name="cycle_tracker_day_range">~day %1$d–%2$d</string>
+    <string name="cycle_home_title">Menstrual Cycle</string>
+    <string name="cycle_home_private">Private, on-device tracking</string>
+    <string name="cycle_home_description">Log period starts locally and use them to anchor optional cycle estimates.</string>
+    <string name="cycle_home_latest">Latest period start</string>
+    <string name="cycle_home_learning">Learning your pattern</string>
+    <string name="cycle_home_open">Open tracker</string>
+    <string name="cycle_home_setup">Set up cycle tracking</string>
+    <string name="cycle_home_log_today">Log today</string>
+    <string name="cycle_home_logged_today">Logged today</string>
+    <string name="cycle_phase_follicular">Follicular</string>
+    <string name="cycle_phase_mid_cycle">Mid-cycle shift</string>
+    <string name="cycle_phase_luteal">Luteal</string>
+    <string name="cycle_phase_unclear">No clear pattern</string>
+    <string name="cycle_phase_learning">Learning your pattern</string>
+    <string name="cycle_day_single">· ~day %1$d</string>
+    <string name="cycle_day_range">· ~day %1$d–%2$d</string>
+    <string name="skin_temp_missing_caption">No nightly skin-temp yet — needs ~4 worn nights (or import a WHOOP CSV)</string>
+    <string name="skin_temp_delta_title">Skin Temp Δ</string>
+    <string name="skin_temp_vs_baseline">vs baseline</string>
+    <string name="l10n_app_changelog_make_noop_yours_theme_colours_and_6bdef2a7">Make NOOP yours — theme colours and custom backgrounds, forty more sports with GPS routes, and a calorie heatmap</string>
 </resources>

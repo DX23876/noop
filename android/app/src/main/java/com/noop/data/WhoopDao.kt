@@ -229,9 +229,18 @@ interface WhoopDao : DeviceRegistryDao {
         metricPoints: List<MetricSeriesRow>,
         provenance: List<ScoreInputProvenanceRow>,
     ) {
+        // #1196: a scoring pass that produced NO computed daily rows must NOT wipe the persisted window.
+        // That happens transiently during a reconnect+offload storm (a pass runs over a still-incomplete
+        // raw store, or the active strap momentarily resolves to an empty id) — the old unconditional
+        // whole-window delete then blanked recovery/strain/streak history until the next pass repopulated
+        // it, and the reactive Trends/streak Flows surfaced that as a "0 days / lost streak" scare that
+        // looked like data loss. In steady state `dailyMetrics` covers the window, so this guard never
+        // fires and the write is byte-identical to before. (Twin of the Swift IntelligenceEngine
+        // empty-window guard; the post-offload trigger is additionally gated on newData — see #1146.)
+        if (dailyMetrics.isEmpty()) return
         deleteDailyMetricsInRange(deviceId, from, to)
         deleteScoreInputProvenanceInRange(deviceId, from, to)
-        if (dailyMetrics.isNotEmpty()) upsertDailyMetrics(dailyMetrics)
+        upsertDailyMetrics(dailyMetrics)
         if (metricPoints.isNotEmpty()) upsertMetricSeries(metricPoints)
         if (provenance.isNotEmpty()) upsertScoreInputProvenance(provenance)
     }
@@ -389,6 +398,7 @@ interface WhoopDao : DeviceRegistryDao {
         // pins the two together.
         "SELECT * FROM rrInterval WHERE deviceId = :deviceId AND ts >= :from AND ts <= :to " +
             "AND (srcChannel IS NULL OR srcChannel <> 2) " +
+            "AND (tsSuspect IS NULL OR tsSuspect <> 1) " +   // #1073: exclude future-stamped beats
             "ORDER BY ts ASC, ord ASC, rrMs ASC, seq ASC LIMIT :limit"
     )
     suspend fun rrIntervals(deviceId: String, from: Long, to: Long, limit: Int): List<RrInterval>
@@ -581,6 +591,10 @@ interface WhoopDao : DeviceRegistryDao {
      *  for a (markerKey, day) cell is removed). Swift LabMarkerStore.reprojectCells delete branch. */
     @Query("DELETE FROM metricSeries WHERE deviceId = :deviceId AND day = :day AND key = :key")
     suspend fun deleteMetricSeriesPoint(deviceId: String, day: String, key: String)
+
+    /** Delete one complete source/key series atomically. */
+    @Query("DELETE FROM metricSeries WHERE deviceId = :deviceId AND key = :key")
+    suspend fun deleteMetricSeries(deviceId: String, key: String)
 
     // MARK: - Lab Book markers (Swift labMarker, v17 / LabMarkerStore.swift)
     //

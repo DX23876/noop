@@ -11,8 +11,8 @@ private struct SuggestionsHeightKey: PreferenceKey {
 
 // MARK: - Manual workout sheet
 //
-// Add a workout you tracked elsewhere, or edit one you already logged. Five inputs — sport,
-// start, duration, average HR, calories — validated by WorkoutSource.buildManualRow (the same
+// Add a workout you tracked elsewhere, or edit one you already logged. Six inputs — sport,
+// start, duration, distance, average HR, calories — validated by WorkoutSource.buildManualRow (the same
 // honest-row rules the engine uses). On save the caller persists it under the strap source via
 // Repository.saveManualWorkout. Captured-but-unexposed fields (maxHr / strain / zones) on an edited
 // row are carried over by WorkoutSource.preservingCaptured so editing a live-tracked session's
@@ -34,10 +34,19 @@ struct ManualWorkoutSheet: View {
     @State private var durationMin: Int
     @State private var avgHrText: String
     @State private var kcalText: String
+    /// Distance as ENTERED, in the user's unit (km or mi) — converted to stored metres on save (#1195).
+    @State private var distanceText: String
 
-    /// Focus for the numeric (Avg HR / Calories) fields so the keyboard Done button can resign them —
-    /// the decimal pad has no return key. iOS-only effect; the enum keeps both platforms compiling.
-    private enum NumberField: Hashable { case avgHr, calories }
+    /// The length unit system, so the Distance field reads/writes in the user's unit. Read live for the
+    /// field label + parse; the init pre-fill reads the same key straight from UserDefaults (@AppStorage
+    /// isn't available before `self` is formed).
+    @AppStorage(UnitPrefs.systemKey) private var unitSystemRaw = UnitSystem.metric.rawValue
+    private var unitSystem: UnitSystem { UnitSystem(rawValue: unitSystemRaw) ?? .metric }
+    private var distanceUnit: String { unitSystem == .imperial ? "mi" : "km" }
+
+    /// Focus for the numeric (Avg HR / Calories / Distance) fields so the keyboard Done button can resign
+    /// them — the decimal pad has no return key. iOS-only effect; the enum keeps both platforms compiling.
+    private enum NumberField: Hashable { case avgHr, calories, distance }
     @FocusState private var focusedField: NumberField?
 
     /// Whether the Sport text field is being edited — drives whether the catalogue suggestions show
@@ -62,6 +71,23 @@ struct ManualWorkoutSheet: View {
         _durationMin = State(initialValue: e.map { max(1, Int((($0.durationS ?? Double($0.endTs - $0.startTs)) / 60).rounded())) } ?? 45)
         _avgHrText = State(initialValue: e?.avgHr.map(String.init) ?? "")
         _kcalText = State(initialValue: e?.energyKcal.map { String(Int($0.rounded())) } ?? "")
+        // Pre-fill the distance in the user's unit so an untouched edit round-trips the stored metres
+        // (buildManualRow then re-stores exactly what's shown). @AppStorage isn't usable pre-init, so read
+        // the same key directly.
+        let sys = UnitSystem(rawValue: UserDefaults.standard.string(forKey: UnitPrefs.systemKey) ?? "") ?? .metric
+        _distanceText = State(initialValue: e?.distanceM.map { Self.distanceEntryString($0, system: sys) } ?? "")
+    }
+
+    /// The stored metres shown as a clean editable number in `system`'s unit (km/mi) — trailing zeros and a
+    /// dangling decimal trimmed so the field reads "5.2", not "5.20". Two decimals (~10 m) is plenty for a
+    /// hand-entered distance; the field's purpose is manual entry, not preserving GPS's metre precision.
+    private static func distanceEntryString(_ meters: Double, system: UnitSystem) -> String {
+        let km = meters / 1000.0
+        let value = system == .imperial ? km * UnitFormatter.milesPerKilometer : km
+        var s = String(format: "%.2f", value)
+        while s.hasSuffix("0") { s.removeLast() }
+        if s.hasSuffix(".") { s.removeLast() }
+        return s
     }
 
     var body: some View {
@@ -89,6 +115,10 @@ struct ManualWorkoutSheet: View {
                         }
                         .accessibilityLabel("Duration in minutes")
                     }
+                }
+                field(String(localized: "Distance")) {
+                    numberInput(String(localized: "optional"), text: $distanceText, unit: distanceUnit, field: .distance)
+                        .accessibilityLabel("Distance, optional")
                 }
                 HStack(spacing: 14) {
                     field(String(localized: "Avg HR")) {
@@ -121,7 +151,7 @@ struct ManualWorkoutSheet: View {
         // "recents vanish" was really the panel being clipped along with its off-screen anchor.
         .noopSheetPresentation(largeFirst: true)
         #endif
-        .background(StrandPalette.surfaceOverlay)
+        .background(NoopChromeSurface())
         // Lets the user dismiss the decimal pad (which has no return key) and reach Cancel/Add. No-op on macOS.
         .keyboardDoneToolbar($focusedField)
     }
@@ -322,14 +352,25 @@ struct ManualWorkoutSheet: View {
     private var avgHr: Int? { Int(avgHrText.trimmingCharacters(in: .whitespaces)) }
     private var kcal: Double? { Double(kcalText.trimmingCharacters(in: .whitespaces)) }
 
+    /// Parsed distance in stored METRES — nil for blank (no distance), or when the typed value can't be a
+    /// non-negative number. The user enters km/mi; convert to metres for the row. (#1195)
+    private var distanceMeters: Double? {
+        let t = distanceText.trimmingCharacters(in: .whitespaces)
+        guard !t.isEmpty, let v = Double(t), v >= 0 else { return nil }
+        let km = unitSystem == .imperial ? v / UnitFormatter.milesPerKilometer : v
+        return km * 1000.0
+    }
+
     /// The validated row, or nil when the inputs can't make an honest one (drives the disabled Save +
     /// the inline note). Built through the same WorkoutSource.buildManualRow the engine trusts.
     private var builtRow: WorkoutRow? {
         // A typed-but-unparseable number is invalid (e.g. "abc" in Avg HR) — guard before building.
         if !avgHrText.trimmingCharacters(in: .whitespaces).isEmpty && avgHr == nil { return nil }
         if !kcalText.trimmingCharacters(in: .whitespaces).isEmpty && kcal == nil { return nil }
+        if !distanceText.trimmingCharacters(in: .whitespaces).isEmpty && distanceMeters == nil { return nil }
         guard let base = WorkoutSource.buildManualRow(start: start, durationMin: durationMin,
-                                                      sport: sport, avgHr: avgHr, energyKcal: kcal)
+                                                      sport: sport, avgHr: avgHr, energyKcal: kcal,
+                                                      distanceM: distanceMeters)
         else { return nil }
         // Carry over captured-but-unexposed fields when editing an existing strap session.
         return WorkoutSource.preservingCaptured(base, from: editing)
@@ -356,6 +397,10 @@ struct ManualWorkoutSheet: View {
         if !kcalText.trimmingCharacters(in: .whitespaces).isEmpty, kcal == nil || (kcal ?? -1) < 0 || (kcal ?? 0) > 20_000 {
             return String(localized: "Calories must be 0-20,000.")
         }
+        if !distanceText.trimmingCharacters(in: .whitespaces).isEmpty,
+           distanceMeters == nil || (distanceMeters ?? -1) < 0 || (distanceMeters ?? 0) > 1_000_000 {
+            return String(localized: "Distance must be 0–1,000 km.")
+        }
         return String(localized: "Check the values and try again.")
     }
 
@@ -365,154 +410,6 @@ struct ManualWorkoutSheet: View {
         RecentSportsPrefs.recordSelection(row.sport)
         onSave(row, editing)
         dismiss()
-    }
-}
-
-// MARK: - Live workout start picker
-//
-// The Apple-side entry point for LIVE tracking, mirroring Android's StartWorkoutSheet (WorkoutStart.kt):
-// pick a named sport from the shared WorkoutCatalog, then begin the session. Brings the iOS/macOS live
-// tracker to parity with Android, which has had a named-sport picker on Start since #115 — previously
-// the Apple "Start workout" buttons called `startWorkout()` with no sport and every live session saved
-// as the generic "Workout". A host presents this and forwards the chosen name to
-// `AppModel.startWorkout(sport:)`. Free-text isn't offered here (a live start is a quick tap from a
-// fixed list); an unusual sport can still be set afterwards via the manual edit sheet's free-text field.
-
-struct StartWorkoutSheet: View {
-    /// Called with the chosen sport name once the user taps the action button. The host wires this to
-    /// `model.startWorkout(sport:)` (and presents the live workout view) by default, or (#64) to name a
-    /// merged session when the title/action are overridden.
-    let onStart: (_ sport: String) -> Void
-
-    /// #64: heading + explainer + action-verb overrides so this picker doubles as the "name the merged
-    /// session" prompt. Defaults keep the "Start a workout" behaviour byte-identical.
-    private let heading: String
-    private let explainer: String
-    private let actionVerb: String
-
-    init(title: String? = nil, subtitle: String? = nil, actionVerb: String? = nil,
-         onStart: @escaping (_ sport: String) -> Void) {
-        self.onStart = onStart
-        self.heading = title ?? String(localized: "Start a workout")
-        self.explainer = subtitle
-            ?? String(localized: "Pick a sport. NOOP records HR, peak, average and effort from the live feed.")
-        self.actionVerb = actionVerb ?? String(localized: "Start")
-    }
-
-    @Environment(\.dismiss) private var dismiss
-    @State private var query = ""
-    @State private var selected = WorkoutCatalog.defaultSportName
-
-    private var filtered: [WorkoutCatalog.Sport] { WorkoutCatalog.matching(query) }
-    private var inputShape: RoundedRectangle { RoundedRectangle(cornerRadius: 10, style: .continuous) }
-
-    /// #297: the user's last selections, one tap away above the full catalogue. Only catalogue-resolvable
-    /// recents show here — a live start is catalogue-only by design (no free text), and the shared store
-    /// can hold free-typed names from the manual sheet. Hidden once the user starts searching.
-    private var recentSports: [WorkoutCatalog.Sport] {
-        RecentSportsPrefs.recent().compactMap { WorkoutCatalog.sport(named: $0) }
-    }
-
-    private var showRecentSports: Bool {
-        query.trimmingCharacters(in: .whitespaces).isEmpty && !recentSports.isEmpty
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: NoopMetrics.space4) {
-            HStack(alignment: .top, spacing: NoopMetrics.space3) {
-                Image(systemName: "figure.run")
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundStyle(StrandPalette.effortColor)
-                    .frame(width: 30, height: 30)
-                    .background(StrandPalette.effortColor.opacity(0.14),
-                                in: RoundedRectangle(cornerRadius: 9, style: .continuous))
-                    .accessibilityHidden(true)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(heading)
-                        .font(StrandFont.title2)
-                        .foregroundStyle(StrandPalette.textPrimary)
-                    Text(explainer)
-                        .font(StrandFont.subhead)
-                        .foregroundStyle(StrandPalette.textSecondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                Spacer(minLength: 0)
-            }
-
-            TextField("Search sport", text: $query)
-                .textFieldStyle(.plain)
-                .font(StrandFont.body)
-                .foregroundStyle(StrandPalette.textPrimary)
-                .padding(.horizontal, 12).padding(.vertical, 9)
-                .background(StrandPalette.surfaceInset, in: inputShape)
-                .overlay(inputShape.strokeBorder(StrandPalette.hairline, lineWidth: 1))
-                .accessibilityLabel("Search sport")
-
-            ScrollView {
-                VStack(alignment: .leading, spacing: 0) {
-                    if showRecentSports {
-                        Text("Recent").strandOverline()
-                            .padding(.horizontal, 12).padding(.top, 8)
-                        ForEach(recentSports) { sp in
-                            sportRow(sp)
-                        }
-                        Text("All activities").strandOverline()
-                            .padding(.horizontal, 12).padding(.top, 8)
-                    }
-                    ForEach(filtered) { sp in
-                        sportRow(sp)
-                    }
-                }
-            }
-            .frame(maxHeight: 240)
-            .background(StrandPalette.surfaceInset, in: inputShape)
-            .overlay(inputShape.strokeBorder(StrandPalette.hairline, lineWidth: 1))
-
-            HStack(spacing: NoopMetrics.space3) {
-                NoopButton("Cancel", kind: .tertiary) { dismiss() }
-                Spacer()
-                NoopButton("\(actionVerb) \(selected)", systemImage: "figure.run", kind: .primary) {
-                    // #297: a confirmed start (or merge-name) is a real selection — fold it into the recents.
-                    RecentSportsPrefs.recordSelection(selected)
-                    onStart(selected)
-                    dismiss()
-                }
-                .accessibilityLabel("\(actionVerb) \(selected)")
-            }
-        }
-        .padding(NoopMetrics.space6)
-        #if os(macOS)
-        .frame(width: 420)
-        #else
-        .frame(maxWidth: .infinity)
-        .noopSheetPresentation(largeFirst: false)
-        #endif
-        .background(StrandPalette.surfaceOverlay)
-    }
-
-    /// One tappable sport row — shared by the #297 Recent block and the full catalogue list.
-    private func sportRow(_ sp: WorkoutCatalog.Sport) -> some View {
-        Button {
-            selected = sp.name
-        } label: {
-            HStack(spacing: 6) {
-                Text(sp.name)
-                    .font(StrandFont.body)
-                    .foregroundStyle(sp.name == selected
-                                     ? StrandPalette.accent : StrandPalette.textPrimary)
-                if sp.isDistanceSport {
-                    Text("· GPS")
-                        .font(StrandFont.footnote)
-                        .foregroundStyle(StrandPalette.textTertiary)
-                }
-                Spacer(minLength: 0)
-            }
-            .contentShape(Rectangle())
-            .padding(.horizontal, 12).padding(.vertical, 9)
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel("Pick \(sp.name)")
-        .accessibilityAddTraits(sp.name == selected ? [.isSelected] : [])
     }
 }
 
@@ -527,11 +424,6 @@ struct StartWorkoutSheet: View {
         startTs: Int(Date().timeIntervalSince1970) - 3600, endTs: Int(Date().timeIntervalSince1970),
         sport: "Running", source: "manual", durationS: 3600, energyKcal: 540,
         avgHr: 148, maxHr: 172, strain: 12.4, distanceM: nil, zonesJSON: nil, notes: nil)) { _, _ in }
-        .preferredColorScheme(.dark)
-}
-
-#Preview("Start") {
-    StartWorkoutSheet { _ in }
         .preferredColorScheme(.dark)
 }
 #endif

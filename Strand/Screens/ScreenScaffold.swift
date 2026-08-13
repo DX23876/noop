@@ -114,11 +114,9 @@ struct ScreenScaffold<Content: View, Trailing: View>: View {
     }
 
     private var header: some View {
-        // When a `topBackground` (the day-cycle liquid sky) sits behind the header, that band is dark in
-        // BOTH themes — so the title/subtitle must use the scheme-invariant on-dark tokens. The regular
-        // text tokens flip to dark ink in Light mode and went dark-on-dark over the sky, exactly the #1013
-        // pattern the Liquid Today hero hit (osifaind's Trends-tab sibling report). Flat-canvas screens
-        // (no topBackground) keep the theme tokens so the header reads on the light/dark surfaceBase.
+        // A scaffold that draws a topBackground puts this header over the sky, where the normal
+        // scheme-following title tokens go dark-on-dark in Light mode. Pin them to the on-dark pair
+        // there and leave every other screen on the semantic tokens.
         let overSky = topBackground != nil
         let titleColor = overSky ? StrandPalette.onDarkPrimary : StrandPalette.textPrimary
         let subtitleColor = overSky ? StrandPalette.onDarkSecondary : StrandPalette.textSecondary

@@ -20,14 +20,14 @@ val requestedReleaseBuild = gradle.startParameter.taskNames.any {
 
 android {
     namespace = "com.noop"
-    compileSdk = 34
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "com.noop.whoop"
         minSdk = 26
         targetSdk = 34
-        versionCode = 310
-        versionName = "9.3.3"
+        versionCode = 335
+        versionName = "10.0.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {

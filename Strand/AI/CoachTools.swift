@@ -49,6 +49,8 @@ enum CoachTool: String, CaseIterable {
     case chargeDrivers = "get_charge_drivers"
     /// SUGGEST a session for a day. It lands as a proposal the USER must accept — never an active plan.
     case proposePlan = "propose_plan"
+    /// Prepare a goal plus reusable routines for explicit review. Never activates either directly.
+    case proposeGoalSetup = "propose_goal_setup"
     /// What a session would cost, from the user's own history (+ what swapping it would change).
     case sessionOutlook = "get_session_outlook"
     /// "What if I train hard today and sleep 7h?" — project tomorrow's Charge.
@@ -166,6 +168,14 @@ enum CoachTool: String, CaseIterable {
                 + "just because they said it. Give a short rationale; they'll read it again next week. "
                 + "Only for an actual training session — never for sleep, nutrition, hydration or other "
                 + "lifestyle advice; those are simply an answer in chat, not a proposal."
+        case .proposeGoalSetup:
+            return "Prepare a REVIEW-ONLY draft for a new or changed goal and up to five reusable routines. "
+                + "Nothing becomes active until the user opens the app review and confirms it. Use operation=update "
+                + "only with exact ids from the goal context. Routines may support several active goals and the goal "
+                + "in this same setup. Set use_current_baseline=true when a locally measured starting value is useful; "
+                + "the app resolves and labels it rather than trusting you to invent one. Never propose nutrition, "
+                + "medication, dosage or treatment routines. Do not say the goal or routines were created—say the draft "
+                + "is waiting for review."
         case .sessionOutlook:
             return "Find out what a session would cost this user, from THEIR OWN history: typical Charge "
                 + "cost the next morning, bounce-back days, and a projection for tomorrow. Pass "
@@ -468,9 +478,52 @@ enum CoachTool: String, CaseIterable {
                     "time": [
                         "type": "string",
                         "description": "Optional time of day, HH:mm, if the user named one."
+                    ],
+                    "goal_id": [
+                        "type": "string",
+                        "description": "Legacy single active-goal UUID. Prefer goal_ids when one activity supports several goals."
+                    ],
+                    "goal_ids": [
+                        "type": "array",
+                        "items": ["type": "string"],
+                        "description": "Optional active-goal UUIDs this session may support. These are suggestions; the user confirms them when accepting."
                     ]
                 ],
                 "required": ["sport", "intent"]
+            ]
+        case .proposeGoalSetup:
+            let goalProperties: [String: Any] = [
+                "operation": ["type": "string", "enum": ["create", "update"]],
+                "goal_id": ["type": "string", "description": "Exact active goal UUID for update."],
+                "kind": ["type": "string", "enum": CoachGoal.Kind.allCases.map(\.rawValue)],
+                "title": ["type": "string"],
+                "baseline": ["type": "number", "description": "Only when explicitly stated by the user."],
+                "target": ["type": "number"],
+                "target_date": ["type": "string", "description": "Optional yyyy-MM-dd."],
+                "use_current_baseline": ["type": "boolean", "description": "Ask the app to resolve a local measured baseline."],
+                "motivation_tags": ["type": "array", "items": ["type": "string", "enum": CoachGoal.MotivationTag.allCases.map(\.rawValue)]],
+            ]
+            let routineProperties: [String: Any] = [
+                "operation": ["type": "string", "enum": ["create", "update"]],
+                "action_id": ["type": "string", "description": "Exact routine UUID for update."],
+                "title": ["type": "string"],
+                "type": ["type": "string", "enum": ["steps", "workout", "manual"]],
+                "minimum_steps": ["type": "integer"],
+                "sports": ["type": "array", "items": ["type": "string"]],
+                "minimum_minutes": ["type": "integer"],
+                "schedule": ["type": "string", "enum": ["daily", "weekdays"]],
+                "weekdays": ["type": "array", "items": ["type": "integer", "minimum": 1, "maximum": 7]],
+                "goal_ids": ["type": "array", "items": ["type": "string"], "description": "Exact active goal UUIDs."],
+                "supports_setup_goal": ["type": "boolean", "description": "Also link this routine to the goal in this draft."],
+            ]
+            return [
+                "type": "object",
+                "properties": [
+                    "goal": ["type": "object", "properties": goalProperties],
+                    "routines": ["type": "array", "maxItems": 5,
+                                 "items": ["type": "object", "properties": routineProperties]],
+                    "rationale": ["type": "string", "description": "Short reason for this setup."],
+                ]
             ]
         case .sessionOutlook:
             return [
@@ -909,7 +962,11 @@ extension AICoachEngine {
                 targetEffort: (input["target_effort"] as? Double)
                     ?? (input["target_effort"] as? Int).map(Double.init),
                 rationale: (input["rationale"] as? String) ?? "",
-                time: input["time"] as? String)
+                time: input["time"] as? String,
+                goalId: input["goal_id"] as? String,
+                goalIds: input["goal_ids"] as? [String])
+        case .proposeGoalSetup:
+            return await proposeGoalSetupTool(input: input)
         case .sessionOutlook:
             return await sessionOutlookTool(
                 sport: (input["sport"] as? String) ?? "",

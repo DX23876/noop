@@ -15,6 +15,8 @@ import UIKit
 /// `RootTabView` so the iOS app keeps the same gating without depending on the macOS-only shell.
 @main
 struct StrandiOSApp: App {
+    /// UIKit bridge for Home Screen quick actions. SwiftUI keeps ownership of the scene and window.
+    @UIApplicationDelegateAdaptor(HomeScreenQuickActionAppDelegate.self) private var appDelegate
     @StateObject private var model: AppModel
     @StateObject private var health: HealthKitBridge
     /// The phone→watch link. Built + activated here so the watch app actually receives snapshots on a
@@ -29,6 +31,12 @@ struct StrandiOSApp: App {
     @AppStorage(AppearanceMode.storageKey) private var appearanceRaw = AppearanceMode.system.rawValue
     /// Chart data-colour style (Titanium / Classic throwback). Re-colours gauges + charts.
     @AppStorage(ChartStyle.storageKey) private var chartStyleRaw = ChartStyle.health.rawValue
+    /// Chrome accent colour (mint / WHOOP blue / custom). Chrome only — never the data colour worlds.
+    @AppStorage(AccentColor.storageKey) private var accentRaw = AccentColor.mint.rawValue
+    @AppStorage(AccentColor.customHexKey) private var accentCustomHex = AccentColor.defaultCustomHex
+    /// Effort's display scale is also embedded in the shared widget snapshot. Observe it here so a
+    /// Settings change gets one accurate full rebuild instead of waiting for an unrelated repo refresh.
+    @AppStorage(UnitPrefs.effortScaleKey) private var effortScaleRaw = EffortScale.hundred.rawValue
 
     init() {
         // One-time migration off the retired card/button/both Coach-entry picker onto the three
@@ -97,6 +105,9 @@ struct StrandiOSApp: App {
                 // card observes the SAME instance the central detector (AppModel.evaluateStress) posts to.
                 .environment(\.stressNudgeCenter, model.stressNudgeCenter)
                 .preferredColorScheme(AppearanceMode.resolve(appearanceRaw).colorScheme)
+                // Match SwiftUI format styles to the localization selected by the app's bundles. Language
+                // changes are process-wide on Apple and are applied after the documented reopen.
+                .environment(\.locale, AppLanguage.activeLocale)
                 .chartStyle(chartStyleRaw)
                 // "Health always wins" (user decision): every successful sync overwrites the profile
                 // weight with the freshest Health reading, not just once when unset.
@@ -112,6 +123,11 @@ struct StrandiOSApp: App {
                     guard abs(kg - (health.latestImportedWeightKg ?? -.greatestFiniteMagnitude)) > 0.05 else { return }
                     Task { try? await health.writeWeight(kg: kg) }
                 }
+                .noopAccent(accentRaw, customHex: accentCustomHex)
+                // Dynamic Type now scales the prose/label roles (StrandFont). Cap the upper end so the
+                // fixed-geometry tiles/gauges stay legible at the largest accessibility sizes rather than
+                // clipping; the common Larger-Text range still scales fully.
+                .dynamicTypeSize(...DynamicTypeSize.accessibility1)
                 .onReceive(model.live.$heartRate) { _ in
                     // #911: anchor the Live Activity on the SAME shared `Repository.widgetAnchor` the
                     // Home/Lock widget and the watch snapshot use, so this fourth surface can't drift to a
@@ -168,11 +184,11 @@ struct StrandiOSApp: App {
                 // and foreground-initiated reloads are budget-exempt. dropFirst() skips the attach replay.
                 .onReceive(model.live.$batteryPct.dropFirst()) { _ in
                     guard scenePhase == .active else { return }
-                    Task { await WidgetSnapshot.publish(from: model) }
+                    Task { await WidgetSnapshot.publishLive(from: model) }
                 }
                 .onReceive(model.live.$connected.dropFirst()) { _ in
                     guard scenePhase == .active else { return }
-                    Task { await WidgetSnapshot.publish(from: model) }
+                    Task { await WidgetSnapshot.publishLive(from: model) }
                 }
                 // #114 (follow-up): `WidgetSnapshot.bpm` reads `model.bpm` (WidgetPublish.swift), the
                 // smoothed live HR — same LIVE-not-repo-cache category as battery/connected above, so it
@@ -180,11 +196,16 @@ struct StrandiOSApp: App {
                 // widget's HR froze at the last foreground snapshot for the rest of the session. UNLIKE
                 // battery/connection, HR is HIGH-frequency (the smoothed median moves every few seconds
                 // under activity), so — unlike the ungated hooks above — this one is throttled through
-                // `HRPublishThrottle` (60 s, mirroring Android's PushGate HR cadence) so it can't re-run
-                // publish's `exploreSeries` read + `reloadAllTimelines()` on every tick.
+                // `HRPublishThrottle` (60 s, mirroring Android's PushGate HR cadence). `publishLive` then
+                // updates the saved live fields without re-reading the full Rest series, while the throttle
+                // still bounds the App-Group writes + WidgetKit timeline reloads.
                 .onReceive(model.$bpm.dropFirst()) { _ in
                     guard scenePhase == .active else { return }
                     guard WidgetSnapshot.HRPublishThrottle.admit() else { return }
+                    Task { await WidgetSnapshot.publishLive(from: model) }
+                }
+                .onChange(of: effortScaleRaw) { _, _ in
+                    guard scenePhase == .active else { return }
                     Task { await WidgetSnapshot.publish(from: model) }
                 }
                 .onReceive(NotificationCenter.default.publisher(
@@ -267,7 +288,15 @@ struct StrandiOSApp: App {
                 }
                 Task {
                     health.refreshAuthIfPreviouslyGranted()
-                    await health.sync()
+                    await HealthSyncRefreshCoordinator.run(
+                        sync: { await health.sync() },
+                        refresh: {
+                            await model.refreshAfterAppleHealthSync(
+                                authorized: health.auth == .authorized)
+                        }
+                    )
+                    await PlanReconciliationCoordinator.reconcile(repo: model.repo)
+                    await GoalTrackingStore.shared.refresh(repo: model.repo)
                     await WidgetSnapshot.publish(from: model)
                     // Push the wrist on the SAME refresh as the Home-screen widget so the watch, the
                     // widget and Today never disagree about which day they describe. Without this the
@@ -302,6 +331,9 @@ private struct iOSRootView: View {
     @AppStorage("noop.lastSeenChangelogVersion") private var lastSeenChangelog = ""
     @AppStorage("noop.acceptedTermsVersion") private var acceptedTerms = ""
     @State private var showWhatsNew = false
+    /// Starts false so a cold-launch external action can't race this view's onAppear decision about the
+    /// automatic What's New sheet. It becomes true only when no sheet is due or its dismissal completes.
+    @State private var automaticLaunchSheetResolved = false
 
     var body: some View {
         #if DEBUG
@@ -325,7 +357,9 @@ private struct iOSRootView: View {
 
     private var shell: some View {
         ZStack {
-            RootTabView()
+            RootTabView(homeScreenQuickActionsEnabled:
+                demoBypass || (onboarded && acceptedTerms == Terms.currentVersion
+                    && automaticLaunchSheetResolved))
             if !onboarded && !demoBypass {
                 OnboardingWizard(onFinished: {
                     onboarded = true
@@ -339,14 +373,19 @@ private struct iOSRootView: View {
             // Terms acknowledgment gate — over EVERYTHING (before onboarding/pairing/Bluetooth) until
             // the current terms version is accepted; re-appears if the terms materially change.
             if acceptedTerms != Terms.currentVersion && !demoBypass {
-                TermsGateView(onAccept: { acceptedTerms = Terms.currentVersion })
+                TermsGateView(onAccept: {
+                    // Keep any external action behind the gate while the accepted-terms change decides
+                    // whether What's New must present next. This write must precede acceptedTerms.
+                    automaticLaunchSheetResolved = false
+                    acceptedTerms = Terms.currentVersion
+                })
                     .transition(.opacity)
                     .zIndex(2)
             }
         }
         .animation(.easeInOut(duration: 0.35), value: onboarded)
         .animation(.easeInOut(duration: 0.35), value: acceptedTerms)
-        .sheet(isPresented: $showWhatsNew) {
+        .sheet(isPresented: $showWhatsNew, onDismiss: { automaticLaunchSheetResolved = true }) {
             WhatsNewView(onClose: {
                 lastSeenChangelog = AppChangelog.currentVersion
                 showWhatsNew = false
@@ -375,11 +414,17 @@ private struct iOSRootView: View {
     }
 
     private func showWhatsNewIfDue() {
-        if demoBypass { return }
+        if demoBypass {
+            automaticLaunchSheetResolved = true
+            return
+        }
         // Existing users who updated: their last-seen version is behind the current one.
         if onboarded && acceptedTerms == Terms.currentVersion
             && lastSeenChangelog != AppChangelog.currentVersion {
+            automaticLaunchSheetResolved = false
             showWhatsNew = true
+        } else {
+            automaticLaunchSheetResolved = true
         }
     }
 }

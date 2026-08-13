@@ -57,6 +57,7 @@ private struct DevicesContent: View {
     @State private var renameDraft = ""
     @State private var removeTarget: PairedDevice?
     @State private var deleteDataTarget: PairedDevice?
+    @State private var forgetTarget: PairedDevice?
     @State private var rebootTarget: PairedDevice?
     /// WHOOP 4.0 reboot probe (Test Centre → Connection, 4.0 only) — the device whose probe sheet is open.
     @State private var probeTarget: PairedDevice?
@@ -121,7 +122,7 @@ private struct DevicesContent: View {
             Spacer(minLength: 0)
         }
         .padding(NoopMetrics.space3)
-        .background(StrandPalette.surfaceRaised, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .background(NoopPanelSurface(cornerRadius: 18))
         .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous)
             .strokeBorder(StrandPalette.statusWarning.opacity(0.5), lineWidth: 1))
         .accessibilityElement(children: .combine)
@@ -136,6 +137,7 @@ private struct DevicesContent: View {
             // with the guide already armed, because nothing on Devices said so. Same state and same string
             // as LiveView's banner; no new copy.
             if let guide = live.reconnectGuide { repairGuideBanner(guide) }
+            DeviceSyncStatusCard()
             // UPPERCASE overline section header, matching the liquid Today. Counts the paired bands so the
             // multi-WHOOP reality reads at a glance.
             sectionHead("YOUR BANDS", trailing: activeDevices.count == 1
@@ -175,9 +177,19 @@ private struct DevicesContent: View {
                     // generic strap, or an FTMS machine all funnel into live.batteryPct). nil otherwise.
                     liveBatteryPct: (device.status == .active && live.connected) ? live.batteryPct.map { Int($0.rounded()) } : nil,
                     liveBatteryMv: (device.status == .active && live.connected) ? live.batteryMv : nil,
-                    // Firmware version belongs to the active + connected strap only; nil otherwise (and
-                    // for a non-WHOOP source that never reports one).
-                    liveFirmware: (device.status == .active && live.connected) ? live.strapFirmware : nil,
+                    // Firmware version for the ACTIVE strap. It's a STABLE property (NOOP can't change a
+                    // strap's firmware), so prefer the live handshake value but fall back to the last-known
+                    // persisted firmware (written on connect in FrameRouter) when the live value is momentarily
+                    // nil — mid-handshake, or a connection that hasn't re-read GET_HELLO/REPORT_VERSION_INFO
+                    // yet this session. Without this the "· FW x" blanks out while actively connected. The
+                    // persisted fallback is WHOOP-only: "noop.lastFirmware" is written solely from a WHOOP
+                    // handshake, so a non-WHOOP active device (Oura) must NOT inherit it. Single last-connected-
+                    // strap key, so a not-yet-connected active strap can briefly show the other strap's build on
+                    // a multi-WHOOP install until it republishes. Twin of Android.
+                    liveFirmware: device.status == .active
+                        ? (live.strapFirmware
+                            ?? (SourceCoordinator.isWhoop(device) ? UserDefaults.standard.string(forKey: "noop.lastFirmware") : nil))
+                        : nil,
                     // Historical record layout (v24/v25 on WHOOP 4.0) observed from this connection's
                     // backfill. Distinct from the strap firmware build shown as FW.
                     liveHistoryLayout: (device.status == .active && live.connected) ? live.strapRange?.firmwareLayout : nil,
@@ -352,6 +364,11 @@ private struct DevicesContent: View {
         } message: { device in
             Text("This permanently deletes all data recorded from \(device.displayName). This can't be undone.")
         }
+        // Hard-delete confirm (reached from a REMOVED card's ⋮ menu): purge the registry entry itself,
+        // not just its data — the only way to get a duplicate/stale strap out of the list for good (#1193).
+        // Isolated into its own ViewModifier for the same iOS type-checker-budget reason as the probe
+        // sheets above (the dialog chain is already near the limit; a 6th/7th inline modifier tips it over).
+        .modifier(ForgetDeviceSheet(registry: registry, target: $forgetTarget))
         // After removing the active device, offer to pick a new active one (if any remain).
         .confirmationDialog("Pick a new active strap",
                             isPresented: $pickNewActive,
@@ -389,7 +406,8 @@ private struct DevicesContent: View {
                     onRename: { renameDraft = device.nickname ?? device.displayName; renameTarget = device },
                     onRemove: nil,
                     onReAdd: { registry.setActive(device.id) },
-                    onDeleteData: { deleteDataTarget = device })
+                    onDeleteData: { deleteDataTarget = device },
+                    onForget: { forgetTarget = device })
             }
         }
     }
@@ -441,6 +459,74 @@ private struct DevicesContent: View {
                 pickNewActive = true
             }
         }
+    }
+}
+
+// MARK: - Strap-history sync card
+
+/// The sync status formerly shown as a compact control in the Today header. Devices is the natural home
+/// for this device-level state, and the full card gives the status enough room to read without crowding
+/// Today's primary actions. This remains display-only and resolves through the existing shared state.
+private struct DeviceSyncStatusCard: View {
+    @EnvironmentObject private var live: LiveState
+
+    var body: some View {
+        switch SyncChipState.resolve(live: live) {
+        case .syncing(let chunks):
+            statusCard(
+                systemImage: "arrow.triangle.2.circlepath",
+                detail: chunks > 0
+                    ? String(localized: "Syncing… \(chunks) chunks")
+                    : String(localized: "Syncing…"),
+                tint: StrandPalette.accent,
+                accessibility: String(localized: "Syncing strap history, \(chunks) chunks")
+            )
+        case .synced(let agoText):
+            statusCard(
+                systemImage: "checkmark.circle.fill",
+                detail: String(localized: "Synced \(agoText) ago"),
+                tint: StrandPalette.statusPositive,
+                accessibility: String(localized: "Strap history synced \(agoText) ago")
+            )
+        case .experimentalLive:
+            statusCard(
+                systemImage: "checkmark.circle.fill",
+                detail: String(localized: "Connected; strap history sync is experimental on this strap"),
+                tint: StrandPalette.textSecondary,
+                accessibility: String(localized: "Connected; strap history sync is experimental on this strap")
+            )
+        case .hidden:
+            EmptyView()
+        }
+    }
+
+    private func statusCard(
+        systemImage: String,
+        detail: String,
+        tint: Color,
+        accessibility: String
+    ) -> some View {
+        NoopCard(tint: tint) {
+            HStack(alignment: .center, spacing: NoopMetrics.space3) {
+                Image(systemName: systemImage)
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundStyle(tint)
+                    .frame(width: 24)
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: NoopMetrics.space1) {
+                    Text("Strap history")
+                        .font(StrandFont.headline)
+                        .foregroundStyle(StrandPalette.textPrimary)
+                    Text(detail)
+                        .font(StrandFont.subhead)
+                        .foregroundStyle(StrandPalette.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 0)
+            }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text(accessibility))
     }
 }
 
@@ -527,9 +613,12 @@ private struct DeviceCard: View {
     /// #103 device-config READ probe (Test Centre → Connection, both WHOOP families). Read-only: it asks
     /// the strap for a config key's VALUE and writes none.
     var onDeviceConfigProbe: (() -> Void)? = nil
-    /// Removed-section affordances (re-add as active / delete its data).
+    /// Removed-section affordances (re-add as active / delete its data / forget it entirely).
     var onReAdd: (() -> Void)? = nil
     var onDeleteData: (() -> Void)? = nil
+    /// Hard-delete: purge the registry entry itself (and its data), so a duplicate/stale strap can be
+    /// removed from the list for good rather than lingering in "Removed" forever (#1193). Archived-only.
+    var onForget: (() -> Void)? = nil
 
     /// The card's visible content. The required `body` wraps this in the whole-card liquid press button +
     /// the ⋮ menu overlay.
@@ -753,6 +842,13 @@ private struct DeviceCard: View {
                     Divider()
                     Button(role: .destructive) { onDeleteData() } label: {
                         Label("Delete this device's data…", systemImage: "trash")
+                    }
+                }
+                // Purge the registry entry itself — the only way to get a duplicate/stale strap out of
+                // the "Removed" list for good (#1193). Below "Delete data" as the stronger, final action.
+                if let onForget {
+                    Button(role: .destructive) { onForget() } label: {
+                        Label("Forget device…", systemImage: "trash.slash")
                     }
                 }
             } else {
@@ -1065,7 +1161,40 @@ private struct ExtendedBatteryProbeResultView: View {
         }
         .padding(20)
         .frame(minWidth: 340, minHeight: 260)
-        .background(StrandPalette.surfaceOverlay)
+        .background(NoopChromeSurface())
+    }
+}
+
+/// The hard-delete ("Forget device") confirm for an archived row (#1193). Isolated into its own
+/// ViewModifier — like the probe sheets below — so this extra dialog doesn't push the DevicesContent
+/// body over the iOS Swift type-checker budget. `registry` is threaded in (it's an `@ObservedObject`
+/// param on `DevicesContent`, not an environment object).
+private struct ForgetDeviceSheet: ViewModifier {
+    @EnvironmentObject var model: AppModel
+    @ObservedObject var registry: DeviceRegistry
+    @Binding var target: PairedDevice?
+
+    func body(content: Content) -> some View {
+        content
+            .alert("Forget this device?",
+                   isPresented: Binding(get: { target != nil },
+                                        set: { if !$0 { target = nil } }),
+                   presenting: target) { device in
+                Button("Cancel", role: .cancel) { target = nil }
+                Button("Forget device", role: .destructive) {
+                    // Same off-main routing as delete-data: the sample wipe runs on the WhoopStore actor,
+                    // then the registry row is removed and the list reloads. Resolve the store handle
+                    // inside the Task so the main thread never blocks on it.
+                    let deviceId = device.id
+                    Task {
+                        guard let store = await model.repo.storeHandle() else { return }
+                        await registry.forget(deviceId, store: store)
+                    }
+                    target = nil
+                }
+            } message: { _ in
+                Text("NOOP removes this device from your list and deletes its recorded data here. You can re-pair the strap to pull its recent history back.")
+            }
     }
 }
 
@@ -1134,7 +1263,7 @@ private struct BodyLocationProbeResultView: View {
         }
         .padding(20)
         .frame(minWidth: 340, minHeight: 260)
-        .background(StrandPalette.surfaceOverlay)
+        .background(NoopChromeSurface())
     }
 }
 
@@ -1253,7 +1382,7 @@ private struct FeatureFlagProbeResultView: View {
         }
         .padding(20)
         .frame(minWidth: 340, minHeight: 260)
-        .background(StrandPalette.surfaceOverlay)
+        .background(NoopChromeSurface())
     }
 }
 
@@ -1287,7 +1416,7 @@ private struct EcgWristSheet: View {
         }
         .padding(20)
         .frame(minWidth: 340, minHeight: 220)
-        .background(StrandPalette.surfaceOverlay)
+        .background(NoopChromeSurface())
     }
 }
 
@@ -1331,7 +1460,7 @@ private struct EcgProbeResultView: View {
         }
         .padding(20)
         .frame(minWidth: 340, minHeight: 260)
-        .background(StrandPalette.surfaceOverlay)
+        .background(NoopChromeSurface())
     }
 }
 
@@ -1402,7 +1531,7 @@ private struct DeviceConfigProbeResultView: View {
         }
         .padding(20)
         .frame(minWidth: 340, minHeight: 260)
-        .background(StrandPalette.surfaceOverlay)
+        .background(NoopChromeSurface())
     }
 }
 
@@ -1433,7 +1562,7 @@ struct DeviceCardCatalog: View {
     static func oura(_ model: String, status: DeviceStatus = .paired) -> PairedDevice {
         PairedDevice(id: "oura-demo-\(model)", brand: "Oura", model: model, nickname: nil,
                      peripheralId: "00000000-0000-0000-0000-0000000000aa", sourceKind: .oura,
-                     capabilities: [.hr, .hrv, .spo2, .skinTemp, .sleep],
+                     capabilities: WhoopLiveCapabilities.metrics(forModel: "4.0"),
                      status: status, addedAt: 0, lastSeenAt: 0)
     }
 
@@ -1509,7 +1638,7 @@ struct BondRefusedDemoScreen: View {
                        topBackground: liquidScaffoldSky()) {
             DeviceCard(device: PairedDevice(id: "whoop-5-refused-solo", brand: "WHOOP", model: "5.0 MG",
                                             nickname: nil, peripheralId: nil, sourceKind: .liveBLE,
-                                            capabilities: [.hr, .hrv, .spo2, .skinTemp, .sleep, .strainLoad, .steps],
+                                            capabilities: WhoopLiveCapabilities.metrics(forModel: "5.0 MG"),
                                             status: .active, addedAt: 0, lastSeenAt: 0),
                        isActive: true, isLiveConnected: true, bondRefused: true,
                        pairingHint: "NOOP can see your strap but it's refusing to pair - it's likely still bonded to the official WHOOP app, or your phone is holding an old pairing. To fix it: (1) fully close the WHOOP app, (2) on a 5.0/MG, tap the band repeatedly until the LEDs flash blue (pairing mode), (3) if your strap is listed under iPhone Settings → Bluetooth, tap it and choose Forget This Device, then reconnect in NOOP.",

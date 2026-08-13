@@ -90,6 +90,12 @@ data class PaletteTokens(
     // The bright gauge-tip / sparkline-head core: white reads as a highlight on dark; on light it
     // would vanish into the white card, so it flips to a deep ink (crisp centre on the coloured bead).
     val tipCore: Color,
+    // #1160/#1161: the Liquid hero card surface (Today's Charge/Effort/Rest vessel + every screen's hero).
+    // Pinned near-black in DARK; in LIGHT it flips to a frosted white so the hero fits in with the other
+    // cards instead of reading as a broken dark block (was a raw literal inlined in 11 screens). heroBorder
+    // + heroLabel flip with it so the edge stays subtle and the source-badge text stays readable in both.
+    val heroFill: Color,
+    val heroBorder: Color,
 )
 
 // WHOOP-reset dark palette (gold killed 2026-06-22). Values match StrandPalette.swift's DARK
@@ -100,7 +106,9 @@ val DarkTokens = PaletteTokens(
     surfaceInset = Color(0xFF1F2229), hairline = Color(0xFF21304A), hairlineStrong = Color(0xFF2E3C57),
     textPrimary = Color(0xFFF4F6F8), textSecondary = Color(0xFFC8CFD8), textTertiary = Color(0xFF8A94A4),
     glowAmbient = Color(0xFF3A2D0A),
-    accent = Color(0xFF60A0E0), accentHover = Color(0xFF8FBEEC), accentMuted = Color(0xFF16233A), focusRing = Color(0xFF60A0E0),
+    // Brand accent → mint, parity with iOS #1068 (NoopVisualStyle.mint/mintGlow). accentMuted is a dark
+    // teal muted surface (green-shifted analog of the old navy 0xFF16233A). Gold stays in the recovery world.
+    accent = Color(0xFF69DDB8), accentHover = Color(0xFF54E6BD), accentMuted = Color(0xFF163329), focusRing = Color(0xFF69DDB8),
     recovery000 = Color(0xFFE0463C), recovery030 = Color(0xFFE8743C), recovery055 = Color(0xFFF9DF4A),
     recovery078 = Color(0xFF8FD86A), recovery100 = Color(0xFF03E095),
     strain000 = Color(0xFF9C5A14), strain033 = Color(0xFFC2762A), strain066 = Color(0xFFD98A3D), strain100 = Color(0xFFF0A85A),
@@ -118,6 +126,7 @@ val DarkTokens = PaletteTokens(
     goldDeepText = Color(0xFFFFFFFF), signalYellow = Color(0xFFFFD63D),
     titaniumTop = Color(0xFFF1F3F5), titaniumMid = Color(0xFFC9CFD4), titaniumLow = Color(0xFF969DA4), titaniumDeep = Color(0xFF6B737B),
     tipCore = Color(0xFFFFFFFF),
+    heroFill = Color(0xCC0D0E14), heroBorder = Color(0x1CFFFFFF),
 )
 
 val LightTokens = PaletteTokens(
@@ -125,8 +134,10 @@ val LightTokens = PaletteTokens(
     surfaceInset = Color(0xFFDFD8C8), hairline = Color(0xFFD8D0BD), hairlineStrong = Color(0xFFC7BCA4),
     textPrimary = Color(0xFF1A2230), textSecondary = Color(0xFF4C5564), textTertiary = Color(0xFF7C8696),
     glowAmbient = Color(0xFFF0E4C0),
-    // Light chrome accent shifts to the deep brand blue (gold reserved for the recovery world + FAB).
-    accent = Color(0xFF234F9E), accentHover = Color(0xFF1C3F80), accentMuted = Color(0xFFE4ECF6), focusRing = Color(0xFF2F6FCB),
+    // Light chrome accent → brand mint, parity with iOS #1068 (NoopVisualStyle.mint/mintGlow, light side).
+    // accentMuted is a pale mint tint (green-shifted analog of the old pale blue 0xFFE4ECF6); note Android's
+    // light theme is a WARM paper theme, so this shade may want an on-device tweak. Gold stays in recovery.
+    accent = Color(0xFF149A78), accentHover = Color(0xFF38C99E), accentMuted = Color(0xFFDCEDE6), focusRing = Color(0xFF149A78),
     recovery000 = Color(0xFF8F6212), recovery030 = Color(0xFFA87718), recovery055 = Color(0xFFC28E26),
     recovery078 = Color(0xFFD2A23A), recovery100 = Color(0xFFE0B44C),
     strain000 = Color(0xFF7E460E), strain033 = Color(0xFFA4621B), strain066 = Color(0xFFC2792E), strain100 = Color(0xFFD89240),
@@ -144,6 +155,9 @@ val LightTokens = PaletteTokens(
     goldDeepText = Color(0xFF3A2708), signalYellow = Color(0xFFE8A800),
     titaniumTop = Color(0xFFDDE1E6), titaniumMid = Color(0xFFBBC2C9), titaniumLow = Color(0xFF98A0A8), titaniumDeep = Color(0xFF6B737B),
     tipCore = Color(0xFF241B06),
+    // Frosted WHITE hero in light mode (#1160), subtle dark edge. (Hero text uses the flip-able text*
+    // tokens now, so no separate label token is needed.)
+    heroFill = Color(0xD9FFFFFF), heroBorder = Color(0x1A000000),
 )
 
 // MARK: - Chart style (data-viz colour mode) + the Classic throwback ramps
@@ -154,6 +168,23 @@ enum class ChartStyle(val storageValue: String, val label: String) {
 
     companion object {
         fun fromStorage(raw: String?): ChartStyle = entries.firstOrNull { it.storageValue == raw } ?: TITANIUM
+    }
+}
+
+/** How a custom background image is scaled to the screen (#custom-background). [storageValue] is
+ *  byte-identical to the iOS `BackgroundFillMode` rawValue so the pref reads the same on both
+ *  platforms: fill → aspect-crop, fit → aspect-fit, stretch → no-aspect fill, tile → repeat. Labels
+ *  are localized at the Settings call site (not in the enum), so no hardcoded UI literal lives here. */
+enum class BackgroundFillMode(val storageValue: String) {
+    FILL("fill"),
+    FIT("fit"),
+    STRETCH("stretch"),
+    TILE("tile");
+
+    companion object {
+        /** Tolerant parse — an unknown/legacy rawValue falls back to [FILL] (the default). */
+        fun fromStorage(raw: String?): BackgroundFillMode =
+            entries.firstOrNull { it.storageValue == raw } ?: FILL
     }
 }
 
@@ -255,5 +286,100 @@ object AppearancePrefs {
     fun set(ctx: Context, value: AppearanceMode) {
         mode = value
         prefs(ctx).edit().putString(KEY, value.storageValue).apply()
+    }
+}
+
+/** The user's CHROME accent colour (buttons/links/selection/focus). Chrome only — the recovery/strain/
+ *  sleep DATA colour worlds are never themed by this. Twin of macOS `AccentColor` (StrandDesign). */
+enum class AccentColor(val storageValue: String, val label: String) {
+    MINT("mint", "Mint"),
+    WHOOP_BLUE("whoopBlue", "WHOOP Blue"),
+    CUSTOM("custom", "Custom");
+
+    companion object {
+        /** Seeds the custom picker (mint) so a fresh Custom selection is not black. */
+        const val DEFAULT_CUSTOM_HEX = "#149A78"
+
+        fun fromStorage(raw: String?): AccentColor =
+            entries.firstOrNull { it.storageValue == raw } ?: MINT
+
+        /** Parse `#RRGGBB` to a Color, falling back to [fallback] on any malformed value. */
+        fun parseHex(hex: String, fallback: Color): Color = try {
+            Color(("FF" + hex.removePrefix("#").trim()).toLong(16))
+        } catch (e: Exception) {
+            fallback
+        }
+
+        /** Blend a hex toward white by [amount] (0..1) — the deterministic hover for a custom accent. */
+        fun lighten(hex: String, amount: Float = 0.24f): Color {
+            val c = parseHex(hex, Color(0xFF149A78))
+            fun up(x: Float) = (x + (1 - x) * amount).coerceIn(0f, 1f)
+            return Color(up(c.red), up(c.green), up(c.blue), 1f)
+        }
+    }
+}
+
+/** Chrome-accent preference, persisted in `noop_prefs` + snapshot state so the picker is live. [load] is
+ *  called once from MainActivity; [setColor]/[setCustomHex] write + flip. Twin of the macOS
+ *  `@AppStorage(AccentColor.storageKey/customHexKey)` app-root wiring. */
+object AccentPrefs {
+    private const val FILE = "noop_prefs"
+    private const val KEY_COLOR = "accent.color"
+    private const val KEY_CUSTOM = "accent.customHex"
+
+    private fun prefs(ctx: Context): SharedPreferences =
+        ctx.applicationContext.getSharedPreferences(FILE, Context.MODE_PRIVATE)
+
+    /** Live accent choice + custom hex read by the Palette accent getters; defaults until [load] runs. */
+    var color by mutableStateOf(AccentColor.MINT)
+        private set
+    var customHex by mutableStateOf(AccentColor.DEFAULT_CUSTOM_HEX)
+        private set
+
+    fun load(ctx: Context) {
+        color = AccentColor.fromStorage(prefs(ctx).getString(KEY_COLOR, AccentColor.MINT.storageValue))
+        customHex = prefs(ctx).getString(KEY_CUSTOM, AccentColor.DEFAULT_CUSTOM_HEX)
+            ?: AccentColor.DEFAULT_CUSTOM_HEX
+    }
+
+    fun setColor(ctx: Context, value: AccentColor) {
+        color = value
+        prefs(ctx).edit().putString(KEY_COLOR, value.storageValue).apply()
+    }
+
+    fun setCustomHex(ctx: Context, hex: String) {
+        customHex = hex
+        prefs(ctx).edit().putString(KEY_CUSTOM, hex).apply()
+    }
+}
+
+/** A named THEME preset — a one-tap bundle coordinating accent + chart world + backdrop + card opacity.
+ *  Pure orchestration over prefs that already exist; DERIVED (no stored value) via [matching], so tweaking
+ *  any granular control resolves to [CUSTOM]. Theme MODE (light/dark) is independent. Twin of macOS
+ *  `ThemePreset`. */
+enum class ThemePreset(
+    val storageValue: String,
+    val label: String,
+    val accent: AccentColor?,   // null for CUSTOM
+    val chart: ChartStyle?,
+    val backdrop: Boolean,
+    val cardOpacity: Int,       // percent, 100 = solid
+) {
+    MINT("mint", "Mint", AccentColor.MINT, ChartStyle.TITANIUM, true, 100),
+    OCEAN("ocean", "Ocean", AccentColor.WHOOP_BLUE, ChartStyle.TITANIUM, true, 100),
+    CLASSIC("classic", "Classic", AccentColor.WHOOP_BLUE, ChartStyle.CLASSIC, true, 100),
+    MIDNIGHT("midnight", "Midnight", AccentColor.MINT, ChartStyle.TITANIUM, false, 100),
+    FROSTED("frosted", "Frosted", AccentColor.MINT, ChartStyle.TITANIUM, true, 85),
+    CUSTOM("custom", "Custom", null, null, true, 100);
+
+    companion object {
+        /** The presets a user can pick (everything but the derived CUSTOM sentinel). */
+        val selectable: List<ThemePreset> get() = entries.filter { it != CUSTOM }
+
+        /** Which preset the live prefs correspond to, or CUSTOM when none match. */
+        fun matching(accent: AccentColor, chart: ChartStyle, backdrop: Boolean, cardOpacity: Int): ThemePreset =
+            selectable.firstOrNull {
+                it.accent == accent && it.chart == chart && it.backdrop == backdrop && it.cardOpacity == cardOpacity
+            } ?: CUSTOM
     }
 }

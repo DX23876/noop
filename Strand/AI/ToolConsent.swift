@@ -54,7 +54,7 @@ extension CoachTool {
             return .longHistory
         case .recentWorkouts, .zoneMinutes, .sessionOutlook, .simulateDay:
             return .workouts
-        case .proposePlan, .planAdherence, .rangeReport:
+        case .proposePlan, .proposeGoalSetup, .planAdherence, .rangeReport:
             return .planning
         case .stressIndex:
             return .stress

@@ -80,10 +80,81 @@ class DecoderGoldenTest {
 
     @Test
     fun testHRV0x5D() {
-        // time 5000, b1=10, b2=-5
-        val rec = record("5d080200010088130afb")
+        // (u8 hr, u8 rmssd) pairs — real overnight bytes: 32 84 32 83 -> (50,132),(50,131).
+        // hr=50 bpm is sleeping HR (validates the layout; matches the #511 IBI-derived median).
+        val rec = record("5d080200010032843283")
         val hrv = OuraDecoders.decodeHRV(rec)
-        assertEquals(listOf(OuraHRV(ringTimestamp = rt, timeMs = 5000, b1 = 10, b2 = -5)), hrv)
+        assertEquals(
+            listOf(
+                OuraHRV(ringTimestamp = rt, index = 0, hrBpm = 50, rmssdMs = 132, count = 2),
+                OuraHRV(ringTimestamp = rt, index = 1, hrBpm = 50, rmssdMs = 131, count = 2),
+            ),
+            hrv,
+        )
+    }
+
+    @Test
+    fun testHRV0x5DOddLengthIsNull() {
+        // A partial trailing pair (odd body length) must decode to null, never a half-sample.
+        assertNull(OuraDecoders.decodeHRV(record("5d0702000100328432")))
+    }
+
+    // MARK: - 0x5D `00 00` tail padding (#1128)
+
+    @Test
+    fun testHRV0x5DDropsTailPadding() {
+        // A record that closes early pads its tail with `00 00`. That pair is not a reading, and a
+        // stored hr_bpm: 0 is a fabricated value nothing downstream can tell from a measurement. Real
+        // shape, from the 2026-08-07 overnight: ... 48/128 47/137 ... 0/0.
+        val hrv = OuraDecoders.decodeHRV(record("5d0a02000100328432830000"))
+        assertEquals(
+            listOf(
+                // count is 3, not 2: the dropped pad still counts, or the survivors slide (#1167).
+                OuraHRV(ringTimestamp = rt, index = 0, hrBpm = 50, rmssdMs = 132, count = 3),
+                OuraHRV(ringTimestamp = rt, index = 1, hrBpm = 50, rmssdMs = 131, count = 3),
+            ),
+            hrv,
+        )
+    }
+
+    @Test
+    fun testHRV0x5DAllPaddingIsNull() {
+        // A body that is ENTIRELY padding carries no bucket at all, so it decodes to null (honest
+        // no-data) rather than to an empty list a caller might read as "decoded fine, zero readings".
+        assertNull(OuraDecoders.decodeHRV(record("5d06020001000000")))
+    }
+
+    @Test
+    fun testHRV0x5DZeroPairConsumesItsIndex() {
+        // THE ONE THAT MATTERS: a skipped pair must still CONSUME its index. `index` is not a label —
+        // OuraStreamMapping derives the bucket's wall-clock from it (bucketTs = ts - index * 300), so
+        // renumbering the survivors would slide every later bucket 5 minutes into the past.
+        //
+        // Tail padding cannot detect that mistake (nothing follows the pad), which is why this plants
+        // the zero pair in the MIDDLE: the bucket after it must keep index 2, not collapse to index 1.
+        // Only tail padding has been observed in the wild; this guards the shape we have not seen yet.
+        val hrv = OuraDecoders.decodeHRV(record("5d0a02000100328400003182"))
+        assertEquals(
+            listOf(
+                OuraHRV(ringTimestamp = rt, index = 0, hrBpm = 50, rmssdMs = 132, count = 3),
+                OuraHRV(ringTimestamp = rt, index = 2, hrBpm = 49, rmssdMs = 130, count = 3),
+            ),
+            hrv,
+        )
+    }
+
+    @Test
+    fun testHRV0x5DLoneZeroByteIsNotTreatedAsPadding() {
+        // A genuine bucket with ONE zero byte is not padding and must survive: the rule keys on both
+        // bytes being zero, so a real reading with a zero byte stays visible as the anomaly it would be.
+        val hrv = OuraDecoders.decodeHRV(record("5d080200010032000083"))
+        assertEquals(
+            listOf(
+                OuraHRV(ringTimestamp = rt, index = 0, hrBpm = 50, rmssdMs = 0, count = 2),
+                OuraHRV(ringTimestamp = rt, index = 1, hrBpm = 0, rmssdMs = 131, count = 2),
+            ),
+            hrv,
+        )
     }
 
     // MARK: - 0x6F SpO2 per-sample (base from high nibble << 7, then u8, 0xFF terminator)
@@ -179,6 +250,79 @@ class DecoderGoldenTest {
             ),
             phases,
         )
+    }
+
+    @Test
+    fun testSleepPhase0x4EWholeFFRecordIsUnwritten() {
+        // #1246: two 0xFF code bytes (an erased/unwritten flash page). Flagged unwritten so the assembler
+        // drops them as a GAP instead of 8 awake epochs. PARITY twin of the Swift test.
+        val rec = record("4e070200010000ffff")
+        val phases = OuraDecoders.decodeSleepPhase(rec)
+        assertEquals(8, phases?.size)
+        assertTrue(phases!!.all { it.unwritten && it.stage == OuraSleepStage.AWAKE })
+    }
+
+    @Test
+    fun testSleepPhase0x4ELoneFFByteIsGenuineAwake() {
+        // #1246 caution: a SINGLE 0xFF code byte is four genuine AWAKE epochs, NOT an erased page — it must
+        // stay written (only a run of >=2 all-0xFF code bytes reads as unwritten). PARITY twin of Swift.
+        val rec = record("4e060200010000ff")
+        val phases = OuraDecoders.decodeSleepPhase(rec)
+        assertEquals(4, phases?.size)
+        assertTrue(phases!!.none { it.unwritten })
+        assertTrue(phases.all { it.stage == OuraSleepStage.AWAKE })
+    }
+
+    @Test
+    fun testSleepPhase0x4EMixedFFIsWritten() {
+        // A record that is NOT entirely 0xFF is genuine data — its 0xFF byte is four REAL awake epochs, so
+        // none of the record is flagged unwritten. Guards against a byte-level filter eating genuine wake.
+        val rec = record("4e0702000100006cff")
+        val phases = OuraDecoders.decodeSleepPhase(rec)
+        assertEquals(8, phases?.size)
+        assertTrue(phases!!.none { it.unwritten })
+        assertTrue(phases.takeLast(4).all { it.stage == OuraSleepStage.AWAKE })
+    }
+
+    @Test
+    fun testSleepPhase0x4ETrailingFFRunIsUnwritten() {
+        // #1284: the reporter's `hdr=01` record — `ff ff f3 c0` then nine straight 0xFF (13 code bytes). The
+        // 9-byte trailing pad is flagged unwritten; the leading `ff ff` stays real wake. PARITY twin of Swift.
+        val phases = OuraDecoders.decodeSleepPhase(record("4e120200010000fffff3c0ffffffffffffffffff"))
+        assertEquals(52, phases?.size)
+        assertEquals(36, phases!!.count { it.unwritten })
+        assertTrue(phases.take(16).none { it.unwritten })
+        assertTrue(phases.takeLast(36).all { it.unwritten })
+    }
+
+    @Test
+    fun testSleepPhase0x4ETrailingRunFloorIsExclusive() {
+        // Exactly MIN_TRAILING_UNWRITTEN trailing 0xFF flags; one fewer is spared. PARITY twin of Swift.
+        val atFloor = OuraDecoders.decodeSleepPhase(record("4e12020001000055555555555555ffffffffffff"))
+        assertEquals(OuraDecoders.MIN_TRAILING_UNWRITTEN * 4, atFloor!!.count { it.unwritten })
+        val belowFloor = OuraDecoders.decodeSleepPhase(record("4e1202000100005555555555555555ffffffffff"))
+        assertTrue(belowFloor!!.none { it.unwritten })
+    }
+
+    @Test
+    fun testSleepPhase0x4ETrailingSingleFFIsGenuineAwake() {
+        // #1284/#1246 boundary: a written record ending in a SINGLE trailing 0xFF is four genuine awake epochs,
+        // never pad. The trailing floor is clamped to >= 2, so this holds even if MIN_TRAILING_UNWRITTEN is
+        // lowered — a lone trailing byte can never be eaten (the case #1246 protects). PARITY twin of Swift.
+        assertTrue("floor < 2 would eat a lone trailing 0xFF (#1246); the decode clamps to 2 as a backstop",
+            OuraDecoders.MIN_TRAILING_UNWRITTEN >= 2)
+        val phases = OuraDecoders.decodeSleepPhase(record("4e120200010000555555555555555555555555ff"))
+        assertEquals(52, phases?.size)                                 // 13 code bytes * 4
+        assertTrue(phases!!.none { it.unwritten })                     // nothing flagged unwritten
+        assertTrue(phases.takeLast(4).all { it.stage == OuraSleepStage.AWAKE })   // the lone 0xFF stays real wake
+    }
+
+    @Test
+    fun testSleepPhase0x4ELeadingFFRunIsRealWake() {
+        // Trailing-only: a long leading 0xFF run that does NOT reach the record's end stays real wake.
+        val phases = OuraDecoders.decodeSleepPhase(record("4e120200010000ffffffffffffffffff55555555"))
+        assertEquals(52, phases?.size)
+        assertTrue(phases!!.none { it.unwritten })
     }
 
     @Test

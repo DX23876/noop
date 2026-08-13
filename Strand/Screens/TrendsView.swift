@@ -48,6 +48,8 @@ struct TrendsView: View {
     // #436 — shareable offline trends report (PDF over a date range). The sheet owns its
     // own range picker; this just presents it with the loaded history.
     @State private var showingReport = false
+    /// Current appearance, passed into the off-screen recap render so the shared PNG matches the app.
+    @Environment(\.colorScheme) private var colorScheme
 
     /// Rest's per-day series, keyed by "yyyy-MM-dd". Rest is the sleep_performance COMPOSITE (the same
     /// number the Today Rest score + the Sleep Rest-detail plot, #614 follow-up) — NOT raw efficiency,
@@ -190,11 +192,22 @@ struct TrendsView: View {
     private func changeChip(_ pts: [TrendPoint], higherIsBetter: Bool?, fmt: @escaping (Double) -> String) -> some View {
         if let d = periodChange(pts), abs(d) > 0.0001 {
             let sign = d >= 0 ? "+" : "−"
+            let deltaText = "\(sign)\(fmt(abs(d)))"
             let color: Color = {
                 guard let better = higherIsBetter else { return StrandPalette.textTertiary }
                 return (d > 0) == better ? StrandPalette.statusPositive : StrandPalette.metricRose
             }()
-            TrendChip(text: "\(sign)\(fmt(abs(d)))", color: color)
+            VStack(alignment: .leading, spacing: NoopMetrics.spaceHalf) {
+                // Match the neighbouring ChartFooter columns so the delta is self-describing instead
+                // of appearing as an unlabeled pill at the edge of the statistics row.
+                Text("Trend")
+                    .textCase(.uppercase)
+                    .font(StrandFont.footnote)
+                    .foregroundStyle(StrandPalette.textTertiary)
+                TrendChip(text: deltaText, color: color)
+            }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(Text(verbatim: "\(String(localized: "Trend")): \(deltaText)"))
         }
     }
 
@@ -202,6 +215,31 @@ struct TrendsView: View {
     private var rangeSubtitle: String {
         guard let n = range.days else { return String(localized: "All history") }
         return String(localized: "Trailing \(n) days")
+    }
+
+    /// The compact selector caption is intentionally split into two intrinsic-width lines.
+    /// Its leading edges line up while the surrounding spacer pins the widest line to the
+    /// screen's shared trailing content edge.
+    @ViewBuilder
+    private var rangeCaption: some View {
+        if let days = range.days {
+            VStack(alignment: .leading, spacing: .zero) {
+                Text("Trailing")
+                    .strandOverline()
+                    .lineLimit(1)
+                Text("\(days) days")
+                    .strandOverline()
+                    .lineLimit(1)
+            }
+            .fixedSize(horizontal: true, vertical: false)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(rangeSubtitle)
+        } else {
+            Text(rangeSubtitle)
+                .strandOverline()
+                .lineLimit(1)
+                .fixedSize(horizontal: true, vertical: false)
+        }
     }
 
     private func name(for r: Range) -> String {
@@ -343,14 +381,26 @@ struct TrendsView: View {
             EmptyView()
         } else {
             VStack(alignment: .leading, spacing: NoopMetrics.cardInnerSpacing) {
-                weekNavBar
+                weekNavBar(digest: digest)
                 if digest.isEmpty {
                     // This particular week had no readings — keep the chevrons above so the user can move on.
                     DataPendingNote(
                         title: "No readings this week",
                         message: "Step to another week with the arrows above to see its review.")
                 } else {
-                    WeeklyDigestContent(digest: digest, compact: true)
+                    WeeklyDigestContent(digest: digest, compact: true, showsHeader: false)
+                        .padding(.top, NoopMetrics.space1)
+                    // Share this week's recap as an image. Renders the digest card (with its header) to a
+                    // PNG off-screen and hands it to the share sheet / Save panel — reuses TrendsReport's
+                    // ImageRenderer path. Only offered when the week actually holds data.
+                    NoopButton("Share recap", systemImage: "square.and.arrow.up", kind: .secondary) {
+                        let page = WeeklyDigestContent(digest: digest, compact: true, showsHeader: true)
+                            .frame(width: 380)
+                            .padding(24)
+                            .background(StrandPalette.surfaceBase)
+                            .environment(\.colorScheme, colorScheme)
+                        TrendsReportRenderer.exportPNG(page: page, suggestedName: "noop-recap-\(weekAnchorDay).png")
+                    }
                 }
             }
         }
@@ -358,9 +408,11 @@ struct TrendsView: View {
 
     /// Prev/next week stepper. Back is clamped at the earliest week we hold; forward is clamped at this
     /// week (no future weeks). Mirrors the FullDayChartView day stepper's flat accent chevrons (#597).
-    private var weekNavBar: some View {
+    private func weekNavBar(digest: WeeklyDigest) -> some View {
         let atOldest = weekOffset <= minWeekOffset
         let atNewest = weekOffset >= 0
+        let daysSummary = String(localized: "\(digest.daysWithData)/7 days")
+        let daysAccessibility = String(localized: "\(digest.daysWithData) of 7 days had data")
         return HStack(spacing: NoopMetrics.cardInnerSpacing) {
             Button { stepWeek(-1) } label: {
                 Image(systemName: "chevron.left").font(StrandFont.headline.weight(.semibold))
@@ -375,9 +427,15 @@ struct TrendsView: View {
                 Text(weekOffset == 0 ? String(localized: "This week") : weekOffsetLabel)
                     .font(StrandFont.headline)
                     .foregroundStyle(StrandPalette.textPrimary)
-                Text("Week in review")
-                    .strandOverline()
+                Text("\(weeklyDigestRangeLabel(digest)) · \(daysSummary)")
+                    .font(StrandFont.footnote)
+                    .foregroundStyle(StrandPalette.textSecondary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.85)
+                    .accessibilityLabel("\(weeklyDigestRangeLabel(digest)), \(daysAccessibility)")
             }
+            .multilineTextAlignment(.center)
+            .frame(maxWidth: .infinity)
             Spacer()
 
             Button { stepWeek(1) } label: {
@@ -412,7 +470,7 @@ struct TrendsView: View {
         let effortAvg = mean(effort.points)   // stored 0–100 internal Effort scale
         let restAvg = mean(rest.points)
         if chargeAvg != nil || effortAvg != nil || restAvg != nil {
-            NoopCard(tint: StrandPalette.chargeColor) {
+            NoopCard {
                 VStack(alignment: .leading, spacing: NoopMetrics.cardInnerSpacing) {
                     SectionHeader("Week in review", overline: "Charge · Effort · Rest")
                     if let v = chargeAvg {
@@ -513,10 +571,16 @@ struct TrendsView: View {
         let cap = recovery.caption
         let isWide = recovery.widened
         return VStack(alignment: .leading, spacing: NoopMetrics.space2) {
-            HStack {
-                SegmentedPillControl(Range.allCases, selection: $range) { $0.label }
-                Spacer()
-                Text(rangeSubtitle).strandOverline()
+            HStack(spacing: NoopMetrics.space2) {
+                // Six ranges plus the trailing-window caption need to share a compact iPhone row.
+                // Let the segmented control collapse to equal-width cells instead of squeezing the
+                // caption narrower than one word (which wrapped the final G in TRAILING by itself).
+                SegmentedPillControl(Range.allCases, selection: $range,
+                                     adaptsToAvailableWidth: true) { $0.label }
+                // Keep the caption's two lines internally leading-aligned, but anchor the whole
+                // caption column to the page's trailing edge.
+                Spacer(minLength: NoopMetrics.space2)
+                rangeCaption
             }
             Text(cap)
                 .font(StrandFont.footnote)
@@ -560,7 +624,6 @@ struct TrendsView: View {
             subtitle: rangeSubtitle,
             trailing: avg.map { "\(Int($0.rounded()))" },
             height: NoopMetrics.chartHeight,
-            tint: StrandPalette.chargeColor,
             chart: {
                 if pts.count >= 2 {
                     glowChart(points: pts,
@@ -625,7 +688,7 @@ struct TrendsView: View {
                     points: hrvPts,
                     gradient: gradient(StrandPalette.metricPurple),
                     tip: StrandPalette.metricPurple,
-                    tint: StrandPalette.chargeColor,
+                    tint: nil,
                     higherIsBetter: true,
                     range: valueRange(hrvPts, fallback: 20...120),
                     fmt: { "\(Int($0.rounded()))" }
@@ -637,7 +700,7 @@ struct TrendsView: View {
                     points: rhrPts,
                     gradient: gradient(StrandPalette.metricRose),
                     tip: StrandPalette.metricRose,
-                    tint: StrandPalette.chargeColor,
+                    tint: nil,
                     higherIsBetter: false,
                     range: valueRange(rhrPts, fallback: 40...80),
                     fmt: { "\(Int($0.rounded()))" }
@@ -673,7 +736,7 @@ struct TrendsView: View {
         subtitle: String? = nil,
         gradient: Gradient,
         tip: Color,
-        tint: Color,
+        tint: Color?,
         higherIsBetter: Bool?,
         range: ClosedRange<Double>,
         fmt: @escaping (Double) -> String
@@ -725,7 +788,7 @@ struct TrendsView: View {
             return RecoveryDay(date: dt, score: d.recovery)
         }
         let title = (range == .all && repo.days.count > 365) ? String(localized: "Charge (all history)") : String(localized: "Charge (past year)")
-        return NoopCard(tint: StrandPalette.chargeColor) {
+        return NoopCard {
             VStack(alignment: .leading, spacing: NoopMetrics.cardInnerSpacing) {
                 SectionHeader("\(title)", overline: "Calendar", trailing: String(localized: "\(recoveryDays.filter { $0.score != nil }.count) days"))
                 if recoveryDays.isEmpty {
@@ -743,13 +806,23 @@ struct TrendsView: View {
 
     private var legend: some View {
         HStack(spacing: NoopMetrics.space2) {
-            Text("Depleted").font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+            Text("Depleted")
+                .font(StrandFont.footnote)
+                .foregroundStyle(StrandPalette.textTertiary)
+                .fixedSize()
             LinearGradient(gradient: StrandPalette.recoveryGradient, startPoint: .leading, endPoint: .trailing)
-                .frame(width: 120, height: 8)
+                .frame(maxWidth: .infinity)
+                .frame(height: NoopMetrics.indicatorTrackHeight)
                 .clipShape(Capsule())
-            Text("Peaked").font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
-            Spacer()
+                .accessibilityHidden(true)
+            Text("Peaked")
+                .font(StrandFont.footnote)
+                .foregroundStyle(StrandPalette.textTertiary)
+                .fixedSize()
         }
+        .frame(maxWidth: .infinity)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Charge scale, depleted to peaked")
     }
 
     // MARK: Shared bits
@@ -786,7 +859,7 @@ struct TrendsView: View {
             .font(StrandFont.subhead)
             .foregroundStyle(StrandPalette.textTertiary)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-            .background(StrandPalette.surfaceInset, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .background(NoopPanelSurface(cornerRadius: 12))
     }
 }
 

@@ -75,6 +75,106 @@ enum CoachNotifier {
         ))
     }
 
+    /// Mirror unresolved plan/workout questions into the in-app bell without re-arming an item the
+    /// person has already read on every foreground reconciliation. The Plan screen remains the place
+    /// where the decision is made; this row is only a durable pointer that a neutral question exists.
+    static func syncPlanReconciliation(_ resolutions: [PlanReconciliationResolution],
+                                       proposals: [PlanProposal],
+                                       store suppliedStore: UpdateStore? = nil,
+                                       now: Date = Date()) {
+        let store = suppliedStore ?? UpdateStore.shared
+        let prefix = "plan-reconciliation:"
+        let liveKeys = Set(resolutions.map { prefix + $0.proposalId.uuidString })
+
+        for item in store.items where item.alertKey?.hasPrefix(prefix) == true
+            && !liveKeys.contains(item.alertKey ?? "") {
+            store.remove(item.id)
+        }
+
+        let byId = Dictionary(uniqueKeysWithValues: proposals.map { ($0.id, $0) })
+        for resolution in resolutions {
+            let key = prefix + resolution.proposalId.uuidString
+            guard !store.items.contains(where: { $0.alertKey == key }),
+                  let proposal = byId[resolution.proposalId] else { continue }
+            let message: String
+            switch resolution.kind {
+            case .candidates:
+                message = String(localized: "We found a possible workout for \(proposal.sport). Please confirm the link.")
+            case .overdue:
+                message = String(localized: "\(proposal.sport) is still open. Tell NOOP whether it happened, moved, or did not happen.")
+            }
+            store.post(UpdateItem(
+                kind: .strapAlert,
+                title: String(localized: "Plan needs your check"),
+                message: message,
+                date: now,
+                category: .statusReminder,
+                priority: .normal,
+                expiresAt: now.addingTimeInterval(14 * 24 * 3600),
+                alertKey: key,
+                planProposalId: proposal.id,
+                showOnToday: true
+            ))
+        }
+    }
+
+    /// Automatic reconciliation is intentionally quiet but never invisible: one expiring informational
+    /// row records which real workout closed the commitment. The unique synthetic link also prevents
+    /// UpdateStore's generic reading dedup from collapsing two different matched sessions together.
+    static func postAutomaticCompletion(proposal: PlanProposal, workout: PlanWorkoutReference,
+                                        store suppliedStore: UpdateStore? = nil,
+                                        now: Date = Date()) {
+        let store = suppliedStore ?? UpdateStore.shared
+        let deepLink = "plan-completed:\(proposal.id.uuidString)"
+        guard !store.items.contains(where: { $0.deepLink == deepLink }) else { return }
+        store.post(UpdateItem(
+            kind: .reading,
+            title: String(localized: "Plan updated"),
+            message: String(localized: "Matched \(workout.sport) to \(proposal.sport)."),
+            date: now,
+            deepLink: deepLink,
+            category: .informative,
+            priority: .low,
+            expiresAt: now.addingTimeInterval(3 * 24 * 3600)
+        ))
+    }
+
+    /// Mirror only the two states that merit durable attention. Dashboard-only `.attention` remains
+    /// calm; recovery removes the old row, and the state in the key means a genuine transition can post
+    /// one fresh item without foreground refreshes re-arming an already-read one.
+    static func syncGoalMonitoring(_ snapshots: [GoalTrackingSnapshot],
+                                   store suppliedStore: UpdateStore? = nil,
+                                   now: Date = Date()) {
+        let store = suppliedStore ?? UpdateStore.shared
+        let prefix = "goal-monitoring:"
+        let live = snapshots.filter {
+            $0.goal.status == .active && ($0.health == .decisionNeeded || $0.health == .atRisk)
+        }
+        let liveKeys = Set(live.map { prefix + $0.id.uuidString + ":" + String($0.health.rawValue) })
+
+        for item in store.items where item.alertKey?.hasPrefix(prefix) == true
+            && !liveKeys.contains(item.alertKey ?? "") {
+            store.remove(item.id)
+        }
+        for snapshot in live {
+            let key = prefix + snapshot.id.uuidString + ":" + String(snapshot.health.rawValue)
+            guard !store.items.contains(where: { $0.alertKey == key }) else { continue }
+            store.post(UpdateItem(
+                kind: .strapAlert,
+                title: snapshot.health == .decisionNeeded
+                    ? String(localized: "Goal needs a decision")
+                    : String(localized: "Goal needs a review"),
+                message: snapshot.reason,
+                date: now,
+                category: .statusReminder,
+                priority: snapshot.health == .decisionNeeded ? .high : .normal,
+                expiresAt: now.addingTimeInterval(14 * 24 * 3600),
+                alertKey: key,
+                showOnToday: true
+            ))
+        }
+    }
+
     // MARK: - Mapping
 
     private struct Mapped {

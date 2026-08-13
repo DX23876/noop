@@ -740,6 +740,119 @@ public enum SleepStager {
         return Double(asleep) / Double(inBlock.count) >= morningReonsetBandAsleepFrac
     }
 
+    // MARK: - Band sleep_state WAKE-veto (recover strap-disputed false wakes)
+
+    // NOOP's cardiorespiratory stager is known to OVER-CALL wake: an EEG-free stager reads a still, low-HR
+    // but not-quite-asleep epoch as wake far more often than the wearer was actually awake. WHOOP's OWN
+    // per-second sleep-state band (the persisted v18 @81 high-nibble `(sb>>4)&3`: 0 wake/1 still/2 asleep/
+    // 3 up — banked as `sleepStateJSON`, gridded by `sessionEpochSleepState`) is an INDEPENDENT scored
+    // signal, not a re-derivation of ours. On real banded nights the strap scores "asleep"
+    // (`bandStateAsleep`) across ~two-thirds of the epochs NOOP calls wake, while the reverse disagreement
+    // (NOOP asleep, strap wake) is an order of magnitude smaller. So letting the strap's OWN "asleep"
+    // verdict VETO an INTERIOR wake call recovers most of the spurious wake with near-zero downside.
+    // Unlike the H8 consume confirm (which only ever KEEPS a whole borderline re-onset session), this
+    // operates per EPOCH on the final hypnogram and only ever turns wake INTO sleep.
+
+    /// Default-OFF gate for the band sleep_state WAKE-veto — off until PSG supports it, and the PSG
+    /// harness currently says the OPPOSITE: against the 31-subject sleep-accel truth set the shipped
+    /// recipe UNDER-calls wake (wake% 4.15 vs ~9.1 true, bias −4.92 pp, wake sensitivity 30.8%), so a
+    /// veto that converts wake→light moves the population result AWAY from truth even though it fixes
+    /// real strap-disputed false wakes on HR-inflated nights (the n=12 that motivated it). Flip to true
+    /// only with PSG evidence in hand — `sleeppsg --section variants` prints the wake%/bias row this
+    /// decision keys on. The mechanism stays fully tested behind the flag (tests pass `enabled: true`
+    /// explicitly). An absent band stream (WHOOP 4.0 / unbanded window) is a no-op regardless.
+    public static let bandStateWakeVetoEnabled: Bool = false
+
+    /// #1210 item 2 (retroactive-rescore story): the new-nights-only cutoff. When the veto is flipped on
+    /// (`bandStateWakeVetoEnabled = true`), a NON-ZERO cutoff (a unix second) restricts the correction to
+    /// sessions whose `start >= cutoffTs` — nights already in history keep their raw efficiency, so flipping
+    /// the default cannot silently re-score months of banked nights upward. `0` (the default) applies the
+    /// veto to every banded night (the "just ship the one-time shift" path). Inert while the flag is off.
+    /// Set this to the flip date at the same time as the flag. Mirrors Kotlin `bandStateWakeVetoCutoffTs`.
+    public static let bandStateWakeVetoCutoffTs: Int = 0
+
+    /// The sleep stage a band-vetoed false-wake epoch is reclassified to. `bandStateAsleep` (band sleep_state == 2) means
+    /// only "asleep" — the band carries NO light/deep/REM resolution — so the veto maps it to the generic,
+    /// most-common sleep stage rather than inventing deep/REM detail the strap never asserted (deep/REM
+    /// minutes feed the recovery gate; the veto must not inflate them). "light" is the honest projection of a
+    /// bare "asleep".
+    static let bandVetoRecoverStage: String = "light"
+
+    /// #1210: a TRACE-ONLY line reporting what the (dormant) band wake-veto WOULD recover on a banded night,
+    /// so a validator gathers the recovered-minutes distribution across real nights without any output change
+    /// (the persisted hypnogram stays the flag-gated, unchanged one). Namespaced `bandVeto(shadow):` and free
+    /// of a `day=` / `t=…s` token so `CaptureAccumulator` never counts it as a captured day. Mirrors Kotlin
+    /// `bandVetoShadowLine`. (band sleep_state veto)
+    static func bandVetoShadowLine(startTs: Int, recoveredMin: Double, rawEff: Double, shadowEff: Double) -> String {
+        "bandVeto(shadow): startTs=\(startTs) recoveredMin=\(Int(recoveredMin.rounded())) "
+            + "eff \(Int((rawEff * 100).rounded()))%->\(Int((shadowEff * 100).rounded()))%"
+    }
+
+    /// Band sleep_state WAKE-veto. Given a staged hypnogram `stages` (StageSegments tiling `[start, end]`)
+    /// and the strap's OWN per-timestamp band sleep_state, reclassify INTERIOR wake epochs the strap itself
+    /// scored "asleep" (`bandStateAsleep`) to `bandVetoRecoverStage`. Conservative by construction:
+    ///   - ONLY `bandStateAsleep` (2) vetoes — a "still" (1) / "up" (3) / "wake" (0) band reading is LEFT as
+    ///     wake, so the veto never blind-trusts the band, only its explicit "asleep";
+    ///   - the LEADING wake block (sleep-onset latency, before the first sleep epoch) and the TRAILING wake
+    ///     block (final-morning wake, after the last sleep epoch) are NEVER touched — the veto cannot move
+    ///     sleep onset earlier or final wake later, it only recovers wake FLANKED by sleep;
+    ///   - it only ever turns wake INTO sleep (raising efficiency), never sleep into wake.
+    /// The band is gridded to the SAME 30 s epochs as `stagesJSON` / `sessionEpochMotion` via
+    /// `sessionEpochSleepState`, so epoch i here is epoch i of the persisted `sleepStateJSON`. Empty band
+    /// state, the flag off, or a hypnogram with no interior sleep → returns `stages` UNCHANGED (byte-
+    /// identical). Applies to whichever stager (V1 or V2) produced `stages`. Pure + deterministic.
+    /// (band sleep_state veto)
+    static func applyBandStateWakeVeto(_ stages: [StageSegment], start: Int, end: Int,
+                                       bandSleepState: [(ts: Int, state: Int)],
+                                       enabled: Bool = bandStateWakeVetoEnabled,
+                                       cutoffTs: Int = bandStateWakeVetoCutoffTs) -> [StageSegment] {
+        guard enabled, !bandSleepState.isEmpty, !stages.isEmpty, end > start else {
+            return stages
+        }
+        // #1210 item 2: new-nights-only gate. A non-zero cutoff spares nights that started before it (history
+        // keeps its raw efficiency); `0` applies to every banded night. Inert while the flag is off.
+        if cutoffTs > 0, start < cutoffTs { return stages }
+        // Per-epoch band on the 30 s stagesJSON grid — byte-identical to the persisted sleepStateJSON.
+        let states = sessionEpochSleepState(start: start, end: end, sleepState: bandSleepState)
+        if states.isEmpty { return stages }
+        let n = states.count
+        // Epoch i spans [start + i·epochS, …); boundaries sit on 30 s edges, so expanding the segment tiling
+        // to a per-epoch stage array and re-collapsing it is an exact round-trip (no-op when nothing changes).
+        func epochStart(_ i: Int) -> Int { start + Int(Double(i) * epochS) }
+        var labels = [String](repeating: "wake", count: n)
+        for i in 0..<n {
+            let t = epochStart(i)
+            if let seg = stages.first(where: { $0.start <= t && t < $0.end })
+                ?? stages.first(where: { $0.start <= t && t <= $0.end }) {
+                labels[i] = seg.stage
+            }
+        }
+        // Interior = [firstSleep, lastSleep]; leading/trailing wake blocks are excluded from the veto.
+        guard let onset = labels.firstIndex(where: { $0 != "wake" }),
+              let finalWake = labels.lastIndex(where: { $0 != "wake" }), onset <= finalWake else {
+            return stages   // no sleep at all → nothing to recover
+        }
+        var changed = false
+        for i in onset...finalWake where labels[i] == "wake" && states[i] == bandStateAsleep {
+            labels[i] = bandVetoRecoverStage
+            changed = true
+        }
+        if !changed { return stages }   // the band disputed nothing → byte-identical hypnogram
+        // Re-collapse consecutive same-stage epochs back into segments tiling [start, end].
+        var out: [StageSegment] = []
+        for i in 0..<n {
+            let segStart = epochStart(i)
+            let segEnd = (i == n - 1) ? end : epochStart(i + 1)
+            if let last = out.last, last.stage == labels[i] {
+                out[out.count - 1].end = segEnd
+            } else {
+                out.append(StageSegment(start: segStart, end: segEnd, stage: labels[i]))
+            }
+        }
+        if !out.isEmpty { out[out.count - 1].end = end }
+        return out
+    }
+
     /// Off-wrist HR-gap spans (#500). The contiguous HR-coverage gaps of at least `offWristHRGapMin`
     /// minutes WITHIN [p.start, p.end], as concrete `[start, end)` sub-intervals — a strong wrist-OFF
     /// proxy. Worn, the strap streams ~1 Hz HR (or PPG-derived HR on a 5/MG), so a real night yields no
@@ -977,11 +1090,23 @@ public enum SleepStager {
         // `traceSink?(...)` calls are the only addition and never alter `sessions`. `runIndex` counts
         // only sleep-stage runs so the trace numbers match the candidate ordinal.
         var runIndex = -1
+        // #737 follow-up: counters for the one-line detection summary emitted before `return` (below).
+        // Trace-only — never read back into `sessions`, so the untraced path stays byte-identical. They
+        // make the "slept 8h, app shows 1h" shape legible at a glance: a big detectedSpan with most runs
+        // dropped by the 60-min gate is the fragmentation signature.
+        var sleepRunsSeen = 0
+        var minSleepDrops = 0
+        var firstSleepStart = Int.max
+        var lastSleepEnd = 0
         for p in runs {
             if p.stage != "sleep" { continue }
             runIndex += 1
+            sleepRunsSeen += 1
+            firstSleepStart = min(firstSleepStart, p.start)
+            lastSleepEnd = max(lastSleepEnd, p.end)
             let spanMin = (p.end - p.start) / 60
             if (p.end - p.start) <= minSleepS {
+                minSleepDrops += 1
                 traceSink?(GateTrace.runLine(index: runIndex, startTs: p.start, endTs: p.end,
                     verdict: .dropped, gate: "minSleepMin",
                     detail: "spanMin=\(spanMin) minSleepMin=\(minSleepMin)"))
@@ -1048,11 +1173,17 @@ public enum SleepStager {
                     detail: "daytime=true restingHR=\(resting ?? -1) baseline=\(baseline.map { Int($0) } ?? -1) nightTail=false"))
                 continue
             }
-            let stages = useSleepStagerV2
+            let rawStages = useSleepStagerV2
                 ? SleepStagerV2.stageSession(start: p.start, end: p.end, grav: grav,
                                              hr: hrS, rr: rrS, resp: respS)
                 : stageSession(start: p.start, end: p.end, grav: grav,
                                hr: hrS, rr: rrS, resp: respS)
+            // Band sleep_state WAKE-veto: recover INTERIOR false-wake epochs the strap's OWN band
+            // (`bandSleepState`) scored "asleep". No-op when the band is absent (WHOOP 4.0) or the flag is
+            // off; stager-agnostic (corrects whichever hypnogram V1/V2 produced). Efficiency below is then
+            // computed on the corrected stages, so a night NOOP over-called wake on reports true efficiency.
+            let stages = applyBandStateWakeVeto(rawStages, start: p.start, end: p.end,
+                                                bandSleepState: bandSleepState)
             let eff = efficiency(start: p.start, end: p.end, stages: stages)
             let avgHrv = sessionAvgHRV(start: p.start, end: p.end, rr: rrS)
             sessions.append(SleepSession(start: p.start, end: p.end, efficiency: eff,
@@ -1060,11 +1191,41 @@ public enum SleepStager {
             traceSink?(GateTrace.runLine(index: runIndex, startTs: p.start, endTs: p.end,
                 verdict: .kept, gate: "accepted",
                 detail: "spanMin=\(spanMin) eff=\(round2(eff)) restingHR=\(resting ?? -1) daytime=\(isDaytime)"))
+            // #1210 shadow: the band wake-veto is dormant (default-off), but its recovered-vs-reverse ratio
+            // can only come from banded nights. When a band stream is present, compute what the veto WOULD
+            // recover and trace it — OUTPUT-NEUTRAL: `stages`/`eff` persisted above are the flag-gated
+            // (unchanged) values and nothing reads `shadowStages`. Guarded on `traceSink`, so it fires ONLY
+            // while a diagnostic is collecting (zero production cost). Retire once the flip (#1210) lands.
+            if let traceSink, !bandStateWakeVetoEnabled, !bandSleepState.isEmpty {
+                // `cutoffTs: 0` on purpose: the shadow measures the FULL veto potential across EVERY banded
+                // night (history included) to build the validation distribution, independent of whatever
+                // new-nights cutoff the eventual flip uses.
+                let shadowStages = applyBandStateWakeVeto(rawStages, start: p.start, end: p.end,
+                                                          bandSleepState: bandSleepState,
+                                                          enabled: true, cutoffTs: 0)
+                let shadowEff = efficiency(start: p.start, end: p.end, stages: shadowStages)
+                let recoveredMin = (shadowEff - eff) * Double(p.end - p.start) / 60.0
+                if recoveredMin >= 1.0 {
+                    traceSink(bandVetoShadowLine(startTs: p.start, recoveredMin: recoveredMin,
+                                                 rawEff: eff, shadowEff: shadowEff))
+                }
+            }
             // A run that does NOT continue the chain re-anchors it on this run's onset.
             if !continuesChain { chainFromOvernight = isOvernightOnset(p.start, tzOffsetSeconds: tzOffsetSeconds) }
             chainPrevEnd = p.end
         }
         sessions.sort { $0.start < $1.start }
+        // #737 follow-up: one glanceable line summarising the whole detection pass. A large
+        // `detectedSpanMin` with most runs `droppedMinSleep` and a small `survivingSpanMin` is exactly
+        // the "slept ~8h, only ~1h confirmed" fragmentation the field reports describe — this makes it
+        // readable without hand-summing the per-run lines above. Trace-only.
+        if let traceSink {
+            let detectedSpanMin = lastSleepEnd > firstSleepStart ? (lastSleepEnd - firstSleepStart) / 60 : 0
+            let survivingSpanMin = sessions.reduce(0) { $0 + ($1.end - $1.start) } / 60
+            traceSink("sleep-detect summary: sleepRuns=\(sleepRunsSeen) droppedMinSleep=\(minSleepDrops) "
+                + "kept=\(sessions.count) detectedSpanMin=\(detectedSpanMin) survivingSpanMin=\(survivingSpanMin) "
+                + "sparse=\(sparse) grav=\(grav.count) hr=\(hrS.count)")
+        }
         return sessions
     }
 
@@ -1537,6 +1698,43 @@ public enum SleepStager {
         let inBedRows = rr.filter { $0.ts >= start && $0.ts <= end }
             .sortedByTsStable()
             .filter { Double($0.rrMs) >= HRVAnalyzer.rrMinMs && Double($0.rrMs) <= HRVAnalyzer.rrMaxMs }
+
+        // Beat-accuracy gate (#882/#883): RSA needs per-beat-accurate TIMING - each row's wall-clock gap
+        // must be ≈ its own R-R value. A BANKED stream (an Oura overnight IBI stamps a whole record of
+        // intervals on one coarse ring-time) fails this, and the estimate it produces is not physiology;
+        // return NaN instead. Beat-accurate callers (WHOOP R-R, the synthetic RSA fixtures) measure ~100%
+        // and pass unchanged. Needs a few beats to judge; below that the count gate below handles it.
+        //
+        // Shares HRVAnalyzer's ONE definition of the judgement (#1108) rather than keeping a second copy:
+        // "is each stored interval a real beat-to-beat measurement?" is the same question SDNN asks, and
+        // one boundary deserves one set of constants. `rangeFilter` has already run, so an out-of-range
+        // R-R cannot fail the accuracy test spuriously.
+        //
+        // WHAT THIS ACTUALLY CATCHES, measured (2026-08-07, two Oura nights, 31,460 and 30,754 in-bed
+        // beats, fraction 0.0246 / 0.0235): NOT a corrupted time AXIS - the ring's records tile the night,
+        // sum(R-R) over wall span is 1.030 / 1.008, so beat-time reconstructs the night to 1-3%. What is
+        // unusable is the interval VALUES: the ring decomposes each ~6.6 s record into ~6 intervals whose
+        // SUM is right to ~1% while the individual values are not beat-to-beat measurements (the same
+        // decomposition documented on `HRVAnalyzer.beatValuesAreTrustworthy`). RSA reads the beat-to-beat
+        // variation, so it has nothing to read, and the peak-picker returns its own floor: on both nights
+        // the ungated estimate is 13.33 bpm, and SHUFFLING or REVERSING the night's R-R values returns the
+        // SAME 13.3333 to four decimals. It is a plausible-looking number carrying zero information -
+        // squarely inside `respPlausibleRangeBpm`, so the range clamp below never sees it. That is why the
+        // gate is on BANKED-ness rather than on the output value.
+        //
+        // DISTINCT FROM #977's splice skip below, and BOTH are needed - they catch opposite banking
+        // GEOMETRIES. #977 catches banking that TILES time (the real ring: a ~7 s record boundary against a
+        // ~1.1 s interval reads as a splice, and on those two nights it independently discards 113/113 and
+        // 114/114 windows). This catches banking that COMPRESSES time - `testRespRateFromRRBatchedTimestamps`
+        // stamps 6 beats per single second, so no gap ever exceeds `rsaGapToleranceS` and the splice skip
+        // never fires. Neither subsumes the other; a firmware that changes its record period moves a stream
+        // from one geometry to the other without warning.
+        if inBedRows.count >= 30 {
+            let fraction = HRVAnalyzer.beatAccurateFraction(tsSec: inBedRows.map { $0.ts },
+                                                            rrMs: inBedRows.map { Double($0.rrMs) })
+            if !HRVAnalyzer.beatValuesAreTrustworthy(beatAccurateFraction: fraction) { return nan }
+        }
+
         let filtered = inBedRows.map { Double($0.rrMs) }
         if filtered.count < 30 { return nan }  // need enough beats for any RSA estimate
 

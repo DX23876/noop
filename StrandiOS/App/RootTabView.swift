@@ -6,6 +6,10 @@ import StrandDesign
 /// natural analogue is a `TabView` with the most-used screens as tabs and everything else under a
 /// "More" list. Every screen is the same `StrandDesign`-built view the macOS app uses.
 struct RootTabView: View {
+    /// External entry points must wait until the mandatory first-run gates have completed. The root owns
+    /// that state; keeping it explicit here prevents this shell's window-level sheet from covering a gate.
+    let homeScreenQuickActionsEnabled: Bool
+
     @EnvironmentObject private var repo: Repository
     /// Cross-screen navigation requests (e.g. Live → "Manage devices"). Devices isn't a tab — it lives
     /// behind the More list — so a request presents it as a sheet, matching the quick-action screens.
@@ -22,6 +26,8 @@ struct RootTabView: View {
     /// inactive until the person has chosen to enable it in More → AI Coach.
     @AppStorage(CoachFeaturePrefs.enabledKey) private var coachFeatureEnabled = false
     @State private var showCoach = false
+    /// The scene-local receiver for actions chosen from NOOP's Home Screen icon menu.
+    @EnvironmentObject private var homeScreenQuickActions: HomeScreenQuickActionSceneDelegate
 
     /// Which quick-action screen the centre FAB is presenting (nil = sheet closed).
     @State private var quickAction: QuickAction?
@@ -75,18 +81,29 @@ struct RootTabView: View {
         else { TodayView() }
     }
 
-    init() {
-        // Plain Titanium bar: pin the background to `surfaceBase` and clear the system
-        // selection-indicator tint so there is NO gold/accent pill behind the selected
-        // icon — the gold `.tint` below colours only the selected icon + label, nothing
-        // is filled behind it. (UIKit derives a selection-indicator fill from the tint
-        // unless it's explicitly cleared.)
-        let appearance = UITabBarAppearance()
-        appearance.configureWithOpaqueBackground()
-        appearance.backgroundColor = UIColor(StrandPalette.surfaceBase)
-        appearance.selectionIndicatorTintColor = .clear
-        UITabBar.appearance().standardAppearance = appearance
-        UITabBar.appearance().scrollEdgeAppearance = appearance
+    /// Native tab selection binding. SwiftUI sends taps on the already-selected item through the
+    /// setter, which lets the system tab bar retain the app's refresh / pop-to-root / scroll-to-top
+    /// convention without placing a custom hit-testing layer over the platform bar.
+    private var nativeTabSelection: Binding<Int> {
+        Binding(
+            get: { selectedTab },
+            set: { tag in
+                if tag == selectedTab {
+                    reselectTab(tag)
+                } else {
+                    selectedTab = tag
+                }
+            }
+        )
+    }
+
+    private func reselectTab(_ tag: Int) {
+        Task { await repo.refresh() }
+        if !tabPaths[tag].isEmpty {
+            tabPaths[tag] = NavigationPath()
+        } else {
+            scrollTop[tag] += 1
+        }
     }
 
     /// The anywhere-swipe tab-switch drag (2026-07-02). Held as a property so the attachment site can
@@ -292,6 +309,38 @@ struct RootTabView: View {
                 router.quickActionsRequested = false
             }
         }
+        // A cold-launch selection is already pending when this shell appears; a warm selection arrives
+        // through the change callback. Both route through the same screens as the centre FAB.
+        .onAppear {
+            presentPendingHomeScreenQuickActionIfPossible()
+        }
+        .onChange(of: homeScreenQuickActions.pendingAction) { _, _ in
+            presentPendingHomeScreenQuickActionIfPossible()
+        }
+        .onChange(of: homeScreenQuickActionsEnabled) { _, _ in
+            presentPendingHomeScreenQuickActionIfPossible()
+        }
+    }
+
+    /// Mandatory launch gates defer an external action. Once the shell is available, an explicit Home
+    /// Screen choice supersedes any ordinary shell sheet; choosing the already-open destination simply
+    /// consumes the request and leaves that screen in place.
+    private func presentPendingHomeScreenQuickActionIfPossible() {
+        guard homeScreenQuickActionsEnabled,
+              let action = homeScreenQuickActions.pendingAction else { return }
+
+        let destination: QuickAction = switch action {
+        case .liveHeartRate: .live
+        case .startWorkout: .workout
+        case .logJournal: .journal
+        case .breathe: .breathe
+        }
+        homeScreenQuickActions.consume(action)
+        withAnimation(Self.sheetEase) {
+            showDevices = false
+            routedPillar = nil
+            quickAction = destination
+        }
     }
 
     /// A routed v5 pillar screen wrapped in its own nav stack + Done button (mirrors `quickScreen`).
@@ -438,7 +487,6 @@ struct RootTabView: View {
         // Drive this tab's root scroll-to-top on an at-root re-tap (#198 follow-up); read by ScreenScaffold
         // / LiquidTodayView inside. Only THIS tab's token changes on its reselect, so the others don't scroll.
         .environment(\.scrollToTopSignal, scrollSignal)
-        .toolbar(.hidden, for: .tabBar)   // we draw our own FloatingTabBar
         .tabItem { Label(title, systemImage: icon) }
     }
 
@@ -496,6 +544,8 @@ struct RootTabView: View {
                     // #155: HealthKit-free Apple Health path for sideloaded installs (Siri Shortcut
                     // reads the opt-in Documents/noop_sync.txt drop file).
                     MoreRow("Shortcuts Export", "square.and.arrow.up.fill", .shortcutsExport)
+                    // The plain 4.0 vs 5.0/MG capability grid — what NOOP reads live off each strap.
+                    MoreRow("NOOP Limitations", "list.bullet.rectangle", .noopLimitations)
                 }
                 moreSection("App") {
                     // #805/#811: the v7.3.1 #766 alarm consolidation moved Smart Alarm under a single
@@ -517,7 +567,6 @@ struct RootTabView: View {
                     MoreRow("Settings", "gearshape.fill", .settings)
                 }
             }
-            .toolbar(.hidden, for: .tabBar)   // we draw our own FloatingTabBar
             // The rows push MoreDestination VALUES so a re-tap of the More tab can pop them off the
             // bound path (#135/#198). Each destination keeps the per-screen wrapper the rows used to
             // apply inline (surfaceBase background, inline title bar, hidden bar background):
@@ -534,7 +583,7 @@ struct RootTabView: View {
         }
         // Scroll the More index to the top on an at-root re-tap (#198 follow-up); read by its ScreenScaffold.
         .environment(\.scrollToTopSignal, scrollSignal)
-        .tabItem { Label("More", systemImage: "ellipsis.circle.fill") }
+        .tabItem { Label("More", systemImage: "ellipsis") }
     }
 
     /// One titled, COLLAPSIBLE group in the More index (S2): the app's overline (UPPERCASE) becomes a
@@ -599,7 +648,7 @@ struct RootTabView: View {
 enum MoreDestination: Hashable {
     case insightsHub, intelligence, coach, coachSettings, goalJourney, insights, explore, compare
     case live, workouts, health, labBook, stress, breathe, intervals, rhythm
-    case fusedRecord, appleHealth, miBand, dataSources, backupSync, shortcutsExport
+    case fusedRecord, appleHealth, miBand, dataSources, backupSync, shortcutsExport, noopLimitations
     case alarms, automations, testCentre, siriShortcuts, settings
 
     @ViewBuilder var destination: some View {
@@ -626,6 +675,7 @@ enum MoreDestination: Hashable {
         case .appleHealth:     AppleHealthView()
         case .miBand:          XiaomiBandView()
         case .dataSources:     DataSourcesView()
+        case .noopLimitations: NoopLimitationsView()
         case .backupSync:      BackupSyncView()
         case .shortcutsExport: ShortcutExportSettingsView()
         case .alarms:          SmartAlarmView()
@@ -750,7 +800,7 @@ private struct QuickActionSheet: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(
-            StrandPalette.surfaceOverlay
+            NoopChromeSurface()
                 .overlay(alignment: .top) {
                     // Gold hairline top edge per the bottom-sheet spec.
                     Rectangle()
@@ -790,8 +840,7 @@ private struct QuickActionSheet: View {
             }
             .padding(.vertical, 10)
             .padding(.horizontal, 12)
-            .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(StrandPalette.surfaceRaised))
-            .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(StrandPalette.hairline, lineWidth: 1))
+            .background(NoopPanelSurface(cornerRadius: 14))
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)

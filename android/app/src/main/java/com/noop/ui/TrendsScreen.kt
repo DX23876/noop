@@ -15,7 +15,18 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.Box
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.IosShare
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalView
+import kotlinx.coroutines.launch
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material3.HorizontalDivider
@@ -38,6 +49,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -78,7 +90,6 @@ import kotlin.math.roundToInt
 // (rgba(13,14,20,.80)) rather than the classic frosted surface — the card does the contrast work so the
 // crisp line chart + the count-up vessel accent read clean over the sky. Radius 26 + a white@0.11 hairline
 // give it the frosted-glass edge. Mirrors the liquid Today heroCard (LiquidTodayView / TodayScreen).
-private val LIQUID_HERO_FILL: Color = Color(red = 13f / 255f, green = 14f / 255f, blue = 20f / 255f, alpha = 0.80f)
 private val LIQUID_HERO_RADIUS: Dp = 26.dp
 
 @Composable
@@ -147,6 +158,9 @@ fun TrendsScreen(vm: AppViewModel) {
         resolveMetric(days, range) { d -> sleepPerfByDay[d.day] }
     }
     val recAvg = recovery.values.averageOrNull()
+    val rangeSubtitle = range.days?.let { dayCount ->
+        stringResource(R.string.trends_trailing_days, dayCount)
+    } ?: stringResource(R.string.trends_all_history)
 
     LazyScreenScaffold(
         title = stringResource(R.string.nav_trends),
@@ -155,10 +169,10 @@ fun TrendsScreen(vm: AppViewModel) {
         // into the theme canvas behind the header + top rows, full-bleed via the scaffold's topBackground
         // plumbing. Static (LiquidSkyStatic, inside the helper) — never an animated sky behind a scrolling
         // list. Gated on the same day-cycle pref as Today; when off, the scaffold paints the flat canvas.
-        topBackground = if (showDayCycleBackground) { { LiquidScreenSky(fillHeight = skyBehindCards) } } else null,
+        topBackground = screenBackdropSlot(showDayCycleBackground, skyBehindCards),
         // Sky-behind-cards fills the viewport so the transparent cards reveal the sky the whole way down
         // (Today / metric-detail parity — the same two prefs drive the same two behaviours everywhere).
-        fullBleedBackground = showDayCycleBackground && skyBehindCards,
+        fullBleedBackground = screenBackdropFullBleed(showDayCycleBackground, skyBehindCards),
     ) {
         if (days.isEmpty()) {
             item { EmptyTrends() }
@@ -211,7 +225,7 @@ fun TrendsScreen(vm: AppViewModel) {
                         onSelect = { range = it },
                     )
                     Spacer(Modifier.weight(1f))
-                    Overline(range.subtitle, color = Palette.textTertiary)
+                    TrendsRangeCaption(range = range, fullSubtitle = rangeSubtitle)
                 }
                 Text(
                     recovery.caption,
@@ -229,7 +243,7 @@ fun TrendsScreen(vm: AppViewModel) {
                 title = stringResource(R.string.trends_charge),
                 // The range bar above already prints the authoritative reading-count caption;
                 // the hero only names its window so the count isn't doubled in one card height.
-                subtitle = range.subtitle,
+                subtitle = rangeSubtitle,
                 trailing = recAvg?.let { "${it.roundToInt()}" },
                 // LIQUID hero: the translucent-black frosted wrapper + a small count-up Charge vessel accent
                 // in the header (the screen's one headline single value — the window-average Charge). The
@@ -355,10 +369,16 @@ private fun WeeklyDigestNav(
         WeeklyDigestEngine.addDays(logicalDayKeyNow(), weekOffset * 7)
     }
     // #268/#463: past weeks quote Effort on the user's display scale too, same as the live card.
-    val factor = effortDisplayFactor(UnitPrefs.effortScale(LocalContext.current))
+    val context = LocalContext.current
+    val factor = effortDisplayFactor(UnitPrefs.effortScale(context))
     val digest = remember(days, anchorDay, factor) {
         buildWeeklyDigest(days, anchorDay, effortDisplayFactor = factor)
     }
+    // "Share recap" capture: track the card's on-screen bounds, then draw the Compose host view + crop
+    // (RecapShare.captureCropped) — the Compose-1.7 GraphicsLayer capture API isn't in this 1.6.8 build.
+    val scope = rememberCoroutineScope()
+    val hostView = LocalView.current
+    var cardBounds by remember { mutableStateOf<Rect?>(null) }
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         WeekNavBar(weekOffset = weekOffset, minWeekOffset = minWeekOffset, onStep = onStep)
@@ -368,7 +388,19 @@ private fun WeeklyDigestNav(
                 body = stringResource(R.string.trends_no_readings_body),
             )
         } else {
-            NoopCard { WeeklyDigestContent(digest = digest, compact = true) }
+            Box(modifier = Modifier.onGloballyPositioned { cardBounds = it.boundsInRoot() }) {
+                NoopCard { WeeklyDigestContent(digest = digest, compact = true) }
+            }
+            NoopButton(
+                text = "Share recap",
+                leadingIcon = Icons.Filled.IosShare,
+                kind = NoopButtonKind.Secondary,
+                onClick = {
+                    val bounds = cardBounds
+                    val bmp = bounds?.let { RecapShare.captureCropped(hostView, it) }
+                    if (bmp != null) scope.launch { RecapShare.share(context, bmp, anchorDay) }
+                },
+            )
         }
     }
 }
@@ -522,12 +554,32 @@ private enum class TrendsRange(val days: Int?, val label: String, val longName: 
     Year(365, "1Y", "year"),
     All(null, "ALL", "all history");
 
-    /** "Trailing 90 days" / "All history" , the card/range subtitle. */
-    val subtitle: String get() = days?.let { "Trailing $it days" } ?: "All history"
-
     /** This range plus every LARGER range, ascending , the auto-expand search order. */
     val widening: List<TrendsRange>
         get() = entries.dropWhile { it != this }
+}
+
+@Composable
+private fun TrendsRangeCaption(range: TrendsRange, fullSubtitle: String) {
+    val days = range.days
+    if (days == null) {
+        Overline(fullSubtitle, color = Palette.textTertiary)
+    } else {
+        // Keep both lines leading-aligned while the row's weighted spacer pins this
+        // intrinsic-width column to the shared trailing content edge.
+        Column(
+            modifier = Modifier.clearAndSetSemantics {
+                contentDescription = fullSubtitle
+            },
+            horizontalAlignment = Alignment.Start,
+        ) {
+            Overline(stringResource(R.string.trends_trailing), color = Palette.textTertiary)
+            Overline(
+                pluralStringResource(R.plurals.trends_n_days, days, days),
+                color = Palette.textTertiary,
+            )
+        }
+    }
 }
 
 // MARK: - Resolved metric (mirrors TrendsView.ResolvedMetric / resolve)
@@ -700,8 +752,8 @@ private fun ChartCard(
             modifier = modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(LIQUID_HERO_RADIUS))
-                .background(LIQUID_HERO_FILL.copy(alpha = LIQUID_HERO_FILL.alpha * CardAppearance.opacity))
-                .border(1.dp, Color.White.copy(alpha = 0.11f * CardAppearance.opacity), RoundedCornerShape(LIQUID_HERO_RADIUS))
+                .background(Palette.heroFill.copy(alpha = Palette.heroFill.alpha * CardAppearance.opacity))
+                .border(1.dp, Palette.heroBorder.copy(alpha = Palette.heroBorder.alpha * CardAppearance.opacity), RoundedCornerShape(LIQUID_HERO_RADIUS))
                 .padding(Metrics.cardPadding),
         ) {
             body()
@@ -744,11 +796,28 @@ private fun HeadlineVessel(value: Double, tint: Color) {
 private fun ChangeChip(change: Double?, higherIsBetter: Boolean?, fmt: (Double) -> String) {
     if (change == null || kotlin.math.abs(change) <= 0.0001) return
     val sign = if (change >= 0) "+" else "−"
+    val deltaText = uiString(R.string.l10n_trends_screen_sign_fmt_kotlin_math_abs_change_9ad2f71e, sign, fmt(kotlin.math.abs(change)))
     val color = when (higherIsBetter) {
         null -> Palette.textTertiary
         else -> if ((change > 0) == higherIsBetter) Palette.statusPositive else Palette.metricRose
     }
-    TrendChip(text = uiString(R.string.l10n_trends_screen_sign_fmt_kotlin_math_abs_change_9ad2f71e, sign, fmt(kotlin.math.abs(change))), color = color)
+    // Parity with iOS #967 (fix(trends): label change indicators): a "Trend" overline above the delta chip
+    // so it reads as a labeled statistic beside the ChartFooter columns instead of an unlabeled pill at the
+    // card edge. Mirrors the sibling TrendsRangeCaption's leading-aligned Overline stack + merged a11y
+    // announcement ("Trend: +5") so TalkBack reads it as one statistic, not two.
+    val trendLabel = stringResource(R.string.trends_trend)
+    // A11y announces the label + delta as ONE statistic ("Trend: +5"), in natural case (not the visible
+    // all-caps, which readers may spell out). Routed through a format resource so the label + locale-correct
+    // separator (e.g. French thin space, Chinese full-width colon) are localized — a bare "$label: $delta"
+    // template is both un-localizable and flagged by the i18n regression gate.
+    val trendA11y = stringResource(R.string.trends_trend_a11y, deltaText)
+    Column(
+        modifier = Modifier.clearAndSetSemantics { contentDescription = trendA11y },
+        horizontalAlignment = Alignment.Start,
+    ) {
+        Overline(trendLabel, color = Palette.textTertiary)
+        TrendChip(text = deltaText, color = color)
+    }
 }
 
 /**

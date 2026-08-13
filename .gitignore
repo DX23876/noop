@@ -131,3 +131,9 @@ tools/linux-capture/*.db
 tools/linux-capture/*.db-wal
 tools/linux-capture/*.db-shm
 tools/linux-capture/captures/
+
+# App backups written by the Backup screen. A .noopbak is user data — it carries the strap serial
+# alongside the full recovery/sleep/workout timeline — and the app writes it wherever the user
+# points the picker, which is sometimes the repo root. Hundreds of megabytes of it would be
+# unremovable from history after one `git add -A`.
+*.noopbak

@@ -483,6 +483,8 @@ struct MetricDetailView: View {
     /// extends the sky to the full viewport (softer settle) so the transparent cards reveal it throughout.
     @AppStorage(SceneBackgroundPrefs.enabledKey) private var showDayCycleBackground = false
     @AppStorage(SkyBehindCardsPrefs.enabledKey) private var skyBehindCards = false
+    /// Custom background image (#custom-background): when active it overrides the sky in the backdrop.
+    @ObservedObject private var backgroundStore = BackgroundImageStore.shared
     // Profile basics for the Fitness Age not-ready countdown (age/sex gate its readiness lead). Injected
     // app-wide at the root; previews supply their own. Only read on the fitness_age empty-state path.
     @EnvironmentObject var profile: ProfileStore
@@ -716,7 +718,10 @@ struct MetricDetailView: View {
         .background(alignment: .top) {
             ZStack(alignment: .top) {
                 StrandPalette.surfaceBase
-                if showDayCycleBackground {
+                // Custom background image (#custom-background) OVERRIDES the sky, full-bleed.
+                if backgroundStore.isActive {
+                    BackgroundImageBackdrop()
+                } else if showDayCycleBackground {
                     LiquidSkyStatic(hour: nil, settleStrength: skyBehindCards ? 0.78 : 1)
                         .frame(maxWidth: .infinity)
                         .frame(height: skyBehindCards ? nil : 240, alignment: .top)
@@ -880,8 +885,11 @@ struct MetricDetailView: View {
                 }
             }
         .padding(NoopMetrics.cardPadding)
-        .background(ScenicHeroBackground(domain: domain))
-        .clipShape(RoundedRectangle(cornerRadius: NoopMetrics.cardRadius, style: .continuous))
+        .background {
+            NoopPanelSurface(tint: domain.color,
+                             cornerRadius: NoopMetrics.cardRadius,
+                             elevated: true)
+        }
         // The hero shows the LATEST available point (range-independent), so the vessel fills once on
         // appear (0 → its fraction) and settles — like TodayView's rings.
         .onAppear {

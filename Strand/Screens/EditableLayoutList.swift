@@ -15,6 +15,16 @@ where Item: Identifiable & Equatable, Options: View {
     let configurationLabel: (Item) -> String?
     let onConfigure: (Item) -> Void
     let onReset: () -> Void
+    /// Whether the Shown list may go EMPTY. Default false — every visible item can be hidden EXCEPT the
+    /// last, so surfaces that need ≥1 item (Today sections, Key Metrics, Your Cards) can't be emptied. The
+    /// hosted-cards page (#today-hosted-cards) is opt-in, so it passes `true` to allow un-hosting the last.
+    var allowEmpty: Bool = false
+    /// Optional grouping key for the Hidden ("Available") list. When set (the hosted-cards page passes the
+    /// card's origin, e.g. "Sleep" / "Trends"), the Available items are split into one titled Section per
+    /// group so a user browses by origin instead of one flat list. nil (Today sections, Key Metrics, Your
+    /// Cards) keeps the single flat Available section. The Shown list stays flat — it is the user's own
+    /// cross-origin order.
+    var group: ((Item) -> String)? = nil
     @ViewBuilder let options: () -> Options
 
     var body: some View {
@@ -30,7 +40,7 @@ where Item: Identifiable & Equatable, Options: View {
                         tint: tint(item),
                         configurationLabel: configurationLabel(item),
                         isVisible: true,
-                        canHide: draft.visible.count > 1,
+                        canHide: draft.visible.count > (allowEmpty ? 0 : 1),
                         onConfigure: { onConfigure(item) },
                         onVisibilityChange: { hide(item) }
                     )
@@ -45,32 +55,47 @@ where Item: Identifiable & Equatable, Options: View {
                     .foregroundStyle(StrandPalette.textTertiary)
             }
 
-            Section {
-                if draft.hidden.isEmpty {
+            if draft.hidden.isEmpty {
+                Section {
                     Text("Nothing hidden")
                         .foregroundStyle(StrandPalette.textTertiary)
-                } else {
-                    ForEach(draft.hidden) { item in
-                        EditableLayoutRow(
-                            title: title(item),
-                            subtitle: subtitle(item),
-                            icon: icon(item),
-                            tint: tint(item),
-                            configurationLabel: configurationLabel(item),
-                            isVisible: false,
-                            canHide: true,
-                            onConfigure: { onConfigure(item) },
-                            onVisibilityChange: { show(item) }
-                        )
+                } header: {
+                    Text(hiddenTitle)
+                        .strandOverline()
+                } footer: {
+                    Text("Hidden items remain available here and can be restored at any time.")
+                        .font(StrandFont.footnote)
+                        .foregroundStyle(StrandPalette.textTertiary)
+                }
+            } else if group != nil {
+                // Grouped Available list: one titled Section per origin (e.g. "Sleep", "Trends"), so the
+                // hidden cards read by category. The last group carries the shared restore-hint footer.
+                let groups = groupedHidden
+                ForEach(groups.indices, id: \.self) { i in
+                    Section {
+                        ForEach(groups[i].items) { item in hiddenRow(item) }
+                    } header: {
+                        Text(groups[i].name)
+                            .strandOverline()
+                    } footer: {
+                        if i == groups.count - 1 {
+                            Text("Hidden items remain available here and can be restored at any time.")
+                                .font(StrandFont.footnote)
+                                .foregroundStyle(StrandPalette.textTertiary)
+                        }
                     }
                 }
-            } header: {
-                Text(hiddenTitle)
-                    .strandOverline()
-            } footer: {
-                Text("Hidden items remain available here and can be restored at any time.")
-                    .font(StrandFont.footnote)
-                    .foregroundStyle(StrandPalette.textTertiary)
+            } else {
+                Section {
+                    ForEach(draft.hidden) { item in hiddenRow(item) }
+                } header: {
+                    Text(hiddenTitle)
+                        .strandOverline()
+                } footer: {
+                    Text("Hidden items remain available here and can be restored at any time.")
+                        .font(StrandFont.footnote)
+                        .foregroundStyle(StrandPalette.textTertiary)
+                }
             }
 
             Section {
@@ -90,6 +115,36 @@ where Item: Identifiable & Equatable, Options: View {
         #if os(iOS)
         .environment(\.editMode, .constant(.active))
         #endif
+    }
+
+    /// One Available (hidden) row — the show affordance. Shared by the flat and grouped Available lists.
+    @ViewBuilder
+    private func hiddenRow(_ item: Item) -> some View {
+        EditableLayoutRow(
+            title: title(item),
+            subtitle: subtitle(item),
+            icon: icon(item),
+            tint: tint(item),
+            configurationLabel: configurationLabel(item),
+            isVisible: false,
+            canHide: true,
+            onConfigure: { onConfigure(item) },
+            onVisibilityChange: { show(item) }
+        )
+    }
+
+    /// The hidden items bucketed by `group`, groups in first-appearance order (which follows the draft's
+    /// canonical order). Only read when `group != nil`.
+    private var groupedHidden: [(name: String, items: [Item])] {
+        guard let group else { return [] }
+        var order: [String] = []
+        var buckets: [String: [Item]] = [:]
+        for item in draft.hidden {
+            let key = group(item)
+            if buckets[key] == nil { order.append(key) }
+            buckets[key, default: []].append(item)
+        }
+        return order.map { (name: $0, items: buckets[$0] ?? []) }
     }
 
     private func moveVisible(from offsets: IndexSet, to destination: Int) {
@@ -164,7 +219,7 @@ private struct EditableLayoutRow: View {
             .accessibilityLabel(visibilityLabel)
         }
         .contentShape(Rectangle())
-        .listRowBackground(StrandPalette.surfaceRaised)
+        .listRowBackground(NoopChromeSurface())
     }
 
     private var visibilityLabel: String {

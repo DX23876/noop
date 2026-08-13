@@ -46,21 +46,65 @@ class OuraStreamMappingTest {
     }
 
     @Test
-    fun hrvBecomesOuraHrvEventWithRawFieldsNotRmssd() {
+    fun hrvBecomesOuraHrvEventWithHrAndRmssd() {
         val s = OuraStreamMapping.streams(
-            listOf(OuraEvent.Hrv(OuraHRV(ringTimestamp = 5, timeMs = 1000, b1 = 7, b2 = -3))),
+            listOf(OuraEvent.Hrv(OuraHRV(ringTimestamp = 5, index = 0, hrBpm = 52, rmssdMs = 47))),
             anchor,
         )
         assertEquals(1, s.events.size)
         val ev = s.events.first()
         assertEquals(OuraStreamMapping.EVENT_HRV, ev.kind)
         assertEquals("OURA_HRV", ev.kind)
-        assertEquals(base + 5, ev.ts)
-        // HONEST: the ring's OWN raw tag fields only; NEVER a fabricated rmssd_ms.
-        assertEquals(1000, ev.payload["time_ms"])
-        assertEquals(7, ev.payload["b1"])
-        assertEquals(-3, ev.payload["b2"])
-        assertTrue("must not fabricate rmssd_ms", !ev.payload.containsKey("rmssd_ms"))
+        // #1167: a 1-pair record's single bucket is the span [ts-300, ts) — its five minutes END at the
+        // record time, so it is stamped 300 s before it.
+        assertEquals(base + 5 - 300, ev.ts)
+        // Layout pinned (u8 bpm, u8 ms) → honestly labelled fields; keys/values match the Swift twin.
+        assertEquals(0, ev.payload["pair_index"])
+        assertEquals(52, ev.payload["hr_bpm"])
+        assertEquals(47, ev.payload["rmssd_ms"])
+    }
+
+    // Each 5-min bucket must land on its OWN timestamp: the event key is (deviceId, ts, kind), so pairs
+    // sharing the record ts would collide on insert and only one survive. #1167: the record's FIRST pair
+    // is its OLDEST bucket and the record ts marks the END of the covered span, so pair `index` sits
+    // (count - index) * 300 s before it and the LAST pair's five minutes end exactly at the record time.
+    // Twin of the Swift OuraStreamMapping test.
+    @Test
+    fun hrvMultiBucketGetsDistinctFiveMinTimestamps() {
+        val s = OuraStreamMapping.streams(
+            listOf(
+                OuraEvent.Hrv(OuraHRV(ringTimestamp = 5, index = 0, hrBpm = 52, rmssdMs = 47, count = 3)),
+                OuraEvent.Hrv(OuraHRV(ringTimestamp = 5, index = 1, hrBpm = 54, rmssdMs = 44, count = 3)),
+                OuraEvent.Hrv(OuraHRV(ringTimestamp = 5, index = 2, hrBpm = 55, rmssdMs = 41, count = 3)),
+            ),
+            anchor,
+        )
+        assertEquals(3, s.events.size)
+        // Distinct, 300 s apart, ascending in time, ending at the record time.
+        assertEquals(listOf(base + 5 - 900, base + 5 - 600, base + 5 - 300), s.events.map { it.ts })
+        assertEquals(3, s.events.map { it.ts }.toSet().size)
+        assertEquals(listOf(0, 1, 2), s.events.map { it.payload["pair_index"] })
+        assertEquals(listOf(52, 54, 55), s.events.map { it.payload["hr_bpm"] })
+        assertEquals(listOf(47, 44, 41), s.events.map { it.payload["rmssd_ms"] })
+    }
+
+    // #1167 + #1131 together: a dropped `00 00` pad must still be COUNTED, or every surviving bucket in
+    // that record slides. The record had 4 pairs and the decoder dropped index 1, so the survivors keep
+    // the exact slots they would have had with the pad present — a 300 s hole at ts-600, NOT three buckets
+    // closing up. This is the mid-record shape observed in the field on 2026-08-08. Twin of Swift.
+    @Test
+    fun hrvDroppedPaddingPairStillConsumesItsSlot() {
+        val s = OuraStreamMapping.streams(
+            listOf(
+                OuraEvent.Hrv(OuraHRV(ringTimestamp = 5, index = 0, hrBpm = 52, rmssdMs = 47, count = 4)),
+                // index 1 was the `00 00` pad — never emitted by the decoder.
+                OuraEvent.Hrv(OuraHRV(ringTimestamp = 5, index = 2, hrBpm = 55, rmssdMs = 41, count = 4)),
+                OuraEvent.Hrv(OuraHRV(ringTimestamp = 5, index = 3, hrBpm = 56, rmssdMs = 39, count = 4)),
+            ),
+            anchor,
+        )
+        assertEquals(listOf(base + 5 - 1200, base + 5 - 600, base + 5 - 300), s.events.map { it.ts })
+        assertEquals(listOf(0, 2, 3), s.events.map { it.payload["pair_index"] })
     }
 
     @Test

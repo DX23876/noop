@@ -35,12 +35,12 @@ public struct WidgetSnapshot: Codable, Equatable {
     /// the "Apple-inspired colors" preference off. That preference lives in the app's plain UserDefaults,
     /// which the extension cannot read — so it is resolved at publish time, exactly like `effortDisplay`.
     public var goalTintId: String?
-    /// Measured progress 0…1 — present ONLY when a real measurement backs it (see `GoalProgress`). nil
+    /// Measured progress 0…1 — present ONLY when a real measurement backs it (`GoalTrackingEngine`). nil
     /// means the widget draws the mark instead of a ring; it must never substitute a number of its own.
     public var goalFraction: Double?
     /// Whole weeks to the target date. Negative once it has passed; nil without a target date.
     public var goalRunwayWeeks: Double?
-    /// The honest one-liner under the ring, already formatted by `GoalProgress`. nil when there is no
+    /// The honest one-liner under the ring, already formatted app-side. nil when there is no
     /// current measurement to describe.
     public var goalLine: String?
 
@@ -154,5 +154,45 @@ public struct WidgetSnapshot: Codable, Equatable {
         guard let defaults = UserDefaults(suiteName: WidgetSnapshot.suiteName),
               let data = try? JSONEncoder().encode(self) else { return }
         defaults.set(data, forKey: WidgetSnapshot.storageKey)
+    }
+
+    /// Whether publishing `next` would change anything the widget actually renders. `updated` is
+    /// deliberately excluded: no widget family displays it, and treating a fresh timestamp as content
+    /// would defeat deduplication because every otherwise-identical build creates a new date.
+    ///
+    /// Shared by the full score publish and the live-only fast path so a redundant foreground, repository,
+    /// battery, or connection signal does not rewrite App-Group defaults and ask WidgetKit to rebuild an
+    /// identical timeline. nil means the app has never published, so the first snapshot always writes.
+    static func renderedContentChanged(from previous: WidgetSnapshot?, to next: WidgetSnapshot) -> Bool {
+        guard let previous else { return true }
+        return previous.recovery != next.recovery
+            || previous.bpm != next.bpm
+            || previous.batteryPct != next.batteryPct
+            || previous.bonded != next.bonded
+            || previous.effort != next.effort
+            || previous.rest != next.rest
+            || previous.hrv != next.hrv
+            || previous.restingHr != next.restingHr
+            || previous.effortDisplay != next.effortDisplay
+            || previous.effortWhoop != next.effortWhoop
+            // The goal widget renders these, so a renamed, re-measured or deleted goal has to earn a
+            // reload like any other visible change. Leaving them out would let the dedup decide nothing
+            // had happened and leave a stale goal on the home screen indefinitely.
+            || previous.goalTitle != next.goalTitle
+            || previous.goalSymbol != next.goalSymbol
+            || previous.goalTintId != next.goalTintId
+            || previous.goalFraction != next.goalFraction
+            || previous.goalRunwayWeeks != next.goalRunwayWeeks
+            || previous.goalLine != next.goalLine
+    }
+
+    /// A live-only update may reuse score fields only within the same local calendar day. At rollover,
+    /// the full publisher must resolve `Repository.widgetAnchor` again so yesterday's Charge/Rest cannot
+    /// be carried forward indefinitely by a stream of HR updates. Calendar is injectable for deterministic
+    /// tests; production uses the user's current calendar and time zone.
+    static func liveUpdateRequiresFullBuild(previous: WidgetSnapshot?, now: Date,
+                                            calendar: Calendar = .current) -> Bool {
+        guard let previous else { return true }
+        return !calendar.isDate(previous.updated, inSameDayAs: now)
     }
 }

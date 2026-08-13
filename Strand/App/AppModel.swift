@@ -407,6 +407,8 @@ final class AppModel: ObservableObject {
             }
             #endif
             await self.repo.refresh()                          // surface any imported data at once
+            await PlanReconciliationCoordinator.reconcile(repo: self.repo)
+            await GoalTrackingStore.shared.refresh(repo: self.repo)
             await self.wireSourceCoordinator()                 // dormant unless a generic strap is active
             try? await Task.sleep(nanoseconds: 6_000_000_000)  // give the first offload a moment
             // FIX 2(a): DEFER the heavy one-shot 4000-day heal/rescore while an import is in flight. A
@@ -449,7 +451,13 @@ final class AppModel: ObservableObject {
                 // v5: recompute the skin-temp suite snapshots (cycle phase + body clock) from the
                 // freshly-scored history so the Health hub cards read a ready result.
                 await self.refreshV5Signals()
-                try? await Task.sleep(nanoseconds: 900_000_000_000)  // 15 min, matches the offload cadence
+                // #836 battery: 30-min BACKSTOP cadence (twin of Android ANALYZE_INTERVAL_MS). The
+                // `force: false` gate above can't skip while the strap streams live HR — the fingerprint
+                // advances every second — so this re-scored the whole 21-day window every 15 min even though
+                // only today's daytime HR changed. It's a pure backstop (every real update rescores via its
+                // own forced call above), so halving the cadence only delays the idle refresh of today's
+                // live Effort/steps; recovery/sleep are night-computed and unaffected.
+                try? await Task.sleep(nanoseconds: 1_800_000_000_000)  // 30 min backstop (#836 battery)
             }
         }
     }
@@ -552,7 +560,13 @@ final class AppModel: ObservableObject {
         // analyzeRecent tick , otherwise a just-synced night's Charge / Effort / Rest can take up to
         // 15 minutes to appear on a strap-only (no-import) dashboard. analyzeRecent no-ops if a tick is
         // already running and refreshes the dashboard itself once the new scores persist. (PR #218)
-        await intelligence.analyzeRecent()
+        // #1196/#1146: `skipIfUnchanged` gates THIS post-offload pass on the HR fingerprint — an empty/
+        // duplicate offload (nothing new banked, common on a flapping link) skips the whole-window rescore
+        // instead of churning it, which was surfacing as a Trends/streak "0 days" flicker. Only this
+        // post-offload caller opts in; every other analyzeRecent path still forces unconditionally.
+        await intelligence.analyzeRecent(skipIfUnchanged: true)
+        await PlanReconciliationCoordinator.reconcile(repo: repo)
+        await GoalTrackingStore.shared.refresh(repo: repo)
         await refreshV5Signals()
         #if os(iOS)
         // #980: a strap backfill routinely completes while the app is BACKGROUNDED (it runs as a
@@ -632,7 +646,7 @@ final class AppModel: ObservableObject {
         // off (the gate is one UserDefaults bool read), so the lifecycle of a missing workout is visible.
         emitWorkoutsTrace(WorkoutsTrace.sessionLine(
             event: "start", sportKey: WorkoutSource.traceSportKey(resolved), hrSamples: 0))
-        buzz(loops: 1)
+        buzz(loops: 1, gate: HapticPrefs.workout)
     }
 
     /// Emit one Workouts & GPS test-mode line tagged `.workouts` iff the mode is on. The cheap
@@ -779,7 +793,7 @@ final class AppModel: ObservableObject {
             event: "end", sportKey: WorkoutSource.traceSportKey(w.sport), hrSamples: samples.count,
             durationSec: Int(end.timeIntervalSince(w.start)),
             gpsPoints: wasGps ? gpsRecorder.pointCount : nil))
-        buzz(loops: 2)
+        buzz(loops: 2, gate: HapticPrefs.workout)
         Task { [weak self] in
             guard let self else { return }
             if let store = await self.repo.storeHandle() {
@@ -957,6 +971,49 @@ final class AppModel: ObservableObject {
         }
     }
 
+    #if os(iOS)
+    /// Materialize Apple Health as a device and update the source that feeds Today.
+    /// Only replaces the seeded WHOOP row while it is still a placeholder with no strap and no data;
+    /// a physical or user-selected source always keeps priority.
+    func refreshAfterAppleHealthSync(authorized: Bool, now: Date = Date()) async {
+        await wireSourceCoordinator()
+        guard let registry = deviceRegistry, let store = await repo.storeHandle() else {
+            await repo.refresh()
+            return
+        }
+
+        let current = registry.devices.first(where: { $0.id == registry.activeDeviceId })
+        var currentHasRecentData = false
+        if let current {
+            let range = AppleWatchDevice.recentDayRange(now: now)
+            let cutoff = Int(now.timeIntervalSince1970) - AppleWatchDevice.recentWindowDays * 86_400
+            let latestHR = (try? await store.latestHRSampleTs(deviceId: current.id)) ?? nil
+            let recentDaily = (try? await store.dailyMetrics(
+                deviceId: current.id, from: range.from, to: range.to)) ?? []
+            currentHasRecentData = (latestHR ?? 0) >= cutoff || !recentDaily.isEmpty
+        }
+
+        await AppleWatchDevice.registerIfAuthorized(
+            registry: registry, store: store, authorized: authorized, now: now)
+        guard registry.devices.contains(where: { $0.id == AppleWatchDevice.deviceId }) else {
+            await repo.refresh()
+            return
+        }
+
+        if AppleWatchDevice.shouldAutoActivate(
+            current: current, currentHasRecentData: currentHasRecentData) {
+            registry.setActive(AppleWatchDevice.deviceId)
+            await adoptActiveDevice(AppleWatchDevice.deviceId)
+        } else if registry.activeDeviceId == AppleWatchDevice.deviceId {
+            // Covers relaunches: the row was already active, but the read spine may still be initializing.
+            await adoptActiveDevice(AppleWatchDevice.deviceId)
+            await repo.refresh()
+        } else {
+            await repo.refresh()
+        }
+    }
+    #endif
+
     // MARK: - Oura adopt (factory-reset-and-adopt)
 
     /// The live adopt outcome of the active Oura ring, mirrored off the coordinator's live `OuraLiveSource`
@@ -1056,6 +1113,15 @@ final class AppModel: ObservableObject {
     /// For a user-facing "buzz the strap now" action use `buzzStrapOnce()` instead (#921).
     func buzz(loops: UInt8 = 2) {
         ble.send(.runHapticsPattern, payload: [2, loops, 0, 0, 0])
+    }
+
+    /// #haptics (#1115): an IN-SESSION cue buzz, GATED by its per-event `HapticPrefs` toggle (default-off /
+    /// opt-in, migrated-on for existing installs). Each in-session cue site passes its `gate` key so the
+    /// enable check lives in ONE place rather than at every call site. The ungated `buzz` / `buzzStrapOnce`
+    /// remain for ambient cues (which carry their own gates) and explicit user buzzes. Twin of Android
+    /// `AppViewModel.buzz(loops, gate)`.
+    func buzz(loops: UInt8 = 2, gate: String) {
+        if HapticPrefs.enabled(gate) { buzz(loops: loops) }
     }
 
     /// One-shot user buzz (#921): the on-device-confirmed pattern (patternId=2, 3 loops) followed by
@@ -1352,7 +1418,7 @@ final class AppModel: ObservableObject {
     /// encoding (#460) so a double-tap buzzes the time the way the user reads it. Derived from the
     /// locale's "j" (hour) template: a 12-hour locale includes the AM/PM ("a") symbol.
     static var localeUses24HourClock: Bool {
-        let fmt = DateFormatter.dateFormat(fromTemplate: "j", options: 0, locale: .current) ?? "h"
+        let fmt = DateFormatter.dateFormat(fromTemplate: "j", options: 0, locale: AppLanguage.activeLocale) ?? "h"
         return !fmt.contains("a")
     }
 
@@ -1637,7 +1703,13 @@ final class AppModel: ObservableObject {
             nights.append(CyclePhaseEngine.Night(day: d.day, tempZ: tempZ, rhrZ: rhrZ, hrvZ: hrvZ))
             if let fused = CyclePhaseEngine.fusedIndex(tempZ: tempZ, rhrZ: rhrZ, hrvZ: hrvZ) { curve.append(fused) }
         }
-        cyclePhase = CyclePhaseEngine.classify(nights, baselineUsable: skinState.usable)
+        // Optional user-entered cycle-day-1 anchors live under the isolated `noop-cycle` source.
+        // The pure engine cross-validates them against the temperature shift rather than trusting a
+        // mistimed log blindly.
+        let loggedPeriodStarts = await repo.periodStarts()
+        cyclePhase = CyclePhaseEngine.classify(nights,
+                                               baselineUsable: skinState.usable,
+                                               loggedPeriodStarts: loggedPeriodStarts)
         cycleCurve = curve
     }
 

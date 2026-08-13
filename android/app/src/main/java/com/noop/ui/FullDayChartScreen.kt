@@ -107,9 +107,12 @@ fun FullDayChartScreen(vm: AppViewModel, onBack: () -> Unit) {
     var everSpo2 by remember { mutableStateOf(true) }
     var everResp by remember { mutableStateOf(true) }
     LaunchedEffect(deviceId) {
-        val model = runCatching { vm.pairedDevices() }.getOrDefault(emptyList())
-            .firstOrNull { it.id == deviceId }?.model
-        val whoop5 = DeviceFamily.forRegistryModel(model) == DeviceFamily.WHOOP5
+        val d = runCatching { vm.pairedDevices() }.getOrDefault(emptyList())
+            .firstOrNull { it.id == deviceId }
+        // A positive "is it a 5/MG", never a coalesced one (#1086): the respiration copy tells the reader
+        // their estimate is on the Health screen, which is true for a WHOOP 5 (the R-R RSA estimate runs)
+        // and false for a non-WHOOP device whose banked stream that estimate refuses.
+        val whoop5 = DeviceFamily.isWhoop5Registry(d?.model, d?.brand)
         isWhoop5 = whoop5
         val now = System.currentTimeMillis() / 1000
         everSpo2 = !whoop5 || runCatching { vm.repo.spo2Samples(deviceId, 0, now, 1) }.getOrDefault(emptyList()).isNotEmpty()
@@ -397,11 +400,13 @@ private suspend fun readTimeline(
                 .mapNotNull { if (it.ir > 0) TimelinePoint(it.ts, it.red.toDouble() / it.ir) else null }
         TimelineMetric.SkinTemp -> {
             // #938: family-aware raw→°C — 5/MG centidegrees (raw/100, #156), a WHOOP 4.0 v24 raw ADC map.
-            // The registry-model-label → family mapping lives in DeviceFamily.forRegistryModel (#171).
+            // The registry-model-label → family mapping lives in DeviceFamily.forRegistryDevice (#171).
+            // A non-WHOOP device (null) shares the non-4.0 scale, so coalesce to WHOOP5 — same conversion
+            // as before; brand-awareness just stops it claiming to be a WHOOP (#1086).
             // Mirrors Swift Repository.timelineRawMetric.
-            val model = runCatching { vm.pairedDevices() }.getOrDefault(emptyList())
-                .firstOrNull { it.id == deviceId }?.model
-            val family = DeviceFamily.forRegistryModel(model)
+            val d = runCatching { vm.pairedDevices() }.getOrDefault(emptyList())
+                .firstOrNull { it.id == deviceId }
+            val family = DeviceFamily.forRegistryDevice(d?.model, d?.brand) ?: DeviceFamily.WHOOP5
             runCatching { repo.skinTempSamples(deviceId, from, to, 200_000) }.getOrDefault(emptyList())
                 .map { TimelinePoint(it.ts, skinTempCelsius(it.raw, family)) }
         }

@@ -76,14 +76,15 @@ struct BodyVitalReading: Identifiable {
     }
 
     /// Short provenance word for the caption. The local-cache fallback stays unnamed (previews/tests),
-    /// and computed skin temp reads "Overnight computed" since that figure is a nightly derivation.
+    /// and computed skin temp reads "vs baseline" (#622) since that figure is a ±°C nightly deviation.
     private static func sourceLabel(_ source: DailyMetricSource?, key: String) -> String? {
         guard let source else { return nil }
         switch source {
         case .whoopImport:
             return String(localized: "WHOOP import")
         case .noopComputed:
-            if key == "skin" { return String(localized: "Overnight computed") }
+            // Live pipeline stores ±°C vs personal baseline (#622) — not absolute wrist °C.
+            if key == "skin" { return String(localized: "vs baseline") }
             return String(localized: "NOOP computed")
         case .appleHealth:
             return String(localized: "Apple Health")
@@ -115,7 +116,8 @@ enum BodyVitalSigns {
 
     static func readings(sourceRows: [SourcedDailyMetric],
                          temperatureUnit: TemperatureUnit,
-                         now: Date = Date()) -> [BodyVitalReading] {
+                         now: Date = Date(),
+                         spo2CandidateByDay: [String: Double] = [:]) -> [BodyVitalReading] {
         let logicalDay = logicalDayKey(now)
 
         // Resolve one metric to a per-day series, taking the FIRST source (by precedence) that carries
@@ -147,6 +149,16 @@ enum BodyVitalSigns {
 
         let respPoints = points(key: "resp", \.respRateBpm)
         let spo2Points = points(key: "spo2", \.spo2Pct)
+        // #103: SpO₂ candidate @82 (WHOOP 5/MG only). When no calibrated spo2Pct exists AND the toggle is
+        // ON, the candidate mean is passed in from metricSeries as a fallback. It has split cross-device
+        // evidence and ships behind a default-off toggle, never as `spo2Pct` (CLAUDE.md derived-biosignal
+        // rule). Built into VitalPoints so the tile + sparkline + `latest()` resolve it the same way.
+        let spo2CandidateOn = PuffinExperiment.spo2CandidateDisplayEnabled && !spo2CandidateByDay.isEmpty
+        let spo2CandidatePoints: [VitalPoint] = spo2CandidateOn
+            ? spo2CandidateByDay.map { (day, value) in
+                VitalPoint(day: day, value: value, source: .noopComputed)
+            }.sorted { $0.day < $1.day }
+            : []
         // WHOOP 4.0 raw SpO₂: the (red + IR) / 2 ADC mean per night, present only when both channels
         // decoded for the day. On-device only, so this resolves to the NOOP-computed row. (#93)
         let spo2rawPoints = points(key: "spo2raw") { m in
@@ -158,7 +170,11 @@ enum BodyVitalSigns {
         let skinPoints = points(key: "skin", \.skinTempDevC)
 
         let respRow = latest(respPoints)
-        let spo2Row = latest(spo2Points)
+        // #103: fall back to the spo2_candidate @82 mean when no calibrated spo2Pct exists. The candidate
+        // is labelled "strap estimate (unverified)" in the tile caption so it is never read as a calibrated
+        // blood-oxygen percentage.
+        let spo2Row = latest(spo2Points) ?? latest(spo2CandidatePoints)
+        let spo2IsCandidate = spo2Row != nil && latest(spo2Points) == nil
         let spo2rawRow = latest(spo2rawPoints)
         let rhrRow = latest(rhrPoints)
         let hrvRow = latest(hrvPoints)
@@ -188,14 +204,16 @@ enum BodyVitalSigns {
             skinResult = VitalBands.Result(band: .noData, basis: .population, nights: 0)
         }
 
-        // Resolve the skin-temp label + converter once, honouring the °C/°F preference. An ABSOLUTE
-        // reading uses the full C→F formula (×9/5 + 32); a ±DEVIATION must omit the offset.
-        let skinUnitLabel = UnitFormatter.temperatureUnit(temperatureUnit)
+        // Resolve the skin-temp label + unit once (#622). Absolute → "Skin Temp" / "°C";
+        // deviation → "Skin Temp Δ" / "Δ°C" so −0.1 is never read as a broken thermometer.
+        let skinKind: SkinTempDisplay.Kind = skinIsAbsolute ? .absolute : .deviation
+        let fahrenheit = temperatureUnit == .fahrenheit
+        let skinUnitLabel = SkinTempDisplay.unitSymbol(kind: skinKind, fahrenheit: fahrenheit)
+        let skinTitle = skinIsAbsolute
+            ? String(localized: "Skin Temp")
+            : String(localized: "Skin Temp Δ")
         let skinFormat: (Double) -> String = { c in
-            let full = skinIsAbsolute
-                ? UnitFormatter.temperatureFromCelsius(c, unit: temperatureUnit, decimals: 1)
-                : UnitFormatter.temperatureDeltaFromCelsius(c, unit: temperatureUnit, decimals: 1)
-            return full.replacingOccurrences(of: " " + skinUnitLabel, with: "")
+            SkinTempDisplay.numberString(c, kind: skinKind, fahrenheit: fahrenheit, decimals: 1)
         }
 
         return [
@@ -246,10 +264,14 @@ enum BodyVitalSigns {
                 // neighbouring tile is blank. Note `latest()` here resolves `logicalDay ?? most recent`,
                 // where Android resolves the selected day — so the ROW differs across platforms by design
                 // and the parity contract is the relationship between the two tiles, not the row.
-                missingCaption: spo2rawRow != nil
-                    ? String(localized: "Raw counts only — needs an import")
-                    : String(localized: "No SpO₂ import or Health value"),
-                sparkline: trail(spo2Points)
+                missingCaption: spo2IsCandidate
+                    ? String(localized: "strap estimate (unverified)")
+                    : (PuffinExperiment.spo2CandidateDisplayEnabled && spo2Row == nil
+                       ? String(localized: "toggle ON · no @82 data")
+                       : (spo2rawRow != nil
+                          ? String(localized: "Raw counts only — needs an import")
+                          : String(localized: "No SpO₂ import or Health value"))),
+                sparkline: spo2IsCandidate ? trail(spo2CandidatePoints) : trail(spo2Points)
             ),
             BodyVitalReading(
                 key: "spo2raw",
@@ -311,7 +333,7 @@ enum BodyVitalSigns {
             ),
             BodyVitalReading(
                 key: "skin",
-                label: String(localized: "Skin Temp"),
+                label: skinTitle,
                 unit: skinUnitLabel,
                 value: skin,
                 format: skinFormat,
@@ -319,7 +341,9 @@ enum BodyVitalSigns {
                 metricColor: StrandPalette.metricAmber,
                 day: skinRow?.day,
                 source: skinRow?.source,
-                missingCaption: String(localized: "No nightly skin-temp value"),
+                // #548/#622: empty is often calibrating (needs ~4 nights for ±deviation) or import-less —
+                // not a silent "broken sensor". Absolute °C still arrives via WHOOP CSV import.
+                missingCaption: String(localized: "No nightly skin-temp yet — needs ~4 worn nights (or import a WHOOP CSV)"),
                 // Keep the trail on the displayed value's kind — absolute °C and ±deviation must not
                 // mix on one sparkline (matches the banding partition above).
                 sparkline: trail(skinPoints.filter { VitalBands.isAbsoluteSkinTemp($0.value) == skinIsAbsolute })

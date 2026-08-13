@@ -15,6 +15,12 @@ import Foundation
 
 public enum OuraDecoders {
 
+    /// #1284: minimum length (in code bytes; 1 byte = 4 epochs = 16 min) of a TRAILING run of `0xFF` for
+    /// `decodeSleepPhase` to treat it as unwritten flash pad rather than continuous `awake`. Conservative
+    /// (a real end-of-page wake block shorter than this is left intact); tunable as hardware captures pin
+    /// the true padding lengths. 6 bytes = 24 min; the measured pads ran 9-10 bytes (36-40 min).
+    public static let minTrailingUnwritten = 6
+
     // MARK: - Little-endian helpers (body offset == spec offset - 6)
 
     @inline(__always) static func u16le(_ b: [UInt8], _ i: Int) -> Int {
@@ -208,20 +214,44 @@ public enum OuraDecoders {
 
     // MARK: - HRV / RMSSD (0x5D; s6.9)
 
-    /// Decode the 0x5D hrv_event: samples each carrying a time_ms field + two int8 fields (b1, b2).
-    /// Per OURA_PROTOCOL.md s6.9 the per-sample stride is time(2 LE) + b1(1) + b2(1) = 4 bytes.
-    /// Returns nil on a short body. NOOP consumes this as the ring's OWN RMSSD-derived HRV tag.
+    /// Decode the 0x5D hrv_event: a run of `(u8 avg HR bpm, u8 avg RMSSD ms)` pairs, ONE per 5-min bucket
+    /// (per open_oura `decode_hrv` / OURA_PROTOCOL.md s6.9). The previous layout read a 4-byte
+    /// `(u16 time, int8, int8)` stride — a mis-framing: it garbled the first (hr,rmssd) byte-pair into a
+    /// bogus `time_ms`, sign-flipped the RMSSD byte, and only its `b1` accidentally landed on a real HR
+    /// byte. Both bytes are UNSIGNED (no scaling). Returns nil on an empty or ODD-length body (a partial
+    /// pair is never emitted). Validated against a real overnight: the hr byte tracks sleeping HR (~52 bpm,
+    /// matching the #511 IBI-derived median).
+    ///
+    /// PADDING (#1128): a record that closes early pads its tail with a `00 00` pair, and that is NOT a
+    /// reading — a stored `hr_bpm: 0` is a value the ring never asserted, indistinguishable downstream
+    /// from a measurement. Observed on a real overnight: 2 of 22 records were partial, both padded, and
+    /// both zero pairs persisted into the 5-min series beside 110 genuine buckets running 45-64 bpm.
+    /// They are skipped here, at decode, so an absent bucket stays absent instead of becoming a zero one.
+    ///
+    /// The test is BOTH bytes zero — the exact padding signature — not `hrBpm == 0` alone. A lone zero HR
+    /// beside a non-zero RMSSD has never been observed, and if it ever occurs it is a DIFFERENT fault (a
+    /// real record with a bad byte) that should stay visible rather than be silently swallowed by a
+    /// padding rule. Narrower is the honest choice while one night is all the evidence there is.
+    ///
+    /// `index` advances for EVERY pair, including a skipped one, because it is not a label: the consumer
+    /// derives the bucket's wall-clock from it (`OuraStreamMapping`, `bucketTs = ts - index * 300`).
+    /// Renumbering the survivors would slide every later bucket 5 minutes. That is invisible for TAIL
+    /// padding — the only shape observed — which is exactly why it is pinned by test instead of by luck.
     public static func decodeHRV(_ rec: OuraRecord) -> [OuraHRV]? {
         let b = rec.payload
-        guard b.count >= 4 else { return nil }
+        guard b.count >= 2, b.count % 2 == 0 else { return nil }   // N complete (hr, rmssd) pairs
+        let pairCount = b.count / 2          // BEFORE any padding pair is dropped — see `OuraHRV.count`
         var out: [OuraHRV] = []
         var i = 0
-        while i + 4 <= b.count {
-            let timeMs = u16le(b, i)
-            let v1 = Int(Int8(bitPattern: b[i + 2]))
-            let v2 = Int(Int8(bitPattern: b[i + 3]))
-            out.append(OuraHRV(ringTimestamp: rec.ringTimestamp, timeMs: timeMs, b1: v1, b2: v2))
-            i += 4
+        var index = 0
+        while i + 2 <= b.count {
+            let hr = Int(b[i]), rmssd = Int(b[i + 1])
+            if !(hr == 0 && rmssd == 0) {
+                out.append(OuraHRV(ringTimestamp: rec.ringTimestamp, index: index,
+                                   hrBpm: hr, rmssdMs: rmssd, count: pairCount))
+            }
+            i += 2
+            index += 1
         }
         return out.isEmpty ? nil : out
     }
@@ -452,15 +482,46 @@ public enum OuraDecoders {
         let b = rec.payload
         // body[0] is the header (spec offset 6); phase codes begin at body[1].
         guard b.count >= 2 else { return nil }
+        // #1246: a whole record of `0xFF` is an UNWRITTEN (erased-flash) hypnogram page, not sleep — the
+        // ring serves pages of it for a stretch it never classified (confirmed on-device: SpO2/R-R go dark
+        // in the SAME window). The 2-bit unpack would read each `0xFF` as `11 11 11 11` = four `awake`,
+        // manufacturing hours of fake wake (one night: 320 of 334 "awake" min were padding → 36 %
+        // efficiency). Detect it at the RECORD level (unambiguous; a byte-level filter would eat the four
+        // genuine `awake` epochs that also encode as `0xFF`) and flag the epochs `unwritten` so the
+        // assembler drops them as a GAP while they still hold their place in the time axis.
+        // Require ≥2 code bytes so a LONE 0xFF byte — four genuine `awake` epochs, which also encode as
+        // 0xFF (the reporter's explicit caution) — is never mistaken for an erased page. Observed erased
+        // pages are whole ~13-byte records; a single byte is real wake.
+        let codeBytes = b.dropFirst()
+        let codeCount = codeBytes.count
+        let allUnwritten = codeCount >= 2 && codeBytes.allSatisfy { $0 == 0xFF }
+        // #1284: a PARTLY-written page fills front-to-back and leaves the TAIL as 0xFF padding, which the
+        // whole-record rule above misses — so the trailing pad still unpacks as `run*4` epochs of fake
+        // `awake` (measured ~86-88 min/night on hardware, pushing efficiency far below WHOOP's). Flag a
+        // TRAILING run of >= `minTrailingUnwritten` consecutive 0xFF code bytes (to the record's end) as
+        // unwritten too. Trailing-only + a run floor, on purpose: a leading/interior 0xFF run is left as
+        // real wake (the ring wrote it; a genuinely pre-onset run is dropped separately by the assembler's
+        // onset clip), and a short trailing run is spared as possible real end-of-page wake. `minTrailing`
+        // is the tunable safety margin between "padding" and "a long real wake block at a page boundary".
+        // The floor is clamped to >= 2: a LONE trailing 0xFF is four genuine awake epochs (the #1246 case),
+        // and the whole-record rule above only fires at codeCount >= 2 — the trailing rule must never undercut
+        // that even if `minTrailingUnwritten` is lowered by someone who hasn't read #1284. So the constant is
+        // freely tunable upward, but can never drop low enough to eat a single real-wake byte.
+        let effectiveFloor = max(2, Self.minTrailingUnwritten)
+        let trailingFF = codeBytes.reversed().prefix { $0 == 0xFF }.count
+        let trailingStart = trailingFF >= effectiveFloor ? codeCount - trailingFF : codeCount
         var out: [OuraSleepPhase] = []
         var index = 0
         for k in 1..<b.count {
             let byte = b[k]
+            // Whole erased page (#1246), or this byte is inside the trailing 0xFF pad (#1284).
+            let byteUnwritten = allUnwritten || (k - 1) >= trailingStart
             // MSB-first within the byte: [7:6] is the first code.
             for shift in stride(from: 6, through: 0, by: -2) {
                 let code = Int((byte >> UInt8(shift)) & 0x03)
                 if let stage = OuraSleepStage(rawValue: code) {
-                    out.append(OuraSleepPhase(ringTimestamp: rec.ringTimestamp, index: index, stage: stage))
+                    out.append(OuraSleepPhase(ringTimestamp: rec.ringTimestamp, index: index,
+                                              stage: stage, unwritten: byteUnwritten))
                     index += 1
                 }
             }

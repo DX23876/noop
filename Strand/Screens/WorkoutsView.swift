@@ -58,6 +58,21 @@ struct WorkoutsView: View {
     @State private var loadedWindowDays: Int?
     private let usesPreviewRows: Bool
 
+    /// Daily active-calorie totals (day "yyyy-MM-dd" → kcal) for the 13-week heatmap, loaded alongside the
+    /// rows. Empty until loaded / when there's no daily-calorie data (the heatmap then hides itself).
+    @State private var dailyKcal: [String: Double] = [:]
+
+    /// Local `yyyy-MM-dd` formatter for the heatmap's day keys + "today" anchor (matches the stored keys).
+    private static let dayFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.calendar = Calendar(identifier: .gregorian)
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.timeZone = .current
+        f.dateFormat = "yyyy-MM-dd"
+        return f
+    }()
+    private func todayDayString() -> String { Self.dayFormatter.string(from: Date()) }
+
     /// #797: trailing-day window the FIRST workouts read is bounded to, so first paint never sorts a
     /// multi-thousand-workout history. Comfortably covers the default range (the tightest range with ≥2
     /// sessions, almost always ≤90 days); a wider pick pages the rest in via `expandWindow`. 400 days
@@ -157,7 +172,7 @@ struct WorkoutsView: View {
                         ? "No workouts yet. They come from your WHOOP and Apple Health history. Import in Data Sources to bring them in, or add one you tracked elsewhere."
                         : "Loading your sessions…")
                     if loaded {
-                        HStack(spacing: NoopMetrics.rowSpacing) { startLiveWorkoutButton; addWorkoutButton }
+                        workoutActionRow
                     }
                 }
             } else {
@@ -172,11 +187,12 @@ struct WorkoutsView: View {
                 let groups = sportGroups(from: windowRows)
                 let zonesSummary = WorkoutZones.summary(from: windowRows)
 
-                HStack { startLiveWorkoutButton; Spacer() }
+                workoutActionRow
                 rangeBar(rows: windowRows, effectiveRange: resolved)
                 if let postLogNote { postLogBanner(postLogNote) }
                 effortHero(rows: windowRows, effectiveRange: resolved, groups: groups)
                 summarySection(rows: windowRows, effectiveRange: resolved, groups: groups)
+                heatmapSection()
                 breakdownSection(groups: groups, rows: windowRows)
                 if let z = zonesSummary {
                     zonesSection(z, totalSessions: windowRows.count)
@@ -200,6 +216,14 @@ struct WorkoutsView: View {
                 if let row = r.first(where: { selectionKey($0) == key }) { openDetail(row) }
                 pendingDetailKey = nil
             }
+            // 13-week active-calorie heatmap: pull ~100 days of daily metrics and map day → active kcal.
+            // Loaded AFTER `loaded`/range are set so the secondary heatmap never delays the list's first
+            // paint — the card is hidden until this populates, then appears in place.
+            let toDay = todayDayString()
+            let fromDate = Calendar.current.date(byAdding: .day, value: -100, to: Date()) ?? Date()
+            let metrics = await repo.dailyMetrics(fromDay: Self.dayFormatter.string(from: fromDate), toDay: toDay)
+            dailyKcal = Dictionary(metrics.compactMap { m in m.activeKcalEst.map { (m.day, $0) } },
+                                   uniquingKeysWith: max)
         }
         .onAppear {
             // Preview-seeded rows skip `.task`; still choose a range that has data.
@@ -258,7 +282,7 @@ struct WorkoutsView: View {
         }
         // #519: name the sport before a live session starts, then open the in-exercise view directly
         // (same direct present as the button's already-active path — no cross-view auto-present race).
-        .sheet(isPresented: $showStartSport) {
+        .workoutSelectionCover(isPresented: $showStartSport) {
             StartWorkoutSheet { name in
                 model.startWorkout(sport: name)
                 showLiveWorkout = true
@@ -266,7 +290,7 @@ struct WorkoutsView: View {
         }
         // #64: name the merged session when every selected row is a bare detected bout (there's no sport
         // to inherit). Reuses the "Start a workout" named-sport picker.
-        .sheet(item: $mergeSportPrompt) { target in
+        .workoutSelectionCover(item: $mergeSportPrompt) { target in
             StartWorkoutSheet(title: String(localized: "Name the merged session"),
                               subtitle: String(localized: "These sessions have no sport label yet. Pick one for the merged session."),
                               actionVerb: String(localized: "Merge")) { name in
@@ -447,24 +471,13 @@ struct WorkoutsView: View {
     private func rangeBar(rows: [WorkoutRow], effectiveRange: Range) -> some View {
         let fellBack = effectiveRange != range
         let caption = rangeCaption(rows: rows, effectiveRange: effectiveRange, fellBack: fellBack)
-        #if os(iOS)
-        let stacked = hSizeClass == .compact
-        #else
-        let stacked = false
-        #endif
         return VStack(alignment: .leading, spacing: 8) {
-            if stacked {
-                // iPhone: button on its own row, the range pill full-width below — no crushed sliver.
-                addWorkoutButton
-                SegmentedPillControl(Range.allCases, selection: $range) { $0.label }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            } else {
-                HStack(spacing: 12) {
-                    addWorkoutButton
-                    Spacer()
-                    SegmentedPillControl(Range.allCases, selection: $range) { $0.label }
-                }
-            }
+            SegmentedPillControl(
+                Range.allCases,
+                selection: $range,
+                fillsAvailableWidth: true
+            ) { $0.label }
+                .frame(maxWidth: .infinity, alignment: .leading)
             filterBar
             Text(caption)
                 .font(StrandFont.footnote)
@@ -491,6 +504,7 @@ struct WorkoutsView: View {
                         Button(s) { sportFilter = s }
                     }
                 }
+                .frame(maxWidth: .infinity)
                 filterMenu(
                     title: sourceFilter.map(Self.sourceFilterLabel) ?? String(localized: "All sources"),
                     active: sourceFilter != nil,
@@ -502,6 +516,11 @@ struct WorkoutsView: View {
                         Button(Self.sourceFilterLabel(opt)) { sourceFilter = opt }
                     }
                 }
+                .frame(maxWidth: .infinity)
+            }
+            HStack(alignment: .center, spacing: NoopMetrics.space2) {
+                NoopLiquidGlassSearchField(text: $searchText,
+                                           prompt: String(localized: "Search sport"))
                 if filter.isActive {
                     Button {
                         withAnimation(.easeOut(duration: 0.15)) {
@@ -511,37 +530,13 @@ struct WorkoutsView: View {
                         Label(String(localized: "Clear"), systemImage: "xmark.circle.fill")
                             .font(StrandFont.footnote)
                             .foregroundStyle(StrandPalette.textSecondary)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 7)
+                            .frame(minHeight: 44)
                     }
                     .accessibilityLabel(String(localized: "Clear filters"))
                 }
-                Spacer(minLength: 0)
             }
-            HStack(spacing: 6) {
-                Image(systemName: "magnifyingglass")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(StrandPalette.textTertiary)
-                    .accessibilityHidden(true)
-                TextField(String(localized: "Search sport"), text: $searchText)
-                    .font(StrandFont.subhead)
-                    .foregroundStyle(StrandPalette.textPrimary)
-                    .textFieldStyle(.plain)
-                    #if os(iOS)
-                    .autocorrectionDisabled()
-                    .textInputAutocapitalization(.never)
-                    #endif
-                if !searchText.isEmpty {
-                    Button { searchText = "" } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 12))
-                            .foregroundStyle(StrandPalette.textTertiary)
-                    }
-                    .accessibilityLabel(String(localized: "Clear search"))
-                }
-            }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 7)
-            .background(StrandPalette.surfaceInset.opacity(0.6),
-                        in: RoundedRectangle(cornerRadius: 10, style: .continuous))
         }
     }
 
@@ -556,16 +551,18 @@ struct WorkoutsView: View {
                 Text(title).font(StrandFont.footnote).lineLimit(1)
                 Image(systemName: "chevron.down").font(.system(size: 9, weight: .semibold))
             }
+            .frame(maxWidth: .infinity)
             .foregroundStyle(active ? StrandPalette.effortColor : StrandPalette.textSecondary)
             .padding(.horizontal, 10)
             .padding(.vertical, 6)
             .background(
                 (active ? StrandPalette.effortColor.opacity(0.14) : StrandPalette.surfaceInset.opacity(0.6)),
-                in: Capsule()
+                in: RoundedRectangle(cornerRadius: 10, style: .continuous)
             )
+            .contentShape(Rectangle())
         }
         .menuStyle(.borderlessButton)
-        .fixedSize()
+        .frame(maxWidth: .infinity)
         .accessibilityLabel(a11y)
         .accessibilityValue(title)
     }
@@ -589,7 +586,7 @@ struct WorkoutsView: View {
     /// Opens the add sheet (editing == nil). Present on the populated screen and the empty state so a
     /// user with no imports can still log a session.
     private var addWorkoutButton: some View {
-        NoopButton("Add workout", systemImage: "plus", kind: .secondary) {
+        NoopButton("Add workout", systemImage: "plus", kind: .secondary, fullWidth: true) {
             sheet = WorkoutSheetTarget(editing: nil)
         }
         .accessibilityLabel("Add a workout")
@@ -601,13 +598,25 @@ struct WorkoutsView: View {
     private var startLiveWorkoutButton: some View {
         NoopButton(model.activeWorkout == nil ? "Start workout" : "View active workout",
                    systemImage: model.activeWorkout == nil ? "figure.run" : "timer",
-                   kind: .primary) {
+                   kind: .primary,
+                   fullWidth: true) {
             // No active session → pick a named sport first (#519), then the sheet's onStart begins it
             // and opens the in-exercise view. Already active → jump straight back into the live view.
             if model.activeWorkout == nil { showStartSport = true }
             else { showLiveWorkout = true }
         }
         .accessibilityLabel(model.activeWorkout == nil ? "Start a workout" : "View the active workout")
+    }
+
+    /// Equal-width primary actions share the same content width as every card below them.
+    private var workoutActionRow: some View {
+        HStack(spacing: NoopMetrics.rowSpacing) {
+            startLiveWorkoutButton
+                .frame(maxWidth: .infinity)
+            addWorkoutButton
+                .frame(maxWidth: .infinity)
+        }
+        .frame(maxWidth: .infinity)
     }
 
     /// The latest session start (anchors every window — windows are relative to the
@@ -817,6 +826,126 @@ struct WorkoutsView: View {
     }
 
     // MARK: - Summary tiles (uniform 104pt StatTiles)
+
+    // MARK: - Active-calorie heatmap (last 13 weeks)
+    //
+    // A GitHub-contribution-style grid of daily active calories: columns = weeks (Monday-first), rows =
+    // weekdays, cell shade = that day's burn vs the window max. The bucketing is the pure cross-platform
+    // `ActivityHeatmap` (parity with the Kotlin twin); this is just the SwiftUI renderer. Hidden entirely
+    // when there's no daily-calorie data yet.
+    @ViewBuilder
+    private func heatmapSection() -> some View {
+        let grid = ActivityHeatmap.build(values: dailyKcal, today: todayDayString())
+        if !grid.isEmpty {
+            VStack(alignment: .leading, spacing: NoopMetrics.gap) {
+                SectionHeader("Active calories", overline: "Last 13 weeks")
+                NoopCard(tint: StrandPalette.effortColor) {
+                    VStack(alignment: .leading, spacing: 12) {
+                        // Quarter total + current streak. Both come from the pure builder; the streak
+                        // reuses the same "day(s) in a row" copy as the Settings streak (no new string).
+                        HStack(alignment: .firstTextBaseline, spacing: 4) {
+                            Text(grouped(grid.total))
+                                .font(StrandFont.number(24)).foregroundStyle(StrandPalette.textPrimary)
+                            Text(String(localized: "KCAL"))   // reuses the miniStat/colHeader unit label
+                                .font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
+                            Spacer(minLength: 8)
+                            if grid.streak > 0 {
+                                Text("\(grid.streak)").font(StrandFont.number(15))
+                                    .foregroundStyle(StrandPalette.effortColor)
+                                Text(grid.streak == 1 ? "day in a row" : "days in a row")
+                                    .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+                            }
+                        }
+                        Canvas { ctx, size in drawHeatmap(ctx, size: size, grid: grid, today: todayDayString()) }
+                        .aspectRatio(13.0 / 7.6, contentMode: .fit)
+                        .frame(maxWidth: .infinity)
+                        .accessibilityLabel(Text("Active-calorie heatmap, last 13 weeks"))
+                        HStack(spacing: 4) {
+                            Text("Less").font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+                            ForEach(0..<5, id: \.self) { lvl in
+                                RoundedRectangle(cornerRadius: 2, style: .continuous)
+                                    .fill(heatColor(lvl))
+                                    .frame(width: 10, height: 10)
+                            }
+                            Text("More").font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /// Renders the heatmap into the Canvas: a left gutter of weekday labels (Mon/Wed/Fri/Sun) and a top
+    /// row of month labels (drawn where the month changes), then the cells. Labels use the LOCALIZED
+    /// calendar symbols so they translate for free and carry no hardcoded literals.
+    private func drawHeatmap(_ ctx: GraphicsContext, size: CGSize, grid: ActivityHeatmap.Grid, today: String) {
+        let cols = grid.columns.count
+        guard cols > 0 else { return }
+        let gap: CGFloat = 3
+        let leftInset: CGFloat = 20   // weekday gutter
+        let topInset: CGFloat = 14    // month row
+        let cell = min((size.width - leftInset - gap * CGFloat(cols - 1)) / CGFloat(cols),
+                       (size.height - topInset - gap * 6) / 7)
+        guard cell > 0 else { return }
+        let labelFont = StrandFont.caption
+        let labelColor = StrandPalette.textTertiary
+
+        // Weekday gutter: Mon/Wed/Fri/Sun. `veryShortWeekdaySymbols` is Sunday-first, so row r (Mon-first)
+        // maps to symbol (r + 1) % 7.
+        // Resolve + colour via the Canvas shading (macOS 13 compatible — `Text.foregroundStyle`
+        // returning Text is macOS 14+, but a resolved text's `shading` is available here).
+        func label(_ s: String) -> GraphicsContext.ResolvedText {
+            var t = ctx.resolve(Text(s).font(labelFont))
+            t.shading = .color(labelColor)
+            return t
+        }
+        let wd = Calendar.current.veryShortWeekdaySymbols
+        if wd.count == 7 {
+            for r in stride(from: 0, to: 7, by: 2) {
+                let y = topInset + CGFloat(r) * (cell + gap) + cell / 2
+                ctx.draw(label(wd[(r + 1) % 7]), at: CGPoint(x: 0, y: y), anchor: .leading)
+            }
+        }
+
+        // Month row: label a column when its month differs from the previous one.
+        let months = Calendar.current.shortMonthSymbols
+        var lastMonth = -1
+        for c in 0..<cols {
+            guard let day = grid.columns[c].first(where: { $0.day != nil })?.day,
+                  let m = Int(day.dropFirst(5).prefix(2)), m >= 1, m <= 12 else { continue }
+            if m != lastMonth {
+                lastMonth = m
+                let x = leftInset + CGFloat(c) * (cell + gap)
+                ctx.draw(label(months[m - 1]), at: CGPoint(x: x, y: 0), anchor: .topLeading)
+            }
+        }
+
+        // Cells; today's cell gets an outline so "where am I" reads at a glance (mirrors #222).
+        for c in 0..<cols {
+            let col = grid.columns[c]
+            for r in 0..<7 {
+                let rect = CGRect(x: leftInset + CGFloat(c) * (cell + gap),
+                                  y: topInset + CGFloat(r) * (cell + gap),
+                                  width: cell, height: cell)
+                let path = Path(roundedRect: rect, cornerRadius: cell * 0.24)
+                ctx.fill(path, with: .color(heatColor(col[r].level)))
+                if col[r].day == today {
+                    ctx.stroke(path, with: .color(StrandPalette.textPrimary), lineWidth: 1.5)
+                }
+            }
+        }
+    }
+
+    /// Level (0 = no data, 1...4 by intensity) → the amber calorie ramp.
+    private func heatColor(_ level: Int) -> Color {
+        switch level {
+        case 0: return StrandPalette.surfaceInset
+        case 1: return StrandPalette.metricAmber.opacity(0.28)
+        case 2: return StrandPalette.metricAmber.opacity(0.52)
+        case 3: return StrandPalette.metricAmber.opacity(0.78)
+        default: return StrandPalette.metricAmber
+        }
+    }
 
     private func summarySection(rows: [WorkoutRow], effectiveRange: Range, groups: [SportGroup]) -> some View {
         let totalCount = rows.count
@@ -1604,7 +1733,7 @@ struct WorkoutsView: View {
     // preferred, "16:34" where 24-hour is — instead of forcing 24-hour on everyone (matches TodayView).
     private static let timeFmt: DateFormatter = {
         let f = DateFormatter()
-        f.locale = Locale.current
+        f.locale = AppLanguage.activeLocale
         f.setLocalizedDateFormatFromTemplate("jmm")
         return f
     }()

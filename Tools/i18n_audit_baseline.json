@@ -169,6 +169,10 @@
       "Max 4"
     ],
     [
+      "android/app/src/main/java/com/noop/ui/CompareScreen.kt",
+      "\\u2014"
+    ],
+    [
       "android/app/src/main/java/com/noop/ui/CoupledScreen.kt",
       "A classic one-glance read of NOOP's own scores. Same data, different lens."
     ],
@@ -473,40 +477,24 @@
       "r = %+.2f"
     ],
     [
+      "android/app/src/main/java/com/noop/ui/NoopLimitationsScreen.kt",
+      "${row.feature}: WHOOP 4.0 ${row.whoop4.spoken}, 5.0/MG ${row.whoop5.spoken}"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/NoopLimitationsScreen.kt",
+      "5.0/MG"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/NoopLimitationsScreen.kt",
+      "Feature"
+    ],
+    [
       "android/app/src/main/java/com/noop/ui/NotificationsSettingsScreen.kt",
       "Buzzes your wrist"
     ],
     [
       "android/app/src/main/java/com/noop/ui/NotificationsSettingsScreen.kt",
       "Off"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/OnboardingScreen.kt",
-      "Deep blue accent on a dark blue-grey canvas."
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/OnboardingScreen.kt",
-      "Deep blue accent on warm paper."
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/OnboardingScreen.kt",
-      "Following your phone's light/dark setting."
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/OnboardingScreen.kt",
-      "Re-scan"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/OnboardingScreen.kt",
-      "Scan again"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/OnboardingScreen.kt",
-      "Your strap is bonded and ready to stream."
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/OnboardingScreen.kt",
-      "Your strap is bonded · ${it.toInt()}% battery."
     ],
     [
       "android/app/src/main/java/com/noop/ui/PipBar.kt",
@@ -530,7 +518,23 @@
     ],
     [
       "android/app/src/main/java/com/noop/ui/SettingsScreen.kt",
+      "Background image"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/SettingsScreen.kt",
+      "Blood Oxygen: strap estimate"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/SettingsScreen.kt",
+      "Browse files"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/SettingsScreen.kt",
       "Change photo"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/SettingsScreen.kt",
+      "Choose from Photos"
     ],
     [
       "android/app/src/main/java/com/noop/ui/SettingsScreen.kt",
@@ -538,11 +542,15 @@
     ],
     [
       "android/app/src/main/java/com/noop/ui/SettingsScreen.kt",
-      "Collapsed"
+      "Fill"
     ],
     [
       "android/app/src/main/java/com/noop/ui/SettingsScreen.kt",
-      "Expanded"
+      "Fit"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/SettingsScreen.kt",
+      "Let the background show through every card. Tune how much just below."
     ],
     [
       "android/app/src/main/java/com/noop/ui/SettingsScreen.kt",
@@ -566,7 +574,47 @@
     ],
     [
       "android/app/src/main/java/com/noop/ui/SettingsScreen.kt",
+      "Recent"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/SettingsScreen.kt",
+      "Remove image"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/SettingsScreen.kt",
+      "Replace from Photos"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/SettingsScreen.kt",
+      "Scaling"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/SettingsScreen.kt",
       "Searching…"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/SettingsScreen.kt",
+      "Show custom background"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/SettingsScreen.kt",
+      "Sleep chart"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/SettingsScreen.kt",
+      "Stretch"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/SettingsScreen.kt",
+      "Surfaces the WHOOP 5/MG strap's nightly SpO₂ estimate (spo2_candidate_82) in the "
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/SettingsScreen.kt",
+      "Tile"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/SettingsScreen.kt",
+      "Transparent cards"
     ],
     [
       "android/app/src/main/java/com/noop/ui/SettingsScreen.kt",
@@ -649,6 +697,18 @@
       "Today's value is your recorded daily stress score (0-3)."
     ],
     [
+      "android/app/src/main/java/com/noop/ui/TestCentreScreen.kt",
+      "Capturing… reproduce the issue, then share the log below."
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/TestCentreScreen.kt",
+      "Detailed capture to file"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/TestCentreScreen.kt",
+      "Share captured log"
+    ],
+    [
       "android/app/src/main/java/com/noop/ui/TodayScreen.kt",
       "CALIBRATING"
     ],
@@ -705,6 +765,10 @@
       "Zoomed in · drag to pan"
     ],
     [
+      "android/app/src/main/java/com/noop/ui/TrendsScreen.kt",
+      "Share recap"
+    ],
+    [
       "android/app/src/main/java/com/noop/ui/UpdateStore.kt",
       "What's new in NOOP $version"
     ],
@@ -746,6 +810,14 @@
     ],
     [
       "android/app/src/main/java/com/noop/ui/WorkoutsScreen.kt",
+      "Active calories"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/WorkoutsScreen.kt",
+      "Active-calorie heatmap, last 13 weeks"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/WorkoutsScreen.kt",
       "Add"
     ],
     [
@@ -774,6 +846,14 @@
     ],
     [
       "android/app/src/main/java/com/noop/ui/WorkoutsScreen.kt",
+      "Export route"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/WorkoutsScreen.kt",
+      "FIT"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/WorkoutsScreen.kt",
       "Finish selecting"
     ],
     [
@@ -782,7 +862,23 @@
     ],
     [
       "android/app/src/main/java/com/noop/ui/WorkoutsScreen.kt",
+      "GPX"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/WorkoutsScreen.kt",
+      "Last 13 weeks · daily burn"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/WorkoutsScreen.kt",
+      "Less"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/WorkoutsScreen.kt",
       "Logged sessions across ${effectiveRange.caption}."
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/WorkoutsScreen.kt",
+      "More"
     ],
     [
       "android/app/src/main/java/com/noop/ui/WorkoutsScreen.kt",
@@ -791,6 +887,10 @@
     [
       "android/app/src/main/java/com/noop/ui/WorkoutsScreen.kt",
       "Save"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/WorkoutsScreen.kt",
+      "Save this GPS route as a file to import into Strava, Garmin Connect, or another app. "
     ],
     [
       "android/app/src/main/java/com/noop/ui/WorkoutsScreen.kt",
@@ -857,26 +957,6 @@
     [
       "Packages/StrandDesign/Sources/StrandDesign/ChartHover.swift",
       "\\(value), \\(label!)"
-    ],
-    [
-      "Packages/StrandDesign/Sources/StrandDesign/DayNavBar.swift",
-      "Next day"
-    ],
-    [
-      "Packages/StrandDesign/Sources/StrandDesign/DayNavBar.swift",
-      "Pick a date"
-    ],
-    [
-      "Packages/StrandDesign/Sources/StrandDesign/DayNavBar.swift",
-      "Previous day"
-    ],
-    [
-      "Packages/StrandDesign/Sources/StrandDesign/TrendChart.swift",
-      "Trend"
-    ],
-    [
-      "Packages/StrandDesign/Sources/StrandDesign/YearHeatStrip.swift",
-      "\\(DateFormatterCache.day.string(from: day.date)) · recovery \\(Int(score.rounded()))"
     ],
     [
       "Strand/Liquid/LiquidPrimitives.swift",

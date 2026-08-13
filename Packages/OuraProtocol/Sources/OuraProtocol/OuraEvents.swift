@@ -67,16 +67,30 @@ public struct OuraHR: Equatable, Sendable, Codable {
     }
 }
 
-/// One decoded HRV (RMSSD-derived) sample from the ring's own 0x5D tag (OURA_PROTOCOL.md s6.9).
-/// NOOP also reconstructs RMSSD itself from the IBI streams for its own scoring; this is the ring's
-/// open HRV tag, NOT Oura's encrypted readiness score.
+/// One decoded 5-minute HRV bucket from the ring's own 0x5D tag (OURA_PROTOCOL.md s6.9): the ring's
+/// OWN average HR and RMSSD for that bucket. The 0x5D body is a run of `(u8 avg HR bpm, u8 avg RMSSD ms)`
+/// pairs, one per 5 min; `index` is the pair's position in the record. This is the ring's open HRV tag,
+/// NOT Oura's encrypted readiness score. NOOP also reconstructs RMSSD from the IBI streams for its own
+/// scoring; this tag is the ring's own summary (validated overnight — the hr byte tracks sleeping HR).
 public struct OuraHRV: Equatable, Sendable, Codable {
     public let ringTimestamp: UInt32
-    public let timeMs: Int
-    public let b1: Int
-    public let b2: Int
-    public init(ringTimestamp: UInt32, timeMs: Int, b1: Int, b2: Int) {
-        self.ringTimestamp = ringTimestamp; self.timeMs = timeMs; self.b1 = b1; self.b2 = b2
+    /// 0-based pair index within the record, counting from the record's FIRST byte-pair — which is its
+    /// **OLDEST** bucket (#1167). The consumer needs `count` as well as `index` to place the bucket:
+    /// `bucketTs = ts - (count - index) * 300`.
+    public let index: Int
+    /// The ring's average HR for the 5-min bucket, in bpm (u8, no scaling).
+    public let hrBpm: Int
+    /// The ring's average RMSSD for the 5-min bucket, in ms (u8, no scaling).
+    public let rmssdMs: Int
+    /// Total pairs in the record this bucket came from — INCLUDING any `00 00` padding pair the decoder
+    /// dropped (#1128/#1131). `index` is always in `0..<count`. Needed because the record's timestamp
+    /// marks the END of the span it covers, so a bucket's offset is measured from the record's tail, not
+    /// its head: dropping a pad without counting it would slide every surviving bucket in the record.
+    /// Mirrors `OuraSpO2.count`, which the SpO2 path already uses for the same reason.
+    public let count: Int
+    public init(ringTimestamp: UInt32, index: Int, hrBpm: Int, rmssdMs: Int, count: Int = 1) {
+        self.ringTimestamp = ringTimestamp; self.index = index; self.hrBpm = hrBpm
+        self.rmssdMs = rmssdMs; self.count = count
     }
 }
 
@@ -145,8 +159,15 @@ public struct OuraSleepPhase: Equatable, Sendable, Codable {
     public let ringTimestamp: UInt32
     public let index: Int          // position within the record's phase sequence
     public let stage: OuraSleepStage
-    public init(ringTimestamp: UInt32, index: Int, stage: OuraSleepStage) {
+    /// #1246: this epoch came from an UNWRITTEN hypnogram page (a whole record of the erased-flash value
+    /// `0xFF`, which the 2-bit decode would otherwise read as four `awake` codes). It keeps a placeholder
+    /// `stage` so it still OCCUPIES its 30 s slot in the burst's time axis (dropping it would mis-time the
+    /// real codes laid around it), but the assembler EXCLUDES it from the reconstructed hypnogram — a gap,
+    /// not `awake`. Defaults false so every real decoded/constructed phase is a written epoch.
+    public let unwritten: Bool
+    public init(ringTimestamp: UInt32, index: Int, stage: OuraSleepStage, unwritten: Bool = false) {
         self.ringTimestamp = ringTimestamp; self.index = index; self.stage = stage
+        self.unwritten = unwritten
     }
 }
 

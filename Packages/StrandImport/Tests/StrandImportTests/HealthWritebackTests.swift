@@ -6,6 +6,69 @@ final class HealthWritebackTests: XCTestCase {
     private let start = 1_700_000_000
     private var end: Int { start + 8 * 3600 }
 
+    func testHeartRateIntervalAndPointShapesKeepTheSameValue() {
+        let bucket = HealthWriteback.HeartRateBucket(startTs: start, bpm: 72.5)
+        let interval = HealthWriteback.heartRateSamples(
+            buckets: [bucket], encoding: .interval60Seconds, nowTs: start + 100)[0]
+        let point = HealthWriteback.heartRateSamples(
+            buckets: [bucket], encoding: .pointAtBucketMidpoint, nowTs: start + 100)[0]
+
+        XCTAssertEqual(interval.startTs, start)
+        XCTAssertEqual(interval.endTs, start + 60)
+        XCTAssertEqual(point.startTs, start + 30)
+        XCTAssertEqual(point.endTs, start + 30)
+        XCTAssertEqual(interval.bpm, point.bpm)
+        XCTAssertEqual(interval.bucketTs, point.bucketTs)
+    }
+
+    func testHeartRatePlannerClampsFutureEdgeAndRejectsInvalidValues() {
+        let buckets = [
+            HealthWriteback.HeartRateBucket(startTs: start, bpm: 70),
+            .init(startTs: start + 60, bpm: .nan),
+            .init(startTs: start + 120, bpm: 0),
+            .init(startTs: start + 180, bpm: 75),
+        ]
+        let interval = HealthWriteback.heartRateSamples(
+            buckets: buckets, encoding: .interval60Seconds, nowTs: start + 20)
+        let point = HealthWriteback.heartRateSamples(
+            buckets: buckets, encoding: .pointAtBucketMidpoint, nowTs: start + 20)
+        XCTAssertEqual(interval, [.init(bucketTs: start, startTs: start, endTs: start + 20, bpm: 70)])
+        XCTAssertEqual(point, [.init(bucketTs: start, startTs: start + 20, endTs: start + 20, bpm: 70)])
+    }
+
+    func testHeartRateExperimentChoosesTwoDenseNonOverlappingWindows() {
+        let buckets = (0..<240).map {
+            HealthWriteback.HeartRateBucket(startTs: start + $0 * 60, bpm: 60 + Double($0 % 20))
+        }
+        XCTAssertEqual(HealthWriteback.heartRateExperimentWindows(buckets: buckets), [
+            .init(startTs: start, endTs: start + 120 * 60),
+            .init(startTs: start + 120 * 60, endTs: start + 240 * 60),
+        ])
+    }
+
+    func testHeartRateExperimentRefusesSparseInput() {
+        let buckets = stride(from: 0, to: 240, by: 3).map {
+            HealthWriteback.HeartRateBucket(startTs: start + $0 * 60, bpm: 70)
+        }
+        XCTAssertEqual(HealthWriteback.heartRateExperimentWindows(buckets: buckets), [])
+    }
+
+    func testHeartRateMigrationChunksBackwardAndStopsAtFloor() {
+        let twoDays = 2 * 86_400
+        let first = HealthWriteback.heartRateMigrationChunk(
+            endTs: start + 30 * 86_400, floorTs: start, chunkDays: 14)
+        XCTAssertEqual(first, .init(
+            window: .init(startTs: start + 16 * 86_400, endTs: start + 30 * 86_400),
+            completesMigration: false))
+
+        let final = HealthWriteback.heartRateMigrationChunk(
+            endTs: start + twoDays, floorTs: start, chunkDays: 14)
+        XCTAssertEqual(final, .init(
+            window: .init(startTs: start, endTs: start + twoDays),
+            completesMigration: true))
+        XCTAssertNil(HealthWriteback.heartRateMigrationChunk(endTs: start, floorTs: start))
+    }
+
     private func intervals(_ json: String?) -> [HealthWriteback.StageInterval] {
         HealthWriteback.stageIntervals(stagesJSON: json, sessionStart: start, sessionEnd: end)
     }

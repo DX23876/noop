@@ -11,8 +11,11 @@ import StrandAnalytics
 /// than showing a confident-looking bar built on nothing.
 struct JourneyView: View {
     @EnvironmentObject private var coach: AICoachEngine
+    @EnvironmentObject private var repo: Repository
     @ObservedObject private var goalStore = CoachGoalStore.shared
     @ObservedObject private var planStore = CoachPlanStore.shared
+    @ObservedObject private var contributionStore = GoalContributionStore.shared
+    @ObservedObject private var trackingStore = GoalTrackingStore.shared
     @Environment(\.dismiss) private var dismiss
 
     /// Which goal this journey is for (#R-multi-goal — there can be several active at once now, so the
@@ -24,7 +27,6 @@ struct JourneyView: View {
     @AppStorage(AppleInspiredColorsPrefs.enabledKey) private var appleHealthColors = AppleInspiredColorsPrefs.defaultEnabled
 
     @State private var evidence = GoalFeasibility.Evidence()
-    @State private var latestWeightKg: Double?
     @State private var loaded = false
     @State private var showEditor = false
     @State private var showSetAsideDialog = false
@@ -34,6 +36,8 @@ struct JourneyView: View {
     /// The manual "I did something for this goal" logger (see `logSessionCard`).
     @State private var showLogSession = false
     @State private var logSessionText = ""
+    @State private var dismissedReachedCandidate = false
+    @State private var editingContribution: GoalWorkoutAttributionSuggestion?
 
     var body: some View {
         NavigationStack {
@@ -44,9 +48,11 @@ struct JourneyView: View {
                         headerCard(goal)
                         progressCard(goal)
                         trendCard(goal)
+                        weeklyMomentumCard(goal)
                         milestonesCard(goal)
                         readinessCard
                         planHistoryCard
+                        contributionCard(goal)
                         if !goal.history.isEmpty { historyCard(goal) }
                     }
                     .padding(16)
@@ -65,10 +71,16 @@ struct JourneyView: View {
             .task {
                 guard !loaded else { return }
                 loaded = true
+                await PlanReconciliationCoordinator.reconcile(repo: repo)
+                await trackingStore.refresh(repo: repo)
                 evidence = await coach.goalEvidence()
-                latestWeightKg = await coach.latestLoggedWeightKg()
             }
             .sheet(isPresented: $showEditor) { CoachGoalEditorView(isOnboarding: false, editingGoalId: goalId) }
+            .sheet(item: $editingContribution) { suggestion in
+                GoalWorkoutAttributionSheet(suggestion: suggestion) {
+                    Task { await trackingStore.refresh(repo: repo) }
+                }
+            }
             .confirmationDialog("Set this goal aside?", isPresented: $showSetAsideDialog, titleVisibility: .visible) {
                 Button("Injury or health") { goalStore.setAside(goalId, reason: "injury or health") }
                 Button("Life got busy") { goalStore.setAside(goalId, reason: "life got busy") }
@@ -116,6 +128,29 @@ struct JourneyView: View {
                     Text("Its story below stays yours. A new goal is one tap away in Coach settings.")
                         .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
                         .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+        case .active where goalAppearsReached(goal) && !dismissedReachedCandidate:
+            NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "target")
+                            .foregroundStyle(StrandPalette.accent)
+                            .accessibilityHidden(true)
+                        Text("Your measured target appears reached")
+                            .font(StrandFont.headline).foregroundStyle(StrandPalette.textPrimary)
+                    }
+                    Text("NOOP will not close the goal for you. Confirm it only if this measurement means the goal is complete to you.")
+                        .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    HStack(spacing: 10) {
+                        Button("Mark as achieved") { goalStore.markAchieved(goal.id) }
+                            .buttonStyle(.borderedProminent)
+                            .tint(StrandPalette.accent)
+                        Button("Keep working") { dismissedReachedCandidate = true }
+                            .buttonStyle(.plain)
+                            .foregroundStyle(StrandPalette.textSecondary)
+                    }
                 }
             }
         case .active where (ProactiveCoach.daysPastTarget(goal) ?? 0) >= 1:
@@ -230,13 +265,38 @@ struct JourneyView: View {
     }
 
     /// A real, measured fraction — only when there's an actual current value AND both ends of the range
-    /// to place it in. The arithmetic itself lives in `GoalProgress` (pure, tested, and shared with the
-    /// Today card and the goal widget), so those three surfaces can never disagree about one goal; this
-    /// only reshapes it into what the Progress card draws.
+    /// to place it in. Anything less falls through to `fallbackProgressLine`.
     private func measuredProgress(_ goal: CoachGoal) -> (fraction: Double?, line: String)? {
-        let reading = GoalProgress.reading(goal: goal, evidence: evidence, latestWeightKg: latestWeightKg)
-        guard let line = reading.line else { return nil }
-        return (reading.fraction, line)
+        guard let snapshot = trackingStore.snapshot(for: goal.id),
+              let measurement = snapshot.measurement else { return nil }
+        func ranged(_ current: Double, unit: String) -> (fraction: Double?, line: String) {
+            guard let baseline = goal.baseline, let target = goal.target, target != baseline else {
+                return (nil, String(format: "Currently %.1f %@. Set a starting point and target to see a "
+                                    + "progress bar.", current, unit))
+            }
+            let frac = min(1, max(0, (current - baseline) / (target - baseline)))
+            let line = String(format: "%.1f %@ now, from %.1f toward %.1f %@.",
+                              current, unit, baseline, target, unit)
+            return (frac, line)
+        }
+        switch goal.kind {
+        case .run:
+            return ranged(measurement.value, unit: "km")
+        case .sleep:
+            return ranged(measurement.value, unit: "h")
+        case .weight:
+            return ranged(measurement.value, unit: "kg")
+        case .consistency:
+            let sessions = measurement.value
+            guard let target = goal.target, target > 0 else {
+                return nil
+            }
+            let frac = min(1, max(0, sessions / target))
+            return (frac, String(format: "Averaging %.1f sessions/week toward a target of %.0f.",
+                                 sessions, target))
+        case .strength, .stress, .recovery, .custom:
+            return nil
+        }
     }
 
     // MARK: - Explanations & manual logging
@@ -335,7 +395,7 @@ struct JourneyView: View {
         planStore.addUserSession(day: Repository.localDayKey(Date()), time: nil,
                                  sport: what, intent: .easy, goalId: goal.id)
         // It already happened — a thing you're reporting afterwards is completed, not scheduled.
-        if let logged = planStore.proposals.first(where: { $0.goalId == goal.id && $0.sport == what }) {
+        if let logged = planStore.proposals.first(where: { $0.serves(goal.id) && $0.sport == what }) {
             planStore.complete(logged.id)
         }
         showLogSession = false
@@ -345,7 +405,8 @@ struct JourneyView: View {
     // MARK: - Trend towards the goal
 
     private func trendCard(_ goal: CoachGoal) -> some View {
-        let trend = JourneyExplain.trend(goal: goal, current: currentMeasurement(goal))
+        let trend = trackingStore.snapshot(for: goal.id)?.trend
+            ?? JourneyExplain.trend(goal: goal, current: nil)
         return NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
             VStack(alignment: .leading, spacing: 6) {
                 HStack(spacing: 8) {
@@ -366,12 +427,122 @@ struct JourneyView: View {
     }
 
     /// The one real measurement this goal's progress is read from, or nil when there isn't one. The same
-    /// value `measuredProgress` places on the bar, so the bar and the trend can never disagree.
+    /// values `measuredProgress` places on the bar, so the bar and the trend can never disagree.
     private func currentMeasurement(_ goal: CoachGoal) -> Double? {
-        GoalProgress.currentMeasurement(goal: goal, evidence: evidence, latestWeightKg: latestWeightKg)
+        trackingStore.snapshot(for: goal.id)?.measurement?.value
+    }
+
+    private func goalAppearsReached(_ goal: CoachGoal) -> Bool {
+        guard goal.kind.isQuantified, let baseline = goal.baseline, let target = goal.target,
+              target != baseline, let current = currentMeasurement(goal) else { return false }
+        return target > baseline ? current >= target : current <= target
+    }
+
+    // MARK: - Flexible goal weeks
+
+    private func weeklyMomentumCard(_ goal: CoachGoal) -> some View {
+        let snapshot = trackingStore.snapshot(for: goal.id)
+        return NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack {
+                    Text("Goal weeks").strandOverline()
+                    Spacer()
+                    if let snapshot {
+                        Text("\(snapshot.currentStreak) in a row")
+                            .font(StrandFont.caption).foregroundStyle(StrandPalette.textPrimary)
+                    }
+                }
+                if let snapshot {
+                    HStack {
+                        Text("Plan \(snapshot.currentWeek.planCompleted)/\(snapshot.currentWeek.planPlanned)")
+                        Text("Daily actions \(snapshot.currentWeek.actionCompleted)/\(snapshot.currentWeek.actionPlanned)")
+                        Spacer()
+                        Text("Best \(snapshot.bestStreak)")
+                    }
+                    .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
+                    HStack(spacing: 6) {
+                        ForEach(snapshot.recentWeeks) { week in
+                            VStack(spacing: 3) {
+                                RoundedRectangle(cornerRadius: 3)
+                                    .fill(weekColor(week.state))
+                                    .frame(height: 8)
+                                Text(week.start.formatted(.dateTime.day().month(.abbreviated)))
+                                    .font(.system(size: 8)).foregroundStyle(StrandPalette.textTertiary)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .accessibilityElement(children: .ignore)
+                            .accessibilityLabel(weekAccessibility(week))
+                        }
+                    }
+                    Text(snapshot.nextAction)
+                        .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
+                } else {
+                    Text("Goal-week tracking is loading.")
+                        .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                }
+                explanation(id: "goal-weeks", text: String(localized: "Execution and outcome stay separate. A completed calendar week counts when both non-empty lanes — planned sessions and due daily actions — reach at least 80%. Paused weeks and weeks protected by illness, pain or travel neither extend nor break the run. Weeks with nothing due are neutral."))
+            }
+        }
+    }
+
+    private func weekColor(_ state: GoalTrackingSnapshot.WeekState) -> Color {
+        switch state {
+        case .successful:   return StrandPalette.accent
+        case .unsuccessful: return StrandPalette.statusWarning
+        case .protected:    return StrandPalette.chargeColor
+        case .neutral, .pending: return StrandPalette.hairline
+        }
+    }
+
+    private func weekAccessibility(_ week: GoalTrackingSnapshot.GoalWeek) -> String {
+        let state: String
+        switch week.state {
+        case .successful: state = "successful"
+        case .unsuccessful: state = "below plan"
+        case .protected: state = "protected"
+        case .neutral: state = "neutral"
+        case .pending: state = "waiting for a decision"
+        }
+        return "Week of \(week.start.formatted(date: .abbreviated, time: .omitted)): \(state), \(week.completed) of \(week.planned) completed"
     }
 
     // MARK: - Milestones
+
+    @ViewBuilder
+    private func contributionCard(_ goal: CoachGoal) -> some View {
+        let contributions = contributionStore.contributions
+            .filter { $0.goalIds.contains(goal.id) }
+            .sorted { $0.workout.startTs > $1.workout.startTs }
+        if !contributions.isEmpty {
+            NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Supporting activities").strandOverline()
+                    Text("These show execution, not proof that the outcome itself was reached.")
+                        .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+                    ForEach(contributions.prefix(8)) { item in
+                        Button {
+                            editingContribution = .init(workout: item.workout,
+                                                        suggestedGoalIds: item.goalIds)
+                        } label: {
+                            HStack {
+                                Image(systemName: "checkmark.circle")
+                                    .foregroundStyle(StrandPalette.accent)
+                                Text(item.workout.sport).font(StrandFont.footnote)
+                                    .foregroundStyle(StrandPalette.textPrimary)
+                                Spacer()
+                                Text(Date(timeIntervalSince1970: Double(item.workout.startTs))
+                                    .formatted(date: .abbreviated, time: .omitted))
+                                    .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+                                Image(systemName: "pencil")
+                                    .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+                            }
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+        }
+    }
 
     private func milestonesCard(_ goal: CoachGoal) -> some View {
         let inputs = milestoneInputs(goal)

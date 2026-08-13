@@ -78,6 +78,7 @@ import com.noop.analytics.FitnessAgeReadiness
 import com.noop.analytics.FitnessReadinessItem
 import com.noop.analytics.FitnessReadinessRole
 import com.noop.analytics.FitnessReadinessStatus
+import com.noop.analytics.SkinTempDisplay
 import com.noop.analytics.VitalBands
 import com.noop.ble.LiveState
 import com.noop.data.DailyMetric
@@ -118,6 +119,8 @@ fun HealthScreen(
     // analytics pass and published by the ViewModel. Cycle awareness gates on its opt-in pref.
     val v5Signals by vm.v5Signals.collectAsStateWithLifecycle()
     val cycleEnabled by vm.cycleTrackingEnabled.collectAsStateWithLifecycle()
+    val periodStarts by vm.periodStarts.collectAsStateWithLifecycle()
+    var showCycleTracker by remember { mutableStateOf(false) }
     val hrMax = profile.hrMax
 
     // Health Monitor shows live HR too, so it must keep the realtime stream on while it's visible —
@@ -137,6 +140,9 @@ fun HealthScreen(
     // Mirrors the shipped Today liveSnap fix. Appearance-preserving.
     val live by vm.live.collectAsStateWithLifecycle()
     val bpm by vm.bpm.collectAsStateWithLifecycle()
+    // #103: collect reactively (not .value) so the Latest-readings card recomposes on its own when the
+    // SpO₂ candidate map updates, matching VitalSignsScreen — not only incidentally via `days`.
+    val spo2CandidateByDay by vm.spo2CandidateByDay.collectAsStateWithLifecycle()
     val hasLiveHr by remember { derivedStateOf { displayHr(bpm, live) != null } }
 
     // LIQUID SKY BACKDROP (the pilot pattern — LiquidScreenSky.kt): the time-of-day liquid sky settles into
@@ -151,10 +157,10 @@ fun HealthScreen(
     LazyScreenScaffold(
         title = uiString(R.string.l10n_health_screen_health_monitor_c4abc3fc),
         subtitle = "Live vitals, streamed from the strap.",
-        topBackground = if (showDayCycleBackground) { { LiquidScreenSky(fillHeight = skyBehindCards) } } else null,
+        topBackground = screenBackdropSlot(showDayCycleBackground, skyBehindCards),
         // Sky-behind-cards fills the viewport so the transparent cards reveal the sky the whole way
         // down (Today / Trends / Sleep / metric-detail parity - same two prefs, same two behaviours).
-        fullBleedBackground = showDayCycleBackground && skyBehindCards,
+        fullBleedBackground = screenBackdropFullBleed(showDayCycleBackground, skyBehindCards),
     ) {
         if (today == null && !hasLiveHr) {
             // Even with no history yet, a freshly-connected strap can be told to sync now (#364) — the
@@ -176,7 +182,12 @@ fun HealthScreen(
                     title = uiString(R.string.l10n_health_screen_vital_signs_e7d9e1b1),
                     overline = "Latest readings",
                     trailing = null,
-                    vitals = latestVitals(days, UnitPrefs.temperature(LocalContext.current)),
+                    vitals = latestVitals(
+                        days,
+                        UnitPrefs.temperature(LocalContext.current),
+                        spo2CandidateByDay,
+                        NoopPrefs.spo2CandidateDisplay(LocalContext.current),
+                    ),
                     onVitalClick = onVitalClick,
                     captionMode = VitalCaptionMode.AS_OF,
                 )
@@ -200,6 +211,8 @@ fun HealthScreen(
                     // invitation is NOT offered for male profiles. Matches iOS SkinTempSection.cycleOptInApplies.
                     cycleOptInApplies = cycleOptInApplies(profile.sex),
                     onEnableCycle = { vm.setCycleTrackingEnabled(true) },
+                    onLogPeriod = { vm.logPeriodStart() },
+                    onOpenCycleTracker = { showCycleTracker = true },
                     // #801: symmetric off-control. Cycle awareness could be turned ON here but only OFF from
                     // Automations; let the user turn it off in-place where they turned it on.
                     onTurnOffCycle = { vm.setCycleTrackingEnabled(false) },
@@ -218,6 +231,19 @@ fun HealthScreen(
                     onOpenFusedRecord = onOpenFusedRecord,
                 )
             }
+        }
+    }
+
+    if (showCycleTracker) {
+        v5Signals?.cycle?.let { cycle ->
+            CycleTrackerDialog(
+                result = cycle,
+                starts = periodStarts,
+                onLog = vm::logPeriodStart,
+                onDelete = vm::deletePeriodStart,
+                onDeleteAll = vm::deleteAllPeriodStarts,
+                onDismiss = { showCycleTracker = false },
+            )
         }
     }
 }
@@ -433,6 +459,8 @@ private fun SkinTempSuiteSection(
     // #801: whether the cycle-awareness opt-in invitation is offered for this profile (sex-gated).
     cycleOptInApplies: Boolean,
     onEnableCycle: () -> Unit,
+    onLogPeriod: () -> Unit,
+    onOpenCycleTracker: () -> Unit,
     // #801: symmetric off-control, surfaced on the live card.
     onTurnOffCycle: () -> Unit,
 ) {
@@ -450,7 +478,14 @@ private fun SkinTempSuiteSection(
         // opt-in invitation is shown ONLY for profiles it can apply to (sex-gated); a male profile that
         // previously enabled it still sees its existing card, only the invitation is gated.
         if (cycleEnabled) {
-            signals?.cycle?.let { CycleAwarenessCard(result = it, onTurnOff = onTurnOffCycle) }
+            signals?.cycle?.let {
+                CycleAwarenessCard(
+                    result = it,
+                    onLogPeriod = onLogPeriod,
+                    onOpenDetail = onOpenCycleTracker,
+                    onTurnOff = onTurnOffCycle,
+                )
+            }
         } else if (cycleOptInApplies) {
             CycleAwarenessOptInCard(onEnable = onEnableCycle)
         }
@@ -786,8 +821,6 @@ private fun VitalityHero(
 // The frosted translucent-black hero-card wrapper (mock rgba(13,14,20,.80), radius 26, white@0.11
 // hairline) that floats the hero over the day-of-sky so the vessel + white count-up stay crisp — the
 // card does the contrast work, not a muted sky. Byte-matched to the Today pilot's LIQUID_HERO_* values.
-private val HEALTH_HERO_FILL: Color =
-    Color(red = 13f / 255f, green = 14f / 255f, blue = 20f / 255f, alpha = 0.80f)
 private val HEALTH_HERO_RADIUS: Dp = 26.dp
 
 /** Wrap a hero's content in the frosted liquid glass surface so it floats over the sky backdrop. Applied
@@ -799,8 +832,8 @@ private fun LiquidHeroCard(content: @Composable () -> Unit) {
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(HEALTH_HERO_RADIUS))
-            .background(HEALTH_HERO_FILL)
-            .border(1.dp, Color.White.copy(alpha = 0.11f), RoundedCornerShape(HEALTH_HERO_RADIUS))
+            .background(Palette.heroFill.copy(alpha = Palette.heroFill.alpha * CardAppearance.opacity))
+            .border(1.dp, Palette.heroBorder.copy(alpha = Palette.heroBorder.alpha * CardAppearance.opacity), RoundedCornerShape(HEALTH_HERO_RADIUS))
             .padding(Metrics.cardPadding),
     ) {
         content()
@@ -1092,13 +1125,17 @@ private fun yearWord(years: Int): String = if (kotlin.math.abs(years) == 1) "yea
 @Composable
 fun VitalSignsScreen(vm: AppViewModel, onVitalClick: (String) -> Unit = {}) {
     val days by vm.recentDays.collectAsStateWithLifecycle()
+    val spo2CandidateByDay by vm.spo2CandidateByDay.collectAsStateWithLifecycle()
     var selectedDayOffset by remember { mutableIntStateOf(0) }
     val selectedDay = remember(selectedDayOffset) { LocalDate.now().minusDays(selectedDayOffset.toLong()) }
     val selectedDayKey = remember(selectedDay) { selectedDay.toString() }
     val selectedMetric = remember(days, selectedDayKey) { days.lastOrNull { it.day == selectedDayKey } }
     val tempUnit = UnitPrefs.temperature(LocalContext.current)
-    val vitals = remember(selectedMetric, days, tempUnit) {
-        selectedMetric?.let { vitalsFor(it, days, tempUnit) }.orEmpty()
+    // Read the toggle here in the composable body, NOT inside remember{} — LocalContext.current is a
+    // @Composable read and is illegal inside the calculation lambda; pass the resolved value in + key on it.
+    val spo2CandidateDisplay = NoopPrefs.spo2CandidateDisplay(LocalContext.current)
+    val vitals = remember(selectedMetric, days, tempUnit, spo2CandidateByDay, spo2CandidateDisplay) {
+        selectedMetric?.let { vitalsFor(it, days, tempUnit, spo2CandidateByDay, spo2CandidateDisplay) }.orEmpty()
     }
 
     ScreenScaffold(
@@ -1679,10 +1716,10 @@ fun VitalDetailScreen(vm: AppViewModel, key: String) {
             loadedPoints == 1 -> "Your latest reading — trend to follow."
             else -> "Historical trend from cached daily metrics."
         },
-        topBackground = if (showDayCycleBackground) { { LiquidScreenSky(fillHeight = skyBehindCards) } } else null,
+        topBackground = screenBackdropSlot(showDayCycleBackground, skyBehindCards),
         // Sky-behind-cards needs the full-viewport container too — the band container's status-bar
         // offset left the lower cards on plain canvas (tester report).
-        fullBleedBackground = showDayCycleBackground && skyBehindCards,
+        fullBleedBackground = screenBackdropFullBleed(showDayCycleBackground, skyBehindCards),
     ) {
         if (isSeriesBacked && !seriesLoaded) {
             DataPendingNote(
@@ -1993,27 +2030,25 @@ private fun buildVitalDetail(
     )
     "skin" -> {
         val latest = days.asReversed().asSequence().mapNotNull { it.skinTempDevC }.firstOrNull() ?: return null
-        val absolute = VitalBands.isAbsoluteSkinTemp(latest)
-        val unit = UnitFormatter.temperatureUnit(tempUnit)
-        val format: (Double) -> String = { c ->
-            val full = if (absolute) {
-                UnitFormatter.temperatureFromCelsius(c, tempUnit, decimals = 1)
-            } else {
-                UnitFormatter.temperatureDeltaFromCelsius(c, tempUnit, decimals = 1)
-            }
-            full.removeSuffix(" $unit")
+        val kind = SkinTempDisplay.kind(latest)
+        val fahrenheit = tempUnit == TemperatureUnit.FAHRENHEIT
+        val unit = SkinTempDisplay.unitSymbol(kind, fahrenheit)
+        val title = if (kind == SkinTempDisplay.Kind.ABSOLUTE) {
+            uiString(R.string.l10n_health_screen_skin_temperature_f59127f6)
+        } else {
+            uiString(R.string.skin_temp_delta_title)
         }
         VitalDetailModel(
             key = key,
-            title = uiString(R.string.l10n_health_screen_skin_temperature_f59127f6),
+            title = title,
             unit = unit,
             color = Palette.metricAmber,
             readings = days.mapNotNull { row ->
                 row.skinTempDevC
-                    ?.takeIf { VitalBands.isAbsoluteSkinTemp(it) == absolute }
+                    ?.takeIf { VitalBands.isAbsoluteSkinTemp(it) == (kind == SkinTempDisplay.Kind.ABSOLUTE) }
                     ?.let { value -> VitalReading(row.day, value, row.deviceId) }
             },
-            format = format,
+            format = { c -> SkinTempDisplay.numberString(c, kind, fahrenheit, decimals = 1) },
         )
     }
     else -> null

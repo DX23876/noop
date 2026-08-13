@@ -7,34 +7,38 @@ extension TodaySection {
         // Fork-only sections. The same "sparkles" mark every Coach entry point uses (CoachEntry.swift),
         // so the editor row is recognisable as the Coach banner it reorders.
         case .coach: return "sparkles"
-        case .goal: return "target"
         case .dataSources: return "externaldrive.connected.to.line.below"
         case .hero: return "gauge.with.dots.needle.67percent"
         case .liveSession: return "figure.run.circle"
         case .synthesis: return "sparkles"
+        case .goals: return "target"
         case .keyMetrics: return "square.grid.2x2"
         case .workouts: return "figure.run"
         case .heartRate: return "waveform.path.ecg"
         case .recoveryVitals: return "heart.text.square"
         case .yourCards: return "rectangle.stack"
+        case .menstrualCycle: return "drop.degreesign"
         case .journal: return "book.closed"
+        case .addedCards: return "rectangle.stack.badge.plus"
         }
     }
 
     var customizationTint: Color {
         switch self {
         case .coach: return StrandPalette.accent
-        case .goal: return StrandPalette.chargeColor
         case .dataSources: return StrandPalette.textSecondary
         case .hero: return StrandPalette.chargeColor
         case .liveSession: return StrandPalette.metricCyan
         case .synthesis: return StrandPalette.accent
+        case .goals: return StrandPalette.chargeColor
         case .keyMetrics: return StrandPalette.metricPurple
         case .workouts: return StrandPalette.effortColor
         case .heartRate: return StrandPalette.metricRose
         case .recoveryVitals: return StrandPalette.metricCyan
         case .yourCards: return StrandPalette.accent
+        case .menstrualCycle: return StrandPalette.restColor
         case .journal: return StrandPalette.metricAmber
+        case .addedCards: return StrandPalette.accent
         }
     }
 }

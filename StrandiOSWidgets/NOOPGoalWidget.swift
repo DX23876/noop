@@ -4,12 +4,13 @@ import StrandDesign
 
 /// The home-screen goal widget: what you're working towards, on the screen you unlock fifty times a day.
 ///
-/// It shares `NOOPProvider`'s timeline, so this is a third presentation of the SAME `WidgetSnapshot` the
-/// app publishes — not a second data path, and never a database read from inside the extension.
+/// It shares `NOOPProvider`'s timeline, so this is another presentation of the SAME `WidgetSnapshot` the
+/// app publishes — the same goal and the same fraction the Today goals card shows, never a second data
+/// path and never a database read from inside the extension.
 ///
 /// Two things it will not do:
 /// * **Fill a ring it can't justify.** `goalFraction` is non-nil only when a real measurement backs it
-///   (see `GoalProgress`); without one the widget draws the goal's mark and talks about time instead.
+///   (`GoalTrackingEngine`); without one the widget draws the goal's mark and talks about time instead.
 /// * **Show plausible numbers when it has none.** No snapshot, or a snapshot with no goal, renders the
 ///   honest empty state. `WidgetSnapshot.placeholder` stays confined to the gallery preview.
 ///

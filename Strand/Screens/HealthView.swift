@@ -1192,10 +1192,15 @@ private struct VitalsSection: View {
         return UnitPrefs.resolveTemperature(system: system, override: temperatureRaw)
     }
 
+    // #103: SpO₂ candidate @82 nightly means from metricSeries, loaded when the experimental toggle is ON.
+    // Empty when the toggle is OFF or no candidate data exists (WHOOP 4.0 has no v18 aux stream).
+    @State private var spo2CandidateByDay: [String: Double] = [:]
+
     var body: some View {
         let readings = BodyVitalSigns.readings(
             sourceRows: repo.vitalMetricRows,
-            temperatureUnit: temperatureUnit
+            temperatureUnit: temperatureUnit,
+            spo2CandidateByDay: spo2CandidateByDay
         )
         VStack(alignment: .leading, spacing: NoopMetrics.gap) {
             SectionHeader("Vital Signs", overline: "Latest", trailing: BodyVitalSigns.latestDayLabel(readings))
@@ -1218,6 +1223,18 @@ private struct VitalsSection: View {
                 .font(StrandFont.footnote)
                 .foregroundStyle(StrandPalette.textTertiary)
                 .fixedSize(horizontal: false, vertical: true)
+        }
+        .task(id: PuffinExperiment.spo2CandidateDisplayEnabled) {
+            // #103: load the SpO₂ candidate @82 nightly means from metricSeries when the toggle is ON.
+            // The engine writes "spo2_candidate" under the "-noop" computed device ID; `exploreSeries`
+            // with source "my-whoop" reads it from Layer 2 (computed metricSeries). Empty when the toggle
+            // is OFF (the engine writes nothing) or on a WHOOP 4.0 (no v18 aux stream).
+            guard PuffinExperiment.spo2CandidateDisplayEnabled else {
+                spo2CandidateByDay = [:]
+                return
+            }
+            let pts = await repo.exploreSeries(key: "spo2_candidate", source: "my-whoop", days: 14)
+            spo2CandidateByDay = Dictionary(pts.map { ($0.day, $0.value) }, uniquingKeysWith: { a, _ in a })
         }
     }
 }
@@ -1308,6 +1325,7 @@ private struct SkinTempSection: View {
 
     /// The cycle-awareness opt-in (default OFF). The same key AppModel reads, so a flip is consistent.
     @AppStorage(AppModel.cycleAwarenessKey) private var cycleEnabled = false
+    @State private var cycleTrackerPresented = false
 
     /// Whether the cycle-awareness opt-in is offered for this profile (#801). Delegates to the shared
     /// ``ProfileStore/cycleAwarenessApplies`` gate so Health + Automations stay in lockstep: cycle phase
@@ -1335,6 +1353,13 @@ private struct SkinTempSection: View {
             // rather than silently hiding their data; only the OPT-IN invitation is gated.
             if cycleEnabled, let cycle = model.cyclePhase {
                 CycleAwarenessCard(result: cycle, curve: model.cycleCurve,
+                                   onLogPeriod: {
+                                       Task {
+                                           await repo.logPeriodStart(day: Repository.localDayKey(Date()))
+                                           await model.refreshV5Signals()
+                                       }
+                                   },
+                                   onOpenDetail: { cycleTrackerPresented = true },
                                    // Symmetric off (#801): turn it off in-place, here in Health, where
                                    // it was turned on, not only from Automations.
                                    onTurnOff: {
@@ -1358,6 +1383,13 @@ private struct SkinTempSection: View {
                 && model.illnessSignal == nil && model.circadianPhase == nil && model.cyclePhase == nil {
                 ComingSoon(what: "Wear the strap overnight and these read from your nightly skin temperature.",
                            symbol: "thermometer.medium")
+            }
+        }
+        .sheet(isPresented: $cycleTrackerPresented) {
+            if let cycle = model.cyclePhase {
+                CycleTrackerView(result: cycle, curve: model.cycleCurve)
+                    .environmentObject(repo)
+                    .environmentObject(model)
             }
         }
     }

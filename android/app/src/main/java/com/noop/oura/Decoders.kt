@@ -19,6 +19,11 @@ package com.noop.oura
 
 object OuraDecoders {
 
+    /** #1284: minimum TRAILING run of 0xFF code bytes (1 byte = 4 epochs = 16 min) for [decodeSleepPhase]
+     *  to treat it as unwritten flash pad rather than continuous awake. Byte-identical to the Swift
+     *  `OuraDecoders.minTrailingUnwritten`. Conservative + tunable; measured pads ran 9-10 bytes. */
+    const val MIN_TRAILING_UNWRITTEN = 6
+
     /**
      * Decode a GetProductInfo reply body (serial page `18 03 08 00 10` or hardware page `18 03 18 00 10`,
      * both under outer op 0x19). On-device capture 2026-07-24 (Gen3): the body is `byte0 = 0x00 status, then
@@ -243,21 +248,53 @@ object OuraDecoders {
     // MARK: - HRV / RMSSD (0x5D; s6.9)
 
     /**
-     * Decode the 0x5D hrv_event: samples each carrying a time_ms field + two int8 fields (b1, b2).
-     * Per OURA_PROTOCOL.md s6.9 the per-sample stride is time(2 LE) + b1(1) + b2(1) = 4 bytes.
-     * Returns null on a short body. NOOP consumes this as the ring's OWN RMSSD-derived HRV tag.
+     * Decode the 0x5D hrv_event: a run of (u8 avg HR bpm, u8 avg RMSSD ms) pairs, ONE per 5-min bucket
+     * (per open_oura decode_hrv / OURA_PROTOCOL.md s6.9). The previous layout read a 4-byte
+     * (u16 time, int8, int8) stride — a mis-framing that garbled the first (hr,rmssd) byte-pair into a
+     * bogus time_ms, sign-flipped the RMSSD byte, and only its b1 accidentally landed on a real HR byte.
+     * Both bytes are UNSIGNED (no scaling). Returns null on an empty or ODD-length body (no partial pair).
+     * Validated overnight: the hr byte tracks sleeping HR (~52 bpm, matching the #511 IBI-derived median).
+     * Twin of Swift decodeHRV.
+     *
+     * PADDING (#1128): a record that closes early pads its tail with a `00 00` pair, and that is NOT a
+     * reading — a stored `hr_bpm: 0` is a value the ring never asserted, indistinguishable downstream from
+     * a measurement. Observed on a real overnight: 2 of 22 records were partial, both padded, and both
+     * zero pairs persisted into the 5-min series beside 110 genuine buckets running 45-64 bpm. They are
+     * skipped here, at decode, so an absent bucket stays absent instead of becoming a zero one.
+     *
+     * The test is BOTH bytes zero — the exact padding signature — not `hrBpm == 0` alone. A lone zero HR
+     * beside a non-zero RMSSD has never been observed, and if it ever occurs it is a DIFFERENT fault (a
+     * real record with a bad byte) that should stay visible rather than be silently swallowed by a padding
+     * rule. Narrower is the honest choice while one night is all the evidence there is.
+     *
+     * `index` advances for EVERY pair, including a skipped one, because it is not a label: the consumer
+     * derives the bucket's wall-clock from it (`OuraStreamMapping`, `bucketTs = ts - index * 300`).
+     * Renumbering the survivors would slide every later bucket 5 minutes. That is invisible for TAIL
+     * padding — the only shape observed — which is exactly why it is pinned by test instead of by luck.
      */
     fun decodeHRV(rec: OuraRecord): List<OuraHRV>? {
         val b = rec.payload
-        if (b.size < 4) return null
+        if (b.size < 2 || b.size % 2 != 0) return null   // N complete (hr, rmssd) pairs
+        val pairCount = b.size / 2       // BEFORE any padding pair is dropped — see OuraHRV.count
         val out = ArrayList<OuraHRV>()
         var i = 0
-        while (i + 4 <= b.size) {
-            val timeMs = u16le(b, i)
-            val v1 = i8(b[i + 2])
-            val v2 = i8(b[i + 3])
-            out.add(OuraHRV(ringTimestamp = rec.ringTimestamp, timeMs = timeMs, b1 = v1, b2 = v2))
-            i += 4
+        var index = 0
+        while (i + 2 <= b.size) {
+            val hr = b[i]
+            val rmssd = b[i + 1]
+            if (!(hr == 0 && rmssd == 0)) {
+                out.add(
+                    OuraHRV(
+                        ringTimestamp = rec.ringTimestamp,
+                        index = index,
+                        hrBpm = hr,
+                        rmssdMs = rmssd,
+                        count = pairCount,
+                    ),
+                )
+            }
+            i += 2
+            index += 1
         }
         return if (out.isEmpty()) null else out
     }
@@ -511,17 +548,48 @@ object OuraDecoders {
         val b = rec.payload
         // body[0] is the header (spec offset 6); phase codes begin at body[1].
         if (b.size < 2) return null
+        // #1246: a whole record of 0xFF is an UNWRITTEN (erased-flash) hypnogram page, not sleep — the ring
+        // serves pages of it for a stretch it never classified (confirmed on-device: SpO2/R-R go dark in the
+        // SAME window). The 2-bit unpack would read each 0xFF as `11 11 11 11` = four AWAKE, manufacturing
+        // hours of fake wake (one night: 320 of 334 "awake" min were padding → 36 % efficiency). Detect it
+        // at the RECORD level (unambiguous; a byte-level filter would eat the four genuine AWAKE epochs that
+        // also encode as 0xFF) and flag the epochs unwritten so the assembler drops them as a GAP while they
+        // still hold their place in the time axis. Byte-parity twin of the Swift decodeSleepPhase.
+        // Require >=2 code bytes so a LONE 0xFF byte — four genuine AWAKE epochs, which also encode as 0xFF
+        // (the reporter's explicit caution) — is never mistaken for an erased page. Observed erased pages
+        // are whole ~13-byte records; a single byte is real wake.
+        val codeCount = b.size - 1
+        val allUnwritten = codeCount >= 2 && (1 until b.size).all { (b[it].toInt() and 0xFF) == 0xFF }
+        // #1284: a PARTLY-written page fills front-to-back and leaves the TAIL as 0xFF pad, which the
+        // whole-record rule misses. Flag a TRAILING run of >= MIN_TRAILING_UNWRITTEN consecutive 0xFF code
+        // bytes (to the record's end) as unwritten too. Trailing-only + a run floor, on purpose: a
+        // leading/interior 0xFF run stays real wake (a pre-onset run is dropped by the assembler's onset
+        // clip), and a short trailing run is spared. Byte-parity twin of the Swift decodeSleepPhase.
+        // Floor clamped to >= 2 (see Swift): a LONE trailing 0xFF is four genuine awake epochs (the #1246
+        // case), and the whole-record rule only fires at codeCount >= 2 — the trailing rule must never undercut
+        // that even if MIN_TRAILING_UNWRITTEN is lowered by someone who hasn't read #1284.
+        val effectiveFloor = maxOf(2, MIN_TRAILING_UNWRITTEN)
+        var trailingFF = 0
+        var t = b.size - 1
+        while (t >= 1 && (b[t].toInt() and 0xFF) == 0xFF) { trailingFF++; t-- }
+        val trailingStart = if (trailingFF >= effectiveFloor) codeCount - trailingFF else codeCount
         val out = ArrayList<OuraSleepPhase>()
         var index = 0
         for (k in 1 until b.size) {
             val byte = b[k]
+            val byteUnwritten = allUnwritten || (k - 1) >= trailingStart
             // MSB-first within the byte: [7:6] is the first code.
             var shift = 6
             while (shift >= 0) {
                 val code = (byte shr shift) and 0x03
                 val stage = OuraSleepStage.fromRaw(code)
                 if (stage != null) {
-                    out.add(OuraSleepPhase(ringTimestamp = rec.ringTimestamp, index = index, stage = stage))
+                    out.add(
+                        OuraSleepPhase(
+                            ringTimestamp = rec.ringTimestamp, index = index,
+                            stage = stage, unwritten = byteUnwritten,
+                        ),
+                    )
                     index += 1
                 }
                 shift -= 2

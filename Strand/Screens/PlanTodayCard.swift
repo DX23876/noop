@@ -11,7 +11,9 @@ import StrandDesign
 /// when it colours and pulses to reclaim attention (`emphasis`).
 struct PlanTodayCard: View {
     @ObservedObject private var store = CoachPlanStore.shared
+    @ObservedObject private var trackingStore = GoalTrackingStore.shared
     @Binding var showPlan: Bool
+    @Binding var showGoalJourney: Bool
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @ObservedObject private var motion = NoopMotionState.shared
     /// Drives the ambient breathe when the session is approaching or due. Left false under Reduce Motion.
@@ -58,8 +60,76 @@ struct PlanTodayCard: View {
         Self.next(from: store.proposals, today: today, now: Date())
     }
 
+    private var unresolved: (PlanReconciliationResolution, PlanProposal)? {
+        guard let resolution = store.reconciliationResolutions.first,
+              let proposal = store.proposals.first(where: { $0.id == resolution.proposalId })
+        else { return nil }
+        return (resolution, proposal)
+    }
+
+    private var goalAttention: GoalTrackingSnapshot? {
+        trackingStore.snapshots
+            .filter { $0.goal.status == .active && ($0.health == .decisionNeeded || $0.health == .atRisk) }
+            .sorted {
+                if $0.health.rawValue != $1.health.rawValue { return $0.health.rawValue < $1.health.rawValue }
+                return $0.sortDate < $1.sortDate
+            }
+            .first
+    }
+
     var body: some View {
-        if let p = next {
+        if let (resolution, proposal) = unresolved {
+            Button { showPlan = true } label: {
+                NoopCard(padding: 14, tint: StrandPalette.statusWarning) {
+                    HStack(spacing: 10) {
+                        Image(systemName: "questionmark.circle")
+                            .foregroundStyle(StrandPalette.statusWarning)
+                            .accessibilityHidden(true)
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text("Plan needs your check")
+                                .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
+                            Text(resolution.kind == .candidates
+                                 ? String(localized: "Possible workout found for \(proposal.sport)")
+                                 : String(localized: "\(proposal.sport) is still open"))
+                                .font(StrandFont.footnote)
+                                .foregroundStyle(StrandPalette.textTertiary)
+                                .lineLimit(1)
+                        }
+                        Spacer(minLength: 8)
+                        Image(systemName: "chevron.right")
+                            .font(StrandFont.footnote)
+                            .foregroundStyle(StrandPalette.textTertiary)
+                            .accessibilityHidden(true)
+                    }
+                }
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Plan needs your check. Opens your plan.")
+        } else if let snapshot = goalAttention {
+            Button { showGoalJourney = true } label: {
+                NoopCard(padding: 14, tint: StrandPalette.statusWarning) {
+                    HStack(spacing: 10) {
+                        Image(systemName: snapshot.health == .decisionNeeded
+                              ? "questionmark.circle" : "exclamationmark.circle")
+                            .foregroundStyle(StrandPalette.statusWarning)
+                            .accessibilityHidden(true)
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(snapshot.health == .decisionNeeded ? "Goal needs a decision" : "Goal needs a review")
+                                .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
+                            Text(snapshot.reason)
+                                .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                                .lineLimit(2)
+                        }
+                        Spacer(minLength: 8)
+                        Image(systemName: "chevron.right")
+                            .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                            .accessibilityHidden(true)
+                    }
+                }
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("\(snapshot.health.label). \(snapshot.reason). Opens Goal and Journey.")
+        } else if let p = next {
             let emphasis = Self.emphasis(for: p, now: Date())
             Button { showPlan = true } label: {
                 NoopCard(padding: 14, tint: tint(for: emphasis)) {

@@ -8,6 +8,24 @@ import Foundation
 /// quietly writes down what it decided for you isn't a coach, it's a boss.
 struct PlanProposal: Codable, Identifiable, Equatable {
 
+    /// The workout evidence behind a completed plan. Manual completion deliberately carries no
+    /// fabricated workout; automatic and user-confirmed completion keep a compact immutable snapshot so
+    /// a later source re-import/relabel cannot rewrite the plan's history.
+    struct CompletionEvidence: Codable, Equatable {
+        enum Method: String, Codable { case automatic, confirmed }
+
+        let workoutKey: String
+        let startTs: Int
+        let endTs: Int
+        let sport: String
+        let source: String
+        let durationS: Double?
+        let strain: Double?
+        let distanceM: Double?
+        let method: Method
+        let matchedAt: Date
+    }
+
     /// What kind of session this is. Deliberately coarse — NOOP prescribes intent and rough load, not
     /// sets and reps, because intent is what its data can actually speak to.
     enum Intent: String, Codable, CaseIterable {
@@ -120,17 +138,24 @@ struct PlanProposal: Codable, Identifiable, Equatable {
     /// The day this session was originally on, when the user rescheduled it to another day.
     var rescheduledFrom: String?
     var skipReason: SkipReason?
-    /// The goal this session serves, when it was created in service of one.
-    ///
-    /// Optional on purpose and forever: sessions long predate goals, a session can legitimately belong to
-    /// no goal, and with several active goals a coach proposal often can't honestly claim one. What it
-    /// buys is that the Journey page can count what actually belongs to THIS goal instead of everything
-    /// that happened to fall after its start date.
-    var goalId: UUID?
+    /// Goals this session supports. Empty remains a legitimate general session. One activity is stored
+    /// once and may contribute to several goals; this avoids cloning a walk merely because it supports
+    /// movement, weight management and wellbeing at the same time.
+    var goalIds: [UUID]
+    /// Source-compatible bridge for older call sites and stored data. New UI uses `goalIds` and the
+    /// multi-select store API; assigning here deliberately replaces the selection with zero or one goal.
+    var goalId: UUID? {
+        get { goalIds.first }
+        set { goalIds = newValue.map { [$0] } ?? [] }
+    }
     let createdAt: Date
     var decidedAt: Date?
     var effectFeedback: EffectFeedback?
     var feedbackNote: String?
+    var completionEvidence: CompletionEvidence?
+    /// Workout candidates the user explicitly rejected for this plan. Capped by the store; without this
+    /// memory the same ambiguous import would ask again on every foreground reconciliation.
+    var rejectedWorkoutKeys: [String]
 
     init(id: UUID = UUID(),
          day: String,
@@ -145,10 +170,13 @@ struct PlanProposal: Codable, Identifiable, Equatable {
          rescheduledFrom: String? = nil,
          skipReason: SkipReason? = nil,
          goalId: UUID? = nil,
+         goalIds: [UUID]? = nil,
          createdAt: Date = Date(),
          decidedAt: Date? = nil,
          effectFeedback: EffectFeedback? = nil,
-         feedbackNote: String? = nil) {
+         feedbackNote: String? = nil,
+         completionEvidence: CompletionEvidence? = nil,
+         rejectedWorkoutKeys: [String] = []) {
         self.id = id
         self.day = day
         self.time = time
@@ -161,18 +189,21 @@ struct PlanProposal: Codable, Identifiable, Equatable {
         self.swappedFrom = swappedFrom
         self.rescheduledFrom = rescheduledFrom
         self.skipReason = skipReason
-        self.goalId = goalId
+        self.goalIds = Self.uniqueGoalIds(goalIds ?? goalId.map { [$0] } ?? [])
         self.createdAt = createdAt
         self.decidedAt = decidedAt
         self.effectFeedback = effectFeedback
         self.feedbackNote = feedbackNote
+        self.completionEvidence = completionEvidence
+        self.rejectedWorkoutKeys = rejectedWorkoutKeys
     }
 
     // Back-compat: fields added later decode with defaults so a stored plan never fails to load.
     private enum CodingKeys: String, CodingKey {
         case id, day, time, sport, intent, targetEffort, rationale, status
-        case source, swappedFrom, rescheduledFrom, skipReason, goalId, createdAt, decidedAt
+        case source, swappedFrom, rescheduledFrom, skipReason, goalId, goalIds, createdAt, decidedAt
         case effectFeedback, feedbackNote
+        case completionEvidence, rejectedWorkoutKeys
     }
 
     init(from decoder: Decoder) throws {
@@ -189,11 +220,46 @@ struct PlanProposal: Codable, Identifiable, Equatable {
         swappedFrom = try c.decodeIfPresent(String.self, forKey: .swappedFrom)
         rescheduledFrom = try c.decodeIfPresent(String.self, forKey: .rescheduledFrom)
         skipReason = try c.decodeIfPresent(SkipReason.self, forKey: .skipReason)
-        goalId = try c.decodeIfPresent(UUID.self, forKey: .goalId)
+        let modern = try c.decodeIfPresent([UUID].self, forKey: .goalIds)
+        let legacy = try c.decodeIfPresent(UUID.self, forKey: .goalId)
+        goalIds = Self.uniqueGoalIds(modern ?? legacy.map { [$0] } ?? [])
         createdAt = try c.decodeIfPresent(Date.self, forKey: .createdAt) ?? Date()
         decidedAt = try c.decodeIfPresent(Date.self, forKey: .decidedAt)
         effectFeedback = try c.decodeIfPresent(EffectFeedback.self, forKey: .effectFeedback)
         feedbackNote = try c.decodeIfPresent(String.self, forKey: .feedbackNote)
+        completionEvidence = try c.decodeIfPresent(CompletionEvidence.self, forKey: .completionEvidence)
+        rejectedWorkoutKeys = try c.decodeIfPresent([String].self, forKey: .rejectedWorkoutKeys) ?? []
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(id, forKey: .id)
+        try c.encode(day, forKey: .day)
+        try c.encodeIfPresent(time, forKey: .time)
+        try c.encode(sport, forKey: .sport)
+        try c.encode(intent, forKey: .intent)
+        try c.encodeIfPresent(targetEffort, forKey: .targetEffort)
+        try c.encode(rationale, forKey: .rationale)
+        try c.encode(status, forKey: .status)
+        try c.encode(source, forKey: .source)
+        try c.encodeIfPresent(swappedFrom, forKey: .swappedFrom)
+        try c.encodeIfPresent(rescheduledFrom, forKey: .rescheduledFrom)
+        try c.encodeIfPresent(skipReason, forKey: .skipReason)
+        try c.encode(goalIds, forKey: .goalIds)
+        try c.encodeIfPresent(goalIds.first, forKey: .goalId)
+        try c.encode(createdAt, forKey: .createdAt)
+        try c.encodeIfPresent(decidedAt, forKey: .decidedAt)
+        try c.encodeIfPresent(effectFeedback, forKey: .effectFeedback)
+        try c.encodeIfPresent(feedbackNote, forKey: .feedbackNote)
+        try c.encodeIfPresent(completionEvidence, forKey: .completionEvidence)
+        try c.encode(rejectedWorkoutKeys, forKey: .rejectedWorkoutKeys)
+    }
+
+    func serves(_ goalId: UUID) -> Bool { goalIds.contains(goalId) }
+
+    private static func uniqueGoalIds(_ values: [UUID]) -> [UUID] {
+        var seen = Set<UUID>()
+        return values.filter { seen.insert($0).inserted }
     }
 
     /// One-line description for the context / UI, e.g. "Zone 2 ride (easy) at 10:00".
@@ -218,6 +284,9 @@ final class CoachPlanStore: ObservableObject {
 
     /// Newest first. Capped — this is a working plan, not an archive.
     @Published private(set) var proposals: [PlanProposal] = [] { didSet { save() } }
+    /// Transient reconciliation questions, rebuilt from the current workouts. They are not another
+    /// source of truth: proposal decisions and rejected workout keys are the persisted state.
+    @Published private(set) var reconciliationResolutions: [PlanReconciliationResolution] = []
 
     // A few thousand compact JSON rows are still small, while 200 recommendations can represent only
     // months for an active user and would make the "all available" habit window silently forget years.
@@ -317,8 +386,10 @@ final class CoachPlanStore: ObservableObject {
             proposals[idx] = PlanProposal(
                 id: existing.id, day: p.day, time: p.time, sport: p.sport, intent: p.intent,
                 targetEffort: p.targetEffort, rationale: p.rationale, status: .proposed,
-                source: .coachProposed, goalId: p.goalId ?? existing.goalId,
-                createdAt: existing.createdAt)
+                source: .coachProposed,
+                goalIds: p.goalIds.isEmpty ? existing.goalIds : p.goalIds,
+                createdAt: existing.createdAt,
+                rejectedWorkoutKeys: existing.rejectedWorkoutKeys)
             return true
         }
         proposals.insert(p, at: 0)
@@ -376,11 +447,47 @@ final class CoachPlanStore: ObservableObject {
         }
     }
 
-    func complete(_ id: UUID) {
+    func complete(_ id: UUID, evidence: PlanProposal.CompletionEvidence? = nil) {
         update(id) { p in
             p.status = .completed
             p.decidedAt = Date()
+            p.completionEvidence = evidence
         }
+        reconciliationResolutions.removeAll { $0.proposalId == id }
+    }
+
+    /// The user confirmed that a candidate workout fulfilled this commitment.
+    func confirmWorkout(_ workout: PlanWorkoutReference, for id: UUID, now: Date = Date()) {
+        complete(id, evidence: workout.completionEvidence(method: .confirmed, matchedAt: now))
+    }
+
+    /// Remember a rejected candidate and remove it from the current question immediately.
+    func rejectWorkout(_ workoutKey: String, for id: UUID) {
+        update(id) { proposal in
+            guard !proposal.rejectedWorkoutKeys.contains(workoutKey) else { return }
+            proposal.rejectedWorkoutKeys.append(workoutKey)
+            if proposal.rejectedWorkoutKeys.count > 20 {
+                proposal.rejectedWorkoutKeys.removeFirst(proposal.rejectedWorkoutKeys.count - 20)
+            }
+        }
+        reconciliationResolutions.removeAll { $0.proposalId == id }
+    }
+
+    func setReconciliationResolutions(_ resolutions: [PlanReconciliationResolution]) {
+        reconciliationResolutions = resolutions
+    }
+
+    /// Assign or clear which goal a session serves. General sessions deliberately use nil.
+    func linkGoal(_ goalId: UUID?, to proposalId: UUID) {
+        update(proposalId) { $0.goalId = goalId }
+    }
+
+    /// Assign the confirmed set of goals this one session supports. Order follows the user's selection;
+    /// duplicates are collapsed so one activity can never count twice for the same goal.
+    func linkGoals(_ goalIds: [UUID], to proposalId: UUID) {
+        var seen = Set<UUID>()
+        let unique = goalIds.filter { seen.insert($0).inserted }
+        update(proposalId) { $0.goalIds = unique }
     }
 
     func recordEffect(_ id: UUID, feedback: PlanProposal.EffectFeedback, note: String? = nil) {
@@ -418,9 +525,10 @@ final class CoachPlanStore: ObservableObject {
     /// A session the USER planned themselves, already accepted (they don't need to approve their own idea).
     /// `goalId` links it to the goal it serves when the user logged it from that goal's journey.
     func addUserSession(day: String, time: Date?, sport: String, intent: PlanProposal.Intent,
-                        goalId: UUID? = nil) {
+                        goalId: UUID? = nil, goalIds: [UUID]? = nil) {
         var p = PlanProposal(day: day, time: time, sport: sport, intent: intent,
-                             status: .accepted, source: .userCreated, goalId: goalId)
+                             status: .accepted, source: .userCreated, goalId: goalId,
+                             goalIds: goalIds)
         p.decidedAt = Date()
         proposals.insert(p, at: 0)
         trim()
@@ -429,15 +537,12 @@ final class CoachPlanStore: ObservableObject {
 
     /// Sessions the user actually COMPLETED for a given goal, from `since` onward.
     ///
-    /// A session explicitly linked to ANOTHER goal is excluded — that's the whole point of `goalId`. An
-    /// unlinked session still counts (every session predating the link, plus any the coach couldn't
-    /// honestly attribute), so this can only ever be more accurate than the date filter it replaces,
-    /// never less complete.
+    /// Only sessions explicitly linked to THIS goal count. General/unlinked sessions deliberately do not:
+    /// with several goals active at once, date-only attribution would credit the same workout to each one.
     func completedSessions(forGoal goalId: UUID, since dayKey: String) -> [PlanProposal] {
         proposals.filter { p in
             guard p.status == .completed else { return false }
-            if p.goalId == goalId { return true }
-            return p.goalId == nil && p.day >= dayKey
+            return p.serves(goalId) && p.day >= dayKey
         }
     }
 
@@ -458,6 +563,9 @@ final class CoachPlanStore: ObservableObject {
         guard let idx = proposals.firstIndex(where: { $0.id == id }) else { return }
         mutate(&proposals[idx])
         PlanReminder.schedule(for: proposals[idx])
+        // Any explicit user/store mutation invalidates the transient question built from the previous
+        // snapshot. The next coordinator pass may create a fresh one for the new day/sport/time.
+        reconciliationResolutions.removeAll { $0.proposalId == id }
     }
 
     private func trim() {

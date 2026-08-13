@@ -81,11 +81,30 @@ data class OuraIBI(
 data class OuraHR(val ringTimestamp: Long, val bpm: Int, val ibiMs: Int)
 
 /**
- * One decoded HRV (RMSSD-derived) sample from the ring's own 0x5D tag (OURA_PROTOCOL.md s6.9).
- * NOOP also reconstructs RMSSD itself from the IBI streams for its own scoring; this is the ring's
- * open HRV tag, NOT Oura's encrypted readiness score.
+ * One decoded 5-min HRV bucket from the ring's own 0x5D tag: the ring's avg HR (bpm) + avg RMSSD (ms),
+ * both u8 (no scaling). The 0x5D body is a run of (u8 hr, u8 rmssd) pairs, one per 5 min; [index] is the
+ * pair's position in the record (buckets ~5 min apart). Ring's open summary tag, NOT Oura's readiness
+ * score. Twin of Swift OuraHRV.
  */
-data class OuraHRV(val ringTimestamp: Long, val timeMs: Int, val b1: Int, val b2: Int)
+data class OuraHRV(
+    val ringTimestamp: Long,
+    /**
+     * 0-based pair index within the record, counting from the record's FIRST byte-pair — which is its
+     * OLDEST bucket (#1167). The consumer needs [count] as well as [index] to place the bucket:
+     * `bucketTs = ts - (count - index) * 300`.
+     */
+    val index: Int,
+    val hrBpm: Int,
+    val rmssdMs: Int,
+    /**
+     * Total pairs in the record this bucket came from — INCLUDING any `00 00` padding pair the decoder
+     * dropped (#1128/#1131). [index] is always in `0 until count`. Needed because the record's timestamp
+     * marks the END of the span it covers, so a bucket's offset is measured from the record's tail, not
+     * its head: dropping a pad without counting it would slide every surviving bucket in the record.
+     * Mirrors `OuraSpO2.count`, which the SpO2 path already uses for the same reason. Twin of Swift.
+     */
+    val count: Int = 1,
+)
 
 /**
  * One decoded SpO2 sample. `value` is the raw SpO2 reading; `unit` documents its scale.
@@ -140,8 +159,21 @@ enum class OuraSleepStage(val raw: Int) {
     }
 }
 
-/** One decoded sleep-phase code in order within a 0x4E/0x5A record (OURA_PROTOCOL.md s6.12). */
-data class OuraSleepPhase(val ringTimestamp: Long, val index: Int, val stage: OuraSleepStage)
+/**
+ * One decoded sleep-phase code in order within a 0x4E/0x5A record (OURA_PROTOCOL.md s6.12). [unwritten]
+ * (#1246) marks an epoch from an UNWRITTEN hypnogram page (a whole record of the erased-flash value 0xFF,
+ * which the 2-bit decode would otherwise read as four AWAKE codes). It keeps a placeholder [stage] so it
+ * still OCCUPIES its 30 s
+ * slot in the burst time axis (dropping it would mis-time the real codes around it), but the assembler
+ * EXCLUDES it from the reconstructed hypnogram — a gap, not AWAKE. Defaults false = a written epoch.
+ * Byte-parity twin of the Swift OuraSleepPhase.
+ */
+data class OuraSleepPhase(
+    val ringTimestamp: Long,
+    val index: Int,
+    val stage: OuraSleepStage,
+    val unwritten: Boolean = false,
+)
 
 /** Motion state (OURA_PROTOCOL.md s6.13): 0 NO_MOTION, 1 RESTLESS, 2 TOSSING, 3 ACTIVE. */
 enum class OuraMotionState(val raw: Int) {

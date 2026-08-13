@@ -32,7 +32,7 @@ struct CoachView: View {
     /// SwiftUI glitch where dismissing one can intermittently re-present or bounce back to whatever's
     /// underneath — reported as "Something else" (a custom goal) looping back to the goal picker.
     private enum ActiveSheet: Int, Identifiable {
-        case settings, history, plan, goal, firstUse, goalOnboarding
+        case settings, history, plan, goal, goalSetup, firstUse, goalOnboarding
         var id: Int { rawValue }
     }
     @State private var activeSheet: ActiveSheet?
@@ -75,6 +75,9 @@ struct CoachView: View {
     @AppStorage(CoachFirstUse.acknowledgedKey) private var coachFirstUseAcknowledged = false
     /// Drives the header's pending-proposal dot.
     @ObservedObject private var planStore = CoachPlanStore.shared
+    /// Goal/routine drafts use the same visible pending affordance as plan proposals, while remaining a
+    /// separate review flow because their safety, limits and multi-goal links need explicit editing.
+    @ObservedObject private var goalSetupStore = CoachGoalSetupProposalStore.shared
     /// The coach's identity (#R9) — avatar + name shown in the header, updated live from settings.
     @ObservedObject private var identityStore = CoachIdentityStore.shared
     /// Drives the per-reply memory receipt: what a turn saved, and the controls to confirm, correct or
@@ -144,6 +147,26 @@ struct CoachView: View {
                         }
                 }
                 .environmentObject(coach)
+            case .goalSetup:
+                if let proposal = goalSetupStore.pending.first {
+                    CoachGoalSetupReviewView(proposalId: proposal.id)
+                } else {
+                    NavigationStack {
+                        VStack(spacing: 12) {
+                            Image(systemName: "checkmark.circle")
+                                .font(.system(size: 36)).foregroundStyle(StrandPalette.accent)
+                            Text("No draft waiting").font(StrandFont.headline)
+                            Text("This goal and routine draft has already been decided.")
+                                .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
+                        }
+                        .padding()
+                            .toolbar {
+                                ToolbarItem(placement: .confirmationAction) {
+                                    Button("Done") { activeSheet = nil }
+                                }
+                            }
+                    }
+                }
             case .firstUse:
                 CoachFirstUseSheet(onAcknowledge: {
                     coachFirstUseAcknowledged = true
@@ -326,6 +349,11 @@ struct CoachView: View {
             .accessibilityLabel("New chat")
 
             Menu {
+                if !goalSetupStore.pending.isEmpty {
+                    Button { activeSheet = .goalSetup } label: {
+                        Label("Review goal & routines", systemImage: "target")
+                    }
+                }
                 Button { activeSheet = .history } label: {
                     Label("Conversation history", systemImage: "clock.arrow.circlepath")
                 }
@@ -338,13 +366,24 @@ struct CoachView: View {
             } label: {
                 Image(systemName: "ellipsis.circle")
                     .font(StrandFont.headline)
-                    .foregroundStyle(appleHealthColors
-                                     ? CoachIconColors.color(for: "chat.header.menu")
-                                     : StrandPalette.textSecondary)
+                    .foregroundStyle(!goalSetupStore.pending.isEmpty
+                                     ? StrandPalette.accent
+                                     : (appleHealthColors
+                                        ? CoachIconColors.color(for: "chat.header.menu")
+                                        : StrandPalette.textSecondary))
+                    .overlay(alignment: .topTrailing) {
+                        if !goalSetupStore.pending.isEmpty {
+                            Circle().fill(StrandPalette.accent)
+                                .frame(width: 6, height: 6)
+                                .offset(x: 3, y: -2)
+                        }
+                    }
             }
             .menuStyle(.borderlessButton)
             .fixedSize()
-            .accessibilityLabel("More")
+            .accessibilityLabel(goalSetupStore.pending.isEmpty
+                                ? "More"
+                                : "More, \(goalSetupStore.pending.count) goal draft waiting for review")
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
@@ -822,6 +861,7 @@ struct CoachView: View {
         case .readiness:               Text("Readiness")
         case .chargeDrivers:           Text("Charge breakdown")
         case .proposePlan:             Text("Plan proposal")
+        case .proposeGoalSetup:        Text("Goal and routine draft")
         case .sessionOutlook:          Text("Session outlook")
         case .simulateDay:             Text("Simulation")
         case .planAdherence:           Text("Plan adherence")
@@ -855,6 +895,7 @@ struct CoachView: View {
         case .readiness:               Text("Today's push / maintain / rest call")
         case .chargeDrivers:           Text("What moved your Charge up or down")
         case .proposePlan:             Text("A session proposed for you to accept or change")
+        case .proposeGoalSetup:        Text("A goal and routines prepared for your review")
         case .sessionOutlook:          Text("What a session would cost, from your history")
         case .simulateDay:             Text("Tomorrow's Charge under a plan")
         case .planAdherence:           Text("How closely you've kept to your plan")
@@ -984,16 +1025,21 @@ struct CoachView: View {
     /// (the reply text isn't scanned for "you should breathe" etc.) — guessing intent from prose is
     /// fragile; these are just the standing fast paths from advice to doing something about it.
     private var actionRow: some View {
-        HStack(spacing: 8) {
-            // Each title is a literal `Text(...)` at its own call site (not a `String` routed through
-            // `actionChip`'s parameter) — the same scanner-visibility reason as `evidenceLabel` above.
-            actionChip(icon: "wind", action: { navRouter.openBreathe() }) { Text("Breathe") }
-            // Hidden when the user turned Live Sessions off (Settings/Today's own toggle) — the chip
-            // would otherwise look tappable for a feature it can't actually open (#P3).
-            if liveSessionsBeta {
-                actionChip(icon: "waveform.path.ecg", action: { navRouter.openLiveSession() }) { Text("Live Session") }
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                if !goalSetupStore.pending.isEmpty {
+                    actionChip(icon: "target", action: { activeSheet = .goalSetup }) { Text("Review draft") }
+                }
+                // Each title is a literal `Text(...)` at its own call site (not a `String` routed through
+                // `actionChip`'s parameter) — the same scanner-visibility reason as `evidenceLabel` above.
+                actionChip(icon: "wind", action: { navRouter.openBreathe() }) { Text("Breathe") }
+                // Hidden when the user turned Live Sessions off (Settings/Today's own toggle) — the chip
+                // would otherwise look tappable for a feature it can't actually open (#P3).
+                if liveSessionsBeta {
+                    actionChip(icon: "waveform.path.ecg", action: { navRouter.openLiveSession() }) { Text("Live Session") }
+                }
+                actionChip(icon: "calendar.badge.plus", action: { activeSheet = .plan }) { Text("Schedule a session") }
             }
-            actionChip(icon: "calendar.badge.plus", action: { activeSheet = .plan }) { Text("Schedule a session") }
         }
         .padding(.top, 2)
     }

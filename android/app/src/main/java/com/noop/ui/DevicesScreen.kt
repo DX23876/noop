@@ -27,6 +27,7 @@ import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.Circle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.GraphicEq
@@ -99,7 +100,6 @@ import kotlinx.coroutines.launch
 // frosted card so the strap name + the live battery tube stay crisp on it. Same tokens as the liquid Today
 // hero (heroFill = rgba(13,14,20,.80), radius 26, white@0.11 hairline). Those Today constants are private to
 // TodayScreen, so the identical values are declared here. Mirrors the iOS liquid heroCard.
-private val LIQUID_HERO_FILL: Color = Color(red = 13f / 255f, green = 14f / 255f, blue = 20f / 255f, alpha = 0.80f)
 private val LIQUID_HERO_RADIUS: Dp = 26.dp
 
 @Composable
@@ -140,6 +140,7 @@ fun DevicesScreen(
     var renameTarget by remember { mutableStateOf<PairedDeviceRow?>(null) }
     var removeTarget by remember { mutableStateOf<PairedDeviceRow?>(null) }
     var deleteDataTarget by remember { mutableStateOf<PairedDeviceRow?>(null) }
+    var forgetTarget by remember { mutableStateOf<PairedDeviceRow?>(null) }
     var rebootTarget by remember { mutableStateOf<PairedDeviceRow?>(null) }
     // WHOOP 4.0 reboot probe (Test Centre → Connection, 4.0 only) — the device whose probe sheet is open.
     var probeTarget by remember { mutableStateOf<PairedDeviceRow?>(null) }
@@ -168,10 +169,10 @@ fun DevicesScreen(
         // into the flat canvas behind the top of the screen so the frosted device cards float over it. The
         // static sky (LiquidSkyStatic inside the helper) carries no per-frame cost on this scrolling list.
         // Gated on the same "Day-cycle background" setting as Today; off passes null for the plain canvas.
-        topBackground = if (showDayCycleBackground) { { LiquidScreenSky(fillHeight = skyBehindCards) } } else null,
+        topBackground = screenBackdropSlot(showDayCycleBackground, skyBehindCards),
         // Sky-behind-cards fills the viewport so the transparent cards reveal the sky the whole way
         // down (Today / Trends / Sleep / metric-detail parity - same two prefs, same two behaviours).
-        fullBleedBackground = showDayCycleBackground && skyBehindCards,
+        fullBleedBackground = screenBackdropFullBleed(showDayCycleBackground, skyBehindCards),
     ) {
         // #802: the re-pair guide belongs HERE too, not only on Live. A strap that connects but never
         // finishes bonding leaves the user on this screen — it is where you go to fix a device — while the
@@ -231,9 +232,18 @@ fun DevicesScreen(
                     live.batteryPct?.let { Math.round(it).toInt() } else null,
                 liveBatteryMv = if (device.status == DeviceStatus.active.name && live.connected)
                     live.batteryMv else null,
-                // Firmware version from the connect handshake: only for the active, connected strap.
-                liveFirmware = if (device.status == DeviceStatus.active.name && live.connected)
-                    live.strapFirmware else null,
+                // Firmware version for the ACTIVE strap. It's a STABLE property (NOOP can't change a strap's
+                // firmware), so prefer the live handshake value but fall back to the last-known persisted
+                // firmware (NoopPrefs, written on connect) when the live value is momentarily null — mid-
+                // handshake, or a connection that hasn't re-read REPORT_VERSION_INFO yet this session. Without
+                // this the "· FW x" blanks out while actively connected + syncing. The persisted fallback is
+                // WHOOP-only: `noop.lastFirmware` is written solely from a WHOOP handshake, so a non-WHOOP
+                // active device (Oura/FTMS) must NOT inherit it. Single-key, so on a multi-WHOOP install a
+                // not-yet-connected active strap can briefly show the other strap's build until it republishes.
+                liveFirmware = if (device.status == DeviceStatus.active.name)
+                    (live.strapFirmware
+                        ?: if (device.brand.equals("WHOOP", ignoreCase = true)) NoopPrefs.lastFirmware(context) else null)
+                    else null,
                 // Historical record layout from the current backfill, distinct from strap firmware.
                 liveHistoryLayout = if (device.status == DeviceStatus.active.name && live.connected)
                     live.historyLayoutVersion else null,
@@ -311,6 +321,7 @@ fun DevicesScreen(
                     onRemove = null,
                     onReAdd = { switchTarget = device },
                     onDeleteData = { deleteDataTarget = device },
+                    onForget = { forgetTarget = device },
                 )
             }
         }
@@ -476,6 +487,22 @@ fun DevicesScreen(
         )
     }
 
+    // --- Hard-delete confirm (from a Removed card's ⋮ menu): purge the registry entry itself, not just
+    //     its data — the only way to get a duplicate/stale strap out of the list for good (#1193). ---
+    forgetTarget?.let { device ->
+        ConfirmDialog(
+            title = uiString(R.string.l10n_devices_screen_forget_this_device_8dbbc3f3),
+            message = uiString(R.string.l10n_devices_screen_noop_removes_this_device_503aff9e),
+            confirmLabel = uiString(R.string.l10n_devices_screen_forget_device_926e503d),
+            destructive = true,
+            onConfirm = {
+                scope.launch { viewModel.forgetPairedDevice(device.id); reload() }
+                forgetTarget = null
+            },
+            onDismiss = { forgetTarget = null },
+        )
+    }
+
     // --- After removing the active device, offer to pick a new active one (if any remain) ---
     if (pickNewActive) {
         PickActiveDialog(
@@ -525,6 +552,9 @@ private fun DeviceCard(
     onRemove: (() -> Unit)?,
     onReAdd: (() -> Unit)? = null,
     onDeleteData: (() -> Unit)? = null,
+    /** Hard-delete: purge the registry entry itself (and its data), so a duplicate/stale strap can be
+     *  removed from the list for good rather than lingering in "Removed" forever (#1193). Archived-only. */
+    onForget: (() -> Unit)? = null,
     onConnect: (() -> Unit)? = null,
     onDisconnect: (() -> Unit)? = null,
     onReboot: (() -> Unit)? = null,
@@ -652,6 +682,7 @@ private fun DeviceCard(
                     onRemove = onRemove,
                     onReAdd = onReAdd,
                     onDeleteData = onDeleteData,
+                    onForget = onForget,
                     onConnect = onConnect,
                     onDisconnect = onDisconnect,
                     onReboot = onReboot,
@@ -671,8 +702,8 @@ private fun DeviceCard(
             modifier = cardModifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(LIQUID_HERO_RADIUS))
-                .background(LIQUID_HERO_FILL.copy(alpha = LIQUID_HERO_FILL.alpha * CardAppearance.opacity))
-                .border(1.dp, Color.White.copy(alpha = 0.11f * CardAppearance.opacity), RoundedCornerShape(LIQUID_HERO_RADIUS))
+                .background(Palette.heroFill.copy(alpha = Palette.heroFill.alpha * CardAppearance.opacity))
+                .border(1.dp, Palette.heroBorder.copy(alpha = Palette.heroBorder.alpha * CardAppearance.opacity), RoundedCornerShape(LIQUID_HERO_RADIUS))
                 .padding(18.dp),
         ) {
             body()
@@ -775,6 +806,7 @@ private fun DeviceActionsMenu(
     onRemove: (() -> Unit)?,
     onReAdd: (() -> Unit)?,
     onDeleteData: (() -> Unit)?,
+    onForget: (() -> Unit)? = null,
     onConnect: (() -> Unit)? = null,
     onDisconnect: (() -> Unit)? = null,
     onReboot: (() -> Unit)? = null,
@@ -808,6 +840,13 @@ private fun DeviceActionsMenu(
                     HorizontalDivider(color = Palette.hairline)
                     MenuItem(uiString(R.string.l10n_devices_screen_delete_this_device_s_data_3cae7a2a), Icons.Filled.Delete, destructive = true) {
                         onOpenChange(false); onDeleteData()
+                    }
+                }
+                // Purge the registry entry itself — the only way to get a duplicate/stale strap out of the
+                // "Removed" list for good (#1193). Below "Delete data" as the stronger, final action.
+                if (onForget != null) {
+                    MenuItem(uiString(R.string.l10n_devices_screen_forget_device_d6eb6209), Icons.Filled.DeleteForever, destructive = true) {
+                        onOpenChange(false); onForget()
                     }
                 }
             } else {

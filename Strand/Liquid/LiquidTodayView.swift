@@ -53,6 +53,16 @@ struct LiquidTodayView: View {
 
     /// Shared with the real Today's card-customise editor so the two stay in sync.
     @AppStorage(DashboardCardPrefs.selectionKey) private var dashboardCardsRaw = ""
+    /// #today-hosted-cards: the ordered Trends/Sleep cards the user has hosted in Today. Empty by default
+    /// (opt-in); rendered by the `.addedCards` section. Shared @AppStorage key with Android.
+    @AppStorage(HostedCardPrefs.selectionKey) private var hostedCardsRaw = ""
+    /// #989 parity with classic Today + Android: the hydration card is opt-in twice over — the feature
+    /// toggle AND an explicit add in CUSTOMISE. Liquid filtered on neither, so a user who added the card
+    /// and later switched the feature off kept a permanently-blank row.
+    @AppStorage(HydrationStore.enabledKey) private var hydrationEnabled = false
+    /// Today's hydration total + goal (ml), resolved in `load()`. nil → the card shows "—".
+    @State private var hydrationTotalML: Double?
+    @State private var hydrationGoalML: Int?
 
     // async-loaded via the confirmed Repository accessors
     @State private var restScore: Double?          // sleep_performance, day-keyed
@@ -73,6 +83,11 @@ struct LiquidTodayView: View {
     /// a strap-off gap shifts every later index, so a derived clock would misdate the scrub readout.
     @State private var hrTimes: [Date] = []
     @State private var workouts: [WorkoutRow] = [] // newest-first
+    /// #today-hosted-cards: the shared SleepModel that backs every SleepModel-derived hosted sleep card
+    /// (Stages vs typical today; more to follow). Built ONCE in `load()` from the SAME inputs the Sleep tab
+    /// uses (`SleepModel.build`), and only when a sleep-origin card is actually hosted — so a Today with no
+    /// hosted sleep card pays none of the extra Repository work. nil until (and unless) it's built.
+    @State private var hostedSleepModel: SleepModel? = nil
 
     /// Wraps a tapped row so `.sheet(item:)` can present its detail (`WorkoutRow` isn't `Identifiable`) —
     /// mirrors `WorkoutsView.WorkoutDetailTarget` exactly.
@@ -101,6 +116,7 @@ struct LiquidTodayView: View {
     @ObservedObject private var identityStore = CoachIdentityStore.shared
     @State private var showCoach = false
     @State private var showPlan = false
+    @State private var showGoalJourney = false
     /// The full-width coach banner, rendered as the reorderable `.coach` section (`TodaySection`).
     @AppStorage(CoachEntryPrefs.bannerKey) private var coachBannerEnabled = true
     /// The compact avatar/sparkle button in the header icon cluster (see `scene`).
@@ -123,12 +139,12 @@ struct LiquidTodayView: View {
         TodayLayoutPrefs.visibleOrder(orderRaw: sectionOrderRaw, hiddenRaw: hiddenSectionsRaw)
     }
     // #430 parity: the Key-Metrics grid honours the SAME editor selection/order + Detailed-tiles switch as
-    // Android (byte-identical @AppStorage keys). `kSparks` holds the trailing-14-day series the detailed
+    // Android (byte-identical @AppStorage keys). `kSparks` holds the trailing-30-day series the detailed
     // tiles graph (keyed by metric-catalog key), filled by the loader alongside everything else.
     @AppStorage(KeyMetricPrefs.layoutKey) private var keyMetricsRaw = ""
     @AppStorage("today.keyMetricsDetailed") private var keyMetricsDetailed = false
-    /// The detailed graphs' trailing window — 2 days / 1 week / 2 weeks (shared key with Android). The
-    /// loader banks a day-keyed 14-day superset; render filters down, so a window change applies instantly.
+    /// The detailed graphs' trailing window — 1 week / 2 weeks / 1 month (shared key with Android). The
+    /// loader banks a day-keyed 30-day superset; render filters down, so a window change applies instantly.
     @AppStorage("today.keyMetricsWindowDays") private var keyMetricsWindowDays = 14
     /// Tiles per row (2 or 3; 3 = the original layout). Set on the Key Metrics page of the customization sheet.
     @AppStorage(KeyMetricPrefs.columnsKey) private var keyMetricsColumnsRaw = 3
@@ -207,6 +223,8 @@ struct LiquidTodayView: View {
     /// (the default) keeps the plain dark canvas — parity with the classic TodayView, which already
     /// honours this pref. Mirrors Kotlin `NoopPrefs.showDayCycleBackground`.
     @AppStorage(SceneBackgroundPrefs.enabledKey) private var showDayCycleBackground = false
+    /// Custom background image (#custom-background): when active it overrides the sky in the backdrop below.
+    @ObservedObject private var backgroundStore = BackgroundImageStore.shared
 
     // MARK: - Day navigation (ported from classic Today: swipe + calendar, day-keyed reads)
 
@@ -283,7 +301,7 @@ struct LiquidTodayView: View {
         case 0: return String(localized: "Today")
         case 1: return String(localized: "Yesterday")
         default:
-            return selectedLogicalDay.formatted(.dateTime.weekday(.wide).locale(Locale.autoupdatingCurrent))
+            return selectedLogicalDay.formatted(.dateTime.weekday(.wide).locale(AppLanguage.activeLocale))
         }
     }
     /// Two-way binding for the graphical calendar: reads the shown day, writes back an offset.
@@ -377,6 +395,15 @@ struct LiquidTodayView: View {
                     // scores both dominated the screen and pushed Charge/Effort/Rest down the page. It is now
                     // a narrow tile beside the Synthesis card (`synthesisSection`), so the hero is the first
                     // thing under the wordmark — the two cards below self-hide in the normal case.
+                    // The strain/illness early-warning banner, dropped in the liquid Home rewrite. Liquid is
+                    // the DEFAULT Today on both platforms (RootTabView.swift's liquidTodayEnabled = true,
+                    // RootView.swift likewise), so while this was unmounted a RAISED health alert had no
+                    // home-screen surface at all: it survived only as one push at the moment it fired
+                    // (IllnessNotifier.post) and as HeadsUpCard two taps deep in More → Health. Pinned ABOVE
+                    // the reorderable block — the same position classic TodayView uses on both platforms and
+                    // the same one Android pins it to (TodayScreen.kt) — so a warning cannot be reordered
+                    // below the fold. Renders nothing when model.healthAlert is nil.
+                    HealthAlertBanner()
                     // #105: the live "workout in progress" card, dropped in the liquid Home rewrite. Restored
                     // here as the SAME leaf the classic TodayView renders (and Android's WorkoutInProgressCard),
                     // pinned above the reorderable block so an active manual workout is immediately visible
@@ -399,10 +426,6 @@ struct LiquidTodayView: View {
                         // `CoachTodayRow`, independent of the compact header-icon entry (see `scene`).
                         case .coach:
                             if coachFeatureEnabled, coachUIEnabled, coachBannerEnabled { coachBanner }
-                        // The active goal, directly under the coach that holds it. Silent when there is
-                        // no goal and the guided setup has already been offered — the slot stays in the
-                        // saved order either way, exactly like `.journal` below.
-                        case .goal: GoalTodayCard()
                         case .hero: heroCard
                         // Live Sessions (silent guardian) is an OPTIONAL, strap-dependent beta, so it no
                         // longer holds a prominent card between the scores and Synthesis. On iOS it lives in
@@ -418,11 +441,15 @@ struct LiquidTodayView: View {
                             EmptyView()
                             #endif
                         case .synthesis: synthesisSection
+                        case .goals:
+                            if selectedDayOffset == 0 { GoalTodaySection(showGoalJourney: $showGoalJourney) }
                         case .keyMetrics: keyMetricsSection
                         case .workouts: lastWorkoutsSection
                         case .heartRate: heartRateSection
                         case .recoveryVitals: recoveryVitalsSection
                         case .yourCards: yourCardsSection
+                        case .menstrualCycle:
+                            if selectedDayOffset == 0 { MenstrualCycleHomeCard() }
                         // #656: the persistent journal widget (last-7-days strip + tap-through). Now a
                         // reorderable section like the others — the Arrange sheet moves it. Today only;
                         // the card self-hides when the reminder toggle is off (an empty branch renders
@@ -431,6 +458,10 @@ struct LiquidTodayView: View {
                         // Data Sources is now a reorderable, hideable section (hidden by default, §4) rather
                         // than a fixed card pinned to the bottom.
                         case .dataSources: dataSourcesSection
+                        // #today-hosted-cards: cards the user pulled in from the Trends/Sleep tabs, in the
+                        // order they arranged. Empty (renders nothing) until they add one in Customise.
+                        // Today-only, matching Android's addedCards section gate + the classic TodayView.
+                        case .addedCards: if selectedDayOffset == 0 { hostedCardsSection }
                         }
                         }
                         .padding(.top, section.isMajorSection ? NoopMetrics.space1 : 0)
@@ -438,7 +469,16 @@ struct LiquidTodayView: View {
                     // The committed "next up" session sits BELOW the metric sections on purpose: once
                     // accepted it's an ambient reminder, not a demand for the top of the screen. It draws
                     // attention on its own terms as its time nears (colour + breathe, see PlanTodayCard).
-                    PlanTodayCard(showPlan: $showPlan)
+                    PlanTodayCard(showPlan: $showPlan, showGoalJourney: $showGoalJourney)
+                    // Opt-in "looks like a workout?" suggestion, dropped in the liquid Home rewrite. Its
+                    // Settings toggle (PuffinExperiment.autoDetectWorkoutsKey) had no visible effect on the
+                    // DEFAULT screen: the card's only mount was classic TodayView, so a user could switch
+                    // auto-detect on and never be shown a single suggestion. Self-gates on the toggle AND
+                    // on the detector finding an unsaved, un-dismissed window, so it renders nothing by
+                    // default. Upstream also re-mounts `dataSourcesSection` here; this fork does not —
+                    // it is already rendered through the reorderable card block above (`case .dataSources`),
+                    // so a second mount would show the section twice.
+                    AutoWorkoutCard()
                     Color.clear.frame(height: 90) // floating tab-bar clearance
                 }
                 .padding(.horizontal, NoopMetrics.screenHPadding)
@@ -459,9 +499,14 @@ struct LiquidTodayView: View {
         .background(alignment: .top) {
             ZStack(alignment: .top) {
                 StrandPalette.surfaceBase
-                // Day-cycle scene (#698): the sky only paints when the toggle is ON; off = the plain
-                // surfaceBase canvas above (parity with Android + the classic TodayView).
-                if showDayCycleBackground {
+                // Custom background image (#custom-background): a picked photo OVERRIDES the sky, filling
+                // the whole backdrop (same cached image as every other tab, so it's seamless).
+                if backgroundStore.isActive {
+                    BackgroundImageBackdrop()
+                }
+                // Day-cycle scene (#698): the sky only paints when the toggle is ON AND no custom image is
+                // active; off = the plain surfaceBase canvas above (parity with Android + classic TodayView).
+                else if showDayCycleBackground {
                     // Reduce-motion (and low-power) users get the same sky posed still — no twinkle/breath.
                     // Also static until the first data load settles, so launch isn't fighting a live sky too.
                     // "Sky behind cards" (opt-in): fill the whole backdrop with a softer settle so the sky
@@ -486,7 +531,9 @@ struct LiquidTodayView: View {
         .liquidSelectionHaptic(trigger: selectedDayOffset)
         // A firm tick when the pull passes the release threshold (the custom liquid refresh).
         .liquidMediumHaptic(trigger: pullHaptic)
-        .task(id: "\(repo.refreshSeq)-\(selectedDayOffset)") { await load() }
+        // hydrationSeq joins the id so logging a drink re-reads the card immediately, the same trigger set
+        // classic TodayView's reloadHydration() uses.
+        .task(id: "\(repo.refreshSeq)-\(selectedDayOffset)-\(repo.hydrationSeq)-\(hydrationEnabled)") { await load() }
         // Honour a one-shot "open Live Session" request (the coach chat's action chip, or any future
         // deep-link) — fires on the flag itself, not just on appear, so it still works when Today is
         // ALREADY the active tab and RootTabView's own tab switch is a no-op. Tab roots stay alive across
@@ -518,7 +565,8 @@ struct LiquidTodayView: View {
                 keyMetricsDetailed: $keyMetricsDetailed,
                 keyMetricsWindowDays: $keyMetricsWindowDays,
                 keyMetricsColumns: $keyMetricsColumnsRaw,
-                dashboardCardsRaw: $dashboardCardsRaw
+                dashboardCardsRaw: $dashboardCardsRaw,
+                hostedCardsRaw: $hostedCardsRaw
             )
         }
         .sheet(isPresented: $showSettings) {
@@ -535,6 +583,7 @@ struct LiquidTodayView: View {
         .coachCover(isPresented: $showCoach, coach: coach)
         // The plan book, opened from PlanTodayCard when a committed session has a time coming up.
         .sheet(isPresented: $showPlan) { CoachPlanView().environmentObject(coach) }
+        .sheet(isPresented: $showGoalJourney) { CoachGoalJourneyScreen().environmentObject(coach) }
         // The bell — same store, same inbox, as the classic Today's (TodayView.swift).
         .sheet(isPresented: $showUpdatesInbox) {
             UpdatesInboxView(onClose: { showUpdatesInbox = false })
@@ -678,11 +727,19 @@ struct LiquidTodayView: View {
                     }
                     // Profile pic (the one set in Settings) → opens Settings, matching the classic Today.
                     Button { showSettings = true } label: {
-                        ProfileAvatarView(imageData: profile.avatarImageData,
-                                          size: LiquidHeaderMetrics.control)
-                            .frame(width: LiquidHeaderMetrics.control, height: LiquidHeaderMetrics.control)
+                        Color.clear.frame(width: LiquidHeaderMetrics.control, height: LiquidHeaderMetrics.control)
                     }
-                    .buttonStyle(LiquidPressStyle())
+                    .nativeLiquidGlassHeaderButton()
+                    .overlay {
+                        GeometryReader { proxy in
+                            let diameter = min(proxy.size.width, proxy.size.height)
+                            ProfileAvatarView(imageData: profile.avatarImageData, size: diameter)
+                                .frame(width: diameter, height: diameter)
+                                .position(x: proxy.size.width / 2, y: proxy.size.height / 2)
+                        }
+                        .allowsHitTesting(false)
+                    }
+                    .nativeLiquidGlassPhotoFinish()
                     .accessibilityLabel("Profile and settings")
                     LiquidAddButton()
                     LiquidBatteryButton()
@@ -695,7 +752,7 @@ struct LiquidTodayView: View {
                             .frame(width: LiquidHeaderMetrics.control, height: LiquidHeaderMetrics.control)
                             .background(Circle().fill(.white.opacity(0.16)))
                     }
-                    .buttonStyle(LiquidPressStyle())
+                    .nativeLiquidGlassHeaderButton()
                     .accessibilityLabel("Customize Today")
                 }
             }
@@ -730,31 +787,27 @@ struct LiquidTodayView: View {
                 Image(systemName: "shield.lefthalf.filled")
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundStyle(StrandPalette.metricCyan)
-                // The session-start row shares the hero card's pinned-dark `heroFill`, so its text/chevron
-                // use the on-dark tokens — textPrimary/Secondary/Tertiary flip to dark ink in Light mode and
-                // went dark-on-near-black here too (#1013).
+                // Theme-aware session-start chrome (#1160 parity): NoopPanelSurface + normal text
+                // tokens — light ink on Dark, dark ink on Light. (Was pinned-dark + on-dark tokens.)
                 Text("Start session")
                     .font(StrandFont.subhead)
-                    .foregroundStyle(StrandPalette.onDarkPrimary)
+                    .foregroundStyle(StrandPalette.textPrimary)
                 Text("BETA")
                     .font(StrandFont.overlineScaled(8.5)).tracking(StrandFont.overlineTracking)
                     .foregroundStyle(StrandPalette.onDarkSecondary)
                     .padding(.horizontal, 8).padding(.vertical, 2.5)
-                    .background(Capsule().fill(.white.opacity(0.05))
-                        .overlay(Capsule().strokeBorder(.white.opacity(0.18), lineWidth: 1)))
+                    .background(Capsule().fill(StrandPalette.surfaceInset.opacity(0.72))
+                        .overlay(Capsule().strokeBorder(
+                            StrandPalette.hairline,
+                            lineWidth: NoopMetrics.hairlineWidth
+                        )))
                 Spacer(minLength: 8)
                 Image(systemName: "chevron.right").font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(StrandPalette.onDarkTertiary)
+                    .foregroundStyle(StrandPalette.textTertiary)
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 11)
-            .background(
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .fill(heroFill)
-                    .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous)
-                        .strokeBorder(.white.opacity(0.11), lineWidth: 1))
-                    .opacity(cardOpacity)
-            )
+            .background(NoopPanelSurface(cornerRadius: 18, surfaceOpacity: cardOpacity))
         }
         .buttonStyle(LiquidPressStyle())
         .accessibilityLabel("Start a live session. Beta. Silent strap coaching against today's Charge.")
@@ -786,7 +839,7 @@ struct LiquidTodayView: View {
                           animated: dataLoaded, onGuide: { guideSection = .rest })
                 .overlay(alignment: .top) {
                     if let sourceLabel = heroSourceLabel {
-                        SourceBadge("\(sourceLabel)", tint: StrandPalette.onDarkSecondary)
+                        SourceBadge("\(sourceLabel)", tint: StrandPalette.textSecondary)
                             // Match the badge's trailing edge to the Rest vessel and centre it on the card border.
                             .fixedSize()
                             .frame(width: HeroScoreCell.vesselDiameter, alignment: .trailing)
@@ -895,10 +948,162 @@ struct LiquidTodayView: View {
             .padding(.top, 4)
 
             // Data-driven off the SAME @AppStorage the CUSTOMISE editor writes, so add / remove /
-            // reorder in Customise reflects on the home screen live.
-            ForEach(DashboardCardPrefs.decodeEnabled(dashboardCardsRaw)) { card in
+            // reorder in Customise reflects on the home screen live. The hydration filter mirrors classic
+            // TodayView's `enabledDashboardCards` and Android's `it != HYDRATION || hydrationEnabled`.
+            ForEach(DashboardCardPrefs.decodeEnabled(dashboardCardsRaw)
+                        .filter { hydrationEnabled || $0 != .hydration }) { card in
                 liquidCard(for: card)
             }
+        }
+    }
+
+    // MARK: - Added cards (#today-hosted-cards)
+
+    /// The Trends/Sleep cards the user hosted in Today, in their arranged order. Data-driven off the SAME
+    /// @AppStorage the Customise editor writes, so add / remove / reorder reflects live. Each hosted card
+    /// is the SAME view its home tab renders (a mirror, not a copy) and carries its own header, so this
+    /// section adds no header of its own. Renders nothing until the user hosts a card.
+    @ViewBuilder
+    private var hostedCardsSection: some View {
+        let cards = HostedCardPrefs.decodeEnabled(hostedCardsRaw)
+        if !cards.isEmpty {
+            VStack(spacing: NoopMetrics.sectionGap) {
+                ForEach(cards) { card in
+                    hostedCard(for: card)
+                }
+            }
+        }
+    }
+
+    /// Dispatch a hosted card id to its native view. Each case renders the exact view the originating tab
+    /// uses, so the Today copy and the home-tab copy never diverge. P0 hosts only Sleep marks.
+    @ViewBuilder
+    private func hostedCard(for card: HostedCard) -> some View {
+        switch card {
+        case .sleepMarks: SleepMarkCard()
+        case .asleepDuration: AsleepDurationCard(data: AsleepDurationData.build(days: repo.days))
+        case .stagesVsTypical:
+            // Renders from the shared SleepModel built in load() (same inputs as the Sleep tab). Until that
+            // async build lands — or on a device with no usable latest night — show the graceful placeholder
+            // rather than a half-built card, mirroring how AsleepDuration degrades on no data.
+            if let m = hostedSleepModel {
+                StagesVsTypicalCard(model: m)
+            } else {
+                hostedSleepPlaceholder
+            }
+        case .nightDetail:
+            // Renders from the same shared SleepModel built in load(). Until that async build lands — or on a
+            // device with no usable latest night — show the graceful placeholder, mirroring stagesVsTypical.
+            if let m = hostedSleepModel {
+                NightDetailCard(model: m)
+            } else {
+                hostedNightDetailPlaceholder
+            }
+        case .sleepDebt:
+            // Renders from the same shared SleepModel built in load(). Until that async build lands — or on a
+            // device with no usable latest night — show the graceful placeholder, mirroring stagesVsTypical.
+            if let m = hostedSleepModel {
+                SleepDebtLedgerCard(model: m)
+            } else {
+                hostedSleepDebtPlaceholder
+            }
+        case .stages:
+            // The READ-ONLY latest-night stage card — same shared SleepModel (same night + intervals as the
+            // Sleep tab), rendered without the Sleep tab's nav/edit/nap interaction. Until the async build
+            // lands — or on a device with no usable latest night — show the placeholder, as above.
+            if let m = hostedSleepModel {
+                StagesCard(model: m)
+            } else {
+                hostedSleepPlaceholder
+            }
+        case .hoursVsNeeded:
+            // The single hours-vs-need % metric, rendered from the same shared SleepModel built in load().
+            // Until that async build lands — or on a device with no usable latest night — show the graceful
+            // placeholder, mirroring stagesVsTypical.
+            if let m = hostedSleepModel {
+                HoursVsNeededCard(model: m)
+            } else {
+                hostedHoursVsNeededPlaceholder
+            }
+        case .consistency:
+            // The single sleep-consistency % metric, rendered from the same shared SleepModel built in
+            // load(). Until that async build lands — or on a device with no usable latest night — show the
+            // graceful placeholder, mirroring stagesVsTypical.
+            if let m = hostedSleepModel {
+                ConsistencyCard(model: m)
+            } else {
+                hostedConsistencyPlaceholder
+            }
+        }
+    }
+
+    /// Graceful empty state for a SleepModel-backed hosted card whose model hasn't built yet (first frame)
+    /// or is nil (no usable latest night). Keeps the hosted slot present + labelled so add/remove/reorder in
+    /// Customise still reads, without rendering a partial card. #today-hosted-cards.
+    private var hostedSleepPlaceholder: some View {
+        VStack(alignment: .leading, spacing: NoopMetrics.gap) {
+            SectionHeader("Stages vs typical", overline: "Last night")
+            Text("Not enough nights yet.")
+                .font(StrandFont.subhead)
+                .foregroundStyle(StrandPalette.textTertiary)
+                .frame(maxWidth: .infinity, minHeight: 60, alignment: .center)
+                .background(NoopPanelSurface(tint: StrandPalette.restColor, cornerRadius: 12))
+        }
+    }
+
+    /// Graceful empty state for the hosted "Night detail" grid before its shared SleepModel builds (first
+    /// frame) or when there is no usable latest night. Same treatment as `hostedSleepPlaceholder`, labelled
+    /// for this card so add/remove/reorder in Customise still reads. #today-hosted-cards.
+    private var hostedNightDetailPlaceholder: some View {
+        VStack(alignment: .leading, spacing: NoopMetrics.gap) {
+            SectionHeader("Night detail", overline: "Metrics")
+            Text("Not enough nights yet.")
+                .font(StrandFont.subhead)
+                .foregroundStyle(StrandPalette.textTertiary)
+                .frame(maxWidth: .infinity, minHeight: 60, alignment: .center)
+                .background(NoopPanelSurface(tint: StrandPalette.restColor, cornerRadius: 12))
+        }
+    }
+
+    /// Graceful empty state for the hosted "Sleep-debt ledger" before its shared SleepModel builds (first
+    /// frame) or when there is no usable latest night. Same treatment as `hostedSleepPlaceholder`, labelled
+    /// for this card so add/remove/reorder in Customise still reads. #today-hosted-cards.
+    private var hostedSleepDebtPlaceholder: some View {
+        VStack(alignment: .leading, spacing: NoopMetrics.gap) {
+            SectionHeader("Sleep-debt ledger", overline: "Last 14 nights")
+            Text("Not enough nights yet.")
+                .font(StrandFont.subhead)
+                .foregroundStyle(StrandPalette.textTertiary)
+                .frame(maxWidth: .infinity, minHeight: 60, alignment: .center)
+                .background(NoopPanelSurface(tint: StrandPalette.restColor, cornerRadius: 12))
+        }
+    }
+
+    /// Graceful empty state for the hosted "Hours vs Needed" card before its shared SleepModel builds (first
+    /// frame) or when there is no usable latest night. Same treatment as `hostedSleepPlaceholder`, labelled
+    /// for this card so add/remove/reorder in Customise still reads. #today-hosted-cards.
+    private var hostedHoursVsNeededPlaceholder: some View {
+        VStack(alignment: .leading, spacing: NoopMetrics.gap) {
+            SectionHeader("Hours vs Needed", overline: "Sleep")
+            Text("Not enough nights yet.")
+                .font(StrandFont.subhead)
+                .foregroundStyle(StrandPalette.textTertiary)
+                .frame(maxWidth: .infinity, minHeight: 60, alignment: .center)
+                .background(NoopPanelSurface(tint: StrandPalette.restColor, cornerRadius: 12))
+        }
+    }
+
+    /// Graceful empty state for the hosted "Consistency" card before its shared SleepModel builds (first
+    /// frame) or when there is no usable latest night. Same treatment as `hostedSleepPlaceholder`, labelled
+    /// for this card so add/remove/reorder in Customise still reads. #today-hosted-cards.
+    private var hostedConsistencyPlaceholder: some View {
+        VStack(alignment: .leading, spacing: NoopMetrics.gap) {
+            SectionHeader("Consistency", overline: "Sleep")
+            Text("Not enough nights yet.")
+                .font(StrandFont.subhead)
+                .foregroundStyle(StrandPalette.textTertiary)
+                .frame(maxWidth: .infinity, minHeight: 60, alignment: .center)
+                .background(NoopPanelSurface(tint: StrandPalette.restColor, cornerRadius: 12))
         }
     }
 
@@ -951,8 +1156,18 @@ struct LiquidTodayView: View {
             cardLink(.sleep, title: card.title, sub: card.subtitle,
                      value: sleepText, tint: StrandPalette.restColor, frac: fracOver(displayDay?.totalSleepMin, 480))
         case .hydration:
+            // #989: was hardcoded "–". `HydrationGoal.cardValueString` is unit-tested and byte-identical to
+            // the Android twin, but classic TodayView was its only caller — so on the DEFAULT screen a
+            // logged drink never appeared. Same "<total> / <goal> L" string and the same goal fraction on
+            // the ring as classic; "—" only when the goal is genuinely underivable.
             cardLink(.hydration, title: card.title, sub: card.subtitle,
-                     value: "–", tint: StrandPalette.metricCyan, frac: nil)
+                     value: hydrationGoalML.map {
+                         HydrationGoal.cardValueString(totalML: hydrationTotalML ?? 0, goalML: $0)
+                     } ?? "—",
+                     tint: StrandPalette.metricCyan,
+                     frac: hydrationGoalML.map {
+                         HydrationGoal.fraction(totalML: hydrationTotalML ?? 0, goalML: $0)
+                     })
         case .coupled:
             // A tap-through to the full Coupled day screen. No value, so no coach button either.
             cardLink(.coupled, title: card.title, sub: card.subtitle,
@@ -1331,11 +1546,11 @@ struct LiquidTodayView: View {
 
     // MARK: - Key metrics grid
 
-    /// The chosen detailed-graph window's oldest day key (2 days / 1 week / 2 weeks ending on the
-    /// selected day). The loader banks a 14-day superset; render filters down so a window change in the
+    /// The chosen detailed-graph window's oldest day key (1 week / 2 weeks / 1 month ending on the
+    /// selected day). The loader banks a 30-day superset; render filters down so a window change in the
     /// editor applies instantly, no reload.
     private var sparkWindowCutoffKey: String {
-        let days = (keyMetricsWindowDays == 2 || keyMetricsWindowDays == 7) ? keyMetricsWindowDays : 14
+        let days = (keyMetricsWindowDays == 7 || keyMetricsWindowDays == 30) ? keyMetricsWindowDays : 14
         let cal = Calendar.current
         let anchor = cal.startOfDay(for: selectedLogicalDay)
         return Repository.localDayKey(cal.date(byAdding: .day, value: -(days - 1), to: anchor) ?? anchor)
@@ -1369,8 +1584,8 @@ struct LiquidTodayView: View {
     /// The Key-Metrics header's trailing label for the chosen detailed-graph window (Android twin).
     private var trendWindowLabel: String {
         switch keyMetricsWindowDays {
-        case 2: return String(localized: "2-day trend")
         case 7: return String(localized: "7-day trend")
+        case 30: return String(localized: "30-day trend")
         default: return String(localized: "14-day trend")
         }
     }
@@ -1409,10 +1624,9 @@ struct LiquidTodayView: View {
                 }
             }
             NavigationLink(value: TabRoute.metricExplorer) {
-                Text("Show all metrics").font(StrandFont.subhead).foregroundStyle(StrandPalette.accent)
-                    .frame(maxWidth: .infinity).padding(.top, 2)
+                LiquidFullWidthNavigationAction("Show all metrics")
             }
-            .buttonStyle(.plain)
+            .buttonStyle(LiquidPressStyle())
         }
     }
 
@@ -1448,40 +1662,55 @@ struct LiquidTodayView: View {
             // hero are the same number, so a carry that reached only one of them would put two answers for
             // Charge on one screen. (#543: one prior row feeds every recovery-derived read-out.) Strain below
             // stays raw, matching the Effort hero, which correctly does not carry.
-            ktile(String(localized: "Recovery"), intText(chargeDisplay.pct), "%", StrandPalette.chargeColor, frac(chargeDisplay.pct), key: "recovery")
+            ktile(String(localized: "Recovery"), icon: keyMetricIcon(metric), intText(chargeDisplay.pct), "%", StrandPalette.chargeColor, frac(chargeDisplay.pct), key: "recovery")
         case .effort:
             // #45 parity with the hero: route through effortDisplay so this tile shows the SAME number on
             // the SAME scale as the Effort hero (0–21 WHOOP vs 0–100), instead of always the raw 0–100
             // stored value — the two used to disagree whenever the user picked the WHOOP scale.
             let effortText = displayDay?.strain.map { UnitFormatter.effortDisplay($0, scale: effortScale) } ?? "–"
-            ktile(String(localized: "Strain"), effortText, "%", StrandPalette.effortColor, frac(displayDay?.strain), key: "strain")
+            ktile(String(localized: "Strain"), icon: keyMetricIcon(metric), effortText, "%", StrandPalette.effortColor, frac(displayDay?.strain), key: "strain")
         case .rest:
-            ktile(String(localized: "Rest"), intText(restScore), "%", StrandPalette.restColor, frac(restScore), key: "sleep_performance")
+            ktile(String(localized: "Rest"), icon: keyMetricIcon(metric), intText(restScore), "%", StrandPalette.restColor, frac(restScore), key: "sleep_performance")
         case .hrv:
-            ktile("HRV", intText(hrv), "ms", StrandPalette.metricCyan, fracOver(hrv, 120), key: "hrv")
+            ktile("HRV", icon: keyMetricIcon(metric), intText(hrv), "ms", StrandPalette.metricCyan, fracOver(hrv, 120), key: "hrv")
         case .restingHr:
-            ktile(String(localized: "Rest HR"), intText(rhr), "bpm", StrandPalette.metricRose, fracOver(rhr, 100), key: "rhr")
+            ktile(String(localized: "Rest HR"), icon: keyMetricIcon(metric), intText(rhr), "bpm", StrandPalette.metricRose, fracOver(rhr, 100), key: "rhr")
         case .bloodOxygen:
             let spo2 = displayDay?.spo2Pct ?? vitalsDay?.spo2Pct
-            ktile(String(localized: "Blood Oxygen"), intText(spo2), "%", StrandPalette.metricCyan, fracOver(spo2, 100), key: "spo2")
+            ktile(String(localized: "Blood Oxygen"), icon: keyMetricIcon(metric), intText(spo2), "%", StrandPalette.metricCyan, fracOver(spo2, 100), key: "spo2")
         case .respiratory:
             let resp = displayDay?.respRateBpm ?? vitalsDay?.respRateBpm
-            ktile(String(localized: "Respiratory"), resp.map { String(format: "%.1f", $0) } ?? "—", "rpm", StrandPalette.accent, fracOver(resp, 24), key: "resp_rate")
+            ktile(String(localized: "Respiratory"), icon: keyMetricIcon(metric), resp.map { String(format: "%.1f", $0) } ?? "—", "rpm", StrandPalette.accent, fracOver(resp, 24), key: "resp_rate")
         case .steps:
-            ktile(String(localized: "Steps"), stepsText, "", StrandPalette.chargeColor,
+            ktile(String(localized: "Steps"), icon: keyMetricIcon(metric), stepsText, "", StrandPalette.chargeColor,
                   fracOver(stepCount, 10000), key: stepsDetailKey, detailMetric: stepsDetailMetric)
         case .weight:
             let weightText = resolvedWeightKg.map { UnitFormatter.massFromKilograms($0.kg, system: unitSystem) } ?? "—"
-            ktile(String(localized: "Weight"), weightText, "", StrandPalette.metricAmber, nil, key: "weight")
+            ktile(String(localized: "Weight"), icon: keyMetricIcon(metric), weightText, "", StrandPalette.metricAmber, nil, key: "weight")
         case .calories:
             // #616: imported-first value (imported ?: activeKcalEst) + route the tap to the matching
             // detail source, so the number, its sparkline and the chart it opens all agree.
-            ktile(String(localized: "Calories"), intText(caloriesCount), "kcal", StrandPalette.metricAmber,
+            ktile(String(localized: "Calories"), icon: keyMetricIcon(metric), intText(caloriesCount), "kcal", StrandPalette.metricAmber,
                   fracOver(caloriesCount, 800), key: "energy_kcal", detailMetric: caloriesDetailMetric)
         }
     }
 
-    private func ktile(_ label: String, _ value: String, _ unit: String, _ tint: Color, _ frac: Double?,
+    private func keyMetricIcon(_ metric: KeyMetric) -> String {
+        switch metric {
+        case .charge: return "heart.fill"
+        case .effort: return "bolt.fill"
+        case .rest: return "moon.stars.fill"
+        case .hrv: return "waveform.path.ecg"
+        case .restingHr: return "heart.circle.fill"
+        case .bloodOxygen: return "drop.fill"
+        case .respiratory: return "lungs.fill"
+        case .steps: return "figure.walk"
+        case .weight: return "scalemass.fill"
+        case .calories: return "flame.fill"
+        }
+    }
+
+    private func ktile(_ label: String, icon: String, _ value: String, _ unit: String, _ tint: Color, _ frac: Double?,
                        key: String? = nil, detailMetric: MetricDescriptor? = nil) -> some View {
         // Two columns means ~50pt more width per tile — spend it on legibility (a bigger number, a taller
         // trend) instead of leaving it as empty card.
@@ -1505,7 +1734,7 @@ struct LiquidTodayView: View {
                 Color.clear.frame(height: 8)
             }
             // #430 parity: DETAILED tiles grow the trend graph under the bar, tinted to the metric and
-            // windowed to the editor's 2-day / 1-week / 2-week choice (the Android twin). A metric with no
+            // windowed to the editor's 1-week / 2-week / 1-month choice (the Android twin). A metric with no
             // windowed series keeps a clear placeholder of the same height so every tile in a detailed row
             // stays equal-height with its bars aligned.
             if keyMetricsDetailed {
@@ -1522,8 +1751,8 @@ struct LiquidTodayView: View {
                 }
             }
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 11)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 14)
         .frame(maxWidth: .infinity, alignment: .leading)
         // Softer, rounder, and a lighter fill than the old solid surfaceRaised, so the sky reads through the
         // grid and the screen breathes. Deliberately NOT glassEffect per tile: ten blur passes over a live
@@ -1654,6 +1883,15 @@ struct LiquidTodayView: View {
         let resolvedStatus = ActivityStatusStore.load()
         if resolvedStatus != status { status = resolvedStatus }
 
+        // #989: today's hydration total + goal. One metricSeries row + a UserDefaults read, same as classic
+        // TodayView.reloadHydration(). Cleared when the feature is off so the card can't show a stale total.
+        if hydrationEnabled {
+            hydrationTotalML = await repo.hydrationTotal(day: Repository.localDayKey(Date()))
+            hydrationGoalML = repo.hydrationGoalML(profileSex: profile.sex)
+        } else {
+            hydrationTotalML = nil
+            hydrationGoalML = nil
+        }
         // Resolve the O(days) lookups ONCE here (not on every body re-render): the selected day and the
         // readiness verdict. Both scan repo.days (up to 599 rows); doing it per-render was the stutter.
         let day = resolveDisplayDay()
@@ -1740,11 +1978,11 @@ struct LiquidTodayView: View {
 
         // #430 parity: the day-keyed series the DETAILED Key-Metrics tiles graph — a trailing CALENDAR
         // window ending on the selected day (not the last-N stored rows, which on an old import showed
-        // months-old data as a fresh trend, issue #23). The loader banks the 14-day SUPERSET; the chosen
-        // 2-day/1-week/2-week window filters at render (windowedSpark), so a picker change applies without
+        // months-old data as a fresh trend, issue #23). The loader banks the 30-day SUPERSET; the chosen
+        // 1-week/2-week/1-month window filters at render (windowedSpark), so a picker change applies without
         // a reload. Keys mirror the metric catalog so a tile's graph, its tap-through detail and Android's
         // Window all read the same signal. Rest reuses the already-loaded sleep_performance series.
-        let sparkCutoff = Repository.localDayKey(cal.date(byAdding: .day, value: -13, to: dayStart) ?? dayStart)
+        let sparkCutoff = Repository.localDayKey(cal.date(byAdding: .day, value: -29, to: dayStart) ?? dayStart)
         let sparkRows = daysSnapshot.filter { $0.day >= sparkCutoff && $0.day <= selectedDayKey }
         // #616: imported-first calorie spark (the day's imported Apple active energy ?: NOOP's on-device
         // estimate) over the window, so a Health-Connect / Apple-only calorie user gets a trend too —
@@ -1828,6 +2066,27 @@ struct LiquidTodayView: View {
             }
         }
         heroProviderByMetric = providers
+
+        // #today-hosted-cards: build the shared SleepModel that backs the hosted sleep cards, but ONLY when
+        // at least one sleep-origin card is actually hosted — otherwise Today pays no extra Repository cost.
+        // The inputs (allSleepSessions / habitualMidsleepSec / sessionMotions) are loaded exactly as the
+        // Sleep tab loads them, then handed to the SAME pure `SleepModel.build`, so a hosted card renders
+        // numbers byte-identical to the Sleep tab. Reused by every SleepModel-backed hosted card (built once).
+        let sleepOrigin = String(localized: "Sleep")
+        if HostedCardPrefs.decodeEnabled(hostedCardsRaw).contains(where: { $0.origin == sleepOrigin }) {
+            let hostedSessions = await repo.allSleepSessions()
+            let hostedHabitual = await repo.habitualMidsleepSec()
+            let hostedMotion = await repo.sessionMotions(starts: hostedSessions.map { $0.startTs })
+            hostedSleepModel = SleepModel.build(SleepModelInputs(
+                days: repo.days,
+                sleeps: repo.sleeps,
+                allSessions: hostedSessions,
+                importedSleep: repo.importedSleep,
+                habitualMidsleepSec: hostedHabitual,
+                motionByStart: hostedMotion))
+        } else {
+            hostedSleepModel = nil
+        }
 
         // First load done — bring the hero gauges + sky to life now the launch churn has settled.
         if !dataLoaded { withAnimation(.easeIn(duration: 0.4)) { dataLoaded = true } }
@@ -2003,7 +2262,7 @@ struct LiquidTodayView: View {
         // weekday + month names regardless of the UI language. A locale-aware field template localizes both
         // the names AND the field order (e.g. fr "mercredi 4 juillet") in the user's locale.
         return selectedLogicalDay.formatted(
-            .dateTime.weekday(.wide).day().month(.wide).locale(Locale.autoupdatingCurrent))
+            .dateTime.weekday(.wide).day().month(.wide).locale(AppLanguage.activeLocale))
     }
 
     /// Provenance caption for the recovery-vitals card, keyed on the row a vital actually came from — NOT a
@@ -2111,28 +2370,21 @@ private struct HeroScoreCell: View {
     // scale passes 1 to match the app-wide one-decimal `effortDisplay` convention (#45).
     var decimals: Int = 0
 
-    @State private var shown: Double = 0
-
-    private var frac: Double? { score.map { max(0, min(1, $0 / maxValue)) } }
-
     var body: some View {
         VStack(spacing: 7) {
-            ZStack {
-                LiquidVessel(value: frac, tint: tint, animated: animated)
-                    .frame(width: Self.vesselDiameter, height: Self.vesselDiameter)
-                Group {
-                    if score != nil {
-                        CountUpNumber(value: shown, font: StrandFont.rounded(26), decimals: decimals)
-                    } else {
-                        Text("–").font(StrandFont.rounded(26))
-                    }
-                }
-                .foregroundStyle(.white)
-                .shadow(color: .black.opacity(0.5), radius: 6, y: 1)
-                .lineLimit(1)
-                .minimumScaleFactor(0.6)
-                .allowsHitTesting(false)   // taps fall through to the vessel → splash
-            }
+            // The vessel + count-up read-out now come from the shared `LiquidScoreGauge`
+            // (LiquidPrimitives.swift), which Sleep's hero uses too. Same geometry and the same
+            // hit-transparent number, so a tap still falls through to the vessel → splash.
+            // `numberColor` is pinned white: this card's fill stays dark in BOTH themes.
+            LiquidScoreGauge(
+                score: score,
+                tint: tint,
+                diameter: Self.vesselDiameter,
+                animated: animated,
+                maxValue: maxValue,
+                decimals: decimals,
+                numberColor: .white
+            )
             HStack(spacing: 4) {
                 Button(action: onGuide) {
                     HStack(spacing: 3) {
@@ -2152,13 +2404,6 @@ private struct HeroScoreCell: View {
             .accessibilityLabel(Text("\(label), \(score.map { decimals > 0 ? String(format: "%.\(decimals)f", $0) : String(Int($0.rounded())) } ?? String(localized: "no data yet")). See how it is scored."))
         }
         .frame(maxWidth: .infinity)
-        .onAppear { rollTo(score) }
-        .onChangeCompat(of: score) { v in rollTo(v) }
-    }
-
-    private func rollTo(_ v: Double?) {
-        guard let v else { shown = 0; return }
-        withAnimation(.easeOut(duration: 0.9)) { shown = v }   // counts up in step with the vessel filling
     }
 }
 
@@ -2245,7 +2490,7 @@ private struct LiquidAddButton: View {
                 .frame(width: LiquidHeaderMetrics.control, height: LiquidHeaderMetrics.control)
                 .background(Circle().fill(.white.opacity(0.16)))
         }
-        .buttonStyle(LiquidPressStyle())
+        .nativeLiquidGlassHeaderButton()
         .accessibilityLabel("Quick actions")
     }
 }
@@ -2279,6 +2524,65 @@ private struct LiquidUpdatesBellButton: View {
         }
         .buttonStyle(LiquidPressStyle())
         .accessibilityLabel("Updates")
+    }
+}
+
+/// Shared quiet, full-width navigation affordance used for a secondary dashboard destination.
+/// The containing NavigationLink owns the destination and pressed interaction; this view owns one
+/// consistent token-based surface, typography, geometry, and trailing chevron.
+private struct LiquidFullWidthNavigationAction: View {
+    let title: LocalizedStringKey
+
+    init(_ title: LocalizedStringKey) {
+        self.title = title
+    }
+
+    var body: some View {
+        HStack(spacing: NoopButtonMetrics.iconSpacing) {
+            Text(title)
+                .font(StrandFont.subhead.weight(.semibold))
+            Spacer(minLength: NoopMetrics.space2)
+            Image(systemName: "chevron.right")
+                .font(.system(size: 11, weight: .semibold))
+                .accessibilityHidden(true)
+        }
+        .foregroundStyle(StrandPalette.accent)
+        .padding(.horizontal, NoopButtonMetrics.hPadding)
+        .frame(maxWidth: .infinity)
+        .frame(height: NoopButtonMetrics.height)
+        .frame(minHeight: NoopButtonMetrics.minHitTarget)
+        .contentShape(Rectangle())
+        .background(NoopPanelSurface(cornerRadius: NoopButtonMetrics.cornerRadius))
+        .clipShape(RoundedRectangle(cornerRadius: NoopButtonMetrics.cornerRadius, style: .continuous))
+    }
+}
+
+/// Static technical grid behind the live trace. Canvas draws only when layout/style changes, so the
+/// incoming heart-rate samples remain the card's sole animation driver.
+private struct LiquidHeartRateGrid: View {
+    var body: some View {
+        Canvas { context, size in
+            var path = Path()
+            let columns = 8
+            let rows = 4
+
+            for column in 1..<columns {
+                let x = size.width * CGFloat(column) / CGFloat(columns)
+                path.move(to: CGPoint(x: x, y: 0))
+                path.addLine(to: CGPoint(x: x, y: size.height))
+            }
+            for row in 1..<rows {
+                let y = size.height * CGFloat(row) / CGFloat(rows)
+                path.move(to: CGPoint(x: 0, y: y))
+                path.addLine(to: CGPoint(x: size.width, y: y))
+            }
+
+            context.stroke(path,
+                           with: .color(StrandPalette.hairline.opacity(0.34)),
+                           lineWidth: 0.5)
+        }
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
     }
 }
 
@@ -2411,8 +2715,6 @@ private struct LiquidBatteryButton: View {
     var body: some View {
         Button { router.openDevices() } label: {
             ZStack {
-                Circle().fill(Color(.sRGB, red: 10 / 255, green: 11 / 255, blue: 16 / 255, opacity: 0.5))
-                Circle().strokeBorder(.white.opacity(0.15), lineWidth: 1)
                 switch display {
                 case .charge(let pct, let charging):
                     Circle()
@@ -2422,7 +2724,7 @@ private struct LiquidBatteryButton: View {
                         .padding(2.5)
                     Text("\(Int(pct.rounded()))")
                         .font(.system(size: 9, weight: .bold))
-                        .foregroundStyle(.white.opacity(0.9))
+                        .foregroundStyle(StrandPalette.textPrimary)
                     if charging {
                         // #972: the default Today never surfaced charging state — only the % ring. A small
                         // bolt over the ring gives the same signal as the "· Charging" text on Mac/Android.
@@ -2436,16 +2738,16 @@ private struct LiquidBatteryButton: View {
                     // that is the one thing we actually know, and it is the wearer's live question.
                     Image(systemName: charging ? "bolt.fill" : "ellipsis")
                         .font(.system(size: charging ? 11 : 9, weight: .bold))
-                        .foregroundStyle(charging ? StrandPalette.chargeColor : .white.opacity(0.5))
+                        .foregroundStyle(charging ? StrandPalette.chargeColor : StrandPalette.textTertiary)
                 case .offline:
                     Image(systemName: "bolt.slash")
                         .font(.system(size: 11))
-                        .foregroundStyle(.white.opacity(0.5))
+                        .foregroundStyle(StrandPalette.textTertiary)
                 }
             }
             .frame(width: LiquidHeaderMetrics.control, height: LiquidHeaderMetrics.control)
         }
-        .buttonStyle(LiquidPressStyle())
+        .nativeLiquidGlassHeaderButton()
         .accessibilityLabel(batteryAccessibility)
     }
     /// Never "Strap battery" alone for a no-reading state — that was indistinguishable from a real one.
@@ -2466,6 +2768,29 @@ private struct LiquidBatteryButton: View {
     }
     private func ringColor(_ p: Double) -> Color {
         p < 15 ? StrandPalette.statusCritical : p < 35 ? StrandPalette.statusWarning : StrandPalette.chargeColor
+    }
+}
+
+private extension View {
+    /// The edge-to-edge photo is overlaid after the native button style so it can fill the face. Finish
+    /// the composed control with interactive system glass as the topmost visual layer; otherwise the
+    /// opaque photo would conceal the button style's refraction and highlight. macOS keeps the photo
+    /// as-is (Liquid Glass is iOS-only).
+    @ViewBuilder
+    func nativeLiquidGlassPhotoFinish() -> some View {
+        self.nativeLiquidGlassCircleFinish()
+    }
+
+    /// Platform-owned Home-header button chrome. iOS 26 supplies the interactive Liquid Glass button
+    /// material; macOS and older iOS keep the same circular geometry with a native system material.
+    @ViewBuilder
+    func nativeLiquidGlassHeaderButton() -> some View {
+        self.nativeLiquidGlassButtonChrome(controlSize: .small) {
+            self
+                .buttonStyle(LiquidPressStyle())
+                .background(.ultraThinMaterial, in: Circle())
+                .overlay(Circle().strokeBorder(.white.opacity(0.16), lineWidth: 0.8))
+        }
     }
 }
 

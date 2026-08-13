@@ -41,6 +41,7 @@ import androidx.compose.material.icons.filled.Air
 import androidx.compose.material.icons.filled.Autorenew
 import androidx.compose.material.icons.automirrored.filled.BatteryUnknown
 import androidx.compose.material.icons.filled.Bedtime
+import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Favorite
@@ -48,9 +49,13 @@ import androidx.compose.material.icons.filled.Functions
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.MonitorHeart
+import androidx.compose.material.icons.filled.MonitorWeight
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.Timeline
 import androidx.compose.material.icons.filled.TrackChanges
+import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.outlined.Info
@@ -134,6 +139,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import android.app.DatePickerDialog
 import android.view.HapticFeedbackConstants
+import android.widget.Toast
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.noop.R
 import com.noop.analytics.Baselines
@@ -143,6 +149,8 @@ import com.noop.analytics.HydrationGoal
 import com.noop.analytics.HydrationStore
 import com.noop.analytics.ReadinessEngine
 import com.noop.analytics.ScoreConfidence
+import com.noop.analytics.SleepMark
+import com.noop.analytics.SleepMarkType
 import com.noop.analytics.StepsEstimateEngine
 import com.noop.analytics.StrainScorer
 import com.noop.data.DailyMetric
@@ -203,7 +211,6 @@ private var todayDidSnapToTodayThisLaunch = false
 // The hero card the score vessels float on, ported from the iOS LiquidTodayView. `heroFill` is a
 // translucent near-black (mock rgba(13,14,20,.80)) so it floats over the day-of-sky; the vessels + white
 // count-up numbers read crisp on it. Radius 26 + a white@0.11 hairline give the frosted-glass edge.
-private val LIQUID_HERO_FILL: Color = Color(red = 13f / 255f, green = 14f / 255f, blue = 20f / 255f, alpha = 0.80f)
 private val LIQUID_HERO_RADIUS: Dp = 26.dp
 
 // The Vitality vessel purple (#9b7bff) — no exact Palette token in this theme, so a fixed brand literal
@@ -238,6 +245,7 @@ private data class TodayLiveSnapshot(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
+@Suppress("UNUSED_PARAMETER")
 fun TodayScreen(
     viewModel: AppViewModel,
     onQuickActions: () -> Unit = {},
@@ -273,6 +281,11 @@ fun TodayScreen(
     val today by viewModel.today.collectAsStateWithLifecycle()
     val alert by viewModel.healthAlert.collectAsStateWithLifecycle()
     val days by viewModel.recentDays.collectAsStateWithLifecycle()
+    val spo2CandidateByDay by viewModel.spo2CandidateByDay.collectAsStateWithLifecycle()
+    val v5Signals by viewModel.v5Signals.collectAsStateWithLifecycle()
+    val cycleEnabled by viewModel.cycleTrackingEnabled.collectAsStateWithLifecycle()
+    val periodStarts by viewModel.periodStarts.collectAsStateWithLifecycle()
+    var showCycleTracker by remember { mutableStateOf(false) }
     val live by viewModel.live.collectAsStateWithLifecycle()
     // The in-flight manual workout (single source of truth, survives an app kill via rehydration), so the
     // indicator card auto-appears/clears off this alone. Null↔non-null + the start drive the card; the
@@ -386,7 +399,7 @@ fun TodayScreen(
     var showMetricsEditor by remember { mutableStateOf(false) }
     var enabledKeyMetrics by remember { mutableStateOf(KeyMetricPrefs.enabled(context)) }
     // Detailed Key-Metrics tiles (squarer + trend graph), set from the same editor, plus the chosen
-    // trend window (2 days / 1 week / 2 weeks) the detailed graphs cover.
+    // trend window (1 week / 2 weeks / 1 month) the detailed graphs cover.
     var keyMetricsDetailed by remember { mutableStateOf(KeyMetricPrefs.detailed(context)) }
     var keyMetricsWindowDays by remember { mutableStateOf(KeyMetricPrefs.detailWindowDays(context)) }
     // #today-layout: the user-ordered below-hero section list + its editor dialog flag. Read once (prefs
@@ -437,6 +450,10 @@ fun TodayScreen(
     // SharedPreferences isn't reactive, so it's mirrored into local state and re-read when the editor saves.
     var showDashboardEditor by remember { mutableStateOf(false) }
     var enabledDashboardCards by remember { mutableStateOf(DashboardCardPrefs.enabled(context)) }
+    // #today-hosted-cards: the Trends/Sleep cards hosted in Today (empty/opt-in). Mirrored into local
+    // state like the dashboard selection and re-read when the hosted-cards editor saves.
+    var showHostedEditor by remember { mutableStateOf(false) }
+    var enabledHostedCards by remember { mutableStateOf(HostedCardPrefs.enabled(context)) }
 
     // The pinned "Your cards" values (Stress / Fitness age / Vitality), surfaced on Today so the buried
     // Explore features sit on the home screen (#582). The same merged resolvedSeries reads their detail
@@ -633,7 +650,6 @@ fun TodayScreen(
     // collapsed and are NOT persisted, so the home screen reopens compact. Mirrors iOS.
     var metricsExpanded by remember { mutableStateOf(false) }
     var sourcesExpanded by remember { mutableStateOf(false) }
-    var scoringCardSeen by remember { mutableStateOf(ScoringGuidePrefs.cardSeen(context)) }
 
     // Per-card "dismissed into the inbox" flags for the two Today info-cards. A small × on each card
     // sets these (and posts a `.dismissedCard` update); "Restore to Today" in the inbox flips them back
@@ -1129,9 +1145,9 @@ fun TodayScreen(
         // LiquidScreenSky() slot verbatim.
         // #698, gated on the "Day-cycle background" setting (default ON). Off passes null, so the scaffold
         // paints the plain dark surface canvas instead, mirroring iOS's `showDayCycleBackground ? ... : nil`.
-        topBackground = if (showDayCycleBackground) { { LiquidScreenSky(fillHeight = skyBehindCards) } } else null,
+        topBackground = screenBackdropSlot(showDayCycleBackground, skyBehindCards),
         // Sky-behind-cards fills the viewport so the transparent cards reveal the sky the whole way down.
-        fullBleedBackground = showDayCycleBackground && skyBehindCards,
+        fullBleedBackground = screenBackdropFullBleed(showDayCycleBackground, skyBehindCards),
     ) {
         item {
         // LIQUID Today header (iOS LiquidTodayView.scene parity), a full structural rebuild to mirror the
@@ -1347,8 +1363,13 @@ fun TodayScreen(
                     selectedDayOffset == 0 && (liveSessionsEnabled || activeLiveSession != null)
                 TodaySection.YOUR_CARDS ->
                     selectedDayOffset == 0 && visibleDashboardCards.isNotEmpty()
+                TodaySection.MENSTRUAL_CYCLE ->
+                    selectedDayOffset == 0 &&
+                        (cycleOptInApplies(profileStore.sex) || cycleEnabled || periodStarts.isNotEmpty())
                 TodaySection.JOURNAL ->
                     selectedDayOffset == 0 && journalReminderOn
+                TodaySection.ADDED_CARDS ->
+                    selectedDayOffset == 0 && enabledHostedCards.isNotEmpty()
                 else -> true
             }
             if (!sectionVisible) return@forEach
@@ -1377,10 +1398,10 @@ fun TodayScreen(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .background(
-                                        LIQUID_HERO_FILL.copy(alpha = LIQUID_HERO_FILL.alpha * CardAppearance.opacity),
+                                        Palette.heroFill.copy(alpha = Palette.heroFill.alpha * CardAppearance.opacity),
                                         RoundedCornerShape(LIQUID_HERO_RADIUS),
                                     )
-                                    .border(1.dp, Color.White.copy(alpha = 0.11f * CardAppearance.opacity), RoundedCornerShape(LIQUID_HERO_RADIUS))
+                                    .border(1.dp, Palette.heroBorder.copy(alpha = Palette.heroBorder.alpha * CardAppearance.opacity), RoundedCornerShape(LIQUID_HERO_RADIUS))
                                     .staggeredAppear(stagger),
                             ) {
                                 ScoreHeroRow(
@@ -1496,6 +1517,7 @@ fun TodayScreen(
                                     metricsExpanded = metricsExpanded,
                                     onToggleMetrics = { metricsExpanded = !metricsExpanded },
                                     detailed = keyMetricsDetailed,
+                                    windowDays = keyMetricsWindowDays,
                                     onOpenMetric = onOpenMetric,
                                 )
                             }
@@ -1544,6 +1566,18 @@ fun TodayScreen(
                             onOpenSleep = onOpenSleep,
                             onOpenCoupled = onOpenCoupled,
                             onCustomise = { showDashboardEditor = true },
+                            spo2CandidateByDay = spo2CandidateByDay,
+                        )
+                        TodaySection.MENSTRUAL_CYCLE -> MenstrualCycleHomeCard(
+                            enabled = cycleEnabled,
+                            result = v5Signals?.cycle,
+                            starts = periodStarts,
+                            onSetUp = {
+                                viewModel.setCycleTrackingEnabled(true)
+                                showCycleTracker = true
+                            },
+                            onOpen = { showCycleTracker = true },
+                            onLogToday = { viewModel.logPeriodStart() },
                         )
                         // #656: the persistent journal widget (last-7-days strip + tap-through). Now a
                         // reorderable section like the others — hold-drag or Arrange moves it. Today-only
@@ -1553,6 +1587,13 @@ fun TodayScreen(
                             viewModel = viewModel,
                             days = days,
                             onOpenJournal = onOpenJournal,
+                        )
+                        // #today-hosted-cards: the Trends/Sleep cards the user pulled into Today, in
+                        // arranged order. Each is the SAME card its home tab renders (a mirror).
+                        TodaySection.ADDED_CARDS -> HostedCardsSection(
+                            cards = enabledHostedCards,
+                            days = days,
+                            viewModel = viewModel,
                         )
                     }
                 }
@@ -1584,6 +1625,19 @@ fun TodayScreen(
             PullToRefreshContainer(
                 state = pullToSyncState,
                 modifier = Modifier.align(Alignment.TopCenter),
+            )
+        }
+    }
+
+    if (showCycleTracker) {
+        v5Signals?.cycle?.let { cycle ->
+            CycleTrackerDialog(
+                result = cycle,
+                starts = periodStarts,
+                onLog = viewModel::logPeriodStart,
+                onDelete = viewModel::deletePeriodStart,
+                onDeleteAll = viewModel::deleteAllPeriodStarts,
+                onDismiss = { showCycleTracker = false },
             )
         }
     }
@@ -1678,13 +1732,32 @@ fun TodayScreen(
         )
     }
 
+    // #today-hosted-cards: the add/remove/reorder editor for the Trends/Sleep cards hosted in Today. Saves
+    // the selection and re-reads it into local state so the Added-cards section reflects it immediately.
+    if (showHostedEditor) {
+        HostedCardsEditorDialog(
+            initial = enabledHostedCards,
+            onDismiss = { showHostedEditor = false },
+            onSave = { cards ->
+                HostedCardPrefs.setEnabled(context, cards)
+                enabledHostedCards = cards
+                showHostedEditor = false
+            },
+        )
+    }
+
     // #today-layout: the section-order editor (reorder the below-hero sections). Saves the order and
-    // re-reads it into local state so Today re-lays-out immediately and survives relaunch.
+    // re-reads it into local state so Today re-lays-out immediately and survives relaunch. Its "Edit added
+    // cards" button hands off to the hosted-cards editor above (#today-hosted-cards).
     if (showLayoutEditor) {
         TodayLayoutEditorDialog(
             initialOrder = sectionOrder,
             initialHidden = hiddenSections,
             onDismiss = { showLayoutEditor = false },
+            onEditAdded = {
+                showLayoutEditor = false
+                showHostedEditor = true
+            },
             onSave = { order, hidden ->
                 TodayLayoutPrefs.setOrder(context, order)
                 TodayLayoutPrefs.setHidden(context, hidden)
@@ -1897,8 +1970,8 @@ private fun QuickActionDisc(onClick: () -> Unit) {
     val interaction = remember { MutableInteractionSource() }
     Box(
         modifier = Modifier
-            // 34dp to sit level with the heart / avatar / battery ring in the liquid header cluster.
-            .size(34.dp)
+            // Sit level with the avatar / battery ring in the liquid header cluster (shared size).
+            .size(HeaderClusterControl)
             .liquidPress(interaction)
             .clip(CircleShape)
             // A translucent-white disc so the + reads on the day-of-sky like the rest of the liquid cluster,
@@ -2002,8 +2075,13 @@ private fun ScoringGuideIntroCard(onOpen: () -> Unit, onDismiss: () -> Unit) {
 // recording-light + bell header). LEFT: a tappable title block — the big rounded-bold day title over a human
 // date line ("Friday, 3 July"), tap opens the day picker. RIGHT: exactly the iOS four controls, in order —
 // a filled HEART (→ Support), the PROFILE AVATAR (→ Settings), a "+" ADD button (→ quick actions), and the
-// strap BATTERY RING (→ Devices). Each ~34dp, spacing ~8dp. There is no recording light and no bell here;
+// strap BATTERY RING (→ Devices). Each ~36dp, spacing ~8dp. There is no recording light and no bell here;
 // iOS's Today header has neither, and the Updates inbox is relocated into the "+" quick-actions sheet.
+
+/** The uniform diameter of the round Today-header controls — profile avatar, quick-add (+) and the strap
+ *  battery ring — so they sit level in the liquid cluster (the sync chip beside them is content-sized).
+ *  Single source of truth so a size tweak keeps all three in lockstep. */
+private val HeaderClusterControl = 36.dp
 
 @Composable
 private fun LiquidTodayHeader(
@@ -2094,7 +2172,7 @@ private fun LiquidTodayHeader(
             )
         }
 
-        // RIGHT: the controls, in order — [sync chip] · avatar · + · battery ring. Each ~34dp, 8dp apart.
+        // RIGHT: the controls, in order — [sync chip] · avatar · + · battery ring. Each ~36dp, 8dp apart.
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -2109,7 +2187,7 @@ private fun LiquidTodayHeader(
             // (a) Profile avatar (the photo set in Settings, or the NOOP loop mark) → Settings. Mirrors iOS.
             Box(
                 modifier = Modifier
-                    .size(34.dp)
+                    .size(HeaderClusterControl)
                     .clip(CircleShape)
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
@@ -2119,10 +2197,10 @@ private fun LiquidTodayHeader(
                     .semantics { contentDescription = uiString(R.string.l10n_today_screen_profile_and_settings_9b3d12f2) },
                 contentAlignment = Alignment.Center,
             ) {
-                ProfileAvatar(size = 34.dp)
+                ProfileAvatar(size = HeaderClusterControl)
             }
             // (b) Quick-add (+), the accented primary. Mirrors iOS's LiquidAddButton (a glyph on a translucent
-            // disc → the quick-actions menu). Sized 34dp to match the rest of the liquid cluster.
+            // disc → the quick-actions menu). Sized to match the rest of the liquid cluster (shared HeaderClusterControl).
             QuickActionDisc(onClick = onQuickActions)
             // (c) Strap battery ring showing the % (iOS LiquidBatteryButton). Tap → Devices.
             LiquidBatteryRing(batteryPct = batteryPct, onClick = onOpenDevices)
@@ -2178,9 +2256,12 @@ private fun ChipCapsule(icon: ImageVector, text: String, tint: Color, desc: Stri
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(4.dp),
         modifier = Modifier
+            // Match the round header controls' height so the pill sits the same size in the cluster
+            // (#1207 follow-up); width stays content-driven. Content centres via the fixed height.
+            .height(HeaderClusterControl)
             .clip(RoundedCornerShape(50))
             .background(Palette.surfaceInset)
-            .padding(horizontal = 8.dp, vertical = 5.dp),
+            .padding(horizontal = 10.dp),
     ) {
         Icon(icon, contentDescription = desc, tint = tint, modifier = Modifier.size(14.dp))
         Text(text, style = NoopType.caption, color = tint)
@@ -2196,7 +2277,7 @@ private fun LiquidBatteryRing(batteryPct: Double?, onClick: () -> Unit) {
     val label = batteryPct?.let { "Strap battery ${it.roundToInt()} percent" } ?: "Strap battery"
     Box(
         modifier = Modifier
-            .size(34.dp)
+            .size(HeaderClusterControl)
             .liquidPress(interaction)
             .clip(CircleShape)
             // A translucent near-black disc + faint white rim, matching iOS (rgba(10,11,16,.5) + white@.15).
@@ -2217,7 +2298,7 @@ private fun LiquidBatteryRing(batteryPct: Double?, onClick: () -> Unit) {
                 pct < 35 -> Palette.statusWarning
                 else -> Palette.chargeColor
             }
-            Canvas(modifier = Modifier.size(34.dp).padding(2.5.dp)) {
+            Canvas(modifier = Modifier.size(HeaderClusterControl).padding(2.5.dp)) {
                 val strokePx = 3.dp.toPx()
                 val d = size.minDimension - strokePx
                 val topLeft = Offset((size.width - d) / 2f, (size.height - d) / 2f)
@@ -2471,7 +2552,8 @@ private fun ScoreHeroRow(
                     if (heroSourceLabel != null) {
                         SourceBadge(
                             text = heroSourceLabel,
-                            tint = Palette.onDarkSecondary,
+                            // #1160: the hero is theme-aware now, so its badge uses the flip-able text token.
+                            tint = Palette.textSecondary,
                             modifier = Modifier
                                 .align(Alignment.TopEnd)
                                 // Measure the full label even when it is wider than the Rest vessel, then
@@ -2783,18 +2865,25 @@ private fun ReadinessHeroPill(word: String, level: ReadinessEngine.Level, onTap:
  *  and drawn as a dimmed FILLED ring in the carried branch (matching iOS chargeRing), so this overlay only
  *  covers the calibrating and no-data cases. Mirrors iOS TodayView.ringEmptyOverlay. */
 @Composable
+@Suppress("UNUSED_PARAMETER")
 private fun RingEmptyOverlay(
     calibratingNights: Int?,
     diameter: Dp,
 ) {
     if (calibratingNights != null) {
+        // AutoSizeValue shrink-to-fit + the centring Column, same as RingNeedsTrackedNight (#1168): a longer
+        // localized "N of M nights" would otherwise fill the narrow ring and left-align/clip like the Rest tile.
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(uiString(R.string.l10n_today_screen_calibrating_37c2c9bd), style = NoopType.headline, color = Palette.textTertiary, maxLines = 1)
-            Text(
+            AutoSizeValue(
+                uiString(R.string.l10n_today_screen_calibrating_37c2c9bd),
+                style = NoopType.headline,
+                color = Palette.textTertiary,
+                minScale = 0.7f,
+            )
+            AutoSizeValue(
                 uiString(R.string.l10n_today_screen_calibratingnights_of_baselines_minnightsseed_3b76e55c, calibratingNights, Baselines.minNightsSeed),
                 style = NoopType.footnote,
                 color = Palette.textSecondary,
-                maxLines = 1,
             )
         }
     } else {
@@ -2812,13 +2901,21 @@ private fun RingNoData() {
  *  instead of a bare "No Data", without fabricating a number. Mirrors iOS restRing's needs-a-night branch. */
 @Composable
 private fun RingNeedsTrackedNight() {
+    // AutoSizeValue (not plain Text): the subtext "needs a tracked night" is wider than the narrow ring,
+    // so a maxLines=1 Text filled the width and left-aligned + clipped the tail (#1168). Shrink-to-fit and
+    // let the centering Column place the content-sized line — the Android mirror of iOS ringNeedsTrackedNight's
+    // .minimumScaleFactor + centred VStack.
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(uiString(R.string.l10n_today_screen_calibrating_37c2c9bd), style = NoopType.headline, color = Palette.textTertiary, maxLines = 1)
-        Text(
+        AutoSizeValue(
+            uiString(R.string.l10n_today_screen_calibrating_37c2c9bd),
+            style = NoopType.headline,
+            color = Palette.textTertiary,
+            minScale = 0.7f,
+        )
+        AutoSizeValue(
             uiString(R.string.l10n_today_screen_needs_a_tracked_night_ccfd532a),
             style = NoopType.footnote,
             color = Palette.textSecondary,
-            maxLines = 1,
         )
     }
 }
@@ -2836,6 +2933,7 @@ private fun RingNeedsTrackedNight() {
  *  card to the Key-Metrics tiles, which already read per-field. Each row still falls through to "No Data"
  *  for a vital neither today nor the carry supplies. */
 @Composable
+@Suppress("UNUSED_PARAMETER")
 private fun HeroMetricRows(day: DailyMetric?, carriedDay: DailyMetric? = null, vitalsDay: DailyMetric? = null) {
     // Per-field, today-first: today's own value wins; the vitals carry only fills a field today lacks.
     val hrv = day?.avgHrv ?: vitalsDay?.avgHrv
@@ -2961,6 +3059,86 @@ private fun TodayEditAction(
     }
 }
 
+/**
+ * #today-hosted-cards render: the Trends/Sleep cards hosted in Today, in arranged order. Each case renders
+ * the SAME card its home tab uses (a mirror, not a copy) so the two never diverge. P0 hosts only Sleep
+ * marks; its logging callback mirrors the Sleep tab's exactly (external log + metric-series upsert +
+ * confirmation toast). Renders nothing when [cards] is empty. Twin of the iOS `hostedCardsSection`.
+ */
+@Composable
+private fun HostedCardsSection(cards: List<HostedCard>, days: List<DailyMetric>, viewModel: AppViewModel) {
+    if (cards.isEmpty()) return
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    // #today-hosted-cards: the SleepModel-backed hosted sleep cards (Stages vs typical today; more to
+    // follow). Build the shared model ONCE, and only when at least one such card is actually hosted, so a
+    // Today hosting none pays no cost. Same inputs + builder as the Sleep tab (buildHostedSleepModel), so
+    // hosted numbers match the Sleep tab. Reused by every model-backed card. Twin of the iOS hostedSleepModel.
+    val modelBackedHosted = setOf(HostedCard.STAGES_VS_TYPICAL, HostedCard.NIGHT_DETAIL, HostedCard.SLEEP_DEBT, HostedCard.STAGES, HostedCard.HOURS_VS_NEEDED, HostedCard.CONSISTENCY)
+    val needsSleepModel = cards.any { it in modelBackedHosted }
+    var hostedSleepModel by remember { mutableStateOf<SleepModel?>(null) }
+    LaunchedEffect(needsSleepModel, days, viewModel.activeStrapId) {
+        hostedSleepModel = if (needsSleepModel) {
+            buildHostedSleepModel(viewModel.repo, viewModel.activeStrapId, days)
+        } else {
+            null
+        }
+    }
+    Column(verticalArrangement = Arrangement.spacedBy(Metrics.sectionGap)) {
+        cards.forEach { card ->
+            when (card) {
+                HostedCard.SLEEP_MARKS -> SleepMarkCard(
+                    onMark = { type ->
+                        val mark = SleepMark.now(type)
+                        viewModel.ble.externalLog(mark.logLine())
+                        scope.launch {
+                            runCatching {
+                                viewModel.repo.upsertMetricSeries(listOf(mark.metricPoint("my-whoop")))
+                            }
+                        }
+                        Toast.makeText(context, mark.confirmation(), Toast.LENGTH_SHORT).show()
+                    }
+                )
+                // #today-hosted-cards P1: the hours-asleep trend, built pure from `days` (no nap/debt) so
+                // it matches the Sleep tab's hours chart. The card composable lives in SleepScreen.kt
+                // (internal) where its ChartCard/BarChart siblings are in-file.
+                HostedCard.ASLEEP_DURATION -> {
+                    val (hours, dates) = sleepDurationTrend(days)
+                    AsleepDurationHostCard(hours = hours, dates = dates)
+                }
+                // #today-hosted-cards: last night's stages vs the wearer's personal per-stage means, rendered
+                // from the SAME shared SleepModel the Sleep tab uses (mirror, not copy). Until the async build
+                // lands — or on a device with no stage data — the model is null and the slot renders nothing
+                // this frame, matching how the Sleep tab guards the section on a null model.
+                HostedCard.STAGES_VS_TYPICAL -> hostedSleepModel?.let { StagesVsTypicalHostCard(it) }
+                // #today-hosted-cards: the Night-detail metric grid, rendered from the SAME shared SleepModel
+                // the Sleep tab uses (mirror, not copy). Null until the async build lands / no stage data —
+                // the slot renders nothing this frame, matching the Sleep tab's null-model guard.
+                HostedCard.NIGHT_DETAIL -> hostedSleepModel?.let { NightDetailHostCard(it) }
+                // #today-hosted-cards: the Sleep-debt ledger, rendered from the SAME shared SleepModel the
+                // Sleep tab uses (mirror, not copy). Null until the async build lands / no stage data — the
+                // slot renders nothing this frame, matching the Sleep tab's null-model guard.
+                HostedCard.SLEEP_DEBT -> hostedSleepModel?.let { SleepDebtLedgerHostCard(it) }
+                // #today-hosted-cards: the READ-ONLY latest-night stage chart + breakdown, rendered from the
+                // SAME shared SleepModel the Sleep tab uses (mirror, not copy) — none of the hero's nav/edit/
+                // nap interaction. Null until the async build lands / no stage data — the slot renders nothing
+                // this frame, matching the Sleep tab's null-model guard.
+                HostedCard.STAGES -> hostedSleepModel?.let { StagesHostCard(it) }
+                // #today-hosted-cards: the single hours-vs-need % metric, rendered from the SAME shared
+                // SleepModel the Sleep tab uses (mirror, not copy) via the existing standalone
+                // HoursVsNeededCard. Null until the async build lands / no stage data — the slot renders
+                // nothing this frame, matching the Sleep tab's null-model guard.
+                HostedCard.HOURS_VS_NEEDED -> hostedSleepModel?.let { HoursVsNeededCard(it) }
+                // #today-hosted-cards: the single sleep-consistency % metric, rendered from the SAME shared
+                // SleepModel the Sleep tab uses (mirror, not copy) via the simple standalone
+                // ConsistencyHostCard. Null until the async build lands / no stage data — the slot renders
+                // nothing this frame, matching the Sleep tab's null-model guard.
+                HostedCard.CONSISTENCY -> hostedSleepModel?.let { ConsistencyHostCard(it) }
+            }
+        }
+    }
+}
+
 @Composable
 private fun YourCardsSection(
     cards: List<DashboardCard>,
@@ -2983,6 +3161,7 @@ private fun YourCardsSection(
     onOpenSleep: () -> Unit,
     onOpenCoupled: () -> Unit,
     onCustomise: () -> Unit,
+    spo2CandidateByDay: Map<String, Double> = emptyMap(),
 ) {
     Box(modifier = Modifier.fillMaxWidth().staggeredAppear(2)) {
         Column(verticalArrangement = Arrangement.spacedBy(Metrics.gap)) {
@@ -3012,6 +3191,7 @@ private fun YourCardsSection(
                         caloriesForDay = caloriesForDay,
                         hydrationTotalMl = hydrationTotalMl,
                         hydrationGoalMl = hydrationGoalMl,
+                        spo2CandidateByDay = spo2CandidateByDay,
                     ),
                     // The mini liquid vessel's fill — the SAME per-card fraction iOS `liquidCard` uses.
                     fraction = dashboardCardFraction(
@@ -3201,6 +3381,7 @@ private fun dashboardCardValue(
     caloriesForDay: Double?,
     hydrationTotalMl: Double,
     hydrationGoalMl: Int,
+    spo2CandidateByDay: Map<String, Double> = emptyMap(),
 ): String {
     fun withUnit(s: String): String =
         if (s == NO_DATA) NO_DATA else if (card.unit.isEmpty()) s else "$s ${card.unit}"
@@ -3218,11 +3399,19 @@ private fun dashboardCardValue(
         DashboardCard.BLOOD_OXYGEN ->
             // PER-FIELD carry: the whole-row carries (vd) land on rows whose spo2Pct is null (the engine
             // writes spo2Pct = null on computed rows), so fall through to the last row that HAS one.
-            (vd?.spo2Pct ?: spo2Day?.spo2Pct)?.let { String.format(Locale.US, "%.0f%%", it) } ?: NO_DATA
-        DashboardCard.SKIN_TEMP ->
-            // Stored as a deviation from baseline (°C); show it signed so +/- reads honestly.
-            // Same per-field carry as Blood Oxygen.
-            (vd?.skinTempDevC ?: skinTempDay?.skinTempDevC)?.let { String.format(Locale.US, "%+.1f°", it) } ?: NO_DATA
+            // #103: when no calibrated spo2Pct exists, fall back to the spo2_candidate_82 strap estimate
+            // (from metricSeries) when the experimental display toggle is ON. Labelled "estimate" in the
+            // Health vitals screen; here it just fills the card so it's not blank.
+            (vd?.spo2Pct ?: spo2Day?.spo2Pct)?.let { String.format(Locale.US, "%.0f%%", it) }
+                ?: (vd?.day ?: day?.day)?.let { spo2CandidateByDay[it] }?.let { String.format(Locale.US, "%.0f%%", it) }
+                ?: NO_DATA
+        DashboardCard.SKIN_TEMP -> {
+            // #622: bimodal field — absolute °C (import) vs signed Δ°C vs baseline (live).
+            // Always label the scale; bare "−0.1°" next to a 34° deep-timeline chart looked broken.
+            val v = vd?.skinTempDevC ?: skinTempDay?.skinTempDevC
+            if (v == null) NO_DATA
+            else com.noop.analytics.SkinTempDisplay.format(v, fahrenheit = false)
+        }
         DashboardCard.SLEEP -> sleepValue(vd)
         DashboardCard.STEPS -> {
             val real = day?.steps?.let { intStringGrouped(it.toDouble()) }
@@ -3382,12 +3571,22 @@ private fun intStringGrouped(v: Double): String {
  * the same ordering behavior in every editor. SnapshotStateList callers recompose on these mutations.
  */
 @Composable
-private fun <T> EditableVisibilityRows(
+internal fun <T> EditableVisibilityRows(
     shown: MutableList<T>,
     hidden: MutableList<T>,
     itemTitle: (T) -> String,
     modifier: Modifier = Modifier,
+    // Whether the Shown list may go EMPTY. Default false — the last shown item can't be hidden, so
+    // surfaces needing >=1 item can't be emptied. The hosted-cards editor (#today-hosted-cards) passes
+    // true (opt-in: un-hosting the last card is valid).
+    allowEmpty: Boolean = false,
+    // Optional grouping key for the Hidden ("Available") list. When set (the hosted-cards editor passes the
+    // card's origin, e.g. "Sleep" / "Trends"), the Available items render under one sub-header per group so
+    // a user browses by origin. null (Today sections, Key Metrics, Your Cards) keeps the flat list. The
+    // Shown list stays flat — it is the user's own cross-origin order. Twin of the Swift EditableLayoutList.
+    hiddenGroup: ((T) -> String)? = null,
 ) {
+    val minShown = if (allowEmpty) 0 else 1
     Column(
         modifier = modifier
             .heightIn(max = Metrics.editorListMaxHeight)
@@ -3431,15 +3630,15 @@ private fun <T> EditableVisibilityRows(
                 }
                 IconButton(
                     onClick = {
-                        if (shown.size > 1) hidden.add(shown.removeAt(index))
+                        if (shown.size > minShown) hidden.add(shown.removeAt(index))
                     },
-                    enabled = shown.size > 1,
+                    enabled = shown.size > minShown,
                     modifier = Modifier.size(Metrics.iconButton),
                 ) {
                     Icon(
                         Icons.Filled.Close,
                         contentDescription = stringResource(R.string.today_customize_hide, title),
-                        tint = if (shown.size > 1) Palette.textSecondary else Palette.textTertiary,
+                        tint = if (shown.size > minShown) Palette.textSecondary else Palette.textTertiary,
                         modifier = Modifier.size(Metrics.iconSmall),
                     )
                 }
@@ -3458,6 +3657,43 @@ private fun <T> EditableVisibilityRows(
                 color = Palette.textTertiary,
                 modifier = Modifier.padding(vertical = Metrics.space12),
             )
+        } else if (hiddenGroup != null) {
+            // Grouped Available list: one sub-header per origin ("Sleep", "Trends"). Remove by identity
+            // (items are unique) so the move is index-free across the regrouped display.
+            val buckets = LinkedHashMap<String, MutableList<T>>()
+            hidden.forEach { item -> buckets.getOrPut(hiddenGroup(item)) { ArrayList() }.add(item) }
+            buckets.keys.toList().forEachIndexed { gi, groupName ->
+                Text(
+                    groupName,
+                    style = NoopType.overline,
+                    color = Palette.textTertiary,
+                    modifier = Modifier.padding(top = if (gi == 0) Metrics.space4 else Metrics.space12),
+                )
+                val itemsIn = buckets.getValue(groupName)
+                itemsIn.forEachIndexed { ii, item ->
+                    val title = itemTitle(item)
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = Metrics.space6),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(title, style = NoopType.body, color = Palette.textTertiary, modifier = Modifier.weight(1f))
+                        IconButton(
+                            onClick = { hidden.remove(item); shown.add(item) },
+                            modifier = Modifier.size(Metrics.iconButton),
+                        ) {
+                            Icon(
+                                Icons.Filled.Add,
+                                contentDescription = stringResource(R.string.today_customize_show, title),
+                                tint = Palette.accent,
+                                modifier = Modifier.size(Metrics.iconSmall),
+                            )
+                        }
+                    }
+                    if (ii < itemsIn.lastIndex) {
+                        HorizontalDivider(color = Palette.hairline, thickness = Metrics.divider)
+                    }
+                }
+            }
         } else {
             hidden.forEachIndexed { index, item ->
                 val title = itemTitle(item)
@@ -3544,6 +3780,77 @@ private fun DashboardCardsEditorDialog(
                     Button(
                         onClick = { onSave(shown.toList()) },
                         enabled = shown.isNotEmpty(),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Palette.accent,
+                            contentColor = Palette.surfaceBase,
+                        ),
+                    ) { Text(uiString(R.string.l10n_today_screen_done_e9b450d1), style = NoopType.captionNumber) }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * #today-hosted-cards: the add/remove/reorder editor for the Trends/Sleep cards hosted in Today. Clone of
+ * [DashboardCardsEditorDialog] over [HostedCard], with ONE difference — Done is always enabled, because an
+ * EMPTY hosted set is valid (the feature is opt-in; hosting nothing simply hides the Added-cards section).
+ * Reuses the shared [EditableVisibilityRows]. Twin of the iOS `HostedCardsCustomizationPage`.
+ */
+@Composable
+private fun HostedCardsEditorDialog(
+    initial: List<HostedCard>,
+    onDismiss: () -> Unit,
+    onSave: (List<HostedCard>) -> Unit,
+) {
+    val shown = remember { mutableStateListOf<HostedCard>().apply { addAll(initial) } }
+    val hidden = remember {
+        mutableStateListOf<HostedCard>().apply {
+            addAll(HostedCard.canonicalOrder.filter { it !in initial })
+        }
+    }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(color = Palette.surfaceOverlay, shape = RoundedCornerShape(16.dp)) {
+            Column(
+                modifier = Modifier.padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(stringResource(R.string.today_hosted_editor_title), style = NoopType.title2, color = Palette.textPrimary)
+                    Text(
+                        stringResource(R.string.today_hosted_editor_desc),
+                        style = NoopType.subhead,
+                        color = Palette.textSecondary,
+                    )
+                }
+
+                // Resolve the localized title/origin per card up front (composable-only calls can't run
+                // inside the plain itemTitle/hiddenGroup lambdas). The enum's raw title/origin stay the
+                // English source of truth; the UI shows the translated text.
+                val titleFor = HostedCard.entries.associateWith { it.localizedTitle() }
+                val originFor = HostedCard.entries.associateWith { it.localizedOrigin() }
+                EditableVisibilityRows(
+                    shown = shown,
+                    hidden = hidden,
+                    itemTitle = { titleFor.getValue(it) },
+                    allowEmpty = true,   // hosting is opt-in: un-hosting the last card is valid
+                    hiddenGroup = { originFor.getValue(it) },   // group the Available list by origin tab ("Sleep", "Trends")
+                )
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    TextButton(
+                        onClick = {
+                            shown.clear()
+                            shown.addAll(HostedCard.defaultSelection)
+                            hidden.clear()
+                            hidden.addAll(HostedCard.canonicalOrder.filter { it !in shown })
+                        },
+                        colors = ButtonDefaults.textButtonColors(contentColor = Palette.textSecondary),
+                    ) { Text(uiString(R.string.l10n_today_screen_reset_44c57abd), style = NoopType.body) }
+                    Spacer(Modifier.weight(1f))
+                    Button(
+                        onClick = { onSave(shown.toList()) },
                         colors = ButtonDefaults.buttonColors(
                             containerColor = Palette.accent,
                             contentColor = Palette.surfaceBase,
@@ -3746,6 +4053,7 @@ private fun TodayLayoutEditorDialog(
     initialOrder: List<TodaySection>,
     initialHidden: List<TodaySection>,
     onDismiss: () -> Unit,
+    onEditAdded: () -> Unit,
     onSave: (List<TodaySection>, List<TodaySection>) -> Unit,
 ) {
     val hiddenSet = remember(initialHidden) { initialHidden.toSet() }
@@ -3776,6 +4084,17 @@ private fun TodayLayoutEditorDialog(
                     hidden = hidden,
                     itemTitle = { it.title },
                 )
+
+                // #today-hosted-cards: hand-off to the editor that chooses WHICH Trends/Sleep cards the
+                // "Added Cards" section hosts (the section row above only reorders/hides the section).
+                TextButton(
+                    onClick = onEditAdded,
+                    colors = ButtonDefaults.textButtonColors(contentColor = Palette.accent),
+                ) {
+                    Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(Metrics.iconSmall))
+                    Spacer(Modifier.width(Metrics.space6))
+                    Text(stringResource(R.string.today_customize_edit_added_cards), style = NoopType.body)
+                }
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     TextButton(
@@ -4299,6 +4618,7 @@ private fun RecordingStatusChip(state: RecordingState, onConnect: () -> Unit) {
  * grid tiles perfectly with no empty cells.
  */
 @Composable
+@Suppress("UNUSED_PARAMETER")
 private fun MetricGrid(
     d: DailyMetric?,
     w: Window,
@@ -4346,8 +4666,12 @@ private fun MetricGrid(
     // grid fully expanded for any caller that doesn't opt into the cap.
     metricsExpanded: Boolean = true,
     onToggleMetrics: () -> Unit = {},
-    // Detailed tiles (the #251 editor's switch): squarer tiles with a 14-day trend graph under the bar.
+    // Detailed tiles (the #251 editor's switch): squarer tiles with a trend graph under the bar, drawn
+    // over the editor's chosen window (7 / 14 / 30 days).
     detailed: Boolean = false,
+    // The editor's trailing-window choice (7 / 14 / 30). Caps each tile's sparkline to that many trailing
+    // points so "1 month" draws its full span instead of a fixed 14 (matches the iOS windowedSpark cutoff).
+    windowDays: Int = 14,
     // Tile drill-ins: every tile opens its focused trend timeline (vital_detail/<key>, the Sleep
     // night-detail pattern) via [onOpenMetric].
     onOpenMetric: (String) -> Unit = {},
@@ -4513,7 +4837,9 @@ private fun MetricGrid(
                 rowTiles.forEach { (metric, tile) ->
                     LiquidKeyTile(
                         tile,
+                        icon = keyMetricIcon(metric),
                         detailed = detailed,
+                        windowDays = windowDays,
                         onClick = tapFor(metric),
                         modifier = Modifier.weight(1f).then(if (detailed) Modifier.fillMaxHeight() else Modifier),
                     )
@@ -4546,8 +4872,9 @@ private fun MetricGrid(
 }
 
 /** One compact Key-Metrics tile's data: iOS `ktile`(label, value, unit, tint, frac). [spark] is the
- *  14-day trend series (oldest→newest) the DETAILED tile style graphs; empty hides the graph (a metric
- *  with no windowed series — Steps/Weight/Calories — stays tube-only even in detailed mode). */
+ *  trailing trend series (oldest→newest) the DETAILED tile style graphs, capped at render to the editor's
+ *  chosen window; empty hides the graph (a metric with no windowed series — Steps/Weight/Calories —
+ *  stays tube-only even in detailed mode). */
 private data class KeyTileData(
     val label: String,
     val value: String,
@@ -4557,20 +4884,40 @@ private data class KeyTileData(
     val spark: List<Double> = emptyList(),
 )
 
+/** The per-metric glyph shown beside a Key-Metric tile's label — the Android twin of iOS
+ *  `LiquidTodayView.keyMetricIcon`, using Material equivalents of its SF Symbols: heart / bolt / moon /
+ *  trend line / heart-monitor / drop / air (≈lungs) / walk / scale / flame. Tinted to the tile colour at
+ *  render, so the icon reads as the same signal as the bar. */
+private fun keyMetricIcon(metric: KeyMetric): ImageVector = when (metric) {
+    KeyMetric.CHARGE -> Icons.Filled.Favorite
+    KeyMetric.EFFORT -> Icons.Filled.Bolt
+    KeyMetric.REST -> Icons.Filled.Bedtime
+    KeyMetric.HRV -> Icons.Filled.Timeline
+    KeyMetric.RESTING_HR -> Icons.Filled.MonitorHeart
+    KeyMetric.BLOOD_OXYGEN -> Icons.Filled.WaterDrop
+    KeyMetric.RESPIRATORY -> Icons.Filled.Air
+    KeyMetric.STEPS -> Icons.AutoMirrored.Filled.DirectionsWalk
+    KeyMetric.WEIGHT -> Icons.Filled.MonitorWeight
+    KeyMetric.CALORIES -> Icons.Filled.LocalFireDepartment
+}
+
 /**
  * One iOS `ktile`: a compact 3-column tile — a 9sp / +1.2 overline label, the value (number 17) + small
  * unit (caption), and a thin 8dp [LiquidTube] fill bar tinted [KeyTileData.tint] to [KeyTileData.frac].
  * Flat surfaceRaised fill + a 16dp-corner hairline (iOS ktile background), padding 12h / 11v. Replaces the
  * old tall 2-column SparkStatTile. A No-Data value dims and the tube reads empty.
  *
- * [detailed] (the #251 editor's "Detailed tiles" switch): the tile grows a 14-day trend [Sparkline] in the
- * metric's tint under the fill bar — taller/squarer, per the tester mock. A metric with no windowed series
- * (Steps/Weight/Calories) or fewer than two points stays tube-only, so no tile ever draws a fake flat line.
+ * [detailed] (the #251 editor's "Detailed tiles" switch): the tile grows a trend [Sparkline] in the
+ * metric's tint under the fill bar — taller/squarer, per the tester mock — over the editor's [windowDays]
+ * window (7 / 14 / 30). A metric with no windowed series (Steps/Weight/Calories) or fewer than two points
+ * stays tube-only, so no tile ever draws a fake flat line.
  */
 @Composable
 private fun LiquidKeyTile(
     data: KeyTileData,
+    icon: ImageVector,
     detailed: Boolean = false,
+    windowDays: Int = 14,
     onClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
@@ -4594,13 +4941,28 @@ private fun LiquidKeyTile(
             .semantics { contentDescription = uiString(R.string.l10n_today_screen_data_label_data_value_data_unit_27f6fd6b, data.label, data.value, data.unit).trim() },
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        Text(
-            data.label.uppercase(),
-            style = NoopType.overline.copy(fontSize = 9.sp, letterSpacing = 1.2.sp),
-            color = Palette.textTertiary,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
+        // iOS ktile parity: a small metric glyph before the overline label, tinted to the tile colour at
+        // 0.72 opacity (LiquidTodayView `Image(systemName:).foregroundStyle(tint.opacity(0.72))`). Decorative
+        // — the tile's own semantics already announce the label/value, so the icon is contentDescription-null.
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Icon(
+                icon,
+                contentDescription = null,
+                tint = data.tint.copy(alpha = 0.72f),
+                modifier = Modifier.size(12.dp),
+            )
+            Text(
+                data.label.uppercase(),
+                style = NoopType.overline.copy(fontSize = 9.sp, letterSpacing = 1.2.sp),
+                color = Palette.textTertiary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
+        }
         Row(verticalAlignment = Alignment.Bottom) {
             Text(
                 data.value,
@@ -4627,10 +4989,12 @@ private fun LiquidKeyTile(
             animated = false,
             modifier = Modifier.fillMaxWidth(),
         )
-        // Detailed tiles: the 14-day trend graph under the bar (same Sparkline leaf the Sleep tiles use,
+        // Detailed tiles: the windowed trend graph under the bar (same Sparkline leaf the Sleep tiles use,
         // at the shared tile spark height), tinted to the metric so the graph reads as the same signal.
+        // Cap to the editor's chosen window (7 / 14 / 30) so "1 month" draws its full span; the w-based
+        // series is already windowed, but calories/rest sparks run longer, so this trims them to match.
         if (detailed) {
-            val tail = data.spark.takeLast(14)
+            val tail = data.spark.takeLast(windowDays)
             if (tail.size >= 2) {
                 Sparkline(
                     values = tail,
@@ -5912,7 +6276,7 @@ private data class Window(
 )
 
 /**
- * Build the trailing trend windows from `recentDays` over the chosen span (2 / 7 / 14 calendar days —
+ * Build the trailing trend windows from `recentDays` over the chosen span (7 / 14 / 30 calendar days —
  * the editor's detailed-graph window). Each series drops null days from the trailing calendar window
  * only, so stale imports do not draw a current-day trend.
  */
@@ -6058,8 +6422,8 @@ private fun grouped(value: Int): String =
 
 /** The Key-Metrics header's trailing label for the chosen detailed-graph window. */
 private fun trendWindowLabel(days: Int): String = when (days) {
-    2 -> "2-day trend"
     7 -> "7-day trend"
+    30 -> "30-day trend"
     else -> "14-day trend"
 }
 
@@ -6072,7 +6436,7 @@ private fun KeyMetricsEditorDialog(
     onSave: (List<KeyMetric>, Boolean, Int) -> Unit,
 ) {
     // Detailed tiles: taller/squarer with a trend graph under the fill bar (display-only), over the
-    // chosen trailing window (2 days / 1 week / 2 weeks).
+    // chosen trailing window (1 week / 2 weeks / 1 month).
     var detailed by remember { mutableStateOf(initialDetailed) }
     var windowDays by remember { mutableStateOf(initialWindowDays) }
     val shown = remember { mutableStateListOf<KeyMetric>().apply { addAll(initial) } }
@@ -6126,13 +6490,13 @@ private fun KeyMetricsEditorDialog(
                         modifier = Modifier.semantics { contentDescription = uiString(R.string.l10n_today_screen_detailed_tiles_0801721b) },
                     )
                 }
-                // The detailed graphs' trailing window — 2 days / 1 week / 2 weeks (the NOOP signature
+                // The detailed graphs' trailing window — 1 week / 2 weeks / 1 month (the NOOP signature
                 // segmented pill, same control the trend screens use). Only shown while Detailed is on.
                 if (detailed) {
                     SegmentedPillControl(
-                        items = listOf(2, 7, 14),
+                        items = listOf(7, 14, 30),
                         selection = windowDays,
-                        label = { when (it) { 2 -> "2 days"; 7 -> "1 week"; else -> "2 weeks" } },
+                        label = { when (it) { 7 -> "1 week"; 14 -> "2 weeks"; else -> "1 month" } },
                         onSelect = { windowDays = it },
                         modifier = Modifier.fillMaxWidth(),
                     )

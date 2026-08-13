@@ -25,21 +25,22 @@ import StrandDesign
 /// to the Android `TodaySection` enum so a backup/restore reads the same layout on either OS.
 enum TodaySection: String, CaseIterable, Identifiable {
     case coach
-    /// The active goal, where you'll actually look each morning. Fork-only and deliberately WITHOUT a
-    /// Kotlin twin: the coach and its goals don't exist on Android, and the parity contract that would
-    /// otherwise require one is retired here (see `docs/FORK_GUIDE.md`). The Android decoder drops an
-    /// unknown token, so a layout saved on Apple still reads correctly there.
-    case goal
     case hero
     case liveSession
     case synthesis
+    case goals
     case keyMetrics
     case workouts
     case heartRate
     case recoveryVitals
     case yourCards
+    case menstrualCycle
     case journal
     case dataSources
+    /// Cards hosted from the Trends / Sleep tabs (#today-hosted-cards). Renders the `HostedCardPrefs`
+    /// selection in order; empty (and effectively invisible) until the user adds a card in Customise.
+    /// Appended last so `decodeOrder`'s back-fill lands it predictably for existing saved orders.
+    case addedCards
 
     var id: String { rawValue }
 
@@ -47,29 +48,28 @@ enum TodaySection: String, CaseIterable, Identifiable {
     var title: String {
         switch self {
         case .coach:          return String(localized: "Coach")
-        case .goal:           return String(localized: "Goal")
         case .hero:           return String(localized: "Charge / Effort / Rest")
         case .liveSession:    return String(localized: "Start session")
         case .synthesis:      return String(localized: "Synthesis")
+        case .goals:          return String(localized: "Goals")
         case .keyMetrics:     return String(localized: "Key Metrics")
         case .workouts:       return String(localized: "Workouts")
         case .heartRate:      return String(localized: "Heart Rate")
         case .recoveryVitals: return String(localized: "Recovery Vitals")
         case .yourCards:      return String(localized: "Your Cards")
+        case .menstrualCycle: return String(localized: "Menstrual Cycle")
         case .journal:        return String(localized: "Journal")
         case .dataSources:    return String(localized: "Data Sources")
+        case .addedCards:     return String(localized: "Added Cards")
         }
     }
 
     /// The original, hard-coded section order — the default when the layout isn't customised. The journal
     /// widget (#656) sits above the data-sources card, which is last. Coach leads the list — the same spot
-    /// its full-width banner has always held on classic Today, before the hero scores — with the goal card
-    /// directly under it, since "what am I working towards" belongs beside the coach that holds it and
-    /// above the day's numbers. Existing saved orders get it inserted at exactly that position by
-    /// `decodeOrder`'s missing-section merge.
+    /// its full-width banner has always held on classic Today, before the hero scores.
     static let defaultOrder: [TodaySection] = [
-        .coach, .goal, .hero, .liveSession, .synthesis, .keyMetrics, .workouts, .heartRate,
-        .recoveryVitals, .yourCards, .journal, .dataSources,
+        .coach, .hero, .liveSession, .synthesis, .goals, .keyMetrics, .workouts, .heartRate, .recoveryVitals,
+        .yourCards, .menstrualCycle, .journal, .dataSources, .addedCards,
     ]
 
     /// Sections hidden by default on a new/never-customised install: none. The redesign originally
@@ -86,7 +86,7 @@ enum TodaySection: String, CaseIterable, Identifiable {
     /// LiquidTodayView's section stack so the screen reads in clear groups instead of a uniform dense list.
     var isMajorSection: Bool {
         switch self {
-        case .hero, .synthesis, .keyMetrics, .recoveryVitals: return true
+        case .hero, .synthesis, .goals, .keyMetrics, .recoveryVitals: return true
         default: return false
         }
     }

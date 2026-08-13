@@ -7,6 +7,7 @@ import StrandDesign
 /// a deliberate tap. Nothing here nags — a proposal you ignore just sits there.
 struct CoachPlanView: View {
     @EnvironmentObject private var coach: AICoachEngine
+    @EnvironmentObject private var repo: Repository
     @ObservedObject private var store = CoachPlanStore.shared
     /// The active goals this plan serves — the same store Goal & Journey reads, so the two surfaces show
     /// the same targets rather than looking unsynchronised.
@@ -32,6 +33,13 @@ struct CoachPlanView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 16) {
+                    if !store.reconciliationResolutions.isEmpty {
+                        section("Needs your check") {
+                            ForEach(store.reconciliationResolutions) { resolution in
+                                reconciliationCard(resolution)
+                            }
+                        }
+                    }
                     goalContextCard
                     if !store.pending.isEmpty {
                         section("Waiting for your call") {
@@ -64,7 +72,11 @@ struct CoachPlanView: View {
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
             }
-            .task { inputs = await coach.planInputs() }
+            .task {
+                inputs = await coach.planInputs()
+                await PlanReconciliationCoordinator.reconcile(repo: repo)
+                await GoalTrackingStore.shared.refresh(repo: repo)
+            }
             .sheet(item: $swapping) { p in
                 PlanSwapSheet(proposal: p, inputs: inputs)
             }
@@ -91,6 +103,72 @@ struct CoachPlanView: View {
     }
 
     // MARK: - Cards
+
+    @ViewBuilder
+    private func reconciliationCard(_ resolution: PlanReconciliationResolution) -> some View {
+        if let proposal = store.proposals.first(where: { $0.id == resolution.proposalId }) {
+            NoopCard(padding: 14, tint: StrandPalette.statusWarning) {
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "questionmark.circle.fill")
+                            .foregroundStyle(StrandPalette.statusWarning)
+                            .accessibilityHidden(true)
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(proposal.summary())
+                                .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
+                            Text(resolution.kind == .overdue
+                                 ? "This date has passed, but nothing has been assumed."
+                                 : "A recorded workout may belong to this plan.")
+                                .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+                        }
+                    }
+                    if resolution.kind == .candidates {
+                        ForEach(resolution.candidates) { workout in
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text(workoutLine(workout))
+                                    .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
+                                HStack(spacing: 8) {
+                                    action("Yes, link it", icon: "link", prominent: true) {
+                                        store.confirmWorkout(workout, for: proposal.id)
+                                    }
+                                    action("Not this workout", icon: "xmark") {
+                                        store.rejectWorkout(workout.workoutKey, for: proposal.id)
+                                    }
+                                }
+                            }
+                            if workout.id != resolution.candidates.last?.id {
+                                Divider().overlay(StrandPalette.hairline)
+                            }
+                        }
+                    } else {
+                        HStack(spacing: 8) {
+                            action("Done", icon: "checkmark.circle", prominent: true) {
+                                store.complete(proposal.id)
+                            }
+                            action("Move day", icon: "calendar.badge.clock") { rescheduling = proposal }
+                            Button { skippingReason = proposal } label: {
+                                Label("Didn't happen", systemImage: "xmark.circle")
+                                    .font(StrandFont.footnote)
+                                    .foregroundStyle(StrandPalette.textSecondary)
+                                    .padding(.horizontal, 10).padding(.vertical, 7)
+                                    .background(StrandPalette.surfaceInset,
+                                                in: RoundedRectangle(cornerRadius: CoachRadius.field,
+                                                                     style: .continuous))
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private func workoutLine(_ workout: PlanWorkoutReference) -> String {
+        let date = Date(timeIntervalSince1970: TimeInterval(workout.startTs))
+        let when = date.formatted(date: .abbreviated, time: .shortened)
+        let duration = workout.durationS.map { " · \(Int(($0 / 60).rounded())) min" } ?? ""
+        return "\(workout.sport) · \(when)\(duration)"
+    }
 
     /// A suggestion, with the three honest answers. "Change" is first-class alongside yes/no — a plan
     /// you had to alter is still a plan you agreed to, and pretending otherwise is how adherence data
@@ -517,8 +595,10 @@ struct PlanTimeSheet: View {
     let proposal: PlanProposal
 
     @ObservedObject private var store = CoachPlanStore.shared
+    @ObservedObject private var goalStore = CoachGoalStore.shared
     @Environment(\.dismiss) private var dismiss
     @State private var time = Date()
+    @State private var selectedGoalIds: Set<UUID> = []
 
     var body: some View {
         NavigationStack {
@@ -536,6 +616,33 @@ struct PlanTimeSheet: View {
                             .accessibilityLabel("Session time")
                     }
                 }
+                if !goalStore.activeGoals.isEmpty {
+                    NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Which goals does this support?").strandOverline()
+                            Text("One activity can support several goals. Confirm the suggestions before saving.")
+                                .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+                                .fixedSize(horizontal: false, vertical: true)
+                            ForEach(goalStore.activeGoals) { goal in
+                                Button {
+                                    if selectedGoalIds.contains(goal.id) { selectedGoalIds.remove(goal.id) }
+                                    else { selectedGoalIds.insert(goal.id) }
+                                } label: {
+                                    HStack {
+                                        Image(systemName: selectedGoalIds.contains(goal.id)
+                                              ? "checkmark.circle.fill" : "circle")
+                                            .foregroundStyle(selectedGoalIds.contains(goal.id)
+                                                             ? StrandPalette.accent : StrandPalette.textTertiary)
+                                        Text(goal.title.isEmpty ? goal.kind.label.localizedCatalogValue : goal.title)
+                                            .foregroundStyle(StrandPalette.textPrimary)
+                                        Spacer()
+                                    }
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                    }
+                }
                 if proposal.time != nil {
                     Button("Remove time", role: .destructive) {
                         store.clearTime(proposal.id)
@@ -547,6 +654,7 @@ struct PlanTimeSheet: View {
                 // doesn't know when yet. Accepting still commits — only the time is left open.
                 if proposal.status == .proposed {
                     Button("Accept without a time") {
+                        applyGoalLink()
                         store.accept(proposal.id)
                         dismiss()
                     }
@@ -573,6 +681,7 @@ struct PlanTimeSheet: View {
                         let combined = cal.date(bySettingHour: hm.hour ?? 0, minute: hm.minute ?? 0,
                                                 second: 0, of: base)
                         if proposal.status == .proposed {
+                            applyGoalLink()
                             store.accept(proposal.id, at: combined)
                         } else {
                             store.swap(proposal.id, toSport: proposal.sport, at: combined)
@@ -581,8 +690,21 @@ struct PlanTimeSheet: View {
                     }
                 }
             }
-            .onAppear { time = proposal.time ?? Date() }
+            .onAppear {
+                time = proposal.time ?? Date()
+                if proposal.goalIds.isEmpty {
+                    selectedGoalIds = Set(GoalAttributionSuggester.suggestedGoalIds(
+                        for: proposal.sport, goals: goalStore.activeGoals))
+                } else {
+                    selectedGoalIds = Set(proposal.goalIds)
+                }
+            }
         }
+    }
+
+    private func applyGoalLink() {
+        let ordered = goalStore.activeGoals.map(\.id).filter { selectedGoalIds.contains($0) }
+        store.linkGoals(ordered, to: proposal.id)
     }
 }
 

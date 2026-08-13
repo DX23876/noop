@@ -20,11 +20,11 @@ final class TodayLayoutPrefsTests: XCTestCase {
     /// look right in every other test here.
     func testEncodeDecodeRoundTripsAReorderedList() {
         let reordered: [TodaySection] = [
-            .heartRate, .hero, .yourCards, .coach, .goal, .liveSession, .synthesis, .keyMetrics,
-            .workouts, .recoveryVitals, .journal, .dataSources,
+            .heartRate, .goals, .hero, .yourCards, .coach, .liveSession, .synthesis, .keyMetrics, .workouts,
+            .recoveryVitals, .menstrualCycle, .journal, .dataSources, .addedCards,
         ]
         let encoded = TodayLayoutPrefs.encode(reordered)
-        XCTAssertEqual(encoded, "heartRate,hero,yourCards,coach,goal,liveSession,synthesis,keyMetrics,workouts,recoveryVitals,journal,dataSources")
+        XCTAssertEqual(encoded, "heartRate,goals,hero,yourCards,coach,liveSession,synthesis,keyMetrics,workouts,recoveryVitals,menstrualCycle,journal,dataSources,addedCards")
         XCTAssertEqual(TodayLayoutPrefs.decodeOrder(encoded), reordered)
     }
 
@@ -36,8 +36,8 @@ final class TodayLayoutPrefsTests: XCTestCase {
         let firstCut = "synthesis,keyMetrics,workouts,heartRate,recoveryVitals,yourCards"
         XCTAssertEqual(
             TodayLayoutPrefs.decodeOrder(firstCut),
-            // journal then dataSources follow everything saved → appended in default order.
-            [.coach, .goal, .hero, .liveSession, .synthesis, .keyMetrics, .workouts, .heartRate, .recoveryVitals, .yourCards, .journal, .dataSources]
+            [.coach, .hero, .liveSession, .synthesis, .goals, .keyMetrics, .workouts, .heartRate,
+             .recoveryVitals, .yourCards, .menstrualCycle, .journal, .dataSources, .addedCards]
         )
     }
 
@@ -45,7 +45,8 @@ final class TodayLayoutPrefsTests: XCTestCase {
         let partial = "heartRate,synthesis,keyMetrics,recoveryVitals"
         XCTAssertEqual(
             TodayLayoutPrefs.decodeOrder(partial),
-            [.coach, .goal, .hero, .liveSession, .workouts, .heartRate, .synthesis, .keyMetrics, .recoveryVitals, .yourCards, .journal, .dataSources]
+            [.coach, .hero, .liveSession, .goals, .workouts, .heartRate, .synthesis, .keyMetrics,
+             .recoveryVitals, .yourCards, .menstrualCycle, .journal, .dataSources, .addedCards]
         )
     }
 
@@ -53,7 +54,8 @@ final class TodayLayoutPrefsTests: XCTestCase {
         let messy = "yourCards,BOGUS,yourCards,heartRate, ,heartRate"
         XCTAssertEqual(
             TodayLayoutPrefs.decodeOrder(messy),
-            [.coach, .goal, .hero, .liveSession, .synthesis, .keyMetrics, .workouts, .recoveryVitals, .yourCards, .heartRate, .journal, .dataSources]
+            [.coach, .hero, .liveSession, .synthesis, .goals, .keyMetrics, .workouts, .recoveryVitals,
+             .yourCards, .heartRate, .menstrualCycle, .journal, .dataSources, .addedCards]
         )
     }
 
@@ -71,12 +73,12 @@ final class TodayLayoutPrefsTests: XCTestCase {
         let order = "heartRate,hero,yourCards,liveSession,synthesis,keyMetrics,workouts,recoveryVitals,journal"
         XCTAssertEqual(
             TodayLayoutPrefs.visibleOrder(orderRaw: order, hiddenRaw: "hero,workouts"),
-            [.coach, .goal, .heartRate, .yourCards, .liveSession, .synthesis, .keyMetrics,
-             .recoveryVitals, .journal, .dataSources]
+            [.coach, .goals, .heartRate, .yourCards, .liveSession, .synthesis, .keyMetrics, .recoveryVitals,
+             .menstrualCycle, .journal, .dataSources, .addedCards]
         )
         XCTAssertEqual(TodayLayoutPrefs.decodeOrder(order), [
-            .coach, .goal, .heartRate, .hero, .yourCards, .liveSession, .synthesis, .keyMetrics,
-            .workouts, .recoveryVitals, .journal, .dataSources,
+            .coach, .goals, .heartRate, .hero, .yourCards, .liveSession, .synthesis, .keyMetrics, .workouts,
+            .recoveryVitals, .menstrualCycle, .journal, .dataSources, .addedCards,
         ])
     }
 
@@ -103,7 +105,9 @@ final class TodayLayoutPrefsTests: XCTestCase {
         // that section's saved position for every existing user.
         XCTAssertEqual(
             raws,
-            ["coach", "goal", "hero", "liveSession", "synthesis", "keyMetrics", "workouts", "heartRate", "recoveryVitals", "yourCards", "journal", "dataSources"]
+            ["coach", "hero", "liveSession", "synthesis", "goals", "keyMetrics", "workouts",
+             "heartRate", "recoveryVitals", "yourCards", "menstrualCycle", "journal", "dataSources",
+             "addedCards"]
         )
     }
 

@@ -15,7 +15,8 @@ import StrandDesign
 /// The flow is deliberately VISUAL now: the goal's own kind carries a colour (`CoachIconColors`) through
 /// the step pips, the type tiles and the confirm ring, so setting a goal looks like the thing it is
 /// rather than a form. What it must never become is decorative arithmetic — the confirm ring fills ONLY
-/// from a real `GoalProgress` reading, which is the same honesty rule the Journey page is built on.
+/// from a real measurement, through the same `GoalTrackingEngine` the Journey page and the Today goals
+/// card read, which is where the "no invented percentages" rule lives.
 struct CoachGoalOnboardingFlow: View {
     @ObservedObject private var store = CoachGoalStore.shared
     @ObservedObject private var draft = GoalOnboardingDraft.shared
@@ -51,7 +52,9 @@ struct CoachGoalOnboardingFlow: View {
     /// reached. Empty until then, and an empty `Evidence` simply yields no ring and no verdict — the
     /// step never waits on it, and never shows a placeholder number in its place.
     @State private var evidence = GoalFeasibility.Evidence()
-    @State private var latestWeightKg: Double?
+    /// The measurement for the kind being set up, from the tracking store's per-KIND table. Per kind,
+    /// not per goal id, because the goal being drafted here does not exist yet.
+    @State private var measurement: GoalMeasurement?
 
     /// Kinds that already have an active goal — shown as a note under the type picker so the collision is
     /// visible before confirming, not just at the end.
@@ -381,19 +384,22 @@ struct CoachGoalOnboardingFlow: View {
             // Loaded once, on the step that uses it. A failure to produce evidence is not an error state:
             // `Evidence()` is empty, which correctly yields no ring and an "I can't judge this" verdict.
             evidence = await coach.goalEvidence()
-            latestWeightKg = await coach.latestLoggedWeightKg()
+            // READ, never refresh: refreshing needs the repository, which not every presentation path
+            // puts in the environment, and a year of workout rows is not what a wizard step should pull.
+            // The store is filled by Goal & Journey and by Today; an empty one simply means no ring,
+            // which is also the honest answer for someone who has no measurements yet.
+            measurement = await GoalTrackingStore.shared.measurement(for: draft.kind)
         }
     }
 
     /// The goal as it will be saved: its mark, its name, the one-line summary — and, when there is a REAL
     /// measurement behind it, a ring showing where the user is starting from. No measurement, no ring.
     private var planCard: some View {
-        let reading = GoalProgress.reading(goal: draft.goal, evidence: evidence,
-                                           latestWeightKg: latestWeightKg)
+        let fraction = GoalTrackingEngine.progressFraction(goal: draft.goal, current: measurement?.value)
         return NoopCard(padding: 16, tint: kindTint) {
             VStack(alignment: .leading, spacing: 12) {
                 HStack(alignment: .center, spacing: 14) {
-                    if let fraction = reading.fraction {
+                    if let fraction {
                         VStack(spacing: 4) {
                             GlowRing(fraction: fraction,
                                      value: fraction * 100,
@@ -424,13 +430,27 @@ struct CoachGoalOnboardingFlow: View {
                     }
                     Spacer(minLength: 0)
                 }
-                if let line = reading.line {
+                if let line = startingLine {
                     Text(line)
                         .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
         }
+    }
+
+    /// The honest sentence under the ring: what the app measures today against what the goal asks for.
+    /// nil when there is nothing measured for this kind, so the card simply says nothing rather than
+    /// filling the space with a number it does not have.
+    private var startingLine: String? {
+        guard let current = measurement?.value else { return nil }
+        let unit = draft.kind.unit
+        guard let baseline = draft.goal.baseline, let target = draft.goal.target, baseline != target else {
+            return String(format: "Currently %.1f %@. Set a starting point and target to see a progress "
+                          + "bar.", current, unit)
+        }
+        return String(format: "%.1f %@ now, from %.1f toward %.1f %@.",
+                      current, unit, baseline, target, unit)
     }
 
     /// "Is this realistic?" — `GoalFeasibility`, which until now only ever reached the coach's own

@@ -444,6 +444,17 @@ source, read locally on this Mac:
 Sparse weekly series (weight, body fat) auto-widen to all history so a short window is never empty;
 a single reading is shown as a "Latest reading" value rather than an empty chart.
 
+On iPhone, the same page also controls the live two-way HealthKit bridge. NOOP writes the strap's
+24/7 heart rate as one measured minute mean per sample, associates those saved samples with matching
+NOOP-authored workouts, and writes sleep stages plus nightly vitals. Apple Health's HRV type is
+**SDNN**, so the bridge computes a separately cleaned/trust-gated SDNN from the night's R-R stream;
+NOOP's own HRV tiles and Charge continue to use RMSSD. An on-device export diagnostic reports each
+category's authorization, count and last result. Its reversible A/B check can compare 60-second HR
+intervals with point-in-time minute samples on a physical iPhone when Apple's merged graph omits a
+source even though Health's raw-data list contains it. The selected representation is applied to the
+latest 14 days immediately and older exported history is migrated in resumable 14-day chunks on later
+syncs. The diagnostic never changes source priority, which HealthKit does not expose to apps.
+
 **Water and caffeine import themselves** (upstream #949, adopted 2026-07-31). A drink logged in
 Apple Health — by a hydration app, a smart bottle, or by hand — lands in NOOP's hydration and
 caffeine logs without being typed in twice. Both are **read-only**: imported entries keep their own

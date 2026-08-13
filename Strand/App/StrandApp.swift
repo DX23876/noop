@@ -39,6 +39,9 @@ struct StrandApp: App {
     @AppStorage(AppearanceMode.storageKey) private var appearanceRaw = AppearanceMode.system.rawValue
     /// Chart data-colour style (Titanium / Classic throwback). Re-colours gauges + charts.
     @AppStorage(ChartStyle.storageKey) private var chartStyleRaw = ChartStyle.health.rawValue
+    /// Chrome accent colour (mint / WHOOP blue / custom). Chrome only — never the data colour worlds.
+    @AppStorage(AccentColor.storageKey) private var accentRaw = AccentColor.mint.rawValue
+    @AppStorage(AccentColor.customHexKey) private var accentCustomHex = AccentColor.defaultCustomHex
 
     var body: some Scene {
         WindowGroup {
@@ -58,7 +61,15 @@ struct StrandApp: App {
                 .environment(\.stressNudgeCenter, model.stressNudgeCenter)
                 .frame(minWidth: 1000, minHeight: 700)
                 .preferredColorScheme(AppearanceMode.resolve(appearanceRaw).colorScheme)
+                // Keep date/number words on the same bundle language as every localized string. A pending
+                // Settings change intentionally becomes active only after the documented reopen.
+                .environment(\.locale, AppLanguage.activeLocale)
                 .chartStyle(chartStyleRaw)
+                .noopAccent(accentRaw, customHex: accentCustomHex)
+                // Dynamic Type now scales the prose/label roles (StrandFont). Cap the upper end so the
+                // fixed-geometry tiles/gauges stay legible at the largest accessibility sizes rather than
+                // clipping; the common Larger-Text range still scales fully.
+                .dynamicTypeSize(...DynamicTypeSize.accessibility1)
                 // #267: pull a reasonably fresh sync when the window comes to the foreground rather than
                 // waiting for the 900s periodic timer or an incidental reconnect. Floored at 90s and never
                 // clock/empty-streak-suppressed (BackfillPolicy.shouldRun's .foreground case), so this is
@@ -72,6 +83,10 @@ struct StrandApp: App {
                         // check-in is on and set to .afterWake; keeps the repeating trigger in step with
                         // the user's actual wake time rather than a clock time that drifts.
                         Task { await CoachCheckIn.refreshDynamicScheduleIfNeeded(repo: model.repo) }
+                        Task {
+                            await PlanReconciliationCoordinator.reconcile(repo: model.repo)
+                            await GoalTrackingStore.shared.refresh(repo: model.repo)
+                        }
                     }
                 }
         }
@@ -84,11 +99,13 @@ struct StrandApp: App {
                 .environmentObject(model)
                 .environmentObject(model.repo)
                 .environmentObject(model.live)
+                .environment(\.locale, AppLanguage.activeLocale)
         } label: {
             MenuBarLabel()
                 .environmentObject(model)
                 .environmentObject(model.repo)
                 .environmentObject(model.live)
+                .environment(\.locale, AppLanguage.activeLocale)
         }
         .menuBarExtraStyle(.window)
     }

@@ -62,7 +62,7 @@ extension WidgetSnapshot {
             }
             return "\(Int(stored.rounded()))"
         }
-        let goal = await goalFields(from: model)
+        let goal = goalFields()
         let snap = WidgetSnapshot(
             recovery: day?.recovery.map { Int($0.rounded()) },
             bpm: model.bpm ?? model.live.heartRate,
@@ -83,27 +83,75 @@ extension WidgetSnapshot {
             goalRunwayWeeks: goal.runwayWeeks,
             goalLine: goal.line
         )
-        snap.save()
-        WidgetCenter.shared.reloadAllTimelines()
+        saveAndReloadIfChanged(snap)
+    }
+
+    /// Publish fields that come directly from the live BLE state without re-reading the Rest metric
+    /// series. HR is admitted once a minute and battery arrives about every eight minutes; routing those
+    /// hooks through the full `publish` path used to query up to 4,000 days of Rest history every time even
+    /// though none of the score fields could have changed. Reusing the last full snapshot keeps every score
+    /// byte-identical and changes only the three live fields. A cold start with no snapshot falls back to a
+    /// full build so this fast path can never publish an incomplete first glance. The first live update
+    /// after a local-day rollover also takes the full path so the score anchor advances with Today.
+    @MainActor
+    static func publishLive(from model: AppModel) async {
+        let now = Date()
+        guard var snap = load(), !liveUpdateRequiresFullBuild(previous: snap, now: now) else {
+            await publish(from: model)
+            return
+        }
+        // The loaded value IS the current on-disk state (this runs on the main actor, so nothing else
+        // rewrote it between here and the save); hand it to the dedup so the live path reads the App Group
+        // ONCE per tick instead of loading it again inside saveAndReloadIfChanged.
+        let previous = snap
+        snap.bpm = model.bpm ?? model.live.heartRate
+        snap.batteryPct = model.live.batteryPct.map { Int($0.rounded()) }
+        snap.bonded = model.live.bonded
+        snap.updated = now
+        saveAndReloadIfChanged(snap, previous: previous)
+    }
+
+    /// Persist and ask WidgetKit for a new timeline only when a rendered field changed. The snapshot's
+    /// timestamp is metadata only (no widget family displays it), so an otherwise-identical publish is a
+    /// true no-op rather than an App-Group write plus an extension reload.
+    /// `previous` lets the live fast path pass the snapshot it already loaded (it runs on the main actor,
+    /// so that value is still current); the full publish path omits it and this loads once for the dedup.
+    @MainActor
+    private static func saveAndReloadIfChanged(_ snap: WidgetSnapshot, previous: WidgetSnapshot? = nil) {
+        let previous = previous ?? load()
+        if renderedContentChanged(from: previous, to: snap) {
+            snap.save()
+            WidgetCenter.shared.reloadAllTimelines()
+        } else if liveUpdateRequiresFullBuild(previous: previous, now: snap.updated) {
+            // The rollover's visible values can legitimately match yesterday's. Persist the fresh day
+            // stamp once without spending a redundant WidgetKit reload, so later live ticks stay fast.
+            snap.save()
+        }
     }
 
     /// The active goal's fields for the goal widget, or all-nil when there is no goal.
     ///
-    /// Deliberately NOT recomputed on every publish. A goal's progress reads the coach's evidence, which
-    /// costs real repository work, and `publish` also runs off the HR hook — recomputing there would put
-    /// a history query behind a value that moves every few seconds. So the reading is refreshed at most
-    /// once per `GoalPublishThrottle.interval` and otherwise CARRIED FORWARD from the last published
-    /// snapshot: an hour-old runway is fine, a stalled app is not, and either beats a query per heartbeat.
+    /// Reads the tracking layer, never a second one: `GoalTrackingStore.primarySnapshot` is the SAME
+    /// goal and the SAME fraction the Today goals card shows, so the card and the widget cannot lead
+    /// with different goals or disagree about how far along one is. This is a plain read of an
+    /// already-computed store — no repository query — so it is safe on every publish; the live HR path
+    /// does not come through here at all (`publishLive` carries these fields forward untouched).
     ///
-    /// The "which goal" rule matches `GoalTodayCard`: the nearest target date, since that's the one with
-    /// a clock on it.
+    /// Without a snapshot yet (a cold launch before any goal screen has run), the goal still publishes
+    /// its name, mark and runway from `CoachGoalStore`, and `goalFraction` stays nil — the widget then
+    /// draws the mark instead of a ring, which is exactly what "we haven't measured this" should look
+    /// like.
     @MainActor
-    private static func goalFields(from model: AppModel)
-        async -> (title: String?, symbol: String?, tintId: String?, fraction: Double?,
-                  runwayWeeks: Double?, line: String?) {
+    private static func goalFields()
+        -> (title: String?, symbol: String?, tintId: String?, fraction: Double?,
+            runwayWeeks: Double?, line: String?) {
+        let tracking = GoalTrackingStore.shared
         // No goal is a real answer, and it must clear the carried-forward fields — a deleted goal that
         // lingered in the widget would be the one lie this whole path is written to avoid.
-        guard let goal = CoachGoalStore.shared.primaryActiveGoal else {
+        let snapshot = tracking.primarySnapshot
+        guard let goal = snapshot?.goal ?? CoachGoalStore.shared.activeGoals.min(by: {
+            ($0.targetDate ?? .distantFuture) < ($1.targetDate ?? .distantFuture)
+        }) else {
             return (nil, nil, nil, nil, nil, nil)
         }
 
@@ -113,42 +161,24 @@ extension WidgetSnapshot {
         let appleColors = UserDefaults.standard.object(forKey: AppleInspiredColorsPrefs.enabledKey) as? Bool
             ?? AppleInspiredColorsPrefs.defaultEnabled
         let tintId: String? = appleColors ? "coach.goal.\(goal.kind.rawValue)" : nil
-
-        guard GoalPublishThrottle.admit() else {
-            // Between refreshes: keep the previous reading, but re-derive the cheap parts (name, mark,
-            // runway) so an edited title or date shows up immediately rather than waiting out the window.
-            let previous = WidgetSnapshot.load()
-            return (title, goal.kind.icon, tintId, previous?.goalFraction,
-                    goal.weeksRemaining(), previous?.goalLine)
+        let line = snapshot?.measurement.map { measurement -> String in
+            let unit = goal.kind.unit
+            guard let baseline = goal.baseline, let target = goal.target, baseline != target else {
+                return String(format: "Currently %.1f %@.", measurement.value, unit)
+            }
+            return String(format: "%.1f %@ now, from %.1f toward %.1f %@.",
+                          measurement.value, unit, baseline, target, unit)
         }
-        let evidence = await model.coach.goalEvidence()
-        let weight = await model.coach.latestLoggedWeightKg()
-        let reading = GoalProgress.reading(goal: goal, evidence: evidence, latestWeightKg: weight)
-        return (title, goal.kind.icon, tintId, reading.fraction, reading.runwayWeeks, reading.line)
-    }
-
-    /// Caps how often the goal reading behind the widget is recomputed — see `goalFields`. A goal moves
-    /// over weeks, so half an hour is generous; the point is only that a per-heartbeat publish can't drag
-    /// a repository query along with it. `@MainActor` (publish already runs there), so no locking.
-    @MainActor
-    enum GoalPublishThrottle {
-        static let interval: TimeInterval = 30 * 60
-        private static var lastComputedAt: Date = .distantPast
-        /// True (and stamps `now`) when at least `interval` has elapsed. The first call always admits.
-        static func admit(now: Date = Date()) -> Bool {
-            guard now.timeIntervalSince(lastComputedAt) >= interval else { return false }
-            lastComputedAt = now
-            return true
-        }
+        return (title, goal.kind.icon, tintId, snapshot?.progressFraction, goal.weeksRemaining(), line)
     }
 
     /// #114/#169: HR is the ONE high-frequency widget-publish trigger — `model.bpm` moves every few
     /// seconds during activity, unlike battery (~8 min) or connection flips (rare). Left ungated, the
-    /// `model.$bpm` hook re-ran `publish`'s `exploreSeries` read + `reloadAllTimelines()` on every tick.
-    /// This caps HR-DRIVEN publishes to one per `interval`, mirroring Android's `PushGate` 60 s
-    /// `HR_REFRESH_MS` cadence. Only the bpm hook consults it; the low-frequency score/battery/connection/
-    /// scenePhase publish sites stay ungated, exactly as before. `@MainActor` (the hook already runs there),
-    /// so the shared timestamp needs no locking.
+    /// `model.$bpm` hook rewrote the shared snapshot + called `reloadAllTimelines()` on every tick (and,
+    /// before the live-only fast path, also re-read the full Rest series). This caps HR-DRIVEN publishes
+    /// to one per `interval`, mirroring Android's `PushGate` 60 s `HR_REFRESH_MS` cadence. Only the bpm
+    /// hook consults it; the low-frequency score/battery/connection/scenePhase publish sites stay ungated,
+    /// exactly as before. `@MainActor` (the hook already runs there), so the timestamp needs no locking.
     @MainActor
     enum HRPublishThrottle {
         static let interval: TimeInterval = 60

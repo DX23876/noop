@@ -20,9 +20,9 @@ import com.noop.protocol.WhoopEvent
  * own Charge/Rest downstream:
  *   - the IBI stream becomes [Streams.rr], from which RecoveryScorer reconstructs NOOP's OWN RMSSD;
  *   - the HR stream feeds resting-HR + strain;
- *   - the ring's open 0x5D HRV tag is recorded as an `OURA_HRV` diagnostic event carrying ITS RAW
- *     decoded fields (time_ms/b1/b2) ONLY, never a fabricated rmssd_ms (the int8 b1/b2 byte->ms
- *     scale is not Tier-A; NOOP's scoring RMSSD comes from `rr`, not this tag);
+ *   - the ring's open 0x5D HRV tag is recorded as `OURA_HRV` events carrying its honestly-labelled
+ *     decoded fields (pair_index/hr_bpm/rmssd_ms) — the body is a run of (u8 avg HR bpm, u8 avg RMSSD
+ *     ms) pairs, one per 5-min bucket; NOOP's own scoring RMSSD still comes from `rr`, not this tag;
  *   - the open sleep-phase tags become `OURA_SLEEP_PHASE` events folded into a sleep session.
  *
  * Each event carries a ring-clock `ringTimestamp` (not wall-clock). To stay pure and avoid baking a
@@ -74,17 +74,38 @@ object OuraStreamMapping {
                 }
 
                 is OuraEvent.Hrv -> {
-                    // The ring's OWN open HRV tag, recorded raw for diagnostics/parity. NOT Oura's
-                    // readiness score, and NOT used as NOOP's RMSSD (that comes from `rr`).
-                    val ts = anchor(ev.value.ringTimestamp) ?: continue
+                    // The ring's OWN 0x5D 5-min bucket: avg HR (bpm) + avg RMSSD (ms), both u8, no scaling
+                    // (layout pinned to open_oura's (u8 hr, u8 rmssd) pairs — honestly labelled now). NOT
+                    // Oura's readiness score, and NOT used as NOOP's RMSSD (that comes from `rr`). Keys/values
+                    // IDENTICAL to the Swift twin so both platforms emit the same OURA_HRV payload.
+                    //
+                    // Each bucket gets its OWN timestamp so it lands on a distinct event row. The event PK is
+                    // (deviceId, ts, kind), so N pairs sharing the record ts would collide on insert and only
+                    // one survive — silently dropping the rest of the ring's per-5-min series.
+                    //
+                    // ORDER (#1167): the record's FIRST byte-pair is its OLDEST bucket, and the record ts
+                    // marks the END of the span it covers — so the LAST pair's 5 minutes end at ts. This
+                    // matches the two sibling per-record series in this file rather than contradicting them:
+                    // Spo2 below lays its samples back from the record time (count - 1 - index), and the
+                    // hypnogram assembler lays a burst's codes backward from its anchored end. A bucket is an
+                    // INTERVAL stamped at its start, not an instant, hence (count - index).
+                    //
+                    // Corrects an earlier `base - index * 300`, which mirrored every bucket within its own
+                    // record (up to +30/-20 min out on a 6-pair record). Measured against an independent
+                    // reconstruction — median HR of the 0x60 beats per 5-min window — over three consecutive
+                    // overnights: r = +0.970 / +0.959 / +0.894 with this ordering vs -0.079 / +0.629 / +0.111
+                    // with the old one. `count` is the record's ORIGINAL pair count, including a `00 00` pad
+                    // dropped at decode (#1131). Twin of Swift.
+                    val base = anchor(ev.value.ringTimestamp) ?: continue
+                    val ts = base - (ev.value.count - ev.value.index) * 300
                     out.events.add(
                         WhoopEvent(
                             ts = ts,
                             kind = EVENT_HRV,
                             payload = linkedMapOf(
-                                "time_ms" to ev.value.timeMs,
-                                "b1" to ev.value.b1,
-                                "b2" to ev.value.b2,
+                                "pair_index" to ev.value.index,
+                                "hr_bpm" to ev.value.hrBpm,
+                                "rmssd_ms" to ev.value.rmssdMs,
                             ),
                         ),
                     )
