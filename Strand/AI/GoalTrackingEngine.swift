@@ -54,7 +54,12 @@ struct GoalTrackingSnapshot: Identifiable, Equatable {
     let id: UUID
     let goal: CoachGoal
     let measurement: GoalMeasurement?
+    /// Progress from baseline to target, clamped to 0...1 — the length of a progress bar.
     let progressFraction: Double?
+    /// The SAME ratio unclamped. The clamped one cannot distinguish "hasn't started" from "moved
+    /// backwards past the starting point" (both read 0) or "just reached it" from "well past it"
+    /// (both read 1), so the honest value travels alongside for anything that puts it into words.
+    let rawProgressFraction: Double?
     let trend: JourneyExplain.Trend
     let health: Health
     let reason: String
@@ -63,6 +68,11 @@ struct GoalTrackingSnapshot: Identifiable, Equatable {
     let recentWeeks: [GoalWeek]
     let currentStreak: Int
     let bestStreak: Int
+    /// The next waypoint the route has not reached yet, or nil (no route, or all of them passed).
+    let nextMilestone: CoachGoal.Milestone?
+    /// Where the plan says you should be today, how far off that is, and — only when the measured
+    /// trend supports one — an arrival date. Nil for a goal with no start/target/date.
+    let course: GoalMilestones.Course?
 
     var sortDate: Date { goal.targetDate ?? .distantFuture }
 }
@@ -77,6 +87,7 @@ enum GoalTrackingEngine {
                          actionOccurrences: [GoalActionOccurrence] = [],
                          measurement: GoalMeasurement?,
                          hasReconciliationQuestion: Bool = false,
+                         courseSeries: [GoalMilestones.Sample] = [],
                          now: Date = Date(),
                          calendar: Calendar = .autoupdatingCurrent) -> GoalTrackingSnapshot {
         let relevant = proposals.filter { $0.serves(goal.id) && $0.day >= dayKey(goal.createdAt, calendar: calendar) }
@@ -126,7 +137,8 @@ enum GoalTrackingEngine {
 
         let currentValue = measurement?.value
         let trend = JourneyExplain.trend(goal: goal, current: currentValue, now: now)
-        let progress = progressFraction(goal: goal, current: currentValue)
+        let rawProgress = rawProgressFraction(goal: goal, current: currentValue)
+        let progress = rawProgress.map { min(1, max(0, $0)) }
         let expired = (ProactiveCoach.daysPastTarget(goal, now: now) ?? 0) >= 1
         let hasPastPending = completedWeeks.contains { $0.state == .pending }
         let recentEvaluated = Array(evaluated.suffix(2))
@@ -202,11 +214,26 @@ enum GoalTrackingEngine {
             nextAction = currentWeek.planned == 0 ? "Plan one concrete step for this goal." : "Keep building evidence."
         }
 
+        // The route and the course reading. Both need a start, a target and a date; without them the
+        // goal simply has no plan to be measured against, which is a normal state, not an error.
+        let nextMilestone = goal.milestones
+            .filter { $0.achievedAt == nil }
+            .min { $0.expectedDate < $1.expectedDate }
+        let course: GoalMilestones.Course? = {
+            guard let baseline = goal.baseline, let target = goal.target,
+                  let targetDate = goal.targetDate, let currentValue else { return nil }
+            return GoalMilestones.course(baseline: baseline, target: target,
+                                          createdAt: goal.createdAt, targetDate: targetDate,
+                                          current: currentValue, series: courseSeries, now: now)
+        }()
+
         return GoalTrackingSnapshot(id: goal.id, goal: goal, measurement: measurement,
-                                    progressFraction: progress, trend: trend, health: health,
+                                    progressFraction: progress, rawProgressFraction: rawProgress,
+                                    trend: trend, health: health,
                                     reason: reason, nextAction: nextAction, currentWeek: currentWeek,
                                     recentWeeks: Array(completedWeeks.suffix(6)),
-                                    currentStreak: currentStreak, bestStreak: bestStreak)
+                                    currentStreak: currentStreak, bestStreak: bestStreak,
+                                    nextMilestone: nextMilestone, course: course)
     }
 
     /// Forwards to the tested rule in `GoalMeasure`. Kept as an entry point here because call sites
@@ -275,10 +302,12 @@ enum GoalTrackingEngine {
         reason == .ill || reason == .pain || reason == .travel
     }
 
-    private static func progressFraction(goal: CoachGoal, current: Double?) -> Double? {
+    /// Signed by the goal's own direction, so a weight goal counting DOWN reads the same way up as a
+    /// distance goal counting up. Unclamped; callers clamp for a bar.
+    private static func rawProgressFraction(goal: CoachGoal, current: Double?) -> Double? {
         guard goal.kind.isQuantified, let current, let baseline = goal.baseline,
               let target = goal.target, baseline != target else { return nil }
-        return min(1, max(0, (current - baseline) / (target - baseline)))
+        return (current - baseline) / (target - baseline)
     }
 
     private static func dayKey(_ date: Date, calendar: Calendar) -> String {
@@ -365,14 +394,31 @@ final class GoalTrackingStore: ObservableObject {
                 return suggested.isEmpty ? nil : .init(workout: workout, suggestedGoalIds: suggested)
             }
             .sorted { $0.workout.startTs > $1.workout.startTs }
+        // The route is suggested ONCE per goal and then belongs to the user (see `ensureMilestones`),
+        // and any waypoint the measured value has passed is stamped with the date it was first reached.
+        CoachGoalStore.shared.ensureMilestones(now: now)
+        for goal in CoachGoalStore.shared.goals {
+            guard let value = measurementByKind[goal.kind]?.value else { continue }
+            CoachGoalStore.shared.markMilestonesReached(goalId: goal.id, current: value, on: now)
+        }
+
+        // Only the weight goal has a dated measurement series to fit a rate against; the others get a
+        // planned-vs-actual reading without an arrival date, which `course` reports honestly as
+        // "not enough data" rather than inventing a slope.
+        let weightSamples = weights.compactMap { row -> GoalMilestones.Sample? in
+            guard let date = parseDay(row.day) else { return nil }
+            return .init(date: date, value: row.value)
+        }
         let unresolved = Set(resolutions.map(\.proposalId))
-        snapshots = goals.map { goal in
+        snapshots = CoachGoalStore.shared.goals.map { goal in
             GoalTrackingEngine.evaluate(goal: goal, proposals: proposals,
                                         actionOccurrences: actionOccurrences,
                                         measurement: measurementByKind[goal.kind],
                                         hasReconciliationQuestion: proposals.contains {
                                             $0.serves(goal.id) && unresolved.contains($0.id)
-                                        }, now: now)
+                                        },
+                                        courseSeries: goal.kind == .weight ? weightSamples : [],
+                                        now: now)
         }
         lastUpdated = now
         CoachNotifier.syncGoalMonitoring(snapshots)

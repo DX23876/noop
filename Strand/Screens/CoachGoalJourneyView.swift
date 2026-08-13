@@ -394,10 +394,17 @@ struct CoachGoalJourneyView: View {
                             Text(goal.title.isEmpty ? goal.kind.label.localizedCatalogValue : goal.title)
                                 .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
                                 .lineLimit(1)
-                            Text(trackingStore.snapshot(for: goal.id)?.health.label.localizedCatalogValue
-                                 ?? goalSubtitle(goal))
-                                .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
-                                .fixedSize(horizontal: false, vertical: true)
+                            // The health state was a grey sentence in the same weight as everything
+                            // else on the card. It carries the card's whole verdict, so it gets the
+                            // shared state pill — a tone AND its word, never colour alone.
+                            if let snapshot = trackingStore.snapshot(for: goal.id) {
+                                StatePill(LocalizedStringKey(snapshot.health.label),
+                                          tone: Self.tone(for: snapshot.health))
+                            } else {
+                                Text(goalSubtitle(goal))
+                                    .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
                         }
                         Spacer(minLength: 8)
                         Image(systemName: "chevron.right")
@@ -440,54 +447,81 @@ struct CoachGoalJourneyView: View {
     }
 
     /// A goal must be able to END: close it as reached, set it aside, or delete it entirely.
+    ///
+    /// These four lived permanently on the card, so a destructive action sat at the same visual
+    /// weight as the goal's own state. They are rare and mostly one-way, so they belong behind a
+    /// menu — the confirmation dialogs are unchanged, only what opens them moved.
     private func goalLifecycleRow(_ goal: CoachGoal) -> some View {
-        HStack(spacing: 16) {
-            if goal.status == .paused {
-                Button("Resume") { goalStore.resume(goal.id); refreshTracking() }
-                    .font(StrandFont.footnote).foregroundStyle(StrandPalette.accent)
-            } else {
-                Button("Pause") { confirmPause(goal.id) }
-                    .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
+        HStack(spacing: 8) {
+            Spacer(minLength: 0)
+            Menu {
+                if goal.status == .paused {
+                    Button("Resume") { goalStore.resume(goal.id); refreshTracking() }
+                } else {
+                    Button("Pause") { confirmPause(goal.id) }
+                }
+                Button("Achieved") { goalStore.markAchieved(goal.id); refreshTracking() }
+                Button("Set aside") { confirmSetAside(goal.id) }
+                Divider()
+                Button("Delete", role: .destructive) { confirmDelete(goal.id) }
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "ellipsis.circle")
+                    Text("Manage")
+                }
+                .font(StrandFont.footnote)
+                .foregroundStyle(StrandPalette.textSecondary)
             }
-            Button("Achieved") { goalStore.markAchieved(goal.id); refreshTracking() }
-                .font(StrandFont.footnote).foregroundStyle(StrandPalette.accent)
-            Button("Set aside") { confirmSetAside(goal.id) }
-                .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
-            Spacer(minLength: 8)
-            Button { confirmDelete(goal.id) } label: {
-                Image(systemName: "trash")
-                    .font(StrandFont.footnote)
-                    .foregroundStyle(StrandPalette.statusWarning)
-            }
-            .accessibilityLabel("Delete goal")
+            .accessibilityLabel("Manage this goal — pause, mark achieved, set aside or delete")
         }
-        .buttonStyle(.plain)
     }
 
     private func goalTrackingSummary(_ snapshot: GoalTrackingSnapshot) -> some View {
-        VStack(alignment: .leading, spacing: 7) {
+        VStack(alignment: .leading, spacing: 9) {
+            // The lead: is this goal actually being served, week by week. `recentWeeks` was computed
+            // and never shown; it is the fastest read on the card, so it goes first.
+            GoalWeekGrid(weeks: snapshot.recentWeeks, currentWeek: snapshot.currentWeek)
+            HStack(spacing: 8) {
+                // Name the REAL threshold for this week rather than a flat "80%", which was never
+                // what the rule computed for a small week.
+                Text(weekProgressLine(snapshot))
+                Spacer(minLength: 8)
+                if snapshot.currentStreak > 0 || snapshot.bestStreak > 0 {
+                    Text("Series \(snapshot.currentStreak) · best \(snapshot.bestStreak)")
+                }
+            }
+            .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
+
             if let measurement = snapshot.measurement {
-                HStack {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
                     Text(measurementLine(snapshot.goal, value: measurement.value))
                         .font(StrandFont.footnote).foregroundStyle(StrandPalette.textPrimary)
-                    Spacer()
-                    Text(JourneyExplain.label(for: snapshot.trend.verdict))
-                        .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Spacer(minLength: 8)
+                    TrendChip(text: JourneyExplain.label(for: snapshot.trend.verdict),
+                              color: Self.trendColor(for: snapshot.trend.verdict))
                 }
                 if let fraction = snapshot.progressFraction {
                     ProgressView(value: fraction).appleInspiredTint("journey.nextStep")
                 }
+                // The clamped bar cannot tell "hasn't started" from "moved backwards", nor "just
+                // reached it" from "well past it" — so say it in words when it happens.
+                if let note = overshootNote(snapshot) {
+                    Text(note)
+                        .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+                }
+                // The route, in ONE line: where the next waypoint is and whether the plan is holding.
+                // The full list and the arrival date live on the journey sheet — this card must not
+                // grow back into the wall of text it just lost.
+                if let route = routeLine(snapshot) {
+                    Text(route)
+                        .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
-            HStack {
-                Text("Plan \(snapshot.currentWeek.planCompleted)/\(snapshot.currentWeek.planPlanned)")
-                Text("Actions \(snapshot.currentWeek.actionCompleted)/\(snapshot.currentWeek.actionPlanned)")
-                Spacer()
-                Text("Series \(snapshot.currentStreak) · best \(snapshot.bestStreak)")
-            }
-            .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
-            Text(snapshot.reason)
-                .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
-                .fixedSize(horizontal: false, vertical: true)
+            // `reason` deliberately does NOT appear here any more: two explanatory paragraphs per
+            // goal are what made this card read as a wall of grey. It stays on the journey sheet,
+            // which exists for exactly that. `nextAction` is the actionable half and stays.
             Text(snapshot.nextAction)
                 .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -502,6 +536,89 @@ struct CoachGoalJourneyView: View {
                 .buttonStyle(.plain)
             }
         }
+    }
+
+    /// Health → the shared pill's tone. Colour is never the only carrier: the pill keeps its label.
+    private static func tone(for health: GoalTrackingSnapshot.Health) -> StrandTone {
+        switch health {
+        case .onTrack:                    return .positive
+        case .attention:                  return .warning
+        case .atRisk, .decisionNeeded:    return .critical
+        case .building, .paused:          return .neutral
+        }
+    }
+
+    private static func trendColor(for verdict: JourneyExplain.TrendVerdict) -> Color {
+        switch verdict {
+        case .ahead:         return StrandPalette.statusPositive
+        case .onTrack:       return StrandPalette.accent
+        case .behind:        return StrandPalette.statusWarning
+        case .notMeasurable: return StrandPalette.textTertiary
+        }
+    }
+
+    /// This week in the plan's own terms, with the threshold that actually applies.
+    private func weekProgressLine(_ snapshot: GoalTrackingSnapshot) -> String {
+        let week = snapshot.currentWeek
+        guard week.planned > 0 else {
+            return String(localized: "Nothing planned this week")
+        }
+        let required = GoalTrackingEngine.requiredCompletions(for: week.planned)
+        return String(localized: "\(week.completed) of \(week.planned) done · \(required) needed")
+    }
+
+    /// Date style shared by every route line — short, no year, because a waypoint is months away at
+    /// most and "12 Oct" reads faster than a full date.
+    private static let waypointDate: Date.FormatStyle = .dateTime.day().month(.abbreviated)
+
+    /// Next waypoint plus the course verdict, or nil when the goal has no route.
+    ///
+    /// Deliberately says nothing at all when there is nothing honest to say: a goal without a
+    /// start/target/date has no plan to be measured against, and silence beats a hedged sentence.
+    private func routeLine(_ snapshot: GoalTrackingSnapshot) -> String? {
+        let unit = snapshot.goal.kind.unit
+        var parts: [String] = []
+        if let next = snapshot.nextMilestone {
+            let value = String(format: "%.1f", next.value)
+                .replacingOccurrences(of: ".0", with: "")
+            parts.append(String(localized: "Next \(value) \(unit) by \(next.expectedDate.formatted(Self.waypointDate))"))
+        }
+        if let course = snapshot.course {
+            switch course.verdict {
+            case .onCourse:
+                parts.append(String(localized: "on course"))
+            case .ahead, .behind:
+                let off = String(format: "%.1f", abs(course.deviation))
+                let word = course.verdict == .ahead
+                    ? String(localized: "ahead of plan") : String(localized: "behind plan")
+                if let late = course.daysLate, late != 0 {
+                    let days = abs(late)
+                    parts.append(late > 0
+                                 ? String(localized: "\(off) \(unit) \(word) · about \(days) days late")
+                                 : String(localized: "\(off) \(unit) \(word) · about \(days) days early"))
+                } else {
+                    parts.append("\(off) \(unit) \(word)")
+                }
+            case .movingAway:
+                parts.append(String(localized: "currently moving away from the target"))
+            case .unforeseeable:
+                parts.append(String(localized: "too slow to project an arrival"))
+            case .notEnoughData:
+                break   // the planned line alone is not worth a sentence yet
+            }
+        }
+        return parts.isEmpty ? nil : parts.joined(separator: " · ")
+    }
+
+    /// Only speaks when the clamped bar would hide something: below the starting point, or past the
+    /// target. Silent in the ordinary 0-100% case.
+    private func overshootNote(_ snapshot: GoalTrackingSnapshot) -> String? {
+        guard let raw = snapshot.rawProgressFraction else { return nil }
+        if raw < 0 { return String(localized: "Currently behind your starting point.") }
+        if raw > 1 {
+            return String(localized: "Past your target — worth closing this goal or setting a new one.")
+        }
+        return nil
     }
 
     private func measurementLine(_ goal: CoachGoal, value: Double) -> String {

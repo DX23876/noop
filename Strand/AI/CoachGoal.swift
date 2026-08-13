@@ -1,4 +1,5 @@
 import Foundation
+import StrandAnalytics
 
 /// The user's training goal, as a REAL goal rather than a sentence.
 ///
@@ -199,6 +200,23 @@ struct CoachGoal: Codable, Identifiable, Equatable {
     var history: [Event]
     var pauseIntervals: [PauseInterval]
     var closure: Closure?
+    /// The route from `baseline` to `target`: round-number waypoints with the date the PLANNED rate
+    /// reaches them. Suggested once by `GoalMilestones` and then owned by the user — a waypoint they
+    /// edited carries `isCustom` and survives a re-suggest when the target or date changes.
+    ///
+    /// Waypoints, not rewards: no streak, no score. See `GoalMilestones` for why.
+    var milestones: [Milestone]
+
+    /// One waypoint on the route. `achievedAt` is set when the measured value first passes it, so the
+    /// list reads as a record of what happened rather than a checklist to keep up.
+    struct Milestone: Codable, Equatable, Identifiable {
+        var id: UUID = UUID()
+        var value: Double
+        var expectedDate: Date
+        var achievedAt: Date?
+        /// True once the user has moved this waypoint. Re-suggesting leaves those alone.
+        var isCustom: Bool = false
+    }
 
     init(id: UUID = UUID(),
          kind: Kind = .custom,
@@ -214,7 +232,8 @@ struct CoachGoal: Codable, Identifiable, Equatable {
          createdAt: Date = Date(),
          history: [Event] = [],
          pauseIntervals: [PauseInterval] = [],
-         closure: Closure? = nil) {
+         closure: Closure? = nil,
+         milestones: [Milestone] = []) {
         self.id = id
         self.kind = kind
         self.title = title
@@ -230,6 +249,7 @@ struct CoachGoal: Codable, Identifiable, Equatable {
         self.history = history
         self.pauseIntervals = pauseIntervals
         self.closure = closure
+        self.milestones = milestones
     }
 
     // Back-compat: every field added after the first ship decodes with a default, so a stored goal
@@ -237,7 +257,7 @@ struct CoachGoal: Codable, Identifiable, Equatable {
     private enum CodingKeys: String, CodingKey {
         case id, kind, title, baseline, target, targetDate, status
         case motivation, motivationTags, shareMotivation, acknowledgedRisk, createdAt, history
-        case pauseIntervals, closure
+        case pauseIntervals, closure, milestones
     }
 
     init(from decoder: Decoder) throws {
@@ -257,6 +277,9 @@ struct CoachGoal: Codable, Identifiable, Equatable {
         history = try c.decodeIfPresent([Event].self, forKey: .history) ?? []
         pauseIntervals = try c.decodeIfPresent([PauseInterval].self, forKey: .pauseIntervals) ?? []
         closure = try c.decodeIfPresent(Closure.self, forKey: .closure)
+        // Added after first ship: a goal stored before the route existed decodes with none, and gets
+        // one suggested on the next tracking refresh.
+        milestones = try c.decodeIfPresent([Milestone].self, forKey: .milestones) ?? []
     }
 
     // MARK: - Derived
@@ -487,6 +510,77 @@ final class CoachGoalStore: ObservableObject {
             goals[idx] = g
         } else {
             goals.insert(g, at: 0)
+        }
+    }
+
+    /// Give every quantified, dated goal a route, and keep it in step with the goal without ever
+    /// discarding the user's own edits.
+    ///
+    /// Runs on each tracking refresh and is a no-op in the ordinary case. Two things it deliberately
+    /// does NOT do: overwrite a waypoint the user moved (`isCustom`), and forget that a waypoint was
+    /// already reached — a route that renumbered itself after a target change would erase the record
+    /// of what actually happened.
+    func ensureMilestones(now: Date = Date()) {
+        for index in goals.indices {
+            let goal = goals[index]
+            guard goal.status == .active || goal.status == .paused,
+                  let baseline = goal.baseline, let target = goal.target,
+                  let targetDate = goal.targetDate else { continue }
+
+            let suggested = GoalMilestones.suggest(baseline: baseline, target: target,
+                                                   createdAt: goal.createdAt, targetDate: targetDate)
+            guard !suggested.isEmpty else { continue }
+
+            let kept = goal.milestones.filter { $0.isCustom || $0.achievedAt != nil }
+            let keptValues = Set(kept.map { ($0.value * 1000).rounded() })
+            let fresh = suggested
+                .filter { !keptValues.contains((($0.value) * 1000).rounded()) }
+                .map { CoachGoal.Milestone(value: $0.value, expectedDate: $0.expectedDate) }
+            let merged = (kept + fresh).sorted { lhs, rhs in
+                baseline < target ? lhs.value < rhs.value : lhs.value > rhs.value
+            }
+            if merged != goal.milestones { goals[index].milestones = merged }
+        }
+    }
+
+    /// Move a waypoint. Marks it `isCustom`, which is what protects it from the next re-suggest.
+    func updateMilestone(goalId: UUID, milestoneId: UUID, value: Double, expectedDate: Date) {
+        guard let g = goals.firstIndex(where: { $0.id == goalId }),
+              let m = goals[g].milestones.firstIndex(where: { $0.id == milestoneId }),
+              goals[g].milestones[m].achievedAt == nil,
+              value.isFinite else { return }
+        goals[g].milestones[m].value = value
+        goals[g].milestones[m].expectedDate = expectedDate
+        goals[g].milestones[m].isCustom = true
+        let ascending = (goals[g].target ?? 0) > (goals[g].baseline ?? 0)
+        goals[g].milestones.sort { ascending ? $0.value < $1.value : $0.value > $1.value }
+    }
+
+    /// Remove a waypoint. The goal, its target and its date are untouched — only the route changes.
+    func removeMilestone(goalId: UUID, milestoneId: UUID) {
+        guard let g = goals.firstIndex(where: { $0.id == goalId }) else { return }
+        goals[g].milestones.removeAll { $0.id == milestoneId && $0.achievedAt == nil }
+    }
+
+    /// Throw the user's edits away and re-derive the suggested route. Reached waypoints survive —
+    /// they record what happened and are not the app's to rewrite.
+    func resetMilestones(goalId: UUID, now: Date = Date()) {
+        guard let g = goals.firstIndex(where: { $0.id == goalId }) else { return }
+        goals[g].milestones = goals[g].milestones.filter { $0.achievedAt != nil }
+        ensureMilestones(now: now)
+    }
+
+    /// Mark every waypoint the measured value has now passed, once. Idempotent: a waypoint keeps the
+    /// date it was FIRST reached, so a later wobble back across the line cannot rewrite history.
+    func markMilestonesReached(goalId: UUID, current: Double, on date: Date = Date()) {
+        guard let index = goals.firstIndex(where: { $0.id == goalId }),
+              let baseline = goals[index].baseline, let target = goals[index].target,
+              baseline != target else { return }
+        let ascending = target > baseline
+        for m in goals[index].milestones.indices where goals[index].milestones[m].achievedAt == nil {
+            let value = goals[index].milestones[m].value
+            let reached = ascending ? current >= value : current <= value
+            if reached { goals[index].milestones[m].achievedAt = date }
         }
     }
 

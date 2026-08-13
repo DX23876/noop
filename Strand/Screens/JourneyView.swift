@@ -38,6 +38,14 @@ struct JourneyView: View {
     @State private var logSessionText = ""
     @State private var dismissedReachedCandidate = false
     @State private var editingContribution: GoalWorkoutAttributionSuggestion?
+    /// The waypoint being moved. Identified by goal + milestone so the sheet can write straight back.
+    @State private var editingMilestone: MilestoneEdit?
+
+    struct MilestoneEdit: Identifiable {
+        let goalId: UUID
+        let milestone: CoachGoal.Milestone
+        var id: UUID { milestone.id }
+    }
 
     var body: some View {
         NavigationStack {
@@ -47,6 +55,7 @@ struct JourneyView: View {
                         closureOrExpiryCard(goal)
                         headerCard(goal)
                         progressCard(goal)
+                        routeCard(goal)
                         trendCard(goal)
                         weeklyMomentumCard(goal)
                         milestonesCard(goal)
@@ -81,6 +90,12 @@ struct JourneyView: View {
                     Task { await trackingStore.refresh(repo: repo) }
                 }
             }
+            .sheet(item: $editingMilestone) { edit in
+                MilestoneEditorSheet(edit: edit,
+                                     unit: goalStore.goal(id: edit.goalId)?.kind.unit ?? "") {
+                    Task { await trackingStore.refresh(repo: repo) }
+                }
+            }
             .confirmationDialog("Set this goal aside?", isPresented: $showSetAsideDialog, titleVisibility: .visible) {
                 Button("Injury or health") { goalStore.setAside(goalId, reason: "injury or health") }
                 Button("Life got busy") { goalStore.setAside(goalId, reason: "life got busy") }
@@ -93,7 +108,105 @@ struct JourneyView: View {
         }
     }
 
-    // MARK: - Closure & expiry: a goal must be able to END, and the page must say how it ended
+    // MARK: - The route: where the plan says you should be, and when
+
+    /// The route: round-number waypoints with the date the PLANNED rate reaches them, what has
+    /// already been passed, and whether the measured trend is keeping up.
+    ///
+    /// Distinct from `milestonesCard` below, which records what has already been achieved in words.
+    /// This one is the plan — forward-looking, dated, and editable.
+    @ViewBuilder
+    private func routeCard(_ goal: CoachGoal) -> some View {
+        if !goal.milestones.isEmpty {
+            let snapshot = trackingStore.snapshot(for: goal.id)
+            NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack {
+                        Text("Your route").strandOverline()
+                        Spacer()
+                        Button("Reset to suggestion") {
+                            goalStore.resetMilestones(goalId: goal.id)
+                            Task { await trackingStore.refresh(repo: repo) }
+                        }
+                        .font(StrandFont.caption).foregroundStyle(StrandPalette.accent)
+                        .buttonStyle(.plain)
+                    }
+                    if let line = courseSummary(snapshot) {
+                        Text(line)
+                            .font(StrandFont.footnote).foregroundStyle(StrandPalette.textPrimary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    ForEach(goal.milestones) { milestone in
+                        Button { editingMilestone = .init(goalId: goal.id, milestone: milestone) } label: {
+                            waypointRow(goal, milestone,
+                                        isNext: snapshot?.nextMilestone?.id == milestone.id)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    Text("Waypoints are a plan, not a score — tap one to move it.")
+                        .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+                }
+            }
+        }
+    }
+
+    private func waypointRow(_ goal: CoachGoal, _ milestone: CoachGoal.Milestone,
+                             isNext: Bool) -> some View {
+        let reached = milestone.achievedAt != nil
+        return HStack(spacing: 10) {
+            Image(systemName: reached ? "checkmark.circle.fill" : (isNext ? "target" : "circle"))
+                .font(StrandFont.footnote)
+                .foregroundStyle(reached ? StrandPalette.statusPositive
+                                 : (isNext ? StrandPalette.accent : StrandPalette.textTertiary))
+                .accessibilityHidden(true)
+            Text(String(format: "%.1f", milestone.value).replacingOccurrences(of: ".0", with: "")
+                 + " " + goal.kind.unit)
+                .font(isNext ? StrandFont.subhead : StrandFont.footnote)
+                .foregroundStyle(reached ? StrandPalette.textSecondary : StrandPalette.textPrimary)
+            if milestone.isCustom {
+                Text("edited").font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+            }
+            Spacer(minLength: 8)
+            Text((milestone.achievedAt ?? milestone.expectedDate)
+                 .formatted(.dateTime.day().month(.abbreviated)))
+                .font(StrandFont.caption)
+                .foregroundStyle(reached ? StrandPalette.statusPositive : StrandPalette.textTertiary)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(reached
+                            ? Text("Reached \(String(format: "%.1f", milestone.value)) \(goal.kind.unit)")
+                            : Text("Waypoint \(String(format: "%.1f", milestone.value)) \(goal.kind.unit), expected \(milestone.expectedDate.formatted(.dateTime.day().month()))"))
+    }
+
+    /// One sentence about the plan: where it says you should be, and what the trend implies. Silent
+    /// when there is nothing measured to compare against.
+    private func courseSummary(_ snapshot: GoalTrackingSnapshot?) -> String? {
+        guard let snapshot, let course = snapshot.course, let goal = goalStore.goal(id: goalId)
+        else { return nil }
+        let unit = goal.kind.unit
+        let planned = String(format: "%.1f", course.plannedNow)
+        switch course.verdict {
+        case .notEnoughData:
+            return String(localized: "Plan says \(planned) \(unit) today. Not enough measured history yet to judge the pace.")
+        case .onCourse:
+            return String(localized: "Plan says \(planned) \(unit) today — you're on course.")
+        case .movingAway:
+            return String(localized: "Plan says \(planned) \(unit) today. The recent trend moves away from the target, so there's no arrival date to give.")
+        case .unforeseeable:
+            return String(localized: "Plan says \(planned) \(unit) today. The current pace is too slow to project an arrival.")
+        case .ahead, .behind:
+            let off = String(format: "%.1f", abs(course.deviation))
+            let word = course.verdict == .ahead
+                ? String(localized: "ahead of plan") : String(localized: "behind plan")
+            guard let projected = course.projectedDate, let late = course.daysLate else {
+                return String(localized: "Plan says \(planned) \(unit) today — \(off) \(unit) \(word).")
+            }
+            let dateText = projected.formatted(.dateTime.day().month(.abbreviated))
+            return late > 0
+                ? String(localized: "Plan says \(planned) \(unit) today — \(off) \(unit) \(word). At this pace: \(dateText), about \(late) days late.")
+                : String(localized: "Plan says \(planned) \(unit) today — \(off) \(unit) \(word). At this pace: \(dateText), about \(abs(late)) days early.")
+        }
+    }
 
     /// Matter-of-fact closure (milestone aesthetics, no gamification — setbacks are never shamed), or
     /// the passed-date fork for an active goal: reached / more time / set aside.
