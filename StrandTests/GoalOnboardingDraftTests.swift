@@ -131,7 +131,10 @@ final class GoalOnboardingDraftTests: XCTestCase {
         XCTAssertTrue(d.title.isEmpty)
         XCTAssertTrue(d.baselineText.isEmpty)
         XCTAssertTrue(d.targetText.isEmpty)
-        XCTAssertFalse(d.hasTargetDate)
+        // A fresh wizard starts on `.run`, which IS measurable, so the target date is pre-armed —
+        // and the "user touched it" memory is cleared with everything else.
+        XCTAssertTrue(d.hasTargetDate)
+        XCTAssertFalse(d.targetDateTouched)
         XCTAssertTrue(d.motivation.isEmpty)
         XCTAssertFalse(d.shareMotivation)
         XCTAssertTrue(d.motivationTags.isEmpty)
@@ -154,12 +157,72 @@ final class GoalOnboardingDraftTests: XCTestCase {
         XCTAssertEqual(goal.target ?? 0, 78, accuracy: 0.0001)
     }
 
-    func testGoalHasNoTargetDateUntilTheToggleIsOn() {
+    func testTargetDateFollowsTheToggleBothWays() {
         let d = freshDraft()
         d.title = "Run 5k"
+        XCTAssertNotNil(d.goal.targetDate, "a measurable kind arrives with a date already armed")
+        d.hasTargetDate = false
         XCTAssertNil(d.goal.targetDate)
-        d.hasTargetDate = true
-        XCTAssertNotNil(d.goal.targetDate)
+    }
+
+    // MARK: - Target-date default (the route hangs off it)
+
+    func testMeasurableKindArmsTheTargetDateAndAHeldKindDoesNot() {
+        let d = freshDraft()
+        d.kindChanged(to: .weight)
+        XCTAssertTrue(d.hasTargetDate)
+        d.kindChanged(to: .custom)
+        XCTAssertFalse(d.hasTargetDate, "NOOP has no number to pace a held goal against")
+        d.kindChanged(to: .sleep)
+        XCTAssertTrue(d.hasTargetDate)
+    }
+
+    func testKindStopsOverridingTheSwitchOnceTheUserTouchesIt() {
+        let d = freshDraft()
+        d.hasTargetDate = false
+        d.targetDateTouched = true
+        d.kindChanged(to: .weight)
+        XCTAssertFalse(d.hasTargetDate, "the user's own choice must outlive a kind change")
+    }
+
+    // MARK: - The from/to gate (a goal that could never show progress)
+
+    func testDetailsStepRefusesAnIdenticalFromAndTo() {
+        let d = freshDraft()
+        d.step = .details
+        d.kind = .weight
+        d.title = "Get to 78 kg"
+        d.baselineText = "78"
+        d.targetText = "78"
+        XCTAssertFalse(d.canAdvance)
+        XCTAssertFalse(d.advance())
+        XCTAssertEqual(d.step, .details)
+    }
+
+    /// Comma decimals are parsed the same way the drafted goal parses them, so "78,0" and "78" are
+    /// recognised as one and the same number rather than slipping past as different strings.
+    func testIdenticalFromAndToIsCaughtAcrossDecimalSeparators() {
+        XCTAssertFalse(CoachGoalRange.isUsable(kind: .weight, baselineText: "78,0", targetText: "78"))
+        XCTAssertTrue(CoachGoalRange.isUsable(kind: .weight, baselineText: "82,5", targetText: "78"))
+    }
+
+    /// A half-filled range is ordinary work in progress, and a held kind has no range at all — neither
+    /// is refused.
+    func testPartialOrUnquantifiedRangesAreNotRefused() {
+        XCTAssertTrue(CoachGoalRange.isUsable(kind: .weight, baselineText: "78", targetText: ""))
+        XCTAssertTrue(CoachGoalRange.isUsable(kind: .weight, baselineText: "", targetText: ""))
+        XCTAssertTrue(CoachGoalRange.isUsable(kind: .custom, baselineText: "3", targetText: "3"))
+    }
+
+    func testDifferentFromAndToAdvances() {
+        let d = freshDraft()
+        d.step = .details
+        d.kind = .weight
+        d.title = "Get to 78 kg"
+        d.baselineText = "82"
+        d.targetText = "78"
+        XCTAssertTrue(d.advance())
+        XCTAssertEqual(d.step, .why)
     }
 
     func testMotivationTagTogglesOnAndOff() {

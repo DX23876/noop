@@ -55,13 +55,22 @@ enum AppleDemoSeeder {
         let store = CoachGoalStore.shared
         guard store.goals.isEmpty else { return }
         let now = Date()
+        // Two KINDS on purpose, not two goals: the Today tile draws a different strip per kind
+        // (a route under a weight goal, the week's days under a consistency one), and with a single
+        // goal that difference — the whole point of the tile — cannot be seen.
         store.goals = [
             CoachGoal(kind: .weight,
                       title: "Leichter werden",
                       baseline: 100,
                       target: 70,
                       targetDate: now.addingTimeInterval(120 * 86_400),
-                      createdAt: now.addingTimeInterval(-60 * 86_400))
+                      createdAt: now.addingTimeInterval(-60 * 86_400)),
+            CoachGoal(kind: .consistency,
+                      title: "Dreimal pro Woche",
+                      baseline: 1,
+                      target: 3,
+                      targetDate: now.addingTimeInterval(90 * 86_400),
+                      createdAt: now.addingTimeInterval(-40 * 86_400))
         ]
     }
 
@@ -93,6 +102,9 @@ enum AppleDemoSeeder {
         var daily: [DailyMetric] = []
         var sleeps: [CachedSleepSession] = []
         var series: [MetricPoint] = []
+        /// Long-format series stored under the APPLE source, for the metrics whose readers ask for
+        /// `source: "apple-health"` (body weight above all).
+        var appleSeries: [MetricPoint] = []
         var appleRows: [AppleDaily] = []
         var workouts: [WorkoutRow] = []
         var journal: [JournalEntry] = []
@@ -166,6 +178,12 @@ enum AppleDemoSeeder {
             // --- long-format extras (body composition) under my-whoop ---
             weight += gauss(&rng, -0.02, 0.18)
             series.append(MetricPoint(day: day, key: "weightKg", value: round2(weight)))
+            // The SAME weight under the key everything actually reads. "weightKg" is the AppleDaily
+            // COLUMN name, not a series key: `series(key: "weight", source: "apple-health")` is what
+            // Today's weight tile, Apple Health, Compare and the goal engine all ask for, so under
+            // `--demo-seed` the weight series was empty for every one of them — which is why the
+            // seeded weight GOAL could never be measured and the Today tile said it had no reading.
+            appleSeries.append(MetricPoint(day: day, key: "weight", value: round2(weight)))
             series.append(MetricPoint(day: day, key: "bodyFatPct",
                 value: round1((18.0 - fitness * 0.2 + gauss(&rng, 0.0, 0.4)).clamped(10.0, 24.0))))
             // Export-verbatim sleep figures (same metricSeries keys the importers write), so the demo
@@ -249,6 +267,7 @@ enum AppleDemoSeeder {
         _ = try await store.upsertDailyMetrics(daily, deviceId: whoop)
         _ = try await store.upsertSleepSessions(sleeps, deviceId: whoop)
         _ = try await store.upsertMetricSeries(series, deviceId: whoop)
+        _ = try await store.upsertMetricSeries(appleSeries, deviceId: apple)
         _ = try await store.upsertAppleDaily(appleRows, deviceId: apple)
         if !workouts.isEmpty { _ = try await store.upsertWorkouts(workouts, deviceId: whoop) }
         if !journal.isEmpty { _ = try await store.upsertJournal(journal, deviceId: whoop) }

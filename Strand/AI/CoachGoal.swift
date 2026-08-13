@@ -76,12 +76,28 @@ struct CoachGoal: Codable, Identifiable, Equatable {
             case .consistency: return "sessions/week"
             case .sleep:       return "h"
             case .weight:      return "kg"
-            case .strength, .stress, .recovery, .custom: return ""
+            // Strength is measured as ACTIVITY TIME (no load tracking exists to claim anything else).
+            case .strength:    return "min/week"
+            // Derived 0-100 scores: a bare number, deliberately not dressed up as a percentage or a
+            // clinical unit.
+            case .stress, .recovery, .custom: return ""
             }
         }
 
-        /// True when this kind can carry a baseline/target pair worth doing arithmetic on.
-        var isQuantified: Bool { !unit.isEmpty }
+        /// True when this kind carries a baseline/target pair worth doing arithmetic on — a progress
+        /// fraction, a pace trend, a feasibility verdict and the safety gate all hang off this.
+        ///
+        /// Explicit rather than the `!unit.isEmpty` it used to be, because those are two different
+        /// questions and conflating them is a trap: `strength` now HAS a display unit (min/week, what
+        /// the tile shows) and is still deliberately **held, not judged** — the same honest handling
+        /// `stress`, `recovery` and `custom` get. NOOP can show you a current number without claiming
+        /// it knows what "on track" means for it (`CoachGoalMotivationTests` pins this).
+        var isQuantified: Bool {
+            switch self {
+            case .run, .consistency, .sleep, .weight: return true
+            case .strength, .stress, .recovery, .custom: return false
+            }
+        }
     }
 
     /// The user's WHY, as a structured pick (8.4) — coarse categories the coach can actually use to
@@ -531,14 +547,35 @@ final class CoachGoalStore: ObservableObject {
                                                    createdAt: goal.createdAt, targetDate: targetDate)
             guard !suggested.isEmpty else { continue }
 
-            let kept = goal.milestones.filter { $0.isCustom || $0.achievedAt != nil }
-            let keptValues = Set(kept.map { ($0.value * 1000).rounded() })
-            let fresh = suggested
-                .filter { !keptValues.contains((($0.value) * 1000).rounded()) }
-                .map { CoachGoal.Milestone(value: $0.value, expectedDate: $0.expectedDate) }
-            let merged = (kept + fresh).sorted { lhs, rhs in
-                baseline < target ? lhs.value < rhs.value : lhs.value > rhs.value
+            // Match EXISTING waypoints by value and reuse them, identity included.
+            //
+            // This must be idempotent, and the first version was not: it only kept waypoints that were
+            // custom or already reached, so an untouched route was rebuilt from scratch on every call
+            // — with fresh UUIDs. `Milestone` is Equatable including `id`, so the "did anything
+            // change?" guard was always true, which assigned, which fired `didSet`/`@Published`, which
+            // re-rendered every observer and re-saved the goals JSON. `refresh()` runs from view
+            // `.task`s, so that loop fed itself and the Today tile churned out of existence.
+            func key(_ value: Double) -> Double { (value * 1000).rounded() }
+            var byValue: [Double: CoachGoal.Milestone] = [:]
+            for milestone in goal.milestones { byValue[key(milestone.value)] = milestone }
+
+            var merged: [CoachGoal.Milestone] = suggested.map { suggestion in
+                guard var existing = byValue[key(suggestion.value)] else {
+                    return CoachGoal.Milestone(value: suggestion.value,
+                                               expectedDate: suggestion.expectedDate)
+                }
+                // A waypoint the user moved keeps ITS date; an untouched one follows the plan when the
+                // goal's target or date changes. `suggest` is deterministic, so this settles.
+                if !existing.isCustom { existing.expectedDate = suggestion.expectedDate }
+                return existing
             }
+            // Custom or already-reached waypoints the suggestion no longer proposes still belong to
+            // the route — they are the user's edits and the record of what happened.
+            let suggestedValues = Set(suggested.map { key($0.value) })
+            merged += goal.milestones.filter {
+                ($0.isCustom || $0.achievedAt != nil) && !suggestedValues.contains(key($0.value))
+            }
+            merged.sort { lhs, rhs in baseline < target ? lhs.value < rhs.value : lhs.value > rhs.value }
             if merged != goal.milestones { goals[index].milestones = merged }
         }
     }

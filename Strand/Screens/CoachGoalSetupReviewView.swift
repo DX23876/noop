@@ -26,7 +26,9 @@ struct CoachGoalSetupReviewView: View {
     @State private var loaded = false
 
     private var safety: GoalSafetyGate.Assessment? {
-        goalDraft.map { GoalSafetyGate.assess(goal: $0.goal, bodyWeightKg: ProfileStore().weightKg) }
+        // Plain read — NEVER `ProfileStore()` here: that initialiser writes to UserDefaults, and doing
+        // that inside a body evaluation forced a second layout pass that never settled (#goal-journey-freeze).
+        goalDraft.map { GoalSafetyGate.assess(goal: $0.goal, bodyWeightKg: ProfileStore.persistedWeightKg) }
     }
 
     private var volume: GoalVolumeGate.Assessment? {
@@ -328,7 +330,7 @@ private struct CoachRoutineDraftEditor: View {
     @Environment(\.dismiss) private var dismiss
 
     private enum Kind: String, CaseIterable, Identifiable {
-        case steps, workout, manual
+        case steps, workout, sleep, calories, manual
         var id: String { rawValue }
     }
     @State private var title: String
@@ -340,6 +342,8 @@ private struct CoachRoutineDraftEditor: View {
     @State private var daily: Bool
     @State private var weekdays: Set<Int>
     @State private var goalIds: Set<UUID>
+    @State private var sleepHours: Double = 7.5
+    @State private var activeKcal = 500
 
     init(draft: CoachGoalSetupProposal.RoutineDraft, availableGoals: [CoachGoal],
          onSave: @escaping (CoachGoalSetupProposal.RoutineDraft) -> Void) {
@@ -354,6 +358,16 @@ private struct CoachRoutineDraftEditor: View {
             _kind = State(initialValue: .workout); _steps = State(initialValue: 10_000)
             _sports = State(initialValue: values.joined(separator: ", "))
             _minutes = State(initialValue: value ?? 20); _hasMinimum = State(initialValue: value != nil)
+        case .sleep(let hours):
+            // Carried through rather than folded into `.manual`: editing a routine must never quietly
+            // downgrade what it measures.
+            _kind = State(initialValue: .sleep); _steps = State(initialValue: 10_000)
+            _sports = State(initialValue: "Walking"); _minutes = State(initialValue: 20)
+            _hasMinimum = State(initialValue: true); _sleepHours = State(initialValue: hours)
+        case .activeCalories(let minimum):
+            _kind = State(initialValue: .calories); _steps = State(initialValue: 10_000)
+            _sports = State(initialValue: "Walking"); _minutes = State(initialValue: 20)
+            _hasMinimum = State(initialValue: true); _activeKcal = State(initialValue: minimum)
         case .manual:
             _kind = State(initialValue: .manual); _steps = State(initialValue: 10_000)
             _sports = State(initialValue: "Walking"); _minutes = State(initialValue: 20)
@@ -427,6 +441,8 @@ private struct CoachRoutineDraftEditor: View {
         switch kind {
         case .steps: changed.action.requirement = .steps(minimum: steps)
         case .manual: changed.action.requirement = .manual
+        case .sleep: changed.action.requirement = .sleep(minimumHours: sleepHours)
+        case .calories: changed.action.requirement = .activeCalories(minimum: activeKcal)
         case .workout:
             changed.action.requirement = .workout(
                 sports: sports.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }

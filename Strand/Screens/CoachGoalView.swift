@@ -25,8 +25,15 @@ struct CoachGoalEditorView: View {
     @State private var title = ""
     @State private var baselineText = ""
     @State private var targetText = ""
-    @State private var hasTargetDate = false
+    /// Defaults ON for a kind NOOP can actually measure (`isQuantified`) and follows the kind picker
+    /// until the user touches the switch themselves. The whole route/course feature hangs off a target
+    /// date, and leaving it off by default meant anyone who missed one switch never saw a route, never
+    /// saw "on course" and never got an arrival date — without ever being told why.
+    @State private var hasTargetDate = CoachGoal.Kind.run.isQuantified
     @State private var targetDate = Date().addingTimeInterval(60 * 24 * 3600)
+    /// Set once the user flips the target-date switch (or an existing goal is loaded), after which the
+    /// kind picker stops overriding their choice.
+    @State private var targetDateTouched = false
     @State private var motivation = ""
     @State private var motivationTags: Set<CoachGoal.MotivationTag> = []
     @State private var shareMotivation = false
@@ -41,8 +48,10 @@ struct CoachGoalEditorView: View {
     /// Two-column grid for the goal-type tiles and the motivation chips — no custom flow layout needed.
     private let twoColumns = [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)]
 
-    /// The profile weight the safety gate normalises against — read once, like the rest of the context.
-    private var bodyWeightKg: Double { ProfileStore().weightKg }
+    /// The profile weight the safety gate normalises against. Plain read — NEVER `ProfileStore()` here:
+    /// that initialiser writes to UserDefaults, and doing that inside a body evaluation forced a second
+    /// layout pass that never settled (#goal-journey-freeze).
+    private var bodyWeightKg: Double { ProfileStore.persistedWeightKg }
 
     /// The goal as currently typed, so the gates can judge it live.
     private var draft: CoachGoal {
@@ -67,8 +76,14 @@ struct CoachGoalEditorView: View {
         GoalVolumeGate.assess(draft: draft, against: store.activeGoals, excludingId: editingGoalId)
     }
 
+    /// A range worth saving: both ends have to differ, or the goal is arithmetically incapable of ever
+    /// showing progress. See `CoachGoalRange`.
+    private var rangeIsUsable: Bool {
+        CoachGoalRange.isUsable(kind: kind, baselineText: baselineText, targetText: targetText)
+    }
+
     private var canSave: Bool {
-        !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && rangeIsUsable
     }
 
     var body: some View {
@@ -78,6 +93,7 @@ struct CoachGoalEditorView: View {
                     if isOnboarding { introCard }
                     kindCard
                     detailsCard
+                    if !rangeIsUsable { sameRangeCard }
                     if safety.warning != nil { paceCard }
                     if volume.warning != nil { volumeCard }
                     motivationCard
@@ -160,6 +176,13 @@ struct CoachGoalEditorView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
+        // Follow the kind's default until the user has an opinion of their own: a measurable goal
+        // gets a date, a held one (custom / stress / recovery / strength) does not, since NOOP has no
+        // number to pace it against anyway.
+        .onChange(of: kind) { newKind in
+            guard !targetDateTouched else { return }
+            hasTargetDate = newKind.isQuantified
+        }
     }
 
     private var detailsCard: some View {
@@ -176,17 +199,38 @@ struct CoachGoalEditorView: View {
                     VStack(alignment: .leading, spacing: 1) {
                         Text("Target date")
                             .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
-                        Text("Without one I can't tell you how you're tracking.")
+                        Text("Without one there's no route, no pace and no arrival date.")
                             .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
                     }
                 }
                 .toggleStyle(.switch).appleInspiredTint("coach")
+                .onChange(of: hasTargetDate) { _ in targetDateTouched = true }
                 if hasTargetDate {
                     DatePicker("Target date", selection: $targetDate, in: Date()..., displayedComponents: .date)
                         .datePickerStyle(.compact)
                         .appleInspiredTint("coach")
                         .labelsHidden()
                         .accessibilityLabel("Target date")
+                }
+            }
+        }
+    }
+
+    /// The one gate on this screen that DOES block Save, so it has to say why. A goal whose start and
+    /// target are the same number can never show progress, never gets a route and can never read "on
+    /// course" — every fraction it produces divides by zero and comes back nil.
+    private var sameRangeCard: some View {
+        NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
+            HStack(alignment: .top, spacing: 10) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundStyle(StrandPalette.statusWarning)
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Start and target are the same").strandOverline()
+                    // Single literal — see the localization note above.
+                    Text("With the same number in both fields there's nothing to move toward: no progress, no route, no arrival date. Give the target a different value.")
+                        .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
             }
         }
@@ -316,7 +360,10 @@ struct CoachGoalEditorView: View {
         title = g.title
         baselineText = g.baseline.map { String(format: "%g", $0) } ?? ""
         targetText = g.target.map { String(format: "%g", $0) } ?? ""
+        // An existing goal's own answer always wins, and counts as the user's own choice — the kind
+        // default must never quietly add a date to a goal that was saved without one.
         hasTargetDate = g.targetDate != nil
+        targetDateTouched = true
         if let d = g.targetDate { targetDate = d }
         motivation = g.motivation
         motivationTags = Set(g.motivationTags)
@@ -363,6 +410,28 @@ struct CoachGoalEditorView: View {
                     acknowledgedRisk: ack, clearStaleAck: clearStale)
         onClose()
         dismiss()
+    }
+}
+
+/// The from/to range check, shared by the one-page editor and the guided wizard so the two save paths
+/// can't disagree about what is savable.
+///
+/// The bug it closes: the same number in both fields (or a typo that happens to land on it) saved a
+/// goal whose progress fraction is `nil` forever — `GoalTrackingEngine.rawProgressFraction` guards
+/// `baseline != target` — so it showed 0%, never got a route and could never read "on course", with
+/// nothing on screen saying why. Parsing matches the draft builders exactly, comma decimals included,
+/// so "70,0" and "70" are recognised as the same number.
+enum CoachGoalRange {
+    static func value(_ text: String) -> Double? {
+        Double(text.replacingOccurrences(of: ",", with: "."))
+    }
+
+    /// True when this range is worth saving. A kind NOOP doesn't quantify has no range to judge, and a
+    /// half-filled one is a legitimate work-in-progress — only two equal numbers are refused.
+    static func isUsable(kind: CoachGoal.Kind, baselineText: String, targetText: String) -> Bool {
+        guard kind.isQuantified,
+              let baseline = value(baselineText), let target = value(targetText) else { return true }
+        return baseline != target
     }
 }
 

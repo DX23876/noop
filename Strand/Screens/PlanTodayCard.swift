@@ -11,9 +11,7 @@ import StrandDesign
 /// when it colours and pulses to reclaim attention (`emphasis`).
 struct PlanTodayCard: View {
     @ObservedObject private var store = CoachPlanStore.shared
-    @ObservedObject private var trackingStore = GoalTrackingStore.shared
     @Binding var showPlan: Bool
-    @Binding var showGoalJourney: Bool
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @ObservedObject private var motion = NoopMotionState.shared
     /// Drives the ambient breathe when the session is approaching or due. Left false under Reduce Motion.
@@ -67,15 +65,11 @@ struct PlanTodayCard: View {
         return (resolution, proposal)
     }
 
-    private var goalAttention: GoalTrackingSnapshot? {
-        trackingStore.snapshots
-            .filter { $0.goal.status == .active && ($0.health == .decisionNeeded || $0.health == .atRisk) }
-            .sorted {
-                if $0.health.rawValue != $1.health.rawValue { return $0.health.rawValue < $1.health.rawValue }
-                return $0.sortDate < $1.sortDate
-            }
-            .first
-    }
+    // The goal-attention branch that used to sit here is gone. It existed because Today's goal tile
+    // showed no state at all, so an at-risk goal had to be announced somewhere else — and it did that
+    // in an `else if`, REPLACING the next committed session, so a goal needing a decision made your
+    // next planned workout disappear. The tile now carries the state itself (a `StatePill` on the
+    // hero, a toned dot per row), and this card is about the plan again.
 
     var body: some View {
         if let (resolution, proposal) = unresolved {
@@ -105,30 +99,6 @@ struct PlanTodayCard: View {
             }
             .buttonStyle(.plain)
             .accessibilityLabel("Plan needs your check. Opens your plan.")
-        } else if let snapshot = goalAttention {
-            Button { showGoalJourney = true } label: {
-                NoopCard(padding: 14, tint: StrandPalette.statusWarning) {
-                    HStack(spacing: 10) {
-                        Image(systemName: snapshot.health == .decisionNeeded
-                              ? "questionmark.circle" : "exclamationmark.circle")
-                            .foregroundStyle(StrandPalette.statusWarning)
-                            .accessibilityHidden(true)
-                        VStack(alignment: .leading, spacing: 1) {
-                            Text(snapshot.health == .decisionNeeded ? "Goal needs a decision" : "Goal needs a review")
-                                .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
-                            Text(snapshot.reason)
-                                .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
-                                .lineLimit(2)
-                        }
-                        Spacer(minLength: 8)
-                        Image(systemName: "chevron.right")
-                            .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
-                            .accessibilityHidden(true)
-                    }
-                }
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("\(snapshot.health.label). \(snapshot.reason). Opens Goal and Journey.")
         } else if let p = next {
             let emphasis = Self.emphasis(for: p, now: Date())
             Button { showPlan = true } label: {

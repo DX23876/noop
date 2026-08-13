@@ -328,6 +328,10 @@ final class GoalTrackingStore: ObservableObject {
 
     @Published private(set) var snapshots: [GoalTrackingSnapshot] = []
     @Published private(set) var todayActions: [GoalActionOccurrence] = []
+    /// The current week's action occurrences. Same computation as `todayActions`, wider filter — the
+    /// occurrences were already being calculated for a whole year and then discarded, and the Today
+    /// tile needs the week to draw a day row.
+    @Published private(set) var weekActions: [GoalActionOccurrence] = []
     @Published private(set) var pendingWorkoutAttributions: [GoalWorkoutAttributionSuggestion] = []
     @Published private(set) var lastUpdated: Date?
 
@@ -367,6 +371,13 @@ final class GoalTrackingStore: ObservableObject {
             days: repo.days, workouts: workouts, from: start, through: end, calendar: calendar)
         let today = GoalActionEvaluator.dayKey(now, calendar: calendar)
         todayActions = actionOccurrences.filter { $0.day == today }
+        if let week = calendar.dateInterval(of: .weekOfYear, for: now) {
+            let from = GoalActionEvaluator.dayKey(week.start, calendar: calendar)
+            let to = GoalActionEvaluator.dayKey(week.end.addingTimeInterval(-1), calendar: calendar)
+            weekActions = actionOccurrences.filter { $0.day >= from && $0.day <= to }
+        } else {
+            weekActions = todayActions
+        }
         let consumedWorkoutKeys = Set(proposals.compactMap { $0.completionEvidence?.workoutKey })
             .union(contributions.map(\.id)).union(dismissedWorkoutKeys)
         let workoutRowsByKey = Dictionary(workouts.map { (PlanWorkoutReference($0).workoutKey, $0) },

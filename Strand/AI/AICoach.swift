@@ -118,6 +118,25 @@ struct ChatMessage: Identifiable, Equatable, Codable {
         memoryWrites = try c.decodeIfPresent([UUID].self, forKey: .memoryWrites) ?? []
     }
 
+    /// The same message with different text, every other field carried over.
+    ///
+    /// This exists because the streaming path rebuilt the in-flight reply with a bare
+    /// `ChatMessage(id:role:text:)` on EVERY token, silently resetting `date` to now and dropping the
+    /// `localContextUsed` receipt the transcript renders — so a streamed reply (i.e. nearly every
+    /// reply) lost its audit trail after its first token. A field-preserving copy makes that class of
+    /// mistake impossible rather than relying on each call site to re-list eight arguments.
+    func replacingText(_ newText: String) -> ChatMessage {
+        ChatMessage(id: id, role: role, text: newText, date: date, toolsUsed: toolsUsed,
+                    localContextUsed: localContextUsed, origin: origin, memoryWrites: memoryWrites)
+    }
+
+    /// The same message with the evidence chain attached — what a finished turn knows and a streaming
+    /// placeholder could not.
+    func attaching(toolsUsed newTools: [String], memoryWrites newWrites: [UUID]) -> ChatMessage {
+        ChatMessage(id: id, role: role, text: text, date: date, toolsUsed: newTools,
+                    localContextUsed: localContextUsed, origin: origin, memoryWrites: newWrites)
+    }
+
     /// Pure: unique tool names from `toolsUsed`, in FIRST-call order — a tool called twice across rounds
     /// (e.g. re-checking readiness after a swap) only needs to be listed once in the evidence chain
     /// (P6). Unrecognised names are dropped rather than shown as a raw identifier. No view dependency —
@@ -1056,6 +1075,12 @@ final class AICoachEngine: ObservableObject {
     /// The in-flight send, held so the UI can Stop it mid-stream.
     private var sendTask: Task<Void, Never>?
 
+    /// Whether the last unprompted turn (brief, nudge, goal look-back, weekly review) actually said
+    /// something. Carried as state rather than as the cancellable task's result, because `sendTask` has
+    /// to keep holding the real work for `stop()` to be able to cancel it. Read straight after awaiting
+    /// the runner, so no two auto-turns ever share it — they run strictly one after another.
+    private var lastAutoTurnSpoke = false
+
     /// Kick off a send as a cancellable task. The composer calls this instead of awaiting `send`
     /// directly, so `stop()` can cancel it.
     func startSend(_ text: String) {
@@ -1399,10 +1424,21 @@ final class AICoachEngine: ObservableObject {
     /// until the process was killed: the "gets laggy the longer the app runs, reopening fixes it, feels
     /// like RAM" report. Cap >> the wire window, so it never changes what's sent. (parity with Android)
     private static let maxStoredMessages = 40
-    private func appendMessage(_ message: ChatMessage) {
+    /// The ONE append path. Every producer routes through it — the streaming placeholder, the check-in,
+    /// a seeded turn and a chart host all used to call `messages.append` directly, which is how a
+    /// long-lived chat sailed past the cap and how the chart artifacts below were never collected.
+    /// Internal rather than private so the cap and its artifact sweep can be driven from a test.
+    func appendMessage(_ message: ChatMessage) {
         messages.append(message)
-        if messages.count > Self.maxStoredMessages {
-            messages.removeFirst(messages.count - Self.maxStoredMessages)
+        guard messages.count > Self.maxStoredMessages else { return }
+        let overflow = messages.count - Self.maxStoredMessages
+        let dropped = Array(messages.prefix(overflow))
+        messages.removeFirst(overflow)
+        // A trimmed message can no longer host anything: drop its chart from memory AND from the
+        // persisted conversation snapshot, or a long chat keeps every chart it ever drew.
+        for message in dropped where chartsByMessage[message.id] != nil {
+            chartsByMessage[message.id] = nil
+            removeChartSnapshot(message.id)
         }
     }
 
@@ -1466,7 +1502,12 @@ final class AICoachEngine: ObservableObject {
         } else {
             semanticRetrieval = CoachSemanticRetrieval(context: "", mode: .unavailable)
         }
-        let requestTools = toolCallingActive ? coachTools(for: trimmed, journalQuestions: journalQuestions) : []
+        // Resolved before the tool list is built: on a language the routing lexicon doesn't speak this
+        // asks the cheap model instead of silently answering "no" to every history/catalog/log question.
+        let routing = toolCallingActive
+            ? await questionRouting(for: trimmed, journalQuestions: journalQuestions)
+            : CoachQuestionRouting.none
+        let requestTools = toolCallingActive ? coachTools(for: trimmed, routing: routing) : []
         let toolsActiveForTurn = !requestTools.isEmpty
         let requestSystemPrompt = systemPrompt(toolsActive: toolsActiveForTurn)
         let context: String
@@ -1505,8 +1546,10 @@ final class AICoachEngine: ObservableObject {
         if let streamer = provider.client as? StreamingToolClient {
             let replyId = UUID()
             let startedAt = Date()
-            messages.append(ChatMessage(id: replyId, role: .assistant, text: "", date: startedAt,
-                                        localContextUsed: localContextUsed))
+            // Through the capped path like every other producer. Safe while streaming because the
+            // placeholder is always re-found by `id` (`firstIndex(where:)`), never by a held index.
+            appendMessage(ChatMessage(id: replyId, role: .assistant, text: "", date: startedAt,
+                                      localContextUsed: localContextUsed))
             do {
                 let reply = try await streamer.streamWithTools(
                     key: key,
@@ -1526,20 +1569,16 @@ final class AICoachEngine: ObservableObject {
                     // An empty reply shows "(no reply)" — unless the turn produced a chart, in which case
                     // we drop the blank bubble and let the chart (flushed below) stand on its own.
                     if pendingCharts.isEmpty {
-                        messages[idx] = ChatMessage(id: replyId, role: .assistant,
-                                                    text: String(localized: "(no reply)"),
-                                                    date: startedAt, toolsUsed: reply.toolsUsed,
-                                                    localContextUsed: messages[idx].localContextUsed,
-                                                    memoryWrites: takeMemoryWrites())
+                        messages[idx] = messages[idx]
+                            .replacingText(String(localized: "(no reply)"))
+                            .attaching(toolsUsed: reply.toolsUsed, memoryWrites: takeMemoryWrites())
                     } else {
                         messages.remove(at: idx)
                     }
                 } else if let idx = messages.firstIndex(where: { $0.id == replyId }),
                           !reply.toolsUsed.isEmpty || !memoryWrites.isEmpty {
-                    messages[idx] = ChatMessage(id: replyId, role: .assistant, text: messages[idx].text,
-                                                date: startedAt, toolsUsed: reply.toolsUsed,
-                                                localContextUsed: messages[idx].localContextUsed,
-                                                memoryWrites: takeMemoryWrites())
+                    messages[idx] = messages[idx].attaching(toolsUsed: reply.toolsUsed,
+                                                            memoryWrites: takeMemoryWrites())
                 }
                 flushPendingCharts()
             } catch let e as AICoachError {
@@ -1579,7 +1618,9 @@ final class AICoachEngine: ObservableObject {
     /// is immutable, so we replace the element keeping the same id — SwiftUI updates the row in place.
     private func appendDelta(_ delta: String, to id: UUID) {
         guard let idx = messages.firstIndex(where: { $0.id == id }) else { return }
-        messages[idx] = ChatMessage(id: id, role: .assistant, text: messages[idx].text + delta)
+        // `replacingText`, never a fresh `ChatMessage`: the placeholder carries the start time and the
+        // local-context receipt, and rebuilding it per token used to throw both away.
+        messages[idx] = messages[idx].replacingText(messages[idx].text + delta)
     }
 
     /// Drop the streaming placeholder if it never received any text — so a failed request leaves no empty
@@ -1602,6 +1643,21 @@ final class AICoachEngine: ObservableObject {
     /// Fact ids written by the memory tools during the turn currently in flight, drained onto the reply
     /// that caused them (`takeMemoryWrites`). Not `private`: `runCoachTool` lives in CoachTools.swift.
     var memoryWrites: [UUID] = []
+
+    /// Cheap-model routing verdicts, keyed by the question text (see `questionRouting(for:)`). Bounded:
+    /// a Retry or a Regenerate must not pay for the same classification twice, but a long session must
+    /// not accumulate every question either.
+    var routingCache: [String: CoachQuestionRouting] = [:]
+    private var routingCacheOrder: [String] = []
+    private static let maxRoutingCacheEntries = 24
+
+    func rememberRouting(_ routing: CoachQuestionRouting, for question: String) {
+        if routingCache[question] == nil { routingCacheOrder.append(question) }
+        routingCache[question] = routing
+        while routingCacheOrder.count > Self.maxRoutingCacheEntries {
+            routingCache[routingCacheOrder.removeFirst()] = nil
+        }
+    }
 
     /// Hand the accumulated writes to the message being built and reset for the next turn. Deduplicated
     /// in first-write order — a fact restated across two tool rounds is still one thing that happened.
@@ -1630,7 +1686,7 @@ final class AICoachEngine: ObservableObject {
     func flushPendingCharts() {
         for art in pendingCharts {
             let id = UUID()
-            messages.append(ChatMessage(id: id, role: .assistant, text: ""))
+            appendMessage(ChatMessage(id: id, role: .assistant, text: ""))
             chartsByMessage[id] = art
             // Re-find the active conversation AFTER the append: writing `messages` re-sorts the list, so
             // any index captured earlier would be stale.
@@ -2259,17 +2315,19 @@ final class AICoachEngine: ObservableObject {
     /// conversation whose last message predates today now gets caught up with a fresh brief instead of
     /// silently showing Monday's brief on Friday, while two conversations opened the same day don't each
     /// get their own.
-    func startBriefIfNeeded() async {
-        guard CoachFeaturePrefs.isEnabled else { return }
+    @discardableResult
+    func startBriefIfNeeded() async -> Bool {
+        guard CoachFeaturePrefs.isEnabled else { return false }
         let today = Repository.logicalDayKey(Date())
-        guard UserDefaults.standard.string(forKey: Self.lastBriefDayKey) != today else { return }
-        if let last = messages.last, Repository.logicalDayKey(last.date) == today { return }
+        guard UserDefaults.standard.string(forKey: Self.lastBriefDayKey) != today else { return false }
+        if let last = messages.last, Repository.logicalDayKey(last.date) == today { return false }
         // Each day's brief lands in its OWN thread (#R8) so yesterday's can be archived out of the main
         // history list without disturbing the user's real chats. The gate above guarantees the active
         // thread is stale or empty here, so switching away from it is never disruptive.
         startBriefThread()
-        await runBriefCancellable()
+        let spoke = await runBriefCancellable()
         archiveStaleAutoThreads()
+        return spoke
     }
 
     /// Give the day's brief its own thread (#R8). Reuse the active conversation only when it's already
@@ -2303,15 +2361,21 @@ final class AICoachEngine: ObservableObject {
     /// Run the brief as `sendTask` so the composer's Stop button actually cancels it — previously the
     /// button rendered during a brief but cancelled nothing. A cancelled brief doesn't stamp the day,
     /// so it is retried on the next open.
-    private func runBriefCancellable() async {
-        guard !sending else { return }
+    @discardableResult
+    private func runBriefCancellable() async -> Bool {
+        guard !sending else { return false }
+        // `sendTask` must hold the REAL work, not a wrapper awaiting it: cancelling a task that merely
+        // awaits another does not cancel that other one, and `stop()` cancels whatever is in `sendTask`.
+        // So the outcome travels through `lastAutoTurnSpoke` rather than through the task's result type.
+        lastAutoTurnSpoke = false
         let task = Task<Void, Never> { [weak self] in
             guard let self else { return }
-            await self.generateBrief()
+            self.lastAutoTurnSpoke = await self.generateBrief()
         }
         sendTask = task
         await task.value
         if sendTask == task { sendTask = nil }
+        return lastAutoTurnSpoke
     }
 
     /// The morning brief's instruction, split out so it's testable and so part (2) can require a
@@ -2387,9 +2451,11 @@ final class AICoachEngine: ObservableObject {
 
     /// Shared brief generation: build today's context and ask the provider for the three-part brief.
     /// Gated on a key + data consent; `!sending` prevents overlapping a brief with an in-flight message.
-    private func generateBrief() async {
-        guard isConfigured, dataConsent, !sending else { return }
-        guard let key = resolvedKey else { return }
+    @discardableResult
+    private func generateBrief() async -> Bool {
+        var spoke = false
+        guard isConfigured, dataConsent, !sending else { return spoke }
+        guard let key = resolvedKey else { return spoke }
         clearError()
         memoryWrites = []
         sending = true
@@ -2416,6 +2482,7 @@ final class AICoachEngine: ObservableObject {
                 // Stamp only on genuine success, so a network failure doesn't burn the day's slot — a
                 // retry (reopening the conversation after a day boundary) can still land one.
                 UserDefaults.standard.set(Repository.logicalDayKey(Date()), forKey: Self.lastBriefDayKey)
+                spoke = true
             }
         } catch let e as AICoachError {
             setError(e)
@@ -2426,6 +2493,7 @@ final class AICoachEngine: ObservableObject {
                 setError(error)
             }
         }
+        return spoke
     }
 
     /// Generate a check-in once per logical day (its OWN lock, independent of the brief's — see
@@ -2491,9 +2559,9 @@ final class AICoachEngine: ObservableObject {
             let reply = try await callProvider(key: key, messages: wire)
             let clean = reply.text.trimmingCharacters(in: .whitespacesAndNewlines)
             if !clean.isEmpty {
-                messages.append(ChatMessage(role: .assistant, text: "Check-in\n\n" + clean,
-                                            toolsUsed: reply.toolsUsed, origin: .checkIn,
-                                            memoryWrites: takeMemoryWrites()))
+                appendMessage(ChatMessage(role: .assistant, text: "Check-in\n\n" + clean,
+                                          toolsUsed: reply.toolsUsed, origin: .checkIn,
+                                          memoryWrites: takeMemoryWrites()))
                 UserDefaults.standard.set(Repository.logicalDayKey(Date()), forKey: Self.lastCheckInDayKey)
             }
         } catch let e as AICoachError {
@@ -2591,26 +2659,32 @@ final class AICoachEngine: ObservableObject {
     /// HR/recovery/sleep trend), or an upcoming goal deadline. Wired to Coach opening, alongside the brief
     /// — but signals are rare (a streak, a run of skips, a real multi-night trend, or a goal's own target
     /// date), so this stays quiet on ordinary days.
-    func runProactiveNudgeIfNeeded() async {
-        guard CoachFeaturePrefs.isEnabled, proactiveLevel != .off, isConfigured, dataConsent, !sending else { return }
+    @discardableResult
+    func runProactiveNudgeIfNeeded() async -> Bool {
+        guard CoachFeaturePrefs.isEnabled, proactiveLevel != .off, isConfigured, dataConsent, !sending else { return false }
         let today = Repository.logicalDayKey(Date())
-        guard UserDefaults.standard.string(forKey: Self.lastProactiveDayKey) != today else { return }
+        guard UserDefaults.standard.string(forKey: Self.lastProactiveDayKey) != today else { return false }
         guard let signal = ProactiveCoach.detect(proposals: CoachPlanStore.shared.proposals,
                                                   goals: CoachGoalStore.shared.goals,
                                                   days: repo.days,
-                                                  level: proactiveLevel) else { return }
+                                                  level: proactiveLevel) else { return false }
+        // A goal deadline gets its OWN once-per-band guard on top of the daily one — otherwise the same
+        // goal would nudge every single day for up to two weeks straight.
+        //
+        // This has to come BEFORE the bell post. It used to sit after it, and since bailing out here
+        // also leaves the daily stamp unset, the same goal-deadline signal was posted to the bell again
+        // every single day of the band — exactly the repetition this guard exists to stop. The
+        // notifier's own dedupe is per day, so it could not catch it either.
+        if signal.category == .goalDeadline, let goalId = signal.goalId {
+            let goalStampKey = Self.goalDeadlineStampKey(goalId: goalId, important: signal.important)
+            guard UserDefaults.standard.string(forKey: goalStampKey) == nil else { return false }
+        }
         // Post to the bell independent of whether the chat generation below succeeds — the structured
         // detection already happened locally, and a network failure shouldn't also hide it from the bell.
         CoachNotifier.postProactiveSignal(signal, level: proactiveLevel)
-        // A goal deadline gets its OWN once-per-band guard on top of the daily one — otherwise the same
-        // goal would nudge every single day for up to two weeks straight.
-        if signal.category == .goalDeadline, let goalId = signal.goalId {
-            let goalStampKey = Self.goalDeadlineStampKey(goalId: goalId, important: signal.important)
-            guard UserDefaults.standard.string(forKey: goalStampKey) == nil else { return }
-        }
         let goodNews = signal.category == .milestone || signal.category == .bodyPositive
         let prefix = goodNews ? "Nice work" : "A quick nudge"
-        await runSeededTurnCancellable(
+        let spoke = await runSeededTurnCancellable(
             instruction: Self.proactiveNudgeInstruction(for: signal),
             prefix: prefix, stampKey: Self.lastProactiveDayKey, origin: .nudge)
         // The daily stamp is only ever set on a genuine, non-empty reply (`generateSeededTurn`), so its
@@ -2621,6 +2695,7 @@ final class AICoachEngine: ObservableObject {
             UserDefaults.standard.set(today, forKey: Self.goalDeadlineStampKey(goalId: goalId,
                                                                                important: signal.important))
         }
+        return spoke
     }
 
     /// The instruction for a goal-expiry look-back. Deliberately not a verdict template: the coach is
@@ -2640,35 +2715,48 @@ final class AICoachEngine: ObservableObject {
 
     /// Offer a look-back on a goal whose target date has passed. Once per goal, ever — the review is a
     /// moment, not a recurring reminder, and repeating it would turn a missed target into nagging.
-    func runGoalReviewIfNeeded() async {
-        guard CoachFeaturePrefs.isEnabled, proactiveLevel != .off, isConfigured, dataConsent, !sending else { return }
+    @discardableResult
+    func runGoalReviewIfNeeded() async -> Bool {
+        guard CoachFeaturePrefs.isEnabled, proactiveLevel != .off, isConfigured, dataConsent, !sending else { return false }
         guard let goal = ProactiveCoach.expiredGoalNeedingReview(CoachGoalStore.shared.goals) else {
-            return
+            return false
         }
         let stampKey = "coach.goalReviewed.\(goal.id.uuidString)"
-        guard UserDefaults.standard.string(forKey: stampKey) == nil else { return }
+        guard UserDefaults.standard.string(forKey: stampKey) == nil else { return false }
         // TODO(notifications): also post a `.statusReminder` CoachNotifier item here — a passed goal
         // deadline is exactly the spec's "status message" bucket, just not built in this first pass.
-        await runSeededTurnCancellable(
+        return await runSeededTurnCancellable(
             instruction: Self.goalReviewInstruction(for: goal),
             prefix: String(localized: "Your goal"), stampKey: stampKey, origin: .nudge)
     }
 
     /// Fire a weekly review at most once every 7 logical days, only at the `normal` level and only when
     /// there's plan activity to review (#P10 13.2).
-    func runWeeklyReviewIfNeeded() async {
-        guard CoachFeaturePrefs.isEnabled, proactiveLevel == .normal, isConfigured, dataConsent, !sending else { return }
-        let today = Repository.localDayKey(Date())
-        if let last = UserDefaults.standard.string(forKey: Self.lastWeeklyReviewDayKey),
-           let days = Self.dayKeyDistance(from: last, to: today), days < 7 { return }
+    @discardableResult
+    func runWeeklyReviewIfNeeded() async -> Bool {
+        guard CoachFeaturePrefs.isEnabled, proactiveLevel == .normal, isConfigured, dataConsent, !sending else { return false }
+        // `logicalDayKey`, matching what the generator STAMPS. This used to read `localDayKey` while the
+        // stamp was written as a logical key, so a review that ran between midnight and 04:00 recorded
+        // the previous day and the seven-day gate opened a day early.
+        let today = Repository.logicalDayKey(Date())
+        if let last = UserDefaults.standard.string(forKey: Self.lastWeeklyReviewDayKey) {
+            guard let days = Self.dayKeyDistance(from: last, to: today) else {
+                // An unparsable stamp used to fall THROUGH to sending — a corrupted value meant a review
+                // on every open. Repair it and stay quiet this time; the next one lands on schedule.
+                UserDefaults.standard.set(today, forKey: Self.lastWeeklyReviewDayKey)
+                return false
+            }
+            if days < 7 { return false }
+        }
+        // Plan days are calendar days, so the activity window keeps using `localDayKey`.
         let recentCutoff = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date()
         let recentKey = Repository.localDayKey(recentCutoff)
         guard CoachPlanStore.shared.proposals.contains(where: {
             $0.status.isDecided && $0.day >= recentKey
-        }) else { return }
+        }) else { return false }
         // TODO(notifications): also post a `.statusReminder` CoachNotifier item here — same reasoning as
         // the goal-review TODO above, not built in this first pass.
-        await runSeededTurnCancellable(
+        return await runSeededTurnCancellable(
             instruction: Self.weeklyReviewInstruction(toolsActive: toolCallingActive),
             prefix: String(localized: "Weekly review"),
             stampKey: Self.lastWeeklyReviewDayKey, origin: .weeklyReview)
@@ -2683,26 +2771,40 @@ final class AICoachEngine: ObservableObject {
 
     /// Cancellable runner for the proactive/weekly generated turns — mirrors `runCheckInCancellable` so
     /// the composer's Stop button cancels them too. Stamps its day key (via the generator) only on a
-    /// non-empty success.
+    /// non-empty success, and reports whether the coach actually said something.
+    ///
+    /// Waits out an auto-turn that is already running rather than overwriting `sendTask`: the opening
+    /// chain and a notification tap can arrive at the same moment, and whoever lost that race used to
+    /// leave `sendTask` pointing at the wrong task — with the composer's Stop button attached to it.
+    @discardableResult
     private func runSeededTurnCancellable(instruction: String, prefix: String, stampKey: String,
-                                          origin: ChatMessage.Origin) async {
-        guard !sending else { return }
+                                          origin: ChatMessage.Origin) async -> Bool {
+        while let inFlight = sendTask { await inFlight.value }
+        guard !sending else { return false }
+        // Same shape as `runBriefCancellable`: `sendTask` holds the real work so Stop can cancel it, and
+        // the "did it speak?" answer comes back through `lastAutoTurnSpoke`.
+        lastAutoTurnSpoke = false
         let task = Task<Void, Never> { [weak self] in
-            await self?.generateSeededTurn(instruction: instruction, prefix: prefix,
-                                           stampKey: stampKey, origin: origin)
+            guard let self else { return }
+            self.lastAutoTurnSpoke = await self.generateSeededTurn(
+                instruction: instruction, prefix: prefix, stampKey: stampKey, origin: origin)
         }
         sendTask = task
         await task.value
         if sendTask == task { sendTask = nil }
+        return lastAutoTurnSpoke
     }
 
     /// Shared generation for an unprompted, seeded coach turn (proactive nudge / weekly review): the same
     /// history-carrying wire `generateCheckIn` builds, with the seed instruction as the trailing turn.
-    /// Stamps `stampKey` with today's logical day only on a genuine, non-empty reply.
+    /// Stamps `stampKey` with today's logical day only on a genuine, non-empty reply. Returns whether
+    /// anything was actually said, so the opening chain can stop after the first turn that speaks.
+    @discardableResult
     private func generateSeededTurn(instruction: String, prefix: String, stampKey: String,
-                                    origin: ChatMessage.Origin) async {
-        guard isConfigured, dataConsent, !sending else { return }
-        guard let key = resolvedKey else { return }
+                                    origin: ChatMessage.Origin) async -> Bool {
+        var spoke = false
+        guard isConfigured, dataConsent, !sending else { return spoke }
+        guard let key = resolvedKey else { return spoke }
         clearError()
         memoryWrites = []
         sending = true
@@ -2722,10 +2824,11 @@ final class AICoachEngine: ObservableObject {
             let reply = try await callProvider(key: key, messages: wire)
             let clean = reply.text.trimmingCharacters(in: .whitespacesAndNewlines)
             if !clean.isEmpty {
-                messages.append(ChatMessage(role: .assistant, text: prefix + "\n\n" + clean,
-                                            toolsUsed: reply.toolsUsed, origin: origin,
-                                            memoryWrites: takeMemoryWrites()))
+                appendMessage(ChatMessage(role: .assistant, text: prefix + "\n\n" + clean,
+                                          toolsUsed: reply.toolsUsed, origin: origin,
+                                          memoryWrites: takeMemoryWrites()))
                 UserDefaults.standard.set(Repository.logicalDayKey(Date()), forKey: stampKey)
+                spoke = true
             }
         } catch let e as AICoachError {
             setError(e)
@@ -2734,6 +2837,7 @@ final class AICoachEngine: ObservableObject {
                 setError(error)
             }
         }
+        return spoke
     }
 
     // MARK: - Card AI (#P11)

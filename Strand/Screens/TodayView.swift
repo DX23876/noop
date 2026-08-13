@@ -1406,7 +1406,7 @@ struct TodayView: View {
                 // Data Sources is NOT pinned here (upstream renders it fixed at this spot): the fork keeps
                 // `.dataSources` a reorderable section in the loop above, so pinning it too would render it
                 // twice.
-                PlanTodayCard(showPlan: $showPlan, showGoalJourney: $showGoalJourney)
+                PlanTodayCard(showPlan: $showPlan)
             }
             #if os(iOS)
             // #817 - horizontal swipe to change day. A right-swipe (positive X) steps to the NEWER day
@@ -1494,7 +1494,19 @@ struct TodayView: View {
         .coachCover(isPresented: $showCoach, coach: coach)
         // The plan book, opened from PlanTodayCard when a committed session has a time coming up.
         .sheet(isPresented: $showPlan) { CoachPlanView().environmentObject(coach) }
-        .sheet(isPresented: $showGoalJourney) { CoachGoalJourneyScreen().environmentObject(coach) }
+        // NavigationStack for the same reason as LiquidTodayView's copy: the guided setup inside is a
+        // push, and a sheet with no navigation host silently swallowed it.
+        .sheet(isPresented: $showGoalJourney) {
+            NavigationStack {
+                CoachGoalJourneyScreen()
+                    .toolbar {
+                        ToolbarItem(placement: .confirmationAction) {
+                            Button("Done") { showGoalJourney = false }
+                        }
+                    }
+            }
+            .environmentObject(coach)
+        }
         // H6, the steps-calibration sheet, opened from an estimated Steps tile (the same sheet Settings
         // hosts). Presented from Today so a WHOOP 4.0 user can calibrate from where the "est." caption shows.
         .sheet(isPresented: $showStepsCalibration) {
@@ -1794,7 +1806,7 @@ struct TodayView: View {
         case .synthesis:
             synthesisSection
         case .goals:
-            if selectedDayOffset == 0 { GoalTodaySection(showGoalJourney: $showGoalJourney) }
+            if selectedDayOffset == 0 { GoalsTodaySection(showGoalJourney: $showGoalJourney) }
         case .keyMetrics:
             // S4: the SEPARATE Readiness block is no longer a home-screen card, it folded into the
             // Charge-ring tap (chargeBreakdownSheet). A one-word readiness read (Push / Maintain / Rest,

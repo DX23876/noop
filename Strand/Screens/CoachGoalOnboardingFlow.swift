@@ -41,7 +41,9 @@ struct CoachGoalOnboardingFlow: View {
     private var kindAlreadyActive: Bool { store.activeGoal(for: draft.kind) != nil }
 
     private let twoColumns = [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)]
-    private var bodyWeightKg: Double { ProfileStore().weightKg }
+    /// Plain read — NEVER `ProfileStore()` here: that initialiser writes to UserDefaults, and doing that
+    /// inside a body evaluation forced a second layout pass that never settled (#goal-journey-freeze).
+    private var bodyWeightKg: Double { ProfileStore.persistedWeightKg }
 
     private var safety: GoalSafetyGate.Assessment {
         GoalSafetyGate.assess(goal: draft.goal, bodyWeightKg: bodyWeightKg)
@@ -157,7 +159,7 @@ struct CoachGoalOnboardingFlow: View {
         VStack(alignment: .leading, spacing: 10) {
             LazyVGrid(columns: twoColumns, spacing: 10) {
                 ForEach(CoachGoal.Kind.allCases) { k in
-                    GoalKindTile(kind: k, selected: draft.kind == k) { draft.kind = k }
+                    GoalKindTile(kind: k, selected: draft.kind == k) { draft.kindChanged(to: k) }
                 }
             }
             if kindAlreadyActive {
@@ -184,15 +186,21 @@ struct CoachGoalOnboardingFlow: View {
                     field("From (\(draft.kind.unit))", placeholder: "now", text: $draft.baselineText, numeric: true)
                     field("To (\(draft.kind.unit))", placeholder: "target", text: $draft.targetText, numeric: true)
                 }
+                // Same gate as the one-page editor, said out loud for the same reason as the title
+                // note above: "Next" is disabled, so the step has to explain itself.
+                if !draft.rangeIsUsable {
+                    stepNote("Start and target are the same number — there'd be nothing to move toward, so no progress, no route and no arrival date.")
+                }
             }
             Toggle(isOn: $draft.hasTargetDate) {
                 VStack(alignment: .leading, spacing: 1) {
                     Text("Target date").font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
-                    Text("Without one I can't tell you how you're tracking.")
+                    Text("Without one there's no route, no pace and no arrival date.")
                         .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
                 }
             }
             .toggleStyle(.switch).appleInspiredTint("coach")
+            .onChange(of: draft.hasTargetDate) { _ in draft.targetDateTouched = true }
             if draft.hasTargetDate {
                 DatePicker("Target date", selection: $draft.targetDate, in: Date()..., displayedComponents: .date)
                     .datePickerStyle(.compact).appleInspiredTint("coach").labelsHidden()

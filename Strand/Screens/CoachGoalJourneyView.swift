@@ -70,19 +70,10 @@ struct CoachGoalJourneyView: View {
     @State private var showPauseConfirm = false
     @State private var showPastGoals = false
 
-    /// TEMP DIAGNOSTIC (#goal-journey-freeze): body-evaluation counter, see `body`.
-    nonisolated(unsafe) static var diagBodyCount = 0
-
     private var activeGoals: [CoachGoal] { goalStore.activeGoals }
     private var canAddMore: Bool { activeGoals.count < CoachGoalStore.maxActiveGoals }
 
     var body: some View {
-        // TEMP DIAGNOSTIC (#goal-journey-freeze): counts body evaluations. A healthy open logs a
-        // handful; a render loop logs hundreds within seconds. Remove once the fix is confirmed.
-        let _ = { Self.diagBodyCount += 1
-                  if Self.diagBodyCount % 10 == 0 || Self.diagBodyCount < 12 {
-                      NSLog("[FREEZE-DIAG] CoachGoalJourneyView body eval #\(Self.diagBodyCount) goals=\(activeGoals.count) expired=\(expiredGoals.count)")
-                  } }()
         VStack(spacing: 16) {
             if !proposalStore.pending.isEmpty { pendingSetupSection }
             if !activeGoals.isEmpty { portfolioSummary }
@@ -383,7 +374,11 @@ struct CoachGoalJourneyView: View {
     private func goalCard(_ goal: CoachGoal) -> some View {
         NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
             VStack(alignment: .leading, spacing: 10) {
-                Button { goalSheet = .edit(goal.id) } label: {
+                // The header opens the JOURNEY, the same as tapping this goal's column on the Today
+                // tile. It used to open the editor, so one object had two different meanings for the
+                // same tap depending on which screen you came from. Editing is a rarer, deliberate
+                // act and now lives in the Manage menu with the other lifecycle actions.
+                Button { goalSheet = .journey(goal.id) } label: {
                     HStack(spacing: 10) {
                         Image(systemName: goal.kind.icon)
                             .foregroundStyle(appleHealthColors
@@ -399,7 +394,7 @@ struct CoachGoalJourneyView: View {
                             // shared state pill — a tone AND its word, never colour alone.
                             if let snapshot = trackingStore.snapshot(for: goal.id) {
                                 StatePill(LocalizedStringKey(snapshot.health.label),
-                                          tone: Self.tone(for: snapshot.health))
+                                          tone: snapshot.health.tone)
                             } else {
                                 Text(goalSubtitle(goal))
                                     .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
@@ -414,31 +409,14 @@ struct CoachGoalJourneyView: View {
                     }
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel("Edit your \(goal.kind.label.localizedCatalogValue) goal")
+                .accessibilityLabel("Open your \(goal.kind.label.localizedCatalogValue) journey — progress, route and plan history")
 
                 Divider().overlay(StrandPalette.hairline)
                 if let snapshot = trackingStore.snapshot(for: goal.id) {
                     goalTrackingSummary(snapshot)
-                    Divider().overlay(StrandPalette.hairline)
                 }
-                Button { goalSheet = .journey(goal.id) } label: {
-                    HStack(spacing: 8) {
-                        Image(systemName: "chart.line.uptrend.xyaxis")
-                            .foregroundStyle(appleHealthColors
-                                             ? CoachIconColors.color(for: "coach.goalJourney.progress")
-                                             : StrandPalette.accent)
-                            .accessibilityHidden(true)
-                        Text("View your journey")
-                            .font(StrandFont.footnote).foregroundStyle(StrandPalette.accent)
-                        Spacer(minLength: 8)
-                        Image(systemName: "chevron.right")
-                            .font(StrandFont.footnote)
-                            .foregroundStyle(StrandPalette.textTertiary)
-                            .accessibilityHidden(true)
-                    }
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("View your journey — progress, milestones and plan history")
+                // No separate "View your journey" row any more: the header above is that row, and a
+                // second control onto the same destination is just a second thing to read.
 
                 Divider().overlay(StrandPalette.hairline)
                 goalLifecycleRow(goal)
@@ -446,15 +424,18 @@ struct CoachGoalJourneyView: View {
         }
     }
 
-    /// A goal must be able to END: close it as reached, set it aside, or delete it entirely.
+    /// A goal must be able to END: close it as reached, set it aside, or delete it entirely — plus
+    /// editing, which moved in here when the card header took over opening the journey.
     ///
-    /// These four lived permanently on the card, so a destructive action sat at the same visual
-    /// weight as the goal's own state. They are rare and mostly one-way, so they belong behind a
-    /// menu — the confirmation dialogs are unchanged, only what opens them moved.
+    /// These lived permanently on the card, so a destructive action sat at the same visual weight as
+    /// the goal's own state. They are rare and mostly one-way, so they belong behind a menu — the
+    /// confirmation dialogs are unchanged, only what opens them moved.
     private func goalLifecycleRow(_ goal: CoachGoal) -> some View {
         HStack(spacing: 8) {
             Spacer(minLength: 0)
             Menu {
+                Button("Edit goal") { goalSheet = .edit(goal.id) }
+                Divider()
                 if goal.status == .paused {
                     Button("Resume") { goalStore.resume(goal.id); refreshTracking() }
                 } else {
@@ -472,7 +453,7 @@ struct CoachGoalJourneyView: View {
                 .font(StrandFont.footnote)
                 .foregroundStyle(StrandPalette.textSecondary)
             }
-            .accessibilityLabel("Manage this goal — pause, mark achieved, set aside or delete")
+            .accessibilityLabel("Manage this goal — edit, pause, mark achieved, set aside or delete")
         }
     }
 
@@ -492,9 +473,9 @@ struct CoachGoalJourneyView: View {
             }
             .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
 
-            if let measurement = snapshot.measurement {
+            if let line = snapshot.measurementLine {
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    Text(measurementLine(snapshot.goal, value: measurement.value))
+                    Text(line)
                         .font(StrandFont.footnote).foregroundStyle(StrandPalette.textPrimary)
                         .fixedSize(horizontal: false, vertical: true)
                     Spacer(minLength: 8)
@@ -513,7 +494,7 @@ struct CoachGoalJourneyView: View {
                 // The route, in ONE line: where the next waypoint is and whether the plan is holding.
                 // The full list and the arrival date live on the journey sheet — this card must not
                 // grow back into the wall of text it just lost.
-                if let route = routeLine(snapshot) {
+                if let route = snapshot.routeLine {
                     Text(route)
                         .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -538,16 +519,6 @@ struct CoachGoalJourneyView: View {
         }
     }
 
-    /// Health → the shared pill's tone. Colour is never the only carrier: the pill keeps its label.
-    private static func tone(for health: GoalTrackingSnapshot.Health) -> StrandTone {
-        switch health {
-        case .onTrack:                    return .positive
-        case .attention:                  return .warning
-        case .atRisk, .decisionNeeded:    return .critical
-        case .building, .paused:          return .neutral
-        }
-    }
-
     private static func trendColor(for verdict: JourneyExplain.TrendVerdict) -> Color {
         switch verdict {
         case .ahead:         return StrandPalette.statusPositive
@@ -567,48 +538,9 @@ struct CoachGoalJourneyView: View {
         return String(localized: "\(week.completed) of \(week.planned) done · \(required) needed")
     }
 
-    /// Date style shared by every route line — short, no year, because a waypoint is months away at
-    /// most and "12 Oct" reads faster than a full date.
-    private static let waypointDate: Date.FormatStyle = .dateTime.day().month(.abbreviated)
-
-    /// Next waypoint plus the course verdict, or nil when the goal has no route.
-    ///
-    /// Deliberately says nothing at all when there is nothing honest to say: a goal without a
-    /// start/target/date has no plan to be measured against, and silence beats a hedged sentence.
-    private func routeLine(_ snapshot: GoalTrackingSnapshot) -> String? {
-        let unit = snapshot.goal.kind.unit
-        var parts: [String] = []
-        if let next = snapshot.nextMilestone {
-            let value = String(format: "%.1f", next.value)
-                .replacingOccurrences(of: ".0", with: "")
-            parts.append(String(localized: "Next \(value) \(unit) by \(next.expectedDate.formatted(Self.waypointDate))"))
-        }
-        if let course = snapshot.course {
-            switch course.verdict {
-            case .onCourse:
-                parts.append(String(localized: "on course"))
-            case .ahead, .behind:
-                let off = String(format: "%.1f", abs(course.deviation))
-                let word = course.verdict == .ahead
-                    ? String(localized: "ahead of plan") : String(localized: "behind plan")
-                if let late = course.daysLate, late != 0 {
-                    let days = abs(late)
-                    parts.append(late > 0
-                                 ? String(localized: "\(off) \(unit) \(word) · about \(days) days late")
-                                 : String(localized: "\(off) \(unit) \(word) · about \(days) days early"))
-                } else {
-                    parts.append("\(off) \(unit) \(word)")
-                }
-            case .movingAway:
-                parts.append(String(localized: "currently moving away from the target"))
-            case .unforeseeable:
-                parts.append(String(localized: "too slow to project an arrival"))
-            case .notEnoughData:
-                break   // the planned line alone is not worth a sentence yet
-            }
-        }
-        return parts.isEmpty ? nil : parts.joined(separator: " · ")
-    }
+    // `routeLine` / `measurementLine` / the waypoint date style now live on `GoalTrackingSnapshot`
+    // (GoalSummaryLines.swift), shared with the Today goal tile so the two surfaces cannot describe
+    // the same goal differently.
 
     /// Only speaks when the clamped bar would hide something: below the starting point, or past the
     /// target. Silent in the ordinary 0-100% case.
@@ -619,13 +551,6 @@ struct CoachGoalJourneyView: View {
             return String(localized: "Past your target — worth closing this goal or setting a new one.")
         }
         return nil
-    }
-
-    private func measurementLine(_ goal: CoachGoal, value: Double) -> String {
-        if let target = goal.target {
-            return String(format: "%.1f %@ now · target %.1f %@", value, goal.kind.unit, target, goal.kind.unit)
-        }
-        return String(format: "%.1f %@ now", value, goal.kind.unit)
     }
 
     private var pastGoalsSection: some View {
@@ -673,39 +598,10 @@ struct CoachGoalJourneyView: View {
         return status + " · " + date.formatted(date: .abbreviated, time: .omitted)
     }
 
-    /// Active goals whose target date has passed — a decision card per goal, not a dead end. Same
-    /// day-based, 1-day-grace threshold as `ProactiveCoach.expiredGoalNeedingReview`, so this card and the
-    /// chat's unprompted goal review never disagree about whether a goal counts as overdue yet.
-    private var expiredGoals: [CoachGoal] {
-        activeGoals.filter { $0.status == .active && (ProactiveCoach.daysPastTarget($0) ?? 0) >= 1 }
-    }
-
-    private func expiredGoalCard(_ goal: CoachGoal) -> some View {
-        NoopCard(padding: 14, tint: StrandPalette.statusWarning) {
-            VStack(alignment: .leading, spacing: 10) {
-                HStack(spacing: 8) {
-                    Image(systemName: "calendar.badge.exclamationmark")
-                        .foregroundStyle(StrandPalette.statusWarning)
-                        .accessibilityHidden(true)
-                    Text("Your \(goal.kind.label.localizedCatalogValue) target date has passed")
-                        .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
-                }
-                Text("How did it go? Close it out, give it more time, or set it aside — your call.")
-                    .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
-                    .fixedSize(horizontal: false, vertical: true)
-                HStack(spacing: 14) {
-                    Button("I reached it") { goalStore.markAchieved(goal.id) }
-                        .foregroundStyle(StrandPalette.accent)
-                    Button("Extend the date") { goalSheet = .edit(goal.id) }
-                        .foregroundStyle(StrandPalette.accent)
-                    Button("Set aside") { confirmSetAside(goal.id) }
-                        .foregroundStyle(StrandPalette.textSecondary)
-                }
-                .font(StrandFont.footnote)
-                .buttonStyle(.plain)
-            }
-        }
-    }
+    // The passed-target-date fork used to have its own card here (`expiredGoals`/`expiredGoalCard`).
+    // It was never rendered: `goalTrackingSummary` shows the same three choices inline whenever a
+    // goal is `.decisionNeeded` past its date, and `JourneyView.closureOrExpiryCard` shows them on
+    // the journey. Two more copies of one decision is one decision too many.
 
     /// One honest line: how long is left, whether the pace was flagged.
     private func goalSubtitle(_ goal: CoachGoal) -> String {

@@ -8,6 +8,12 @@ struct GoalAction: Codable, Identifiable, Equatable {
     enum Requirement: Codable, Equatable {
         case steps(minimum: Int)
         case workout(sports: [String], minimumMinutes: Int?)
+        /// Nightly sleep. Reads `DailyMetric.totalSleepMin`, the same number the Sleep screen shows.
+        case sleep(minimumHours: Double)
+        /// Active energy. NOOP's own figure is an HR-only ESTIMATE (`activeKcalEst`), so the label
+        /// says so — an action that silently treats an estimate as measured would be the wrong kind
+        /// of confident.
+        case activeCalories(minimum: Int)
         case manual
 
         var label: String {
@@ -16,6 +22,9 @@ struct GoalAction: Codable, Identifiable, Equatable {
             case .workout(let sports, let minutes):
                 let activity = sports.isEmpty ? "Any workout" : sports.joined(separator: ", ")
                 return minutes.map { "\(activity) · \($0) min" } ?? activity
+            case .sleep(let hours):
+                return String(format: "%.1f h sleep", hours).replacingOccurrences(of: ".0 h", with: " h")
+            case .activeCalories(let minimum): return "\(minimum.formatted()) kcal active (estimate)"
             case .manual: return "Check off manually"
             }
         }
@@ -127,6 +136,12 @@ enum GoalActionEvaluator {
         switch requirement {
         case .steps(let minimum):
             return (metric?.steps ?? 0) >= minimum
+        case .sleep(let hours):
+            guard let minutes = metric?.totalSleepMin else { return false }
+            return minutes >= hours * 60
+        case .activeCalories(let minimum):
+            guard let kcal = metric?.activeKcalEst else { return false }
+            return kcal >= Double(minimum)
         case .manual:
             return false
         case .workout(let sports, let minimumMinutes):
@@ -135,6 +150,36 @@ enum GoalActionEvaluator {
                 let enoughDuration = minimumMinutes.map { duration >= Double($0 * 60) } ?? true
                 return enoughDuration && matches(workout.sport, any: sports)
             }
+        }
+    }
+
+    /// Daily actions worth offering for a given goal, most relevant first.
+    ///
+    /// The alternative — one long fixed list — makes the user do the matching. A weight goal is served
+    /// by moving and by training; a sleep goal by a sleep floor. Every suggestion here is something
+    /// NOOP can actually CHECK, so an accepted suggestion completes itself rather than becoming
+    /// another box to tick by hand.
+    ///
+    /// Pure and side-effect free, so the mapping is testable without a view.
+    static func suggestions(for kind: CoachGoal.Kind) -> [GoalAction.Requirement] {
+        switch kind {
+        case .weight:
+            return [.steps(minimum: 8_000), .workout(sports: [], minimumMinutes: 30),
+                    .activeCalories(minimum: 500)]
+        case .consistency:
+            return [.workout(sports: [], minimumMinutes: 30), .steps(minimum: 8_000)]
+        case .run:
+            return [.workout(sports: ["Running"], minimumMinutes: 30), .steps(minimum: 8_000)]
+        case .strength:
+            return [.workout(sports: ["Strength"], minimumMinutes: 30)]
+        case .sleep:
+            return [.sleep(minimumHours: 7.5)]
+        case .stress, .recovery:
+            // Nothing NOOP measures makes an honest DAILY check for these; a manual note is the
+            // truthful offer rather than a proxy dressed up as the goal.
+            return [.manual]
+        case .custom:
+            return [.manual]
         }
     }
 
