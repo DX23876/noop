@@ -69,6 +69,89 @@ final class HealthWritebackTests: XCTestCase {
         XCTAssertNil(HealthWriteback.heartRateMigrationChunk(endTs: start, floorTs: start))
     }
 
+    // MARK: - HRV/SDNN repair (#hrv-sdnn-truncation)
+
+    /// The repair is a SECOND writer of the nightly-vitals samples. If it spelled the external key
+    /// differently from the regular write-back, that pass would no longer delete the repair's samples
+    /// before re-saving its own and every overlapping day would double up in Apple Health. Pin the
+    /// literal shape so a rename cannot silently break the dedup contract.
+    func testVitalsExternalKeyShapeIsStable() {
+        XCTAssertEqual(
+            HealthWriteback.vitalsExternalKey(noopDeviceId: "AA:BB",
+                                              identifier: "HKQuantityTypeIdentifierHeartRateVariabilitySDNN",
+                                              day: "2026-08-13"),
+            "noop:AA:BB:HKQuantityTypeIdentifierHeartRateVariabilitySDNN:2026-08-13")
+    }
+
+    /// Both migrations must share ONE boundary implementation, or their resume behavior drifts apart.
+    func testNeutralChunkEntryPointMatchesTheHeartRateOne() {
+        for days in [1, 14, 90] {
+            XCTAssertEqual(
+                HealthWriteback.backwardMigrationChunk(endTs: start + 400 * 86_400,
+                                                       floorTs: start, chunkDays: days),
+                HealthWriteback.heartRateMigrationChunk(endTs: start + 400 * 86_400,
+                                                        floorTs: start, chunkDays: days))
+        }
+    }
+
+    /// The property that makes the repair safe: walking backwards in 90-day chunks tiles the whole span
+    /// contiguously — no gap (a gap would be history left deleted-but-not-rewritten) and no overlap —
+    /// terminates, and reports `completesMigration` on the last chunk only.
+    func testBackwardWalkTilesTheWholeSpanWithoutGapOrOverlap() {
+        let floor = start
+        let top = start + 400 * 86_400
+        var cursor = top
+        var windows: [HealthWriteback.TimeWindow] = []
+        var completions = 0
+        while let chunk = HealthWriteback.backwardMigrationChunk(endTs: cursor, floorTs: floor,
+                                                                chunkDays: 90) {
+            windows.append(chunk.window)
+            if chunk.completesMigration { completions += 1; break }
+            cursor = chunk.window.startTs
+        }
+
+        XCTAssertEqual(completions, 1)
+        XCTAssertEqual(windows.first?.endTs, top)
+        XCTAssertEqual(windows.last?.startTs, floor)
+        // Newest-first and edge-to-edge: each window starts exactly where the previous one began.
+        for (newer, older) in zip(windows, windows.dropFirst()) {
+            XCTAssertEqual(older.endTs, newer.startTs)
+            XCTAssertLessThan(older.startTs, older.endTs)
+        }
+    }
+
+    /// A cancelled run persists `window.startTs` as the cursor and a later tap continues from there.
+    /// The resumed walk must cover exactly the same span as an uninterrupted one — that is what makes
+    /// "stop is safe" true rather than merely hoped for.
+    func testInterruptedWalkResumesOverTheIdenticalSpan() {
+        let floor = start
+        let top = start + 400 * 86_400
+        func walk(stoppingAfter stopAfter: Int) -> (windows: [HealthWriteback.TimeWindow], cursor: Int) {
+            var cursor = top
+            var windows: [HealthWriteback.TimeWindow] = []
+            while let chunk = HealthWriteback.backwardMigrationChunk(endTs: cursor, floorTs: floor,
+                                                                    chunkDays: 90) {
+                windows.append(chunk.window)
+                if chunk.completesMigration { break }
+                cursor = chunk.window.startTs
+                if windows.count == stopAfter { break }
+            }
+            return (windows, cursor)
+        }
+
+        let full = walk(stoppingAfter: .max).windows
+        let interrupted = walk(stoppingAfter: 2)
+        var resumed = interrupted.windows
+        var cursor = interrupted.cursor
+        while let chunk = HealthWriteback.backwardMigrationChunk(endTs: cursor, floorTs: floor,
+                                                                chunkDays: 90) {
+            resumed.append(chunk.window)
+            if chunk.completesMigration { break }
+            cursor = chunk.window.startTs
+        }
+        XCTAssertEqual(resumed, full)
+    }
+
     private func intervals(_ json: String?) -> [HealthWriteback.StageInterval] {
         HealthWriteback.stageIntervals(stagesJSON: json, sessionStart: start, sessionEnd: end)
     }

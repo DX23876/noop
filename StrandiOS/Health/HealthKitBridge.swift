@@ -44,6 +44,11 @@ final class HealthKitBridge: ObservableObject {
     @Published private(set) var lastWritebackReport: HealthWritebackReport?
     @Published private(set) var heartRateExperiment: HealthHeartRateExperiment?
     private var fullHistoryTask: Task<Void, Never>?
+    /// The RMSSD→SDNN repair walk. Explicit like `fullHistoryImporting` and for the same reason: it
+    /// rewrites years of Apple Health samples, which must never happen as a launch side effect.
+    @Published private(set) var hrvRepairRunning = false
+    @Published private(set) var hrvRepairProgress: Double?
+    private var hrvRepairTask: Task<Void, Never>?
 
     private let store = HKHealthStore()
     private let repo: Repository
@@ -61,7 +66,23 @@ final class HealthKitBridge: ObservableObject {
     private static let heartRateExperimentKey = "noop.health.hrGraphExperiment.v1"
     private static let heartRateMigrationEndKey = "noop.health.hrEncodingMigrationEnd.v1"
     private static let heartRateMigrationFloorKey = "noop.health.hrEncodingMigrationFloor.v1"
+    /// The v1 destructive migration's marker. Still READ (it tells the UI whether this install already
+    /// had its HRV history truncated), never written again.
     private static let hrvSdnnMigrationKey = "noop.health.hrvSdnnMigration.v1"
+    /// The chunked repair's cursor, floor and completion marker — same shape as the HR-encoding
+    /// migration's `heartRateMigrationEndKey`/`FloorKey`, so an interrupted walk resumes where it
+    /// stopped instead of restarting.
+    private static let hrvRepairEndKey = "noop.health.hrvSdnnRepair.v2.end"
+    private static let hrvRepairFloorKey = "noop.health.hrvSdnnRepair.v2.floor"
+    private static let hrvRepairDoneKey = "noop.health.hrvSdnnRepair.v2.done"
+    /// Bigger than the HR migration's 14 days: one nightly value per day is a few hundred samples per
+    /// chunk, not a per-second series. Starting value — tune it from a measured run.
+    private static let hrvRepairChunkDays = 90
+
+    /// Did the v1 migration truncate this install's Apple Health HRV series? Lets the UI say WHY the
+    /// repair is offered instead of presenting an unexplained button.
+    var hrvHistoryWasTruncated: Bool { UserDefaults.standard.bool(forKey: Self.hrvSdnnMigrationKey) }
+    var hrvRepairCompleted: Bool { UserDefaults.standard.bool(forKey: Self.hrvRepairDoneKey) }
 
     var heartRateEncoding: HealthWriteback.HeartRateSampleEncoding {
         let raw = UserDefaults.standard.string(forKey: Self.heartRateEncodingKey)
@@ -841,7 +862,8 @@ final class HealthKitBridge: ObservableObject {
                  _ at: Date, algorithmVersion: Int? = nil) {
             guard let type = HKQuantityType.quantityType(forIdentifier: id),
                   store.authorizationStatus(for: type) == .sharingAuthorized else { return }
-            let key = "noop:\(noopDeviceId):\(id.rawValue):\(day)"
+            let key = HealthWriteback.vitalsExternalKey(noopDeviceId: noopDeviceId,
+                                                       identifier: id.rawValue, day: day)
             var metadata: [String: Any] = [HKMetadataKeyExternalUUID: key]
             if let algorithmVersion {
                 metadata[HKMetadataKeyAlgorithmVersion] = NSNumber(value: algorithmVersion)
@@ -873,16 +895,17 @@ final class HealthKitBridge: ObservableObject {
                 add(.respiratoryRate, HKUnit.count().unitDivided(by: .minute()), rr, row.day, at)
             }
         }
-        // One-time semantic migration: every older NOOP-authored value under this HealthKit type was
-        // actually RMSSD. Remove the app's own legacy samples across all dates before writing true SDNN;
-        // samples from Apple Watch or any other source are outside the source predicate.
-        if !UserDefaults.standard.bool(forKey: Self.hrvSdnnMigrationKey),
-           let hrvType = HKQuantityType.quantityType(forIdentifier: .heartRateVariabilitySDNN),
-           store.authorizationStatus(for: hrvType) == .sharingAuthorized {
-            let own = HKQuery.predicateForObjects(from: HKSource.default())
-            _ = try await store.deleteObjects(of: hrvType, predicate: own)
-            UserDefaults.standard.set(true, forKey: Self.hrvSdnnMigrationKey)
-        }
+        // The one-time RMSSD→SDNN semantic migration used to live HERE, and deleted every NOOP-authored
+        // sample of this type across ALL dates before writing this pass's candidates. That is a
+        // data-loss shape: the delete was unbounded while `rows` above spans only `days` (14 by
+        // default, and every caller uses the default), so a multi-year Apple Health HRV series
+        // collapsed to the last two weeks on the first launch after the upgrade. It also blocked the
+        // launch path, because this `await` runs inside the scenePhase == .active task.
+        //
+        // It now lives in `replaceOwnHrvWindow` below, which deletes exactly the days it rewrites in
+        // that chunk, and is driven by an explicit user action rather than a launch side effect.
+        // Nothing about the regular write-back changed: the dedup below is still key-scoped, so this
+        // pass keeps overwriting its own last-14-days samples exactly as before.
 
         guard !candidates.isEmpty else { return 0 }
 
@@ -1227,6 +1250,221 @@ final class HealthKitBridge: ObservableObject {
             pending = pending.dropFirst(chunk.count)
         }
         return samples.count
+    }
+
+    // MARK: - HRV/SDNN repair (#hrv-sdnn-truncation)
+
+    /// Rebuild NOOP's Apple Health HRV series as true SDNN, walking history backwards in bounded chunks.
+    ///
+    /// Why this exists: 10.0.0 shipped a one-shot migration that deleted every NOOP-authored sample of
+    /// this type across ALL dates (correct in intent — the old values were RMSSD under the SDNN
+    /// identifier) but only rewrote the regular 14-day write-back window. Installs that ran it lost
+    /// their accumulated HRV series beyond two weeks; installs that never ran it still hold the
+    /// mislabelled values. This repair covers both, and is idempotent, so re-running it is harmless.
+    ///
+    /// Explicit action, never automatic: it writes years of samples into a store the user shares with
+    /// every other health app. Same rationale as `startFullHistoryImport`.
+    func startHrvSdnnRepair() {
+        guard auth == .authorized, !syncing, !fullHistoryImporting, !hrvRepairRunning else { return }
+        // Publish synchronously so the view cannot mistake the scheduling gap for a finished run.
+        hrvRepairRunning = true
+        hrvRepairProgress = 0
+        hrvRepairTask = Task { [weak self] in
+            guard let self else { return }
+            await self.runHrvSdnnRepair()
+            self.hrvRepairTask = nil
+        }
+    }
+
+    /// Cooperative, like `cancelFullHistoryImport`: the chunk in flight finishes its own
+    /// delete-and-rewrite (so it cannot be left half-replaced) and no later chunk is started. The
+    /// persisted cursor means a later tap continues instead of starting over.
+    func cancelHrvSdnnRepair() {
+        hrvRepairTask?.cancel()
+        hrvRepairTask = nil
+    }
+
+    private func runHrvSdnnRepair() async {
+        defer {
+            hrvRepairRunning = false
+            hrvRepairProgress = nil
+        }
+        guard let whoopStore = await repo.storeHandle() else { return }
+        guard let hrvType = HKQuantityType.quantityType(forIdentifier: .heartRateVariabilitySDNN),
+              store.authorizationStatus(for: hrvType) == .sharingAuthorized else {
+            lastError = String(localized: "Apple Health has not granted HRV write access.")
+            return
+        }
+        do {
+            try await prepareHrvSdnnRepair(whoopStore: whoopStore)
+            let floor = UserDefaults.standard.integer(forKey: Self.hrvRepairFloorKey)
+            let top = UserDefaults.standard.integer(forKey: Self.hrvRepairEndKey)
+            guard floor > 0, top > floor else {
+                // No R-R beats on device ⇒ no true SDNN is computable for ANY day. Deliberately does
+                // NOT delete the legacy values and does NOT mark the repair done: removing wrong
+                // numbers with nothing to replace them is the very loss this change exists to undo,
+                // and a later sync may make the repair possible.
+                lastWritebackReport = HealthWritebackReport(completedAt: Date(), entries: [
+                    .init(id: "HRV repair", count: 0, authorizedTypes: 1, totalTypes: 1,
+                          detail: String(localized: "No R-R data on device — nothing to rebuild")),
+                ])
+                return
+            }
+            let span = Double(top - floor)
+            var written = 0
+            var skipped = 0
+            var completed = false
+            while !Task.isCancelled {
+                let end = UserDefaults.standard.integer(forKey: Self.hrvRepairEndKey)
+                guard let chunk = HealthWriteback.backwardMigrationChunk(
+                    endTs: end, floorTs: floor, chunkDays: Self.hrvRepairChunkDays) else { break }
+                let result = try await replaceOwnHrvWindow(whoopStore: whoopStore, window: chunk.window)
+                written += result.written
+                skipped += result.skipped
+                if chunk.completesMigration {
+                    // Marker set ONLY here — after the oldest chunk committed. An interrupted walk
+                    // leaves the cursor in place and stays "not done", which is what makes a resume
+                    // possible instead of a silent half-repair.
+                    UserDefaults.standard.set(true, forKey: Self.hrvRepairDoneKey)
+                    UserDefaults.standard.removeObject(forKey: Self.hrvRepairEndKey)
+                    UserDefaults.standard.removeObject(forKey: Self.hrvRepairFloorKey)
+                    hrvRepairProgress = 1
+                    completed = true
+                    break
+                }
+                UserDefaults.standard.set(chunk.window.startTs, forKey: Self.hrvRepairEndKey)
+                hrvRepairProgress = min(1, max(0, Double(top - chunk.window.startTs) / span))
+            }
+            lastWritebackReport = HealthWritebackReport(completedAt: Date(), entries: [
+                .init(id: "HRV repair", count: written, authorizedTypes: 1, totalTypes: 1,
+                      detail: completed
+                        ? String(localized: "Rebuilt · \(skipped) day(s) without R-R skipped")
+                        : String(localized: "Paused · \(skipped) day(s) without R-R skipped — tap to continue")),
+            ])
+            lastError = nil
+        } catch {
+            lastError = String(localized: "Apple Health sync failed: \(error.localizedDescription)")
+        }
+    }
+
+    /// Set the backward cursor and the floor, unless a previous run left a cursor to resume from.
+    ///
+    /// The floor is the EARLIEST R-R beat NOOP actually holds, because that is the oldest day for which
+    /// a true SDNN can be computed at all. Walking further back would only delete legacy values without
+    /// replacing them, so the repair stops there by design rather than fabricating or blanking days.
+    private func prepareHrvSdnnRepair(whoopStore: WhoopStore) async throws {
+        guard UserDefaults.standard.object(forKey: Self.hrvRepairEndKey) == nil else { return }
+        let nowTs = Int(Date().timeIntervalSince1970)
+        let earliest = try await whoopStore.rrIntervals(deviceId: noopDeviceId,
+                                                        from: 0, to: nowTs, limit: 1).first?.ts
+        guard let earliest, earliest > 0 else {
+            UserDefaults.standard.removeObject(forKey: Self.hrvRepairFloorKey)
+            return
+        }
+        UserDefaults.standard.set(nowTs, forKey: Self.hrvRepairEndKey)
+        UserDefaults.standard.set(earliest, forKey: Self.hrvRepairFloorKey)
+    }
+
+    /// Replace this app's SDNN samples for the rewritable days inside ONE bounded window.
+    ///
+    /// The invariant that makes the repair safe to interrupt: the delete predicate covers exactly the
+    /// days this call is about to save, so the worst case is a day rewritten twice — never a hole in
+    /// untouched history, which is precisely what the removed unbounded delete produced.
+    ///
+    /// The new values are computed BEFORE anything is deleted, so a read or analysis failure leaves
+    /// Apple Health untouched instead of emptied.
+    private func replaceOwnHrvWindow(whoopStore: WhoopStore,
+                                     window: HealthWriteback.TimeWindow)
+    async throws -> (written: Int, skipped: Int) {
+        guard let type = HKQuantityType.quantityType(forIdentifier: .heartRateVariabilitySDNN) else {
+            return (0, 0)
+        }
+        // `sleepSessions` selects by startTs, so read a day early: a night that STARTS before this
+        // window but WAKES inside it owns one of its days. The wake filter below decides membership,
+        // so the pad cannot pull a foreign day into the chunk.
+        let sessions = try await hrvRepairSessions(whoopStore: whoopStore,
+                                                   fromTs: window.startTs - 86_400,
+                                                   toTs: window.endTs)
+        // Longest session per civil wake day — the same rule `writeVitals` uses, so a nap can never
+        // replace the main night's recording window and the repair agrees with the regular write-back.
+        var mainSleepByDay: [String: CachedSleepSession] = [:]
+        for session in sessions where session.endTs > session.effectiveStartTs {
+            guard session.endTs >= window.startTs, session.endTs < window.endTs else { continue }
+            let day = HealthKitBridge.dayString(Date(timeIntervalSince1970: TimeInterval(session.endTs)))
+            let previous = mainSleepByDay[day].map { $0.endTs - $0.effectiveStartTs } ?? -1
+            if session.endTs - session.effectiveStartTs > previous { mainSleepByDay[day] = session }
+        }
+
+        var samples: [HKQuantitySample] = []
+        var rewrittenDays: [String] = []
+        var skipped = 0
+        for (day, session) in mainSleepByDay {
+            let rr = (try? await whoopStore.rrIntervals(deviceId: noopDeviceId,
+                                                        from: session.effectiveStartTs,
+                                                        to: session.endTs,
+                                                        limit: 100_000)) ?? []
+            // Same analyzer as the regular write-back — no second implementation, so a repaired day and
+            // a freshly written day carry identical values.
+            guard let sdnn = HRVAnalyzer.trustedSdnnForExport(rr).sdnn else {
+                skipped += 1
+                continue
+            }
+            let at = Date(timeIntervalSince1970: TimeInterval(session.endTs))
+            let key = HealthWriteback.vitalsExternalKey(
+                noopDeviceId: noopDeviceId,
+                identifier: HKQuantityTypeIdentifier.heartRateVariabilitySDNN.rawValue,
+                day: day)
+            samples.append(HKQuantitySample(
+                type: type,
+                quantity: .init(unit: .secondUnit(with: .milli), doubleValue: sdnn),
+                start: at, end: at,
+                metadata: [HKMetadataKeyExternalUUID: key,
+                           HKMetadataKeyAlgorithmVersion: NSNumber(value: 1)]))
+            rewrittenDays.append(day)
+        }
+
+        // Delete EXACTLY the days about to be rewritten — not the whole window.
+        //
+        // The invariant at the finest granularity available: a day with no computable SDNN (no stored
+        // R-R, which is most CSV-imported history) is left ALONE rather than blanked. Blanking it would
+        // reproduce this very bug one chunk at a time, and it is the irreversible direction — a later
+        // pass can always delete more, but nothing can restore a deleted series.
+        //
+        // Scoped by DAY RANGE rather than by external-UUID key on purpose: builds older than the
+        // metadata dedup scheme (see `writeBack`'s note on duplicate flooding) wrote samples with NO
+        // external key at all, so a key-scoped delete would leave those behind as duplicates on exactly
+        // the days being rewritten.
+        var dayPredicates: [NSPredicate] = []
+        for day in rewrittenDays {
+            guard let dayStart = HealthKitBridge.date(from: day),
+                  let dayEnd = Calendar.current.date(byAdding: .day, value: 1, to: dayStart)
+            else { continue }
+            dayPredicates.append(HKQuery.predicateForSamples(
+                withStart: dayStart, end: dayEnd, options: [.strictStartDate]))
+        }
+        guard !dayPredicates.isEmpty else { return (0, skipped) }
+        let pred = NSCompoundPredicate(andPredicateWithSubpredicates: [
+            HKQuery.predicateForObjects(from: HKSource.default()),
+            NSCompoundPredicate(orPredicateWithSubpredicates: dayPredicates),
+        ])
+        _ = try await store.deleteObjects(of: type, predicate: pred)
+        try await store.save(samples)
+        return (samples.count, skipped)
+    }
+
+    /// Computed sessions first, imported overriding on a startTs collision — the same source precedence
+    /// as `writeBack` and `IntelligenceEngine`'s sleep reads, so the repair scores the same nights the
+    /// dashboard shows.
+    private func hrvRepairSessions(whoopStore: WhoopStore,
+                                   fromTs: Int, toTs: Int) async throws -> [CachedSleepSession] {
+        let computed = (try? await whoopStore.sleepSessions(deviceId: computedDeviceId,
+                                                            from: fromTs, to: toTs, limit: 2_000)) ?? []
+        let imported = (try? await whoopStore.sleepSessions(deviceId: noopDeviceId,
+                                                            from: fromTs, to: toTs, limit: 2_000)) ?? []
+        var byStart: [Int: CachedSleepSession] = [:]
+        for s in computed { byStart[s.startTs] = s }
+        for s in imported { byStart[s.startTs] = s }
+        return byStart.keys.sorted().map { byStart[$0]! }
     }
 
     private func externalHeartRateSampleCount(
