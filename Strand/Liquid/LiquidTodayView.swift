@@ -175,6 +175,13 @@ struct LiquidTodayView: View {
     /// today's row has no vitals yet, so these fall back to the last night that recorded them. Never
     /// resolved in body — body rescans repo.days ~23× per pass, and this cache keeps that read O(1).
     @State private var cachedVitalsDay: DailyMetric?
+    /// PER-FIELD carries for the two vitals whose predicate `cachedVitalsDay` does NOT check. The engine
+    /// writes `spo2Pct` / `skinTempDevC` as nil on computed "-noop" rows, so the whole-row carry above
+    /// lands on a row with an empty field and the card reads "–" even though a real reading exists a few
+    /// nights back. Twins of classic Today's `lastSpo2Day` / `lastSkinTempDay` (and Android's
+    /// `lastSpo2Row` / `lastSkinTempRow`); resolved ONCE in load() like every other O(days) scan here.
+    @State private var cachedSpo2Day: DailyMetric?
+    @State private var cachedSkinTempDay: DailyMetric?
     /// The Charge hero's resolved state (#543 carry + the honest label), resolved ONCE in load() alongside
     /// the other caches. It composes `TodayView.lastScoredRecoveryDay`, which is O(days) — exactly the scan
     /// this cache exists to keep out of body. Never resolved in body.
@@ -244,6 +251,10 @@ struct LiquidTodayView: View {
     /// The prior-day vitals carry (see `cachedVitalsDay`), read O(1) from the cache. Non-nil only at
     /// offset 0 (today); a navigated past day carries nothing (its own row is the whole story).
     private var vitalsDay: DailyMetric? { cachedVitalsDay }
+    /// The per-field SpO₂ / skin-temperature carries (see the caches), read O(1). Like `vitalsDay`,
+    /// non-nil only at offset 0 — a navigated past day carries nothing.
+    private var spo2Day: DailyMetric? { cachedSpo2Day }
+    private var skinTempDay: DailyMetric? { cachedSkinTempDay }
     /// The Charge hero's resolved state (see `cachedChargeDisplay`), read O(1) from the cache.
     private var chargeDisplay: ChargeDisplay { cachedChargeDisplay }
     /// The last fully-scored prior recovery day (see `cachedPriorScored`), read O(1) from the cache.
@@ -1122,18 +1133,26 @@ struct LiquidTodayView: View {
         case .vitality:
             cardLink(.metric("vitality"), title: card.title, sub: card.subtitle,
                      value: intText(vitality), tint: liquidPurple, frac: frac(vitality))
+        // The three nightly vitals carry exactly like the Key-Metric tiles above (`ktileFor`): today's own
+        // row first, else the last night that recorded the value. Without the carry these rows read "–"
+        // from the rollover until tonight's sleep is scored, while the tiles a few hundred points up the
+        // same screen showed the number — one screen, two answers. Coalesce ONCE per row so the value and
+        // its ring fraction can never describe different days.
         case .hrv:
+            let hrv = displayDay?.avgHrv ?? vitalsDay?.avgHrv
             cardLink(.metric("hrv"), title: card.title, sub: card.subtitle,
-                     value: unitText(displayDay?.avgHrv, card.unit), tint: StrandPalette.metricCyan,
-                     frac: fracOver(displayDay?.avgHrv, 120))
+                     value: unitText(hrv, card.unit), tint: StrandPalette.metricCyan,
+                     frac: fracOver(hrv, 120))
         case .restingHr:
+            let rhr = (displayDay?.restingHr ?? vitalsDay?.restingHr).map(Double.init)
             cardLink(.metric("rhr"), title: card.title, sub: card.subtitle,
-                     value: unitText(displayDay?.restingHr.map(Double.init), card.unit),
-                     tint: StrandPalette.metricRose, frac: fracOver(displayDay?.restingHr.map(Double.init), 100))
+                     value: unitText(rhr, card.unit),
+                     tint: StrandPalette.metricRose, frac: fracOver(rhr, 100))
         case .respiratory:
+            let resp = displayDay?.respRateBpm ?? vitalsDay?.respRateBpm
             cardLink(.metric("resp_rate"), title: card.title, sub: card.subtitle,
-                     value: unitText(displayDay?.respRateBpm, card.unit, decimals: 1),
-                     tint: StrandPalette.accent, frac: fracOver(displayDay?.respRateBpm, 24))
+                     value: unitText(resp, card.unit, decimals: 1),
+                     tint: StrandPalette.accent, frac: fracOver(resp, 24))
         case .steps:
             // Route by the EXACT (key, source) the tile chose to display — measured my-whoop, imported
             // apple-health, or the my-whoop estimate — NOT by bare key (bare "steps" resolves to
@@ -1141,12 +1160,31 @@ struct LiquidTodayView: View {
             cardLink(.metricSourced(key: stepsDetailKey, source: stepsDetailSource), title: card.title, sub: card.subtitle,
                      value: stepsText, tint: StrandPalette.metricCyan, frac: fracOver(stepCount, 10000))
         case .bloodOxygen:
-            // Not wired to a real read yet — render EMPTY (not half-full) so it doesn't imply a reading.
+            // THREE tiers, matching the Android `dashboardCardValue`: today → whole-row vitals carry → the
+            // last row that actually HAS a reading. The third tier is not redundant: computed "-noop" rows
+            // write `spo2Pct = nil`, so the whole-row carry routinely lands on an empty field.
+            //
+            // Not carried over from classic Today: its #103 fallback to the experimental `spo2_candidate`
+            // strap estimate. That series comes from `metricSeries`, not from a DailyMetric field, so this
+            // screen has no source for it (`kSparks` is built purely from daily rows) and wiring one is a
+            // separate change. The toggle is experimental and default-off; the calibrated value above is
+            // what both screens show with it off.
+            let spo2 = displayDay?.spo2Pct ?? vitalsDay?.spo2Pct ?? spo2Day?.spo2Pct
             cardLink(.metric("spo2"), title: card.title, sub: card.subtitle,
-                     value: "–", tint: StrandPalette.metricCyan, frac: nil)
+                     value: spo2.map { String(format: "%.0f%%", $0) } ?? "–",
+                     tint: StrandPalette.metricCyan, frac: fracOver(spo2, 100))
         case .skinTemp:
+            // Same three tiers. Formatting goes through the shared `SkinTempDisplay` rather than a local
+            // "%+.1f°": the stored field is BIMODAL (#622) — an imported row can hold an ABSOLUTE wrist
+            // temperature (~30–35 °C) while a live row holds a signed deviation from baseline. A fixed
+            // signed format would print "+34.2°" for the absolute case. The helper detects which it is,
+            // signs only deviations, converts to °F when asked, and always labels the scale ("°C" / "Δ°C").
+            let skin = displayDay?.skinTempDevC ?? vitalsDay?.skinTempDevC ?? skinTempDay?.skinTempDevC
             cardLink(.metric("skin_temp"), title: card.title, sub: card.subtitle,
-                     value: "–", tint: StrandPalette.metricAmber, frac: nil)
+                     value: skin.map {
+                         SkinTempDisplay.format($0, fahrenheit: temperatureUnit == .fahrenheit)
+                     } ?? "–",
+                     tint: StrandPalette.metricAmber, frac: nil)
         case .calories:
             // #616: show the resolved imported-first value and route to the matching detail source, like
             // the Steps card — was a "–" placeholder wired to the imported-only detail.
@@ -1900,6 +1938,10 @@ struct LiquidTodayView: View {
         // echo today's still-forming row; only on today (a past day's own row is the whole story).
         let tkey = cachedDisplayDay?.day ?? selectedDayKey
         cachedVitalsDay = (selectedDayOffset == 0) ? Repository.lastVitalsDay(days: repo.days, todayKey: tkey) : nil
+        // The two PER-FIELD carries, same rule and same key. Separate selectors because the whole-row one
+        // above accepts a row whose `spo2Pct`/`skinTempDevC` is nil (computed rows always write nil there).
+        cachedSpo2Day = (selectedDayOffset == 0) ? Repository.lastSpo2Day(days: repo.days, todayKey: tkey) : nil
+        cachedSkinTempDay = (selectedDayOffset == 0) ? Repository.lastSkinTempDay(days: repo.days, todayKey: tkey) : nil
         // Charge carry (#543) + the honest label, resolved here for the same reason as the two above: the
         // selector below scans repo.days. Calibration nights come from the SAME `RecoveryScorer` helper the
         // classic Today reads, so the two screens agree on when a wearer is genuinely mid-calibration
@@ -2240,6 +2282,13 @@ struct LiquidTodayView: View {
     // distance reads the same number everywhere instead of this card alone staying hardcoded metric.
     @AppStorage(UnitPrefs.systemKey) private var unitSystemRaw = UnitSystem.metric.rawValue
     private var unitSystem: UnitSystem { UnitSystem(rawValue: unitSystemRaw) ?? .metric }
+    /// Skin temperature is the one card here that needs the temperature preference (°C/°F), resolved the
+    /// same way every other screen does it (`FullDayChartView`, `MetricExplorerView`): the explicit
+    /// override when set, else derived from the unit system.
+    @AppStorage(UnitPrefs.temperatureKey) private var temperatureRaw = ""
+    private var temperatureUnit: TemperatureUnit {
+        UnitPrefs.resolveTemperature(system: unitSystem, override: temperatureRaw)
+    }
 
     private func effortText(_ s: Double?) -> String {
         guard let s else { return "–" }
