@@ -74,6 +74,15 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.noop.ble.SourceCoordinator
+import com.noop.analytics.AgreementState
+import com.noop.analytics.MetricArbitrationPolicy
+import com.noop.analytics.StrapComparison
+import com.noop.data.DailyMetric
+import com.noop.data.WhoopRepository
+import androidx.compose.runtime.LaunchedEffect
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import com.noop.data.DeviceStatus
 import com.noop.data.PairedDeviceRow
 import com.noop.data.SourceKind
@@ -137,6 +146,7 @@ fun DevicesScreen(
     // Sheets / dialogs (mirror the Swift @State targets).
     var showAddWizard by remember { mutableStateOf(false) }
     var switchTarget by remember { mutableStateOf<PairedDeviceRow?>(null) }
+    var strapCompare by remember { mutableStateOf<StrapCompareData?>(null) }
     var renameTarget by remember { mutableStateOf<PairedDeviceRow?>(null) }
     var removeTarget by remember { mutableStateOf<PairedDeviceRow?>(null) }
     var deleteDataTarget by remember { mutableStateOf<PairedDeviceRow?>(null) }
@@ -153,6 +163,8 @@ fun DevicesScreen(
 
     val all = devices.orEmpty()
     val activeDevices = all.filter { it.status != DeviceStatus.archived.name }
+    // #1300 tier 2: recompute the two-strap comparison when the strap set changes.
+    LaunchedEffect(activeDevices) { strapCompare = loadStrapCompare(viewModel.repo, activeDevices) }
     val removedDevices = all.filter { it.status == DeviceStatus.archived.name }
     val currentActiveName =
         all.firstOrNull { it.status == DeviceStatus.active.name }?.let { displayName(it) }
@@ -313,6 +325,9 @@ fun DevicesScreen(
 
         // Prominent "+ Add a device" button.
         item { AddDeviceButton(onClick = { showAddWizard = true }) }
+
+        // #1300 tier 2: read-only "compare straps" card when 2 WHOOP straps share a readable day.
+        strapCompare?.let { c -> item { CompareCard(c) } }
 
         if (removedDevices.isNotEmpty()) {
             item { Overline("Removed", modifier = Modifier.padding(top = 4.dp)) }
@@ -527,6 +542,108 @@ fun DevicesScreen(
 /** One paired device as a [NoopCard]: name, brand·model, a capabilities line, a state pill, last-seen,
  *  and a per-device actions menu. The active device is tinted with the accent (WHOOP blue) and carries
  *  an "Active" pill. */
+// #1300 tier 2: the read-only two-strap comparison shown in the compare card.
+data class StrapCompareData(
+    val aName: String,
+    val bName: String,
+    val day: String,
+    val rows: List<StrapComparison.Row>,
+)
+
+/** Read the two most-recent WHOOP straps' dailies, find their latest SHARED day, and compare it per-metric
+ *  with the existing tolerances ([StrapComparison]). Read-only; never mixes into a score (I2). Pairwise.
+ *  Reads each strap by its own deviceId — never the hardcoded my-whoop (#1304). */
+private suspend fun loadStrapCompare(repo: WhoopRepository, devices: List<PairedDeviceRow>): StrapCompareData? {
+    // WHOOP or Oura — the sources that bank comparable dailies. Cross-source (Oura vs WHOOP) is exactly what
+    // the fusion tolerances are for; a plain HR strap has no dailies and self-excludes below.
+    val comparable = devices.filter { SourceCoordinator.isWhoop(it) || it.id.startsWith("oura-") }
+    if (comparable.size < 2) return null
+    val a = comparable[0]
+    val b = comparable[1]
+    // A DB read failure degrades to "no card" rather than crashing the screen — matching the Swift `try?`.
+    return runCatching {
+        // Read both straps concurrently — Room's query executor runs the two reads in parallel rather than
+        // one-after-the-other.
+        val (aDaily, bByDay) = coroutineScope {
+            val aD = async { repo.dailyMetrics(a.id, "0000-01-01", "9999-12-31") }
+            val bD = async { repo.dailyMetrics(b.id, "0000-01-01", "9999-12-31") }
+            aD.await() to bD.await().associateBy { it.day }
+        }
+        val shared = aDaily.sortedByDescending { it.day }.firstOrNull { bByDay.containsKey(it.day) }
+            ?: return@runCatching null
+        val bShared = bByDay[shared.day] ?: return@runCatching null
+        val rows = StrapComparison.compare(strapMetricValues(shared), strapMetricValues(bShared))
+        if (rows.isEmpty()) null else StrapCompareData(displayName(a), displayName(b), shared.day, rows)
+    }.getOrElse { e ->
+        // A DB error → no card; but NEVER swallow cancellation (screen disposed mid-read) — re-throw it so
+        // the coroutine cancels cooperatively (runCatching otherwise catches CancellationException too).
+        if (e is CancellationException) throw e
+        null
+    }
+}
+
+/** Map a stored DailyMetric onto the comparable MetricKinds it carries (heartRate has no daily field).
+ *  Twin of Swift `metricKindValues`. */
+private fun strapMetricValues(d: DailyMetric): Map<MetricArbitrationPolicy.MetricKind, Double> {
+    val out = HashMap<MetricArbitrationPolicy.MetricKind, Double>()
+    d.restingHr?.let { out[MetricArbitrationPolicy.MetricKind.RESTING_HR] = it.toDouble() }
+    d.avgHrv?.let { out[MetricArbitrationPolicy.MetricKind.HRV] = it }
+    d.spo2Pct?.let { out[MetricArbitrationPolicy.MetricKind.SPO2] = it }
+    d.skinTempDevC?.let { out[MetricArbitrationPolicy.MetricKind.SKIN_TEMP] = it }
+    d.steps?.let { out[MetricArbitrationPolicy.MetricKind.STEPS] = it.toDouble() }
+    d.totalSleepMin?.let { out[MetricArbitrationPolicy.MetricKind.SLEEP] = it }
+    d.activeKcalEst?.let { out[MetricArbitrationPolicy.MetricKind.CALORIES] = it }
+    return out
+}
+
+/** Short metric label. Non-@Composable (hardcoded, audit-blindspot) to match the rhythm-screen copy pattern. */
+private fun strapMetricLabel(m: MetricArbitrationPolicy.MetricKind): String = when (m) {
+    MetricArbitrationPolicy.MetricKind.RESTING_HR -> "Resting HR"
+    MetricArbitrationPolicy.MetricKind.HEART_RATE -> "Heart rate"
+    MetricArbitrationPolicy.MetricKind.HRV -> "HRV"
+    MetricArbitrationPolicy.MetricKind.SPO2 -> "SpO₂"
+    MetricArbitrationPolicy.MetricKind.SKIN_TEMP -> "Skin temp"
+    MetricArbitrationPolicy.MetricKind.STEPS -> "Steps"
+    MetricArbitrationPolicy.MetricKind.SLEEP -> "Sleep"
+    MetricArbitrationPolicy.MetricKind.CALORIES -> "Calories"
+    MetricArbitrationPolicy.MetricKind.OTHER -> ""
+}
+
+private fun strapAgreementLabel(a: AgreementState): Pair<String, StrandTone> = when (a) {
+    AgreementState.AGREE -> "match" to StrandTone.Positive
+    AgreementState.MINOR_DELTA -> "close" to StrandTone.Neutral
+    AgreementState.CONFLICT -> "differs" to StrandTone.Warning
+    AgreementState.SINGLE -> "one strap" to StrandTone.Neutral
+}
+
+private fun strapValue(v: Double?): String = v?.let { "%.0f".format(it) } ?: "—"
+
+private fun strapCompareFootnote(): String =
+    "A read-only look at your last shared day — not a combined score. Different devices read a little differently, so a difference isn't necessarily wrong."
+
+@Composable
+private fun CompareCard(c: StrapCompareData) {
+    NoopCard(padding = 18.dp, tint = Palette.accent) {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Overline("How your straps compare")
+            Row {
+                Text(c.aName, style = NoopType.caption, color = Palette.textSecondary, modifier = Modifier.weight(1f))
+                Text(c.bName, style = NoopType.caption, color = Palette.textSecondary)
+            }
+            c.rows.forEach { row ->
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(strapMetricLabel(row.metric), style = NoopType.subhead, color = Palette.textPrimary, modifier = Modifier.weight(1f))
+                    Text(strapValue(row.a), style = NoopType.captionNumber, color = Palette.textPrimary)
+                    Text(strapValue(row.b), style = NoopType.captionNumber, color = Palette.textPrimary)
+                    val (label, tone) = strapAgreementLabel(row.agreement)
+                    StatePill(label, tone = tone)
+                }
+            }
+            Text(strapCompareFootnote(), style = NoopType.footnote, color = Palette.textTertiary)
+        }
+    }
+}
+
 @Composable
 private fun StrapSwitcher(devices: List<PairedDeviceRow>, onSelect: (PairedDeviceRow) -> Unit) {
     // #1300: a compact segmented switcher over the paired straps. The active one is highlighted; tapping
