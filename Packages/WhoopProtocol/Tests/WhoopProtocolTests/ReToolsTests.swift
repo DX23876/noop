@@ -221,6 +221,72 @@ final class ReToolsTests: XCTestCase {
         XCTAssertEqual(s.meanAbsError!, 0.0, accuracy: 1e-9)
     }
 
+    // MARK: - E) gravity2 characterization (#1308)
+
+    func testGravityPairDetectsIdenticalVsDistinct() {
+        // Group A: gravity2 == gravity exactly → identical (a mere copy).
+        var identical: [ReTools.Record] = []
+        for i in 0..<50 {
+            let g = 0.1 * Double(i % 7) - 0.3
+            identical.append(rec(frame(type: "HISTORICAL_DATA", seq: 24, len: 4,
+                parsed: ["gravity_x": g, "gravity_y": g + 0.5, "gravity_z": 0.9,
+                         "gravity2_x": g, "gravity2_y": g + 0.5, "gravity2_z": 0.9]),
+                bytes: [0, 0, 0, 0]))
+        }
+        let ig = ReTools.gravityPair(identical).first { $0.key == "HISTORICAL_DATA/v24" }!
+        XCTAssertTrue(ig.identicalToPrimary)
+        XCTAssertEqual(ig.axes.count, 3)
+        XCTAssertEqual(ig.axes.first { $0.axis == "x" }!.maxAbsDelta, 0.0, accuracy: 1e-12)
+
+        // Group B: gravity2_x is a constant +0.2 offset → DIFFERS, but still perfectly correlated
+        // (a bias, not a different sensor). meanDelta ≈ +0.2, correlation ≈ 1.
+        var offset: [ReTools.Record] = []
+        for i in 0..<50 {
+            let g = 0.05 * Double(i)
+            offset.append(rec(frame(type: "HISTORICAL_DATA", seq: 25, len: 4,
+                parsed: ["gravity_x": g, "gravity_y": 0.0, "gravity_z": 1.0,
+                         "gravity2_x": g + 0.2, "gravity2_y": 0.0, "gravity2_z": 1.0]),
+                bytes: [0, 0, 0, 0]))
+        }
+        let og = ReTools.gravityPair(offset).first { $0.key == "HISTORICAL_DATA/v25" }!
+        XCTAssertFalse(og.identicalToPrimary)
+        let ax = og.axes.first { $0.axis == "x" }!
+        XCTAssertEqual(ax.meanDelta, 0.2, accuracy: 1e-9)
+        XCTAssertEqual(ax.correlation!, 1.0, accuracy: 1e-9)
+    }
+
+    func testGravityPairExcludesOffWristSamples() {
+        // 40 on-wrist records where gravity2 == gravity (identical), plus 10 OFF-WRIST records
+        // (skin_contact=0) where gravity2 diverges wildly. If off-wrist weren't excluded, the divergent
+        // samples would flip the verdict to DIFFERS. They must be dropped → still identical, 10 excluded.
+        var recs: [ReTools.Record] = []
+        for i in 0..<40 {
+            let g = 0.02 * Double(i)
+            recs.append(rec(frame(type: "HISTORICAL_DATA", seq: 24, len: 4,
+                parsed: ["skin_contact": 1, "gravity_x": g, "gravity_y": 0.0, "gravity_z": 1.0,
+                         "gravity2_x": g, "gravity2_y": 0.0, "gravity2_z": 1.0]),
+                bytes: [0, 0, 0, 0]))
+        }
+        for _ in 0..<10 {
+            recs.append(rec(frame(type: "HISTORICAL_DATA", seq: 24, len: 4,
+                parsed: ["skin_contact": 0, "gravity_x": 0.0, "gravity_y": 0.0, "gravity_z": 0.0,
+                         "gravity2_x": 99.0, "gravity2_y": 99.0, "gravity2_z": 99.0]),
+                bytes: [0, 0, 0, 0]))
+        }
+        let g = ReTools.gravityPair(recs).first { $0.key == "HISTORICAL_DATA/v24" }!
+        XCTAssertEqual(g.excludedOffWrist, 10)
+        XCTAssertEqual(g.axes.first { $0.axis == "x" }!.n, 40)   // only on-wrist paired
+        XCTAssertTrue(g.identicalToPrimary)                      // off-wrist divergence did NOT leak in
+    }
+
+    func testGravityPairSkipsRecordsMissingEitherTriplet() {
+        // Only the primary triplet present → no pairs → group omitted (not a crash, not a fake 0).
+        let recs = [rec(frame(type: "HISTORICAL_DATA", seq: 24, len: 4,
+                              parsed: ["gravity_x": 0.1, "gravity_y": 0.2, "gravity_z": 0.9]),
+                        bytes: [0, 0, 0, 0])]
+        XCTAssertTrue(ReTools.gravityPair(recs).isEmpty)
+    }
+
     func testGroundTruthNilStatsWhenNothingMatches() {
         let recs = [rec(frame(type: "HISTORICAL_DATA", seq: 26, len: 4, parsed: ["hrv": 50.0]),
                         bytes: [0, 0, 0, 0], ts: 1000)]
