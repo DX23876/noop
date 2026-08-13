@@ -49,9 +49,11 @@ struct ScreenScaffold<Content: View, Trailing: View>: View {
             // One shared page gutter keeps every screen aligned with Today and the grouped lists.
             .padding(.horizontal, NoopMetrics.screenHPadding)
             .padding(.top, 24)
-            // The tab bar floats over the scroll content, so the last card sat hidden behind it.
-            // Reserve extra bottom scroll room so every screen's final card clears the floating bar.
-            .padding(.bottom, NoopMetrics.tabBarClearance)
+            // No tab-bar reserve here any more. The iOS shell uses the PLATFORM tab bar, which is part
+            // of the safe area, so the scroll view already ends above it. The old
+            // `NoopMetrics.tabBarClearance` compensated for a custom bar drawn OVER the content; keeping
+            // it would leave a second, empty gap under every screen's last card.
+            .padding(.bottom, 24)
             // iPad: cap the readable column, then centre it in the full-width scroll viewport.
             // iPhone (.compact): the inner frame is .infinity/.leading, identical to before.
             .frame(maxWidth: hSizeClass == .regular ? 700 : .infinity,

@@ -28,7 +28,6 @@ public enum NoopMetrics {
     /// Canonical compact provenance-chip height; shared with overlays that align the chip to a border.
     public static let sourceBadgeHeight: CGFloat = 18
     public static let hypnogramBandMinThickness: CGFloat = 14  // floor so short stages read as bars, not ticks
-    public static let tabBarClearance: CGFloat = 76  // iOS: extra bottom scroll room so the last card clears the floating tab bar
 
     // MARK: Standardised spacing scale (the ONE source of truth for margins)
     //
