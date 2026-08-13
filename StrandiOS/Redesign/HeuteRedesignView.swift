@@ -140,7 +140,9 @@ struct HeuteRedesignView: View {
             // `LiquidTodayView.swift`'s own top padding for its header/title ("sit the title lower into
             // the sky, not jammed under the status bar") — the concrete reference the feedback asked for.
             .padding(.top, 30)
-            .padding(.bottom, NoopMetrics.tabBarClearance)
+            // The platform tab bar is part of the safe area, so no extra reserve is needed — see the
+            // same note in `ScreenScaffold`.
+            .padding(.bottom, 24)
         }
         // Pull-to-refresh / manual strap sync — the other two Today screens have this via
         // ScreenScaffold's onRefresh (which is exactly this under the hood); Heute doesn't use

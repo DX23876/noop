@@ -94,13 +94,6 @@ struct CoachView: View {
     /// Apple-inspired leading-icon coloring (SettingsView's "Apple-inspired colors") — same switch that
     /// recolors the More tab and Coach's submenus. See `CoachIconColors`.
     @AppStorage(AppleInspiredColorsPrefs.enabledKey) private var appleHealthColors = AppleInspiredColorsPrefs.defaultEnabled
-    #if os(iOS)
-    /// Extra clearance the composer needs to clear RootTabView's floating tab bar, which is drawn on
-    /// top of pushed content and isn't part of this screen's own safe area. Zero everywhere else: a
-    /// `.coachCover` full-screen presentation (no bar drawn over it — see that helper) and every
-    /// macOS build (no such key exists there at all, hence this whole property being iOS-only).
-    @Environment(\.floatingTabBarInset) private var floatingTabBarInset
-    #endif
 
     private let suggestions = [
         String(localized: "How's my charge trending?"),
@@ -1256,21 +1249,11 @@ struct CoachView: View {
             .strokeBorder(composerFocused ? StrandPalette.focusRing : StrandPalette.hairline, lineWidth: 1))
         .animation(reduceMotion ? nil : .easeOut(duration: 0.18), value: composerFocused)
         .padding(.horizontal, 12)
-        // Base breathing room above the safe area, unconditionally. On top of it, ADD whatever the
-        // floating tab bar needs (0 outside the tab shell — see the property above) rather than
-        // replacing this, so the composer keeps its normal spacing when there's no bar to clear.
-        .padding(.bottom, 8 + composerFloatingBarClearance)
-    }
-
-    /// 0 on macOS and inside `.coachCover` (no floating bar there); the bar's measured height inside
-    /// RootTabView's pushed content (e.g. Coach opened from the More list — the "composer hidden
-    /// behind the tab bar" bug this exists to fix).
-    private var composerFloatingBarClearance: CGFloat {
-        #if os(iOS)
-        floatingTabBarInset
-        #else
-        0
-        #endif
+        // Breathing room above the safe area. Nothing is added for the tab bar any more: the iOS shell
+        // uses the PLATFORM bar, which is part of the safe area, so a bottom-docked composer is lifted
+        // clear of it by the system. The old `+ composerFloatingBarClearance` compensated for a custom
+        // bar drawn ON TOP of pushed content — keeping it now would double the gap.
+        .padding(.bottom, 8)
     }
 
     /// While a reply streams, the send affordance becomes a Stop button; otherwise it sends the draft.
@@ -1386,14 +1369,6 @@ extension View {
                 // rather than per-entry-point means every route (Today card, floating button, More tab,
                 // notification deep link) clears it identically.
                 .onAppear { coach.markCoachMessagesSeen() }
-                #if os(iOS)
-                // This is always a true full-screen presentation — no floating tab bar is ever drawn
-                // over it. Reset explicitly rather than relying on the caller not having one: the
-                // Today-card entry point calls `.coachCover` on Today's OWN view, which — being a
-                // descendant of RootTabView's TabView — would otherwise inherit its non-zero
-                // `floatingTabBarInset` and add a gap the composer doesn't need here.
-                .environment(\.floatingTabBarInset, 0)
-                #endif
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) {
                         Button("Close") { isPresented.wrappedValue = false }
