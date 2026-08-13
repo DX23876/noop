@@ -34,10 +34,42 @@ final class GoalTrackingEngineTests: XCTestCase {
                                     isAutomatic: false)
     }
 
-    func testEightyPercentThresholdRoundsUp() {
+    /// The engine forwards to `GoalMeasure.requiredCompletions`, whose own tests pin the full table.
+    /// This one guards the forwarding — and documents the change: the old rule was a plain
+    /// `ceil(planned × 0.8)`, which demanded 100% of every week with 1-4 commitments (2→2, 3→3, 4→4)
+    /// and only ever applied the advertised 80% from five up. A small week may now drop one.
+    /// The clamped fraction cannot distinguish "hasn't started" from "moved backwards past the
+    /// starting point" — both read 0 — nor "just reached it" from "well past it". The card needs the
+    /// unclamped value to put either into words, so the snapshot carries both.
+    func testRawProgressFractionKeepsRegressionAndOvershoot() {
+        // Losing weight: 80 kg start, 75 kg target. Currently 82 kg — the wrong side of the start.
+        let losing = CoachGoal(kind: .weight, title: "Lighter", baseline: 80, target: 75,
+                               createdAt: date("2026-03-01"))
+        let regressed = GoalTrackingEngine.evaluate(goal: losing, proposals: [],
+                                                    measurement: .init(value: 82, date: date("2026-03-18")),
+                                                    now: date("2026-03-18"), calendar: calendar)
+        XCTAssertEqual(regressed.progressFraction, 0, "the bar still clamps")
+        XCTAssertNotNil(regressed.rawProgressFraction)
+        XCTAssertLessThan(regressed.rawProgressFraction!, 0, "regression must stay visible")
+
+        // Past the target: 73 kg against a 75 kg target.
+        let overshot = GoalTrackingEngine.evaluate(goal: losing, proposals: [],
+                                                   measurement: .init(value: 73, date: date("2026-03-18")),
+                                                   now: date("2026-03-18"), calendar: calendar)
+        XCTAssertEqual(overshot.progressFraction, 1, "the bar still clamps")
+        XCTAssertGreaterThan(overshot.rawProgressFraction!, 1, "overshoot must stay visible")
+
+        // An unquantified goal has neither.
+        let held = GoalTrackingEngine.evaluate(goal: goal(), proposals: [], measurement: nil,
+                                               now: date("2026-03-18"), calendar: calendar)
+        XCTAssertNil(held.progressFraction)
+        XCTAssertNil(held.rawProgressFraction)
+    }
+
+    func testWeeklyThresholdAllowsOneMissInASmallWeek() {
         XCTAssertEqual(GoalTrackingEngine.requiredCompletions(for: 1), 1)
-        XCTAssertEqual(GoalTrackingEngine.requiredCompletions(for: 2), 2)
-        XCTAssertEqual(GoalTrackingEngine.requiredCompletions(for: 3), 3)
+        XCTAssertEqual(GoalTrackingEngine.requiredCompletions(for: 2), 1)
+        XCTAssertEqual(GoalTrackingEngine.requiredCompletions(for: 3), 2)
         XCTAssertEqual(GoalTrackingEngine.requiredCompletions(for: 5), 4)
     }
 

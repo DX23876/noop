@@ -35,10 +35,34 @@ enum AppleDemoSeeder {
     static func seedIfRequested(into store: WhoopStore) async {
         guard requested else { return }
         seedDemoDeviceIfNeeded(into: store)
+        await seedDemoGoalIfNeeded()
         let existing = (try? await store.dailyMetrics(deviceId: whoop, from: "0000-00-00", to: "9999-99-99")) ?? []
         guard existing.isEmpty else { return }
         do { try await seed(into: store) }
         catch { NSLog("AppleDemoSeeder: seed failed — \(error)") }
+    }
+
+    /// DEBUG/demo-only: a weight goal with runway behind it, so the goal screens have something to
+    /// render under `--demo-seed`.
+    ///
+    /// This exists because the goal UI was, until now, unverifiable anywhere but a real device: the
+    /// seeder filled workouts, sleep and weight but never a goal, so every goal screen sat on its
+    /// empty state and a visual check was impossible. Dates are relative, so the route always has
+    /// waypoints in the past AND ahead, and the course reading has enough history to fit a rate.
+    /// No-op once any goal exists — it never touches a real one.
+    @MainActor
+    private static func seedDemoGoalIfNeeded() async {
+        let store = CoachGoalStore.shared
+        guard store.goals.isEmpty else { return }
+        let now = Date()
+        store.goals = [
+            CoachGoal(kind: .weight,
+                      title: "Leichter werden",
+                      baseline: 100,
+                      target: 70,
+                      targetDate: now.addingTimeInterval(120 * 86_400),
+                      createdAt: now.addingTimeInterval(-60 * 86_400))
+        ]
     }
 
     /// DEBUG/demo-only: so the Devices screen renders with content under `--demo-seed`, pair a second
