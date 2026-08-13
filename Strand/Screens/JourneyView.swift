@@ -377,39 +377,31 @@ struct JourneyView: View {
             + JourneyExplain.sessionRule(for: goal.kind).definition
     }
 
-    /// A real, measured fraction — only when there's an actual current value AND both ends of the range
-    /// to place it in. Anything less falls through to `fallbackProgressLine`.
+    /// A real, measured fraction and the sentence that places it.
+    ///
+    /// The fraction is NOT computed here. It comes from `snapshot.progressFraction`, i.e. from
+    /// `GoalTrackingEngine`, which is also what the Today ring and the goal card draw. This page used
+    /// to re-derive it — and for a consistency goal it derived a DIFFERENT rule (`sessions / target`
+    /// against the engine's `(sessions − baseline) / (target − baseline)`), so the same goal read 67%
+    /// here and 50% two screens away. One rule, one place, no second opinion.
     private func measuredProgress(_ goal: CoachGoal) -> (fraction: Double?, line: String)? {
         guard let snapshot = trackingStore.snapshot(for: goal.id),
               let measurement = snapshot.measurement else { return nil }
-        func ranged(_ current: Double, unit: String) -> (fraction: Double?, line: String) {
-            guard let baseline = goal.baseline, let target = goal.target, target != baseline else {
-                return (nil, String(format: "Currently %.1f %@. Set a starting point and target to see a "
-                                    + "progress bar.", current, unit))
-            }
-            let frac = min(1, max(0, (current - baseline) / (target - baseline)))
-            let line = String(format: "%.1f %@ now, from %.1f toward %.1f %@.",
-                              current, unit, baseline, target, unit)
-            return (frac, line)
+        let value = measurement.value
+        let unit = goal.kind.unit
+        // Held, not scored: the kinds NOOP can put a number on without knowing what "on track" would
+        // mean for them. A number with no bar and no percentage, said in as many words.
+        guard goal.kind.isQuantified else {
+            return (nil, String(format: "Currently %.1f %@ — held, not scored.", value, unit))
         }
-        switch goal.kind {
-        case .run:
-            return ranged(measurement.value, unit: "km")
-        case .sleep:
-            return ranged(measurement.value, unit: "h")
-        case .weight:
-            return ranged(measurement.value, unit: "kg")
-        case .consistency:
-            let sessions = measurement.value
-            guard let target = goal.target, target > 0 else {
-                return nil
-            }
-            let frac = min(1, max(0, sessions / target))
-            return (frac, String(format: "Averaging %.1f sessions/week toward a target of %.0f.",
-                                 sessions, target))
-        case .strength, .stress, .recovery, .custom:
-            return nil
+        guard let baseline = goal.baseline, let target = goal.target, target != baseline else {
+            return (nil, String(format: "Currently %.1f %@. Set a starting point and target to see a "
+                                + "progress bar.", value, unit))
         }
+        let line = goal.kind == .consistency
+            ? String(format: "Averaging %.1f %@, from %.1f toward %.1f.", value, unit, baseline, target)
+            : String(format: "%.1f %@ now, from %.1f toward %.1f %@.", value, unit, baseline, target, unit)
+        return (snapshot.progressFraction, line)
     }
 
     // MARK: - Explanations & manual logging
@@ -575,20 +567,14 @@ struct JourneyView: View {
                     .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
                     HStack(spacing: 6) {
                         ForEach(snapshot.recentWeeks) { week in
-                            VStack(spacing: 3) {
-                                RoundedRectangle(cornerRadius: 3)
-                                    .fill(weekColor(week.state))
-                                    .frame(height: 8)
-                                Text(week.start.formatted(.dateTime.day().month(.abbreviated)))
-                                    .font(.system(size: 8)).foregroundStyle(StrandPalette.textTertiary)
-                            }
-                            .frame(maxWidth: .infinity)
-                            .accessibilityElement(children: .ignore)
-                            .accessibilityLabel(weekAccessibility(week))
+                            weekColumn(week, isCurrent: false)
                         }
+                        // The running week, drawn hollow — same rule `GoalWeekGrid` follows: `pending`
+                        // is not a verdict, and a week still in progress must not read as a failed one.
+                        weekColumn(snapshot.currentWeek, isCurrent: true)
                     }
-                    Text(snapshot.nextAction)
-                        .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
+                    // `nextAction` deliberately does NOT repeat here: the goal card and the portfolio
+                    // header already carry it, and this card's subject is execution, not the next step.
                 } else {
                     Text("Goal-week tracking is loading.")
                         .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
@@ -598,13 +584,29 @@ struct JourneyView: View {
         }
     }
 
-    private func weekColor(_ state: GoalTrackingSnapshot.WeekState) -> Color {
-        switch state {
-        case .successful:   return StrandPalette.accent
-        case .unsuccessful: return StrandPalette.statusWarning
-        case .protected:    return StrandPalette.chargeColor
-        case .neutral, .pending: return StrandPalette.hairline
+    /// One dated week chip. The colour comes from `GoalWeekGrid.tint` — the SAME table the goal card
+    /// and the Today tile read. This card used to carry its own switch with different answers
+    /// ("successful" accent here, statusPositive there), so one goal's week was two colours depending
+    /// on which screen you were looking at.
+    private func weekColumn(_ week: GoalTrackingSnapshot.GoalWeek, isCurrent: Bool) -> some View {
+        let tint = GoalWeekGrid.tint(for: week.state)
+        return VStack(spacing: 3) {
+            Group {
+                if isCurrent {
+                    RoundedRectangle(cornerRadius: 3).strokeBorder(tint, lineWidth: 1.5)
+                } else {
+                    RoundedRectangle(cornerRadius: 3).fill(tint)
+                }
+            }
+            .frame(height: 8)
+            Text(week.start.formatted(.dateTime.day().month(.abbreviated)))
+                .font(.system(size: 8)).foregroundStyle(StrandPalette.textTertiary)
         }
+        .frame(maxWidth: .infinity)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(isCurrent
+                            ? "This week: " + weekAccessibility(week)
+                            : weekAccessibility(week))
     }
 
     private func weekAccessibility(_ week: GoalTrackingSnapshot.GoalWeek) -> String {
@@ -662,7 +664,10 @@ struct JourneyView: View {
         let achieved = JourneyMilestones.achieved(inputs)
         return NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
             VStack(alignment: .leading, spacing: 10) {
-                Text("Milestones").strandOverline()
+                // NOT "Milestones": that word already means the dated waypoints under "Your route"
+                // (`CoachGoal.Milestone`), and having both on one page made the plan and the
+                // retrospect read as the same thing. This card is the retrospect.
+                Text("What you've reached").strandOverline()
                 if achieved.isEmpty {
                     Text("Nothing yet — that's normal for a goal this new.")
                         .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
@@ -695,11 +700,12 @@ struct JourneyView: View {
         }
     }
 
-    /// What a milestone is here — facts about what happened, not a streak or a score — and which inputs
-    /// each one reads. Mirrors `JourneyMilestones.achieved`.
+    /// What this card records — facts about what happened, not a streak or a score — and which inputs
+    /// each one reads. Mirrors `JourneyMilestones.achieved`. Deliberately worded WITHOUT the word
+    /// "milestone", which on this page belongs to the dated waypoints under "Your route".
     private func milestoneExplanation(_ goal: CoachGoal) -> String {
         let rule = JourneyExplain.sessionRule(for: goal.kind)
-        return String(localized: "Milestones are statements about what has already happened, never streaks or scores: a first week with at least one \(rule.noun) done, the \(rule.pluralNoun) you've completed, your longest recorded run, a week without a pain or illness skip, and a week whose average Charge ran higher than the one before it.")
+        return String(localized: "These are statements about what has already happened, never streaks or scores: a first week with at least one \(rule.localizedNoun) done, the \(rule.localizedPluralNoun) you've completed, your longest recorded run, a week without a pain or illness skip, and a week whose average Charge ran higher than the one before it. The dated waypoints ahead of you live under Your route.")
     }
 
     private func milestoneInputs(_ goal: CoachGoal) -> JourneyMilestones.Inputs {
@@ -759,11 +765,14 @@ struct JourneyView: View {
 
     private var planHistoryCard: some View {
         let today = Repository.localDayKey(Date())
+        // Scoped to THIS goal. Without the `serves` filter the card listed every goal's sessions on
+        // every goal's journey — with several goals active at once (#R-multi-goal) that is simply the
+        // wrong page's history, and the plan store already has the predicate for it.
         let recent = planStore.proposals
-            .filter { $0.day < today && $0.status.isDecided }
+            .filter { $0.serves(goalId) && $0.day < today && $0.status.isDecided }
             .sorted { $0.day > $1.day }
             .prefix(10)
-        let upcoming = planStore.commitments(fromDay: today)
+        let upcoming = planStore.commitments(fromDay: today).filter { $0.serves(goalId) }
 
         return NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
             VStack(alignment: .leading, spacing: 10) {

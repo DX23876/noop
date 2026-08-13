@@ -705,35 +705,6 @@
         }
       }
     },
-    "51 bpm": {
-      "extractionState": "stale",
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "51 bpm"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "51 bpm"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "51 bpm"
-          }
-        },
-        "pt-PT": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "51 bpm"
-          }
-        }
-      }
-    },
     "7h 42m asleep · 92% efficiency": {
       "extractionState": "stale",
       "localizations": {
@@ -763,6 +734,35 @@
         }
       }
     },
+    "51 bpm": {
+      "extractionState": "stale",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "51 bpm"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "51 bpm"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "51 bpm"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "51 bpm"
+          }
+        }
+      }
+    },
     "87% · streaming": {
       "extractionState": "stale",
       "localizations": {
@@ -788,46 +788,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "87% · streaming"
-          }
-        }
-      }
-    },
-    "ALL-OUT": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "MAXIMAL"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "ALL-OUT"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "All-OUT"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "TOUT"
-          }
-        },
-        "pt-PT": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "TOTALMENTE"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "НА ПРЕДЕЛЕ"
           }
         }
       }
@@ -896,6 +856,46 @@
         }
       }
     },
+    "ALL-OUT": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "MAXIMAL"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ALL-OUT"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All-OUT"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TOUT"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TOTALMENTE"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "НА ПРЕДЕЛЕ"
+          }
+        }
+      }
+    },
     "Apple Health": {
       "localizations": {
         "de": {
@@ -948,6 +948,46 @@
         }
       }
     },
+    "asleep %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ geschlafen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "asleep %@"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "dormido %1$@"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "sommeil %1$@"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "a dormir %@"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "во сне %@"
+          }
+        }
+      }
+    },
     "Aurora": {
       "localizations": {
         "de": {
@@ -996,6 +1036,46 @@
           "stringUnit": {
             "state": "translated",
             "value": "極光"
+          }
+        }
+      }
+    },
+    "average %@ bpm": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "durchschnittlich %@ bpm"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "average %@ bpm"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "promedio %1$@ bpm"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "moyenne %1$@ bpm"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "média de %@ bpm"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "среднее %@ уд/мин"
           }
         }
       }
@@ -1058,58 +1138,6 @@
         }
       }
     },
-    "BPM": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "BPM"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "PPM"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "BPM"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "BPM"
-          }
-        },
-        "pt-PT": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "BPM"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "УД/МИН"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "BPM"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "BPM"
-          }
-        }
-      }
-    },
     "Bar only": {
       "extractionState": "stale",
       "localizations": {
@@ -1168,6 +1196,58 @@
         }
       }
     },
+    "BPM": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "BPM"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PPM"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "BPM"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "BPM"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "BPM"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "УД/МИН"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "BPM"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "BPM"
+          }
+        }
+      }
+    },
     "Building": {
       "localizations": {
         "de": {
@@ -1216,35 +1296,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "建立中"
-          }
-        }
-      }
-    },
-    "COUNT-UP SCORE": {
-      "extractionState": "stale",
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "ANWENDUNGSBEREICH"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "COUNT-UP SCORE"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "COUNT-UP SCORE"
-          }
-        },
-        "pt-PT": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "COUNT-UP SCORE"
           }
         }
       }
@@ -1486,6 +1537,35 @@
         }
       }
     },
+    "COUNT-UP SCORE": {
+      "extractionState": "stale",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ANWENDUNGSBEREICH"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "COUNT-UP SCORE"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "COUNT-UP SCORE"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "COUNT-UP SCORE"
+          }
+        }
+      }
+    },
     "Custom": {
       "localizations": {
         "de": {
@@ -1534,46 +1614,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Custom"
-          }
-        }
-      }
-    },
-    "DEPLETED": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "ERSCHÖPFT"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "DEPLETED"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "DEPLETED"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "DÉPLACÉ"
-          }
-        },
-        "pt-PT": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "ESGOTADO"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "РАЗРЯЖЕН"
           }
         }
       }
@@ -1793,6 +1833,46 @@
         }
       }
     },
+    "DEPLETED": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ERSCHÖPFT"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "DEPLETED"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "DEPLETED"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "DÉPLACÉ"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ESGOTADO"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "РАЗРЯЖЕН"
+          }
+        }
+      }
+    },
     "Done": {
       "localizations": {
         "de": {
@@ -1938,6 +2018,7 @@
       }
     },
     "Filled": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -1991,6 +2072,58 @@
           "stringUnit": {
             "state": "translated",
             "value": "填滿"
+          }
+        }
+      }
+    },
+    "Fit": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Einpassen"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ajustar"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ajuster"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ajustar"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Adatta"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Вписать"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "适应"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "適應"
           }
         }
       }
@@ -2186,6 +2319,63 @@
         }
       }
     },
+    "Headline / Semibold 17": {
+      "extractionState": "stale",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Headline / Semibold 17"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Título / Semibold 17"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Entête / Semibold 17"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Título/Seminegrito 17"
+          }
+        }
+      }
+    },
+    "Heart rate, 24 hours": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Herzfrequenz, 24 Stunden"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Frecuencia cardíaca, 24 horas"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fréquence cardiaque, 24 heures"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Frequência cardíaca, 24 horas"
+          }
+        }
+      }
+    },
     "HIGH": {
       "localizations": {
         "de": {
@@ -2244,88 +2434,31 @@
         }
       }
     },
-    "HRV (ms) — 30 days": {
+    "hour %lld": {
       "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "HRV (ms) — 30 Tage"
+            "value": "Stunde %1$lld"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "HRV (ms) - 30 días"
+            "value": "hora %1$lld"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "HRV (ms) — 30 jours"
+            "value": "heure %1$lld"
           }
         },
         "pt-PT": {
           "stringUnit": {
             "state": "translated",
-            "value": "VFC (ms) – 30 dias"
-          }
-        }
-      }
-    },
-    "Headline / Semibold 17": {
-      "extractionState": "stale",
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Headline / Semibold 17"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Título / Semibold 17"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Entête / Semibold 17"
-          }
-        },
-        "pt-PT": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Título/Seminegrito 17"
-          }
-        }
-      }
-    },
-    "Heart rate, 24 hours": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Herzfrequenz, 24 Stunden"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Frecuencia cardíaca, 24 horas"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Fréquence cardiaque, 24 heures"
-          }
-        },
-        "pt-PT": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Frequência cardíaca, 24 horas"
+            "value": "hora %lld"
           }
         }
       }
@@ -2562,6 +2695,35 @@
         }
       }
     },
+    "HRV (ms) — 30 days": {
+      "extractionState": "stale",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "HRV (ms) — 30 Tage"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "HRV (ms) - 30 días"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "HRV (ms) — 30 jours"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "VFC (ms) – 30 dias"
+          }
+        }
+      }
+    },
     "In a card": {
       "extractionState": "stale",
       "localizations": {
@@ -2591,100 +2753,60 @@
         }
       }
     },
-    "LIGHT": {
+    "just now": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "LEICHT"
+            "value": "gerade eben"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "LIGHT"
+            "value": "just now"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "LUZ"
+            "value": "ahora mismo"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "LUMIÈRE"
-          }
-        },
-        "pt-PT": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "LUZ"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "ЛЁГКИЙ"
-          }
-        }
-      }
-    },
-    "LOW": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "NIEDRIG"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "LOW"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "BAJO"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "FAIBLE"
+            "value": "à l'instant"
           }
         },
         "it": {
           "stringUnit": {
             "state": "translated",
-            "value": "BASSO"
+            "value": "proprio ora"
           }
         },
         "pt-PT": {
           "stringUnit": {
             "state": "translated",
-            "value": "BAIXO"
+            "value": "agora mesmo"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "НИЗКИЙ"
+            "value": "только что"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "低"
+            "value": "刚刚"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "低"
+            "value": "剛剛"
           }
         }
       }
@@ -2776,6 +2898,46 @@
         }
       }
     },
+    "LIGHT": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "LEICHT"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "LIGHT"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "LUZ"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "LUMIÈRE"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "LUZ"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ЛЁГКИЙ"
+          }
+        }
+      }
+    },
     "Live": {
       "localizations": {
         "de": {
@@ -2828,42 +2990,60 @@
         }
       }
     },
-    "MODERATE": {
+    "LOW": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "MODERAT"
+            "value": "NIEDRIG"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "MODERATE"
+            "value": "LOW"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "MODERATE"
+            "value": "BAJO"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "MODÉRATE"
+            "value": "FAIBLE"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "BASSO"
           }
         },
         "pt-PT": {
           "stringUnit": {
             "state": "translated",
-            "value": "MODERADO"
+            "value": "BAIXO"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "УМЕРЕННЫЙ"
+            "value": "НИЗКИЙ"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "低"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "低"
           }
         }
       }
@@ -2972,6 +3152,46 @@
         }
       }
     },
+    "MODERATE": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "MODERAT"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "MODERATE"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "MODERATE"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "MODÉRATE"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "MODERADO"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "УМЕРЕННЫЙ"
+          }
+        }
+      }
+    },
     "Movement during sleep": {
       "localizations": {
         "de": {
@@ -2996,58 +3216,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Movimento durante o sono"
-          }
-        }
-      }
-    },
-    "NOOP": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "NOOP"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "NOOP"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "NOOP"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "NOOP"
-          }
-        },
-        "pt-PT": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "NOOP"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "NOOP"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "NOOP"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "NOOP"
           }
         }
       }
@@ -3198,6 +3366,58 @@
           "stringUnit": {
             "state": "translated",
             "value": "Нет данных о пульсе"
+          }
+        }
+      }
+    },
+    "NOOP": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "NOOP"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "NOOP"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "NOOP"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "NOOP"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "NOOP"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "NOOP"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "NOOP"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "NOOP"
           }
         }
       }
@@ -3370,46 +3590,6 @@
         }
       }
     },
-    "PRIMED": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "BEREIT"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "PRIMED"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "PRIMERA"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "PRIMAIRE"
-          }
-        },
-        "pt-PT": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "PRIMADO"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "ЗАРЯЖЕН"
-          }
-        }
-      }
-    },
     "Pick a date": {
       "localizations": {
         "de": {
@@ -3514,31 +3694,82 @@
         }
       }
     },
-    "RECOVERY GRADIENT": {
-      "extractionState": "stale",
+    "PRIMED": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "RÜCKWERTE"
+            "value": "BEREIT"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PRIMED"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "RECOVERY GRADIENT"
+            "value": "PRIMERA"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "GRADIENT DE RÉCUPÉRATION"
+            "value": "PRIMAIRE"
           }
         },
         "pt-PT": {
           "stringUnit": {
             "state": "translated",
-            "value": "GRADIENTE DE RECUPERAÇÃO"
+            "value": "PRIMADO"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ЗАРЯЖЕН"
+          }
+        }
+      }
+    },
+    "range %@ to %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bereich %@ bis %@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "range %@ to %@"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "rango %1$@ a %2$@"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "gamme %1$@ à %2$@"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "intervalo de %@ a %@"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "диапазон от %@ до %@"
           }
         }
       }
@@ -3591,6 +3822,64 @@
           "stringUnit": {
             "state": "translated",
             "value": "恢復"
+          }
+        }
+      }
+    },
+    "Recovery — 30 days": {
+      "extractionState": "stale",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Erholung — 30 Tage"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recuperación — 30 días"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Récupération — 30 jours"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recuperação – 30 dias"
+          }
+        }
+      }
+    },
+    "Recovery — past year": {
+      "extractionState": "stale",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rückforderung — vergangenes Jahr"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recuperación - el año pasado"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Relèvement — année écoulée"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recuperação – no ano passado"
           }
         }
       }
@@ -3675,60 +3964,31 @@
         }
       }
     },
-    "Recovery — 30 days": {
+    "RECOVERY GRADIENT": {
       "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Erholung — 30 Tage"
+            "value": "RÜCKWERTE"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Recuperación — 30 días"
+            "value": "RECOVERY GRADIENT"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Récupération — 30 jours"
+            "value": "GRADIENT DE RÉCUPÉRATION"
           }
         },
         "pt-PT": {
           "stringUnit": {
             "state": "translated",
-            "value": "Recuperação – 30 dias"
-          }
-        }
-      }
-    },
-    "Recovery — past year": {
-      "extractionState": "stale",
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Rückforderung — vergangenes Jahr"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Recuperación - el año pasado"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Relèvement — année écoulée"
-          }
-        },
-        "pt-PT": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Recuperação – no ano passado"
+            "value": "GRADIENTE DE RECUPERAÇÃO"
           }
         }
       }
@@ -3973,133 +4233,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Role o número"
-          }
-        }
-      }
-    },
-    "SOFT CARD TRANSITION": {
-      "extractionState": "stale",
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "SOFT CARD TRANSITION"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "TRANSICIÓN DE CARDE"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "TRANSITION DES CARTES DE LOGEMENT"
-          }
-        },
-        "pt-PT": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "TRANSIÇÃO DO CARTÃO SOFT"
-          }
-        }
-      }
-    },
-    "STAGGERED APPEAR": {
-      "extractionState": "stale",
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "STAGGER APPEAR"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "APPEAR"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "APPAREILS STAGGERED"
-          }
-        },
-        "pt-PT": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "APARÊNCIA ESTAGIADA"
-          }
-        }
-      }
-    },
-    "STRAIN RAMP": {
-      "extractionState": "stale",
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "STAMMRAMP"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "STRAIN RAMP"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "RAMPE DE STRAIN"
-          }
-        },
-        "pt-PT": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "RAMPA DE TENSÃO"
-          }
-        }
-      }
-    },
-    "STRENUOUS": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "ANSTRENGEND"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "STRENUOUS"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "STRENUOUS"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "STRÈNE"
-          }
-        },
-        "pt-PT": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "EXTENSO"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "ИНТЕНСИВНЫЙ"
           }
         }
       }
@@ -4462,6 +4595,35 @@
         }
       }
     },
+    "SOFT CARD TRANSITION": {
+      "extractionState": "stale",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SOFT CARD TRANSITION"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TRANSICIÓN DE CARDE"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TRANSITION DES CARTES DE LOGEMENT"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TRANSIÇÃO DO CARTÃO SOFT"
+          }
+        }
+      }
+    },
     "Solid": {
       "localizations": {
         "de": {
@@ -4510,6 +4672,156 @@
           "stringUnit": {
             "state": "translated",
             "value": "扎實"
+          }
+        }
+      }
+    },
+    "STAGGERED APPEAR": {
+      "extractionState": "stale",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "STAGGER APPEAR"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "APPEAR"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "APPAREILS STAGGERED"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "APARÊNCIA ESTAGIADA"
+          }
+        }
+      }
+    },
+    "STRAIN RAMP": {
+      "extractionState": "stale",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "STAMMRAMP"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "STRAIN RAMP"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "RAMPE DE STRAIN"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "RAMPA DE TENSÃO"
+          }
+        }
+      }
+    },
+    "STRENUOUS": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ANSTRENGEND"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "STRENUOUS"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "STRENUOUS"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "STRÈNE"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "EXTENSO"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ИНТЕНСИВНЫЙ"
+          }
+        }
+      }
+    },
+    "Stretch": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Strecken"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Estirar"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Étirer"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Esticar"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Estendi"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Растянуть"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "拉伸"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "拉伸"
           }
         }
       }
@@ -4631,6 +4943,58 @@
           "stringUnit": {
             "state": "translated",
             "value": "Системная"
+          }
+        }
+      }
+    },
+    "Tile": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kacheln"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mosaico"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mosaïque"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mosaico"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Affianca"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Замостить"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "平铺"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "平鋪"
           }
         }
       }
@@ -5063,58 +5427,6 @@
         }
       }
     },
-    "WHOOP Blue": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "WHOOP Blue"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "WHOOP Blue"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "WHOOP Blue"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "WHOOP Blue"
-          }
-        },
-        "pt-PT": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "WHOOP Blue"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "WHOOP Blue"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "WHOOP Blue"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "WHOOP Blue"
-          }
-        }
-      }
-    },
     "Wake": {
       "localizations": {
         "de": {
@@ -5196,6 +5508,58 @@
         }
       }
     },
+    "WHOOP Blue": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "WHOOP Blue"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "WHOOP Blue"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "WHOOP Blue"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "WHOOP Blue"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "WHOOP Blue"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "WHOOP Blue"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "WHOOP Blue"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "WHOOP Blue"
+          }
+        }
+      }
+    },
     "Yesterday": {
       "localizations": {
         "de": {
@@ -5250,213 +5614,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "昨天"
-          }
-        }
-      }
-    },
-    "asleep %@": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%@ geschlafen"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "asleep %@"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "dormido %1$@"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "sommeil %1$@"
-          }
-        },
-        "pt-PT": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "a dormir %@"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "во сне %@"
-          }
-        }
-      }
-    },
-    "average %@ bpm": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "durchschnittlich %@ bpm"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "average %@ bpm"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "promedio %1$@ bpm"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "moyenne %1$@ bpm"
-          }
-        },
-        "pt-PT": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "média de %@ bpm"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "среднее %@ уд/мин"
-          }
-        }
-      }
-    },
-    "hour %lld": {
-      "extractionState": "stale",
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Stunde %1$lld"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "hora %1$lld"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "heure %1$lld"
-          }
-        },
-        "pt-PT": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "hora %lld"
-          }
-        }
-      }
-    },
-    "just now": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "gerade eben"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "just now"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "ahora mismo"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "à l'instant"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "proprio ora"
-          }
-        },
-        "pt-PT": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "agora mesmo"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "только что"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "刚刚"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "剛剛"
-          }
-        }
-      }
-    },
-    "range %@ to %@": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Bereich %@ bis %@"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "range %@ to %@"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "rango %1$@ a %2$@"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "gamme %1$@ à %2$@"
-          }
-        },
-        "pt-PT": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "intervalo de %@ a %@"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "диапазон от %@ до %@"
           }
         }
       }

@@ -1,9 +1,14 @@
 import Foundation
 
-/// A transparent local routing rule for providers that cannot call tools (most importantly a local
-/// OpenAI-compatible server). It recognises only an explicit long-history request and selects one known
-/// metric; ordinary coaching questions still use the compact recent-data context. This is deliberately
-/// not a hidden model: its small vocabulary is inspectable and unit-tested.
+/// A transparent local routing rule. It recognises only an explicit long-history request and selects
+/// one known metric; ordinary coaching questions still use the compact recent-data context. This is
+/// deliberately not a hidden model: its small vocabulary is inspectable and unit-tested.
+///
+/// Used in TWO places, which the original comment (providers that cannot call tools) only half
+/// described: the non-tool context path, AND `coachTools(for:routing:)`, the per-turn policy that
+/// decides which tools a tool-capable provider is even offered. That second use is why its vocabulary
+/// being English/German only mattered so much — see `CoachQuestionRouting`, which now sends questions
+/// in other languages to the cheap model rather than letting this list answer "no" for them.
 struct CoachLocalQueryRouter {
     struct MetricHistoryRequest: Equatable {
         let metric: String

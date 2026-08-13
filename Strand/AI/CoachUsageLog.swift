@@ -41,6 +41,22 @@ final class CoachUsageLog: ObservableObject {
         var cacheReadTokens: Int { rounds.reduce(0) { $0 + $1.cacheReadTokens } }
         var cacheWriteTokens: Int { rounds.reduce(0) { $0 + $1.cacheWriteTokens } }
         var outputTokens: Int { rounds.reduce(0) { $0 + $1.outputTokens } }
+
+        /// Fold a round into a SINGLE accumulated element, for the cumulative totals.
+        ///
+        /// `lastTurn` genuinely needs its round list — `summaryLine` counts "N requests" from it, and a
+        /// question is bounded by `maxToolRounds`. The session and day totals are not: they used to
+        /// append one element per request for the whole app run, so every `inputTokens` read reduced
+        /// over an ever-growing array. Only four integers are ever needed there, which is exactly what
+        /// the persisted form already stored.
+        mutating func accumulate(_ round: Round) {
+            guard var first = rounds.first else { rounds = [round]; return }
+            first.inputTokens += round.inputTokens
+            first.cacheReadTokens += round.cacheReadTokens
+            first.cacheWriteTokens += round.cacheWriteTokens
+            first.outputTokens += round.outputTokens
+            rounds = [first]
+        }
     }
 
     @Published private(set) var lastTurn: Turn?
@@ -78,8 +94,8 @@ final class CoachUsageLog: ObservableObject {
     func record(_ round: Round) {
         current.rounds.append(round)
         lastTurn = current
-        sessionTotal.rounds.append(round)
-        dayTotal.rounds.append(round)
+        sessionTotal.accumulate(round)
+        dayTotal.accumulate(round)
         persistDayTotal()
     }
 

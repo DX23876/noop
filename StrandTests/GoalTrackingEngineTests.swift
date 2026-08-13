@@ -66,6 +66,19 @@ final class GoalTrackingEngineTests: XCTestCase {
         XCTAssertNil(held.rawProgressFraction)
     }
 
+    /// A consistency goal counts from its BASELINE, not from zero. The journey page used to divide
+    /// `sessions / target` on its own — with a baseline of 1, a target of 3 and 2 sessions a week it
+    /// showed 67% while this engine (and the Today ring, and the goal card) said 50%. The journey now
+    /// reads this number instead of computing one, so this is the single value all three draw.
+    func testConsistencyProgressCountsFromTheBaseline() {
+        let training = CoachGoal(kind: .consistency, title: "Train three times a week",
+                                 baseline: 1, target: 3, createdAt: date("2026-03-01"))
+        let snapshot = GoalTrackingEngine.evaluate(goal: training, proposals: [],
+                                                   measurement: .init(value: 2, date: date("2026-03-18")),
+                                                   now: date("2026-03-18"), calendar: calendar)
+        XCTAssertEqual(snapshot.progressFraction ?? -1, 0.5, accuracy: 0.0001)
+    }
+
     func testWeeklyThresholdAllowsOneMissInASmallWeek() {
         XCTAssertEqual(GoalTrackingEngine.requiredCompletions(for: 1), 1)
         XCTAssertEqual(GoalTrackingEngine.requiredCompletions(for: 2), 1)

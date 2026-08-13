@@ -176,15 +176,18 @@ struct CoachView: View {
         }
         .task(id: coach.dataConsent) {
             await coach.prepareSemanticMemory()
-            // On open: the morning brief (forward), then — sequentially, each with its own once-per-day
-            // or once-per-week lock and a real-signal gate — a proactive nudge and a weekly review (#P10).
-            // In practice the latter two stay silent most days; they only speak on a streak, a run of
-            // skips, or once a week. Sequential so two auto-messages never race the `sending` flag.
-            await coach.startBriefIfNeeded()
-            await coach.runProactiveNudgeIfNeeded()
-            // A goal whose date has passed: once per goal, ever. Before the weekly review, because a
-            // finished goal is the more specific thing to talk about on the day it comes up.
-            await coach.runGoalReviewIfNeeded()
+            // On open: the morning brief (forward), then — in order, each with its own once-per-day or
+            // once-per-week lock and a real-signal gate — a proactive nudge, a goal look-back and the
+            // weekly review (#P10). The goal review comes before the weekly one because a finished goal
+            // is the more specific thing to talk about on the day it comes up.
+            //
+            // AT MOST ONE speaks per open. All four could come due on the same morning, and four
+            // unprompted full-context requests before the user has typed anything is neither what they
+            // asked for nor what they want to pay for. Each `…IfNeeded` reports whether it actually
+            // said something; the rest keep their locks and get their turn on the next open.
+            if await coach.startBriefIfNeeded() { return }
+            if await coach.runProactiveNudgeIfNeeded() { return }
+            if await coach.runGoalReviewIfNeeded() { return }
             await coach.runWeeklyReviewIfNeeded()
         }
         // Tapping the daily check-in notification (routed here by RootTabView) runs a real check-in —

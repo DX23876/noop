@@ -20,8 +20,16 @@ enum JourneyExplain {
     /// nights are what that goal is made of — and calling a weigh-in a session is just wrong.
     struct SessionRule: Equatable {
         /// Singular/plural unit noun, e.g. "session" / "sessions", "night" / "nights".
+        ///
+        /// Stored as the English source word and resolved through the catalog at every USE
+        /// (`localizedNoun`), never spliced in raw. Interpolating the raw literal into a
+        /// `String(localized:)` frame produced sentences like "Kein weigh-ins wurde aufgezeichnet" —
+        /// a translated frame with an English word wedged into it, in every language at once.
         let noun: String
         let pluralNoun: String
+
+        var localizedNoun: String { noun.localizedCatalogValue }
+        var localizedPluralNoun: String { pluralNoun.localizedCatalogValue }
         /// One sentence: what increments this counter.
         let definition: String
         /// Whether a plan session the user ticked off counts.
@@ -29,9 +37,10 @@ enum JourneyExplain {
         /// Whether the user can log something against this goal by hand (the counter isn't purely derived).
         let allowsManualLog: Bool
 
-        /// "3 sessions" / "1 night" / "no sessions".
+        /// "3 sessions" / "1 night" / "no sessions" — in the reader's language.
         func countLabel(_ n: Int) -> String {
-            n == 1 ? "1 \(noun)" : "\(n) \(pluralNoun)"
+            n == 1 ? String(localized: "1 \(localizedNoun)")
+                   : String(localized: "\(n) \(localizedPluralNoun)")
         }
     }
 
@@ -77,7 +86,7 @@ enum JourneyExplain {
     static func countLine(for kind: CoachGoal.Kind, count: Int) -> String {
         let rule = sessionRule(for: kind)
         if count == 0 {
-            return String(localized: "No \(rule.pluralNoun) recorded since you set this goal.")
+            return String(localized: "No \(rule.localizedPluralNoun) recorded since you set this goal.")
         }
         return String(localized: "\(rule.countLabel(count)) since you set this goal.")
     }

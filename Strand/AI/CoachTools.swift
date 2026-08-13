@@ -716,17 +716,29 @@ extension AICoachEngine {
     /// question "does this wording justify opening it now?". It keeps broad history discovery and direct
     /// structured-log reads out of ordinary coaching turns while retaining current-data tools.
     func coachTools(for question: String, journalQuestions: [String] = []) -> [CoachTool] {
-        let historyRequested = CoachLocalQueryRouter.explicitHistoryDays(for: question) != nil
-        let catalogRequested = CoachLocalQueryRouter.requestsDataCatalog(for: question)
-        // The catalog is local user settings, not provider context. It includes custom fields even before
-        // the first answer is recorded; imported fields are supplied by the caller from the local store.
-        let knownJournalQuestions = JournalCatalogStore()
-            .resolvedItems(imported: journalQuestions)
+        coachTools(for: question,
+                   routing: CoachQuestionRouting.lexicon(
+                        for: question,
+                        knownJournalQuestions: Self.knownJournalQuestions(journalQuestions)))
+    }
+
+    /// The catalog is local user settings, not provider context. It includes custom fields even before
+    /// the first answer is recorded; imported fields are supplied by the caller from the local store.
+    static func knownJournalQuestions(_ imported: [String]) -> [String] {
+        JournalCatalogStore()
+            .resolvedItems(imported: imported)
             .flatMap { [$0.canonical, $0.display] }
-        let logsRequested = CoachLocalQueryRouter.requestsPersonalLogs(for: question,
-                                                                         knownQuestions: knownJournalQuestions)
+    }
+
+    /// The same policy over routing flags that were resolved ELSEWHERE — by the lexicon for the
+    /// languages it speaks, by the cheap model for the ones it doesn't (`questionRouting(for:)`).
+    /// The policy itself is unchanged and stays synchronous and pure over its inputs.
+    func coachTools(for question: String, routing: CoachQuestionRouting) -> [CoachTool] {
+        let historyRequested = routing.historyDays != nil
+        let catalogRequested = routing.wantsDataCatalog
+        let logsRequested = routing.wantsPersonalLogs
         if historyRequested {
-            if CoachLocalQueryRouter.requestsWorkoutHistory(for: question) {
+            if routing.wantsWorkoutHistory {
                 // Historical workout questions must never be diverted into Lab Book or generic pattern
                 // tools. The workout reader now accepts the requested multi-year window itself.
                 return coachTools.filter { $0 == .recentWorkouts }
@@ -746,6 +758,68 @@ extension AICoachEngine {
             default: return true
             }
         }
+    }
+
+    /// Resolve the four routing decisions for a question — the lexicon where it applies, the cheap model
+    /// where it doesn't.
+    ///
+    /// English and German go through `CoachLocalQueryRouter` exactly as before: no extra request, no
+    /// latency, and its existing tests stay the specification. Every other language used to get a silent
+    /// "no" on all four (see `CoachQuestionRouting`), so it is routed through the cheap model instead —
+    /// the same one already used for summaries and card reads. Any failure, or no cheap model at all,
+    /// falls back to the lexicon: the worst case is today's behaviour, never worse.
+    ///
+    /// Results are cached by question text, so a Retry or a Regenerate over the same question never pays
+    /// twice.
+    func questionRouting(for question: String, journalQuestions: [String] = []) async -> CoachQuestionRouting {
+        let known = Self.knownJournalQuestions(journalQuestions)
+        let lexicon = CoachQuestionRouting.lexicon(for: question, knownJournalQuestions: known)
+        guard !CoachQuestionLanguage.lexiconCovers(question) else { return lexicon }
+        if let cached = routingCache[question] { return cached }
+        guard let reply = await cheapComplete(system: Self.routingClassifierSystemPrompt,
+                                              user: question),
+              let parsed = Self.parseRouting(reply) else { return lexicon }
+        rememberRouting(parsed, for: question)
+        return parsed
+    }
+
+    /// The classifier's instruction. Deliberately asks for a tiny fixed JSON object rather than prose:
+    /// a small, cheap model is reliable at this shape, and anything it returns that doesn't parse falls
+    /// back to the lexicon rather than opening a tool on a guess.
+    nonisolated static let routingClassifierSystemPrompt = """
+    You classify ONE health-app question. Answer with a single JSON object and nothing else:
+    {"history_days": <integer or null>, "workout_history": <bool>, "data_catalog": <bool>, \
+    "personal_logs": <bool>}
+    history_days: the number of days of PAST data the question explicitly asks for (a year = 365, \
+    "last 3 months" = 90); null when the question is about right now, today, or general advice.
+    workout_history: true only when that past-data question is about workouts, training or sessions.
+    data_catalog: true when the user asks WHICH data or metrics exist for them.
+    personal_logs: true when the question asks about their own diary, journal, caffeine, hydration, \
+    mood or lab-marker entries.
+    Default to false and null. Do not explain.
+    """
+
+    /// Parse the classifier's JSON. Tolerant of a model wrapping it in prose or a code fence, strict
+    /// about the shape: no object, no routing.
+    nonisolated static func parseRouting(_ reply: String) -> CoachQuestionRouting? {
+        guard let start = reply.firstIndex(of: "{"), let end = reply.lastIndex(of: "}"), start < end,
+              let data = String(reply[start...end]).data(using: .utf8),
+              let object = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
+        else { return nil }
+        func flag(_ key: String) -> Bool {
+            if let b = object[key] as? Bool { return b }
+            if let n = object[key] as? NSNumber { return n.boolValue }
+            return false
+        }
+        var days: Int?
+        if let n = object["history_days"] as? NSNumber, !(object["history_days"] is NSNull) {
+            // Same clamp the metric-history tool applies, so a hallucinated 99999 can't widen the window.
+            days = max(1, min(n.intValue, 3_650))
+        }
+        return CoachQuestionRouting(historyDays: days,
+                                    wantsWorkoutHistory: flag("workout_history"),
+                                    wantsDataCatalog: flag("data_catalog"),
+                                    wantsPersonalLogs: flag("personal_logs"))
     }
 
     /// True when the current turn should use the tool-use path: the user has granted data access, tools

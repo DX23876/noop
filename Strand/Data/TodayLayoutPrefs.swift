@@ -28,6 +28,9 @@ enum TodaySection: String, CaseIterable, Identifiable {
     case hero
     case liveSession
     case synthesis
+    /// Goals: where each one stands, and what there is to tick off today — ONE card. It was briefly
+    /// split into `goals` + `goalActions`, which put two cards about the same subject on top of each
+    /// other; the actions live back inside this section.
     case goals
     case keyMetrics
     case workouts

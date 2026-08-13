@@ -1,65 +1,85 @@
 import SwiftUI
 import StrandDesign
 
-/// Shared by classic and liquid Today so both dashboards show exactly the same goal/action truth.
-struct GoalTodaySection: View {
+/// Today's goals, in ONE card (`TodaySection.goals`): where each goal stands on top, what there is to
+/// tick off underneath.
+///
+/// It was briefly two sections — rings and actions — on the theory that "where do I stand" and "what
+/// do I do today" are different questions. On screen they were two cards about the same subject,
+/// stacked, each with its own header and its own chevron to the same destination. One card, one
+/// header, one tap target reads as one thing, which is what it is.
+///
+/// Shared by classic and liquid Today so both dashboards show exactly the same goal truth.
+struct GoalsTodaySection: View {
     @Binding var showGoalJourney: Bool
     @EnvironmentObject private var repo: Repository
     @ObservedObject private var goals = CoachGoalStore.shared
     @ObservedObject private var actions = GoalActionStore.shared
     @ObservedObject private var tracking = GoalTrackingStore.shared
-    @State private var attribution: GoalWorkoutAttributionSuggestion?
+    /// ONE enum-driven sheet, not two `.sheet` hosts on the same view — the codebase already learned
+    /// that lesson (`RootTabView`, #R2): stacking two hosts makes dismissing one intermittently
+    /// swallow the other.
+    @State private var sheet: Sheet?
 
-    private var primary: GoalTrackingSnapshot? {
+    enum Sheet: Identifiable {
+        case attribution(GoalWorkoutAttributionSuggestion)
+        /// The journey of ONE goal — what tapping that goal in the tile opens. Landing on the tapped
+        /// goal rather than the list is the point: the tile already knows which goal it is.
+        case journey(UUID)
+
+        var id: String {
+            switch self {
+            case .attribution(let s): return "attribution-\(s.id)"
+            case .journey(let id):    return "journey-\(id)"
+            }
+        }
+    }
+
+    /// Active goals, most-in-need-of-attention first, then by target date — the order the tile draws
+    /// them in, hero first.
+    private var ranked: [GoalTrackingSnapshot] {
         tracking.snapshots
             .filter { $0.goal.status == .active }
             .sorted { lhs, rhs in
                 if lhs.health.rawValue != rhs.health.rawValue { return lhs.health.rawValue < rhs.health.rawValue }
                 return lhs.sortDate < rhs.sortDate
-            }.first
+            }
+    }
+
+    private var hasActions: Bool {
+        !tracking.todayActions.isEmpty || tracking.pendingWorkoutAttributions.first != nil
     }
 
     var body: some View {
         if !goals.activeGoals.isEmpty || !tracking.todayActions.isEmpty {
             NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
-                VStack(alignment: .leading, spacing: 10) {
+                VStack(alignment: .leading, spacing: 12) {
                     Button { showGoalJourney = true } label: {
                         HStack {
-                            Label("Goals today", systemImage: "target")
+                            Label("Goals", systemImage: "target")
                                 .font(StrandFont.headline).foregroundStyle(StrandPalette.textPrimary)
                             Spacer()
+                            Text("All").font(StrandFont.footnote).foregroundStyle(StrandPalette.accent)
                             Image(systemName: "chevron.right")
                                 .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                                .accessibilityHidden(true)
                         }
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel("Goals — open all goals")
 
-                    if let primary {
-                        VStack(alignment: .leading, spacing: 5) {
-                            HStack {
-                                Text(primary.goal.title.isEmpty
-                                     ? primary.goal.kind.label.localizedCatalogValue : primary.goal.title)
-                                    .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
-                                    .lineLimit(1)
-                                Spacer()
-                                Text(primary.health.label.localizedCatalogValue)
-                                    .font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
-                            }
-                            if let progress = primary.progressFraction {
-                                ProgressView(value: progress).appleInspiredTint("goals.today.outcome")
-                            }
-                            HStack {
-                                Text("Plan \(primary.currentWeek.planCompleted)/\(primary.currentWeek.planPlanned)")
-                                Text("Actions \(primary.currentWeek.actionCompleted)/\(primary.currentWeek.actionPlanned)")
-                                Spacer()
-                                Text("Series \(primary.currentStreak)")
-                            }
-                            .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
-                        }
+                    if !ranked.isEmpty {
+                        GoalTrackingTile(snapshots: ranked,
+                                         weekActions: tracking.weekActions,
+                                         onOpenGoal: { sheet = .journey($0) })
+                    }
+
+                    if !ranked.isEmpty && (hasActions || !goals.activeGoals.isEmpty) {
+                        Divider().overlay(StrandPalette.hairline)
                     }
 
                     if let suggestion = tracking.pendingWorkoutAttributions.first {
-                        Button { attribution = suggestion } label: {
+                        Button { sheet = .attribution(suggestion) } label: {
                             HStack(spacing: 8) {
                                 Image(systemName: "link.badge.plus")
                                     .foregroundStyle(StrandPalette.accent)
@@ -92,9 +112,14 @@ struct GoalTodaySection: View {
                     }
                 }
             }
-            .sheet(item: $attribution) { suggestion in
-                GoalWorkoutAttributionSheet(suggestion: suggestion) {
-                    Task { await tracking.refresh(repo: repo) }
+            .sheet(item: $sheet) { which in
+                switch which {
+                case .attribution(let suggestion):
+                    GoalWorkoutAttributionSheet(suggestion: suggestion) {
+                        Task { await tracking.refresh(repo: repo) }
+                    }
+                case .journey(let id):
+                    JourneyView(goalId: id)
                 }
             }
         }
@@ -213,15 +238,23 @@ struct GoalActionEditorView: View {
     @ObservedObject private var goals = CoachGoalStore.shared
 
     private enum Kind: String, CaseIterable, Identifiable {
-        case steps, workout, manual
+        case steps, workout, sleep, calories, manual
         var id: String { rawValue }
         var label: String {
-            switch self { case .steps: return "Steps"; case .workout: return "Workout"; case .manual: return "Manual" }
+            switch self {
+            case .steps:    return "Steps"
+            case .workout:  return "Workout"
+            case .sleep:    return "Sleep"
+            case .calories: return "Calories"
+            case .manual:   return "Manual"
+            }
         }
     }
 
     @State private var title = ""
     @State private var kind: Kind = .steps
+    @State private var sleepHours: Double = 7.5
+    @State private var activeKcal = 500
     @State private var steps = 10_000
     @State private var workout = "Walking"
     @State private var minimumMinutes = 20
@@ -242,6 +275,17 @@ struct GoalActionEditorView: View {
                     .pickerStyle(.segmented)
                     if kind == .steps {
                         Stepper("\(steps.formatted()) steps", value: $steps, in: 1_000...50_000, step: 500)
+                        // Same honesty the calories row gets below: a step total is a device estimate
+                        // from a motion counter, not a measured count — and which device it comes from
+                        // depends on your source preference.
+                        Text("Read from your daily step total — strap or Health, whichever your source preference resolves to. An estimate, not an exact count.")
+                            .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+                    } else if kind == .sleep {
+                        Stepper(String(format: "%.1f h", sleepHours), value: $sleepHours, in: 4...12, step: 0.5)
+                    } else if kind == .calories {
+                        Stepper("\(activeKcal.formatted()) kcal", value: $activeKcal, in: 100...2_000, step: 50)
+                        Text("Checked against NOOP's own active-energy estimate, not a measured figure.")
+                            .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
                     } else if kind == .workout {
                         TextField("Activity, e.g. Walking", text: $workout)
                         Toggle("Minimum duration", isOn: $hasMinimum)
@@ -322,6 +366,8 @@ struct GoalActionEditorView: View {
         switch action.requirement {
         case .steps(let minimum): kind = .steps; steps = minimum
         case .manual: kind = .manual
+        case .sleep(let hours): kind = .sleep; sleepHours = hours
+        case .activeCalories(let minimum): kind = .calories; activeKcal = minimum
         case .workout(let sports, let minutes):
             kind = .workout; workout = sports.joined(separator: ", ")
             hasMinimum = minutes != nil; minimumMinutes = minutes ?? 20
@@ -337,6 +383,8 @@ struct GoalActionEditorView: View {
         switch kind {
         case .steps: requirement = .steps(minimum: steps)
         case .manual: requirement = .manual
+        case .sleep: requirement = .sleep(minimumHours: sleepHours)
+        case .calories: requirement = .activeCalories(minimum: activeKcal)
         case .workout:
             let sports = workout.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }
                 .filter { !$0.isEmpty }

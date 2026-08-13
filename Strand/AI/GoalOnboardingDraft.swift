@@ -39,8 +39,13 @@ final class GoalOnboardingDraft: ObservableObject {
     @Published var title = ""
     @Published var baselineText = ""
     @Published var targetText = ""
-    @Published var hasTargetDate = false
+    /// Defaults ON for a kind NOOP can measure, and follows the kind picker until the user flips it
+    /// themselves — the same rule the one-page editor uses. Without a target date there is no route,
+    /// no pace and no arrival date, and a default-off switch meant most goals never got one.
+    @Published var hasTargetDate = CoachGoal.Kind.run.isQuantified
     @Published var targetDate = Date().addingTimeInterval(60 * 24 * 3600)
+    /// Set once the user touches the target-date switch, after which the kind no longer overrides it.
+    @Published var targetDateTouched = false
     @Published var motivation = ""
     @Published var motivationTags: Set<CoachGoal.MotivationTag> = []
     @Published var shareMotivation = false
@@ -56,10 +61,24 @@ final class GoalOnboardingDraft: ObservableObject {
 
     var trimmedTitle: String { title.trimmingCharacters(in: .whitespacesAndNewlines) }
 
-    /// Whether the current step lets the user move on. Only "details" gates (it needs a title); every
-    /// other step is a free choice or optional.
+    /// Whether the current step lets the user move on. Only "details" gates: it needs a title, and —
+    /// same rule as the one-page editor, via the shared `CoachGoalRange` — a from/to pair that isn't
+    /// the same number twice, which would save a goal that can never show progress.
     var canAdvance: Bool {
-        step != .details || !trimmedTitle.isEmpty
+        guard step == .details else { return true }
+        return !trimmedTitle.isEmpty && rangeIsUsable
+    }
+
+    var rangeIsUsable: Bool {
+        CoachGoalRange.isUsable(kind: kind, baselineText: baselineText, targetText: targetText)
+    }
+
+    /// Apply the kind's target-date default, unless the user has already made that call themselves.
+    /// Called by the wizard's kind picker.
+    func kindChanged(to newKind: CoachGoal.Kind) {
+        kind = newKind
+        guard !targetDateTouched else { return }
+        hasTargetDate = newKind.isQuantified
     }
 
     /// The goal as currently drafted — the exact value `CoachGoalStore.commit` receives, so what the
@@ -104,7 +123,8 @@ final class GoalOnboardingDraft: ObservableObject {
         title = ""
         baselineText = ""
         targetText = ""
-        hasTargetDate = false
+        hasTargetDate = CoachGoal.Kind.run.isQuantified
+        targetDateTouched = false
         targetDate = Date().addingTimeInterval(60 * 24 * 3600)
         motivation = ""
         motivationTags = []

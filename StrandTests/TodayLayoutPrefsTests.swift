@@ -20,8 +20,8 @@ final class TodayLayoutPrefsTests: XCTestCase {
     /// look right in every other test here.
     func testEncodeDecodeRoundTripsAReorderedList() {
         let reordered: [TodaySection] = [
-            .heartRate, .goals, .hero, .yourCards, .coach, .liveSession, .synthesis, .keyMetrics, .workouts,
-            .recoveryVitals, .menstrualCycle, .journal, .dataSources, .addedCards,
+            .heartRate, .goals, .hero, .yourCards, .coach, .liveSession, .synthesis,
+            .keyMetrics, .workouts, .recoveryVitals, .menstrualCycle, .journal, .dataSources, .addedCards,
         ]
         let encoded = TodayLayoutPrefs.encode(reordered)
         XCTAssertEqual(encoded, "heartRate,goals,hero,yourCards,coach,liveSession,synthesis,keyMetrics,workouts,recoveryVitals,menstrualCycle,journal,dataSources,addedCards")

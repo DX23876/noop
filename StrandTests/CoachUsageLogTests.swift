@@ -130,6 +130,25 @@ final class CoachUsageLogTests: XCTestCase {
         XCTAssertEqual(log.lastTurn?.inputTokens, 5)
     }
 
+    /// The cumulative totals used to append one element per REQUEST for the whole app run, so every
+    /// `inputTokens` read reduced over an ever-growing array. They fold into one element now — the same
+    /// four integers the persisted form always stored — while the sums stay exact.
+    @MainActor
+    func testCumulativeTotalsFoldIntoASingleRoundWithoutLosingTokens() {
+        let log = CoachUsageLog.shared
+        let before = log.sessionTotal.inputTokens
+
+        log.beginTurn()
+        for _ in 0..<50 { log.record(.init(inputTokens: 2, cacheReadTokens: 3, outputTokens: 1)) }
+
+        XCTAssertEqual(log.sessionTotal.rounds.count, 1,
+                       "the session total must accumulate, not collect one element per request")
+        XCTAssertEqual(log.sessionTotal.inputTokens, before + 100)
+        XCTAssertEqual(log.dayTotal.rounds.count, 1)
+        XCTAssertEqual(log.lastTurn?.rounds.count, 50,
+                       "the CURRENT question still needs its real round list — summaryLine counts it")
+    }
+
     // MARK: - Cumulative summary line
 
     func testCumulativeSummaryLineUsesQuestionsNotRequests() {

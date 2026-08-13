@@ -453,7 +453,7 @@ struct LiquidTodayView: View {
                             #endif
                         case .synthesis: synthesisSection
                         case .goals:
-                            if selectedDayOffset == 0 { GoalTodaySection(showGoalJourney: $showGoalJourney) }
+                            if selectedDayOffset == 0 { GoalsTodaySection(showGoalJourney: $showGoalJourney) }
                         case .keyMetrics: keyMetricsSection
                         case .workouts: lastWorkoutsSection
                         case .heartRate: heartRateSection
@@ -480,7 +480,7 @@ struct LiquidTodayView: View {
                     // The committed "next up" session sits BELOW the metric sections on purpose: once
                     // accepted it's an ambient reminder, not a demand for the top of the screen. It draws
                     // attention on its own terms as its time nears (colour + breathe, see PlanTodayCard).
-                    PlanTodayCard(showPlan: $showPlan, showGoalJourney: $showGoalJourney)
+                    PlanTodayCard(showPlan: $showPlan)
                     // Opt-in "looks like a workout?" suggestion, dropped in the liquid Home rewrite. Its
                     // Settings toggle (PuffinExperiment.autoDetectWorkoutsKey) had no visible effect on the
                     // DEFAULT screen: the card's only mount was classic TodayView, so a user could switch
@@ -594,7 +594,21 @@ struct LiquidTodayView: View {
         .coachCover(isPresented: $showCoach, coach: coach)
         // The plan book, opened from PlanTodayCard when a committed session has a time coming up.
         .sheet(isPresented: $showPlan) { CoachPlanView().environmentObject(coach) }
-        .sheet(isPresented: $showGoalJourney) { CoachGoalJourneyScreen().environmentObject(coach) }
+        // Wrapped in a NavigationStack, exactly like the chat's goal shortcut (CoachView). Without one
+        // the screen has no navigation host, and `CoachGoalJourneyView`'s guided setup — deliberately a
+        // PUSH rather than a sheet, so the wizard can't reset itself mid-flow — had nowhere to go: the
+        // "Set up with a few questions" button did nothing at all when opened from Today.
+        .sheet(isPresented: $showGoalJourney) {
+            NavigationStack {
+                CoachGoalJourneyScreen()
+                    .toolbar {
+                        ToolbarItem(placement: .confirmationAction) {
+                            Button("Done") { showGoalJourney = false }
+                        }
+                    }
+            }
+            .environmentObject(coach)
+        }
         // The bell — same store, same inbox, as the classic Today's (TodayView.swift).
         .sheet(isPresented: $showUpdatesInbox) {
             UpdatesInboxView(onClose: { showUpdatesInbox = false })
