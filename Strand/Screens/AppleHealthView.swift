@@ -500,6 +500,43 @@ struct AppleHealthView: View {
                         .disabled(health.syncing)
                     }
 
+                    // HRV repair (#hrv-sdnn-truncation). An explicit action, because it rewrites years of
+                    // samples in a store shared with every other health app — never a launch side effect.
+                    if health.hrvRepairRunning {
+                        VStack(alignment: .leading, spacing: 6) {
+                            ProgressView(value: health.hrvRepairProgress ?? 0)
+                                .tint(StrandPalette.metricCyan)
+                            Text("Rebuilding HRV history \(Int(((health.hrvRepairProgress ?? 0) * 100).rounded()))%")
+                                .font(StrandFont.footnote)
+                                .foregroundStyle(StrandPalette.textSecondary)
+                            Button("Stop rebuild") {
+                                health.cancelHrvSdnnRepair()
+                            }
+                            .buttonStyle(.bordered)
+                            .tint(StrandPalette.metricCyan)
+                        }
+                    } else {
+                        VStack(alignment: .leading, spacing: 6) {
+                            // Say WHY before offering the button: this install's series was cut to the
+                            // regular 14-day write-back window by the 10.0.0 migration.
+                            if health.hrvHistoryWasTruncated, !health.hrvRepairCompleted {
+                                Text("An earlier update replaced NOOP's HRV values in Apple Health and only rewrote the last 14 days. Rebuilding restores every night NOOP still holds beat data for.")
+                                    .font(StrandFont.footnote)
+                                    .foregroundStyle(StrandPalette.textTertiary)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                            Button {
+                                health.startHrvSdnnRepair()
+                            } label: {
+                                Label("Rebuild HRV history in Apple Health",
+                                      systemImage: "waveform.path.ecg")
+                            }
+                            .buttonStyle(.bordered)
+                            .tint(StrandPalette.metricCyan)
+                            .disabled(health.syncing || health.fullHistoryImporting)
+                        }
+                    }
+
                     // Re-request permission so newly-added data types (e.g. weight and body composition,
                     // which older grants never included) surface their Health prompt. HealthKit only shows
                     // types you haven't decided yet, so this is a no-op once everything is granted.

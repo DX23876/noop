@@ -90,6 +90,33 @@ public enum HealthWriteback {
                      completesMigration: start <= floorTs)
     }
 
+    // MARK: - Shared backward-migration plumbing
+
+    /// Neutral names for the two shapes above. The backward-chunk math is not heart-rate specific —
+    /// the HRV/SDNN repair walks history the same way — and both migrations deliberately share ONE
+    /// implementation so their resume and final-boundary behavior cannot drift apart.
+    public typealias TimeWindow = HeartRateExperimentWindow
+    public typealias MigrationChunk = HeartRateMigrationChunk
+
+    /// Next backward chunk, under the neutral name. Same function as `heartRateMigrationChunk`, so the
+    /// tests that pin the boundary behavior cover both callers.
+    public static func backwardMigrationChunk(endTs: Int, floorTs: Int,
+                                              chunkDays: Int) -> MigrationChunk? {
+        heartRateMigrationChunk(endTs: endTs, floorTs: floorTs, chunkDays: chunkDays)
+    }
+
+    /// The `HKMetadataKeyExternalUUID` value for a nightly-vitals sample.
+    ///
+    /// ONE definition on purpose. The regular 14-day write-back dedups by deleting exactly the keys it
+    /// is about to re-save, so any second writer that spells this differently would leave the first
+    /// writer's samples undeleted and duplicate the day. The HRV/SDNN repair is such a second writer,
+    /// which is why the format lives here rather than inline at either call site.
+    public static func vitalsExternalKey(noopDeviceId: String,
+                                         identifier: String,
+                                         day: String) -> String {
+        "noop:\(noopDeviceId):\(identifier):\(day)"
+    }
+
     /// Pick two non-overlapping dense two-hour runs for the reversible device experiment. A gap of one
     /// missing bucket is tolerated; larger gaps split a run. The bridge supplies an old enough range that
     /// normal 48-hour reconciliation cannot overwrite the experiment while the user checks Health.
