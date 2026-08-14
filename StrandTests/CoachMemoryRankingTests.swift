@@ -124,6 +124,77 @@ final class CoachMemoryRankingTests: XCTestCase {
         XCTAssertEqual(CoachMemory.factsNotAlreadyInContext([f], context: "").count, 1)
     }
 
+    // MARK: - Pinned facts must not spend the relevance budget
+
+    private func pinned(_ text: String, now: Date) -> CoachMemory.MemoryFact {
+        CoachMemory.MemoryFact(text: text, category: .injury, importance: .pinned,
+                               createdAt: now, verification: .confirmed)
+    }
+
+    /// Pinned facts already ride every prompt via `pinnedBlock`, and `relevantBlock` discards them —
+    /// but they used to be counted against the same `limit` first. At `limit: 8` (what all three
+    /// callers pass) eight pinned facts left a budget of zero, so the block came back empty however
+    /// well a stored fact matched the question.
+    func testPinnedFactsDoNotCrowdOutTheRelevanceBlock() {
+        let now = Date()
+        let pins = (0..<8).map { pinned("pinned constraint number \($0)", now: now) }
+        let relevant = fact("left knee pain when running downhill", daysAgo: 0, now: now)
+        let memory = seededMemory(pins + [relevant])
+
+        let block = memory.relevantBlock(for: "my knee hurts when running", limit: 8)
+        XCTAssertTrue(block.contains("left knee pain when running downhill"),
+                      "eight pinned facts must not consume the whole retrieval budget")
+    }
+
+    /// A pinned fact that is not yet confirmed is filtered out by the block too, so it must not spend
+    /// a slot either — the same waste one rung down.
+    func testUnconfirmedPinnedFactsAlsoSpendNoBudget() {
+        let now = Date()
+        let unconfirmed = CoachMemory.MemoryFact(text: "possible hip issue", category: .injury,
+                                                 importance: .pinned, createdAt: now,
+                                                 verification: .pendingConfirmation)
+        let relevant = fact("hip mobility work every morning", daysAgo: 0, now: now)
+        let memory = seededMemory([unconfirmed, relevant])
+
+        let block = memory.relevantBlock(for: "what should I do about my hip", limit: 1)
+        XCTAssertTrue(block.contains("hip mobility work every morning"))
+        XCTAssertFalse(block.contains("possible hip issue"),
+                       "a pinned fact never belongs in this block, confirmed or not")
+    }
+
+    // MARK: - Stopwords in the languages the app ships
+
+    /// The disclosure guard (`filter { score > 0 }`) only holds if function words are filtered. With an
+    /// English-only stopword list a German question and an unrelated German fact shared `ich`, which
+    /// scored above zero and put the fact in the prompt.
+    func testGermanFunctionWordsDoNotMakeAFactRelevant() {
+        let now = Date()
+        let unrelated = fact("Ich schlafe meistens sieben Stunden", daysAgo: 0, now: now)
+        let memory = seededMemory([unrelated])
+
+        XCTAssertTrue(memory.relevantBlock(for: "Wie soll ich heute trainieren?", limit: 8).isEmpty,
+                      "sharing only 'ich' is not a reason to disclose a stored fact")
+    }
+
+    /// …and the list must not overshoot: a real German content word still retrieves.
+    func testGermanContentWordsStillRetrieve() {
+        let now = Date()
+        let knee = fact("Linkes Knie schmerzt beim Bergablaufen", daysAgo: 0, now: now)
+        let memory = seededMemory([knee])
+
+        XCTAssertTrue(memory.relevantBlock(for: "Mein Knie tut weh", limit: 8)
+            .contains("Linkes Knie schmerzt"),
+                      "filtering function words must not also filter the topic")
+    }
+
+    func testStopwordsCoverTheShippedLanguages() {
+        // One unmistakable function word per language, each 3+ chars so `tokens` can reach it.
+        for word in ["the", "und", "que", "les", "che", "com", "как"] {
+            XCTAssertTrue(CoachMemory.tokens(word).isEmpty,
+                          "'\(word)' is a function word and must not survive tokenisation")
+        }
+    }
+
     /// End to end through the block the send path actually appends.
     func testRelevantBlockSkipsWhatTheSemanticIndexAlreadySupplied() {
         let now = Date()

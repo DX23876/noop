@@ -1,7 +1,32 @@
 import XCTest
+import StrandDesign
 @testable import Strand
 
 final class CoachMemoryFootprintTests: XCTestCase {
+
+    /// `charts` is keyed by host-message id, so trimming messages without sweeping them strands
+    /// snapshots in the JSON — never rendered, but re-parsed on every launch. The live paths already
+    /// keep the two in step; this pins the persistence path so raising the live cap can't quietly
+    /// start orphaning them.
+    func testTrimmingAConversationDropsChartsWithNoMessageLeft() {
+        let kept = ChatMessage(role: .assistant, text: "still here")
+        let gone = ChatMessage(role: .assistant, text: "")
+        let snapshot = CoachChartSnapshot(CoachChartArtifact(
+            title: "Weight",
+            points: [TrendPoint(date: Date(), value: 80)],
+            valueRange: 70...90,
+            kind: .other))
+        let convo = CoachConversation(
+            messages: [kept],
+            charts: [kept.id.uuidString: snapshot, gone.id.uuidString: snapshot])
+
+        let trimmed = CoachConversationStore.trimmed(convo)
+
+        XCTAssertNotNil(trimmed.charts[kept.id.uuidString], "a live message keeps its chart")
+        XCTAssertNil(trimmed.charts[gone.id.uuidString],
+                     "a chart with no message to hang on must not be persisted")
+    }
+
     func testEmptyMemoryHasNoEstimatedBytes() {
         XCTAssertEqual(CoachMemoryFootprint.estimate(conversations: [], facts: []),
                        .init(conversationBytes: 2, factBytes: 2),
