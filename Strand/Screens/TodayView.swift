@@ -2975,15 +2975,6 @@ struct TodayView: View {
     /// hero label uppercases this via `.textCase(.uppercase)`, so the catalog only needs the title-case key.
     /// `domain.rawValue` stays the stable styling/lookup id; this is purely the user-facing word. Mirror in
     /// Kotlin (the Android hero already reads its label from a localized resource, not the enum name).
-    private static func domainLabel(_ domain: DomainTheme) -> LocalizedStringKey {
-        switch domain {
-        case .charge: return "Charge"
-        case .effort: return "Effort"
-        case .rest:   return "Rest"
-        case .stress: return "Stress"
-        }
-    }
-
     /// The VoiceOver label for a hero ring's "how this score is calculated" button, with the domain word
     /// interpolated from a localized literal (so the spoken sentence is translated, not half-English).
     private static func domainGuideAccessibilityLabel(_ domain: DomainTheme) -> LocalizedStringKey {
@@ -3015,7 +3006,7 @@ struct TodayView: View {
                     ring().contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel(Self.domainLabel(domain))
+                .accessibilityLabel(Text(verbatim: domain.productName))
                 .accessibilityHint("See what shaped your Charge")
                 .accessibilityAddTraits(.isButton)
             } else {
@@ -3037,10 +3028,10 @@ struct TodayView: View {
                         .font(.system(size: 9, weight: .bold))
                         .opacity(0)
                         .accessibilityHidden(true)
-                    // The CHARGE/EFFORT/REST hero label is localized: the catalog key is the natural-case
-                    // domain word (Charge/Effort/Rest) and `.textCase(.uppercase)` does the uppercasing in
-                    // the current locale, so a de/es/ru build shows the translated word, not the English id.
-                    Text(Self.domainLabel(domain))
+                    // The CHARGE/EFFORT/REST hero label stays English — see `DomainTheme.productName`. It is a
+                    // product name, not a description, so `verbatim` keeps it out of the catalog;
+                    // `.textCase(.uppercase)` still does the uppercasing in the current locale.
+                    Text(verbatim: domain.productName)
                         .textCase(.uppercase)
                         .font(StrandFont.overline)
                         .tracking(StrandFont.overlineTracking)
@@ -3501,21 +3492,30 @@ struct TodayView: View {
             // ", " only when there is genuinely nothing banked anywhere. The carry-over shows the PRIOR
             // value labelled as prior, it never fabricates a number for the new day.
             let carried = lastScoredCharge
+            // Hoisted out of the StatTile call: with the label argument added, the combined `??` chains
+            // tipped the type-checker past its budget ("unable to type-check in reasonable time").
+            let chargeValue: String = d?.recovery.map { "\(Int($0.rounded()))%" }
+                ?? recoveryCalibration.map { "\($0)/\(Baselines.minNightsSeed)" }
+                ?? carried.map { "\(Int($0.value.rounded()))%" } ?? "—"
+            // Component 2: never a bare blank, when there's no number, no calibration count and
+            // nothing to carry, the caption states the honest "Needs the strap" rather than nothing.
+            let chargeCaption: String = d?.recovery.map { StrandPalette.recoveryState($0).capitalized }
+                ?? recoveryCalibration.map { _ in String(localized: "Calibrating") }
+                ?? carried.map { $0.caption }
+                ?? Self.needsStrapCaption
+            let chargeAccent: Color = d?.recovery.map { StrandPalette.recoveryColor($0) }
+                ?? carried.map { StrandPalette.recoveryColor($0.value) } ?? StrandPalette.textPrimary
             StatTile(
-                label: "Charge",
-                value: d?.recovery.map { "\(Int($0.rounded()))%" }
-                    ?? recoveryCalibration.map { "\($0)/\(Baselines.minNightsSeed)" }
-                    ?? carried.map { "\(Int($0.value.rounded()))%" } ?? "—",
-                // Component 2: never a bare blank, when there's no number, no calibration count and
-                // nothing to carry, the caption states the honest "Needs the strap" rather than nothing.
-                caption: d?.recovery.map { StrandPalette.recoveryState($0).capitalized }
-                    ?? recoveryCalibration.map { _ in String(localized: "Calibrating") }
-                    ?? carried.map { $0.caption }
-                    ?? Self.needsStrapCaption,
-                accent: d?.recovery.map { StrandPalette.recoveryColor($0) }
-                    ?? carried.map { StrandPalette.recoveryColor($0.value) } ?? StrandPalette.textPrimary,
+                label: "Charge", verbatimLabel: DomainTheme.charge.productName,
+                value: chargeValue,
+                caption: chargeCaption,
+                accent: chargeAccent,
                 sparkline: keyMetricsDetailed ? windowedSpark("recovery") : nil,
-                sparkColor: StrandPalette.accent
+                sparkColor: StrandPalette.accent,
+                // Charge is one of the three SCORES, so it has a scoring guide like Effort and Rest —
+                // it was simply the one tile missing the affordance. HRV / Rest HR / SpO₂ are raw
+                // measurements with no guide, and correctly carry no button.
+                accessory: { scoreInfoButton(.charge) }
             )
         case .effort:
             // Unscored TODAY → a short "building" hint instead of the "of N" axis caption, so a
@@ -3524,7 +3524,7 @@ struct TodayView: View {
             // `d.strain` straight off the daily row left it behind by the whole morning on an active day.
             let effort = effortStrain(d)
             StatTile(
-                label: "Effort",
+                label: "Effort", verbatimLabel: DomainTheme.effort.productName,
                 value: effort.map { UnitFormatter.effortDisplay($0, scale: effortScale) } ?? "—",
                 caption: effort != nil ? String(localized: "of \(UnitFormatter.effortScaleMax(effortScale))")
                                        : (buildingHint(.effort) ?? String(localized: "of \(UnitFormatter.effortScaleMax(effortScale))")),
@@ -3538,7 +3538,7 @@ struct TodayView: View {
             // Unscored TODAY → "building, wear it tonight" instead of a lone ", " caption (#527);
             // a scored day keeps its sleep-duration / efficiency caption.
             StatTile(
-                label: "Rest",
+                label: "Rest", verbatimLabel: DomainTheme.rest.productName,
                 value: restScore.map { "\(Int($0.rounded()))%" } ?? "—",
                 // Component 2: a scored day shows its duration/efficiency caption; an unscored TODAY shows
                 // the "building" hint; a past day with no Rest falls to the honest "Needs the strap" rather
@@ -3602,10 +3602,15 @@ struct TodayView: View {
                 : (spo2.value == "—" && spo2CandidateOn
                    ? String(localized: "toggle ON · no @82 data")
                    : (spo2.caption ?? ""))
+            // SpO₂ is the label, "Blood Oxygen" the caption — not the other way round. The full name
+            // runs 17-19 characters in es/it/pt-PT (and 14 in de) against a tile that fits ~16, so it
+            // truncated in four of the nine shipped languages. The abbreviation is the international
+            // standard, identical everywhere, and the translated name still reads underneath where
+            // there is room for it. A state caption (strap estimate / no @82 data) still wins.
             StatTile(
-                label: "Blood Oxygen",
+                label: "Blood Oxygen", verbatimLabel: "SpO₂",
                 value: spo2Value,
-                caption: spo2Caption,
+                caption: spo2Caption == "SpO₂" ? String(localized: "Blood Oxygen") : spo2Caption,
                 accent: spo2Value == "—" ? StrandPalette.textPrimary : StrandPalette.metricCyan,
                 // #103: the experimental @82 candidate feeds its own spark key when the real SpO₂ is
                 // absent. Still routed through `windowedSpark` so the "Detailed tiles" trend-window
@@ -3718,10 +3723,14 @@ struct TodayView: View {
                             StatTile(
                                 label: "\(WorkoutSource.displaySport(w.sport))",
                                 value: workoutDuration(w),
-                                caption: workoutCaption(w),
-                                accent: StrandPalette.effortTint(fraction: (w.strain ?? 0) / StrainScorer.maxStrain),
-                                delta: w.energyKcal.map { "\(Int($0.rounded())) kcal" },
-                                deltaColor: StrandPalette.metricAmber
+                                caption: Self.workoutCaption(w),
+                                accent: StrandPalette.effortTint(fraction: (w.strain ?? 0) / StrainScorer.maxStrain)
+                                // No kcal chip here. In a three-column tile the chip and the duration
+                                // cannot both fit: letting the chip compress rendered "327 kcal" as
+                                // "3…", and giving it its natural width instead pushed the DURATION —
+                                // the tile's headline — down to "…". Neither is worth having, so the
+                                // tile keeps sport + duration + when, and calories stay one tap away
+                                // in the workout detail (and on the Workouts screen, which has the room).
                             )
                         }
                         .buttonStyle(.plain)
@@ -4704,8 +4713,20 @@ struct TodayView: View {
         return String(localized: "\(mins)m")
     }
 
-    /// "d MMM · HH:mm–HH:mm", start-only when the row has no real end (#157). The "· N bpm"
-    /// segment was dropped: the StatTile caption is lineLimit(1) and date + range + bpm clips,     /// avg HR remains on the Workouts screen.
+    /// "d MMM · HH:mm" — the date and the START time, never a range.
+    ///
+    /// This caption has now lost two segments to the same cause, and it is worth saying why rather than
+    /// letting a third be added later. The tile is one cell of a three-column grid (~110pt wide) and the
+    /// caption is `lineLimit(1)`, so anything past roughly sixteen characters is ellipsised. "· N bpm"
+    /// went first; the end time is what still pushed "14 Aug · 18:27-19:11" over the edge, rendering as
+    /// "14 Aug · 18:27…".
+    ///
+    /// The end time is the right thing to drop: the DURATION is the tile's headline value, right above
+    /// this line, so start + duration already gives the end. Nothing is lost that the tile does not
+    /// already show, and the #157 case (a row with no real end) now produces the same shape as every
+    /// other row instead of needing its own branch.
+    ///
+    /// `static` so it can be tested without a view — the same reason `heroRingDiameter` is.
     // #perf: fixed-locale (en_US_POSIX), hoisted to static so a workout list doesn't allocate a
     // DateFormatter per row per render. Behaviour-identical — format + locale pinned. (mirrors `hrTimeFmt`)
     private static let workoutDateFmt: DateFormatter = {
@@ -4714,12 +4735,9 @@ struct TodayView: View {
         f.dateFormat = "d MMM"
         return f
     }()
-    private func workoutCaption(_ w: WorkoutRow) -> String {
+    static func workoutCaption(_ w: WorkoutRow) -> String {
         let start = Date(timeIntervalSince1970: TimeInterval(w.startTs))
-        let date = Self.workoutDateFmt.string(from: start)
-        guard w.endTs > w.startTs else { return "\(date) · \(Self.hrTimeFmt.string(from: start))" }
-        let end = Date(timeIntervalSince1970: TimeInterval(w.endTs))
-        return "\(date) · \(Self.hrTimeFmt.string(from: start))-\(Self.hrTimeFmt.string(from: end))"
+        return "\(workoutDateFmt.string(from: start)) · \(hrTimeFmt.string(from: start))"
     }
 
     /// Thousands-grouped integer string (steps / calories).
