@@ -233,6 +233,23 @@ struct CoachCardIconButton: View {
     }
 }
 
+/// Whether the Coach entry's breath should run right now.
+///
+/// ONE definition, because two entry points must agree — the header button on Liquid Today and
+/// `CoachEntryAvatar` on the classic row — and a setting that behaves differently depending on which
+/// Today variant is running would be worse than no setting at all.
+///
+/// Two independent conditions, both of which must hold: the user's own preference, and the motion
+/// state. A system-level "less movement please" outranks a per-feature default, which is why
+/// `poseStill` (Reduce Motion OR Low Power OR the app's own quiet-motion switch) can veto it. Carried
+/// over verbatim from `CoachTodayTile`, the tile this breath used to live on.
+@MainActor
+enum CoachBreath {
+    static func isActive(reduceMotion: Bool, enabled: Bool, motion: NoopMotionState) -> Bool {
+        enabled && !motion.poseStill(reduceMotion)
+    }
+}
+
 /// The coach's avatar as it appears on a Today entry: the identity's picture with a small accent sparkles
 /// badge, or a plain sparkle disc when the user turned the avatar off. The badge is the whole point — even
 /// with a photo it marks the circle unmistakably as the COACH rather than the user's own profile picture.
@@ -243,7 +260,18 @@ struct CoachEntryAvatar: View {
     /// False renders the generic sparkle disc — the `CoachEntryPrefs.todayAvatarKey` opt-out.
     var showsAvatar: Bool = true
 
+    @AppStorage(CoachTilePrefs.breathingKey) private var breathingEnabled = true
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @ObservedObject private var motion = NoopMotionState.shared
+
     var body: some View {
+        avatar.coachBreathHalo(active: CoachBreath.isActive(reduceMotion: reduceMotion,
+                                                            enabled: breathingEnabled,
+                                                            motion: motion))
+    }
+
+    @ViewBuilder
+    private var avatar: some View {
         if showsAvatar {
             CoachAvatarView(size: size)
                 .overlay(alignment: .bottomTrailing) {
@@ -317,94 +345,6 @@ struct CoachTodayRow: View {
         .buttonStyle(.plain)
         .accessibilityLabel(Text("\(identityStore.identity.name), your coach"))
         .accessibilityHint("Opens the AI coach chat.")
-    }
-}
-
-/// The Coach's entry on the LIQUID Today, as a narrow tile that sits beside the Synthesis card rather than
-/// as its own full-width bar. Same content the row carries — badged avatar, the coach's name, the unseen
-/// dot — stacked instead of laid out in a line, so "what today means" and "ask about it" read as one pair of
-/// blocks and the scores keep the top of the screen. The row (`CoachTodayRow`) stays for the classic Today.
-/// Design tokens only; shared (macOS + iOS).
-struct CoachTodayTile: View {
-    /// Flipped true to present the Coach; the host owns the actual presentation, as with `CoachTodayRow`.
-    @Binding var isPresented: Bool
-    /// Matched to the Synthesis card beside it so the pair reads as one row of equal blocks.
-    var minHeight: CGFloat = 0
-
-    @EnvironmentObject private var coach: AICoachEngine
-    @ObservedObject private var identityStore = CoachIdentityStore.shared
-    @AppStorage(CoachEntryPrefs.todayAvatarKey) private var todayAvatar = true
-    /// The user's switch for the pulse (Settings → Appearance). See `CoachTilePrefs`.
-    @AppStorage(CoachTilePrefs.breathingKey) private var breathingEnabled = true
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @ObservedObject private var motion = NoopMotionState.shared
-    /// Flipped once on appear to start the endless breath.
-    @State private var breathing = false
-
-    /// Fixed width: the Synthesis card takes the rest, which keeps its one-line read from wrapping into a
-    /// column on a 375pt phone.
-    static let width: CGFloat = 104
-
-    /// Two independent conditions, both of which must hold: the user's own preference, and Reduce Motion.
-    /// A system-level "less movement please" outranks a per-feature default.
-    private var breathes: Bool { breathingEnabled && !motion.poseStill(reduceMotion) }
-
-    var body: some View {
-        Button { isPresented = true } label: {
-            tileBody
-                // ~3% over a ~4s round trip (2s each way), with the accent glow swelling in step. Small
-                // enough to read as a pulse rather than as something sliding around the screen.
-                .scaleEffect(breathes && breathing ? 1.03 : 1)
-                .shadow(color: StrandPalette.accent.opacity(breathes && breathing ? 0.30 : 0.10),
-                        radius: breathes && breathing ? 16 : 8)
-                .animation(breathes ? .easeInOut(duration: 2).repeatForever(autoreverses: true) : nil,
-                           value: breathing)
-                .onAppear { if breathes { breathing = true } }
-                // Turning the setting off mid-session must settle the tile immediately, not at the end of
-                // an endless animation that never ends.
-                .onChangeCompat(of: breathes) { on in breathing = on }
-        }
-        .buttonStyle(.plain)
-        .frame(width: Self.width)
-        .accessibilityLabel(Text("\(identityStore.identity.name), your coach"))
-        .accessibilityHint("Opens the AI coach chat.")
-    }
-
-    /// Round and accent-tinted, so it shares the corner language of the cards beside it instead of reading
-    /// as a plain rectangle bolted to the row.
-    private var tileBody: some View {
-        VStack(spacing: 8) {
-            CoachEntryAvatar(size: 40, showsAvatar: todayAvatar)
-                // The unseen-message dot rides the avatar here — the tile has no trailing edge to park it
-                // on the way the full-width row does.
-                .overlay(alignment: .topTrailing) {
-                    if coach.hasUnseenCoachMessage {
-                        Circle()
-                            .fill(StrandPalette.statusCritical)
-                            .frame(width: 10, height: 10)
-                            .overlay(Circle().strokeBorder(StrandPalette.surfaceBase, lineWidth: 1.5))
-                            .accessibilityHidden(true)
-                    }
-                }
-            Text(identityStore.identity.name)
-                .font(StrandFont.subhead)
-                .foregroundStyle(StrandPalette.textPrimary)
-                .lineLimit(1)
-                .minimumScaleFactor(0.7)
-            Text("Ask")
-                .font(StrandFont.footnote)
-                .foregroundStyle(StrandPalette.textSecondary)
-        }
-        .padding(10)
-        .frame(maxWidth: .infinity)
-        .frame(minHeight: minHeight, alignment: .center)
-        .frame(maxHeight: .infinity)   // stretch to the Synthesis card beside it, never overhang it
-        .background(
-            RoundedRectangle(cornerRadius: 26, style: .continuous)
-                .fill(StrandPalette.accent.opacity(0.10))
-                .overlay(RoundedRectangle(cornerRadius: 26, style: .continuous)
-                    .strokeBorder(StrandPalette.accent.opacity(0.28), lineWidth: 1))
-        )
     }
 }
 

@@ -126,6 +126,8 @@ struct LiquidTodayView: View {
     @AppStorage(CoachFeaturePrefs.enabledKey) private var coachFeatureEnabled = false
     /// False renders the generic sparkle disc instead of the coach's own avatar on the banner/header entries.
     @AppStorage(CoachEntryPrefs.todayAvatarKey) private var todayAvatar = true
+    /// The breath switch (Settings → Appearance) — shared with the classic row's avatar.
+    @AppStorage(CoachTilePrefs.breathingKey) private var coachBreathingEnabled = true
 
     /// Live Sessions (silent guardian) beta gate — the SAME key the Settings toggle writes. Default ON
     /// (the entry is BETA-labelled in-UI); off removes the Start-session control entirely.
@@ -733,6 +735,12 @@ struct LiquidTodayView: View {
                 HStack(spacing: 8) {
                     if coachFeatureEnabled, coachUIEnabled, coachHeaderIconEnabled {
                         Button { showCoach = true } label: {
+                            // The breath (#coach-breath): the corona behind the button is the only thing
+                            // that still reads as "alive" at 30pt — the old tile's 3% scale swell would be
+                            // 0.9pt here. Applied to the GROUP, so it wraps the avatar and the sparkle
+                            // fallback alike: turning the avatar off is a choice about the picture, not a
+                            // reason to lose the pulse. Same gate as the classic row's avatar, so the
+                            // setting means one thing in both Todays.
                             Group {
                                 if todayAvatar {
                                     CoachAvatarView(size: LiquidHeaderMetrics.control)
@@ -745,6 +753,9 @@ struct LiquidTodayView: View {
                                         .background(Circle().fill(StrandPalette.surfaceInset.opacity(0.6)))
                                 }
                             }
+                            .coachBreathHalo(active: CoachBreath.isActive(reduceMotion: reduceMotion,
+                                                                          enabled: coachBreathingEnabled,
+                                                                          motion: motion))
                         }
                         .buttonStyle(LiquidPressStyle())
                         .accessibilityLabel("Ask your Coach")
