@@ -1672,51 +1672,36 @@ struct LiquidTodayView: View {
             // hero are the same number, so a carry that reached only one of them would put two answers for
             // Charge on one screen. (#543: one prior row feeds every recovery-derived read-out.) Strain below
             // stays raw, matching the Effort hero, which correctly does not carry.
-            ktile(DomainTheme.charge.productName, icon: keyMetricIcon(metric), intText(chargeDisplay.pct), "%", StrandPalette.chargeColor, frac(chargeDisplay.pct), key: "recovery")
+            ktile(DomainTheme.charge.productName, icon: metric.customizationIcon, intText(chargeDisplay.pct), "%", StrandPalette.chargeColor, frac(chargeDisplay.pct), key: "recovery")
         case .effort:
             // #45 parity with the hero: route through effortDisplay so this tile shows the SAME number on
             // the SAME scale as the Effort hero (0–21 WHOOP vs 0–100), instead of always the raw 0–100
             // stored value — the two used to disagree whenever the user picked the WHOOP scale.
             let effortText = displayDay?.strain.map { UnitFormatter.effortDisplay($0, scale: effortScale) } ?? "–"
-            ktile(DomainTheme.effort.productName, icon: keyMetricIcon(metric), effortText, "%", StrandPalette.effortColor, frac(displayDay?.strain), key: "strain")
+            ktile(DomainTheme.effort.productName, icon: metric.customizationIcon, effortText, "%", StrandPalette.effortColor, frac(displayDay?.strain), key: "strain")
         case .rest:
-            ktile(DomainTheme.rest.productName, icon: keyMetricIcon(metric), intText(restScore), "%", StrandPalette.restColor, frac(restScore), key: "sleep_performance")
+            ktile(DomainTheme.rest.productName, icon: metric.customizationIcon, intText(restScore), "%", StrandPalette.restColor, frac(restScore), key: "sleep_performance")
         case .hrv:
-            ktile("HRV", icon: keyMetricIcon(metric), intText(hrv), "ms", StrandPalette.metricCyan, fracOver(hrv, 120), key: "hrv")
+            ktile("HRV", icon: metric.customizationIcon, intText(hrv), "ms", StrandPalette.metricCyan, fracOver(hrv, 120), key: "hrv")
         case .restingHr:
-            ktile(String(localized: "Rest HR"), icon: keyMetricIcon(metric), intText(rhr), "bpm", StrandPalette.metricRose, fracOver(rhr, 100), key: "rhr")
+            ktile(String(localized: "Rest HR"), icon: metric.customizationIcon, intText(rhr), "bpm", StrandPalette.metricRose, fracOver(rhr, 100), key: "rhr")
         case .bloodOxygen:
             let spo2 = displayDay?.spo2Pct ?? vitalsDay?.spo2Pct
-            ktile("SpO₂", icon: keyMetricIcon(metric), intText(spo2), "%", StrandPalette.metricCyan, fracOver(spo2, 100), key: "spo2")
+            ktile("SpO₂", icon: metric.customizationIcon, intText(spo2), "%", StrandPalette.metricCyan, fracOver(spo2, 100), key: "spo2")
         case .respiratory:
             let resp = displayDay?.respRateBpm ?? vitalsDay?.respRateBpm
-            ktile(String(localized: "Respiratory"), icon: keyMetricIcon(metric), resp.map { String(format: "%.1f", $0) } ?? "—", "rpm", StrandPalette.accent, fracOver(resp, 24), key: "resp_rate")
+            ktile(String(localized: "Respiratory"), icon: metric.customizationIcon, resp.map { String(format: "%.1f", $0) } ?? "—", "rpm", StrandPalette.accent, fracOver(resp, 24), key: "resp_rate")
         case .steps:
-            ktile(String(localized: "Steps"), icon: keyMetricIcon(metric), stepsText, "", StrandPalette.chargeColor,
+            ktile(String(localized: "Steps"), icon: metric.customizationIcon, stepsText, "", StrandPalette.chargeColor,
                   fracOver(stepCount, 10000), key: stepsDetailKey, detailMetric: stepsDetailMetric)
         case .weight:
             let weightText = resolvedWeightKg.map { UnitFormatter.massFromKilograms($0.kg, system: unitSystem) } ?? "—"
-            ktile(String(localized: "Weight"), icon: keyMetricIcon(metric), weightText, "", StrandPalette.metricAmber, nil, key: "weight")
+            ktile(String(localized: "Weight"), icon: metric.customizationIcon, weightText, "", StrandPalette.metricAmber, nil, key: "weight")
         case .calories:
             // #616: imported-first value (imported ?: activeKcalEst) + route the tap to the matching
             // detail source, so the number, its sparkline and the chart it opens all agree.
-            ktile(String(localized: "Calories"), icon: keyMetricIcon(metric), intText(caloriesCount), "kcal", StrandPalette.metricAmber,
+            ktile(String(localized: "Calories"), icon: metric.customizationIcon, intText(caloriesCount), "kcal", StrandPalette.metricAmber,
                   fracOver(caloriesCount, 800), key: "energy_kcal", detailMetric: caloriesDetailMetric)
-        }
-    }
-
-    private func keyMetricIcon(_ metric: KeyMetric) -> String {
-        switch metric {
-        case .charge: return "heart.fill"
-        case .effort: return "bolt.fill"
-        case .rest: return "moon.stars.fill"
-        case .hrv: return "waveform.path.ecg"
-        case .restingHr: return "heart.circle.fill"
-        case .bloodOxygen: return "drop.fill"
-        case .respiratory: return "lungs.fill"
-        case .steps: return "figure.walk"
-        case .weight: return "scalemass.fill"
-        case .calories: return "flame.fill"
         }
     }
 
@@ -1726,10 +1711,23 @@ struct LiquidTodayView: View {
         // trend) instead of leaving it as empty card.
         let wide = keyMetricsColumns <= 2
         let tile = VStack(alignment: .leading, spacing: 6) {
-            Text(label.uppercased())
-                .font(dynamicTypeSize.isAccessibilitySize ? StrandFont.overline : StrandFont.overlineScaled(wide ? 10 : 9))
-                .tracking(StrandFont.overlineTracking)
-                .foregroundStyle(StrandPalette.textTertiary)
+            // The icon leads the label rather than sitting in a corner: it costs no extra height, so the
+            // tile grid keeps the exact rhythm it had, and it pairs the tile with the row the user just
+            // dragged in the Customise sheet — same symbol, same colour, so the two surfaces are
+            // recognisably the same metric. `icon` was passed into this function all along and simply
+            // never drawn.
+            HStack(spacing: 5) {
+                Image(systemName: icon)
+                    .font(.system(size: wide ? 11 : 10, weight: .semibold))
+                    .foregroundStyle(tint)
+                    .accessibilityHidden(true)
+                Text(label.uppercased())
+                    .font(dynamicTypeSize.isAccessibilitySize ? StrandFont.overline : StrandFont.overlineScaled(wide ? 10 : 9))
+                    .tracking(StrandFont.overlineTracking)
+                    .foregroundStyle(StrandPalette.textTertiary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+            }
             (Text(value).font(StrandFont.number(wide ? wideMetricValueSize : compactMetricValueSize))
                 + Text(unit.isEmpty ? "" : " \(unit)").font(StrandFont.caption))
                 .foregroundStyle(StrandPalette.textPrimary)
