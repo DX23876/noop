@@ -83,6 +83,62 @@ final class GoalMeasureTests: XCTestCase {
         XCTAssertFalse(smoothed!.isReliable)
     }
 
+    // MARK: - Smoothed series (the rate-fit input)
+
+    /// `GoalMilestones.observedRatePerDay` fits a slope through this, and a caller pairs it with dates
+    /// — so it must return one centre per KEPT value, and the last one must agree with the level read
+    /// off the same series. A disagreement there would mean the rate and the level describe different
+    /// smoothings of the same weigh-ins.
+    func testSmoothedSeriesMatchesTheTrendItEndsOn() {
+        let series = Array(repeating: 80.0, count: 20) + Array(repeating: 76.0, count: 20)
+        let centres = GoalMeasure.smoothedSeries(series, cfg: GoalMeasure.weightTrend)
+        XCTAssertEqual(centres.count, series.count)
+        XCTAssertEqual(centres.last!,
+                       GoalMeasure.smoothedTrend(series, cfg: GoalMeasure.weightTrend)!.value,
+                       accuracy: 1e-9)
+    }
+
+    /// The alignment contract `isPlausible` exists for: implausible readings are dropped, so a caller
+    /// zipping dates against the result has to drop exactly the same ones or every sample shifts day.
+    func testSmoothedSeriesDropsImplausibleValuesAndIsPlausibleAgrees() {
+        let series = [80.0, 0.0, 79.0, 900.0, 78.0]
+        let centres = GoalMeasure.smoothedSeries(series, cfg: GoalMeasure.weightTrend)
+        let kept = series.filter { GoalMeasure.isPlausible($0, cfg: GoalMeasure.weightTrend) }
+        XCTAssertEqual(kept, [80.0, 79.0, 78.0])
+        XCTAssertEqual(centres.count, kept.count,
+                       "one centre per kept value, or dates and values stop lining up")
+    }
+
+    func testSmoothedSeriesOfNothingIsEmpty() {
+        XCTAssertTrue(GoalMeasure.smoothedSeries([], cfg: GoalMeasure.weightTrend).isEmpty)
+    }
+
+    // MARK: - Score trend (recovery / stress)
+
+    /// The reason recovery and stress moved off a plain mean: a two-day window used to produce a fully
+    /// judgeable number, and "at risk" could be raised off one rough night.
+    func testThinScoreWindowIsNotYetReliable() {
+        let smoothed = GoalMeasure.smoothedTrend([44.0, 41.0], cfg: GoalMeasure.scoreTrend)
+        XCTAssertNotNil(smoothed)
+        XCTAssertFalse(smoothed!.isReliable, "two readings cannot carry a verdict")
+    }
+
+    /// A 0-100 score still has to be followed when it genuinely moves, and its bounds must not reject
+    /// legitimate values at either end of the scale.
+    ///
+    /// 40 samples past the step, not 20: with a 7-day half-life the remaining gap is
+    /// `30 × 0.5^(n/7)`, which is still ~4 points at n=20 and ~0.6 at n=40. That lag is the config
+    /// working as specified, so the test asserts against converged input rather than pinning a number
+    /// that only holds for one window length.
+    func testScoreTrendFollowsASustainedMoveAndAcceptsTheWholeScale() {
+        let series = Array(repeating: 40.0, count: 20) + Array(repeating: 70.0, count: 40)
+        XCTAssertEqual(GoalMeasure.smoothedTrend(series, cfg: GoalMeasure.scoreTrend)!.value,
+                       70.0, accuracy: 1.0)
+        XCTAssertTrue(GoalMeasure.isPlausible(0, cfg: GoalMeasure.scoreTrend))
+        XCTAssertTrue(GoalMeasure.isPlausible(100, cfg: GoalMeasure.scoreTrend))
+        XCTAssertFalse(GoalMeasure.isPlausible(101, cfg: GoalMeasure.scoreTrend))
+    }
+
     // MARK: - Aggregates
 
     func testEmptyInputsAreNilNotZero() {

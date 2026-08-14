@@ -683,7 +683,7 @@ struct LiquidTodayView: View {
                         // the moment the shown day isn't today.
                         Text(headlineLine)
                             .font(StrandFont.rounded(24))
-                            .foregroundStyle(.white)
+                            .foregroundStyle(StrandPalette.textPrimary)
                             .lineLimit(1)
                             // A long name ("Good afternoon, Konstantin") must scale, not shove the icon
                             // cluster off the trailing edge on a 375pt phone.
@@ -694,7 +694,7 @@ struct LiquidTodayView: View {
                         // ~10s it swaps for ~1.5s to a one-word accent hint, then returns to the date.
                         Text(dayNavHint ?? dateLine)
                             .font(StrandFont.caption)
-                            .foregroundStyle(dayNavHint != nil ? StrandPalette.accent : .white.opacity(0.78))
+                            .foregroundStyle(dayNavHint != nil ? StrandPalette.accent : StrandPalette.textSecondary)
                             .contentTransition(.opacity)
                             .shadow(color: .black.opacity(0.35), radius: 8, y: 1)
                     }
@@ -740,9 +740,9 @@ struct LiquidTodayView: View {
                                 } else {
                                     Image(systemName: "sparkles")
                                         .font(.system(size: 13, weight: .semibold))
-                                        .foregroundStyle(.white)
+                                        .foregroundStyle(StrandPalette.textPrimary)
                                         .frame(width: LiquidHeaderMetrics.control, height: LiquidHeaderMetrics.control)
-                                        .background(Circle().fill(.white.opacity(0.16)))
+                                        .background(Circle().fill(StrandPalette.surfaceInset.opacity(0.6)))
                                 }
                             }
                         }
@@ -773,9 +773,9 @@ struct LiquidTodayView: View {
                     Button { customizationDestination = .today } label: {
                         Image(systemName: "slider.horizontal.3")
                             .font(.system(size: 14, weight: .bold))
-                            .foregroundStyle(.white)
+                            .foregroundStyle(StrandPalette.textPrimary)
                             .frame(width: LiquidHeaderMetrics.control, height: LiquidHeaderMetrics.control)
-                            .background(Circle().fill(.white.opacity(0.16)))
+                            .background(Circle().fill(StrandPalette.surfaceInset.opacity(0.6)))
                     }
                     .nativeLiquidGlassHeaderButton()
                     .accessibilityLabel("Customize Today")
@@ -830,9 +830,9 @@ struct LiquidTodayView: View {
                 Image(systemName: "chevron.right").font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(StrandPalette.textTertiary)
             }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 11)
-            .background(NoopPanelSurface(cornerRadius: 18, surfaceOpacity: cardOpacity))
+            .padding(.horizontal, NoopMetrics.space4)
+            .padding(.vertical, NoopMetrics.space3)
+            .background(NoopPanelSurface(cornerRadius: NoopMetrics.cardRadius, surfaceOpacity: cardOpacity))
         }
         .buttonStyle(LiquidPressStyle())
         .accessibilityLabel("Start a live session. Beta. Silent strap coaching against today's Charge.")
@@ -1014,7 +1014,7 @@ struct LiquidTodayView: View {
             if let m = hostedSleepModel {
                 StagesVsTypicalCard(model: m)
             } else {
-                hostedSleepPlaceholder
+                hostedSleepPlaceholder(title: "Stages vs typical", overline: "Last night")
             }
         case .nightDetail:
             // Renders from the same shared SleepModel built in load(). Until that async build lands — or on a
@@ -1022,7 +1022,7 @@ struct LiquidTodayView: View {
             if let m = hostedSleepModel {
                 NightDetailCard(model: m)
             } else {
-                hostedNightDetailPlaceholder
+                hostedSleepPlaceholder(title: "Night detail", overline: "Metrics")
             }
         case .sleepDebt:
             // Renders from the same shared SleepModel built in load(). Until that async build lands — or on a
@@ -1030,7 +1030,7 @@ struct LiquidTodayView: View {
             if let m = hostedSleepModel {
                 SleepDebtLedgerCard(model: m)
             } else {
-                hostedSleepDebtPlaceholder
+                hostedSleepPlaceholder(title: "Sleep-debt ledger", overline: "Last 14 nights")
             }
         case .stages:
             // The READ-ONLY latest-night stage card — same shared SleepModel (same night + intervals as the
@@ -1039,7 +1039,9 @@ struct LiquidTodayView: View {
             if let m = hostedSleepModel {
                 StagesCard(model: m)
             } else {
-                hostedSleepPlaceholder
+                // Was mislabelled "Stages vs typical" (reusing that placeholder) — should read "Stages",
+                // matching this card's own title, and TodayView's twin switch which already got this right.
+                hostedSleepPlaceholder(title: "Stages", overline: "Last night")
             }
         case .hoursVsNeeded:
             // The single hours-vs-need % metric, rendered from the same shared SleepModel built in load().
@@ -1048,7 +1050,7 @@ struct LiquidTodayView: View {
             if let m = hostedSleepModel {
                 HoursVsNeededCard(model: m)
             } else {
-                hostedHoursVsNeededPlaceholder
+                hostedSleepPlaceholder(title: "Hours vs Needed", overline: "Sleep")
             }
         case .consistency:
             // The single sleep-consistency % metric, rendered from the same shared SleepModel built in
@@ -1057,78 +1059,23 @@ struct LiquidTodayView: View {
             if let m = hostedSleepModel {
                 ConsistencyCard(model: m)
             } else {
-                hostedConsistencyPlaceholder
+                hostedSleepPlaceholder(title: "Consistency", overline: "Sleep")
             }
         }
     }
 
     /// Graceful empty state for a SleepModel-backed hosted card whose model hasn't built yet (first frame)
     /// or is nil (no usable latest night). Keeps the hosted slot present + labelled so add/remove/reorder in
-    /// Customise still reads, without rendering a partial card. #today-hosted-cards.
-    private var hostedSleepPlaceholder: some View {
+    /// Customise still reads, without rendering a partial card. Twin of TodayView's own
+    /// `hostedSleepPlaceholder`. #today-hosted-cards.
+    private func hostedSleepPlaceholder(title: LocalizedStringKey, overline: LocalizedStringKey) -> some View {
         VStack(alignment: .leading, spacing: NoopMetrics.gap) {
-            SectionHeader("Stages vs typical", overline: "Last night")
+            SectionHeader(title, overline: overline)
             Text("Not enough nights yet.")
                 .font(StrandFont.subhead)
                 .foregroundStyle(StrandPalette.textTertiary)
                 .frame(maxWidth: .infinity, minHeight: 60, alignment: .center)
-                .background(NoopPanelSurface(tint: StrandPalette.restColor, cornerRadius: 12))
-        }
-    }
-
-    /// Graceful empty state for the hosted "Night detail" grid before its shared SleepModel builds (first
-    /// frame) or when there is no usable latest night. Same treatment as `hostedSleepPlaceholder`, labelled
-    /// for this card so add/remove/reorder in Customise still reads. #today-hosted-cards.
-    private var hostedNightDetailPlaceholder: some View {
-        VStack(alignment: .leading, spacing: NoopMetrics.gap) {
-            SectionHeader("Night detail", overline: "Metrics")
-            Text("Not enough nights yet.")
-                .font(StrandFont.subhead)
-                .foregroundStyle(StrandPalette.textTertiary)
-                .frame(maxWidth: .infinity, minHeight: 60, alignment: .center)
-                .background(NoopPanelSurface(tint: StrandPalette.restColor, cornerRadius: 12))
-        }
-    }
-
-    /// Graceful empty state for the hosted "Sleep-debt ledger" before its shared SleepModel builds (first
-    /// frame) or when there is no usable latest night. Same treatment as `hostedSleepPlaceholder`, labelled
-    /// for this card so add/remove/reorder in Customise still reads. #today-hosted-cards.
-    private var hostedSleepDebtPlaceholder: some View {
-        VStack(alignment: .leading, spacing: NoopMetrics.gap) {
-            SectionHeader("Sleep-debt ledger", overline: "Last 14 nights")
-            Text("Not enough nights yet.")
-                .font(StrandFont.subhead)
-                .foregroundStyle(StrandPalette.textTertiary)
-                .frame(maxWidth: .infinity, minHeight: 60, alignment: .center)
-                .background(NoopPanelSurface(tint: StrandPalette.restColor, cornerRadius: 12))
-        }
-    }
-
-    /// Graceful empty state for the hosted "Hours vs Needed" card before its shared SleepModel builds (first
-    /// frame) or when there is no usable latest night. Same treatment as `hostedSleepPlaceholder`, labelled
-    /// for this card so add/remove/reorder in Customise still reads. #today-hosted-cards.
-    private var hostedHoursVsNeededPlaceholder: some View {
-        VStack(alignment: .leading, spacing: NoopMetrics.gap) {
-            SectionHeader("Hours vs Needed", overline: "Sleep")
-            Text("Not enough nights yet.")
-                .font(StrandFont.subhead)
-                .foregroundStyle(StrandPalette.textTertiary)
-                .frame(maxWidth: .infinity, minHeight: 60, alignment: .center)
-                .background(NoopPanelSurface(tint: StrandPalette.restColor, cornerRadius: 12))
-        }
-    }
-
-    /// Graceful empty state for the hosted "Consistency" card before its shared SleepModel builds (first
-    /// frame) or when there is no usable latest night. Same treatment as `hostedSleepPlaceholder`, labelled
-    /// for this card so add/remove/reorder in Customise still reads. #today-hosted-cards.
-    private var hostedConsistencyPlaceholder: some View {
-        VStack(alignment: .leading, spacing: NoopMetrics.gap) {
-            SectionHeader("Consistency", overline: "Sleep")
-            Text("Not enough nights yet.")
-                .font(StrandFont.subhead)
-                .foregroundStyle(StrandPalette.textTertiary)
-                .frame(maxWidth: .infinity, minHeight: 60, alignment: .center)
-                .background(NoopPanelSurface(tint: StrandPalette.restColor, cornerRadius: 12))
+                .background(NoopPanelSurface(tint: StrandPalette.restColor, cornerRadius: NoopMetrics.groupedRadius))
         }
     }
 
@@ -1258,21 +1205,21 @@ struct LiquidTodayView: View {
                 // the padding into the label — plus contentShape — makes the label's hit area match what
                 // it visually looks like; the trailing edge only gets its own padding here when there's no
                 // coach button riding along (that button gets its own trailing padding instead).
-                .padding(.leading, 14)
-                .padding(.vertical, 11)
-                .padding(.trailing, ctx == nil ? 14 : 0)
+                .padding(.leading, NoopMetrics.space4)
+                .padding(.vertical, NoopMetrics.space3)
+                .padding(.trailing, ctx == nil ? NoopMetrics.space4 : 0)
                 .contentShape(Rectangle())
             }
             .buttonStyle(LiquidPressStyle())
             if let ctx {
                 CoachCardIconButton(context: ctx)
-                    .padding(.trailing, 14)
+                    .padding(.trailing, NoopMetrics.space4)
             }
         }
         .background(
-            RoundedRectangle(cornerRadius: 20, style: .continuous)
+            RoundedRectangle(cornerRadius: NoopMetrics.cardRadius, style: .continuous)
                 .fill(StrandPalette.surfaceRaised)
-                .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .overlay(RoundedRectangle(cornerRadius: NoopMetrics.cardRadius, style: .continuous)
                     .strokeBorder(StrandPalette.hairline, lineWidth: 1))
                 .opacity(cardOpacity)
         )
@@ -1301,7 +1248,7 @@ struct LiquidTodayView: View {
                 .font(StrandFont.overline)
                 .tracking(StrandFont.overlineTracking)
                 .foregroundStyle(readinessColor(readiness.level))
-                .padding(.horizontal, 10)
+                .padding(.horizontal, NoopMetrics.space3)
                 .padding(.vertical, 5)
                 .background(Capsule(style: .continuous).fill(readinessColor(readiness.level).opacity(0.12)))
                 .overlay(Capsule(style: .continuous).stroke(readinessColor(readiness.level).opacity(0.32), lineWidth: 1))
@@ -1493,7 +1440,7 @@ struct LiquidTodayView: View {
                                 .foregroundStyle(StrandPalette.textTertiary)
                         }
                         .padding(14)
-                        .background(RoundedRectangle(cornerRadius: 14).fill(StrandPalette.surfaceInset))
+                        .background(RoundedRectangle(cornerRadius: NoopMetrics.groupedRadius).fill(StrandPalette.surfaceInset))
                         .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
@@ -1810,9 +1757,9 @@ struct LiquidTodayView: View {
         // grid and the screen breathes. Deliberately NOT glassEffect per tile: ten blur passes over a live
         // animated sky is exactly the scroll-stutter this file spends its PERF comments avoiding.
         .background(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
+            RoundedRectangle(cornerRadius: NoopMetrics.groupedRadius, style: .continuous)
                 .fill(StrandPalette.surfaceRaised.opacity(translucentCardFillOpacity))
-                .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .overlay(RoundedRectangle(cornerRadius: NoopMetrics.groupedRadius, style: .continuous)
                     .strokeBorder(StrandPalette.hairline, lineWidth: 1))
                 .opacity(cardOpacity)
         )
@@ -1923,6 +1870,12 @@ struct LiquidTodayView: View {
                     .fill(StrandPalette.surfaceRaised.opacity(translucentCardFillOpacity))
                     .overlay(RoundedRectangle(cornerRadius: NoopMetrics.cardRadius, style: .continuous)
                         .strokeBorder(StrandPalette.hairline, lineWidth: 1))
+                    // A small lift off the sky background — every other surface here (ktile, cardLink,
+                    // the recovery-vitals rows) shares this shadow via the same background chain, scaled
+                    // down from the hero's own (line ~889). Unlike FrostedCardSurface elsewhere in the app,
+                    // this is NOT theme-gated: Liquid always sits over the animated LiquidSky, not a flat
+                    // canvas, so the light/dark asymmetry that surface relies on doesn't apply here.
+                    .shadow(color: .black.opacity(0.2), radius: 12, x: 0, y: 5)
                     .opacity(cardOpacity)
             )
     }
@@ -2372,7 +2325,7 @@ private struct LiquidWordmark: View {
             ForEach(Array("NOOP".enumerated()), id: \.offset) { _, ch in
                 Text(String(ch))
                     .font(StrandFont.rounded(13, weight: .bold))
-                    .foregroundStyle(.white.opacity(0.9))
+                    .foregroundStyle(StrandPalette.textPrimary.opacity(0.9))
             }
         }
         .shadow(color: .black.opacity(0.25), radius: 6, y: 1)
@@ -2549,9 +2502,9 @@ private struct LiquidAddButton: View {
         Button { router.requestQuickActions() } label: {
             Image(systemName: "plus")
                 .font(.system(size: 15, weight: .bold))
-                .foregroundStyle(.white)
+                .foregroundStyle(StrandPalette.textPrimary)
                 .frame(width: LiquidHeaderMetrics.control, height: LiquidHeaderMetrics.control)
-                .background(Circle().fill(.white.opacity(0.16)))
+                .background(Circle().fill(StrandPalette.surfaceInset.opacity(0.6)))
         }
         .nativeLiquidGlassHeaderButton()
         .accessibilityLabel("Quick actions")
@@ -2569,9 +2522,9 @@ private struct LiquidUpdatesBellButton: View {
             Image(systemName: updateStore.unreadCount > 0 ? "bell.badge" : "bell")
                 .font(.system(size: 13, weight: .semibold))
                 .symbolRenderingMode(.hierarchical)
-                .foregroundStyle(.white)
+                .foregroundStyle(StrandPalette.textPrimary)
                 .frame(width: LiquidHeaderMetrics.control, height: LiquidHeaderMetrics.control)
-                .background(Circle().fill(.white.opacity(0.16)))
+                .background(Circle().fill(StrandPalette.surfaceInset.opacity(0.6)))
                 .overlay(alignment: .topTrailing) {
                     if updateStore.unreadCount > 0 {
                         Text("\(min(updateStore.unreadCount, 99))")

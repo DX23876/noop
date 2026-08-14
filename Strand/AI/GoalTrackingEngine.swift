@@ -220,7 +220,12 @@ enum GoalTrackingEngine {
             .filter { $0.achievedAt == nil }
             .min { $0.expectedDate < $1.expectedDate }
         let course: GoalMilestones.Course? = {
-            guard let baseline = goal.baseline, let target = goal.target,
+            // `judgeable` gates this for the same reason it gates the health verdict above: a Course
+            // carries `verdict` (.ahead/.behind/.onCourse) and `daysLate`, which are judgements, not
+            // readings. Deriving them from a still-cold-starting trend produces a confident arrival
+            // date out of four scale readings.
+            guard judgeable,
+                  let baseline = goal.baseline, let target = goal.target,
                   let targetDate = goal.targetDate, let currentValue else { return nil }
             return GoalMilestones.course(baseline: baseline, target: target,
                                           createdAt: goal.createdAt, targetDate: targetDate,
@@ -360,7 +365,12 @@ final class GoalTrackingStore: ObservableObject {
         // The stored stress score, same key/source the Stress screen reads. Recovery needs no extra
         // read — it is a field on the daily rows already in `repo.days`.
         let stress = await repo.series(key: "stress", source: "my-whoop", days: 365)
-        let measurementByKind = measurements(workouts: workouts, weights: weights, stress: stress,
+        // Windowed and ordered ONCE, here, because two consumers need the identical basis: the level
+        // read (`measurements`) and the rate fit (`weightSamples` below). Body weight was the only
+        // measure with no window at all, so a wearer who stopped weighing in months ago kept a stale
+        // reading presented as current — every other kind is windowed inside `measurements`.
+        let weightsInWindow = weightsWithin(GoalMeasure.weightWindowDays, weights: weights, now: now)
+        let measurementByKind = measurements(workouts: workouts, weights: weightsInWindow, stress: stress,
                                              days: repo.days, now: now)
         let calendar = Calendar.autoupdatingCurrent
         let start = calendar.date(byAdding: .day, value: -365, to: now) ?? now
@@ -409,17 +419,32 @@ final class GoalTrackingStore: ObservableObject {
         // and any waypoint the measured value has passed is stamped with the date it was first reached.
         CoachGoalStore.shared.ensureMilestones(now: now)
         for goal in CoachGoalStore.shared.goals {
-            guard let value = measurementByKind[goal.kind]?.value else { continue }
-            CoachGoalStore.shared.markMilestonesReached(goalId: goal.id, current: value, on: now)
+            // A provisional value must not stamp a waypoint. `achievedAt` is written once and never
+            // cleared, so this is the one place where a still-cold-starting trend would leave a
+            // PERMANENT record — the same reading `evaluate` refuses to draw a verdict from.
+            guard let measurement = measurementByKind[goal.kind], !measurement.isProvisional else { continue }
+            CoachGoalStore.shared.markMilestonesReached(goalId: goal.id, current: measurement.value, on: now)
         }
 
         // Only the weight goal has a dated measurement series to fit a rate against; the others get a
         // planned-vs-actual reading without an arrival date, which `course` reports honestly as
         // "not enough data" rather than inventing a slope.
-        let weightSamples = weights.compactMap { row -> GoalMilestones.Sample? in
-            guard let date = parseDay(row.day) else { return nil }
-            return .init(date: date, value: row.value)
+        //
+        // SMOOTHED, not raw. `GoalMilestones.Sample` asks for the smoothed series in as many words —
+        // "so a day of water weight cannot tilt the fitted rate" — and this used to hand it the raw
+        // scale readings, so the least-squares slope was fitted straight through 28 days of daily
+        // water swing. `isPlausible` filters the pairs with the SAME rule the fold uses, because
+        // `smoothedSeries` returns one centre per kept value: zipping it against unfiltered dates
+        // would shift every sample onto the wrong day.
+        let datedWeights = weightsInWindow.compactMap { row -> (date: Date, value: Double)? in
+            guard GoalMeasure.isPlausible(row.value, cfg: GoalMeasure.weightTrend),
+                  let date = parseDay(row.day) else { return nil }
+            return (date, row.value)
         }
+        let weightSamples = zip(datedWeights,
+                                GoalMeasure.smoothedSeries(datedWeights.map(\.value),
+                                                           cfg: GoalMeasure.weightTrend))
+            .map { GoalMilestones.Sample(date: $0.date, value: $1) }
         let unresolved = Set(resolutions.map(\.proposalId))
         snapshots = CoachGoalStore.shared.goals.map { goal in
             GoalTrackingEngine.evaluate(goal: goal, proposals: proposals,
@@ -435,7 +460,8 @@ final class GoalTrackingStore: ObservableObject {
         CoachNotifier.syncGoalMonitoring(snapshots)
     }
 
-    /// Derive "where am I now" per goal kind. The window lengths and the smoothing live in
+    /// Derive "where am I now" per goal kind. `weights` arrives already windowed and ordered (the rate
+    /// fit needs the same series, so the caller does it once). The window lengths and the smoothing live in
     /// `GoalMeasure` (StrandAnalytics) so they are unit-tested and defined once.
     private func measurements(workouts: [WorkoutRow], weights: [(day: String, value: Double)],
                               stress: [(day: String, value: Double)],
@@ -490,31 +516,47 @@ final class GoalTrackingStore: ObservableObject {
             result[.sleep] = GoalMeasurement(value: mean / 60, date: lastDay.flatMap(parseDay))
         }
 
-        // Recovery / Charge, weekly mean. A derived score, not a clinical quantity — it answers
-        // "is this moving the way I wanted", nothing more, and it drives no gate.
-        let scoreDays = Array(ascending.suffix(GoalMeasure.scoreWindowDays))
-        if let mean = GoalMeasure.mean(scoreDays.compactMap { $0.recovery }) {
+        // Recovery / Charge and Stress as SMOOTHED trends, for the reason body weight already is: a
+        // plain mean over the last seven ROWS can rest on two populated days and still hand back a
+        // fully judgeable number, which is how "at risk" got raised off a single rough night. The EWMA
+        // carries `isProvisional`, so a thin window now says so instead of pretending.
+        //
+        // A derived score, not a clinical quantity — it answers "is this moving the way I wanted",
+        // nothing more, and it drives no gate.
+        let scoreDays = Array(ascending.suffix(GoalMeasure.scoreTrendWindowDays))
+        if let trend = GoalMeasure.smoothedTrend(scoreDays.compactMap { $0.recovery },
+                                                 cfg: GoalMeasure.scoreTrend) {
             let lastDay = scoreDays.last(where: { $0.recovery != nil })?.day
-            result[.recovery] = GoalMeasurement(value: mean, date: lastDay.flatMap(parseDay))
+            result[.recovery] = GoalMeasurement(value: trend.value, date: lastDay.flatMap(parseDay),
+                                                isProvisional: !trend.isReliable)
         }
 
-        // Stress score, weekly mean, from the stored "stress" series (the same one the Stress screen
-        // reads). Direction is carried by the goal's own baseline → target, so "lower is better"
-        // needs no special case here.
-        let stressWindow = Array(stress.sorted { $0.day < $1.day }.suffix(GoalMeasure.scoreWindowDays))
-        if let mean = GoalMeasure.mean(stressWindow.map(\.value)) {
-            result[.stress] = GoalMeasurement(value: mean, date: stressWindow.last.flatMap { parseDay($0.day) })
+        // Stress, from the stored "stress" series (the same one the Stress screen reads). Direction is
+        // carried by the goal's own baseline → target, so "lower is better" needs no special case here.
+        let stressWindow = Array(stress.sorted { $0.day < $1.day }.suffix(GoalMeasure.scoreTrendWindowDays))
+        if let trend = GoalMeasure.smoothedTrend(stressWindow.map(\.value), cfg: GoalMeasure.scoreTrend) {
+            result[.stress] = GoalMeasurement(value: trend.value,
+                                              date: stressWindow.last.flatMap { parseDay($0.day) },
+                                              isProvisional: !trend.isReliable)
         }
 
         // Body weight as a SMOOTHED trend, not the last reading: 1-2 kg of daily water/food swing
-        // otherwise flipped progress and the on-track/at-risk verdict with it.
-        let weightSeries = weights.sorted { $0.day < $1.day }
-        if let trend = GoalMeasure.smoothedTrend(weightSeries.map(\.value), cfg: GoalMeasure.weightTrend) {
+        // otherwise flipped progress and the on-track/at-risk verdict with it. Already windowed and
+        // ordered by the caller, so both this and the rate fit see the same series.
+        if let trend = GoalMeasure.smoothedTrend(weights.map(\.value), cfg: GoalMeasure.weightTrend) {
             result[.weight] = GoalMeasurement(value: trend.value,
-                                              date: weightSeries.last.flatMap { parseDay($0.day) },
+                                              date: weights.last.flatMap { parseDay($0.day) },
                                               isProvisional: !trend.isReliable)
         }
         return result
+    }
+
+    /// Weigh-ins inside the recency window, oldest → newest. Day-string comparison rather than date
+    /// parsing: `series` rows are already "yyyy-MM-dd", which sorts and compares lexicographically.
+    private func weightsWithin(_ windowDays: Int, weights: [(day: String, value: Double)],
+                               now: Date) -> [(day: String, value: Double)] {
+        let cutoff = Repository.localDayKey(now.addingTimeInterval(-Double(windowDays) * 86_400))
+        return weights.filter { $0.day >= cutoff }.sorted { $0.day < $1.day }
     }
 
     private func parseDay(_ day: String) -> Date? {

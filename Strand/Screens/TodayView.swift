@@ -155,10 +155,12 @@ struct ActiveWorkoutIndicatorSection: View {
 }
 
 struct TodayView: View {
-    // Classic Today carries denser explanatory content than Liquid, so it keeps more room inside each
-    // card while tightening the repeated outer rhythm. These are deliberately local: changing the shared
-    // metrics would resize every screen that composes NoopCard / ScreenScaffold.
-    private static let classicSectionSpacing: CGFloat = NoopMetrics.space4
+    // Matches NoopMetrics.sectionGap, the same rhythm this file's own card-internal sub-sections already
+    // use (e.g. the charge-breakdown and hosted-cards VStacks below) — the top-level gap between cards used
+    // to be tighter than the gap between sections inside one card, which read backwards. This is
+    // deliberately local rather than reused directly: changing the shared metrics would resize every
+    // screen that composes NoopCard / ScreenScaffold, not just this one's outer rhythm.
+    private static let classicSectionSpacing: CGFloat = NoopMetrics.sectionGap
     private static let classicKeyMetricTileHeight: CGFloat = 116
     private static let classicHeaderControlSize: CGFloat = 34
     private static let classicHeaderHitSize: CGFloat = 36
@@ -1839,10 +1841,7 @@ struct TodayView: View {
         heroSection
             .padding(.vertical, NoopMetrics.space4)
             .frame(maxWidth: .infinity)
-            .background(
-                RoundedRectangle(cornerRadius: NoopMetrics.cardRadius, style: .continuous)
-                    .fill(StrandPalette.surfaceBase.opacity(0.72))
-            )
+            .frostedCardSurface(cornerRadius: NoopMetrics.cardRadius)
     }
 
     private var liveSessionStartSection: some View {
@@ -2027,7 +2026,7 @@ struct TodayView: View {
                     // baseline folds (see chargeBreakdown's PERF note).
                     let breakdown = chargeBreakdown()
                     if let breakdown, !breakdown.drivers.isEmpty {
-                        NoopCard(padding: 18, tint: StrandPalette.chargeColor) {
+                        NoopCard(padding: NoopMetrics.cardPadding, tint: StrandPalette.chargeColor) {
                             ChargeBreakdownSection(drivers: breakdown.drivers,
                                                    confidence: breakdown.confidence,
                                                    skinTempRel: chargeSkinTempRel)
@@ -2071,7 +2070,7 @@ struct TodayView: View {
                                 .foregroundStyle(StrandPalette.textTertiary)
                         }
                         .padding(14)
-                        .background(NoopPanelSurface(cornerRadius: 14))
+                        .background(NoopPanelSurface(cornerRadius: NoopMetrics.groupedRadius))
                         .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
@@ -2104,7 +2103,7 @@ struct TodayView: View {
     /// The honest fallback when the Charge ring is tapped but there is no value AND no running calibration
     /// (a navigated past day with no score, or a fresh strap with nothing banked), never a blank sheet.
     private var chargeBreakdownEmptyNote: some View {
-        NoopCard(padding: 18, tint: StrandPalette.chargeColor) {
+        NoopCard(padding: NoopMetrics.cardPadding, tint: StrandPalette.chargeColor) {
             VStack(alignment: .leading, spacing: NoopMetrics.space2) {
                 Text("No Charge breakdown yet")
                     .font(StrandFont.headline)
@@ -2285,7 +2284,7 @@ struct TodayView: View {
                 .font(StrandFont.overline)
                 .tracking(StrandFont.overlineTracking)
                 .foregroundStyle(readinessColor(readiness.level))
-                .padding(.horizontal, 10)
+                .padding(.horizontal, NoopMetrics.space3)
                 .padding(.vertical, 5)
                 .background(Capsule(style: .continuous).fill(readinessColor(readiness.level).opacity(0.12)))
                 .overlay(Capsule(style: .continuous).stroke(readinessColor(readiness.level).opacity(0.32), lineWidth: 1))
@@ -2359,14 +2358,7 @@ struct TodayView: View {
             if let m = hostedSleepModel {
                 StagesVsTypicalCard(model: m)
             } else {
-                VStack(alignment: .leading, spacing: NoopMetrics.gap) {
-                    SectionHeader("Stages vs typical", overline: "Last night")
-                    Text("Not enough nights yet.")
-                        .font(StrandFont.subhead)
-                        .foregroundStyle(StrandPalette.textTertiary)
-                        .frame(maxWidth: .infinity, minHeight: 60, alignment: .center)
-                        .background(NoopPanelSurface(tint: StrandPalette.restColor, cornerRadius: 12))
-                }
+                hostedSleepPlaceholder(title: "Stages vs typical", overline: "Last night")
             }
         case .nightDetail:
             // Renders from the shared SleepModel built in loadAll() (same inputs as the Sleep tab). Until the
@@ -2374,14 +2366,7 @@ struct TodayView: View {
             if let m = hostedSleepModel {
                 NightDetailCard(model: m)
             } else {
-                VStack(alignment: .leading, spacing: NoopMetrics.gap) {
-                    SectionHeader("Night detail", overline: "Metrics")
-                    Text("Not enough nights yet.")
-                        .font(StrandFont.subhead)
-                        .foregroundStyle(StrandPalette.textTertiary)
-                        .frame(maxWidth: .infinity, minHeight: 60, alignment: .center)
-                        .background(NoopPanelSurface(tint: StrandPalette.restColor, cornerRadius: 12))
-                }
+                hostedSleepPlaceholder(title: "Night detail", overline: "Metrics")
             }
         case .sleepDebt:
             // Renders from the shared SleepModel built in loadAll() (same inputs as the Sleep tab). Until the
@@ -2389,14 +2374,7 @@ struct TodayView: View {
             if let m = hostedSleepModel {
                 SleepDebtLedgerCard(model: m)
             } else {
-                VStack(alignment: .leading, spacing: NoopMetrics.gap) {
-                    SectionHeader("Sleep-debt ledger", overline: "Last 14 nights")
-                    Text("Not enough nights yet.")
-                        .font(StrandFont.subhead)
-                        .foregroundStyle(StrandPalette.textTertiary)
-                        .frame(maxWidth: .infinity, minHeight: 60, alignment: .center)
-                        .background(NoopPanelSurface(tint: StrandPalette.restColor, cornerRadius: 12))
-                }
+                hostedSleepPlaceholder(title: "Sleep-debt ledger", overline: "Last 14 nights")
             }
         case .stages:
             // The READ-ONLY latest-night stage card — same shared SleepModel (same night + intervals as the
@@ -2405,14 +2383,7 @@ struct TodayView: View {
             if let m = hostedSleepModel {
                 StagesCard(model: m)
             } else {
-                VStack(alignment: .leading, spacing: NoopMetrics.gap) {
-                    SectionHeader("Stages", overline: "Last night")
-                    Text("Not enough nights yet.")
-                        .font(StrandFont.subhead)
-                        .foregroundStyle(StrandPalette.textTertiary)
-                        .frame(maxWidth: .infinity, minHeight: 60, alignment: .center)
-                        .background(NoopPanelSurface(tint: StrandPalette.restColor, cornerRadius: 12))
-                }
+                hostedSleepPlaceholder(title: "Stages", overline: "Last night")
             }
         case .hoursVsNeeded:
             // The single hours-vs-need % metric, rendered from the shared SleepModel built in loadAll().
@@ -2421,14 +2392,7 @@ struct TodayView: View {
             if let m = hostedSleepModel {
                 HoursVsNeededCard(model: m)
             } else {
-                VStack(alignment: .leading, spacing: NoopMetrics.gap) {
-                    SectionHeader("Hours vs Needed", overline: "Sleep")
-                    Text("Not enough nights yet.")
-                        .font(StrandFont.subhead)
-                        .foregroundStyle(StrandPalette.textTertiary)
-                        .frame(maxWidth: .infinity, minHeight: 60, alignment: .center)
-                        .background(NoopPanelSurface(tint: StrandPalette.restColor, cornerRadius: 12))
-                }
+                hostedSleepPlaceholder(title: "Hours vs Needed", overline: "Sleep")
             }
         case .consistency:
             // The single sleep-consistency % metric, rendered from the shared SleepModel built in loadAll().
@@ -2437,15 +2401,23 @@ struct TodayView: View {
             if let m = hostedSleepModel {
                 ConsistencyCard(model: m)
             } else {
-                VStack(alignment: .leading, spacing: NoopMetrics.gap) {
-                    SectionHeader("Consistency", overline: "Sleep")
-                    Text("Not enough nights yet.")
-                        .font(StrandFont.subhead)
-                        .foregroundStyle(StrandPalette.textTertiary)
-                        .frame(maxWidth: .infinity, minHeight: 60, alignment: .center)
-                        .background(NoopPanelSurface(tint: StrandPalette.restColor, cornerRadius: 12))
-                }
+                hostedSleepPlaceholder(title: "Consistency", overline: "Sleep")
             }
+        }
+    }
+
+    /// Graceful empty state for a SleepModel-backed hosted card whose model hasn't built yet (first frame)
+    /// or is nil (no usable latest night). Keeps the hosted slot present + labelled so add/remove/reorder in
+    /// Customise still reads, without rendering a partial card. Twin of LiquidTodayView's own
+    /// `hostedSleepPlaceholder`. #today-hosted-cards.
+    private func hostedSleepPlaceholder(title: LocalizedStringKey, overline: LocalizedStringKey) -> some View {
+        VStack(alignment: .leading, spacing: NoopMetrics.gap) {
+            SectionHeader(title, overline: overline)
+            Text("Not enough nights yet.")
+                .font(StrandFont.subhead)
+                .foregroundStyle(StrandPalette.textTertiary)
+                .frame(maxWidth: .infinity, minHeight: 60, alignment: .center)
+                .background(NoopPanelSurface(tint: StrandPalette.restColor, cornerRadius: NoopMetrics.groupedRadius))
         }
     }
 
@@ -2595,8 +2567,10 @@ struct TodayView: View {
     }
 
     /// One WHOOP "My Dashboard" metric row: a thin-line tinted icon, an UPPERCASE tracked label over a grey
-    /// baseline caption, the big white value, and a chevron, the whole row navigates to `route`. Flat
-    /// WHOOP styling (FrostedCardSurface, no glow), tokens only. Pushed by VALUE — the first hop off the
+    /// baseline caption, the big white value, and a chevron, the whole row navigates to `route`. WHOOP
+    /// styling (FrostedCardSurface), tinted with the same domain color as the icon so the row picks up a
+    /// faint wash instead of standing apart as the one deliberately neutral card on the screen. Pushed by
+    /// VALUE — the first hop off the
     /// Today root must ride the tab's `NavigationPath` so a re-tap of the Today tab can pop it (#198;
     /// see TabRoute.swift). `showsCoachButton` (#R-explain, default true): a small "ask coach" sparkle,
     /// built from this row's own title/subtitle/value, as a SIBLING of the NavigationLink — never nested
@@ -2637,9 +2611,9 @@ struct TodayView: View {
                 CoachCardIconButton(context: ctx)
             }
         }
-        .padding(.horizontal, 13).padding(.vertical, 11)
+        .padding(.horizontal, NoopMetrics.space3).padding(.vertical, NoopMetrics.space3)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(FrostedCardSurface(cornerRadius: NoopMetrics.cardRadius))
+        .background(FrostedCardSurface(tint: tint, cornerRadius: NoopMetrics.cardRadius))
     }
 
     // MARK: Component 2, explained score note (calibrating / carried / needs-strap)
@@ -2818,7 +2792,7 @@ struct TodayView: View {
                     .foregroundStyle(StrandPalette.textTertiary)
             }
         }
-        .padding(.vertical, 13)
+        .padding(.vertical, NoopMetrics.space3)
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(label): \(value) \(unit)")
     }

@@ -30,6 +30,18 @@ public enum GoalMeasure {
     /// Derived daily scores (stress, recovery) are averaged over a week for the same reason.
     public static let scoreWindowDays = 7
 
+    /// History fed to the SMOOTHED score trend. Longer than `scoreWindowDays` on purpose: a 7-day
+    /// half-life needs more than seven samples to settle, so the window that feeds the EWMA is not the
+    /// window a plain mean would use.
+    public static let scoreTrendWindowDays = 28
+
+    /// Weigh-ins older than this don't describe "now". Body weight was the one measure with no window
+    /// at all — it read the whole stored year — so someone who stopped weighing in months ago kept a
+    /// stale number presented as current, complete with an on-track verdict derived from it. Longer
+    /// than the other windows because weighing in is sporadic for most people: a month of silence is
+    /// normal, half a year is not.
+    public static let weightWindowDays = 90
+
     /// Settings for a smoothed goal trend.
     public struct TrendCfg: Equatable, Sendable {
         /// Hard plausibility bounds. These reject garbage (a 0 kg sample, a pounds value mistaken for
@@ -111,14 +123,38 @@ public enum GoalMeasure {
     /// morning still barely moves the result — with a 10-day half-life a single 6 kg spike shifts the
     /// centre by ~0.4 kg — while a sustained change is followed in full.
     public static func smoothedTrend(_ values: [Double], cfg: TrendCfg) -> Smoothed? {
-        let usable = values.filter { $0 >= cfg.minVal && $0 <= cfg.maxVal && $0.isFinite }
-        guard let first = usable.first else { return nil }
+        let centres = smoothedSeries(values, cfg: cfg)
+        guard let last = centres.last else { return nil }
+        return Smoothed(value: last, isReliable: centres.count >= trendReliableAfter)
+    }
+
+    /// The same fold as `smoothedTrend`, keeping EVERY intermediate centre rather than only the final
+    /// one — oldest → newest, one entry per plausible input.
+    ///
+    /// For anything that fits a RATE rather than reading a level: `GoalMilestones.observedRatePerDay`
+    /// documents that it wants the smoothed series ("so a day of water weight cannot tilt the fitted
+    /// rate"), and a least-squares slope over raw scale readings is exactly the noise that contract
+    /// exists to keep out. Sharing the fold with `smoothedTrend` is the point — a rate fitted through
+    /// one smoothing and a level read from another would disagree about the same series.
+    /// Whether a raw reading is inside `cfg`'s plausibility bounds — i.e. whether the fold below will
+    /// keep it. Public because a caller pairing values with DATES has to drop the same readings this
+    /// does, or the two lists stop lining up: `smoothedSeries` returns one centre per *kept* value, so
+    /// zipping it against unfiltered dates would silently shift every sample's date.
+    public static func isPlausible(_ value: Double, cfg: TrendCfg) -> Bool {
+        value >= cfg.minVal && value <= cfg.maxVal && value.isFinite
+    }
+
+    public static func smoothedSeries(_ values: [Double], cfg: TrendCfg) -> [Double] {
+        let usable = values.filter { isPlausible($0, cfg: cfg) }
+        guard let first = usable.first else { return [] }
         let lambda = 1.0 - pow(0.5, 1.0 / max(cfg.halfLifeDays, 0.5))
         var centre = first
+        var centres = [first]
         for value in usable.dropFirst() {
             centre = lambda * value + (1.0 - lambda) * centre
+            centres.append(centre)
         }
-        return Smoothed(value: centre, isReliable: usable.count >= trendReliableAfter)
+        return centres
     }
 
     // MARK: - Plain aggregates
