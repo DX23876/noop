@@ -484,6 +484,9 @@ def android_strings_xml_gaps() -> dict[str, set[str]]:
     existing values-<locale>/strings.xml. (Doesn't invent missing locale dirs —
     see the audit summary for languages with NO directory at all.)"""
     base_path = ROOT / "android/app/src/main/res/values/strings.xml"
+    # No Android tree in this fork (see docs/FORK_GUIDE.md) — nothing to compare, so no gaps.
+    if not base_path.is_file():
+        return {}
     # <plurals> count too: converting a hand-rolled singular/plural PAIR into one <plurals> would
     # otherwise DROP those keys out of this gate's view entirely, so a locale could silently lose them —
     # fixing the plural model must not open a coverage hole (see #540 for the same class of blind spot).
@@ -507,6 +510,9 @@ ANDROID_FORMAT_PATTERN = re.compile(r"%[1-9]\d*\$[-+0 #,(]*\d*(?:\.\d+)?([sdif])
 
 def android_format_gaps() -> dict[str, list[str]]:
     """Resource keys whose translated Formatter arguments differ from English."""
+    # No Android tree in this fork (see docs/FORK_GUIDE.md) — nothing to compare.
+    if not (ROOT / "android/app/src/main/res/values/strings.xml").is_file():
+        return {}
     paths = {
         "en": ROOT / "android/app/src/main/res/values/strings.xml",
         **{
@@ -964,36 +970,43 @@ def ci_check(base_ref: str) -> int:
     failed = False
     baseline = load_baseline()
 
-    print("--- Android: no NEW hardcoded UI copy, and complete focus locales ---")
-    android_literals = scan_android()
-    android_found = {(p, lit) for p, _line, lit in android_literals}
-    android_new = [f for f in android_literals if (f[0], f[2]) not in baseline["android"]]
-    if android_new:
-        failed = True
-        print(f"FAIL {len(android_new)} NEW hardcoded literal(s) (not in {BASELINE_PATH.relative_to(ROOT)}):")
-        for path, line, literal in android_new[:30]:
-            print(f"  {path}:{line}: {literal!r}")
-    else:
-        print(f"  OK no new hardcoded literals ({len(android_found)} pre-existing, tracked in the baseline)")
-    android_fixed = baseline["android"] - android_found
-    if android_fixed:
-        print(f"  {len(android_fixed)} baseline entr(y/ies) no longer found — run --update-baseline to shrink the backlog")
-    android_gaps = android_strings_xml_gaps()
-    android_formats = android_format_gaps()
-    for lang in LANGS:
-        gaps = android_gaps.get(lang)
-        if gaps:
+    # This fork removed the Android tree (see docs/FORK_GUIDE.md). Skip the whole Android arm when
+    # it is absent — several helpers below read android/app/src/main/res unguarded, so without this
+    # the gate crashes rather than reporting. Kept rather than deleted so the tool still works if the
+    # tree is restored temporarily (e.g. while resolving an upstream sync).
+    if (ROOT / "android").is_dir():
+        print("--- Android: no NEW hardcoded UI copy, and complete focus locales ---")
+        android_literals = scan_android()
+        android_found = {(p, lit) for p, _line, lit in android_literals}
+        android_new = [f for f in android_literals if (f[0], f[2]) not in baseline["android"]]
+        if android_new:
             failed = True
-            locale_dir = ANDROID_LOCALE_DIRS[lang]
-            print(f"FAIL {locale_dir}/strings.xml missing {len(gaps)} key(s): {sorted(gaps)[:30]}")
+            print(f"FAIL {len(android_new)} NEW hardcoded literal(s) (not in {BASELINE_PATH.relative_to(ROOT)}):")
+            for path, line, literal in android_new[:30]:
+                print(f"  {path}:{line}: {literal!r}")
         else:
-            locale_dir = ANDROID_LOCALE_DIRS[lang]
-            print(f"  OK {locale_dir}/strings.xml")
-        format_gaps = android_formats.get(lang)
-        if format_gaps:
-            failed = True
-            locale_dir = ANDROID_LOCALE_DIRS[lang]
-            print(f"FAIL {locale_dir}/strings.xml has {len(format_gaps)} format mismatch(es): {format_gaps[:30]}")
+            print(f"  OK no new hardcoded literals ({len(android_found)} pre-existing, tracked in the baseline)")
+        android_fixed = baseline["android"] - android_found
+        if android_fixed:
+            print(f"  {len(android_fixed)} baseline entr(y/ies) no longer found — run --update-baseline to shrink the backlog")
+        android_gaps = android_strings_xml_gaps()
+        android_formats = android_format_gaps()
+        for lang in LANGS:
+            gaps = android_gaps.get(lang)
+            if gaps:
+                failed = True
+                locale_dir = ANDROID_LOCALE_DIRS[lang]
+                print(f"FAIL {locale_dir}/strings.xml missing {len(gaps)} key(s): {sorted(gaps)[:30]}")
+            else:
+                locale_dir = ANDROID_LOCALE_DIRS[lang]
+                print(f"  OK {locale_dir}/strings.xml")
+            format_gaps = android_formats.get(lang)
+            if format_gaps:
+                failed = True
+                locale_dir = ANDROID_LOCALE_DIRS[lang]
+                print(f"FAIL {locale_dir}/strings.xml has {len(format_gaps)} format mismatch(es): {format_gaps[:30]}")
+    else:
+        print("--- Android: tree not present in this fork — skipped ---")
 
     print("\n--- Apple: no NEW un-extracted UI copy, and complete focus locales ---")
     ios_literals, _source_gaps = scan_ios()
@@ -1055,8 +1068,10 @@ def ci_check(base_ref: str) -> int:
             print(f"FAIL {target}: missing={missing} exceeds the allowance of {allowed}")
         elif missing < allowed:
             improved.append(f"{target}: {allowed} -> {missing}")
-    base_path = ROOT / "android/app/src/main/res/values/strings.xml"
-    base_keys = set(re.findall(r'<(?:string|plurals) name="([^"]+)"', base_path.read_text(encoding="utf-8")))
+    # Extra (non-focus) Android locales — skipped in this fork, which has no android/ tree.
+    if (ROOT / "android/app/src/main/res/values/strings.xml").is_file():
+        base_path = ROOT / "android/app/src/main/res/values/strings.xml"
+        base_keys = set(re.findall(r'<(?:string|plurals) name="([^"]+)"', base_path.read_text(encoding="utf-8")))
     for locale_dir in shipped_android_locale_dirs():
         if locale_dir in ANDROID_LOCALE_DIRS.values():
             continue   # already hard-gated above

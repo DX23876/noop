@@ -18,4 +18,3 @@ Strand/Resources/Localizable.xcstrings:it 168
 Strand/Resources/Localizable.xcstrings:ru 145
 Strand/Resources/Localizable.xcstrings:zh-Hans 118
 Strand/Resources/Localizable.xcstrings:zh-Hant 168
-values-zh/strings.xml 43

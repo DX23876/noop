@@ -35,20 +35,49 @@ audited all of history would be permanently red and therefore ignored.
 The subject matter is not the target — only authorship. "Anthropic" is a real AI provider this app
 integrates (`Strand/AI/AIProvider.swift`), so a message may freely say "add Anthropic streaming".
 
-**Versioning.** `MARKETING_VERSION` in `project.yml` and `versionName` in
-`android/app/build.gradle.kts` move together; build numbers are independent counters. The fork's
+**Versioning.** `MARKETING_VERSION` in `project.yml` is the single source of truth (it was kept in
+step with `android/app/build.gradle.kts` until the Android tree was removed — the release workflow
+and the in-app update check both read `project.yml` now); build numbers are independent counters. The fork's
 release identity is `X.Y.Z DX Beta` — the numeric version stays numeric everywhere Apple reads it
 (`CFBundleShortVersionString`), and the "DX Beta" branding lives only in the git tag
 (`vX.Y.Z-dx-beta`), the asset filenames and the release title.
 
 ## Where this fork diverges from upstream
 
-### The cross-platform parity contract is RETIRED (2026-07-23)
+### The cross-platform parity contract is RETIRED (2026-07-23), and the Android tree is GONE (2026-08-14)
 
 Upstream's `CLAUDE.md` calls it the #1 rule. **It does not bind here.** The project is iOS/macOS-only;
 the Android target is dropped and no longer kept in sync. Byte-identical analytics, platform-neutral
 FNV-1a hashing, the `.noopbak` byte-identical whitelist and Room/GRDB schema agreement are **no longer
-gates** on a change. The Android tree may remain in the repo but is not a parity obligation.
+gates** on a change.
+
+The tree itself was removed on 2026-08-14: `android/` (899 files), `.github/workflows/android.yml`,
+and the Android jobs in both release workflows. Nobody here develops it, and a tree nobody builds
+only rots — it was still absorbing upstream churn on every sync while never being compiled.
+
+**What that changed elsewhere.** The release pipeline read the version from
+`android/app/build.gradle.kts`; it now reads `project.yml`'s `MARKETING_VERSION`.
+`publish-ios-beta.yml` had a hard gate asserting the Android version matched — removed.
+`Tools/appchangelog-gen.py` wrote the Kotlin changelog and the Android title strings BEFORE the Swift
+entry, so a missing `android/` would have silently stopped the in-app "What's New" from updating —
+the Android arms are gone. `Tools/i18n_audit_baseline.json`'s 238 Android entries were dropped
+(the iOS section is untouched).
+
+#### Syncing upstream after the removal
+
+ryanbr's tree still carries `android/`, and every sync merge touches 50–120 files under it (121 in
+the 2026-08-12 merge, 125 on 08-09). Those arrive as delete/modify conflicts. Resolve them wholesale
+rather than file by file:
+
+```bash
+git merge upstream/main            # conflicts, including all of android/
+git rm -r --cached android         # take OUR deletion for the whole tree
+rm -rf android
+# resolve any REAL conflicts (Swift, docs, workflows) normally, then commit
+```
+
+An upstream change to a Swift analytics file whose Kotlin twin also changed is still worth reading
+for intent — their Kotlin diff often explains what the Swift one is doing.
 
 **Separate and still binding:** the app stays fully offline, on-device — no server, no account, no
 cloud sync, no telemetry, anonymous. That is upstream's rule and the fork's alike.
@@ -70,7 +99,6 @@ which changes what validates a change:
 | `tools-python.yml` | The `Tools/linux-capture` Python suite (≥200 tests) | PR + push touching `Tools/**` |
 | `source-hygiene.yml` | Detached doc comments + **commit attribution** (above) | every PR and push to `main` |
 | `i18n-coverage.yml` | EN source + DE/ES/FR/PT-PT complete (zero-tolerance); IT/RU/ZH-Hans/ZH-Hant ratcheted (see "Localization" below) | every PR and push to `main` |
-| `android.yml` | `assembleFullDebug` + unit tests | PR + push touching `android/**` |
 | `publish-ios-beta.yml` | Cuts a DX Beta release: unsigned IPA + universal macOS zip, updates the AltStore source, marks it latest | `workflow_dispatch` |
 | `sync-upstream.yml` | Opens a sync PR from `ryanbr/noop` | weekly cron + dispatch |
 

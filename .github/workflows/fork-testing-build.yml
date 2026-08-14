@@ -1,9 +1,8 @@
 # Fork-only: ONE on-demand testing build that publishes ALL platforms into ONE release.
 #
-# A `meta` job creates a single dated prerelease, then the android / macOS / iOS jobs each attach
-# their artifact to that SAME tag — so every release has NOOP-android + NOOP-android-debug (Android)
-# + NOOP-macos.zip + NOOP-ios-unsigned.ipa together, each stamped with the base app version.
-# Replaces the older split fork-testing-apk.yml + fork-testing-apple.yml.
+# A `meta` job creates a single dated prerelease, then the macOS / iOS jobs each attach their
+# artifact to that SAME tag — so every release has NOOP-macos.zip + NOOP-ios-unsigned.ipa together,
+# each stamped with the base app version.
 # Unsigned/debug-keyed, no secrets. Trigger from the Actions tab. (Built from noop-staging via --ref.)
 name: Testing build (fork)
 
@@ -42,8 +41,6 @@ jobs:
             --title "NOOP Staging — base ${VER} · ${DATE} · ${SHA}" \
             --notes "Rolling **latest** testing build — refreshed in place, so this tag is always the newest. NOOP main + ryanbr's open PRs + vetted community PRs, built with the **NOOP Staging** identity (installs **beside** the official app, separate data). Filenames carry the base app version (\`v${VER}\`).
 
-          - **Android (release)** — \`NOOP-android-v${VER}.apk\` — optimized, non-debuggable build; installs beside the official app. \`com.noop.whoop.staging\`.
-          - **Android (debug)** — \`NOOP-android-debug-v${VER}.apk\` — debuggable build. \`com.noop.whoop.debug\`.
           - **macOS** — \`NOOP-macos-v${VER}.zip\` — unzip, then **right-click → Open** (ad-hoc signed, not notarized; Gatekeeper warns once). If it says *\"damaged\"*, run \`xattr -dr com.apple.quarantine /Applications/NOOP.app\`.
           - **iOS (AltStore)** — \`NOOP-ios-unsigned-v${VER}.ipa\` — phone/iPad-only IPA for reliable free-Apple-ID sideloading.
           - **iOS (Full)** — \`NOOP-ios-full-unsigned-v${VER}.ipa\` — includes WidgetKit, Watch app and complication; requires compatible provisioning for every embedded target.
@@ -57,39 +54,6 @@ jobs:
           gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft=false --prerelease
           DRAFT=$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft -q .isDraft)
           [ "$DRAFT" = "false" ] || { echo "::error::$TAG is still a draft — testers cannot download it."; exit 1; }
-
-  android:
-    needs: meta
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: android
-    steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-java@v5
-        with:
-          distribution: temurin
-          java-version: '17'
-      - uses: gradle/actions/wrapper-validation@v5
-      - uses: gradle/actions/setup-gradle@v5
-      # NOTE: both APKs are signed with the committed android/fork-debug.keystore via an explicit
-      # storeFile in the debug signingConfig (build.gradle.kts, injected by rebuild-staging.sh) — the
-      # release build falls back to the debug key when no keystore.properties is present. We do NOT
-      # copy it to ~/.android/debug.keystore — the runner ignores that path (ANDROID_USER_HOME points off
-      # $HOME) and would sign with a fresh random key, breaking sideloaded updates ("App not installed").
-      # -PstagingRelease gives the release APK a .staging app id so it installs beside the official app.
-      - name: Build debug + staging-release APKs
-        run: ./gradlew assembleFullDebug assembleFullRelease -PstagingRelease
-      - name: Version the filenames + attach
-        env:
-          GH_TOKEN: ${{ github.token }}
-          VER: ${{ needs.meta.outputs.ver }}
-        run: |
-          cp app/build/outputs/apk/full/debug/*.apk "NOOP-android-debug-v${VER}.apk"
-          cp app/build/outputs/apk/full/release/*.apk "NOOP-android-v${VER}.apk"
-          gh release upload "${{ needs.meta.outputs.tag }}" \
-            "NOOP-android-v${VER}.apk" "NOOP-android-debug-v${VER}.apk" \
-            --repo "$GITHUB_REPOSITORY" --clobber
 
   macos:
     needs: meta
@@ -190,7 +154,7 @@ jobs:
   # deleting the branch orphans nothing. Guarded to the disposable branch name — a run dispatched from main
   # (or any other ref) is left alone.
   cleanup:
-    needs: [meta, android, macos, ios]
+    needs: [meta, macos, ios]
     if: ${{ always() && github.ref_type == 'branch' && github.ref_name == 'noop-staging' }}
     runs-on: ubuntu-latest
     steps:
