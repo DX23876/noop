@@ -923,6 +923,76 @@ def extra_locale_allowance() -> dict[str, int]:
     return out
 
 
+
+ECHO_BASELINE_PATH = ROOT / "Tools/i18n_echo_baseline.txt"
+
+#: Format specifiers stripped before deciding whether a string has translatable words in it.
+FORMAT_SPECIFIER_PATTERN = re.compile(r"%(?:\d+\$)?[@#0\-+ ]*[\d.]*(?:ll|l|h)?[@dfsu]|%%")
+
+
+def _has_translatable_words(key: str) -> bool:
+    """Whether a catalog key contains enough real words that an identical translation is suspicious.
+
+    Strips format specifiers first: "%@ · n = %lld" and "%@: %@. %@, %@. %@." are placeholders and
+    punctuation with nothing to translate, so a locale repeating them verbatim is CORRECT, not a gap.
+    Two words is the floor — one word is very often a term that legitimately travels ("HRV", "Yoga").
+    """
+    stripped = FORMAT_SPECIFIER_PATTERN.sub(" ", key)
+    return len(re.findall(r"[^\W\d_]{2,}", stripped, flags=re.UNICODE)) >= 2
+
+
+def echoed_translation_counts() -> dict[str, int]:
+    """`<catalog> <lang> -> count` of localizations marked `translated` whose value IS the English key.
+
+    The hole this closes: the coverage gate above asks whether a key EXISTS in a language, never
+    whether the value differs from the source. A catalog can therefore be 100% "complete" while a
+    German reader sees English sentences — which is exactly what shipped, visible on the Today screen
+    as a German goal card whose body read "Add a daily action to turn a long-term goal into something
+    concrete today."
+
+    Counts rather than a key list, for the reason `extra_locale_allowance` gives: a list goes stale on
+    every edit and trains people to regenerate it unread.
+
+    NOT every hit is a missing translation — a brand ("Apple Health"), a design-system label
+    ("Headline / Semibold 17") or a term of art legitimately reads the same in every language. That is
+    why this ratchets against a baseline instead of demanding zero: the gate's job is to stop the
+    number GROWING, and the residue is a work list to draw down by hand, not a defect count.
+    """
+    counts: dict[str, int] = {}
+    for _dirs, catalog_path in CATALOGS:
+        if not catalog_path.is_file():
+            continue
+        try:
+            cat = json.loads(catalog_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        rel = str(catalog_path.relative_to(ROOT))
+        for key, entry in (cat.get("strings") or {}).items():
+            if not _has_translatable_words(key):
+                continue
+            for lang, unit in (entry.get("localizations") or {}).items():
+                if lang == "en":
+                    continue
+                su = unit.get("stringUnit") or {}
+                if su.get("state") == "translated" and su.get("value") == key:
+                    counts[f"{rel} {lang}"] = counts.get(f"{rel} {lang}", 0) + 1
+    return counts
+
+
+def echo_allowance() -> dict[str, int]:
+    """`<catalog> <lang> -> allowed echo count`, same shape and ratchet as `extra_locale_allowance`."""
+    if not ECHO_BASELINE_PATH.exists():
+        return {}
+    out: dict[str, int] = {}
+    for raw in ECHO_BASELINE_PATH.read_text(encoding="utf-8").splitlines():
+        line = raw.split("#", 1)[0].strip()
+        if not line:
+            continue
+        target, _, count = line.rpartition(" ")
+        out[target.strip()] = int(count)
+    return out
+
+
 BASELINE_PATH = ROOT / "Tools/i18n_audit_baseline.json"
 
 
@@ -1052,6 +1122,30 @@ def ci_check(base_ref: str) -> int:
     # #844: every OTHER shipped locale, gated against a ratcheting allowance. LANGS above stays at zero
     # tolerance; these carry real pre-existing debt (StrandDesign ships 14 of 95 Italian), so the gate
     # blocks GROWTH rather than demanding the backlog be cleared before anyone can merge.
+    # A key that EXISTS in a language still says nothing about whether it was translated. This section
+    # is the difference between "complete" and "translated": it counts localizations marked
+    # `translated` whose value is the English source verbatim. See `echoed_translation_counts`.
+    print("\n--- Translations that are still the English source (ratcheting allowance) ---")
+    echo_failed = False
+    echoes = echoed_translation_counts()
+    echo_allowed = echo_allowance()
+    echo_improved: list[str] = []
+    for target in sorted(set(echoes) | set(echo_allowed)):
+        found = echoes.get(target, 0)
+        allowed = echo_allowed.get(target, 0)
+        if found > allowed:
+            failed = True
+            echo_failed = True
+            print(f"FAIL {target}: {found} untranslated echo(es) exceeds the allowance of {allowed}")
+        elif found < allowed:
+            echo_improved.append(f"{target}: {allowed} -> {found}")
+    for line in echo_improved:
+        print(f"  IMPROVED {line}")
+    if echo_improved:
+        print(f"  Lower these in {ECHO_BASELINE_PATH.relative_to(ROOT)} to lock the gain in.")
+    if not echo_failed and not echo_improved:
+        print(f"  OK no new English-only translations ({sum(echoes.values())} tracked, ratcheting down)")
+
     print("\n--- Locales beyond the focus set: no NEW gaps (ratcheting allowance) ---")
     # Local, NOT the global `failed`: an earlier section failing (a German string, an un-extracted
     # literal) must not silence this section's own verdict. Reporting nothing here reads as "did not
