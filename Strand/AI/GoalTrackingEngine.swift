@@ -90,23 +90,39 @@ enum GoalTrackingEngine {
                          courseSeries: [GoalMilestones.Sample] = [],
                          now: Date = Date(),
                          calendar: Calendar = .autoupdatingCurrent) -> GoalTrackingSnapshot {
-        let relevant = proposals.filter { $0.serves(goal.id) && $0.day >= dayKey(goal.createdAt, calendar: calendar) }
+        // Hoisted: this depends only on the goal, but sat inside both filter closures below — a
+        // `dateComponents` + `String(format:)` per row, on every evaluate.
+        let createdKey = dayKey(goal.createdAt, calendar: calendar)
+        let relevant = proposals.filter { $0.serves(goal.id) && $0.day >= createdKey }
         let relevantActions = actionOccurrences.filter {
-            $0.action.goalIds.contains(goal.id) && $0.day >= dayKey(goal.createdAt, calendar: calendar)
+            $0.action.goalIds.contains(goal.id) && $0.day >= createdKey
         }
         let currentInterval = calendar.dateInterval(of: .weekOfYear, for: now)
             ?? DateInterval(start: calendar.startOfDay(for: now), duration: 7 * 86_400)
+
+        // Bucket ONCE by the week each row falls in, instead of re-scanning (and re-parsing) the whole
+        // list for every week of the walk below. The walk's cursors are calendar week starts, so a
+        // row's own week start is the same key — the grouping is identical, the cost is not: this
+        // turns weeks × rows date constructions into one per row.
+        let proposalsByWeek = bucketByWeek(relevant, day: \.day, calendar: calendar)
+        let actionsByWeek = bucketByWeek(relevantActions, day: \.day, calendar: calendar)
+
         let currentWeek = week(start: currentInterval.start, interval: currentInterval, goal: goal,
-                               proposals: relevant, actions: relevantActions, isCurrent: true,
-                               now: now, calendar: calendar)
+                               rows: proposalsByWeek[currentInterval.start] ?? [],
+                               actionRows: actionsByWeek[currentInterval.start] ?? [],
+                               isCurrent: true, now: now, calendar: calendar)
 
         var completedWeeks: [GoalTrackingSnapshot.GoalWeek] = []
         var cursor = calendar.dateInterval(of: .weekOfYear, for: goal.createdAt)?.start
             ?? calendar.startOfDay(for: goal.createdAt)
-        while cursor < currentInterval.start {
+        let walkLimit = weekWalkLimit(goal: goal, currentWeekStart: currentInterval.start,
+                                      calendar: calendar)
+        while cursor < walkLimit {
             guard let next = calendar.date(byAdding: .weekOfYear, value: 1, to: cursor), next > cursor else { break }
             completedWeeks.append(week(start: cursor, interval: DateInterval(start: cursor, end: next),
-                                       goal: goal, proposals: relevant, actions: relevantActions,
+                                       goal: goal,
+                                       rows: proposalsByWeek[cursor] ?? [],
+                                       actionRows: actionsByWeek[cursor] ?? [],
                                        isCurrent: false, now: now, calendar: calendar))
             cursor = next
         }
@@ -247,14 +263,54 @@ enum GoalTrackingEngine {
         GoalMeasure.requiredCompletions(for: planned, successFraction: successFraction)
     }
 
+    /// Group rows by the START of the calendar week they fall in, parsing each `yyyy-MM-dd` exactly
+    /// once. Rows whose day cannot be parsed are dropped, matching the old per-week filter's `guard`.
+    private static func bucketByWeek<T>(_ rows: [T], day: KeyPath<T, String>,
+                                        calendar: Calendar) -> [Date: [T]] {
+        var buckets: [Date: [T]] = [:]
+        // Days repeat heavily across rows (several sessions on one day, a year of daily actions), so
+        // the parse is memoised per distinct day string rather than per row.
+        var weekStartByDay: [String: Date?] = [:]
+        for row in rows {
+            let key = row[keyPath: day]
+            let weekStart: Date?
+            if let cached = weekStartByDay[key] {
+                weekStart = cached
+            } else {
+                weekStart = date(from: key, calendar: calendar)
+                    .flatMap { calendar.dateInterval(of: .weekOfYear, for: $0)?.start }
+                weekStartByDay[key] = weekStart
+            }
+            guard let weekStart else { continue }
+            buckets[weekStart, default: []].append(row)
+        }
+        return buckets
+    }
+
+    /// Where the week walk stops. For an open goal that is the current week; for a CLOSED one it is the
+    /// week it closed in.
+    ///
+    /// A closed goal used to keep accruing weeks up to today forever — so the cost of a goal abandoned
+    /// last spring grew by one more week every week, permanently, and the record gained "neutral"
+    /// weeks for a period when nobody was pursuing it. Goals are never pruned automatically, so that
+    /// accumulated across every goal a person had ever closed.
+    private static func weekWalkLimit(goal: CoachGoal, currentWeekStart: Date,
+                                      calendar: Calendar) -> Date {
+        guard let closure = goal.closure else { return currentWeekStart }
+        guard let closureWeekStart = calendar.dateInterval(of: .weekOfYear, for: closure.date)?.start,
+              // The week it closed in is still a week it lived through, so the walk includes it.
+              let afterClosureWeek = calendar.date(byAdding: .weekOfYear, value: 1, to: closureWeekStart)
+        else { return currentWeekStart }
+        return min(currentWeekStart, afterClosureWeek)
+    }
+
+    /// One week's accounting. `rows`/`actionRows` are ALREADY scoped to this week by the caller's
+    /// bucketing — `interval` remains only for the pause check, which tests an overlap rather than
+    /// membership.
     private static func week(start: Date, interval: DateInterval, goal: CoachGoal,
-                             proposals: [PlanProposal], actions: [GoalActionOccurrence], isCurrent: Bool,
+                             rows: [PlanProposal], actionRows: [GoalActionOccurrence], isCurrent: Bool,
                              now: Date,
                              calendar: Calendar) -> GoalTrackingSnapshot.GoalWeek {
-        let rows = proposals.filter { proposal in
-            guard let date = date(from: proposal.day, calendar: calendar) else { return false }
-            return interval.contains(date)
-        }
         let commitments = rows.filter {
             switch $0.status {
             case .accepted, .modifiedByUser, .completed, .skipped, .rescheduled: return true
@@ -265,10 +321,6 @@ enum GoalTrackingEngine {
         let open = commitments.filter {
             $0.status == .accepted || $0.status == .modifiedByUser || $0.status == .rescheduled
         }.count
-        let actionRows = actions.filter { action in
-            guard let date = date(from: action.day, calendar: calendar) else { return false }
-            return interval.contains(date)
-        }
         let actionCompleted = actionRows.filter(\.isCompleted).count
         let today = dayKey(now, calendar: calendar)
         let actionOpen = actionRows.filter { !$0.isCompleted && $0.day >= today }.count
