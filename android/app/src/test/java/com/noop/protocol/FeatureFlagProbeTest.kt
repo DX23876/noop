@@ -125,16 +125,159 @@ class FeatureFlagProbeTest {
         assertEquals("cursor exhausted (index 0xFF)", report.stopReason)
     }
 
-    @Test fun validKeyFalseStopsTheWalkEvenWithBytesAfterIt() {
+    /**
+     * `validKey = 0` alone is NOT classified as the strap's end marker any more — it is an empty slot,
+     * and the walk steps over it. The entry itself is still never collected as a key.
+     */
+    @Test fun validKeyFalseIsAnEmptySlotNotTheEndMarker() {
         val record = byteArrayOf(0x01, 0x04, 0x00) + keyBytes("stale_buffer_leftover")
         val frame = whoop4Response(118, payload(1, record))
         val r = FeatureFlagProbe.parseNext(frame, DeviceFamily.WHOOP4).value!!
         assertFalse(r.validKey)
-        assertTrue(r.isExhausted)
+        assertFalse("only index=0xFF is the strap's unambiguous end marker", r.isExhausted)
+        assertTrue(r.isEmptySlot)
         val report = FeatureFlagProbeReport(DeviceFamily.WHOOP4)
-        assertFalse(report.noteNext(r))
-        assertEquals("firmware reported validKey=false", report.stopReason)
+        assertTrue("validKey=0 without 0xFF must not end the walk", report.noteNext(r))
+        assertNull(report.stopReason)
+        assertEquals(1, report.emptySlots)
         assertTrue(report.keys.isEmpty())
+    }
+
+    /**
+     * The whole experiment, in one walk: the strap serves `validKey = 0` mid-list, the walk keeps asking,
+     * and the strap names MORE keys before ending on 0xFF. That sequence is decisive — under the old rule
+     * this list would have been reported as one key long.
+     */
+    @Test fun walkContinuesPastValidKeyZeroAndCollectsTheKeysAfterIt() {
+        val report = FeatureFlagProbeReport(DeviceFamily.WHOOP5)
+        report.noteStart(FeatureFlagProbe.StartResponse(1, 1, 5, listOf<Byte>(0x01, 0x05, 0x00)))
+        fun next(index: Int, valid: Boolean, key: String?) = FeatureFlagProbe.NextResponse(
+            1, 1, index, valid, key,
+            listOf<Byte>(0x01, index.toByte(), if (valid) 0x01 else 0x00),
+        )
+        assertTrue(report.noteNext(next(1, true, "enable_r22_packets")))
+        assertTrue("an empty slot must not end the walk", report.noteNext(next(2, false, null)))
+        assertTrue("nor must a second one", report.noteNext(next(3, false, null)))
+        assertTrue(report.noteNext(next(4, true, "enable_sig12")))
+        assertFalse(report.noteNext(next(0xFF, false, null)))
+
+        assertEquals(listOf("enable_r22_packets", "enable_sig12"), report.keys)
+        assertEquals(2, report.emptySlots)
+        assertEquals(1, report.keysAfterFirstEmptySlot)
+        assertEquals(FeatureFlagProbe.StopCode.END_MARKER, report.stopCode)
+        val finding = report.terminatorFinding
+        assertTrue(finding, finding.startsWith("DECISIVE — validKey=0 is an EMPTY/RETIRED SLOT"))
+        assertTrue(finding, finding.contains("naming 1 more key(s)"))
+        assertTrue(report.render().contains("2 validKey=0 slot(s) stepped over"))
+    }
+
+    /**
+     * #874's rule reaches the CONCLUSION too. The strap flagged an entry past the hole as real; our ASCII
+     * filter declined its name. The list still continued, so the finding must still be decisive — reading
+     * "inconclusive" here would be our parser deciding a question about the firmware.
+     */
+    @Test fun anUndecodableEntryAfterAnEmptySlotIsStillDecisive() {
+        val report = FeatureFlagProbeReport(DeviceFamily.WHOOP5)
+        report.noteStart(FeatureFlagProbe.StartResponse(1, 1, 30, listOf<Byte>(0x01, 0x1E, 0x00)))
+        assertTrue(
+            report.noteNext(
+                FeatureFlagProbe.NextResponse(1, 1, 1, false, null, listOf<Byte>(0x01, 0x01, 0x00)),
+            ),
+        )
+        assertTrue(
+            report.noteNext(
+                FeatureFlagProbe.NextResponse(
+                    1, 1, 2, true, null, listOf<Byte>(0x01, 0x02, 0x01, 0xDE.toByte(), 0xAD.toByte()),
+                ),
+            ),
+        )
+        assertEquals("no name decoded, so no key is invented", emptyList<String>(), report.keys)
+        assertEquals(0, report.keysAfterFirstEmptySlot)
+        assertEquals(1, report.validEntriesAfterFirstEmptySlot)
+        val finding = report.terminatorFinding
+        assertTrue(finding, finding.startsWith("DECISIVE — validKey=0 is an EMPTY/RETIRED SLOT"))
+        assertTrue(finding, finding.contains("1 of them flagged validKey=1"))
+        assertFalse(finding, finding.contains("naming"))
+    }
+
+    /**
+     * The other decisive outcome, and the one that costs two round-trips: the strap repeats the same index
+     * with `validKey = 0`. What that decides is that the cursor does not advance, so this walk cannot see
+     * past the point — NOT that the list ends there. A firmware whose cursor parks on an empty slot emits
+     * the identical frame, and that is the reading this whole probe exists to make testable, so the
+     * verdict must not print it as settled. Both halves are pinned below.
+     */
+    @Test fun repeatedEmptySlotAtTheSameIndexIsReportedAsATerminator() {
+        val report = FeatureFlagProbeReport(DeviceFamily.WHOOP5)
+        report.noteStart(FeatureFlagProbe.StartResponse(1, 1, 9, listOf<Byte>(0x01, 0x09, 0x00)))
+        val empty = FeatureFlagProbe.NextResponse(1, 1, 7, false, null, listOf<Byte>(0x01, 0x07, 0x00))
+        assertTrue("the first empty slot is stepped over", report.noteNext(empty))
+        assertFalse("a parked cursor ends the walk", report.noteNext(empty))
+        assertEquals(FeatureFlagProbe.StopCode.EMPTY_SLOT_CURSOR_PARKED, report.stopCode)
+        assertTrue(
+            report.terminatorFinding,
+            report.terminatorFinding.startsWith("DECISIVE — validKey=0 is a TERMINATOR"),
+        )
+        // The narrowing, pinned so it cannot be quietly widened back. "There is nothing past it" is the
+        // conclusion a reader would paste into an issue as settled, and it is the one this probe exists
+        // to question — two firmwares emit this identical frame.
+        assertTrue(
+            report.terminatorFinding,
+            report.terminatorFinding.contains("the cursor does not advance past it"),
+        )
+        assertTrue(
+            report.terminatorFinding,
+            report.terminatorFinding.contains(
+                "not separable from a firmware whose cursor parks on an empty slot",
+            ),
+        )
+        assertFalse(
+            "the walk observes a stalled cursor, not an empty tail: ${report.terminatorFinding}",
+            report.terminatorFinding.contains("there is nothing past it"),
+        )
+        assertEquals("settling this must cost two round-trips, not a full cap", 2, report.steps)
+    }
+
+    /**
+     * A firmware that answers `validKey = 0` forever with an ADVANCING index cannot run the walk away: the
+     * consecutive-empty cap stops it, and names itself a CLIENT-side bound so the run is never read as a
+     * complete list.
+     */
+    @Test fun anUnendingRunOfEmptySlotsStopsAtTheConsecutiveCap() {
+        val report = FeatureFlagProbeReport(DeviceFamily.WHOOP4)
+        var index = 0
+        var sent = 0
+        while (report.noteNext(
+                FeatureFlagProbe.NextResponse(1, 1, index, false, null, listOf<Byte>(0x01, index.toByte(), 0x00)),
+            )
+        ) {
+            index += 1
+            sent += 1
+            assertTrue("walk must not run away", sent < FeatureFlagProbe.MAX_CONSECUTIVE_EMPTY_SLOTS + 2)
+        }
+        assertEquals(FeatureFlagProbe.MAX_CONSECUTIVE_EMPTY_SLOTS, report.steps)
+        assertEquals(FeatureFlagProbe.StopCode.EMPTY_SLOT_RUN_CAP, report.stopCode)
+        val why = report.stopReason!!
+        assertTrue(why, why.contains("a CLIENT-side bound, not the strap's"))
+        assertTrue(report.terminatorFinding, report.terminatorFinding.startsWith("INCONCLUSIVE"))
+    }
+
+    /** A valid entry resets the run, so scattered holes cost nothing against the cap. */
+    @Test fun aValidEntryResetsTheConsecutiveEmptySlotRun() {
+        val report = FeatureFlagProbeReport(DeviceFamily.WHOOP4)
+        fun empty(i: Int) = FeatureFlagProbe.NextResponse(1, 1, i, false, null, listOf<Byte>(0x01, i.toByte(), 0x00))
+        fun valid(i: Int, k: String) =
+            FeatureFlagProbe.NextResponse(1, 1, i, true, k, listOf<Byte>(0x01, i.toByte(), 0x01))
+
+        for (i in 0 until FeatureFlagProbe.MAX_CONSECUTIVE_EMPTY_SLOTS - 1) {
+            assertTrue(report.noteNext(empty(i)))
+        }
+        assertTrue(report.noteNext(valid(20, "hr_ch_switching")))
+        for (i in 21 until 21 + FeatureFlagProbe.MAX_CONSECUTIVE_EMPTY_SLOTS - 1) {
+            assertTrue("the run restarted at the valid entry", report.noteNext(empty(i)))
+        }
+        assertNull(report.stopCode)
+        assertEquals(listOf("hr_ch_switching"), report.keys)
     }
 
     @Test fun nonPrintableNameIsNotReportedAsAKey() {
@@ -170,28 +313,316 @@ class FeatureFlagProbeTest {
     }
 
     /**
-     * `validKey = 0` is trusted as an end marker, but the other reading — an EMPTY SLOT with the list
-     * continuing past it — is not ruled out by anything observed so far. Stopping well short of the
-     * announced count is the evidence that would settle it, so the report has to say so loudly rather
-     * than reporting a confident short list.
+     * The reply a WHOOP 5 MG actually served to end its 115/116 walk: `index = 255` and `validKey = 0` on
+     * the SAME frame. Both terminator conditions fired at once, so that run cannot say which one the
+     * firmware meant — and the report must say exactly that instead of picking one.
      */
-    @Test fun stoppingOnValidKeyFalseShortOfTheAnnouncedCountIsFlagged() {
-        val report = FeatureFlagProbeReport(DeviceFamily.WHOOP4)
-        report.noteStart(FeatureFlagProbe.StartResponse(1, 1, 40))
-        assertTrue(report.noteNext(FeatureFlagProbe.NextResponse(1, 1, 0, true, "enable_r22_packets")))
-        assertFalse(report.noteNext(FeatureFlagProbe.NextResponse(1, 1, 1, false, null)))
+    @Test fun endMarkerCarryingValidKeyZeroIsReportedAsAmbiguous() {
+        val report = FeatureFlagProbeReport(DeviceFamily.WHOOP5, FeatureFlagProbe.DEVICE_CONFIG_NAMESPACE)
+        report.noteStart(FeatureFlagProbe.StartResponse(1, 1, 7, listOf<Byte>(0x01, 0x07, 0x00)))
+        assertTrue(
+            report.noteNext(
+                FeatureFlagProbe.NextResponse(1, 1, 1, true, "enable_rfid", listOf<Byte>(0x01, 0x01, 0x01)),
+            ),
+        )
+        assertFalse(
+            report.noteNext(
+                FeatureFlagProbe.NextResponse(
+                    1, 1, 0xFF, false, null, listOf<Byte>(0x01, 0xFF.toByte(), 0x00, 0x00),
+                ),
+            ),
+        )
 
-        val why = report.stopReason!!
-        assertTrue(why, why.contains("2 of 40 announced entries"))
-        assertTrue(why, why.contains("the remainder was NOT walked"))
+        assertTrue(report.endMarkerAlsoCarriedInvalidFlag)
+        assertEquals(FeatureFlagProbe.StopCode.END_MARKER, report.stopCode)
+        assertTrue(report.terminatorFinding, report.terminatorFinding.startsWith("AMBIGUOUS"))
+        assertTrue(
+            report.terminatorFinding,
+            report.terminatorFinding.contains("both terminator conditions fired at once"),
+        )
+        assertTrue(report.render().contains("index=0xFF AND validKey=0 on the same reply"))
     }
 
-    /** …and when the count was fully walked, the plain reason stands — no false alarm. */
-    @Test fun validKeyFalseAtTheAnnouncedEndIsNotFlagged() {
+    /**
+     * The 0xFF marker with `validKey` still true separates the two conditions the other way, and the
+     * report has to be equally careful there: 0xFF alone terminated, and validKey=0 stayed untested.
+     */
+    @Test fun endMarkerWithValidKeyTrueSaysValidKeyZeroIsUntested() {
+        val report = FeatureFlagProbeReport(DeviceFamily.WHOOP5)
+        report.noteStart(FeatureFlagProbe.StartResponse(1, 1, 2, listOf<Byte>(0x01, 0x02, 0x00)))
+        assertTrue(
+            report.noteNext(
+                FeatureFlagProbe.NextResponse(
+                    1, 1, 1, true, "enable_r22_packets", listOf<Byte>(0x01, 0x01, 0x01),
+                ),
+            ),
+        )
+        assertFalse(
+            report.noteNext(
+                FeatureFlagProbe.NextResponse(1, 1, 0xFF, true, null, listOf<Byte>(0x01, 0xFF.toByte(), 0x01)),
+            ),
+        )
+        assertFalse(report.endMarkerAlsoCarriedInvalidFlag)
+        assertTrue(
+            report.terminatorFinding,
+            report.terminatorFinding.contains("validKey=0 was never served, so it is untested"),
+        )
+    }
+
+    /**
+     * What the 117/118 walk on a 5/MG actually did: sixteen valid, named entries and NO terminator of
+     * either kind. The walk used to stop dead at the announced count and read as a complete list. It now
+     * asks a bounded number of further times, and — whatever comes back — reports in the verdict itself
+     * that a client-side bound ended the run.
+     */
+    @Test fun walkOvershootsTheAnnouncedCountSoTheStrapCanEndItsOwnList() {
+        val report = FeatureFlagProbeReport(DeviceFamily.WHOOP5)
+        report.noteStart(FeatureFlagProbe.StartResponse(1, 1, 3, listOf<Byte>(0x01, 0x03, 0x00)))
+        var sent = 0
+        var keepGoing = true
+        while (keepGoing) {
+            sent += 1
+            keepGoing = report.noteNext(
+                FeatureFlagProbe.NextResponse(
+                    1, 1, sent, true, "key_$sent", listOf<Byte>(0x01, sent.toByte(), 0x01),
+                ),
+            )
+        }
+        assertEquals(3 + FeatureFlagProbe.COUNT_OVERSHOOT_ALLOWANCE, sent)
+        assertEquals(FeatureFlagProbe.StopCode.ANNOUNCED_COUNT_OVERSHOOT, report.stopCode)
+        assertEquals(FeatureFlagProbe.COUNT_OVERSHOOT_ALLOWANCE, report.repliesPastAnnouncedCount)
+        assertTrue(
+            report.verdict,
+            report.verdict.contains("INCOMPLETE: the walk ended on a client-side bound"),
+        )
+        assertTrue(report.terminatorFinding, report.terminatorFinding.startsWith("NO TERMINATOR OBSERVED"))
+        val count = report.countFinding!!
+        assertTrue(count, count.contains("Keys yielded: 7"))
+        assertTrue(count, count.contains("MISMATCH against the announced 3"))
+        assertTrue(count, count.contains("kept answering 4 repl(ies) past its own announced count"))
+    }
+
+    // MARK: raw bytes
+
+    /**
+     * Requirement of the whole exercise: the RAW record bytes of every reply are in the report, not only
+     * the fields parsed out of them. Earlier findings here had to be re-run because only parsed output
+     * survived, and a parsed field cannot contradict the layout that produced it.
+     */
+    @Test fun everyReplyLogsItsRawRecordBytes() {
+        val report = FeatureFlagProbeReport(DeviceFamily.WHOOP5)
+        val start = whoop5Response(117, payload(1, byteArrayOf(0x01, 0x02, 0x00)))
+        val s = FeatureFlagProbe.parseStart(start, DeviceFamily.WHOOP5).value!!
+        report.noteStart(s)
+        assertEquals(listOf<Byte>(0x01, 0x02, 0x00), s.record)
+        val next = whoop5Response(118, payload(1, byteArrayOf(0x01, 0x00, 0x01, 0x78, 0x00)))
+        val n = FeatureFlagProbe.parseNext(next, DeviceFamily.WHOOP5).value!!
+        assertTrue(report.noteNext(n))
+        val text = report.render()
+        assertTrue(text, text.contains("raw=01 02 00"))
+        assertTrue(text, text.contains("raw=01 00 01 78 00"))
+    }
+
+    /** A reply that failed to decode is the one whose raw bytes matter most, so the whole frame goes in. */
+    @Test fun undecodedReplyLogsTheWholeRawFrame() {
         val report = FeatureFlagProbeReport(DeviceFamily.WHOOP4)
-        report.noteStart(FeatureFlagProbe.StartResponse(1, 1, 1))
-        assertFalse(report.noteNext(FeatureFlagProbe.NextResponse(1, 1, 0, false, null)))
-        assertEquals("firmware reported validKey=false", report.stopReason)
+        report.noteFailure(
+            FeatureFlagProbe.ParseFailure.CRC, 118,
+            byteArrayOf(0xAA.toByte(), 0x05, 0x00, 0x2B, 0x24),
+        )
+        assertTrue(report.render(), report.render().contains("raw frame=aa 05 00 2b 24"))
+        assertEquals(FeatureFlagProbe.StopCode.PARSE_FAILURE, report.stopCode)
+    }
+
+    /**
+     * The hex is bounded so one absurd record cannot flood the log — but the true LENGTH is always
+     * printed, because an over-long record is itself evidence that the layout is wrong.
+     */
+    @Test fun overLongRawRecordIsElidedButItsLengthIsKept() {
+        val long = List(FeatureFlagProbe.MAX_RAW_HEX_BYTES + 10) { 0xAB.toByte() }
+        val rendered = FeatureFlagProbe.hex(long)
+        assertTrue(
+            rendered,
+            rendered.endsWith("… (${FeatureFlagProbe.MAX_RAW_HEX_BYTES + 10} bytes total)"),
+        )
+        assertEquals("(empty)", FeatureFlagProbe.hex(emptyList()))
+    }
+
+    // MARK: the announced count
+
+    /**
+     * The count is read as u16 LE, and every count seen so far has had a zero high byte — where a
+     * single-byte read returns the SAME number. So no capture distinguishes the two readings, and the
+     * report says that rather than asserting a field width nothing has established.
+     */
+    @Test fun countCarriesBothReadingsAndSaysWhenTheyAgree() {
+        val frame = whoop5Response(117, payload(1, byteArrayOf(0x01, 0x10, 0x00)))
+        val r = FeatureFlagProbe.parseStart(frame, DeviceFamily.WHOOP5).value!!
+        assertEquals(16, r.count)
+        assertEquals(16, r.singleByteCount)
+        assertEquals(0, r.countHighByte)
+        assertTrue(r.countReadingsAgree)
+        val report = FeatureFlagProbeReport(DeviceFamily.WHOOP5)
+        report.noteStart(r)
+        val finding = report.countFinding!!
+        assertTrue(finding, finding.contains("u16 LE read = 16; single-byte read = 16 (high byte 0x00)"))
+        assertTrue(finding, finding.contains("the two readings AGREE"))
+    }
+
+    /**
+     * A nonzero high byte is the only thing that separates them, and it is a finding either way: on the
+     * u16 reading the list is enormous, on the single-byte reading `record[2]` is padding.
+     */
+    @Test fun nonZeroHighByteIsReportedAsADisagreement() {
+        val frame = whoop5Response(117, payload(1, byteArrayOf(0x01, 0x07, 0x02)))
+        val r = FeatureFlagProbe.parseStart(frame, DeviceFamily.WHOOP5).value!!
+        assertEquals(0x0207, r.count)
+        assertEquals(7, r.singleByteCount)
+        assertFalse(r.countReadingsAgree)
+        assertFalse("an implausible u16 must not become a loop bound", r.countIsPlausible)
+        val report = FeatureFlagProbeReport(DeviceFamily.WHOOP5)
+        report.noteStart(r)
+        val finding = report.countFinding!!
+        assertTrue(finding, finding.contains("single-byte read = 7 (high byte 0x02)"))
+        assertTrue(finding, finding.contains("the two readings DISAGREE"))
+    }
+
+    /**
+     * Announced-count-versus-yielded is itself a result. A strap that announces sixteen and names one has
+     * fifteen entries nobody has accounted for, and the report has to raise it rather than print a tidy
+     * short list.
+     */
+    @Test fun announcedCountVersusKeysYieldedMismatchIsReported() {
+        val report = FeatureFlagProbeReport(DeviceFamily.WHOOP5)
+        report.noteStart(FeatureFlagProbe.StartResponse(1, 1, 16, listOf<Byte>(0x01, 0x10, 0x00)))
+        assertTrue(
+            report.noteNext(
+                FeatureFlagProbe.NextResponse(
+                    1, 1, 1, true, "enable_r22_packets", listOf<Byte>(0x01, 0x01, 0x01),
+                ),
+            ),
+        )
+        assertFalse(
+            report.noteNext(
+                FeatureFlagProbe.NextResponse(1, 1, 0xFF, true, null, listOf<Byte>(0x01, 0xFF.toByte(), 0x01)),
+            ),
+        )
+        val finding = report.countFinding!!
+        assertTrue(finding, finding.contains("Keys yielded: 1"))
+        assertTrue(finding, finding.contains("MISMATCH against the announced 16"))
+    }
+
+    /** …and when everything is accounted for — keys plus skipped plus empty slots — there is no alarm. */
+    @Test fun fullyAccountedCountIsNotFlaggedAsAMismatch() {
+        val report = FeatureFlagProbeReport(DeviceFamily.WHOOP5)
+        report.noteStart(FeatureFlagProbe.StartResponse(1, 1, 3, listOf<Byte>(0x01, 0x03, 0x00)))
+        report.noteNext(FeatureFlagProbe.NextResponse(1, 1, 1, true, "a", listOf<Byte>(0x01, 0x01, 0x01)))
+        report.noteNext(FeatureFlagProbe.NextResponse(1, 1, 2, true, null, listOf<Byte>(0x01, 0x02, 0x01)))
+        report.noteNext(FeatureFlagProbe.NextResponse(1, 1, 3, false, null, listOf<Byte>(0x01, 0x03, 0x00)))
+        val finding = report.countFinding!!
+        assertFalse(finding, finding.contains("MISMATCH"))
+        assertTrue(finding, finding.contains("Keys yielded: 1 (+1 undecodable) (+1 empty slot(s))"))
+    }
+
+    // MARK: the device-config namespace (115/116)
+
+    /**
+     * The SAME walk drives the device-config pair, so the terminator rules cannot be corrected in one
+     * namespace and left wrong in the other. Decoded end-to-end from 115/116 frames.
+     */
+    @Test fun deviceConfigNamespaceWalksThroughTheSameCorrectedRules() {
+        val report = FeatureFlagProbeReport(DeviceFamily.WHOOP5, FeatureFlagProbe.DEVICE_CONFIG_NAMESPACE)
+        val start = whoop5Response(115, payload(1, byteArrayOf(0x01, 0x02, 0x00)))
+        report.noteStart(FeatureFlagProbe.parseStart(start, DeviceFamily.WHOOP5, 115).value!!)
+        // An empty slot first — under the old rule the walk would have ended here with zero keys.
+        val hole = whoop5Response(116, payload(1, byteArrayOf(0x01, 0x02, 0x00, 0x00)))
+        assertTrue(report.noteNext(FeatureFlagProbe.parseNext(hole, DeviceFamily.WHOOP5, 116).value!!))
+        val named = whoop5Response(
+            116, payload(1, byteArrayOf(0x01, 0x03, 0x01) + keyBytes("enable_raw_data_w_ecg")),
+        )
+        assertTrue(report.noteNext(FeatureFlagProbe.parseNext(named, DeviceFamily.WHOOP5, 116).value!!))
+        assertEquals(
+            "the key AFTER the empty slot is exactly what the old rule discarded",
+            listOf("enable_raw_data_w_ecg"), report.keys,
+        )
+
+        val text = report.render()
+        assertTrue(text, text.contains("#761 DEVICE-CONFIG ENUMERATION PROBE — WHOOP 5/MG"))
+        assertTrue(text, text.contains("START_DEVICE_CONFIG_KEY_EXCHANGE(115) + SEND_NEXT_DEVICE_CONFIG(116)"))
+        assertTrue(text, text.contains("Keys reported by the strap (1 of 2 announced"))
+        assertTrue(text, text.contains("SEND_NEXT_DEVICE_CONFIG(116) → index=3"))
+    }
+
+    /** The 115/116 frames must not decode as 117/118 by accident — the opcode is checked, both ways. */
+    @Test fun theTwoNamespacesDoNotDecodeEachOthersFrames() {
+        val cfg = whoop5Response(116, payload(1, byteArrayOf(0x01, 0x00, 0x01)))
+        assertEquals(
+            FeatureFlagProbe.ParseFailure.WRONG_COMMAND,
+            FeatureFlagProbe.parseNext(cfg, DeviceFamily.WHOOP5).failure,
+        )
+        val ff = whoop5Response(118, payload(1, byteArrayOf(0x01, 0x00, 0x01)))
+        assertEquals(
+            FeatureFlagProbe.ParseFailure.WRONG_COMMAND,
+            FeatureFlagProbe.parseNext(ff, DeviceFamily.WHOOP5, 116).failure,
+        )
+        assertEquals(115, FeatureFlagProbe.DEVICE_CONFIG_NAMESPACE.startCmd)
+        assertEquals(116, FeatureFlagProbe.DEVICE_CONFIG_NAMESPACE.nextCmd)
+        // Still read-only: the SET verbs appear in neither namespace.
+        for (ns in listOf(FeatureFlagProbe.FEATURE_FLAG_NAMESPACE, FeatureFlagProbe.DEVICE_CONFIG_NAMESPACE)) {
+            assertFalse(listOf(119, 120).contains(ns.startCmd))
+            assertFalse(listOf(119, 120).contains(ns.nextCmd))
+        }
+    }
+
+    /**
+     * An explicit refusal is the strap's answer, not one of our bounds, and it must end the walk with its
+     * own name — on the START reply (where the driver reads [FeatureFlagProbeReport.hasStopped] instead of
+     * stepping to 118) and on a NEXT reply alike.
+     */
+    @Test fun unsupportedRefusalEndsTheWalkWithItsOwnStopCode() {
+        val start = FeatureFlagProbeReport(DeviceFamily.WHOOP5)
+        assertFalse(start.hasStopped)
+        start.noteStart(FeatureFlagProbe.StartResponse(3, 0, 0, listOf<Byte>(0x00, 0x00, 0x00)))
+        assertTrue("a refused START must not step on to the next verb", start.hasStopped)
+        assertEquals(FeatureFlagProbe.StopCode.UNSUPPORTED, start.stopCode)
+        assertTrue(start.render().contains("Stop code: unsupported"))
+
+        val mid = FeatureFlagProbeReport(DeviceFamily.WHOOP5)
+        mid.noteStart(FeatureFlagProbe.StartResponse(1, 1, 4, listOf<Byte>(0x01, 0x04, 0x00)))
+        assertTrue(
+            mid.noteNext(
+                FeatureFlagProbe.NextResponse(
+                    1, 1, 1, true, "enable_r22_packets", listOf<Byte>(0x01, 0x01, 0x01),
+                ),
+            ),
+        )
+        assertFalse(
+            mid.noteNext(
+                FeatureFlagProbe.NextResponse(3, 0, 0, false, null, listOf<Byte>(0x00, 0x00, 0x00)),
+            ),
+        )
+        assertEquals(FeatureFlagProbe.StopCode.UNSUPPORTED, mid.stopCode)
+        assertEquals("a refusal is never counted as an empty slot", 0, mid.emptySlots)
+        assertTrue(mid.stopReason!!, mid.stopReason!!.contains("UNSUPPORTED(3)"))
+    }
+
+    /**
+     * The two platforms must classify the same reply the same way, or a strap log means different things
+     * on either side. These are the exact constants the walk is bounded by.
+     */
+    @Test fun walkBoundsMatchTheSwiftTwin() {
+        assertEquals(8, FeatureFlagProbe.MAX_CONSECUTIVE_EMPTY_SLOTS)
+        assertEquals(4, FeatureFlagProbe.COUNT_OVERSHOOT_ALLOWANCE)
+        assertEquals(64, FeatureFlagProbe.MAX_RAW_HEX_BYTES)
+        assertEquals(128, FeatureFlagProbe.MAX_FLAGS)
+        assertEquals("endMarker", FeatureFlagProbe.StopCode.END_MARKER.code)
+        assertEquals("emptySlotCursorParked", FeatureFlagProbe.StopCode.EMPTY_SLOT_CURSOR_PARKED.code)
+        assertEquals("emptySlotRunCap", FeatureFlagProbe.StopCode.EMPTY_SLOT_RUN_CAP.code)
+        assertEquals("stepCap", FeatureFlagProbe.StopCode.STEP_CAP.code)
+        assertEquals("announcedCountOvershoot", FeatureFlagProbe.StopCode.ANNOUNCED_COUNT_OVERSHOOT.code)
+        assertEquals("timeout", FeatureFlagProbe.StopCode.TIMEOUT.code)
+        assertEquals("unsupported", FeatureFlagProbe.StopCode.UNSUPPORTED.code)
+        assertEquals("parseFailure", FeatureFlagProbe.StopCode.PARSE_FAILURE.code)
     }
 
     /**
@@ -299,7 +730,7 @@ class FeatureFlagProbeTest {
         assertEquals(FeatureFlagProbe.ParseFailure.CRC, FeatureFlagProbe.parseStart(ByteArray(0), DeviceFamily.WHOOP4).failure)
     }
 
-    @Test fun fullWalkRendersEveryKeyAndStopsOnTheAnnouncedCount() {
+    @Test fun fullWalkRendersEveryKeyAndStopsOnTheEndMarker() {
         val report = FeatureFlagProbeReport(DeviceFamily.WHOOP5)
         val start = whoop5Response(117, payload(1, byteArrayOf(0x01, 0x03, 0x00)))
         report.noteStart(FeatureFlagProbe.parseStart(start, DeviceFamily.WHOOP5).value!!)
@@ -308,9 +739,13 @@ class FeatureFlagProbeTest {
             val record = byteArrayOf(0x01, i.toByte(), 0x01) + keyBytes(name)
             val frame = whoop5Response(118, payload(1, record))
             val n = FeatureFlagProbe.parseNext(frame, DeviceFamily.WHOOP5).value!!
-            assertEquals(i < names.size - 1, report.noteNext(n))
+            assertTrue("the announced count no longer ends the walk by itself", report.noteNext(n))
         }
+        // The strap's own end marker — the only thing that ends a walk cleanly.
+        val end = whoop5Response(118, payload(1, byteArrayOf(0x01, 0xFF.toByte(), 0x00, 0x00)))
+        assertFalse(report.noteNext(FeatureFlagProbe.parseNext(end, DeviceFamily.WHOOP5).value!!))
         assertEquals(names, report.keys)
+        assertEquals(FeatureFlagProbe.StopCode.END_MARKER, report.stopCode)
         val text = report.render()
         assertTrue(text.contains("#761 FEATURE-FLAG ENUMERATION PROBE — WHOOP 5/MG"))
         assertTrue(text.contains("Read-only"))
@@ -318,7 +753,7 @@ class FeatureFlagProbeTest {
         assertTrue(text.contains("Flags reported by the strap (3 of 3 announced)"))
         assertTrue(text.contains("   1. enable_r22_packets"))
         assertTrue(text.contains("   3. wear_detect_bias"))
-        assertTrue(text.contains("walked the 3 entries the strap announced"))
+        assertTrue(text.contains("Stop code: endMarker"))
         assertTrue(text.contains("START_FF_KEY_EXCHANGE(117) → revision=1 count=3 result=SUCCESS(1)"))
         assertTrue(text.contains("SEND_NEXT_FF(118) → index=0 validKey=true key=\"enable_r22_packets\""))
     }
@@ -372,14 +807,17 @@ class FeatureFlagProbeTest {
 
             Verdict: enumerated 1 feature-flag key name(s)
             Stopped: cursor exhausted (index 0xFF)
+            Stop code: endMarker
+            Terminator: AMBIGUOUS — the walk ended on a reply carrying index=0xFF AND validKey=0 together, so both terminator conditions fired at once and this run cannot say which one the firmware meant.
+            Announced count: u16 LE read = 2; single-byte read = 2 (high byte 0x00) — the two readings AGREE, so this reply does not establish the field's width. Keys yielded: 1 — MISMATCH against the announced 2
 
             Flags reported by the strap (1 of 2 announced):
                1. enable_r22_packets
 
             Exchange:
-              START_FF_KEY_EXCHANGE(117) → revision=1 count=2 result=SUCCESS(1)
-              SEND_NEXT_FF(118) → index=0 validKey=true key="enable_r22_packets" result=SUCCESS(1)
-              SEND_NEXT_FF(118) → index=255 validKey=false result=SUCCESS(1)
+              START_FF_KEY_EXCHANGE(117) → revision=1 count=2 result=SUCCESS(1) raw=01 02 00
+              SEND_NEXT_FF(118) → index=0 validKey=true key="enable_r22_packets" result=SUCCESS(1) raw=01 00 01 65 6e 61 62 6c 65 5f 72 32 32 5f 70 61 63 6b 65 74 73 00 00 00 00 00 00 00 00 00 00
+              SEND_NEXT_FF(118) → index=255 validKey=false result=SUCCESS(1) raw=01 ff 00 00 00 00 00  (index=0xFF AND validKey=0 on the same reply — both terminator conditions at once)
 
         """.trimIndent()
         assertEquals(golden, report.render())

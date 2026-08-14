@@ -3310,9 +3310,18 @@ public final class BLEManager: NSObject, ObservableObject {
             switch FeatureFlagProbe.parseStart(frame: frame, family: family) {
             case .success(let r):
                 featureFlagReport?.noteStart(r)
-                sendFeatureFlagStep(.sendNextFeatureFlag)
+                // A firmware that REFUSED 117 has nothing to enumerate; sending 118 anyway would spend a
+                // round-trip to learn what the refusal already said. `hasStopped` is the report's own
+                // named reason, so the driver never has to re-derive one.
+                if featureFlagReport?.hasStopped == true {
+                    finishFeatureFlagProbe()
+                } else {
+                    sendFeatureFlagStep(.sendNextFeatureFlag)
+                }
             case .failure(let f):
-                featureFlagReport?.noteFailure(f, command: Int(awaiting))
+                // Pass the frame: a reply that failed to decode is the one whose RAW bytes matter most,
+                // and a report that kept only the parsed fields cannot be re-examined later.
+                featureFlagReport?.noteFailure(f, command: Int(awaiting), frame: frame)
                 finishFeatureFlagProbe()
             }
             return

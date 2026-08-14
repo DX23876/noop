@@ -145,19 +145,144 @@ final class FeatureFlagProbeTests: XCTestCase {
         XCTAssertEqual(report.stopReason, "cursor exhausted (index 0xFF)")
     }
 
-    func testValidKeyFalseStopsTheWalkEvenWithBytesAfterIt() {
-        // validKey=0 with a plausible-looking name after it: the firmware's own flag wins.
+    /// `validKey = 0` alone is NOT classified as the strap's end marker any more — it is an empty slot,
+    /// and the walk steps over it. The entry itself is still never collected as a key.
+    func testValidKeyFalseIsAnEmptySlotNotTheEndMarker() {
+        // validKey=0 with a plausible-looking name after it: still not a key, still not the end.
         let record: [UInt8] = [0x01, 0x04, 0x00] + keyBytes("stale_buffer_leftover")
         let frame = whoop4Response(cmd: 118, payload: payload(result: 1, record: record))
         guard case .success(let r) = FeatureFlagProbe.parseNext(frame: frame, family: .whoop4) else {
             return XCTFail("expected a decoded NEXT response")
         }
         XCTAssertFalse(r.validKey)
-        XCTAssertTrue(r.isExhausted)
+        XCTAssertFalse(r.isExhausted, "only index=0xFF is the strap's unambiguous end marker")
+        XCTAssertTrue(r.isEmptySlot)
         var report = FeatureFlagProbeReport(family: .whoop4)
-        XCTAssertFalse(report.noteNext(r))
-        XCTAssertEqual(report.stopReason, "firmware reported validKey=false")
+        XCTAssertTrue(report.noteNext(r), "validKey=0 without 0xFF must not end the walk")
+        XCTAssertNil(report.stopReason)
+        XCTAssertEqual(report.emptySlots, 1)
         XCTAssertTrue(report.keys.isEmpty, "an invalid entry must never be collected as a flag")
+    }
+
+    /// The whole experiment, in one walk: the strap serves `validKey = 0` mid-list, the walk keeps asking,
+    /// and the strap names MORE keys before ending on 0xFF. That sequence is decisive — under the old rule
+    /// this list would have been reported as one key long.
+    func testWalkContinuesPastValidKeyZeroAndCollectsTheKeysAfterIt() {
+        var report = FeatureFlagProbeReport(family: .whoop5)
+        report.noteStart(FeatureFlagProbe.StartResponse(resultCode: 1, revision: 1, count: 5,
+                                                        record: [0x01, 0x05, 0x00]))
+        func next(_ index: Int, valid: Bool, _ key: String?) -> FeatureFlagProbe.NextResponse {
+            FeatureFlagProbe.NextResponse(resultCode: 1, revision: 1, index: index, validKey: valid,
+                                          key: key, record: [0x01, UInt8(index), valid ? 1 : 0])
+        }
+        XCTAssertTrue(report.noteNext(next(1, valid: true, "enable_r22_packets")))
+        XCTAssertTrue(report.noteNext(next(2, valid: false, nil)), "an empty slot must not end the walk")
+        XCTAssertTrue(report.noteNext(next(3, valid: false, nil)), "nor must a second one")
+        XCTAssertTrue(report.noteNext(next(4, valid: true, "enable_sig12")))
+        XCTAssertFalse(report.noteNext(next(0xFF, valid: false, nil)))
+
+        XCTAssertEqual(report.keys, ["enable_r22_packets", "enable_sig12"])
+        XCTAssertEqual(report.emptySlots, 2)
+        XCTAssertEqual(report.keysAfterFirstEmptySlot, 1)
+        XCTAssertEqual(report.stopCode, .endMarker)
+        let finding = report.terminatorFinding
+        XCTAssertTrue(finding.hasPrefix("DECISIVE — validKey=0 is an EMPTY/RETIRED SLOT"), finding)
+        XCTAssertTrue(finding.contains("naming 1 more key(s)"), finding)
+        XCTAssertTrue(report.render().contains("2 validKey=0 slot(s) stepped over"))
+    }
+
+    /// #874's rule reaches the CONCLUSION too. The strap flagged an entry past the hole as real; our ASCII
+    /// filter declined its name. The list still continued, so the finding must still be decisive — reading
+    /// "inconclusive" here would be our parser deciding a question about the firmware.
+    func testAnUndecodableEntryAfterAnEmptySlotIsStillDecisive() {
+        var report = FeatureFlagProbeReport(family: .whoop5)
+        report.noteStart(FeatureFlagProbe.StartResponse(resultCode: 1, revision: 1, count: 30,
+                                                        record: [0x01, 0x1E, 0x00]))
+        XCTAssertTrue(report.noteNext(FeatureFlagProbe.NextResponse(
+            resultCode: 1, revision: 1, index: 1, validKey: false, key: nil, record: [0x01, 0x01, 0x00])))
+        XCTAssertTrue(report.noteNext(FeatureFlagProbe.NextResponse(
+            resultCode: 1, revision: 1, index: 2, validKey: true, key: nil,
+            record: [0x01, 0x02, 0x01, 0xDE, 0xAD])))
+        XCTAssertEqual(report.keys, [], "no name decoded, so no key is invented")
+        XCTAssertEqual(report.keysAfterFirstEmptySlot, 0)
+        XCTAssertEqual(report.validEntriesAfterFirstEmptySlot, 1)
+        let finding = report.terminatorFinding
+        XCTAssertTrue(finding.hasPrefix("DECISIVE — validKey=0 is an EMPTY/RETIRED SLOT"), finding)
+        XCTAssertTrue(finding.contains("1 of them flagged validKey=1"), finding)
+        XCTAssertFalse(finding.contains("naming"), finding)
+    }
+
+    /// The other decisive outcome, and the one that costs two round-trips: the strap repeats the same
+    /// index with `validKey = 0`. What that decides is that the cursor does not advance, so this walk
+    /// cannot see past the point — NOT that the list ends there. A firmware whose cursor parks on an
+    /// empty slot emits the identical frame, and that is the reading this whole probe exists to make
+    /// testable, so the verdict must not print it as settled. Both halves are pinned below: the DECISIVE
+    /// label stays, and the over-claim must not come back.
+    func testRepeatedEmptySlotAtTheSameIndexIsReportedAsATerminator() {
+        var report = FeatureFlagProbeReport(family: .whoop5)
+        report.noteStart(FeatureFlagProbe.StartResponse(resultCode: 1, revision: 1, count: 9,
+                                                        record: [0x01, 0x09, 0x00]))
+        let empty = FeatureFlagProbe.NextResponse(resultCode: 1, revision: 1, index: 7, validKey: false,
+                                                  key: nil, record: [0x01, 0x07, 0x00])
+        XCTAssertTrue(report.noteNext(empty), "the first empty slot is stepped over")
+        XCTAssertFalse(report.noteNext(empty), "a parked cursor ends the walk")
+        XCTAssertEqual(report.stopCode, .emptySlotCursorParked)
+        XCTAssertTrue(report.terminatorFinding.hasPrefix("DECISIVE — validKey=0 is a TERMINATOR"),
+                      report.terminatorFinding)
+        // The narrowing, pinned so it cannot be quietly widened back. "There is nothing past it" is the
+        // conclusion a reader would paste into an issue as settled, and it is the one this probe exists
+        // to question — two firmwares emit this identical frame.
+        XCTAssertTrue(report.terminatorFinding.contains("the cursor does not advance past it"),
+                      report.terminatorFinding)
+        XCTAssertTrue(report.terminatorFinding.contains(
+            "not separable from a firmware whose cursor parks on an empty slot"),
+                      report.terminatorFinding)
+        XCTAssertFalse(report.terminatorFinding.contains("there is nothing past it"),
+                       "the walk observes a stalled cursor, not an empty tail: \(report.terminatorFinding)")
+        XCTAssertEqual(report.steps, 2, "settling this must cost two round-trips, not a full cap")
+    }
+
+    /// A firmware that answers `validKey = 0` forever with an ADVANCING index cannot run the walk away:
+    /// the consecutive-empty cap stops it, and names itself a CLIENT-side bound so the run is never read
+    /// as a complete list.
+    func testAnUnendingRunOfEmptySlotsStopsAtTheConsecutiveCap() {
+        var report = FeatureFlagProbeReport(family: .whoop4)
+        var index = 0
+        var sent = 0
+        while report.noteNext(FeatureFlagProbe.NextResponse(
+            resultCode: 1, revision: 1, index: index, validKey: false, key: nil,
+            record: [0x01, UInt8(index), 0x00])) {
+            index += 1
+            sent += 1
+            XCTAssertLessThan(sent, FeatureFlagProbe.maxConsecutiveEmptySlots + 2, "walk must not run away")
+        }
+        XCTAssertEqual(report.steps, FeatureFlagProbe.maxConsecutiveEmptySlots)
+        XCTAssertEqual(report.stopCode, .emptySlotRunCap)
+        let why = report.stopReason ?? ""
+        XCTAssertTrue(why.contains("a CLIENT-side bound, not the strap's"), why)
+        XCTAssertTrue(report.terminatorFinding.hasPrefix("INCONCLUSIVE"), report.terminatorFinding)
+    }
+
+    /// A valid entry resets the run, so scattered holes cost nothing against the cap.
+    func testAValidEntryResetsTheConsecutiveEmptySlotRun() {
+        var report = FeatureFlagProbeReport(family: .whoop4)
+        func empty(_ i: Int) -> FeatureFlagProbe.NextResponse {
+            FeatureFlagProbe.NextResponse(resultCode: 1, revision: 1, index: i, validKey: false, key: nil,
+                                          record: [0x01, UInt8(i), 0x00])
+        }
+        func valid(_ i: Int, _ k: String) -> FeatureFlagProbe.NextResponse {
+            FeatureFlagProbe.NextResponse(resultCode: 1, revision: 1, index: i, validKey: true, key: k,
+                                          record: [0x01, UInt8(i), 0x01])
+        }
+        for i in 0..<(FeatureFlagProbe.maxConsecutiveEmptySlots - 1) {
+            XCTAssertTrue(report.noteNext(empty(i)))
+        }
+        XCTAssertTrue(report.noteNext(valid(20, "hr_ch_switching")))
+        for i in 21..<(21 + FeatureFlagProbe.maxConsecutiveEmptySlots - 1) {
+            XCTAssertTrue(report.noteNext(empty(i)), "the run restarted at the valid entry")
+        }
+        XCTAssertNil(report.stopCode)
+        XCTAssertEqual(report.keys, ["hr_ch_switching"])
     }
 
     func testNonPrintableNameIsNotReportedAsAKey() {
@@ -198,30 +323,75 @@ final class FeatureFlagProbeTests: XCTestCase {
                       "a dump with holes must describe itself rather than look complete")
     }
 
-    /// `validKey = 0` is trusted as an end marker, but the other reading — an EMPTY SLOT with the list
-    /// continuing past it — is not ruled out by anything observed so far. Stopping well short of the
-    /// announced count is the evidence that would settle it, so the report has to say so loudly rather
-    /// than reporting a confident short list.
-    func testStoppingOnValidKeyFalseShortOfTheAnnouncedCountIsFlagged() {
-        var report = FeatureFlagProbeReport(family: .whoop4)
-        report.noteStart(FeatureFlagProbe.StartResponse(resultCode: 1, revision: 1, count: 40))
+    /// The reply a WHOOP 5 MG actually served to end its 115/116 walk: `index = 255` and `validKey = 0`
+    /// on the SAME frame. Both terminator conditions fired at once, so that run cannot say which one the
+    /// firmware meant — and the report must say exactly that instead of picking one.
+    func testEndMarkerCarryingValidKeyZeroIsReportedAsAmbiguous() {
+        var report = FeatureFlagProbeReport(family: .whoop5,
+                                            namespace: FeatureFlagProbe.deviceConfigNamespace)
+        report.noteStart(FeatureFlagProbe.StartResponse(resultCode: 1, revision: 1, count: 7,
+                                                        record: [0x01, 0x07, 0x00]))
         XCTAssertTrue(report.noteNext(FeatureFlagProbe.NextResponse(
-            resultCode: 1, revision: 1, index: 0, validKey: true, key: "enable_r22_packets")))
+            resultCode: 1, revision: 1, index: 1, validKey: true, key: "enable_rfid",
+            record: [0x01, 0x01, 0x01])))
         XCTAssertFalse(report.noteNext(FeatureFlagProbe.NextResponse(
-            resultCode: 1, revision: 1, index: 1, validKey: false, key: nil)))
+            resultCode: 1, revision: 1, index: 0xFF, validKey: false, key: nil,
+            record: [0x01, 0xFF, 0x00, 0x00])))
 
-        let why = try! XCTUnwrap(report.stopReason)
-        XCTAssertTrue(why.contains("2 of 40 announced entries"), why)
-        XCTAssertTrue(why.contains("the remainder was NOT walked"), why)
+        XCTAssertTrue(report.endMarkerAlsoCarriedInvalidFlag)
+        XCTAssertEqual(report.stopCode, .endMarker)
+        XCTAssertTrue(report.terminatorFinding.hasPrefix("AMBIGUOUS"), report.terminatorFinding)
+        XCTAssertTrue(report.terminatorFinding.contains("both terminator conditions fired at once"),
+                      report.terminatorFinding)
+        XCTAssertTrue(report.render().contains("index=0xFF AND validKey=0 on the same reply"))
     }
 
-    /// …and when the count was fully walked, the plain reason stands — no false alarm.
-    func testValidKeyFalseAtTheAnnouncedEndIsNotFlagged() {
-        var report = FeatureFlagProbeReport(family: .whoop4)
-        report.noteStart(FeatureFlagProbe.StartResponse(resultCode: 1, revision: 1, count: 1))
+    /// The 0xFF marker with `validKey` still true separates the two conditions the other way, and the
+    /// report has to be equally careful there: 0xFF alone terminated, and validKey=0 stayed untested.
+    func testEndMarkerWithValidKeyTrueSaysValidKeyZeroIsUntested() {
+        var report = FeatureFlagProbeReport(family: .whoop5)
+        report.noteStart(FeatureFlagProbe.StartResponse(resultCode: 1, revision: 1, count: 2,
+                                                        record: [0x01, 0x02, 0x00]))
+        XCTAssertTrue(report.noteNext(FeatureFlagProbe.NextResponse(
+            resultCode: 1, revision: 1, index: 1, validKey: true, key: "enable_r22_packets",
+            record: [0x01, 0x01, 0x01])))
         XCTAssertFalse(report.noteNext(FeatureFlagProbe.NextResponse(
-            resultCode: 1, revision: 1, index: 0, validKey: false, key: nil)))
-        XCTAssertEqual(report.stopReason, "firmware reported validKey=false")
+            resultCode: 1, revision: 1, index: 0xFF, validKey: true, key: nil,
+            record: [0x01, 0xFF, 0x01])))
+        XCTAssertFalse(report.endMarkerAlsoCarriedInvalidFlag)
+        XCTAssertTrue(report.terminatorFinding.contains("validKey=0 was never served, so it is untested"),
+                      report.terminatorFinding)
+    }
+
+    /// What the 117/118 walk on a 5/MG actually did: sixteen valid, named entries and NO terminator of
+    /// either kind. The walk used to stop dead at the announced count and read as a complete list. It now
+    /// asks a bounded number of further times, and — whatever comes back — reports in the verdict itself
+    /// that a client-side bound ended the run.
+    func testWalkOvershootsTheAnnouncedCountSoTheStrapCanEndItsOwnList() {
+        var report = FeatureFlagProbeReport(family: .whoop5)
+        report.noteStart(FeatureFlagProbe.StartResponse(resultCode: 1, revision: 1, count: 3,
+                                                        record: [0x01, 0x03, 0x00]))
+        var sent = 0
+        var keepGoing = true
+        while keepGoing {
+            sent += 1
+            keepGoing = report.noteNext(FeatureFlagProbe.NextResponse(
+                resultCode: 1, revision: 1, index: sent, validKey: true, key: "key_\(sent)",
+                record: [0x01, UInt8(sent), 0x01]))
+        }
+        XCTAssertEqual(sent, 3 + FeatureFlagProbe.countOvershootAllowance,
+                       "the strap gets \(FeatureFlagProbe.countOvershootAllowance) replies past its own count")
+        XCTAssertEqual(report.stopCode, .announcedCountOvershoot)
+        XCTAssertEqual(report.repliesPastAnnouncedCount, FeatureFlagProbe.countOvershootAllowance)
+        XCTAssertTrue(report.verdict.contains("INCOMPLETE: the walk ended on a client-side bound"),
+                      report.verdict)
+        XCTAssertTrue(report.terminatorFinding.hasPrefix("NO TERMINATOR OBSERVED"),
+                      report.terminatorFinding)
+        // …and the count line reports the arithmetic that makes it a finding.
+        let count = try! XCTUnwrap(report.countFinding)
+        XCTAssertTrue(count.contains("Keys yielded: 7"), count)
+        XCTAssertTrue(count.contains("MISMATCH against the announced 3"), count)
+        XCTAssertTrue(count.contains("kept answering 4 repl(ies) past its own announced count"), count)
     }
 
     /// The verdict must never blame the strap for our own decode. A firmware whose names all fail our
@@ -341,10 +511,16 @@ final class FeatureFlagProbeTests: XCTestCase {
             guard case .success(let n) = FeatureFlagProbe.parseNext(frame: frame, family: .whoop5) else {
                 return XCTFail("next \(i)")
             }
-            let keepGoing = report.noteNext(n)
-            XCTAssertEqual(keepGoing, i < names.count - 1, "the announced count bounds the walk")
+            XCTAssertTrue(report.noteNext(n), "the announced count no longer ends the walk by itself")
         }
+        // The strap's own end marker — the only thing that ends a walk cleanly.
+        let end = whoop5Response(cmd: 118, payload: payload(result: 1, record: [0x01, 0xFF, 0x00, 0x00]))
+        guard case .success(let last) = FeatureFlagProbe.parseNext(frame: end, family: .whoop5) else {
+            return XCTFail("end marker")
+        }
+        XCTAssertFalse(report.noteNext(last))
         XCTAssertEqual(report.keys, names)
+        XCTAssertEqual(report.stopCode, .endMarker)
         let text = report.render()
         XCTAssertTrue(text.contains("#761 FEATURE-FLAG ENUMERATION PROBE — WHOOP 5/MG"))
         XCTAssertTrue(text.contains("Read-only"))
@@ -352,9 +528,218 @@ final class FeatureFlagProbeTests: XCTestCase {
         XCTAssertTrue(text.contains("Flags reported by the strap (3 of 3 announced)"))
         XCTAssertTrue(text.contains("   1. enable_r22_packets"))
         XCTAssertTrue(text.contains("   3. wear_detect_bias"))
-        XCTAssertTrue(text.contains("walked the 3 entries the strap announced"))
+        XCTAssertTrue(text.contains("Stop code: endMarker"))
         XCTAssertTrue(text.contains("START_FF_KEY_EXCHANGE(117) → revision=1 count=3 result=SUCCESS(1)"))
         XCTAssertTrue(text.contains("SEND_NEXT_FF(118) → index=0 validKey=true key=\"enable_r22_packets\""))
+    }
+
+    // MARK: - Raw bytes
+
+    /// Requirement of the whole exercise: the RAW record bytes of every reply are in the report, not only
+    /// the fields parsed out of them. Earlier findings here had to be re-run because only parsed output
+    /// survived, and a parsed field cannot contradict the layout that produced it.
+    func testEveryReplyLogsItsRawRecordBytes() {
+        var report = FeatureFlagProbeReport(family: .whoop5)
+        let start = whoop5Response(cmd: 117, payload: payload(result: 1, record: [0x01, 0x02, 0x00]))
+        guard case .success(let s) = FeatureFlagProbe.parseStart(frame: start, family: .whoop5) else {
+            return XCTFail("start")
+        }
+        report.noteStart(s)
+        XCTAssertEqual(s.record, [0x01, 0x02, 0x00], "the parse keeps the bytes it decoded from")
+        let next = whoop5Response(cmd: 118, payload: payload(result: 1, record: [0x01, 0x00, 0x01, 0x78, 0x00]))
+        guard case .success(let n) = FeatureFlagProbe.parseNext(frame: next, family: .whoop5) else {
+            return XCTFail("next")
+        }
+        XCTAssertTrue(report.noteNext(n))
+        let text = report.render()
+        XCTAssertTrue(text.contains("raw=01 02 00"), text)
+        XCTAssertTrue(text.contains("raw=01 00 01 78 00"), text)
+    }
+
+    /// A reply that failed to decode is the one whose raw bytes matter most, so the whole frame goes in.
+    func testUndecodedReplyLogsTheWholeRawFrame() {
+        var report = FeatureFlagProbeReport(family: .whoop4)
+        report.noteFailure(.crc, command: 118, frame: [0xAA, 0x05, 0x00, 0x2B, 0x24])
+        XCTAssertTrue(report.render().contains("raw frame=aa 05 00 2b 24"), report.render())
+        XCTAssertEqual(report.stopCode, .parseFailure)
+    }
+
+    /// The hex is bounded so one absurd record cannot flood the log — but the true LENGTH is always
+    /// printed, because an over-long record is itself evidence that the layout is wrong.
+    func testOverLongRawRecordIsElidedButItsLengthIsKept() {
+        let long = [UInt8](repeating: 0xAB, count: FeatureFlagProbe.maxRawHexBytes + 10)
+        let rendered = FeatureFlagProbe.hex(long)
+        XCTAssertTrue(rendered.hasSuffix("… (\(FeatureFlagProbe.maxRawHexBytes + 10) bytes total)"), rendered)
+        XCTAssertEqual(FeatureFlagProbe.hex([]), "(empty)")
+    }
+
+    // MARK: - The announced count
+
+    /// The count is read as u16 LE, and every count seen so far has had a zero high byte — where a
+    /// single-byte read returns the SAME number. So no capture distinguishes the two readings, and the
+    /// report says that rather than asserting a field width nothing has established.
+    func testCountCarriesBothReadingsAndSaysWhenTheyAgree() {
+        let frame = whoop5Response(cmd: 117, payload: payload(result: 1, record: [0x01, 0x10, 0x00]))
+        guard case .success(let r) = FeatureFlagProbe.parseStart(frame: frame, family: .whoop5) else {
+            return XCTFail("start")
+        }
+        XCTAssertEqual(r.count, 16)
+        XCTAssertEqual(r.singleByteCount, 16)
+        XCTAssertEqual(r.countHighByte, 0)
+        XCTAssertTrue(r.countReadingsAgree)
+        var report = FeatureFlagProbeReport(family: .whoop5)
+        report.noteStart(r)
+        let finding = try! XCTUnwrap(report.countFinding)
+        XCTAssertTrue(finding.contains("u16 LE read = 16; single-byte read = 16 (high byte 0x00)"), finding)
+        XCTAssertTrue(finding.contains("the two readings AGREE"), finding)
+    }
+
+    /// A nonzero high byte is the only thing that separates them, and it is a finding either way: on the
+    /// u16 reading the list is enormous, on the single-byte reading `record[2]` is padding.
+    func testNonZeroHighByteIsReportedAsADisagreement() {
+        let frame = whoop5Response(cmd: 117, payload: payload(result: 1, record: [0x01, 0x07, 0x02]))
+        guard case .success(let r) = FeatureFlagProbe.parseStart(frame: frame, family: .whoop5) else {
+            return XCTFail("start")
+        }
+        XCTAssertEqual(r.count, 0x0207)
+        XCTAssertEqual(r.singleByteCount, 7)
+        XCTAssertFalse(r.countReadingsAgree)
+        XCTAssertFalse(r.countIsPlausible, "an implausible u16 must not become a loop bound")
+        var report = FeatureFlagProbeReport(family: .whoop5)
+        report.noteStart(r)
+        let finding = try! XCTUnwrap(report.countFinding)
+        XCTAssertTrue(finding.contains("single-byte read = 7 (high byte 0x02)"), finding)
+        XCTAssertTrue(finding.contains("the two readings DISAGREE"), finding)
+    }
+
+    /// Announced-count-versus-yielded is itself a result. A strap that announces sixteen and names
+    /// fourteen has two entries nobody has accounted for, and the report has to raise it rather than
+    /// print a tidy short list.
+    func testAnnouncedCountVersusKeysYieldedMismatchIsReported() {
+        var report = FeatureFlagProbeReport(family: .whoop5)
+        report.noteStart(FeatureFlagProbe.StartResponse(resultCode: 1, revision: 1, count: 16,
+                                                        record: [0x01, 0x10, 0x00]))
+        XCTAssertTrue(report.noteNext(FeatureFlagProbe.NextResponse(
+            resultCode: 1, revision: 1, index: 1, validKey: true, key: "enable_r22_packets",
+            record: [0x01, 0x01, 0x01])))
+        XCTAssertFalse(report.noteNext(FeatureFlagProbe.NextResponse(
+            resultCode: 1, revision: 1, index: 0xFF, validKey: true, key: nil,
+            record: [0x01, 0xFF, 0x01])))
+        let finding = try! XCTUnwrap(report.countFinding)
+        XCTAssertTrue(finding.contains("Keys yielded: 1"), finding)
+        XCTAssertTrue(finding.contains("MISMATCH against the announced 16"), finding)
+    }
+
+    /// …and when everything is accounted for — keys plus skipped plus empty slots — there is no alarm.
+    func testFullyAccountedCountIsNotFlaggedAsAMismatch() {
+        var report = FeatureFlagProbeReport(family: .whoop5)
+        report.noteStart(FeatureFlagProbe.StartResponse(resultCode: 1, revision: 1, count: 3,
+                                                        record: [0x01, 0x03, 0x00]))
+        _ = report.noteNext(FeatureFlagProbe.NextResponse(resultCode: 1, revision: 1, index: 1,
+                                                          validKey: true, key: "a", record: [0x01, 0x01, 0x01]))
+        _ = report.noteNext(FeatureFlagProbe.NextResponse(resultCode: 1, revision: 1, index: 2,
+                                                          validKey: true, key: nil, record: [0x01, 0x02, 0x01]))
+        _ = report.noteNext(FeatureFlagProbe.NextResponse(resultCode: 1, revision: 1, index: 3,
+                                                          validKey: false, key: nil, record: [0x01, 0x03, 0x00]))
+        let finding = try! XCTUnwrap(report.countFinding)
+        XCTAssertFalse(finding.contains("MISMATCH"), finding)
+        XCTAssertTrue(finding.contains("Keys yielded: 1 (+1 undecodable) (+1 empty slot(s))"), finding)
+    }
+
+    // MARK: - The device-config namespace (115/116)
+
+    /// The SAME walk drives the device-config pair, so the terminator rules cannot be corrected in one
+    /// namespace and left wrong in the other. Decoded end-to-end from 115/116 frames.
+    func testDeviceConfigNamespaceWalksThroughTheSameCorrectedRules() {
+        var report = FeatureFlagProbeReport(family: .whoop5,
+                                            namespace: FeatureFlagProbe.deviceConfigNamespace)
+        let start = whoop5Response(cmd: 115, payload: payload(result: 1, record: [0x01, 0x02, 0x00]))
+        guard case .success(let s) = FeatureFlagProbe.parseStart(frame: start, family: .whoop5,
+                                                                 expecting: 115) else {
+            return XCTFail("115 start")
+        }
+        report.noteStart(s)
+        // An empty slot first — under the old rule the walk would have ended here with zero keys.
+        let hole = whoop5Response(cmd: 116, payload: payload(result: 1, record: [0x01, 0x02, 0x00, 0x00]))
+        guard case .success(let h) = FeatureFlagProbe.parseNext(frame: hole, family: .whoop5,
+                                                                expecting: 116) else {
+            return XCTFail("116 hole")
+        }
+        XCTAssertTrue(report.noteNext(h))
+        let named = whoop5Response(cmd: 116, payload: payload(
+            result: 1, record: [0x01, 0x03, 0x01] + keyBytes("enable_raw_data_w_ecg")))
+        guard case .success(let n) = FeatureFlagProbe.parseNext(frame: named, family: .whoop5,
+                                                                expecting: 116) else {
+            return XCTFail("116 named")
+        }
+        XCTAssertTrue(report.noteNext(n))
+        XCTAssertEqual(report.keys, ["enable_raw_data_w_ecg"],
+                       "the key AFTER the empty slot is exactly what the old rule discarded")
+
+        let text = report.render()
+        XCTAssertTrue(text.contains("#761 DEVICE-CONFIG ENUMERATION PROBE — WHOOP 5/MG"), text)
+        XCTAssertTrue(text.contains("START_DEVICE_CONFIG_KEY_EXCHANGE(115) + SEND_NEXT_DEVICE_CONFIG(116)"), text)
+        XCTAssertTrue(text.contains("Keys reported by the strap (1 of 2 announced"), text)
+        XCTAssertTrue(text.contains("SEND_NEXT_DEVICE_CONFIG(116) → index=3"), text)
+    }
+
+    /// An explicit refusal is the strap's answer, not one of our bounds, and it must end the walk with its
+    /// own name — on the START reply (where the driver reads `hasStopped` instead of stepping to 118) and
+    /// on a NEXT reply alike.
+    func testUnsupportedRefusalEndsTheWalkWithItsOwnStopCode() {
+        var start = FeatureFlagProbeReport(family: .whoop5)
+        XCTAssertFalse(start.hasStopped)
+        start.noteStart(FeatureFlagProbe.StartResponse(resultCode: 3, revision: 0, count: 0,
+                                                       record: [0x00, 0x00, 0x00]))
+        XCTAssertTrue(start.hasStopped, "a refused START must not step on to the next verb")
+        XCTAssertEqual(start.stopCode, .unsupported)
+        XCTAssertTrue(start.render().contains("Stop code: unsupported"))
+
+        var mid = FeatureFlagProbeReport(family: .whoop5)
+        mid.noteStart(FeatureFlagProbe.StartResponse(resultCode: 1, revision: 1, count: 4,
+                                                     record: [0x01, 0x04, 0x00]))
+        XCTAssertTrue(mid.noteNext(FeatureFlagProbe.NextResponse(
+            resultCode: 1, revision: 1, index: 1, validKey: true, key: "enable_r22_packets",
+            record: [0x01, 0x01, 0x01])))
+        XCTAssertFalse(mid.noteNext(FeatureFlagProbe.NextResponse(
+            resultCode: 3, revision: 0, index: 0, validKey: false, key: nil, record: [0x00, 0x00, 0x00])))
+        XCTAssertEqual(mid.stopCode, .unsupported)
+        XCTAssertEqual(mid.emptySlots, 0, "a refusal is never counted as an empty slot")
+        XCTAssertTrue(mid.stopReason?.contains("UNSUPPORTED(3)") == true, mid.stopReason ?? "")
+    }
+
+    /// The two platforms must classify the same reply the same way, or a strap log means different things
+    /// on either side. These are the exact constants the walk is bounded by; the Kotlin twin
+    /// (`walkBoundsMatchTheSwiftTwin`) asserts the same numbers and the same stop-code spellings.
+    func testWalkBoundsMatchTheKotlinTwin() {
+        XCTAssertEqual(FeatureFlagProbe.maxConsecutiveEmptySlots, 8)
+        XCTAssertEqual(FeatureFlagProbe.countOvershootAllowance, 4)
+        XCTAssertEqual(FeatureFlagProbe.maxRawHexBytes, 64)
+        XCTAssertEqual(FeatureFlagProbe.maxFlags, 128)
+        XCTAssertEqual(FeatureFlagProbe.StopCode.endMarker.rawValue, "endMarker")
+        XCTAssertEqual(FeatureFlagProbe.StopCode.emptySlotCursorParked.rawValue, "emptySlotCursorParked")
+        XCTAssertEqual(FeatureFlagProbe.StopCode.emptySlotRunCap.rawValue, "emptySlotRunCap")
+        XCTAssertEqual(FeatureFlagProbe.StopCode.stepCap.rawValue, "stepCap")
+        XCTAssertEqual(FeatureFlagProbe.StopCode.announcedCountOvershoot.rawValue, "announcedCountOvershoot")
+        XCTAssertEqual(FeatureFlagProbe.StopCode.timeout.rawValue, "timeout")
+        XCTAssertEqual(FeatureFlagProbe.StopCode.unsupported.rawValue, "unsupported")
+        XCTAssertEqual(FeatureFlagProbe.StopCode.parseFailure.rawValue, "parseFailure")
+    }
+
+    /// The 115/116 frames must not decode as 117/118 by accident — the opcode is checked, both ways.
+    func testTheTwoNamespacesDoNotDecodeEachOthersFrames() {
+        let cfg = whoop5Response(cmd: 116, payload: payload(result: 1, record: [0x01, 0x00, 0x01]))
+        XCTAssertEqual(FeatureFlagProbe.parseNext(frame: cfg, family: .whoop5), .failure(.wrongCommand))
+        let ff = whoop5Response(cmd: 118, payload: payload(result: 1, record: [0x01, 0x00, 0x01]))
+        XCTAssertEqual(FeatureFlagProbe.parseNext(frame: ff, family: .whoop5, expecting: 116),
+                       .failure(.wrongCommand))
+        XCTAssertEqual(FeatureFlagProbe.deviceConfigNamespace.startCmd, 115)
+        XCTAssertEqual(FeatureFlagProbe.deviceConfigNamespace.nextCmd, 116)
+        // Still read-only: the SET verbs appear in neither namespace.
+        for ns in [FeatureFlagProbe.featureFlagNamespace, FeatureFlagProbe.deviceConfigNamespace] {
+            XCTAssertFalse([119, 120].contains(Int(ns.startCmd)))
+            XCTAssertFalse([119, 120].contains(Int(ns.nextCmd)))
+        }
     }
 
     func testRepeatedKeysCannotDriveAnUnboundedWalk() {
@@ -417,14 +802,17 @@ final class FeatureFlagProbeTests: XCTestCase {
 
         Verdict: enumerated 1 feature-flag key name(s)
         Stopped: cursor exhausted (index 0xFF)
+        Stop code: endMarker
+        Terminator: AMBIGUOUS — the walk ended on a reply carrying index=0xFF AND validKey=0 together, so both terminator conditions fired at once and this run cannot say which one the firmware meant.
+        Announced count: u16 LE read = 2; single-byte read = 2 (high byte 0x00) — the two readings AGREE, so this reply does not establish the field's width. Keys yielded: 1 — MISMATCH against the announced 2
 
         Flags reported by the strap (1 of 2 announced):
            1. enable_r22_packets
 
         Exchange:
-          START_FF_KEY_EXCHANGE(117) → revision=1 count=2 result=SUCCESS(1)
-          SEND_NEXT_FF(118) → index=0 validKey=true key="enable_r22_packets" result=SUCCESS(1)
-          SEND_NEXT_FF(118) → index=255 validKey=false result=SUCCESS(1)
+          START_FF_KEY_EXCHANGE(117) → revision=1 count=2 result=SUCCESS(1) raw=01 02 00
+          SEND_NEXT_FF(118) → index=0 validKey=true key="enable_r22_packets" result=SUCCESS(1) raw=01 00 01 65 6e 61 62 6c 65 5f 72 32 32 5f 70 61 63 6b 65 74 73 00 00 00 00 00 00 00 00 00 00
+          SEND_NEXT_FF(118) → index=255 validKey=false result=SUCCESS(1) raw=01 ff 00 00 00 00 00  (index=0xFF AND validKey=0 on the same reply — both terminator conditions at once)
 
         """
         XCTAssertEqual(report.render(), golden)
