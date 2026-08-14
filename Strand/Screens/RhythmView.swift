@@ -300,6 +300,20 @@ struct RhythmView: View {
         windows.flatMap { $0.poincare }
     }
 
+    /// #1298: the temp .csv URL for the share sheet, written ONCE by `.task` (below) — not in `body`,
+    /// so rendering never touches disk. nil until the write lands / when nothing is readable.
+    @State private var rhythmExportURL: URL?
+
+    /// Write the night's DESCRIPTIVE data to a temp .csv for the OS share sheet — the §11 "share with
+    /// my clinician" path. Neutral data ONLY (`RhythmExport` forbids any verdict / condition name); nil
+    /// when nothing readable. A tiny, atomic write, run off the render path from `.task`.
+    private func buildRhythmExportURL() -> URL? {
+        guard let night, !windows.isEmpty else { return nil }
+        let csv = RhythmExport.csv(summary: night, windows: windows)
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("noop-rhythm.csv")
+        return (try? csv.write(to: url, atomically: true, encoding: .utf8)) != nil ? url : nil
+    }
+
     private var visualization: some View {
         ScreenScaffold(
             title: "Rhythm",
@@ -314,6 +328,7 @@ struct RhythmView: View {
             trailing: { closeButton }
         ) {
             SourceBadge("Experimental", tint: StrandPalette.restColor)
+                .task(id: windows.count) { rhythmExportURL = buildRhythmExportURL() }
 
             if allPoints.isEmpty {
                 emptyState
@@ -321,6 +336,14 @@ struct RhythmView: View {
                 summaryCard
                 plotCard
                 statsCard
+                if let rhythmExportURL {
+                    // #1298: hand the clinician the DATA, never a verdict. A neutral CSV export.
+                    ShareLink(item: rhythmExportURL) {
+                        Label("Share", systemImage: "square.and.arrow.up")
+                            .font(StrandFont.subhead)
+                    }
+                    .tint(StrandPalette.restColor)
+                }
             }
 
             methodologyCard
@@ -342,6 +365,45 @@ struct RhythmView: View {
 
     // MARK: Summary card — the neutral, plain-language headline (NO verdict)
 
+    /// OpenStrap-style status chip: a compact pill with an icon + the neutral regularity label. Modelled
+    /// on `SourceBadge`, but in the calm Rest-blue palette — NEVER a warn/alarm colour (§11 forbids alarm
+    /// styling; OpenStrap tints its chip amber, NOOP does not). States differ by icon + wording only, and
+    /// the short `chipLabel` sits in the pill, the sentence `headlineDetail` reads below. Non-diagnostic.
+    private var statusChip: some View {
+        let label = night?.overall ?? headlineWindow?.label ?? .unreadable
+        return HStack(spacing: 6) {
+            Image(systemName: Self.statusIcon(label))
+            Text(chipLabel(label))
+        }
+        .font(StrandFont.subhead)
+        .foregroundStyle(StrandPalette.restBright)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 7)
+        .background(StrandPalette.restColor.opacity(0.16), in: Capsule(style: .continuous))
+        .overlay(Capsule(style: .continuous).strokeBorder(StrandPalette.restColor.opacity(0.34), lineWidth: 1))
+    }
+
+    /// The SHORT neutral status word inside the chip (the sentence-length `headlineDetail` reads below).
+    /// Compact so the chip renders like OpenStrap's, not a full-width banner. Non-diagnostic wording.
+    private func chipLabel(_ label: RhythmRegularity) -> String {
+        switch label {
+        case .steady:           return String(localized: "Steady")
+        case .occasionalEctopy: return String(localized: "Some variation")
+        case .varied:           return String(localized: "More varied")
+        case .unreadable:       return String(localized: "No clear reading")
+        }
+    }
+
+    /// A calm, non-alarm SF Symbol per neutral state — a check for steady, the ECG waveform for any
+    /// variation (never a warning triangle), a question mark when unread. No red, no alarm (§11).
+    private static func statusIcon(_ label: RhythmRegularity) -> String {
+        switch label {
+        case .steady:                    return "checkmark.circle.fill"
+        case .occasionalEctopy, .varied: return "waveform.path.ecg"
+        case .unreadable:                return "questionmark.circle"
+        }
+    }
+
     private var summaryCard: some View {
         StrandCard(padding: 18, tint: StrandPalette.restColor) {
             VStack(alignment: .leading, spacing: 10) {
@@ -350,10 +412,7 @@ struct RhythmView: View {
                     Spacer()
                     ScoreStatePill(confidenceState, text: confidenceText)
                 }
-                Text(headlineLabel)
-                    .font(StrandFont.title2)
-                    .foregroundStyle(StrandPalette.textPrimary)
-                    .fixedSize(horizontal: false, vertical: true)
+                statusChip
                 Text(headlineDetail)
                     .font(StrandFont.subhead)
                     .foregroundStyle(StrandPalette.textSecondary)
@@ -483,17 +542,6 @@ struct RhythmView: View {
     }
 
     // MARK: - Copy mapping (neutral, non-clinical — NO verdict, NO condition name)
-
-    /// The plain-language headline for the night's most-prominent label. Deliberately
-    /// descriptive and benign; no "consider a clinician", no condition, no alarm.
-    private var headlineLabel: String {
-        switch night?.overall ?? headlineWindow?.label ?? .unreadable {
-        case .steady:           return String(localized: "Your rhythm looked steady")
-        case .occasionalEctopy: return String(localized: "Some occasional extra or skipped beats")
-        case .varied:           return String(localized: "Your rhythm varied more than usual")
-        case .unreadable:       return String(localized: "Couldn't read clearly")
-        }
-    }
 
     private var headlineDetail: String {
         switch night?.overall ?? headlineWindow?.label ?? .unreadable {

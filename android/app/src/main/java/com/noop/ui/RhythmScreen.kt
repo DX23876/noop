@@ -4,6 +4,9 @@ import com.noop.R
 import androidx.compose.ui.res.stringResource
 import android.content.Context
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,7 +22,9 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -273,6 +278,9 @@ private fun RhythmVisualization(
             item { SummaryCard(night = night, headline = headline) }
             item { PlotCard(points = allPoints) }
             item { StatsCard(headline = headline) }
+            // #1298: the clinician-share button lives here on iOS, but Android's Rhythm screen is still
+            // fed null/empty (no capture pipeline yet), so a Share action would be unreachable. The pure
+            // RhythmExport builder is in place; wire the button when the Android rhythm loader lands.
         }
 
         item { MethodologyCard() }
@@ -294,9 +302,39 @@ private fun SummaryCard(
                 Overline("Last night", modifier = Modifier.weight(1f))
                 ConfidencePill(headline = headline, readable = night?.readableWindows)
             }
-            Text(headlineLabel(label), style = NoopType.title2, color = Palette.textPrimary)
+            StatusChip(label)
             Text(headlineDetail(label), style = NoopType.subhead, color = Palette.textSecondary)
         }
+    }
+}
+
+/**
+ * OpenStrap-style status chip: a compact pill with an icon + the neutral regularity label. Modelled on
+ * [SourceBadge], but in the calm Rest-blue palette — NEVER a warn/alarm colour (§11 forbids alarm styling;
+ * OpenStrap tints its chip amber, NOOP does not). States differ by icon + wording only; the label reuses
+ * the short [chipLabel]; the sentence [headlineDetail] reads below. Non-diagnostic. Twin of Swift `statusChip`.
+ */
+@Composable
+private fun StatusChip(label: RhythmRegularity) {
+    val shape = RoundedCornerShape(50)
+    // Calm, non-alarm icons: a check for steady, a heart for any variation (never a warning triangle),
+    // an info glyph when unread. No red, no alarm (§11).
+    val icon = when (label) {
+        RhythmRegularity.STEADY -> Icons.Filled.CheckCircle
+        RhythmRegularity.OCCASIONAL_ECTOPY, RhythmRegularity.VARIED -> Icons.Filled.Favorite
+        RhythmRegularity.UNREADABLE -> Icons.Filled.Info
+    }
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        modifier = Modifier
+            .clip(shape)
+            .background(Palette.restColor.copy(alpha = 0.14f))
+            .border(1.dp, Palette.restColor.copy(alpha = 0.30f), shape)
+            .padding(horizontal = Metrics.space12, vertical = 7.dp),
+    ) {
+        Icon(icon, contentDescription = null, tint = Palette.restBright, modifier = Modifier.size(16.dp))
+        Text(chipLabel(label), style = NoopType.subhead, color = Palette.restBright)
     }
 }
 
@@ -492,11 +530,13 @@ private fun RhythmDisclaimerNote() {
 
 // ── Copy mapping (neutral, non-clinical — NO verdict, NO condition name) ──────────────────
 
-private fun headlineLabel(label: RhythmRegularity): String = when (label) {
-    RhythmRegularity.STEADY -> "Your rhythm looked steady"
-    RhythmRegularity.OCCASIONAL_ECTOPY -> "Some occasional extra or skipped beats"
-    RhythmRegularity.VARIED -> "Your rhythm varied more than usual"
-    RhythmRegularity.UNREADABLE -> "Couldn't read clearly"
+/** SHORT neutral status word inside the status chip (compact, so the chip reads like OpenStrap's; the
+ *  sentence-length [headlineDetail] carries the description below). Twin of Swift `chipLabel`. */
+private fun chipLabel(label: RhythmRegularity): String = when (label) {
+    RhythmRegularity.STEADY -> "Steady"
+    RhythmRegularity.OCCASIONAL_ECTOPY -> "Some variation"
+    RhythmRegularity.VARIED -> "More varied"
+    RhythmRegularity.UNREADABLE -> "No clear reading"
 }
 
 private fun headlineDetail(label: RhythmRegularity): String = when (label) {
