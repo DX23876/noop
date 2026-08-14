@@ -70,7 +70,10 @@ public struct FrostedCardSurface: View {
             // matches the liquid home card's edge (LiquidTodayView.card), not just fill contrast.
             .overlay(shape.strokeBorder(StrandPalette.hairline, lineWidth: 1))
             // LIGHT raises white cards off the warm-paper canvas with a soft resting drop shadow; DARK
-            // stays flat (the hairline + fill carry the edge, matching the home card which has no shadow).
+            // stays flat — the Titanium look reads off the hairline + fill contrast alone, not a shadow,
+            // so it doesn't need one to read as "raised" the way a shadow-carrying surface would. (Liquid
+            // Today's own card, LiquidTodayView.card, DOES carry a small always-on shadow of its own now —
+            // the two surfaces no longer need to match: each screen keeps its own chrome.)
             .shadow(
                 color: scheme == .light ? Color(hex: "#1A2230").opacity(0.11) : .clear,
                 radius: scheme == .light ? 10 : 0,
