@@ -180,6 +180,17 @@ public struct StatTile<Accessory: View>: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @ScaledMetric(relativeTo: .title2) private var valueFontSize: CGFloat = 26
     let label: LocalizedStringKey, value: String
+    /// A label that must NOT be translated — a product name rather than a description (NOOP's three
+    /// scores are Charge / Effort / Rest in every language, the way WHOOP keeps "Strain"). When set it
+    /// replaces `label` entirely. Nil for every ordinary metric, which stays localized.
+    var verbatimLabel: String? = nil
+
+    /// `verbatimLabel` when set, the localized `label` otherwise. A `Text` rather than a View so the
+    /// shared `strandOverline()` (a Text extension) still applies.
+    private var labelText: Text {
+        if let verbatimLabel { return Text(verbatim: verbatimLabel) }
+        return Text(label)
+    }
     var caption: String? = nil
     var accent: Color = StrandPalette.textPrimary
     var delta: String? = nil
@@ -191,11 +202,13 @@ public struct StatTile<Accessory: View>: View {
     /// top of the value, sparkline or trend chip on a narrow tile (#495). Defaults to nothing.
     @ViewBuilder var accessory: () -> Accessory
 
-    public init(label: LocalizedStringKey, value: String, caption: String? = nil,
+    public init(label: LocalizedStringKey, verbatimLabel: String? = nil,
+                value: String, caption: String? = nil,
                 accent: Color = StrandPalette.textPrimary, delta: String? = nil,
                 deltaColor: Color = StrandPalette.textTertiary,
                 sparkline: [Double]? = nil, sparkColor: Color = StrandPalette.accent,
                 @ViewBuilder accessory: @escaping () -> Accessory) {
+        self.verbatimLabel = verbatimLabel
         self.label = label; self.value = value; self.caption = caption; self.accent = accent
         self.delta = delta; self.deltaColor = deltaColor; self.sparkline = sparkline; self.sparkColor = sparkColor
         self.accessory = accessory
@@ -209,7 +222,7 @@ public struct StatTile<Accessory: View>: View {
                 // Header row: the metric label, and (right-aligned) the optional accessory laid out in
                 // flow so it reserves its own space rather than floating over the value below (#495).
                 HStack(alignment: .top, spacing: 4) {
-                    Text(label).strandOverline()
+                    labelText.strandOverline()
                     Spacer(minLength: 0)
                     accessory()
                 }
@@ -253,11 +266,13 @@ public struct StatTile<Accessory: View>: View {
 // Backward-compatible convenience: a StatTile with NO accessory (the common case) — every existing
 // call site keeps working unchanged, and the type defaults `Accessory` to `EmptyView`.
 public extension StatTile where Accessory == EmptyView {
-    init(label: LocalizedStringKey, value: String, caption: String? = nil,
+    init(label: LocalizedStringKey, verbatimLabel: String? = nil,
+         value: String, caption: String? = nil,
          accent: Color = StrandPalette.textPrimary, delta: String? = nil,
          deltaColor: Color = StrandPalette.textTertiary,
          sparkline: [Double]? = nil, sparkColor: Color = StrandPalette.accent) {
-        self.init(label: label, value: value, caption: caption, accent: accent, delta: delta,
+        self.init(label: label, verbatimLabel: verbatimLabel, value: value, caption: caption,
+                  accent: accent, delta: delta,
                   deltaColor: deltaColor, sparkline: sparkline, sparkColor: sparkColor,
                   accessory: { EmptyView() })
     }

@@ -14,6 +14,29 @@ public enum DomainTheme: String, CaseIterable, Sendable {
     case rest
     case stress
 
+    /// The score's own name, deliberately NEVER translated.
+    ///
+    /// Charge / Effort / Rest are what this product calls its three scores — names, not descriptions —
+    /// the way WHOOP keeps "Strain" and "Recovery" in every language. Translating them had two costs:
+    /// the same number was called something different per locale, and the German "Anstrengung" (11
+    /// characters against "Effort"'s 6) became the widest label the hero row and the metric tiles ever
+    /// had to carry, which is what pushed the tile label to "AN-STRE…".
+    ///
+    /// It lives here, beside the colours, because BOTH Today screens (`TodayView` and
+    /// `LiquidTodayView`) name these scores and they had already drifted: the Liquid hero said
+    /// "Charge" while its own metric tile 300 points below said "Recovery" — in English, before any
+    /// translation. One source, so that cannot happen again.
+    ///
+    /// `.stress` is not one of the three. It is an ordinary metric name and stays translated.
+    public var productName: String {
+        switch self {
+        case .charge: return "Charge"
+        case .effort: return "Effort"
+        case .rest:   return "Rest"
+        case .stress: return String(localized: "Stress", bundle: .module)
+        }
+    }
+
     /// The dominant accent colour for the world.
     public var color: Color {
         switch self {
