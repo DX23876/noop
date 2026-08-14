@@ -13,90 +13,153 @@ import StrandDesign
 
 enum LiquidRender {
 
-    /// A softly sculpted circular progress ring. Geometry is fixed (`radius`, `lineWidth`, arc span);
-    /// this pass only deepens the material — recessed track, frosted inner disc, semantic progress
-    /// gradient — without neon bloom, tip dots, or layout changes.
+    /// A circular vessel of liquid filled to `sim.level`, tinted, with parallax slosh, a light band
+    /// that follows tilt, surface glints, flake and droplets.
+    ///
+    /// RESTORED FROM `6a5856cd^`, and deliberately divergent from upstream.
+    ///
+    /// ryanbr replaced this with a flat progress ring in 6a5856cd ("Refine the iOS visual system and
+    /// key screen layouts", #1068, 2026-08-09) and this fork inherited that in the sync days later.
+    /// The liquid IS the reason the screen is called Liquid Today, so it comes back here. Only this
+    /// one function: `LiquidRender.tube` stayed on its post-#1068 solid rendering on purpose, and
+    /// `LiquidScoreGauge` (which that same commit introduced) still supplies the count-up number over
+    /// the top — the number is pinned white with a shadow, which is exactly what a moving surface
+    /// underneath needs.
+    ///
+    /// The physics did not have to be restored: `LiquidSim` in LiquidCore.swift has not changed since
+    /// before the removal, so every field this reads (`level`, `a`, `av`, `ab`, `abv`, `drops`,
+    /// `flecks`, `energy`, `p`) is still there and still stepped the same way.
+    ///
+    /// Cost to know: `LiquidPrimitives.swift` is a file upstream actively reworks, so a sync that
+    /// touches it will conflict HERE and has to be resolved by hand — this is not one of those
+    /// wholesale-drop conflicts like android/ was.
     static func vessel(_ base: GraphicsContext, _ size: CGSize, _ sim: LiquidSim, now: Double, tint: Color) {
-        let diameter = max(2, min(size.width, size.height) - 3)
-        let rect = CGRect(x: (size.width - diameter) / 2, y: (size.height - diameter) / 2,
-                          width: diameter, height: diameter)
-        let center = CGPoint(x: size.width / 2, y: size.height / 2)
-        let radius = diameter * 0.39
-        let lineWidth = max(5, diameter * 0.105)
-        let cap = StrokeStyle(lineWidth: lineWidth, lineCap: .round)
+        // Floor at 1 so a degenerate sub-3pt Canvas can't drive R negative (negative well rect / chord math).
+        let R = max(1, min(size.width, size.height) / 2 - 1.5)
+        let ext = R * 1.8
+        let cx = size.width / 2, cy = size.height / 2
+        let well = CGRect(x: -R, y: -R, width: 2 * R, height: 2 * R)
+
         var ctx = base
+        ctx.translateBy(x: cx, y: cy)
+        ctx.fill(Path(ellipseIn: well), with: .color(Color(.sRGB, red: 10/255, green: 11/255, blue: 16/255, opacity: 0.55)))
 
-        // Restrained outer lift — light gray shadow, not deep black.
-        let shadowRect = rect.offsetBy(dx: 0, dy: max(1, diameter * 0.010))
-        ctx.fill(Path(ellipseIn: shadowRect), with: .color(Color.black.opacity(0.14)))
+        var body = ctx
+        body.clip(to: Path(ellipseIn: well))
 
-        // One continuous centre disc — soft 3D: light top face, gentle rim shade.
-        // No separate inset circle / hard ring line.
-        ctx.fill(Path(ellipseIn: rect), with: .linearGradient(
-            Gradient(colors: [
-                NoopVisualStyle.surfaceTop,
-                NoopVisualStyle.surfaceBottom
-            ]),
-            startPoint: CGPoint(x: rect.midX, y: rect.minY),
-            endPoint: CGPoint(x: rect.midX, y: rect.maxY)
-        ))
-        // Soft radial lift — brighter near the upper face, slightly deeper at the rim.
-        ctx.fill(Path(ellipseIn: rect), with: .radialGradient(
-            Gradient(stops: [
-                .init(color: Color.white.opacity(0.07), location: 0.00),
-                .init(color: Color.white.opacity(0.02), location: 0.42),
-                .init(color: Color.clear, location: 0.72),
-                .init(color: Color.black.opacity(0.10), location: 1.00)
-            ]),
-            center: CGPoint(x: rect.midX, y: rect.minY + diameter * 0.32),
-            startRadius: 0,
-            endRadius: diameter * 0.52
-        ))
-        // Very soft lower-edge shade for a lightly recessed read.
-        ctx.fill(Path(ellipseIn: rect), with: .linearGradient(
-            Gradient(stops: [
-                .init(color: Color.clear, location: 0.00),
-                .init(color: Color.clear, location: 0.55),
-                .init(color: Color.black.opacity(0.06), location: 1.00)
-            ]),
-            startPoint: CGPoint(x: rect.midX, y: rect.minY),
-            endPoint: CGPoint(x: rect.midX, y: rect.maxY)
-        ))
+        let lv = sim.level
+        if lv > 0.004 {
+            let sy = R * (1 - 2 * min(0.985, lv))
+            let amp = (0.018 + sim.energy * 0.09) * R
 
-        let track = fullArc(center: center, radius: radius)
+            // helper to build a wave polygon in a given (already-transformed) context
+            func wavePolygon(_ w: (Double) -> Double) -> Path {
+                var p = Path()
+                p.move(to: CGPoint(x: -ext, y: w(-ext)))
+                var x = -ext + 4
+                while x <= ext { p.addLine(to: CGPoint(x: x, y: w(x))); x += 4 }
+                p.addLine(to: CGPoint(x: ext, y: w(ext)))
+                p.addLine(to: CGPoint(x: ext, y: R * 2.4))
+                p.addLine(to: CGPoint(x: -ext, y: R * 2.4))
+                p.closeSubpath()
+                return p
+            }
+            func surfaceLine(_ w: (Double) -> Double) -> Path {
+                var p = Path()
+                p.move(to: CGPoint(x: -ext, y: w(-ext)))
+                var x = -ext + 4
+                while x <= ext { p.addLine(to: CGPoint(x: x, y: w(x))); x += 4 }
+                p.addLine(to: CGPoint(x: ext, y: w(ext)))
+                return p
+            }
 
-        // Recessed track — gray channel (original border tone), not black.
-        ctx.stroke(track, with: .linearGradient(
-            Gradient(colors: [
-                Color.white.opacity(0.08),
-                NoopVisualStyle.border.opacity(0.18),
-                NoopVisualStyle.border.opacity(0.50)
-            ]),
-            startPoint: CGPoint(x: rect.midX, y: rect.minY),
-            endPoint: CGPoint(x: rect.midX, y: rect.maxY)
-        ), style: StrokeStyle(lineWidth: lineWidth + 1.6, lineCap: .round))
+            // back parallax layer
+            let syB = sy - R * 0.04
+            let hwB = liquidChordHW(R, syB)
+            let wB: (Double) -> Double = {
+                liquidWave($0, amp: amp, R: R, hw: hwB, curl: liquidCurl(sim.abv),
+                           ph1: sim.p1 * 0.92 + 2.1, ph2: sim.p2 * 0.9 + 1.3, ampMul: 1.35)
+            }
+            var backCtx = body
+            backCtx.translateBy(x: 0, y: syB)
+            backCtx.rotate(by: .radians(sim.ab))
+            backCtx.fill(wavePolygon(wB), with: .color(tint.opacity(0.28)))
 
-        ctx.stroke(track, with: .color(NoopVisualStyle.border.opacity(0.72)), style: cap)
+            // main body
+            let hw = liquidChordHW(R, sy)
+            let w: (Double) -> Double = {
+                liquidWave($0, amp: amp, R: R, hw: hw, curl: liquidCurl(sim.av),
+                           ph1: sim.p1, ph2: sim.p2, ampMul: 1)
+            }
+            var mainCtx = body
+            mainCtx.translateBy(x: 0, y: sy)
+            mainCtx.rotate(by: .radians(sim.a))
+            mainCtx.fill(wavePolygon(w),
+                         with: .linearGradient(Gradient(colors: [tint.opacity(0.74),
+                                                                  tint.liquidDarker(0.28).opacity(0.80)]),
+                                               startPoint: CGPoint(x: 0, y: -amp),
+                                               endPoint: CGPoint(x: 0, y: R * 1.7)))
 
-        let level = max(0, min(1, sim.level))
-        if level > 0.004 {
-            let progress = partialArc(center: center, radius: radius, level: level)
+            // a sheet of light gliding across as you tilt
+            var bandCtx = mainCtx
+            bandCtx.clip(to: wavePolygon(w))
+            let bandX = -sim.a * R * 2.2 + sin(now * 0.3) * R * 0.15
+            bandCtx.fill(Path(CGRect(x: -R * 2.4, y: -R * 2.4, width: R * 4.8, height: R * 4.8)),
+                         with: .linearGradient(Gradient(colors: [.white.opacity(0), .white.opacity(0.06), .white.opacity(0)]),
+                                               startPoint: CGPoint(x: bandX - R * 1.2, y: 0),
+                                               endPoint: CGPoint(x: bandX + R * 1.2, y: 0)))
 
-            // Contained under-lift — wider stroke, low opacity, no blur.
-            ctx.stroke(progress, with: .color(tint.opacity(0.18)),
-                       style: StrokeStyle(lineWidth: lineWidth + 2.0, lineCap: .round))
+            // surface sheen + glints + line
+            mainCtx.fill(Path(CGRect(x: -ext, y: 0, width: ext * 2, height: R * 0.15)),
+                         with: .linearGradient(Gradient(colors: [.white.opacity(0.09), .white.opacity(0)]),
+                                               startPoint: CGPoint(x: 0, y: 0), endPoint: CGPoint(x: 0, y: R * 0.15)))
+            var gx = -hw
+            while gx <= hw {
+                let slope = (w(gx + 3) - w(gx - 3)) / 6
+                if abs(slope) < 0.05 {
+                    let o = 0.22 * (1 - abs(slope) / 0.05)
+                    mainCtx.fill(Path(CGRect(x: gx - 2, y: w(gx) - 0.8, width: 4, height: 1.4)), with: .color(.white.opacity(o)))
+                }
+                gx += 6
+            }
+            mainCtx.stroke(surfaceLine(w), with: .color(.white.opacity(0.45)), lineWidth: 1.3)
 
-            // Progress arc — harsh semantic gradient (visible dark ↔ light bands).
-            ctx.stroke(progress, with: .linearGradient(
-                progressGradient(tint),
-                startPoint: CGPoint(x: rect.minX, y: rect.maxY),
-                endPoint: CGPoint(x: rect.maxX, y: rect.minY)
-            ), style: cap)
+            // droplets
+            for b in sim.drops {
+                let rr = max(0.7, b.r * R)
+                mainCtx.fill(Path(ellipseIn: CGRect(x: b.x * R - rr, y: b.y * R - rr, width: 2 * rr, height: 2 * rr)),
+                             with: .color(.white.opacity(min(0.55, b.life * 0.5) * 0.5)))
+            }
+
+            // suspended flake (circle frame, only inside the liquid)
+            let sa = sin(sim.a), ca = cos(sim.a)
+            for f in sim.flecks {
+                let fx = f.x * R, fy = f.y * R
+                if fx * fx + fy * fy > R * R * 0.9 { continue }
+                if -fx * sa + (fy - sy) * ca < R * 0.02 { continue }
+                let sVal = sin(f.ph + fx * 0.12 + sim.a * 5 + now * f.sp)
+                let spark = pow(max(0, sVal), 10)
+                let sz = 0.7 + f.z * 1.0 + spark * 1.4
+                let shade: Color
+                switch f.kind {
+                case 2: shade = Color(.sRGB, red: 8/255, green: 10/255, blue: 13/255, opacity: 0.12 + spark * 0.22)
+                case 1: shade = tint.liquidMix(.white, 0.55).opacity(0.10 + spark * 0.8)
+                default: shade = .white.opacity(0.08 * f.z + spark * 0.85)
+                }
+                body.fill(Path(CGRect(x: fx - sz / 2, y: fy - sz / 2, width: sz, height: sz)), with: .color(shade))
+            }
         }
 
-        // Outer instrument rim (unchanged placement).
-        ctx.stroke(Path(ellipseIn: rect.insetBy(dx: 0.5, dy: 0.5)),
-                   with: .color(NoopVisualStyle.borderHighlight.opacity(0.55)), lineWidth: 1)
+        // inner top shadow
+        body.fill(Path(CGRect(x: -R, y: -R, width: 2 * R, height: R * 0.75)),
+                  with: .linearGradient(Gradient(colors: [.black.opacity(0.30), .black.opacity(0)]),
+                                        startPoint: CGPoint(x: 0, y: -R), endPoint: CGPoint(x: 0, y: -R * 0.30)))
+        // soft top-left highlight
+        body.fill(Path(ellipseIn: CGRect(x: -R * 0.72, y: -R * 0.78, width: R * 0.9, height: R * 0.5)),
+                  with: .radialGradient(Gradient(colors: [.white.opacity(0.09), .white.opacity(0)]),
+                                        center: CGPoint(x: -R * 0.27, y: -R * 0.5), startRadius: 0, endRadius: R * 0.55))
+        // rim
+        ctx.stroke(Path(ellipseIn: well), with: .color(tint.opacity(0.22)), lineWidth: 1.25)
     }
 
     /// Full-span track arc — geometry unchanged from the original vessel.
