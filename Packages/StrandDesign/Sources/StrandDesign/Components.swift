@@ -222,7 +222,13 @@ public struct StatTile<Accessory: View>: View {
                 // Header row: the metric label, and (right-aligned) the optional accessory laid out in
                 // flow so it reserves its own space rather than floating over the value below (#495).
                 HStack(alignment: .top, spacing: 4) {
+                    // Shrink before wrapping. With an accessory beside it the header row is narrow,
+                    // and a six-character label like "CHARGE" broke to "CHAR-/GE" in a three-column
+                    // tile while "REST" beside it did not — a ragged row from one character of
+                    // difference. Scaling keeps every label on one line whatever sits next to it.
                     labelText.strandOverline()
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.75)
                     Spacer(minLength: 0)
                     accessory()
                 }
@@ -232,6 +238,7 @@ public struct StatTile<Accessory: View>: View {
                         .lineLimit(1).minimumScaleFactor(0.6)
                     Spacer(minLength: 0)
                     // Trend chip — the delta as a tinted pill with a direction arrow.
+                    //
                     if let delta { TrendChip(text: delta, color: deltaColor) }
                 }
                 // Sparkline isn't available on watchOS (it relies on chart-hover helpers); the watch
@@ -246,6 +253,13 @@ public struct StatTile<Accessory: View>: View {
                 if let caption {
                     Text(caption).font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
                         .lineLimit(dynamicTypeSize.isAccessibilitySize ? 3 : 1)
+                        // Shrink before ellipsising. A caption's length is not fully under the caller's
+                        // control: a workout's "14 Aug · 18:27" is 14 characters on a 24-hour clock and
+                        // "28 Dec · 11:59 PM" is 17 on a 12-hour one, because the time formatter follows
+                        // the reader's own convention (`setLocalizedDateFormatFromTemplate("jmm")`).
+                        // Sizing the tile for one of those silently truncates for the other; a slightly
+                        // smaller line keeps every character in both.
+                        .minimumScaleFactor(0.8)
                         .padding(.top, 2)
                 }
             }

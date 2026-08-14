@@ -3511,7 +3511,11 @@ struct TodayView: View {
                 caption: chargeCaption,
                 accent: chargeAccent,
                 sparkline: keyMetricsDetailed ? windowedSpark("recovery") : nil,
-                sparkColor: StrandPalette.accent
+                sparkColor: StrandPalette.accent,
+                // Charge is one of the three SCORES, so it has a scoring guide like Effort and Rest —
+                // it was simply the one tile missing the affordance. HRV / Rest HR / SpO₂ are raw
+                // measurements with no guide, and correctly carry no button.
+                accessory: { scoreInfoButton(.charge) }
             )
         case .effort:
             // Unscored TODAY → a short "building" hint instead of the "of N" axis caption, so a
@@ -3719,10 +3723,14 @@ struct TodayView: View {
                             StatTile(
                                 label: "\(WorkoutSource.displaySport(w.sport))",
                                 value: workoutDuration(w),
-                                caption: workoutCaption(w),
-                                accent: StrandPalette.effortTint(fraction: (w.strain ?? 0) / StrainScorer.maxStrain),
-                                delta: w.energyKcal.map { "\(Int($0.rounded())) kcal" },
-                                deltaColor: StrandPalette.metricAmber
+                                caption: Self.workoutCaption(w),
+                                accent: StrandPalette.effortTint(fraction: (w.strain ?? 0) / StrainScorer.maxStrain)
+                                // No kcal chip here. In a three-column tile the chip and the duration
+                                // cannot both fit: letting the chip compress rendered "327 kcal" as
+                                // "3…", and giving it its natural width instead pushed the DURATION —
+                                // the tile's headline — down to "…". Neither is worth having, so the
+                                // tile keeps sport + duration + when, and calories stay one tap away
+                                // in the workout detail (and on the Workouts screen, which has the room).
                             )
                         }
                         .buttonStyle(.plain)
@@ -4705,8 +4713,20 @@ struct TodayView: View {
         return String(localized: "\(mins)m")
     }
 
-    /// "d MMM · HH:mm–HH:mm", start-only when the row has no real end (#157). The "· N bpm"
-    /// segment was dropped: the StatTile caption is lineLimit(1) and date + range + bpm clips,     /// avg HR remains on the Workouts screen.
+    /// "d MMM · HH:mm" — the date and the START time, never a range.
+    ///
+    /// This caption has now lost two segments to the same cause, and it is worth saying why rather than
+    /// letting a third be added later. The tile is one cell of a three-column grid (~110pt wide) and the
+    /// caption is `lineLimit(1)`, so anything past roughly sixteen characters is ellipsised. "· N bpm"
+    /// went first; the end time is what still pushed "14 Aug · 18:27-19:11" over the edge, rendering as
+    /// "14 Aug · 18:27…".
+    ///
+    /// The end time is the right thing to drop: the DURATION is the tile's headline value, right above
+    /// this line, so start + duration already gives the end. Nothing is lost that the tile does not
+    /// already show, and the #157 case (a row with no real end) now produces the same shape as every
+    /// other row instead of needing its own branch.
+    ///
+    /// `static` so it can be tested without a view — the same reason `heroRingDiameter` is.
     // #perf: fixed-locale (en_US_POSIX), hoisted to static so a workout list doesn't allocate a
     // DateFormatter per row per render. Behaviour-identical — format + locale pinned. (mirrors `hrTimeFmt`)
     private static let workoutDateFmt: DateFormatter = {
@@ -4715,12 +4735,9 @@ struct TodayView: View {
         f.dateFormat = "d MMM"
         return f
     }()
-    private func workoutCaption(_ w: WorkoutRow) -> String {
+    static func workoutCaption(_ w: WorkoutRow) -> String {
         let start = Date(timeIntervalSince1970: TimeInterval(w.startTs))
-        let date = Self.workoutDateFmt.string(from: start)
-        guard w.endTs > w.startTs else { return "\(date) · \(Self.hrTimeFmt.string(from: start))" }
-        let end = Date(timeIntervalSince1970: TimeInterval(w.endTs))
-        return "\(date) · \(Self.hrTimeFmt.string(from: start))-\(Self.hrTimeFmt.string(from: end))"
+        return "\(workoutDateFmt.string(from: start)) · \(hrTimeFmt.string(from: start))"
     }
 
     /// Thousands-grouped integer string (steps / calories).
