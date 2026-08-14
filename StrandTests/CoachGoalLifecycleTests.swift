@@ -168,6 +168,46 @@ final class CoachGoalLifecycleTests: XCTestCase {
         XCTAssertNil(store.goal(id: c.id), "remove deletes the goal entirely, unlike setAside")
     }
 
+    /// The proactive repeat-guards are keyed on the goal's TARGET DATE, so moving that date re-arms
+    /// them without anyone clearing anything — but a DELETED goal can never be reached again, so its
+    /// keys would sit in UserDefaults for the life of the install.
+    func testRemovingAGoalClearsItsNudgeStamps() {
+        let suite = "goal-stamps-\(UUID().uuidString)"
+        let d = UserDefaults(suiteName: suite)!
+        d.removePersistentDomain(forName: suite)
+        let store = CoachGoalStore(defaults: d)
+        let goal = CoachGoal(kind: .run, title: "10k", targetDate: Date().addingTimeInterval(-86_400))
+        store.goals = [goal]
+
+        let review = CoachGoalNudgeStamps.reviewKey(goalId: goal.id)
+        let deadline = CoachGoalNudgeStamps.deadlineKey(goalId: goal.id, important: true)
+        CoachGoalNudgeStamps.stamp(review, for: goal, defaults: d)
+        CoachGoalNudgeStamps.stamp(deadline, for: goal, defaults: d)
+        XCTAssertNotNil(d.string(forKey: review))
+
+        store.remove(goal.id)
+
+        XCTAssertNil(d.string(forKey: review))
+        XCTAssertNil(d.string(forKey: deadline))
+    }
+
+    /// The self-healing half: the same goal at a NEW target date has not been spoken about yet, which
+    /// is what makes "extend the date" — the review's own closing offer — not buy permanent silence.
+    func testMovingTheTargetDateReArmsTheGuard() {
+        let suite = "goal-stamps-rearm-\(UUID().uuidString)"
+        let d = UserDefaults(suiteName: suite)!
+        d.removePersistentDomain(forName: suite)
+        var goal = CoachGoal(kind: .run, title: "10k", targetDate: Date().addingTimeInterval(-86_400))
+        let key = CoachGoalNudgeStamps.reviewKey(goalId: goal.id)
+
+        CoachGoalNudgeStamps.stamp(key, for: goal, defaults: d)
+        XCTAssertTrue(CoachGoalNudgeStamps.alreadyFired(key, for: goal, defaults: d))
+
+        goal.targetDate = Date().addingTimeInterval(30 * 86_400)
+        XCTAssertFalse(CoachGoalNudgeStamps.alreadyFired(key, for: goal, defaults: d),
+                       "a moved deadline is a new moment, not one already spoken about")
+    }
+
     func testSingularLegacyGoalMigratesIntoTheArrayAsOneElement() {
         let suite = "goal-lifecycle-migrate-singular-\(UUID().uuidString)"
         let d = UserDefaults(suiteName: suite)!

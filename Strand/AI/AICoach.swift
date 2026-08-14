@@ -2646,14 +2646,6 @@ final class AICoachEngine: ObservableObject {
         """
     }
 
-    /// The per-goal, per-band repeat-guard key for a `.goalDeadline` nudge — so a goal gets at most TWO
-    /// deadline nudges ever (once entering the 8-14 day band, once entering the ≤7 day band), never one
-    /// per day for two straight weeks. Distinct from `lastProactiveDayKey`, which only ever gates "one
-    /// nudge of ANY kind per day".
-    private static func goalDeadlineStampKey(goalId: UUID, important: Bool) -> String {
-        "coach.goalDeadlineNudged.\(goalId.uuidString).\(important ? "7" : "14")"
-    }
-
     /// Fire a proactive nudge at most once per logical day, only when the level allows AND the detector
     /// finds a real signal — either in the plan history (10.2/10.3/10.4), the raw biometrics (HRV/resting
     /// HR/recovery/sleep trend), or an upcoming goal deadline. Wired to Coach opening, alongside the brief
@@ -2675,9 +2667,13 @@ final class AICoachEngine: ObservableObject {
         // also leaves the daily stamp unset, the same goal-deadline signal was posted to the bell again
         // every single day of the band — exactly the repetition this guard exists to stop. The
         // notifier's own dedupe is per day, so it could not catch it either.
-        if signal.category == .goalDeadline, let goalId = signal.goalId {
-            let goalStampKey = Self.goalDeadlineStampKey(goalId: goalId, important: signal.important)
-            guard UserDefaults.standard.string(forKey: goalStampKey) == nil else { return false }
+        //
+        // The guard is keyed on the goal's TARGET DATE, not on the day it fired — see
+        // `CoachGoalNudgeStamps`. Moving the date (which the review itself offers) re-arms it.
+        if signal.category == .goalDeadline, let goalId = signal.goalId,
+           let goal = CoachGoalStore.shared.goal(id: goalId) {
+            let goalStampKey = CoachGoalNudgeStamps.deadlineKey(goalId: goalId, important: signal.important)
+            guard !CoachGoalNudgeStamps.alreadyFired(goalStampKey, for: goal) else { return false }
         }
         // Post to the bell independent of whether the chat generation below succeeds — the structured
         // detection already happened locally, and a network failure shouldn't also hide it from the bell.
@@ -2691,9 +2687,11 @@ final class AICoachEngine: ObservableObject {
         // freshly matching `today` here IS the success signal — used to also mark the per-goal band,
         // without threading a second stamp key through the shared seeded-turn plumbing.
         if signal.category == .goalDeadline, let goalId = signal.goalId,
+           let goal = CoachGoalStore.shared.goal(id: goalId),
            UserDefaults.standard.string(forKey: Self.lastProactiveDayKey) == today {
-            UserDefaults.standard.set(today, forKey: Self.goalDeadlineStampKey(goalId: goalId,
-                                                                               important: signal.important))
+            CoachGoalNudgeStamps.stamp(CoachGoalNudgeStamps.deadlineKey(goalId: goalId,
+                                                                        important: signal.important),
+                                       for: goal)
         }
         return spoke
     }
@@ -2713,21 +2711,26 @@ final class AICoachEngine: ObservableObject {
         """
     }
 
-    /// Offer a look-back on a goal whose target date has passed. Once per goal, ever — the review is a
-    /// moment, not a recurring reminder, and repeating it would turn a missed target into nagging.
+    /// Offer a look-back on a goal whose target date has passed. Once per goal PER TARGET DATE — the
+    /// review is a moment, not a recurring reminder, and repeating it would turn a missed target into
+    /// nagging. But the review's own closing question offers to extend the date, and a stamp that
+    /// never expired meant taking that offer bought permanent silence at the new deadline; keying on
+    /// the target date makes a moved date a genuinely new moment. See `CoachGoalNudgeStamps`.
     @discardableResult
     func runGoalReviewIfNeeded() async -> Bool {
         guard CoachFeaturePrefs.isEnabled, proactiveLevel != .off, isConfigured, dataConsent, !sending else { return false }
         guard let goal = ProactiveCoach.expiredGoalNeedingReview(CoachGoalStore.shared.goals) else {
             return false
         }
-        let stampKey = "coach.goalReviewed.\(goal.id.uuidString)"
-        guard UserDefaults.standard.string(forKey: stampKey) == nil else { return false }
+        let stampKey = CoachGoalNudgeStamps.reviewKey(goalId: goal.id)
+        guard !CoachGoalNudgeStamps.alreadyFired(stampKey, for: goal),
+              let stampValue = CoachGoalNudgeStamps.stampValue(for: goal) else { return false }
         // TODO(notifications): also post a `.statusReminder` CoachNotifier item here — a passed goal
         // deadline is exactly the spec's "status message" bucket, just not built in this first pass.
         return await runSeededTurnCancellable(
             instruction: Self.goalReviewInstruction(for: goal),
-            prefix: String(localized: "Your goal"), stampKey: stampKey, origin: .nudge)
+            prefix: String(localized: "Your goal"), stampKey: stampKey,
+            stampValue: stampValue, origin: .nudge)
     }
 
     /// Fire a weekly review at most once every 7 logical days, only at the `normal` level and only when
@@ -2778,6 +2781,7 @@ final class AICoachEngine: ObservableObject {
     /// leave `sendTask` pointing at the wrong task — with the composer's Stop button attached to it.
     @discardableResult
     private func runSeededTurnCancellable(instruction: String, prefix: String, stampKey: String,
+                                          stampValue: String? = nil,
                                           origin: ChatMessage.Origin) async -> Bool {
         while let inFlight = sendTask { await inFlight.value }
         guard !sending else { return false }
@@ -2787,7 +2791,8 @@ final class AICoachEngine: ObservableObject {
         let task = Task<Void, Never> { [weak self] in
             guard let self else { return }
             self.lastAutoTurnSpoke = await self.generateSeededTurn(
-                instruction: instruction, prefix: prefix, stampKey: stampKey, origin: origin)
+                instruction: instruction, prefix: prefix, stampKey: stampKey,
+                stampValue: stampValue, origin: origin)
         }
         sendTask = task
         await task.value
@@ -2797,10 +2802,14 @@ final class AICoachEngine: ObservableObject {
 
     /// Shared generation for an unprompted, seeded coach turn (proactive nudge / weekly review): the same
     /// history-carrying wire `generateCheckIn` builds, with the seed instruction as the trailing turn.
-    /// Stamps `stampKey` with today's logical day only on a genuine, non-empty reply. Returns whether
-    /// anything was actually said, so the opening chain can stop after the first turn that speaks.
+    /// Stamps `stampKey` only on a genuine, non-empty reply — with today's logical day by default, or
+    /// with `stampValue` when the guard is about something other than "did this fire today" (the goal
+    /// review stamps the goal's TARGET DATE, so moving that date re-arms it — see
+    /// `CoachGoalNudgeStamps`). Returns whether anything was actually said, so the opening chain can
+    /// stop after the first turn that speaks.
     @discardableResult
     private func generateSeededTurn(instruction: String, prefix: String, stampKey: String,
+                                    stampValue: String? = nil,
                                     origin: ChatMessage.Origin) async -> Bool {
         var spoke = false
         guard isConfigured, dataConsent, !sending else { return spoke }
@@ -2827,7 +2836,7 @@ final class AICoachEngine: ObservableObject {
                 appendMessage(ChatMessage(role: .assistant, text: prefix + "\n\n" + clean,
                                           toolsUsed: reply.toolsUsed, origin: origin,
                                           memoryWrites: takeMemoryWrites()))
-                UserDefaults.standard.set(Repository.logicalDayKey(Date()), forKey: stampKey)
+                UserDefaults.standard.set(stampValue ?? Repository.logicalDayKey(Date()), forKey: stampKey)
                 spoke = true
             }
         } catch let e as AICoachError {

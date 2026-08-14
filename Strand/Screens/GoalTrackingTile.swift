@@ -148,15 +148,24 @@ struct GoalTrackingTile: View {
 
     // MARK: - Strips
 
-    /// The strip is chosen by what the goal KIND actually has, which is the point: a weight goal has a
-    /// route, a consistency goal has days, a measured score has a recent shape. A goal with none of
-    /// those shows nothing rather than an empty graphic that implies data.
+    /// The strips a goal actually HAS, each gated on its own — not one chosen over the other. A goal
+    /// with neither shows nothing, rather than an empty graphic that implies data.
+    ///
+    /// These were mutually exclusive, with the route winning. That silently cost every consistency
+    /// goal its day strip: `.consistency` is `isQuantified`, so a baseline/target/date goal always has
+    /// a route, so the `else` was unreachable for exactly the kind whose week is the interesting part.
+    /// (`.strength` isn't quantified, never gets a route, and so happened to work.) The two answer
+    /// different questions — the route is the whole arc, the days are this week — and a consistency
+    /// goal is the one kind that wants both.
     @ViewBuilder
     private func strip(for snapshot: GoalTrackingSnapshot, tint: Color) -> some View {
-        if !snapshot.goal.milestones.isEmpty {
-            waypointStrip(snapshot, tint: tint)
-        } else if snapshot.goal.kind == .consistency || snapshot.goal.kind == .strength {
-            dayStrip(snapshot, tint: tint)
+        VStack(alignment: .leading, spacing: NoopMetrics.space1) {
+            if !snapshot.goal.milestones.isEmpty {
+                waypointStrip(snapshot, tint: tint)
+            }
+            if snapshot.goal.kind == .consistency || snapshot.goal.kind == .strength {
+                dayStrip(snapshot, tint: tint)
+            }
         }
     }
 

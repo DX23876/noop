@@ -28,7 +28,12 @@ enum CoachNotifier {
         guard level != .off else { return }
         guard level == .normal || signal.important else { return }
 
-        let deepLink = "proactive:\(signal.category.rawValue)"
+        // Per-goal where the signal names one, so two goals whose deadlines land on the same day get
+        // a row each. The bare per-category key collapsed them — the chat nudge has carried a per-goal
+        // guard since `goalId` was added, and the bell was still deduping a rung coarser. Categories
+        // that never carry a `goalId` keep exactly their old key, so their per-day dedup is untouched.
+        let deepLink = signal.goalId.map { "proactive:\(signal.category.rawValue):\($0.uuidString)" }
+            ?? "proactive:\(signal.category.rawValue)"
         let today = Repository.logicalDayKey(now)
         let alreadyPostedToday = store.items.contains {
             $0.deepLink == deepLink && Repository.logicalDayKey($0.date) == today

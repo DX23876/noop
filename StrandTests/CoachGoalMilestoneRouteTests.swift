@@ -84,6 +84,64 @@ final class CoachGoalMilestoneRouteTests: XCTestCase {
                        "a re-suggest must not erase what already happened")
     }
 
+    /// Editing a goal must not cost it its route. `commit(editingId:)` rebuilds the goal to preserve
+    /// its identity and history, and used to omit `milestones:` — taking the init default of `[]`. So
+    /// every edit threw away both halves of what the route records: the dates waypoints were reached,
+    /// and the waypoints the user had moved. `ensureMilestones` then rebuilt a fresh unreached route
+    /// on the next refresh, which is precisely the erasure it documents itself as never doing.
+    func testEditingAGoalKeepsItsRoute() {
+        let s = store()
+        s.goals = [weightGoal()]
+        s.ensureMilestones()
+        let goalId = s.goals[0].id
+
+        // One waypoint the user moved, and one the measurement passed.
+        let moved = s.goals[0].milestones[1]
+        s.updateMilestone(goalId: goalId, milestoneId: moved.id,
+                          value: 91, expectedDate: moved.expectedDate.addingTimeInterval(9 * 86_400))
+        s.markMilestonesReached(goalId: goalId, current: 94, on: Date().addingTimeInterval(-3 * 86_400))
+        let before = s.goals[0].milestones
+        XCTAssertTrue(before.contains { $0.achievedAt != nil })
+        XCTAssertTrue(before.contains { $0.isCustom })
+
+        // The edit the one-page editor performs: same goal, a nudged motivation.
+        var edited = s.goals[0]
+        edited.motivation = "Knees"
+        s.commit(edited, editingId: goalId)
+
+        XCTAssertEqual(s.goals[0].milestones, before,
+                       "an edit must carry the route through, identity and stamps included")
+    }
+
+    /// The route belongs to a pursuit, so it stops moving when the pursuit ends. Without a status
+    /// guard a goal set aside months ago kept collecting `achievedAt` stamps from today's
+    /// measurement — rewriting the record of something that had already finished.
+    func testClosedGoalsAreNoLongerStamped() {
+        let s = store()
+        s.goals = [weightGoal()]
+        s.ensureMilestones()
+        let goalId = s.goals[0].id
+        s.setAside(goalId, reason: "Injury")
+
+        s.markMilestonesReached(goalId: goalId, current: 70, on: Date())
+
+        XCTAssertTrue(s.goals[0].milestones.allSatisfy { $0.achievedAt == nil },
+                      "a goal that was set aside cannot reach anything")
+    }
+
+    /// A paused goal is still being pursued, just not right now — it keeps being measured.
+    func testPausedGoalsAreStillStamped() {
+        let s = store()
+        s.goals = [weightGoal()]
+        s.ensureMilestones()
+        let goalId = s.goals[0].id
+        s.pause(goalId, reason: .pain)
+
+        s.markMilestonesReached(goalId: goalId, current: 94, on: Date())
+
+        XCTAssertTrue(s.goals[0].milestones.contains { $0.achievedAt != nil })
+    }
+
     /// A goal with no target or no date has no route, and asking for one is a no-op rather than a crash.
     func testGoalWithoutAPlanGetsNoRoute() {
         let s = store()

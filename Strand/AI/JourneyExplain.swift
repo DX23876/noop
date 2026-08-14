@@ -167,7 +167,13 @@ enum JourneyExplain {
             return Trend(verdict: .notMeasurable,
                          line: String(localized: "The runway for this goal has no length yet, so there's nothing to compare against."))
         }
-        let elapsedFraction = elapsed / total
+        // Clamped, and the SAME clamped value feeds the comparison below as the sentence above it.
+        // They used to disagree: the display clamped to 100 % while the comparison used the raw
+        // fraction, so a goal fully reached three weeks after its date read "You're 100% of the way
+        // from your starting point to your target, with 100% of the time gone. That's behind the pace"
+        // — a sentence that refutes itself. Once the date is past, the pace question is settled: you
+        // had all of the time, and what happened in it is what `achievedFraction` already says.
+        let elapsedFraction = min(1, elapsed / total)
         guard elapsedFraction >= minElapsedFractionForTrend else {
             return Trend(verdict: .notMeasurable,
                          line: String(localized: "It's too early to call a trend — barely any of the runway has passed."))
@@ -175,7 +181,7 @@ enum JourneyExplain {
         // Signed by the goal's own direction, so a weight goal counting DOWN reads the same way up.
         let achievedFraction = (current - baseline) / (target - baseline)
         let achievedPct = Int((achievedFraction * 100).rounded())
-        let elapsedPct = Int((min(elapsedFraction, 1) * 100).rounded())
+        let elapsedPct = Int((elapsedFraction * 100).rounded())
         let comparison = String(localized: "You're \(achievedPct)% of the way from your starting point to your target, with \(elapsedPct)% of the time gone.")
 
         if achievedFraction >= elapsedFraction + trendTolerance {

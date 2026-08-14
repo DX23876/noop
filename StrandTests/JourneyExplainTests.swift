@@ -157,6 +157,31 @@ final class JourneyExplainTests: XCTestCase {
         XCTAssertEqual(JourneyExplain.trend(goal: g, current: 87, now: now).verdict, .behind)
     }
 
+    /// Past the target date the sentence and the verdict have to agree. `elapsedPct` was clamped for
+    /// display while the comparison used the raw fraction, so a goal reached three weeks after its
+    /// date read "100% of the way … with 100% of the time gone. That's behind the pace" — a sentence
+    /// that refutes itself in its own last clause.
+    func testAReachedGoalPastItsDateIsNotCalledBehind() {
+        let now = Date()
+        let g = goal(kind: .run, baseline: 5, target: 10,
+                     createdAt: now.addingTimeInterval(-days(100)),
+                     targetDate: now.addingTimeInterval(-days(21)))
+        let trend = JourneyExplain.trend(goal: g, current: 10, now: now)
+        XCTAssertNotEqual(trend.verdict, .behind,
+                          "the target was reached; only the date is late")
+        XCTAssertTrue(trend.line.contains("100"), "and the line still reports 100% of the time gone")
+    }
+
+    /// The other half: an overdue goal that genuinely did NOT move is still behind. Clamping elapsed
+    /// time must not turn every expired goal into "on track".
+    func testAnUnmovedGoalPastItsDateIsStillBehind() {
+        let now = Date()
+        let g = goal(kind: .run, baseline: 5, target: 10,
+                     createdAt: now.addingTimeInterval(-days(100)),
+                     targetDate: now.addingTimeInterval(-days(21)))
+        XCTAssertEqual(JourneyExplain.trend(goal: g, current: 5, now: now).verdict, .behind)
+    }
+
     func testEveryTrendCarriesANonEmptyLine() {
         let now = Date()
         let g = goal(kind: .run, baseline: 5, target: 15,

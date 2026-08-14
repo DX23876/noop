@@ -477,6 +477,9 @@ final class CoachGoalStore: ObservableObject {
     /// it survives.
     func remove(_ id: UUID) {
         goals.removeAll { $0.id == id }
+        // Nothing else can reach this goal's proactive repeat-guards once it is gone, so they would
+        // otherwise sit in UserDefaults for the life of the install.
+        CoachGoalNudgeStamps.clear(goalId: id, defaults: d)
     }
 
     /// Commit an edited or freshly-added goal (#R12, extended #R-multi-goal) — the identity-preserving,
@@ -512,7 +515,14 @@ final class CoachGoalStore: ObservableObject {
                           shareMotivation: g.shareMotivation,
                           acknowledgedRisk: existing.acknowledgedRisk,
                           createdAt: existing.createdAt, history: existing.history,
-                          pauseIntervals: existing.pauseIntervals, closure: existing.closure)
+                          pauseIntervals: existing.pauseIntervals, closure: existing.closure,
+                          // Carrying the route is not optional. Omitting it took the init default of
+                          // `[]`, so every edit silently threw away both halves of what the route is
+                          // FOR: the `achievedAt` stamps (a record of what actually happened) and the
+                          // `isCustom` waypoints the user moved by hand. `ensureMilestones` then
+                          // rebuilt a fresh, unreached route with new identities on the next refresh
+                          // — the exact erasure its own doc comment rules out.
+                          milestones: existing.milestones)
         }
         if let ack = acknowledgedRisk {
             g.acknowledgedRisk = ack
@@ -611,6 +621,11 @@ final class CoachGoalStore: ObservableObject {
     /// date it was FIRST reached, so a later wobble back across the line cannot rewrite history.
     func markMilestonesReached(goalId: UUID, current: Double, on date: Date = Date()) {
         guard let index = goals.firstIndex(where: { $0.id == goalId }),
+              // Only a goal still being pursued can reach a waypoint. The status guard lives HERE
+              // rather than at the call site — same as `ensureMilestones`' own — so it cannot be
+              // bypassed: without it a goal set aside months ago kept collecting `achievedAt` stamps
+              // from today's measurement, rewriting the record of a pursuit that had already ended.
+              goals[index].status == .active || goals[index].status == .paused,
               let baseline = goals[index].baseline, let target = goals[index].target,
               baseline != target else { return }
         let ascending = target > baseline
