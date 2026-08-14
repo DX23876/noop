@@ -1,0 +1,29 @@
+# Localizations marked `translated` whose value is still the ENGLISH source, grandfathered so
+# the gate starts green and blocks only NEW ones. Format: <catalog> <lang> <allowed-count>.
+#
+# The coverage gate above asks whether a key EXISTS in a language, never whether it differs from the
+# source, so a catalog can read 100% complete while a German user sees English sentences. That is
+# what shipped: the Today goal card's body was English under a German title.
+#
+# NOT every count here is a missing translation. A brand ("Apple Health"), a design-system label
+# ("Headline / Semibold 17") or a term of art legitimately reads the same everywhere. Treat these as
+# a ceiling to draw down by hand, not a defect list. Ratchet DOWN as translations land — never up.
+
+NOOPWatch/Localizable.xcstrings pt-PT 1
+NOOPWatchComplications/Localizable.xcstrings es 1
+Packages/StrandDesign/Sources/StrandDesign/Resources/Localizable.xcstrings de 4
+Packages/StrandDesign/Sources/StrandDesign/Resources/Localizable.xcstrings es 6
+Packages/StrandDesign/Sources/StrandDesign/Resources/Localizable.xcstrings fr 2
+Packages/StrandDesign/Sources/StrandDesign/Resources/Localizable.xcstrings it 2
+Packages/StrandDesign/Sources/StrandDesign/Resources/Localizable.xcstrings pt-PT 3
+Packages/StrandDesign/Sources/StrandDesign/Resources/Localizable.xcstrings ru 1
+Packages/StrandDesign/Sources/StrandDesign/Resources/Localizable.xcstrings zh-Hans 1
+Packages/StrandDesign/Sources/StrandDesign/Resources/Localizable.xcstrings zh-Hant 1
+Strand/Resources/Localizable.xcstrings de 118
+Strand/Resources/Localizable.xcstrings es 123
+Strand/Resources/Localizable.xcstrings fr 118
+Strand/Resources/Localizable.xcstrings it 118
+Strand/Resources/Localizable.xcstrings pt-PT 113
+Strand/Resources/Localizable.xcstrings ru 109
+Strand/Resources/Localizable.xcstrings zh-Hans 110
+Strand/Resources/Localizable.xcstrings zh-Hant 109
