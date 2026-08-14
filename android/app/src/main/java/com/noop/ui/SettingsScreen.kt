@@ -321,6 +321,7 @@ class ProfileStore(private val prefs: SharedPreferences) {
         if (index !in current.indices) return
         val floor = if (index == 0) HrZones.customBPMRange.first else current[index - 1] + 1
         val ceiling = if (index == current.lastIndex) HrZones.customBPMRange.last else current[index + 1] - 1
+        if (floor > ceiling) return   // no room between neighbours -> no-op (coerceIn throws on empty range)
         current[index] = (current[index] + if (up) 1 else -1).coerceIn(floor, ceiling)
         hrZoneThresholds = current
     }
@@ -1012,6 +1013,42 @@ fun SettingsScreen(
                             style = NoopType.footnote,
                             color = if (profile.hrMaxOverride > 0) Palette.accent else Palette.textTertiary,
                         )
+                    }
+                }
+                SettingsRowDivider()
+                // Custom HR zones (#531, @kavemang): five personalized inclusive BPM lower bounds that
+                // replace the conventional %HRmax bands. Off -> the effective set stays conventional.
+                SettingsFormRow(label = uiString(R.string.l10n_settings_screen_custom_hr_zones_84736ca5)) {
+                    Switch(
+                        checked = profile.hasCustomHrZones,
+                        onCheckedChange = { mutate { profile.setCustomHrZonesEnabled(it) } },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = Palette.surfaceBase,
+                            checkedTrackColor = Palette.accent,
+                            uncheckedThumbColor = Palette.textSecondary,
+                            uncheckedTrackColor = Palette.surfaceInset,
+                            uncheckedBorderColor = Palette.hairline,
+                        ),
+                    )
+                }
+                if (profile.hasCustomHrZones) {
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        text = uiString(R.string.l10n_settings_screen_custom_hr_zones_hint_f7fa3bae),
+                        style = NoopType.footnote,
+                        color = Palette.textTertiary,
+                    )
+                    profile.hrZoneThresholds?.forEachIndexed { index, value ->
+                        SettingsRowDivider()
+                        SettingsFormRow(label = uiString(R.string.l10n_settings_screen_zone_starts_a0a60d45, index + 1)) {
+                            StepperField(
+                                value = value.toString(),
+                                unit = "bpm",
+                                accessibility = "Zone ${index + 1} starts at $value bpm",
+                                onMinus = { mutate { profile.stepHrZoneThreshold(index, up = false) } },
+                                onPlus = { mutate { profile.stepHrZoneThreshold(index, up = true) } },
+                            )
+                        }
                     }
                 }
                 SettingsRowDivider()
