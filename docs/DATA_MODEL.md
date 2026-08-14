@@ -106,7 +106,14 @@ Migrations are registered in `Packages/WhoopStore/Sources/WhoopStore/Database.sw
 | **v7** | Adds in-sleep signal aggregates to `dailyMetric`: `spo2Pct`, `skinTempDevC`, `respRateBpm` (all nullable). |
 | **v8** | Adds `journal`, `workout`, and `appleDaily` (Apple-Health daily aggregates). |
 | **v9** | Adds the generic long-format `metricSeries` table and its `(deviceId, key, day)` index. |
-| **v29** | Adds metric-level `scoreInputProvenance` for NOOP-computed headline scores. It does not change `dayOwnership` or score precedence. |
+| **v24-rr-seq** | Rebuilds the `rrInterval` primary key as `(deviceId, ts, rrMs, seq)`, so an identical interval recurring within one second is no longer dropped. |
+| **v29-score-input-provenance** | Adds metric-level `scoreInputProvenance` for NOOP-computed headline scores. It does not change `dayOwnership` or score precedence. |
+| **v30-rr-ord** | Adds the nullable `rrInterval.ord` column — emission order within a `ts` — and makes it lead the read sort (#823/#830). Additive; pre-existing rows keep `ord` NULL. |
+
+> This table is a selection, not the full list — it covers the migrations the tables above refer to.
+> The registered set is the authority. Migrations are keyed by their **identifier string**, not by
+> the number in it, so renaming one re-runs it against an already-migrated database. Cite the
+> identifier in full — `v30-rr-ord`, not "v30".
 
 ### The vestigial `synced` column
 
@@ -177,10 +184,39 @@ stuck-strap watchdog.
 | `deviceId` | TEXT NOT NULL | Part of PK. |
 | `ts` | INTEGER NOT NULL | Wall-clock unix seconds. Part of PK. |
 | `rrMs` | INTEGER NOT NULL | Beat-to-beat interval, milliseconds. Part of PK. |
+| `seq` | INTEGER NOT NULL DEFAULT 0 | *(v24)* Repeat counter for an **identical** beat. Part of PK. |
+| `ord` | INTEGER | *(v30)* Emission order within `ts`. Nullable; **not** in the PK. |
 | `synced` | INTEGER NOT NULL DEFAULT 0 | *(v5, vestigial)* |
 
-**Primary key:** `(deviceId, ts, rrMs)` — `rrMs` is in the key because multiple R-R intervals can
-share a single `REALTIME_DATA` timestamp. Reads order by `ts ASC, rrMs ASC`.
+**Primary key:** `(deviceId, ts, rrMs, seq)` — `rrMs` is in the key because multiple R-R intervals can
+share a single `REALTIME_DATA` timestamp, and `seq` because the same interval value can legitimately
+recur within that second. `seq` keys on `(ts, rrMs)`, **not** `ts` alone: every *distinct* interval in
+a second therefore carries `seq = 0` and keeps its own key, so a distinct beat is never dropped when a
+second arrives across separate insert batches or via the live/historical merge. A `ts`-only counter
+would restart per batch and collide distinct beats — a data-loss regression.
+
+**Read order:** `ts ASC, ord ASC, rrMs ASC, seq ASC`
+(`Reads.swift` `rrIntervals`, `WhoopDao.kt` `rrIntervals`).
+
+`ord` leads the sort because ordering by `rrMs` returned a second's beats sorted by **value**, which
+makes successive beats similar by construction and biases RMSSD — built entirely from successive
+differences — downward (#823, fixed in #830). `ord` is the beat's position among all beats sharing its
+`ts`, stamped at decode time. It is deliberately **not** in the key, for the reason above.
+
+Two properties of `ord` a consumer has to know:
+
+- **Pre-v30 rows have `ord` NULL.** The order was never recorded and cannot be backfilled. SQLite
+  sorts NULL first in ASC, so an all-legacy second ties on `ord` and falls through to the old
+  `(rrMs, seq)` order — i.e. existing data reads back exactly as before, with the #823 bias intact.
+  No `COALESCE`, no sentinel. Room and GRDB agree here because both are SQLite.
+- **`ord` is batch-local.** A second split across two live flushes restarts `ord` at 0, and
+  `ON CONFLICT DO NOTHING` keeps whichever row landed first, so that second also falls back to
+  magnitude order. The historical offload path delivers a second atomically and is unaffected.
+
+`ord` is a sort key only. The two platforms differ in whether they carry it back: Swift selects
+`ts, rrMs`, so `ord` is excluded, while `WhoopDao.rrIntervals` is `SELECT *` and Room materialises it
+into every returned `RrInterval` (`Entities.kt`, `val ord: Int? = null`). No consumer reads its value
+on either platform.
 
 ### `event` *(v1)* — strap events
 
