@@ -1440,6 +1440,23 @@ final class AICoachEngine: ObservableObject {
             chartsByMessage[message.id] = nil
             removeChartSnapshot(message.id)
         }
+        shiftSummaryWatermark(by: overflow)
+    }
+
+    /// Move the summariser's watermark down by the number of messages just trimmed off the FRONT.
+    ///
+    /// `summarizedCount` is an index into `messages`, and this is the only place that shortens that
+    /// array from the start — so without this the two disagree permanently. Once a chat reached
+    /// `maxStoredMessages` its count stuck at the cap, so a watermark written at the cap made
+    /// `MemoryMaintainer.newMessageCount` read 0 and `unsummarizedTail` come back empty for the rest
+    /// of that conversation's life: it never produced another summary and never distilled another
+    /// fact, however long the user kept talking. The frozen summary is also what the semantic index
+    /// keeps serving to cross-conversation recall, so the staleness spread beyond the thread itself.
+    private func shiftSummaryWatermark(by overflow: Int) {
+        guard overflow > 0, let id = activeConversationID,
+              let idx = conversations.firstIndex(where: { $0.id == id }),
+              let watermark = conversations[idx].summarizedCount else { return }
+        conversations[idx].summarizedCount = max(0, watermark - overflow)
     }
 
     /// Send a question: append it, build the metrics context, call the chosen provider with the

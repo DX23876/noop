@@ -131,6 +131,10 @@ enum CoachConversationStore {
     /// Keep at most this many conversations, and this many messages within each — plenty of scrollback
     /// and history without unbounded on-disk growth.
     static let maxConversations = 50
+    /// A backstop, not the working limit: `AICoachEngine.maxStoredMessages` (40) caps the live
+    /// transcript, and `messages` writes straight through to the active conversation, so in a normal
+    /// build this never binds. It stays for stored data that predates that cap and as a floor if the
+    /// live cap is ever raised — which is why `save` below also has to sweep charts.
     static let maxMessagesPerConversation = 200
 
     private static var fileURL: URL {
@@ -162,13 +166,26 @@ enum CoachConversationStore {
     /// Best-effort: a failed write just means the newest turns aren't on disk yet — never a crash.
     /// Callers keep `conversations` ordered most-recent-first, so the cap drops the oldest.
     static func save(_ conversations: [CoachConversation]) {
-        let capped = applyCap(conversations).map { convo -> CoachConversation in
-            var c = convo
-            c.messages = Array(c.messages.suffix(maxMessagesPerConversation))
-            return c
-        }
+        let capped = applyCap(conversations).map(trimmed)
         guard let data = try? JSONEncoder().encode(capped) else { return }
         try? data.write(to: fileURL, options: .atomic)
+    }
+
+    /// Tail-cap one conversation's messages AND drop any chart left without a message to hang on.
+    ///
+    /// `charts` is keyed by host-message id, so trimming messages alone strands their snapshots in the
+    /// JSON — invisible, never rendered, and re-parsed on every launch. The live path already keeps
+    /// the two in step (`AICoachEngine.appendMessage`, `regenerate`, `reclaimLastQuestion` all sweep),
+    /// so today this only matters for stored data that predates the live cap. It is here because the
+    /// coupling is easy to miss: raising `AICoachEngine.maxStoredMessages` past
+    /// `maxMessagesPerConversation` would otherwise make this path start orphaning snapshots silently.
+    static func trimmed(_ convo: CoachConversation) -> CoachConversation {
+        var c = convo
+        guard c.messages.count > maxMessagesPerConversation || !c.charts.isEmpty else { return c }
+        c.messages = Array(c.messages.suffix(maxMessagesPerConversation))
+        let live = Set(c.messages.map { $0.id.uuidString })
+        c.charts = c.charts.filter { live.contains($0.key) }
+        return c
     }
 
     /// Apply the conversation cap, keeping every PINNED thread regardless of age.

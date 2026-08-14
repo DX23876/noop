@@ -405,12 +405,26 @@ final class CoachMemory: ObservableObject {
     /// The `limit` facts most relevant to `query`: pinned first, then normal facts ranked by keyword
     /// overlap with the question, decayed by age. Injected into the question's context so the coach gets
     /// the pertinent memory without every prompt carrying all 40 facts.
-    func relevantFacts(for query: String, limit: Int, now: Date = Date()) -> [MemoryFact] {
+    ///
+    /// `excludingPinned` drops the pinned facts from the result AND from the budget, for the caller
+    /// that is going to discard them anyway: `relevantBlock` filters them out because `pinnedBlock`
+    /// already carries them in every prompt. Sharing one budget meant each pinned fact silently spent
+    /// a retrieval slot it never used — at `limit: 8` (what all three callers pass) eight pinned facts
+    /// left nothing at all, so the block came back empty no matter how well a stored fact matched.
+    func relevantFacts(for query: String, limit: Int, now: Date = Date(),
+                       excludingPinned: Bool = false) -> [MemoryFact] {
         let active = facts.filter {
             $0.validFrom <= now && ($0.validUntil == nil || $0.validUntil! >= now)
         }
-        let pinned = active.filter { $0.importance == .pinned && $0.verification == .confirmed }
-        let rest = active.filter { !($0.importance == .pinned && $0.verification == .confirmed) }
+        // `excludingPinned` drops EVERY pinned fact, confirmed or not — matching exactly what the
+        // caller discards. A pinned-but-unconfirmed fact sits in `rest`, so budgeting it in and then
+        // filtering it out is the same waste one rung down.
+        let pinned = excludingPinned
+            ? []
+            : active.filter { $0.importance == .pinned && $0.verification == .confirmed }
+        let rest = excludingPinned
+            ? active.filter { $0.importance != .pinned }
+            : active.filter { !($0.importance == .pinned && $0.verification == .confirmed) }
         let qTokens = Self.tokens(query)
         let ranked = rest
             .map { fact -> (MemoryFact, Double) in (fact, Self.relevanceScore(fact, qTokens, now: now)) }
@@ -452,7 +466,10 @@ final class CoachMemory: ObservableObject {
     /// twice, once bare and once behind a "Confirmed memory:" prefix. Deduplication belongs here rather
     /// than in the semantic path because this block is the one that is appended last.
     func relevantBlock(for query: String, limit: Int, alreadyInContext: String = "") -> String {
-        let ranked = relevantFacts(for: query, limit: limit).filter { $0.importance != .pinned }
+        // `excludingPinned` rather than retrieving them and filtering after: pinned facts already ride
+        // every prompt via `pinnedBlock`, so counting them against this budget spent slots on facts
+        // this block was always going to drop.
+        let ranked = relevantFacts(for: query, limit: limit, excludingPinned: true)
         let picked = Self.factsNotAlreadyInContext(ranked, context: alreadyInContext)
         guard !picked.isEmpty else { return "" }
         var lines = ["POSSIBLY-RELEVANT FACTS ABOUT THE USER (from memory):"]
@@ -503,11 +520,62 @@ final class CoachMemory: ObservableObject {
 
     // MARK: - Text helpers
 
-    /// Very small stopword set so keyword overlap keys on the meaningful words.
+    /// Function words that carry no topic, so keyword overlap keys on the meaningful ones.
+    ///
+    /// Covers every language the app ships (en, de, es, fr, it, pt, ru, zh) for the same reason
+    /// `inferredCategory` below does, and the omission had a sharper consequence here. The list was
+    /// English-only while `relevantFacts` treats ANY overlap as grounds to put a stored fact in the
+    /// prompt — see its "a ranking is not a reason to disclose" guard. On German, "Wie soll ich heute
+    /// trainieren?" and the unrelated fact "Ich trainiere morgens" share `ich`, which scores above
+    /// zero and surfaces the fact. Nearly every fact/question pair shares some pronoun or article, so
+    /// for eight of the nine locales that guard was doing almost nothing.
+    ///
+    /// Only words of 3+ characters matter: `tokens` already drops anything shorter, which is why the
+    /// short forms (de "am", es "de", fr "le") are absent — they can never reach this set.
+    ///
+    /// Chinese is deliberately NOT represented: it is unsegmented, so `tokens`' letter/number split
+    /// yields whole clauses rather than words and no stopword list can apply. That is a pre-existing
+    /// limit of this tokeniser, not something this set can fix.
     nonisolated private static let stopwords: Set<String> = [
-        "the", "a", "an", "and", "or", "but", "to", "of", "in", "on", "for", "with", "my", "me", "i",
-        "is", "are", "was", "were", "be", "do", "does", "did", "how", "what", "why", "when", "should",
-        "about", "your", "you", "this", "that", "it", "at", "as", "so", "if", "can", "will", "im"
+        // English
+        "the", "and", "but", "for", "with", "not", "you", "your", "yours", "our", "its",
+        "are", "was", "were", "been", "being", "does", "did", "doing", "have", "has", "had",
+        "how", "what", "why", "when", "who", "which", "where", "should", "would", "could",
+        "about", "this", "that", "these", "those", "there", "here", "then", "than", "some",
+        "any", "all", "can", "will", "just", "from", "into", "out", "get", "got", "much",
+        "very", "more", "most", "own",
+        // German
+        "der", "die", "das", "den", "dem", "des", "ein", "eine", "einen", "einem", "einer", "eines",
+        "und", "oder", "aber", "ich", "mir", "mich", "mein", "meine", "meinem", "meinen", "meiner",
+        "du", "dir", "dich", "dein", "deine", "sie", "ihr", "wir", "uns", "man", "sich",
+        "ist", "sind", "war", "waren", "bin", "bist", "sein", "habe", "hast", "hat", "hatte",
+        "haben", "wird", "werden", "wurde", "kann", "kannst", "soll", "sollte", "muss", "will",
+        "wie", "was", "wer", "wo", "wann", "warum", "welche", "welcher", "dass", "weil", "wenn",
+        "für", "fur", "mit", "von", "vom", "zum", "zur", "auf", "aus", "bei", "nach", "über",
+        "uber", "unter", "vor", "durch", "gegen", "ohne", "auch", "noch", "nur", "schon", "sehr",
+        "nicht", "kein", "keine", "mehr", "immer", "wieder", "heute", "etwas",
+        // Spanish
+        "los", "las", "una", "unos", "unas", "del", "que", "con", "por", "para", "como",
+        "más", "mas", "pero", "sus", "esta", "este", "esto", "estos", "estas", "son", "era",
+        "ser", "estar", "tengo", "tiene", "hay", "muy", "todo", "toda", "cuando", "donde",
+        "porque", "qué", "cuál", "cual", "mis", "tus", "nos",
+        // French
+        "les", "des", "une", "dans", "pour", "avec", "sur", "par", "mais", "plus", "pas",
+        "que", "qui", "quoi", "est", "sont", "était", "etait", "être", "etre", "avoir", "fait",
+        "mon", "mes", "ton", "tes", "son", "ses", "nos", "vos", "leur", "cette", "ces",
+        "comment", "pourquoi", "quand", "très", "tres", "tout", "toute", "aussi", "encore",
+        // Italian
+        "gli", "delle", "degli", "una", "con", "per", "come", "più", "piu", "non", "che",
+        "sono", "era", "essere", "avere", "mio", "mia", "miei", "suo", "sua", "nostro",
+        "questo", "questa", "quello", "quella", "quando", "dove", "perché", "perche", "molto",
+        // Portuguese
+        "dos", "das", "uma", "uns", "umas", "com", "por", "para", "como", "mais", "mas",
+        "que", "são", "sao", "era", "ter", "tem", "meu", "minha", "meus", "seu", "sua",
+        "este", "esta", "isso", "quando", "onde", "porque", "muito", "todo", "também", "tambem",
+        // Russian
+        "это", "как", "что", "для", "который", "которая", "мой", "моя", "мои", "меня", "мне",
+        "тебя", "они", "она", "оно", "был", "была", "были", "быть", "есть", "нет", "или",
+        "если", "когда", "где", "почему", "очень", "уже", "ещё", "еще", "так", "все", "всё",
     ]
 
     /// Lowercased, punctuation-stripped word tokens ≥ 3 chars, stopwords removed.
