@@ -7,7 +7,7 @@ enum AppChangelog {
 
     /// Bump this when you add a release below. The "What's New" sheet shows automatically when the
     /// stored last-seen version is behind this. (Decoupled from the bundle version on purpose.)
-    static let currentVersion = "10.0.0"
+    static let currentVersion = "10.1.0"
 
     struct Release: Identifiable {
         let version: String
@@ -19,6 +19,18 @@ enum AppChangelog {
 
     /// Newest first.
     static let releases: [Release] = [
+        Release(
+            version: "10.1.0",
+            title: "Your own heart-rate zones, and a coach that checks its own arithmetic",
+            date: "August 2026",
+            items: [
+                "**Set your own heart-rate zones.** Percentages of your maximum, or absolute beats from a threshold test — the bands follow you either way. Profile › Heart-rate zones.",
+                "**The coach can no longer prescribe an effort your session cannot produce.** A target is now computed from the zone and the duration against your own bands, not guessed.",
+                "**No morning brief on a night your strap hasn't finished sending.** It waits, and offers you the sleep editor instead of planning your day on a wrong wake time.",
+                "**Polish, in full.** The app now speaks Polish everywhere, not only in the parts it inherited.",
+                "**Fixed:** skin temperature could read \"+33.4°\" — an imported absolute reading printed as a deviation from baseline — and respiratory rate could keep showing a value measured weeks ago.",
+            ]
+        ),
         Release(
             version: "10.0.0",
             title: "Make NOOP yours — theme colours and custom backgrounds, forty more sports with GPS routes, and a calorie heatmap",

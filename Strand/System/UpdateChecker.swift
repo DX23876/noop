@@ -36,7 +36,10 @@ final class UpdateChecker: ObservableObject {
                     state = .failed
                     return
                 }
-                let latest = tag.hasPrefix("v") ? String(tag.dropFirst()) : tag
+                // The numeric core only: the release tag carries the fork's `-dx` namespace marker, which
+                // the comparison already ignores and which nobody should be shown ("10.1.0-dx is
+                // available" reads like a flavour of the app that isn't).
+                let latest = VersionCheck.displayVersion(tag)
                 let notes = Self.cleanNotes(json["body"] as? String ?? "")
                 state = VersionCheck.isNewer(latest, than: currentVersion)
                     ? .available(version: latest, url: url, notes: notes)

@@ -6,9 +6,9 @@
 > Developer account needed — **and NOOP stays anonymous**, because the `.ipa` we ship is *unsigned*
 > and **you** sign it on your own iPhone with your own free Apple ID. It carries the app **and the
 > Home/Lock-Screen widgets**; only the Apple Watch app is left out, for the reasons below. The release
-> also offers **`NOOP-ios-full-unsigned-v9.3.3-dx-beta.ipa`**, which adds the **Watch app and
+> also offers **`NOOP-ios-full-unsigned-v<VERSION>-dx.ipa`**, which adds the **Watch app and
 > complication** on top, for people signing with their own Apple Developer team.
-> The manual [`publish-ios-beta.yml`](../.github/workflows/publish-ios-beta.yml) workflow builds the
+> The manual [`publish-ios-release.yml`](../.github/workflows/publish-ios-release.yml) workflow builds the
 > unsigned release IPA without an Apple team or personal signing identity.
 
 ## Install (sideload)

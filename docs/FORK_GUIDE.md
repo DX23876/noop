@@ -38,9 +38,20 @@ integrates (`Strand/AI/AIProvider.swift`), so a message may freely say "add Anth
 **Versioning.** `MARKETING_VERSION` in `project.yml` is the single source of truth (it was kept in
 step with `android/app/build.gradle.kts` until the Android tree was removed — the release workflow
 and the in-app update check both read `project.yml` now); build numbers are independent counters. The fork's
-release identity is `X.Y.Z DX Beta` — the numeric version stays numeric everywhere Apple reads it
-(`CFBundleShortVersionString`), and the "DX Beta" branding lives only in the git tag
-(`vX.Y.Z-dx-beta`), the asset filenames and the release title.
+release identity is plain `X.Y.Z` — the numeric version stays numeric everywhere Apple reads it
+(`CFBundleShortVersionString`), and the tag and asset filenames carry a `-dx` marker (`vX.Y.Z-dx`,
+`NOOP-ios-unsigned-vX.Y.Z-dx.ipa`).
+
+**That suffix is a NAMESPACE, not a quality claim.** Upstream tags `vX.Y.Z` and this repo fetches
+their tags into the same space — `v9.3.0`, `v9.3.1` and `v10.0.0` are all ryanbr's and already sit in
+this clone — so a bare `v10.1.0` here would collide with the tag they will cut for the same version.
+Nothing else carries it: the release title is `NOOP AI X.Y.Z`, the app reports `X.Y.Z`, and
+`VersionCheck.displayVersion` strips it before the update sheet prints it.
+
+Releases up to 9.3.3 were branded "DX Beta" in the tag, title and assets. From 10.1.0 that branding
+is gone; it was never a technical distinction, because `publish-ios-release.yml` has always promoted
+the release out of prerelease and marked it `--latest` (GitHub's `releases/latest` excludes
+prereleases, and the in-app update check reads exactly that endpoint).
 
 ## Where this fork diverges from upstream
 
@@ -57,7 +68,8 @@ only rots — it was still absorbing upstream churn on every sync while never be
 
 **What that changed elsewhere.** The release pipeline read the version from
 `android/app/build.gradle.kts`; it now reads `project.yml`'s `MARKETING_VERSION`.
-`publish-ios-beta.yml` had a hard gate asserting the Android version matched — removed.
+`publish-ios-release.yml` (named `publish-ios-beta.yml` at the time) had a hard gate asserting the
+Android version matched — removed.
 `Tools/appchangelog-gen.py` wrote the Kotlin changelog and the Android title strings BEFORE the Swift
 entry, so a missing `android/` would have silently stopped the in-app "What's New" from updating —
 the Android arms are gone. `Tools/i18n_audit_baseline.json`'s 238 Android entries were dropped
@@ -99,7 +111,7 @@ which changes what validates a change:
 | `tools-python.yml` | The `Tools/linux-capture` Python suite (≥200 tests) | PR + push touching `Tools/**` |
 | `source-hygiene.yml` | Detached doc comments + **commit attribution** (above) | every PR and push to `main` |
 | `i18n-coverage.yml` | EN source + DE/ES/FR/PT-PT complete (zero-tolerance); IT/RU/ZH-Hans/ZH-Hant ratcheted (see "Localization" below) | every PR and push to `main` |
-| `publish-ios-beta.yml` | Cuts a DX Beta release: unsigned IPA + universal macOS zip, updates the AltStore source, marks it latest | `workflow_dispatch` |
+| `publish-ios-release.yml` | Cuts a release: unsigned IPA + universal macOS zip, updates the AltStore source, marks it latest | `workflow_dispatch` |
 | `sync-upstream.yml` | Opens a sync PR from `ryanbr/noop` | weekly cron + dispatch |
 
 **`StrandTests` runs in exactly one place** — `app-build.yml`'s macOS leg. `Test Strand` is a later
@@ -198,7 +210,7 @@ Fork-only docs, under [`fork/`](fork/):
 | [`fork/design/design-spec.md`](fork/design/design-spec.md) | How it looks (colour, spacing, animation) |
 | [`fork/design/mockup-today.html`](fork/design/mockup-today.html) | Binding visual reference where text and image disagree |
 | [`fork/redesign-briefing.md`](fork/redesign-briefing.md) | Redesign specs |
-| [`fork/releases/`](fork/releases/) | DX Beta release notes — `publish-ios-beta.yml` reads `fork/releases/v<VERSION>-dx-beta.md` and refuses to publish without it |
+| [`fork/releases/`](fork/releases/) | Release notes — `publish-ios-release.yml` reads `fork/releases/v<VERSION>.md` and refuses to publish without it. NOT tag-named: `Tools/appchangelog-gen.py` derives the in-app "What's New" version from the filename |
 
 When you add a doc, file it into the matching group in the same change — this map stays current
 because whoever adds a doc updates it, not because of a separate maintenance pass. A fork-only doc

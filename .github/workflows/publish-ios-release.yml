@@ -1,18 +1,18 @@
-name: Publish unsigned iOS beta
+name: Publish unsigned iOS release
 
 on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Numeric app version already committed to source (for example 9.2.1)"
+        description: "Numeric app version already committed to source (for example 10.1.0)"
         required: true
-        default: "9.2.2"
+        default: "10.1.0"
 
 permissions:
   contents: write
 
 concurrency:
-  group: publish-ios-beta
+  group: publish-ios-release
   cancel-in-progress: false
 
 jobs:
@@ -41,8 +41,10 @@ jobs:
         run: |
           set -euo pipefail
           # MARKETING_VERSION must stay numeric (Apple rejects anything else in
-          # CFBundleShortVersionString), so the "DX Beta" branding lives only in the tag, the asset
-          # name and the release title — never in the version the app reports.
+          # CFBundleShortVersionString), so the fork's `-dx` marker lives only in the tag and the asset
+          # name — never in the version the app reports, and no longer in the title either. The suffix
+          # is a NAMESPACE, not a quality claim: upstream tags `vX.Y.Z` into the same tag space this
+          # repo fetches from, so a bare `v10.1.0` here would collide with theirs.
           [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || {
             echo "version must be numeric X.Y.Z" >&2; exit 1;
           }
@@ -50,26 +52,28 @@ jobs:
           SOURCE_VERSION=$(grep -m1 'MARKETING_VERSION:' project.yml | sed -E 's/.*"([^"]+)".*/\1/')
           BUILD=$(grep -m1 'CURRENT_PROJECT_VERSION:' project.yml | sed -E 's/.*"([0-9]+)".*/\1/')
           # Fork-only docs live under docs/fork/ so upstream's docs/ tree stays recognisable in a
-          # sync PR; the DX Beta notes moved with them.
-          NOTES="docs/fork/releases/v${VERSION}-dx-beta.md"
+          # sync PR; the release notes moved with them. The file is NOT tag-named — it stays
+          # `v<VERSION>.md` so `Tools/appchangelog-gen.py` derives a clean version from the filename
+          # for the in-app "What's New" card.
+          NOTES="docs/fork/releases/v${VERSION}.md"
 
           [[ "$SOURCE_VERSION" == "$VERSION" ]] || {
             echo "project.yml is $SOURCE_VERSION, not requested $VERSION" >&2; exit 1;
           }
           [[ -f "$NOTES" ]] || {
-            echo "Missing beta release notes: $NOTES" >&2; exit 1;
+            echo "Missing release notes: $NOTES" >&2; exit 1;
           }
 
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
           echo "BUILD=$BUILD" >> "$GITHUB_ENV"
-          echo "TAG=v${VERSION}-dx-beta" >> "$GITHUB_ENV"
+          echo "TAG=v${VERSION}-dx" >> "$GITHUB_ENV"
           echo "NOTES=$NOTES" >> "$GITHUB_ENV"
-          echo "IPA=NOOP-ios-unsigned-v${VERSION}-dx-beta.ipa" >> "$GITHUB_ENV"
-          echo "FULL_IPA=NOOP-ios-full-unsigned-v${VERSION}-dx-beta.ipa" >> "$GITHUB_ENV"
+          echo "IPA=NOOP-ios-unsigned-v${VERSION}-dx.ipa" >> "$GITHUB_ENV"
+          echo "FULL_IPA=NOOP-ios-full-unsigned-v${VERSION}-dx.ipa" >> "$GITHUB_ENV"
 
           # Same two values as job outputs — $GITHUB_ENV is per-job and invisible to the jobs below.
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "tag=v${VERSION}-dx-beta" >> "$GITHUB_OUTPUT"
+          echo "tag=v${VERSION}-dx" >> "$GITHUB_OUTPUT"
 
       - name: Select Xcode
         run: |
@@ -163,11 +167,11 @@ jobs:
 
           if ! gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
-              --prerelease --title "NOOP AI $VERSION DX Beta" --notes-file "$BODY"
+              --prerelease --title "NOOP AI $VERSION" --notes-file "$BODY"
           fi
           gh release upload "$TAG" "$IPA" "$FULL_IPA" --repo "$GITHUB_REPOSITORY" --clobber
 
-      - name: Publish DX Beta to AltStore and SideStore source
+      - name: Publish to the AltStore and SideStore source
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -175,7 +179,7 @@ jobs:
           SIZE=$(stat -f%z "$IPA")
           DATE=$(date -u +%Y-%m-%d)
           URL="https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/${IPA}"
-          DESCRIPTION="NOOP AI ${VERSION} DX Beta. See the release notes for what changed."
+          DESCRIPTION="NOOP AI ${VERSION}. See the release notes for what changed."
           tmp=$(mktemp)
 
           jq --arg version "$VERSION" --arg build "$BUILD" --arg date "$DATE" \
@@ -201,10 +205,10 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add altstore-source.json
-          git diff --cached --quiet || git commit -m "Release ${VERSION} DX Beta: publish sideload source"
+          git diff --cached --quiet || git commit -m "Release ${VERSION}: publish sideload source"
           git push origin HEAD:main
 
-  # 9.3.0 DX Beta onwards the release carries a macOS build too — 9.2.1/9.2.2 were iOS-only, which left
+  # 9.3.0 onwards the release carries a macOS build too — 9.2.1/9.2.2 were iOS-only, which left
   # Mac users with no artifact at all for a fork whose reference platform IS macOS. Runs AFTER `publish`
   # so the release already exists and this job only has to upload into it. macos-15 is deliberate: the
   # macOS app targets macOS 13+ and needs no iOS 26 SDK, so it does not have to wait for a macos-26
@@ -266,7 +270,7 @@ jobs:
           # cdhash-based designated requirement TCC can grant to. No --entitlements / --options runtime:
           # the app stays non-sandboxed so Bluetooth goes through plain TCC + the Info.plist usage string.
           codesign --force --deep --sign - "$APP"
-          ZIP="NOOP-macos-v${VER}-dx-beta.zip"
+          ZIP="NOOP-macos-v${VER}-dx.zip"
           ditto -c -k --keepParent "$APP" "$ZIP"
           gh release upload "$TAG" "$ZIP" --repo "$GITHUB_REPOSITORY" --clobber
           echo "Attached $ZIP ($(du -h "$ZIP" | cut -f1))"
