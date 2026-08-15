@@ -14,6 +14,9 @@ import Foundation
 
 struct TrendsView: View {
     @EnvironmentObject var repo: Repository
+    /// The empty state's "Open Data Sources" button routes through the shell (`NavRouter`), because
+    /// neither shell exposes a selection this screen could set directly.
+    @EnvironmentObject var router: NavRouter
     // NOTE: deliberately does NOT observe LiveState — Trends shows historical data only, and
     // observing it forced a full re-render of this subtree on every ~1 Hz live-HR tick.
 
@@ -277,9 +280,12 @@ struct TrendsView: View {
                        lazy: true,
                        topBackground: liquidScaffoldSky()) {
             if repo.days.isEmpty {
-                ComingSoon(what: repo.loaded
-                    ? "Trends need history to draw. Import your WHOOP export in Data Sources to see weeks, months and years instantly."
-                    : "Loading your history…")
+                if repo.loaded {
+                    ComingSoon(what: "Trends need history to draw. Import your WHOOP export in Data Sources to see weeks, months and years instantly.",
+                               action: ("Open Data Sources", { router.openDataSources() }))
+                } else {
+                    ComingSoon.loading("Loading your history…", title: "Reading your history")
+                }
             } else {
                 // Resolve each metric's window ONCE per body and pass the results
                 // down — rangeBar/heroRecovery/smallMultiples all reuse these

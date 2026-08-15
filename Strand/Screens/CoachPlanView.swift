@@ -198,7 +198,10 @@ struct CoachPlanView: View {
                         scheduling = p
                     }
                     action("Change", icon: "arrow.triangle.2.circlepath") { swapping = p }
-                    action("Not this one", icon: "xmark") { store.decline(p.id) }
+                    action("Not this one", icon: "xmark") {
+                        StrandHaptic.selection.play()
+                        store.decline(p.id)
+                    }
                 }
             }
         }
@@ -654,6 +657,10 @@ struct PlanTimeSheet: View {
                 // doesn't know when yet. Accepting still commits — only the time is left open.
                 if proposal.status == .proposed {
                     Button("Accept without a time") {
+                        // Committing to a session is a landing, so it gets `.commit` — the same weight
+                        // the timed Accept below carries. Declining stays a light `.selection`: nothing
+                        // was promised.
+                        StrandHaptic.commit.play()
                         applyGoalLink()
                         store.accept(proposal.id)
                         dismiss()
@@ -680,6 +687,7 @@ struct PlanTimeSheet: View {
                         let hm = cal.dateComponents([.hour, .minute], from: time)
                         let combined = cal.date(bySettingHour: hm.hour ?? 0, minute: hm.minute ?? 0,
                                                 second: 0, of: base)
+                        StrandHaptic.commit.play()
                         if proposal.status == .proposed {
                             applyGoalLink()
                             store.accept(proposal.id, at: combined)

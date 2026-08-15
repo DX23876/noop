@@ -41,6 +41,9 @@ struct AppleHealthLoadKey: Equatable {
 
 struct AppleHealthView: View {
     @EnvironmentObject var repo: Repository
+    /// The empty state's "Open Data Sources" button routes through the shell (`NavRouter`), because
+    /// neither shell exposes a selection this screen could set directly.
+    @EnvironmentObject var router: NavRouter
 
     // iOS-only: the live two-way HealthKit bridge, injected at StrandiOSApp. macOS has no HealthKit
     // (HealthKitBridge is `#if os(iOS)` in its own file and isn't in the macOS environment), so this
@@ -215,10 +218,12 @@ struct AppleHealthView: View {
                     // instead of telling the user to tap a control that isn't shown.
                     ComingSoon(what: health.auth == .entitlementMissing
                                ? "Nothing here yet. This sideloaded install can't read Apple Health directly. Import a Health export .zip in Data Sources, or turn on Shortcuts Export to bring your strap data into Health."
-                               : "Nothing here yet. Tap Enable Apple Health above to read your data live, or import a Health export .zip in Data Sources.")
+                               : "Nothing here yet. Tap Enable Apple Health above to read your data live, or import a Health export .zip in Data Sources.",
+                               action: ("Open Data Sources", { router.openDataSources() }))
                 }
                 #else
-                ComingSoon(what: "Nothing imported yet. On an iPhone: Health app, tap your photo, Export All Health Data, then import the .zip here in Data Sources.")
+                ComingSoon(what: "Nothing imported yet. On an iPhone: Health app, tap your photo, Export All Health Data, then import the .zip here in Data Sources.",
+                           action: ("Open Data Sources", { router.openDataSources() }))
                 #endif
             } else if !loaded {
                 loadingState

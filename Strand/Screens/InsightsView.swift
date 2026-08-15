@@ -249,7 +249,7 @@ struct InsightsView: View {
             CaffeineLogCard()
                 .padding(.bottom, sectionGap)
             if !loaded {
-                ComingSoon(what: "Reading your journal and outcomes…")
+                ComingSoon.loading("Reading your journal and outcomes…", title: "Reading your journal")
             } else {
                 experimentSection
                     .padding(.bottom, sectionGap)

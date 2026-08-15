@@ -45,7 +45,7 @@ struct InsightsHubView: View {
                        // mover reveal is unchanged; this only defers building that stack until it scrolls in.
                        lazy: true) {
             if !model.loaded {
-                ComingSoon(what: "Reading your journal and outcomes…")
+                ComingSoon.loading("Reading your journal and outcomes…", title: "Reading your journal")
             } else {
                 VStack(alignment: .leading, spacing: NoopMetrics.sectionSpacing) {
                     moversSection

@@ -117,6 +117,9 @@ private struct CompareSeries: Identifiable {
 
 struct CompareView: View {
     @EnvironmentObject var repo: Repository
+    /// The empty state's "Open Data Sources" button routes through the shell (`NavRouter`), because
+    /// neither shell exposes a selection this screen could set directly.
+    @EnvironmentObject var router: NavRouter
 
     // Effort display scale (#268) — routes the Effort metric's min/max + hover read-outs onto WHOOP's
     // 0–21 axis; display-only, the normalized overlay shape is untouched. Every other metric is
@@ -184,13 +187,16 @@ struct CompareView: View {
                 metricSection
 
                 if selected.count < minSelection {
-                    ComingSoon(what: "Compare needs at least two metrics with history. Import your WHOOP export in Data Sources first.")
+                    ComingSoon(what: "Compare needs at least two metrics with history. Import your WHOOP export in Data Sources first.",
+                               action: ("Open Data Sources", { router.openDataSources() }))
                 } else {
                     let series = activeSeries
                     if series.allSatisfy({ $0.rows.isEmpty }) {
-                        ComingSoon(what: loadedOnce
-                            ? "No data for these metrics in \(range.phrase). Widen the range or pick metrics you've logged."
-                            : "Reading your history…")
+                        if loadedOnce {
+                            ComingSoon(what: "No data for these metrics in \(range.phrase). Widen the range or pick metrics you've logged.")
+                        } else {
+                            ComingSoon.loading("Reading your history…", title: "Reading your history")
+                        }
                     } else {
                         overlaySection(series)
                         correlationSection(series)

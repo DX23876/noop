@@ -83,6 +83,9 @@ struct WeeklyDigestCard: View {
 /// The weekly digest as a full screen (for a sidebar `.digest` case).
 struct WeeklyDigestView: View {
     @EnvironmentObject var repo: Repository
+    /// The empty state's "Open Data Sources" button routes through the shell (`NavRouter`), because
+    /// neither shell exposes a selection this screen could set directly.
+    @EnvironmentObject var router: NavRouter
 
     var body: some View {
         ScreenScaffold(title: "Week in review",
@@ -94,9 +97,12 @@ struct WeeklyDigestView: View {
                        // until those rows are promoted to direct children.
                        lazy: true) {
             if repo.days.isEmpty {
-                ComingSoon(what: repo.loaded
-                    ? "A weekly digest needs a few days of history. Wear your strap or import your WHOOP export in Data Sources."
-                    : "Loading your history…")
+                if repo.loaded {
+                    ComingSoon(what: "A weekly digest needs a few days of history. Wear your strap or import your WHOOP export in Data Sources.",
+                               action: ("Open Data Sources", { router.openDataSources() }))
+                } else {
+                    ComingSoon.loading("Loading your history…", title: "Reading your history")
+                }
             } else {
                 let digest = WeeklyDigestSource.digest(from: repo.days, anchorDay: Repository.localDayKey(Date()))
                 if digest.isEmpty {

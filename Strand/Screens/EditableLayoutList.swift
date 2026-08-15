@@ -149,6 +149,10 @@ where Item: Identifiable & Equatable, Options: View {
 
     private func moveVisible(from offsets: IndexSet, to destination: Int) {
         draft.moveVisible(from: offsets, to: destination)
+        // The drop, not the drag: `onMove` fires once the row has been released into its new slot, so
+        // this is the landing. `.light` because reordering a tile is a small, repeatable adjustment —
+        // a `.commit` here would be shouting on every nudge.
+        StrandHaptic.light.play()
     }
 
     private func hide(_ item: Item) {

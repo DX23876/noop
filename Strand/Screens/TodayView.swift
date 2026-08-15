@@ -1420,6 +1420,10 @@ struct TodayView: View {
             // the HR chart's frame (see daySwipeGesture), the chart's own pinch/pan owns that region.
             .gesture(daySwipeGesture)
             #endif
+            // A light tick when the day changes (swipe or chevron), matching LiquidTodayView — the two
+            // Today variants share this navigation, so they must not feel different under the thumb.
+            // Value-driven rather than tap-driven, so a chevron tap and a swipe land identically.
+            .liquidSelectionHaptic(trigger: selectedDayOffset)
             // The space the day-swipe drag measures in (see daySwipeSpace). Declared on BOTH platforms so
             // the name is always defined; only iOS reads it (the swipe is iOS-only).
             .coordinateSpace(name: Self.daySwipeSpace)

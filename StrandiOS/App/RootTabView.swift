@@ -264,6 +264,17 @@ struct RootTabView: View {
                 // (InsightsView), matching the FAB's "Log journal" action. Calm sheet easing.
                 withAnimation(Self.sheetEase) { quickAction = .journal }
                 router.requestedDestination = nil
+            case .dataSources:
+                // Raised by the empty states' "Open Data Sources" button. Pushed onto the More tab's
+                // own stack — the same MoreDestination the More row uses — so Back returns the reader
+                // to where they were rather than stranding them in a tab they did not choose.
+                withAnimation(.timingCurve(0.22, 1, 0.36, 1, duration: 0.24)) { selectedTab = 3 }
+                // Appended rather than assigned (the Coach deep links REPLACE the More stack): if the
+                // reader was already somewhere under More, Back should return them there instead of
+                // dropping them at the index. From any other tab the stack is at its root, so this
+                // behaves exactly like a replace.
+                tabPaths[3].append(MoreDestination.dataSources)
+                router.requestedDestination = nil
             case nil:
                 break
             }
@@ -355,6 +366,9 @@ struct RootTabView: View {
                 // .journal opens through the quick-action Journal sheet (handled above); this keeps the
                 // switch exhaustive and falls back to the journal's Insights host if it ever reaches here.
                 case .journal: InsightsView()
+                // .dataSources is pushed onto the More tab's own stack (handled above); this keeps the
+                // switch exhaustive and falls back to the screen itself if it ever reaches the host.
+                case .dataSources: DataSourcesView()
                 }
             }
             // The Trends/Today fallbacks above emit TabRoute value pushes (#198), which need a

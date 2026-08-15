@@ -19,6 +19,9 @@ private struct ChartWidthKey: PreferenceKey {
 
 struct XiaomiBandView: View {
     @EnvironmentObject var repo: Repository
+    /// The empty state's "Open Data Sources" button routes through the shell (`NavRouter`), because
+    /// neither shell exposes a selection this screen could set directly.
+    @EnvironmentObject var router: NavRouter
 
     /// Per-source partition key — matches `XiaomiImporter.deviceId`.
     private static let source = "xiaomi-band"
@@ -107,7 +110,8 @@ struct XiaomiBandView: View {
         ScreenScaffold(title: "Mi Band", subtitle: spanSubtitle.map { "\($0)" },
                        onRefresh: { await repo.refresh() }, lazy: loaded && hasAnyData) {
             if loaded && !hasAnyData {
-                ComingSoon(what: "Nothing imported yet. In Data Sources, choose your Mi Fitness export (a .zip of the Mi Fitness app folder from the Files app) to bring in your steps, heart rate, sleep stages, SpO₂ and stress.")
+                ComingSoon(what: "Nothing imported yet. In Data Sources, choose your Mi Fitness export (a .zip of the Mi Fitness app folder from the Files app) to bring in your steps, heart rate, sleep stages, SpO₂ and stress.",
+                           action: ("Open Data Sources", { router.openDataSources() }))
             } else if !loaded {
                 loadingState
             } else {

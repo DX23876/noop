@@ -26,6 +26,9 @@ private struct WorkoutRecoveryTrendPoint: Identifiable, Equatable {
 
 struct WorkoutsView: View {
     @EnvironmentObject var repo: Repository
+    /// The empty state's "Open Data Sources" button routes through the shell (`NavRouter`), because
+    /// neither shell exposes a selection this screen could set directly.
+    @EnvironmentObject var router: NavRouter
     /// #459: "Start Workout" used to live ONLY on the Live screen, so a user reaching Workouts (via the
     /// Quick-action FAB or the tab) had no way to begin one from the obvious place. Injected here so the
     /// header/empty-state can start a live session and present the in-exercise view directly.
@@ -173,9 +176,12 @@ struct WorkoutsView: View {
                        topBackground: liquidScaffoldSky()) {
             if allRows.isEmpty {
                 VStack(alignment: .leading, spacing: NoopMetrics.space4) {
-                    ComingSoon(what: loaded
-                        ? "No workouts yet. They come from your WHOOP and Apple Health history. Import in Data Sources to bring them in, or add one you tracked elsewhere."
-                        : "Loading your sessions…")
+                    if loaded {
+                        ComingSoon(what: "No workouts yet. They come from your WHOOP and Apple Health history. Import in Data Sources to bring them in, or add one you tracked elsewhere.",
+                                   action: ("Open Data Sources", { router.openDataSources() }))
+                    } else {
+                        ComingSoon.loading("Loading your sessions…", title: "Reading your sessions")
+                    }
                     if loaded {
                         workoutActionRow
                     }
