@@ -65,6 +65,14 @@ jobs:
       # its test file. `discover`, not named modules, for the same reason as above: naming them meant the
       # generator's tests would have been added and silently never run. Run from inside Tools/ because
       # the suites import their modules by bare name.
+      # The ONLY third-party dependency in this job. `appchangelog-gen.py` parses the release notes'
+      # YAML front matter and exits with a clear message when PyYAML is absent — which is right for a
+      # tool run by hand, and useless here: its test would have to skip the one case that matters, a
+      # broken front matter in the notes about to be released. Everything else in both suites is
+      # standard-library only, so this stays a single line rather than a requirements file.
+      - name: Install PyYAML (appchangelog-gen's only dependency)
+        run: pip install pyyaml
+
       - name: Run Tools/ tests
         run: |
           set -o pipefail   # see above — without this a red suite exits 0 through the pipe.
