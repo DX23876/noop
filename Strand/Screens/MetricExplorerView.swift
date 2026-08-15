@@ -978,7 +978,11 @@ struct MetricDetailView: View {
                 valueRange: valueRange(windowed.map(\.value)),
                 showsArea: true,
                 height: NoopMetrics.chartHeight,
-                valueFormat: { fmt($0) }
+                valueFormat: { fmt($0) },
+                // The screen has the name right there in `metric.title`; without passing it the chart
+                // announces itself as the generic "Trend", which on a screen that is ENTIRELY about one
+                // metric is the one word that carries no information.
+                accessibilityLabel: String(localized: "\(metric.title) trend")
             )
         } footer: {
             ChartFooter([

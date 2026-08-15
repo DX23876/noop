@@ -117,6 +117,22 @@ public struct TrendChart: View {
         }
     }
 
+    /// The series as the audio graph sees it: x is the point's time, so the tones are spaced by the
+    /// real gaps in the data (a missing week sounds like a missing week), and each point speaks the
+    /// same date string the hover tooltip shows.
+    private var audioGraphPlan: AudioGraphPlan {
+        AudioGraphPlan.series(
+            title: accessibilityLabel ?? String(localized: "Trend", bundle: .module),
+            xLabel: String(localized: "Date", bundle: .module),
+            yLabel: accessibilityLabel ?? String(localized: "Value", bundle: .module),
+            points: points.map {
+                AudioGraphPoint(x: $0.date.timeIntervalSince1970,
+                                y: $0.value,
+                                label: "\(dateFormat($0.date)), \(valueFormat($0.value))")
+            }
+        )
+    }
+
     /// The x-position the cursor is hovering, in chart-local coordinates.
     @State private var hoverX: CGFloat? = nil
 
@@ -344,6 +360,11 @@ public struct TrendChart: View {
         .accessibilityLabel(accessibilityLabel.map(Text.init) ?? Text("Trend", bundle: .module))
         .accessibilityValue(Text(a11ySummary))
         .accessibilityHidden(!showsHover && accessibilityLabel == nil)
+        // …and, past the one-line summary, the series itself: VoiceOver's rotor gains an Audio Graph
+        // that plays the trend as pitch over time and steps point by point. Built from the full-
+        // resolution `points`, not `displayPoints` — the downsample exists to spare the GPU vertices
+        // it cannot resolve, which is no reason to hide readings from someone listening to them.
+        .audioGraph(audioGraphPlan)
     }
 }
 

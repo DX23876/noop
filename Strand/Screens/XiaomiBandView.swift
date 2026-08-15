@@ -139,7 +139,11 @@ struct XiaomiBandView: View {
     /// data so the scaffold's `LazyVStack` + `ForEach` only build the cards actually on screen.
     private enum PageItem: Identifiable {
         case header(LocalizedStringKey, String)
-        case chart(LocalizedStringKey, String, Gradient, ClosedRange<Double>, (Double) -> String)
+        /// `LocalizedStringResource`, not `LocalizedStringKey`, so the title can do both jobs: the
+        /// compiler still extracts the literal into the string catalog, and `String(localized:)` can
+        /// resolve it for the chart's accessibility label — a `LocalizedStringKey` is opaque and left
+        /// every one of these charts announcing itself to VoiceOver as the generic "Trend".
+        case chart(LocalizedStringResource, String, Gradient, ClosedRange<Double>, (Double) -> String)
         case hypnogram
         var id: String {
             switch self {
@@ -384,7 +388,7 @@ struct XiaomiBandView: View {
     // MARK: - Chart card
 
     @ViewBuilder
-    private func chartCard(title: LocalizedStringKey, key: String, gradient: Gradient,
+    private func chartCard(title: LocalizedStringResource, key: String, gradient: Gradient,
                            fallback: ClosedRange<Double>,
                            fmt: @escaping (Double) -> String) -> some View {
         let rows = resolvedWindow(key)
@@ -400,14 +404,17 @@ struct XiaomiBandView: View {
             return [("Avg", fmt(avg)), ("Min", fmt(lo)), ("Max", fmt(hi)), ("Points", "\(vals.count)")]
         }()
         ChartCard(
-            title: title,
+            // Already-resolved text wrapped in an interpolation (renders verbatim), since ChartCard
+            // takes a LocalizedStringKey and the title is now a resource.
+            title: "\(String(localized: title))",
             subtitle: rangeNote(forKey: key),
             trailing: trailing,
             chart: {
                 if pts.count >= 2 {
                     TrendChart(points: pts, gradient: gradient,
                                valueRange: valueRange(pts, fallback: fallback),
-                               showsArea: true, height: NoopMetrics.chartHeight, valueFormat: fmt)
+                               showsArea: true, height: NoopMetrics.chartHeight, valueFormat: fmt,
+                               accessibilityLabel: String(localized: "\(String(localized: title)) trend"))
                 } else if let only = vals.last {
                     singlePoint(only, fmt: fmt, accent: StrandPalette.sample(stops: gradient.stops, at: 0.85))
                 } else {

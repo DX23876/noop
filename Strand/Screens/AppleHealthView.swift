@@ -804,7 +804,11 @@ struct AppleHealthView: View {
     /// One uniform ChartCard for a metric series: header + TrendChart body (same
     /// height) + avg/min/max ChartFooter. Sparse-safe via resolvedWindow.
     @ViewBuilder
-    private func chartCard(title: LocalizedStringKey, key: String, gradient: Gradient,
+    /// `title` is a `LocalizedStringResource`, not a `LocalizedStringKey`, so it can do both jobs: the
+    /// compiler still extracts each literal into the string catalog, and `String(localized:)` can
+    /// resolve it for the chart's accessibility label. A `LocalizedStringKey` is opaque, which is why
+    /// all eleven of these charts announced themselves to VoiceOver as the generic "Trend".
+    private func chartCard(title: LocalizedStringResource, key: String, gradient: Gradient,
                            fallback: ClosedRange<Double>,
                            fmt: @escaping (Double) -> String) -> some View {
         let rows = resolvedWindow(key)
@@ -820,7 +824,9 @@ struct AppleHealthView: View {
             return [("Avg", fmt(avg)), ("Min", fmt(lo)), ("Max", fmt(hi)), ("Points", "\(vals.count)")]
         }()
         ChartCard(
-            title: title,
+            // Already-resolved text wrapped in an interpolation (renders verbatim), since ChartCard
+            // takes a LocalizedStringKey and the title is now a resource.
+            title: "\(String(localized: title))",
             subtitle: rangeNote(forKey: key),
             trailing: trailing,
             chart: {
@@ -831,7 +837,8 @@ struct AppleHealthView: View {
                         valueRange: valueRange(pts, fallback: fallback),
                         showsArea: true,
                         height: NoopMetrics.chartHeight,
-                        valueFormat: fmt
+                        valueFormat: fmt,
+                        accessibilityLabel: String(localized: "\(String(localized: title)) trend")
                     )
                 } else if let only = vals.last {
                     // A single point is not a line — present the lone reading,

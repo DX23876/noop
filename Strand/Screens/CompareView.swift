@@ -908,6 +908,19 @@ private struct OverlayChart: View {
         series.first(where: { $0.metric.title == title })?.color
     }
 
+    /// The overlay's ONLY encoding is colour: four lines, four hues, a legend naming them. For a
+    /// reader who cannot separate those hues that is no encoding at all, so when the system switch is
+    /// on each line also takes a distinct dash pattern (`ChartDifferentiation`). Off — the default —
+    /// nothing changes.
+    @Environment(\.noopDifferentiateWithoutColor) private var differentiateWithoutColor
+
+    /// This metric's position in the selection, which is what picks its dash. Falls back to 0 (solid)
+    /// for a title not in the current selection, which cannot happen while the plots and the series
+    /// come from the same model.
+    private func seriesIndex(_ title: String) -> Int {
+        series.firstIndex(where: { $0.metric.title == title }) ?? 0
+    }
+
     var body: some View {
         let model = currentModel
         Chart(model.plots) { p in
@@ -916,7 +929,10 @@ private struct OverlayChart: View {
                 y: .value("Normalized", p.norm)
             )
             .interpolationMethod(.catmullRom)
-            .lineStyle(StrokeStyle(lineWidth: 2.2, lineCap: .round, lineJoin: .round))
+            .lineStyle(StrokeStyle(lineWidth: 2.2, lineCap: .round, lineJoin: .round,
+                                   dash: differentiateWithoutColor
+                                       ? ChartDifferentiation.dashPattern(seriesIndex: seriesIndex(p.title))
+                                       : []))
             .foregroundStyle(by: .value("Metric", p.title))
 
             // Per-point dots are only legible on sparse series; on a dense window they
@@ -929,6 +945,10 @@ private struct OverlayChart: View {
                 )
                 .symbolSize(10)
                 .foregroundStyle(by: .value("Metric", p.title))
+                // A second redundant encoding on the dots, for the same reason as the dashes above.
+                // Only when the switch is on: `symbol(by:)` adds a shape scale, and on a dense window
+                // that is a mark cost the default look has no reason to pay.
+                .symbol(by: .value("Metric", differentiateWithoutColor ? p.title : ""))
             }
         }
         // Bevel "now" end-caps — a soft halo + bright core on each series' latest point, drawn on top.
