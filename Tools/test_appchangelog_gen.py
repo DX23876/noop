@@ -1,19 +1,20 @@
 #!/usr/bin/env python3
-"""#878 — the generated Android What's New title must be a resource reference, not a literal.
+"""What `appchangelog-gen.py` still has to get right, now that it emits Swift only.
 
-A raw Kotlin `title = "..."` is a hardcoded literal that the i18n gate rejects, and because that gate
-audits the WHOLE tree, one bad line red-checks every open PR on code none of them touched. That is not
-hypothetical: it happened on 9.2.0 and again on 9.2.1, and both times it was cleared by hand afterwards
-rather than by the generator getting it right.
+The file used to pin #878 — the generated ANDROID What's New title had to be a resource reference
+rather than a literal, or the i18n gate red-checked every open PR. That arm went with the Android
+tree on 2026-08-14, and these tests went with it in the wrong direction: they kept calling
+`acg.kt_block` and reading `android/app/src/main/res/values/strings.xml`, so `Tools Python CI` has
+been red on every push since, on 13 errors that say nothing about the generator.
 
-These pin the two things that would bring it back: the emitted shape, and the key scheme that shape
-depends on. The scheme is pinned against a title that is actually shipping, so the test fails if either
-the hashing or the slugging drifts from what is already in strings.xml.
+What survives is the part that was never Android-specific and is still worth pinning: the emitted
+Swift block, and `apply()`'s refresh behaviour. That one had a real bug — it skipped an entry that
+already existed while the writer ran anyway, so an edited headline left the card showing the previous
+one with nothing failing.
 """
-import hashlib
 import importlib.util
 import pathlib
-import re
+import tempfile
 import unittest
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
@@ -21,151 +22,115 @@ _spec = importlib.util.spec_from_file_location("acg", ROOT / "Tools/appchangelog
 acg = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(acg)
 
-# The 9.2.1 headline and the key it actually ships under, copied from values/strings.xml.
-SHIPPED_TITLE = ("Battery saver quiets the gauges, translated Android notifications, "
-                 "and instant chart loads")
-SHIPPED_KEY = "l10n_app_changelog_battery_saver_quiets_the_gauges_translated_bdbe8650"
-
-
-class TitleKeyTests(unittest.TestCase):
-
-    def test_reproduces_a_key_that_is_actually_shipping(self):
-        """Pinned against the real artifact, not against the function's own output."""
-        self.assertEqual(SHIPPED_KEY, acg.title_key(SHIPPED_TITLE))
-
-    def test_that_key_really_is_in_strings_xml(self):
-        """If someone renames the key in the resources, this test's premise is gone — say so loudly
-        rather than keep asserting against a string nothing uses."""
-        xml = (ROOT / "android/app/src/main/res/values/strings.xml").read_text()
-        self.assertIn(f'name="{SHIPPED_KEY}"', xml)
-
-    def test_editing_the_title_mints_a_new_key(self):
-        """The hash covers the exact title, so a reworded headline cannot silently inherit the old
-        key — and with it, translations of different words."""
-        self.assertNotEqual(acg.title_key(SHIPPED_TITLE), acg.title_key(SHIPPED_TITLE + " and more"))
-
-    def test_slug_is_six_words_and_hash_is_eight_hex(self):
-        key = acg.title_key("One two three four five six seven eight")
-        self.assertTrue(key.startswith("l10n_app_changelog_one_two_three_four_five_six_"))
-        self.assertRegex(key.rsplit("_", 1)[-1], r"^[0-9a-f]{8}$")
-
-    def test_hash_is_of_the_title_text_itself(self):
-        t = "Anything at all"
-        self.assertTrue(acg.title_key(t).endswith(hashlib.sha1(t.encode()).hexdigest()[:8]))
-
-
-class EscapingTests(unittest.TestCase):
-
-    def test_apostrophe_is_backslashed_for_android(self):
-        """An unescaped ' in a resource value is an aapt2 error, and release titles have them."""
-        self.assertEqual(r"L\'économiseur", acg.esc_xml("L'économiseur"))
-
-    def test_xml_entities(self):
-        self.assertEqual("a &amp; b &lt;c&gt;", acg.esc_xml("a & b <c>"))
-
-    def test_ampersand_is_escaped_before_the_others(self):
-        """Escaping & last would double-escape the entities introduced by < and >."""
-        self.assertEqual("&lt;a&gt; &amp; &lt;b&gt;", acg.esc_xml("<a> & <b>"))
+TITLE = ("Battery saver quiets the gauges, translated Android notifications, "
+         "and instant chart loads")
 
 
 class EmittedBlockTests(unittest.TestCase):
 
-    WN = {"title": SHIPPED_TITLE, "date": "July 2026", "items": ["**One.** A thing."]}
+    WN = {"title": TITLE, "date": "July 2026", "items": ["**One.** A thing."]}
 
-    def test_kotlin_title_is_a_resource_reference(self):
-        block = acg.kt_block("9.2.1", self.WN)
-        self.assertIn(f"title = uiString(R.string.{SHIPPED_KEY})", block)
+    def test_swift_title_is_a_literal(self):
+        """`WhatsNewView` renders the title through `LocalizedStringKey`, so the English text IS the
+        catalog key — it has to arrive here verbatim, not as a reference to anything."""
+        self.assertIn(f'title: "{TITLE}"', acg.sw_block("9.2.1", self.WN))
 
-    def test_kotlin_title_is_not_a_literal(self):
-        """The regression itself: `title = "…"` is what fails the gate."""
-        block = acg.kt_block("9.2.1", self.WN)
-        self.assertNotRegex(block, r'title\s*=\s*"')
+    def test_items_stay_literals(self):
+        """Items are long-form prose, keyed by their English text for the same reason as the title."""
+        self.assertIn('"**One.** A thing."', acg.sw_block("9.2.1", self.WN))
 
-    def test_swift_title_stays_a_literal(self):
-        """SwiftUI auto-extracts into the catalog, so Apple needs no reference — and changing it
-        would break the baseline that tracks these titles."""
+    def test_version_and_date_are_carried_through(self):
         block = acg.sw_block("9.2.1", self.WN)
-        self.assertIn(f'title: "{SHIPPED_TITLE}"', block)
+        self.assertIn('version: "9.2.1"', block)
+        self.assertIn('date: "July 2026"', block)
 
-    def test_items_stay_literals_on_both_platforms(self):
-        """Only the title moved. Items are long-form prose the gate does not require extracting, and
-        turning them into 60 resources per release was never the ask."""
-        for block in (acg.kt_block("9.2.1", self.WN), acg.sw_block("9.2.1", self.WN)):
-            self.assertIn('"**One.** A thing."', block)
+    def test_a_quote_in_the_prose_is_escaped(self):
+        """An unescaped `"` in an item would not compile, and the notes are written by hand."""
+        wn = dict(self.WN, items=['**Fixed:** it read "+33.4°" before.'])
+        self.assertIn(r'\"+33.4°\"', acg.sw_block("9.2.1", wn))
 
 
 class TitleRefreshTests(unittest.TestCase):
-    """Re-running after editing the headline must update the entry, not leave it stale.
+    """Re-running after editing the headline must update the entry, not leave it stale."""
 
-    The bug this pins: `apply()` skipped an entry that already existed, while the string writer ran
-    unconditionally — so an edited headline minted and wrote a NEW key into six locale files while the
-    entry kept referencing the OLD one. The card showed the previous headline and the new key was an
-    orphan, with nothing failing. Found by doing it.
-    """
+    HEAD = ("enum AppChangelog {\n"
+            '    static let currentVersion = "0.0.0"\n'
+            "    static let releases: [Release] = [\n")
+    TAIL = "    ]\n}\n"
+    ANCHOR = "static let releases: [Release] = [\n"
+    CONST_RE = r'(static let currentVersion = ")[^"]*(")'
 
-    KT_HEAD = ("object AppChangelog {\n"
-               "    const val CURRENT_VERSION = \"0.0.0\"\n"
-               "    val releases: List<Release> = listOf(\n")
-    KT_TAIL = "    )\n}\n"
+    ENTRY = ('        Release(\n'
+             '            version: "9.9.9",\n'
+             '            title: "The old headline",\n'
+             '            date: "July 2026",\n'
+             '        ),\n')
 
     def _file(self, body):
-        import tempfile
-        f = tempfile.NamedTemporaryFile("w", suffix=".kt", delete=False)
-        f.write(self.KT_HEAD + body + self.KT_TAIL)
+        f = tempfile.NamedTemporaryFile("w", suffix=".swift", delete=False)
+        f.write(self.HEAD + body + self.TAIL)
         f.close()
         return pathlib.Path(f.name)
 
-    ENTRY = ('        Release(\n'
-             '            version = "9.9.9",\n'
-             '            title = uiString(R.string.l10n_app_changelog_old_one_aaaaaaaa),\n'
-             '            date = "July 2026",\n'
-             '        ),\n')
-
     def test_existing_entry_gets_its_title_updated(self):
         path = self._file(self.ENTRY)
-        acg.apply(path, "val releases: List<Release> = listOf(\n", "IGNORED", "9.9.9",
-                  r'(const val CURRENT_VERSION = ")[^"]*(")', r'\g<1>9.9.9\g<2>',
-                  title_line="title = uiString(R.string.l10n_app_changelog_new_one_bbbbbbbb),")
+        acg.apply(path, self.ANCHOR, "IGNORED", "9.9.9",
+                  self.CONST_RE, r'\g<1>9.9.9\g<2>', title_line='title: "The new headline",')
         out = path.read_text()
-        self.assertIn("l10n_app_changelog_new_one_bbbbbbbb", out)
-        self.assertNotIn("l10n_app_changelog_old_one_aaaaaaaa", out)
+        self.assertIn("The new headline", out)
+        self.assertNotIn("The old headline", out)
         path.unlink()
 
     def test_it_does_not_duplicate_the_entry(self):
         path = self._file(self.ENTRY)
-        acg.apply(path, "val releases: List<Release> = listOf(\n", "SHOULD_NOT_APPEAR", "9.9.9",
-                  r'(const val CURRENT_VERSION = ")[^"]*(")', r'\g<1>9.9.9\g<2>',
-                  title_line="title = uiString(R.string.l10n_app_changelog_new_one_bbbbbbbb),")
+        acg.apply(path, self.ANCHOR, "SHOULD_NOT_APPEAR", "9.9.9",
+                  self.CONST_RE, r'\g<1>9.9.9\g<2>', title_line='title: "The new headline",')
         out = path.read_text()
-        self.assertEqual(1, out.count('version = "9.9.9"'))
+        self.assertEqual(1, out.count('version: "9.9.9"'))
         self.assertNotIn("SHOULD_NOT_APPEAR", out)
         path.unlink()
 
     def test_unchanged_title_is_left_alone(self):
-        """The ENTRY is untouched when the headline has not moved. Asserting the title line rather than
-        the whole file, because `apply()` legitimately rewrites the version constant on every run —
-        which is what this test got wrong the first time."""
-        same = "title = uiString(R.string.l10n_app_changelog_old_one_aaaaaaaa),"
+        """Asserting the title line rather than the whole file, because `apply()` legitimately
+        rewrites the version constant on every run."""
+        same = 'title: "The old headline",'
         path = self._file(self.ENTRY)
-        acg.apply(path, "val releases: List<Release> = listOf(\n", "IGNORED", "9.9.9",
-                  r'(const val CURRENT_VERSION = ")[^"]*(")', r'\g<1>9.9.9\g<2>', title_line=same)
+        acg.apply(path, self.ANCHOR, "IGNORED", "9.9.9",
+                  self.CONST_RE, r'\g<1>9.9.9\g<2>', title_line=same)
         out = path.read_text()
         self.assertEqual(1, out.count(same))
-        self.assertEqual(1, out.count('version = "9.9.9"'))
-        self.assertIn('const val CURRENT_VERSION = "9.9.9"', out)   # the constant DOES move
+        self.assertEqual(1, out.count('version: "9.9.9"'))
+        self.assertIn('static let currentVersion = "9.9.9"', out)   # the constant DOES move
+        path.unlink()
+
+    def test_a_new_version_is_prepended_above_the_existing_one(self):
+        """Newest first: the card reads top-down, and the release list is the order it shows."""
+        path = self._file(self.ENTRY)
+        acg.apply(path, self.ANCHOR, '        Release(\n            version: "10.0.0",\n        ),\n',
+                  "10.0.0", self.CONST_RE, r'\g<1>10.0.0\g<2>')
+        out = path.read_text()
+        self.assertLess(out.index('version: "10.0.0"'), out.index('version: "9.9.9"'))
         path.unlink()
 
 
-class LocaleTargetTests(unittest.TestCase):
+class FrontMatterTests(unittest.TestCase):
 
-    def test_focus_locales_match_the_resource_dirs_on_disk(self):
-        """A renamed or added locale dir must not leave the generator writing into nowhere."""
-        for loc, d in acg.LOCALE_DIRS.items():
-            self.assertTrue((ROOT / "android/app/src/main/res" / d / "strings.xml").is_file(),
-                            f"{loc} -> {d}/strings.xml is missing")
+    def test_notes_without_front_matter_are_refused(self):
+        """A release file with no `whatsnew:` block has nothing to generate from, and guessing would
+        put an empty card in front of every user."""
+        f = tempfile.NamedTemporaryFile("w", suffix=".md", delete=False)
+        f.write("# NOOP v9.9.9\n\nNo front matter here.\n")
+        f.close()
+        with self.assertRaises(SystemExit):
+            acg.frontmatter(pathlib.Path(f.name))
+        pathlib.Path(f.name).unlink()
 
-    def test_english_source_is_the_values_dir(self):
-        self.assertEqual("values", acg.LOCALE_DIRS["en"])
+    def test_the_shipping_release_file_parses(self):
+        """The real 10.1.0 notes, so a hand-edit that breaks the block is caught here rather than at
+        release time."""
+        wn = acg.frontmatter(ROOT / "docs/fork/releases/v10.1.0.md")
+        self.assertTrue(wn["title"])
+        self.assertTrue(wn["items"])
 
 
 if __name__ == "__main__":

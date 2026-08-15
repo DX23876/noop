@@ -3229,7 +3229,7 @@
         "pl": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ br/min"
+            "value": "%@ odd./min"
           }
         }
       }
@@ -44279,7 +44279,7 @@
         "pl": {
           "stringUnit": {
             "state": "translated",
-            "value": "AVG HR"
+            "value": "ŚR. TĘTNO"
           }
         }
       }
@@ -44453,7 +44453,7 @@
         "pl": {
           "stringUnit": {
             "state": "translated",
-            "value": "AVG/SESS"
+            "value": "ŚR./SESJĘ"
           }
         }
       }
@@ -51094,7 +51094,7 @@
         "pl": {
           "stringUnit": {
             "state": "translated",
-            "value": "br/min"
+            "value": "odd./min"
           }
         }
       }

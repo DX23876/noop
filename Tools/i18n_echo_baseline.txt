@@ -1,4 +1,9 @@
 # Localizations marked `translated` whose value is still the ENGLISH source, grandfathered so
+# pl (added with the 10.1.0 sync) starts far below the others because its residue was reviewed
+# key by key, not inherited: what remains is brands (Apple Health, Mi Band, WHOOP Blue,
+# WHOOP 5 / MG, FIT — Garmin Connect), units and terms of art (ml/kg/min, VO₂ Max, HRV (rMSSD),
+# SD1 · ms, RMSSD %lld ms), a literal URL and a hex placeholder. Everything with a real Polish
+# form — br/min, AVG HR, AVG/SESS — was translated instead of being parked here.
 # the gate starts green and blocks only NEW ones. Format: <catalog> <lang> <allowed-count>.
 #
 # The coverage gate above asks whether a key EXISTS in a language, never whether it differs from the
@@ -15,6 +20,7 @@ Packages/StrandDesign/Sources/StrandDesign/Resources/Localizable.xcstrings de 4
 Packages/StrandDesign/Sources/StrandDesign/Resources/Localizable.xcstrings es 6
 Packages/StrandDesign/Sources/StrandDesign/Resources/Localizable.xcstrings fr 2
 Packages/StrandDesign/Sources/StrandDesign/Resources/Localizable.xcstrings it 2
+Packages/StrandDesign/Sources/StrandDesign/Resources/Localizable.xcstrings pl 2
 Packages/StrandDesign/Sources/StrandDesign/Resources/Localizable.xcstrings pt-PT 3
 Packages/StrandDesign/Sources/StrandDesign/Resources/Localizable.xcstrings ru 1
 Packages/StrandDesign/Sources/StrandDesign/Resources/Localizable.xcstrings zh-Hans 1
@@ -23,6 +29,7 @@ Strand/Resources/Localizable.xcstrings de 118
 Strand/Resources/Localizable.xcstrings es 123
 Strand/Resources/Localizable.xcstrings fr 118
 Strand/Resources/Localizable.xcstrings it 118
+Strand/Resources/Localizable.xcstrings pl 14
 Strand/Resources/Localizable.xcstrings pt-PT 113
 Strand/Resources/Localizable.xcstrings ru 109
 Strand/Resources/Localizable.xcstrings zh-Hans 110
