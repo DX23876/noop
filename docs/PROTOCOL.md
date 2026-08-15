@@ -551,10 +551,21 @@ the same `pay[2]` record start `GET_BATTERY_LEVEL` and `GET_CLOCK` already decod
 | 117 `START_FF_KEY_EXCHANGE` | `revision u8` · `numberOfFeatureFlags u16 LE` · padding |
 | 118 `SEND_NEXT_FF` | `revision u8` · `index u8` · `validKey u8` · `key` (ASCII, NUL-terminated) · padding |
 
-The walk stops on the strap's own end marker (`validKey = 0`, or `index = 0xFF`), on the announced count,
-or on a hard cap of 128 replies — and each 118 is only sent after the previous reply lands. Both CRCs are
-verified before any field is read; a failed CRC, a non-COMMAND_RESPONSE type, or a short record ends the
-walk with a named reason instead of a decode. Driven by `BLEManager.probeFeatureFlags()` /
+**The two terminator conditions are not interchangeable, and are separated deliberately.** The walk stops
+on `index = 0xFF` — the one end marker a strap has served here unambiguously. `validKey = 0` on its own
+does NOT stop it: that could equally mark an EMPTY or RETIRED SLOT with the list continuing past it, and
+the record layout above is derived from a WHOOP 4.0 and **unverified on 5/MG**. Neither reading is
+established, because on the walks this project has, the two have never been separated on the wire: the
+117/118 walk on a WS50_r03 served sixteen replies that were all `validKey = 1` with no `0xFF` at all,
+and its 115/116 walk ended on a single reply carrying `index = 255` **and** `validKey = 0` together. So a
+`validKey = 0` entry is recorded, stepped over, and the next record verb is sent again — what comes back
+separates the two readings, and the report states which it observed. Past that the bounds are all
+CLIENT-side and each names itself in the report's `Stop code:` line: 8 consecutive `validKey = 0` replies,
+a repeated index during such a run (a parked cursor — evidence for the terminator reading), the announced
+count plus 4, or a hard cap of 128 replies. Each next-record request is only sent after the previous reply
+lands. Both CRCs are verified before any field is read; a failed CRC, a non-COMMAND_RESPONSE type, or a
+short record ends the walk with a named reason instead of a decode, and the RAW record bytes of every
+reply are logged beside the fields decoded from them. Driven by `BLEManager.probeFeatureFlags()` /
 `WhoopBleClient.probeFeatureFlags()` (user-triggered, Test Centre → Connection, both families) and
 allowlisted for 5/MG framing **only while a probe is in flight**; parsed + rendered by the pure
 `FeatureFlagProbe` / `FeatureFlagProbeReport` twins (Swift↔Kotlin byte-parity, unit-tested on synthetic

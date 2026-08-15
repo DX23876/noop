@@ -569,7 +569,8 @@ final class HealthKitBridge: ObservableObject {
                         deepMin: a.deepMin, remMin: a.remMin, lightMin: a.coreMin, disturbances: nil,
                         restingHr: a.restingHr.map { Int($0.rounded()) }, avgHrv: a.hrv,
                         recovery: nil, strain: nil, exerciseCount: nil,
-                        spo2Pct: a.spo2, skinTempDevC: nil, respRateBpm: a.respRate)
+                        spo2Pct: a.spo2, skinTempDevC: nil, respRateBpm: a.respRate,
+                        avgSdnn: a.hrv)   // Apple's HRV IS SDNN — mirror it into the SDNN field too
         }
         // Flatten to the generic metricSeries the shared Apple Health screen, the Today apple-health
         // sparklines, and the Metric Explorer read from — repo.series(key:source:"apple-health")
@@ -837,25 +838,11 @@ final class HealthKitBridge: ObservableObject {
         for r in imported { byDay[r.day] = r }   // imported overrides
         let rows = byDay.keys.sorted().map { byDay[$0]! }
 
-        // HealthKit's HRV identifier is SDNN, while DailyMetric.avgHrv is NOOP's RMSSD. Compute an
-        // independent SDNN from the longest sleep block ending on each civil day; a nap can therefore
-        // never replace the main night's recording window. The analyzer refuses duplicated/banked R-R
-        // shapes whose spread is not trustworthy.
-        var mainSleepByDay: [String: CachedSleepSession] = [:]
-        for session in sessions where session.endTs > session.effectiveStartTs {
-            let day = HealthKitBridge.dayString(Date(timeIntervalSince1970: TimeInterval(session.endTs)))
-            let oldDuration = mainSleepByDay[day].map { $0.endTs - $0.effectiveStartTs } ?? -1
-            if session.endTs - session.effectiveStartTs > oldDuration { mainSleepByDay[day] = session }
-        }
-        var sdnnByDay: [String: Double] = [:]
-        for (day, session) in mainSleepByDay {
-            let rr = (try? await whoopStore.rrIntervals(deviceId: noopDeviceId,
-                                                        from: session.effectiveStartTs,
-                                                        to: session.endTs,
-                                                        limit: 100_000)) ?? []
-            if let sdnn = HRVAnalyzer.trustedSdnnForExport(rr).sdnn { sdnnByDay[day] = sdnn }
-        }
-
+        // HealthKit's HRV identifier is SDNN, while DailyMetric.avgHrv is NOOP's RMSSD. The SDNN this
+        // exports is `DailyMetric.avgSdnn`, computed and stored by the analytics pass; nothing is
+        // recomputed here. This used to derive its own whole-night SDNN from the longest sleep block,
+        // which was the right REFUSAL (untrustworthy R-R spread is rejected) applied to the wrong
+        // QUANTITY — see the export site below.
         struct Candidate { let type: HKQuantityType; let key: String; let sample: HKQuantitySample }
         var candidates: [Candidate] = []
         func add(_ id: HKQuantityTypeIdentifier, _ unit: HKUnit, _ value: Double, _ day: String,
@@ -884,7 +871,14 @@ final class HealthKitBridge: ObservableObject {
             if let rhr = row.restingHr {
                 add(.restingHeartRate, HKUnit.count().unitDivided(by: .minute()), Double(rhr), row.day, at)
             }
-            if let sdnn = sdnnByDay[row.day] {
+            // Export the persisted 5-min SDNN INDEX (`avgSdnn`), never `avgHrv`: HealthKit's single HRV
+            // field IS SDNN, and NOOP's `avgHrv` is RMSSD, so writing that here mislabels it. The index
+            // rather than a whole-night SD because Apple's own SDNN samples are short-window — see the
+            // derivation in `AnalyticsEngine`, where a whole-night SD is shown to read 2-3× high. A row
+            // without one exports no HRV at all; a wrong number in the user's Health history is worse
+            // than a gap. (This replaces an export-time whole-night recomputation that had the same
+            // mislabelling problem upstream ryanbr/noop fixed in #1334.)
+            if let sdnn = row.avgSdnn {
                 add(.heartRateVariabilitySDNN, .secondUnit(with: .milli), sdnn, row.day, at,
                     algorithmVersion: 1)
             }

@@ -31,7 +31,7 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-LANGS = ["de", "es", "fr", "pt-PT"]
+LANGS = ["de", "es", "fr", "pt-PT", "pl"]
 ANDROID_LOCALE_DIRS = {
     "de": "values-de",
     "es": "values-es",

@@ -736,6 +736,9 @@ private struct FitnessAgeSection: View {
     @ViewBuilder private var content: some View {
         if let age = fitnessAge {
             heroCard(age: age)
+            // Prompt on WAIST being unset (the sole gate), not on vo2max == nil — the latter can be
+            // transiently nil right after waist is set, before the recompute writes vo2max_est.
+            if profile.waistCm <= 0 { vo2maxUnlockPrompt }
             if showReadiness {
                 ReadinessChecklistCard(readiness: readiness,
                                        lead: nil,
@@ -788,6 +791,29 @@ private struct FitnessAgeSection: View {
     /// The shown-value hero: a scenic Charge-world backdrop, the big Fitness Age number, a
     /// younger/older-than-your-age subtitle, the optional VO₂max, the ±band disclaimer, and the two
     /// affordances (tap-through to the trend + the "How accurate is this?" disclosure).
+    /// Shown when the Fitness Age computes but VO₂max doesn't — the one missing input is a waist
+    /// measurement (the Nes waist-variant needs it). Tapping opens Settings so it's a one-step fix,
+    /// instead of the number silently never appearing (a common "where's my VO₂max?" question).
+    private var vo2maxUnlockPrompt: some View {
+        Button { fitnessSheet = .settings } label: {
+            HStack(spacing: 8) {
+                Image(systemName: "lungs.fill")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(StrandPalette.metricCyan)
+                Text("Add your waist to unlock your VO₂max")
+                    .font(StrandFont.footnote)
+                    .foregroundStyle(StrandPalette.textSecondary)
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(StrandPalette.textTertiary)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityHint("Opens Settings to add your waist measurement")
+    }
+
     private func heroCard(age: Double) -> some View {
         let shown = Int(age.rounded())
         let delta = Double(profile.age) - age        // +ve = fitness age younger than chronological
@@ -1206,12 +1232,14 @@ private struct VitalsSection: View {
     // #103: SpO₂ candidate @82 nightly means from metricSeries, loaded when the experimental toggle is ON.
     // Empty when the toggle is OFF or no candidate data exists (WHOOP 4.0 has no v18 aux stream).
     @State private var spo2CandidateByDay: [String: Double] = [:]
+    @State private var hrvOverCountByDay: [String: Double] = [:]   // #1118
 
     var body: some View {
         let readings = BodyVitalSigns.readings(
             sourceRows: repo.vitalMetricRows,
             temperatureUnit: temperatureUnit,
-            spo2CandidateByDay: spo2CandidateByDay
+            spo2CandidateByDay: spo2CandidateByDay,
+            hrvOverCountByDay: hrvOverCountByDay
         )
         VStack(alignment: .leading, spacing: NoopMetrics.gap) {
             SectionHeader("Vital Signs", overline: "Latest", trailing: BodyVitalSigns.latestDayLabel(readings))
@@ -1236,6 +1264,12 @@ private struct VitalsSection: View {
                 .fixedSize(horizontal: false, vertical: true)
         }
         .task(id: PuffinExperiment.spo2CandidateDisplayEnabled) {
+            // #1118: load the per-night HRV over-count flags (always — no toggle) so the HRV tile can
+            // caption an over-counted 4.0 night's reading "unverified". The engine writes "hrv_rr_overcount"
+            // (1/0) under the "-noop" computed device ID; `exploreSeries` with source "my-whoop" reads it
+            // from the computed metricSeries. Absent/0 on a clean or imported night → no caveat.
+            let ocPts = await repo.exploreSeries(key: "hrv_rr_overcount", source: "my-whoop", days: 14)
+            hrvOverCountByDay = Dictionary(ocPts.map { ($0.day, $0.value) }, uniquingKeysWith: { a, _ in a })
             // #103: load the SpO₂ candidate @82 nightly means from metricSeries when the toggle is ON.
             // The engine writes "spo2_candidate" under the "-noop" computed device ID; `exploreSeries`
             // with source "my-whoop" reads it from Layer 2 (computed metricSeries). Empty when the toggle

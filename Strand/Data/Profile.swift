@@ -102,6 +102,8 @@ final class ProfileStore: ObservableObject {
         static let zoneMode = "profile.zoneMode"
         static let zonePercentEdges = "profile.zonePercentEdges"
         static let zoneBpmEdges = "profile.zoneBpmEdges"
+        /// Upstream ryanbr/noop's single custom-zone key. READ ONLY here — see the import in `init`.
+        static let hrZoneThresholds = "profile.hrZoneThresholds"
         static let stepScale = "profile.stepTicksPerStep"
         static let waist = "profile.waistCm"
         static let stepsCoeff = "profile.stepsCalibrationCoefficient"
@@ -139,9 +141,24 @@ final class ProfileStore: ObservableObject {
         heightCm = d.object(forKey: K.height) as? Double ?? 178
         waistCm = d.object(forKey: K.waist) as? Double ?? 0
         hrMaxOverride = d.object(forKey: K.hrMax) as? Int ?? 0
-        zoneModeRaw = d.string(forKey: K.zoneMode) ?? HRZoneConfig.Mode.auto.rawValue
-        zonePercentEdgesRaw = d.string(forKey: K.zonePercentEdges) ?? ""
-        zoneBpmEdgesRaw = d.string(forKey: K.zoneBpmEdges) ?? ""
+        var mode = d.string(forKey: K.zoneMode) ?? HRZoneConfig.Mode.auto.rawValue
+        let percentRaw = d.string(forKey: K.zonePercentEdges) ?? ""
+        var bpmRaw = d.string(forKey: K.zoneBpmEdges) ?? ""
+        // Adopt upstream's single-key custom zones when this fork has none of its own — a restore from
+        // an upstream-written `.noopbak`, or a user migrating from that build. Their key holds five
+        // inclusive bpm starts, which is exactly this fork's `.bpm` mode. Read-only and idempotent:
+        // nothing is written back, so the wearer's own edits (which fill the keys above) always win,
+        // and re-running this on every launch cannot drift. Validity is not judged here — the resolver
+        // degrades an unusable set to the conventional bands on its own.
+        if mode == HRZoneConfig.Mode.auto.rawValue, percentRaw.isEmpty, bpmRaw.isEmpty,
+           let imported = d.string(forKey: K.hrZoneThresholds).flatMap(HRZoneEdges.decodeValues),
+           imported.count == 5 {
+            bpmRaw = HRZoneEdges.encodeValues(imported)
+            mode = HRZoneConfig.Mode.bpm.rawValue
+        }
+        zoneModeRaw = mode
+        zonePercentEdgesRaw = percentRaw
+        zoneBpmEdgesRaw = bpmRaw
         stepTicksPerStep = min(max(d.object(forKey: K.stepScale) as? Double ?? 1.0, 0.5), 30.0)
         stepsCalibrationCoefficient = d.object(forKey: K.stepsCoeff) as? Double ?? 0
         stepsCalibrationSampleDays = d.object(forKey: K.stepsSampleDays) as? Int ?? 0

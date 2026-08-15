@@ -65,6 +65,12 @@ public enum BackupSettings {
         "profile.zoneMode": .string,
         "profile.zonePercentEdges": .string,
         "profile.zoneBpmEdges": .string,
+        // Upstream ryanbr/noop stores its (bpm-only) custom zones under this one key. This fork's
+        // zones are richer and live in the three keys above, but the key stays whitelisted so a
+        // backup written by upstream — or by a user migrating from it — still carries its bands
+        // across; `ProfileStore` imports it when this fork's own keys are absent. Keys are additive
+        // and never repurposed, which is exactly the case this rule exists for.
+        "profile.hrZoneThresholds": .string,
         "units.system": .string,
         "units.temperature": .string,
         "effort.scale": .string,
@@ -84,6 +90,7 @@ public enum BackupSettings {
         "profile.zoneMode": "profile.zoneMode",
         "profile.zonePercentEdges": "profile.zonePercentEdges",
         "profile.zoneBpmEdges": "profile.zoneBpmEdges",
+        "profile.hrZoneThresholds": "profile.hrZoneThresholds",
         "units.system": "units.system",
         "units.temperature": "units.temperature",
         "effort.scale": "effort.scale",

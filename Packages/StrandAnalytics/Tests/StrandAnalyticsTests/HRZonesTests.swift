@@ -47,6 +47,21 @@ final class HRZonesTests: XCTestCase {
         XCTAssertEqual(zs.zoneNumber(forBPM: 250), 5)   // above max still z5
     }
 
+    /// Upstream's editor-seeding invariant, kept over this fork's own API: seeding a bpm editor from
+    /// the percentage bands must not reclassify an integer sample, which is why the bounds round UP.
+    func testDefaultEditorBoundsPreserveIntegerClassification() {
+        XCTAssertEqual(HRZones.defaultBpmLowerBounds(maxHR: 187), [94, 113, 131, 150, 169])
+        // The rounded-up seed keeps every integer sample in the zone the percentage model gave it.
+        let percent = HRZones.zones(maxHR: 187)
+        let seeded = HRZones.zones(bpmEdges: HRZones.defaultBpmLowerBounds(maxHR: 187) + [187],
+                                   maxHR: 187)
+        for bpm in 40...187 {
+            XCTAssertEqual(seeded.zoneNumber(forBPM: Double(bpm)),
+                           percent.zoneNumber(forBPM: Double(bpm)),
+                           "bpm \(bpm) changed zone when seeding the editor")
+        }
+    }
+
     func testTimeInZoneAccountsForAllTime() {
         let zs = HRZones.zones(maxHR: 200)  // edges 100/120/140/160/180/200
         // 1 Hz samples: 3 in z1 (110), 2 in z3 (150), 1 below (90).

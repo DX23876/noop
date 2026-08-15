@@ -107,6 +107,8 @@ final class IntelligenceEngine: ObservableObject {
     private struct DayScan {
         let result: AnalyticsEngine.DayResult
         let rhrLine: String?
+        /// #1331 respiratory diagnostic line (see `respRateLogLine`); replayed with `rhrLine`.
+        let respLine: String?
         /// CAPTURE-B (#814/#799): the resolved READ owner id this day was scored from, and how many HR rows
         /// that owner returned for the night window, carried out of the off-actor loop so the main-actor
         /// fold can emit the universal `dayOwner …` self-diagnostic line (it needs the registry active id +
@@ -135,6 +137,12 @@ final class IntelligenceEngine: ObservableObject {
         /// the night has no in-band @82 readings, or the owner is a WHOOP 4.0 (no v18 aux stream).
         /// Written to metricSeries as "spo2_candidate" under the "-noop" device ID in pass 2.
         let spo2Candidate: Int?
+        /// #1118: whether this night's in-sleep R-R is OVER-COUNTED (`crossSecondOverCount` /
+        /// `sameSecondOverCount`) — the WHOOP-4.0 two-optical-channel artifact that inflates R-R and
+        /// contaminates the displayed HRV. nil when the night has no in-sleep R-R (no HRV to caveat).
+        /// Persisted to metricSeries as "hrv_rr_overcount" (1/0) in pass 2 so the HRV card can flag the
+        /// reading "unverified" until the de-dup fix lands. Same verdict the always-on `hrv diag` logs.
+        let hrvOverCounted: Bool?
         /// #1169 SHADOW METRIC: the primary-session MEAN resting HR (PrimarySessionRestingHR, #1174) for this
         /// day, computed off the main actor beside the shipped nightly HR FLOOR (`daily.restingHr`). nil when
         /// no session clears the coverage gate. Written to metricSeries as "rhr_primary_session" in pass 2 —
@@ -210,6 +218,12 @@ final class IntelligenceEngine: ObservableObject {
     /// SAME span the floor came from, so the two numbers are directly comparable). Empty in-bed → nightMean
     /// is "nil". Counts/bpm only , no timestamps or PII. Pure so it's unit-tested directly and is the SAME
     /// line `analyzeRecent` ships. Byte-identical to the Android `rhrFloorMeanLogLine`.
+    /// #1331 diagnostic line: the night's computed respiratory rate (breaths/min) or "nil". Format kept
+    /// simple so it stays byte-identical to the Android `respRateLogLine`.
+    nonisolated static func respRateLogLine(day: String, respRateBpm: Double?) -> String {
+        "resp day=\(day) rpm=\(respRateBpm.map { String(format: "%.1f", $0) } ?? "nil")"
+    }
+
     nonisolated static func rhrFloorMeanLogLine(day: String, floor: Int, inBedBpms: [Int]) -> String {
         let meanLog: String = inBedBpms.isEmpty ? "nil"
             : String(Int((Double(inBedBpms.reduce(0, +)) / Double(inBedBpms.count)).rounded()))
@@ -505,6 +519,9 @@ final class IntelligenceEngine: ObservableObject {
             diagnosticSink?("re-score: trigger=forced newData=\(hadNew ? "yes" : "no (nothing changed since last run)")", nil)
         }
 
+        // #1005: time the whole pass — the trigger line above records WHY; this records how many nights
+        // and how long (the CPU cost per run), so a re-score STORM is visible in the strap log.
+        let reScoreStart = Date()
         computing = true
         // #899-A re-arm: clear the lock, then if a forced rescore was dropped while this pass held it,
         // run it ONCE. The flag is cleared BEFORE the re-invoke (a single re-arm), so a forced call landing
@@ -597,10 +614,20 @@ final class IntelligenceEngine: ObservableObject {
         // Returns nil under `habitualMinDays` of history → cold-start: every `analyzeDay`/`sleepEditedDaily`
         // call below stays on the overnight-band bonus. The same value threads into both seams so analytics
         // and the Sleep tab resolve to the identical block. (#547)
-        let habitualMidsleepSec = await Self.computeHabitualMidsleep(
+        let (habitualMidsleepSec, nightlyHours) = await Self.computeHabitualSleep(
             store: store, importedId: deviceId, computedId: deviceId + "-noop",
             windowStart: nowLocalMidnight - maxDays * 86_400 - 30 * 3_600,
             windowEnd: now, offsetSec: tzOffset)
+        // Wave 0 (SL1/T1): personal sleep REGULARITY + population-anchored NEED, computed ONCE from the
+        // trailing per-night durations and threaded to every analyzeDay below (mirrors the midsleep
+        // learner just above — one personal trait per run, applied to the whole re-scored history so
+        // Rest stops running on a flat neutral-0.5 consistency and a fixed 8 h need). Recent 28-night
+        // window for regularity (a recent-behaviour signal); full history for the need's upper-quartile
+        // "unrestricted nights" estimate. Both degrade honestly on thin history (consistency → nil →
+        // neutral term; need → population default), so cold-start is unchanged.
+        let sleepConsistency = VitalityEngine.sleepConsistency(nightlyHours: Array(nightlyHours.suffix(28)))
+        let sleepNeedHours = AnalyticsEngine.Rest.personalizedNeedHours(nightlyHours: nightlyHours,
+                                                                        age: profile.age)
 
         // ── FIX 1 (main-actor jank): run the ENTIRE per-day enumeration OFF the main actor ───────────
         // Every `await store.…` read inside this loop has its continuation RESUME on the main actor
@@ -863,6 +890,8 @@ final class IntelligenceEngine: ObservableObject {
                                                      spo2: spo2,                   // #93
                                                      profile: up, baselines: baselines1, maxHROverride: maxHR,
                                                      tzOffsetSeconds: tzOffset, wristOff: wristOff,
+                                                     sleepNeedHours: sleepNeedHours,
+                                                     sleepConsistency: sleepConsistency,
                                                      habitualMidsleepSec: habitualMidsleepSec,
                                                      bandSleepState: bandSleepState,
                                                      // #690: thread the V2 toggle into the NORMAL staging path so
@@ -893,7 +922,9 @@ final class IntelligenceEngine: ObservableObject {
                 let sleepRrRows = rr.filter { r in res.cachedSleep.contains { r.ts >= $0.startTs && r.ts < $0.endTs } }
                 let sleepRr = sleepRrRows.map { Double($0.rrMs) }
                 let hrvDiag: String?
+                let hrvOverCounted: Bool?   // #1118: nil = no in-sleep R-R (no HRV to caveat)
                 if sleepRr.isEmpty {
+                    hrvOverCounted = nil
                     // #1244: no in-sleep R-R means no HRV summary. If the whole night also detected NO
                     // session (past the ≥200-HR gate → this is the "HR tracked, no sleep" case), carry a
                     // counts-only reason line on the SAME loop-1 diagnostic channel (emitted in the
@@ -965,8 +996,32 @@ final class IntelligenceEngine: ObservableObject {
                         let sample = HRVAnalyzer.densestSecondWindowSample(
                             tsSec: ts, rrMs: sleepRr, srcCodes: sleepRrRows.map { $0.srcChannel?.rawValue })
                         if !sample.isEmpty { diagLine += "\nhrv rrsample day=\(res.daily.day) \(sample)" }
+                        // #1331/#1008/#1118 SHADOW: log the DEDUPED stream's HRV + coverage + beat-accuracy
+                        // beside the raw (above), so the candidate two-channel de-dup can be validated
+                        // against WHOOP's own numbers and @artemc's Polar H10 BEFORE it becomes the read
+                        // path. Instrumentation only — the shipped HRV/resp is unchanged. If de-dup works:
+                        // coverage→~1.0, beatAccurate high (would pass #1127's RSA gate → resp returns, the
+                        // #1331 fix), and rmssd/sdnn become physiological + should match WHOOP. Kotlin twin.
+                        // Two candidates so validation isn't confounded: EXACT-dup collapse (rrTolMs 0 —
+                        // same ts AND same value, provably no real-beat loss) is the safe floor; the ~40 ms
+                        // same-second collapse is the aggressive UPPER BOUND (it also catches the two-channel
+                        // twins but can over-merge two real neighbours whose values sit within 40 ms). The
+                        // real de-dup lives between them; the log shows both so we can see where.
+                        let ex = HRVAnalyzer.collapseOverCount(tsSec: ts, rrMs: sleepRr, rrTolMs: 0)
+                        let dd = HRVAnalyzer.collapseOverCount(tsSec: ts, rrMs: sleepRr)
+                        let hDd = HRVAnalyzer.analyze(rawRR: dd.rrMs)
+                        let covEx = HRVAnalyzer.rrCoverage(tsSec: ex.tsSec, rrMs: ex.rrMs)
+                        let covDd = HRVAnalyzer.rrCoverage(tsSec: dd.tsSec, rrMs: dd.rrMs)
+                        let accDd = HRVAnalyzer.beatAccurateFraction(tsSec: dd.tsSec, rrMs: dd.rrMs)
+                        diagLine += "\nhrv dedup day=\(res.daily.day) exactN=\(ex.rrMs.count)/\(sleepRr.count) "
+                            + "covExact=\(String(format: "%.2f", covEx)) | ch40N=\(dd.rrMs.count) "
+                            + "cov40=\(String(format: "%.2f", covDd)) beatAcc40=\(String(format: "%.2f", accDd)) "
+                            + "rmssd40=\(ms(hDd.rmssd))ms sdnn40=\(ms(hDd.sdnn))ms meanNN40=\(ms(hDd.meanNN))ms"
                     }
                     hrvDiag = diagLine
+                    // #1118: flag this night's HRV as over-counted (same verdict the diag logs) so the
+                    // HRV card can mark the reading unverified until the two-channel de-dup lands.
+                    hrvOverCounted = (verdict == .crossSecondOverCount || verdict == .sameSecondOverCount)
                 }
                 // ── Steps test mode: 5/MG raw-counter trace ──────────────────────────────────────────────
                 // Only built when the Steps mode is on (the gate was read once before the loop). Recomputes
@@ -1003,6 +1058,9 @@ final class IntelligenceEngine: ObservableObject {
                     }.map { $0.bpm }
                     rhrLine = Self.rhrFloorMeanLogLine(day: res.daily.day, floor: floor, inBedBpms: inBedBpms)
                 }
+                // #1331 respiratory diagnostic — a run of nil nights localises when it stopped. Same
+                // pure-compute-here / replay-on-main-actor path as rhrLine.
+                let respLine: String? = Self.respRateLogLine(day: res.daily.day, respRateBpm: res.daily.respRateBpm)
                 // #103: SpO₂ candidate @82 nightly mean. Only computed when the display toggle is ON.
                 // Reads the V18AuxSample stream for this night's owner and averages the in-band (70–100)
                 // @82 readings that fall inside a detected sleep session. nil on a WHOOP 4.0 (no v18 aux
@@ -1026,10 +1084,11 @@ final class IntelligenceEngine: ObservableObject {
                 // windowing + delegation lives in the byte-identical, tested `AnalyticsEngine`.
                 let (primarySessionRHR, primarySessionRHRCoverage) =
                     AnalyticsEngine.primarySessionRestingHRWithCoverage(sessions: res.sleepSessions, hr: hr)
-                out.append(DayScan(result: res, rhrLine: rhrLine,
+                out.append(DayScan(result: res, rhrLine: rhrLine, respLine: respLine,
                                    readOwner: owner, hrRows: hr.count,
                                    sleepTrace: sleepTrace, stepsTrace: stepsTrace, hrvTrace: hrvTrace,
                                    hrvDiag: hrvDiag, spo2Candidate: spo2CandidateMean,
+                                   hrvOverCounted: hrvOverCounted,
                                    primarySessionRHR: primarySessionRHR,
                                    primarySessionRHRCoverage: primarySessionRHRCoverage))
             }
@@ -1049,6 +1108,9 @@ final class IntelligenceEngine: ObservableObject {
         var resolvedScoreOwnerByDay: [String: String] = [:]
         // #103: SpO₂ candidate @82 nightly mean per day, carried from pass 1 for metricSeries persistence.
         var spo2CandidateByDay: [String: Int] = [:]
+        // #1118: per-day HRV over-count flag, carried from pass 1 for metricSeries persistence. nil (absent)
+        // for a night with no in-sleep R-R; otherwise true/false, so a re-score always overwrites the row.
+        var hrvOverCountByDay: [String: Bool] = [:]
         // #1169: primary-session mean RHR shadow metric per day, carried from pass 1 for metricSeries persistence.
         var primarySessionRHRByDay: [String: Double] = [:]
         // #1169: its coverage inputs (valid-sample count + primary-session duration), same lifetime as the mean.
@@ -1070,6 +1132,10 @@ final class IntelligenceEngine: ObservableObject {
             if let cand = scan.spo2Candidate {
                 spo2CandidateByDay[res.daily.day] = cand
             }
+            // #1118: carry the HRV over-count flag into pass 2 for metricSeries persistence.
+            if let oc = scan.hrvOverCounted {
+                hrvOverCountByDay[res.daily.day] = oc
+            }
             // #1169: carry the primary-session mean RHR shadow metric into pass 2 for persistence.
             if let v = scan.primarySessionRHR {
                 primarySessionRHRByDay[res.daily.day] = v
@@ -1078,6 +1144,7 @@ final class IntelligenceEngine: ObservableObject {
                 primarySessionRHRCoverageByDay[res.daily.day] = cov
             }
             if let line = scan.rhrLine { diagnosticSink?(line, nil) }
+            if let line = scan.respLine { diagnosticSink?(line, nil) }
             // Sleep & Rest test mode (E5): replay this day's gate-trace + Rest lines tagged `.sleep` so they
             // land under the profile tag in the export. Empty unless the mode is active.
             for line in scan.sleepTrace { diagnosticSink?(line, .sleep) }
@@ -1322,6 +1389,12 @@ final class IntelligenceEngine: ObservableObject {
             // split cross-device evidence and stays behind the experimental display toggle.
             if let cand = spo2CandidateByDay[daily.day] {
                 restPoints.append(MetricPoint(day: daily.day, key: "spo2_candidate", value: Double(cand)))
+            }
+            // #1118: persist the HRV over-count flag (1/0) so the HRV card can mark an over-counted 4.0
+            // night's reading "unverified" until the two-channel de-dup lands. 0 written on a clean night
+            // (not just absent) so a night that flips clean on re-score clears its prior flag.
+            if let oc = hrvOverCountByDay[daily.day] {
+                restPoints.append(MetricPoint(day: daily.day, key: "hrv_rr_overcount", value: oc ? 1.0 : 0.0))
             }
             // #1169 shadow metric: the primary-session mean RHR, stored beside the shipped floor
             // (daily.restingHr) under the "-noop" computed ID. Instrumentation only — never shown, never
@@ -1852,6 +1925,7 @@ final class IntelligenceEngine: ObservableObject {
         // short-circuit while it's unchanged. Written ONLY here at the end of a completed run (never on an
         // early guard-return), so an interrupted/failed run can't advance the watermark past unscored data.
         if !wmKey.isEmpty { UserDefaults.standard.set(wmKey, forKey: Self.analyzeWatermarkKey) }
+        diagnosticSink?("re-score: done — scored \(scoredNights.count) night(s) in \(Int(Date().timeIntervalSince(reScoreStart) * 1000)) ms (#1005)", nil)
     }
 
     /// UserDefaults key for the #836 idle-tick gate: the `(count:maxTs)` HR fingerprint the last completed
@@ -2156,7 +2230,7 @@ final class IntelligenceEngine: ObservableObject {
     /// is learned, dayKey is the LOCAL calendar day of the midpoint , and defers to
     /// `SleepStageTotals.habitualMidsleepSec`, which keeps the longest block per day (naps drop out). The
     /// imported + computed sets can overlap; both are unioned and the learner de-dupes per day by length.
-    /// (#547) Mirrors the Android `computeHabitualMidsleep`.
+    /// (#547) Mirrors the Android `computeHabitualSleep`.
     /// CONSUME (#531 / H8): the prior pass's persisted v18 BAND sleep_state for sessions overlapping
     /// `[from, to]`, expanded to timestamped `(ts, state)` samples on the 30 s epoch grid, for the H7
     /// morning-stillness guard's re-onset confirmation. Reads the computed sessions in the window, then each
@@ -2191,10 +2265,15 @@ final class IntelligenceEngine: ObservableObject {
         return samples
     }
 
-    private static func computeHabitualMidsleep(
+    /// Habitual midsleep (local seconds) AND the trailing per-night sleep DURATIONS (hours,
+    /// chronological) from the stored sessions over the window — the longest block per LOCAL day, so
+    /// naps drop out. One read serves both the main-night midsleep learner (#547) and the personal
+    /// sleep-need + regularity that thread into `analyzeDay` (Wave 0 · SL1/T1). The midsleep result is
+    /// byte-identical to before; the nightly-hours output is the Swift-side extension.
+    private static func computeHabitualSleep(
         store: WhoopStore, importedId: String, computedId: String,
         windowStart: Int, windowEnd: Int, offsetSec: Int
-    ) async -> Int? {
+    ) async -> (midsleepSec: Int?, nightlyHours: [Double]) {
         let imported = (try? await store.sleepSessions(deviceId: importedId, from: windowStart,
                                                        to: windowEnd, limit: 4000)) ?? []
         let computed = (try? await store.sleepSessions(deviceId: computedId, from: windowStart,
@@ -2206,14 +2285,30 @@ final class IntelligenceEngine: ObservableObject {
         // covers an imported night and its computed twin (the longest capture wins, exactly what the
         // per-day length rule chose anyway).
         let merged = SleepSessionDedup.dedupe(imported + computed).kept
+        // Longest block per LOCAL day (naps drop out), chosen by in-bed SPAN — reused for BOTH the
+        // midsleep learner and the per-night durations (Wave 0 · SL1/T1), so the two can never read a
+        // different history. For the DURATIONS we keep TST (span × efficiency), NOT the in-bed span:
+        // the need/regularity estimate must be in the same asleep-time units as the `tstSeconds` Rest
+        // scores against, or need reads systematically high (validated on real data — an in-bed span
+        // over-counts ~0.85 h vs TST). Efficiency is 0..1 (post the v26 unit-heal); a rare nil main
+        // night falls back to a typical 0.9.
+        var longestByDay: [String: (span: Int, tstHours: Double)] = [:]
         let blocks = merged.compactMap { s -> SleepStageTotals.HistoryBlock? in
             let start = s.effectiveStartTs, end = s.endTs
             guard end > start else { return nil }
             let mid = start + (end - start) / 2
             let dayKey = AnalyticsEngine.dayString(mid, offsetSec: offsetSec)
+            let span = end - start
+            if span > (longestByDay[dayKey]?.span ?? 0) {
+                let eff = s.efficiency.flatMap { (0.0 < $0 && $0 <= 1.0) ? $0 : nil } ?? 0.9
+                longestByDay[dayKey] = (span, Double(span) / 3600.0 * eff)
+            }
             return SleepStageTotals.HistoryBlock(start: start, end: end, dayKey: dayKey)
         }
-        return SleepStageTotals.habitualMidsleepSec(blocks, offsetSec: offsetSec)
+        let midsleep = SleepStageTotals.habitualMidsleepSec(blocks, offsetSec: offsetSec)
+        // Chronological (day-key string sort == date order) so a recent-window suffix is well-defined.
+        let nightlyHours = longestByDay.keys.sorted().compactMap { longestByDay[$0]?.tstHours }
+        return (midsleep, nightlyHours)
     }
 
     /// Floor a unix-seconds timestamp to 00:00:00 of its UTC calendar day. Mirrors the Android
@@ -2247,7 +2342,7 @@ private extension DailyMetric {
                     avgHrv: avgHrv, recovery: r, strain: strain, exerciseCount: exerciseCount,
                     spo2Pct: spo2Pct, skinTempDevC: sd, respRateBpm: respRateBpm,
                     steps: steps, activeKcalEst: activeKcalEst,
-                    spo2Red: spo2Red, spo2Ir: spo2Ir)
+                    spo2Red: spo2Red, spo2Ir: spo2Ir, avgSdnn: avgSdnn)
     }
 
     /// Rebuild with substituted sleep-derived fields (a user-corrected wake window), leaving every
@@ -2258,7 +2353,7 @@ private extension DailyMetric {
                     disturbances: disturbances, restingHr: restingHr, avgHrv: avgHrv, recovery: recovery,
                     strain: strain, exerciseCount: exerciseCount, spo2Pct: spo2Pct,
                     skinTempDevC: skinTempDevC, respRateBpm: respRateBpm, steps: steps,
-                    activeKcalEst: activeKcalEst, spo2Red: spo2Red, spo2Ir: spo2Ir)
+                    activeKcalEst: activeKcalEst, spo2Red: spo2Red, spo2Ir: spo2Ir, avgSdnn: avgSdnn)
     }
 }
 

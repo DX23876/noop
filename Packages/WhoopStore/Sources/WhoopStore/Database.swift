@@ -571,6 +571,17 @@ extension WhoopStore {
         // #423: WHOOP 5/MG raw-IMU offload capture (100 Hz 6-axis). `samples` is a packed i16 LE BLOB of
         // the six wire columns (ax…az,gx…gz). Twin of the Android `rawImuSample` table (MIGRATION_20_21);
         // same column order + PK so a `.noopbak` round-trips byte-for-byte.
+        //
+        // CONSUMER STATUS — deliberately none on this platform, in the same shape as the `ppgWaveformSample`
+        // (v27) and `v18AuxSample` (v31) notes. The writer (`Collector.storeRawImu`) is instrument-first: it
+        // fires only with raw capture enabled AND a 5/MG deep-data unlock, and is bounded to
+        // `WhoopStore.rawImuRetentionRows` (3600 one-second buffers, a rolling window — not a corpus). No
+        // analytic, score, gate, UI or export reads a row: the only SQL is the retention DELETE (`StreamStore`)
+        // plus a COUNT in the storage-stats readout (`LocalAccessCore`); `ImuFeatureExtractor` takes the
+        // protocol struct, never this table, so it is not a consumer either. Swift has NO reader yet, on
+        // purpose — a reader lands WITH a validated consumer, not before ("artifact, not one match", CLAUDE.md).
+        // Android keeps a dormant `rawImuSamples` reader (zero callers) for the eventual cross-check; do NOT
+        // "clean up" either side as dead code — the retained rows are the deliverable. Audit: #978.
         migrator.registerMigration("v28-raw-imu") { db in
             try db.create(table: "rawImuSample") { t in
                 t.column("deviceId", .text).notNull()
@@ -820,6 +831,20 @@ extension WhoopStore {
                         arguments: [stripped, id]
                     )
                 }
+            }
+        }
+
+        // v37: persist nightly SDNN — the 5-min SDNN index (broad-variability twin of avgHrv=RMSSD),
+        // window-matched to a watch's short SDNN rather than the drift-inflated whole-night SD. Additive,
+        // nullable; computed by HRVAnalyzer.sdnnIndex during the nightly analysis.
+        //
+        // Numbered v37: upstream migrations advanced to v36 (`v36-whoop-caps-no-spo2`) while this branch
+        // was open, so this branch-local, never-shipped identifier is renumbered to the next free slot.
+        // Renumbering an unshipped identifier is free (GRDB tracks applied migrations by id, not number);
+        // renaming a SHIPPED one is not, so only this id moves.
+        migrator.registerMigration("v37-daily-avg-sdnn") { db in
+            try db.alter(table: "dailyMetric") { t in
+                t.add(column: "avgSdnn", .double)
             }
         }
         return migrator

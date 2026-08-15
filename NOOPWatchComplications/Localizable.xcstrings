@@ -38,6 +38,12 @@
             "state" : "translated",
             "value" : "%@ %lld"
           }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ %lld"
+          }
         }
       }
     },
@@ -77,6 +83,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%@ калибруется"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kalibracja %@"
           }
         }
       }
@@ -118,6 +130,12 @@
             "state" : "translated",
             "value" : "%@ недоступно"
           }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ niedostępny"
+          }
         }
       }
     },
@@ -158,6 +176,12 @@
             "state" : "translated",
             "value" : "некоторое время назад"
           }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Energia"
+          }
         }
       }
     },
@@ -197,6 +221,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "кал"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Energia %lld na 100"
           }
         }
       }
@@ -256,6 +286,12 @@
             "state" : "translated",
             "value" : "能量"
           }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Energia %lld · %lld bpm%@"
+          }
         }
       }
     },
@@ -295,6 +331,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Заряд –"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Energia %lld%@"
           }
         }
       }
@@ -336,6 +378,12 @@
             "state" : "translated",
             "value" : "Заряд · %@"
           }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kalibracja Energia"
+          }
         }
       }
     },
@@ -375,6 +423,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Заряд · кал"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kalibracja Energia, wymaga więcej danych"
           }
         }
       }
@@ -416,6 +470,12 @@
             "state" : "translated",
             "value" : "Заряд %lld · %lld уд/мин%@"
           }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Energia nieaktualny, ostatnia synchronizacja %@. Otwórz NOOP na iPhonie."
+          }
         }
       }
     },
@@ -455,6 +515,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Заряд %lld из 100"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Energia nieaktualne · %@"
           }
         }
       }
@@ -496,6 +562,12 @@
             "state" : "translated",
             "value" : "Заряд %lld%@"
           }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Energia niedostępny"
+          }
         }
       }
     },
@@ -535,6 +607,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Заряд калибруется"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Energia · %@"
           }
         }
       }
@@ -576,6 +654,12 @@
             "state" : "translated",
             "value" : "Заряд калибруется, нужно больше данных"
           }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Energia · kal"
+          }
         }
       }
     },
@@ -615,6 +699,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Заряд устарел, последняя синхронизация %@. Откройте NOOP на iPhone."
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Energia –"
           }
         }
       }
@@ -656,6 +746,12 @@
             "state" : "translated",
             "value" : "Заряд устарел · %@"
           }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wysiłek"
+          }
         }
       }
     },
@@ -695,6 +791,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Заряд недоступен"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "NOOP Energia"
           }
         }
       }
@@ -754,6 +856,12 @@
             "state" : "translated",
             "value" : "消耗"
           }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "NOOP · otwórz na iPhonie"
+          }
         }
       }
     },
@@ -793,6 +901,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Нет данных, откройте NOOP на iPhone"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "NOOP. %@, %@, %@."
           }
         }
       }
@@ -836,6 +950,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "NOOP · откройте на iPhone"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "NOOP. Nie ma jeszcze danych. Otwórz NOOP na swoim iPhonie, aby przeprowadzić synchronizację."
           }
         }
       }
@@ -895,6 +1015,12 @@
             "state" : "translated",
             "value" : "NOOP 能量"
           }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "NOOP. Wyniki nieaktualne, ostatnia synchronizacja %@. Otwórz NOOP na iPhonie, aby odświeżyć."
+          }
         }
       }
     },
@@ -934,6 +1060,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "NOOP. %@, %@, %@."
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Brak danych, otwórz NOOP na iPhonie"
           }
         }
       }
@@ -975,6 +1107,12 @@
             "state" : "translated",
             "value" : "NOOP. Данных пока нет, откройте NOOP на iPhone для синхронизации."
           }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Otwórz NOOP"
+          }
         }
       }
     },
@@ -1014,6 +1152,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "NOOP. Показатели устарели, последняя синхронизация %@. Откройте NOOP на iPhone, чтобы обновить."
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Odpoczynek"
           }
         }
       }
@@ -1055,6 +1199,12 @@
             "state" : "translated",
             "value" : "устарело"
           }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Twoje Energia (odzyskiwanie) na tarczy zegarka, z Wysiłek i Odpoczynek na prostokątnej karcie."
+          }
         }
       }
     },
@@ -1095,6 +1245,12 @@
             "state" : "translated",
             "value" : "открыть iPhone"
           }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "jakiś czas temu"
+          }
         }
       }
     },
@@ -1134,6 +1290,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Открыть NOOP"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "kal"
           }
         }
       }
@@ -1193,6 +1355,12 @@
             "state" : "translated",
             "value" : "休息"
           }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "stary"
+          }
         }
       }
     },
@@ -1232,6 +1400,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "устарело"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "otwórz iPhone'a"
           }
         }
       }
@@ -1290,6 +1464,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "錶面上顯示你的能量（恢復），矩形卡片中則是消耗與休息。"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "nieświeży"
           }
         }
       }

@@ -539,6 +539,15 @@ final class Repository: ObservableObject {
         if let kg = seriesFallbackKg, kg > 10 { return (kg, false) }
         return (profileWeightKg, true)
     }
+
+    /// PER-FIELD respiratory carry — twin of `lastSpo2Day`, but STALENESS-BOUNDED to `Baselines.vitalCarryDays`.
+    /// SpO₂/skin-temp are sparse/imported so last-known-of-any-age is expected; respiratory is nightly, so a
+    /// weeks-old value shown as the current number is the "Respiratory 15.6 a fortnight later" bug that
+    /// `vitalCarryDays` exists to prevent. Byte-twin of the Android `lastRespRow` (#1331).
+    nonisolated static func lastRespDay(days: [DailyMetric], todayKey: String) -> DailyMetric? {
+        guard let newest = days.last(where: { $0.respRateBpm != nil && $0.day < todayKey }) else { return nil }
+        return newest.day >= Baselines.cutoffKey(todayKey: todayKey) ? newest : nil
+    }
     /// The trailing 7 CALENDAR days ending today (for the week strip), oldest→newest , not the last 7
     /// stored rows, which on a stale import were old data. ISO yyyy-MM-dd compares chronologically.
     var week: [DailyMetric] {
@@ -1250,7 +1259,7 @@ final class Repository: ObservableObject {
 
     /// The user's learned habitual midsleep (local time-of-day seconds), or nil under
     /// `SleepStageTotals.habitualMinDays` of history (cold-start). Computed EXACTLY as
-    /// `IntelligenceEngine.computeHabitualMidsleep` does , the SAME raw imported + computed ("-noop")
+    /// `IntelligenceEngine.computeHabitualSleep` does , the SAME raw imported + computed ("-noop")
     /// sleep-session union, one `HistoryBlock` per session (effective bounds, dayKey = the LOCAL calendar
     /// day of the midpoint), deferring to the SAME shared `SleepStageTotals.habitualMidsleepSec` pure
     /// function , so the Sleep tab's main-night pick aligns to the same value the analytics rollup used.
@@ -1427,6 +1436,8 @@ final class Repository: ObservableObject {
             return SleepDeletionSnapshot(session: session, ownerDeviceId: owner, endTs: session.endTs,
                                          motion: motion ?? nil, sleepState: sleepState ?? nil)
         }
+        // Same owner union as the edit/delete paths, so the undo snapshot records the row's REAL owner
+        // (including the canonical source) instead of guessing computed-or-active.
         for ownerDeviceId in sleepOwnerIds {
             if let session = await row(ownerDeviceId) {
                 return await snapshot(session, owner: ownerDeviceId)
@@ -3180,7 +3191,8 @@ private extension DailyMetric {
             // Raw SpO2 is on-device only (imports never carry it), so the imported row's nil is
             // backfilled from the computed fallback — otherwise the nightly means would be lost. (#93)
             spo2Red: spo2Red ?? fallback.spo2Red,
-            spo2Ir: spo2Ir ?? fallback.spo2Ir
+            spo2Ir: spo2Ir ?? fallback.spo2Ir,
+            avgSdnn: avgSdnn ?? fallback.avgSdnn
         )
     }
 
@@ -3208,7 +3220,8 @@ private extension DailyMetric {
             steps: steps,
             activeKcalEst: activeKcalEst,
             spo2Red: spo2Red,   // non-sleep field: preserved as-is (#93)
-            spo2Ir: spo2Ir
+            spo2Ir: spo2Ir,
+            avgSdnn: avgSdnn    // non-sleep (HRV) field: preserved as-is
         )
     }
 
