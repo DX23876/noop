@@ -153466,6 +153466,12 @@
             "state": "translated",
             "value": "正在同步手環歷史"
           }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Synchronizowanie historii paska"
+          }
         }
       }
     },

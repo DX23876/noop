@@ -1778,6 +1778,12 @@
             "state": "translated",
             "value": "同步中"
           }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Synchronizowanie"
+          }
         }
       }
     },
