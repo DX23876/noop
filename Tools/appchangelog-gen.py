@@ -11,7 +11,7 @@ A per-version notes file docs/releases/v<VER>.md may carry a YAML front-matter b
       items:
         - "**Bold lead.** One-line description."
         - "**Another.** ..."
-      title_locales:            # OPTIONAL, but see below — without it the card ships English titles
+      title_locales:            # DEAD in this fork — see "Localizing the card" below
         de: "Kurze Überschrift"
         es: "..."
         fr: "..."
@@ -20,6 +20,16 @@ A per-version notes file docs/releases/v<VER>.md may carry a YAML front-matter b
     ---
     # NOOP v<VER>
     <the full release notes — the GitHub release body; the front-matter is stripped there>
+
+Localizing the card. `title_locales` no longer reaches anything: it was consumed by the Android
+title strings this script used to write, and that arm went with the Android tree. The Swift side
+localizes differently — `WhatsNewView` renders the title and each item through
+`LocalizedStringKey`, so the ENGLISH text is the catalog key. To ship a translated card, add the
+title and every item to `Strand/Resources/Localizable.xcstrings` for all nine languages after
+running this script; the i18n gate will fail the build if you add them for some and not others, and
+say nothing at all if you skip them entirely (an absent key falls back to English, silently).
+Leaving `title_locales` in the front matter is harmless and documents the intent, but it is the
+catalog that decides what a Polish reader sees.
 
 Running `Tools/appchangelog-gen.py docs/releases/v8.2.2.md` prepends the generated Release entry to
 `releases` in AppChangelog.swift and bumps `currentVersion` to that
@@ -119,6 +129,12 @@ def main():
     apply(SW, "static let releases: [Release] = [\n", sw_block(ver, wn), ver,
           r'(static let currentVersion = ")[^"]*(")', rf'\g<1>{ver}\g<2>',
           title_line=f'title: "{esc_sw(wn["title"])}",')
+    # The card's text is localized through the String Catalog, keyed by the English string (see
+    # "Localizing the card" above). Nothing enforces that — an absent key falls back to English on
+    # every device, silently — so the one place that knows these strings just landed says so.
+    missing = 1 + len(wn.get("items", []))
+    print(f"appchangelog-gen: {missing} string(s) for this entry are NOT in "
+          f"Strand/Resources/Localizable.xcstrings yet — the card ships English until they are.")
     print("appchangelog-gen: done. Review the diff, then compile.")
 
 

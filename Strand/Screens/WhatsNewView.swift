@@ -102,7 +102,14 @@ struct WhatsNewView: View {
             VStack(alignment: .leading, spacing: 10) {
                 HStack(spacing: 8) {
                     SourceBadge("v\(release.version)")
-                    Text(release.title).font(StrandFont.headline)
+                    // `LocalizedStringKey`, not the bare String, for two reasons at once. It renders the
+                    // entry's markdown — every item is written `**Lead.** rest`, and `Text(String)` printed
+                    // those asterisks literally on the card — and it looks the text up in the String
+                    // Catalog, which is what finally makes a release entry translatable: `expectations`
+                    // above has always used `String(localized:)`, while the release list was the one part
+                    // of this sheet that shipped English to everyone. An entry whose text is not in the
+                    // catalog falls back to itself, so older releases read exactly as before.
+                    Text(LocalizedStringKey(release.title)).font(StrandFont.headline)
                         .foregroundStyle(StrandPalette.textPrimary)
                     Spacer()
                     Text(release.date).font(StrandFont.caption)
@@ -112,7 +119,7 @@ struct WhatsNewView: View {
                     HStack(alignment: .top, spacing: 8) {
                         Circle().fill(StrandPalette.accent).frame(width: 5, height: 5)
                             .padding(.top, 7)
-                        Text(item).font(StrandFont.subhead)
+                        Text(LocalizedStringKey(item)).font(StrandFont.subhead)
                             .foregroundStyle(StrandPalette.textSecondary)
                             .fixedSize(horizontal: false, vertical: true)
                     }

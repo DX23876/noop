@@ -279942,6 +279942,1224 @@
           }
         }
       }
+    },
+    "HOW YOUR STRAPS COMPARE": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SO VERGLEICHEN SICH DEINE BÄNDER"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CÓMO SE COMPARAN TUS PULSERAS"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "COMMENT VOS BRACELETS SE COMPARENT"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "COME SI CONFRONTANO LE TUE FASCE"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "JAK WYPADAJĄ TWOJE OPASKI"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "COMO SE COMPARAM AS SUAS PULSEIRAS"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "КАК СРАВНИВАЮТСЯ ВАШИ РЕМЕШКИ"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "两条腕带的对比"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "兩條腕帶的比較"
+          }
+        }
+      }
+    },
+    "A read-only look at your last shared day — not a combined score. Different devices read a little differently, so a difference isn't necessarily wrong.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ein reiner Blick auf euren letzten gemeinsamen Tag — kein zusammengeführter Wert. Verschiedene Geräte messen etwas unterschiedlich, ein Unterschied ist also nicht zwangsläufig ein Fehler."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Una vista de solo lectura de tu último día compartido, no una puntuación combinada. Cada dispositivo mide de forma algo distinta, así que una diferencia no significa necesariamente un error."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Un aperçu en lecture seule de votre dernière journée commune — pas un score combiné. Chaque appareil mesure un peu différemment : un écart n'est donc pas forcément une erreur."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Uno sguardo in sola lettura all'ultimo giorno in comune, non un punteggio combinato. Dispositivi diversi misurano in modo leggermente diverso, quindi una differenza non è per forza un errore."
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Widok tylko do odczytu dla ostatniego wspólnego dnia — nie jest to wynik łączony. Różne urządzenia mierzą nieco inaczej, więc różnica nie musi oznaczać błędu."
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Uma vista só de leitura do seu último dia em comum — não é uma pontuação combinada. Dispositivos diferentes medem de forma ligeiramente diferente, pelo que uma diferença não é necessariamente um erro."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Только просмотр последнего общего дня — это не объединённая оценка. Разные устройства измеряют немного по-разному, поэтому расхождение не обязательно означает ошибку."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "这是对你们最近同一天数据的只读对照，并非合并得分。不同设备的测量本就略有差异，出现差别未必是错误。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "這是對你們最近同一天資料的唯讀對照，並非合併分數。不同裝置的測量本就略有差異，出現差別未必是錯誤。"
+          }
+        }
+      }
+    },
+    "match": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "gleich"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "coinciden"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "identiques"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "coincidono"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "zgodne"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "coincidem"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "совпадает"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "一致"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "一致"
+          }
+        }
+      }
+    },
+    "close": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "nah dran"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "cercanos"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "proches"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "vicini"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "blisko"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "próximos"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "близко"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "接近"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "接近"
+          }
+        }
+      }
+    },
+    "differs": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "weicht ab"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "difieren"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "diffèrent"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "differiscono"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "różni się"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "diferem"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "расходится"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "有差异"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "有差異"
+          }
+        }
+      }
+    },
+    "one strap": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "nur ein Band"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "una sola pulsera"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "un seul bracelet"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "una sola fascia"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "jedna opaska"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "uma só pulseira"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "один ремешок"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "仅一条腕带"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "僅一條腕帶"
+          }
+        }
+      }
+    },
+    "Some variation": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Etwas Schwankung"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Algo de variación"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quelques variations"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Qualche variazione"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pewna zmienność"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alguma variação"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Некоторая вариативность"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "略有波动"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "略有波動"
+          }
+        }
+      }
+    },
+    "More varied": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stärker schwankend"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Más variable"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Plus variable"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Più variabile"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bardziej zmienny"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mais variável"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Более изменчивый"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "波动较大"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "波動較大"
+          }
+        }
+      }
+    },
+    "No clear reading": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kein klarer Messwert"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sin lectura clara"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aucune lecture nette"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nessuna lettura chiara"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Brak wyraźnego odczytu"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sem leitura clara"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Нет чёткого показания"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无明确读数"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "無明確讀數"
+          }
+        }
+      }
+    },
+    "unverified · over-reports R-R": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "unbestätigt · zählt R-R zu hoch"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "sin verificar · sobrecuenta R-R"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "non vérifié · surcompte les R-R"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "non verificato · sovrastima gli R-R"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "niezweryfikowane · zawyża R-R"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "não verificado · sobrecontagem de R-R"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "не подтверждено · завышает R-R"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未经验证 · R-R 计数偏高"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未經驗證 · R-R 計數偏高"
+          }
+        }
+      }
+    },
+    "Opens Settings to add your waist measurement": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Öffnet die Einstellungen, um deinen Taillenumfang einzutragen"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abre los Ajustes para añadir tu medida de cintura"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ouvre les Réglages pour saisir votre tour de taille"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apre le Impostazioni per inserire la misura della vita"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Otwiera Ustawienia, by dodać obwód talii"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abre os Ajustes para adicionar a sua medida de cintura"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Открывает настройки, чтобы добавить обхват талии"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "打开设置以填写腰围"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "開啟設定以填寫腰圍"
+          }
+        }
+      }
+    },
+    "Tune how NOOP captures and windows your heart-rate-variability reading.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stelle ein, wie NOOP deine Herzfrequenzvariabilität erfasst und über welches Fenster sie gemessen wird."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ajusta cómo NOOP captura tu variabilidad de la frecuencia cardiaca y en qué ventana la mide."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Réglez la façon dont NOOP capte votre variabilité de fréquence cardiaque et la fenêtre sur laquelle elle est mesurée."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Regola come NOOP acquisisce la variabilità della frequenza cardiaca e su quale finestra la misura."
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ustaw, jak NOOP zbiera zmienność rytmu serca i w jakim oknie ją mierzy."
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ajuste como o NOOP capta a sua variabilidade da frequência cardíaca e em que janela a mede."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Настройте, как NOOP собирает вариабельность сердечного ритма и в каком окне её измеряет."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "调整 NOOP 采集心率变异性的方式，以及测量所用的时间窗口。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "調整 NOOP 擷取心率變異性的方式，以及測量所用的時間窗。"
+          }
+        }
+      }
+    },
+    "Recovery, HRV tuning, Test Centre, experimental probes, and backup. Tucked away to keep the everyday screen tidy.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Erholung, HRV-Feineinstellung, Testzentrum, experimentelle Sonden und Sicherung. Verstaut, damit der Alltags-Bildschirm aufgeräumt bleibt."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recuperación, ajuste de HRV, Test Centre, pruebas experimentales y respaldo. Guardado aparte para mantener ordenada la pantalla de uso diario."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Récupération, réglage HRV, Centre de test, sondes expérimentales et sauvegarde. Rangés à part pour garder l'écran du quotidien épuré."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recupero, regolazione HRV, Centro test, sonde sperimentali e backup. Messi da parte per mantenere ordinata la schermata di tutti i giorni."
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Regeneracja, dostrajanie HRV, Centrum testowe, sondy eksperymentalne i kopia zapasowa. Schowany, aby utrzymać porządek na ekranie na co dzień."
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recuperação, ajuste de HRV, Centro de Testes, sondas experimentais e cópia de segurança. Escondido para manter o ecrã do dia a dia organizado."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Восстановление, настройка ВСР, Тестовый центр, экспериментальные пробы и резервное копирование. Убрано подальше, чтобы не загромождать повседневный экран."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "恢复、HRV 调节、测试中心、实验性探测和备份。收纳于此，让日常界面保持整洁。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "恢復、HRV 調校、測試中心、實驗性探測和備份。收納於此，讓日常畫面保持整潔。"
+          }
+        }
+      }
+    },
+    "Zone %lld starts at": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zone %lld beginnt bei"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La zona %lld empieza en"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La zone %lld commence à"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La zona %lld inizia a"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Strefa %lld zaczyna się przy"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A zona %lld começa em"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Зона %lld начинается с"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "区间 %lld 起始于"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "區間 %lld 起始於"
+          }
+        }
+      }
+    },
+    "SpO₂": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SpO₂"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SpO₂"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SpO₂"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SpO₂"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SpO₂"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SpO₂"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SpO₂"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "血氧 SpO₂"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "血氧 SpO₂"
+          }
+        }
+      }
+    },
+    "Your own heart-rate zones, and a coach that checks its own arithmetic": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deine eigenen Herzfrequenzzonen — und ein Coach, der nachrechnet"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tus propias zonas de frecuencia cardiaca y un entrenador que revisa sus cuentas"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vos propres zones de fréquence cardiaque, et un coach qui vérifie ses calculs"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le tue zone di frequenza cardiaca e un coach che controlla i propri conti"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Twoje własne strefy tętna i trener, który sprawdza własne rachunki"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "As suas próprias zonas de frequência cardíaca e um treinador que confere as contas"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ваши собственные пульсовые зоны и коуч, который проверяет свои расчёты"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自定义心率区间，以及一个会核对自己算术的教练"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自訂心率區間，以及一個會核對自己算術的教練"
+          }
+        }
+      }
+    },
+    "**Set your own heart-rate zones.** Percentages of your maximum, or absolute beats from a threshold test — the bands follow you either way. Profile › Heart-rate zones.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "**Setze deine eigenen Herzfrequenzzonen.** Prozente deines Maximums oder absolute Schläge aus einem Schwellentest — die Bänder folgen dir so oder so. Profil › Herzfrequenzzonen."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "**Define tus propias zonas de frecuencia cardiaca.** Porcentajes de tu máximo o pulsaciones absolutas de una prueba de umbral: las bandas te siguen igualmente. Perfil › Zonas de frecuencia cardiaca."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "**Définissez vos propres zones de fréquence cardiaque.** Des pourcentages de votre maximum, ou des battements absolus issus d'un test de seuil : dans les deux cas, les plages vous suivent. Profil › Zones de fréquence cardiaque."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "**Imposta le tue zone di frequenza cardiaca.** Percentuali del tuo massimo o battiti assoluti da un test di soglia: in entrambi i casi le fasce ti seguono. Profilo › Zone di frequenza cardiaca."
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "**Ustaw własne strefy tętna.** Procenty Twojego maksimum albo bezwzględne uderzenia z testu progowego — zakresy podążają za Tobą tak czy inaczej. Profil › Strefy tętna."
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "**Defina as suas próprias zonas de frequência cardíaca.** Percentagens do seu máximo ou batimentos absolutos de um teste de limiar — as faixas acompanham-no de qualquer forma. Perfil › Zonas de frequência cardíaca."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "**Задайте свои пульсовые зоны.** Проценты от максимума или абсолютные удары из порогового теста — диапазоны следуют за вами в любом случае. Профиль › Пульсовые зоны."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "**设置属于你的心率区间。**可以用最大心率的百分比，也可以用阈值测试得出的绝对心率——两种方式的区间都跟着你走。个人资料 › 心率区间。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "**設定屬於你的心率區間。**可以用最大心率的百分比，也可以用閾值測試得出的絕對心率——兩種方式的區間都跟著你走。個人資料 › 心率區間。"
+          }
+        }
+      }
+    },
+    "**The coach can no longer prescribe an effort your session cannot produce.** A target is now computed from the zone and the duration against your own bands, not guessed.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "**Der Coach kann keinen Aufwand mehr vorgeben, den deine Einheit gar nicht erzeugen kann.** Der Zielwert wird jetzt aus Zone und Dauer gegen deine eigenen Bänder berechnet, nicht geschätzt."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "**El entrenador ya no puede prescribir un esfuerzo que tu sesión no puede producir.** El objetivo se calcula a partir de la zona y la duración contra tus propias bandas, en lugar de adivinarse."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "**Le coach ne peut plus prescrire un effort que votre séance ne peut pas produire.** L'objectif est désormais calculé à partir de la zone et de la durée sur vos propres plages, au lieu d'être deviné."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "**Il coach non può più prescrivere uno sforzo che la tua sessione non può produrre.** L'obiettivo ora si calcola da zona e durata sulle tue fasce, invece di essere indovinato."
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "**Trener nie może już zalecić wysiłku, którego Twoja sesja nie jest w stanie wytworzyć.** Wartość docelowa jest teraz wyliczana ze strefy i czasu trwania względem Twoich własnych zakresów, a nie zgadywana."
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "**O treinador já não pode prescrever um esforço que a sua sessão não consegue produzir.** O objetivo passa a ser calculado a partir da zona e da duração face às suas próprias faixas, em vez de adivinhado."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "**Коуч больше не может назначить нагрузку, которую ваша сессия не способна дать.** Целевое значение теперь вычисляется из зоны и длительности по вашим собственным диапазонам, а не угадывается."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "**教练不能再开出你的训练根本无法产生的负荷。**目标值现在按区间和时长、依据你自己的区间计算得出，而不是猜测。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "**教練不能再開出你的訓練根本無法產生的負荷。**目標值現在按區間和時長、依據你自己的區間計算得出，而不是猜測。"
+          }
+        }
+      }
+    },
+    "**No morning brief on a night your strap hasn't finished sending.** It waits, and offers you the sleep editor instead of planning your day on a wrong wake time.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "**Keine Morgen-Zusammenfassung in einer Nacht, die dein Band noch nicht fertig übertragen hat.** Sie wartet und bietet dir den Schlaf-Editor an, statt deinen Tag auf einer falschen Aufwachzeit zu planen."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "**Sin resumen matinal en una noche que tu pulsera aún no ha terminado de enviar.** Espera y te ofrece el editor de sueño en lugar de planificar tu día sobre una hora de despertar equivocada."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "**Pas de briefing du matin tant que votre bracelet n'a pas fini d'envoyer la nuit.** Il patiente et vous propose l'éditeur de sommeil, au lieu de planifier votre journée sur une mauvaise heure de réveil."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "**Nessun riepilogo mattutino su una notte che la fascia non ha ancora finito di inviare.** Aspetta e ti propone l'editor del sonno invece di pianificare la giornata su un risveglio sbagliato."
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "**Żadnej porannej odprawy w nocy, której opaska jeszcze nie przesłała do końca.** Czeka i proponuje edytor snu, zamiast planować dzień na błędnej porze pobudki."
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "**Sem resumo matinal numa noite que a sua pulseira ainda não acabou de enviar.** Espera e oferece-lhe o editor de sono em vez de planear o dia com uma hora de acordar errada."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "**Никакой утренней сводки за ночь, которую ремешок ещё не догрузил.** Она подождёт и предложит редактор сна, вместо того чтобы строить день на неверном времени пробуждения."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "**腕带尚未传完的那一夜，不会生成晨间简报。**它会等待，并请你打开睡眠编辑器，而不是拿错误的起床时间来安排你的一天。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "**腕帶尚未傳完的那一夜，不會產生晨間簡報。**它會等待，並請你開啟睡眠編輯器，而不是拿錯誤的起床時間來安排你的一天。"
+          }
+        }
+      }
+    },
+    "**Polish, in full.** The app now speaks Polish everywhere, not only in the parts it inherited.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "**Polnisch, vollständig.** Die App spricht jetzt überall Polnisch, nicht nur in den geerbten Teilen."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "**Polaco, completo.** La app ya habla polaco en todas partes, no solo en las partes heredadas."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "**Le polonais, en entier.** L'app parle désormais polonais partout, et plus seulement dans les parties héritées."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "**Polacco, per intero.** L'app ora parla polacco ovunque, non solo nelle parti ereditate."
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "**Polski, w całości.** Aplikacja mówi teraz po polsku wszędzie, nie tylko w odziedziczonych częściach."
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "**Polaco, por completo.** A aplicação fala agora polaco em todo o lado, não só nas partes herdadas."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "**Польский — целиком.** Приложение говорит по-польски везде, а не только в унаследованных частях."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "**完整的波兰语。**整个应用现在都支持波兰语，而不只是继承来的那部分。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "**完整的波蘭語。**整個應用程式現在都支援波蘭語，而不只是繼承來的那部分。"
+          }
+        }
+      }
+    },
+    "**Fixed:** skin temperature could read \"+33.4°\" — an imported absolute reading printed as a deviation from baseline — and respiratory rate could keep showing a value measured weeks ago.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "**Behoben:** Die Hauttemperatur konnte „+33,4°\" anzeigen — ein importierter Absolutwert, gedruckt als Abweichung von der Baseline — und die Atemfrequenz konnte wochenalte Werte weiter anzeigen."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "**Corregido:** la temperatura de la piel podía mostrar «+33,4°», una lectura absoluta importada impresa como desviación respecto a tu línea base, y la frecuencia respiratoria podía seguir mostrando un valor medido hace semanas."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "**Corrigé :** la température cutanée pouvait afficher « +33,4° » — une mesure absolue importée présentée comme un écart à votre référence — et la fréquence respiratoire pouvait continuer d'afficher une valeur mesurée des semaines plus tôt."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "**Corretto:** la temperatura cutanea poteva mostrare «+33,4°», una lettura assoluta importata stampata come scostamento dalla linea di base, e la frequenza respiratoria poteva continuare a mostrare un valore misurato settimane prima."
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "**Naprawione:** temperatura skóry mogła pokazywać „+33,4°” — zaimportowany odczyt bezwzględny wydrukowany jako odchylenie od linii bazowej — a częstość oddechów mogła nadal pokazywać wartość zmierzoną przed tygodniami."
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "**Corrigido:** a temperatura da pele podia mostrar «+33,4°» — uma leitura absoluta importada apresentada como desvio face à sua linha de base — e a frequência respiratória podia continuar a mostrar um valor medido há semanas."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "**Исправлено:** температура кожи могла показывать «+33,4°» — импортированное абсолютное значение, напечатанное как отклонение от базовой линии, — а частота дыхания могла и дальше показывать значение, измеренное недели назад."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "**已修复：**皮肤温度可能显示为「+33.4°」——把导入的绝对读数当成相对基线的偏差打印出来——呼吸频率也可能一直显示几周前测得的数值。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "**已修正：**皮膚溫度可能顯示為「+33.4°」——把匯入的絕對讀數當成相對基線的偏差列出——呼吸頻率也可能一直顯示幾週前測得的數值。"
+          }
+        }
+      }
     }
   },
   "version": "1.0"
