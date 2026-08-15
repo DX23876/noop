@@ -65,6 +65,9 @@ enum CoachTool: String, CaseIterable {
     /// Time-in-zone minutes (Zone 1–5) over recent workouts, so a "did I hit Zone 2?" question — and
     /// `propose_plan`'s own Zone-2 prescriptions — can actually be checked against what was done.
     case zoneMinutes = "get_zone_minutes"
+    /// What a PLANNED session is worth in Effort, so the coach can quote a real figure instead of
+    /// guessing one that its own arithmetic cannot produce.
+    case estimateSessionEffort = "estimate_session_effort"
 
     /// Natural-language description the model reads to decide when to call the tool.
     var description: String {
@@ -207,6 +210,12 @@ enum CoachTool: String, CaseIterable {
             return "Get time-in-zone minutes (Zone 1–5, from the user's HR during recent workouts) over "
                 + "the last N days. Use it to check whether they actually hit an intensity — especially "
                 + "a Zone 2 session you prescribed — rather than assuming a plan was followed as written."
+        case .estimateSessionEffort:
+            return "Work out what a PLANNED session is worth in Effort: give a zone (1–5) and a duration "
+                + "in minutes and get the figure back, computed from the user's own zones and resting "
+                + "heart rate. Call this BEFORE stating any Effort number for a session you are "
+                + "suggesting. Effort follows from intensity and duration — it is not a number you can "
+                + "choose, and a figure you invent will contradict what the app scores afterwards."
         }
     }
 
@@ -466,9 +475,23 @@ enum CoachTool: String, CaseIterable {
                         "enum": ["rest", "easy", "moderate", "hard", "mobility"],
                         "description": "How hard the session is meant to be."
                     ],
+                    "zone": [
+                        "type": "integer",
+                        "description": "The HR zone (1–5) the session is meant to be held in, when the "
+                            + "session has one. Pass this whenever you name a zone in your reply."
+                    ],
+                    "duration_min": [
+                        "type": "integer",
+                        "description": "How long the session should last, in minutes. Pass this whenever "
+                            + "you name a duration in your reply."
+                    ],
                     "target_effort": [
                         "type": "number",
-                        "description": "Optional target Effort for the session (0–100)."
+                        "description": "Optional target Effort for the session (0–100). If you pass zone "
+                            + "and duration_min, the app COMPUTES this from the user's own zones and "
+                            + "overrides an unreachable value — Effort is a consequence of intensity × "
+                            + "duration, not a number you may choose. Prefer to omit it and use what the "
+                            + "app returns."
                     ],
                     "rationale": [
                         "type": "string",
@@ -605,6 +628,21 @@ enum CoachTool: String, CaseIterable {
                         "description": "How many days back to total (1–90). Defaults to 7."
                     ]
                 ]
+            ]
+        case .estimateSessionEffort:
+            return [
+                "type": "object",
+                "properties": [
+                    "zone": [
+                        "type": "integer",
+                        "description": "The HR zone the session is held in, 1–5."
+                    ],
+                    "duration_min": [
+                        "type": "integer",
+                        "description": "How long the session lasts, in minutes."
+                    ]
+                ],
+                "required": ["zone", "duration_min"]
             ]
         default:
             return ["type": "object", "properties": [String: Any]()]
@@ -917,7 +955,7 @@ extension AICoachEngine {
             return await dataCatalogTool(query: input["query"] as? String)
         case .biometricSummary:
             var block = buildContext()
-            if let confidence = chargeConfidenceLine() { block += "\n\n" + confidence }
+            if let confidence = await chargeConfidenceBlock() { block += "\n\n" + confidence }
             return block
         case .recentWorkouts:
             let raw = (input["limit"] as? Int) ?? Int(input["limit"] as? Double ?? 6)
@@ -1026,10 +1064,10 @@ extension AICoachEngine {
             return readinessBlock()
         case .chargeDrivers:
             var block = chargeDriversBlock()
-            if let confidence = chargeConfidenceLine() { block += "\n\n" + confidence }
+            if let confidence = await chargeConfidenceBlock() { block += "\n\n" + confidence }
             return block
         case .proposePlan:
-            return proposePlanTool(
+            return await proposePlanTool(
                 day: input["day"] as? String,
                 sport: (input["sport"] as? String) ?? "",
                 intent: (input["intent"] as? String) ?? "",
@@ -1037,6 +1075,8 @@ extension AICoachEngine {
                     ?? (input["target_effort"] as? Int).map(Double.init),
                 rationale: (input["rationale"] as? String) ?? "",
                 time: input["time"] as? String,
+                zone: Self.intArg(input["zone"]),
+                durationMin: Self.intArg(input["duration_min"]),
                 goalId: input["goal_id"] as? String,
                 goalIds: input["goal_ids"] as? [String])
         case .proposeGoalSetup:
@@ -1067,6 +1107,9 @@ extension AICoachEngine {
         case .zoneMinutes:
             let raw = (input["days"] as? Int) ?? Int(input["days"] as? Double ?? 7)
             return await zoneMinutesTool(days: max(1, min(raw, 90)))
+        case .estimateSessionEffort:
+            return await estimateSessionEffortTool(zone: Self.intArg(input["zone"]),
+                                                   durationMin: Self.intArg(input["duration_min"]))
         }
     }
 }

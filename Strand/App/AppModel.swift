@@ -1477,12 +1477,17 @@ final class AppModel: ObservableObject {
     }
 
     /// HR-zone haptic coaching: buzz when crossing into the top zone (ease off) or back to recovery.
+    ///
+    /// Reads the profile's resolved bands (`ProfileStore.hrZoneSet`) rather than the 0.6/0.7/0.8/0.9
+    /// ladder that used to be inlined here. A wrist buzz that fires at a different boundary than the
+    /// number on screen is worse than no buzz — and once the wearer can set their own bands, an inline
+    /// copy is guaranteed to disagree with them.
     private func coachZone(_ hr: Int?) {
         guard behavior.zoneCoaching, live.bonded, live.worn, let hr, hr >= 30 else { return }
-        let maxHR = Double(profile.hrMax)
-        guard maxHR > 0 else { return }
-        let pct = Double(hr) / maxHR
-        let zone = pct >= 0.9 ? 5 : pct >= 0.8 ? 4 : pct >= 0.7 ? 3 : pct >= 0.6 ? 2 : 1
+        let zoneSet = profile.hrZoneSet
+        guard zoneSet.maxHR > 0 else { return }
+        // Below Zone 1 the resolver returns 0; the recovery buzz fires at "zone <= 1", which covers it.
+        let zone = zoneSet.zoneNumber(forBPM: Double(hr))
         defer { lastCoachZone = zone }
         guard lastCoachZone != -1, zone != lastCoachZone else { return }
         if zone == 5, lastCoachZone < 5 { buzz(loops: 3) }          // entered max , ease off

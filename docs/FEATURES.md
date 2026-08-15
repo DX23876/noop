@@ -589,6 +589,15 @@ of history. On-device and approximate — informational only, **not** a diagnosi
 
 - **Profile** — age, sex, weight, height, and max heart rate (auto-estimated via Tanaka, or a
   manual override). These power your zones, calorie estimates and Charge baselines.
+- **Heart-rate zones** — set where each of your five zones starts, instead of accepting the standard
+  50/60/70/80/90 % of maximum. Two ways to say it: **% of max**, which moves with your maximum when
+  it is re-estimated, or **beats**, the absolute heart rates a threshold or lactate test gives you,
+  which stay put. Both keep whatever you typed in the other, so trying one costs nothing.
+  Your bands change what you see — the live zone readout, a workout's zone split, the haptic "ease
+  off" buzz — and the zones your coach prescribes in. They do **not** change your Effort score, which
+  is measured against your heart-rate reserve on a published method with its own fixed thresholds, so
+  your history stays comparable; nor zone bars that arrived inside a WHOOP export, which carry
+  WHOOP's own bands.
 - **Step calibration** — tune the stride/step estimate to your own walking so step and distance
   figures read closer to reality.
 - **Units** — choose your preferred measurement units (metric / imperial) across the app.

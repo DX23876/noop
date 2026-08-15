@@ -59,6 +59,7 @@ enum SettingsSearchCatalog {
             title: "Profile",
             keywords: ["photo", "picture", "avatar", "name", "date of birth", "age",
                        "sex", "height", "weight", "scaling", "heart-rate zones",
+                       "hr zones", "zone bands", "custom zones", "zone 2", "max heart rate",
                        "calories", "background image"]
         ),
         SettingsSearchEntry(

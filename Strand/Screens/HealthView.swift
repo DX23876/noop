@@ -254,15 +254,19 @@ private struct HeartRateSection: View {
         return min(max(Double(hr) / Double(profile.hrMax), 0), 1)
     }
 
-    /// Current zone 1…5 from %HR-max (WHOOP/Karvonen-style bands: 50/60/70/80/90).
-    private func hrZone(_ fraction: Double) -> Int {
-        switch fraction {
-        case ..<0.60: return 1
-        case ..<0.70: return 2
-        case ..<0.80: return 3
-        case ..<0.90: return 4
-        default:      return 5
-        }
+    /// Current zone from the profile's resolved bands (`ProfileStore.hrZoneSet`), 0 = below Zone 1.
+    ///
+    /// This used to be a hardcoded 50/60/70/80/90 table that didn't go through `HRZones` at all — a
+    /// fourth answer to "which zone is this?" living beside the live readout, the workout split and the
+    /// coach. It ignored the manual HR-max override and would have ignored custom bands entirely, so
+    /// this card could name a different zone than the Live screen for the very same heart rate.
+    ///
+    /// Note the honest 0: the old table called anything under 60 % "Zone 1", including a resting heart
+    /// rate. The shared resolver returns 0 there, and the label renders that as a dash rather than
+    /// claiming a zone the wearer isn't in.
+    private func hrZone(_ hr: Int?) -> Int {
+        guard let hr, hr > 0 else { return 0 }
+        return profile.hrZoneSet.zoneNumber(forBPM: Double(hr))
     }
 
     /// A short, time-stamped HR series for the hero chart (newest last).
@@ -297,7 +301,7 @@ private struct HeartRateSection: View {
         let displayHR = self.displayHR
         let hasLiveHR = displayHR != nil
         let fraction = hrFraction(displayHR)
-        let zone = hrZone(fraction)
+        let zone = hrZone(displayHR)
         let series = hrSeries(displayHR)
 
         return VStack(alignment: .leading, spacing: NoopMetrics.gap) {
@@ -316,7 +320,7 @@ private struct HeartRateSection: View {
                           fraction: fraction, zone: zone, series: series)
             } footer: {
                 ChartFooter([
-                    ("Zone", hasLiveHR ? "Z\(zone)" : "—"),
+                    ("Zone", hasLiveHR && zone >= 1 ? "Z\(zone)" : "—"),
                     ("% Max", hasLiveHR ? "\(Int((fraction * 100).rounded()))%" : "—"),
                     ("Max HR", "\(profile.hrMax)"),
                     ("State", hasLiveHR ? String(localized: "STREAMING") : String(localized: "IDLE")),
@@ -378,8 +382,11 @@ private struct HeartRateSection: View {
         }
     }
 
+    /// `zone == 0` means the reading sits below Zone 1 — a resting heart rate, not a training zone. The
+    /// percentage still tells the story there, so the pill drops the zone number rather than inventing one.
     private func zoneLabel(hasLiveHR: Bool, zone: Int, fraction: Double) -> String {
         guard hasLiveHR else { return String(localized: "Idle") }
+        guard zone >= 1 else { return String(localized: "Below Zone 1 · \(Int((fraction * 100).rounded()))%") }
         return String(localized: "Zone \(zone) · \(Int((fraction * 100).rounded()))%")
     }
 }

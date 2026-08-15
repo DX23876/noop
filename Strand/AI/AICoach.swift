@@ -643,11 +643,7 @@ final class AICoachEngine: ObservableObject {
     /// Emoji in coach replies (#P14 7.3) — off by default, matching the careful/human register the P13
     /// voice clause already asks for; a user who wants a lighter touch can opt in.
     private static let allowEmojiKey = "ai.allowEmoji"
-    /// The logical day (rolls 04:00, same as the rest of the app) the last daily brief was generated on
-    /// for ANY conversation — so at most one auto-brief lands per day, and a conversation reopened after
-    /// a day boundary gets a fresh one instead of showing Monday's brief on Friday.
-    private static let lastBriefDayKey = "ai.lastBriefDay"
-    /// The logical day the last CHECK-IN ran. Deliberately SEPARATE from `lastBriefDayKey`: a check-in is
+    /// The logical day the last CHECK-IN ran. Deliberately SEPARATE from `CoachBriefStamp`: a check-in is
     /// its own thing (it reflects on what happened, it doesn't re-brief), so a morning brief must not
     /// suppress the evening check-in, nor the other way round. (T6)
     private static let lastCheckInDayKey = "ai.lastCheckInDay"
@@ -780,7 +776,10 @@ final class AICoachEngine: ObservableObject {
     metric; it selects the best-covered local source and returns an aggregate, not readings. Call get_readiness before any \
     push/maintain/rest call; never re-derive that from the raw charge number.
     • PROJECT forward — get_session_outlook (what a session would cost, from their own history), \
-    simulate_day (tomorrow's Charge under a plan).
+    simulate_day (tomorrow's Charge under a plan), estimate_session_effort (what a zone-and-duration \
+    session is worth). Effort FOLLOWS from intensity and duration — it is not a number you may pick. \
+    Never state an Effort figure for a session you are suggesting without estimate_session_effort, or \
+    without letting propose_plan compute it from zone + duration_min.
     • WRITE to the app — propose_plan, log_caffeine, log_journal, log_lab_marker; always say plainly \
     what you wrote.
     • REMEMBER across chats — remember_fact, update_fact, forget_fact, and search_past_conversations \
@@ -1982,21 +1981,69 @@ final class AICoachEngine: ObservableObject {
 
     /// `get_zone_minutes`: time-in-zone (Zone 1–5) minutes over the user's recent workout HR, so a "did
     /// I hit Zone 2?" question — and `propose_plan`'s own Zone-2 prescriptions — can be checked against
-    /// what was actually done. Wraps `Repository.workoutZoneMinutes` (HRZones math), aged from the
-    /// profile. Nil (no HR/workout data) returns a plain "no zone data" line, never an empty string.
+    /// what was actually done. Wraps `Repository.workoutZoneMinutes` over the profile's resolved bands.
+    /// Nil (no HR/workout data) returns a plain "no zone data" line, never an empty string.
+    ///
+    /// The output STATES the band definitions in bpm, because "Zone 2" is not a shared constant: the user
+    /// can move the boundaries (`ProfileStore.hrZoneSet`), and a coach prescribing "Zone 2" against the
+    /// textbook 60–70 % when this user's Zone 2 starts at 65 % is prescribing a different session than
+    /// the one they'll ride.
     func zoneMinutesTool(days: Int) async -> String {
         let now = Int(Date().timeIntervalSince1970)
         let from = now - days * 86_400
-        let age = ProfileStore().age
-        guard let minutes = await repo.workoutZoneMinutes(from: from, to: now, age: age),
+        let zoneSet = ProfileStore().hrZoneSet
+        guard let minutes = await repo.workoutZoneMinutes(from: from, to: now, zoneSet: zoneSet),
               minutes.count == 5 else {
             return "No workout heart-rate data in the last \(days) days to compute zone minutes."
         }
-        var lines = ["TIME IN ZONE (minutes, last \(days) days — from workout HR):"]
+        var lines = [Self.zoneBandsLine(zoneSet),
+                     "TIME IN ZONE (minutes, last \(days) days — from workout HR):"]
         for (i, m) in minutes.enumerated() {
             lines.append(String(format: "  Zone %d: %.0f min", i + 1, m))
         }
         return lines.joined(separator: "\n")
+    }
+
+    /// `estimate_session_effort`: what a PLANNED session is worth, so the coach can quote a real figure
+    /// instead of inventing one its own arithmetic contradicts. Computed against the wearer's own bands
+    /// and recent resting HR, which is why the answer restates both — an estimate the wearer can't
+    /// reconcile with their own zones is just another number to distrust.
+    func estimateSessionEffortTool(zone: Int?, durationMin: Int?) async -> String {
+        guard let zone, (1...5).contains(zone) else {
+            return "Name the zone as a number from 1 to 5."
+        }
+        guard let durationMin, durationMin > 0 else {
+            return "Name how long the session lasts, in minutes."
+        }
+        let minutes = Double(min(durationMin, 600))
+        let zoneSet = ProfileStore().hrZoneSet
+        let resting = await recentRestingHR()
+        guard let range = EffortFeasibility.sessionEffortRange(
+            zone: zone, minutes: minutes, zoneSet: zoneSet, restingHR: resting) else {
+            return "Not enough profile data to estimate that session's Effort yet."
+        }
+        return [Self.zoneBandsLine(zoneSet),
+                String(format: "Resting HR used: %.0f bpm.", resting),
+                EffortFeasibility.sentence(zone: zone, minutes: minutes, range: range),
+                "Use this figure when you talk about the session — do not round it to a nicer number."]
+            .joined(separator: "\n")
+    }
+
+    /// One line naming THIS user's zone boundaries in both % of HRmax and bpm. Pure + static so the
+    /// prescribing paths (`propose_plan`, `estimate_session_effort`) and the reporting path
+    /// (`get_zone_minutes`) all describe the bands the same way, and so it's testable without a store.
+    nonisolated static func zoneBandsLine(_ zoneSet: HRZoneSet) -> String {
+        let bands = zoneSet.zones.map { z in
+            String(format: "Z%d %.0f–%.0f%% (%.0f–%.0f bpm)",
+                   z.number, z.lowerPct * 100, z.upperPct * 100, z.lower.rounded(), z.upper.rounded())
+        }.joined(separator: ", ")
+        // Prefix match, not equality: the source is "custom-percent" or "custom-bpm" (the wearer can
+        // define bands either way). An `== "custom"` check silently reported every custom set as the
+        // standard bands, which is the exact confusion this line exists to prevent.
+        let origin = zoneSet.source.hasPrefix("custom")
+            ? "the user's OWN custom bands — do not assume the textbook 50/60/70/80/90"
+            : "the standard %HRmax bands"
+        return String(format: "HR ZONES (%@, HRmax %.0f bpm): ", origin, zoneSet.maxHR) + bands
     }
 
     /// `get_sleep_detail`: per-night stages/efficiency from the daily roll-up plus the rolling
@@ -2336,8 +2383,19 @@ final class AICoachEngine: ObservableObject {
     func startBriefIfNeeded() async -> Bool {
         guard CoachFeaturePrefs.isEnabled else { return false }
         let today = Repository.logicalDayKey(Date())
-        guard UserDefaults.standard.string(forKey: Self.lastBriefDayKey) != today else { return false }
-        if let last = messages.last, Repository.logicalDayKey(last.date) == today { return false }
+        guard CoachBriefStamp.lastBriefDay() != today else { return false }
+        // A hand-corrected night invalidates the brief that was built on the old numbers. That re-run
+        // has to get PAST the "this thread already has today's messages" gate below — the messages it
+        // is replacing are exactly what would block it.
+        let stale = CoachBriefStamp.isStale(today: today)
+        if !stale, let last = messages.last, Repository.logicalDayKey(last.date) == today { return false }
+        CoachBriefStamp.clearStale()
+
+        // Don't plan a day on a night that hasn't settled. When the strap has not finished offloading,
+        // the recorded wake is where the sync stopped rather than where the wearer woke, recovery is
+        // scored on a truncated window, and a brief written now is confidently wrong. Staying silent
+        // (and NOT stamping the day) means the brief happens for real once the data lands.
+        if await unconfirmedWakeNeedingReview() != nil { return false }
         // Each day's brief lands in its OWN thread (#R8) so yesterday's can be archived out of the main
         // history list without disturbing the user's real chats. The gate above guarantees the active
         // thread is stale or empty here, so switching away from it is never disruptive.
@@ -2428,9 +2486,10 @@ final class AICoachEngine: ObservableObject {
         (2) exactly what to do today — the activity, its intensity, and a rough duration. If my readiness \
         is low, make it the easy/short option (or rest) and say so. Then record THAT session with \
         propose_plan for today's date so it shows on the Today screen for me to accept, change or \
-        decline. Propose exactly ONE session for today. It is a suggestion, not a booking — never \
-        describe it as scheduled. Anything already awaiting my decision or already committed is recorded; \
-        do not propose it again; \
+        decline — passing zone and duration_min whenever you name a zone or a duration, so the Effort \
+        target is computed rather than guessed. Propose exactly ONE session for today. It is a \
+        suggestion, not a booking — never describe it as scheduled. Anything already awaiting my \
+        decision or already committed is recorded; do not propose it again; \
         (3) one specific thing to improve my charge, grounded in what get_charge_drivers showed. Be punchy \
         and motivating — not long.
         """
@@ -2498,7 +2557,7 @@ final class AICoachEngine: ObservableObject {
                                           memoryWrites: takeMemoryWrites()))
                 // Stamp only on genuine success, so a network failure doesn't burn the day's slot — a
                 // retry (reopening the conversation after a day boundary) can still land one.
-                UserDefaults.standard.set(Repository.logicalDayKey(Date()), forKey: Self.lastBriefDayKey)
+                CoachBriefStamp.stamp(day: Repository.logicalDayKey(Date()))
                 spoke = true
             }
         } catch let e as AICoachError {
@@ -2962,7 +3021,7 @@ final class AICoachEngine: ObservableObject {
         if toolConsent.allows(.readiness) { blocks.append(readinessBlock()) }
         // Charge confidence: whether today's number is a real, baseline-trusted score or still a
         // cold-start placeholder, so the coach never states progress/trends off a "calibrating" number.
-        if toolConsent.allows(.readiness), let confidence = chargeConfidenceLine() { blocks.append(confidence) }
+        if toolConsent.allows(.readiness), let confidence = await chargeConfidenceBlock() { blocks.append(confidence) }
         // What's already proposed/agreed, so the coach doesn't talk over a plan the user is mid-way
         // through, plus how the last week actually went (skips carry their reason).
         if toolConsent.allows(.planAdherence) {
@@ -3022,7 +3081,7 @@ final class AICoachEngine: ObservableObject {
         }
         if sections.contains(.readiness), toolConsent.allows(.readiness) {
             blocks.append(readinessBlock())
-            if let confidence = chargeConfidenceLine() { blocks.append(confidence) }
+            if let confidence = await chargeConfidenceBlock() { blocks.append(confidence) }
             categories.append(.readiness)
         }
         if sections.contains(.workouts), toolConsent.allows(.recentWorkouts) {
@@ -3186,6 +3245,82 @@ final class AICoachEngine: ObservableObject {
             lines.append("  \(d.label): \(sign)\(d.deltaPoints) pts — \(d.valueText)\(vsBaseline) — \(d.verdict)")
         }
         return lines.joined(separator: "\n")
+    }
+
+    /// How much last night's window can be trusted (`SleepWindowSettledness`), for the brief gate and
+    /// the caveat line. `.settled` whenever there is no night to judge — an absent night is not a
+    /// doubtful one, and withholding the brief from someone who simply hasn't worn the strap would be
+    /// its own failure.
+    func lastNightSettledness() async -> SleepWindowSettledness.Verdict {
+        guard let night = repo.sleeps.max(by: { $0.endTs < $1.endTs }) else { return .settled }
+        return SleepWindowSettledness.verdict(
+            sessionEndTs: night.endTs,
+            lastHrSampleTs: await repo.latestHRSampleTs(),
+            nowTs: Int(Date().timeIntervalSince1970),
+            habitualWakeSec: await repo.habitualWakeSec(),
+            offsetSec: TimeZone.current.secondsFromGMT())
+    }
+
+    /// The Charge-confidence line plus, when last night is doubtful, the wake-time caveat — what every
+    /// path that quotes a recovery number should append.
+    ///
+    /// Composed rather than folded into `chargeConfidenceLine()` so that stays a pure, synchronous read
+    /// over `repo.days`; the settledness verdict needs a store read for the coverage edge.
+    func chargeConfidenceBlock() async -> String? {
+        let parts = [chargeConfidenceLine(), Self.wakeTimeCaveat(await lastNightSettledness())]
+            .compactMap { $0 }
+        return parts.isEmpty ? nil : parts.joined(separator: "\n")
+    }
+
+    /// How long a withheld brief may stay withheld. After this much time past the recorded wake, the
+    /// brief runs regardless — with its caveat — because a strap that still hasn't synced by mid-morning
+    /// may not sync at all today, and a wearer who never opens the Sleep screen must not be left without
+    /// a coach indefinitely. Three hours: long enough for any ordinary sync, short enough that the brief
+    /// is still a MORNING brief.
+    static let briefDeadlineSeconds = 3 * 60 * 60
+
+    /// The detected wake time the user should confirm before a brief is written, or nil when there is
+    /// nothing to ask about.
+    ///
+    /// Non-nil only while all of these hold: the window reads as `awaitingSync` (objectively truncated,
+    /// not merely suspicious), the user hasn't already vouched for it today, and the deadline hasn't
+    /// passed. `wakeLooksEarly` deliberately does NOT block — that is a suspicion, and withholding the
+    /// brief over one would be presumptuous; it travels as a caveat instead.
+    func unconfirmedWakeNeedingReview(now: Date = Date()) async -> Int? {
+        guard let night = repo.sleeps.max(by: { $0.endTs < $1.endTs }) else { return nil }
+        guard !CoachBriefStamp.wakeConfirmed(today: Repository.logicalDayKey(now)) else { return nil }
+        let nowTs = Int(now.timeIntervalSince1970)
+        guard nowTs - night.endTs < Self.briefDeadlineSeconds else { return nil }
+        let verdict = SleepWindowSettledness.verdict(
+            sessionEndTs: night.endTs,
+            lastHrSampleTs: await repo.latestHRSampleTs(),
+            nowTs: nowTs,
+            habitualWakeSec: await repo.habitualWakeSec(),
+            offsetSec: TimeZone.current.secondsFromGMT())
+        return verdict == .awaitingSync ? night.endTs : nil
+    }
+
+    /// The caveat that rides with any Charge number when last night's wake time is doubtful.
+    ///
+    /// Pure over its verdict so the wording is testable, and appended to `chargeConfidenceLine()` rather
+    /// than to one call site: the recovery figure travels through `get_biometric_summary`,
+    /// `get_readiness`, `get_charge_drivers` and the non-tool context, and a caveat that only reached
+    /// the brief would leave an ordinary chat question sounding certain about the same wrong number.
+    nonisolated static func wakeTimeCaveat(_ verdict: SleepWindowSettledness.Verdict) -> String? {
+        switch verdict {
+        case .settled:
+            return nil
+        case .awaitingSync:
+            return "CAUTION: last night's sleep window ends exactly where the synced data ends, so the "
+                + "strap has probably not finished offloading and the recorded wake time is too early. "
+                + "Today's Charge is computed on that truncated night. Say so before drawing conclusions "
+                + "from it, and suggest syncing the strap."
+        case .wakeLooksEarly:
+            return "CAUTION: last night's recorded wake time looks earlier than this user's own pattern, "
+                + "or their heart rate kept recording long after it. Today's Charge may be computed on a "
+                + "short night. Mention the doubt and invite them to correct the wake time on the Sleep "
+                + "screen before treating the number as settled."
+        }
     }
 
     /// Today's Charge confidence tier (`ScoreConfidence.charge`), computed identically to the Today
@@ -3541,7 +3676,8 @@ final class AICoachEngine: ObservableObject {
     /// returned string tells the model to say exactly that rather than describing it as settled.
     func proposePlanTool(day: String?, sport: String, intent: String,
                          targetEffort: Double?, rationale: String, time: String?,
-                         goalId: String? = nil, goalIds: [String]? = nil) -> String {
+                         zone: Int? = nil, durationMin: Int? = nil,
+                         goalId: String? = nil, goalIds: [String]? = nil) async -> String {
         let trimmedSport = sport.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedSport.isEmpty else { return "Nothing proposed: name the activity." }
         guard let parsedIntent = PlanProposal.Intent(rawValue: intent.lowercased()) else {
@@ -3586,9 +3722,37 @@ final class AICoachEngine: ObservableObject {
         if requestedGoals.isEmpty, activeGoals.count == 1 {
             requestedGoals = [activeGoals[0].id]
         }
+        // Effort is a CONSEQUENCE of intensity × duration, not a number to pick. When the model names a
+        // zone and a duration, compute what that session is actually worth against the wearer's OWN
+        // bands and use that; a supplied figure survives only if it is within a few points of it.
+        let cleanZone = zone.flatMap { (1...5).contains($0) ? $0 : nil }
+        let cleanDuration = durationMin.flatMap { $0 > 0 ? min($0, 600) : nil }
+        var effort = targetEffort.map { max(0, min($0, 100)) }
+        var correction: String?
+        if let cleanZone, let cleanDuration,
+           let range = EffortFeasibility.sessionEffortRange(
+               zone: cleanZone, minutes: Double(cleanDuration),
+               zoneSet: ProfileStore().hrZoneSet, restingHR: await recentRestingHR()) {
+            let computed = (range.typical * 10).rounded() / 10
+            if let given = effort, range.distanceFromTypical(given) <= EffortFeasibility.targetTolerance {
+                // Close enough to be the coach's judgement about where in the band to sit — leave it.
+            } else {
+                if let given = effort {
+                    correction = String(format: "Your target of %.0f was replaced with %.0f: ", given, computed)
+                        + EffortFeasibility.sentence(zone: cleanZone, minutes: Double(cleanDuration), range: range)
+                        + " State \(Int(computed.rounded())), not \(Int(given.rounded()))."
+                } else {
+                    correction = EffortFeasibility.sentence(zone: cleanZone,
+                                                            minutes: Double(cleanDuration), range: range)
+                }
+                effort = computed
+            }
+        }
+
         let proposal = PlanProposal(day: dayKey, time: when, sport: trimmedSport,
                                     intent: parsedIntent,
-                                    targetEffort: targetEffort.map { max(0, min($0, 100)) },
+                                    targetEffort: effort,
+                                    zone: cleanZone, durationMin: cleanDuration,
                                     rationale: rationale,
                                     goalIds: requestedGoals)
         guard CoachPlanStore.shared.propose(proposal) else {
@@ -3600,9 +3764,19 @@ final class AICoachEngine: ObservableObject {
         }
         CoachNotifier.postPlanProposal(proposal)
         let adapted = adaptation.evidenceNote.map { " Local adaptation: \($0)" } ?? ""
-        return "Proposed (NOT scheduled): \(proposal.summary()) on \(dayKey).\(adapted) It's waiting for the user "
-            + "to accept, change or decline it in the app — tell them it's there for their yes, and "
-            + "don't refer to it as booked."
+        let effortNote = correction.map { " \($0)" } ?? ""
+        return "Proposed (NOT scheduled): \(proposal.summary()) on \(dayKey).\(adapted)\(effortNote) "
+            + "It's waiting for the user to accept, change or decline it in the app — tell them it's "
+            + "there for their yes, and don't refer to it as booked."
+    }
+
+    /// The resting HR to reason about a PLANNED session with: the median of the recent daily readings,
+    /// matching `AnalyticsEngine`'s own `restForStrain`, so a projection and the eventual score share a
+    /// denominator. Falls back to `StrainScorer.defaultRestingHR` before any night is banked.
+    func recentRestingHR() async -> Double {
+        let recent = repo.days.suffix(14).compactMap { $0.restingHr }.sorted()
+        guard !recent.isEmpty else { return StrainScorer.defaultRestingHR }
+        return Double(recent[recent.count / 2])
     }
 
     /// `get_session_outlook`: what a session costs THIS user, and what swapping would change.

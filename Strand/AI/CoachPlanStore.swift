@@ -128,7 +128,16 @@ struct PlanProposal: Codable, Identifiable, Equatable {
     var sport: String
     var intent: Intent
     /// Optional target Effort (0–100) for the session.
+    ///
+    /// When `zone` and `durationMin` are both known this is COMPUTED by the app from the wearer's own
+    /// bands (`EffortFeasibility`), not taken from the model. The coach used to be free to name any
+    /// number, and named some that its own arithmetic could not produce — "20 min in Zone 2, effort 15"
+    /// for a session worth about 34.
     var targetEffort: Double?
+    /// The HR zone (1–5) the session is meant to be held in, when it has one.
+    var zone: Int?
+    /// How long the session should last, in minutes.
+    var durationMin: Int?
     /// The coach's one-line reasoning, so an accepted plan still explains itself weeks later.
     var rationale: String
     var status: Status
@@ -163,6 +172,8 @@ struct PlanProposal: Codable, Identifiable, Equatable {
          sport: String,
          intent: Intent,
          targetEffort: Double? = nil,
+         zone: Int? = nil,
+         durationMin: Int? = nil,
          rationale: String = "",
          status: Status = .proposed,
          source: Source = .coachProposed,
@@ -183,6 +194,8 @@ struct PlanProposal: Codable, Identifiable, Equatable {
         self.sport = sport
         self.intent = intent
         self.targetEffort = targetEffort
+        self.zone = zone
+        self.durationMin = durationMin
         self.rationale = rationale
         self.status = status
         self.source = source
@@ -200,7 +213,7 @@ struct PlanProposal: Codable, Identifiable, Equatable {
 
     // Back-compat: fields added later decode with defaults so a stored plan never fails to load.
     private enum CodingKeys: String, CodingKey {
-        case id, day, time, sport, intent, targetEffort, rationale, status
+        case id, day, time, sport, intent, targetEffort, zone, durationMin, rationale, status
         case source, swappedFrom, rescheduledFrom, skipReason, goalId, goalIds, createdAt, decidedAt
         case effectFeedback, feedbackNote
         case completionEvidence, rejectedWorkoutKeys
@@ -214,6 +227,8 @@ struct PlanProposal: Codable, Identifiable, Equatable {
         sport = try c.decodeIfPresent(String.self, forKey: .sport) ?? ""
         intent = try c.decodeIfPresent(Intent.self, forKey: .intent) ?? .easy
         targetEffort = try c.decodeIfPresent(Double.self, forKey: .targetEffort)
+        zone = try c.decodeIfPresent(Int.self, forKey: .zone)
+        durationMin = try c.decodeIfPresent(Int.self, forKey: .durationMin)
         rationale = try c.decodeIfPresent(String.self, forKey: .rationale) ?? ""
         status = try c.decodeIfPresent(Status.self, forKey: .status) ?? .proposed
         source = try c.decodeIfPresent(Source.self, forKey: .source) ?? .coachProposed
@@ -239,6 +254,8 @@ struct PlanProposal: Codable, Identifiable, Equatable {
         try c.encode(sport, forKey: .sport)
         try c.encode(intent, forKey: .intent)
         try c.encodeIfPresent(targetEffort, forKey: .targetEffort)
+        try c.encodeIfPresent(zone, forKey: .zone)
+        try c.encodeIfPresent(durationMin, forKey: .durationMin)
         try c.encode(rationale, forKey: .rationale)
         try c.encode(status, forKey: .status)
         try c.encode(source, forKey: .source)
@@ -262,9 +279,11 @@ struct PlanProposal: Codable, Identifiable, Equatable {
         return values.filter { seen.insert($0).inserted }
     }
 
-    /// One-line description for the context / UI, e.g. "Zone 2 ride (easy) at 10:00".
+    /// One-line description for the context / UI, e.g. "Zone 2 ride (easy), 20 min in Zone 2 at 10:00".
     func summary() -> String {
         var s = "\(sport) (\(intent.rawValue))"
+        if let durationMin { s += ", \(durationMin) min" }
+        if let zone { s += " in Zone \(zone)" }
         if let time {
             let df = DateFormatter(); df.dateFormat = "HH:mm"
             s += " at \(df.string(from: time))"
@@ -385,7 +404,8 @@ final class CoachPlanStore: ObservableObject {
             let existing = proposals[idx]
             proposals[idx] = PlanProposal(
                 id: existing.id, day: p.day, time: p.time, sport: p.sport, intent: p.intent,
-                targetEffort: p.targetEffort, rationale: p.rationale, status: .proposed,
+                targetEffort: p.targetEffort, zone: p.zone, durationMin: p.durationMin,
+                rationale: p.rationale, status: .proposed,
                 source: .coachProposed,
                 goalIds: p.goalIds.isEmpty ? existing.goalIds : p.goalIds,
                 createdAt: existing.createdAt,

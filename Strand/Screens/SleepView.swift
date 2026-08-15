@@ -234,6 +234,10 @@ struct SleepView: View {
                     // sleep window, not just the Sleep tab's session view; then refresh the read cache.
                     await intelligence.analyzeRecent()
                     await repo.refresh()
+                    // The coach's morning brief was written against the OLD wake time. Correcting the
+                    // night used to leave that wrong plan standing for the rest of the day — the exact
+                    // complaint behind this change — because the day was already stamped.
+                    CoachBriefStamp.invalidateAfterSleepCorrection(wakeTs: newWakeTs)
                 }, onDelete: {
                     // Delete = the edit path minus the re-insert: drop this session so every metric
                     // recomputes immediately as if the night were never recorded, durably tombstoned so a
@@ -244,6 +248,7 @@ struct SleepView: View {
                                                                  endTs: edit.wakeTs)
                     await intelligence.analyzeRecent()
                     await repo.refresh()
+                    CoachBriefStamp.invalidateAfterSleepCorrection(wakeTs: edit.wakeTs)
                     // `edit.bedTs` is the effective (displayed) onset, so the banner shows the same clock
                     // time the user saw for this night.
                     if let snapshot { presentSleepUndo(snapshot, displayStart: edit.bedTs, windowEnd: edit.wakeTs) }
@@ -267,6 +272,7 @@ struct SleepView: View {
                     // Re-score so the day's aggregates pick up the new session, exactly like an edit.
                     await intelligence.analyzeRecent()
                     await repo.refresh()
+                    CoachBriefStamp.invalidateAfterSleepCorrection(wakeTs: endTs)
                 }
             }
         }

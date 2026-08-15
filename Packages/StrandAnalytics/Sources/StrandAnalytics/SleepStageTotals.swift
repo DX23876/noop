@@ -787,8 +787,32 @@ public enum SleepStageTotals {
     /// is learned correctly. `offsetSec` turns each midpoint local; `minDays` is the cold-start floor. (#547)
     public static func habitualMidsleepSec(_ history: [HistoryBlock], offsetSec: Int,
                                            minDays: Int = habitualMinDays) -> Int? {
+        habitualTimeOfDay(history, minDays: minDays) {
+            localSecOfDay($0.midpointSec, offsetSec: offsetSec)
+        }
+    }
+
+    /// The wearer's habitual WAKE time as a LOCAL time-of-day, by the same rule as
+    /// ``habitualMidsleepSec(_:offsetSec:minDays:)`` applied to each night's END.
+    ///
+    /// Used to judge whether a recorded wake is so far off the wearer's pattern that the window should
+    /// be doubted rather than scored (`SleepWindowSettledness`). Wake rather than midsleep because the
+    /// failure being detected is specifically a truncated END: a night cut short by an unfinished
+    /// offload moves the wake a long way while barely touching the onset. (#547's learner, new question.)
+    public static func habitualWakeSec(_ history: [HistoryBlock], offsetSec: Int,
+                                       minDays: Int = habitualMinDays) -> Int? {
+        habitualTimeOfDay(history, minDays: minDays) {
+            localSecOfDay($0.end, offsetSec: offsetSec)
+        }
+    }
+
+    /// The shared body of both learners: pick the longest block per local day (selection-INDEPENDENT,
+    /// so naps drop out and there is no chicken-and-egg with main-night selection), then take the
+    /// circular mean of one time-of-day drawn from each. Factored so the two can never drift apart on
+    /// the de-duplication rule or the cold-start floor. Ties within a day → earlier onset (stable).
+    private static func habitualTimeOfDay(_ history: [HistoryBlock], minDays: Int,
+                                          _ timeOfDay: (HistoryBlock) -> Int) -> Int? {
         guard !history.isEmpty else { return nil }
-        // Longest block per local day (selection-independent). Ties within a day → earlier onset (stable).
         var longestByDay: [String: HistoryBlock] = [:]
         for b in history {
             if let cur = longestByDay[b.dayKey] {
@@ -800,11 +824,10 @@ public enum SleepStageTotals {
             }
         }
         guard longestByDay.count >= minDays else { return nil }
-        // Circular mean of each day's midpoint time-of-day: convert each to an angle, take the mean
-        // direction via the unit-vector sum (order-independent), map back to seconds-of-day. nil when
-        // the resultant vector is degenerate (antipodal/uniform midpoints) — falls back to cold-start.
-        let midSecs = longestByDay.values.map { localSecOfDay($0.midpointSec, offsetSec: offsetSec) }
-        return circularMeanSec(midSecs)
+        // Circular mean: convert each to an angle, take the mean direction via the unit-vector sum
+        // (order-independent), map back to seconds-of-day. nil when the resultant vector is degenerate
+        // (antipodal/uniform times) — falls back to cold-start.
+        return circularMeanSec(longestByDay.values.map(timeOfDay))
     }
 
     /// Minimum mean-resultant-vector length (R = |Σ(sin,cos)| / n, in [0, 1]) for a circular mean to be

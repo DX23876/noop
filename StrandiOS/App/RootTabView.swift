@@ -242,6 +242,11 @@ struct RootTabView: View {
                 // Trends is a primary tab on iPhone (not a pillar sheet) — switch to it.
                 withAnimation(.timingCurve(0.22, 1, 0.36, 1, duration: 0.24)) { selectedTab = 1 }
                 router.requestedDestination = nil
+            case .sleep:
+                // Sleep is a primary tab too. Raised by the morning card's "Fix it" when last night's
+                // wake time looks truncated, so the editor is one tap away rather than a hunt.
+                withAnimation(.timingCurve(0.22, 1, 0.36, 1, duration: 0.24)) { selectedTab = 2 }
+                router.requestedDestination = nil
             case .activeWorkout:
                 // The Today active-workout indicator opens Live through the quick-action Live sheet; once
                 // it's up, LiveView consumes the one-shot `presentActiveWorkout` flag and presents the
@@ -369,6 +374,9 @@ struct RootTabView: View {
                 // .dataSources is pushed onto the More tab's own stack (handled above); this keeps the
                 // switch exhaustive and falls back to the screen itself if it ever reaches the host.
                 case .dataSources: DataSourcesView()
+                // .sleep switches to the Sleep tab (handled above); this keeps the switch exhaustive and
+                // falls back to the screen itself if it ever reaches the host.
+                case .sleep: SleepView()
                 }
             }
             // The Trends/Today fallbacks above emit TabRoute value pushes (#198), which need a

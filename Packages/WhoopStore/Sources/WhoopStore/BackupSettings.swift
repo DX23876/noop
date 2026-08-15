@@ -34,7 +34,15 @@ public enum BackupSettings {
     /// (platform-neutral) names. Mirrored exactly by Android's `BackupSettingsCodec.WHITELIST`.
     ///
     /// Profile: the body metrics that power HR zones / calories / recovery baselines, plus the manual
-    /// HR-max override (`profile.hrMax`, 0 = auto/Tanaka). Display: the metric/imperial system, the
+    /// HR-max override (`profile.hrMax`, 0 = auto/Tanaka) and the user's own HR zone BANDS
+    /// (`profile.zoneMode` + the two bound sets, absent/"auto" = the conventional 50/60/70/80/90). The
+    /// bands qualify on the same grounds as HR-max: hand-set by the user, about the person rather than
+    /// the device, and painful to reconstruct from memory after a restore. Their wire form is
+    /// deliberately locale-independent (see `HRZoneEdges`), because a backup written on one device is
+    /// restored on another. Both bound sets travel even though only one is live, for the same reason
+    /// the app keeps both: a restore should return the wearer to exactly where they were, including the
+    /// mode they were not using at the time.
+    /// Display: the metric/imperial system, the
     /// separate temperature override ("" = match the system), and the Effort axis (#268) — the three
     /// display prefs that exist with identical semantics on both platforms. Deliberately EXCLUDED:
     /// step calibration (per-strap, not per-person), the avatar blob (bulky, and not "settings"),
@@ -54,6 +62,9 @@ public enum BackupSettings {
         "profile.heightCm": .double,
         "profile.waistCm": .double,
         "profile.hrMax": .int,
+        "profile.zoneMode": .string,
+        "profile.zonePercentEdges": .string,
+        "profile.zoneBpmEdges": .string,
         "units.system": .string,
         "units.temperature": .string,
         "effort.scale": .string,
@@ -70,6 +81,9 @@ public enum BackupSettings {
         "profile.heightCm": "profile.heightCm",
         "profile.waistCm": "profile.waistCm",
         "profile.hrMax": "profile.hrMaxOverride",
+        "profile.zoneMode": "profile.zoneMode",
+        "profile.zonePercentEdges": "profile.zonePercentEdges",
+        "profile.zoneBpmEdges": "profile.zoneBpmEdges",
         "units.system": "units.system",
         "units.temperature": "units.temperature",
         "effort.scale": "effort.scale",

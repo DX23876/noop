@@ -115,7 +115,11 @@ public enum StrainScorer {
     // MARK: - Karvonen %HRR and Edwards zone weight
 
     /// Karvonen %HRR, clamped [0, 100].
-    static func pctHRR(_ bpm: Double, restingHR: Double, hrReserve: Double) -> Double {
+    ///
+    /// Public so `EffortFeasibility` can ask what a PLANNED heart rate would be worth without a second
+    /// copy of the formula. Answering "what is 20 minutes in Zone 2 actually worth?" has to use the same
+    /// arithmetic that scores the day, or the coach's promise and the wearer's result diverge.
+    public static func pctHRR(_ bpm: Double, restingHR: Double, hrReserve: Double) -> Double {
         let pct = (bpm - restingHR) / hrReserve * 100.0
         if pct < 0 { return 0 }
         if pct > 100 { return 100 }
@@ -123,8 +127,8 @@ public enum StrainScorer {
     }
 
     /// Edwards 5-zone weight (0–5) from %HRR (unclamped; extremes agree with
-    /// the clamped path at both ends).
-    static func zoneWeight(_ bpm: Double, restingHR: Double, hrReserve: Double) -> Int {
+    /// the clamped path at both ends). Public for the same reason as ``pctHRR(_:restingHR:hrReserve:)``.
+    public static func zoneWeight(_ bpm: Double, restingHR: Double, hrReserve: Double) -> Int {
         let pct = (bpm - restingHR) / hrReserve * 100.0
         for (threshold, weight) in edwardsZones where pct >= threshold { return weight }
         return 0

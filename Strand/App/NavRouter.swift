@@ -33,6 +33,10 @@ final class NavRouter: ObservableObject {
         /// The import hub. Every "no data yet" state on the app explains that a WHOOP export in Data
         /// Sources fills the screen — this is what lets them offer a button instead of directions.
         case dataSources
+        /// The Sleep screen. Raised when the coach withholds a brief because last night's wake time
+        /// looks truncated: the card offers "Fix it" and this is what takes the wearer to the editor
+        /// rather than leaving them to find it.
+        case sleep
 
         var id: String { rawValue }
 
@@ -111,4 +115,6 @@ final class NavRouter: ObservableObject {
     /// the destination — `MoreDestination.dataSources` on iPhone, a sidebar row on macOS — but no route
     /// to reach it from a screen, which is why the empty states could only describe the way there.
     func openDataSources() { requestedDestination = .dataSources }
+    /// Open the Sleep screen, where last night's wake time can be corrected.
+    func openSleep() { requestedDestination = .sleep }
 }

@@ -43,7 +43,7 @@ The package contains more analytics than the app currently surfaces. This sectio
 | `Baselines` | `Baselines.swift` | **Live.** Seeds the recovery baseline in `IntelligenceEngine.analyzeRecent` (two-pass cold-start). The illness early-warning in `AppModel` still uses its own trailing-window baseline math inline (see below). |
 | `WorkoutDetector` / `Calories` | `WorkoutDetector.swift` | **Live.** Runs inside `AnalyticsEngine.analyzeDay`; detected bouts are persisted as `workout` rows under the computed `"<deviceId>-noop"` source (sport `"detected"`), de-duplicated against imported WHOOP workouts. All intensity/calorie fields are APPROXIMATE. Not yet surfaced in the Workouts screen. |
 | `AnalyticsEngine` | `AnalyticsEngine.swift` | **Live orchestrator.** `analyzeDay(...)` is called by `Strand/Data/IntelligenceEngine.swift` — every 15 minutes while connected, and from the Intelligence screen — and its `DailyMetric`, sleep sessions and detected workouts are persisted under the `"-noop"` source. |
-| `HRZones` | `HRZones.swift` | **Library-only** (display zone model). The app's live zone coaching computes `%HRmax` inline in `AppModel.coachZone(_:)`. |
+| `HRZones` | `HRZones.swift` | **Live.** The display zone model, and the ONLY one — every surface that buckets a heart rate resolves through `ProfileStore.hrZoneSet` (live readout, in-workout card, Health hero, workout time-in-zone, haptic zone coaching, the coach's `get_zone_minutes`). Bands are user-definable; see "Two zone models" below. |
 | `CorrelationEngine` | `CorrelationEngine.swift` | **Live.** Used by `InsightsView`, `CompareView`, `MetricExplorerView`. |
 | `BehaviorInsights` | `BehaviorInsights.swift` | **Live.** Used by `InsightsView` (`rank` + `sentence`). |
 | `ComparisonEngine` | `ComparisonEngine.swift` | **Live.** Used by `MetricExplorerView`. |
@@ -76,12 +76,8 @@ Median (not mean) is deliberate: it rejects single-beat outliers without lagging
 
 ### 2. HR-zone haptic coaching (`coachZone`)
 
-Watches the smoothed `bpm`, computes `%HRmax` from `profile.hrMax`, and buckets into 5 zones at `0.6 / 0.7 / 0.8 / 0.9` of max:
-
-```swift
-let pct = Double(hr) / maxHR
-let zone = pct >= 0.9 ? 5 : pct >= 0.8 ? 4 : pct >= 0.7 ? 3 : pct >= 0.6 ? 2 : 1
-```
+Watches the smoothed `bpm` and buckets it through `profile.hrZoneSet.zoneNumber(forBPM:)` — the same
+resolver every screen uses, so the buzz can never fire at a different boundary than the number shown.
 
 On crossing **into zone 5** it buzzes three times ("ease off"); on dropping back **to zone ≤ 1** it buzzes once ("recovered"). Gated on `behavior.zoneCoaching`, bonded, worn, and a valid `hrMax`.
 
@@ -214,6 +210,31 @@ Effort = 100 · ln(TRIMP + 1) / ln(D),    D = strainDenominator = 7201
 ```
 
 `D = 7201` is calibrated so the Edwards daily ceiling — top zone weight 5 sustained for 24 h = `5 × 1440 = 7200` — maps to exactly the maximum (`ln(7201)/ln(7201) = 1`, so `Effort = 100`). The old 0–21 scale used the identical denominator and curve; only the `maxStrain` multiplier changed from `21.0` to `100.0`.
+
+### Two zone models — and why they disagree
+
+NOOP has **two** notions of "zone". Confusing them is the root of a real user-reported defect, so they
+are worth stating plainly:
+
+| | Display zones (`HRZones`) | Effort zones (`StrainScorer`) |
+|---|---|---|
+| Measured against | **% of HRmax** | **% of heart-rate RESERVE** (`(HR − RHR) / (HRmax − RHR)`) |
+| Boundaries | 50/60/70/80/90 by default, **user-definable** | 50/60/70/80/90 %HRR, **fixed** — they are part of the Edwards method |
+| Drives | the live readout, in-workout card, Health hero, workout time-in-zone, haptic coaching, what the coach prescribes | the Effort score, and nothing else |
+
+They are not interchangeable, and the gap is large. With HRmax 190 and a resting HR of 50, the floor of
+**display** Zone 2 (60 % HRmax = 114 bpm) is only 46 %HRR — *below* Edwards' 50 % cut-off, so it earns
+weight 0 — while its top (70 % HRmax = 133 bpm) is 59 %HRR and earns weight 1.
+
+Consequences that follow from this, both deliberate:
+
+- **User-set bands never reach Effort.** They change what is displayed and what is prescribed; no stored
+  score moves when a band is edited, so history stays comparable and the ported method stays faithful.
+- **A session prescribed in display zones needs translating** before anyone can state what it is worth.
+  `EffortFeasibility` does that translation — Edwards weight × minutes through the same
+  `trimpToStrain` — which is what stops the coach offering "20 min in Zone 2, effort 15" for a session
+  worth about 30. It reports a `typical` figure from the MEAN weight across the band rather than the
+  weight at its midpoint, because a band that straddles a threshold otherwise reads as worth nothing.
 
 ### Steps / active-energy floor
 

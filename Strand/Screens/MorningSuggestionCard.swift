@@ -16,6 +16,7 @@ import StrandDesign
 /// LiquidTodayView's lack of a dismiss path entirely.
 struct MorningSuggestionCard: View {
     @EnvironmentObject private var coach: AICoachEngine
+    @EnvironmentObject private var router: NavRouter
     @ObservedObject private var store = CoachPlanStore.shared
     @Binding var showPlan: Bool
     @AppStorage("coach.morningSuggestion") private var morningOn = false
@@ -27,11 +28,16 @@ struct MorningSuggestionCard: View {
     /// this backwards would silently empty it for four hours every day.
     private var today: String { Repository.localDayKey(Date()) }
 
+    /// The detected wake of a night that isn't settled yet, or nil. Refreshed alongside generation
+    /// rather than on every body pass — it costs a store read, and Today re-renders ~1 Hz while a strap
+    /// streams.
+    @State private var unsettledWake: Int?
+
     private var state: MorningSuggestionState {
         MorningSuggestionState.resolve(
             morningOn: morningOn, configured: coach.isConfigured, consent: coach.dataConsent,
             toolsActive: coach.toolCallingActive, sending: coach.sending,
-            pending: store.pending, today: today)
+            pending: store.pending, today: today, unsettledWake: unsettledWake)
     }
 
     var body: some View {
@@ -61,7 +67,57 @@ struct MorningSuggestionCard: View {
             }
         case .waiting(let p):
             waitingCard(p)
+        case .confirmWake(let detectedWake):
+            confirmWakeCard(detectedWake)
         }
+    }
+
+    /// Shown when the brief was withheld because last night's window isn't settled — the strap has
+    /// probably not finished offloading, so the recorded wake is where the sync stopped. Silence alone
+    /// would read as the coach being broken; this says what happened and offers the one action that
+    /// resolves it. "That's right" confirms the time and lets the brief run on it.
+    private func confirmWakeCard(_ detectedWake: Int) -> some View {
+        NoopCard(padding: 14, tint: StrandPalette.metricAmber) {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 8) {
+                    Image(systemName: "moon.zzz").foregroundStyle(StrandPalette.metricAmber)
+                        .accessibilityHidden(true)
+                    Text("Check last night first")
+                        .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
+                    Spacer(minLength: 4)
+                }
+                Text("Your strap recorded you waking at \(wakeLabel(detectedWake)). If that's not right, today's recovery is off — and so would any plan built on it be.")
+                    .font(StrandFont.body).foregroundStyle(StrandPalette.textPrimary)
+                    .fixedSize(horizontal: false, vertical: true)
+                Text("This usually means the strap hasn't finished syncing yet.")
+                    .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                HStack(spacing: 8) {
+                    actionButton(icon: "checkmark", prominent: true) {
+                        confirmWake()
+                    } label: {
+                        Text("That's right")
+                    }
+                    actionButton(icon: "pencil") { router.openSleep() } label: {
+                        Text("Fix it")
+                    }
+                }
+            }
+        }
+    }
+
+    private func wakeLabel(_ ts: Int) -> String {
+        let df = DateFormatter()
+        df.timeStyle = .short
+        df.dateStyle = .none
+        return df.string(from: Date(timeIntervalSince1970: TimeInterval(ts)))
+    }
+
+    /// The user vouches for the detected time: stop asking today and let the brief run on it.
+    private func confirmWake() {
+        CoachBriefStamp.confirmWake(day: Repository.logicalDayKey(Date()))
+        unsettledWake = nil
+        Task { await maybeGenerate() }
     }
 
     private func waitingCard(_ p: PlanProposal) -> some View {
@@ -139,6 +195,9 @@ struct MorningSuggestionCard: View {
     private func maybeGenerate() async {
         guard morningOn, coach.isConfigured, coach.dataConsent, !coach.sending else { return }
         await coach.startBriefIfNeeded()
+        // Ask AFTER the attempt: `startBriefIfNeeded` is the one that decides a night is unsettled, and
+        // this reads the same verdict so the card and the gate cannot disagree about why nothing came.
+        unsettledWake = await coach.unconfirmedWakeNeedingReview()
     }
 }
 
@@ -147,6 +206,9 @@ enum MorningSuggestionState: Equatable {
     case hidden
     case generating
     case waiting(PlanProposal)
+    /// Last night's window isn't settled yet, so no brief was written. Rather than an empty card, ask
+    /// about the one thing that would fix it — the detected wake time (unix seconds).
+    case confirmWake(detectedWake: Int)
 
     /// A waiting proposal for today wins over everything — REGARDLESS of `morningOn` (#R-auto-session):
     /// that toggle only gates the PROACTIVE morning brief (`maybeGenerate()`'s own separate guard); it was
@@ -155,14 +217,20 @@ enum MorningSuggestionState: Equatable {
     /// IS the outcome. Otherwise show the spinner only while a send is actually in flight AND the user has
     /// opted into the proactive nudge. Everything else — not configured, no consent, a provider that can't
     /// run tools (so no proposal could ever exist), or nothing pending and the opt-in off — is hidden.
+    /// `unsettledWake` is the detected wake of a night the data can't yet support (the brief was
+    /// withheld). It is offered only when the user opted into the proactive brief and nothing is
+    /// already waiting on them: an existing proposal is still the more useful thing to show, and
+    /// someone who never asked for a morning brief should not be handed a chore about it either.
     static func resolve(
         morningOn: Bool, configured: Bool, consent: Bool, toolsActive: Bool,
-        sending: Bool, pending: [PlanProposal], today: String
+        sending: Bool, pending: [PlanProposal], today: String,
+        unsettledWake: Int? = nil
     ) -> MorningSuggestionState {
         guard configured, consent, toolsActive else { return .hidden }
         if let p = pending.first(where: { $0.day == today }) { return .waiting(p) }
         guard morningOn else { return .hidden }
         if sending { return .generating }
+        if let unsettledWake { return .confirmWake(detectedWake: unsettledWake) }
         return .hidden
     }
 }
