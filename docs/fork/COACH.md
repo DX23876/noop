@@ -19,7 +19,7 @@ Strand/AI/
 │                                presets or fully custom
 ├── CoachPersona.swift         Guardian / Friend / Commander — coaching STYLE only; the name lives
 │                                in CoachIdentity now
-├── CoachTools.swift           The 27 tools: schemas + dispatch
+├── CoachTools.swift           The 28 tools: schemas + dispatch
 ├── CoachDataCatalog.swift     Metadata-only local metric discovery + safe source labels
 ├── CoachLocalContextPlanner.swift  On-device, question-specific context-category selection for tool-less providers
 ├── CoachMetricHistory.swift   Bounded local long-range trend aggregation + source selection
@@ -170,14 +170,15 @@ breakpoint, and a per-request clock would invalidate the prefix cache every turn
 | `get_personal_patterns` | — | Top n-of-1 correlations (`EffectRanker`, significant only) + Lab Book roll-up. **Second opt-in required** (`includeOnDeviceSignals`) |
 | `get_my_logs` | `kind` (caffeine/journal/lab/hydration/mood), `days` 1–90 | Reads back what the user LOGGED, so "is my coffee hurting my sleep?" is answered from their real entries rather than a guess. The write tools below are how these get there. |
 | `get_sensitive_logs` | `days` 1–90 | Reads only locally flagged sexual, relationship, illness or cannabis journal fields after a separate sensitive-logs grant. It is offered only for an explicit related question. |
-| `get_zone_minutes` | `days` | Minutes per HR zone, so a prescribed intensity can be checked against what was actually hit instead of assumed from a "done" status |
+| `get_zone_minutes` | `days` | Minutes per HR zone, so a prescribed intensity can be checked against what was actually hit instead of assumed from a "done" status. The reply STATES the user's band boundaries in both % and bpm — "Zone 2" stops being a shared constant once the wearer can move it |
+| `estimate_session_effort` | `zone` 1–5, `duration_min` | What a PLANNED session is worth in Effort, computed from the user's own bands and recent resting HR. Effort follows from intensity × duration; the model must not state a figure it invented (see below) |
 | `search_past_conversations` | `query`, `on_days_ago`, `since_days` — **all optional** | Past chats as dated snippets **quoting the user's own questions**. Either axis works alone: a purely temporal question ("what did I ask you yesterday?") carries no keywords, so requiring `query` made it structurally unanswerable. Filtering is per MESSAGE date, so a thread reopened today doesn't hide what was asked in it yesterday. |
 
 ### Propose (never commits anything by itself)
 
 | Tool | Params | Effect |
 |---|---|---|
-| `propose_plan` | `day`, `sport`, `intent`, `rationale`, optional `goal_ids` (legacy `goal_id`) | Creates a `PlanProposal` in status `.proposed`. Every ID must be an exact active-goal UUID supplied in context; invalid IDs are rejected, one unambiguous active goal is linked automatically, and otherwise the session stays General. The accept sheet still asks the user to confirm the multi-selection. **Not a schedule** — the user must accept, decline, reschedule or swap it in the app. The model is told to never describe a proposal as settled. |
+| `propose_plan` | `day`, `sport`, `intent`, `rationale`, optional `zone`, `duration_min`, `target_effort`, `goal_ids` (legacy `goal_id`) | Creates a `PlanProposal` in status `.proposed`. Every ID must be an exact active-goal UUID supplied in context; invalid IDs are rejected, one unambiguous active goal is linked automatically, and otherwise the session stays General. The accept sheet still asks the user to confirm the multi-selection. **Not a schedule** — the user must accept, decline, reschedule or swap it in the app. The model is told to never describe a proposal as settled. With `zone` + `duration_min` the app **computes** `target_effort` and overrides an unreachable one (see below). |
 | `propose_goal_setup` | optional `goal`, up to five `routines`, `rationale` | Stores a review-only create/update bundle. Exact IDs are required for edits; one routine may link to several goals. `use_current_baseline` resolves a consented local measurement and labels its source. Goal/action stores remain untouched until the user edits the bundle, selects individual routines and confirms it in Coach or Goal & Journey. Nutrition, medication, dosage and treatment routines are rejected. |
 
 ### Write
@@ -306,6 +307,50 @@ just "CrossFit sometime") is a UI action the person takes in `CoachPlanView`. **
 sheet** rather than committing untimed: `accept(_:at:)` always took a time, but the button didn't pass
 one, so agreeing and saying *when* were two steps and the second was easy never to take — leaving
 commitments no reminder can fire for. "Accept without a time" remains the escape hatch.
+
+### Effort is computed, not chosen
+
+`target_effort` used to be a free number the model wrote down. It offered a user "a 15-effort,
+20-minute Zone 2 cycle" — not merely optimistic but arithmetically unreachable, since on that profile
+the session is worth about 30. The model had no way to know: NOOP's display zones are %HRmax while
+Effort uses Edwards' %HRR with its own fixed thresholds (see `docs/ANALYTICS.md`, "Two zone models"),
+and nothing bridged them.
+
+Now, whenever `propose_plan` receives `zone` **and** `duration_min`, `EffortFeasibility` evaluates the
+shipped Effort maths at that intensity — against the wearer's OWN bands and recent resting HR — and:
+
+- a supplied figure within `targetTolerance` (5 points) of the computed one survives, because leaning
+  easy inside a band is a coach's judgement, not an error;
+- anything further is **replaced**, and the tool reply names the old value, the new one and the
+  arithmetic, so the model corrects its prose in the same turn;
+- with no figure supplied, one is computed rather than left blank.
+
+Without both parameters nothing changes — rest days, mobility and non-tool providers are unaffected.
+`estimate_session_effort` lets the model check before it writes prose, and the system prompt forbids
+stating an Effort figure for a suggested session without one of these two paths.
+
+### The brief waits for a night the data supports
+
+A user reported the automatic wake time landing "far far earlier" than they woke, recovery reading
+wrong, and the coach planning on it anyway. The cause is offload lag, not staging: `detectSleep` runs
+over the raw streams that exist, so a strap synced only to 04:00 produces a night that ends at 04:00.
+
+`SleepWindowSettledness` judges last night from the session end, the raw-data coverage edge, the clock
+and the learned habitual wake:
+
+- **`awaitingSync`** — the data stops within 2 min of the "wake" and has done for 45 min. Objectively
+  truncated, so `startBriefIfNeeded` **withholds** the brief and does **not** stamp the day; it runs
+  for real once the data lands. Bounded three ways so the coach can't go quiet indefinitely: the user
+  can vouch for the time on the morning card, a ~3 h deadline lets it through, and the card offers a
+  one-tap route to the Sleep editor.
+- **`wakeLooksEarly`** — readings continue an hour past the wake, or it sits 90 min before the habit.
+  A suspicion, not a proof, so the brief runs and leads with the doubt.
+
+Either way the caveat rides on `chargeConfidenceBlock()`, so it reaches every path that quotes a
+Charge — not just the brief. And because correcting the sleep by hand used to leave the wrong brief
+standing all day, the Sleep screen's edit / delete / add-nap paths now clear the day-stamp via
+`CoachBriefStamp`, which also raises the "stale" mark that lets the re-run bypass the
+already-has-today's-messages gate.
 
 When several goals are active, the time sheet asks which concrete goals the commitment serves, or
 whether it is **General**. The user confirms a multi-selection; conservative local suggestions only
