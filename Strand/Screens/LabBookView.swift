@@ -74,7 +74,7 @@ struct LabBookView: View {
                 headerCard
                 importCard
                 if !loaded {
-                    ComingSoon(what: "Reading your logbook…", symbol: "books.vertical")
+                    ComingSoon.loading("Reading your logbook…", title: "Reading your logbook", symbol: "books.vertical")
                 } else if markers.isEmpty {
                     emptyState
                 } else {

@@ -43,6 +43,17 @@ public struct NoopPanelSurface: View {
     public var elevated: Bool
     public var surfaceOpacity: Double
     @Environment(\.colorScheme) private var scheme
+    /// Reduce Transparency is enforced HERE rather than at each caller that passes a `surfaceOpacity`.
+    /// The setting was previously honoured in three places (`StrandCard`, `LiquidTodayView`,
+    /// `LiquidPrimitives`), which meant it held exactly as long as every future caller remembered it —
+    /// and the surface has the last word on its own opacity anyway.
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+
+    /// The opacity actually painted: whatever the caller asked for, or fully opaque when the reader
+    /// has asked for transparency to be reduced.
+    private var resolvedOpacity: Double {
+        reduceTransparency ? 1 : surfaceOpacity
+    }
 
     public init(
         tint: Color? = nil,
@@ -93,7 +104,7 @@ public struct NoopPanelSurface: View {
                 x: 0,
                 y: elevated ? 10 : 5
             )
-            .opacity(surfaceOpacity)
+            .opacity(resolvedOpacity)
     }
 }
 

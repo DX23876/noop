@@ -72,17 +72,14 @@ public extension View {
     /// Capsule Liquid Glass search chrome. iOS 26 uses interactive `glassEffect`; macOS and older
     /// iOS use the shared elevated pill surface. Glass APIs stay behind `#if os(iOS)` so macOS
     /// (deployment 13) never type-checks or applies Liquid Glass.
-    @ViewBuilder
+    ///
+    /// Honours Settings ▸ Accessibility ▸ Reduce Transparency by falling back to the same opaque pill
+    /// the pre-26 path uses. `glassEffect` is real-time translucency and does not opt out of that
+    /// setting on its own — which left the one chrome most likely to sit over busy content ignoring
+    /// it. Routed through a modifier rather than an inline `if` because a `View` extension has no
+    /// environment to read; `ReduceTransparencyAware` is the seam.
     func nativeLiquidGlassSearchChrome() -> some View {
-        #if os(iOS)
-        if #available(iOS 26.0, *) {
-            self.glassEffect(.regular.interactive(), in: Capsule())
-        } else {
-            self.noopStandardSearchChrome()
-        }
-        #else
-        self.noopStandardSearchChrome()
-        #endif
+        modifier(NoopSearchChrome())
     }
 
     /// Circular / capsule interactive Liquid Glass button chrome (Home header, live-workout controls,
@@ -124,9 +121,31 @@ public extension View {
     }
 
     @ViewBuilder
-    private func noopStandardSearchChrome() -> some View {
+    fileprivate func noopStandardSearchChrome() -> some View {
         self.background(
             NoopPanelSurface(cornerRadius: NoopVisualStyle.pillRadius, elevated: false)
         )
+    }
+}
+
+/// The search field's chrome, as a modifier so it can read the environment.
+///
+/// One place decides between Liquid Glass and the opaque pill, for every search field in the app —
+/// which is the point: a per-call-site `if reduceTransparency` is a rule that holds until the next
+/// call site forgets it.
+private struct NoopSearchChrome: ViewModifier {
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        #if os(iOS)
+        if #available(iOS 26.0, *), !reduceTransparency {
+            content.glassEffect(.regular.interactive(), in: Capsule())
+        } else {
+            content.noopStandardSearchChrome()
+        }
+        #else
+        content.noopStandardSearchChrome()
+        #endif
     }
 }

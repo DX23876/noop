@@ -30,6 +30,9 @@ final class NavRouter: ObservableObject {
         case liveSession
         case breathe
         case journal
+        /// The import hub. Every "no data yet" state on the app explains that a WHOOP export in Data
+        /// Sources fills the screen — this is what lets them offer a button instead of directions.
+        case dataSources
 
         var id: String { rawValue }
 
@@ -103,4 +106,9 @@ final class NavRouter: ObservableObject {
         pendingJournalDayOffset = offset
         requestedDestination = .journal
     }
+
+    /// Open Data Sources (import a WHOOP / Apple Health / Mi Fitness export). Both shells already had
+    /// the destination — `MoreDestination.dataSources` on iPhone, a sidebar row on macOS — but no route
+    /// to reach it from a screen, which is why the empty states could only describe the way there.
+    func openDataSources() { requestedDestination = .dataSources }
 }

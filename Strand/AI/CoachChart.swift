@@ -54,7 +54,11 @@ struct CoachChartBubble: View {
                         points: artifact.points,
                         valueRange: artifact.valueRange,
                         height: 220,
-                        valueFormat: artifact.valueFormat
+                        valueFormat: artifact.valueFormat,
+                        // The artifact already carries the series name shown above the chart; without
+                        // it the bubble reads out as the generic "Trend", which in a transcript of
+                        // several charts makes them indistinguishable.
+                        accessibilityLabel: artifact.title
                     )
                 }
                 .padding(.horizontal, 14)
@@ -87,7 +91,8 @@ struct CoachChartDetail: View {
                     points: artifact.points,
                     valueRange: artifact.valueRange,
                     height: 320,
-                    valueFormat: artifact.valueFormat
+                    valueFormat: artifact.valueFormat,
+                    accessibilityLabel: artifact.title
                 )
                 Text("\(artifact.points.count) days")
                     .font(StrandFont.footnote)

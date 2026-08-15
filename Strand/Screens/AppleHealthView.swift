@@ -41,6 +41,9 @@ struct AppleHealthLoadKey: Equatable {
 
 struct AppleHealthView: View {
     @EnvironmentObject var repo: Repository
+    /// The empty state's "Open Data Sources" button routes through the shell (`NavRouter`), because
+    /// neither shell exposes a selection this screen could set directly.
+    @EnvironmentObject var router: NavRouter
 
     // iOS-only: the live two-way HealthKit bridge, injected at StrandiOSApp. macOS has no HealthKit
     // (HealthKitBridge is `#if os(iOS)` in its own file and isn't in the macOS environment), so this
@@ -215,10 +218,12 @@ struct AppleHealthView: View {
                     // instead of telling the user to tap a control that isn't shown.
                     ComingSoon(what: health.auth == .entitlementMissing
                                ? "Nothing here yet. This sideloaded install can't read Apple Health directly. Import a Health export .zip in Data Sources, or turn on Shortcuts Export to bring your strap data into Health."
-                               : "Nothing here yet. Tap Enable Apple Health above to read your data live, or import a Health export .zip in Data Sources.")
+                               : "Nothing here yet. Tap Enable Apple Health above to read your data live, or import a Health export .zip in Data Sources.",
+                               action: ("Open Data Sources", { router.openDataSources() }))
                 }
                 #else
-                ComingSoon(what: "Nothing imported yet. On an iPhone: Health app, tap your photo, Export All Health Data, then import the .zip here in Data Sources.")
+                ComingSoon(what: "Nothing imported yet. On an iPhone: Health app, tap your photo, Export All Health Data, then import the .zip here in Data Sources.",
+                           action: ("Open Data Sources", { router.openDataSources() }))
                 #endif
             } else if !loaded {
                 loadingState
@@ -804,7 +809,11 @@ struct AppleHealthView: View {
     /// One uniform ChartCard for a metric series: header + TrendChart body (same
     /// height) + avg/min/max ChartFooter. Sparse-safe via resolvedWindow.
     @ViewBuilder
-    private func chartCard(title: LocalizedStringKey, key: String, gradient: Gradient,
+    /// `title` is a `LocalizedStringResource`, not a `LocalizedStringKey`, so it can do both jobs: the
+    /// compiler still extracts each literal into the string catalog, and `String(localized:)` can
+    /// resolve it for the chart's accessibility label. A `LocalizedStringKey` is opaque, which is why
+    /// all eleven of these charts announced themselves to VoiceOver as the generic "Trend".
+    private func chartCard(title: LocalizedStringResource, key: String, gradient: Gradient,
                            fallback: ClosedRange<Double>,
                            fmt: @escaping (Double) -> String) -> some View {
         let rows = resolvedWindow(key)
@@ -820,7 +829,9 @@ struct AppleHealthView: View {
             return [("Avg", fmt(avg)), ("Min", fmt(lo)), ("Max", fmt(hi)), ("Points", "\(vals.count)")]
         }()
         ChartCard(
-            title: title,
+            // Already-resolved text wrapped in an interpolation (renders verbatim), since ChartCard
+            // takes a LocalizedStringKey and the title is now a resource.
+            title: "\(String(localized: title))",
             subtitle: rangeNote(forKey: key),
             trailing: trailing,
             chart: {
@@ -831,7 +842,8 @@ struct AppleHealthView: View {
                         valueRange: valueRange(pts, fallback: fallback),
                         showsArea: true,
                         height: NoopMetrics.chartHeight,
-                        valueFormat: fmt
+                        valueFormat: fmt,
+                        accessibilityLabel: String(localized: "\(String(localized: title)) trend")
                     )
                 } else if let only = vals.last {
                     // A single point is not a line — present the lone reading,

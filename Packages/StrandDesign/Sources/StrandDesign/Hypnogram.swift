@@ -191,6 +191,36 @@ public struct Hypnogram: View {
                              : String(localized: "Sleep stages, \(parts.joined(separator: ", "))", bundle: .module)
     }
 
+    /// The night as the audio graph hears it: one step per stage change, so the pitch traces the same
+    /// staircase the bands draw.
+    ///
+    /// y is the stage's ROW, derived from `stagesTopToBottom` and inverted, so pitch follows height on
+    /// screen — awake is the top row and the highest tone, deep the bottom row and the lowest. Deriving
+    /// it from the same array the chart lays out with means the sound cannot drift from the picture.
+    ///
+    /// Each interval contributes its start AND its end at the same y, which is what makes a long block
+    /// audible as a held tone rather than a single blip.
+    private var audioGraphPlan: AudioGraphPlan {
+        let rows = stagesTopToBottom
+        func depth(_ stage: SleepStage) -> Double {
+            let rank = rows.firstIndex(of: stage) ?? 0
+            return Double(rows.count - 1 - rank)
+        }
+        var points: [AudioGraphPoint] = []
+        for interval in intervals.sorted(by: { $0.start < $1.start }) {
+            let y = depth(interval.stage)
+            let label = "\(interval.stage.label), \(timeLabel(interval.start)), \(Hypnogram.durationPhrase(interval.duration))"
+            points.append(AudioGraphPoint(x: interval.start, y: y, label: label))
+            points.append(AudioGraphPoint(x: interval.end, y: y, label: label))
+        }
+        return AudioGraphPlan.series(
+            title: String(localized: "Sleep stages", bundle: .module),
+            xLabel: String(localized: "Time", bundle: .module),
+            yLabel: String(localized: "Sleep stage", bundle: .module),
+            points: points
+        )
+    }
+
     /// A spoken duration phrase ("2 hours 5 minutes", "45 minutes", "1 hour") for a seconds interval.
     private static func durationPhrase(_ seconds: TimeInterval) -> String {
         let total = Int((seconds / 60).rounded())   // whole minutes
@@ -326,6 +356,14 @@ public struct Hypnogram: View {
                     // `accessibilityHidden`, so this single summary is the only node the chart contributes.
                     .accessibilityElement(children: .ignore)
                     .accessibilityLabel(Text(axSummary))
+                    // The night's SHAPE, which per-stage totals cannot carry: when the deep blocks
+                    // fell, how fragmented the second half was. Read this next to the #707 note above
+                    // and it looks like the per-interval layer coming back — it is not. An
+                    // AXChartDescriptor is not a semantics subtree: nothing is added to the element
+                    // tree the accessibility walk copies each scroll frame, and it is built only when
+                    // an assistive technology actually opens the audio graph. The cost that was
+                    // removed stays removed.
+                    .audioGraph(audioGraphPlan)
                 }
                 .frame(height: height)
 

@@ -145,7 +145,25 @@ public struct Sparkline: View {
             // spoken summary of the series so the trend isn't silent on iPhone.
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(Text(axSummary))
+            // Point-by-point access past that summary, via VoiceOver's Audio Graph rotor item.
+            .audioGraph(audioGraphPlan)
         }
+    }
+
+    /// The series as the audio graph sees it. A sparkline has no time axis — its samples are evenly
+    /// spaced by construction — so x is the index, and each point speaks the call site's own
+    /// `indexLabel` (a timestamp, usually) with the same fallback the tooltip uses.
+    private var audioGraphPlan: AudioGraphPlan {
+        AudioGraphPlan.series(
+            title: String(localized: "Sparkline", bundle: .module),
+            xLabel: String(localized: "Sample", bundle: .module),
+            yLabel: String(localized: "Value", bundle: .module),
+            points: values.enumerated().map { idx, value in
+                AudioGraphPoint(x: Double(idx),
+                                y: value,
+                                label: "\(indexLabel?(idx) ?? String(localized: "sample \(idx + 1)", bundle: .module)), \(valueFormat(value))")
+            }
+        )
     }
 
     /// A spoken summary of the series for VoiceOver: count + latest/low/high,

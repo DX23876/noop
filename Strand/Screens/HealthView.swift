@@ -97,6 +97,9 @@ private struct HealthFirstRunContent: View {
     @EnvironmentObject var repo: Repository
     @EnvironmentObject var live: LiveState
     @EnvironmentObject var model: AppModel
+    /// The empty state's "Open Data Sources" button routes through the shell (`NavRouter`), because
+    /// neither shell exposes a selection this screen could set directly.
+    @EnvironmentObject var router: NavRouter
 
     /// HR to display: the spike-filtered median (model.bpm, #39) when available, else the reported
     /// value, else R-R-derived (the strap streams R-R even when its HR field reads 0).
@@ -114,7 +117,8 @@ private struct HealthFirstRunContent: View {
                 // Even with no history yet, a freshly-connected strap can be told to sync now (#364) —
                 // so the control is reachable before the screen has any data to show.
                 SyncStatusSection()
-                ComingSoon(what: "No biometrics yet. Import your WHOOP export (and Apple Health if you have it) in Data Sources to fill this in.")
+                ComingSoon(what: "No biometrics yet. Import your WHOOP export (and Apple Health if you have it) in Data Sources to fill this in.",
+                           action: ("Open Data Sources", { router.openDataSources() }))
             }
         } else {
             HealthSectionsStack()
@@ -750,7 +754,7 @@ private struct FitnessAgeSection: View {
                 refreshing: refreshing)
         } else {
             // Brief read of the weekly value; honest placeholder rather than an empty gap.
-            ComingSoon(what: "Reading your Fitness Age…", symbol: "figure.run")
+            ComingSoon.loading("Reading your Fitness Age…", title: "Reading your Fitness Age", symbol: "figure.run")
         }
     }
 
@@ -1087,7 +1091,7 @@ private struct VitalitySection: View {
             } else if loaded {
                 ComingSoon(what: "A few more days and we can show your Vitality.", symbol: "sparkles")
             } else {
-                ComingSoon(what: "Reading your Vitality…", symbol: "sparkles")
+                ComingSoon.loading("Reading your Vitality…", title: "Reading your Vitality", symbol: "sparkles")
             }
         }
         .task(id: repo.refreshSeq) { await load() }

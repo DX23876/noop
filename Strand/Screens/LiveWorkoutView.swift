@@ -106,6 +106,10 @@ struct LiveWorkoutView: View {
                isPresented: $showEndConfirm) {
             Button("Cancel", role: .cancel) { }
             Button("End workout", role: .destructive) {
+                // A finished session is the biggest landing this screen has, so it gets `.commit` —
+                // and it fires on the CONFIRM, not on the control that opens this alert, so the tick
+                // means "saved" rather than "asked".
+                StrandHaptic.commit.play()
                 model.endWorkout()
                 onClose()
             }

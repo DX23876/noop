@@ -29,6 +29,9 @@ import WhoopStore
 
 struct StressView: View {
     @EnvironmentObject var repo: Repository
+    /// The empty state's "Open Data Sources" button routes through the shell (`NavRouter`), because
+    /// neither shell exposes a selection this screen could set directly.
+    @EnvironmentObject var router: NavRouter
     @EnvironmentObject private var coach: AICoachEngine
 
     /// The stored 0–3 stress series ("my-whoop"), oldest→newest. Empty → derive.
@@ -76,7 +79,7 @@ struct StressView: View {
             if let model {
                 content(model)
             } else if !loaded {
-                ComingSoon(what: "Reading your heart-rate variability and resting heart rate…")
+                ComingSoon.loading("Reading your heart-rate variability and resting heart rate…", title: "Reading your heart data")
             } else {
                 emptyState
             }
@@ -606,7 +609,8 @@ struct StressView: View {
     // MARK: Empty state
 
     private var emptyState: some View {
-        ComingSoon(what: "No stress history yet. Import your WHOOP export in Data Sources to see it.")
+        ComingSoon(what: "No stress history yet. Import your WHOOP export in Data Sources to see it.",
+                   action: ("Open Data Sources", { router.openDataSources() }))
     }
 }
 

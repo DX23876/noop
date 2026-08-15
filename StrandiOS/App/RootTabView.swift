@@ -63,6 +63,12 @@ struct RootTabView: View {
     @AppStorage(MoreSectionPrefs.storageKey) private var expandedMoreSectionsCSV = MoreSectionPrefs.defaultCSV
     private var expandedMoreSections: Set<String> { MoreSectionPrefs.decode(expandedMoreSectionsCSV) }
 
+    /// The More index's filter text. Deliberately NOT persisted: a search is a momentary question,
+    /// and coming back to the tab to find it still filtered would read as the app having lost rows.
+    @State private var moreQuery = ""
+    /// Whitespace alone is not a search — it would blank the index for a stray space.
+    private var isSearchingMore: Bool { !SearchMatch.tokens(moreQuery).isEmpty }
+
     /// V8 liquid redesign is the default Today; the Settings toggle lets a user fall back to the classic
     /// Today if they prefer it (keyed identically to the SettingsView toggle). Default ON.
     @AppStorage("noop.liquidTodayEnabled") private var liquidTodayEnabled = true
@@ -258,6 +264,17 @@ struct RootTabView: View {
                 // (InsightsView), matching the FAB's "Log journal" action. Calm sheet easing.
                 withAnimation(Self.sheetEase) { quickAction = .journal }
                 router.requestedDestination = nil
+            case .dataSources:
+                // Raised by the empty states' "Open Data Sources" button. Pushed onto the More tab's
+                // own stack — the same MoreDestination the More row uses — so Back returns the reader
+                // to where they were rather than stranding them in a tab they did not choose.
+                withAnimation(.timingCurve(0.22, 1, 0.36, 1, duration: 0.24)) { selectedTab = 3 }
+                // Appended rather than assigned (the Coach deep links REPLACE the More stack): if the
+                // reader was already somewhere under More, Back should return them there instead of
+                // dropping them at the index. From any other tab the stack is at its root, so this
+                // behaves exactly like a replace.
+                tabPaths[3].append(MoreDestination.dataSources)
+                router.requestedDestination = nil
             case nil:
                 break
             }
@@ -349,6 +366,9 @@ struct RootTabView: View {
                 // .journal opens through the quick-action Journal sheet (handled above); this keeps the
                 // switch exhaustive and falls back to the journal's Insights host if it ever reaches here.
                 case .journal: InsightsView()
+                // .dataSources is pushed onto the More tab's own stack (handled above); this keeps the
+                // switch exhaustive and falls back to the screen itself if it ever reaches the host.
+                case .dataSources: DataSourcesView()
                 }
             }
             // The Trends/Today fallbacks above emit TabRoute value pushes (#198), which need a
@@ -479,71 +499,25 @@ struct RootTabView: View {
             ScreenScaffold(title: "More", subtitle: "Everything else, one tap away",
                            onRefresh: { await repo.refresh() },
                            topBackground: liquidScaffoldSky()) {
-                // "Analysis" (was "Insights", §7) — clearer group name. Coach is intentionally NOT listed
-                // here: it's an action, reachable from the floating button, the Today tile and deep links,
-                // not a place (its .coach destination stays registered so those entry points still push it).
-                moreSection("Analysis") {
-                    // Renamed to match InsightsHubView's own ScreenScaffold title ("Insights") — the word
-                    // freed up once the section became "Analysis" and the old "Insights" row became "Journal".
-                    MoreRow("Insights", "wand.and.sparkles", .insightsHub)
-                    // Renamed from "Intelligence": names what the screen actually explains (its own subtitle
-                    // is "NOOP scores your charge, effort and rest itself: on-device, no cloud.").
-                    MoreRow("How Scoring Works", "brain.head.profile", .intelligence)
-                    MoreRow("Goal & Journey", "target", .goalJourney)
-                    // Named "Journal" (was "Insights", colliding with this section's name — redesign bug §1):
-                    // this row opens the behaviour-logging + personal-experiments screen, the same view the
-                    // "Log journal" quick action opens.
-                    MoreRow("Journal", "book.closed.fill", .insights)
-                    MoreRow("Explore", "square.grid.2x2.fill", .explore)
-                    MoreRow("Compare", "rectangle.split.2x1.fill", .compare)
-                    // This row remains reachable while the Coach itself is off: it is where a person
-                    // connects a provider and explicitly turns the feature on again.
-                    MoreRow("AI Coach", "sparkles", .coachSettings)
-                }
-                moreSection("Body") {
-                    MoreRow("Live", "waveform.path.ecg", .live)
-                    MoreRow("Workouts", "figure.run", .workouts)
-                    MoreRow("Health", "heart.text.square.fill", .health)
-                    // Renamed from "Lab Book": names the content directly (blood/BP/body numbers), not the
-                    // record-keeping metaphor.
-                    MoreRow("Biomarkers", "books.vertical.fill", .labBook)
-                    MoreRow("Stress", "bolt.heart.fill", .stress)
-                    MoreRow("Breathe", "wind", .breathe)
-                    MoreRow("Intervals", "timer", .intervals)
-                    // Experimental beat-to-beat regularity visualization — self-gates on its own consent.
-                    // Renamed from "Rhythm": explicit that this is about heartbeat, not daily/circadian rhythm.
-                    MoreRow("Beat Rhythm", "waveform.path", .rhythm)
-                }
-                moreSection("Data") {
-                    MoreRow("Your Data, Fused", "square.stack.3d.up.fill", .fusedRecord)
-                    MoreRow("Apple Health", "heart.fill", .appleHealth)
-                    MoreRow("Mi Band", "figure.walk.motion", .miBand)
-                    MoreRow("Data Sources", "externaldrive.fill", .dataSources)
-                    MoreRow("Backup & Sync", "externaldrive.fill.badge.icloud", .backupSync)
-                    // #155: HealthKit-free Apple Health path for sideloaded installs (Siri Shortcut
-                    // reads the opt-in Documents/noop_sync.txt drop file).
-                    MoreRow("Shortcuts Export", "square.and.arrow.up.fill", .shortcutsExport)
-                    // The plain 4.0 vs 5.0/MG capability grid — what NOOP reads live off each strap.
-                    MoreRow("NOOP Limitations", "list.bullet.rectangle", .noopLimitations)
-                }
-                moreSection("App") {
-                    // #805/#811: the v7.3.1 #766 alarm consolidation moved Smart Alarm under a single
-                    // "Alarms" sidebar entry (RootView .smartAlarm) but the regression dropped the row
-                    // from the iPhone More list, leaving Alarms unreachable on iPhone. Restore it here
-                    // (route to SmartAlarmView, the cross-platform iOS/macOS surface).
-                    //
-                    // Notifications (RootView .notifications) is deliberately NOT added: that screen is
-                    // macOS-only (it picks which Mac apps tap your wrist via NSWorkspace, imports AppKit,
-                    // and project.yml excludes Screens/NotificationSettingsView.swift from the iOS target),
-                    // so it can't compile or apply on iPhone. iPhone's wrist-alert controls live on the
-                    // Automations screen instead. Its absence from the iPhone More list is correct.
-                    MoreRow("Alarms", "alarm.fill", .alarms)
-                    MoreRow("Automations", "wand.and.stars", .automations)
-                    // The Test Centre (the diagnostics + bug-report hub) gets a first-class home here, not
-                    // just buried in Settings, so the feedback loop is one tap from the More tab.
-                    MoreRow("Test Centre", "stethoscope", .testCentre)
-                    MoreRow("Siri & Shortcuts", "mic.fill", .siriShortcuts)
-                    MoreRow("Settings", "gearshape.fill", .settings)
+                // The index is a lot of rows across four groups, two of which rest collapsed — so the
+                // field comes FIRST, before the reader has to decide which group a screen lives in.
+                // It also reaches into Settings (see `moreSearchResults`), which is where "where do I
+                // turn X on?" actually ends.
+                NoopLiquidGlassSearchField(
+                    text: $moreQuery,
+                    prompt: String(localized: "Search screens and settings"),
+                    accessibilityLabel: String(localized: "Search screens and settings")
+                )
+
+                if isSearchingMore {
+                    moreSearchResults
+                } else {
+                    // The rows themselves live in `MoreCatalog` — the search has to read them, and a
+                    // @ViewBuilder closure cannot be read. Group order, titles and the persisted
+                    // open/closed state are unchanged.
+                    ForEach(MoreCatalog.groups) { group in
+                        moreSection(group)
+                    }
                 }
             }
             // The rows push MoreDestination VALUES so a re-tap of the More tab can pop them off the
@@ -572,8 +546,8 @@ struct RootTabView: View {
     /// `NoopCard` holding a `VStack(spacing: 0)` whose `MoreRow`s draw their own hairlines, clipped to the
     /// card's rounded shape so the last divider is trimmed inside the corners. Same idiom Settings/Health use.
     @ViewBuilder
-    private func moreSection<Rows: View>(_ title: String,
-                                         @ViewBuilder rows: @escaping () -> Rows) -> some View {
+    private func moreSection(_ group: MoreGroup) -> some View {
+        let title = group.title
         let isOpen = expandedMoreSections.contains(title)
         VStack(alignment: .leading, spacing: 10) {
             // Tappable overline header: the same ALL-CAPS tracked label as before, now with a trailing
@@ -609,11 +583,68 @@ struct RootTabView: View {
                 // supply their own hairline separators (drawn at the bottom of every row but the last via the
                 // divider overlay) so the group reads as one continuous grouped list, matching Settings/Health.
                 NoopCard(padding: 0, cornerRadius: NoopMetrics.groupedRadius) {
-                    VStack(spacing: 0) { rows() }
+                    VStack(spacing: 0) {
+                        ForEach(group.entries) { entry in MoreRow(entry) }
+                    }
                         // Clip the rows column to the card's rounded shape so the last row's bottom hairline is
                         // trimmed inside the corners (the card draws its surface in the BACKGROUND and doesn't
                         // clip content itself, so without this the final divider would run past the rounded edge).
                         .clipShape(RoundedRectangle(cornerRadius: NoopMetrics.groupedRadius, style: .continuous))
+                }
+            }
+        }
+    }
+
+    /// The flat result list shown while the field has text.
+    ///
+    /// Flat on purpose: the groups (and their collapsed state) are exactly what the search exists to
+    /// bypass — a hit hiding inside a closed "Data" group would be the bug this feature is meant to
+    /// fix. Screens come first, then Settings sections, each labelled so a hit's home is never a guess.
+    @ViewBuilder
+    private var moreSearchResults: some View {
+        let screens = MoreCatalog.matching(moreQuery)
+        let settings = SettingsSearchCatalog.matching(moreQuery)
+
+        if screens.isEmpty && settings.isEmpty {
+            // An honest dead end rather than a blank screen. No "did you mean" — the matcher is
+            // deliberately not fuzzy, so there is nothing truthful to suggest.
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Nothing matches “\(moreQuery)”.")
+                    .font(StrandFont.headline)
+                    .foregroundStyle(StrandPalette.textPrimary)
+                Text("Try a shorter word, or the name of the screen you're after.")
+                    .font(StrandFont.subhead)
+                    .foregroundStyle(StrandPalette.textSecondary)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.vertical, 24)
+        } else {
+            if !screens.isEmpty {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Screens").strandOverline()
+                    NoopCard(padding: 0, cornerRadius: NoopMetrics.groupedRadius) {
+                        VStack(spacing: 0) {
+                            ForEach(screens) { entry in MoreRow(entry) }
+                        }
+                        .clipShape(RoundedRectangle(cornerRadius: NoopMetrics.groupedRadius, style: .continuous))
+                    }
+                }
+            }
+            if !settings.isEmpty {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Settings").strandOverline()
+                    NoopCard(padding: 0, cornerRadius: NoopMetrics.groupedRadius) {
+                        VStack(spacing: 0) {
+                            ForEach(settings) { entry in
+                                // Carry the query into Settings so the pushed screen opens already
+                                // filtered to this section — otherwise the tap would land the reader
+                                // back in the same 15-card wall they were searching to avoid.
+                                MoreRow(entry.title, "gearshape.fill", .settingsSearch(moreQuery),
+                                        caption: "in Settings", colorKey: "settings")
+                            }
+                        }
+                        .clipShape(RoundedRectangle(cornerRadius: NoopMetrics.groupedRadius, style: .continuous))
+                    }
                 }
             }
         }
@@ -629,6 +660,10 @@ enum MoreDestination: Hashable {
     case live, workouts, health, labBook, stress, breathe, intervals, rhythm
     case fusedRecord, appleHealth, miBand, dataSources, backupSync, shortcutsExport, noopLimitations
     case alarms, automations, testCentre, siriShortcuts, settings
+    /// Settings opened from a search hit, carrying the query so the screen lands already filtered to
+    /// the matching section. Distinct from `.settings` (the plain row) so an ordinary tap on the
+    /// Settings row still opens the whole screen.
+    case settingsSearch(String)
 
     @ViewBuilder var destination: some View {
         switch self {
@@ -662,6 +697,7 @@ enum MoreDestination: Hashable {
         case .testCentre:      TestCentreView()
         case .siriShortcuts:   SiriShortcutsSettingsView()
         case .settings:        SettingsView()
+        case .settingsSearch(let query): SettingsView(searchSeed: query)
         }
     }
 }
@@ -672,12 +708,28 @@ enum MoreDestination: Hashable {
 /// trailing `chevron.right` in `textTertiary`. ~44pt min height + the card's row insets keep the whole row a
 /// comfortable tap target.
 struct MoreRow: View {
-    let title: LocalizedStringKey
+    let title: LocalizedStringResource
     let icon: String
     let route: MoreDestination
+    /// Secondary line under the title. Only the search results use it — to say WHERE a hit lives
+    /// ("in Settings"), which a flat result list otherwise leaves the reader to guess.
+    var caption: LocalizedStringResource?
+    /// Key for the semantic icon colour. Defaults to the route's own name, which is what every
+    /// grouped row uses; a search result whose route carries an associated value (`.settingsSearch`)
+    /// passes the plain key so it keeps the Settings colour instead of falling off the lookup.
+    var colorKey: String?
 
-    init(_ title: LocalizedStringKey, _ icon: String, _ route: MoreDestination) {
+    init(_ entry: MoreEntry) {
+        self.init(entry.title, entry.icon, entry.route)
+    }
+
+    init(_ title: LocalizedStringResource,
+         _ icon: String,
+         _ route: MoreDestination,
+         caption: LocalizedStringResource? = nil,
+         colorKey: String? = nil) {
         self.title = title; self.icon = icon; self.route = route
+        self.caption = caption; self.colorKey = colorKey
     }
 
     var body: some View {
@@ -697,11 +749,18 @@ struct MoreRow: View {
                 // explicit foreground style prevents that; the title keeps the primary text colour.
                 Image(systemName: icon)
                     .font(.system(size: 17, weight: .regular))
-                    .appleInspiredForeground(String(describing: route))
+                    .appleInspiredForeground(colorKey ?? String(describing: route))
                     .frame(width: 26, alignment: .center)
-                Text(title)
-                    .font(StrandFont.body)
-                    .foregroundStyle(StrandPalette.textPrimary)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(title)
+                        .font(StrandFont.body)
+                        .foregroundStyle(StrandPalette.textPrimary)
+                    if let caption {
+                        Text(caption)
+                            .font(StrandFont.footnote)
+                            .foregroundStyle(StrandPalette.textTertiary)
+                    }
+                }
                 Spacer(minLength: 8)
                 Image(systemName: "chevron.right")
                     .font(.system(size: 13, weight: .semibold))

@@ -109,25 +109,15 @@ struct UpdatesInboxView: View {
         }
     }
 
+    /// This layout used to be hand-built here because `ComingSoon` could only draw the compact card.
+    /// It was the better of the two, so it became `ComingSoon`'s `.spacious` presentation rather than
+    /// staying a second empty-state idiom sitting next to the shared one. Identical rendering; the
+    /// glyph, headline and centred body are the same.
     private var emptyState: some View {
-        VStack(spacing: 12) {
-            Spacer(minLength: 40)
-            Image(systemName: "bell.slash")
-                .font(.system(size: 34, weight: .light))
-                .foregroundStyle(StrandPalette.textTertiary)
-                .accessibilityHidden(true)
-            Text("You're all caught up.")
-                .font(StrandFont.headline)
-                .foregroundStyle(StrandPalette.textPrimary)
-            Text("New release notes and fresh data will land here.")
-                .font(StrandFont.subhead)
-                .foregroundStyle(StrandPalette.textSecondary)
-                .multilineTextAlignment(.center)
-                .fixedSize(horizontal: false, vertical: true)
-            Spacer(minLength: 40)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .padding(.horizontal, 32)
+        ComingSoon(what: "New release notes and fresh data will land here.",
+                   symbol: "bell.slash",
+                   title: "You're all caught up.",
+                   presentation: .spacious)
     }
 
     // MARK: Footer

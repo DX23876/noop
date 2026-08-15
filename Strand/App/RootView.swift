@@ -329,6 +329,8 @@ struct RootView: View {
             case .breathe: selection = .breathe
             // The #627 Today journal widget routes to the Insights sidebar row (which hosts the journal card).
             case .journal: selection = .insights
+            // Raised by the empty states' "Open Data Sources" button — the sidebar row already exists.
+            case .dataSources: selection = .dataSources
             case nil: break
             }
             if dest != nil { router.requestedDestination = nil }

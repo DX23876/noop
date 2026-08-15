@@ -26,6 +26,9 @@ private struct WorkoutRecoveryTrendPoint: Identifiable, Equatable {
 
 struct WorkoutsView: View {
     @EnvironmentObject var repo: Repository
+    /// The empty state's "Open Data Sources" button routes through the shell (`NavRouter`), because
+    /// neither shell exposes a selection this screen could set directly.
+    @EnvironmentObject var router: NavRouter
     /// #459: "Start Workout" used to live ONLY on the Live screen, so a user reaching Workouts (via the
     /// Quick-action FAB or the tab) had no way to begin one from the obvious place. Injected here so the
     /// header/empty-state can start a live session and present the in-exercise view directly.
@@ -84,6 +87,11 @@ struct WorkoutsView: View {
     #if os(iOS)
     @Environment(\.horizontalSizeClass) private var hSizeClass
     #endif
+
+    /// Read here so `recoveryLegend`'s swatch can match what `WorkoutRecoveryTrendChart` draws — the
+    /// chart reads the same value independently, and a legend that disagreed with its chart would be
+    /// worse than no legend. Outside the `#if os(iOS)` above: the recovery card is cross-platform.
+    @Environment(\.noopDifferentiateWithoutColor) private var differentiateWithoutColor
 
     /// The add/edit sheet target: `.some(nil)` = add a new workout, `.some(row)` = edit `row`,
     /// `nil` = sheet closed. Wrapped in Identifiable so `.sheet(item:)` can drive presentation.
@@ -168,9 +176,12 @@ struct WorkoutsView: View {
                        topBackground: liquidScaffoldSky()) {
             if allRows.isEmpty {
                 VStack(alignment: .leading, spacing: NoopMetrics.space4) {
-                    ComingSoon(what: loaded
-                        ? "No workouts yet. They come from your WHOOP and Apple Health history. Import in Data Sources to bring them in, or add one you tracked elsewhere."
-                        : "Loading your sessions…")
+                    if loaded {
+                        ComingSoon(what: "No workouts yet. They come from your WHOOP and Apple Health history. Import in Data Sources to bring them in, or add one you tracked elsewhere.",
+                                   action: ("Open Data Sources", { router.openDataSources() }))
+                    } else {
+                        ComingSoon.loading("Loading your sessions…", title: "Reading your sessions")
+                    }
                     if loaded {
                         workoutActionRow
                     }
@@ -359,9 +370,9 @@ struct WorkoutsView: View {
                         WorkoutRecoveryTrendChart(points: recoveryTrend)
                             .frame(height: NoopMetrics.chartHeight)
                         HStack(spacing: 16) {
-                            recoveryLegend("1 min", color: StrandPalette.metricRose)
-                            recoveryLegend("2 min", color: StrandPalette.metricCyan)
-                            recoveryLegend("5 min", color: StrandPalette.metricPurple)
+                            recoveryLegend("1 min", color: StrandPalette.metricRose, seriesIndex: 0)
+                            recoveryLegend("2 min", color: StrandPalette.metricCyan, seriesIndex: 1)
+                            recoveryLegend("5 min", color: StrandPalette.metricPurple, seriesIndex: 2)
                         }
                         Divider().overlay(StrandPalette.hairline)
                         Text("Each line shows how many beats per minute your heart rate changed after exercise. Only high-intensity workouts with recorded post-workout heart rate are included.")
@@ -374,9 +385,16 @@ struct WorkoutsView: View {
         }
     }
 
-    private func recoveryLegend(_ label: LocalizedStringKey, color: Color) -> some View {
+    /// A legend swatch that shows whatever the chart is actually drawing: a dot by default, and a
+    /// short stroke in this series' dash pattern once the reader has asked for a non-colour encoding.
+    /// A legend that kept showing three identical dots would leave the dashed lines unexplained.
+    private func recoveryLegend(_ label: LocalizedStringKey, color: Color, seriesIndex: Int) -> some View {
         HStack(spacing: 5) {
-            Circle().fill(color).frame(width: 8, height: 8)
+            if differentiateWithoutColor {
+                DashSwatch(color: color, dash: ChartDifferentiation.dashPattern(seriesIndex: seriesIndex))
+            } else {
+                Circle().fill(color).frame(width: 8, height: 8)
+            }
             Text(label).font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
         }
     }
@@ -1839,6 +1857,8 @@ private struct WorkoutRecoveryTrendChart: View {
         }
     }
 
+    @Environment(\.noopDifferentiateWithoutColor) private var differentiateWithoutColor
+
     var body: some View {
         let one = String(localized: "1 min")
         let two = String(localized: "2 min")
@@ -1849,12 +1869,21 @@ private struct WorkoutRecoveryTrendChart: View {
                 y: .value("Recovery", point.value)
             )
             .foregroundStyle(by: .value("Recovery interval", point.interval))
+            // Three curves told apart by hue alone. When the reader has asked for a second encoding,
+            // each interval also takes its own dash (`ChartDifferentiation`); the legend below shows
+            // the same pattern so the two still match.
+            .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round,
+                                   dash: differentiateWithoutColor
+                                       ? ChartDifferentiation.dashPattern(
+                                           seriesIndex: [one, two, five].firstIndex(of: point.interval) ?? 0)
+                                       : []))
             .interpolationMethod(.catmullRom)
             PointMark(
                 x: .value("Workout", point.date),
                 y: .value("Recovery", point.value)
             )
             .foregroundStyle(by: .value("Recovery interval", point.interval))
+            .symbol(by: .value("Recovery interval", differentiateWithoutColor ? point.interval : ""))
             .symbolSize(28)
         }
         .chartForegroundStyleScale(
