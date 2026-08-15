@@ -189,7 +189,7 @@ public enum AnalyticsEngine {
     /// `h.ts = p.ts` anti-join, so coalescing-then-filtering equals coalescing over the day range. The
     /// guards are self-protecting — a DST-shifted `dayLo`/`dayHi` simply falls outside the window and
     /// declines — so the shortcut can only ever DECLINE to a direct read, never return wrong data.
-    /// Mirrors Kotlin `IntelligenceEngine.daySliceFromNight`; lives here (like `offWristIntervals`)
+    /// Mirrors Kotlin `AnalyticsEngine.daySliceFromNight`; lives here (like `offWristIntervals`)
     /// so the pure logic is package-testable. (#997)
     public static func daySliceFromNight<T>(_ night: [T],
                                             nightLo: Int, nightHi: Int,
@@ -607,6 +607,18 @@ public enum AnalyticsEngine {
             return weight > 0 ? total / weight : nil
         }()
 
+        // Daily SDNN (ms) = the 5-min SDNN INDEX (Task Force) over the in-bed R-R across matched sessions —
+        // the mean of per-5-min-segment SDNN, the BROAD autonomic-variability metric (both branches) and the
+        // slow twin of the vagal RMSSD `avgHRVDaily` above. The index (not a single whole-night SD) is used
+        // deliberately: whole-night SD is dominated by the slow HR drift across sleep stages and reads 2-3×
+        // high, which would mislabel Apple Health (its SDNN samples are short-window) and make any cross-check
+        // against a watch meaningless. The 5-min index is window-comparable to those. nil when no segment has
+        // enough clean beats (HRVAnalyzer's own gate). Keeps the R-R timestamps (segmentation needs them).
+        let avgSDNNDaily: Double? = {
+            let inBed = rr.filter { r in matched.contains { r.ts >= $0.start && r.ts < $0.end } }
+            return inBed.isEmpty ? nil : HRVAnalyzer.sdnnIndex(inBed, segmentSec: 300)
+        }()
+
         // ── HRV & Autonomic nightly trace (#141) ──────────────────────────────
         // Per-5-min-window RMSSD tagged by the sleep stage at its center, then a night summary comparing
         // NOOP's whole-night mean (what it reports) against a deep-only mean and a WHOOP-style
@@ -796,7 +808,8 @@ public enum AnalyticsEngine {
             steps: stepsTotal,
             activeKcalEst: activeKcalEst,
             spo2Red: nightlySpo2Raw?.red,
-            spo2Ir: nightlySpo2Raw?.ir)
+            spo2Ir: nightlySpo2Raw?.ir,
+            avgSdnn: avgSDNNDaily)
         _ = sleepStart; _ = sleepEnd  // available for callers wiring sleep_start/end columns
 
         // ── Cache rows ────────────────────────────────────────────────────────
@@ -901,6 +914,46 @@ public enum AnalyticsEngine {
         public static let wEfficiency: Double = 0.20
         public static let wRestorative: Double = 0.20
         public static let wConsistency: Double = 0.10
+
+        /// Minimum trailing nights before a personal sleep-need estimate is trusted; below this the
+        /// population default is used (cold-start honesty — never learn a need from a few nights).
+        public static let minNeedNights: Int = 7
+        /// Hard cap on personalized need (h): beyond typical adult need even for genuine long sleepers.
+        public static let maxNeedHours: Double = 9.5
+
+        /// Population TARGET nightly sleep need (hours) for an age (NSF/AASM recommended-range
+        /// midpoint). Used as a FLOOR: the personal estimate can only adjust it UP for genuine long
+        /// sleepers, NEVER below the population target — so a chronic under-sleeper's need can't drift
+        /// toward their own deficit (which would falsely erase their sleep debt and read a short night
+        /// as "Strong"). Deliberately the target, not the minimum: flooring at the low end of the
+        /// range would understate a sleep-deprived (vs genuinely short-sleeping) user's deficit.
+        public static func populationNeedFloorHours(age: Int?) -> Double {
+            guard let age, age > 0 else { return 8.0 }   // unknown → adult target
+            switch age {
+            case ..<18: return 9.0     // children/teens need more (NSF 8–12; target ~9)
+            default: return 8.0        // adults (18–64) & older (65+): NSF 7–9, target ~8 (the app default)
+            }
+        }
+
+        /// Personalized nightly sleep need (hours), population-ANCHORED and age-floored (T1). The
+        /// personal component is the user's UPPER-QUARTILE nightly duration over the trailing window —
+        /// what they sleep on their less-restricted nights, NOT their average (which a chronic deficit
+        /// drags down) — floored at the age-appropriate population TARGET and capped at `maxNeedHours`.
+        /// So it only ever ADJUSTS UP for genuine long sleepers, never below the target. Fewer
+        /// than `minNeedNights` scorable nights → the population default (cold-start). Zero/negative
+        /// entries (no-data days) are dropped and do not count toward the minimum.
+        public static func personalizedNeedHours(nightlyHours: [Double], age: Int?) -> Double {
+            let floor = populationNeedFloorHours(age: age)
+            let xs = nightlyHours.filter { $0 > 0 }.sorted()
+            guard xs.count >= minNeedNights else {
+                return min(max(defaultNeedHours, floor), maxNeedHours)
+            }
+            // Linear-interpolated 75th percentile — the "unrestricted" nights.
+            let pos = 0.75 * Double(xs.count - 1)
+            let lo = Int(pos), hi = min(lo + 1, xs.count - 1)
+            let q = xs[lo] + (pos - Double(lo)) * (xs[hi] - xs[lo])
+            return min(max(q, floor), maxNeedHours)
+        }
 
         /// Build the composite. `tstSeconds` = total sleep time, `restorativeSeconds` = deep+REM
         /// seconds, `deepSeconds` = deep-stage seconds (nil → no deep-adequacy adjustment, pooled

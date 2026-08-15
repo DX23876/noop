@@ -282,6 +282,16 @@ public enum HRZones {
         return lowerPercents + [1.0]
     }
 
+    /// The conventional five lower bounds expressed in whole bpm, for seeding a bpm editor.
+    ///
+    /// Rounds UP rather than to nearest, which is what keeps the seeded bands classifying integer
+    /// samples exactly as the percentage bands did: a 93.4 bpm edge rounded DOWN to 93 pulls a 93 bpm
+    /// reading up a zone, while 94 leaves it where the percentage model put it. (Upstream ryanbr/noop
+    /// makes the same point in `defaultLowerBounds(maxHR:)`.)
+    public static func defaultBpmLowerBounds(maxHR: Double) -> [Double] {
+        zoneEdges.prefix(5).map { ($0 * maxHR).rounded(.up) }
+    }
+
     /// True when `edges` is the conventional 50/60/70/80/90 set — i.e. the user has NOT customised.
     public static func isDefaultEdges(_ edges: [Double]) -> Bool {
         guard edges.count == zoneEdges.count else { return false }

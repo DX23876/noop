@@ -100,7 +100,7 @@ struct HRZoneEditorSheet: View {
             ? resolved.zones.map { ($0.lowerPct * 1000).rounded() / 10 }
             : config.percentLowerBounds.map { ($0 * 1000).rounded() / 10 }
         bpms = config.bpmLowerBounds.isEmpty
-            ? resolved.zones.map { $0.lower.rounded() }
+            ? resolved.zones.map { $0.lower.rounded(.up) }
             : config.bpmLowerBounds
     }
 

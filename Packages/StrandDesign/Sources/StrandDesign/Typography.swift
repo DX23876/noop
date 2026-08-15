@@ -79,6 +79,11 @@ public enum StrandFont {
     #endif
 
     /// Compact section overline. Semibold rather than bold, with restrained tracking below.
+    ///
+    /// This fork keeps its own face here (upstream ryanbr/noop uses `.rounded` at +1.4 tracking); the
+    /// lighter tracking in `overlineTracking` is part of the same deliberate divergence. Also the face
+    /// for compact status copy in constrained chrome (the Today header's sync capsule), used there
+    /// WITHOUT the tracking — that is sentence case, not an overline.
     public static let overline = Font.caption2.weight(.semibold)
 
     /// A deliberately fixed compact SF label for gauges and watch layouts. Ordinary section labels

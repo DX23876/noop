@@ -13,6 +13,8 @@ enum SettingsSectionID: String, CaseIterable, Hashable, Sendable {
     case strap
     case powerSaving
     case recovery
+    /// HRV tuning, moved out of the always-visible Strap card into Advanced (upstream #518).
+    case hrv
     case testCentre
     case features
     case liveSessions
@@ -86,8 +88,13 @@ enum SettingsSearchCatalog {
             id: .strap,
             title: "Strap",
             keywords: ["bluetooth", "pairing", "strap log", "strap name", "rename",
-                       "continuous HRV capture", "HRV window", "live activity",
-                       "lock screen", "dynamic island"]
+                       "live activity", "lock screen", "dynamic island"]
+        ),
+        SettingsSearchEntry(
+            id: .hrv,
+            title: "HRV",
+            keywords: ["continuous HRV capture", "HRV window", "overnight only",
+                       "beat-to-beat", "R-R", "deep sleep", "whole night"]
         ),
         SettingsSearchEntry(
             id: .powerSaving,

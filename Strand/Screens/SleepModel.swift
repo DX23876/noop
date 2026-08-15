@@ -328,12 +328,44 @@ extension SleepModel {
         Swift.max(450, typicalTotalMin(days: days) ?? 450)   // 450 min = 7.5h
     }
 
+    /// The NORMATIVE per-user sleep need (minutes) the DEBT surfaces measure against — the
+    /// population-anchored, age-floored, upper-quartile `personalizedNeedHours`, the SAME estimator
+    /// Rest/Intelligence score against. Deliberately NOT the descriptive `sleepNeedMin` (mean total
+    /// sleep): the mean drifts DOWN toward a chronic under-sleeper's own deficit and quietly erases
+    /// their debt, whereas the upper-quartile floored at the ~8 h adult target only adjusts UP for
+    /// genuine long sleepers. Age isn't plumbed to this screen (age: nil → adult target); wiring it
+    /// would only raise it for under-18s. One need across every debt surface, agreeing with the engine.
+    /// (#242; need-unification from #464 by @vishk23. The descriptive `sleepNeedMin` still drives the
+    /// non-debt "hours vs needed" performance tile.)
+    static func debtNeedMin(days: [DailyMetric]) -> Double {
+        AnalyticsEngine.Rest.personalizedNeedHours(
+            nightlyHours: days.compactMap { $0.totalSleepMin.map { $0 / 60.0 } },
+            age: nil) * 60.0
+    }
+
     // MARK: Per-tile series (latest, typical mean, sparkline history)
 
     /// Build a metric from a per-day transform, keeping only finite values.
-    static func metric(days: [DailyMetric], _ transform: (DailyMetric) -> Double?) -> Metric {
-        let series = days.compactMap(transform).filter { $0.isFinite }
-        return (series.last, mean(series), series)
+    ///
+    /// `latest` is STALENESS-BOUNDED (`Baselines.vitalCarryDays`): it is the newest value only while
+    /// that value's own day is recent enough to still be presented as this night's reading, and nil
+    /// otherwise. Without the bound `series.last` reached back arbitrarily far — a respiratory rate
+    /// last written by a WHOOP CSV import on 30 Jul kept rendering as "Respiratory 15.6" in the Night
+    /// detail card two weeks later, with no date anywhere beside it, and was read (by the project's own
+    /// investigation) as a current measurement. `typical` and `series` are deliberately UNBOUNDED: they
+    /// are explicitly historical — the trend line and the "vs typical" mean are supposed to span the
+    /// whole history, and it is only the headline number that claims to be current.
+    static func metric(days: [DailyMetric], now: Date = Date(),
+                       _ transform: (DailyMetric) -> Double?) -> Metric {
+        let points = days.compactMap { d -> (day: String, value: Double)? in
+            guard let v = transform(d), v.isFinite else { return nil }
+            return (d.day, v)
+        }
+        let series = points.map(\.value)
+        // `BodyVitalSigns.logicalDayKey` rather than `Repository.logicalDayKey`: same 04:00 boundary,
+        // but self-contained, so this stays pure and independent of the @MainActor Repository.
+        let fresh = Baselines.freshestCarried(points, todayKey: BodyVitalSigns.logicalDayKey(now))
+        return (fresh?.value, mean(series), series)
     }
 
     /// Sleep performance %: the imported WHOOP figure when the export carried one for that day;
@@ -416,7 +448,7 @@ extension SleepModel {
     static func sleepDebtSeries(days: [DailyMetric], importedSleep: [String: ImportedSleepFigures],
                                 napSleepMinByDay: [String: Double]) -> Metric {
         let imported = importedSleep
-        let need = sleepNeedMin(days: days)
+        let need = debtNeedMin(days: days)   // #242: normative need, not the self-referential mean
         let series = days.compactMap { d -> Double? in
             if let debt = imported[d.day]?.debtMin { return debt }   // minutes, export-verbatim
             guard let asleep = SleepDebt.creditedSleepMin(
@@ -437,9 +469,10 @@ extension SleepModel {
 
     // MARK: Sleep-debt ledger
 
-    /// The rolling 14-night sleep-debt ledger from the cached daily metrics. Uses the SAME personal
-    /// sleep need the tiles use (`sleepNeedMin`), measured against each main night's `totalSleepMin`
-    /// plus actual asleep minutes from separately-recorded naps. (#242)
+    /// The rolling 14-night sleep-debt ledger from the cached daily metrics. Measures against the
+    /// normative `debtNeedMin` (the engine's `personalizedNeedHours`) — the SAME need the per-night
+    /// "Sleep Debt" tile uses, so the running-balance card and the tile agree — over each main night's
+    /// `totalSleepMin` plus actual asleep minutes from separately-recorded naps. (#242)
     static func debtLedger(days: [DailyMetric], napSleepMinByDay: [String: Double]) -> SleepDebtLedger {
         SleepDebt.ledger(
             series: days.map { day in
@@ -447,7 +480,7 @@ extension SleepModel {
                     mainSleepMin: day.totalSleepMin,
                     napSleepMin: napSleepMinByDay[day.day] ?? 0))
             },
-            needHours: sleepNeedMin(days: days) / 60.0)
+            needHours: debtNeedMin(days: days) / 60.0)
     }
 
     // MARK: - Build

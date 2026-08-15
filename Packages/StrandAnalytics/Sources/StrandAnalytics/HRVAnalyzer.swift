@@ -358,6 +358,29 @@ public enum HRVAnalyzer {
                          nInput: nInput, nClean: clean.count)
     }
 
+    /// SDNN index (Task Force 1996): the MEAN of SDNN computed over consecutive fixed-length segments
+    /// (default 5 min) of the R-R series, each segment cleaned with the SAME range + Malik ectopic
+    /// rejection the nightly path uses. Unlike whole-night SDNN — which is dominated by the slow HR drift
+    /// ACROSS sleep stages and can read 2-3× higher — the index reflects SHORT-TERM variability, so it is
+    /// window-comparable to a wearable's short SDNN reading (e.g. Apple Watch's ~1-min
+    /// `heartRateVariabilitySDNN` samples) and is the value that can be honestly cross-checked against one.
+    /// Segments with fewer than `minBeats` clean intervals are skipped; nil when no segment qualifies.
+    /// Pure, deterministic. Kotlin twin: `HrvAnalyzer.sdnnIndex`.
+    public static func sdnnIndex(_ rr: [RRInterval], segmentSec: Int = 300) -> Double? {
+        guard segmentSec > 0, let first = rr.map(\.ts).min(), let last = rr.map(\.ts).max(),
+              last >= first else { return nil }
+        var segStart = first
+        var segmentSDNNs: [Double] = []
+        while segStart <= last {
+            if let sd = analyze(rr, windowStart: segStart, windowEnd: segStart + segmentSec - 1).sdnn {
+                segmentSDNNs.append(sd)
+            }
+            segStart += segmentSec
+        }
+        guard !segmentSDNNs.isEmpty else { return nil }
+        return segmentSDNNs.reduce(0, +) / Double(segmentSDNNs.count)
+    }
+
     // MARK: - Rolling / windowed rMSSD timeline (#803)
 
     /// One windowed rMSSD point: the rMSSD (ms) over the trailing `windowSec` of R-R intervals ending at
@@ -602,6 +625,37 @@ public enum HRVAnalyzer {
     /// deliberately same-second-ONLY: R-R ts are stored at second resolution, and at rest genuine
     /// consecutive beats are ~1 s apart, so collapsing ACROSS a second would drop real beats. Deterministic
     /// (ts, rr, index) ordering. Byte-parity twin of Kotlin `HrvAnalyzer.collapsedCoverage`.
+    /// #1008/#1118/#1331 SHADOW de-dup: collapse the WHOOP 4.0 R-R over-count. A same-second beat whose
+    /// value is within `rrTolMs` of one already kept in that second (the exact duplicates AND the
+    /// two-optical-channel ~34 ms pairs — hence a wider default tol than `collapsedCoverage`'s 30 ms) is
+    /// dropped, keeping one representative. Returns the deduped `(tsSec, rrMs)` in ts-ASC order.
+    ///
+    /// INSTRUMENTATION ONLY — the shipped HRV/resp path is unchanged; the always-on `hrv diag` line logs
+    /// RMSSD / coverage / beat-accuracy of BOTH the raw and the deduped stream so the de-dup can be
+    /// validated against WHOOP's own numbers and @artemc's Polar H10 (#1118) BEFORE it ever becomes the
+    /// read path (the "validate against the artifact, not one match" rule). Pure. Mirrors Kotlin
+    /// `HrvAnalyzer.collapseOverCount`.
+    public static func collapseOverCount(tsSec: [Int], rrMs: [Double], rrTolMs: Double = 40)
+        -> (tsSec: [Int], rrMs: [Double]) {
+        let n = min(tsSec.count, rrMs.count)
+        guard n >= 2 else { return (tsSec, rrMs) }
+        let order = (0..<n).sorted { a, b in (tsSec[a], rrMs[a], a) < (tsSec[b], rrMs[b], b) }
+        var keptTs: [Int] = []
+        var keptRr: [Double] = []
+        for idx in order {
+            let t = tsSec[idx]
+            let r = rrMs[idx]
+            var dup = false
+            var j = keptTs.count - 1
+            while j >= 0 && keptTs[j] == t {      // only beats already kept in the SAME second
+                if abs(keptRr[j] - r) <= rrTolMs { dup = true; break }
+                j -= 1
+            }
+            if !dup { keptTs.append(t); keptRr.append(r) }
+        }
+        return (keptTs, keptRr)
+    }
+
     public static func collapsedCoverage(tsSec: [Int], rrMs: [Double], rrTolMs: Double = 30) -> Double {
         let n = min(tsSec.count, rrMs.count)
         guard n >= 2 else { return 0 }

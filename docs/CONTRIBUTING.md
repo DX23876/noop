@@ -19,6 +19,7 @@ non-negotiable (especially on the Bluetooth path).
 ## Table of contents
 
 - [Ground rules](#ground-rules)
+- [Contributor roles & the issue/PR workflow](#contributor-roles--the-issuepr-workflow)
 - [Repository layout](#repository-layout)
 - [Build & test](#build--test)
 - [The design system is the law](#the-design-system-is-the-law)
@@ -54,6 +55,38 @@ A few principles run through the whole codebase. Internalize them before opening
 5. **Credit upstream.** The protocol work is built on prior community reverse-engineering —
    `johnmiddleton12/my-whoop` (WHOOP 4.0) and `b-nnett/goose` (WHOOP 5.0). Preserve those credits in
    code comments and in [`../ATTRIBUTION.md`](../ATTRIBUTION.md).
+
+---
+
+## Contributor roles & the issue/PR workflow
+
+### Community help vs. maintainer decisions
+
+Community members may help triage issues, answer setup questions, test fixes, or point to existing
+documentation — that participation is welcome and valuable. Unless explicitly stated by the
+repository maintainer, those replies are **community help, not official maintainer decisions**.
+Official project decisions, release calls, security ownership, and merge decisions remain with the
+maintainer.
+
+### How issues and PRs are handled here
+
+NOOP runs a **lightweight, maintainer-judgment workflow**, not a strict issue-first gate. Concretely,
+that means:
+
+- There are no dedicated triage/approval labels (e.g. `needs-triage`, `confirmed-bug`,
+  `approved-feature`, `approved-enhancement`, `needs-review`) and no requirement that a PR link a
+  pre-approved issue via `Closes`/`Fixes`/`Resolves #N` before work can start.
+- Issues and PRs are reviewed and merged at the maintainer's discretion, weighed against the ground
+  rules and safety contracts in this document, rather than moved through a formal multi-stage gate.
+- A PR opened without a matching issue, or an issue without a triage label, is **not** by itself a
+  process violation in this repo. Contributors and any external review or automated check (including
+  strict-gate-style audits) should not treat the absence of gate labels as a contribution failure —
+  it reflects how this project currently runs, not an oversight.
+
+This is a deliberate choice for a small, anonymous, offline project; it may change as the project
+grows, in which case this section and the issue/PR templates will be updated together. Until then,
+opening an issue first to coordinate on anything non-trivial (as this guide recommends throughout) is
+still the best way to avoid wasted work — it's just not an enforced gate.
 
 ---
 
