@@ -437,10 +437,24 @@ object IntelligenceEngine {
         // null under HABITUAL_MIN_DAYS of history → cold-start: every analyzeDay/sleepEditedDaily call
         // below stays on the overnight-band bonus. The same value threads into both seams so analytics and
         // the Sleep tab resolve to the identical block. Mirrors Swift. (#547)
-        val habitualMidsleepSec = computeHabitualMidsleep(
+        val (habitualMidsleepSec, nightlyHours) = computeHabitualSleep(
             repo, importedDeviceId, computedId,
             nowLocalMidnight - maxDays * SECONDS_PER_DAY - 30 * 3_600L, nowSeconds, tzOffsetSeconds,
         )
+        // Wave 0 (SL1/T1): personal sleep REGULARITY + population-anchored NEED, computed ONCE from the
+        // trailing per-night durations and threaded to every analyzeDay below (mirrors the midsleep
+        // learner just above — one personal trait per run, applied to the whole re-scored history so
+        // Rest stops running on a flat neutral-0.5 consistency and a fixed 8 h need). Recent 28-night
+        // window for regularity (a recent-behaviour signal); full history for the need's upper-quartile
+        // "unrestricted nights" estimate. Both degrade honestly on thin history (consistency → null →
+        // neutral term; need → population default), so cold-start is unchanged. Mirrors Swift.
+        val sleepConsistency = VitalityEngine.sleepConsistency(nightlyHours.takeLast(28))
+        // Two spelling differences from Swift, neither of which changes a number: Swift's
+        // `AnalyticsEngine.Rest` is Kotlin's top-level `RestScorer` object, and Kotlin's
+        // `UserProfile.age` is a Double where Swift's `ProfileStore.age` is already floored whole
+        // years — `toInt()` truncates to the same integer, and the need floor only branches on
+        // `<= 0` / `< 18`, so the two platforms land on the identical floor.
+        val sleepNeedHours = RestScorer.personalizedNeedHours(nightlyHours, profile.age.toInt())
 
         // #970 read efficiency, skin-temp leg: [RegistryDayOwnerSource.skinTempFamily] resolves the family
         // via registry.all() — a Room query — and the loop below wants it once per DAY, so a 21-day scan
@@ -603,6 +617,8 @@ object IntelligenceEngine {
                 maxHROverride = maxHROverride,
                 tzOffsetSeconds = tzOffsetSeconds,
                 wristOff = wristOff,
+                sleepNeedHours = sleepNeedHours,
+                sleepConsistency = sleepConsistency,
                 habitualMidsleepSec = habitualMidsleepSec,
                 bandSleepState = bandSleepState,
                 // 7.0.0: thread the V2 toggle into the NORMAL staging path so it affects detected nights,
@@ -1629,7 +1645,7 @@ object IntelligenceEngine {
      * learned, dayKey is the LOCAL calendar day of the midpoint , and defers to
      * [SleepStageTotals.habitualMidsleepSec], which keeps the longest block per day (naps drop out). The
      * imported + computed sets can overlap; both are unioned and the learner de-dupes per day by length.
-     * Mirrors Swift `IntelligenceEngine.computeHabitualMidsleep`. (#547)
+     * Mirrors Swift `IntelligenceEngine.computeHabitualSleep`. (#547)
      */
     /**
      * CONSUME (#531 / H8): the prior pass's persisted v18 BAND sleep_state for sessions overlapping
@@ -1664,14 +1680,22 @@ object IntelligenceEngine {
         return samples
     }
 
-    private suspend fun computeHabitualMidsleep(
+    /**
+     * Habitual midsleep (local seconds) AND the trailing per-night sleep DURATIONS (hours,
+     * chronological) from the stored sessions over the window — the longest block per LOCAL day, so
+     * naps drop out. One read serves both the main-night midsleep learner (#547) and the personal
+     * sleep-need + regularity that thread into `analyzeDay` (Wave 0 · SL1/T1). The midsleep result is
+     * byte-identical to before; the nightly-hours output is the extension. Mirrors Swift
+     * `IntelligenceEngine.computeHabitualSleep`.
+     */
+    private suspend fun computeHabitualSleep(
         repo: WhoopRepository,
         importedId: String,
         computedId: String,
         windowStart: Long,
         windowEnd: Long,
         offsetSec: Long,
-    ): Long? {
+    ): Pair<Long?, List<Double>> {
         val imported = repo.sleepSessions(importedId, windowStart, windowEnd, 4000)
         val computed = repo.sleepSessions(computedId, windowStart, windowEnd, 4000)
         // #899: collapse overlapping timebase-shifted duplicates BEFORE the learner sees the history.
@@ -1681,6 +1705,14 @@ object IntelligenceEngine {
         // covers an imported night and its computed twin (the longest capture wins, exactly what the
         // per-day length rule chose anyway). Mirrors Swift.
         val merged = SleepSessionDedup.dedupe(imported + computed).kept
+        // Longest block per LOCAL day (naps drop out), chosen by in-bed SPAN — reused for BOTH the
+        // midsleep learner and the per-night durations (Wave 0 · SL1/T1), so the two can never read a
+        // different history. For the DURATIONS we keep TST (span × efficiency), NOT the in-bed span:
+        // the need/regularity estimate must be in the same asleep-time units as the `tstSeconds` Rest
+        // scores against, or need reads systematically high (an in-bed span over-counts ~0.85 h vs
+        // TST). Efficiency is 0..1 (post the v26 unit-heal); a rare null main night falls back to a
+        // typical 0.9. Byte-identical to the Swift twin, same operation order.
+        val longestByDay = HashMap<String, Pair<Long, Double>>()   // dayKey -> (span, tstHours)
         val blocks = merged.mapNotNull { s ->
             val start = s.effectiveStartTs
             val end = s.endTs
@@ -1688,10 +1720,19 @@ object IntelligenceEngine {
                 null
             } else {
                 val mid = start + (end - start) / 2
-                SleepStageTotals.HistoryBlock(start, end, AnalyticsEngine.dayString(mid, offsetSec))
+                val dayKey = AnalyticsEngine.dayString(mid, offsetSec)
+                val span = end - start
+                if (span > (longestByDay[dayKey]?.first ?: 0L)) {
+                    val eff = s.efficiency?.takeIf { it > 0.0 && it <= 1.0 } ?: 0.9
+                    longestByDay[dayKey] = span to (span.toDouble() / 3600.0 * eff)
+                }
+                SleepStageTotals.HistoryBlock(start, end, dayKey)
             }
         }
-        return SleepStageTotals.habitualMidsleepSec(blocks, offsetSec)
+        val midsleep = SleepStageTotals.habitualMidsleepSec(blocks, offsetSec)
+        // Chronological (day-key string sort == date order) so a recent-window suffix is well-defined.
+        val nightlyHours = longestByDay.keys.sorted().mapNotNull { longestByDay[it]?.second }
+        return midsleep to nightlyHours
     }
 
     /**

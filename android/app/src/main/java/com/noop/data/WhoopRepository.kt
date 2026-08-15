@@ -1216,7 +1216,7 @@ class WhoopRepository(
     /**
      * The user's learned habitual midsleep (local time-of-day seconds) for [deviceId], or null under
      * [com.noop.analytics.SleepStageTotals.HABITUAL_MIN_DAYS] of history (cold-start). Computed EXACTLY as
-     * `IntelligenceEngine.computeHabitualMidsleep` does , the SAME raw imported + computed ("-noop")
+     * `IntelligenceEngine.computeHabitualSleep` does , the SAME raw imported + computed ("-noop")
      * sleep-session union, one HistoryBlock per session (effective bounds, dayKey = the LOCAL calendar day
      * of the midpoint), deferring to the SAME shared [com.noop.analytics.SleepStageTotals.habitualMidsleepSec]
      * pure function , so the Sleep tab's main-night pick aligns to the same value the analytics rollup used.

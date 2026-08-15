@@ -1104,6 +1104,55 @@ object RestScorer {
     const val defaultSleepNeedHours: Double = 8.0
 
     /**
+     * Minimum trailing nights before a personal sleep-need estimate is trusted; below this the
+     * population default is used (cold-start honesty — never learn a need from a few nights). Mirrors
+     * Swift `AnalyticsEngine.Rest.minNeedNights`.
+     */
+    const val minNeedNights: Int = 7
+
+    /** Hard cap on personalized need (h): beyond typical adult need even for genuine long sleepers.
+     *  Mirrors Swift `AnalyticsEngine.Rest.maxNeedHours`. */
+    const val maxNeedHours: Double = 9.5
+
+    /**
+     * Population TARGET nightly sleep need (hours) for an age (NSF/AASM recommended-range midpoint).
+     * Used as a FLOOR: the personal estimate can only adjust it UP for genuine long sleepers, NEVER
+     * below the population target — so a chronic under-sleeper's need can't drift toward their own
+     * deficit (which would falsely erase their sleep debt and read a short night as "Strong").
+     * Deliberately the target, not the minimum: flooring at the low end of the range would understate
+     * a sleep-deprived (vs genuinely short-sleeping) user's deficit. Byte-identical to Swift
+     * `AnalyticsEngine.Rest.populationNeedFloorHours`.
+     */
+    fun populationNeedFloorHours(age: Int?): Double {
+        if (age == null || age <= 0) return 8.0   // unknown → adult target
+        return if (age < 18) 9.0 else 8.0         // children/teens ~9 (NSF 8–12); adults & older ~8 (NSF 7–9)
+    }
+
+    /**
+     * Personalized nightly sleep need (hours), population-ANCHORED and age-floored (T1). The personal
+     * component is the user's UPPER-QUARTILE nightly duration over the trailing window — what they
+     * sleep on their less-restricted nights, NOT their average (which a chronic deficit drags down) —
+     * floored at the age-appropriate population TARGET and capped at [maxNeedHours]. So it only ever
+     * ADJUSTS UP for genuine long sleepers, never below the target. Fewer than [minNeedNights] scorable
+     * nights → the population default (cold-start). Zero/negative entries (no-data days) are dropped and
+     * do not count toward the minimum. Byte-identical to Swift
+     * `AnalyticsEngine.Rest.personalizedNeedHours`.
+     */
+    fun personalizedNeedHours(nightlyHours: List<Double>, age: Int?): Double {
+        val floor = populationNeedFloorHours(age)
+        val xs = nightlyHours.filter { it > 0.0 }.sorted()
+        if (xs.size < minNeedNights) {
+            return minOf(maxOf(defaultSleepNeedHours, floor), maxNeedHours)
+        }
+        // Linear-interpolated 75th percentile — the "unrestricted" nights.
+        val pos = 0.75 * (xs.size - 1)
+        val lo = pos.toInt()
+        val hi = minOf(lo + 1, xs.size - 1)
+        val q = xs[lo] + (pos - lo) * (xs[hi] - xs[lo])
+        return minOf(maxOf(q, floor), maxNeedHours)
+    }
+
+    /**
      * Healthy restorative (deep + REM) share of asleep time. A share at/above this earns full
      * restorative credit; below it scales linearly. ~0.50 reflects ~20% deep + ~25–30% REM in a
      * well-structured night.

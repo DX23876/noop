@@ -2,6 +2,8 @@ package com.noop.analytics
 
 import com.noop.data.DailyMetric
 import java.util.Locale
+import kotlin.math.exp
+import kotlin.math.ln
 import kotlin.math.sqrt
 
 /**
@@ -62,6 +64,12 @@ object ReadinessEngine {
         val acwr: Double?,
         /** Foster training monotony over the last week (null if not enough strain history). */
         val monotony: Double?,
+        /**
+         * How much history backs this read (HRV/RHR baseline density) — so the card can show
+         * calibrating / building / solid instead of a confident number off a 7-night baseline.
+         * Defaults to CALIBRATING to match Swift's default init parameter.
+         */
+        val confidence: ScoreConfidence = ScoreConfidence.CALIBRATING,
     )
 
     // MARK: Tunables (named so the thresholds are auditable)
@@ -168,6 +176,7 @@ object ReadinessEngine {
             key = "hrv", label = "HRV",
             unit = "ms", decimals = 0,
             higherIsBetter = true,
+            logDomain = true,   // RD1: lnRMSSD — HRV is right-skewed
             goodText = "above your baseline - well recovered",
             neutralText = "in your normal range",
             watchText = "a touch below baseline",
@@ -258,9 +267,19 @@ object ReadinessEngine {
             signals = signals,
             hasHistory = history.isNotEmpty() || acwr != null,
         )
+        // RD-confidence: surface how much history backs the read (HRV baseline density, the primary
+        // readiness driver). A read off a 7-night baseline must not look as certain as one off the full
+        // 30-night window. Insufficient reads carry CALIBRATING.
+        val hrvBaselineNights = history.takeLast(baselineWindow).mapNotNull { it.avgHrv }.count()
+        val confidence = ScoreConfidence.readiness(
+            hasRead = level != Level.INSUFFICIENT,
+            baselineNights = hrvBaselineNights,
+            fullWindow = baselineWindow,
+        )
         return Readiness(
             level = level, headline = headline, summary = summary,
             signals = signals, acwr = acwr, monotony = monotony,
+            confidence = confidence,
         )
     }
 
@@ -270,15 +289,24 @@ object ReadinessEngine {
     private fun zSignal(
         value: Double?, baseline: List<Double>,
         key: String, label: String, unit: String, decimals: Int, higherIsBetter: Boolean,
+        logDomain: Boolean = false,
         goodText: String, neutralText: String,
         watchText: String, badText: String,
     ): Signal? {
         if (value == null || baseline.size < minBaseline) return null
-        val m = mean(baseline) ?: return null
-        val sd = sampleSD(baseline) ?: return null
+        // RD1: right-skewed metrics (HRV/RMSSD) are z-scored in the LOG domain — lnRMSSD is closer to
+        // normal, so a symmetric z is statistically valid, whereas a raw-ms z over-weights the long
+        // upper tail and misstates tail rarity (Plews/Altini; the app's own HRVReadiness works this
+        // way). RHR/resp are ~normal and stay linear. Evidence stays in the metric's own units, but the
+        // baseline shown is then the GEOMETRIC mean (exp of the log-mean) — a typical night, not an
+        // outlier-inflated arithmetic mean.
+        val tv = if (logDomain) ln(maxOf(value, 1.0)) else value
+        val tb = if (logDomain) baseline.map { ln(maxOf(it, 1.0)) } else baseline
+        val m = mean(tb) ?: return null
+        val sd = sampleSD(tb) ?: return null
         if (sd <= 0) return null
         // Orient z so positive always means "better".
-        val z = (if (higherIsBetter) (value - m) else (m - value)) / sd
+        val z = (if (higherIsBetter) (tv - m) else (m - tv)) / sd
         val flag: Flag
         val text: String
         when {
@@ -287,8 +315,10 @@ object ReadinessEngine {
             z >= -1.0 -> { flag = Flag.WATCH; text = watchText }
             else -> { flag = Flag.BAD; text = badText }
         }
-        // The numbers behind the read: today's value vs the baseline mean, in the metric's units.
-        val evidence = "${fmt(value, decimals)} vs ${fmt(m, decimals)} $unit"
+        // The numbers behind the read: today's value vs the baseline mean, in the metric's units. In the
+        // log domain the baseline shown is the geometric mean (exp of the log-mean), not arithmetic.
+        val baselineShown = if (logDomain) exp(m) else m
+        val evidence = "${fmt(value, decimals)} vs ${fmt(baselineShown, decimals)} $unit"
         return Signal(key = key, label = label, detail = text, flag = flag, evidence = evidence)
     }
 

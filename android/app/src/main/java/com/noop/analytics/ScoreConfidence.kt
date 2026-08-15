@@ -50,6 +50,22 @@ enum class ScoreConfidence(val raw: String) {
         }
 
         /**
+         * Readiness confidence from the HRV/RHR baseline density backing the read (readiness is
+         * HRV-led). Mirrors Swift `ScoreConfidence.readiness`.
+         * - CALIBRATING: no read (insufficient history — the readiness level is `insufficient`).
+         * - SOLID:       a read exists AND the full baseline window is present.
+         * - BUILDING:    a read exists but the baseline is shorter than the full window (e.g. 7–29 of 30).
+         *
+         * @param hasRead whether a readiness read exists (the level is not `insufficient`).
+         * @param baselineNights HRV baseline nights backing the read.
+         * @param fullWindow the full baseline window length.
+         */
+        fun readiness(hasRead: Boolean, baselineNights: Int, fullWindow: Int): ScoreConfidence {
+            if (!hasRead) return CALIBRATING
+            return if (baselineNights >= fullWindow) SOLID else BUILDING
+        }
+
+        /**
          * Effort (strain) confidence.
          * - null score (no HR window / invalid HRR) → CALIBRATING.
          * - score present but backed by fewer than [solidHrSamples] HR samples (a thin
