@@ -37,7 +37,7 @@ CATALOGS = [
     (ROOT / "Packages/StrandDesign/Sources/StrandDesign/Resources/Localizable.xcstrings", "design-"),
 ]
 
-LANGS = ["de", "es", "fr", "pt-PT", "it", "ru", "zh-Hans", "zh-Hant"]
+LANGS = ["de", "es", "fr", "pt-PT", "pl", "it", "ru", "zh-Hans", "zh-Hant"]
 
 # Same pattern the audit uses, so "passes this tool" and "passes the gate" cannot drift apart.
 FORMAT = re.compile(r"%(?:(?:\d+)\$)?(@|(?:hh|h|ll|l|q|z|t|j)?[diuoxXfFeEgGaAcCsSp])")

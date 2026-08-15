@@ -53,6 +53,12 @@
             "state": "translated",
             "value": "%@"
           }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@"
+          }
         }
       }
     },
@@ -110,6 +116,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "%1$@ · 恢復 %2$lld"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ · regeneracja %lld"
           }
         }
       }
@@ -1065,6 +1077,12 @@
             "state": "translated",
             "value": "Apple 健康"
           }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apple Health"
+          }
         }
       }
     },
@@ -1162,6 +1180,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "極光"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zorza"
           }
         }
       }
@@ -1395,6 +1419,12 @@
             "state": "translated",
             "value": "BPM"
           }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "BPM"
+          }
         }
       }
     },
@@ -1447,6 +1477,12 @@
             "state": "translated",
             "value": "建立中"
           }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Budowanie"
+          }
         }
       }
     },
@@ -1498,6 +1534,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "校準中"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kalibracja"
           }
         }
       }
@@ -1801,6 +1843,12 @@
             "state": "translated",
             "value": "Custom"
           }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Własne"
+          }
         }
       }
     },
@@ -1904,6 +1952,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "日期"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Data"
           }
         }
       }
@@ -2172,6 +2226,12 @@
             "state": "translated",
             "value": "消耗"
           }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wysiłek"
+          }
         }
       }
     },
@@ -2353,6 +2413,12 @@
             "state": "translated",
             "value": "適應"
           }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dopasuj"
+          }
         }
       }
     },
@@ -2440,6 +2506,12 @@
             "state": "translated",
             "value": "森林"
           }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Las"
+          }
         }
       }
     },
@@ -2491,6 +2563,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Frosted"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Matowe"
           }
         }
       }
@@ -3335,6 +3413,12 @@
             "state": "translated",
             "value": "即時"
           }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Na żywo"
+          }
         }
       }
     },
@@ -3451,6 +3535,12 @@
             "state": "translated",
             "value": "Midnight"
           }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Północ"
+          }
         }
       }
     },
@@ -3502,6 +3592,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Mint"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mięta"
           }
         }
       }
@@ -3803,6 +3899,12 @@
             "state": "translated",
             "value": "NOOP"
           }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "NOOP"
+          }
         }
       }
     },
@@ -3851,6 +3953,12 @@
           }
         },
         "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ocean"
+          }
+        },
+        "pl": {
           "stringUnit": {
             "state": "translated",
             "value": "Ocean"
@@ -4040,6 +4148,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "選擇日期"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wybierz datę"
           }
         }
       }
@@ -4242,6 +4356,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "恢復"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Regeneracja"
           }
         }
       }
@@ -4854,6 +4974,12 @@
             "state": "translated",
             "value": "標誌性"
           }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Firmowy"
+          }
         }
       }
     },
@@ -4905,6 +5031,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "睡眠結束"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Koniec snu"
           }
         }
       }
@@ -5120,6 +5252,12 @@
             "state": "translated",
             "value": "入睡時間"
           }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Początek snu"
+          }
         }
       }
     },
@@ -5206,6 +5344,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "扎實"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pełne"
           }
         }
       }
@@ -5375,6 +5519,12 @@
             "state": "translated",
             "value": "拉伸"
           }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rozciągnij"
+          }
         }
       }
     },
@@ -5461,6 +5611,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "日落"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zachód słońca"
           }
         }
       }
@@ -5560,6 +5716,12 @@
             "state": "translated",
             "value": "平鋪"
           }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kafelek"
+          }
         }
       }
     },
@@ -5612,6 +5774,12 @@
             "state": "translated",
             "value": "時間"
           }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Godzina"
+          }
         }
       }
     },
@@ -5663,6 +5831,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "鈦金屬"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tytan"
           }
         }
       }
@@ -5995,6 +6169,12 @@
             "state": "translated",
             "value": "數值"
           }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wartość"
+          }
         }
       }
     },
@@ -6082,6 +6262,12 @@
             "state": "translated",
             "value": "醒來"
           }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pobudka"
+          }
         }
       }
     },
@@ -6165,6 +6351,12 @@
           }
         },
         "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "WHOOP Blue"
+          }
+        },
+        "pl": {
           "stringUnit": {
             "state": "translated",
             "value": "WHOOP Blue"
@@ -6291,6 +6483,12 @@
             "state": "translated",
             "value": "迷你圖"
           }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Miniwykres"
+          }
         }
       }
     },
@@ -6348,6 +6546,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "取樣點"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Próbka"
           }
         }
       }
@@ -6407,6 +6611,12 @@
             "state": "translated",
             "value": "睡眠階段"
           }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Faza snu"
+          }
         }
       }
     },
@@ -6464,6 +6674,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "第 %lld 個取樣點"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "próbka %lld"
           }
         }
       }
