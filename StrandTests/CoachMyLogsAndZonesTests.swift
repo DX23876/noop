@@ -69,11 +69,14 @@ final class CoachMyLogsAndZonesTests: XCTestCase {
         XCTAssertTrue(engine.coachTools.contains(.zoneMinutes))
         XCTAssertTrue(engine.coachTools.contains(.dataCatalog))
         XCTAssertTrue(engine.coachTools.contains(.metricHistory))
-        XCTAssertEqual(engine.coachTools.count, 25,
+        // 25 → 26: `estimate_session_effort` joined the wire. Reviewed and intended — the coach was
+        // stating Effort figures its own arithmetic could not produce ("15 for a 20-minute Zone 2
+        // ride"), and one small tool definition is a fair price for prescriptions that hold up.
+        XCTAssertEqual(engine.coachTools.count, 26,
                        "tool count changed — confirm the added per-round cost is intended")
 
         engine.toolConsent.enabled.insert(.patterns)
-        XCTAssertEqual(engine.coachTools.count, 27,
+        XCTAssertEqual(engine.coachTools.count, 28,
                        "the second opt-in adds personal patterns and training preferences")
     }
 

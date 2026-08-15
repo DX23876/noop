@@ -251088,6 +251088,238 @@
           }
         }
       }
+    },
+    "Check last night first": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Check last night first"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Erst letzte Nacht prüfen"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Comprueba antes anoche"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vérifiez d'abord la nuit dernière"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verifique primeiro a noite passada"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Controlla prima la notte scorsa"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Сначала проверьте прошлую ночь"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "先确认昨晚"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "先確認昨晚"
+          }
+        }
+      }
+    },
+    "Your strap recorded you waking at %@. If that's not right, today's recovery is off — and so would any plan built on it be.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your strap recorded you waking at %@. If that's not right, today's recovery is off — and so would any plan built on it be."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dein Band hat %@ als Aufwachzeit erfasst. Stimmt das nicht, ist die heutige Erholung falsch — und jeder Plan, der darauf aufbaut, ebenfalls."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tu banda registró que te despertaste a las %@. Si no es correcto, la recuperación de hoy está mal, y también cualquier plan basado en ella."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Votre bracelet a enregistré un réveil à %@. Si ce n'est pas exact, la récupération du jour est fausse — et tout plan qui en découle aussi."
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A sua pulseira registou que acordou às %@. Se não estiver certo, a recuperação de hoje está errada — e qualquer plano baseado nela também."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La tua fascia ha registrato il risveglio alle %@. Se non è corretto, il recupero di oggi è sbagliato — e lo sarebbe anche qualsiasi piano basato su di esso."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Браслет записал пробуждение в %@. Если это неверно, сегодняшнее восстановление посчитано неправильно — как и любой план на его основе."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "你的手环记录的起床时间是 %@。如果不对，今天的恢复数据就是错的，基于它的任何计划也是。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "你的手環記錄的起床時間是 %@。如果不對，今天的恢復資料就是錯的，基於它的任何計劃也是。"
+          }
+        }
+      }
+    },
+    "This usually means the strap hasn't finished syncing yet.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This usually means the strap hasn't finished syncing yet."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Meist heißt das, dass das Band noch nicht fertig synchronisiert hat."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Normalmente significa que la banda todavía no ha terminado de sincronizar."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cela signifie généralement que le bracelet n'a pas fini de se synchroniser."
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Normalmente significa que a pulseira ainda não terminou de sincronizar."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Di solito significa che la fascia non ha ancora finito di sincronizzarsi."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Обычно это значит, что браслет ещё не закончил синхронизацию."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "这通常意味着手环还没有同步完。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "這通常意味著手環還沒有同步完。"
+          }
+        }
+      }
+    },
+    "Fix it": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fix it"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Korrigieren"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Corregir"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Corriger"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Corrigir"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Correggi"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Исправить"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "去修正"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "去修正"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

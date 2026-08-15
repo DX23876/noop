@@ -643,11 +643,7 @@ final class AICoachEngine: ObservableObject {
     /// Emoji in coach replies (#P14 7.3) — off by default, matching the careful/human register the P13
     /// voice clause already asks for; a user who wants a lighter touch can opt in.
     private static let allowEmojiKey = "ai.allowEmoji"
-    /// The logical day (rolls 04:00, same as the rest of the app) the last daily brief was generated on
-    /// for ANY conversation — so at most one auto-brief lands per day, and a conversation reopened after
-    /// a day boundary gets a fresh one instead of showing Monday's brief on Friday.
-    private static let lastBriefDayKey = "ai.lastBriefDay"
-    /// The logical day the last CHECK-IN ran. Deliberately SEPARATE from `lastBriefDayKey`: a check-in is
+    /// The logical day the last CHECK-IN ran. Deliberately SEPARATE from `CoachBriefStamp`: a check-in is
     /// its own thing (it reflects on what happened, it doesn't re-brief), so a morning brief must not
     /// suppress the evening check-in, nor the other way round. (T6)
     private static let lastCheckInDayKey = "ai.lastCheckInDay"
@@ -2387,8 +2383,19 @@ final class AICoachEngine: ObservableObject {
     func startBriefIfNeeded() async -> Bool {
         guard CoachFeaturePrefs.isEnabled else { return false }
         let today = Repository.logicalDayKey(Date())
-        guard UserDefaults.standard.string(forKey: Self.lastBriefDayKey) != today else { return false }
-        if let last = messages.last, Repository.logicalDayKey(last.date) == today { return false }
+        guard CoachBriefStamp.lastBriefDay() != today else { return false }
+        // A hand-corrected night invalidates the brief that was built on the old numbers. That re-run
+        // has to get PAST the "this thread already has today's messages" gate below — the messages it
+        // is replacing are exactly what would block it.
+        let stale = CoachBriefStamp.isStale(today: today)
+        if !stale, let last = messages.last, Repository.logicalDayKey(last.date) == today { return false }
+        CoachBriefStamp.clearStale()
+
+        // Don't plan a day on a night that hasn't settled. When the strap has not finished offloading,
+        // the recorded wake is where the sync stopped rather than where the wearer woke, recovery is
+        // scored on a truncated window, and a brief written now is confidently wrong. Staying silent
+        // (and NOT stamping the day) means the brief happens for real once the data lands.
+        if await unconfirmedWakeNeedingReview() != nil { return false }
         // Each day's brief lands in its OWN thread (#R8) so yesterday's can be archived out of the main
         // history list without disturbing the user's real chats. The gate above guarantees the active
         // thread is stale or empty here, so switching away from it is never disruptive.
@@ -2550,7 +2557,7 @@ final class AICoachEngine: ObservableObject {
                                           memoryWrites: takeMemoryWrites()))
                 // Stamp only on genuine success, so a network failure doesn't burn the day's slot — a
                 // retry (reopening the conversation after a day boundary) can still land one.
-                UserDefaults.standard.set(Repository.logicalDayKey(Date()), forKey: Self.lastBriefDayKey)
+                CoachBriefStamp.stamp(day: Repository.logicalDayKey(Date()))
                 spoke = true
             }
         } catch let e as AICoachError {
@@ -3014,7 +3021,7 @@ final class AICoachEngine: ObservableObject {
         if toolConsent.allows(.readiness) { blocks.append(readinessBlock()) }
         // Charge confidence: whether today's number is a real, baseline-trusted score or still a
         // cold-start placeholder, so the coach never states progress/trends off a "calibrating" number.
-        if toolConsent.allows(.readiness), let confidence = chargeConfidenceLine() { blocks.append(confidence) }
+        if toolConsent.allows(.readiness), let confidence = await chargeConfidenceBlock() { blocks.append(confidence) }
         // What's already proposed/agreed, so the coach doesn't talk over a plan the user is mid-way
         // through, plus how the last week actually went (skips carry their reason).
         if toolConsent.allows(.planAdherence) {
@@ -3074,7 +3081,7 @@ final class AICoachEngine: ObservableObject {
         }
         if sections.contains(.readiness), toolConsent.allows(.readiness) {
             blocks.append(readinessBlock())
-            if let confidence = chargeConfidenceLine() { blocks.append(confidence) }
+            if let confidence = await chargeConfidenceBlock() { blocks.append(confidence) }
             categories.append(.readiness)
         }
         if sections.contains(.workouts), toolConsent.allows(.recentWorkouts) {
@@ -3238,6 +3245,82 @@ final class AICoachEngine: ObservableObject {
             lines.append("  \(d.label): \(sign)\(d.deltaPoints) pts — \(d.valueText)\(vsBaseline) — \(d.verdict)")
         }
         return lines.joined(separator: "\n")
+    }
+
+    /// How much last night's window can be trusted (`SleepWindowSettledness`), for the brief gate and
+    /// the caveat line. `.settled` whenever there is no night to judge — an absent night is not a
+    /// doubtful one, and withholding the brief from someone who simply hasn't worn the strap would be
+    /// its own failure.
+    func lastNightSettledness() async -> SleepWindowSettledness.Verdict {
+        guard let night = repo.sleeps.max(by: { $0.endTs < $1.endTs }) else { return .settled }
+        return SleepWindowSettledness.verdict(
+            sessionEndTs: night.endTs,
+            lastHrSampleTs: await repo.latestHRSampleTs(),
+            nowTs: Int(Date().timeIntervalSince1970),
+            habitualWakeSec: await repo.habitualWakeSec(),
+            offsetSec: TimeZone.current.secondsFromGMT())
+    }
+
+    /// The Charge-confidence line plus, when last night is doubtful, the wake-time caveat — what every
+    /// path that quotes a recovery number should append.
+    ///
+    /// Composed rather than folded into `chargeConfidenceLine()` so that stays a pure, synchronous read
+    /// over `repo.days`; the settledness verdict needs a store read for the coverage edge.
+    func chargeConfidenceBlock() async -> String? {
+        let parts = [chargeConfidenceLine(), Self.wakeTimeCaveat(await lastNightSettledness())]
+            .compactMap { $0 }
+        return parts.isEmpty ? nil : parts.joined(separator: "\n")
+    }
+
+    /// How long a withheld brief may stay withheld. After this much time past the recorded wake, the
+    /// brief runs regardless — with its caveat — because a strap that still hasn't synced by mid-morning
+    /// may not sync at all today, and a wearer who never opens the Sleep screen must not be left without
+    /// a coach indefinitely. Three hours: long enough for any ordinary sync, short enough that the brief
+    /// is still a MORNING brief.
+    static let briefDeadlineSeconds = 3 * 60 * 60
+
+    /// The detected wake time the user should confirm before a brief is written, or nil when there is
+    /// nothing to ask about.
+    ///
+    /// Non-nil only while all of these hold: the window reads as `awaitingSync` (objectively truncated,
+    /// not merely suspicious), the user hasn't already vouched for it today, and the deadline hasn't
+    /// passed. `wakeLooksEarly` deliberately does NOT block — that is a suspicion, and withholding the
+    /// brief over one would be presumptuous; it travels as a caveat instead.
+    func unconfirmedWakeNeedingReview(now: Date = Date()) async -> Int? {
+        guard let night = repo.sleeps.max(by: { $0.endTs < $1.endTs }) else { return nil }
+        guard !CoachBriefStamp.wakeConfirmed(today: Repository.logicalDayKey(now)) else { return nil }
+        let nowTs = Int(now.timeIntervalSince1970)
+        guard nowTs - night.endTs < Self.briefDeadlineSeconds else { return nil }
+        let verdict = SleepWindowSettledness.verdict(
+            sessionEndTs: night.endTs,
+            lastHrSampleTs: await repo.latestHRSampleTs(),
+            nowTs: nowTs,
+            habitualWakeSec: await repo.habitualWakeSec(),
+            offsetSec: TimeZone.current.secondsFromGMT())
+        return verdict == .awaitingSync ? night.endTs : nil
+    }
+
+    /// The caveat that rides with any Charge number when last night's wake time is doubtful.
+    ///
+    /// Pure over its verdict so the wording is testable, and appended to `chargeConfidenceLine()` rather
+    /// than to one call site: the recovery figure travels through `get_biometric_summary`,
+    /// `get_readiness`, `get_charge_drivers` and the non-tool context, and a caveat that only reached
+    /// the brief would leave an ordinary chat question sounding certain about the same wrong number.
+    nonisolated static func wakeTimeCaveat(_ verdict: SleepWindowSettledness.Verdict) -> String? {
+        switch verdict {
+        case .settled:
+            return nil
+        case .awaitingSync:
+            return "CAUTION: last night's sleep window ends exactly where the synced data ends, so the "
+                + "strap has probably not finished offloading and the recorded wake time is too early. "
+                + "Today's Charge is computed on that truncated night. Say so before drawing conclusions "
+                + "from it, and suggest syncing the strap."
+        case .wakeLooksEarly:
+            return "CAUTION: last night's recorded wake time looks earlier than this user's own pattern, "
+                + "or their heart rate kept recording long after it. Today's Charge may be computed on a "
+                + "short night. Mention the doubt and invite them to correct the wake time on the Sleep "
+                + "screen before treating the number as settled."
+        }
     }
 
     /// Today's Charge confidence tier (`ScoreConfidence.charge`), computed identically to the Today

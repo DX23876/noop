@@ -1081,6 +1081,16 @@ final class Repository: ObservableObject {
         return byTs.values.sorted { $0.ts < $1.ts }
     }
 
+    /// Timestamp of the newest raw HR sample stored across the imported sources, or nil when empty.
+    ///
+    /// The coverage EDGE, which is what tells a truncated sleep window apart from a real early wake: a
+    /// night whose end coincides with this has been cut off by an unfinished offload rather than by the
+    /// wearer waking up. Read by `SleepWindowSettledness` through `AICoachEngine`.
+    func latestHRSampleTs() async -> Int? {
+        guard let store = await ensureStore() else { return nil }
+        return await unionLatestHRSampleTs(store: store)
+    }
+
     /// Logical day-start of the most recent day the active device has HR data for, or nil when the store is
     /// empty. Lets the Deep Timeline open on a day that actually has data instead of a possibly-empty today
     /// right after a history sync , the #597 root cause (the timeline was today-only with no way back).
@@ -1249,22 +1259,43 @@ final class Repository: ObservableObject {
     /// clears the threshold; `habitualMidsleepSec` keeps the longest block per day, so window/order/source
     /// merge differences wash out. (#547)
     func habitualMidsleepSec(days: Int = 4000) async -> Int? {
+        let offsetSec = TimeZone.current.secondsFromGMT()
+        guard let blocks = await sleepHistoryBlocks(days: days, offsetSec: offsetSec) else { return nil }
+        return SleepStageTotals.habitualMidsleepSec(blocks, offsetSec: offsetSec)
+    }
+
+    /// The user's learned habitual WAKE (local time-of-day seconds), from the same history and the same
+    /// longest-block-per-day rule as ``habitualMidsleepSec(days:)``. nil during the cold start.
+    ///
+    /// Read by the coach to judge whether last night's recorded wake is so far off the wearer's own
+    /// pattern that the window should be doubted rather than planned on (`SleepWindowSettledness`).
+    func habitualWakeSec(days: Int = 4000) async -> Int? {
+        let offsetSec = TimeZone.current.secondsFromGMT()
+        guard let blocks = await sleepHistoryBlocks(days: days, offsetSec: offsetSec) else { return nil }
+        return SleepStageTotals.habitualWakeSec(blocks, offsetSec: offsetSec)
+    }
+
+    /// The trailing sleep history both habitual learners read, as `HistoryBlock`s keyed by the LOCAL
+    /// calendar day of each session's midpoint. Extracted so the two can never diverge on WHICH nights
+    /// they learn from — they answer different questions about the identical history.
+    ///
+    /// Built EXACTLY as `IntelligenceEngine.computeHabitualMidsleep` does: the same imported + computed
+    /// ("-noop") union with identical blocks de-duplicated, so a day present in both namespaces doesn't
+    /// double-weight the learner. Reads a wide window so the distinct-day count comfortably clears the
+    /// threshold; keeping the longest block per day washes out window/order/source merge differences. (#547)
+    private func sleepHistoryBlocks(days: Int, offsetSec: Int) async -> [SleepStageTotals.HistoryBlock]? {
         guard let store = await ensureStore() else { return nil }
         let now = Int(Date().timeIntervalSince1970)
         let lo = now - days * 86_400, hi = now + 86_400
-        // UNION active strap + canonical (imported) and their computed siblings, de-duplicating identical
-        // blocks recorded under both ids so a day present in both namespaces doesn't double-weight the learner.
         let imported = Self.dedupBlocks(await unionRawSleepBlocks(store: store, ids: importedReadIds, from: lo, to: hi))
         let computed = Self.dedupBlocks(await unionRawSleepBlocks(store: store, ids: computedReadIds, from: lo, to: hi))
-        let offsetSec = TimeZone.current.secondsFromGMT()
-        let blocks = (imported + computed).compactMap { s -> SleepStageTotals.HistoryBlock? in
+        return (imported + computed).compactMap { s -> SleepStageTotals.HistoryBlock? in
             let start = s.effectiveStartTs, end = s.endTs
             guard end > start else { return nil }
             let mid = start + (end - start) / 2
             let dayKey = AnalyticsEngine.dayString(mid, offsetSec: offsetSec)
             return SleepStageTotals.HistoryBlock(start: start, end: end, dayKey: dayKey)
         }
-        return SleepStageTotals.habitualMidsleepSec(blocks, offsetSec: offsetSec)
     }
 
     /// Hand-correct a night's bed (onset) and/or wake (end) time. `detectedStartTs` is the immutable

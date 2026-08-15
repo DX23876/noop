@@ -955,7 +955,7 @@ extension AICoachEngine {
             return await dataCatalogTool(query: input["query"] as? String)
         case .biometricSummary:
             var block = buildContext()
-            if let confidence = chargeConfidenceLine() { block += "\n\n" + confidence }
+            if let confidence = await chargeConfidenceBlock() { block += "\n\n" + confidence }
             return block
         case .recentWorkouts:
             let raw = (input["limit"] as? Int) ?? Int(input["limit"] as? Double ?? 6)
@@ -1064,7 +1064,7 @@ extension AICoachEngine {
             return readinessBlock()
         case .chargeDrivers:
             var block = chargeDriversBlock()
-            if let confidence = chargeConfidenceLine() { block += "\n\n" + confidence }
+            if let confidence = await chargeConfidenceBlock() { block += "\n\n" + confidence }
             return block
         case .proposePlan:
             return await proposePlanTool(

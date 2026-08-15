@@ -331,6 +331,8 @@ struct RootView: View {
             case .journal: selection = .insights
             // Raised by the empty states' "Open Data Sources" button — the sidebar row already exists.
             case .dataSources: selection = .dataSources
+            // Raised by the morning card's "Fix it" when last night's wake time looks truncated.
+            case .sleep: selection = .sleep
             case nil: break
             }
             if dest != nil { router.requestedDestination = nil }
