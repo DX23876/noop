@@ -21,6 +21,43 @@ struct SettingsView: View {
     @EnvironmentObject var live: LiveState
     @EnvironmentObject var profile: ProfileStore
 
+    /// Filter text for the section search. Fifteen cards is more than anyone scans, and half of them
+    /// rest inside the collapsed "Advanced" group — so the screen needs a way to be asked a question
+    /// rather than read top to bottom.
+    @State private var query: String
+
+    /// `searchSeed` pre-fills the field, so a Settings hit tapped in the More tab's index search
+    /// arrives already filtered to what was typed there instead of dropping the reader back into the
+    /// full wall of cards. Empty (the default) is the ordinary "opened Settings" case.
+    init(searchSeed: String = "") {
+        _query = State(initialValue: searchSeed)
+    }
+
+    /// Whitespace alone is not a search — a stray space must not blank the screen.
+    private var isSearching: Bool { !SearchMatch.tokens(query).isEmpty }
+
+    /// Whether a section survives the current filter. Not searching = everything stays.
+    private func shows(_ id: SettingsSectionID) -> Bool {
+        guard isSearching else { return true }
+        return SettingsSearchCatalog.section(id, matches: query)
+    }
+
+    /// The sections inside the collapsed "Advanced" disclosure. Listed once here so the group's own
+    /// visibility and its contents can never disagree about what "Advanced holds a match" means.
+    private static let advancedSectionIDs: [SettingsSectionID] = [
+        .recovery, .testCentre, .liveSessions, .sleepStaging, .experimentalWhoop5, .diagnostics, .backup,
+    ]
+
+    /// Keep the Advanced group when it still holds something the query matches.
+    private var advancedHasMatch: Bool {
+        !isSearching || Self.advancedSectionIDs.contains(where: shows)
+    }
+
+    /// False only when a search matched nothing at all — the cue for the empty-result note.
+    private var anySectionMatches: Bool {
+        SettingsSectionID.allCases.contains(where: shows)
+    }
+
     /// Profile-photo picker selection (PhotosUI). Cleared back to nil once the bytes are loaded.
     @State private var avatarPickerItem: PhotosPickerItem?
 
@@ -306,33 +343,61 @@ struct SettingsView: View {
                        // Settings' own frosted cards sit on the dark canvas below the sky band, unchanged.
                        topBackground: liquidScaffoldSky()) {
             VStack(alignment: .leading, spacing: NoopMetrics.sectionSpacing) {
+                NoopLiquidGlassSearchField(
+                    text: $query,
+                    prompt: String(localized: "Search settings"),
+                    accessibilityLabel: String(localized: "Search settings")
+                )
+
                 // Everyday sections stay expanded (S3): the ones a first-run user actually needs.
-                profileCard.staggeredAppear(index: 0)
-                unitsCard.staggeredAppear(index: 1)
-                appearanceCard.staggeredAppear(index: 2)
-                strapCard.staggeredAppear(index: 3)
-                powerSavingCard.staggeredAppear(index: 4)
-                streakCard.staggeredAppear(index: 5)
-                featuresCard.staggeredAppear(index: 6)
+                if shows(.profile) { profileCard.staggeredAppear(index: 0) }
+                if shows(.units) { unitsCard.staggeredAppear(index: 1) }
+                if shows(.appearance) { appearanceCard.staggeredAppear(index: 2) }
+                if shows(.strap) { strapCard.staggeredAppear(index: 3) }
+                if shows(.powerSaving) { powerSavingCard.staggeredAppear(index: 4) }
+                if shows(.streak) { streakCard.staggeredAppear(index: 5) }
+                if shows(.features) { featuresCard.staggeredAppear(index: 6) }
 
                 // Lower-frequency sections collapse behind a single default-closed disclosure so the
                 // screen opens at ~6 sections instead of 11. Nothing is removed; every section here
                 // (Recovery / advanced scoring, Test Centre, the experimental probes + raw-capture, and
                 // Backup & restore) stays one tap away. Modelled on the Test Centre "Advanced" group.
-                SettingsDisclosureGroup(
-                    title: "Advanced",
-                    subtitle: "Recovery, Test Centre, experimental probes, and backup. Tucked away to keep the everyday screen tidy.",
-                    isExpanded: $advancedOpen
-                ) {
-                    recoveryCard
-                    testCentreCard
-                    experimentalCard
-                    backupCard
+                //
+                // While searching, the group force-opens and drops out of the list entirely when it
+                // holds no hit: a match hiding behind a closed disclosure is exactly the dead end the
+                // field exists to remove. `.constant(true)` rather than writing `advancedOpen` — the
+                // user's own open/closed choice is theirs, and must survive the search.
+                if advancedHasMatch {
+                    SettingsDisclosureGroup(
+                        title: "Advanced",
+                        subtitle: "Recovery, Test Centre, experimental probes, and backup. Tucked away to keep the everyday screen tidy.",
+                        isExpanded: isSearching ? .constant(true) : $advancedOpen
+                    ) {
+                        if shows(.recovery) { recoveryCard }
+                        if shows(.testCentre) { testCentreCard }
+                        experimentalCard
+                        if shows(.backup) { backupCard }
+                    }
+                    .staggeredAppear(index: 6)
                 }
-                .staggeredAppear(index: 6)
 
                 // About stays expanded at the foot (version, links and the help sheets people return to).
-                aboutCard.staggeredAppear(index: 7)
+                if shows(.about) { aboutCard.staggeredAppear(index: 7) }
+
+                if isSearching && !anySectionMatches {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("No setting matches “\(query)”.")
+                            .font(StrandFont.headline)
+                            .foregroundStyle(StrandPalette.textPrimary)
+                        // No example words here on purpose: the keyword aliases are English-only
+                        // (see SettingsSearchCatalog), so a translated hint would suggest terms that
+                        // do not match in that language. A section's own NAME always works.
+                        Text("Try a shorter word, or the name of the section you're after.")
+                            .font(StrandFont.subhead)
+                            .foregroundStyle(StrandPalette.textSecondary)
+                    }
+                    .padding(.vertical, 24)
+                }
             }
         }
         .alert(backupAlertTitle, isPresented: $showBackupAlert) {
@@ -1805,10 +1870,10 @@ struct SettingsView: View {
     // both Today-variant switches sit together with the rest of the look-and-feel controls instead of
     // being buried in the collapsed Advanced group — see `appearanceExperimentalSection` below.
     @ViewBuilder private var experimentalCard: some View {
-        liveSessionsCard
-        if showFiveMGControls { fiveMGCard }
-        sleepStagingCard
-        rawSensorDiagnosticsCard
+        if shows(.liveSessions) { liveSessionsCard }
+        if showFiveMGControls && shows(.experimentalWhoop5) { fiveMGCard }
+        if shows(.sleepStaging) { sleepStagingCard }
+        if shows(.diagnostics) { rawSensorDiagnosticsCard }
     }
 
     /// Opt-in liquid Today redesign (default ON in this build). Off falls back to the
