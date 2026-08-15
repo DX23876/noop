@@ -52,7 +52,7 @@ extension CoachTool {
             return .coreBiometrics
         case .dataCatalog, .metricHistory:
             return .longHistory
-        case .recentWorkouts, .zoneMinutes, .sessionOutlook, .simulateDay:
+        case .recentWorkouts, .zoneMinutes, .sessionOutlook, .simulateDay, .estimateSessionEffort:
             return .workouts
         case .proposePlan, .proposeGoalSetup, .planAdherence, .rangeReport:
             return .planning

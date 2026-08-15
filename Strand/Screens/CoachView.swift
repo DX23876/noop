@@ -860,6 +860,7 @@ struct CoachView: View {
         case .myLogs:                  Text("Your logs")
         case .sensitiveLogs:           Text("Sensitive journal")
         case .zoneMinutes:             Text("Zone minutes")
+        case .estimateSessionEffort:   Text("Session Effort estimate")
         }
     }
 
@@ -894,6 +895,7 @@ struct CoachView: View {
         case .myLogs:                  Text("What you logged — caffeine, journal, lab, mood")
         case .sensitiveLogs:           Text("Only separately approved sensitive journal entries")
         case .zoneMinutes:             Text("Time spent in each heart-rate zone")
+        case .estimateSessionEffort:   Text("What a planned session is worth, from your zones")
         }
     }
 

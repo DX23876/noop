@@ -780,7 +780,10 @@ final class AICoachEngine: ObservableObject {
     metric; it selects the best-covered local source and returns an aggregate, not readings. Call get_readiness before any \
     push/maintain/rest call; never re-derive that from the raw charge number.
     • PROJECT forward — get_session_outlook (what a session would cost, from their own history), \
-    simulate_day (tomorrow's Charge under a plan).
+    simulate_day (tomorrow's Charge under a plan), estimate_session_effort (what a zone-and-duration \
+    session is worth). Effort FOLLOWS from intensity and duration — it is not a number you may pick. \
+    Never state an Effort figure for a session you are suggesting without estimate_session_effort, or \
+    without letting propose_plan compute it from zone + duration_min.
     • WRITE to the app — propose_plan, log_caffeine, log_journal, log_lab_marker; always say plainly \
     what you wrote.
     • REMEMBER across chats — remember_fact, update_fact, forget_fact, and search_past_conversations \
@@ -2005,6 +2008,31 @@ final class AICoachEngine: ObservableObject {
         return lines.joined(separator: "\n")
     }
 
+    /// `estimate_session_effort`: what a PLANNED session is worth, so the coach can quote a real figure
+    /// instead of inventing one its own arithmetic contradicts. Computed against the wearer's own bands
+    /// and recent resting HR, which is why the answer restates both — an estimate the wearer can't
+    /// reconcile with their own zones is just another number to distrust.
+    func estimateSessionEffortTool(zone: Int?, durationMin: Int?) async -> String {
+        guard let zone, (1...5).contains(zone) else {
+            return "Name the zone as a number from 1 to 5."
+        }
+        guard let durationMin, durationMin > 0 else {
+            return "Name how long the session lasts, in minutes."
+        }
+        let minutes = Double(min(durationMin, 600))
+        let zoneSet = ProfileStore().hrZoneSet
+        let resting = await recentRestingHR()
+        guard let range = EffortFeasibility.sessionEffortRange(
+            zone: zone, minutes: minutes, zoneSet: zoneSet, restingHR: resting) else {
+            return "Not enough profile data to estimate that session's Effort yet."
+        }
+        return [Self.zoneBandsLine(zoneSet),
+                String(format: "Resting HR used: %.0f bpm.", resting),
+                EffortFeasibility.sentence(zone: zone, minutes: minutes, range: range),
+                "Use this figure when you talk about the session — do not round it to a nicer number."]
+            .joined(separator: "\n")
+    }
+
     /// One line naming THIS user's zone boundaries in both % of HRmax and bpm. Pure + static so the
     /// prescribing paths (`propose_plan`, `estimate_session_effort`) and the reporting path
     /// (`get_zone_minutes`) all describe the bands the same way, and so it's testable without a store.
@@ -2451,9 +2479,10 @@ final class AICoachEngine: ObservableObject {
         (2) exactly what to do today — the activity, its intensity, and a rough duration. If my readiness \
         is low, make it the easy/short option (or rest) and say so. Then record THAT session with \
         propose_plan for today's date so it shows on the Today screen for me to accept, change or \
-        decline. Propose exactly ONE session for today. It is a suggestion, not a booking — never \
-        describe it as scheduled. Anything already awaiting my decision or already committed is recorded; \
-        do not propose it again; \
+        decline — passing zone and duration_min whenever you name a zone or a duration, so the Effort \
+        target is computed rather than guessed. Propose exactly ONE session for today. It is a \
+        suggestion, not a booking — never describe it as scheduled. Anything already awaiting my \
+        decision or already committed is recorded; do not propose it again; \
         (3) one specific thing to improve my charge, grounded in what get_charge_drivers showed. Be punchy \
         and motivating — not long.
         """
@@ -3564,7 +3593,8 @@ final class AICoachEngine: ObservableObject {
     /// returned string tells the model to say exactly that rather than describing it as settled.
     func proposePlanTool(day: String?, sport: String, intent: String,
                          targetEffort: Double?, rationale: String, time: String?,
-                         goalId: String? = nil, goalIds: [String]? = nil) -> String {
+                         zone: Int? = nil, durationMin: Int? = nil,
+                         goalId: String? = nil, goalIds: [String]? = nil) async -> String {
         let trimmedSport = sport.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedSport.isEmpty else { return "Nothing proposed: name the activity." }
         guard let parsedIntent = PlanProposal.Intent(rawValue: intent.lowercased()) else {
@@ -3609,9 +3639,37 @@ final class AICoachEngine: ObservableObject {
         if requestedGoals.isEmpty, activeGoals.count == 1 {
             requestedGoals = [activeGoals[0].id]
         }
+        // Effort is a CONSEQUENCE of intensity × duration, not a number to pick. When the model names a
+        // zone and a duration, compute what that session is actually worth against the wearer's OWN
+        // bands and use that; a supplied figure survives only if it is within a few points of it.
+        let cleanZone = zone.flatMap { (1...5).contains($0) ? $0 : nil }
+        let cleanDuration = durationMin.flatMap { $0 > 0 ? min($0, 600) : nil }
+        var effort = targetEffort.map { max(0, min($0, 100)) }
+        var correction: String?
+        if let cleanZone, let cleanDuration,
+           let range = EffortFeasibility.sessionEffortRange(
+               zone: cleanZone, minutes: Double(cleanDuration),
+               zoneSet: ProfileStore().hrZoneSet, restingHR: await recentRestingHR()) {
+            let computed = (range.typical * 10).rounded() / 10
+            if let given = effort, range.distanceFromTypical(given) <= EffortFeasibility.targetTolerance {
+                // Close enough to be the coach's judgement about where in the band to sit — leave it.
+            } else {
+                if let given = effort {
+                    correction = String(format: "Your target of %.0f was replaced with %.0f: ", given, computed)
+                        + EffortFeasibility.sentence(zone: cleanZone, minutes: Double(cleanDuration), range: range)
+                        + " State \(Int(computed.rounded())), not \(Int(given.rounded()))."
+                } else {
+                    correction = EffortFeasibility.sentence(zone: cleanZone,
+                                                            minutes: Double(cleanDuration), range: range)
+                }
+                effort = computed
+            }
+        }
+
         let proposal = PlanProposal(day: dayKey, time: when, sport: trimmedSport,
                                     intent: parsedIntent,
-                                    targetEffort: targetEffort.map { max(0, min($0, 100)) },
+                                    targetEffort: effort,
+                                    zone: cleanZone, durationMin: cleanDuration,
                                     rationale: rationale,
                                     goalIds: requestedGoals)
         guard CoachPlanStore.shared.propose(proposal) else {
@@ -3623,9 +3681,19 @@ final class AICoachEngine: ObservableObject {
         }
         CoachNotifier.postPlanProposal(proposal)
         let adapted = adaptation.evidenceNote.map { " Local adaptation: \($0)" } ?? ""
-        return "Proposed (NOT scheduled): \(proposal.summary()) on \(dayKey).\(adapted) It's waiting for the user "
-            + "to accept, change or decline it in the app — tell them it's there for their yes, and "
-            + "don't refer to it as booked."
+        let effortNote = correction.map { " \($0)" } ?? ""
+        return "Proposed (NOT scheduled): \(proposal.summary()) on \(dayKey).\(adapted)\(effortNote) "
+            + "It's waiting for the user to accept, change or decline it in the app — tell them it's "
+            + "there for their yes, and don't refer to it as booked."
+    }
+
+    /// The resting HR to reason about a PLANNED session with: the median of the recent daily readings,
+    /// matching `AnalyticsEngine`'s own `restForStrain`, so a projection and the eventual score share a
+    /// denominator. Falls back to `StrainScorer.defaultRestingHR` before any night is banked.
+    func recentRestingHR() async -> Double {
+        let recent = repo.days.suffix(14).compactMap { $0.restingHr }.sorted()
+        guard !recent.isEmpty else { return StrainScorer.defaultRestingHR }
+        return Double(recent[recent.count / 2])
     }
 
     /// `get_session_outlook`: what a session costs THIS user, and what swapping would change.
