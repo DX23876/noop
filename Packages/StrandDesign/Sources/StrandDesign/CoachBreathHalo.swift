@@ -48,10 +48,11 @@ public struct SpikedHaloShape: Shape {
 public extension View {
     /// Put the breathing corona behind this view — the Coach entry's "I am here" pulse.
     ///
-    /// `active` is the caller's own gate (the user's setting AND the motion state); this modifier only
-    /// owns the animation, so the two decisions stay where they belong. Drawn BEHIND, hit-testing off
-    /// and hidden from VoiceOver: it is decoration, and it must never take a tap meant for the button
-    /// it sits under.
+    /// `active` is the caller's own gate — the user's "breathing" setting. The quiet-motion gate is
+    /// applied here rather than left to the caller: this is a public `repeatForever` loop, and a call
+    /// site that forgets the gate would breathe straight through Reduce Motion. Drawn BEHIND,
+    /// hit-testing off and hidden from VoiceOver: it is decoration, and it must never take a tap meant
+    /// for the button it sits under.
     func coachBreathHalo(active: Bool, tint: Color = StrandPalette.accent) -> some View {
         modifier(CoachBreathHaloModifier(active: active, tint: tint))
     }
@@ -64,6 +65,16 @@ private struct CoachBreathHaloModifier: ViewModifier {
     /// Flipped once on appear to start the endless breath, exactly as the old tile did.
     @State private var breathing = false
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// Low Power Mode / "Reduce motion in NOOP". The corona is a `repeatForever` loop that never
+    /// settles and sits in the Today header for as long as the screen is up, so it belongs behind the
+    /// same gate as the liquid surfaces. Both entry points already compose this into `active`; owning
+    /// it here too means a future call site cannot breathe past a user who asked for quiet.
+    @ObservedObject private var motion = NoopMotionState.shared
+
+    /// The breath runs only when the caller asked for it AND nothing is asking for quiet.
+    private var breathes: Bool { active && !motion.poseStill(reduceMotion) }
+
     /// How far past the avatar the corona reaches at rest, and how much further it swells. Kept small:
     /// in the Today header the neighbouring control is only 8pt away, and a corona that laps over it
     /// would read as a rendering fault rather than as a pulse.
@@ -74,16 +85,19 @@ private struct CoachBreathHaloModifier: ViewModifier {
         content
             .background {
                 SpikedHaloShape()
-                    .fill(tint.opacity(active && breathing ? 0.55 : 0.25))
-                    .scaleEffect(active && breathing ? breathScale : restScale)
-                    .animation(active ? .easeInOut(duration: 2).repeatForever(autoreverses: true) : nil,
+                    .fill(tint.opacity(breathes && breathing ? 0.55 : 0.25))
+                    .scaleEffect(breathes && breathing ? breathScale : restScale)
+                    .animation(breathes ? .easeInOut(duration: 2).repeatForever(autoreverses: true) : nil,
                                value: breathing)
                     .allowsHitTesting(false)
                     .accessibilityHidden(true)
             }
-            .onAppear { if active { breathing = true } }
-            // Turning the setting off mid-session must settle it immediately, not at the end of an
-            // endless animation that never ends. (Carried over from the tile this replaces.)
-            .onChangeCompat(of: active) { on in breathing = on }
+            .onAppear { if breathes { breathing = true } }
+            // Turning the setting off mid-session — or Low Power Mode coming on — must settle it
+            // immediately, not at the end of an animation that never ends. Watching the composed
+            // value rather than `active` alone is what makes the quiet signals settle it too, and
+            // what restarts the breath cleanly when they clear. (Carried over from the tile this
+            // replaces.)
+            .onChangeCompat(of: breathes) { on in breathing = on }
     }
 }
