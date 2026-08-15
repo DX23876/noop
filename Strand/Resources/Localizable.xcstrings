@@ -249348,6 +249348,1630 @@
           }
         }
       }
+    },
+    "HEART-RATE ZONES": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "HEART-RATE ZONES"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "HERZFREQUENZZONEN"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ZONAS DE FRECUENCIA CARDÍACA"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ZONES DE FRÉQUENCE CARDIAQUE"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ZONAS DE FREQUÊNCIA CARDÍACA"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ZONE DI FREQUENZA CARDIACA"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ЗОНЫ ПУЛЬСА"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "心率区间"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "心率區間"
+          }
+        }
+      }
+    },
+    "Set your own bands": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Set your own bands"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eigene Bereiche festlegen"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Define tus propias bandas"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Définissez vos propres plages"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Defina as suas bandas"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Imposta le tue fasce"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Задайте свои диапазоны"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自定义你的区间"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自訂你的區間"
+          }
+        }
+      }
+    },
+    "Max heart rate %lld bpm": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Max heart rate %lld bpm"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Maximale Herzfrequenz %lld bpm"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Frecuencia cardíaca máxima %lld ppm"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fréquence cardiaque maximale %lld bpm"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Frequência cardíaca máxima %lld bpm"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Frequenza cardiaca massima %lld bpm"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Максимальный пульс %lld уд/мин"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "最大心率 %lld bpm"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "最大心率 %lld bpm"
+          }
+        }
+      }
+    },
+    "Use the standard bands": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Use the standard bands"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Standardbereiche verwenden"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Usar las bandas estándar"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Utiliser les plages standard"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Usar as bandas padrão"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Usa le fasce standard"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Использовать стандартные диапазоны"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "使用标准区间"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "使用標準區間"
+          }
+        }
+      }
+    },
+    "What these are": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "What these are"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Was das ist"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Qué son"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "De quoi s'agit-il"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O que são"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Che cosa sono"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Что это такое"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "这是什么"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "這是什麼"
+          }
+        }
+      }
+    },
+    "Each zone starts at a heart rate. The standard bands put those starts at 50, 60, 70, 80 and 90 % of your maximum, which suits most people. If you've had a threshold or lactate test, or you train to a coach's scheme, set your own here.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Each zone starts at a heart rate. The standard bands put those starts at 50, 60, 70, 80 and 90 % of your maximum, which suits most people. If you've had a threshold or lactate test, or you train to a coach's scheme, set your own here."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Jede Zone beginnt bei einer Herzfrequenz. Die Standardbereiche setzen diese Startpunkte auf 50, 60, 70, 80 und 90 % deines Maximums, was für die meisten passt. Wenn du einen Schwellen- oder Laktattest gemacht hast oder nach dem Schema deines Trainers trainierst, lege sie hier selbst fest."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cada zona empieza en una frecuencia cardíaca. Las bandas estándar sitúan esos inicios en el 50, 60, 70, 80 y 90 % de tu máximo, lo que le va bien a casi todo el mundo. Si te has hecho una prueba de umbral o de lactato, o entrenas con el esquema de un entrenador, define aquí las tuyas."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chaque zone commence à une fréquence cardiaque. Les plages standard placent ces débuts à 50, 60, 70, 80 et 90 % de votre maximum, ce qui convient à la plupart des gens. Si vous avez passé un test de seuil ou de lactate, ou si vous suivez le schéma d'un entraîneur, définissez les vôtres ici."
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cada zona começa numa frequência cardíaca. As bandas padrão colocam esses inícios em 50, 60, 70, 80 e 90 % do seu máximo, o que serve à maioria das pessoas. Se fez um teste de limiar ou de lactato, ou treina pelo esquema de um treinador, defina aqui as suas."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ogni zona inizia a una frequenza cardiaca. Le fasce standard collocano questi inizi al 50, 60, 70, 80 e 90 % del tuo massimo, il che va bene per la maggior parte delle persone. Se hai fatto un test di soglia o del lattato, o ti alleni secondo lo schema di un allenatore, imposta qui le tue."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Каждая зона начинается с определённого пульса. Стандартные диапазоны задают эти границы на уровне 50, 60, 70, 80 и 90 % от максимума, что подходит большинству. Если вы проходили тест на порог или лактат либо тренируетесь по схеме тренера, задайте свои значения здесь."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "每个区间都从某个心率开始。标准区间把这些起点设在最大心率的 50、60、70、80 和 90 %，适合大多数人。如果你做过阈值或乳酸测试，或按教练的方案训练，可以在这里自定义。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "每個區間都從某個心率開始。標準區間把這些起點設在最大心率的 50、60、70、80 和 90 %，適合大多數人。如果你做過閾值或乳酸測試，或按教練的方案訓練，可以在這裡自訂。"
+          }
+        }
+      }
+    },
+    "Zone 5 always ends at your maximum heart rate, so only the five starting points are yours to move.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zone 5 always ends at your maximum heart rate, so only the five starting points are yours to move."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zone 5 endet immer bei deiner maximalen Herzfrequenz — verschieben kannst du also nur die fünf Startpunkte."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La zona 5 siempre termina en tu frecuencia cardíaca máxima, así que solo puedes mover los cinco puntos de inicio."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La zone 5 se termine toujours à votre fréquence cardiaque maximale : vous ne pouvez donc déplacer que les cinq points de départ."
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A zona 5 termina sempre na sua frequência cardíaca máxima, por isso só pode mover os cinco pontos de início."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La zona 5 finisce sempre alla tua frequenza cardiaca massima, quindi puoi spostare solo i cinque punti di inizio."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Зона 5 всегда заканчивается на максимальном пульсе, поэтому менять можно только пять начальных точек."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "区间 5 始终以你的最大心率结束，因此你只能移动五个起点。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "區間 5 始終以你的最大心率結束，因此你只能移動五個起點。"
+          }
+        }
+      }
+    },
+    "How your zones are defined": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "How your zones are defined"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wie deine Zonen definiert sind"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cómo se definen tus zonas"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Comment vos zones sont définies"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Como as suas zonas são definidas"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Come sono definite le tue zone"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Как заданы ваши зоны"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "你的区间如何定义"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "你的區間如何定義"
+          }
+        }
+      }
+    },
+    "Standard": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Standard"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Standard"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Estándar"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Standard"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Padrão"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Standard"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Стандарт"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "标准"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "標準"
+          }
+        }
+      }
+    },
+    "% of max": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "% of max"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "% vom Max"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "% del máx."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "% du max"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "% do máx."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "% del max"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "% от макс."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "最大值百分比"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "最大值百分比"
+          }
+        }
+      }
+    },
+    "Zone %lld": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zone %lld"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zone %lld"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zona %lld"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zone %lld"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zona %lld"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zona %lld"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Зона %lld"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "区间 %lld"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "區間 %lld"
+          }
+        }
+      }
+    },
+    "What this changes": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "What this changes"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Was sich dadurch ändert"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Qué cambia esto"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ce que cela change"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O que isto altera"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Che cosa cambia"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "На что это влияет"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "这会改变什么"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "這會改變什麼"
+          }
+        }
+      }
+    },
+    "Your bands set the live zone readout, the zone split on a workout, and the zones your coach prescribes in.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your bands set the live zone readout, the zone split on a workout, and the zones your coach prescribes in."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deine Bereiche bestimmen die Live-Zonenanzeige, die Zonenaufteilung eines Workouts und die Zonen, in denen dein Coach plant."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tus bandas definen la zona que se muestra en directo, el reparto por zonas de un entrenamiento y las zonas en las que te planifica tu coach."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vos plages déterminent l'affichage de zone en direct, la répartition par zone d'une séance et les zones dans lesquelles votre coach vous prescrit."
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "As suas bandas definem a zona mostrada em direto, a divisão por zonas de um treino e as zonas em que o seu treinador planeia."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le tue fasce determinano la zona mostrata in tempo reale, la suddivisione per zone di un allenamento e le zone in cui il tuo coach programma."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ваши диапазоны определяют зону в реальном времени, разбивку тренировки по зонам и зоны, в которых планирует тренер."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "你的区间决定实时区间显示、训练的区间分布，以及教练给你安排的区间。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "你的區間決定即時區間顯示、訓練的區間分佈，以及教練給你安排的區間。"
+          }
+        }
+      }
+    },
+    "They don't change your Effort score, which is measured against your heart-rate reserve on a published method with its own fixed thresholds — so your history stays comparable. They also don't change zone bars that came in with a WHOOP export, which carry WHOOP's own bands.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "They don't change your Effort score, which is measured against your heart-rate reserve on a published method with its own fixed thresholds — so your history stays comparable. They also don't change zone bars that came in with a WHOOP export, which carry WHOOP's own bands."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sie ändern nicht deinen Effort-Wert: der misst gegen deine Herzfrequenzreserve nach einer publizierten Methode mit eigenen festen Schwellen — so bleibt deine Historie vergleichbar. Ebenso wenig ändern sie Zonenbalken aus einem WHOOP-Export, die WHOOPs eigene Bereiche tragen."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No cambian tu puntuación de Effort, que se mide contra tu reserva de frecuencia cardíaca con un método publicado que tiene sus propios umbrales fijos, así que tu historial sigue siendo comparable. Tampoco cambian las barras de zona que llegaron con una exportación de WHOOP, que llevan las bandas propias de WHOOP."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Elles ne changent pas votre score Effort, mesuré par rapport à votre réserve de fréquence cardiaque selon une méthode publiée avec ses propres seuils fixes : votre historique reste donc comparable. Elles ne changent pas non plus les barres de zone issues d'un export WHOOP, qui portent les plages propres à WHOOP."
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Não alteram a sua pontuação de Effort, que é medida em relação à sua reserva de frequência cardíaca por um método publicado com limiares fixos próprios — por isso o seu histórico mantém-se comparável. Também não alteram as barras de zona que vieram numa exportação da WHOOP, que trazem as bandas da própria WHOOP."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Non cambiano il tuo punteggio Effort, che si misura sulla tua riserva di frequenza cardiaca con un metodo pubblicato che ha soglie fisse proprie: così il tuo storico resta confrontabile. Non cambiano nemmeno le barre di zona arrivate con un'esportazione WHOOP, che portano le fasce di WHOOP."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Они не меняют показатель Effort: он считается от резерва пульса по опубликованной методике с собственными фиксированными порогами, поэтому история остаётся сопоставимой. Не меняют они и полосы зон из экспорта WHOOP — там диапазоны самой WHOOP."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "它们不会改变你的 Effort 分数——该分数按已发表的方法以心率储备计算，有自己固定的阈值，因此你的历史数据保持可比。它们也不会改变来自 WHOOP 导出的区间条形图，那些使用 WHOOP 自己的区间。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "它們不會改變你的 Effort 分數——該分數按已發表的方法以心率儲備計算，有自己固定的閾值，因此你的歷史資料保持可比。它們也不會改變來自 WHOOP 匯出的區間長條圖，那些使用 WHOOP 自己的區間。"
+          }
+        }
+      }
+    },
+    "The usual 50/60/70/80/90 % of your maximum heart rate.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The usual 50/60/70/80/90 % of your maximum heart rate."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die üblichen 50/60/70/80/90 % deiner maximalen Herzfrequenz."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "El 50/60/70/80/90 % habitual de tu frecuencia cardíaca máxima."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Les 50/60/70/80/90 % habituels de votre fréquence cardiaque maximale."
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Os habituais 50/60/70/80/90 % da sua frequência cardíaca máxima."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "I soliti 50/60/70/80/90 % della tua frequenza cardiaca massima."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Обычные 50/60/70/80/90 % от максимального пульса."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "最大心率的 50/60/70/80/90 %，即通常的设定。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "最大心率的 50/60/70/80/90 %，即通常的設定。"
+          }
+        }
+      }
+    },
+    "You set the percentages. They move with your maximum heart rate, so re-estimating it shifts every band.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You set the percentages. They move with your maximum heart rate, so re-estimating it shifts every band."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Du legst die Prozentwerte fest. Sie wandern mit deiner maximalen Herzfrequenz mit — wird die neu geschätzt, verschieben sich alle Bereiche."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tú defines los porcentajes. Se mueven con tu frecuencia cardíaca máxima, así que volver a estimarla desplaza todas las bandas."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vous définissez les pourcentages. Ils suivent votre fréquence cardiaque maximale : la réestimer décale toutes les plages."
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Define as percentagens. Acompanham a sua frequência cardíaca máxima, por isso reestimá-la desloca todas as bandas."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Imposti le percentuali. Seguono la tua frequenza cardiaca massima, quindi ristimarla sposta tutte le fasce."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Вы задаёте проценты. Они привязаны к максимальному пульсу, поэтому его пересчёт сдвигает все диапазоны."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "由你设定百分比。它们随最大心率变化，因此重新估算最大心率会移动所有区间。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "由你設定百分比。它們隨最大心率變化，因此重新估算最大心率會移動所有區間。"
+          }
+        }
+      }
+    },
+    "You set the heart rates themselves — what a threshold or lactate test gives you. They stay put when your maximum changes.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You set the heart rates themselves — what a threshold or lactate test gives you. They stay put when your maximum changes."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Du legst die Herzfrequenzen selbst fest — genau das, was ein Schwellen- oder Laktattest liefert. Sie bleiben stehen, wenn sich dein Maximum ändert."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Defines las frecuencias cardíacas en sí, que es lo que da una prueba de umbral o de lactato. No se mueven cuando cambia tu máximo."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vous définissez les fréquences cardiaques elles-mêmes — ce que donne un test de seuil ou de lactate. Elles ne bougent pas quand votre maximum change."
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Define as próprias frequências cardíacas — o que um teste de limiar ou de lactato lhe dá. Não se movem quando o seu máximo muda."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Imposti direttamente le frequenze cardiache, quelle che ti dà un test di soglia o del lattato. Restano ferme quando cambia il tuo massimo."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Вы задаёте сам пульс — то, что даёт тест на порог или лактат. Значения не смещаются при изменении максимума."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "由你直接设定心率——阈值或乳酸测试给出的数值。最大心率变化时它们保持不变。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "由你直接設定心率——閾值或乳酸測試給出的數值。最大心率變化時它們保持不變。"
+          }
+        }
+      }
+    },
+    "%@–%@ %% of max": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@–%@ %% of max"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@–%2$@ %% vom Max"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@–%2$@ %% del máx."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@–%2$@ %% du max"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@–%2$@ %% do máx."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@–%2$@ %% del max"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@–%2$@ %% от макс."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "最大值的 %1$@–%2$@ %%"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "最大值的 %1$@–%2$@ %%"
+          }
+        }
+      }
+    },
+    "Zone %lld starts at %@ bpm, %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zone %lld starts at %@ bpm, %@"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zone %1$lld beginnt bei %2$@ bpm, %3$@"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La zona %1$lld empieza en %2$@ ppm, %3$@"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La zone %1$lld commence à %2$@ bpm, %3$@"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A zona %1$lld começa em %2$@ bpm, %3$@"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La zona %1$lld inizia a %2$@ bpm, %3$@"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Зона %1$lld начинается с %2$@ уд/мин, %3$@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "区间 %1$lld 从 %2$@ bpm 开始，%3$@"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "區間 %1$lld 從 %2$@ bpm 開始，%3$@"
+          }
+        }
+      }
+    },
+    "Zone %lld starts at %@ percent of maximum, %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zone %lld starts at %@ percent of maximum, %@"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zone %1$lld beginnt bei %2$@ Prozent des Maximums, %3$@"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La zona %1$lld empieza en el %2$@ por ciento del máximo, %3$@"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La zone %1$lld commence à %2$@ pour cent du maximum, %3$@"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A zona %1$lld começa em %2$@ por cento do máximo, %3$@"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La zona %1$lld inizia al %2$@ per cento del massimo, %3$@"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Зона %1$lld начинается с %2$@ процентов от максимума, %3$@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "区间 %1$lld 从最大值的百分之 %2$@ 开始，%3$@"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "區間 %1$lld 從最大值的百分之 %2$@ 開始，%3$@"
+          }
+        }
+      }
+    },
+    "Each zone has to start above the one before it, and Zone 5 has to start below your maximum of %lld bpm.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Each zone has to start above the one before it, and Zone 5 has to start below your maximum of %lld bpm."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Jede Zone muss über der vorherigen beginnen, und Zone 5 muss unter deinem Maximum von %lld bpm beginnen."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cada zona tiene que empezar por encima de la anterior, y la zona 5 tiene que empezar por debajo de tu máximo de %lld ppm."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chaque zone doit commencer au-dessus de la précédente, et la zone 5 doit commencer sous votre maximum de %lld bpm."
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cada zona tem de começar acima da anterior, e a zona 5 tem de começar abaixo do seu máximo de %lld bpm."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ogni zona deve iniziare sopra la precedente e la zona 5 deve iniziare sotto il tuo massimo di %lld bpm."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Каждая зона должна начинаться выше предыдущей, а зона 5 — ниже вашего максимума в %lld уд/мин."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "每个区间都必须高于前一个，且区间 5 必须低于你的最大值 %lld bpm。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "每個區間都必須高於前一個，且區間 5 必須低於你的最大值 %lld bpm。"
+          }
+        }
+      }
+    },
+    "Each zone has to start above the one before it. Adjust the bands so they rise in order.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Each zone has to start above the one before it. Adjust the bands so they rise in order."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Jede Zone muss über der vorherigen beginnen. Passe die Bereiche so an, dass sie der Reihe nach ansteigen."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cada zona tiene que empezar por encima de la anterior. Ajusta las bandas para que suban en orden."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chaque zone doit commencer au-dessus de la précédente. Ajustez les plages pour qu'elles montent dans l'ordre."
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cada zona tem de começar acima da anterior. Ajuste as bandas para que subam por ordem."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ogni zona deve iniziare sopra la precedente. Regola le fasce in modo che salgano in ordine."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Каждая зона должна начинаться выше предыдущей. Настройте диапазоны так, чтобы они возрастали по порядку."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "每个区间都必须高于前一个。请调整区间，使其依次递增。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "每個區間都必須高於前一個。請調整區間，使其依次遞增。"
+          }
+        }
+      }
+    },
+    "Heart-rate zones": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Heart-rate zones"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Herzfrequenzzonen"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zonas de frecuencia cardíaca"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zones de fréquence cardiaque"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zonas de frequência cardíaca"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zone di frequenza cardiaca"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Зоны пульса"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "心率区间"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "心率區間"
+          }
+        }
+      }
+    },
+    "Standard bands": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Standard bands"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Standardbereiche"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bandas estándar"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Plages standard"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bandas padrão"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fasce standard"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Стандартные диапазоны"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "标准区间"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "標準區間"
+          }
+        }
+      }
+    },
+    "Custom · %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Custom · %@"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eigene · %@"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Personalizadas · %@"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Personnalisées · %@"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Personalizadas · %@"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Personalizzate · %@"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Свои · %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自定义 · %@"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自訂 · %@"
+          }
+        }
+      }
+    },
+    "Heart-rate zones. %@. Opens the zone editor.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Heart-rate zones. %@. Opens the zone editor."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Herzfrequenzzonen. %@. Öffnet den Zoneneditor."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zonas de frecuencia cardíaca. %@. Abre el editor de zonas."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zones de fréquence cardiaque. %@. Ouvre l'éditeur de zones."
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zonas de frequência cardíaca. %@. Abre o editor de zonas."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zone di frequenza cardiaca. %@. Apre l'editor delle zone."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Зоны пульса. %@. Открывает редактор зон."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "心率区间。%@。打开区间编辑器。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "心率區間。%@。開啟區間編輯器。"
+          }
+        }
+      }
+    },
+    "Where each zone starts, as a share of your max heart rate. Changes the zones you see and the ones your coach prescribes — not your Effort score.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Where each zone starts, as a share of your max heart rate. Changes the zones you see and the ones your coach prescribes — not your Effort score."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wo jede Zone beginnt, als Anteil deiner maximalen Herzfrequenz. Ändert die Zonen, die du siehst, und die, in denen dein Coach plant — nicht deinen Effort-Wert."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dónde empieza cada zona, como porcentaje de tu frecuencia cardíaca máxima. Cambia las zonas que ves y las que te prescribe tu coach, no tu puntuación de Effort."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Où commence chaque zone, en part de votre fréquence cardiaque maximale. Change les zones que vous voyez et celles que votre coach prescrit, pas votre score Effort."
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Onde começa cada zona, como fração da sua frequência cardíaca máxima. Altera as zonas que vê e as que o seu treinador prescreve — não a sua pontuação de Effort."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dove inizia ogni zona, come quota della tua frequenza cardiaca massima. Cambia le zone che vedi e quelle in cui il coach programma, non il tuo punteggio Effort."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Где начинается каждая зона — в долях от максимального пульса. Меняет зоны, которые вы видите, и те, что назначает тренер, но не показатель Effort."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "每个区间从最大心率的多大比例开始。会改变你看到的区间和教练安排的区间，但不影响 Effort 分数。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "每個區間從最大心率的多大比例開始。會改變你看到的區間和教練安排的區間，但不影響 Effort 分數。"
+          }
+        }
+      }
+    },
+    "Below Zone 1 · %lld%%": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Below Zone 1 · %lld%%"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unter Zone 1 · %lld%%"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Por debajo de la zona 1 · %lld%%"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sous la zone 1 · %lld%%"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abaixo da zona 1 · %lld%%"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sotto la zona 1 · %lld%%"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ниже зоны 1 · %lld%%"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "低于区间 1 · %lld%%"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "低於區間 1 · %lld%%"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

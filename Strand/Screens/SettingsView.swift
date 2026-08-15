@@ -320,6 +320,10 @@ struct SettingsView: View {
     /// and offers a manual coefficient override. See [StepsCalibrationSheet].
     @State private var showStepsCalibration = false
 
+    /// HR zone-band editor. Reached from the Profile card's "Heart-rate zones" tap-through; sets where
+    /// each zone starts as a share of HRmax. See [HRZoneEditorSheet].
+    @State private var showHRZoneEditor = false
+
     /// iOS environment-diagnostics sheet (device, iOS+build, Data Protection, background refresh,
     /// low-power, sideload + cert expiry). iOS-only; the macOS strap log already carries OS + version.
     @State private var showDiagnostics = false
@@ -442,6 +446,9 @@ struct SettingsView: View {
         }
         .sheet(isPresented: $showAppleWatchSetup) {
             AppleWatchSetupView(onClose: { showAppleWatchSetup = false })
+        }
+        .sheet(isPresented: $showHRZoneEditor) {
+            HRZoneEditorSheet(onClose: { showHRZoneEditor = false })
         }
         .sheet(isPresented: $showStepsCalibration) {
             StepsCalibrationSheet(repo: model.repo, onClose: { showStepsCalibration = false })
@@ -618,6 +625,32 @@ struct SettingsView: View {
                                              : StrandPalette.textTertiary)
                     }
                 }
+                rowDivider
+                // Tap-through to the zone BANDS — where each zone starts, as a share of the max HR
+                // above. Separate from HRmax because they answer different questions ("how high can I
+                // go" vs "where does Zone 2 begin"), and because only the bands need five values.
+                Button {
+                    showHRZoneEditor = true
+                } label: {
+                    FormRow(label: "Heart-rate zones") {
+                        HStack(spacing: 8) {
+                            Text(hrZoneSummary)
+                                .font(StrandFont.footnote)
+                                .foregroundStyle(profile.hasCustomHRZones
+                                                 ? StrandPalette.accent : StrandPalette.textTertiary)
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundStyle(StrandPalette.textTertiary)
+                        }
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(LiquidPressStyle())
+                .accessibilityLabel("Heart-rate zones. \(hrZoneSummary). Opens the zone editor.")
+                Text("Where each zone starts, as a share of your max heart rate. Changes the zones you see and the ones your coach prescribes — not your Effort score.")
+                    .font(StrandFont.footnote)
+                    .foregroundStyle(StrandPalette.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
                 rowDivider
                 // Step calibration (#139/#132): daily steps = @57 counter ticks ÷ this divisor.
                 // 1.0 = raw pass-through until the true 5/MG tick rate is known. The divisor goes
@@ -855,6 +888,23 @@ struct SettingsView: View {
             return String(localized: "Auto · \(StepsCalibrationFormat.confidenceLabel(profile.stepsCalibrationConfidence)) confidence")
         }
         return String(localized: "Not calibrated")
+    }
+
+    /// The zone-band row's trailing summary: the five starting bounds when the wearer has set their own,
+    /// otherwise the plain "standard bands" note. Shows the actual numbers because they're the whole
+    /// point of the row — "Custom" alone would send them into the sheet just to see what they'd set.
+    /// The unit marker is built into `bounds` rather than appended to the format string, so the
+    /// localized key carries no stray percent sign next to an interpolation.
+    private var hrZoneSummary: String {
+        guard profile.hasCustomHRZones else { return String(localized: "Standard bands") }
+        let zones = profile.hrZoneSet.zones
+        let bounds: String
+        if profile.hrZoneConfig.mode == .bpm {
+            bounds = zones.map { String(format: "%.0f", $0.lower.rounded()) }.joined(separator: "/") + " bpm"
+        } else {
+            bounds = zones.map { HRZoneEditorSheet.percentText($0.lowerPct) }.joined(separator: "/") + "%"
+        }
+        return String(localized: "Custom · \(bounds)")
     }
 
     /// Numeric weight/height field: tabular value + small +/- stepper.

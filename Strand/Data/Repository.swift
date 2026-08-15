@@ -2928,23 +2928,27 @@ final class Repository: ObservableObject {
         return await hrBuckets(deviceIds: ids, from: from, to: to, bucketSeconds: bucket)
     }
 
-    /// Raw HR samples binned into per-zone MINUTES for a workout window, using the age-derived
-    /// (Tanaka) %HRmax zones , the same display zone model `WorkoutsView` already uses for imported
-    /// zone percentages, but computed here from the strap's own samples so a session WITHOUT imported
-    /// `zonesJSON` still gets a real time-in-zone split. Returns nil when the window carries no HR (so
-    /// the view shows nothing rather than five empty bars). `age <= 0` falls back to a 30 y default ,
-    /// the zones are approximate either way and clearly labelled as such in the UI.
+    /// Raw HR samples binned into per-zone MINUTES for a workout window, using the %HRmax display zone
+    /// model — the same one `WorkoutsView` uses for imported zone percentages, but computed here from
+    /// the strap's own samples so a session WITHOUT imported `zonesJSON` still gets a real time-in-zone
+    /// split. Returns nil when the window carries no HR (so the view shows nothing rather than five
+    /// empty bars).
+    ///
+    /// Takes the CALLER'S `zoneSet` (`ProfileStore.hrZoneSet`) rather than deriving one. It used to
+    /// build zones from `age` alone, which silently ignored BOTH the manual HR-max override and the
+    /// user's own bands — so the same heart rate could read Zone 2 on the live screen and Zone 3 in a
+    /// workout's zone bars. One resolver, one answer.
     /// #856: bins the same rows the chart plots and the Avg HR aggregates. Previously this read the
     /// day-level union, so a bout detected on a second WHOOP had its zones computed from a strap that
     /// never recorded it. `source` defaults to "" (⇒ the imported branch, the union) so a caller
     /// without a row keeps today's behaviour.
-    func workoutZoneMinutes(from: Int, to: Int, age: Int, source: String = "") async -> [Double]? {
+    func workoutZoneMinutes(from: Int, to: Int, zoneSet: HRZoneSet,
+                            source: String = "") async -> [Double]? {
         guard to > from else { return nil }
         let ids = Self.workoutHrDeviceIds(source: source, activeStrapId: deviceId,
                                           importedIds: importedReadIds)
         let samples = await hrSamples(deviceIds: ids, from: from, to: to)
         guard !samples.isEmpty else { return nil }
-        let zoneSet = HRZones.zones(age: age > 0 ? Double(age) : 30)
         let tiz = HRZones.timeInZone(samples, zoneSet: zoneSet)
         let minutes = tiz.seconds.map { $0 / 60.0 }
         return minutes.contains(where: { $0 > 0 }) ? minutes : nil

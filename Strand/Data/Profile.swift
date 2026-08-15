@@ -1,6 +1,7 @@
 import Foundation
 import Combine
 import SwiftUI
+import StrandAnalytics
 
 /// User profile (age/sex/body metrics/HR-max) persisted in UserDefaults.
 /// Powers HR zones, calories and recovery baselines.
@@ -26,6 +27,21 @@ final class ProfileStore: ObservableObject {
     @Published var waistCm: Double { didSet { d.set(waistCm, forKey: K.waist) } }
     /// 0 = auto-estimate from age.
     @Published var hrMaxOverride: Int { didSet { d.set(hrMaxOverride, forKey: K.hrMax) } }
+    // ── HR zone bands ───────────────────────────────────────────────────────────────────────────
+    // Three stored fields rather than one, because the two custom modes hold DIFFERENT quantities
+    // (fractions vs bpm) and a wearer who tries both should not lose the first set by switching. The
+    // mode picks which is live; the other simply waits. Always written through
+    // ``setHRZoneConfig(_:)``, which validates — nothing else should touch these raw.
+    //
+    // Display-only: these bands change time-in-zone, the live readout and what the coach prescribes,
+    // never the Effort score. See the header of `HRZones.swift` for why that separation is load-bearing.
+
+    /// `HRZoneConfig.Mode.rawValue` — "auto" (default), "percent" or "bpm".
+    @Published var zoneModeRaw: String { didSet { d.set(zoneModeRaw, forKey: K.zoneMode) } }
+    /// Five lower bounds as PERCENTS, `HRZoneEdges`' comma form ("55,65,75,85,92"). "" = never set.
+    @Published var zonePercentEdgesRaw: String { didSet { d.set(zonePercentEdgesRaw, forKey: K.zonePercentEdges) } }
+    /// Five lower bounds in BPM, same comma form ("110,130,150,170,184"). "" = never set.
+    @Published var zoneBpmEdgesRaw: String { didSet { d.set(zoneBpmEdgesRaw, forKey: K.zoneBpmEdges) } }
     /// Step-calibration divisor (#139/#132): counter ticks per real step for the @57 motion
     /// counter. 1.0 = raw pass-through (default — no behavior change). Clamped 0.5–30.0
     /// (WHOOP 5/MG motion-counter overcount can reach ~24×, so the ceiling has to be high).
@@ -83,6 +99,9 @@ final class ProfileStore: ObservableObject {
         static let legacyAge = "profile.age"
         static let sex = "profile.sex", weight = "profile.weightKg"
         static let height = "profile.heightCm", hrMax = "profile.hrMaxOverride"
+        static let zoneMode = "profile.zoneMode"
+        static let zonePercentEdges = "profile.zonePercentEdges"
+        static let zoneBpmEdges = "profile.zoneBpmEdges"
         static let stepScale = "profile.stepTicksPerStep"
         static let waist = "profile.waistCm"
         static let stepsCoeff = "profile.stepsCalibrationCoefficient"
@@ -120,6 +139,9 @@ final class ProfileStore: ObservableObject {
         heightCm = d.object(forKey: K.height) as? Double ?? 178
         waistCm = d.object(forKey: K.waist) as? Double ?? 0
         hrMaxOverride = d.object(forKey: K.hrMax) as? Int ?? 0
+        zoneModeRaw = d.string(forKey: K.zoneMode) ?? HRZoneConfig.Mode.auto.rawValue
+        zonePercentEdgesRaw = d.string(forKey: K.zonePercentEdges) ?? ""
+        zoneBpmEdgesRaw = d.string(forKey: K.zoneBpmEdges) ?? ""
         stepTicksPerStep = min(max(d.object(forKey: K.stepScale) as? Double ?? 1.0, 0.5), 30.0)
         stepsCalibrationCoefficient = d.object(forKey: K.stepsCoeff) as? Double ?? 0
         stepsCalibrationSampleDays = d.object(forKey: K.stepsSampleDays) as? Int ?? 0
@@ -213,6 +235,61 @@ final class ProfileStore: ObservableObject {
 
     /// Tanaka estimate unless overridden.
     var hrMax: Int { hrMaxOverride > 0 ? hrMaxOverride : Int((208 - 0.7 * Double(age)).rounded()) }
+
+    // MARK: - HR zone bands
+
+    /// The stored zone configuration, decoded. An unparseable stored value yields empty bounds, which
+    /// the resolver treats as `.auto` — a hand-edited defaults plist or a truncated restore costs the
+    /// customisation, never a broken partition.
+    var hrZoneConfig: HRZoneConfig {
+        HRZoneConfig(
+            mode: HRZoneConfig.Mode(rawValue: zoneModeRaw) ?? .auto,
+            percentLowerBounds: (HRZoneEdges.decodeValues(zonePercentEdgesRaw) ?? []).map { $0 / 100.0 },
+            bpmLowerBounds: HRZoneEdges.decodeValues(zoneBpmEdgesRaw) ?? [])
+    }
+
+    /// Whether the resolved zones are actually the user's own — false for `.auto` and for a custom mode
+    /// whose stored bounds no longer validate, so the UI never claims a customisation the zones don't
+    /// honour.
+    var hasCustomHRZones: Bool { hrZoneConfig.isCustom(maxHR: Double(hrMax)) }
+
+    /// **The one HR-zone resolver.** Every surface that buckets a heart rate — the live readout, the
+    /// in-workout zone card, the Health hero card, workout time-in-zone, the coach's `get_zone_minutes`
+    /// — reads THIS, so they cannot disagree about where a zone starts. Before it existed, the live
+    /// readout used the profile's HRmax while `Repository.workoutZoneMinutes` built its zones from age
+    /// alone and `HealthView` carried its own hardcoded table: three answers for one question.
+    var hrZoneSet: HRZoneSet {
+        HRZones.zones(config: hrZoneConfig, maxHR: Double(hrMax),
+                      autoSource: hrMaxOverride > 0 ? "manual" : "tanaka")
+    }
+
+    /// Store a validated configuration. Returns false (and changes nothing) when the mode's bounds
+    /// aren't a legal partition, so an invalid edit can never reach storage. Writes ONLY the mode's own
+    /// bounds, leaving the other mode's stored set intact — switching percent → bpm → percent must not
+    /// silently discard the first set of numbers the user typed.
+    @discardableResult
+    func setHRZoneConfig(_ config: HRZoneConfig) -> Bool {
+        switch config.mode {
+        case .auto:
+            zoneModeRaw = HRZoneConfig.Mode.auto.rawValue
+            return true
+        case .percent:
+            guard HRZones.validatedEdges(lowerPercents: config.percentLowerBounds) != nil else { return false }
+            zonePercentEdgesRaw = HRZoneEdges.encodeValues(config.percentLowerBounds.map { $0 * 100.0 })
+            zoneModeRaw = HRZoneConfig.Mode.percent.rawValue
+            return true
+        case .bpm:
+            guard HRZones.validatedBpmEdges(lowerBpm: config.bpmLowerBounds,
+                                            maxHR: Double(hrMax)) != nil else { return false }
+            zoneBpmEdgesRaw = HRZoneEdges.encodeValues(config.bpmLowerBounds)
+            zoneModeRaw = HRZoneConfig.Mode.bpm.rawValue
+            return true
+        }
+    }
+
+    /// Back to the conventional 50/60/70/80/90 bands. Keeps whatever bounds were typed in either mode,
+    /// so "reset" is undoable by simply switching the mode back.
+    func resetHRZones() { zoneModeRaw = HRZoneConfig.Mode.auto.rawValue }
 
     /// Whether the cycle-awareness opt-in applies to this profile (#801). Cycle phase is read from the
     /// MENSTRUAL skin-temperature shift, so the opt-in (the Health card + the Automations toggle) is only

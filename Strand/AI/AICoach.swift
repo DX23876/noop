@@ -1982,21 +1982,44 @@ final class AICoachEngine: ObservableObject {
 
     /// `get_zone_minutes`: time-in-zone (Zone 1–5) minutes over the user's recent workout HR, so a "did
     /// I hit Zone 2?" question — and `propose_plan`'s own Zone-2 prescriptions — can be checked against
-    /// what was actually done. Wraps `Repository.workoutZoneMinutes` (HRZones math), aged from the
-    /// profile. Nil (no HR/workout data) returns a plain "no zone data" line, never an empty string.
+    /// what was actually done. Wraps `Repository.workoutZoneMinutes` over the profile's resolved bands.
+    /// Nil (no HR/workout data) returns a plain "no zone data" line, never an empty string.
+    ///
+    /// The output STATES the band definitions in bpm, because "Zone 2" is not a shared constant: the user
+    /// can move the boundaries (`ProfileStore.hrZoneSet`), and a coach prescribing "Zone 2" against the
+    /// textbook 60–70 % when this user's Zone 2 starts at 65 % is prescribing a different session than
+    /// the one they'll ride.
     func zoneMinutesTool(days: Int) async -> String {
         let now = Int(Date().timeIntervalSince1970)
         let from = now - days * 86_400
-        let age = ProfileStore().age
-        guard let minutes = await repo.workoutZoneMinutes(from: from, to: now, age: age),
+        let zoneSet = ProfileStore().hrZoneSet
+        guard let minutes = await repo.workoutZoneMinutes(from: from, to: now, zoneSet: zoneSet),
               minutes.count == 5 else {
             return "No workout heart-rate data in the last \(days) days to compute zone minutes."
         }
-        var lines = ["TIME IN ZONE (minutes, last \(days) days — from workout HR):"]
+        var lines = [Self.zoneBandsLine(zoneSet),
+                     "TIME IN ZONE (minutes, last \(days) days — from workout HR):"]
         for (i, m) in minutes.enumerated() {
             lines.append(String(format: "  Zone %d: %.0f min", i + 1, m))
         }
         return lines.joined(separator: "\n")
+    }
+
+    /// One line naming THIS user's zone boundaries in both % of HRmax and bpm. Pure + static so the
+    /// prescribing paths (`propose_plan`, `estimate_session_effort`) and the reporting path
+    /// (`get_zone_minutes`) all describe the bands the same way, and so it's testable without a store.
+    nonisolated static func zoneBandsLine(_ zoneSet: HRZoneSet) -> String {
+        let bands = zoneSet.zones.map { z in
+            String(format: "Z%d %.0f–%.0f%% (%.0f–%.0f bpm)",
+                   z.number, z.lowerPct * 100, z.upperPct * 100, z.lower.rounded(), z.upper.rounded())
+        }.joined(separator: ", ")
+        // Prefix match, not equality: the source is "custom-percent" or "custom-bpm" (the wearer can
+        // define bands either way). An `== "custom"` check silently reported every custom set as the
+        // standard bands, which is the exact confusion this line exists to prevent.
+        let origin = zoneSet.source.hasPrefix("custom")
+            ? "the user's OWN custom bands — do not assume the textbook 50/60/70/80/90"
+            : "the standard %HRmax bands"
+        return String(format: "HR ZONES (%@, HRmax %.0f bpm): ", origin, zoneSet.maxHR) + bands
     }
 
     /// `get_sleep_detail`: per-night stages/efficiency from the daily roll-up plus the rolling
