@@ -115,10 +115,15 @@ is an easy and very misleading mistake.
 
 **The fork ships exactly the locale set `ryanbr/noop` ships, on both platforms — never a narrower
 one.** Apple (all four String Catalogs — `Strand/`, `Packages/StrandDesign/`, `NOOPWatch/`,
-`NOOPWatchComplications/`): `en` source + `de, es, fr, it, pt-PT, ru, zh-Hans, zh-Hant`. Android
-(`values-<lang>/`): `de, es, fr, pt-rPT, zh`. Don't hardcode this list anywhere else — `LANGS` in
+`NOOPWatchComplications/`): `en` source + `de, es, fr, it, pl, pt-PT, ru, zh-Hans, zh-Hant`. Android
+(`values-<lang>/`): `de, es, fr, pl, pt-rPT, zh`. Don't hardcode this list anywhere else — `LANGS` in
 `Tools/i18n_audit.py` is the single source of truth, so if upstream ever adds a locale, updating that
 constant (and running the importer/extractor for it) is the whole change.
+
+`pl` arrived that way with the 10.1.0 sync (upstream #1250) and is in the ZERO-TOLERANCE tier, not
+the ratchet: upstream translated only the keys it ships, so the ~1300 fork-only strings were filled
+here in the same pass rather than baselined as an accepted gap. A locale that lands mid-ratchet is
+the harder case — see the 2026-08-15 row in [`fork/decisions.md`](fork/decisions.md).
 
 Two tiers, not one, because `i18n-coverage.yml` runs on **every** push/PR against the **whole tree**,
 not a diff — a lingering gap fails every subsequent push regardless of what it touches:
