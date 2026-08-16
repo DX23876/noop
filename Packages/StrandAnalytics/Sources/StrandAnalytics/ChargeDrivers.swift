@@ -154,6 +154,14 @@ extension RecoveryScorer {
 
         var drivers: [ChargeDriver] = []
 
+        // Did the parasympathetic-saturation signature fire on THIS night (low HRV corroborated by a
+        // low, decoupled resting HR)? Detection ONLY: the guard's easing is not applied, so deltaPoints
+        // below is the full, unguarded HRV penalty. The verdict merely NAMES the detected pattern so the
+        // UI can surface it while real firings accumulate. See the MARK header in RecoveryScorer.swift.
+        let hrvZFull = zScore(hrv, mean: hrvBaseline.baseline, spread: hrvBaseline.spread)
+        let rhrZFull: Double? = rhrBaseline.map { zScore($0.baseline, mean: rhr, spread: $0.spread) }
+        let hrvSaturationDetected = parasympatheticSaturation(hrvZ: hrvZFull, rhrZ: rhrZFull).active
+
         // ── HRV (dominant driver; always present once the score exists) ──────────
         // Higher HRV vs baseline supports recovery. Neutral = HRV at the baseline mean.
         drivers.append(ChargeDriver(
@@ -164,7 +172,8 @@ extension RecoveryScorer {
                                          skinTempDev: skinTempDev)),
             valueText: "\(Int(hrv.rounded())) ms",
             baselineText: "\(Int(hrvBaseline.baseline.rounded())) ms baseline",
-            verdict: hrvVerdict(value: hrv, baseline: hrvBaseline.baseline)))
+            verdict: hrvVerdict(value: hrv, baseline: hrvBaseline.baseline,
+                                saturationDetected: hrvSaturationDetected)))
 
         // ── Resting HR (lower vs baseline supports recovery) ─────────────────────
         // Neutral = resting HR at the baseline mean.
@@ -232,9 +241,18 @@ extension RecoveryScorer {
 
     // MARK: - Plain-English verdicts (no fabricated numbers; direction only)
 
-    static func hrvVerdict(value: Double, baseline: Double) -> String {
+    static func hrvVerdict(value: Double, baseline: Double, saturationDetected: Bool = false) -> String {
         if value > baseline { return "above baseline, supporting recovery" }
-        if value < baseline { return "below baseline, limiting recovery" }
+        if value < baseline {
+            // Parasympathetic-saturation signature detected: resting HR is also low and decoupled from
+            // HRV. NAME the pattern, but keep the plain "limiting recovery" read, because that is what
+            // the score actually did: the easing is detected-only and did NOT change these points. The
+            // hedge is deliberate too, since the same low-HRV + low-RHR pattern is also reported for
+            // non-functional overreaching, which is the opposite of benign.
+            return saturationDetected
+                ? "below baseline, limiting recovery, though low resting HR suggests this may be parasympathetic saturation rather than fatigue"
+                : "below baseline, limiting recovery"
+        }
         return "at baseline"
     }
 

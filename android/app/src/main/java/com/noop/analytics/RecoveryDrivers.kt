@@ -1,7 +1,6 @@
 package com.noop.analytics
 
 import kotlin.math.abs
-import kotlin.math.exp
 import kotlin.math.roundToInt
 
 // RecoveryDrivers.kt - the USER-FACING "What shaped it" breakdown for the Charge (recovery) score.
@@ -76,125 +75,124 @@ object RecoveryDrivers {
         sleepPerf: Double?,
         skinTempDev: Double? = null,
     ): List<ChargeDriver> {
-        // Cold-start gate: no usable HRV baseline -> no score -> no drivers (honest empty, not faked rows).
-        if (!hrvBaseline.usable) return emptyList()
+        // No score => no real contributions to attribute (cold-start). recovery(...) enforces the usable
+        // gate; mirror it so a nil headline never yields fabricated driver rows.
+        val full = RecoveryScorer.recovery(
+            hrv = hrv, rhr = rhr, resp = resp,
+            hrvBaseline = hrvBaseline, rhrBaseline = rhrBaseline,
+            respBaseline = respBaseline, sleepPerf = sleepPerf, skinTempDev = skinTempDev,
+        ) ?: return emptyList()
 
-        // Build the SAME (z, weight) term set recovery(...) builds, in the SAME append order, capturing
-        // each term's identity so a single term can be neutralized to compute its marginal point swing.
-        data class Term(val z: Double, val w: Double)
+        // Marginal-vs-neutral attribution: a term's deltaPoints is the full score minus the score
+        // recomputed with THAT term held at its personal baseline (its z forced to 0) while every term,
+        // including this one, keeps its weight. Routes through recovery(...) itself (same terms, same
+        // weighting, same logistic) so the points can never drift from the headline. A term reaches
+        // z = 0 at: HRV / resting HR / respiration = the baseline mean, Rest quality = sleepPerfCenter,
+        // skin-temp deviation = 0. Mirrors the Swift ChargeDrivers `points(...)` helper.
+        fun points(neutralised: Double?): Int = (full - (neutralised ?: full)).roundToInt()
 
-        val terms = ArrayList<Term>()
+        // Did the parasympathetic-saturation signature fire on THIS night (low HRV corroborated by a low,
+        // decoupled resting HR)? Detection ONLY: the guard's easing is not applied, so deltaPoints below is
+        // the full, unguarded HRV penalty. The verdict merely NAMES the detected pattern so the UI can
+        // surface it while real firings accumulate. See the header in RecoveryScorer.kt.
+        val hrvZFull = RecoveryScorer.zScore(hrv, hrvBaseline.baseline, hrvBaseline.spread)
+        val rhrZFull: Double? = rhrBaseline?.let { RecoveryScorer.zScore(it.baseline, rhr, it.spread) }
+        val hrvSaturationDetected =
+            RecoveryScorer.parasympatheticSaturation(hrvZ = hrvZFull, rhrZ = rhrZFull).active
 
-        // HRV term: higher is better. Always present once the baseline is usable.
-        val hrvZ = RecoveryScorer.zScore(hrv, hrvBaseline.baseline, hrvBaseline.spread)
-        val hrvIdx = terms.size
-        terms.add(Term(hrvZ, RecoveryScorer.wHRV))
-
-        // RHR term: lower is better -> (mu - x) / sigma.
-        var rhrIdx = -1
-        if (rhrBaseline != null) {
-            val z = RecoveryScorer.zScore(rhrBaseline.baseline, rhr, rhrBaseline.spread)
-            rhrIdx = terms.size
-            terms.add(Term(z, RecoveryScorer.wRHR))
-        }
-
-        // Resp term: lower is better, needs BOTH the value and a baseline.
-        var respIdx = -1
-        if (resp != null && respBaseline != null) {
-            val z = RecoveryScorer.zScore(respBaseline.baseline, resp, respBaseline.spread)
-            respIdx = terms.size
-            terms.add(Term(z, RecoveryScorer.wResp))
-        }
-
-        // Sleep-performance / Rest-quality term: no baseline, centered at sleepPerfCenter.
-        var sleepIdx = -1
-        if (sleepPerf != null) {
-            val z = (sleepPerf - RecoveryScorer.sleepPerfCenter) / RecoveryScorer.sleepPerfScale
-            sleepIdx = terms.size
-            terms.add(Term(z, RecoveryScorer.wSleep))
-        }
-
-        // Skin-temp term: SYMMETRIC penalty on |deviation|, added only when supplied.
-        var skinIdx = -1
-        if (skinTempDev != null) {
-            val z = -abs(skinTempDev) / RecoveryScorer.skinTempDevScale
-            skinIdx = terms.size
-            terms.add(Term(z, RecoveryScorer.wSkinTemp))
-        }
-
-        // The actual score, EXACTLY as recovery(...) computes it (so the rows can't disagree with the ring).
-        val totalWeight = terms.sumOf { it.w }
-        if (totalWeight <= 0.0) return emptyList()
-        val actual = scoreOf(terms.sumOf { it.z * it.w } / totalWeight)
-
-        // Marginal point swing of term [idx]: actual score minus the score with that ONE term neutralized
-        // to z = 0 (the signal sitting AT its personal baseline), the other terms and weights unchanged.
-        // The denominator stays the full totalWeight - the term still occupies its weight at z = 0, the
-        // honest "what if this signal had been exactly average for you" counterfactual.
-        fun delta(idx: Int): Int {
-            val neutralZ = terms.withIndex().sumOf { (i, t) -> if (i == idx) 0.0 else t.z * t.w } / totalWeight
-            return (actual - scoreOf(neutralZ)).roundToInt()
-        }
-
-        // One row per present term, appended in the SAME order the iOS twin uses (HRV, resting HR,
-        // Sleep, respiration, skin temp), then sorted biggest-mover-first so the row that explains the
-        // most sits on top. Labels / value text / verdicts are byte-identical to the Swift canonical.
+        // One row per present term, appended in the SAME order the iOS twin uses (HRV, resting HR, Sleep,
+        // respiration, skin temp), then sorted biggest-mover-first so the row that explains the most sits on
+        // top. Labels / value text / verdicts are byte-identical to the Swift canonical.
         val drivers = ArrayList<ChargeDriver>()
 
+        // HRV (dominant driver; always present once the score exists). Neutral = HRV at the baseline mean.
         drivers.add(
             ChargeDriver(
                 label = "Heart rate variability",
-                deltaPoints = delta(hrvIdx),
+                deltaPoints = points(
+                    RecoveryScorer.recovery(
+                        hrv = hrvBaseline.baseline, rhr = rhr, resp = resp,
+                        hrvBaseline = hrvBaseline, rhrBaseline = rhrBaseline,
+                        respBaseline = respBaseline, sleepPerf = sleepPerf, skinTempDev = skinTempDev,
+                    ),
+                ),
                 valueText = "${hrv.roundToInt()} ms",
                 baselineText = "${hrvBaseline.baseline.roundToInt()} ms baseline",
-                verdict = directionVerdict(hrvZ, good = "above baseline, supporting recovery",
-                    flat = "at baseline", bad = "below baseline, limiting recovery"),
+                verdict = hrvVerdict(
+                    value = hrv,
+                    baseline = hrvBaseline.baseline,
+                    saturationDetected = hrvSaturationDetected,
+                ),
             ),
         )
-        if (rhrIdx >= 0 && rhrBaseline != null) {
-            // RHR z is already oriented "higher z = better" (lower RHR), so a positive z is good.
+        // Resting HR (lower vs baseline supports recovery). Neutral = resting HR at the baseline mean.
+        if (rhrBaseline != null) {
             drivers.add(
                 ChargeDriver(
                     label = "Resting heart rate",
-                    deltaPoints = delta(rhrIdx),
+                    deltaPoints = points(
+                        RecoveryScorer.recovery(
+                            hrv = hrv, rhr = rhrBaseline.baseline, resp = resp,
+                            hrvBaseline = hrvBaseline, rhrBaseline = rhrBaseline,
+                            respBaseline = respBaseline, sleepPerf = sleepPerf, skinTempDev = skinTempDev,
+                        ),
+                    ),
                     valueText = "${rhr.roundToInt()} bpm",
                     baselineText = "${rhrBaseline.baseline.roundToInt()} bpm baseline",
-                    verdict = directionVerdict(terms[rhrIdx].z, good = "below baseline, supporting recovery",
-                        flat = "at baseline", bad = "above baseline, limiting recovery"),
+                    verdict = rhrVerdict(value = rhr, baseline = rhrBaseline.baseline),
                 ),
             )
         }
-        if (sleepIdx >= 0 && sleepPerf != null) {
+        // Rest quality (the Rest composite; neutral at sleepPerfCenter).
+        if (sleepPerf != null) {
             drivers.add(
                 ChargeDriver(
                     label = "Sleep quality",
-                    deltaPoints = delta(sleepIdx),
+                    deltaPoints = points(
+                        RecoveryScorer.recovery(
+                            hrv = hrv, rhr = rhr, resp = resp,
+                            hrvBaseline = hrvBaseline, rhrBaseline = rhrBaseline,
+                            respBaseline = respBaseline, sleepPerf = RecoveryScorer.sleepPerfCenter,
+                            skinTempDev = skinTempDev,
+                        ),
+                    ),
                     valueText = "${(sleepPerf * 100.0).roundToInt()}%",
                     baselineText = "",   // centred on a fixed "good night", not a learned baseline
-                    verdict = directionVerdict(terms[sleepIdx].z, good = "a strong night, supporting recovery",
-                        flat = "a typical night", bad = "below a good night, limiting recovery"),
+                    verdict = sleepVerdict(sleepPerf),
                 ),
             )
         }
-        if (respIdx >= 0 && resp != null && respBaseline != null) {
+        // Respiration (lower vs baseline supports recovery). Neutral = respiration at the baseline mean.
+        if (resp != null && respBaseline != null) {
             drivers.add(
                 ChargeDriver(
                     label = "Respiratory rate",
-                    deltaPoints = delta(respIdx),
+                    deltaPoints = points(
+                        RecoveryScorer.recovery(
+                            hrv = hrv, rhr = rhr, resp = respBaseline.baseline,
+                            hrvBaseline = hrvBaseline, rhrBaseline = rhrBaseline,
+                            respBaseline = respBaseline, sleepPerf = sleepPerf, skinTempDev = skinTempDev,
+                        ),
+                    ),
                     valueText = String.format(java.util.Locale.US, "%.1f br/min", resp),
                     baselineText = String.format(java.util.Locale.US, "%.1f br/min baseline", respBaseline.baseline),
-                    verdict = directionVerdict(terms[respIdx].z, good = "below baseline, supporting recovery",
-                        flat = "at baseline", bad = "above baseline, limiting recovery"),
+                    verdict = respVerdict(value = resp, baseline = respBaseline.baseline),
                 ),
             )
         }
-        if (skinIdx >= 0 && skinTempDev != null) {
-            // Skin temp is a SYMMETRIC penalty: only |deviation| matters. Surface it as a RELATIVE
-            // deviation (signed +/- C from baseline), never an absolute temperature.
+        // Skin-temp deviation (symmetric penalty: any drift lowers Charge). Neutral = zero drift, so the
+        // delta is always <= 0 (a penalty removed). Surface it as a RELATIVE deviation, never an absolute.
+        if (skinTempDev != null) {
             drivers.add(
                 ChargeDriver(
                     label = "Skin temperature",
-                    deltaPoints = delta(skinIdx),
+                    deltaPoints = points(
+                        RecoveryScorer.recovery(
+                            hrv = hrv, rhr = rhr, resp = resp,
+                            hrvBaseline = hrvBaseline, rhrBaseline = rhrBaseline,
+                            respBaseline = respBaseline, sleepPerf = sleepPerf, skinTempDev = 0.0,
+                        ),
+                    ),
                     valueText = String.format(java.util.Locale.US, "%+.1f C vs baseline", skinTempDev),
                     baselineText = "",   // a deviation already; the reference is the personal baseline (0)
                     verdict = skinTempVerdict(skinTempDev),
@@ -206,22 +204,46 @@ object RecoveryDrivers {
         return drivers.sortedByDescending { abs(it.deltaPoints) }
     }
 
-    /** The Charge logistic, IDENTICAL to RecoveryScorer.recovery's final squash. */
-    private fun scoreOf(z: Double): Double {
-        val s = 100.0 / (1.0 + exp(-RecoveryScorer.logisticK * (z - RecoveryScorer.logisticZ0)))
-        return s.coerceIn(0.0, 100.0)
+    /**
+     * HRV verdict matching the Swift canonical `hrvVerdict(value:baseline:saturationDetected:)`: above
+     * baseline supports recovery; below baseline limits it; at baseline is neutral. When the
+     * parasympathetic-saturation signature fired (low HRV corroborated by a low, decoupled resting HR) the
+     * pattern is NAMED, but the "limiting recovery" read stays, because that is what the score actually did:
+     * the easing is detected-only and did NOT change these points. The hedge is deliberate too, since the
+     * same low-HRV + low-RHR pattern is also reported for non-functional overreaching, which is the opposite
+     * of benign. Byte-for-byte the same strings as the iOS twin.
+     */
+    private fun hrvVerdict(value: Double, baseline: Double, saturationDetected: Boolean): String = when {
+        value > baseline -> "above baseline, supporting recovery"
+        value < baseline ->
+            if (saturationDetected) {
+                "below baseline, limiting recovery, though low resting HR suggests this may be " +
+                    "parasympathetic saturation rather than fatigue"
+            } else {
+                "below baseline, limiting recovery"
+            }
+        else -> "at baseline"
     }
 
-    /**
-     * Direction verdict matching the Swift canonical: an "already oriented so higher z is better"
-     * z reads as supporting recovery when positive (the signal is on the good side of baseline),
-     * limiting recovery when negative, and right at baseline when exactly zero. Byte-for-byte the
-     * same strings RecoveryScorer's Swift verdicts produce, so the iOS and Android rows match.
-     */
-    private fun directionVerdict(z: Double, good: String, flat: String, bad: String): String = when {
-        z > 0.0 -> good
-        z < 0.0 -> bad
-        else -> flat
+    /** Resting-HR verdict (lower is better). Mirrors Swift `rhrVerdict` exactly. */
+    private fun rhrVerdict(value: Double, baseline: Double): String = when {
+        value < baseline -> "below baseline, supporting recovery"
+        value > baseline -> "above baseline, limiting recovery"
+        else -> "at baseline"
+    }
+
+    /** Respiration verdict (lower is better). Mirrors Swift `respVerdict` exactly. */
+    private fun respVerdict(value: Double, baseline: Double): String = when {
+        value < baseline -> "below baseline, supporting recovery"
+        value > baseline -> "above baseline, limiting recovery"
+        else -> "at baseline"
+    }
+
+    /** Rest-quality verdict (higher is better), centred on sleepPerfCenter. Mirrors Swift `sleepVerdict`. */
+    private fun sleepVerdict(sleepPerf: Double): String = when {
+        sleepPerf > RecoveryScorer.sleepPerfCenter -> "a strong night, supporting recovery"
+        sleepPerf < RecoveryScorer.sleepPerfCenter -> "below a good night, limiting recovery"
+        else -> "a typical night"
     }
 
     /** Half-width (C) of the "typical" skin-temp band; matches Swift skinTempTypicalBandC. */

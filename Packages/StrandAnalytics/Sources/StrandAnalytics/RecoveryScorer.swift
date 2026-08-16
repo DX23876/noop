@@ -95,6 +95,128 @@ public enum RecoveryScorer {
     /// Sleep-performance scale (±2 z spans the normal range).
     public static let sleepPerfScale: Double = 0.12
 
+    // MARK: - Parasympathetic-saturation guard (Charge): DETECTED AND LOGGED, NOT APPLIED
+    //
+    // A low nightly HRV is normally a fatigue signal, so the HRV term (wHRV = 0.55, the dominant
+    // driver) pulls Charge DOWN. There is a CANDIDATE benign pattern the raw z-score may mis-read:
+    // parasympathetic (vagal) saturation. In a very fit or very relaxed state the RMSSD-HRV response
+    // can saturate and read LOW while resting HR reads LOW too, and the two DECOUPLE. On such a night
+    // the dominant HRV penalty tanks Charge even though the person is well rested.
+    //
+    // The candidate discriminator is the SIGN of the resting-HR term versus the HRV term. recovery()
+    // builds the HRV term as (hrv - mu)/sigma (NEGATIVE when HRV is below baseline = the penalty) and
+    // the RHR term as (mu - rhr)/sigma (POSITIVE when resting HR is below baseline = recovery-good). In
+    // a normally-coupled autonomic response a low HRV travels WITH a HIGH resting HR (sympathetic
+    // drive), so both terms point the SAME way (down). When instead the HRV term points "bad" while the
+    // resting-HR term points "good", the expected HRV<->RHR coupling has broken.
+    //
+    // ── WHY THE EASING IS COMPUTED BUT DELIBERATELY NOT APPLIED ─────────────────────────────────
+    //
+    // This code DETECTS the signature and REPORTS the easing it would apply, but `recovery(...)` does
+    // NOT consume it: the Charge number is byte-identical to pre-guard behaviour. Two reasons, both
+    // currently unresolved:
+    //
+    //   1. VALIDATION GAP. The real-data validation behind this guard recorded ZERO firings over ~2
+    //      weeks. That is evidence the gate does not OVER-fire; it is NOT evidence that the easing is
+    //      the right size, or right at all, on a real saturation night, because no real saturation
+    //      night was ever observed. Every night that would actually move Charge is covered by
+    //      synthetic fixtures only (see RecoverySaturationGuardTests).
+    //   2. CONTESTED PREMISE. Low HRV + low resting HR is ALSO a reported signature of parasympathetic
+    //      (non-functional) OVERREACHING, which is genuinely maladaptive. From the HRV/RHR pair alone,
+    //      benign saturation and overreaching are not distinguishable, and they want OPPOSITE Charge
+    //      corrections. Easing the penalty on an overreaching night would hide a real problem.
+    //
+    // So the guard ships INSTRUMENT-FIRST: detection is live and surfaces in the Charge trace (the
+    // "charge saturation active ... wouldRaiseCharge=N" line) and in the ChargeDrivers HRV verdict, so
+    // real low-HRV + low-RHR nights accumulate and can be checked against ground truth. Enabling the
+    // easing is a follow-up gated on confirmed real firings, not on the synthetic fixtures.
+    //
+    // TO ENABLE LATER: feed `easedHrvZ` into the HRV term at the marked call site in `recovery(...)`,
+    // and flip the tests that currently pin the score as UNCHANGED.
+
+    /// Personal-sigma units BOTH the low-HRV arm and the low-resting-HR arm must clear before the
+    /// guard engages. 0.5 sigma keeps it OFF marginal / noise nights: a night must be clearly low on
+    /// HRV AND clearly low on resting HR (each at least half a personal standard deviation into its
+    /// saturation direction) before any easing applies.
+    public static let satEnterZ: Double = 0.5
+
+    /// Personal-sigma units at which the saturation signal reaches FULL strength. Between satEnterZ
+    /// and this the easing ramps linearly from 0 to satMaxDampFraction; at/above it the easing is
+    /// capped. 1.5 sigma means "both HRV and resting HR a clear 1.5 SD below baseline" is treated as
+    /// unambiguous saturation.
+    public static let satFullZ: Double = 1.5
+
+    /// Maximum fraction of the low-HRV penalty the easing would ever credit back. 0.5 = at most HALF
+    /// the penalty would be eased, so a genuinely low-HRV night would NEVER be scored as if HRV sat at
+    /// baseline: at least half of the low-HRV penalty would always survive. The core conservatism knob
+    /// for when the easing is enabled; today it only bounds the reported would-be delta.
+    public static let satMaxDampFraction: Double = 0.5
+
+    /// Outcome of the parasympathetic-saturation check for one night.
+    ///
+    /// COUNTERFACTUAL, not applied: `easedHrvZ` / `dampFraction` describe the easing this guard WOULD
+    /// apply. `recovery(...)` does not consume them (see the MARK header for why). Today they exist to
+    /// be logged by the Charge trace and to flag the ChargeDrivers HRV verdict, so that real firings
+    /// can be counted before the easing is ever allowed to move the score.
+    struct ParasympatheticSaturation: Equatable, Sendable {
+        /// The HRV z the easing WOULD use: the input z shrunk toward 0 (never past it), lightening the
+        /// low-HRV penalty. Equals the input hrvZ when the guard is inactive. NOT fed to the score.
+        let easedHrvZ: Double
+        /// True iff the saturation regime was detected, i.e. the guard WOULD have eased the penalty.
+        /// The Charge number is the same either way.
+        let active: Bool
+        /// Fraction of the HRV penalty the easing WOULD credit back, in [0, satMaxDampFraction].
+        /// 0 when inactive.
+        let dampFraction: Double
+    }
+
+    /// Detect parasympathetic saturation from tonight's HRV and resting-HR z-scores and compute the
+    /// easing that WOULD be applied to the low-HRV penalty (shrinking its negative z toward 0).
+    ///
+    /// This is pure detection + a counterfactual. It has no effect on Charge: `recovery(...)` scores
+    /// the raw HRV z regardless of what this returns. See the MARK header for the validation gap and
+    /// the contested premise that keep the easing switched off.
+    ///
+    /// - Parameters:
+    ///   - hrvZ: the HRV term as recovery() builds it, (hrv - mu)/sigma. Higher is better; a
+    ///     NEGATIVE value means HRV is below baseline (the penalty direction).
+    ///   - rhrZ: the resting-HR term as recovery() builds it, (mu - rhr)/sigma. Higher is better; a
+    ///     POSITIVE value means resting HR is below baseline (the recovery-good direction). Pass nil
+    ///     when there is no resting-HR baseline (no RHR term) — with nothing to corroborate the low
+    ///     HRV, the guard refuses to guess and never fires.
+    /// - Returns: whether the signature fired, plus the eased HRV z and damp fraction it would imply.
+    static func parasympatheticSaturation(hrvZ: Double, rhrZ: Double?) -> ParasympatheticSaturation {
+        // Without a resting-HR term there is nothing to corroborate the low HRV: benign saturation
+        // and real fatigue are indistinguishable from HRV alone, so report no saturation.
+        guard let rhrZ = rhrZ else {
+            return ParasympatheticSaturation(easedHrvZ: hrvZ, active: false, dampFraction: 0)
+        }
+        // Saturation SIGNATURE, in personal-sigma units:
+        //   hrvLow  > 0  <=> HRV below baseline (the penalty we might ease)
+        //   rhrLow  > 0  <=> resting HR below baseline (the corroborating "also low" signal)
+        // Both must clear satEnterZ, so only a clear low-HRV + low-RHR decoupling is ever eased and a
+        // low-HRV + HIGH-RHR fatigue night (rhrLow < 0) can never qualify.
+        let hrvLow = -hrvZ
+        let rhrLow = rhrZ
+        guard hrvLow >= satEnterZ, rhrLow >= satEnterZ else {
+            return ParasympatheticSaturation(easedHrvZ: hrvZ, active: false, dampFraction: 0)
+        }
+        // Strength is driven by the WEAKER of the two arms (min), normalized from the entry gate to
+        // satFullZ and clamped to [0, 1]. Using the weaker arm is deliberately conservative: full
+        // easing requires HRV clearly low AND resting HR clearly low; a very low HRV paired with only
+        // a mildly low resting HR is limited by the resting-HR arm.
+        let couplingStrength = min(hrvLow, rhrLow)
+        let s = max(0.0, min(1.0, (couplingStrength - satEnterZ) / (satFullZ - satEnterZ)))
+        let dampFraction = satMaxDampFraction * s
+        // The easing this WOULD apply: shrink the (negative) HRV z toward 0. (1 - dampFraction) stays
+        // in [1 - satMaxDampFraction, 1], so the penalty would only ever be REDUCED — never removed,
+        // never sign-flipped into a bonus. Computed for reporting only; recovery() ignores it.
+        let easedHrvZ = hrvZ * (1.0 - dampFraction)
+        return ParasympatheticSaturation(easedHrvZ: easedHrvZ,
+                                         active: dampFraction > 0,
+                                         dampFraction: dampFraction)
+    }
+
     /// Rolling-mean HR window (seconds) for the resting-HR estimate.
     public static let restingHRWindowS: Int = 5 * 60
 
@@ -331,6 +453,12 @@ public enum RecoveryScorer {
         var terms: [(z: Double, w: Double)] = []
 
         // HRV term: higher is better.
+        //
+        // INSTRUMENT-FIRST CALL SITE for the parasympathetic-saturation guard. The guard is NOT applied
+        // here: this term is the RAW z, so Charge is byte-identical to pre-guard behaviour. The
+        // signature is still detected and reported out-of-band (Charge trace + ChargeDrivers verdict)
+        // so real firings can be counted first. See the MARK header for why, and swap in
+        // `parasympatheticSaturation(hrvZ:rhrZ:).easedHrvZ` here to enable it.
         if let b = hrvBaseline {
             terms.append((zScore(hrv, mean: b.mean, spread: b.spread), wHRV))
         }
@@ -369,6 +497,14 @@ public enum RecoveryScorer {
         guard totalWeight > 0 else { return nil }
 
         let z = terms.reduce(0) { $0 + $1.z * $1.w } / totalWeight
+        return logisticScore(compositeZ: z)
+    }
+
+    /// The Charge logistic: weighted-composite z -> 0-100, clamped. Factored out of `recovery(...)` so
+    /// the trace's saturation counterfactual ("what Charge WOULD read if the easing were applied") runs
+    /// through the EXACT same curve the real score does and cannot drift from it. Same expression as
+    /// before it was extracted, so every existing score is unchanged.
+    static func logisticScore(compositeZ z: Double) -> Double {
         let score = 100.0 / (1.0 + exp(-logisticK * (z - logisticZ0)))
         return max(0.0, min(100.0, score))
     }

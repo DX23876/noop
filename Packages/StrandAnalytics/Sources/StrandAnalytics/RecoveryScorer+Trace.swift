@@ -71,17 +71,24 @@ extension RecoveryScorer {
         // pairs in the SAME order recovery(...) appends them so the renormalization below matches.
         var terms: [(name: String, z: Double, w: Double)] = []
 
+        // Resting-HR z, computed up front so the saturation guard can read the HRV<->RHR coupling
+        // before the HRV term is built. nil when there is no RHR baseline. Numerically identical to
+        // the z recovery() builds for the RHR term (same expression, same inputs).
+        let rhrZForGuard: Double? = rhrBaseline.map { zScore($0.baseline, mean: rhr, spread: $0.spread) }
+
         // HRV term: higher is better. (Always present once usable; the cold-start guard above returned.)
+        // This is the RAW z, exactly as recovery() scores it: the parasympathetic-saturation easing is
+        // detected and reported below but NOT applied, so the trace's HRV term matches the scored one.
         // L9: every WEIGHT / SCALE / centre constant goes through r2() too (not just the z-scores), so a
         // future non-round weight (e.g. 0.333) renders identically on Swift and Kotlin and the parity
         // fixture cannot silently desync. The values render the same as before today.
-        let hrvZ = zScore(hrv, mean: hrvBaseline.baseline, spread: hrvBaseline.spread)
-        terms.append(("hrv", hrvZ, wHRV))
-        lines.append("charge term hrv z=\(r2(hrvZ)) w=\(r2(wHRV)) (higher HRV is better)")
+        let hrvZRaw = zScore(hrv, mean: hrvBaseline.baseline, spread: hrvBaseline.spread)
+        let sat = parasympatheticSaturation(hrvZ: hrvZRaw, rhrZ: rhrZForGuard)
+        terms.append(("hrv", hrvZRaw, wHRV))
+        lines.append("charge term hrv z=\(r2(hrvZRaw)) w=\(r2(wHRV)) (higher HRV is better)")
 
-        // RHR term: lower is better -> (mu - x) / sigma.
-        if let b = rhrBaseline {
-            let z = zScore(b.baseline, mean: rhr, spread: b.spread)
+        // RHR term: lower is better -> (mu - x) / sigma. (Reuses the z computed for the guard.)
+        if let z = rhrZForGuard {
             terms.append(("rhr", z, wRHR))
             lines.append("charge term rhr z=\(r2(z)) w=\(r2(wRHR)) (lower RHR is better)")
         } else {
@@ -136,6 +143,26 @@ extension RecoveryScorer {
                 + "(logistic k=\(r2(logisticK)) z0=\(r2(logisticZ0)))")
         } else {
             lines.append("charge nilScore reason=noValidTerms (no driver produced a usable term)")
+        }
+
+        // ── Parasympathetic-saturation guard: DETECTED, NOT APPLIED ──────────────────────────────
+        //
+        // Emitted ONLY when the signature fires. The score above is the UNGUARDED number; this line
+        // reports the counterfactual the guard WOULD have produced, so real low-HRV + low-RHR nights
+        // can be counted and checked against ground truth before the easing is ever allowed to move
+        // Charge. See the MARK header in RecoveryScorer.swift for the validation gap and the contested
+        // benign-saturation / non-functional-overreaching ambiguity that keep it switched off.
+        //
+        // wouldRaiseCharge recomputes the composite with the eased HRV z swapped in and runs it through
+        // logisticScore(...) -- the SAME curve recovery() uses -- so the delta is exact, not estimated.
+        if sat.active, let s = score, totalWeight > 0 {
+            let easedZ = terms.reduce(0) { $0 + ($1.name == "hrv" ? sat.easedHrvZ : $1.z) * $1.w } / totalWeight
+            let wouldBe = logisticScore(compositeZ: easedZ)
+            lines.append("charge saturation active hrvZraw=\(r2(hrvZRaw)) rhrZ=\(r2(rhrZForGuard ?? 0)) "
+                + "damp=\(r2(sat.dampFraction)) wouldEaseHrvZTo=\(r2(sat.easedHrvZ)) "
+                + "wouldRaiseCharge=\(r2(wouldBe - s)) wouldBand=\(band(wouldBe)) "
+                + "(low HRV + low resting HR: candidate parasympathetic saturation. "
+                + "Easing DETECTED ONLY, not applied: the score above is unchanged)")
         }
 
         return (score, lines)
