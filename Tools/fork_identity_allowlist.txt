@@ -1,0 +1,19 @@
+# Deliberate upstream references, exempted from Tools/check-fork-identity.py.
+# Format: <path> [count].  A bare path exempts the whole file; a path with a count allows up to that
+# many findings and fails on the next one. Ratchet counts DOWN as sites are fixed — never up, and
+# never add a file here to silence a real defect: a link a user acts on belongs to THIS fork.
+
+# Upstream's own release infrastructure, kept unmodified so a sync has nothing to conflict over and
+# labelled as inert in each header. Their FORGE_ORG/FORGE_REPO defaults describe noop.fans, which
+# this fork has neither the host nor a token for; repointing them would invent a second release path
+# nobody maintains. Reachable only through Tools/release.sh, which refuses to run without
+# NOOP_LOCAL_RELEASE=1.
+Tools/forgejo-release.sh
+Tools/update-homebrew-cask.sh
+
+# Two archived What's-New entries (4.7.0 and 4.6.1, June 2026) narrate upstream's hosting moves — the
+# GitHub takedown, the move to noop.fans, the move back. They are prose in the historical record, not
+# links: no URL is presented for the reader to act on, and rewriting a shipped release note would
+# falsify what those builds actually said. A THIRD hit here would be a new entry, which is exactly
+# the 2.6.3 case this guard exists for — that entry told readers to add upstream's AltStore source.
+Strand/System/AppChangelog.swift 2

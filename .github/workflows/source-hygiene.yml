@@ -56,6 +56,43 @@ jobs:
       - name: Manifest declares what the app requests
         run: python3 Tools/check-sideload-manifest.py
 
+  # Everything that says "which release is current" — altstore-source.json, AppChangelog's
+  # currentVersion, the filenames README and docs/IOS.md tell people to download, and the tag and asset
+  # names the release workflows build — has to agree with project.yml's MARKETING_VERSION. It stopped
+  # agreeing, invisibly: the install guides pointed at the 9.3.3 DX Beta release for three weeks after
+  # 10.1.0 shipped (a new user followed them, could not install, and went back to upstream's build),
+  # and fork-release.yml still tagged a bare vX.Y.Z — colliding with the upstream tags sync-upstream.yml
+  # fetches — while looking for an asset name that no longer exists, so its AltStore update would warn
+  # and skip silently.
+  #
+  # Same shape as the jobs above: bare python3 on ubuntu-latest, no Xcode, seconds to run.
+  release-refs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Every reference agrees with MARKETING_VERSION
+        run: python3 Tools/check-release-refs.py
+
+  # This is a fork, and it credits upstream everywhere — correctly. What it must not do is send a USER
+  # to upstream: Settings' "Project home & source" opened ryanbr/noop while the update check beside it
+  # queried this fork, a What's-New card told readers to add upstream's AltStore source (which installs
+  # upstream's app over this one), Test Centre filed bugs into upstream's tracker, and docs/HOMEBREW.md
+  # pointed macOS users at upstream's downloads. Every one of them read as fine in review.
+  #
+  # Deliberately narrow — Swift string literals, markdown links to upstream DOWNLOADS, and default
+  # targets in Tools/ — so the gate stays believable; prose, comments and issue citations are none of
+  # its business. Exceptions are written down in Tools/fork_identity_allowlist.txt.
+  fork-identity:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: No surface points at upstream
+        run: python3 Tools/check-fork-identity.py
+
   # NOOP is an anonymous project, and a pushed commit message is the one place that cannot be taken
   # back — GitHub mirrors, caches and quotes it long after any local edit. The convention "no AI
   # co-author trailer" was written down and still failed repeatedly, so it is mechanical now:
