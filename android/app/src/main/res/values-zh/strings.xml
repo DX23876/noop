@@ -1911,4 +1911,5 @@
     <string name="l10n_settings_screen_zone_starts_a0a60d45">区间 %1$d 起点</string>
     <string name="l10n_health_screen_add_your_waist_to_unlock_your_vo_max_94c646cb">添加腰围以解锁你的最大摄氧量</string>
     <string name="l10n_health_screen_fix_in_settings_d7472915">在设置中修复</string>
+    <string name="l10n_app_changelog_personalized_heart_rate_zones_compare_and_8d89ee2a">自定义心率区间、比较并切换设备，以及更真实的 HRV、睡眠与 Oura 读数</string>
 </resources>

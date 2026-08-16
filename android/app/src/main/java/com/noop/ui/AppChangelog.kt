@@ -26,7 +26,7 @@ object AppChangelog {
      * Bump this when you add a release below. The "What's New" sheet shows automatically when the
      * stored last-seen version is behind this. (Decoupled from the bundle version on purpose.)
      */
-    const val CURRENT_VERSION = "10.0.0"
+    const val CURRENT_VERSION = "10.1.0"
 
     data class Release(
         val version: String,
@@ -37,6 +37,18 @@ object AppChangelog {
 
     /** Newest first. */
     val releases: List<Release> = listOf(
+        Release(
+            version = "10.1.0",
+            title = uiString(R.string.l10n_app_changelog_personalized_heart_rate_zones_compare_and_8d89ee2a),
+            date = "August 2026",
+            items = listOf(
+                "**Personalized heart-rate zones (#531).** Set your own BPM thresholds in a Settings editor; every zone read-out, and your .noopbak backup, uses them.",
+                "**Compare and switch between straps (#1300).** A two-strap comparison card correlates two straps you own, and a switcher flips which one is active — without ever mixing their data.",
+                "**More honest HRV and sleep.** An over-counted night's HRV reading is now captioned \"unverified\" (#1118); sleep debt is measured against your personalized need (#1348); and duplicate/​phantom Oura sleep nights are collapsed (#1284).",
+                "**More of your Oura ring decoded (#1384, #1359, thanks @pipiche38).** The ring's own breath rate and step features are decoded and shown as instrumentation — read off the ring, never scored.",
+                "**Polish language, and a truthful empty state.** NOOP now speaks Polish (#1250), and the experimental Rhythm view says \"no data\" honestly when a device can't support the reading (#1360).",
+            ),
+        ),
         Release(
             version = "10.0.0",
             title = uiString(R.string.l10n_app_changelog_make_noop_yours_theme_colours_and_6bdef2a7),

@@ -2010,4 +2010,5 @@
     <string name="l10n_settings_screen_zone_starts_a0a60d45">Zone %1$d starts</string>
     <string name="l10n_health_screen_add_your_waist_to_unlock_your_vo_max_94c646cb">Add your waist to unlock your VO₂max</string>
     <string name="l10n_health_screen_fix_in_settings_d7472915">Fix in Settings</string>
+    <string name="l10n_app_changelog_personalized_heart_rate_zones_compare_and_8d89ee2a">Personalized heart-rate zones, compare and switch between straps, and more honest HRV, sleep and Oura reads</string>
 </resources>

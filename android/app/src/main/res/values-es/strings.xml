@@ -1983,4 +1983,5 @@
     <string name="l10n_settings_screen_zone_starts_a0a60d45">Inicio de la zona %1$d</string>
     <string name="l10n_health_screen_add_your_waist_to_unlock_your_vo_max_94c646cb">Añade tu cintura para desbloquear tu VO₂máx</string>
     <string name="l10n_health_screen_fix_in_settings_d7472915">Corregir en Ajustes</string>
+    <string name="l10n_app_changelog_personalized_heart_rate_zones_compare_and_8d89ee2a">Zonas de frecuencia cardíaca personalizadas, comparar y cambiar de correa, y lecturas más honestas de HRV, sueño y Oura</string>
 </resources>

@@ -1998,4 +1998,5 @@
     <string name="l10n_settings_screen_zone_starts_a0a60d45">Beginn Zone %1$d</string>
     <string name="l10n_health_screen_add_your_waist_to_unlock_your_vo_max_94c646cb">Taille eintragen, um deine VO₂max freizuschalten</string>
     <string name="l10n_health_screen_fix_in_settings_d7472915">In Einstellungen beheben</string>
+    <string name="l10n_app_changelog_personalized_heart_rate_zones_compare_and_8d89ee2a">Personalisierte Herzfrequenzzonen, Gurte vergleichen und wechseln, und ehrlichere HRV-, Schlaf- und Oura-Werte</string>
 </resources>
