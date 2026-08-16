@@ -2,7 +2,10 @@
 # One-shot release-artifact build: mac universal + iOS AltStore/Full unsigned,
 # each anonymized + leak-checked. Writes both iOS variants through package-ios-ipas.sh.
 set -uo pipefail
-cd ~/Documents/Strand
+# The checkout this script lives in, not a path that happens to exist on one machine: a hardcoded
+# ~/Documents/Strand silently builds a DIFFERENT tree than the one you edited (or fails outright on
+# any other clone), and the artifacts it then leak-checks are not the ones you are about to publish.
+cd "$(cd "$(dirname "$0")/.." && pwd)"
 
 # ── Anonymity source guard ─────────────────────────────────────────────────────
 # A maintainer name or home path must never reach a release. This is a build-from-

@@ -41,9 +41,9 @@ jobs:
             --title "NOOP Staging — base ${VER} · ${DATE} · ${SHA}" \
             --notes "Rolling **latest** testing build — refreshed in place, so this tag is always the newest. NOOP main + ryanbr's open PRs + vetted community PRs, built with the **NOOP Staging** identity (installs **beside** the official app, separate data). Filenames carry the base app version (\`v${VER}\`).
 
-          - **macOS** — \`NOOP-macos-v${VER}.zip\` — unzip, then **right-click → Open** (ad-hoc signed, not notarized; Gatekeeper warns once). If it says *\"damaged\"*, run \`xattr -dr com.apple.quarantine /Applications/NOOP.app\`.
-          - **iOS (AltStore)** — \`NOOP-ios-unsigned-v${VER}.ipa\` — phone/iPad-only IPA for reliable free-Apple-ID sideloading.
-          - **iOS (Full)** — \`NOOP-ios-full-unsigned-v${VER}.ipa\` — includes WidgetKit, Watch app and complication; requires compatible provisioning for every embedded target.
+          - **macOS** — \`NOOP-macos-v${VER}-dx.zip\` — unzip, then **right-click → Open** (ad-hoc signed, not notarized; Gatekeeper warns once). If it says *\"damaged\"*, run \`xattr -dr com.apple.quarantine /Applications/NOOP.app\`.
+          - **iOS (AltStore)** — \`NOOP-ios-unsigned-v${VER}-dx.ipa\` — phone/iPad-only IPA for reliable free-Apple-ID sideloading.
+          - **iOS (Full)** — \`NOOP-ios-full-unsigned-v${VER}-dx.ipa\` — includes WidgetKit, Watch app and complication; requires compatible provisioning for every embedded target.
 
           Base app version ${VER} · built ${DATE} · \`${SHA}\`."
           # Belt-and-braces: a rolling tag is deleted with --cleanup-tag and recreated seconds later, and
@@ -96,8 +96,8 @@ jobs:
           # future UPDATE still needs the re-toggle the in-app #429/#295 banner already describes.)
           codesign --force --deep --sign - "$APP"
           codesign -dvv "$APP" 2>&1 | grep -Ei 'identifier|signature|flags' || true
-          ditto -c -k --keepParent "$APP" "NOOP-macos-v${VER}.zip"
-          gh release upload "${{ needs.meta.outputs.tag }}" "NOOP-macos-v${VER}.zip" --repo "$GITHUB_REPOSITORY" --clobber
+          ditto -c -k --keepParent "$APP" "NOOP-macos-v${VER}-dx.zip"
+          gh release upload "${{ needs.meta.outputs.tag }}" "NOOP-macos-v${VER}-dx.zip" --repo "$GITHUB_REPOSITORY" --clobber
 
   ios:
     needs: meta
@@ -142,8 +142,8 @@ jobs:
           set -euo pipefail
           APP=$(find build/dd/Build/Products/Release-iphoneos -maxdepth 1 -name '*.app' -type d | head -1)
           test -n "$APP" || { echo ".app (iphoneos) not found"; exit 1; }
-          LITE_IPA="NOOP-ios-unsigned-v${VER}.ipa"
-          FULL_IPA="NOOP-ios-full-unsigned-v${VER}.ipa"
+          LITE_IPA="NOOP-ios-unsigned-v${VER}-dx.ipa"
+          FULL_IPA="NOOP-ios-full-unsigned-v${VER}-dx.ipa"
           Tools/anonymize-ios-app.sh "$APP"
           Tools/package-ios-ipas.sh "$APP" "$LITE_IPA" "$FULL_IPA"
           gh release upload "${{ needs.meta.outputs.tag }}" "$LITE_IPA" "$FULL_IPA" --repo "$GITHUB_REPOSITORY" --clobber

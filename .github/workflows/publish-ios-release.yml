@@ -176,37 +176,38 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
+          # The manifest rule lives in ONE place now (Tools/update-altstore-source.sh): it derives the
+          # tag and the asset filename from the version itself, prepends to versions[] idempotently and
+          # mirrors the legacy top-level fields older sideloaders read. This block and fork-release.yml's
+          # used to be two hand-maintained copies of that, and they had already drifted apart.
           SIZE=$(stat -f%z "$IPA")
-          DATE=$(date -u +%Y-%m-%d)
-          URL="https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/${IPA}"
-          DESCRIPTION="NOOP AI ${VERSION}. See the release notes for what changed."
-          tmp=$(mktemp)
-
-          jq --arg version "$VERSION" --arg build "$BUILD" --arg date "$DATE" \
-             --arg description "$DESCRIPTION" --arg url "$URL" --argjson size "$SIZE" '
-            .apps[0].versions |= ([{
-              version: $version,
-              buildVersion: $build,
-              date: $date,
-              localizedDescription: $description,
-              downloadURL: $url,
-              size: $size,
-              minOSVersion: "17.0"
-            }] + map(select(.version != $version)))
-            | .apps[0].version = $version
-            | .apps[0].buildVersion = $build
-            | .apps[0].versionDate = $date
-            | .apps[0].versionDescription = $description
-            | .apps[0].downloadURL = $url
-            | .apps[0].size = $size
-          ' altstore-source.json > "$tmp"
-          mv "$tmp" altstore-source.json
+          Tools/update-altstore-source.sh \
+            --version "$VERSION" --build "$BUILD" --size "$SIZE" --repo "$GITHUB_REPOSITORY"
 
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add altstore-source.json
           git diff --cached --quiet || git commit -m "Release ${VERSION}: publish sideload source"
           git push origin HEAD:main
+
+      # The published manifest is only as good as the URL inside it, and that URL is the ONE thing no
+      # offline check can prove: Tools/check-release-refs.py verifies its shape, not that GitHub will
+      # serve it. A 404 here is invisible in a green run and shows up as "the update never installs"
+      # for every sideloader. The asset is uploaded and the release exists by now, so a failure is a
+      # real one — not a race.
+      - name: Verify the published download actually resolves
+        run: |
+          set -euo pipefail
+          URL=$(python3 -c "import json;print(json.load(open('altstore-source.json'))['apps'][0]['downloadURL'])")
+          echo "checking $URL"
+          # --location follows the redirect to the asset's storage host; GitHub answers the release
+          # URL itself with a 302.
+          CODE=$(curl -sSL -o /dev/null -w '%{http_code}' --head --retry 3 --retry-delay 5 "$URL")
+          [ "$CODE" = "200" ] || {
+            echo "::error::altstore-source.json offers $URL, which answers HTTP $CODE"
+            exit 1
+          }
+          echo "download resolves (HTTP $CODE)"
 
   # 9.3.0 onwards the release carries a macOS build too — 9.2.1/9.2.2 were iOS-only, which left
   # Mac users with no artifact at all for a fork whose reference platform IS macOS. Runs AFTER `publish`

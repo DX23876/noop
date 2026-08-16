@@ -5,7 +5,8 @@
 # The `bump` input (patch / minor / major / none) increments the version IN SOURCE — project.yml
 # (MARKETING_VERSION + CURRENT_PROJECT_VERSION) — and commits that to the dispatched branch, so the built app actually
 # REPORTS the new version. Then it publishes a fixed, non-prerelease `v<VERSION>` release with the
-# version-stamped artifacts. releases/latest returns it, so UpdateCheck finds it (isNewer strips the
+# version-stamped artifacts, tagged `v<VERSION>-dx` (see the tag comment in the bump job).
+# releases/latest returns it, so UpdateCheck finds it (isNewer strips the
 # `-staging` suffix, so an installed staging build compares clean).
 #
 # Contrast with fork-testing-build.yml: THAT publishes the rolling `testing-latest` PRERELEASE (a
@@ -70,7 +71,11 @@ jobs:
             *) echo "Unknown bump: $BUMP" >&2; exit 1 ;;
           esac
           [ -n "${OVERRIDE:-}" ] && NEW="$OVERRIDE"
-          TAG="v${NEW}"
+          # `-dx` is a NAMESPACE, not a quality claim (docs/FORK_GUIDE.md): upstream tags vX.Y.Z into
+          # the same tag space sync-upstream.yml fetches into this repo, so a bare vX.Y.Z here would
+          # collide with the tag ryanbr cuts for the same version. The version the app reports stays
+          # numeric — the marker lives only in the tag and the asset filenames.
+          TAG="v${NEW}-dx"
           echo "ver=$NEW" >> "$GITHUB_OUTPUT"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "Version: $CUR -> $NEW  (tag $TAG)"
@@ -81,15 +86,19 @@ jobs:
             ICODE=$(grep -m1 'CURRENT_PROJECT_VERSION:' project.yml | sed -E 's/.*"([0-9]+)".*/\1/')
             sed -i -E "s/MARKETING_VERSION: \"[^\"]+\"/MARKETING_VERSION: \"$NEW\"/" project.yml
             sed -i -E "s/CURRENT_PROJECT_VERSION: \"[0-9]+\"/CURRENT_PROJECT_VERSION: \"$((ICODE+1))\"/" project.yml
-            # In-app "What's New": generate the AppChangelog entry + bump its constant
-            # from docs/releases/<TAG>.md's whatsnew: front-matter, so the in-app card ships in sync with
-            # this version. Warn (don't fail) if the notes file / its front-matter is missing.
-            if [ -f "docs/releases/${TAG}.md" ]; then
+            # In-app "What's New": generate the AppChangelog entry + bump its constant from the notes
+            # file's whatsnew: front-matter, so the in-app card ships in sync with this version. Warn
+            # (don't fail) if the file / its front-matter is missing.
+            # Fork-only notes live under docs/fork/releases/ so upstream's docs/ tree stays recognisable
+            # in a sync PR, and the file is NOT tag-named: it stays v<VERSION>.md so appchangelog-gen.py
+            # derives a clean numeric version from the filename for the in-app "What's New" card. Same
+            # path publish-ios-release.yml validates before it will publish.
+            if [ -f "docs/fork/releases/v${NEW}.md" ]; then
               python3 -m pip install --quiet pyyaml==6.0.2 >/dev/null 2>&1 || true
-              python3 Tools/appchangelog-gen.py "docs/releases/${TAG}.md" \
-                || echo "::warning::appchangelog-gen failed for ${TAG} — in-app 'What's New' not updated."
+              python3 Tools/appchangelog-gen.py "docs/fork/releases/v${NEW}.md" \
+                || echo "::warning::appchangelog-gen failed for ${NEW} — in-app 'What's New' not updated."
             else
-              echo "::warning::No docs/releases/${TAG}.md — GitHub notes + in-app 'What's New' will use placeholders."
+              echo "::warning::No docs/fork/releases/v${NEW}.md — GitHub notes + in-app 'What's New' will use placeholders."
             fi
             git config user.name 'github-actions[bot]'
             git config user.email 'github-actions[bot]@users.noreply.github.com'
@@ -106,11 +115,11 @@ jobs:
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             echo "Release $TAG already exists — re-run: platform jobs will refresh its assets."
           else
-            # Release body = the maintained per-version changelog docs/releases/<TAG>.md, plus a
-            # downloads footer. Warn (don't fail) if that file is missing so you notice a forgotten
-            # changelog. (CHANGELOG.md is the stale legacy file; docs/releases/ is the source of truth.)
+            # Release body = the maintained per-version changelog docs/fork/releases/v<VERSION>.md, plus
+            # a downloads footer. Warn (don't fail) if that file is missing so you notice a forgotten
+            # changelog. (CHANGELOG.md is the stale legacy file; docs/fork/releases/ is the source of truth.)
             BODY=$(mktemp)
-            NOTES_MD="docs/releases/${TAG}.md"
+            NOTES_MD="docs/fork/releases/v${NEW}.md"
             if [ -f "$NOTES_MD" ]; then
               # Strip a leading YAML front-matter block (the `whatsnew:` used by appchangelog-gen) so it
               # never leaks into the GitHub release body; files without front-matter pass through unchanged.
@@ -144,12 +153,12 @@ jobs:
             fi
             {
               printf '\n---\n\n**Downloads** — NOOP Staging identity, installs **beside** the official app (separate data):\n'
-              printf -- '- **macOS** — `NOOP-macos-v%s.zip` (unzip, then right-click → Open)\n' "$NEW"
-              printf -- '- **iOS (AltStore)** — `NOOP-ios-unsigned-v%s.ipa` (phone/iPad only)\n' "$NEW"
-              printf -- '- **iOS (Full)** — `NOOP-ios-full-unsigned-v%s.ipa` (Widget + Watch; advanced signing)\n' "$NEW"
+              printf -- '- **macOS** — `NOOP-macos-v%s-dx.zip` (unzip, then right-click → Open)\n' "$NEW"
+              printf -- '- **iOS (AltStore)** — `NOOP-ios-unsigned-v%s-dx.ipa` (phone/iPad only)\n' "$NEW"
+              printf -- '- **iOS (Full)** — `NOOP-ios-full-unsigned-v%s-dx.ipa` (Widget + Watch; advanced signing)\n' "$NEW"
             } >> "$BODY"
             gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --target "$(git rev-parse HEAD)" \
-              --title "NOOP ${NEW}" --notes-file "$BODY"
+              --title "NOOP AI ${NEW}" --notes-file "$BODY"
           fi
 
   macos:
@@ -205,8 +214,8 @@ jobs:
           # future UPDATE still needs the re-toggle the in-app #429/#295 banner already describes.)
           codesign --force --deep --sign - "$APP"
           codesign -dvv "$APP" 2>&1 | grep -Ei 'identifier|signature|flags' || true
-          ditto -c -k --keepParent "$APP" "NOOP-macos-v${VER}.zip"
-          gh release upload "${{ needs.bump.outputs.tag }}" "NOOP-macos-v${VER}.zip" --repo "$GITHUB_REPOSITORY" --clobber
+          ditto -c -k --keepParent "$APP" "NOOP-macos-v${VER}-dx.zip"
+          gh release upload "${{ needs.bump.outputs.tag }}" "NOOP-macos-v${VER}-dx.zip" --repo "$GITHUB_REPOSITORY" --clobber
 
   ios:
     needs: bump
@@ -260,8 +269,8 @@ jobs:
           set -euo pipefail
           APP=$(find build/dd/Build/Products/Release-iphoneos -maxdepth 1 -name '*.app' -type d | head -1)
           test -n "$APP" || { echo ".app (iphoneos) not found"; exit 1; }
-          LITE_IPA="NOOP-ios-unsigned-v${VER}.ipa"
-          FULL_IPA="NOOP-ios-full-unsigned-v${VER}.ipa"
+          LITE_IPA="NOOP-ios-unsigned-v${VER}-dx.ipa"
+          FULL_IPA="NOOP-ios-full-unsigned-v${VER}-dx.ipa"
           Tools/anonymize-ios-app.sh "$APP"
           Tools/package-ios-ipas.sh "$APP" "$LITE_IPA" "$FULL_IPA"
           gh release upload "${{ needs.bump.outputs.tag }}" "$LITE_IPA" "$FULL_IPA" --repo "$GITHUB_REPOSITORY" --clobber
@@ -291,37 +300,25 @@ jobs:
           if [ ! -f altstore-source.json ]; then
             echo "::warning::no altstore-source.json on main — skipping AltStore update."; exit 0
           fi
-          IPA="NOOP-ios-unsigned-v${VER}.ipa"
+          IPA="NOOP-ios-unsigned-v${VER}-dx.ipa"
           # The freshly-uploaded IPA's byte size, straight off the release asset (the `ios` job just pushed it).
           SIZE=$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets \
             --jq '.assets[] | select(.name=="'"$IPA"'") | .size' || true)
+          # A missing asset is an ERROR, not a shrug. This used to warn and exit 0, which meant the
+          # published source silently kept offering the PREVIOUS build — invisible in a green run, and
+          # visible to users only as "the update never arrived". The release itself is already created
+          # and intact at this point; a red job here is the notification that it needs a re-run.
           if [ -z "${SIZE:-}" ]; then
-            echo "::warning::IPA asset $IPA not found on release $TAG — skipping AltStore update."; exit 0
+            echo "::error::IPA asset $IPA not found on release $TAG — the AltStore source still points at the previous build."
+            exit 1
           fi
           [ -n "${BUILD:-}" ] || BUILD=$(grep -m1 'CURRENT_PROJECT_VERSION:' project.yml | sed -E 's/.*"([0-9]+)".*/\1/')
-          DATE=$(date -u +%Y-%m-%d)
-          URL="https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/${IPA}"
-          DESC="NOOP ${VER}. See the release notes for what changed."
-          MINOS=$(jq -r '.apps[0].minOSVersion // "17.0"' altstore-source.json)
 
-          # Prepend to versions[] (dedup this version so a re-run is idempotent) AND mirror into the
-          # app-level legacy fields older AltStore clients read, so both source shapes point at this release.
-          tmp=$(mktemp)
-          jq \
-            --arg v "$VER" --arg b "$BUILD" --arg d "$DATE" --arg desc "$DESC" \
-            --arg url "$URL" --argjson size "$SIZE" --arg min "$MINOS" \
-            '
-            .apps[0].versions |= ([{
-                version: $v, buildVersion: $b, date: $d,
-                localizedDescription: $desc, downloadURL: $url, size: $size, minOSVersion: $min
-              }] + (map(select(.version != $v))))
-            | .apps[0].version            = $v
-            | .apps[0].buildVersion       = $b
-            | .apps[0].versionDate        = $d
-            | .apps[0].versionDescription = $desc
-            | .apps[0].downloadURL        = $url
-            | .apps[0].size               = $size
-            ' altstore-source.json > "$tmp" && mv "$tmp" altstore-source.json
+          # One implementation of the manifest rule for both release workflows — it derives the tag and
+          # the asset filename from the version, prepends to versions[] idempotently and mirrors the
+          # legacy top-level fields older AltStore clients read.
+          Tools/update-altstore-source.sh \
+            --version "$VER" --build "$BUILD" --size "$SIZE" --repo "$GITHUB_REPOSITORY"
 
           if git diff --quiet altstore-source.json; then
             echo "altstore-source.json already current for ${VER}."; exit 0
