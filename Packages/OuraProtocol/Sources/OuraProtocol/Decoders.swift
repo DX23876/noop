@@ -531,19 +531,36 @@ public enum OuraDecoders {
 
     // MARK: - Motion period, 2-bit MOTION_STATE codes (0x6B; s6.13)
 
-    /// Decode the 0x6B motion_period: 12-bit period header, byte6 bits[5:4]=leading-symbol count, then
-    /// 2-bit MOTION_STATE codes, 4 per byte (MSB-first). 0=NO_MOTION,1=RESTLESS,2=TOSSING,3=ACTIVE.
-    /// Per OURA_PROTOCOL.md s6.13. Returns nil on a short body. The first two bytes carry the period
-    /// header; codes follow from byte index 2.
+    /// Decode the 0x6B motion_period: a compact run of 2-bit MOTION_STATE codes. Layout cross-checked
+    /// against the native `parse_api_motion_period` (attribution, not a port — re-derived from a real
+    /// capture; OURA_PROTOCOL.md s6.13), the SAME shape as the validated `decodeSleepPhase` (one header
+    /// byte, then 2-bit codes from byte 1):
+    ///   byte0 = header — bits[7:6] period_type; bits[5:4] = `count` of valid codes in the FINAL byte;
+    ///           bits[3:0] = a rolling mod-16 sequence counter (record ordering / dedup, not a state).
+    ///   byte1… = 2-bit codes, 4 per byte, MSB-first ([7:6][5:4][3:2][1:0]); every byte carries 4 codes
+    ///           EXCEPT the last, which carries `count` — where `count == 0` means 4 (a full final byte):
+    ///           the field is only 2 bits but the byte holds up to 4 codes, so 4 has to wrap to 0. In a real
+    ///           capture all 81 `count == 0` records have a NON-ZERO final byte (0xc0/0x80/0x40 — real
+    ///           codes), never 0x00, confirming 0 ⇒ 4 rather than 0 ⇒ empty.
+    /// 0=NO_MOTION, 1=RESTLESS, 2=TOSSING, 3=ACTIVE. Returns nil on a body too short to hold the header
+    /// plus one code byte (< 2), or when no codes result.
+    ///
+    /// The header's low-nibble sequence counter is what pins this layout: in a real capture it increments
+    /// and wraps mod-16 across consecutive records (…c, d, e, f, 0, 1…), proving byte0 is a header and the
+    /// codes begin at byte1 — NOT the earlier reading (byte0/1 a 12-bit period, codes from byte2), which
+    /// dropped the first code byte and read phantom codes from the final byte's padding.
     public static func decodeMotionPeriod(_ rec: OuraRecord) -> [OuraMotion]? {
         let b = rec.payload
-        guard b.count >= 3 else { return nil }
+        guard b.count >= 2 else { return nil }
+        let countField = Int((b[0] >> 4) & 0x03)     // bits[5:4] of the header: codes in the FINAL byte
+        let lastCount = countField == 0 ? 4 : countField   // 0 encodes a full (4-code) final byte
         var out: [OuraMotion] = []
         var index = 0
-        for k in 2..<b.count {
+        for k in 1..<b.count {
+            let n = (k == b.count - 1) ? lastCount : 4   // last byte carries `lastCount` codes; others 4
             let byte = b[k]
-            for shift in stride(from: 6, through: 0, by: -2) {
-                let code = Int((byte >> UInt8(shift)) & 0x03)
+            for j in 0..<n {
+                let code = Int((byte >> UInt8(6 - 2 * j)) & 0x03)
                 if let state = OuraMotionState(rawValue: code) {
                     out.append(OuraMotion(ringTimestamp: rec.ringTimestamp, index: index, state: state))
                     index += 1
