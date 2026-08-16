@@ -3028,8 +3028,12 @@ struct SettingsView: View {
                         .foregroundStyle(StrandPalette.textSecondary)
                 }
 
-                // Project home — NOOP's code, releases, issues and wiki live on GitHub.
-                Link(destination: URL(string: "https://github.com/ryanbr/noop")!) {
+                // Project home — this fork's code, releases and issues live on GitHub. It MUST point at
+                // DX23876/noop, not upstream ryanbr/noop: this row sits directly under the update check
+                // (UpdateChecker queries DX23876/noop), and a user who taps it to fetch "the source" or
+                // "the releases" otherwise lands on upstream and installs the base app instead of this one.
+                // Upstream is credited in the About copy and ATTRIBUTION.md, which is where that link belongs.
+                Link(destination: URL(string: "https://github.com/DX23876/noop")!) {
                     HStack(spacing: 10) {
                         Image(systemName: "chevron.left.forwardslash.chevron.right")
                             .appleInspiredForeground("settings.about")

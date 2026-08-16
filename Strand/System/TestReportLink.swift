@@ -4,8 +4,11 @@ import StrandAnalytics
 /// Builds the prefilled GitHub new-issue URL for a Test Centre report (spec section 5.2). It binds
 /// the bug form's existing id fields (version, platform, os_version, test_profile, title) and
 /// self-applies the "bug,test:<id>" labels so a submission lands pre-labelled on the right cluster.
-/// No network, no cloud: this only composes a URL the caller opens in the browser. Repo is
-/// ryanbr/noop (confirmed in bug_report.yml).
+/// No network, no cloud: this only composes a URL the caller opens in the browser. Repo is this
+/// fork, DX23876/noop — a report about a build published here has to land in this tracker, not
+/// upstream's; the field ids below are confirmed against this repo's own
+/// `.github/ISSUE_TEMPLATE/bug_report.yml`, which carries the same `version` / `platform` /
+/// `os_version` / `test_profile` / `what_happens` / `log` ids the prefill binds.
 ///
 /// CAPTURE-A (#812): a report submitted WITHOUT the .zip attached used to land empty, because the form's
 /// `log` / `what_happens` textareas were blank and the user often forgot the paperclip. We now PREFILL
@@ -93,7 +96,7 @@ enum TestReportLink {
         if let seed = whatHappensSeed, !seed.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             query.append("what_happens=" + enc(seed))
         }
-        let base = "https://github.com/ryanbr/noop/issues/new?"
+        let base = "https://github.com/DX23876/noop/issues/new?"
         // Add the log block ONLY if the whole URL stays under the GitHub prefill ceiling. If it would
         // breach maxURLLength, drop `log` entirely (never truncate it into a broken <details>); the full
         // trace is in the attached .zip. The seed + id fields alone keep the body non-empty (#812).
