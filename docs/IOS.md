@@ -1,7 +1,7 @@
 # iOS — Install & Build
 
-> **The iOS DX Beta ships in two variants.** Grab **`NOOP-ios-unsigned-v9.3.3-dx-beta.ipa`** from the
-> [NOOP AI release](https://github.com/DX23876/noop/releases/tag/v9.3.3-dx-beta) page and install it with **AltStore** or **SideStore** — see
+> **The iOS build ships in two variants.** Grab **`NOOP-ios-unsigned-v10.1.0-dx.ipa`** from the
+> [NOOP AI release](https://github.com/DX23876/noop/releases/tag/v10.1.0-dx) page and install it with **AltStore** or **SideStore** — see
 > **[Install (sideload)](#install-sideload)** below. No Mac, no Xcode, no App Store, and no Apple
 > Developer account needed — **and NOOP stays anonymous**, because the `.ipa` we ship is *unsigned*
 > and **you** sign it on your own iPhone with your own free Apple ID. It carries the app **and the
@@ -20,12 +20,20 @@ Nothing about this touches NOOP's identity or Apple's servers on our side.
 1. **Install a sideloader on your computer** — [AltStore](https://altstore.io) or
    [SideStore](https://sidestore.io) (both free). Follow their one-time setup (it installs a helper +
    AltStore/SideStore onto your iPhone using your own Apple ID).
-2. **Download `NOOP-ios-unsigned-v9.3.3-dx-beta.ipa`** from the
-   [DX Beta release](https://github.com/DX23876/noop/releases/tag/v9.3.3-dx-beta) to your iPhone (or your
+2. **Download `NOOP-ios-unsigned-v10.1.0-dx.ipa`** from the
+   [10.1.0 release](https://github.com/DX23876/noop/releases/tag/v10.1.0-dx) to your iPhone (or your
    computer, then AirDrop/transfer it).
-3. **Open the `.ipa` with AltStore/SideStore** (Share → AltStore, or the app's "+" button). It signs
-   and installs NOOP. First launch may need **Settings → General → VPN & Device Management → trust
-   your Apple ID**.
+3. **Open the `.ipa` with AltStore/SideStore** (the app's "+" button, or AltServer/Sideloadly from
+   your computer). It signs and installs NOOP. First launch may need **Settings → General → VPN &
+   Device Management → trust your Apple ID**.
+
+> **If the sideloader "closes itself" the moment you share the file, it ran out of memory, not
+> patience.** The IPA is ~345 MiB — the on-device coach model is most of it — and pushing a file that
+> size through the iOS **share sheet** into AltStore/SideStore gets the app killed mid-import often
+> enough to look like a bug in the download. It is not: use **[the source](#add-noop-as-a-source-recommended--auto-updates)**
+> below and let the sideloader fetch the IPA itself, pick the file from inside the app's "+" button,
+> or sign from a computer with AltServer/Sideloadly. Nothing needs uninstalling first — this fork
+> installs as **NOOP AI** under `com.noopapp.noopai` and sits beside an upstream **NOOP** install.
 
 ### Add NOOP as a source (recommended — auto-updates)
 
@@ -100,8 +108,8 @@ below.
 
 The canonical `NOOPiOS` build embeds `NOOPiOSWidgets`, `NOOPWatch` and
 `NOOPWatchComplications`. Every GitHub release publishes that complete bundle as
-`NOOP-ios-full-unsigned-v<VERSION>-dx-beta.ipa`. The AltStore source points at
-`NOOP-ios-unsigned-v<VERSION>-dx-beta.ipa`, which is the same bundle with **only** `Watch/` removed —
+`NOOP-ios-full-unsigned-v<VERSION>-dx.ipa`. The AltStore source points at
+`NOOP-ios-unsigned-v<VERSION>-dx.ipa`, which is the same bundle with **only** `Watch/` removed —
 the widget extension stays, and `Tools/prepare-ios-sideload-app.sh` embeds the App Group/HealthKit
 capability template so AltSign can provision it.
 
