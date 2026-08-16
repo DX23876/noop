@@ -1,25 +1,33 @@
 #!/usr/bin/env bash
 #
 # update-altstore-source.sh <version> <ipa> [desc] — refresh altstore-source.json with a new iOS release.
-# The downloadURL points at the canonical GitHub release asset (github.com/ryanbr/noop/releases);
-# noop.fans stays a mirror. Everything else reads CFBundleVersion + size from the IPA,
-# prepends/replaces apps[0].versions[0], and mirrors legacy top-level fields.
 #
-# Run LOCALLY right after the anonymized .ipa is built, then commit altstore-source.json +
-# push it (the file is served from the repo so AltStore/SideStore can read it).
+# NOT the normal path. `.github/workflows/fork-release.yml` updates altstore-source.json and pushes it
+# to main on every release; this script is the manual fallback for a release cut by hand. It writes the
+# same shape: reads CFBundleVersion + size from the IPA, prepends/replaces apps[0].versions[0], and
+# mirrors the legacy top-level fields.
+#
+# The downloadURL points at this fork's GitHub release asset — repo DX23876/noop, tag v<VERSION>-dx,
+# file NOOP-ios-unsigned-v<VERSION>-dx.ipa. Getting any of the three wrong publishes a source whose
+# every install 404s, so they are derived here rather than typed: the fork's `-dx` marker lives in the
+# tag and the filename, never in the numeric version Apple reads.
+#
+# Run LOCALLY right after the .ipa is built, then commit altstore-source.json + push it (the file is
+# served from the repo at raw.githubusercontent.com/DX23876/noop/main/altstore-source.json, which is
+# the source URL sideloaders subscribe to).
 set -euo pipefail
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
-[ -f "$HERE/../deploy.env" ] && source "$HERE/../deploy.env"
-DOMAIN="${FORGE_DOMAIN:-${NOOP_DOMAIN:-noop.fans}}"
-ORG="${FORGE_ORG:-NoopApp}"; REPO="${FORGE_REPO:-noop}"
+REPO_ROOT="$(cd "$HERE/.." && pwd)"
+GH_REPO="${GH_REPO:-DX23876/noop}"
 
 VERSION="${1:?usage: $0 <version> <ipa> [desc]}"
 IPA="${2:?usage: $0 <version> <ipa> [desc]}"
 DESC="${3:-"NOOP $VERSION. See the release notes for what changed."}"
 
-# altstore-source.json lives at the repo root; default to the Strand checkout
-SRC="${ALTSTORE_SRC:-$HOME/Documents/Strand/altstore-source.json}"
+# altstore-source.json lives at the repo root — this checkout's, not a path that happens to exist on
+# one machine. The file being edited must be the one that gets committed and served.
+SRC="${ALTSTORE_SRC:-$REPO_ROOT/altstore-source.json}"
 MIN_OS="17.0"
 
 [ -f "$SRC" ] || { echo "✗ $SRC not found (set ALTSTORE_SRC)" >&2; exit 1; }
@@ -36,9 +44,10 @@ SHORT="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$PLIST"
 
 SIZE="$(stat -f%z "$IPA")"
 DATE="$(date -u +%Y-%m-%d)"
-# GitHub is the canonical download home; the AltStore source must point at the GitHub release asset.
-# (noop.fans stays a mirror — the FORGE_* vars above are still used by the deploy/push mechanic.)
-URL="https://github.com/${ORG}/${REPO}/releases/download/v${VERSION}/NOOP-v${VERSION}-ios.ipa"
+# The sideload IPA — app + widgets, no Watch app — is what the source must offer: the Full IPA needs a
+# team that can provision an embedded watchOS bundle, which is exactly what a free-Apple-ID sideloader
+# cannot do (docs/IOS.md). Tag and filename both carry `-dx`; the version inside the JSON stays numeric.
+URL="https://github.com/${GH_REPO}/releases/download/v${VERSION}-dx/NOOP-ios-unsigned-v${VERSION}-dx.ipa"
 
 echo "→ $VERSION (build $BUILD), ${SIZE} bytes, $DATE"
 jq --arg v "$VERSION" --arg b "$BUILD" --arg d "$DATE" --arg desc "$DESC" \

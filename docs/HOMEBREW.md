@@ -4,9 +4,11 @@
 > `noopapp/noop` tap referenced by older releases is gone — the upstream `noopapp` GitHub org (and its
 > `homebrew-noop` repo) no longer exists (#1069), so `brew tap noopapp/noop` fails outright.
 >
-> **Install NOOP on macOS by downloading `NOOP.app` directly from
-> [Releases](https://github.com/ryanbr/noop/releases)** — Apple Silicon + Intel, drag to Applications.
-> See **First launch on macOS** in the [README](../README.md#download) for the one-time Gatekeeper step
+> **Install NOOP AI on macOS by downloading the packaged build directly from
+> [this fork's Releases](https://github.com/DX23876/noop/releases)** (`NOOP-macos-v<VERSION>-dx.zip`,
+> universal — Apple Silicon + Intel), unzip and drag to Applications. Upstream's releases are a
+> different app: they carry ryanbr's NOOP, not the coach, memory and Apple-first surfaces added here.
+> See **Mac** in the [README](../README.md#download-and-install) for the one-time Gatekeeper step
 > (NOOP ships anonymously and isn't notarized, so macOS blocks it on first open until you clear the
 > download quarantine flag).
 

@@ -179,11 +179,14 @@ Swift, you MUST build the app yourself: `xcodebuild … build` locally, or run `
   @digitalerdude (workout backfill), …`.
   - Credit both **merged PR authors** and the **issue reporters** whose reports drove a fix — a good bug
     report with a strap log is often the harder half.
-  - **Only third-party contributors.** The maintainer's own handles (`@ryanbr` / `@Fanboynz`) are left
-    out: self-credit adds noise and self-mentions notify nobody.
+  - **Only third-party contributors.** The maintainers' own handles (`@DX23876` here, `@ryanbr` /
+    `@Fanboynz` upstream) are left out: self-credit adds noise and self-mentions notify nobody.
   - Collect the handles with **`Tools/release-contributors.sh <since-date|since-tag>`**, which lists every
     third-party merged PR and every issue *closed as completed* in the range, plus a ready credit line,
-    with the maintainer's own handles and bot accounts filtered out. A tag argument is bounded at that
+    with the maintainers' own handles and bot accounts filtered out. It reads **this** repo by default,
+    and most of what a release here ships was merged from upstream — so run it twice, once for
+    fork-native work and once as `GH_REPO=ryanbr/noop …` for the range the sync brought in, or the
+    larger half of the release goes uncredited. A tag argument is bounded at that
     tag's exact instant, so the previous release's work is not re-credited. Writing *what* each person
     contributed is still by hand — that's the judgement part; hunting logins is not. Its output is a work
     list to prune, not a finished line: a reporter whose issue is not worth calling out in the notes can

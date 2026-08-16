@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 #
 # update-homebrew-cask.sh <version> [zip] — refresh the Homebrew cask after a macOS release.
+#
+# ⚠ UPSTREAM INFRASTRUCTURE. The tap (NoopApp/homebrew-noop) and its mirror are upstream's; this fork
+# publishes its macOS build as a .zip on its own GitHub releases and has no cask. Kept unmodified so
+# an upstream sync has nothing to conflict over.
 # The cask download URL points at the GitHub release asset; the tap repo lives on GitHub
 # (github.com/NoopApp/homebrew-noop, Homebrew's default tap host) and is also mirrored to the
 # forge (noop.fans/NoopApp/homebrew-noop). This script pushes the updated cask to BOTH.

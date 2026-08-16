@@ -8,7 +8,15 @@
 #          dist/NOOP-v4.7.0-macos.zip dist/NOOP-v4.7.0.ipa dist/NOOP-v4.7.0.apk \
 #          -- "Bug fixes and the new Lab Book."
 #
-# GitHub is CANONICAL — the release is created there FIRST (ryanbr/noop, marked
+# ⚠ NOT the release path for this fork — see the guard below. Releases here are cut by
+# .github/workflows/fork-release.yml and publish-ios-release.yml, which tag vX.Y.Z-dx and upload
+# NOOP-ios-unsigned-vX.Y.Z-dx.ipa. This script is upstream's local pipeline, shaped for upstream: it
+# tags a bare vX.Y.Z (which collides with the tags this repo fetches from ryanbr), ships an asset named
+# NOOP-v<V>-ios.ipa, and mirrors to a Forgejo instance and a Homebrew tap this fork does not have. It is
+# kept — rather than deleted — so an upstream sync has nothing to conflict over, and gated so it cannot
+# publish by accident.
+#
+# GitHub is CANONICAL — the release is created there FIRST (marked
 # --latest). The self-hosted Forgejo is published SECOND as a mirror by handing
 # the same args straight to forgejo-release.sh. A Forgejo failure is tolerated:
 # it warns but does NOT abort or fail the run, because the GitHub release already
@@ -25,8 +33,27 @@ set -uo pipefail
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
 
-# canonical GitHub mirror coordinates (override via env if ever needed)
-GH_REPO="${GH_REPO:-ryanbr/noop}"
+# canonical GitHub coordinates (override via env if ever needed). This fork's repo, NOT upstream's: a
+# default of ryanbr/noop meant every accidental run here aimed a `gh release create` at somebody else's
+# repository, and the only thing standing between that and a published release was the token's scope.
+GH_REPO="${GH_REPO:-DX23876/noop}"
+
+# ── Fork gate ────────────────────────────────────────────────────────────────
+# This fork publishes from CI (fork-release.yml / publish-ios-release.yml), which owns the tag scheme
+# (vX.Y.Z-dx), the asset names and the altstore-source.json commit. A local run of this upstream script
+# would cut a differently-named release beside them and leave the AltStore source pointing at an asset
+# that does not exist. Explicit override for a genuine hand-cut release; nothing else reaches the API.
+if [ "${NOOP_LOCAL_RELEASE:-0}" != "1" ]; then
+  echo "────────────────────────────────────────────────────────────────────" >&2
+  echo "⛔ Tools/release.sh is not this fork's release path." >&2
+  echo "   Use the workflows: publish-ios-release.yml (iOS IPAs + altstore-source.json)" >&2
+  echo "   and fork-release.yml (staging/release builds). They tag vX.Y.Z-dx." >&2
+  echo "   This script tags a bare vX.Y.Z and mirrors to infrastructure this fork" >&2
+  echo "   does not have. If you really mean to cut a release by hand:" >&2
+  echo "      NOOP_LOCAL_RELEASE=1 GH_REPO=$GH_REPO Tools/release.sh …" >&2
+  echo "────────────────────────────────────────────────────────────────────" >&2
+  exit 2
+fi
 
 VER="${1:?usage: release.sh <version> <asset...> [-- notes]}"; shift
 TAG="v$VER"

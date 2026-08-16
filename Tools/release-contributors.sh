@@ -12,10 +12,17 @@
 # The maintainer's own handles are excluded on purpose: self-credit is noise, and a self-mention notifies
 # nobody. Override with MAINTAINERS="a,b" if the set ever changes.
 #
+# It reads THIS fork (DX23876/noop) by default. Most of what a release here ships is merged from
+# upstream, and those PRs and issues live in ryanbr's tracker, not this one — so a fork release note
+# is written from BOTH runs: this repo for fork-native work, then GH_REPO=ryanbr/noop for the
+# upstream range the sync brought in. Running only the default silently credits nobody for the
+# larger half.
+#
 # Usage:
 #   Tools/release-contributors.sh 2026-07-20              # since a date (inclusive, whole day)
-#   Tools/release-contributors.sh v9.0.2                  # since that tag's exact commit time
-#   MAINTAINERS="ryanbr,Fanboynz" Tools/release-contributors.sh 2026-07-20
+#   Tools/release-contributors.sh v10.1.0-dx              # since that tag's exact commit time
+#   GH_REPO=ryanbr/noop Tools/release-contributors.sh v9.3.3-dx-beta   # the synced upstream work
+#   MAINTAINERS="DX23876,ryanbr,Fanboynz" Tools/release-contributors.sh 2026-07-20
 #
 # Requires: gh, authenticated. A dead or unauthenticated gh is a hard error, never an empty list —
 # for a tool whose whole job is "nobody is missed", silently missing EVERYBODY is the worst failure mode.
@@ -55,8 +62,12 @@ else
   exit 2
 fi
 
-MAINTAINERS="${MAINTAINERS:-ryanbr,Fanboynz}"
-REPO="${GH_REPO:-ryanbr/noop}"
+# DX23876 is this fork's maintainer and joins the exclusion list for the same reason the other two are
+# on it: a maintainer crediting themselves is noise, and the self-mention notifies nobody. ryanbr and
+# Fanboynz stay listed because the list is also used against upstream's repo (GH_REPO above), where
+# they are the maintainers whose own work is not a credit line either.
+MAINTAINERS="${MAINTAINERS:-DX23876,ryanbr,Fanboynz}"
+REPO="${GH_REPO:-DX23876/noop}"
 LIMIT=300
 
 # Field-exact, case-insensitive. The rows are "handle<TAB>#N<TAB>title", so a whole-line anchor never

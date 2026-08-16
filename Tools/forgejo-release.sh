@@ -3,6 +3,10 @@
 # forgejo-release.sh — cut a release on the self-hosted forge (replaces `gh release create`).
 # Run from your Mac at release time, after the anonymized binaries are built.
 #
+# ⚠ UPSTREAM INFRASTRUCTURE. The forge it publishes to (noop.fans/NoopApp) belongs to upstream, and
+# this fork has neither the host nor the token for it. Reachable only through Tools/release.sh, which
+# is itself gated off here. Kept unmodified so an upstream sync has nothing to conflict over.
+#
 #   release/forgejo-release.sh <version> <asset> [<asset> ...] [-- "release notes"]
 #   e.g. release/forgejo-release.sh 4.7.0 \
 #          dist/NOOP-v4.7.0-macos.zip dist/NOOP-v4.7.0-ios.ipa dist/NOOP-v4.7.0-android.apk
