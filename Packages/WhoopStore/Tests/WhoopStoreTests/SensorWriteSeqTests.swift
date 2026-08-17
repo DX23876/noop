@@ -35,6 +35,28 @@ final class SensorWriteSeqTests: XCTestCase {
         XCTAssertGreaterThan(after, before, "an offload must move the gate")
     }
 
+    func testDuplicateOffloadDoesNotAdvanceTheSequence() async throws {
+        let store = try await WhoopStore.inMemory()
+        try await store.upsertDevice(id: "dev1", mac: nil, name: nil)
+        let batch = Streams(hr: [HRSample(ts: 100, bpm: 60)])
+        _ = try await store.insert(batch, deviceId: "dev1")
+        let afterFirst = try await seq(store)
+        _ = try await store.insert(batch, deviceId: "dev1")
+        let afterDuplicate = try await seq(store)
+        XCTAssertEqual(afterDuplicate, afterFirst,
+                       "ON CONFLICT DO NOTHING must not look like new analysis input")
+    }
+
+    func testNonScoringBatteryWriteDoesNotAdvanceTheSequence() async throws {
+        let store = try await WhoopStore.inMemory()
+        try await store.upsertDevice(id: "dev1", mac: nil, name: nil)
+        let before = try await seq(store)
+        _ = try await store.insert(Streams(battery: [BatterySample(ts: 100, soc: 0.5, mv: 3900)]),
+                                   deviceId: "dev1")
+        let after = try await seq(store)
+        XCTAssertEqual(after, before)
+    }
+
     /// The #836/C1 regression, directly. `hrFingerprint` watched the canonical "my-whoop" while the
     /// strap wrote under `whoop-<uuid>`; the sequence must not care which id the rows arrive under.
     func testAdvancesForAnyDeviceIdNotJustTheCanonicalOne() async throws {

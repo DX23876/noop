@@ -129,6 +129,9 @@ public struct DeviceRegistryStore: Sendable {
         // day whose inputs were just deleted, and the next pass would skip re-deriving it. Deleting them
         // is free: absence means "scan it".
         "dayScanFingerprint",
+        // v40-analysis-input-revision: cache-invalidation metadata is device data too. A delete must not
+        // leave revisions behind that describe raw rows which no longer exist.
+        "analysisInputRevision", "analysisDeviceRevision",
     ]
 
     /// Permanently delete every recorded sample/derived row belonging to one device, across all
@@ -138,17 +141,20 @@ public struct DeviceRegistryStore: Sendable {
     /// is created unconditionally by the migrator, so the set is stable.
     public func deleteAllData(deviceId: String) throws {
         try dbQueue.write { db in
+            var changed = false
             for table in Self.deviceScopedTables {
                 try db.execute(sql: "DELETE FROM \(table) WHERE deviceId = ?", arguments: [deviceId])
+                changed = changed || db.changesCount > 0
             }
             // Provenance also references the physical/import source separately from its computed
             // namespace. Forgetting a provider must remove those associations too.
             try db.execute(sql: "DELETE FROM scoreInputProvenance WHERE sourceId = ?",
                            arguments: [deviceId])
+            changed = changed || db.changesCount > 0
             // Sensor rows just disappeared, so the analyze gate must not report "nothing changed" —
             // every score derived from this device's data is now stale. Same in-transaction bump as
             // the ingest and heal paths (see `WhoopStore.bumpSensorWriteSeq`).
-            try WhoopStore.bumpSensorWriteSeq(db)
+            if changed { try WhoopStore.markAnalysisDeviceChanged(db, deviceId: deviceId) }
         }
     }
 
@@ -199,7 +205,7 @@ public struct DeviceRegistryStore: Sendable {
             try db.execute(sql: "DELETE FROM device WHERE id = ?", arguments: [activeId])
             // The rows did not vanish, but they now live under a DIFFERENT deviceId — which is exactly
             // what `resolveDayOwner` reads by, so the scores must be recomputed against the new owner.
-            try WhoopStore.bumpSensorWriteSeq(db)
+            try WhoopStore.markAnalysisDeviceChanged(db, deviceId: serialId)
             return true
         }
     }

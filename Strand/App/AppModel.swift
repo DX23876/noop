@@ -452,14 +452,18 @@ final class AppModel: ObservableObject {
                 self.live.batteryPct = 68
             }
             #endif
-            await self.repo.refresh()                          // surface any imported data at once
-            diagPhase("repo.refresh done")
+            // First paint is bounded by recent display data, never the user's complete archive. Full
+            // history remains queryable through the range APIs used by history/Coach surfaces.
+            await self.repo.refresh(days: 120)
+            diagPhase("repo.refresh(120) done")
+            await self.wireSourceCoordinator()                 // dormant unless a generic strap is active
+            diagPhase("sourceCoordinator wired")
+            // Give SwiftUI an uncontested render turn before optional plan/goal consumers begin.
+            try? await Task.sleep(nanoseconds: 1_000_000_000)
             await PlanReconciliationCoordinator.reconcile(repo: self.repo)
             diagPhase("plan reconcile done")
             await GoalTrackingStore.shared.refresh(repo: self.repo)
             diagPhase("goals done")
-            await self.wireSourceCoordinator()                 // dormant unless a generic strap is active
-            diagPhase("sourceCoordinator wired")
             try? await Task.sleep(nanoseconds: 6_000_000_000)  // give the first offload a moment
             // FIX 2(a): DEFER the heavy one-shot 4000-day heal/rescore while an import is in flight. A
             // large Apple Health import is the worst-case launch overlap , running a 4000-iteration heal
@@ -483,19 +487,18 @@ final class AppModel: ObservableObject {
             // (far-past / bogus-2027 / FUTURE) from an older build, then rescore the real days. Runs
             // BEFORE the Effort rescore + analyzeRecent loop so both operate on a cleaned DB. Persisted
             // flag → no-op on every subsequent launch; idempotent on a clean DB.
-            await self.intelligence.runTimestampHealIfNeeded()
+            await self.intelligence.runTimestampHealIfNeeded(historyDays: 21)
             diagPhase("timestamp heal done")
-            // One-shot on-upgrade Effort rescore (#313): recompute strain from source across the FULL
-            // history once, so any deep-history rows an older build left on the 0–21 axis regenerate on
-            // the 0–100 axis. Guarded by a persisted flag, so this is a no-op on every subsequent launch.
-            await self.intelligence.runEffortRescoreIfNeeded()
-            diagPhase("effort rescore done — entering steady-state loop")
+            // The legacy Effort migration is deliberately not a launch task. Its old implementation ran
+            // the complete sleep pipeline for 4000 days; the resumable maintenance path owns it instead.
+            diagPhase("launch maintenance done — entering steady-state loop")
+            var effortMaintenanceStarted = false
             while !Task.isCancelled {
                 // #547 RE-POLLUTION: a sync since the last tick may have armed a re-heal (its ingest gate
                 // dropped bad-clock records). `runTimestampHealIfNeeded` honours the pending flag even after
                 // the one-shot done flag is set, purges any pollution, and rescores the affected days , so a
                 // wandering-clock strap can't keep re-polluting. A no-op when nothing's pending.
-                await self.intelligence.runTimestampHealIfNeeded()
+                await self.intelligence.runTimestampHealIfNeeded(historyDays: 21)
                 // #836: the steady-state tick is a BACKSTOP, not a data-driven refresh — every real update
                 // (sync backfill, import, edit, recalibrate, heal) already rescores via its own forced call.
                 // `force: false` skips the heavy 21-day rescore when the raw HR stream is unchanged since the
@@ -504,7 +507,20 @@ final class AppModel: ObservableObject {
                 // `allowDayReuse: true`: when the whole-history watermark HAS moved, this tick still only
                 // needs to re-derive the days the new samples actually landed in — which is exactly what
                 // the per-day fingerprint resolves (#launch-rescore).
-                await self.intelligence.analyzeRecent(force: false, allowDayReuse: true)
+                await self.intelligence.analyzeRecent(force: false, allowDayReuse: true,
+                                                      reason: .rawMutation)
+                if !effortMaintenanceStarted {
+                    effortMaintenanceStarted = true
+                    // Exact-day HR + strain only, newest first. Seven days per resumable generation and
+                    // a yield between generations keeps old scores visible without ever launching the
+                    // 4000-day sleep/recovery pipeline that caused the freeze.
+                    Task(priority: .utility) { [weak self] in
+                        while let self, !Task.isCancelled {
+                            if await self.intelligence.runEffortRescoreIfNeeded(batchSize: 7) { break }
+                            try? await Task.sleep(nanoseconds: 1_000_000_000)
+                        }
+                    }
+                }
                 // v5: recompute the skin-temp suite snapshots (cycle phase + body clock) from the
                 // freshly-scored history so the Health hub cards read a ready result.
                 await self.refreshV5Signals()
@@ -631,12 +647,13 @@ final class AppModel: ObservableObject {
         // sequence's refresh, and both queue on the same serial store actor. On a 1.7 GB database that is a
         // prime suspect for a launch that never even reaches `analyzeRecent`.
         let diagRefreshStart = Date()
-        await repo.refresh()
+        await repo.refresh(days: 120)
         NSLog("[FREEZE-DIAG] adoptActiveDevice repo.refresh took=\(String(format: "%.2f", Date().timeIntervalSince(diagRefreshStart)))s")
         // `allowDayReuse: true`: a re-point changes WHICH device owns a day, and the owner id is part of
         // the per-day fingerprint — so every day whose ownership actually moved fails the match and is
         // re-derived, while the rest keep their scores (#launch-rescore).
-        await intelligence.analyzeRecent(skipIfUnchanged: skipIfUnchanged, allowDayReuse: true)
+        await intelligence.analyzeRecent(skipIfUnchanged: skipIfUnchanged, allowDayReuse: true,
+                                         reason: .ownerChange)
     }
 
     #if os(iOS)
@@ -663,7 +680,8 @@ final class AppModel: ObservableObject {
         // the per-day fingerprint resolves, so this pass re-derives the nights the sync actually brought
         // and reuses the rest. Without it, every sync re-derived the full 21-day window from raw
         // (~950 k rows per day) — the dominant recurring cost on a real library (#launch-rescore).
-        await intelligence.analyzeRecent(skipIfUnchanged: true, allowDayReuse: true)
+        await intelligence.analyzeRecent(skipIfUnchanged: true, allowDayReuse: true,
+                                         reason: .rawMutation)
         await PlanReconciliationCoordinator.reconcile(repo: repo)
         await GoalTrackingStore.shared.refresh(repo: repo)
         await refreshV5Signals()

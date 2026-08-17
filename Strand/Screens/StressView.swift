@@ -137,7 +137,7 @@ struct StressView: View {
         let to = Int(Date().timeIntervalSince1970)
         let tz = TimeZone.current.secondsFromGMT(for: Date())
 
-        let hr = await repo.hrSamples(from: from, to: to, limit: 200_000)
+        let hr = await repo.hrSamples(from: from, to: to, limit: Int.max)
         // Too few HR samples: empty the timeline AND clear the advanced readouts in lockstep. Without this
         // reset a later refresh that hits this path would leave the Advanced HRV card showing stale values
         // next to an empty timeline (the readouts are only recomputed past this guard).
@@ -148,12 +148,12 @@ struct StressView: View {
             return
         }
         let rr = (try? await repo.storeHandle()?.rrIntervals(
-            deviceId: repo.deviceId, from: from, to: to, limit: 200_000)) ?? []
+            deviceId: repo.deviceId, from: from, to: to, limit: Int.max)) ?? []
         // Wrist accelerometer for the motion gate: an ambulatory hour is EXERTION, not stress, so it
         // is masked rather than scored (DaytimeStress). Same store read as R-R; empty on hardware or
         // imports with no gravity, which is exactly the "no masking, prior behaviour" degradation.
         let gravity = (try? await repo.storeHandle()?.gravitySamples(
-            deviceId: repo.deviceId, from: from, to: to, limit: 200_000)) ?? []
+            deviceId: repo.deviceId, from: from, to: to, limit: Int.max)) ?? []
 
         daytime = DaytimeStress.analyze(hr: hr, rr: rr, gravity: gravity, tzOffsetSeconds: tz)
 

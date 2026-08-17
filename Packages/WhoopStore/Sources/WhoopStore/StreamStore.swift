@@ -153,6 +153,7 @@ extension WhoopStore {
         let result: (Int, Int, Int, Int, Int, Int, Int, Int) = try syncWrite { db in
             var hr = 0, rr = 0, ev = 0, bat = 0
             var spo2 = 0, skin = 0, resp = 0, grav = 0
+            var changedAnalysisTimestamps = Set<Int>()
             // Reuse one prepared statement per table instead of recompiling the same SQL on every
             // row. This is the hottest write path (every Collector.flush + every Backfiller chunk
             // over potentially millions of historical rows). cachedStatement persists the compiled
@@ -165,7 +166,9 @@ extension WhoopStore {
                     """)
                 for s in streams.hr {
                     try stmt.execute(arguments: [deviceId, s.ts, s.bpm])
-                    hr += db.changesCount
+                    let changed = db.changesCount
+                    hr += changed
+                    if changed > 0 { changedAnalysisTimestamps.insert(s.ts) }
                 }
             }
             if !streams.rr.isEmpty {
@@ -204,7 +207,9 @@ extension WhoopStore {
                     ordByTs[r.ts] = ord + 1
                     try stmt.execute(arguments: [deviceId, r.ts, r.rrMs, seq, ord,
                                                  r.srcChannel?.rawValue])
-                    rr += db.changesCount
+                    let changed = db.changesCount
+                    rr += changed
+                    if changed > 0 { changedAnalysisTimestamps.insert(r.ts) }
                 }
             }
             if !streams.events.isEmpty {
@@ -215,7 +220,9 @@ extension WhoopStore {
                 for e in streams.events {
                     let json = try WhoopStore.encodePayload(e.payload)
                     try stmt.execute(arguments: [deviceId, e.ts, e.kind, json])
-                    ev += db.changesCount
+                    let changed = db.changesCount
+                    ev += changed
+                    if changed > 0 { changedAnalysisTimestamps.insert(e.ts) }
                 }
             }
             if !streams.battery.isEmpty {
@@ -235,7 +242,9 @@ extension WhoopStore {
                     """)
                 for s in streams.spo2 {
                     try stmt.execute(arguments: [deviceId, s.ts, s.red, s.ir])
-                    spo2 += db.changesCount
+                    let changed = db.changesCount
+                    spo2 += changed
+                    if changed > 0 { changedAnalysisTimestamps.insert(s.ts) }
                 }
             }
             // `aux1Raw`/`aux2Raw` (v31) are the two auxiliary thermal channels riding the same v18 record
@@ -248,7 +257,9 @@ extension WhoopStore {
                     """)
                 for s in streams.skinTemp {
                     try stmt.execute(arguments: [deviceId, s.ts, s.raw, s.aux1Raw, s.aux2Raw])
-                    skin += db.changesCount
+                    let changed = db.changesCount
+                    skin += changed
+                    if changed > 0 { changedAnalysisTimestamps.insert(s.ts) }
                 }
             }
             if !streams.resp.isEmpty {
@@ -258,7 +269,9 @@ extension WhoopStore {
                     """)
                 for s in streams.resp {
                     try stmt.execute(arguments: [deviceId, s.ts, s.raw])
-                    resp += db.changesCount
+                    let changed = db.changesCount
+                    resp += changed
+                    if changed > 0 { changedAnalysisTimestamps.insert(s.ts) }
                 }
             }
             // `dynAccel` (v31) is the strap's OWN gravity-removed motion magnitude for the same second —
@@ -271,7 +284,9 @@ extension WhoopStore {
                     """)
                 for s in streams.gravity {
                     try stmt.execute(arguments: [deviceId, s.ts, s.x, s.y, s.z, s.dynAccel])
-                    grav += db.changesCount
+                    let changed = db.changesCount
+                    grav += changed
+                    if changed > 0 { changedAnalysisTimestamps.insert(s.ts) }
                 }
             }
             // WHOOP5 step counter (#78). Persist-only, the count is not surfaced in the return tuple
@@ -286,6 +301,7 @@ extension WhoopStore {
                     """)
                 for s in streams.steps {
                     try stmt.execute(arguments: [deviceId, s.ts, s.counter, s.activityClass])
+                    if db.changesCount > 0 { changedAnalysisTimestamps.insert(s.ts) }
                 }
             }
             // Band sleep_state (#175). Persist-only, same as steps — the strap's OWN @81 high-nibble state
@@ -301,6 +317,7 @@ extension WhoopStore {
                     """)
                 for s in streams.sleepState {
                     try stmt.execute(arguments: [deviceId, s.ts, s.state, s.rawByte])
+                    if db.changesCount > 0 { changedAnalysisTimestamps.insert(s.ts) }
                 }
             }
             // PPG-derived HR from the v26 optical buffer (#156). Persist-only, same as steps, the count
@@ -314,6 +331,7 @@ extension WhoopStore {
                     """)
                 for s in streams.ppgHr {
                     try stmt.execute(arguments: [deviceId, s.ts, s.bpm, s.conf])
+                    if db.changesCount > 0 { changedAnalysisTimestamps.insert(s.ts) }
                 }
             }
             // RAW v26 optical PPG waveform (#156 follow-up) — the samples `ppgHr` above is derived FROM.
@@ -343,14 +361,15 @@ extension WhoopStore {
                     let blob = V18AuxCodec.pack(s)
                     if blob.isEmpty { continue }
                     try stmt.execute(arguments: [deviceId, s.ts, blob])
-                    v18Written += 1
+                    let changed = db.changesCount
+                    v18Written += changed
+                    if changed > 0 { changedAnalysisTimestamps.insert(s.ts) }
                 }
             }
-            // The analyze gate's change-detector, bumped INSIDE this transaction so it commits with the
-            // rows it describes (see `bumpSensorWriteSeq`). Every sensor-table INSERT in the app is in
-            // this one block, which is what makes a single bump here sufficient — and a `DO NOTHING`
-            // batch that inserted zero new rows still bumps, which only ever costs one redundant pass.
-            try WhoopStore.bumpSensorWriteSeq(db)
+            // Stamp only REAL scoring-input changes. A duplicate/empty offload leaves both the global
+            // gate and the per-UTC-day revisions unchanged, so it cannot trigger a redundant rescore.
+            try WhoopStore.markAnalysisInputsChanged(db, deviceId: deviceId,
+                                                     timestamps: changedAnalysisTimestamps)
             return (hr, rr, ev, bat, spo2, skin, resp, grav)
         }
 

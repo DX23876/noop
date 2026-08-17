@@ -263,4 +263,66 @@ final class MigrationTests: XCTestCase {
             XCTAssertEqual(try Double.fetchOne(db, sql: "SELECT efficiency FROM dailyMetric WHERE day = '2026-01-02'"), 0.9)
         }
     }
+
+    /// `.noopbak` contains the complete SQLite file. A backup made by this fork therefore carries
+    /// v38+ migration records and cache tables when it is opened by the older ryanbr Apple app whose
+    /// migrator currently ends at v37. GRDB deliberately ignores unknown *later* migrations unless
+    /// the app opts into destructive schema erasure; pin that behaviour here so additive cache work
+    /// cannot silently break the backup's backwards-reader contract.
+    func testV40DatabaseRemainsReadableByRyanbrV37Migrator() throws {
+        let dbQueue = try DatabaseQueue()
+        try WhoopStore.makeMigrator().migrate(dbQueue)
+
+        try dbQueue.write { db in
+            try db.execute(sql: "INSERT INTO device (id, name) VALUES ('compat', 'WHOOP')")
+            try db.execute(sql: "INSERT INTO hrSample (deviceId, ts, bpm) VALUES ('compat', 100, 61)")
+        }
+
+        var ryanbrV37 = DatabaseMigrator()
+        for identifier in WhoopStore.makeMigrator().migrations.prefix(while: { $0 != "v38-day-scan-fingerprint" }) {
+            ryanbrV37.registerMigration(identifier) { _ in
+                XCTFail("an already-applied ryanbr migration must not run again: \(identifier)")
+            }
+        }
+        XCTAssertTrue(try dbQueue.read { try ryanbrV37.hasBeenSuperseded($0) },
+                      "precondition: the backup contains newer fork migrations")
+        XCTAssertNoThrow(try ryanbrV37.migrate(dbQueue))
+
+        try dbQueue.read { db in
+            XCTAssertEqual(try Int.fetchOne(db, sql: "SELECT bpm FROM hrSample WHERE deviceId = 'compat'"), 61)
+            XCTAssertTrue(try db.tableExists("analysisInputRevision"),
+                          "the older reader ignores disposable future cache tables; it must not delete them")
+        }
+    }
+
+    /// Regression for the old semantic `LIMIT 200000`: dense R-R windows must include the newest tail,
+    /// not quietly treat a full page as the complete night.
+    func testUnboundedRrReadIncludesRow200001AndNewestTail() async throws {
+        let path = NSTemporaryDirectory() + "whoopstore-dense-rr-\(UUID().uuidString).sqlite"
+        defer {
+            for suffix in ["", "-wal", "-shm"] {
+                try? FileManager.default.removeItem(atPath: path + suffix)
+            }
+        }
+        let store = try await WhoopStore(path: path)
+        let writer = try DatabaseQueue(path: path)
+        try await writer.write { db in
+            try db.execute(sql: """
+                WITH RECURSIVE dense(x) AS (
+                    VALUES(0) UNION ALL SELECT x + 1 FROM dense WHERE x < 200000
+                )
+                INSERT INTO rrInterval (deviceId, ts, rrMs, seq, ord)
+                SELECT 'dense', x, 800, 0, x FROM dense
+                """)
+        }
+
+        let capped = try await store.rrIntervals(deviceId: "dense", from: 0, to: 300_000,
+                                                 limit: 200_000)
+        let complete = try await store.rrIntervals(deviceId: "dense", from: 0, to: 300_000,
+                                                   limit: Int.max)
+        XCTAssertEqual(capped.count, 200_000)
+        XCTAssertEqual(capped.last?.ts, 199_999)
+        XCTAssertEqual(complete.count, 200_001)
+        XCTAssertEqual(complete.last?.ts, 200_000)
+    }
 }

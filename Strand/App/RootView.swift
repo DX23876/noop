@@ -299,10 +299,9 @@ struct RootView: View {
             .background(StrandPalette.surfaceBase.ignoresSafeArea())
         }
         .task {
-            await repo.refresh()
             // Backup & Sync: on-launch catch-up. Gated on the auto toggle being ON (default OFF). A
             // whole-DB ZIP can be 100MB+, so it must never block startup: fire it in a DETACHED,
-            // utility-priority task AFTER the launch-critical refresh, fully off the main actor (the
+            // utility-priority task off the main actor (the AppModel startup coordinator owns refresh),
             // `FolderBackup` enum is nonisolated; only the picker hops to the main actor, and it isn't
             // reached here). The screen also offers an explicit "Back up now". (Must-fix #4.)
             let backupRepo = repo

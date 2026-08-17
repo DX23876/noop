@@ -116,6 +116,22 @@ public enum RecoveryScorer {
     /// candidacy; if it were allowed to win, resting HR would read a fabricated sub-physiological value.
     public static let restingHRMinPlausibleBpm: Double = 25.0
 
+    private static func binnedHR(_ hr: [HRSample], start: Int, end: Int)
+        -> (sum: Int, count: Int, bins: [(sum: Int, count: Int)]) {
+        let n = max(0, (max(0, end - start) + restingHRWindowS - 1) / restingHRWindowS)
+        var bins = Array(repeating: (sum: 0, count: 0), count: n)
+        var sum = 0, count = 0
+        for sample in hr where sample.ts >= start && sample.ts <= end {
+            sum += sample.bpm; count += 1
+            let index = (sample.ts - start) / restingHRWindowS
+            if index >= 0, index < n {
+                bins[index].sum += sample.bpm
+                bins[index].count += 1
+            }
+        }
+        return (sum, count, bins)
+    }
+
     // MARK: - Resting HR
 
     /// Lowest sustained HR during the in-bed window (bpm, rounded), or nil.
@@ -132,24 +148,21 @@ public enum RecoveryScorer {
     /// qualifies (a wholly sparse/degenerate window), fall back to the lowest of ALL bin means,
     /// else the all-sample mean, preserving the never-nil-on-data behaviour.
     public static func restingHR(_ hr: [HRSample], start: Int, end: Int) -> Int? {
-        let seg = hr.filter { $0.ts >= start && $0.ts <= end }
-        guard !seg.isEmpty else { return nil }
+        let binned = binnedHR(hr, start: start, end: end)
+        guard binned.count > 0 else { return nil }
 
         var means: [Double] = []          // every bin mean (legacy floor, the fallback)
         var qualified: [Double] = []       // bins eligible to WIN the floor (#686)
-        var t = start
-        while t < end {
-            let win = seg.filter { $0.ts >= t && $0.ts < t + restingHRWindowS }
-            if !win.isEmpty {
-                let mean = Double(win.reduce(0) { $0 + $1.bpm }) / Double(win.count)
+        for bin in binned.bins {
+            if bin.count > 0 {
+                let mean = Double(bin.sum) / Double(bin.count)
                 means.append(mean)
                 // A bin wins the floor only if it is well-populated AND physiologically plausible —
                 // a thin (single-artifact) or sub-physiological (dropout) bin can't be the minimum.
-                if win.count >= restingHRMinBinSamples && mean >= restingHRMinPlausibleBpm {
+                if bin.count >= restingHRMinBinSamples && mean >= restingHRMinPlausibleBpm {
                     qualified.append(mean)
                 }
             }
-            t += restingHRWindowS
         }
         let floor: Double
         if let m = qualified.min() {
@@ -158,7 +171,7 @@ public enum RecoveryScorer {
             // No bin cleared the artifact bar (sparse window): fall back to the legacy floor.
             floor = m
         } else {
-            floor = Double(seg.reduce(0) { $0 + $1.bpm }) / Double(seg.count)
+            floor = Double(binned.sum) / Double(binned.count)
         }
         return Int(floor.rounded())
     }
@@ -184,21 +197,19 @@ public enum RecoveryScorer {
     /// little of the window to fit a trend) or there are no samples at all — it never
     /// fabricates a slope from a sliver of the night.
     public static func recoveryIndexSlope(_ hr: [HRSample], start: Int, end: Int) -> Double? {
-        let seg = hr.filter { $0.ts >= start && $0.ts <= end }
-        guard !seg.isEmpty else { return nil }
+        let binned = binnedHR(hr, start: start, end: end)
+        guard binned.count > 0 else { return nil }
 
         // Same non-overlapping 5-minute binning as restingHR: both read the identical
         // underlying series, one as a floor, one as a trend across it.
         var points: [(tHours: Double, meanBpm: Double)] = []
-        var t = start
-        while t < end {
-            let win = seg.filter { $0.ts >= t && $0.ts < t + restingHRWindowS }
-            if !win.isEmpty {
-                let mean = Double(win.reduce(0) { $0 + $1.bpm }) / Double(win.count)
+        for (index, bin) in binned.bins.enumerated() {
+            if bin.count > 0 {
+                let mean = Double(bin.sum) / Double(bin.count)
+                let t = start + index * restingHRWindowS
                 let midpointS = Double(t - start) + Double(restingHRWindowS) / 2.0
                 points.append((tHours: midpointS / 3600.0, meanBpm: mean))
             }
-            t += restingHRWindowS
         }
         guard points.count >= recoveryIndexMinBins else { return nil }
 

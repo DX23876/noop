@@ -541,7 +541,21 @@ public enum SleepStager {
     // MARK: - HR refinement
 
     static func rowsBetween<T>(_ rows: [T], start: Int, end: Int, ts: (T) -> Int) -> [T] {
-        rows.filter { ts($0) >= start && ts($0) <= end }
+        guard !rows.isEmpty, end >= start else { return [] }
+        // Raw store reads are timestamp-ascending. Locate the session slice with two binary searches
+        // instead of filtering the complete 100k–200k stream once per session/feature pass.
+        var low = 0, high = rows.count
+        while low < high {
+            let mid = (low + high) / 2
+            if ts(rows[mid]) < start { low = mid + 1 } else { high = mid }
+        }
+        let first = low
+        high = rows.count
+        while low < high {
+            let mid = (low + high) / 2
+            if ts(rows[mid]) <= end { low = mid + 1 } else { high = mid }
+        }
+        return Array(rows[first..<low])
     }
 
     /// Day HR baseline = median bpm over all HR samples; nil if none.
@@ -871,7 +885,7 @@ public enum SleepStager {
         let streamSpan = sortedAll[sortedAll.count - 1].ts - sortedAll[0].ts
         if streamSpan >= hrDenseSpacingS && hr.count < streamSpan / hrDenseSpacingS { return [] }
         let gapS = offWristHRGapMin * 60
-        let seg = hr.filter { $0.ts >= p.start && $0.ts <= p.end }.sorted { $0.ts < $1.ts }
+        let seg = rowsBetween(hr, start: p.start, end: p.end) { $0.ts }
         // No HR anywhere inside a run long enough to matter → the whole period is one gap.
         if seg.isEmpty { return (p.end - p.start) >= gapS ? [(start: p.start, end: p.end)] : [] }
         var spans: [(start: Int, end: Int)] = []
@@ -1695,7 +1709,7 @@ public enum SleepStager {
         // (cleanRRGapAware) cannot see them - it takes only [Double] and has no clock. Filtering the rows
         // by the same predicate `HRVAnalyzer.rangeFilter` applies keeps the surviving VALUES identical
         // (it is an order-preserving range test), which RespRateGapAwareTests pins.
-        let inBedRows = rr.filter { $0.ts >= start && $0.ts <= end }
+        let inBedRows = rowsBetween(rr, start: start, end: end) { $0.ts }
             .sortedByTsStable()
             .filter { Double($0.rrMs) >= HRVAnalyzer.rrMinMs && Double($0.rrMs) <= HRVAnalyzer.rrMaxMs }
 
@@ -2432,18 +2446,28 @@ public enum SleepStager {
 
     /// Lowest 5-min rolling-mean HR during the session (bpm), or nil.
     static func sessionRestingHR(start: Int, end: Int, hr: [HRSample]) -> Int? {
-        let seg = hr.filter { $0.ts >= start && $0.ts <= end }
-        guard !seg.isEmpty else { return nil }
         let windowS = 5 * 60
-        var means: [Double] = []
-        var t = start
-        while t < end {
-            let win = seg.filter { $0.ts >= t && $0.ts < t + windowS }
-            if !win.isEmpty { means.append(Double(win.reduce(0) { $0 + $1.bpm }) / Double(win.count)) }
-            t += windowS
+        let bucketCount = max(0, (max(0, end - start) + windowS - 1) / windowS)
+        var sums = Array(repeating: 0, count: bucketCount)
+        var counts = Array(repeating: 0, count: bucketCount)
+        var allSum = 0, allCount = 0
+        for sample in hr where sample.ts >= start && sample.ts <= end {
+            allSum += sample.bpm; allCount += 1
+            let bucket = (sample.ts - start) / windowS
+            // Preserve the old half-open final bucket: a sample exactly at an aligned `end` belongs to
+            // the inclusive session fallback but not to a `[t,t+window)` mean.
+            if bucket >= 0, bucket < bucketCount {
+                sums[bucket] += sample.bpm; counts[bucket] += 1
+            }
         }
-        if let m = means.min() { return Int(m.rounded()) }
-        let all = Double(seg.reduce(0) { $0 + $1.bpm }) / Double(seg.count)
+        guard allCount > 0 else { return nil }
+        var minimum: Double?
+        for i in 0..<bucketCount where counts[i] > 0 {
+            let mean = Double(sums[i]) / Double(counts[i])
+            minimum = minimum.map { min($0, mean) } ?? mean
+        }
+        if let minimum { return Int(minimum.rounded()) }
+        let all = Double(allSum) / Double(allCount)
         return Int(all.rounded())
     }
 
@@ -2471,13 +2495,23 @@ public enum SleepStager {
         // has to be chronological). The value path passes the loop's pre-sorted `rrS`; the trace caller sorts
         // its own copy. Not sorted here on purpose — re-sorting the value path could reorder same-second RR
         // under Swift's unstable sort and shift the shipped avgHrv. Same contract the original sessionAvgHRV had.
-        let seg = rr.filter { $0.ts >= start && $0.ts <= end }
-        guard !seg.isEmpty else { return [] }
         let windowS = 5 * 60
+        let bucketCount = max(0, (max(0, end - start) + windowS - 1) / windowS)
+        guard bucketCount > 0 else { return [] }
+        var buckets = Array(repeating: [Double](), count: bucketCount)
+        var hasSessionRow = false
+        for row in rr where row.ts >= start && row.ts <= end {
+            hasSessionRow = true
+            let bucket = (row.ts - start) / windowS
+            if bucket >= 0, bucket < bucketCount { buckets[bucket].append(Double(row.rrMs)) }
+        }
+        guard hasSessionRow else { return [] }
         var out: [HrvWindow] = []
-        var t = start
-        while t < end {
-            let bucket = seg.filter { $0.ts >= t && $0.ts < t + windowS }.map { Double($0.rrMs) }
+        out.reserveCapacity(bucketCount)
+        var stageIndex = 0
+        for index in 0..<bucketCount {
+            let t = start + index * windowS
+            let bucket = buckets[index]
             // Full clean (range + Malik ectopic rejection), not just range — matches the
             // analyze() pipeline. The 0x2A37 RR on a WHOOP 5/MG is PPG-derived and noisier
             // than a 4.0's; rMSSD is built from SUCCESSIVE differences, so an un-rejected
@@ -2487,9 +2521,11 @@ public enum SleepStager {
             let cleaned = HRVAnalyzer.cleanRRGapAware(bucket)
             let rmssd: Double? = (cleaned.nn.count >= 2) ? HRVAnalyzer.rmssdGapAware(cleaned.nn, cleaned.contiguous) : nil
             let center = t + windowS / 2
-            let stage = stages.first { center >= $0.start && center < $0.end }?.stage ?? "?"
+            while stageIndex < stages.count, center >= stages[stageIndex].end { stageIndex += 1 }
+            let stage = stageIndex < stages.count
+                && center >= stages[stageIndex].start && center < stages[stageIndex].end
+                ? stages[stageIndex].stage : "?"
             out.append(HrvWindow(startTs: t, stage: stage, cleanBeats: cleaned.nn.count, rmssd: rmssd))
-            t += windowS
         }
         return out
     }

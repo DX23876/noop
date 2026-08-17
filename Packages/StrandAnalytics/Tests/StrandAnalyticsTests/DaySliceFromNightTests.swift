@@ -49,13 +49,16 @@ final class DaySliceFromNightTests: XCTestCase {
     func testTruncatedNightReadDeclines() {
         // A night read that returned exactly `limit` rows may be truncated inside the day span (ORDER BY
         // ts ASC LIMIT drops the LATE rows — exactly where the day sits). Locked at an injected small
-        // limit AND at the real 200_000 default the IntelligenceEngine call sites rely on.
+        // limit AND at the legacy 200_000 diagnostic cap. Production semantic reads are unbounded;
+        // callers that deliberately page/cap still pass their actual limit so a full page is never
+        // mistaken for a complete stream.
         let small = (0..<10).map { S(ts: $0) }
         XCTAssertNil(AnalyticsEngine.daySliceFromNight(
             small, nightLo: 0, nightHi: 10, dayLo: 0, dayHi: 5, limit: 10, ts: { $0.ts }))
         let atDefaultLimit = (0..<200_000).map { S(ts: $0) }
         XCTAssertNil(AnalyticsEngine.daySliceFromNight(
-            atDefaultLimit, nightLo: 0, nightHi: 200_000, dayLo: 0, dayHi: 100, ts: { $0.ts }))
+            atDefaultLimit, nightLo: 0, nightHi: 200_000, dayLo: 0, dayHi: 100,
+            limit: 200_000, ts: { $0.ts }))
     }
 
     func testBoundsAreInclusiveOnBothEnds() {

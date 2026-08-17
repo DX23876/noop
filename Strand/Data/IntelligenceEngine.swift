@@ -27,28 +27,44 @@ final class IntelligenceEngine: ObservableObject {
     @Published var computing = false
     @Published var note: String?
 
-    /// #899-A re-arm: a `force: true` recompute (a post-backfill rescore AppModel kicks off after a sync)
-    /// that arrives while an idle-tick pass already holds the `computing` lock would otherwise be SILENTLY
-    /// dropped, so a freshly-synced night intermittently never gets re-scored until the next cycle and Today
-    /// falls back to the last scored day. Instead the dropped force sets this flag; the in-flight pass's
-    /// `defer` re-invokes `analyzeRecent(force: true)` ONCE when it clears. A single re-arm (the flag is
-    /// cleared BEFORE the re-invoke) bounds it to one extra pass , no recompute storm.
-    private var pendingForcedRescore = false
-    /// The WIDEST window any dropped forced call asked for, so the re-pass covers what was actually
-    /// requested rather than whatever the pass that happened to be running was doing.
-    ///
-    /// The re-arm used to re-invoke with the RUNNING pass's `maxDays`. That is right in one direction —
-    /// a heal firing during a wide one-shot pass must re-score the same width — and wrong in the other:
-    /// a 4000-day Effort rescore or timestamp heal arriving while an ordinary 21-day tick held the lock
-    /// came back as a 21-day pass, so the wide pass it stood for never ran. It is not lost (the one-shot
-    /// flags only latch when the pass actually ran, so it retries on a later launch), but it defers the
-    /// deep rescore to a future launch and is part of why "something is computing again" recurs.
-    ///
-    /// Taking the MAX satisfies both directions at once. Android sidesteps this differently — it
-    /// SERIALISES on a Mutex rather than coalescing, precisely because "callers pass heterogeneous
-    /// windows — the Effort rescore uses maxDays=4000, not 21, and can overlap" — which is the cleaner
-    /// shape; this keeps the existing single-re-arm bound while removing the width bug.
-    private var pendingForcedRescoreMaxDays = 0
+    enum AnalysisReason: Int, Sendable {
+        case rawMutation = 0
+        case ownerChange = 1
+        case timestampHeal = 2
+        case effortMigration = 3
+        case semanticChange = 4
+    }
+
+    private struct PendingAnalysis {
+        var maxDays: Int
+        var force: Bool
+        var skipIfUnchanged: Bool
+        var allowDayReuse: Bool
+        var reason: AnalysisReason
+        var affectedLower: Int?
+        var affectedUpper: Int?
+        var waiters: [CheckedContinuation<Void, Never>]
+
+        mutating func merge(maxDays: Int, force: Bool, skipIfUnchanged: Bool,
+                            allowDayReuse: Bool, reason: AnalysisReason,
+                            affectedUTCInterval: Range<Int>?,
+                            waiter: CheckedContinuation<Void, Never>? = nil) {
+            self.maxDays = max(self.maxDays, maxDays)
+            self.force = self.force || force
+            // A coalesced pass may only use an optimisation when every request permits it.
+            self.skipIfUnchanged = self.skipIfUnchanged && skipIfUnchanged
+            self.allowDayReuse = self.allowDayReuse && allowDayReuse
+            if reason.rawValue > self.reason.rawValue { self.reason = reason }
+            if let range = affectedUTCInterval {
+                affectedLower = min(affectedLower ?? range.lowerBound, range.lowerBound)
+                affectedUpper = max(affectedUpper ?? range.upperBound, range.upperBound)
+            }
+            if let waiter { waiters.append(waiter) }
+        }
+    }
+
+    private var pendingAnalysis: PendingAnalysis?
+    private var analysisRunnerActive = false
     /// #899 heal bound: true while the last heal already re-armed a rescore, so a heal firing again on
     /// the very next pass cannot re-arm a second time (the Android twin is hard-bounded to exactly one
     /// re-pass; this mirrors it). Reset by any pass whose heal finds nothing, restoring the budget.
@@ -121,11 +137,9 @@ final class IntelligenceEngine: ObservableObject {
     /// type the same way, so it crosses the boundary identically.
     private struct DayScan {
         let result: AnalyticsEngine.DayResult
-        /// What this day was scanned FROM — `hrFingerprint`'s (count, maxTs) over the day's own read
-        /// window, taken before the streams were read. Recorded after the scores persist so the NEXT pass
-        /// can recognise the day as unchanged and skip re-deriving it (#launch-rescore). nil when the probe
-        /// failed, which simply means this day records nothing and is scanned again next time.
-        let inputProbe: (count: Int, maxTs: Int)?
+        /// Revisions of every scoring-relevant input intersecting this day's exact read window. Recorded
+        /// only after scores persist. nil means the probe failed and the day is deliberately not reusable.
+        let inputProbe: AnalysisInputRevision?
         let rhrLine: String?
         /// #1331 respiratory diagnostic line (see `respRateLogLine`); replayed with `rhrLine`.
         let respLine: String?
@@ -382,31 +396,81 @@ final class IntelligenceEngine: ObservableObject {
     /// UserDefaults flag guarding the one-shot #313 full-history Effort rescore (below). Set once the
     /// pass completes so it never re-runs.
     static let effortRescoreFlagKey = "intelligence.effortRescore.v313.done"
+    static let effortRescoreCursorKey = "intelligence.effortRescore.v313.cursor"
 
-    /// One-shot, on-upgrade FULL-history Effort rescore (#313 PART B). The Effort hero gauge + numbers
+    /// Resumable, on-upgrade Effort-only rescore (#313 PART B). The Effort hero gauge + numbers
     /// moved from the old 0–21 axis to NOOP's own 0–100 axis. On-device computed rows since v2.6.1
     /// already store 0–100, but rows the engine computed on an OLDER build (capped at `maxDays` per run,
     /// so deep history was never revisited) may still hold 0–21 strain.
     ///
-    /// The SAFE fix is to recompute strain FROM SOURCE for every day with raw HR , those regenerate at
+    /// The SAFE fix is to recompute strain FROM SOURCE for every day with raw HR — those regenerate at
     /// 0–100 with NO double-rescale risk , rather than a blind `strain*21→100` multiply that would
     /// double-rescale the large population already on 0–100 (→ ~0–476). We do that by running the normal
-    /// `analyzeRecent` once with the `maxDays` cap lifted to the full history, then persist a flag so it
-    /// runs exactly once. IMPORTED rows are never rewritten here (the engine only ever writes under the
-    /// "-noop" computed source) , those are handled by re-import. A day already on 0–100 is recomputed
-    /// from the same raw HR and lands on 0–100 again: UNCHANGED axis (verified by test).
-    func runEffortRescoreIfNeeded(historyDays: Int = 4000) async {
-        guard !UserDefaults.standard.bool(forKey: Self.effortRescoreFlagKey) else {
-            NSLog("[FREEZE-DIAG] runEffortRescoreIfNeeded: SKIPPED (flag already set)")
-            return
+    /// the complete sleep/recovery pipeline. Each call handles a small newest-first batch, records the
+    /// oldest completed day, and can resume after termination. IMPORTED rows are never rewritten.
+    /// Returns true once no computed rows remain.
+    @discardableResult
+    func runEffortRescoreIfNeeded(batchSize: Int = 7) async -> Bool {
+        let defaults = UserDefaults.standard
+        if defaults.bool(forKey: Self.effortRescoreFlagKey) { return true }
+        guard let store = await repo.storeHandle() else { return false }
+
+        let computedId = deviceId + "-noop"
+        let cursor = defaults.string(forKey: Self.effortRescoreCursorKey) ?? "9999-12-31"
+        let batch = (try? await store.dailyMetrics(deviceId: computedId,
+                                                    before: cursor,
+                                                    limit: max(1, batchSize))) ?? []
+        guard !batch.isEmpty else {
+            defaults.set(true, forKey: Self.effortRescoreFlagKey)
+            defaults.removeObject(forKey: Self.effortRescoreCursorKey)
+            return true
         }
-        NSLog("[FREEZE-DIAG] runEffortRescoreIfNeeded: RUNNING FULL-HISTORY rescore (maxDays=\(historyDays)) !!!")
-        await analyzeRecent(maxDays: historyDays)
-        // Only mark done if the pass actually completed (wasn't skipped because another tick held the
-        // `computing` lock). `computing` is false here once analyzeRecent's `defer` has run; a skipped
-        // call returns with `note` unset by it. Use the lock state: if a concurrent run was in progress
-        // the flag stays unset so the next launch retries , cheap, and correctness over a one-time cost.
-        if !computing { UserDefaults.standard.set(true, forKey: Self.effortRescoreFlagKey) }
+
+        let offset = TimeZone.current.secondsFromGMT()
+        let age = profile.age
+        let sex = profile.sex
+        let maxHR = profile.hrMaxOverride > 0
+            ? Double(profile.hrMaxOverride)
+            : (age > 0 ? StrainScorer.tanakaHRmax(age: Double(age)) : nil)
+        let fallbackId = deviceId
+        let registry = DeviceRegistryStore(dbQueue: store.registryWriter)
+        let devices = (try? registry.all()) ?? []
+        let activeId = (try? registry.activeDeviceId()) ?? fallbackId
+
+        let updates: [(day: String, strain: Double?)] = await Task.detached(priority: .utility) {
+            var result: [(day: String, strain: Double?)] = []
+            result.reserveCapacity(batch.count)
+            for row in batch {
+                await Task.yield()
+                guard let dayStart = Self.midnightForDayKey(row.day, offsetSec: offset) else {
+                    result.append((row.day, nil)); continue
+                }
+                let owner = await Self.resolveDayOwner(
+                    day: row.day, from: dayStart - 30 * 3_600, to: dayStart + 86_400,
+                    store: store, devices: devices, activeId: activeId, registry: registry,
+                    fallbackDeviceId: fallbackId)
+                let hr = (try? await store.hrSamples(deviceId: owner, from: dayStart,
+                                                     to: dayStart + 86_400 - 1,
+                                                     limit: Int.max)) ?? []
+                let resting = row.restingHr.map(Double.init) ?? StrainScorer.defaultRestingHR
+                let strain = StrainScorer.strain(hr, maxHR: maxHR, restingHR: resting, sex: sex)
+                result.append((row.day, strain))
+            }
+            return result
+        }.value
+
+        do {
+            _ = try await store.updateDailyStrains(updates, deviceId: computedId)
+            defaults.set(batch.last!.day, forKey: Self.effortRescoreCursorKey)
+            if batch.count < max(1, batchSize) {
+                defaults.set(true, forKey: Self.effortRescoreFlagKey)
+                defaults.removeObject(forKey: Self.effortRescoreCursorKey)
+                return true
+            }
+            return false
+        } catch {
+            return false
+        }
     }
 
     /// UserDefaults flag guarding the one-shot #547 implausible-timestamp DB heal (below). Set once the
@@ -436,7 +500,7 @@ final class IntelligenceEngine: ObservableObject {
     /// real raw data so the genuine days recompute cleanly. Idempotent (a clean DB deletes nothing) and
     /// re-running is harmless, but a persisted flag skips it on every later launch. Runs BEFORE the normal
     /// `analyzeRecent` loop so the rescore it triggers operates on an already-cleaned DB.
-    func runTimestampHealIfNeeded(historyDays: Int = 4000) async {
+    func runTimestampHealIfNeeded(historyDays: Int = 21) async {
         // Run when the one-shot heal hasn't run yet OR a sync just flagged a re-heal (#547 re-pollution): a
         // wandering-clock strap re-sends bad-dated records across syncs, so a single on-upgrade pass can't
         // be the only line of defence. The pending flag is cleared below once the re-heal completes.
@@ -452,14 +516,12 @@ final class IntelligenceEngine: ObservableObject {
         }
         NSLog("[FREEZE-DIAG] runTimestampHealIfNeeded: didChange=\(result.didChange) rawDeleted=\(result.rawRowsDeleted) computedDeleted=\(result.computedRowsDeleted) (pending=\(pending))")
         if result.didChange {
-            NSLog("[FREEZE-DIAG] runTimestampHealIfNeeded: RUNNING FULL-HISTORY rescore (maxDays=\(historyDays)) !!!")
+            NSLog("[FREEZE-DIAG] runTimestampHealIfNeeded: scheduling bounded repair rescore (maxDays=\(historyDays))")
             diagnosticSink?("Heal(#547): purged \(result.rawRowsDeleted) raw + \(result.computedRowsDeleted) computed row(s) with implausible (bad-clock) timestamps; rescoring the real days.", nil)
             // Recompute the affected real days from the surviving raw rows so the polluted (e.g. 721)
             // blocks regenerate cleanly. The dashboard refresh happens inside analyzeRecent on persist.
-            await analyzeRecent(maxDays: historyDays)
-            // Only mark done once the rescore actually ran (wasn't skipped by a concurrent tick holding
-            // the `computing` lock), so a skipped pass retries next launch , correctness over a one-time cost.
-            guard !computing else { return }
+            await analyzeRecent(maxDays: historyDays, reason: .timestampHeal,
+                                affectedUTCInterval: result.affectedUTCInterval)
         }
         UserDefaults.standard.set(true, forKey: Self.timestampHealFlagKey)
         // Clear the re-pollution request now that this re-heal has run , a future bad-clock sync re-arms it.
@@ -484,7 +546,61 @@ final class IntelligenceEngine: ObservableObject {
     /// baseline recalibrate, an HRV/stager settings flip, the timestamp heal, the one-shot Effort
     /// rescore, and the manual "recompute" button (a user asking for a recompute should get one).
     func analyzeRecent(maxDays: Int = 21, force: Bool = true, skipIfUnchanged: Bool = false,
-                       allowDayReuse: Bool = false) async {
+                       allowDayReuse: Bool = false,
+                       reason: AnalysisReason = .semanticChange,
+                       affectedUTCInterval: Range<Int>? = nil) async {
+        await withCheckedContinuation { waiter in
+            if pendingAnalysis != nil {
+                pendingAnalysis!.merge(maxDays: maxDays, force: force,
+                                       skipIfUnchanged: skipIfUnchanged,
+                                       allowDayReuse: allowDayReuse, reason: reason,
+                                       affectedUTCInterval: affectedUTCInterval, waiter: waiter)
+            } else {
+                pendingAnalysis = PendingAnalysis(
+                    maxDays: maxDays, force: force,
+                    skipIfUnchanged: skipIfUnchanged, allowDayReuse: allowDayReuse,
+                    reason: reason,
+                    affectedLower: affectedUTCInterval?.lowerBound,
+                    affectedUpper: affectedUTCInterval?.upperBound,
+                    waiters: [waiter])
+            }
+            guard !analysisRunnerActive else { return }
+            analysisRunnerActive = true
+            Task { await self.runAnalysisQueue() }
+        }
+    }
+
+    private func runAnalysisQueue() async {
+        while let request = pendingAnalysis {
+            pendingAnalysis = nil
+            computing = true
+            await performAnalyzeRecent(maxDays: request.maxDays, force: request.force,
+                                       skipIfUnchanged: request.skipIfUnchanged,
+                                       allowDayReuse: request.allowDayReuse,
+                                       reason: request.reason)
+            computing = false
+            request.waiters.forEach { $0.resume() }
+        }
+        analysisRunnerActive = false
+    }
+
+    /// Queue an engine-internal corrective pass without detaching an untracked Task. The active queue
+    /// consumes it after the current generation and retains the same conservative merge rules.
+    private func enqueueFollowup(maxDays: Int, reason: AnalysisReason) {
+        if pendingAnalysis != nil {
+            pendingAnalysis!.merge(maxDays: maxDays, force: true,
+                                   skipIfUnchanged: false, allowDayReuse: false,
+                                   reason: reason, affectedUTCInterval: nil)
+        } else {
+            pendingAnalysis = PendingAnalysis(maxDays: maxDays, force: true,
+                                              skipIfUnchanged: false, allowDayReuse: false,
+                                              reason: reason, affectedLower: nil, affectedUpper: nil,
+                                              waiters: [])
+        }
+    }
+
+    private func performAnalyzeRecent(maxDays: Int, force: Bool, skipIfUnchanged: Bool,
+                                      allowDayReuse: Bool, reason: AnalysisReason) async {
         // TEMP DIAGNOSTIC (#freeze-investigation) — remove once the Goal & Journey freeze is understood.
         // Logs WHO calls this, with WHAT window, and how long the pass takes, so a UI freeze can be tied
         // to a concrete caller + workload instead of guessed at from a paused stack.
@@ -498,14 +614,6 @@ final class IntelligenceEngine: ObservableObject {
         // in-flight pass already covers the same window). But a FORCED call is a real update path (a
         // post-backfill rescore after a sync) , dropping it would leave a freshly-synced night unscored
         // until the next cycle. Re-arm instead: flag it so the running pass's `defer` re-invokes once.
-        guard !computing else {
-            if force {
-                pendingForcedRescore = true
-                pendingForcedRescoreMaxDays = max(pendingForcedRescoreMaxDays, maxDays)
-            }
-            NSLog("[FREEZE-DIAG] analyzeRecent SKIPPED (already computing); re-armed=\(force)")
-            return
-        }
         guard let store = await repo.storeHandle() else { note = String(localized: "No on-device store yet."); return }
         guard let hrvCfg = Baselines.metricCfg["hrv"],
               let rhrCfg = Baselines.metricCfg["resting_hr"],
@@ -576,24 +684,6 @@ final class IntelligenceEngine: ObservableObject {
         // #1005: time the whole pass — the trigger line above records WHY; this records how many nights
         // and how long (the CPU cost per run), so a re-score STORM is visible in the strap log.
         let reScoreStart = Date()
-        computing = true
-        // #899-A re-arm: clear the lock, then if a forced rescore was dropped while this pass held it,
-        // run it ONCE. The flag is cleared BEFORE the re-invoke (a single re-arm), so a forced call landing
-        // DURING the re-invoke re-arms it again but a quiet one does not , this can never recurse unbounded.
-        // The re-invoke is launched on a fresh `Task` because `defer` is synchronous; by the time it runs
-        // `computing` is already false, so its own `guard !computing` passes and it rescores the new data.
-        defer {
-            computing = false
-            if pendingForcedRescore {
-                pendingForcedRescore = false
-                // The WIDER of this pass's window and the widest one any dropped call asked for. Covers
-                // both directions: a heal firing during a wide one-shot pass still re-scores that width,
-                // and a 4000-day pass dropped by an ordinary 21-day tick no longer returns as 21 days.
-                let reWidth = max(maxDays, pendingForcedRescoreMaxDays)
-                pendingForcedRescoreMaxDays = 0
-                Task { await self.analyzeRecent(maxDays: reWidth, force: true) }
-            }
-        }
 
         let up = UserProfile(weightKg: profile.weightKg, heightCm: profile.heightCm,
                              age: Double(profile.age), sex: profile.sex,
@@ -724,6 +814,22 @@ final class IntelligenceEngine: ObservableObject {
         // so the Blood Oxygen tile can surface it as a "strap estimate (unverified)" fallback. Default OFF
         // per the derived-biosignal rule (CLAUDE.md) — the @82 candidate has split cross-device evidence.
         let spo2CandidateDisplayOn = PuffinExperiment.spo2CandidateDisplayEnabled
+        // Deliberate semantic invalidation seam. Bump only when unchanged inputs intentionally produce a
+        // different score. Profile/toggle values are stored separately in a stable textual signature.
+        let scoringVersion = 1
+        let semanticSignature = [
+            "weight=\(profile.weightKg.bitPattern)",
+            "height=\(profile.heightCm.bitPattern)",
+            "age=\(profile.age)",
+            "sex=\(String(describing: profile.sex))",
+            "hrmax=\(profile.hrMaxOverride)",
+            "stepTicks=\(profile.stepTicksPerStep.bitPattern)",
+            "tz=\(tzOffset)",
+            "deepHrv=\(deepHrvWindow ? 1 : 0)",
+            "spo2Candidate=\(spo2CandidateDisplayOn ? 1 : 0)",
+            "hrvEpoch=\(Baselines.hrvBaselineEpoch())",
+            "recoveryEpoch=\(Baselines.recoveryBaselineEpoch())",
+        ].joined(separator: "|")
         // ── Per-day skip (#launch-rescore) ───────────────────────────────────────────────────────────
         // Re-deriving a day costs a ~54 h read (~950 k rows on a fully-worn library) plus sleep staging,
         // and the pass does it for EVERY day in the window on EVERY run. On a real install that is almost
@@ -815,7 +921,7 @@ final class IntelligenceEngine: ObservableObject {
                 let diagOwnerMs = Date().timeIntervalSince(diagIterStart) * 1000
 
                 // ── The skip. Everything below this point is the expensive part of the pass ──────────
-                // Two cheap indexed aggregates over the day's OWN read window (`hrFingerprint`) decide
+                // One indexed MAX over at most three UTC-day revision rows decides
                 // whether the ~950 k-row read + staging that follows can be replaced by the row this day
                 // already has. Reuse requires ALL of:
                 //   • a stored fingerprint whose inputs match (same owner, same HR count, same newest ts),
@@ -827,12 +933,25 @@ final class IntelligenceEngine: ObservableObject {
                 // scanned has to record what it was scanned FROM, or it could never be skipped later. Two
                 // indexed aggregates over an index this read path already walks — the cheapest thing in
                 // this loop by orders of magnitude.
-                let probe = try? await store.hrFingerprint(deviceId: owner, from: from, to: to)
+                let ownerProbe = try? await store.analysisInputRevision(deviceId: owner, from: from, to: to)
+                let computedProbe = try? await store.analysisInputRevision(deviceId: computedId,
+                                                                            from: from, to: to)
+                let probe: AnalysisInputRevision? = ownerProbe.map { ownerRevision in
+                    AnalysisInputRevision(
+                        inputRevision: max(ownerRevision.inputRevision,
+                                           computedProbe?.inputRevision ?? 0),
+                        deviceRevision: max(ownerRevision.deviceRevision,
+                                            computedProbe?.deviceRevision ?? 0))
+                }
                 if reuseAllowed, let probe, let stored = storedFingerprints[day],
                    persistedRowsByDay[day] != nil,
                    stored.inputsMatch(DayScanFingerprint(day: day, ownerId: owner,
-                                                         hrCount: probe.count, hrMaxTs: probe.maxTs,
-                                                         nightlySkinC: nil, traits: traitSignature)) {
+                                                         hrCount: 0, hrMaxTs: 0,
+                                                         nightlySkinC: nil, traits: traitSignature,
+                                                         inputRevision: probe.inputRevision,
+                                                         deviceRevision: probe.deviceRevision,
+                                                         scoringVersion: scoringVersion,
+                                                         semanticSignature: semanticSignature)) {
                     reusedDays.append(day)
                     continue
                 }
@@ -855,7 +974,7 @@ final class IntelligenceEngine: ObservableObject {
                     return ms
                 }
 
-                let hr = (try? await store.hrSamples(deviceId: owner, from: from, to: to, limit: 200_000)) ?? []
+                let hr = (try? await store.hrSamples(deviceId: owner, from: from, to: to, limit: Int.max)) ?? []
                 let diagHrMs = diagLap()
                 guard hr.count >= 200 else {
                     // Need real raw data, not a stray sample. The skipped day gets no DayScan, so its
@@ -864,15 +983,15 @@ final class IntelligenceEngine: ObservableObject {
                     skippedDayLines.append("sleep day=\(day) SKIPPED hrSamples=\(hr.count) (need ≥200)")
                     continue
                 }
-                let rr = (try? await store.rrIntervals(deviceId: owner, from: from, to: to, limit: 200_000)) ?? []
-                let resp = (try? await store.respSamples(deviceId: owner, from: from, to: to, limit: 200_000)) ?? []
-                let grav = (try? await store.gravitySamples(deviceId: owner, from: from, to: to, limit: 200_000)) ?? []
-                let steps = (try? await store.stepSamples(deviceId: owner, from: from, to: to, limit: 200_000)) ?? []
-                let skin = (try? await store.skinTempSamples(deviceId: owner, from: from, to: to, limit: 200_000)) ?? []
+                let rr = (try? await store.rrIntervals(deviceId: owner, from: from, to: to, limit: Int.max)) ?? []
+                let resp = (try? await store.respSamples(deviceId: owner, from: from, to: to, limit: Int.max)) ?? []
+                let grav = (try? await store.gravitySamples(deviceId: owner, from: from, to: to, limit: Int.max)) ?? []
+                let steps = (try? await store.stepSamples(deviceId: owner, from: from, to: to, limit: Int.max)) ?? []
+                let skin = (try? await store.skinTempSamples(deviceId: owner, from: from, to: to, limit: Int.max)) ?? []
                 _ = diagLap()   // TEMP DIAGNOSTIC: fold the five plain reads above into `diagReadsMs`
                 // #93: WHOOP 4.0 raw SpO2 PPG samples for the night; analyzeDay banks the nightly red/IR ADC
                 // means on the DailyMetric. Empty on a 5/MG (no v24 spo2 channels) → the raw means stay nil.
-                let spo2 = (try? await store.spo2Samples(deviceId: owner, from: from, to: to, limit: 200_000)) ?? []
+                let spo2 = (try? await store.spo2Samples(deviceId: owner, from: from, to: to, limit: Int.max)) ?? []
                 _ = diagLap()   // TEMP DIAGNOSTIC: fold the spo2 read into `diagReadsMs`
                 // #938: the strap family that WROTE this owner's skin-temp rows, so analyzeDay converts the raw
                 // register on the right scale (5/MG banks centidegrees, a WHOOP 4.0 v24 banks a raw ADC). The
@@ -896,7 +1015,7 @@ final class IntelligenceEngine: ObservableObject {
                         let windowSkin = (try? await store.skinTempSamples(deviceId: owner,
                                                                            from: skinAnchorScanFrom,
                                                                            to: skinAnchorScanTo,
-                                                                           limit: 200_000)) ?? []
+                                                                           limit: Int.max)) ?? []
                         if let anchor = Whoop4SkinTemp.deviceAnchorRaw(windowSkin.map { $0.raw }) {
                             skinAnchorByOwner[owner] = anchor
                         }
@@ -931,8 +1050,8 @@ final class IntelligenceEngine: ObservableObject {
                 // hr/steps/grav lists already in memory — derive the day streams by filtering them
                 // (AnalyticsEngine.daySliceFromNight) instead of a second store read (~60 redundant reads
                 // per pass, incl. the big HR ones). TODAY (its day runs past the 18 h night cap) and a
-                // night read that hit the 200_000 limit DECLINE (nil) and read directly, so the shortcut
-                // can only ever skip work, never change data. Byte-identical: same owner, same inclusive
+                // a deliberately finite diagnostic read limit would DECLINE (nil) and read directly, so
+                // the shortcut can only ever skip work, never change data. Byte-identical: same owner, same inclusive
                 // bounds, same ts-ASC order as the direct read. (`??` can't take an `await` right-hand
                 // side, hence the explicit if/else at each site.)
                 let dayHr: [HRSample]
@@ -940,14 +1059,14 @@ final class IntelligenceEngine: ObservableObject {
                                                                  dayLo: dayMid, dayHi: dayEnd, ts: { $0.ts }) {
                     dayHr = slice
                 } else {
-                    dayHr = (try? await store.hrSamples(deviceId: owner, from: dayMid, to: dayEnd, limit: 200_000)) ?? []
+                    dayHr = (try? await store.hrSamples(deviceId: owner, from: dayMid, to: dayEnd, limit: Int.max)) ?? []
                 }
                 let daySteps: [StepSample]
                 if let slice = AnalyticsEngine.daySliceFromNight(steps, nightLo: from, nightHi: to,
                                                                  dayLo: dayMid, dayHi: dayEnd, ts: { $0.ts }) {
                     daySteps = slice
                 } else {
-                    daySteps = (try? await store.stepSamples(deviceId: owner, from: dayMid, to: dayEnd, limit: 200_000)) ?? []
+                    daySteps = (try? await store.stepSamples(deviceId: owner, from: dayMid, to: dayEnd, limit: Int.max)) ?? []
                 }
                 // Full calendar-day gravity for WORKOUT detection. The night window above ends at
                 // dayStart+12h (≈ noon), so an afternoon/evening workout sits outside it and was only
@@ -959,7 +1078,7 @@ final class IntelligenceEngine: ObservableObject {
                                                                  dayLo: dayMid, dayHi: dayEnd, ts: { $0.ts }) {
                     dayGrav = slice
                 } else {
-                    dayGrav = (try? await store.gravitySamples(deviceId: owner, from: dayMid, to: dayEnd, limit: 200_000)) ?? []
+                    dayGrav = (try? await store.gravitySamples(deviceId: owner, from: dayMid, to: dayEnd, limit: Int.max)) ?? []
                 }
 
                 // CONSUME (#531 / #175): the strap's OWN band sleep_state for the night window as timestamped
@@ -1006,18 +1125,18 @@ final class IntelligenceEngine: ObservableObject {
                 let hrvTraceSink: ((String) -> Void)? = hrvTraceActive ? { hrvTrace.append($0) } : nil
                 // TEMP DIAGNOSTIC: per-day cost + input volume, so a slow pass shows WHICH day is heavy
                 // and how many samples it actually had to chew through.
-                let diagDayStart = Date()
                 defer {
                     let f = { (s: Double) in String(format: "%.2f", s) }
                     let total = Date().timeIntervalSince(diagIterStart)
-                    let post = Date().timeIntervalSince(diagDayStart)
-                    // total = the whole iteration; reads = the seven stream reads (hr broken out, it carries
-                    // the correlated NOT EXISTS); analyze = AnalyticsEngine.analyzeDay; post = the old
-                    // `took=`, kept so earlier captures stay comparable. total − reads − analyze is the
-                    // remainder (owner resolve, the skin-anchor / wrist / calendar-day reads, persistence prep).
+                    // `analysisPipeline` is the complete synchronous scorer. `other` is intentionally explicit
+                    // rather than the old misleading `post`: it includes owner resolution, auxiliary reads and
+                    // persistence preparation that are not yet timed independently.
+                    let measured = (diagOwnerMs + diagReadsMs + diagAnalyzeMs) / 1000
+                    let other = max(0, total - measured)
                     NSLog("[FREEZE-DIAG]   day=\(day) owner=\(owner) total=\(f(total))s "
-                        + "ownerProbe=\(f(diagOwnerMs / 1000))s reads=\(f(diagReadsMs / 1000))s "
-                        + "hrRead=\(f(diagHrMs / 1000))s analyze=\(f(diagAnalyzeMs / 1000))s post=\(f(post))s "
+                        + "ownerProbe=\(f(diagOwnerMs / 1000))s rawRead=\(f(diagReadsMs / 1000))s "
+                        + "hrRead=\(f(diagHrMs / 1000))s analysisPipeline=\(f(diagAnalyzeMs / 1000))s "
+                        + "other=\(f(other))s "
                         + "hr=\(hr.count) rr=\(rr.count) grav=\(grav.count) steps=\(steps.count)")
                 }
                 // #804 Fix A: when this day's owner is a device that sends NO usable gravity vector — so the
@@ -1228,7 +1347,7 @@ final class IntelligenceEngine: ObservableObject {
                 var spo2CandidateMean: Int? = nil
                 if spo2CandidateDisplayOn {
                     let auxSamples = (try? await store.v18AuxSamples(
-                        deviceId: owner, from: from, to: to, limit: 200_000)) ?? []
+                        deviceId: owner, from: from, to: to, limit: Int.max)) ?? []
                     if !auxSamples.isEmpty {
                         if let cand = AnalyticsEngine.nightlySpo2CandidateMean(res.sleepSessions, aux: auxSamples) {
                             spo2CandidateMean = cand.mean
@@ -1938,7 +2057,7 @@ final class IntelligenceEngine: ObservableObject {
                                                        devices: regDevices, activeId: regActiveId,
                                                        registry: registry, fallbackDeviceId: stepsFallbackId)
                 let grav = (try? await store.gravitySamples(deviceId: owner, from: dayMid, to: dayEnd,
-                                                            limit: 200_000)) ?? []
+                                                            limit: Int.max)) ?? []
                 let m = StepsEstimateEngine.dayMotionIntensity(grav)
                 if m > 0 { motion[dayKey] = m }
             }
@@ -2101,7 +2220,7 @@ final class IntelligenceEngine: ObservableObject {
             // matching the Android one-re-pass bound; the budget restores once a pass heals nothing.
             if !healRearmedThisCycle {
                 healRearmedThisCycle = true
-                pendingForcedRescore = true
+                enqueueFollowup(maxDays: maxDays, reason: .semanticChange)
             }
         } else {
             healRearmedThisCycle = false
@@ -2166,9 +2285,13 @@ final class IntelligenceEngine: ObservableObject {
             let day = scan.result.daily.day
             guard persistedDays.contains(day), let probe = scan.inputProbe else { return nil }
             return DayScanFingerprint(day: day, ownerId: scan.readOwner,
-                                      hrCount: probe.count, hrMaxTs: probe.maxTs,
+                                      hrCount: 0, hrMaxTs: 0,
                                       nightlySkinC: scan.result.nightlySkinTempC,
-                                      traits: traitSignature)
+                                      traits: traitSignature,
+                                      inputRevision: probe.inputRevision,
+                                      deviceRevision: probe.deviceRevision,
+                                      scoringVersion: scoringVersion,
+                                      semanticSignature: semanticSignature)
         }
         if !scanFingerprints.isEmpty {
             _ = try? await store.upsertDayScanFingerprints(scanFingerprints, deviceId: computedId)

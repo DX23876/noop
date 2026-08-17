@@ -17,9 +17,13 @@ final class DayScanFingerprintTests: XCTestCase {
 
     private func fp(_ day: String, owner: String = "whoop-1", count: Int = 100, maxTs: Int = 5000,
                     skin: Double? = nil,
-                    traits t: DayScanFingerprint.TraitSignature? = nil) -> DayScanFingerprint {
+                    traits t: DayScanFingerprint.TraitSignature? = nil,
+                    inputRevision: Int = 7, deviceRevision: Int = 1,
+                    scoringVersion: Int = 1, semanticSignature: String = "profile-v1") -> DayScanFingerprint {
         DayScanFingerprint(day: day, ownerId: owner, hrCount: count, hrMaxTs: maxTs, nightlySkinC: skin,
-                           traits: t ?? traits())
+                           traits: t ?? traits(), inputRevision: inputRevision,
+                           deviceRevision: deviceRevision, scoringVersion: scoringVersion,
+                           semanticSignature: semanticSignature)
     }
 
     func testRoundTripsAndKeysByDay() async throws {
@@ -34,6 +38,8 @@ final class DayScanFingerprintTests: XCTestCase {
         XCTAssertEqual(got["2026-08-01"]?.hrCount, 10)
         XCTAssertEqual(got["2026-08-01"]?.hrMaxTs, 111)
         XCTAssertEqual(got["2026-08-01"]?.nightlySkinC, 33.5)
+        XCTAssertEqual(got["2026-08-01"]?.inputRevision, 7)
+        XCTAssertEqual(got["2026-08-01"]?.scoringVersion, 1)
         XCTAssertNil(got["2026-08-02"]?.nightlySkinC, "a night with no skin samples stores nil, not 0")
     }
 
@@ -71,14 +77,19 @@ final class DayScanFingerprintTests: XCTestCase {
         XCTAssertTrue(fp("d", count: 10, maxTs: 100).inputsMatch(fp("d", count: 10, maxTs: 100)))
     }
 
-    /// A backfilled OLDER night adds rows without moving maxTs — the case a maxTs-only detector misses.
-    func testMoreRowsAtTheSameMaxTsCountsAsChanged() {
-        XCTAssertFalse(fp("d", count: 10, maxTs: 100).inputsMatch(fp("d", count: 11, maxTs: 100)))
+    /// Any scoring-stream mutation moves the window revision, including a backfilled older sample.
+    func testInputRevisionChangeCountsAsChanged() {
+        XCTAssertFalse(fp("d", inputRevision: 7).inputsMatch(fp("d", inputRevision: 8)))
     }
 
-    /// A fresh append moves maxTs. Counting alone could tie after a delete-plus-insert of equal size.
-    func testANewerSampleCountsAsChanged() {
-        XCTAssertFalse(fp("d", count: 10, maxTs: 100).inputsMatch(fp("d", count: 10, maxTs: 101)))
+    func testDeviceRevisionAndScoringVersionCountAsChanged() {
+        XCTAssertFalse(fp("d", deviceRevision: 1).inputsMatch(fp("d", deviceRevision: 2)))
+        XCTAssertFalse(fp("d", scoringVersion: 1).inputsMatch(fp("d", scoringVersion: 2)))
+    }
+
+    func testSemanticSignatureCountsAsChanged() {
+        XCTAssertFalse(fp("d", semanticSignature: "profile-v1")
+            .inputsMatch(fp("d", semanticSignature: "profile-v2")))
     }
 
     /// I2: exactly one device owns a day. If the resolver picks a different owner, the day is read from
@@ -189,25 +200,28 @@ final class DayScanFingerprintTests: XCTestCase {
         XCTAssertEqual(kept.count, 1, "clearing one namespace leaves another's records alone")
     }
 
-    /// The fingerprint has to be derivable from what the store already offers, cheaply — `hrFingerprint`
-    /// is that query, and until now it had no production caller. This pins the two together so the
-    /// per-day check keeps meaning "this day's raw HR", not something re-derived by hand.
-    func testHrFingerprintSuppliesTheInputNumbers() async throws {
+    /// The revision probe covers non-HR streams and remains bounded to the UTC buckets intersecting the
+    /// analysis window.
+    func testAnalysisRevisionSuppliesTheInputVersion() async throws {
         let store = try await WhoopStore.inMemory()
         try await store.upsertDevice(id: "whoop-1", mac: nil, name: nil)
         _ = try await store.insert(Streams(hr: [HRSample(ts: 100, bpm: 60),
                                                 HRSample(ts: 200, bpm: 61)]), deviceId: "whoop-1")
-        let probe = try await store.hrFingerprint(deviceId: "whoop-1", from: 0, to: 1000)
+        let probe = try await store.analysisInputRevision(deviceId: "whoop-1", from: 0, to: 1000)
         let recorded = DayScanFingerprint(day: "2026-08-01", ownerId: "whoop-1",
-                                          hrCount: probe.count, hrMaxTs: probe.maxTs, nightlySkinC: nil)
-        XCTAssertEqual(recorded.hrCount, 2)
-        XCTAssertEqual(recorded.hrMaxTs, 200)
+                                          hrCount: 0, hrMaxTs: 0, nightlySkinC: nil,
+                                          traits: traits(), inputRevision: probe.inputRevision,
+                                          deviceRevision: probe.deviceRevision, scoringVersion: 1,
+                                          semanticSignature: "profile-v1")
+        XCTAssertGreaterThan(probe.inputRevision, 0)
 
-        // One more sample in the window → the probe moves → the day no longer matches.
-        _ = try await store.insert(Streams(hr: [HRSample(ts: 300, bpm: 62)]), deviceId: "whoop-1")
-        let after = try await store.hrFingerprint(deviceId: "whoop-1", from: 0, to: 1000)
+        // A non-HR scoring stream moves the same contract.
+        _ = try await store.insert(Streams(rr: [RRInterval(ts: 300, rrMs: 800)]), deviceId: "whoop-1")
+        let after = try await store.analysisInputRevision(deviceId: "whoop-1", from: 0, to: 1000)
         XCTAssertFalse(recorded.inputsMatch(DayScanFingerprint(day: "2026-08-01", ownerId: "whoop-1",
-                                                               hrCount: after.count, hrMaxTs: after.maxTs,
-                                                               nightlySkinC: nil)))
+                                                               hrCount: 0, hrMaxTs: 0, nightlySkinC: nil,
+                                                               traits: traits(), inputRevision: after.inputRevision,
+                                                               deviceRevision: after.deviceRevision, scoringVersion: 1,
+                                                               semanticSignature: "profile-v1")))
     }
 }

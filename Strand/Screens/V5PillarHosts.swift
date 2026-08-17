@@ -80,14 +80,14 @@ struct RhythmHost: View {
         let lo = lastSleep.effectiveStartTs
         let hi = lastSleep.endTs
         guard hi > lo else { return }
-        let rr = (try? await store.rrIntervals(deviceId: repo.deviceId, from: lo, to: hi, limit: 200_000)) ?? []
+        let rr = (try? await store.rrIntervals(deviceId: repo.deviceId, from: lo, to: hi, limit: Int.max)) ?? []
         // BLE-only users have their night under the computed source; fall back to it when the imported
         // device yields nothing.
         let rrRows = rr.isEmpty
-            ? ((try? await store.rrIntervals(deviceId: repo.deviceId + "-noop", from: lo, to: hi, limit: 200_000)) ?? [])
+            ? ((try? await store.rrIntervals(deviceId: repo.deviceId + "-noop", from: lo, to: hi, limit: Int.max)) ?? [])
             : rr
         guard !rrRows.isEmpty else { return }
-        let grav = (try? await store.gravitySamples(deviceId: repo.deviceId, from: lo, to: hi, limit: 200_000)) ?? []
+        let grav = (try? await store.gravitySamples(deviceId: repo.deviceId, from: lo, to: hi, limit: Int.max)) ?? []
 
         // Window the night into 5-minute slices; a slice is "still" when its gravity variance is small.
         let windowSec = 5 * 60

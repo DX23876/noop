@@ -201,7 +201,6 @@ struct RootTabView: View {
         }
         .coachCover(isPresented: $showCoach, coach: coach)
         .task {
-            await repo.refresh()
             // Backup & Sync: on-launch catch-up (see RootView). Detached + utility priority so a
             // 100MB+ whole-DB ZIP never blocks startup; gated on the auto toggle (default OFF). (Must-fix #4.)
             let backupRepo = repo

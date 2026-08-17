@@ -40,11 +40,14 @@ extension WhoopStore {
     /// re-sync of N rows returns the count to its old value, the gate reports "unchanged", and the
     /// re-score it guards silently stops running — which is exactly how the previous `hrFingerprint`
     /// gate went blind (#836 / C1). A sequence that only ever increases cannot come back.
-    static func bumpSensorWriteSeq(_ db: Database) throws {
+    @discardableResult
+    static func bumpSensorWriteSeq(_ db: Database) throws -> Int {
         try db.execute(sql: """
             INSERT INTO cursors (name, value) VALUES (?, 1)
             ON CONFLICT(name) DO UPDATE SET value = value + 1
             """, arguments: [sensorWriteSeqCursor])
+        return try Int.fetchOne(db, sql: "SELECT value FROM cursors WHERE name = ?",
+                                arguments: [sensorWriteSeqCursor]) ?? 0
     }
 
     /// The current sensor-write sequence; 0 before the first sensor mutation of this install.

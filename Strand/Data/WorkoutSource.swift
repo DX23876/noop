@@ -215,12 +215,34 @@ enum WorkoutSource: Equatable {
     /// the live/manual session and its detected twin never both show. Order-stable; a list with no detected
     /// row, or no real row, passes through unchanged. Runs before `dedupCrossSource`.
     static func dropDetectedShadows(_ rows: [WorkoutRow]) -> [WorkoutRow] {
-        let reals = rows.filter { classify($0.source) != .detected }
+        let reals = rows.enumerated()
+            .filter { classify($0.element.source) != .detected }
+            .sorted { lhs, rhs in
+                lhs.element.startTs == rhs.element.startTs
+                    ? lhs.offset < rhs.offset
+                    : lhs.element.startTs < rhs.element.startTs
+            }
         guard !reals.isEmpty else { return rows }
-        return rows.filter { row in
-            guard classify(row.source) == .detected else { return true }
-            return !reals.contains { detectedShadowsReal(row, $0) }
+        var dropped = Set<Int>()
+        var nextReal = 0
+        var active: [(offset: Int, element: WorkoutRow)] = []
+        for detected in rows.enumerated()
+            .filter({ classify($0.element.source) == .detected })
+            .sorted(by: { lhs, rhs in
+                lhs.element.startTs == rhs.element.startTs
+                    ? lhs.offset < rhs.offset
+                    : lhs.element.startTs < rhs.element.startTs
+            }) {
+            while nextReal < reals.count, reals[nextReal].element.startTs < detected.element.endTs {
+                active.append(reals[nextReal])
+                nextReal += 1
+            }
+            active.removeAll { $0.element.endTs <= detected.element.startTs }
+            if active.contains(where: { detectedShadowsReal(detected.element, $0.element) }) {
+                dropped.insert(detected.offset)
+            }
         }
+        return rows.enumerated().compactMap { dropped.contains($0.offset) ? nil : $0.element }
     }
 
     /// Collapse cross-source duplicates of the same activity, keeping the richer row of each pair.
@@ -232,41 +254,54 @@ enum WorkoutSource: Equatable {
         collapseCrossSource(dropDetectedShadows(rows))
     }
 
-    /// The shared cross-source collapse walk behind `dedupCrossSource` and `dedupCrossSourceTrace`. Byte-
-    /// identical to the naive "compare every kept row" walk — same first match (kept insertion order), same
-    /// `preferred` winner, same resulting list — but near-linear instead of O(n²): `sportKey` is computed
-    /// ONCE per row (not twice per comparison), rows are bucketed by it, and a candidate only ever compares
-    /// against kept rows of the SAME sport (a cross-sport pair can never be `sameActivity`). That removes the
-    /// per-comparison string-normalisation that made a large imported history freeze the workout screens.
+    /// The shared cross-source collapse walk behind `dedupCrossSource` and `dedupCrossSourceTrace`.
+    /// Rows are bucketed by sport and swept in timestamp order. Only intervals still open at the candidate's
+    /// start stay active, so a ten-year list of same-sport walking workouts no longer compares every entry
+    /// with every prior entry. The final array is reconstructed in original order and every component keeps
+    /// its earliest input slot, preserving the UI's stable ordering while selecting the same richer winner.
     /// `onMerge` is invoked with (winner, loser) for each collapsed pair so the trace path can record it.
     private static func collapseCrossSource(
         _ input: [WorkoutRow],
         onMerge: ((_ winner: WorkoutRow, _ loser: WorkoutRow) -> Void)? = nil
     ) -> [WorkoutRow] {
-        var kept: [WorkoutRow] = []
-        kept.reserveCapacity(input.count)
-        // sportKey -> indices into `kept` for that sport, in insertion order (preserves first-match semantics).
-        var bySport: [String: [Int]] = [:]
-        for row in input {
-            let key = sportKey(row.sport)
-            var merged = false
-            for idx in bySport[key, default: []] where overlapsInTime(kept[idx], row) {
-                let winner = preferred(kept[idx], row)
-                if let onMerge {
-                    // Identify the loser by the REAL keep decision (== against the winner). When the two rows
-                    // are byte-identical the label is interchangeable, so == is correct in every case.
-                    onMerge(winner, winner == kept[idx] ? row : kept[idx])
-                }
-                kept[idx] = winner
-                merged = true
-                break
+        let buckets = Dictionary(grouping: input.indices, by: { sportKey(input[$0].sport) })
+        var removed = Set<Int>()
+        var replacements: [Int: WorkoutRow] = [:]
+
+        for indices in buckets.values {
+            let ordered = indices.sorted { lhs, rhs in
+                if input[lhs].startTs != input[rhs].startTs { return input[lhs].startTs < input[rhs].startTs }
+                if input[lhs].endTs != input[rhs].endTs { return input[lhs].endTs < input[rhs].endTs }
+                return lhs < rhs
             }
-            if !merged {
-                bySport[key, default: []].append(kept.count)
-                kept.append(row)
+            // Original input index of each currently-open component. A replacement row lives at the
+            // component's earliest index so the final list remains order-stable.
+            var active: [Int] = []
+            for index in ordered {
+                let row = input[index]
+                active.removeAll { (replacements[$0] ?? input[$0]).endTs <= row.startTs }
+                let matches = active.filter { overlapsInTime(replacements[$0] ?? input[$0], row) }
+                guard let oldAnchor = matches.min() else {
+                    active.append(index)
+                    continue
+                }
+
+                let existing = replacements[oldAnchor] ?? input[oldAnchor]
+                let winner = preferred(existing, row)
+                onMerge?(winner, winner == existing ? row : existing)
+                let anchor = min(oldAnchor, index)
+                let loserSlot = max(oldAnchor, index)
+                replacements[anchor] = winner
+                removed.insert(loserSlot)
+                if anchor != oldAnchor {
+                    replacements.removeValue(forKey: oldAnchor)
+                    if let position = active.firstIndex(of: oldAnchor) { active[position] = anchor }
+                }
             }
         }
-        return kept
+        return input.indices.compactMap { index in
+            removed.contains(index) ? nil : (replacements[index] ?? input[index])
+        }
     }
 
     /// A short, source-only descriptor of a row for the Workouts test-mode dedup trace ("strap" / "apple" /

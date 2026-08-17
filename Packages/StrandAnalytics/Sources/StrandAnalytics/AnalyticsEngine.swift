@@ -180,8 +180,8 @@ public enum AnalyticsEngine {
     /// night window, return the day's samples by filtering the night list in memory; return nil when
     /// the shortcut is unsafe and the caller must read the store directly:
     ///   - TODAY: its calendar day runs past the 18 h night cap (`dayHi > nightHi`).
-    ///   - a night read that came back at `limit` rows may be truncated INSIDE the day span
-    ///     (`ORDER BY ts ASC LIMIT` drops the LATE rows — exactly where the day sits).
+    ///   - a caller that deliberately supplied a finite read `limit` can still pass it here; a full
+    ///     semantic read uses the default `Int.max` and is therefore never treated as truncated.
     /// Byte-identical to the direct read: same owner (the caller reads both windows from one device),
     /// same INCLUSIVE `[dayLo, dayHi]` bounds (matching the store's `ts >= from AND ts <= to` range),
     /// same order (the night list came from the SAME ts-ASC store method, and filtering preserves
@@ -194,7 +194,7 @@ public enum AnalyticsEngine {
     public static func daySliceFromNight<T>(_ night: [T],
                                             nightLo: Int, nightHi: Int,
                                             dayLo: Int, dayHi: Int,
-                                            limit: Int = 200_000,
+                                            limit: Int = Int.max,
                                             ts: (T) -> Int) -> [T]? {
         guard dayLo >= nightLo, dayHi <= nightHi, night.count < limit else { return nil }
         return night.filter { ts($0) >= dayLo && ts($0) <= dayHi }
@@ -1132,9 +1132,20 @@ public enum AnalyticsEngine {
     /// × hr); doing it once per metric is pure duplicate work). Twin of the Kotlin `primarySessions`.
     private static func primarySessions(sessions: [SleepSession], hr: [HRSample]) -> [PrimarySessionRestingHR.Session] {
         sessions.map { s in
-            PrimarySessionRestingHR.Session(
+            var low = 0, high = hr.count
+            while low < high {
+                let mid = (low + high) / 2
+                if hr[mid].ts < s.start { low = mid + 1 } else { high = mid }
+            }
+            let first = low
+            high = hr.count
+            while low < high {
+                let mid = (low + high) / 2
+                if hr[mid].ts < s.end { low = mid + 1 } else { high = mid }
+            }
+            return PrimarySessionRestingHR.Session(
                 durationSec: Double(s.end - s.start),
-                bpm: hr.filter { $0.ts >= s.start && $0.ts < s.end }.map { $0.bpm })
+                bpm: hr[first..<low].map { $0.bpm })
         }
     }
 

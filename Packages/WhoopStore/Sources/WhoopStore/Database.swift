@@ -898,6 +898,31 @@ extension WhoopStore {
                 t.add(column: "traitMidsleepMin", .integer)
             }
         }
+        // v40: exact, O(1)-per-day invalidation for the analysis cache. The v38/v39 fingerprint only
+        // described measured HR. Sleep/recovery also consumes PPG HR, R-R, respiration, motion, steps,
+        // temperature, SpO2, wrist events and band sleep-state, so a change in any of those streams could
+        // otherwise leave a persisted score permanently reusable. Each real raw mutation stamps the UTC
+        // day(s) it touched with the transaction's monotone sensor-write revision. Analysis takes MAX over
+        // the UTC buckets intersecting its local 54 h window; false positives at a UTC boundary are safe,
+        // while a false negative is not.
+        migrator.registerMigration("v40-analysis-input-revision") { db in
+            try db.create(table: "analysisInputRevision") { t in
+                t.column("deviceId", .text).notNull()
+                t.column("utcDay", .integer).notNull()
+                t.column("revision", .integer).notNull()
+                t.primaryKey(["deviceId", "utcDay"])
+            }
+            try db.create(table: "analysisDeviceRevision") { t in
+                t.column("deviceId", .text).primaryKey()
+                t.column("revision", .integer).notNull()
+            }
+            try db.alter(table: "dayScanFingerprint") { t in
+                t.add(column: "inputRevision", .integer)
+                t.add(column: "deviceRevision", .integer)
+                t.add(column: "scoringVersion", .integer)
+                t.add(column: "semanticSignature", .text)
+            }
+        }
         return migrator
     }
 }

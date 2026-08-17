@@ -66,6 +66,12 @@ final class HealthKitBridge: ObservableObject {
     private static let heartRateExperimentKey = "noop.health.hrGraphExperiment.v1"
     private static let heartRateMigrationEndKey = "noop.health.hrEncodingMigrationEnd.v1"
     private static let heartRateMigrationFloorKey = "noop.health.hrEncodingMigrationFloor.v1"
+    /// Stable across bundle ids, re-signing and reinstalls. `HKSource.default()` only identifies the
+    /// currently-running build, so source-only filtering can re-import samples an older NOOP build
+    /// wrote. Every new write carries this marker; the legacy `noop:` external UUID remains the
+    /// fallback for samples produced before the marker existed.
+    nonisolated private static let originMetadataKey = "com.noop.health.origin"
+    nonisolated private static let originMetadataValue = "noop"
     /// The v1 destructive migration's marker. Still READ (it tells the UI whether this install already
     /// had its HRV history truncated), never written again.
     private static let hrvSdnnMigrationKey = "noop.health.hrvSdnnMigration.v1"
@@ -426,7 +432,14 @@ final class HealthKitBridge: ObservableObject {
                    let data = try? NSKeyedArchiver.archivedData(withRootObject: newAnchor, requiringSecureCoding: true) {
                     UserDefaults.standard.set(data, forKey: key)
                 }
-                let oldest = (samples ?? []).map { $0.startDate }.min()
+                // The query predicate excludes current source and the stable origin marker. HealthKit
+                // does not support `.beginsWith` for HKExternalUUID in object-query predicates (it
+                // raises an Objective-C exception rather than returning an error), so legacy `noop:`
+                // external ids are deliberately excluded only by this client-side check.
+                let oldest = (samples ?? [])
+                    .filter { !Self.isNoopAuthored($0) }
+                    .map { $0.startDate }
+                    .min()
                 cont.resume(returning: oldest)
             }
             store.execute(q)
@@ -851,7 +864,8 @@ final class HealthKitBridge: ObservableObject {
                   store.authorizationStatus(for: type) == .sharingAuthorized else { return }
             let key = HealthWriteback.vitalsExternalKey(noopDeviceId: noopDeviceId,
                                                        identifier: id.rawValue, day: day)
-            var metadata: [String: Any] = [HKMetadataKeyExternalUUID: key]
+            var metadata: [String: Any] = [HKMetadataKeyExternalUUID: key,
+                                           Self.originMetadataKey: Self.originMetadataValue]
             if let algorithmVersion {
                 metadata[HKMetadataKeyAlgorithmVersion] = NSNumber(value: algorithmVersion)
             }
@@ -938,7 +952,8 @@ final class HealthKitBridge: ObservableObject {
             type: type,
             quantity: .init(unit: .gramUnit(with: .kilo), doubleValue: kg),
             start: at, end: at,
-            metadata: [HKMetadataKeyExternalUUID: key]
+            metadata: [HKMetadataKeyExternalUUID: key,
+                       Self.originMetadataKey: Self.originMetadataValue]
         )
         let bySource = HKQuery.predicateForObjects(from: HKSource.default())
         let byKey = HKQuery.predicateForObjects(withMetadataKey: HKMetadataKeyExternalUUID, allowedValues: [key])
@@ -977,7 +992,8 @@ final class HealthKitBridge: ObservableObject {
         var keys: [String] = []
         for entry in HealthWriteback.mergedSleepPlan(groups: groups) {
             let key = "noop:\(noopDeviceId):sleep:\(entry.keyStartTs)"
-            let meta = [HKMetadataKeyExternalUUID: key]
+            let meta = [HKMetadataKeyExternalUUID: key,
+                        Self.originMetadataKey: Self.originMetadataValue]
             keys.append(contentsOf: entry.allKeyStartTs.map { "noop:\(noopDeviceId):sleep:\($0)" })
             samples.append(HKCategorySample(type: type, value: HKCategoryValueSleepAnalysis.inBed.rawValue,
                                             start: Date(timeIntervalSince1970: TimeInterval(entry.spanStart)),
@@ -1053,6 +1069,7 @@ final class HealthKitBridge: ObservableObject {
                                     start: Date(timeIntervalSince1970: TimeInterval(descriptor.startTs)),
                                     end: Date(timeIntervalSince1970: TimeInterval(descriptor.endTs)),
                                     metadata: [HKMetadataKeyExternalUUID: key,
+                                               Self.originMetadataKey: Self.originMetadataValue,
                                                HKMetadataKeyAlgorithmVersion: NSNumber(value: 1)])
         }
         // First run backfills ~20k samples (14 d × 1440/day); chunk the saves so no single HealthKit
@@ -1235,6 +1252,7 @@ final class HealthKitBridge: ObservableObject {
                 start: Date(timeIntervalSince1970: TimeInterval(descriptor.startTs)),
                 end: Date(timeIntervalSince1970: TimeInterval(descriptor.endTs)),
                 metadata: [HKMetadataKeyExternalUUID: key,
+                           Self.originMetadataKey: Self.originMetadataValue,
                            HKMetadataKeyAlgorithmVersion: NSNumber(value: 1)])
         }
         var pending = samples[...]
@@ -1413,6 +1431,7 @@ final class HealthKitBridge: ObservableObject {
                 quantity: .init(unit: .secondUnit(with: .milli), doubleValue: sdnn),
                 start: at, end: at,
                 metadata: [HKMetadataKeyExternalUUID: key,
+                           Self.originMetadataKey: Self.originMetadataValue,
                            HKMetadataKeyAlgorithmVersion: NSNumber(value: 1)]))
             rewrittenDays.append(day)
         }
@@ -1464,10 +1483,8 @@ final class HealthKitBridge: ObservableObject {
     private func externalHeartRateSampleCount(
         in window: HealthWriteback.HeartRateExperimentWindow) async -> Int {
         guard let type = HKQuantityType.quantityType(forIdentifier: .heartRate) else { return 0 }
-        let notOwn = NSCompoundPredicate(notPredicateWithSubpredicate:
-            HKQuery.predicateForObjects(from: HKSource.default()))
         let pred = NSCompoundPredicate(andPredicateWithSubpredicates: [
-            notOwn,
+            Self.notNoopAuthored,
             HKQuery.predicateForSamples(
                 withStart: Date(timeIntervalSince1970: TimeInterval(window.startTs)),
                 end: Date(timeIntervalSince1970: TimeInterval(window.endTs)), options: []),
@@ -1535,20 +1552,23 @@ final class HealthKitBridge: ObservableObject {
             let builder = HKWorkoutBuilder(healthStore: store, configuration: config, device: .local())
             do {
                 try await builder.beginCollection(at: start)
-                try await builder.addMetadata([HKMetadataKeyExternalUUID: key(row)])
+                try await builder.addMetadata([HKMetadataKeyExternalUUID: key(row),
+                                               Self.originMetadataKey: Self.originMetadataValue])
                 var extras: [HKSample] = []
                 if let kcal = row.energyKcal, kcal > 0,
                    let t = HKQuantityType.quantityType(forIdentifier: .activeEnergyBurned),
                    store.authorizationStatus(for: t) == .sharingAuthorized {
                     extras.append(HKQuantitySample(type: t, quantity: .init(unit: .kilocalorie(), doubleValue: kcal),
-                                                   start: start, end: end))
+                                                   start: start, end: end,
+                                                   metadata: [Self.originMetadataKey: Self.originMetadataValue]))
                 }
                 if let meters = row.distanceM, meters > 0,
                    let id = Self.distanceTypeId(forSport: row.sport),
                    let t = HKQuantityType.quantityType(forIdentifier: id),
                    store.authorizationStatus(for: t) == .sharingAuthorized {
                     extras.append(HKQuantitySample(type: t, quantity: .init(unit: .meter(), doubleValue: meters),
-                                                   start: start, end: end))
+                                                   start: start, end: end,
+                                                   metadata: [Self.originMetadataKey: Self.originMetadataValue]))
                 }
                 let heartRate = await ownHeartRateSamples(start: start, end: end)
                 extras.append(contentsOf: heartRate.map { $0 as HKSample })
@@ -1628,8 +1648,29 @@ final class HealthKitBridge: ObservableObject {
     /// output back in as "apple-health" data — which would make the strap and "Apple Health" plot the
     /// same line for a strap-only user, and bias the apple-health average for someone who also has a
     /// watch. `HKSource.default()` is this app's own source. (Reimplemented from @vulnix0x4's PR #375.)
-    private static var notNoopAuthored: NSPredicate {
-        NSCompoundPredicate(notPredicateWithSubpredicate: HKQuery.predicateForObjects(from: [HKSource.default()]))
+    nonisolated static var notNoopAuthored: NSPredicate {
+        let currentSource = HKQuery.predicateForObjects(from: [HKSource.default()])
+        let stableOrigin = HKQuery.predicateForObjects(
+            withMetadataKey: originMetadataKey,
+            allowedValues: [originMetadataValue])
+        return NSCompoundPredicate(andPredicateWithSubpredicates: [
+            NSCompoundPredicate(notPredicateWithSubpredicate: currentSource),
+            NSCompoundPredicate(notPredicateWithSubpredicate: stableOrigin),
+        ])
+    }
+
+    /// Client-side superset of `notNoopAuthored`. The prefix fallback must remain here because
+    /// HealthKit rejects `.beginsWith` for `HKMetadataKeyExternalUUID` at query execution time.
+    nonisolated private static func isNoopAuthored(_ object: HKObject) -> Bool {
+        isNoopAuthored(currentSource: object.sourceRevision.source == HKSource.default(),
+                       origin: object.metadata?[originMetadataKey] as? String,
+                       externalUUID: object.metadata?[HKMetadataKeyExternalUUID] as? String)
+    }
+
+    /// Pure seam for the three generations of write-back identity. Kept internal so the iOS test target
+    /// can prove that current-source, stable-origin and legacy UUID samples are rejected independently.
+    nonisolated static func isNoopAuthored(currentSource: Bool, origin: String?, externalUUID: String?) -> Bool {
+        currentSource || origin == originMetadataValue || externalUUID?.hasPrefix("noop:") == true
     }
 
     /// Returns TRUE when the query completed, FALSE when HealthKit handed back an error.
@@ -1686,7 +1727,7 @@ final class HealthKitBridge: ObservableObject {
             let q = HKSampleQuery(sampleType: type, predicate: predicate, limit: HKObjectQueryNoLimit, sortDescriptors: nil) { _, samples, _ in
                 var asleep: [String: Double] = [:], deep: [String: Double] = [:]
                 var rem: [String: Double] = [:], core: [String: Double] = [:]
-                for case let s as HKCategorySample in samples ?? [] {
+                for case let s as HKCategorySample in samples ?? [] where !Self.isNoopAuthored(s) {
                     let mins = s.endDate.timeIntervalSince(s.startDate) / 60
                     let day = HealthKitBridge.dayString(s.endDate)
                     switch s.value {
@@ -1749,6 +1790,7 @@ final class HealthKitBridge: ObservableObject {
                     cont.resume(returning: nil); return
                 }
                 let out: [CaffeineIntake] = samples.compactMap { s in
+                    guard !Self.isNoopAuthored(s) else { return nil }
                     let mg = s.quantity.doubleValue(for: .gramUnit(with: .milli))
                     // A zero or non-finite sample carries no dose worth showing; skip it rather than log
                     // a 0 mg intake, which would pad the "intakes still active" count with nothing.
@@ -1777,7 +1819,7 @@ final class HealthKitBridge: ObservableObject {
             let q = HKSampleQuery(sampleType: HKObjectType.workoutType(), predicate: predicate,
                                   limit: HKObjectQueryNoLimit, sortDescriptors: [sort]) { _, samples, _ in
                 var rows: [WorkoutRow] = []
-                for case let workout as HKWorkout in samples ?? [] {
+                for case let workout as HKWorkout in samples ?? [] where !Self.isNoopAuthored(workout) {
                     let startTs = Int(workout.startDate.timeIntervalSince1970)
                     let endTs = max(Int(workout.endDate.timeIntervalSince1970), startTs)
                     let duration = workout.duration > 0 ? workout.duration : Double(endTs - startTs)

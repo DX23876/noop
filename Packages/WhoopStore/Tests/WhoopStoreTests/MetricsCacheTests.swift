@@ -568,6 +568,24 @@ final class MetricsCacheTests: XCTestCase {
         XCTAssertEqual(try XCTUnwrap(row.avgSdnn), 91.2, accuracy: 0.001)
     }
 
+    func testNewestDailyMetricPageUsesExclusiveCursor() async throws {
+        let store = try await WhoopStore.inMemory()
+        let rows = (1...5).map { day in
+            DailyMetric(day: String(format: "2026-06-%02d", day), totalSleepMin: nil,
+                        efficiency: nil, deepMin: nil, remMin: nil, lightMin: nil,
+                        disturbances: nil, restingHr: nil, avgHrv: nil, recovery: nil,
+                        strain: Double(day), exerciseCount: nil)
+        }
+        try await store.upsertDailyMetrics(rows, deviceId: "devA-noop")
+
+        let first = try await store.dailyMetrics(deviceId: "devA-noop",
+                                                 before: "9999-12-31", limit: 2)
+        XCTAssertEqual(first.map(\.day), ["2026-06-05", "2026-06-04"])
+        let second = try await store.dailyMetrics(deviceId: "devA-noop",
+                                                  before: "2026-06-04", limit: 2)
+        XCTAssertEqual(second.map(\.day), ["2026-06-03", "2026-06-02"])
+    }
+
     // MARK: - read highwater cursor (distinct prefix from upload highwater)
 
     func testReadHighwaterRoundTripsUnderDistinctPrefix() async throws {

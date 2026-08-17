@@ -40,7 +40,8 @@
     "v36-whoop-caps-no-spo2",
     "v37-daily-avg-sdnn",
     "v38-day-scan-fingerprint",
-    "v39-day-scan-traits"
+    "v39-day-scan-traits",
+    "v40-analysis-input-revision"
   ],
   "divergenceReasons": {
     "android-orphan-synced-column": "REAL COLUMN DRIFT: `synced` exists on Android only. GRDB's v10 note is explicit that stepSample gets no `synced` column ('unused; see StreamStore'), and v12's ppgHrSample never had one either; the Room entities copied the flag from the older per-second entities. Nothing reads it on Android — the per-row upload flag belongs to an upload path that does not exist there — so it is dead width, not divergent data. Removing it needs a Room table rebuild.",
@@ -54,6 +55,27 @@
     "workout-route-polyline-android-only": "REAL COLUMN DRIFT — literally the case #775 was filed about: `workout.routePolyline` (encoded GPS route) was added by Room MIGRATION_3_4 and has no GRDB twin. A .noopbak exported from Android carries a column iOS's `workout` table cannot receive."
   },
   "tables": {
+    "analysisDeviceRevision": {
+      "platform": "ios_only",
+      "reason": "iOS analysis-cache invalidation bookmark (GRDB v40). It stores no measurement or score and can be rebuilt conservatively; Android has no per-day analysis reuse cache.",
+      "columns": [
+        { "name": "deviceId", "affinity": "TEXT", "notNull": false, "default": null },
+        { "name": "revision", "affinity": "INTEGER", "notNull": true, "default": null }
+      ],
+      "primaryKey": ["deviceId"],
+      "indices": []
+    },
+    "analysisInputRevision": {
+      "platform": "ios_only",
+      "reason": "iOS analysis-cache invalidation bookmark (GRDB v40). UTC-day revisions identify which cached local-day analyses may be reused; no physiological value is stored.",
+      "columns": [
+        { "name": "deviceId", "affinity": "TEXT", "notNull": true, "default": null },
+        { "name": "utcDay", "affinity": "INTEGER", "notNull": true, "default": null },
+        { "name": "revision", "affinity": "INTEGER", "notNull": true, "default": null }
+      ],
+      "primaryKey": ["deviceId", "utcDay"],
+      "indices": []
+    },
     "appleDaily": {
       "platform": "both",
       "columns": [
@@ -433,6 +455,30 @@
         {
           "name": "traitMidsleepMin",
           "affinity": "INTEGER",
+          "notNull": false,
+          "default": null
+        },
+        {
+          "name": "inputRevision",
+          "affinity": "INTEGER",
+          "notNull": false,
+          "default": null
+        },
+        {
+          "name": "deviceRevision",
+          "affinity": "INTEGER",
+          "notNull": false,
+          "default": null
+        },
+        {
+          "name": "scoringVersion",
+          "affinity": "INTEGER",
+          "notNull": false,
+          "default": null
+        },
+        {
+          "name": "semanticSignature",
+          "affinity": "TEXT",
           "notNull": false,
           "default": null
         }

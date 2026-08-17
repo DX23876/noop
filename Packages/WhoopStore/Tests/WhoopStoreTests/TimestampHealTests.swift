@@ -29,6 +29,8 @@ final class TimestampHealTests: XCTestCase {
         let result = try await store.healImplausibleTimestamps(now: now, todayLocalDayKey: todayKey)
         XCTAssertEqual(result.rawRowsDeleted, 3, "the 3 garbage HR rows must be purged")
         XCTAssertTrue(result.didChange)
+        XCTAssertEqual(result.affectedUTCInterval,
+                       (farPast / 86_400 * 86_400)..<((bogus2027 / 86_400 + 1) * 86_400))
 
         let survivors = try await store.hrSamples(deviceId: "dev1", from: 0, to: Int.max, limit: 1000)
         XCTAssertEqual(survivors.map(\.ts).sorted(), [good2, good1].sorted())
@@ -150,6 +152,7 @@ final class TimestampHealTests: XCTestCase {
         let r1 = try await store.healImplausibleTimestamps(now: now, todayLocalDayKey: todayKey)
         XCTAssertFalse(r1.didChange)
         XCTAssertEqual(r1.rawRowsDeleted, 0)
+        XCTAssertNil(r1.affectedUTCInterval)
         // Re-running is harmless and still a no-op.
         let r2 = try await store.healImplausibleTimestamps(now: now, todayLocalDayKey: todayKey)
         XCTAssertFalse(r2.didChange)

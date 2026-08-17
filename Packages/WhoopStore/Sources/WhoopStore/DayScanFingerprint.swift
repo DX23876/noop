@@ -31,6 +31,14 @@ public struct DayScanFingerprint: Equatable, Sendable {
     /// nil means "not recorded" (a row from v38, before this existed) and compares as CHANGED, so such a
     /// day is re-derived once and gains its traits. Missing means scan.
     public let traits: TraitSignature?
+    /// Monotone revisions covering every scoring-relevant raw stream in this day's exact read window.
+    /// nil identifies a legacy HR-only row and is never reusable.
+    public let inputRevision: Int?
+    public let deviceRevision: Int?
+    /// Explicit analytics contract version. Algorithm changes bump this even when raw bytes do not move.
+    public let scoringVersion: Int?
+    /// Stable signature of profile/configuration inputs consumed by scoring.
+    public let semanticSignature: String?
 
     /// The three learned traits, quantised to the resolution at which a change is worth re-deriving a
     /// day for. Raw `Double`s would differ in the last bits every single night — the 28-night regularity
@@ -59,13 +67,19 @@ public struct DayScanFingerprint: Equatable, Sendable {
     }
 
     public init(day: String, ownerId: String, hrCount: Int, hrMaxTs: Int, nightlySkinC: Double?,
-                traits: TraitSignature? = nil) {
+                traits: TraitSignature? = nil, inputRevision: Int? = nil,
+                deviceRevision: Int? = nil, scoringVersion: Int? = nil,
+                semanticSignature: String? = nil) {
         self.day = day
         self.ownerId = ownerId
         self.hrCount = hrCount
         self.hrMaxTs = hrMaxTs
         self.nightlySkinC = nightlySkinC
         self.traits = traits
+        self.inputRevision = inputRevision
+        self.deviceRevision = deviceRevision
+        self.scoringVersion = scoringVersion
+        self.semanticSignature = semanticSignature
     }
 
     /// True when `self` was computed from the same inputs `other` describes — raw AND learned.
@@ -78,9 +92,13 @@ public struct DayScanFingerprint: Equatable, Sendable {
     /// the current probe; an unrecorded trait set means we cannot show the day was scored against
     /// today's traits, and "cannot show" has to read the same as "was not".
     public func inputsMatch(_ other: DayScanFingerprint) -> Bool {
-        guard ownerId == other.ownerId, hrCount == other.hrCount, hrMaxTs == other.hrMaxTs else {
-            return false
-        }
+        guard ownerId == other.ownerId else { return false }
+        guard let myInput = inputRevision, let theirInput = other.inputRevision,
+              let myDevice = deviceRevision, let theirDevice = other.deviceRevision,
+              let myVersion = scoringVersion, let theirVersion = other.scoringVersion,
+              let mySemantic = semanticSignature, let theirSemantic = other.semanticSignature,
+              myInput == theirInput, myDevice == theirDevice,
+              myVersion == theirVersion, mySemantic == theirSemantic else { return false }
         guard let mine = traits, let theirs = other.traits else { return false }
         return mine == theirs
     }
@@ -94,7 +112,8 @@ extension WhoopStore {
         try await asyncRead { db in
             let rows = try Row.fetchAll(db, sql: """
                 SELECT day, ownerId, hrCount, hrMaxTs, nightlySkinC,
-                       traitSleepConsistency, traitNeedHoursTenths, traitMidsleepMin
+                       traitSleepConsistency, traitNeedHoursTenths, traitMidsleepMin,
+                       inputRevision, deviceRevision, scoringVersion, semanticSignature
                 FROM dayScanFingerprint
                 WHERE deviceId = ? AND day >= ? AND day <= ?
                 """, arguments: [deviceId, from, to])
@@ -111,7 +130,11 @@ extension WhoopStore {
                 }
                 out[r["day"]] = DayScanFingerprint(day: r["day"], ownerId: r["ownerId"],
                                                    hrCount: r["hrCount"], hrMaxTs: r["hrMaxTs"],
-                                                   nightlySkinC: r["nightlySkinC"], traits: traits)
+                                                   nightlySkinC: r["nightlySkinC"], traits: traits,
+                                                   inputRevision: r["inputRevision"],
+                                                   deviceRevision: r["deviceRevision"],
+                                                   scoringVersion: r["scoringVersion"],
+                                                   semanticSignature: r["semanticSignature"])
             }
             return out
         }
@@ -129,8 +152,9 @@ extension WhoopStore {
         return try syncWrite { db in
             let stmt = try db.cachedStatement(sql: """
                 INSERT INTO dayScanFingerprint (deviceId, day, ownerId, hrCount, hrMaxTs, nightlySkinC,
-                                                traitSleepConsistency, traitNeedHoursTenths, traitMidsleepMin)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                                traitSleepConsistency, traitNeedHoursTenths, traitMidsleepMin,
+                                                inputRevision, deviceRevision, scoringVersion, semanticSignature)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(deviceId, day) DO UPDATE SET
                     ownerId = excluded.ownerId,
                     hrCount = excluded.hrCount,
@@ -138,12 +162,17 @@ extension WhoopStore {
                     nightlySkinC = excluded.nightlySkinC,
                     traitSleepConsistency = excluded.traitSleepConsistency,
                     traitNeedHoursTenths = excluded.traitNeedHoursTenths,
-                    traitMidsleepMin = excluded.traitMidsleepMin
+                    traitMidsleepMin = excluded.traitMidsleepMin,
+                    inputRevision = excluded.inputRevision,
+                    deviceRevision = excluded.deviceRevision,
+                    scoringVersion = excluded.scoringVersion,
+                    semanticSignature = excluded.semanticSignature
                 """)
             for r in rows {
                 try stmt.execute(arguments: [deviceId, r.day, r.ownerId, r.hrCount, r.hrMaxTs, r.nightlySkinC,
                                              r.traits?.consistencyHundredths, r.traits?.needHoursTenths,
-                                             r.traits?.midsleepMinutes])
+                                             r.traits?.midsleepMinutes, r.inputRevision, r.deviceRevision,
+                                             r.scoringVersion, r.semanticSignature])
             }
             return rows.count
         }

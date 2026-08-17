@@ -140,7 +140,26 @@ extension WhoopStore {
     public func upsertSleepSessions(_ sessions: [CachedSleepSession], deviceId: String) async throws -> Int {
         try syncWrite { db in
             var n = 0
+            var changedInputTimestamps = Set<Int>()
+            let isComputedNamespace = deviceId.hasSuffix("-noop")
+            func stored(_ startTs: Int) throws -> CachedSleepSession? {
+                guard let row = try Row.fetchOne(db, sql: """
+                    SELECT startTs, endTs, efficiency, restingHr, avgHrv, stagesJSON, userEdited,
+                           startTsAdjusted, stagingSparse
+                    FROM sleepSession WHERE deviceId = ? AND startTs = ?
+                    """, arguments: [deviceId, startTs]) else { return nil }
+                return CachedSleepSession(startTs: row["startTs"], endTs: row["endTs"],
+                                          efficiency: row["efficiency"], restingHr: row["restingHr"],
+                                          avgHrv: row["avgHrv"], stagesJSON: row["stagesJSON"],
+                                          userEdited: row["userEdited"],
+                                          startTsAdjusted: row["startTsAdjusted"],
+                                          stagingSparse: row["stagingSparse"])
+            }
             for s in sessions {
+                // A hand-edited session remains a scoring INPUT even though it is stored beside the
+                // engine's `-noop` output. Ordinary detected sessions are derived output and stay silent.
+                let tracksAnalysisInput = !isComputedNamespace || s.userEdited
+                let before = tracksAnalysisInput ? try stored(s.startTs) : nil
                 try db.execute(sql: """
                     INSERT INTO sleepSession
                         (deviceId, startTs, endTs, efficiency, restingHr, avgHrv, stagesJSON,
@@ -164,7 +183,17 @@ extension WhoopStore {
                                      s.restingHr, s.avgHrv, s.stagesJSON, s.userEdited, s.startTsAdjusted,
                                      s.stagingSparse])
                 n += db.changesCount
+                if tracksAnalysisInput, let after = try stored(s.startTs), before != after {
+                    changedInputTimestamps.formUnion([
+                        before?.effectiveStartTs ?? after.effectiveStartTs,
+                        before?.endTs ?? after.endTs,
+                        after.effectiveStartTs,
+                        after.endTs,
+                    ])
+                }
             }
+            try Self.markAnalysisInputsChanged(db, deviceId: deviceId,
+                                               timestamps: changedInputTimestamps)
             return n
         }
     }
@@ -200,9 +229,21 @@ extension WhoopStore {
     @discardableResult
     public func deleteSleepSession(deviceId: String, startTs: Int) async throws -> Int {
         try syncWrite { db in
+            let prior: Row? = try Row.fetchOne(db, sql: """
+                SELECT startTs, endTs, startTsAdjusted, userEdited FROM sleepSession
+                WHERE deviceId = ? AND startTs = ?
+                """, arguments: [deviceId, startTs])
             try db.execute(sql: "DELETE FROM sleepSession WHERE deviceId = ? AND startTs = ?",
                            arguments: [deviceId, startTs])
-            return db.changesCount
+            let changed = db.changesCount
+            let wasAnalysisInput = !deviceId.hasSuffix("-noop") || ((prior?["userEdited"] as Int?) ?? 0) != 0
+            if changed > 0, wasAnalysisInput, let prior {
+                let effectiveStart: Int = prior["startTsAdjusted"] ?? prior["startTs"]
+                let end: Int = prior["endTs"]
+                try Self.markAnalysisInputsChanged(db, deviceId: deviceId,
+                                                   timestamps: [effectiveStart, end])
+            }
+            return changed
         }
     }
 
@@ -457,6 +498,25 @@ extension WhoopStore {
         }
     }
 
+    /// Narrow write used by the resumable legacy-Effort migration. Updating only `strain` prevents a
+    /// maintenance batch from overwriting sleep/recovery fields that a concurrent current-day analysis
+    /// has just refreshed. Derived output never advances the raw analysis-input revision.
+    @discardableResult
+    public func updateDailyStrains(_ values: [(day: String, strain: Double?)],
+                                   deviceId: String) async throws -> Int {
+        try syncWrite { db in
+            var changed = 0
+            for value in values {
+                try db.execute(sql: """
+                    UPDATE dailyMetric SET strain = ?
+                    WHERE deviceId = ? AND day = ? AND strain IS NOT ?
+                    """, arguments: [value.strain, deviceId, value.day, value.strain])
+                changed += db.changesCount
+            }
+            return changed
+        }
+    }
+
     // MARK: - Reads
 
     /// Cached sleep sessions overlapping [from, to] (by startTs), oldest first.
@@ -489,6 +549,35 @@ extension WhoopStore {
                 WHERE deviceId = ? AND day >= ? AND day <= ?
                 ORDER BY day ASC
                 """, arguments: [deviceId, from, to])
+                .map {
+                    DailyMetric(day: $0["day"], totalSleepMin: $0["totalSleepMin"],
+                                efficiency: $0["efficiency"], deepMin: $0["deepMin"],
+                                remMin: $0["remMin"], lightMin: $0["lightMin"],
+                                disturbances: $0["disturbances"], restingHr: $0["restingHr"],
+                                avgHrv: $0["avgHrv"], recovery: $0["recovery"],
+                                strain: $0["strain"], exerciseCount: $0["exerciseCount"],
+                                spo2Pct: $0["spo2Pct"], skinTempDevC: $0["skinTempDevC"],
+                                respRateBpm: $0["respRateBpm"],
+                                steps: $0["steps"], activeKcalEst: $0["activeKcalEst"],
+                                spo2Red: $0["spo2Red"], spo2Ir: $0["spo2Ir"], avgSdnn: $0["avgSdnn"])
+                }
+        }
+    }
+
+    /// Newest-first page used by resumable history migrations. Unlike the range API this never
+    /// materializes the complete daily history merely to select the next small batch.
+    public nonisolated func dailyMetrics(deviceId: String,
+                                         before day: String,
+                                         limit: Int) async throws -> [DailyMetric] {
+        try await asyncRead { db in
+            try Row.fetchAll(db, sql: """
+                SELECT day, totalSleepMin, efficiency, deepMin, remMin, lightMin, disturbances,
+                       restingHr, avgHrv, recovery, strain, exerciseCount,
+                       spo2Pct, skinTempDevC, respRateBpm, steps, activeKcalEst,
+                       spo2Red, spo2Ir, avgSdnn FROM dailyMetric
+                WHERE deviceId = ? AND day < ?
+                ORDER BY day DESC LIMIT ?
+                """, arguments: [deviceId, day, max(0, limit)])
                 .map {
                     DailyMetric(day: $0["day"], totalSleepMin: $0["totalSleepMin"],
                                 efficiency: $0["efficiency"], deepMin: $0["deepMin"],

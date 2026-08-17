@@ -171,6 +171,22 @@ final class WorkoutSourceTests: XCTestCase {
         XCTAssertEqual(out[1].sport, "Strength Training")
     }
 
+    func testDedupTimeSweepHandlesLargeSameSportHistoryAndLateTwin() {
+        let walks = (0..<2_001).map { index in
+            richRow(start: index * 7_200, end: index * 7_200 + 3_600,
+                    sport: "Walking", source: "whoop")
+        }
+        let last = walks.last!
+        let importedTwin = thinImport(start: last.startTs + 20, end: last.endTs - 20,
+                                      sport: "Walking", source: "apple-health")
+
+        let out = WorkoutSource.dedupCrossSource(walks + [importedTwin])
+
+        XCTAssertEqual(out.count, walks.count)
+        XCTAssertEqual(out.last?.source, "whoop")
+        XCTAssertEqual(out.map(\.startTs), walks.map(\.startTs), "the sweep preserves stable time order")
+    }
+
     // MARK: - detected-vs-real overlap collapse (#975)
 
     func testDetectedShadowIsDroppedWhenItOverlapsAManualSession() {

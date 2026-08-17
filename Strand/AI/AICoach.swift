@@ -4232,14 +4232,14 @@ final class AICoachEngine: ObservableObject {
         let to = Int(Date().timeIntervalSince1970)
         guard let store = await repo.storeHandle() else { return nil }
         let rr = (try? await store.rrIntervals(
-            deviceId: repo.deviceId, from: from, to: to, limit: 200_000)) ?? []
+            deviceId: repo.deviceId, from: from, to: to, limit: Int.max)) ?? []
         guard let si = StressIndex.stressIndex(rr: rr) else { return nil }
         var line = Self.stressIndexSummary(si: si)
 
         // Hourly history alongside the single number, the SAME per-hour proxy the Stress screen's
         // timeline shows (`DaytimeStress.analyze`) — so the coach can say WHEN today ran high, not just
         // by how much overall.
-        let hr = await repo.hrSamples(from: from, to: to, limit: 200_000)
+        let hr = await repo.hrSamples(from: from, to: to, limit: Int.max)
         let tz = TimeZone.current.secondsFromGMT(for: Date())
         let daytime = DaytimeStress.analyze(hr: hr, rr: rr, tzOffsetSeconds: tz)
         if let daytimeLine = Self.daytimeStressLine(daytime) { line += "\n" + daytimeLine }

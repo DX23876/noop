@@ -28,9 +28,12 @@ final class DayScanReuseEquivalenceTests: XCTestCase {
                            from: Int, to: Int,
                            traits t: DayScanFingerprint.TraitSignature) async throws -> DayScanFingerprint {
         if !samples.isEmpty { _ = try await store.insert(Streams(hr: samples), deviceId: owner) }
-        let probe = try await store.hrFingerprint(deviceId: owner, from: from, to: to)
-        let fp = DayScanFingerprint(day: day, ownerId: owner, hrCount: probe.count, hrMaxTs: probe.maxTs,
-                                    nightlySkinC: 33.2, traits: t)
+        let probe = try await store.analysisInputRevision(deviceId: owner, from: from, to: to)
+        let fp = DayScanFingerprint(day: day, ownerId: owner, hrCount: 0, hrMaxTs: 0,
+                                    nightlySkinC: 33.2, traits: t,
+                                    inputRevision: probe.inputRevision,
+                                    deviceRevision: probe.deviceRevision,
+                                    scoringVersion: 1, semanticSignature: "profile-v1")
         try await store.upsertDayScanFingerprints([fp], deviceId: dev)
         return fp
     }
@@ -44,9 +47,12 @@ final class DayScanReuseEquivalenceTests: XCTestCase {
                                            from: 0, to: 10_000, traits: traits())
 
         // A later pass re-probes the same window with the same traits.
-        let probe = try await store.hrFingerprint(deviceId: owner, from: 0, to: 10_000)
-        let now = DayScanFingerprint(day: "2026-08-01", ownerId: owner, hrCount: probe.count,
-                                     hrMaxTs: probe.maxTs, nightlySkinC: nil, traits: traits())
+        let probe = try await store.analysisInputRevision(deviceId: owner, from: 0, to: 10_000)
+        let now = DayScanFingerprint(day: "2026-08-01", ownerId: owner, hrCount: 0,
+                                     hrMaxTs: 0, nightlySkinC: nil, traits: traits(),
+                                     inputRevision: probe.inputRevision,
+                                     deviceRevision: probe.deviceRevision,
+                                     scoringVersion: 1, semanticSignature: "profile-v1")
         let stored = try await store.dayScanFingerprints(deviceId: dev, from: "2026-08-01", to: "2026-08-01")
         XCTAssertEqual(stored["2026-08-01"], recorded)
         XCTAssertTrue(stored["2026-08-01"]?.inputsMatch(now) ?? false,
@@ -65,9 +71,12 @@ final class DayScanReuseEquivalenceTests: XCTestCase {
 
         func probeNow(owner o: String = "whoop-535B",
                       traits t: DayScanFingerprint.TraitSignature? = nil) async throws -> DayScanFingerprint {
-            let p = try await store.hrFingerprint(deviceId: o, from: 0, to: 10_000)
-            return DayScanFingerprint(day: "2026-08-01", ownerId: o, hrCount: p.count, hrMaxTs: p.maxTs,
-                                      nightlySkinC: nil, traits: t ?? traits())
+            let p = try await store.analysisInputRevision(deviceId: o, from: 0, to: 10_000)
+            return DayScanFingerprint(day: "2026-08-01", ownerId: o, hrCount: 0, hrMaxTs: 0,
+                                      nightlySkinC: nil, traits: t ?? traits(),
+                                      inputRevision: p.inputRevision,
+                                      deviceRevision: p.deviceRevision,
+                                      scoringVersion: 1, semanticSignature: "profile-v1")
         }
 
         // 1. A fresh append (a normal sync bringing the night's tail).
@@ -81,8 +90,8 @@ final class DayScanReuseEquivalenceTests: XCTestCase {
         let afterBackfill = try await probeNow()
         XCTAssertFalse(afterAppend.inputsMatch(afterBackfill),
                        "a backfilled older sample raises the count without moving maxTs")
-        XCTAssertEqual(afterAppend.hrMaxTs, afterBackfill.hrMaxTs,
-                       "…and it is genuinely the COUNT that caught it, not maxTs")
+        XCTAssertGreaterThan(afterBackfill.inputRevision ?? 0, afterAppend.inputRevision ?? 0,
+                             "a backfill moves the monotone revision even when its timestamp is older")
 
         // 3. The day resolving to a DIFFERENT owner (I2: exactly one device owns a day).
         let sameOwner = try await probeNow()
@@ -123,6 +132,31 @@ final class DayScanReuseEquivalenceTests: XCTestCase {
         XCTAssertEqual(a.maxTs, b.maxTs)
     }
 
+    func testEveryScoringStreamMovesTheAnalysisRevision() async throws {
+        let store = try await WhoopStore.inMemory()
+        try await store.upsertDevice(id: owner, mac: nil, name: nil)
+        let inputs: [Streams] = [
+            Streams(hr: [HRSample(ts: 100, bpm: 60)]),
+            Streams(ppgHr: [PpgHrSample(ts: 101, bpm: 61, conf: 0.9)]),
+            Streams(rr: [RRInterval(ts: 102, rrMs: 800)]),
+            Streams(resp: [RespSample(ts: 103, raw: 20)]),
+            Streams(gravity: [GravitySample(ts: 104, x: 0, y: 0, z: 1)]),
+            Streams(steps: [StepSample(ts: 105, counter: 10)]),
+            Streams(skinTemp: [SkinTempSample(ts: 106, raw: 3300)]),
+            Streams(spo2: [SpO2Sample(ts: 107, red: 10, ir: 20)]),
+            Streams(sleepState: [SleepStateSample(ts: 108, state: 2)]),
+            Streams(events: [WhoopEvent(ts: 109, kind: "WRIST_OFF", payload: [:])]),
+            Streams(v18Aux: [V18AuxSample(ts: 110, auxByte82: 95)]),
+        ]
+        var prior = try await store.analysisInputRevision(deviceId: owner, from: 0, to: 1_000)
+        for input in inputs {
+            _ = try await store.insert(input, deviceId: owner)
+            let next = try await store.analysisInputRevision(deviceId: owner, from: 0, to: 1_000)
+            XCTAssertGreaterThan(next.inputRevision, prior.inputRevision)
+            prior = next
+        }
+    }
+
     /// Re-inserting the SAME samples is idempotent at the store (ON CONFLICT DO NOTHING), so a
     /// duplicate offload must not look like a change — otherwise a flapping link would re-derive the
     /// window on every reconnect, which is the churn the post-offload gate exists to stop.
@@ -134,10 +168,39 @@ final class DayScanReuseEquivalenceTests: XCTestCase {
                                            from: 0, to: 10_000, traits: traits())
 
         _ = try await store.insert(Streams(hr: batch), deviceId: owner)   // the same rows again
-        let p = try await store.hrFingerprint(deviceId: owner, from: 0, to: 10_000)
-        let now = DayScanFingerprint(day: "2026-08-01", ownerId: owner, hrCount: p.count, hrMaxTs: p.maxTs,
-                                     nightlySkinC: nil, traits: traits())
+        let p = try await store.analysisInputRevision(deviceId: owner, from: 0, to: 10_000)
+        let now = DayScanFingerprint(day: "2026-08-01", ownerId: owner, hrCount: 0, hrMaxTs: 0,
+                                     nightlySkinC: nil, traits: traits(),
+                                     inputRevision: p.inputRevision, deviceRevision: p.deviceRevision,
+                                     scoringVersion: 1, semanticSignature: "profile-v1")
         XCTAssertTrue(recorded.inputsMatch(now), "re-sending identical rows banks nothing new")
+    }
+
+    func testExternalSleepChangesInvalidateButDerivedSleepAndDuplicatesDoNot() async throws {
+        let store = try await WhoopStore.inMemory()
+        let session = CachedSleepSession(startTs: 1_000, endTs: 2_000, efficiency: 0.9,
+                                         restingHr: 55, avgHrv: 48, stagesJSON: nil)
+        let before = try await store.analysisInputRevision(deviceId: owner, from: 0, to: 10_000)
+        _ = try await store.upsertSleepSessions([session], deviceId: owner)
+        let external = try await store.analysisInputRevision(deviceId: owner, from: 0, to: 10_000)
+        XCTAssertGreaterThan(external.inputRevision, before.inputRevision)
+
+        _ = try await store.upsertSleepSessions([session], deviceId: owner)
+        let duplicate = try await store.analysisInputRevision(deviceId: owner, from: 0, to: 10_000)
+        XCTAssertEqual(duplicate, external, "an identical imported session is not a mutation")
+
+        _ = try await store.upsertSleepSessions([session], deviceId: owner + "-noop")
+        let derived = try await store.analysisInputRevision(deviceId: owner + "-noop", from: 0, to: 10_000)
+        XCTAssertEqual(derived.inputRevision, 0, "engine output must never invalidate raw input")
+
+        let edited = CachedSleepSession(startTs: 3_000, endTs: 4_000, efficiency: 0.9,
+                                        restingHr: 55, avgHrv: 48, stagesJSON: nil,
+                                        userEdited: true)
+        _ = try await store.upsertSleepSessions([edited], deviceId: owner + "-noop")
+        let userInput = try await store.analysisInputRevision(deviceId: owner + "-noop",
+                                                               from: 0, to: 10_000)
+        XCTAssertGreaterThan(userInput.inputRevision, 0,
+                             "hand-edited sleep remains an input inside the computed namespace")
     }
 
     /// Days are independent: touching one must not invalidate its neighbours, or a nightly sync would
@@ -150,21 +213,27 @@ final class DayScanReuseEquivalenceTests: XCTestCase {
                                      samples: (0..<20).map { HRSample(ts: 1_000 + $0, bpm: 60) },
                                      from: 0, to: 5_000, traits: traits())
         let d2 = try await recordDay(store, day: "2026-08-02",
-                                     samples: (0..<20).map { HRSample(ts: 10_000 + $0, bpm: 62) },
-                                     from: 9_000, to: 15_000, traits: traits())
+                                     samples: (0..<20).map { HRSample(ts: 100_000 + $0, bpm: 62) },
+                                     from: 90_000, to: 105_000, traits: traits())
 
         // A sync lands data only in day 2's window.
-        _ = try await store.insert(Streams(hr: [HRSample(ts: 11_000, bpm: 63)]), deviceId: owner)
+        _ = try await store.insert(Streams(hr: [HRSample(ts: 101_000, bpm: 63)]), deviceId: owner)
 
-        let p1 = try await store.hrFingerprint(deviceId: owner, from: 0, to: 5_000)
+        let p1 = try await store.analysisInputRevision(deviceId: owner, from: 0, to: 5_000)
         XCTAssertTrue(d1.inputsMatch(DayScanFingerprint(day: "2026-08-01", ownerId: owner,
-                                                         hrCount: p1.count, hrMaxTs: p1.maxTs,
-                                                         nightlySkinC: nil, traits: traits())),
+                                                         hrCount: 0, hrMaxTs: 0,
+                                                         nightlySkinC: nil, traits: traits(),
+                                                         inputRevision: p1.inputRevision,
+                                                         deviceRevision: p1.deviceRevision,
+                                                         scoringVersion: 1, semanticSignature: "profile-v1")),
                       "day 1 was not touched and must stay reusable")
-        let p2 = try await store.hrFingerprint(deviceId: owner, from: 9_000, to: 15_000)
+        let p2 = try await store.analysisInputRevision(deviceId: owner, from: 90_000, to: 105_000)
         XCTAssertFalse(d2.inputsMatch(DayScanFingerprint(day: "2026-08-02", ownerId: owner,
-                                                          hrCount: p2.count, hrMaxTs: p2.maxTs,
-                                                          nightlySkinC: nil, traits: traits())),
+                                                          hrCount: 0, hrMaxTs: 0,
+                                                          nightlySkinC: nil, traits: traits(),
+                                                          inputRevision: p2.inputRevision,
+                                                          deviceRevision: p2.deviceRevision,
+                                                          scoringVersion: 1, semanticSignature: "profile-v1")),
                        "day 2 received the sync and must be re-derived")
     }
 }

@@ -724,6 +724,11 @@ final class Repository: ObservableObject {
     /// newer one. Each call captures the token at entry and only publishes if it is still the latest. Not
     /// @Published (pure ordering, never drives the UI); race-free since Repository is @MainActor.
     private var refreshGen = 0
+    private var refreshRunnerActive = false
+    private var activeRefreshDays = 0
+    private var activeRefreshWaiters: [CheckedContinuation<Void, Never>] = []
+    private var pendingRefreshDays = 0
+    private var pendingRefreshWaiters: [CheckedContinuation<Void, Never>] = []
 
     /// #849: the `refreshSeq` value at which Today last ran its heavy history-wide reload (the ~40 reads +
     /// per-day raw-HR pass). Lives HERE, on the long-lived Repository, not in TodayView's `@State`, so it
@@ -790,7 +795,41 @@ final class Repository: ObservableObject {
     var loadFireCounts: [String: Int] = [:]
     #endif
 
-    func refresh(days nDays: Int = 4000) async {
+    /// Refresh the UI publication window only. Historical screens use the explicit range APIs below;
+    /// a bare refresh must never materialize the user's complete archive on launch/foreground/reselect.
+    func refresh(days nDays: Int = 120) async {
+        let requestedDays = max(1, nDays)
+        await withCheckedContinuation { waiter in
+            // A running wider snapshot already covers this request: share it instead of queueing the same
+            // database reads again. A wider request queues one follow-up generation and absorbs all peers.
+            if refreshRunnerActive, requestedDays <= activeRefreshDays {
+                activeRefreshWaiters.append(waiter)
+                return
+            }
+            pendingRefreshDays = max(pendingRefreshDays, requestedDays)
+            pendingRefreshWaiters.append(waiter)
+            guard !refreshRunnerActive else { return }
+            refreshRunnerActive = true
+            Task { await self.runRefreshQueue() }
+        }
+    }
+
+    private func runRefreshQueue() async {
+        while pendingRefreshDays > 0 {
+            activeRefreshDays = pendingRefreshDays
+            activeRefreshWaiters = pendingRefreshWaiters
+            pendingRefreshDays = 0
+            pendingRefreshWaiters = []
+            await performRefresh(days: activeRefreshDays)
+            let completed = activeRefreshWaiters
+            activeRefreshWaiters = []
+            activeRefreshDays = 0
+            completed.forEach { $0.resume() }
+        }
+        refreshRunnerActive = false
+    }
+
+    private func performRefresh(days nDays: Int) async {
         guard let store = await ensureStore() else { return }
         refreshGen &+= 1
         let myGen = refreshGen
@@ -1157,7 +1196,7 @@ final class Repository: ObservableObject {
         guard let store = await ensureStore() else { return nil }
         var perId: [[StepSample]] = []
         for id in importedReadIds {   // active strap FIRST so it wins a ts tie
-            perId.append((try? await store.stepSamples(deviceId: id, from: from, to: to, limit: 200_000)) ?? [])
+            perId.append((try? await store.stepSamples(deviceId: id, from: from, to: to, limit: Int.max)) ?? [])
         }
         return Self.latestActivityClass(perId)
     }
@@ -1171,7 +1210,7 @@ final class Repository: ObservableObject {
     func strapStepTicks(from: Int, to: Int) async -> Int? {
         guard let store = await ensureStore() else { return nil }
         for id in importedReadIds {   // active strap FIRST
-            let samples = (try? await store.stepSamples(deviceId: id, from: from, to: to, limit: 200_000)) ?? []
+            let samples = (try? await store.stepSamples(deviceId: id, from: from, to: to, limit: Int.max)) ?? []
             if let ticks = StepsCounter.stepsInWindow(samples) { return ticks }
         }
         return nil
@@ -1537,18 +1576,18 @@ final class Repository: ObservableObject {
     private func restageFromRaw(start: Int, end: Int) async -> String? {
         guard let store = await ensureStore() else { return nil }
         let lo = start - 3_600, hi = end + 3_600
-        let grav = (try? await store.gravitySamples(deviceId: deviceId, from: lo, to: hi, limit: 200_000)) ?? []
+        let grav = (try? await store.gravitySamples(deviceId: deviceId, from: lo, to: hi, limit: Int.max)) ?? []
         let inWindowGravity = grav.lazy.filter { $0.ts >= start && $0.ts <= end }.count
         let windowSeconds = max(1, end - start)
         guard inWindowGravity >= max(20, windowSeconds / 120) else { return nil }
-        let hr = (try? await store.hrSamples(deviceId: deviceId, from: lo, to: hi, limit: 200_000)) ?? []
-        let rr = (try? await store.rrIntervals(deviceId: deviceId, from: lo, to: hi, limit: 200_000)) ?? []
-        let resp = (try? await store.respSamples(deviceId: deviceId, from: lo, to: hi, limit: 200_000)) ?? []
+        let hr = (try? await store.hrSamples(deviceId: deviceId, from: lo, to: hi, limit: Int.max)) ?? []
+        let rr = (try? await store.rrIntervals(deviceId: deviceId, from: lo, to: hi, limit: Int.max)) ?? []
+        let resp = (try? await store.respSamples(deviceId: deviceId, from: lo, to: hi, limit: Int.max)) ?? []
         // Read only when the refinement below might actually use it (see `useMotionAwareWake`) — a plain
         // read cost, but no point paying it on the (default) off path.
         let useMotionAwareWake = PuffinExperiment.motionAwareWakeEnabled
         let steps = useMotionAwareWake
-            ? ((try? await store.stepSamples(deviceId: deviceId, from: lo, to: hi, limit: 200_000)) ?? [])
+            ? ((try? await store.stepSamples(deviceId: deviceId, from: lo, to: hi, limit: Int.max)) ?? [])
             : []
         // Which staging engine re-stages this window (Settings → Experimental · Sleep staging). The flag is
         // **default ON** (#277 promoted V2 over V1; #351 extended it to every strap family), so unless the
@@ -1731,7 +1770,7 @@ final class Repository: ObservableObject {
                 // the main actor and can't beach-ball a dense day. Mirrors `restageFromRaw`.
                 var perId: [[HRSample]] = []
                 for id in unionIds {
-                    perId.append((try? await store.hrSamples(deviceId: id, from: from, to: to, limit: 200_000)) ?? [])
+                    perId.append((try? await store.hrSamples(deviceId: id, from: from, to: to, limit: Int.max)) ?? [])
                 }
                 let points = await Task.detached(priority: .utility) {
                     Self.dedupSortRawHr(perId)
@@ -1834,7 +1873,7 @@ final class Repository: ObservableObject {
             // rather than a noisy spike. The `to - from` span chooses the window width: a 2-min rMSSD for a
             // zoomed-in look, widening with the visible span so a day-scale view stays readable. The thinning
             // stride keeps a 1 Hz R-R stream from emitting a point per beat.
-            let rr = (try? await store.rrIntervals(deviceId: source, from: from, to: to, limit: 200_000)) ?? []
+            let rr = (try? await store.rrIntervals(deviceId: source, from: from, to: to, limit: Int.max)) ?? []
             let window = Self.hrvRollingWindowSec(spanSeconds: to - from)
             // rollingRmssd + the map over its output run OFF the main actor (mirrors the HR branch's
             // Task.detached in `timelineSeries`): only the already-read Sendable `rr` rows cross in.
@@ -1844,25 +1883,25 @@ final class Repository: ObservableObject {
             }.value
         case .spo2:
             // The honest raw red/IR ratio proxy (#166: no calibrated %), shown as a unitless trend.
-            let s = (try? await store.spo2Samples(deviceId: source, from: from, to: to, limit: 200_000)) ?? []
+            let s = (try? await store.spo2Samples(deviceId: source, from: from, to: to, limit: Int.max)) ?? []
             // The up-to-200k-row conversion runs OFF the main actor; only the Sendable `s` rows cross in.
             return await Task.detached(priority: .utility) {
                 s.compactMap { $0.ir > 0 ? Self.timelinePoint($0.ts, Double($0.red) / Double($0.ir)) : nil }
             }.value
         case .skinTemp:
-            let s = (try? await store.skinTempSamples(deviceId: source, from: from, to: to, limit: 200_000)) ?? []
+            let s = (try? await store.skinTempSamples(deviceId: source, from: from, to: to, limit: Int.max)) ?? []
             return await Task.detached(priority: .utility) {
                 // #938: family-aware raw→°C — 5/MG centidegrees (raw/100, #156), 4.0 v24 raw ADC map.
                 s.map { Self.timelinePoint($0.ts, skinTempCelsius(raw: $0.raw, family: family)) }
             }.value
         case .respiration:
-            let s = (try? await store.respSamples(deviceId: source, from: from, to: to, limit: 200_000)) ?? []
+            let s = (try? await store.respSamples(deviceId: source, from: from, to: to, limit: Int.max)) ?? []
             return await Task.detached(priority: .utility) {
                 s.map { Self.timelinePoint($0.ts, Double($0.raw)) }
             }.value
         case .motion:
             // Gravity vector magnitude as a coarse movement signal (1 g at rest).
-            let s = (try? await store.gravitySamples(deviceId: source, from: from, to: to, limit: 200_000)) ?? []
+            let s = (try? await store.gravitySamples(deviceId: source, from: from, to: to, limit: Int.max)) ?? []
             // The sqrt-per-row magnitude over up to 200k gravity rows runs OFF the main actor.
             return await Task.detached(priority: .utility) {
                 s.map { Self.timelinePoint($0.ts, ($0.x * $0.x + $0.y * $0.y + $0.z * $0.z).squareRoot()) }
@@ -1880,7 +1919,7 @@ final class Repository: ObservableObject {
             // The ring's OWN per-window motion from OURA_MOTION events (0x47, movement-gated): plot
             // `motion_seconds` (0 when still, up to 31 s of movement in the ~30 s window). An honest
             // activity track, NEVER scored and NEVER a step count; empty for a WHOOP strap (no such events).
-            let evs = (try? await store.events(deviceId: source, from: from, to: to, limit: 200_000)) ?? []
+            let evs = (try? await store.events(deviceId: source, from: from, to: to, limit: Int.max)) ?? []
             return await Task.detached(priority: .utility) {
                 evs.compactMap { e -> TrendPoint? in
                     guard e.kind == OuraStreamMapping.motionEventKind,
@@ -2263,7 +2302,7 @@ final class Repository: ObservableObject {
     nonisolated static func nonEmptyMetricIDs(_ catalog: [MetricDescriptor],
                                               keysBySource: [String: Set<String>],
                                               days: [DailyMetric],
-                                              whoopSource: String = Repository.whoopSource) -> Set<String> {
+                                              whoopSource: String = "my-whoop") -> Set<String> {
         Set(catalog.lazy.filter { metric in
             if keysBySource[metric.source]?.contains(metric.key) == true { return true }
             // The daily-column fallback is WHOOP-only, exactly as `exploreSeries` gates it.
@@ -2993,7 +3032,7 @@ final class Repository: ObservableObject {
         guard PuffinExperiment.autoDetectWorkoutsEnabled else { return nil }
         let now = Int(Date().timeIntervalSince1970)
         let from = now - daysBack * 86_400
-        let samples = await hrSamples(from: from, to: now, limit: 200_000)
+        let samples = await hrSamples(from: from, to: now, limit: Int.max)
         guard samples.count >= 2 else { return nil }
         let hr = samples.map { (ts: $0.ts, bpm: $0.bpm) }
 
