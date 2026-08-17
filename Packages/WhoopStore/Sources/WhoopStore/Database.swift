@@ -881,6 +881,23 @@ extension WhoopStore {
                 t.primaryKey(["deviceId", "day"])
             }
         }
+        // The LEARNED traits a day was scored against. These are re-derived from the trailing history on
+        // every pass and fed into `analyzeDay`, so they change a day's stored Rest score WITHOUT changing
+        // one byte of its raw input — invisible to the (count, maxTs) fingerprint above. A day reused
+        // across a trait shift would stay frozen on the old values while its neighbours moved, and a
+        // forced full rescore would then no longer reproduce it. Quantised (see `traitSignature`) so
+        // ordinary daily jitter does not invalidate the whole window every night.
+        //
+        // Additive, and NULL on every row written by v38: a row with no recorded traits compares as
+        // "unknown" and therefore as CHANGED, so the first pass after this migration re-derives those days
+        // once and records them. Missing means scan — the same safe direction as v38.
+        migrator.registerMigration("v39-day-scan-traits") { db in
+            try db.alter(table: "dayScanFingerprint") { t in
+                t.add(column: "traitSleepConsistency", .integer)
+                t.add(column: "traitNeedHoursTenths", .integer)
+                t.add(column: "traitMidsleepMin", .integer)
+            }
+        }
         return migrator
     }
 }

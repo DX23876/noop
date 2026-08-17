@@ -9,9 +9,17 @@ import WhoopProtocol
 /// A false "changed" costs one redundant scan; a false "unchanged" leaves a day permanently wrong.
 final class DayScanFingerprintTests: XCTestCase {
 
+    /// A stable trait signature, so the raw-input tests below vary only what they mean to vary.
+    private func traits(consistency: Double? = 0.80, need: Double = 8.0,
+                        midsleep: Int? = 4 * 3600) -> DayScanFingerprint.TraitSignature {
+        DayScanFingerprint.TraitSignature(consistency: consistency, needHours: need, midsleepSec: midsleep)
+    }
+
     private func fp(_ day: String, owner: String = "whoop-1", count: Int = 100, maxTs: Int = 5000,
-                    skin: Double? = nil) -> DayScanFingerprint {
-        DayScanFingerprint(day: day, ownerId: owner, hrCount: count, hrMaxTs: maxTs, nightlySkinC: skin)
+                    skin: Double? = nil,
+                    traits t: DayScanFingerprint.TraitSignature? = nil) -> DayScanFingerprint {
+        DayScanFingerprint(day: day, ownerId: owner, hrCount: count, hrMaxTs: maxTs, nightlySkinC: skin,
+                           traits: t ?? traits())
     }
 
     func testRoundTripsAndKeysByDay() async throws {
@@ -92,6 +100,75 @@ final class DayScanFingerprintTests: XCTestCase {
         let got = try await store.dayScanFingerprints(deviceId: "my-whoop-noop",
                                                       from: "2026-08-01", to: "2026-08-05")
         XCTAssertNil(got["2026-08-04"], "no record → the caller has nothing to match → it scans")
+    }
+
+    // MARK: - Learned traits (v39)
+    //
+    // These move a day's stored Rest score without moving one byte of its raw input, so the raw probe
+    // cannot see them. If they were left out, a day reused across a trait shift would sit frozen on the
+    // old values while its neighbours moved — and a forced full rescore would no longer reproduce it.
+
+    func testAShiftedSleepConsistencyCountsAsChanged() {
+        XCTAssertFalse(fp("d", traits: traits(consistency: 0.80))
+            .inputsMatch(fp("d", traits: traits(consistency: 0.90))))
+    }
+
+    func testAShiftedSleepNeedCountsAsChanged() {
+        XCTAssertFalse(fp("d", traits: traits(need: 8.0)).inputsMatch(fp("d", traits: traits(need: 8.4))))
+    }
+
+    func testAShiftedHabitualMidsleepCountsAsChanged() {
+        XCTAssertFalse(fp("d", traits: traits(midsleep: 4 * 3600))
+            .inputsMatch(fp("d", traits: traits(midsleep: 5 * 3600))))
+    }
+
+    /// The quantisation is the whole point: the 28-night regularity window shifts a little every night,
+    /// and invalidating the window daily would cost exactly what this table exists to save. Sub-resolution
+    /// jitter must therefore still match.
+    func testSubResolutionJitterStillMatches() {
+        XCTAssertTrue(fp("d", traits: traits(consistency: 0.8000))
+            .inputsMatch(fp("d", traits: traits(consistency: 0.8004))),
+                      "consistency is compared at 1/100")
+        XCTAssertTrue(fp("d", traits: traits(need: 8.00)).inputsMatch(fp("d", traits: traits(need: 8.04))),
+                      "sleep need is compared at 0.1 h")
+        XCTAssertTrue(fp("d", traits: traits(midsleep: 4 * 3600))
+            .inputsMatch(fp("d", traits: traits(midsleep: 4 * 3600 + 20))),
+                      "midsleep is compared to the minute")
+    }
+
+    /// A v38 row has no recorded traits. We cannot show it was scored against today's traits, and
+    /// "cannot show" has to read the same as "was not" — otherwise the upgrade would silently keep days
+    /// that were scored against unknown values.
+    func testARowWithoutRecordedTraitsIsNeverReused() {
+        let legacy = DayScanFingerprint(day: "d", ownerId: "whoop-1", hrCount: 100, hrMaxTs: 5000,
+                                        nightlySkinC: nil, traits: nil)
+        XCTAssertFalse(legacy.inputsMatch(fp("d")), "stored row predates v39 → scan it")
+        XCTAssertFalse(fp("d").inputsMatch(legacy), "and the probe having no traits is a mismatch too")
+    }
+
+    func testTraitsRoundTripThroughTheStore() async throws {
+        let store = try await WhoopStore.inMemory()
+        try await store.upsertDayScanFingerprints(
+            [fp("2026-08-01", traits: traits(consistency: 0.73, need: 7.5, midsleep: 3 * 3600 + 1800))],
+            deviceId: "my-whoop-noop")
+        let got = try await store.dayScanFingerprints(deviceId: "my-whoop-noop",
+                                                      from: "2026-08-01", to: "2026-08-01")
+        XCTAssertEqual(got["2026-08-01"]?.traits?.consistencyHundredths, 73)
+        XCTAssertEqual(got["2026-08-01"]?.traits?.needHoursTenths, 75)
+        XCTAssertEqual(got["2026-08-01"]?.traits?.midsleepMinutes, 210)
+        XCTAssertTrue(got["2026-08-01"]?.inputsMatch(
+            fp("2026-08-01", traits: traits(consistency: 0.73, need: 7.5, midsleep: 3 * 3600 + 1800))) ?? false,
+                      "a stored row still matches the traits it was written with")
+    }
+
+    /// A cold-start wearer has no regularity and no learned midsleep yet. Absent-on-both must MATCH, or
+    /// no day would ever be reusable until enough history accrues.
+    func testAbsentOptionalTraitsMatchWhenBothAreAbsent() {
+        let a = fp("d", traits: traits(consistency: nil, midsleep: nil))
+        let b = fp("d", traits: traits(consistency: nil, midsleep: nil))
+        XCTAssertTrue(a.inputsMatch(b))
+        XCTAssertFalse(a.inputsMatch(fp("d", traits: traits(consistency: 0.5, midsleep: nil))),
+                       "gaining a consistency reading IS a change")
     }
 
     /// The escape hatch for an ALGORITHM change: the raw bytes are untouched, so every input fingerprint

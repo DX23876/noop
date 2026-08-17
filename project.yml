@@ -41,6 +41,20 @@ settings:
     Release:
       # Distribution builds must produce a universal binary, not just the host arch.
       ONLY_ACTIVE_ARCH: NO
+    Debug:
+      # Optimise the LOCAL PACKAGES in Debug; the app targets opt back out to -Onone below.
+      #
+      # The packages hold the compute: StrandAnalytics runs the sleep stager, the HRV/RMSSD passes and
+      # the recovery scoring, over ~950 k samples per scored day. At -Onone that is Swift with no
+      # inlining, no specialisation of generics and retain/release on every array access — the analyze
+      # pass is dominated by exactly the code that suffers most from it, and this is a debug-built app
+      # in daily use, not a throwaway.
+      #
+      # Xcode compiles SPM package targets against the PROJECT configuration, so setting it here reaches
+      # WhoopProtocol / WhoopStore / StrandAnalytics / StrandImport / StrandDesign / OuraProtocol, while
+      # each app target's own `SWIFT_OPTIMIZATION_LEVEL: -Onone` (see `targets:`) keeps app code fully
+      # steppable. Debug symbols are unaffected either way — `-O` changes codegen, not `-g`.
+      SWIFT_OPTIMIZATION_LEVEL: "-O"
 packages:
   # Renders the Coach's LLM replies (GitHub-flavored Markdown — bold, lists,
   # headings, tables). Pinned exactly for reproducible community builds.
@@ -142,6 +156,12 @@ targets:
         # distributed (ad-hoc) build. The app uses no JIT / unsigned-exec memory, so it's safe.
         ENABLE_HARDENED_RUNTIME: YES
         COMBINE_HIDPI_IMAGES: YES
+      configs:
+        # Opt the APP module back out of the project-wide Debug `-O` (see `configs:` at the top): the
+        # packages get optimised so the analyze pass is usable in a debug build, this stays -Onone so
+        # app code steps and inspects normally.
+        Debug:
+          SWIFT_OPTIMIZATION_LEVEL: "-Onone"
     dependencies:
       - package: WhoopProtocol
       - package: WhoopStore
@@ -323,6 +343,10 @@ targets:
         GENERATE_INFOPLIST_FILE: NO
         TARGETED_DEVICE_FAMILY: "1,2"
         SWIFT_EMIT_LOC_STRINGS: YES
+      configs:
+        # Same opt-out as the macOS target: packages optimised in Debug, app code left steppable.
+        Debug:
+          SWIFT_OPTIMIZATION_LEVEL: "-Onone"
     dependencies:
       - package: WhoopProtocol
       - package: WhoopStore

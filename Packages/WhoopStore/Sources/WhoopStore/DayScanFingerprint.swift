@@ -24,20 +24,65 @@ public struct DayScanFingerprint: Equatable, Sendable {
     /// skipped day could not re-seed the skin baseline the way a scanned one does, and the baseline (and
     /// therefore every score folded off it) would depend on which days happened to be skipped.
     public let nightlySkinC: Double?
+    /// The LEARNED traits this day was scored against, quantised. They are re-derived from the trailing
+    /// history on every pass and fed into the day's scoring, so they move a day's stored Rest score
+    /// without moving one byte of its raw input — the (count, maxTs) probe cannot see them.
+    ///
+    /// nil means "not recorded" (a row from v38, before this existed) and compares as CHANGED, so such a
+    /// day is re-derived once and gains its traits. Missing means scan.
+    public let traits: TraitSignature?
 
-    public init(day: String, ownerId: String, hrCount: Int, hrMaxTs: Int, nightlySkinC: Double?) {
+    /// The three learned traits, quantised to the resolution at which a change is worth re-deriving a
+    /// day for. Raw `Double`s would differ in the last bits every single night — the 28-night regularity
+    /// window alone shifts with every new night — and the whole window would invalidate daily, which is
+    /// the cost this table exists to avoid. Integers also compare exactly, with no float-equality trap.
+    ///
+    /// Resolutions: consistency to 1/100 (its own range is 0…1), sleep need to 0.1 h (6 min — finer than
+    /// the Rest scorer can express), midsleep to the minute. Each is roughly "a change a wearer could
+    /// notice in the score", so a real drift invalidates and ordinary jitter does not.
+    public struct TraitSignature: Equatable, Sendable {
+        public let consistencyHundredths: Int?
+        public let needHoursTenths: Int
+        public let midsleepMinutes: Int?
+
+        public init(consistency: Double?, needHours: Double, midsleepSec: Int?) {
+            self.consistencyHundredths = consistency.map { Int(($0 * 100).rounded()) }
+            self.needHoursTenths = Int((needHours * 10).rounded())
+            self.midsleepMinutes = midsleepSec.map { Int((Double($0) / 60).rounded()) }
+        }
+
+        public init(consistencyHundredths: Int?, needHoursTenths: Int, midsleepMinutes: Int?) {
+            self.consistencyHundredths = consistencyHundredths
+            self.needHoursTenths = needHoursTenths
+            self.midsleepMinutes = midsleepMinutes
+        }
+    }
+
+    public init(day: String, ownerId: String, hrCount: Int, hrMaxTs: Int, nightlySkinC: Double?,
+                traits: TraitSignature? = nil) {
         self.day = day
         self.ownerId = ownerId
         self.hrCount = hrCount
         self.hrMaxTs = hrMaxTs
         self.nightlySkinC = nightlySkinC
+        self.traits = traits
     }
 
-    /// True when `self` was computed from the same inputs `other` describes. Compares ONLY the input
-    /// fields — `nightlySkinC` is an output carried along for baseline re-seeding, so including it would
-    /// make a day look "changed" because of its own result.
+    /// True when `self` was computed from the same inputs `other` describes — raw AND learned.
+    ///
+    /// `nightlySkinC` is deliberately excluded: it is an OUTPUT carried along so a reused day can
+    /// re-seed the skin baseline, and comparing it would make every skin-bearing night look changed
+    /// because of its own result.
+    ///
+    /// A nil `traits` on EITHER side is a mismatch, not a pass. `self` is the stored record and `other`
+    /// the current probe; an unrecorded trait set means we cannot show the day was scored against
+    /// today's traits, and "cannot show" has to read the same as "was not".
     public func inputsMatch(_ other: DayScanFingerprint) -> Bool {
-        ownerId == other.ownerId && hrCount == other.hrCount && hrMaxTs == other.hrMaxTs
+        guard ownerId == other.ownerId, hrCount == other.hrCount, hrMaxTs == other.hrMaxTs else {
+            return false
+        }
+        guard let mine = traits, let theirs = other.traits else { return false }
+        return mine == theirs
     }
 }
 
@@ -48,14 +93,25 @@ extension WhoopStore {
         -> [String: DayScanFingerprint] {
         try await asyncRead { db in
             let rows = try Row.fetchAll(db, sql: """
-                SELECT day, ownerId, hrCount, hrMaxTs, nightlySkinC FROM dayScanFingerprint
+                SELECT day, ownerId, hrCount, hrMaxTs, nightlySkinC,
+                       traitSleepConsistency, traitNeedHoursTenths, traitMidsleepMin
+                FROM dayScanFingerprint
                 WHERE deviceId = ? AND day >= ? AND day <= ?
                 """, arguments: [deviceId, from, to])
             var out: [String: DayScanFingerprint] = [:]
             for r in rows {
+                // `needHoursTenths` is the one non-optional member of the signature, so a row whose need
+                // is NULL predates v39 and has no recorded traits at all — surfaced as nil, which
+                // `inputsMatch` treats as CHANGED.
+                let traits: DayScanFingerprint.TraitSignature? = (r["traitNeedHoursTenths"] as Int?).map {
+                    DayScanFingerprint.TraitSignature(
+                        consistencyHundredths: r["traitSleepConsistency"],
+                        needHoursTenths: $0,
+                        midsleepMinutes: r["traitMidsleepMin"])
+                }
                 out[r["day"]] = DayScanFingerprint(day: r["day"], ownerId: r["ownerId"],
                                                    hrCount: r["hrCount"], hrMaxTs: r["hrMaxTs"],
-                                                   nightlySkinC: r["nightlySkinC"])
+                                                   nightlySkinC: r["nightlySkinC"], traits: traits)
             }
             return out
         }
@@ -72,16 +128,22 @@ extension WhoopStore {
         guard !rows.isEmpty else { return 0 }
         return try syncWrite { db in
             let stmt = try db.cachedStatement(sql: """
-                INSERT INTO dayScanFingerprint (deviceId, day, ownerId, hrCount, hrMaxTs, nightlySkinC)
-                VALUES (?, ?, ?, ?, ?, ?)
+                INSERT INTO dayScanFingerprint (deviceId, day, ownerId, hrCount, hrMaxTs, nightlySkinC,
+                                                traitSleepConsistency, traitNeedHoursTenths, traitMidsleepMin)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(deviceId, day) DO UPDATE SET
                     ownerId = excluded.ownerId,
                     hrCount = excluded.hrCount,
                     hrMaxTs = excluded.hrMaxTs,
-                    nightlySkinC = excluded.nightlySkinC
+                    nightlySkinC = excluded.nightlySkinC,
+                    traitSleepConsistency = excluded.traitSleepConsistency,
+                    traitNeedHoursTenths = excluded.traitNeedHoursTenths,
+                    traitMidsleepMin = excluded.traitMidsleepMin
                 """)
             for r in rows {
-                try stmt.execute(arguments: [deviceId, r.day, r.ownerId, r.hrCount, r.hrMaxTs, r.nightlySkinC])
+                try stmt.execute(arguments: [deviceId, r.day, r.ownerId, r.hrCount, r.hrMaxTs, r.nightlySkinC,
+                                             r.traits?.consistencyHundredths, r.traits?.needHoursTenths,
+                                             r.traits?.midsleepMinutes])
             }
             return rows.count
         }

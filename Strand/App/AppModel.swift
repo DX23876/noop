@@ -501,7 +501,10 @@ final class AppModel: ObservableObject {
                 // `force: false` skips the heavy 21-day rescore when the raw HR stream is unchanged since the
                 // last run, instead of re-reading ~21×54 h of HR every 15 min on a big-import library. A new
                 // sample (the heal above, or a sync) moves the fingerprint and the tick rescores as before.
-                await self.intelligence.analyzeRecent(force: false)
+                // `allowDayReuse: true`: when the whole-history watermark HAS moved, this tick still only
+                // needs to re-derive the days the new samples actually landed in — which is exactly what
+                // the per-day fingerprint resolves (#launch-rescore).
+                await self.intelligence.analyzeRecent(force: false, allowDayReuse: true)
                 // v5: recompute the skin-temp suite snapshots (cycle phase + body clock) from the
                 // freshly-scored history so the Health hub cards read a ready result.
                 await self.refreshV5Signals()
@@ -630,7 +633,10 @@ final class AppModel: ObservableObject {
         let diagRefreshStart = Date()
         await repo.refresh()
         NSLog("[FREEZE-DIAG] adoptActiveDevice repo.refresh took=\(String(format: "%.2f", Date().timeIntervalSince(diagRefreshStart)))s")
-        await intelligence.analyzeRecent(skipIfUnchanged: skipIfUnchanged)
+        // `allowDayReuse: true`: a re-point changes WHICH device owns a day, and the owner id is part of
+        // the per-day fingerprint — so every day whose ownership actually moved fails the match and is
+        // re-derived, while the rest keep their scores (#launch-rescore).
+        await intelligence.analyzeRecent(skipIfUnchanged: skipIfUnchanged, allowDayReuse: true)
     }
 
     #if os(iOS)
@@ -652,7 +658,12 @@ final class AppModel: ObservableObject {
         // duplicate offload (nothing new banked, common on a flapping link) skips the whole-window rescore
         // instead of churning it, which was surfacing as a Trends/streak "0 days" flicker. Only this
         // post-offload caller opts in; every other analyzeRecent path still forces unconditionally.
-        await intelligence.analyzeRecent(skipIfUnchanged: true)
+        // `allowDayReuse: true` — the single most valuable place for it. A completed offload is a PURE
+        // raw-data change: new samples landed under a device id, in specific days. That is precisely what
+        // the per-day fingerprint resolves, so this pass re-derives the nights the sync actually brought
+        // and reuses the rest. Without it, every sync re-derived the full 21-day window from raw
+        // (~950 k rows per day) — the dominant recurring cost on a real library (#launch-rescore).
+        await intelligence.analyzeRecent(skipIfUnchanged: true, allowDayReuse: true)
         await PlanReconciliationCoordinator.reconcile(repo: repo)
         await GoalTrackingStore.shared.refresh(repo: repo)
         await refreshV5Signals()

@@ -454,7 +454,22 @@ final class IntelligenceEngine: ObservableObject {
     /// Compute on-device scores for each of the last `maxDays` that actually has raw HR data.
     /// Personal baselines (HRV / resting HR) are folded from the imported history, so even the first
     /// live night can be scored against your norm.
-    func analyzeRecent(maxDays: Int = 21, force: Bool = true, skipIfUnchanged: Bool = false) async {
+    /// `allowDayReuse` — may this pass skip days whose raw inputs have not moved (#launch-rescore)?
+    ///
+    /// DELIBERATELY NOT `!force`. The two answer different questions, and conflating them gets one of
+    /// them wrong: `force` says "run even if the whole-history watermark is unchanged", while this says
+    /// "the change you are reacting to is one the per-day fingerprint can SEE". A completed offload is
+    /// both — forced, and a pure raw-data change — so tying reuse to `!force` left every strap sync
+    /// re-deriving all 21 days, which is most of the cost on a real install.
+    ///
+    /// Pass `true` only where the change is raw-data-shaped: a completed offload (new samples land under
+    /// a device id, in specific days) and an active-device re-point (the owner is part of the
+    /// fingerprint). Leave it `false` — the default, so an unaware future caller lands on the safe side —
+    /// wherever the change is INVISIBLE in the raw streams: a sleep or workout edit, an import, a
+    /// baseline recalibrate, an HRV/stager settings flip, the timestamp heal, the one-shot Effort
+    /// rescore, and the manual "recompute" button (a user asking for a recompute should get one).
+    func analyzeRecent(maxDays: Int = 21, force: Bool = true, skipIfUnchanged: Bool = false,
+                       allowDayReuse: Bool = false) async {
         // TEMP DIAGNOSTIC (#freeze-investigation) — remove once the Goal & Journey freeze is understood.
         // Logs WHO calls this, with WHAT window, and how long the pass takes, so a UI freeze can be tied
         // to a concrete caller + workload instead of guessed at from a paused stack.
@@ -714,10 +729,12 @@ final class IntelligenceEngine: ObservableObject {
                 to: AnalyticsEngine.dayString(nowLocalMidnight, offsetSec: tzOffset))) ?? [])
                 .map { ($0.day, $0) },
             uniquingKeysWith: { _, last in last })
-        // A forced pass re-derives everything: `force: true` is how an import / edit / recalibrate / heal
-        // says "the inputs I changed are not visible in the raw HR counts". Only the idle/backstop tick and
-        // the post-offload path get to reuse, and those are exactly the ones that run when nothing happened.
-        let reuseAllowed = !force
+        let reuseAllowed = allowDayReuse
+        // The learned traits THIS pass will score with, quantised once. A reused day must have been
+        // scored against the same ones — they feed `analyzeDay` and therefore the stored Rest score, and
+        // no amount of raw-input matching can see them move.
+        let traitSignature = DayScanFingerprint.TraitSignature(
+            consistency: sleepConsistency, needHours: sleepNeedHours, midsleepSec: habitualMidsleepSec)
         let (scanned, skippedDayLines, reusedDays): ([DayScan], [String], [String]) =
         await Task.detached(priority: .utility) {
             var out: [DayScan] = []
@@ -795,7 +812,7 @@ final class IntelligenceEngine: ObservableObject {
                    persistedRowsByDay[day] != nil,
                    stored.inputsMatch(DayScanFingerprint(day: day, ownerId: owner,
                                                          hrCount: probe.count, hrMaxTs: probe.maxTs,
-                                                         nightlySkinC: nil)) {
+                                                         nightlySkinC: nil, traits: traitSignature)) {
                     reusedDays.append(day)
                     continue
                 }
@@ -2130,7 +2147,8 @@ final class IntelligenceEngine: ObservableObject {
             guard persistedDays.contains(day), let probe = scan.inputProbe else { return nil }
             return DayScanFingerprint(day: day, ownerId: scan.readOwner,
                                       hrCount: probe.count, hrMaxTs: probe.maxTs,
-                                      nightlySkinC: scan.result.nightlySkinTempC)
+                                      nightlySkinC: scan.result.nightlySkinTempC,
+                                      traits: traitSignature)
         }
         if !scanFingerprints.isEmpty {
             _ = try? await store.upsertDayScanFingerprints(scanFingerprints, deviceId: computedId)
