@@ -221,16 +221,33 @@ object AndroidDiagnostics {
                 "apple-health", "health-connect").distinct()
             val dayCounts = ids.map { it to repo.days(it).size }
             add("Days: " + dayCounts.joinToString("  ") { "${it.first}=${it.second}" })
-            // Which metrics are actually populated over the recent week on the imported spine.
+            // Which metrics are actually populated over the recent week on the imported (raw) spine…
+            // The day-SPAN is stamped so a stale spine is visible: `takeLast(7)` can be the last 7 IMPORTED
+            // rows (months old), not the last 7 CALENDAR days — without the range they look identical. Twin
+            // of the Swift #731 fix.
             val recent = repo.days("my-whoop").takeLast(7)
             if (recent.isNotEmpty()) {
                 val n = recent.size
-                add("Recent ${n}d (my-whoop): " +
+                val span = "${recent.first().day}…${recent.last().day}"
+                add("Recent ${n}d (my-whoop, $span): " +
                     "sleep=${recent.count { (it.totalSleepMin ?: 0.0) > 0 }}/$n  " +
                     "recovery=${recent.count { it.recovery != null }}/$n  " +
                     "steps=${recent.count { it.steps != null }}/$n  " +
                     "kcal=${recent.count { it.activeKcalEst != null }}/$n")
             } else add("Recent: no day rows")
+            // …and on the COMPUTED "-noop" spine, where steps/activeKcalEst are actually written. Compare the
+            // two: if kcal/steps are populated here but 0 on the raw line above, the raw-spine merge/view is
+            // dropping them (cosmetic); if 0 on BOTH, the value genuinely wasn't computed (a real gap).
+            val recentNoop = repo.days("my-whoop-noop").takeLast(7)
+            if (recentNoop.isNotEmpty()) {
+                val nn = recentNoop.size
+                val spanNoop = "${recentNoop.first().day}…${recentNoop.last().day}"
+                add("Recent ${nn}d (my-whoop-noop, computed, $spanNoop): " +
+                    "sleep=${recentNoop.count { (it.totalSleepMin ?: 0.0) > 0 }}/$nn  " +
+                    "recovery=${recentNoop.count { it.recovery != null }}/$nn  " +
+                    "steps=${recentNoop.count { it.steps != null }}/$nn  " +
+                    "kcal=${recentNoop.count { it.activeKcalEst != null }}/$nn")
+            }
             val dv = repo.dataVolumeSnapshot(active)
             add("Volume: rawRows=${dv.dbRows}  importedDays=${dv.importedDays}  workouts=${dv.workouts}")
         }.onFailure { add("(daily data unavailable: ${it.message})") }
