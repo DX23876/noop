@@ -1,7 +1,7 @@
 # iOS — Install & Build
 
-> **The iOS DX Beta ships in two variants.** Grab **`NOOP-ios-unsigned-v9.3.3-dx-beta.ipa`** from the
-> [NOOP AI release](https://github.com/DX23876/noop/releases/tag/v9.3.3-dx-beta) page and install it with **AltStore** or **SideStore** — see
+> **The iOS release ships in two variants.** Grab **`NOOP-ios-unsigned-v10.1.1-dx.ipa`** from the
+> [NOOP AI 10.1.1 release](https://github.com/DX23876/noop/releases/tag/v10.1.1-dx) page and install it with **AltStore** or **SideStore** — see
 > **[Install (sideload)](#install-sideload)** below. No Mac, no Xcode, no App Store, and no Apple
 > Developer account needed — **and NOOP stays anonymous**, because the `.ipa` we ship is *unsigned*
 > and **you** sign it on your own iPhone with your own free Apple ID. It carries the app **and the
@@ -20,8 +20,8 @@ Nothing about this touches NOOP's identity or Apple's servers on our side.
 1. **Install a sideloader on your computer** — [AltStore](https://altstore.io) or
    [SideStore](https://sidestore.io) (both free). Follow their one-time setup (it installs a helper +
    AltStore/SideStore onto your iPhone using your own Apple ID).
-2. **Download `NOOP-ios-unsigned-v9.3.3-dx-beta.ipa`** from the
-   [DX Beta release](https://github.com/DX23876/noop/releases/tag/v9.3.3-dx-beta) to your iPhone (or your
+2. **Download `NOOP-ios-unsigned-v10.1.1-dx.ipa`** from the
+   [10.1.1 release](https://github.com/DX23876/noop/releases/tag/v10.1.1-dx) to your iPhone (or your
    computer, then AirDrop/transfer it).
 3. **Open the `.ipa` with AltStore/SideStore** (Share → AltStore, or the app's "+" button). It signs
    and installs NOOP. First launch may need **Settings → General → VPN & Device Management → trust

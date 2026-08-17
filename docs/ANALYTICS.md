@@ -48,6 +48,24 @@ The package contains more analytics than the app currently surfaces. This sectio
 | `BehaviorInsights` | `BehaviorInsights.swift` | **Live.** Used by `InsightsView` (`rank` + `sentence`). |
 | `ComparisonEngine` | `ComparisonEngine.swift` | **Live.** Used by `MetricExplorerView`. |
 
+### Incremental analysis and launch behavior
+
+`IntelligenceEngine` serializes launch, device-adoption, backfill, HealthKit and manual requests into
+merged generations. The repository publishes a 120-day recent snapshot first; maintenance and the
+ordinary 21-day score refresh run after the first interactive screen rather than competing with it.
+
+Day reuse is revision-based. Every scoring-relevant raw mutation stamps the affected UTC-day buckets
+inside its database transaction. A local analysis day can reuse its persisted result only when the
+maximum revision across its exact window, device revision, owner, `scoringVersion`, semantic/profile
+signature, learned traits and baseline carry values all match. PPG-only, R-R-only and edited external
+sleep changes therefore invalidate the same way as measured heart rate, while duplicate offloads and
+engine-derived outputs do not.
+
+Raw range reads no longer impose a semantic 200,000-row ceiling. Sorted slices and one-pass bucket
+distribution replace the most expensive repeated full-array filters in sleep and recovery. The first
+run after a legacy fingerprint upgrade can still perform a CPU-heavy 21-day background refresh; fully
+cursor-paged raw reads and a three-UTC-day chunk cache remain future work.
+
 **In short:** the *interactive data-interrogation* engines (correlation, behavior effects, period comparison) are wired into screens, and the *recompute-from-raw-streams* engines that produce the three daily scores — Charge (recovery), Effort (strain), Rest (sleep), plus workout detection — run live too: `IntelligenceEngine` calls `analyzeDay` for every night the strap offloaded and persists the APPROXIMATE results under the `"-noop"` source, merged under any imported rows — a WHOOP export still wins wherever it covers a day. The live BLE app additionally runs four small inline analytics in `AppModel`: HR smoothing, RMSSD, HR-zone coaching, an illness/strain early-warning, and a resting-stress nudge.
 
 ---

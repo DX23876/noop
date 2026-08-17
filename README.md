@@ -7,7 +7,7 @@
 <p align="center"><b>Your WHOOP data, on your own devices, with a coach that remembers.</b></p>
 
 <p align="center">
-  <img alt="Current release" src="https://img.shields.io/badge/current%20beta-9.3.3%20DX%20Beta-C8902F?style=flat-square">
+  <img alt="Current release" src="https://img.shields.io/badge/current%20release-10.1.1-C8902F?style=flat-square">
   <img alt="Platforms" src="https://img.shields.io/badge/iOS%2017%2B%20%C2%B7%20macOS%2013%2B-234F9E?style=flat-square">
   <img alt="Straps" src="https://img.shields.io/badge/WHOOP-4.0%20%C2%B7%205.0%2FMG-234F9E?style=flat-square">
   <img alt="Privacy" src="https://img.shields.io/badge/no%20account%20%C2%B7%20no%20cloud-6B737B?style=flat-square">
@@ -84,36 +84,31 @@ you confirm become Lab Book entries. Files, OCR text and unconfirmed values are 
 
 A redesigned Today experience, configurable Coach entry points, compact-iPhone chat handling,
 fork-added surfaces covering upstream's full Apple language matrix, and an unsigned AltStore/SideStore
-beta that is signed only with the Apple ID you choose.
+release that is signed only with the Apple ID you choose.
 
 The upstream base and the fork additions remain intentionally separated in code so upstream protocol,
 analytics and safety fixes can continue to be merged without rewriting the coaching layer.
 
-## Latest beta — 9.3.3 DX Beta
+## Latest release — 10.1.1
 
-A packaging release: the sideload download carries the Home and Lock Screen widgets again, and — the
-half that makes them useful — the shared storage they read through is provisioned on the way out.
+A launch-performance and analysis-correctness release for large, long-lived local databases.
 
-- **Widgets work when you sideload.** They had been stripped from the AltStore/SideStore IPA on the
-  mistaken assumption that sideloaders could not sign them; a widget is an ordinary app extension, and
-  they can. Each extension does use one of the ten App IDs a free Apple ID may register per week.
-- **And they show your real numbers.** The build now leaves behind the capability template
-  AltStore/SideStore need in order to provision the App Group the app and widget share, so the widget
-  reads your actual Charge, Effort and Rest instead of sitting on dashes.
-- **The Apple Watch app stays out of that download, deliberately.** Sideloaders install an embedded
-  watch app unreliably, and the failure takes the whole installation with it. It remains in the Full
-  IPA and in any Xcode build.
+- **The first screen no longer waits for the archive.** NOOP publishes a bounded 120-day snapshot,
+  then runs plan, goal, HealthKit and historical maintenance work after the interface is usable.
+- **Changed inputs invalidate the right days.** R-R, PPG heart rate, respiration, motion, steps,
+  temperature, SpO₂, wrist/sleep state and edited sleep now participate alongside measured heart rate.
+- **Dense streams keep their newest samples.** The silent 200,000-row ceiling is gone, and the largest
+  repeated sleep/recovery array scans have been replaced with sorted slices and one-pass buckets.
 
-Read the full [9.3.3 DX Beta notes](docs/fork/releases/v9.3.3-dx-beta.md).
+Read the full [10.1.1 release notes](docs/fork/releases/v10.1.1.md).
 
-Before it: [9.3.2](docs/fork/releases/v9.3.2-dx-beta.md) corrected three faults feeding wrong numbers
-into HRV, and [9.3.1](docs/fork/releases/v9.3.1-dx-beta.md) brought the coach-memory receipts.
+Before it: [10.1.0](docs/fork/releases/v10.1.0.md) brought the fork onto the 10.x line with custom
+heart-rate zones, arithmetic-checked coach prescriptions and the complete upstream 10.1.0 base.
 
 ## In development
 
-- **Android is undecided.** The Android source still builds and is version-aligned with 9.3.3, but
-  this fork focuses on iOS and macOS and no longer keeps Android at feature parity. Whether a public
-  Android build ever ships is genuinely open — treat it as source you can build, not a promise.
+- **Android is not shipped by this fork.** The Android tree was removed after the fork moved to an
+  Apple-only release pipeline. RyanBR's upstream project remains the source for Android development.
 - **More practical alert history.** The inbox will keep evolving around events that actually happened,
   rather than becoming a second copy of scheduled reminders.
 
@@ -168,7 +163,7 @@ into HRV, and [9.3.1](docs/fork/releases/v9.3.1-dx-beta.md) brought the coach-me
 
 ## Download and install
 
-### iPhone and iPad — DX Beta
+### iPhone and iPad
 
 The iOS build is an **unsigned IPA on purpose**. Add the source below in AltStore or SideStore, then
 the sideloader signs the app locally with the Apple ID you choose. NOOP AI never receives your Apple ID
@@ -182,11 +177,11 @@ https://raw.githubusercontent.com/DX23876/noop/main/altstore-source.json
 
 - **AltStore:** Browse → **+** → paste the source URL → add NOOP AI.
 - **SideStore:** Sources → **+ Add Source** → paste the same URL → install NOOP AI.
-- Prefer a direct file? Download `NOOP-ios-unsigned-v9.3.3-dx-beta.ipa` from the
-  [9.3.3 DX Beta release](https://github.com/DX23876/noop/releases/tag/v9.3.3-dx-beta). It includes the
+- Prefer a direct file? Download `NOOP-ios-unsigned-v10.1.1-dx.ipa` from the
+  [10.1.1 release](https://github.com/DX23876/noop/releases/tag/v10.1.1-dx). It includes the
   Home/Lock-Screen **widgets**, which AltStore/SideStore sign along with the app.
 - Need the **Apple Watch** app? The same release also contains
-  `NOOP-ios-full-unsigned-v9.3.3-dx-beta.ipa`, which adds the Watch app and complication. It wants a
+  `NOOP-ios-full-unsigned-v10.1.1-dx.ipa`, which adds the Watch app and complication. It wants a
   signer or paid Developer team that can provision all of it together — sideloaders install an
   embedded watchOS bundle unreliably, and a failure there costs you the whole install, which is why
   the AltStore source stays on the watch-less IPA.
@@ -194,11 +189,11 @@ https://raw.githubusercontent.com/DX23876/noop/main/altstore-source.json
 See [the iOS install guide](docs/IOS.md) for the free-Apple-ID limits, widget notes, and build-from-source
 instructions.
 
-### Mac — DX Beta
+### Mac
 
 From 9.3.0 the release carries a packaged macOS build: download
-`NOOP-macos-v9.3.3-dx-beta.zip` from the
-[9.3.3 DX Beta release](https://github.com/DX23876/noop/releases/tag/v9.3.3-dx-beta), unzip it, then
+`NOOP-macos-v10.1.1-dx.zip` from the
+[10.1.1 release](https://github.com/DX23876/noop/releases/tag/v10.1.1-dx), unzip it, then
 **right-click → Open** the first time (it is ad-hoc signed, not notarised, so a double-click is blocked).
 
 The bundle is universal — Apple Silicon and Intel. Ad-hoc signing is what lets macOS bind the Bluetooth
@@ -209,9 +204,9 @@ identity changes with every build.
 
 | Platform | Status | Distribution |
 |---|---|---|
-| iOS / iPadOS | 9.3.3 DX Beta | AltStore, SideStore, or build from source |
-| macOS | 9.3.3 DX Beta | Packaged `.zip` in the release, or build with Xcode |
-| Android | Undecided | Source builds and is version-aligned; no public build planned |
+| iOS / iPadOS | 10.1.1 | AltStore, SideStore, or build from source |
+| macOS | 10.1.1 | Packaged `.zip` in the release, or build with Xcode |
+| Android | Not shipped by this fork | Use RyanBR's upstream Android project |
 
 ## The NOOP foundation retained
 
@@ -243,7 +238,7 @@ open Strand.xcodeproj
 
 - Choose **NOOPiOS** and a physical iPhone to build iOS.
 - Choose **Strand** to build macOS.
-- For Android development, follow [Android build instructions](docs/ANDROID.md).
+- For Android development, use [RyanBR's upstream project](https://github.com/ryanbr/noop).
 
 ## Documentation
 

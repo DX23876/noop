@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Numeric app version already committed to source (for example 10.1.0)"
+        description: "Numeric app version already committed to source (for example 10.1.1)"
         required: true
-        default: "10.1.0"
+        default: "10.1.1"
 
 permissions:
   contents: write

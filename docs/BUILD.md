@@ -216,7 +216,7 @@ swift run backfill
 
 ---
 
-## iOS (unsigned sideload beta and source builds)
+## iOS (unsigned sideload release and source builds)
 
 iOS ships as an **unsigned sideload beta** plus a build-from-source target. There is **no App Store
 or TestFlight build** — both require a real Apple Developer identity, which is fundamentally at odds
@@ -264,18 +264,26 @@ Notes:
   over. macOS-only surfaces (the menu-bar HR extra, screen-lock / Shortcut strap actions) have no
   iOS equivalent and are `#if os(macOS)`-gated; iOS uses a widget / Live Activity instead.
 
-### Publish an unsigned iOS beta
+### Publish an unsigned Apple release
 
-The repository's **Publish unsigned iOS beta** GitHub Action is intentionally manual. Dispatch it
-from `main` with the numeric version already committed in `project.yml` and
-`android/app/build.gradle.kts`, plus the beta sequence number. It validates the matching English
-release note under `docs/releases/`, builds `NOOPiOS` in Release without a signing team or certificate,
-packages both a complete unsigned IPA and a phone/iPad-only AltStore IPA, uploads both to a GitHub
-prerelease, and updates `altstore-source.json` with only the AltStore IPA's real release URL and file
-size. The complete artifact retains `PlugIns/NOOPWidgets.appex`, `Watch/NOOPWatch.app`, and the nested
-Watch complication; the AltStore copy removes both `PlugIns/` and `Watch/` after the build. This is a
-fork packaging decision retained after the RyanBR 9.3.1 merge: upstream's widget data-sharing fix is
-present in source and in the Full IPA, while the generic AltStore artifact remains extension-free.
+The repository's **Publish unsigned iOS release** GitHub Action is intentionally manual. Before it is
+dispatched from `main`, commit the numeric version and monotonic build number in `project.yml`, add the
+matching release note at `docs/fork/releases/v<VERSION>.md`, and run `Tools/appchangelog-gen.py` on
+that note so the in-app “What's New” card matches the release.
+
+The workflow validates those inputs, downloads the pinned on-device coach model, builds `NOOPiOS`
+without a signing identity and packages two artifacts:
+
+- `NOOP-ios-unsigned-v<VERSION>-dx.ipa` retains the iOS widget and removes only the embedded Watch app.
+  The sideload preparation step leaves AltSign a capability template for the shared App Group and
+  HealthKit, so the widget can show the installed app's real data.
+- `NOOP-ios-full-unsigned-v<VERSION>-dx.ipa` retains the widget, Watch app and Watch complication for
+  people who can provision the complete bundle with their own developer team.
+
+The release is created as a prerelease while those assets build. A separate macOS job attaches a
+universal, ad-hoc-signed `NOOP-macos-v<VERSION>-dx.zip`; only after both Apple platforms succeed does
+the final job promote `v<VERSION>-dx` to the latest public release. The publishing job also prepends
+the actual IPA URL and size to `altstore-source.json` and commits that manifest-only change to `main`.
 
 The workflow needs repository Actions permissions set to **Read and write** and permission for the
 GitHub Actions bot to push its manifest-only commit to `main`. It never receives an Apple certificate,
@@ -283,21 +291,11 @@ provisioning profile, or personal developer name.
 
 ---
 
-## Android (shipped)
+## Android
 
-Android ships as a **full, native client** — a separate Kotlin/Gradle module rather than a port of
-the Swift app. It lives under **`android/`** with its own `README`. Its source version is aligned with
-the 9.2.1 Apple beta; public Android beta artifacts follow in a later rollout. A sample-data **demo**
-flavour exists for exploring every screen with no strap and is build-from-source only
-(`./gradlew assembleDemoDebug`).
-
-Toolchain:
-
-| Tool            | Version |
-|-----------------|---------|
-| JDK             | 17      |
-| Android Studio  | current stable (with Android SDK) |
-| Build system    | Gradle (Android Gradle Plugin) |
+This fork no longer carries or releases the Android tree. For Android development and builds, use
+[RyanBR's upstream NOOP repository](https://github.com/ryanbr/noop). The Swift packages and Apple
+release gates documented here cover iOS and macOS only.
 
 The Android app re-implements the same wire protocol against Android's BLE stack (the protocol
 facts in `WhoopProtocol/Resources/whoop_protocol.json` are language-agnostic). Build and run

@@ -80,7 +80,7 @@ post-v9 addition currently documented here):
 | **Device registry** | `device` | BLE pairing |
 | **Decoded streams** (durable) | `hrSample`, `rrInterval`, `event`, `battery`, `spo2Sample`, `skinTempSample`, `respSample`, `gravitySample` | Decoded from strap frames on-device |
 | **Raw outbox** (transient) | `rawBatch` | Compressed raw BLE frames, prunable |
-| **Bookkeeping** | `cursors` | Highwater / read cursors |
+| **Bookkeeping** | `cursors`, `analysisInputRevision`, `analysisDeviceRevision`, `dayScanFingerprint` | Highwater marks and exact analysis-cache invalidation |
 | **Metric caches** | `sleepSession`, `dailyMetric`, `journal`, `workout`, `appleDaily`, `metricSeries`, `scoreInputProvenance` | Derived metrics + their input-provider provenance + CSV / Apple-Health imports |
 | **Oura raw archive** (durable, v25) | `ouraRaw` | Verbatim Oura API payloads behind the opt-in cloud import — see below |
 
@@ -109,6 +109,9 @@ Migrations are registered in `Packages/WhoopStore/Sources/WhoopStore/Database.sw
 | **v24-rr-seq** | Rebuilds the `rrInterval` primary key as `(deviceId, ts, rrMs, seq)`, so an identical interval recurring within one second is no longer dropped. |
 | **v29-score-input-provenance** | Adds metric-level `scoreInputProvenance` for NOOP-computed headline scores. It does not change `dayOwnership` or score precedence. |
 | **v30-rr-ord** | Adds the nullable `rrInterval.ord` column — emission order within a `ts` — and makes it lead the read sort (#823/#830). Additive; pre-existing rows keep `ord` NULL. |
+| **v38-day-scan-fingerprint** | Adds per-local-day analysis fingerprints so unchanged raw windows can reuse their persisted computed rows. |
+| **v39-day-scan-traits** | Adds nullable learned-trait carry values to the fingerprint. Missing values deliberately make a legacy fingerprint stale. |
+| **v40-analysis-input-revision** | Adds UTC-day input revisions, per-device revisions, and nullable scoring/semantic fingerprint fields. All additions are backward-compatible; derived output writes do not advance the input revision. |
 
 > This table is a selection, not the full list — it covers the migrations the tables above refer to.
 > The registered set is the authority. Migrations are keyed by their **identifier string**, not by
@@ -346,6 +349,19 @@ A simple key/value table for incremental-processing highwater marks (`Cursors.sw
 Helpers namespace the `name`: `highwater:<stream>` (upload/forward-only highwater) and
 `read:<stream>` (pull cursor). The distinct prefixes keep the two cursor families from colliding
 for the same stream.
+
+### Analysis input revisions *(v40)*
+
+`analysisInputRevision(deviceId, utcDay, revision)` stores the monotonic revision assigned to each
+UTC-day bucket that actually changed. `analysisDeviceRevision(deviceId, revision)` invalidates a
+whole device after repointing or a broad delete. Both revisions are updated in the same transaction
+as the scoring-relevant insert, update or delete.
+
+The per-local-day `dayScanFingerprint` combines the maximum revision across its exact analysis
+window with the device revision, owner, scoring version, semantic/profile signature and baseline
+carry values. A missing v40 field means “legacy/stale”; it is never accepted as proof that a day is
+unchanged. Engine-produced daily metrics, metric series, detected workouts and computed sleep rows
+do not move these revisions, preventing analysis from invalidating itself.
 
 ---
 

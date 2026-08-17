@@ -7,7 +7,7 @@ enum AppChangelog {
 
     /// Bump this when you add a release below. The "What's New" sheet shows automatically when the
     /// stored last-seen version is behind this. (Decoupled from the bundle version on purpose.)
-    static let currentVersion = "10.1.0"
+    static let currentVersion = "10.1.1"
 
     struct Release: Identifiable {
         let version: String
@@ -19,6 +19,16 @@ enum AppChangelog {
 
     /// Newest first.
     static let releases: [Release] = [
+        Release(
+            version: "10.1.1",
+            title: "A fast launch, complete sensor tails, and safer background analysis",
+            date: "August 2026",
+            items: [
+                "**The first screen no longer waits for years of history.** NOOP opens a recent snapshot first, then runs plans, goals and maintenance after the interface is usable.",
+                "**Analysis now invalidates the days that actually changed.** Heart rate, PPG, R-R, respiration, motion, steps, temperature, SpO₂, sleep state and edited sleep all participate.",
+                "**Dense sensor streams are no longer cut off at 200,000 rows.** The newest R-R, heart-rate and motion samples remain part of sleep, Charge and Effort.",
+            ]
+        ),
         Release(
             version: "10.1.0",
             title: "Your own heart-rate zones, and a coach that checks its own arithmetic",
