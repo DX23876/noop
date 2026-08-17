@@ -152,4 +152,54 @@ final class CoachSemanticMemorySourceTests: XCTestCase {
         XCTAssertTrue(allowed.contains { $0.sourceKind == .habitHypothesis })
         XCTAssertTrue(allowed.allSatisfy { $0.consentScope == .patterns })
     }
+
+    // MARK: - Chunking
+
+    /// Chinese has no spaces, so the word chunker never cut it and the provider truncated whatever
+    /// exceeded 384 tokens — the tail of a long note was simply not in the index.
+    func testUnsegmentedTextIsChunkedOnCharacters() {
+        let note = String(repeating: "我的睡眠质量最近变差了，晚上很难入睡。", count: 32)
+        XCTAssertGreaterThan(note.count, 600, "premise: longer than a single chunk")
+
+        let documents = CoachSemanticMemory.documents(
+            facts: [],
+            conversations: [],
+            journalEntries: [JournalEntry(day: "2026-07-20", question: "睡眠",
+                                          answeredYes: true, notes: note)],
+            proposals: [],
+            allowedScopes: [.personalLogs]
+        )
+        let chunks = documents.filter { $0.sourceKind == .journalNote }
+
+        XCTAssertGreaterThan(chunks.count, 1)
+        XCTAssertTrue(chunks.allSatisfy { $0.text.count <= CoachSemanticMemory.characterChunkSize })
+        XCTAssertEqual(Set(chunks.map(\.documentID)).count, chunks.count)
+        XCTAssertEqual(chunks.map(\.chunkIndex), Array(0..<chunks.count))
+        // Consecutive chunks overlap, so a sentence sitting on a boundary stays retrievable whole.
+        let overlap = String(chunks[0].text.suffix(CoachSemanticMemory.characterChunkOverlap))
+        XCTAssertTrue(chunks[1].text.hasPrefix(overlap))
+        // The end of the note is now indexed at all — the point of the change.
+        XCTAssertTrue(chunks.last!.text.hasSuffix("晚上很难入睡。"))
+    }
+
+    /// The other half of the same change: text WITH word boundaries must chunk exactly as before, or
+    /// every stored document changes its `contentHash` and the whole index is re-embedded.
+    func testTextWithWordBoundariesKeepsTheWordChunking() {
+        let long = (1...500).map { "Wort\($0)" }.joined(separator: " ")
+        let documents = CoachSemanticMemory.documents(
+            facts: [],
+            conversations: [],
+            journalEntries: [JournalEntry(day: "2026-07-20", question: "Notiz",
+                                          answeredYes: true, notes: long)],
+            proposals: [],
+            allowedScopes: [.personalLogs]
+        )
+        let chunks = documents.filter { $0.sourceKind == .journalNote }
+
+        // 192-word window, 24-word overlap, first chunk carrying the day/question preamble.
+        XCTAssertEqual(chunks.count, 3)
+        XCTAssertEqual(chunks[0].text.split(separator: " ").count, 192)
+        XCTAssertTrue(chunks[0].text.hasPrefix("2026-07-20: Notiz"))
+        XCTAssertTrue(chunks.last!.text.hasSuffix("Wort500"))
+    }
 }

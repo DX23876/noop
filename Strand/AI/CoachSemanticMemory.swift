@@ -775,6 +775,13 @@ final class CoachSemanticMemory: ObservableObject, SemanticMemoryCoordinator {
     /// Conservative word chunks plus a 24-word overlap. 192 natural-language words leave generous
     /// room for subword expansion and the task prefix; the provider remains the final authority and
     /// enforces the hard 384-token ceiling with Nomic's own tokenizer.
+    ///
+    /// Text written without word spacing has no whitespace to cut on, so a Chinese note came out as ONE
+    /// chunk however long it was — and `NomicTextEmbeddingProvider` then truncated it at 384 tokens,
+    /// silently leaving the rest of the note out of the index. That text is cut on CHARACTERS instead,
+    /// recognised by a single "word" longer than any real one. Text that does have word boundaries keeps
+    /// the word path byte for byte: re-chunking it would change every document's `contentHash` and
+    /// re-embed the entire index for nothing.
     nonisolated private static func chunks(kind: SemanticSourceKind,
                                sourceID: String,
                                text: String,
@@ -783,21 +790,50 @@ final class CoachSemanticMemory: ObservableObject, SemanticMemoryCoordinator {
                                priority: Int) -> [SemanticDocument] {
         let words = text.split(whereSeparator: \.isWhitespace).map(String.init)
         guard !words.isEmpty else { return [] }
-        let size = 192
-        let overlap = 24
+        func document(_ index: Int, _ text: String) -> SemanticDocument {
+            SemanticDocument(sourceKind: kind,
+                             sourceID: sourceID,
+                             chunkIndex: index,
+                             text: text,
+                             updatedAt: updatedAt,
+                             consentScope: scope,
+                             priority: priority)
+        }
+        if words.contains(where: { $0.count > unbrokenWordLimit }) {
+            let characters = Array(words.joined(separator: " "))
+            return slice(count: characters.count,
+                         size: characterChunkSize,
+                         overlap: characterChunkOverlap) { range, index in
+                document(index, String(characters[range]))
+            }
+        }
+        return slice(count: words.count, size: 192, overlap: 24) { range, index in
+            document(index, words[range].joined(separator: " "))
+        }
+    }
+
+    /// A word longer than this is not a word: it is unsegmented script (Chinese, Japanese) that arrived
+    /// as one run. The longest words in the shipped languages stay well under it.
+    nonisolated static let unbrokenWordLimit = 60
+    /// 240 characters of unsegmented text stay clear of the provider's 384-token ceiling even at the
+    /// worst case of more than one token per character, task prefix included.
+    nonisolated static let characterChunkSize = 240
+    nonisolated static let characterChunkOverlap = 30
+
+    /// The sliding window both chunkers share, over words or over characters.
+    nonisolated private static func slice(
+        count: Int,
+        size: Int,
+        overlap: Int,
+        build: (Range<Int>, Int) -> SemanticDocument
+    ) -> [SemanticDocument] {
         var result: [SemanticDocument] = []
         var start = 0
         var chunk = 0
-        while start < words.count {
-            let end = min(words.count, start + size)
-            result.append(SemanticDocument(sourceKind: kind,
-                                           sourceID: sourceID,
-                                           chunkIndex: chunk,
-                                           text: words[start..<end].joined(separator: " "),
-                                           updatedAt: updatedAt,
-                                           consentScope: scope,
-                                           priority: priority))
-            guard end < words.count else { break }
+        while start < count {
+            let end = min(count, start + size)
+            result.append(build(start..<end, chunk))
+            guard end < count else { break }
             start = max(start + 1, end - overlap)
             chunk += 1
         }
