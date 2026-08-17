@@ -804,6 +804,10 @@ final class CoachSemanticMemory: ObservableObject, SemanticMemoryCoordinator {
         return result
     }
 
+    /// How much of the keyword ranking is worth carrying. Every document sharing a single token used to
+    /// travel on — thousands of them on a full index — to be cut to eight one step later either way.
+    private static let lexicalCandidateLimit = 16
+
     /// The exact-keyword arm. Tokens come from `liveTokens`, computed once when a document is built;
     /// this used to re-tokenise the entire index — the same text producing the same words — on every
     /// single question. Falls back to tokenising in place for any document the cache hasn't seen, so a
@@ -829,6 +833,7 @@ final class CoachSemanticMemory: ObservableObject, SemanticMemoryCoordinator {
                 if $0.1 == $1.1 { return $0.0.documentID < $1.0.documentID }
                 return $0.1 > $1.1
             }
+            .prefix(Self.lexicalCandidateLimit)
             .map(\.0)
     }
 

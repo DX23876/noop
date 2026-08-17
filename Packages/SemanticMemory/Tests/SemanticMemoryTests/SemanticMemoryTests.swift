@@ -228,28 +228,74 @@ final class SemanticMemoryTests: XCTestCase {
         XCTAssertTrue(pending.isEmpty)
     }
 
-    func testReciprocalRankFusionKeepsSemanticAndExactMatches() {
-        let semantic = [
-            SemanticHit(documentID: "memory:a:0", sourceKind: .memoryFact, sourceID: "a",
-                        chunkIndex: 0, score: 0.9, consentScope: .memory),
-            SemanticHit(documentID: "memory:b:0", sourceKind: .memoryFact, sourceID: "b",
-                        chunkIndex: 0, score: 0.8, consentScope: .memory),
-        ]
-        let fused = SemanticRanking.fuse(semantic: semantic,
+    // MARK: - Fusion
+
+    private func hit(_ sourceID: String, score: Double = 1, chunk: Int = 0) -> SemanticHit {
+        SemanticHit(documentID: "memory:\(sourceID):\(chunk)", sourceKind: .memoryFact,
+                    sourceID: sourceID, chunkIndex: chunk, score: score, consentScope: .memory)
+    }
+
+    func testFusionKeepsSemanticAndExactMatches() {
+        let fused = SemanticRanking.fuse(semantic: [hit("a", score: 0.9), hit("b", score: 0.8)],
                                          lexicalSourceIDs: ["b", "a"],
                                          limit: 2)
         XCTAssertEqual(fused.map(\.sourceID), ["a", "b"])
     }
 
-    func testReciprocalRankFusionRetainsLexicalOnlyHit() {
-        let semantic = [
-            SemanticHit(documentID: "memory:a:0", sourceKind: .memoryFact, sourceID: "a",
-                        chunkIndex: 0, score: 0.9, consentScope: .memory),
-        ]
+    func testFusionRetainsLexicalOnlyHit() {
         let exact = SemanticHit(documentID: "journal:date:0", sourceKind: .journalNote,
                                 sourceID: "date", chunkIndex: 0, score: 1,
                                 consentScope: .personalLogs)
-        let fused = SemanticRanking.fuse(semantic: semantic, lexical: [exact], limit: 2)
+        let fused = SemanticRanking.fuse(semantic: [hit("a", score: 0.9)], lexical: [exact], limit: 2)
         XCTAssertEqual(Set(fused.map(\.sourceID)), Set(["a", "date"]))
+    }
+
+    /// The regression the ten-language evaluation measured: under symmetric reciprocal-rank fusion a
+    /// document the keyword arm liked outranked the semantic top hit, costing 43 of 300 first places.
+    /// The keyword arm may no longer re-order what the semantic search already ranked.
+    func testTheKeywordArmCannotDemoteTheSemanticTopHit() {
+        let semantic = [hit("a", score: 0.91), hit("b", score: 0.90), hit("c", score: 0.42)]
+        let fused = SemanticRanking.fuse(semantic: semantic,
+                                         lexical: [hit("c"), hit("b")],
+                                         limit: 3)
+        XCTAssertEqual(fused.map(\.sourceID), ["a", "b", "c"])
+    }
+
+    /// Rescues take the LAST places, never the first, and only as many as `rescueSlots`.
+    func testRescuesTakeTheTailAndAreCapped() {
+        let semantic = [hit("a"), hit("b"), hit("c"), hit("d")]
+        let lexical = [hit("x"), hit("y"), hit("z")]
+        let fused = SemanticRanking.fuse(semantic: semantic, lexical: lexical, limit: 4)
+        XCTAssertEqual(fused.map(\.sourceID), ["a", "b", "x", "y"])
+
+        let none = SemanticRanking.fuse(semantic: semantic, lexical: lexical, limit: 4,
+                                        rescueSlots: 0)
+        XCTAssertEqual(none.map(\.sourceID), ["a", "b", "c", "d"])
+    }
+
+    /// A hit that the semantic arm returned below the cut is not a rescue candidate — the search saw it
+    /// and ranked it there.
+    func testAHitRankedLowBySemanticSearchIsNotRescued() {
+        let semantic = [hit("a"), hit("b"), hit("c")]
+        let fused = SemanticRanking.fuse(semantic: semantic, lexical: [hit("c")], limit: 2)
+        XCTAssertEqual(fused.map(\.sourceID), ["a", "b"])
+    }
+
+    /// Several chunks of one source must not spend several slots, in either arm.
+    func testOneSourceAppearsOnce() {
+        let semantic = [hit("a", chunk: 0), hit("a", chunk: 1), hit("b")]
+        let fused = SemanticRanking.fuse(semantic: semantic,
+                                         lexical: [hit("x", chunk: 3), hit("x", chunk: 4)],
+                                         limit: 4)
+        XCTAssertEqual(fused.map(\.sourceID), ["a", "b", "x"])
+    }
+
+    /// Without a semantic arm (the model lost the 2.5-second race) the keyword ranking IS the result.
+    func testWithoutSemanticHitsTheLexicalOrderSurvives() {
+        let fused = SemanticRanking.fuse(semantic: [],
+                                         lexical: [hit("x"), hit("y"), hit("z")],
+                                         limit: 2)
+        XCTAssertEqual(fused.map(\.sourceID), ["x", "y"])
+        XCTAssertTrue(SemanticRanking.fuse(semantic: [hit("a")], lexical: [], limit: 0).isEmpty)
     }
 }
