@@ -106,6 +106,11 @@ final class IntelligenceEngine: ObservableObject {
     /// type the same way, so it crosses the boundary identically.
     private struct DayScan {
         let result: AnalyticsEngine.DayResult
+        /// What this day was scanned FROM — `hrFingerprint`'s (count, maxTs) over the day's own read
+        /// window, taken before the streams were read. Recorded after the scores persist so the NEXT pass
+        /// can recognise the day as unchanged and skip re-deriving it (#launch-rescore). nil when the probe
+        /// failed, which simply means this day records nothing and is scanned again next time.
+        let inputProbe: (count: Int, maxTs: Int)?
         let rhrLine: String?
         /// #1331 respiratory diagnostic line (see `respRateLogLine`); replayed with `rhrLine`.
         let respLine: String?
@@ -684,8 +689,44 @@ final class IntelligenceEngine: ObservableObject {
         // so the Blood Oxygen tile can surface it as a "strap estimate (unverified)" fallback. Default OFF
         // per the derived-biosignal rule (CLAUDE.md) — the @82 candidate has split cross-device evidence.
         let spo2CandidateDisplayOn = PuffinExperiment.spo2CandidateDisplayEnabled
-        let (scanned, skippedDayLines): ([DayScan], [String]) = await Task.detached(priority: .utility) {
+        // ── Per-day skip (#launch-rescore) ───────────────────────────────────────────────────────────
+        // Re-deriving a day costs a ~54 h read (~950 k rows on a fully-worn library) plus sleep staging,
+        // and the pass does it for EVERY day in the window on EVERY run. On a real install that is almost
+        // entirely waste: a 21-day window on a library with 35 scored days re-computes 20 days nobody
+        // touched. `dayScanFingerprint` records what each scored day was computed FROM, so an unchanged
+        // day is reused from its persisted row instead of re-derived.
+        //
+        // Both halves are read ONCE here, on the main actor, and captured into the loop as plain values:
+        // the stored fingerprints, and the persisted computed rows a reused day is rebuilt from. A day
+        // needs BOTH to be reusable — a fingerprint without a row would skip a day that has no result.
+        //
+        // `scoringVersion` is the deliberate invalidation seam. An algorithm change moves no raw byte, so
+        // every input fingerprint still matches and the new scoring would never reach the old days. It is
+        // NOT the app version: keying on that would re-derive the whole window after every update, which
+        // is precisely the cost this exists to remove.
+        let storedFingerprints = (try? await store.dayScanFingerprints(
+            deviceId: computedId, from: Self.dayKeyBound(nowLocalMidnight, maxDays: maxDays, tzOffset: tzOffset),
+            to: AnalyticsEngine.dayString(nowLocalMidnight, offsetSec: tzOffset))) ?? [:]
+        let persistedRowsByDay: [String: DailyMetric] = Dictionary(
+            ((try? await store.dailyMetrics(
+                deviceId: computedId,
+                from: Self.dayKeyBound(nowLocalMidnight, maxDays: maxDays, tzOffset: tzOffset),
+                to: AnalyticsEngine.dayString(nowLocalMidnight, offsetSec: tzOffset))) ?? [])
+                .map { ($0.day, $0) },
+            uniquingKeysWith: { _, last in last })
+        // A forced pass re-derives everything: `force: true` is how an import / edit / recalibrate / heal
+        // says "the inputs I changed are not visible in the raw HR counts". Only the idle/backstop tick and
+        // the post-offload path get to reuse, and those are exactly the ones that run when nothing happened.
+        let reuseAllowed = !force
+        let (scanned, skippedDayLines, reusedDays): ([DayScan], [String], [String]) =
+        await Task.detached(priority: .utility) {
             var out: [DayScan] = []
+            // Days reused from their persisted row (fingerprint matched) — carried out so the main-actor
+            // fold can rebuild their pass-2 state, and so the RECONCILIATION below can tell them apart from
+            // days this pass actually produced. That distinction is load-bearing: the window-wide cleanups
+            // (detected-workout delete, sleep dedup) assume every day in range was re-created by this pass,
+            // and a reused day supplies nothing for them to re-insert.
+            var reusedDays: [String] = []
             // Days skipped below (too few HR samples) never get a DayScan, so this diagnostic can't ride
             // along on one; carried out alongside `out` and replayed through `diagnosticSink` on the main
             // actor below, same as `rhrLine`/the trace arrays. Mirrors the Kotlin `diag` sink.
@@ -735,6 +776,29 @@ final class IntelligenceEngine: ObservableObject {
                                                        devices: regDevices, activeId: regActiveId,
                                                        registry: registry, fallbackDeviceId: ownerFallbackId)
                 let diagOwnerMs = Date().timeIntervalSince(diagIterStart) * 1000
+
+                // ── The skip. Everything below this point is the expensive part of the pass ──────────
+                // Two cheap indexed aggregates over the day's OWN read window (`hrFingerprint`) decide
+                // whether the ~950 k-row read + staging that follows can be replaced by the row this day
+                // already has. Reuse requires ALL of:
+                //   • a stored fingerprint whose inputs match (same owner, same HR count, same newest ts),
+                //   • a persisted computed row to rebuild the day's pass-2 state from,
+                //   • a non-forced pass (a forced one exists precisely to re-derive).
+                // Any miss falls through to the full scan, which is the only safe default: a fingerprint we
+                // do not have, or do not trust, must never mean "this day is fine".
+                // Probed UNCONDITIONALLY, not just when a stored fingerprint exists: a day that gets
+                // scanned has to record what it was scanned FROM, or it could never be skipped later. Two
+                // indexed aggregates over an index this read path already walks — the cheapest thing in
+                // this loop by orders of magnitude.
+                let probe = try? await store.hrFingerprint(deviceId: owner, from: from, to: to)
+                if reuseAllowed, let probe, let stored = storedFingerprints[day],
+                   persistedRowsByDay[day] != nil,
+                   stored.inputsMatch(DayScanFingerprint(day: day, ownerId: owner,
+                                                         hrCount: probe.count, hrMaxTs: probe.maxTs,
+                                                         nightlySkinC: nil)) {
+                    reusedDays.append(day)
+                    continue
+                }
 
                 // TEMP DIAGNOSTIC (#freeze-investigation) — attribute the per-day cost. `hrSamples` UNIONs
                 // `hrSample` with `ppgHrSample` through a CORRELATED `NOT EXISTS` per PPG row, so on a dense
@@ -1141,7 +1205,7 @@ final class IntelligenceEngine: ObservableObject {
                 // windowing + delegation lives in the byte-identical, tested `AnalyticsEngine`.
                 let (primarySessionRHR, primarySessionRHRCoverage) =
                     AnalyticsEngine.primarySessionRestingHRWithCoverage(sessions: res.sleepSessions, hr: hr)
-                out.append(DayScan(result: res, rhrLine: rhrLine, respLine: respLine,
+                out.append(DayScan(result: res, inputProbe: probe, rhrLine: rhrLine, respLine: respLine,
                                    readOwner: owner, hrRows: hr.count,
                                    sleepTrace: sleepTrace, stepsTrace: stepsTrace, hrvTrace: hrvTrace,
                                    hrvDiag: hrvDiag, spo2Candidate: spo2CandidateMean,
@@ -1149,7 +1213,7 @@ final class IntelligenceEngine: ObservableObject {
                                    primarySessionRHR: primarySessionRHR,
                                    primarySessionRHRCoverage: primarySessionRHRCoverage))
             }
-            return (out, skippedDayLines)
+            return (out, skippedDayLines, reusedDays)
         }.value
 
         // #714: replay each skipped day's diagnostic now that we're back on the main actor (diagnosticSink
@@ -1217,6 +1281,42 @@ final class IntelligenceEngine: ObservableObject {
                                  sessionSleepState: res.sessionSleepStateByStart,
                                  hrvDiag: scan.hrvDiag))
         }
+
+        // ── Reused days (#launch-rescore) ────────────────────────────────────────────────────────────
+        // A day whose raw inputs have not moved was not re-derived above. It still has to take part in
+        // everything that follows, because the baselines are folded over the WHOLE window and pass 2
+        // re-scores recovery for every day in it: leaving reused days out would make the baseline — and
+        // therefore every score folded off it — depend on which days happened to be skipped, which is the
+        // one thing this optimisation must never do.
+        //
+        // Their state comes from the row they already have. `nightlySkin` comes from the FINGERPRINT, not
+        // from the row: `dailyMetric` stores the skin DEVIATION, and the skin baseline folds the nightly
+        // MEAN, so the mean is carried in the fingerprint precisely so a reused day re-seeds it identically.
+        //
+        // `cachedSleep` / `workouts` / the per-session maps are deliberately EMPTY. The persist phase below
+        // treats those as "what this pass produced", and a reused day produced nothing — its sleep rows and
+        // detected workouts are already stored and must be left exactly where they are. That is also why
+        // the reconciliation below is scoped to `scannedDays` rather than the whole window.
+        for day in reusedDays {
+            guard let row = persistedRowsByDay[day] else { continue }   // preloaded above; belt-and-braces
+            let fp = storedFingerprints[day]
+            readOwnerByDay[day] = (fp?.ownerId ?? deviceId, 0)
+            resolvedScoreOwnerByDay[day] = fp?.ownerId ?? deviceId
+            nightlyHrvByDay[day] = row.avgHrv
+            nightlyRhrByDay[day] = row.restingHr.map(Double.init)
+            nightlyRespByDay[day] = row.respRateBpm
+            nightlySkinByDay[day] = fp?.nightlySkinC
+            scoredNights.append((daily: row, strain: row.strain, cachedSleep: [],
+                                 workouts: [], nightlySkin: fp?.nightlySkinC,
+                                 sessionMotion: [:], sessionSleepState: [:], hrvDiag: nil))
+        }
+        // The days this pass actually re-derived. Every window-wide cleanup below is scoped to these,
+        // because each of them deletes-then-reinserts and a reused day has nothing to re-insert.
+        let scannedDays = Set(scanned.map { $0.result.daily.day })
+        let reusedDaySet = Set(reusedDays)
+        diagnosticSink?("re-score: scanned \(scannedDays.count) day(s), reused \(reusedDays.count) "
+            + "unchanged day(s) from their stored scores", nil)
+        NSLog("[FREEZE-DIAG] analyzeRecent day-skip: scanned=\(scannedDays.count) reused=\(reusedDays.count) of \(maxDays)")
 
         // ── Seed the baseline from the UNION of imported nightly history + the values just computed.
         // THIS is the BLE-only recovery fix: the "-noop" nightly avgHrv/restingHr finally feed the
@@ -1347,10 +1447,29 @@ final class IntelligenceEngine: ObservableObject {
             // is stable under a bedtime edit (only the onset/`startTsAdjusted` moves), so end-day is the
             // right key. Filtering here keeps a single-night edit overriding only its OWN night instead of
             // every night. `effectiveStartTs` (the #318 user-corrected onset) is preserved on the row.
-            let dayEditedRows = Self.editedRowsForDay(editedRows, day: night.daily.day, tzOffsetSeconds: tzOffset)
-            let editsByStart = Dictionary(dayEditedRows.map { ($0.startTs, $0) }, uniquingKeysWith: { a, _ in a })
-            let daily = sleepEditedDaily(night.daily, detected: night.cachedSleep, editsByStart: editsByStart,
+            // A REUSED day (#launch-rescore) must NOT be re-folded. `night.daily` is the row the last scan
+            // already persisted, so the edit substitution is baked into it; folding again would apply the
+            // same edited block a second time — and because a reused day carries no `detected` sessions,
+            // the fold could not even recognise an edit as the twin of its detected session and would add
+            // it as a separate "manual" block on top of the total it is already in. Recovery below IS still
+            // recomputed for it: that term is baseline-dependent, and the baseline moves whenever any day in
+            // the window was re-scored, so every day has to be re-scored against the current one.
+            let isReusedDay = reusedDaySet.contains(night.daily.day)
+            var dayEditedRows: [CachedSleepSession] = []
+            let daily: DailyMetric
+            if isReusedDay {
+                daily = night.daily
+            } else {
+                // #299: scope the edits to THIS day before folding. A userEdited row / hand-logged nap belongs
+                // to exactly ONE day — the day its night ENDS on, matching the daily's end-day bucket. `endTs`
+                // is stable under a bedtime edit (only the onset/`startTsAdjusted` moves), so end-day is the
+                // right key. Filtering here keeps a single-night edit overriding only its OWN night instead of
+                // every night. `effectiveStartTs` (the #318 user-corrected onset) is preserved on the row.
+                dayEditedRows = Self.editedRowsForDay(editedRows, day: night.daily.day, tzOffsetSeconds: tzOffset)
+                let editsByStart = Dictionary(dayEditedRows.map { ($0.startTs, $0) }, uniquingKeysWith: { a, _ in a })
+                daily = sleepEditedDaily(night.daily, detected: night.cachedSleep, editsByStart: editsByStart,
                                          habitualMidsleepSec: habitualMidsleepSec)
+            }
             let recovery = recomputeRecovery(daily, baselines2)
             // Charge term-breakdown trace (Group G): only when the Recovery test mode is on. Emits which
             // term moved Charge and which was nil and forced the renorm, tagged `.recovery`. The trace's
@@ -1396,8 +1515,11 @@ final class IntelligenceEngine: ObservableObject {
             // edited/hand-logged block on a day the detector staged nothing (see sleepDivergenceLogLine).
             // Scoped to computed days: an imported-total-only day legitimately has a total without our
             // sessions, so it is NOT a divergence.
+            // `!isReusedDay`: a reused day carries no `cachedSleep` BY CONSTRUCTION (it was not staged this
+            // pass), so this test would fire on every reused night and report a divergence that does not
+            // exist. The line is about a day this pass staged nothing FOR — not about a day it never looked at.
             let dayImported = importedWhoopDays.contains(daily.day) || appleHealthDays.contains(daily.day)
-            if !dayImported, let tsm = daily.totalSleepMin, night.cachedSleep.isEmpty {
+            if !isReusedDay, !dayImported, let tsm = daily.totalSleepMin, night.cachedSleep.isEmpty {
                 diagnosticSink?(Self.sleepDivergenceLogLine(day: daily.day,
                                                             totalSleepMin: Int(tsm.rounded()),
                                                             editFold: dayEditedRows.count), nil)
@@ -1911,8 +2033,14 @@ final class IntelligenceEngine: ObservableObject {
         for healId in healDeviceIds {
             let storedSessions = (try? await store.sleepSessions(deviceId: healId, from: windowStart,
                                                                  to: now, limit: 4000)) ?? []
+            // SCOPED TO THE DAYS THIS PASS SCANNED (#launch-rescore), for the same reason as the
+            // detected-workout delete below. `freshStarts: keptStarts` is the bank-recency witness, and it
+            // only ever contains sessions from days this pass re-derived. A reused day would enter the
+            // dedupe WITHOUT a witness, so on a day carrying two legitimate sessions (a nap and the night)
+            // the fallback rule could drop the one the witness would have kept. Its rows were healed by the
+            // pass that scored them and nothing has touched them since — leaving them alone is correct.
             let healable = storedSessions.filter {
-                (oldestDay...newestDay).contains(AnalyticsEngine.dayString($0.endTs, offsetSec: tzOffset))
+                scannedDays.contains(AnalyticsEngine.dayString($0.endTs, offsetSec: tzOffset))
             }
             let dropped = SleepSessionDedup.dedupe(healable, freshStarts: keptStarts).dropped
             for stale in dropped {
@@ -1944,8 +2072,18 @@ final class IntelligenceEngine: ObservableObject {
         // Make re-detection idempotent across runs: clear the prior computed detected workouts in the
         // scored window (a bout's startTs can drift as more HR arrives, which would otherwise orphan
         // stale rows under the (deviceId,startTs,sport) key), then re-insert.
-        _ = try? await store.deleteWorkouts(deviceId: computedId, sport: "detected",
-                                            from: windowStart, to: now)
+        //
+        // SCOPED TO THE DAYS THIS PASS SCANNED (#launch-rescore). This delete used to cover the whole
+        // window on the assumption that every day in it had just been re-detected. With the per-day skip
+        // that assumption is false: a reused day re-inserts nothing, so a window-wide delete would strip
+        // its detected workouts PERMANENTLY. Deleting per scanned day is the same operation for a pass
+        // that scanned everything (the union of the days IS the window) and a no-op for the days it
+        // reused — which is exactly the intent the comment above always described.
+        for dayKey in scannedDays.sorted() {
+            guard let dayMid = Self.midnightForDayKey(dayKey, offsetSec: tzOffset) else { continue }
+            _ = try? await store.deleteWorkouts(deviceId: computedId, sport: "detected",
+                                                from: dayMid, to: min(dayMid + 86_400 - 1, now))
+        }
         if !workoutRows.isEmpty { _ = try? await store.upsertWorkouts(workoutRows, deviceId: computedId) }
         // #510: write back any real (manual/imported) rows a dropped detected bout backfilled, one
         // upsert per owning deviceId (see the collision branch above for why these can't share the
@@ -1977,6 +2115,26 @@ final class IntelligenceEngine: ObservableObject {
         // pass (#899 dedup deleted stale session rows but no daily changed) must refresh too, so the
         // Sleep tab stops showing the removed duplicates right away.
         if !dailies.isEmpty || !healDropped.isEmpty { await repo.refresh() }
+
+        // Record what each day this pass SCANNED was computed from, so the next pass can skip it
+        // (#launch-rescore). Written here, after `persistComputedScores` above has stored the scores these
+        // fingerprints describe — a fingerprint written for a day whose result did not land would make the
+        // next run skip a day that has no scores, the one direction this table must never fail in.
+        //
+        // Only scanned days: a reused day's fingerprint is already correct (it is what made it reusable),
+        // and rewriting it would be a no-op. The nightly skin MEAN is carried alongside because the stored
+        // `dailyMetric` row keeps only the deviation — see `DayScanFingerprint.nightlySkinC`.
+        let persistedDays = Set(dailies.map { $0.day })
+        let scanFingerprints: [DayScanFingerprint] = scanned.compactMap { scan in
+            let day = scan.result.daily.day
+            guard persistedDays.contains(day), let probe = scan.inputProbe else { return nil }
+            return DayScanFingerprint(day: day, ownerId: scan.readOwner,
+                                      hrCount: probe.count, hrMaxTs: probe.maxTs,
+                                      nightlySkinC: scan.result.nightlySkinTempC)
+        }
+        if !scanFingerprints.isEmpty {
+            _ = try? await store.upsertDayScanFingerprints(scanFingerprints, deviceId: computedId)
+        }
 
         // #836: record the raw-HR fingerprint this run scored against, so a later NON-forced tick can
         // short-circuit while it's unchanged. Written ONLY here at the end of a completed run (never on an
@@ -2377,6 +2535,35 @@ final class IntelligenceEngine: ObservableObject {
     /// `ts - floorMod(ts + offsetSec, 86400)`. floorMod keeps the floor correct for negative offsets
     /// and negative timestamps. `offsetSec == 0` reduces exactly to `midnightUtc`. Mirrors the
     /// Android IntelligenceEngine.midnightLocal byte-for-byte.
+    /// Fixed-UTC `yyyy-MM-dd` parser — the inverse direction of `AnalyticsEngine.dayString`. Cached
+    /// because a `DateFormatter` is expensive to build and this is called per scanned day.
+    private static let dayKeyParser: DateFormatter = {
+        let f = DateFormatter()
+        f.calendar = Calendar(identifier: .gregorian)
+        f.timeZone = TimeZone(secondsFromGMT: 0)
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.dateFormat = "yyyy-MM-dd"
+        return f
+    }()
+
+    /// LOCAL midnight (unix seconds) of a `yyyy-MM-dd` key, the exact inverse of
+    /// `AnalyticsEngine.dayString(_:offsetSec:)`: that one formats `ts + offsetSec` with a fixed-UTC
+    /// formatter, so the local midnight of a key is its UTC midnight minus the offset. nil for a
+    /// malformed key, so a caller skips that day rather than deleting an unintended window — the same
+    /// nil-tolerant-over-fail-fast rule `dayStartUtcSeconds` follows.
+    nonisolated static func midnightForDayKey(_ day: String, offsetSec: Int) -> Int? {
+        guard let d = dayKeyParser.date(from: day) else { return nil }
+        return Int(d.timeIntervalSince1970) - offsetSec
+    }
+
+    /// The OLDEST day key a `maxDays` scan window covers, as the store's `yyyy-MM-dd` text key. The scan
+    /// walks `offset in 0..<maxDays` back from `nowLocalMidnight`, so the oldest day is `maxDays - 1` days
+    /// back — the same arithmetic the loop itself does, named once so the per-day-skip preloads read
+    /// exactly the window the loop will visit.
+    nonisolated static func dayKeyBound(_ nowLocalMidnight: Int, maxDays: Int, tzOffset: Int) -> String {
+        AnalyticsEngine.dayString(nowLocalMidnight - (maxDays - 1) * 86_400, offsetSec: tzOffset)
+    }
+
     nonisolated static func midnightLocal(_ ts: Int, offsetSec: Int) -> Int {
         ts - floorMod(ts + offsetSec, 86_400)
     }

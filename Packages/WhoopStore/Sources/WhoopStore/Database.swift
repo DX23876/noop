@@ -847,6 +847,40 @@ extension WhoopStore {
                 t.add(column: "avgSdnn", .double)
             }
         }
+        // The per-day input fingerprint the analyze scan skips on. `analyzeRecent` re-derives every day
+        // in its window from the raw streams on every run — on a real library that is ~950 k rows per day
+        // over 21 days, and the days are almost always unchanged (a 21-day window on an install with 35
+        // scored days re-computes 20 days that nobody touched). This table records WHAT each day was
+        // scored against, so an unchanged day can be skipped.
+        //
+        // Additive: a fresh table, no existing row is read or rewritten. An install upgrading to it has no
+        // rows here, so the first pass scores every day exactly as before and fills the table as it goes —
+        // the safe direction, because a MISSING fingerprint means "scan it", never "skip it".
+        migrator.registerMigration("v38-day-scan-fingerprint") { db in
+            try db.create(table: "dayScanFingerprint") { t in
+                // The COMPUTED namespace the scored row belongs to ("<id>-noop"), so a second source's
+                // scores keep their own fingerprints.
+                t.column("deviceId", .text).notNull()
+                t.column("day", .text).notNull()
+                // The owner the day was READ from (I2: exactly one device owns a day). Part of the
+                // comparison, not just provenance: if the resolved owner changes, the inputs changed even
+                // when that owner's own row counts did not.
+                t.column("ownerId", .text).notNull()
+                // The raw-input fingerprint over the day's READ WINDOW — `hrFingerprint`'s (count, maxTs).
+                // COUNT moves on any insert including a backfilled older night whose maxTs would not; maxTs
+                // separates a fresh append from a re-count. Together they are what "this day's raw HR is
+                // unchanged" means.
+                t.column("hrCount", .integer).notNull()
+                t.column("hrMaxTs", .integer).notNull()
+                // The nightly raw skin-temp mean this day contributed to the skin baseline. Persisted here
+                // because the scored `dailyMetric` row carries only the DEVIATION, so a skipped day could
+                // not otherwise re-seed the baseline identically — and a baseline that changes depending on
+                // which days were skipped would make scores depend on scan history. nil when the night had
+                // no usable skin samples.
+                t.column("nightlySkinC", .double)
+                t.primaryKey(["deviceId", "day"])
+            }
+        }
         return migrator
     }
 }

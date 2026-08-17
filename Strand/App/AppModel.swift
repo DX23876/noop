@@ -409,6 +409,30 @@ final class AppModel: ObservableObject {
             func diagPhase(_ name: String) {
                 NSLog("[FREEZE-DIAG] startup \(name) at +\(String(format: "%.2f", Date().timeIntervalSince(diagT0)))s")
             }
+            // TEMP DIAGNOSTIC (#freeze-investigation) — MAIN-ACTOR LATENCY PROBE.
+            //
+            // The wait/run split inside `asyncRead` came back clean: during a `workoutRows(45)` that took
+            // 48.5 s, NOT ONE read spent over 0.25 s either queueing for a pool connection or running. The
+            // queries are fast and the pool is free, so the time is going somewhere between the reads —
+            // and `Repository` is `@MainActor`, so every `await store.…` continuation has to get back onto
+            // the main actor before the next read can even be issued. Six awaits behind a saturated main
+            // actor is exactly the shape of a 48-second "read".
+            //
+            // This probe measures that directly and independently of the database: hop to the main actor,
+            // and report how long the hop took. A hop is a few microseconds of work, so anything above a
+            // frame is pure queueing behind whatever else is running there — which is also precisely what
+            // "the app is unusable" means, because the main actor IS the UI. Remove with the FREEZE-DIAG block.
+            Task.detached(priority: .utility) { [weak self] in
+                while self != nil && !Task.isCancelled {
+                    let t = Date()
+                    await MainActor.run { }
+                    let hop = Date().timeIntervalSince(t)
+                    if hop > 0.25 {
+                        NSLog("[FREEZE-DIAG] MAIN-ACTOR hop=\(String(format: "%.3f", hop))s (UI blocked this long)")
+                    }
+                    try? await Task.sleep(nanoseconds: 500_000_000)
+                }
+            }
             diagPhase("begin")
             // The hrSample partition census USED to run here. It did its job — it proved the change
             // detector was partition-blind (`whoop-535B…` held the recent rows while the gate watched

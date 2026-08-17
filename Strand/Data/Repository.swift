@@ -2577,7 +2577,12 @@ final class Repository: ObservableObject {
         // them too, or a successful file import never appears in the Workouts list (Data Sources counts it,
         // the load didn't). HR is reconciled from the strap trace at the end like every other row.
         rows += (try? await store.workouts(deviceId: "activity-file", from: lo, to: hi, limit: 5000)) ?? []
+        // TEMP DIAGNOSTIC (#freeze-investigation) — the six reads above are 1.3 ms of real work on this
+        // library, yet this function measured 48 s, and the main-actor probe caught 8-14 s single blocks.
+        // Everything below here is PURE CPU on the main actor, so split it out per stage.
+        let diagReadsDone = Date()
         rows = Self.dedupWorkoutsByNaturalKey(rows)
+        let diagNaturalKeyMs = Date().timeIntervalSince(diagReadsDone) * 1000
         let spans = WorkoutSource.parseDismissedSpans(dismissedDetectedSpans)
         // #687: collapse the SAME activity tracked live under the strap AND imported from Health Connect /
         // Apple Health into one richer entry , they sit under different sources so without this they show
@@ -2587,6 +2592,7 @@ final class Repository: ObservableObject {
         // plus a trace line per collapsed cross-source pair, tagged `.workouts`. Zero-cost when off (the gate
         // is one UserDefaults bool read inside emitWorkouts), and the kept list equals dedupCrossSource(...)
         // exactly, so the workout list the screen shows is unchanged.
+        let diagFilterDone = Date()
         let deduped: [WorkoutRow]
         if TestCentre.active(.workouts), workoutsLog != nil {
             let (kept, trace) = WorkoutSource.dedupCrossSourceTrace(filtered)
@@ -2595,8 +2601,13 @@ final class Repository: ObservableObject {
         } else {
             deduped = WorkoutSource.dedupCrossSource(filtered)
         }
+        let diagCrossMs = Date().timeIntervalSince(diagFilterDone) * 1000
         let visible = deduped.sorted { $0.startTs > $1.startTs }
         NSLog("[FREEZE-DIAG] workoutRows(days=\(days), hrCap=\(reconcileHrCap.map(String.init) ?? "default")): source reads + dedup done, visible=\(visible.count) at +\(String(format: "%.2f", Date().timeIntervalSince(diagT0)))s")
+        // TEMP DIAGNOSTIC: reads vs the pure main-actor CPU that follows them. `crossSource` is the
+        // suspect — it compares each candidate against every kept row of the SAME sport, and this
+        // library's biggest sport bucket is 1038 "Walking" rows out of a ten-year Apple Health import.
+        NSLog("[FREEZE-DIAG] workoutRows(days=\(days)) SPLIT: reads=\(String(format: "%.0f", diagReadsDone.timeIntervalSince(diagT0) * 1000))ms naturalKey=\(String(format: "%.0f", diagNaturalKeyMs))ms crossSource=\(String(format: "%.0f", diagCrossMs))ms rows=\(rows.count)")
         let out: [WorkoutRow]
         if let reconcileHrCap {
             out = await reconcileWorkoutHrWithTrace(visible, store: store, cap: reconcileHrCap)

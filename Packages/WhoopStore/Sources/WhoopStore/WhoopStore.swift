@@ -192,7 +192,27 @@ public actor WhoopStore {
     /// committed data only, never a partial write.
     @inline(__always)
     nonisolated func asyncRead<T: Sendable>(_ block: @escaping @Sendable (Database) throws -> T) async throws -> T {
-        try await dbWriter.read(block)
+        // TEMP DIAGNOSTIC (#freeze-investigation) — split WAITING from WORKING, at the one seam every
+        // read goes through. `t0` is when the caller asked; `tAcquired` is when GRDB actually handed us a
+        // reader connection and started running the block. The gap between them is queueing for one of the
+        // pool's `maximumReaderCount` (5) readers; the gap after it is real I/O.
+        //
+        // This exists because the two are indistinguishable from the call site, and every number so far has
+        // been the sum: a one-row `cursors` lookup measured 3.9 s on device while the same query on the same
+        // 1.83 GB file takes microseconds on a Mac, and six indexed `workout` reads (1.3 ms of real work)
+        // measured 56 s. Either the reads wait for a slot, or the device I/O really is that slow — this line
+        // is the only thing that can tell those apart. Remove with the rest of the FREEZE-DIAG block.
+        let t0 = Date()
+        return try await dbWriter.read { db in
+            let tAcquired = Date()
+            let result = try block(db)
+            let waited = tAcquired.timeIntervalSince(t0)
+            let ran = Date().timeIntervalSince(tAcquired)
+            if waited + ran > 0.25 {
+                NSLog("[FREEZE-DIAG] asyncRead wait=\(String(format: "%.3f", waited))s run=\(String(format: "%.3f", ran))s")
+            }
+            return result
+        }
     }
 
     // MARK: - Maintenance

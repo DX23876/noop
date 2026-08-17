@@ -124,6 +124,11 @@ public struct DeviceRegistryStore: Sendable {
         // v31-deep-capture-channels: the banked 5/MG v18 auxiliary fields are deviceId-keyed per-second
         // rows like every stream above, so a "delete all of this device's data" must clear them too.
         "v18AuxSample",
+        // v38-day-scan-fingerprint: the analyze scan's per-day skip records. These MUST go with the data
+        // they describe — a fingerprint that outlives its raw rows says "this day is unchanged" about a
+        // day whose inputs were just deleted, and the next pass would skip re-deriving it. Deleting them
+        // is free: absence means "scan it".
+        "dayScanFingerprint",
     ]
 
     /// Permanently delete every recorded sample/derived row belonging to one device, across all
