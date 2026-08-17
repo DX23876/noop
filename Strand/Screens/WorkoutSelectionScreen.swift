@@ -1,5 +1,6 @@
 import SwiftUI
 import StrandDesign
+import StrandAnalytics
 
 // MARK: - Workout selection browser
 //
@@ -10,23 +11,36 @@ import StrandDesign
 /// Public entry used by Live / Workouts. Keeps the prior `onStart` + optional title overrides so the
 /// merge-name prompt can reuse the same browser.
 struct StartWorkoutSheet: View {
-    let onStart: (_ sport: String) -> Void
+    let onStart: (_ sport: String, _ targetZone: Int?) -> Void
     private let heading: String
     private let explainer: String
     private let actionVerb: String
+    private let offersZoneTraining: Bool
 
     init(title: String? = nil, subtitle: String? = nil, actionVerb: String? = nil,
          onStart: @escaping (_ sport: String) -> Void) {
+        self.onStart = { sport, _ in onStart(sport) }
+        self.heading = title ?? String(localized: "Choose a workout")
+        self.explainer = subtitle
+            ?? String(localized: "Pick an activity to begin recording heart rate, effort, peak, and average.")
+        self.actionVerb = actionVerb ?? String(localized: "Start")
+        self.offersZoneTraining = false
+    }
+
+    init(title: String? = nil, subtitle: String? = nil, actionVerb: String? = nil,
+         offersZoneTraining: Bool,
+         onStart: @escaping (_ sport: String, _ targetZone: Int?) -> Void) {
         self.onStart = onStart
         self.heading = title ?? String(localized: "Choose a workout")
         self.explainer = subtitle
             ?? String(localized: "Pick an activity to begin recording heart rate, effort, peak, and average.")
         self.actionVerb = actionVerb ?? String(localized: "Start")
+        self.offersZoneTraining = offersZoneTraining
     }
 
     var body: some View {
         WorkoutSelectionScreen(heading: heading, explainer: explainer, actionVerb: actionVerb,
-                               onStart: onStart)
+                               offersZoneTraining: offersZoneTraining, onStart: onStart)
     }
 }
 
@@ -36,10 +50,13 @@ struct WorkoutSelectionScreen: View {
     let heading: String
     let explainer: String
     let actionVerb: String
-    let onStart: (_ sport: String) -> Void
+    let offersZoneTraining: Bool
+    let onStart: (_ sport: String, _ targetZone: Int?) -> Void
 
     @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var profile: ProfileStore
     @State private var query = ""
+    @State private var targetZone: Int? = ZoneTrainingPrefs.lastTargetZone()
     @FocusState private var searchFocused: Bool
 
     private var trimmedQuery: String { query.trimmingCharacters(in: .whitespaces) }
@@ -54,6 +71,9 @@ struct WorkoutSelectionScreen: View {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: NoopMetrics.space5) {
                     headerCopy
+                    if offersZoneTraining {
+                        ZoneTrainingTargetPicker(selection: $targetZone, zoneSet: profile.hrZoneSet)
+                    }
                     WorkoutSearchField(query: $query, isFocused: $searchFocused)
                         .padding(.top, NoopMetrics.space1)
 
@@ -152,8 +172,61 @@ struct WorkoutSelectionScreen: View {
     private func select(_ name: String) {
         searchFocused = false
         RecentSportsPrefs.recordSelection(name)
-        onStart(name)
+        onStart(name, offersZoneTraining ? targetZone : nil)
         dismiss()
+    }
+}
+
+/// Shared pre-session target picker used by normal workouts and Live Sessions. The displayed range is
+/// resolved from the profile's canonical bands, never from a copied default ladder.
+struct ZoneTrainingTargetPicker: View {
+    @Binding var selection: Int?
+    let zoneSet: HRZoneSet
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: NoopMetrics.space2) {
+            HStack(spacing: NoopMetrics.space3) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Haptic zone coach")
+                        .font(StrandFont.headline)
+                        .foregroundStyle(StrandPalette.textPrimary)
+                    Text("Choose a target from the heart-rate zones in your profile.")
+                        .font(StrandFont.footnote)
+                        .foregroundStyle(StrandPalette.textSecondary)
+                }
+                Spacer(minLength: NoopMetrics.space2)
+                Picker("Target zone", selection: $selection) {
+                    Text("No zone coach").tag(Int?.none)
+                    ForEach(1...5, id: \.self) { zone in
+                        Text(verbatim: "Zone \(zone)").tag(Optional(zone))
+                    }
+                }
+                .labelsHidden()
+                .pickerStyle(.menu)
+                .fixedSize()
+            }
+            if let selection, let range = displayRange(for: selection) {
+                Text("Zone \(selection) · \(range.lower)–\(range.upper) BPM")
+                    .font(StrandFont.captionNumber)
+                    .foregroundStyle(StrandPalette.accent)
+            } else {
+                Text("No training buzzes will be sent.")
+                    .font(StrandFont.footnote)
+                    .foregroundStyle(StrandPalette.textTertiary)
+            }
+        }
+        .padding(NoopMetrics.space4)
+        .background(NoopPanelSurface(tint: StrandPalette.metricRose, cornerRadius: 20))
+        .accessibilityElement(children: .contain)
+    }
+
+    private func displayRange(for number: Int) -> (lower: Int, upper: Int)? {
+        guard let zone = zoneSet.zones.first(where: { $0.number == number }) else { return nil }
+        let lower = Int(ceil(zone.lower - HRZoneSet.edgeEpsilon))
+        let upper = number == 5
+            ? Int(floor(zoneSet.maxHR + HRZoneSet.edgeEpsilon))
+            : Int(ceil(zone.upper - HRZoneSet.edgeEpsilon)) - 1
+        return (lower, max(lower, upper))
     }
 }
 

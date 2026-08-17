@@ -95,12 +95,31 @@ bpm = vals.isEmpty ? nil : Int(vals[vals.count / 2].rounded())
 
 Median (not mean) is deliberate: it rejects single-beat outliers without lagging the signal.
 
-### 2. HR-zone haptic coaching (`coachZone`)
+### 2. Heart-rate ceiling haptics (`HRCeilingAlertEngine`)
 
-Watches the smoothed `bpm` and buckets it through `profile.hrZoneSet.zoneNumber(forBPM:)` — the same
-resolver every screen uses, so the buzz can never fire at a different boundary than the number shown.
+Watches the same ~10-second median `bpm` as the live UI. In profile-zone mode the ceiling is always the
+lower edge of the next band from `ProfileStore.hrZoneSet`, so automatic, custom-percent and custom-bpm
+profiles all drive the buzz at exactly the boundary shown on screen. Direct-bpm mode deliberately uses
+the independent fixed value instead.
 
-On crossing **into zone 5** it buzzes three times ("ease off"); on dropping back **to zone ≤ 1** it buzzes once ("recovered"). Gated on `behavior.zoneCoaching`, bonded, worn, and a valid `hrMax`.
+The first accepted smoothed sample at or above the ceiling warns immediately. In standard mode that is a
+three-loop warning followed by at most two reminders 60 seconds apart. The optional frequent mode instead
+emits one loop every two seconds while the current smoothed value remains at or above the ceiling. Both pause below the ceiling;
+15 seconds at least 3 bpm below it produces the one-loop recovery cue and rearms the episode.
+Missing/implausible data cannot trigger or mature a reminder. The user chooses always-while-worn or
+recorded-workouts-only; both remain gated on bonded + worn and opt-in by default.
+
+### 3. Target-zone training haptics (`HRZoneTrainingEngine`)
+
+An explicitly started workout or Live Session can select no coach or one target Zone 1...5. The engine
+classifies the same smoothed `bpm` through `ProfileStore.hrZoneSet`, so automatic, custom-percent and
+custom-bpm profile bands remain the sole boundaries. Eight continuous seconds establish below, inside,
+or above target: two light taps mean increase intensity, one tap confirms the target, and three heavy
+taps mean ease off. Outside reminders are limited to every 30 seconds; the target state stays silent.
+
+Invalid or missing samples reset pending stability and anchor reminder time. A profile-band change resets
+the episode. Haptic ownership is ceiling > target-zone coach > adaptive Live Session; selecting a target
+keeps the Live Session's visual/stored adaptive analysis but suppresses its competing wrist cues.
 
 ### 4. Illness / strain early-warning (`evaluateIllness`)
 

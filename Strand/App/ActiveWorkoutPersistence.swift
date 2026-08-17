@@ -26,6 +26,9 @@ enum ActiveWorkoutPersistence {
         var avgHr: Int
         var peakHr: Int
         var liveStrain: Double
+        /// Optional target profile zone for the haptic coach. Optional keeps snapshots written by older
+        /// builds decodable without a migration.
+        var targetZone: Int? = nil
     }
 
     /// The single `UserDefaults` key (JSON-encoded `Snapshot`). Namespaced like `moments`/`sleepMarks`.
@@ -54,6 +57,7 @@ enum ActiveWorkoutPersistence {
             avgHr: max(0, raw.avgHr),
             peakHr: max(0, raw.peakHr),
             liveStrain: raw.liveStrain.isFinite ? max(0, raw.liveStrain) : 0,
+            targetZone: raw.targetZone.flatMap { (1...5).contains($0) ? $0 : nil },
         )
     }
 
@@ -71,5 +75,25 @@ enum ActiveWorkoutPersistence {
     /// Clear the snapshot — called the instant a session ends (saved or discarded).
     static func clear(from defaults: UserDefaults = .standard) {
         defaults.removeObject(forKey: defaultsKey)
+    }
+}
+
+/// Last per-session target selection. `nil` is deliberately the fresh-install default, so adding the
+/// coach never makes an existing workout start buzzing without an explicit choice.
+enum ZoneTrainingPrefs {
+    static let lastTargetZoneKey = "zoneTraining.lastTargetZone"
+
+    static func lastTargetZone(_ defaults: UserDefaults = .standard) -> Int? {
+        guard let value = defaults.object(forKey: lastTargetZoneKey) as? Int,
+              (1...5).contains(value) else { return nil }
+        return value
+    }
+
+    static func setLastTargetZone(_ zone: Int?, _ defaults: UserDefaults = .standard) {
+        if let zone, (1...5).contains(zone) {
+            defaults.set(zone, forKey: lastTargetZoneKey)
+        } else {
+            defaults.removeObject(forKey: lastTargetZoneKey)
+        }
     }
 }

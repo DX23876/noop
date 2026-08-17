@@ -91,11 +91,13 @@ final class LiveSessionRunner: ObservableObject {
     /// the most recent night that recorded one; Charge may honestly be nil), arms the realtime HR
     /// stream (ref-counted in AppModel, balanced by `end()`), banks the in-progress row, and starts
     /// the 1 Hz tick. No-op if already running or already ended.
-    func start(model: AppModel, repo: Repository, ble: BLEManager, profile: ProfileStore) {
+    func start(model: AppModel, repo: Repository, ble: BLEManager, profile: ProfileStore,
+               targetZone: Int? = nil) {
         guard timer == nil, finalRow == nil else { return }
         self.model = model
         self.repo = repo
         self.ble = ble
+        model.setLiveSessionActive(true, targetZone: targetZone)
 
         // Resting HR: today's own, else the most recent banked night's. The engine needs *a* baseline
         // to place the band, so a never-slept-yet install gets a deliberately ordinary 60 — the band it
@@ -151,6 +153,7 @@ final class LiveSessionRunner: ObservableObject {
         hrSink?.cancel()
         hrSink = nil
         model?.stopRealtimeHR()
+        model?.setLiveSessionActive(false)
 
         // Prefer the engine's live band (it may have drifted its ceiling on a strong day) over the base.
         let final = row(endTs: Int(Date().timeIntervalSince1970), band: output?.band ?? baseBand
@@ -213,6 +216,8 @@ final class LiveSessionRunner: ObservableObject {
     private func fire(_ cue: LiveSessionEngine.Cue) {
         let nowDate = Date()
         guard nowDate >= hapticWalkUntil, let ble else { return }
+        if model?.hrCeilingOwnsLiveSessionHaptics == true { return }
+        if model?.zoneTrainingOwnsLiveSessionHaptics == true { return }
 
         let signal: LiveSessionHaptics.Signal = (cue == .pushNudge) ? .push : .easeOff
         let pulses = LiveSessionHaptics.pulses(for: signal)

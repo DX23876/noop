@@ -16,10 +16,12 @@ final class ActiveWorkoutPersistenceTests: XCTestCase {
         samples: [HRSample] = [HRSample(ts: 1_700_000_001, bpm: 120), HRSample(ts: 1_700_000_061, bpm: 145)],
         avgHr: Int = 133,
         peakHr: Int = 145,
-        liveStrain: Double = 8.4
+        liveStrain: Double = 8.4,
+        targetZone: Int? = nil
     ) -> ActiveWorkoutPersistence.Snapshot {
         ActiveWorkoutPersistence.Snapshot(startSec: startSec, sport: sport, samples: samples,
-                                          avgHr: avgHr, peakHr: peakHr, liveStrain: liveStrain)
+                                          avgHr: avgHr, peakHr: peakHr, liveStrain: liveStrain,
+                                          targetZone: targetZone)
     }
 
     /// A throwaway, isolated defaults suite so the test never touches the real store.
@@ -53,6 +55,40 @@ final class ActiveWorkoutPersistenceTests: XCTestCase {
         let decoded = ActiveWorkoutPersistence.decode(
             ActiveWorkoutPersistence.encode(snapshot(sport: "Traditional Strength Training")))
         XCTAssertEqual(decoded!.sport, "Traditional Strength Training")
+    }
+
+    func testTargetZoneRoundTripsAndInvalidValueBecomesNoCoach() {
+        XCTAssertEqual(ActiveWorkoutPersistence.decode(
+            ActiveWorkoutPersistence.encode(snapshot(targetZone: 3)))?.targetZone, 3)
+        XCTAssertNil(ActiveWorkoutPersistence.decode(
+            ActiveWorkoutPersistence.encode(snapshot(targetZone: 9)))?.targetZone)
+    }
+
+    func testSnapshotFromOlderBuildWithoutTargetZoneStillDecodes() throws {
+        struct LegacySnapshot: Codable {
+            var startSec: Int
+            var sport: String
+            var samples: [HRSample]
+            var avgHr: Int
+            var peakHr: Int
+            var liveStrain: Double
+        }
+        let legacy = LegacySnapshot(startSec: 1_700_000_000, sport: "Cycling", samples: [],
+                                    avgHr: 0, peakHr: 0, liveStrain: 0)
+        let decoded = ActiveWorkoutPersistence.decode(try JSONEncoder().encode(legacy))
+        XCTAssertEqual(decoded?.sport, "Cycling")
+        XCTAssertNil(decoded?.targetZone)
+    }
+
+    func testLastTargetPreferenceIsValidatedAndCanReturnToNoCoach() {
+        let defaults = freshDefaults()
+        XCTAssertNil(ZoneTrainingPrefs.lastTargetZone(defaults))
+        ZoneTrainingPrefs.setLastTargetZone(4, defaults)
+        XCTAssertEqual(ZoneTrainingPrefs.lastTargetZone(defaults), 4)
+        defaults.set(99, forKey: ZoneTrainingPrefs.lastTargetZoneKey)
+        XCTAssertNil(ZoneTrainingPrefs.lastTargetZone(defaults))
+        ZoneTrainingPrefs.setLastTargetZone(nil, defaults)
+        XCTAssertNil(defaults.object(forKey: ZoneTrainingPrefs.lastTargetZoneKey))
     }
 
     // MARK: - UserDefaults store / load / clear

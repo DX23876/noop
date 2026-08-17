@@ -545,8 +545,18 @@ React when the strap comes off or goes on:
 > macOS reserves true auto-*unlock* for Apple Watch, so this can **lock**, not unlock.
 
 ### Haptic coaching
-- **HR-zone coaching** — buzz when you hit your top zone (ease off) and again when you recover,
-  using your max HR from Settings.
+- **Heart-rate ceiling** — choose either the highest allowed profile zone or a fixed bpm value, then
+  monitor always while worn or only during a workout NOOP records. Profile-zone mode uses the exact
+  automatic / custom-percent / custom-bpm bands entered under Settings, and shows the resolved bpm
+  boundary before it is armed. The first smoothed sample at or above the boundary buzzes immediately;
+  continuing breaches can use bounded standard reminders or one buzz every two seconds, and recovery is
+  confirmed after a stable drop below it.
+  It needs current live HR and a bonded, worn strap; it is a training aid, not medical monitoring.
+- **Target-zone coach** — optionally choose Zone 1–5 when starting a recorded workout or Live Session.
+  The picker shows the exact current profile BPM band. After eight stable seconds, one tap confirms the
+  target, two light taps ask for more intensity, and three heavy taps ask you to ease off; outside reminders
+  are capped at one every 30 seconds. The last selection is proposed next time, while new installs default
+  to no coach. A configured heart-rate ceiling always has haptic priority.
 - **Stress check-ins (haptic)** — offer a guided breathing check-in after a fresh HRV dip while
   you are still. Off by default, with optional auto-nudges, quiet hours, and your resonance pace.
 

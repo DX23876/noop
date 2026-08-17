@@ -47,15 +47,58 @@ struct LiveSessionView: View {
     /// The slow in-band breathing scale (the only motion on screen).
     @State private var breathe = false
     @State private var showSummary = false
+    @State private var sessionStarted = false
+    @State private var selectedTargetZone: Int? = ZoneTrainingPrefs.lastTargetZone()
     /// "N sessions guarded" for the summary streak line, read from the store when the session ends.
     @State private var guardedCount: Int?
 
     private let ringDiameter: CGFloat = 250
 
     var body: some View {
+        Group {
+            if sessionStarted { sessionContent } else { setupContent }
+        }
+        .screenPadding()
+        .padding(.vertical, NoopMetrics.space6)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(StrandPalette.surfaceBase.ignoresSafeArea())
+        #if os(macOS)
+        .frame(minWidth: 480, minHeight: 640)
+        #endif
+        // Left without ending (a dismissed sheet on macOS, a shell teardown): end cleanly so the
+        // realtime-HR arm is balanced and the row's totals are banked. Guarded — a normal End already set
+        // finalRow, so this only catches the escape paths.
+        .onDisappear {
+            if sessionStarted, runner.finalRow == nil { runner.end() }
+        }
+        // Both end paths (the End tap and the 10-min stale auto-end) land here: load the streak count,
+        // then raise the summary.
+        .onChangeCompat(of: runner.finalRow) { row in
+            guard row != nil else { return }
+            loadGuardedCount()
+            showSummary = true
+        }
+        .onChangeCompat(of: runner.output) { out in advance(to: out) }
+        .task(id: sessionStarted) {
+            if sessionStarted { await fadeChargeSentenceLater() }
+        }
+        .sheet(isPresented: $showSummary, onDismiss: { onClose() }) {
+            if let row = runner.finalRow {
+                LiveSessionSummarySheet(row: row, guardedCount: guardedCount) {
+                    showSummary = false   // onDismiss closes the whole session screen
+                }
+            }
+        }
+    }
+
+    private var sessionContent: some View {
         VStack(spacing: 0) {
             header
                 .padding(.top, NoopMetrics.space6)
+            if let target = model.zoneTrainingTargetZone {
+                zoneCoachBadge(target: target)
+                    .padding(.top, NoopMetrics.space4)
+            }
             Spacer()
             ring
             Text(guardianLine)
@@ -72,38 +115,51 @@ struct LiveSessionView: View {
                 endSession()
             }
         }
-        .screenPadding()
-        .padding(.vertical, NoopMetrics.space6)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(StrandPalette.surfaceBase.ignoresSafeArea())
-        #if os(macOS)
-        .frame(minWidth: 480, minHeight: 640)
-        #endif
-        .onAppear {
-            runner.start(model: model, repo: repo, ble: model.ble, profile: profile)
-        }
-        // Left without ending (a dismissed sheet on macOS, a shell teardown): end cleanly so the
-        // realtime-HR arm is balanced and the row's totals are banked. Guarded — a normal End already set
-        // finalRow, so this only catches the escape paths.
-        .onDisappear {
-            if runner.finalRow == nil { runner.end() }
-        }
-        // Both end paths (the End tap and the 10-min stale auto-end) land here: load the streak count,
-        // then raise the summary.
-        .onChangeCompat(of: runner.finalRow) { row in
-            guard row != nil else { return }
-            loadGuardedCount()
-            showSummary = true
-        }
-        .onChangeCompat(of: runner.output) { out in advance(to: out) }
-        .task { await fadeChargeSentenceLater() }
-        .sheet(isPresented: $showSummary, onDismiss: { onClose() }) {
-            if let row = runner.finalRow {
-                LiveSessionSummarySheet(row: row, guardedCount: guardedCount) {
-                    showSummary = false   // onDismiss closes the whole session screen
+    }
+
+    private var setupContent: some View {
+        VStack(alignment: .leading, spacing: NoopMetrics.space5) {
+            header.padding(.top, NoopMetrics.space6)
+            Text("Choose optional haptic target-zone guidance before this session starts.")
+                .font(StrandFont.subhead)
+                .foregroundStyle(StrandPalette.textSecondary)
+            ZoneTrainingTargetPicker(selection: $selectedTargetZone, zoneSet: profile.hrZoneSet)
+            VStack(spacing: NoopMetrics.space3) {
+                NoopButton("Start session", systemImage: "play.fill", kind: .primary, fullWidth: true) {
+                    runner.start(model: model, repo: repo, ble: model.ble, profile: profile,
+                                 targetZone: selectedTargetZone)
+                    sessionStarted = true
                 }
+                NoopButton("Cancel", kind: .secondary, fullWidth: true) { onClose() }
             }
+            Spacer(minLength: 0)
         }
+    }
+
+    private func zoneCoachBadge(target: Int) -> some View {
+        let state = model.bpm.map {
+            HRZoneTrainingEngine.state(forBPM: $0, zoneSet: profile.hrZoneSet, targetZone: target)
+        }
+        let label: String
+        switch state {
+        case .belowTarget: label = String(localized: "Below target · increase intensity")
+        case .inTarget: label = String(localized: "In target zone")
+        case .aboveTarget: label = String(localized: "Above target · ease off")
+        case nil: label = String(localized: "Waiting for heart rate")
+        }
+        return HStack(spacing: NoopMetrics.space2) {
+            Image(systemName: "waveform.path.ecg")
+            Text(verbatim: "Zone \(target)")
+            Text(verbatim: "·")
+            Text(label)
+        }
+        .font(StrandFont.captionNumber)
+        .foregroundStyle(StrandPalette.metricCyan)
+        .padding(.horizontal, NoopMetrics.space3)
+        .padding(.vertical, NoopMetrics.space2)
+        .background(StrandPalette.metricCyan.opacity(0.12), in: Capsule())
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .combine)
     }
 
     // MARK: - Header

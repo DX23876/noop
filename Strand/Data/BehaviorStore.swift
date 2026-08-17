@@ -2,6 +2,14 @@ import Foundation
 import Combine
 import StrandAnalytics
 
+enum HRCeilingThresholdMode: String, CaseIterable {
+    case zone, bpm
+}
+
+enum HRCeilingScope: String, CaseIterable {
+    case always, workout
+}
+
 /// Settings for the strap's physical inputs and the Mac/coaching automations built on top of the
 /// live event + biometric stream. UserDefaults-backed (single-user, on-device).
 @MainActor
@@ -19,8 +27,28 @@ final class BehaviorStore: ObservableObject {
     /// Run a Shortcut when the strap goes back on the wrist.
     @Published var wristOnShortcut: String { didSet { d.set(wristOnShortcut, forKey: K.wristOnShortcut) } }
 
-    // MARK: HR-zone haptic coaching (during a live session)
+    // MARK: Configurable heart-rate ceiling haptics
     @Published var zoneCoaching: Bool { didSet { d.set(zoneCoaching, forKey: K.zoneCoaching) } }
+    /// Whether the ceiling follows the profile's resolved zone bands or a standalone absolute value.
+    @Published var hrCeilingThresholdMode: HRCeilingThresholdMode {
+        didSet { d.set(hrCeilingThresholdMode.rawValue, forKey: K.hrCeilingThresholdMode) }
+    }
+    /// Highest allowed profile zone (1...4). The warning starts at the lower edge of the next zone.
+    @Published var hrCeilingAllowedZone: Int {
+        didSet { d.set(min(max(hrCeilingAllowedZone, 1), 4), forKey: K.hrCeilingAllowedZone) }
+    }
+    /// Standalone ceiling used in `.bpm` mode, independent of HRmax and the profile's zone bands.
+    @Published var hrCeilingBPM: Int {
+        didSet { d.set(min(max(hrCeilingBPM, 40), 220), forKey: K.hrCeilingBPM) }
+    }
+    /// Always while worn/connected, or only while NOOP is actively recording a workout/session.
+    @Published var hrCeilingScope: HRCeilingScope {
+        didSet { d.set(hrCeilingScope.rawValue, forKey: K.hrCeilingScope) }
+    }
+    /// Standard limited reminders, or one warning pulse every two seconds while currently above.
+    @Published var hrCeilingReminderMode: HRCeilingReminderMode {
+        didSet { d.set(hrCeilingReminderMode.rawValue, forKey: K.hrCeilingReminderMode) }
+    }
 
     // MARK: Haptic biofeedback — Stress check-ins (L3)
     //
@@ -57,7 +85,7 @@ final class BehaviorStore: ObservableObject {
     /// recovery-derived optimal band. Default OFF like every other automation.
     @Published var strainTargetNudge: Bool { didSet { d.set(strainTargetNudge, forKey: K.strainTargetNudge) } }
 
-    private let d = UserDefaults.standard
+    private let d: UserDefaults
     private enum K {
         static let dtAction = "behavior.doubleTapAction"
         static let dtShortcut = "behavior.doubleTapShortcut"
@@ -65,6 +93,11 @@ final class BehaviorStore: ObservableObject {
         static let wristOffShortcut = "behavior.wristOffShortcut"
         static let wristOnShortcut = "behavior.wristOnShortcut"
         static let zoneCoaching = "behavior.zoneCoaching"
+        static let hrCeilingThresholdMode = "behavior.hrCeilingThresholdMode"
+        static let hrCeilingAllowedZone = "behavior.hrCeilingAllowedZone"
+        static let hrCeilingBPM = "behavior.hrCeilingBPM"
+        static let hrCeilingScope = "behavior.hrCeilingScope"
+        static let hrCeilingReminderMode = "behavior.hrCeilingReminderMode"
         // Haptic biofeedback L3 — keys MATCH BiofeedbackPrefs (one source of truth, two readers).
         static let stressCheckIn = "biofeedback.stressCheckIn"
         static let stressAutoNudge = "biofeedback.stressAutoNudge"
@@ -82,13 +115,21 @@ final class BehaviorStore: ObservableObject {
         static let strainTargetNudge = "behavior.strainTargetNudge"
     }
 
-    init() {
+    init(defaults: UserDefaults = .standard) {
+        d = defaults
         doubleTapAction = MacActionKind(rawValue: d.string(forKey: K.dtAction) ?? "") ?? .none
         doubleTapShortcut = d.string(forKey: K.dtShortcut) ?? ""
         autoLockOnWristOff = d.object(forKey: K.autoLock) as? Bool ?? false
         wristOffShortcut = d.string(forKey: K.wristOffShortcut) ?? ""
         wristOnShortcut = d.string(forKey: K.wristOnShortcut) ?? ""
         zoneCoaching = d.object(forKey: K.zoneCoaching) as? Bool ?? false
+        hrCeilingThresholdMode = HRCeilingThresholdMode(
+            rawValue: d.string(forKey: K.hrCeilingThresholdMode) ?? "") ?? .zone
+        hrCeilingAllowedZone = min(max(d.object(forKey: K.hrCeilingAllowedZone) as? Int ?? 4, 1), 4)
+        hrCeilingBPM = min(max(d.object(forKey: K.hrCeilingBPM) as? Int ?? 150, 40), 220)
+        hrCeilingScope = HRCeilingScope(rawValue: d.string(forKey: K.hrCeilingScope) ?? "") ?? .always
+        hrCeilingReminderMode = HRCeilingReminderMode(
+            rawValue: d.string(forKey: K.hrCeilingReminderMode) ?? "") ?? .standard
         stressCheckIn = d.object(forKey: K.stressCheckIn) as? Bool ?? false
         stressAutoNudge = d.object(forKey: K.stressAutoNudge) as? Bool ?? false
         stressQuietHours = d.object(forKey: K.stressQuietHours) as? Bool ?? true
