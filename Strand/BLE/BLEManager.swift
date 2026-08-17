@@ -5339,7 +5339,15 @@ extension BLEManager: @preconcurrency CBPeripheralDelegate {
             }
             // UNIVERSAL clock-drift snapshot (RTC cluster #531/#767/#804/#812): bank the [oldest, newest]
             // window onto LiveState UNCONDITIONALLY (observability, not gated) for the export assembler.
-            if feedsSync { state.setStrapRange(newestUnix: newest, oldestUnix: (oldest.map { $0 < newest } ?? false) ? oldest : nil) }
+            // This used to sit behind `feedsSync`, i.e. WHOOP 4.0 only, which quietly cost every 5.0/MG
+            // export its universal clock line: a v10.0.0 capture from a 5/MG strap came back
+            // "[INCOMPLETE] universal: mode was on but produced NO trace" even though the log above it
+            // carries the decoded range twice. `feedsSync` exists to gate the SYNC-affecting side effects
+            // (strapNewestTs, the backfiller's session window) while the 5/MG decode is unconfirmed; this
+            // is not one of them. It feeds one diagnostic line (and the alarm section's clock read), and
+            // the raw GET_DATA_RANGE frames are dumped right beside it, so an imperfect 5/MG decode shows
+            // itself here rather than leaving a maintainer with nothing at all.
+            state.setStrapRange(newestUnix: newest, oldestUnix: (oldest.map { $0 < newest } ?? false) ? oldest : nil)
             // Connection test mode: promote the CLOCK-DRIFT picture to one upfront tagged line (#767/#754).
             if TestCentre.active(.connection) {
                 let line = ConnectionTrace.clockDriftLine(

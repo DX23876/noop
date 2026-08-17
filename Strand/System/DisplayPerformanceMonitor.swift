@@ -17,6 +17,16 @@ import CoreVideo
 // mode is off, no CADisplayLink / CVDisplayLink exists, no frame callback fires, and zero `.display`
 // lines are emitted. A test pins exactly that (DisplayPerformanceMonitorTests).
 //
+// THE MODE OWNS THE MONITOR, NOT THE SCREEN. The Test Centre row used to stop() on `.onDisappear`, which
+// meant the frame monitor only ever measured the Test Centre list itself: navigating to Today to reproduce
+// "it stutters when I scroll" tore the display link down on the way there, and the exported windows all
+// described a static settings screen. A v10.0.0 capture showed exactly that shape (13 windows, then a
+// partial window + high-water the moment the user left the screen), so the one report meant to explain a
+// scroll hitch could not contain one. The link now lives for as long as the MODE is on, across navigation,
+// so the user can turn the mode on, scroll the screen that stutters, and come back to export. Bounded by
+// the same two rules as before: nothing exists while the mode is off, and the link is torn down while the
+// app is backgrounded (no frames are being produced there) and re-attached on foreground.
+//
 // The frame callback samples each frame's duration, counts hitches over a threshold, and emits a ROLLING
 // SUMMARY line once per window of frames (not per frame), so the trace is bounded. Every emitted line
 // rides LiveState.append(log:domain:.display), the single redacting sink. The screenshot + device-metrics
@@ -84,13 +94,23 @@ final class DisplayPerformanceMonitor {
         sampleMemory()
         emitDeviceMetrics()
         emitDataVolume()
+        observeAppLifecycle()
+        attachLink()
+    }
 
+    /// Create the platform display link and begin sampling. Split out of `start()` so backgrounding can
+    /// tear the link down and foregrounding can bring it back WITHOUT re-running the start-of-capture
+    /// emissions (a device-metrics line and the expensive one-shot data-volume read belong to the capture,
+    /// not to every app switch). Idempotent: a link that already exists is left alone.
+    private func attachLink() {
         #if os(iOS)
+        guard displayLink == nil else { return }
         let link = CADisplayLink(target: self, selector: #selector(onFrame(_:)))
         link.add(to: .main, forMode: .common)
         displayLink = link
         #endif
         #if os(macOS)
+        guard cvLink == nil else { return }
         var link: CVDisplayLink?
         CVDisplayLinkCreateWithActiveCGDisplays(&link)
         if let link {
@@ -107,27 +127,75 @@ final class DisplayPerformanceMonitor {
         #endif
     }
 
+    /// Tear the platform display link down. Used by `stop()` and by the background hop; leaves `running`
+    /// alone so a backgrounded capture is PAUSED, not ended.
+    private func detachLink() {
+        #if os(iOS)
+        displayLink?.invalidate()
+        displayLink = nil
+        #endif
+        #if os(macOS)
+        if let link = cvLink { CVDisplayLinkStop(link) }
+        cvLink = nil
+        #endif
+    }
+
     /// Stop the monitor: tear the display link DOWN (so nothing keeps firing), flush a final partial
     /// window if it holds any samples, and emit the memory high-water. After this no callback fires and
     /// no `.display` line is emitted until the next start(). Idempotent.
     func stop() {
         guard running else { return }
         running = false
-
-        #if os(iOS)
-        displayLink?.invalidate()
-        displayLink = nil
-        #endif
-        #if os(macOS)
-        if let link = cvLink {
-            CVDisplayLinkStop(link)
-        }
-        cvLink = nil
-        #endif
+        detachLink()
+        stopObservingAppLifecycle()
 
         // Flush whatever the last partial window holds, then the high-water mark.
         flushWindow()
         emit?(DisplayTrace.memoryHighWaterLine(peakMB: memoryPeakMB))
+    }
+
+    // MARK: - Background / foreground (the link must not outlive the frames it measures)
+
+    private var lifecycleObservers: [NSObjectProtocol] = []
+
+    /// Watch the app lifecycle so a capture that spans a trip to the home screen pauses instead of
+    /// pretending to measure. iOS-only: the frame monitor's whole purpose is the on-device scroll feel,
+    /// and macOS has no equivalent suspension. Registered by `start()`, removed by `stop()`, so the "no
+    /// perpetual anything while the mode is off" contract still holds for the observers too.
+    private func observeAppLifecycle() {
+        #if os(iOS)
+        guard lifecycleObservers.isEmpty else { return }
+        let center = NotificationCenter.default
+        lifecycleObservers.append(center.addObserver(
+            forName: UIApplication.didEnterBackgroundNotification, object: nil, queue: .main) { _ in
+                MainActor.assumeIsolated { DisplayPerformanceMonitor.shared.handleDidEnterBackground() }
+            })
+        lifecycleObservers.append(center.addObserver(
+            forName: UIApplication.willEnterForegroundNotification, object: nil, queue: .main) { _ in
+                MainActor.assumeIsolated { DisplayPerformanceMonitor.shared.handleWillEnterForeground() }
+            })
+        #endif
+    }
+
+    private func stopObservingAppLifecycle() {
+        for o in lifecycleObservers { NotificationCenter.default.removeObserver(o) }
+        lifecycleObservers.removeAll()
+    }
+
+    /// Backgrounding: drop the link and flush the partial window, so the window that was open when the
+    /// user left does not silently absorb the gap. `running` stays true - the capture is paused.
+    func handleDidEnterBackground() {
+        guard running else { return }
+        detachLink()
+        flushWindow()
+        lastFrameTimestamp = 0   // the next foreground frame seeds afresh, never a background-spanning delta
+    }
+
+    /// Foregrounding: bring the link back if the mode is still capturing.
+    func handleWillEnterForeground() {
+        guard running else { return }
+        lastFrameTimestamp = 0
+        attachLink()
     }
 
     // MARK: - Frame sampling

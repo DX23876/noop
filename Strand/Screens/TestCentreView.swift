@@ -501,17 +501,19 @@ private struct TestModeRow: View {
         }
         .onAppear {
             on = TestCentre.active(mode.domain)
-            // If the Display mode was already on when the screen appears, (re)start its frame monitor and
-            // wire the sink, so a monitor that was torn down (e.g. the screen left and came back) resumes.
+            // If the Display mode was already on when the screen appears (left on across a relaunch, or
+            // toggled on before this row was built), wire the sink and start the monitor. Re-entering the
+            // screen mid-capture re-points the sink at the live LiveState and is otherwise a no-op:
+            // `start()` is idempotent, so a running capture is never restarted and never re-emits its
+            // one-shot device-metrics / data-volume lines.
             if mode.domain == .display, on { startDisplayMonitor() }
         }
-        .onDisappear {
-            // Leaving the screen tears the frame monitor down so no display link survives a navigation
-            // away. The mode flag stays on (the user's test is still active); the monitor resumes on
-            // .onAppear above. This keeps the perpetual-display-link contract: a link exists only while the
-            // Test Centre is on screen with the mode on.
-            if mode.domain == .display { DisplayPerformanceMonitor.shared.stop() }
-        }
+        // NO .onDisappear teardown for the Display monitor. Leaving this screen is exactly what the tester
+        // does next: the mode is turned on HERE and the stutter is reproduced THERE (Today, a chart, a long
+        // scroll). Stopping on disappear meant every exported window described this static list instead of
+        // the screen being complained about. The monitor's life is owned by the mode toggle above (and by
+        // backgrounding, handled inside the monitor), so it keeps sampling across navigation and is torn
+        // down the moment the mode goes off.
     }
 
     /// Wire the Display monitor's sink to the redacting `.display` log and start it. The sink is set every

@@ -572,10 +572,21 @@ public final class LiveState: ObservableObject {
         // before this process's own `persistTail` overwrites it (see `rollLogGenerationsIfNeeded`). Latched,
         // so this is one Bool test per line after the first.
         Self.rollLogGenerationsIfNeeded()
-        // Tag inert when nil (today's behaviour, byte-identical). When tagged, prefix a compact,
-        // parseable marker the export filters on. Redaction is STILL the only scrub point
-        // (redactPii below); tagging happens BEFORE redaction so the scrub covers the whole line.
-        let tagged = domain.map { "[\($0.id)] " + line } ?? line
+        // Every line gets a wall-clock stamp here unless the caller already wrote one. Most of report.txt
+        // comes through `BLEManager.log()`, which stamps "[HH:mm:ss] " itself; everything that reaches this
+        // sink directly (the Display monitor's frame/hitch digests, the re-score line, the dashboard-cache
+        // refresh) used to land with NO time at all. That is fine until someone has to explain a 128 ms
+        // hitch: the one question a frame trace exists to answer is "what else was the app doing in that
+        // second", and an unstamped `frameSummary` cannot be lined up against the stamped backfill line
+        // above it. Stamping at the single sink fixes the whole class of them at once.
+        // The stamp goes OUTSIDE the domain tag ("[15:56:56] [display] frameSummary ..."), for two reasons:
+        // every line in report.txt then opens with a time, and the tag stays glued to the line body so the
+        // many `contains("[battery] bank soc=...")`-shaped readers keep matching. `taggedTail` steps over
+        // the stamp before its prefix test.
+        // Tag inert when nil (today's behaviour). Redaction is STILL the only scrub point (redactPii
+        // below); tagging happens BEFORE redaction so the scrub covers the whole line.
+        let stamp = Self.hasLeadingTimestamp(line) ? "" : "[\(Self.logStamp())] "
+        let tagged = stamp + (domain.map { "[\($0.id)] " + line } ?? line)
         log.append(Self.redactPii(tagged))
         // Batched trim: overrun by `trimSlack`, then trim back to the cap in one shot (amortized O(1)/line).
         if log.count > Self.maxLogLines + Self.trimSlack { log.removeFirst(log.count - Self.maxLogLines) }
@@ -596,12 +607,42 @@ public final class LiveState: ObservableObject {
         }
     }
 
+    /// The "HH:mm:ss" stamp `append` prefixes, matching `BLEManager.log()`'s formatter exactly so a
+    /// sink-stamped line and a caller-stamped line are indistinguishable in report.txt. The formatter is
+    /// cached (building one per line is the expensive part) and safe to share: the whole class is
+    /// `@MainActor`, so every append runs on one thread.
+    private static let logTimeFormatter: DateFormatter = {
+        let f = DateFormatter(); f.dateFormat = "HH:mm:ss"; return f
+    }()
+
+    static func logStamp(_ date: Date = Date()) -> String { logTimeFormatter.string(from: date) }
+
+    /// True when `line` already opens with a "[HH:mm:ss]" stamp, so the sink never double-stamps a line
+    /// that came through `BLEManager.log()`. Shape-checked over UTF-8 (a fixed 10-byte prefix: bracket,
+    /// two digits, colon, two digits, colon, two digits, bracket) rather than parsed, so the common path
+    /// is a handful of byte compares and no allocation.
+    static func hasLeadingTimestamp(_ line: String) -> Bool {
+        let b = Array(line.utf8.prefix(10))
+        guard b.count == 10, b[0] == UInt8(ascii: "["), b[9] == UInt8(ascii: "]"),
+              b[3] == UInt8(ascii: ":"), b[6] == UInt8(ascii: ":") else { return false }
+        for i in [1, 2, 4, 5, 7, 8] where !(b[i] >= UInt8(ascii: "0") && b[i] <= UInt8(ascii: "9")) {
+            return false
+        }
+        return true
+    }
+
+    /// `line` without its leading "[HH:mm:ss] " stamp (unchanged when it carries none), so a reader that
+    /// keys on what the line STARTS with is unaffected by stamping.
+    static func withoutLeadingTimestamp(_ line: String) -> String {
+        hasLeadingTimestamp(line) ? String(line.dropFirst(11)) : line
+    }
+
     /// The in-app log lines tagged for one test domain (for the Test Centre live readout). Read-only,
     /// no side effects; the prefix is the same one `append(log:domain:)` writes, and redaction never
     /// strips it (the tag is prepended before the scrub, which only touches identifiers). (Group E)
     public func taggedTail(domain: TestDomain) -> [String] {
         let prefix = "[\(domain.id)] "
-        return log.filter { $0.hasPrefix(prefix) }
+        return log.filter { Self.withoutLeadingTimestamp($0).hasPrefix(prefix) }
     }
 
     // MARK: - Durable log tail (#510, scheduled debug export)
