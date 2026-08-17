@@ -346,6 +346,11 @@ extension WhoopStore {
                     v18Written += 1
                 }
             }
+            // The analyze gate's change-detector, bumped INSIDE this transaction so it commits with the
+            // rows it describes (see `bumpSensorWriteSeq`). Every sensor-table INSERT in the app is in
+            // this one block, which is what makes a single bump here sufficient — and a `DO NOTHING`
+            // batch that inserted zero new rows still bumps, which only ever costs one redundant pass.
+            try WhoopStore.bumpSensorWriteSeq(db)
             return (hr, rr, ev, bat, spo2, skin, resp, grav)
         }
 

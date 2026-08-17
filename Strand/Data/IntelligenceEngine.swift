@@ -484,12 +484,28 @@ final class IntelligenceEngine: ObservableObject {
         // workout delete) is untouched and no computed history is dropped. Every real update path (sync
         // backfill, import, sleep/workout edit, baseline recalibrate, timestamp heal) calls with the default
         // `force: true` and always rescores, so a skipped tick can never hide new data.
-        // TEMP DIAGNOSTIC: the whole-history HR fingerprint runs on EVERY call (before the force check),
-        // so time it separately — on a large imported library this query alone can be slow.
+        // The gate's change-detector, in its third form. Two things went wrong before it:
+        //
+        //  1. `hrFingerprint(deviceId:)` was scoped to ONE source, and `deviceId` here is the canonical
+        //     "my-whoop" constant handed over at init and never re-pointed, while the WRITE side follows
+        //     the device registry. On any install whose active device is a real strap the fingerprint
+        //     FROZE while data kept arriving (observed: a `maxTs` four weeks stale in the very pass that
+        //     read 101k HR samples for TODAY), so the gate said "nothing changed" forever and the
+        //     re-score it guards silently stopped running.
+        //  2. `syncedRowCount()` fixed the blindness by counting every sensor-input table instead — but
+        //     it answers "did anything change" by walking 15.3 M rows / 1.7 GB, measured at 11 s per call
+        //     on a real library, and it runs HERE, above every gate, so even an idle tick that then
+        //     short-circuits and does no work at all pays it in full.
+        //
+        // `sensorWriteSeq()` is one indexed row. It is bumped inside the transaction of every sensor
+        // mutation in the app (ingest, timestamp heal, per-device delete, serial re-point), and it is
+        // MONOTONE, so unlike a row count it cannot return to an earlier value after a delete-then-
+        // resync and go blind the way (1) did. See `WhoopStore.bumpSensorWriteSeq`.
         let diagFpStart = Date()
-        let wmKey: String = (try? await store.hrFingerprint(deviceId: deviceId, from: 0, to: 9_999_999_999))
-            .map { "\($0.count):\($0.maxTs)" } ?? ""
-        NSLog("[FREEZE-DIAG] hrFingerprint(whole history) took=\(String(format: "%.2f", Date().timeIntervalSince(diagFpStart)))s key=\(wmKey)")
+        let wmKey: String = (try? await store.sensorWriteSeq()).map(String.init) ?? ""
+        NSLog("[FREEZE-DIAG] sensorWriteSeq took=\(String(format: "%.3f", Date().timeIntervalSince(diagFpStart)))s key=\(wmKey)")
+        // (The hrSample partition census lives in `AppModel`'s launch sequence, not here: this function is
+        // reached only after the launch waits, so a census here never appeared on a slow launch.)
         if !force, !wmKey.isEmpty,
            UserDefaults.standard.string(forKey: Self.analyzeWatermarkKey) == wmKey {
             NSLog("[FREEZE-DIAG] analyzeRecent SHORT-CIRCUIT (unchanged fingerprint) — no work done")
@@ -708,11 +724,38 @@ final class IntelligenceEngine: ObservableObject {
                 // this resolves to `deviceId` (active strap, has data → priority 0), so nothing changes; with
                 // multiple sources the day is scored from exactly one (active strap > other live straps >
                 // imports, or a locked override). Falls back to `deviceId` if the registry is unreadable.
+                // NOT a cost centre — measured, so nobody re-opens this. The suspicion was that on a
+                // multi-source install (where the #970 single-device fast path does not apply) the per-day
+                // `hrSamples(…, limit: 1)` probe would be expensive, because SQLite would have to satisfy
+                // the ORDER BY over the whole UNION — including the correlated NOT EXISTS — before it could
+                // apply the LIMIT. It does not: it plans the union as a MERGE of two already-ordered index
+                // scans and stops at the first row. Timed against 1.8 M rows: 62 µs.
+                let diagIterStart = Date()
                 let owner = await Self.resolveDayOwner(day: day, from: from, to: to, store: store,
                                                        devices: regDevices, activeId: regActiveId,
                                                        registry: registry, fallbackDeviceId: ownerFallbackId)
+                let diagOwnerMs = Date().timeIntervalSince(diagIterStart) * 1000
+
+                // TEMP DIAGNOSTIC (#freeze-investigation) — attribute the per-day cost. `hrSamples` UNIONs
+                // `hrSample` with `ppgHrSample` through a CORRELATED `NOT EXISTS` per PPG row, so on a dense
+                // day it is a very different cost from the six plain reads. Without splitting reads from the
+                // analytics, a 20-second day can't be told apart from slow math and one optimises blind.
+                // Remove together with the rest of the FREEZE-DIAG block.
+                // NOTE: the pre-existing `diagDayStart` below is stamped AFTER every stream read, so the
+                // `took=` it reports never included them. `diagIterStart` (above, before the owner probe)
+                // marks the true start of the day's work so `total=` is honest about what a day costs.
+                var diagAnalyzeMs = 0.0
+                var diagReadsMs = 0.0
+                var diagMark = Date()
+                func diagLap() -> Double {
+                    let ms = Date().timeIntervalSince(diagMark) * 1000
+                    diagMark = Date()
+                    diagReadsMs += ms
+                    return ms
+                }
 
                 let hr = (try? await store.hrSamples(deviceId: owner, from: from, to: to, limit: 200_000)) ?? []
+                let diagHrMs = diagLap()
                 guard hr.count >= 200 else {
                     // Need real raw data, not a stray sample. The skipped day gets no DayScan, so its
                     // diagnostic is carried in `skippedDayLines` and replayed through `diagnosticSink`
@@ -725,9 +768,11 @@ final class IntelligenceEngine: ObservableObject {
                 let grav = (try? await store.gravitySamples(deviceId: owner, from: from, to: to, limit: 200_000)) ?? []
                 let steps = (try? await store.stepSamples(deviceId: owner, from: from, to: to, limit: 200_000)) ?? []
                 let skin = (try? await store.skinTempSamples(deviceId: owner, from: from, to: to, limit: 200_000)) ?? []
+                _ = diagLap()   // TEMP DIAGNOSTIC: fold the five plain reads above into `diagReadsMs`
                 // #93: WHOOP 4.0 raw SpO2 PPG samples for the night; analyzeDay banks the nightly red/IR ADC
                 // means on the DailyMetric. Empty on a 5/MG (no v24 spo2 channels) → the raw means stay nil.
                 let spo2 = (try? await store.spo2Samples(deviceId: owner, from: from, to: to, limit: 200_000)) ?? []
+                _ = diagLap()   // TEMP DIAGNOSTIC: fold the spo2 read into `diagReadsMs`
                 // #938: the strap family that WROTE this owner's skin-temp rows, so analyzeDay converts the raw
                 // register on the right scale (5/MG banks centidegrees, a WHOOP 4.0 v24 banks a raw ADC). The
                 // registry knows each device's model; unknown/non-WHOOP owners fall back to `.whoop5` (the prior
@@ -862,7 +907,17 @@ final class IntelligenceEngine: ObservableObject {
                 // and how many samples it actually had to chew through.
                 let diagDayStart = Date()
                 defer {
-                    NSLog("[FREEZE-DIAG]   day=\(day) took=\(String(format: "%.2f", Date().timeIntervalSince(diagDayStart)))s hr=\(hr.count) rr=\(rr.count) grav=\(grav.count) steps=\(steps.count)")
+                    let f = { (s: Double) in String(format: "%.2f", s) }
+                    let total = Date().timeIntervalSince(diagIterStart)
+                    let post = Date().timeIntervalSince(diagDayStart)
+                    // total = the whole iteration; reads = the seven stream reads (hr broken out, it carries
+                    // the correlated NOT EXISTS); analyze = AnalyticsEngine.analyzeDay; post = the old
+                    // `took=`, kept so earlier captures stay comparable. total − reads − analyze is the
+                    // remainder (owner resolve, the skin-anchor / wrist / calendar-day reads, persistence prep).
+                    NSLog("[FREEZE-DIAG]   day=\(day) owner=\(owner) total=\(f(total))s "
+                        + "ownerProbe=\(f(diagOwnerMs / 1000))s reads=\(f(diagReadsMs / 1000))s "
+                        + "hrRead=\(f(diagHrMs / 1000))s analyze=\(f(diagAnalyzeMs / 1000))s post=\(f(post))s "
+                        + "hr=\(hr.count) rr=\(rr.count) grav=\(grav.count) steps=\(steps.count)")
                 }
                 // #804 Fix A: when this day's owner is a device that sends NO usable gravity vector — so the
                 // motion detector can't stage the night and it scored blank — AND it has persisted its OWN
@@ -881,6 +936,7 @@ final class IntelligenceEngine: ObservableObject {
                 } else {
                     providedSleep = []
                 }
+                let diagAnalyzeStart = Date()   // TEMP DIAGNOSTIC: math cost, separated from the read cost
                 let res = AnalyticsEngine.analyzeDay(day: day, hr: hr, rr: rr, resp: resp, gravity: grav,
                                                      steps: steps, dayHr: dayHr, daySteps: daySteps,
                                                      dayGravity: dayGrav,
@@ -910,6 +966,7 @@ final class IntelligenceEngine: ObservableObject {
                                                      // ring buffer isn't flooded; every night keeps the summary.
                                                      hrvWindowDetail: dayStart == nowLocalMidnight,
                                                      deepHrvWindow: deepHrvWindow)
+                diagAnalyzeMs = Date().timeIntervalSince(diagAnalyzeStart) * 1000   // TEMP DIAGNOSTIC
                 // #195: whole-night HRV cleaning-pipeline summary for the always-on strap log, so a "reads ~2x
                 // too high" report is triageable without the HRV test mode: RMSSD vs SDNN (rmssd >> sdnn =
                 // beat-to-beat jitter surviving the ectopic filter, not real HRV), meanNN as an HR sanity-check,

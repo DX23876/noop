@@ -2000,7 +2000,11 @@ struct LiquidTodayView: View {
         async let stepsA = repo.exploreSeries(key: "steps_est", source: "my-whoop")
         async let appleA = repo.appleDailyRows()
         async let hrA = repo.hrBuckets(from: from, to: to, bucketSeconds: 300)
-        async let wkA = repo.workoutRows()
+        // `reconcileHrCap: 8` — same shape as `TodayView`: this renders `workouts.prefix(6)` and otherwise
+        // only uses `.count`, so the full 300-row display-only HR reconcile spent ~294 launch-path queries
+        // on rows nobody sees. The budget is spent newest-first, so the six rendered cards keep their
+        // trace-reconciled values. See `Repository.workoutRows(days:reconcileHrCap:)`.
+        async let wkA = repo.workoutRows(reconcileHrCap: 8)
         // Weight: a wider 91-day fetch (not the 14-day sparkCutoff window every sibling series uses below)
         // — weight is logged sparsely enough that a 14-day window would frequently be empty, defeating the
         // point of the series fallback. `windowedSpark` trims it at render time like every other entry.

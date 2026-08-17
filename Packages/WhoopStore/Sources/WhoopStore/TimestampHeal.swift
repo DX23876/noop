@@ -79,6 +79,11 @@ extension WhoopStore {
                            arguments: [hi, lo])
             computedDeleted += db.changesCount
 
+            // A heal MUTATES the sensor tables, so the analyze gate has to see it: the scores computed
+            // from the purged rows are now wrong and must be recomputed. Bumped inside this transaction
+            // like every other sensor mutation, and unconditionally — a heal that deleted nothing costs
+            // one redundant pass, whereas a heal the gate missed leaves stale scores in place forever.
+            try WhoopStore.bumpSensorWriteSeq(db)
             return TimestampHealResult(rawRowsDeleted: rawDeleted,
                                        computedRowsDeleted: computedDeleted)
         }

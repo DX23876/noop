@@ -193,6 +193,10 @@ final class AppModel: ObservableObject {
     /// session. Mirrors how `SourceCoordinator` drives the WRITE side off the same publisher. Retained for
     /// the app's lifetime (the registry outlives the session); `removeDuplicates` collapses redundant emits.
     private var readSpineCancellable: AnyCancellable?
+    /// Latched once the read-spine subscription has delivered its FIRST `activeDeviceId`. That first
+    /// delivery is the publisher replaying the CURRENT value at subscribe time — a launch-time re-point,
+    /// not a device change — and it must not force a full re-score. See `adoptActiveDeviceFromReadSpine`.
+    private var didInitialReadSpineAdopt = false
     /// Daily re-arm timer for the single-instant firmware smart alarm (see scheduleDailySmartAlarmRearm).
     private var smartAlarmRearmTimer: Timer?
 
@@ -395,6 +399,24 @@ final class AppModel: ObservableObject {
         // main thread free for SwiftUI during the deep-history pass right after an import / first launch.
         Task(priority: .utility) { [weak self] in
             guard let self else { return }
+            // TEMP DIAGNOSTIC (#freeze-investigation) — phase trace for the launch sequence. The first
+            // capture showed NO `analyzeRecent ENTER` at all, which ruled the analyze pass out as that
+            // launch's culprit and pointed at the steps BEFORE it: a full `repo.refresh()` (~50 store reads
+            // on a 1.7 GB database), a fixed 6 s sleep, and an import wait that can hold for 180 s. Without
+            // per-phase stamps there is no way to tell "still waiting by design" from "wedged".
+            // Remove with the rest of the FREEZE-DIAG block.
+            let diagT0 = Date()
+            func diagPhase(_ name: String) {
+                NSLog("[FREEZE-DIAG] startup \(name) at +\(String(format: "%.2f", Date().timeIntervalSince(diagT0)))s")
+            }
+            diagPhase("begin")
+            // The hrSample partition census USED to run here. It did its job — it proved the change
+            // detector was partition-blind (`whoop-535B…` held the recent rows while the gate watched
+            // `my-whoop`) — and it is deliberately NOT run on launch any more: a `GROUP BY deviceId`
+            // over every hrSample row cost 6–16 s at the very front of the startup sequence, which is
+            // both a real launch cost and enough noise to invalidate every phase measurement after it.
+            // `WhoopStore.diagHrPartitions()` is kept so the census can be taken on demand when a
+            // multi-source install needs explaining; it just isn't in the launch path.
             #if DEBUG
             // DEBUG-only: when launched with `--demo-seed`, populate a deterministic synthetic
             // dataset so an empty simulator/dev build can walk every screen (verification + marketing
@@ -407,9 +429,13 @@ final class AppModel: ObservableObject {
             }
             #endif
             await self.repo.refresh()                          // surface any imported data at once
+            diagPhase("repo.refresh done")
             await PlanReconciliationCoordinator.reconcile(repo: self.repo)
+            diagPhase("plan reconcile done")
             await GoalTrackingStore.shared.refresh(repo: self.repo)
+            diagPhase("goals done")
             await self.wireSourceCoordinator()                 // dormant unless a generic strap is active
+            diagPhase("sourceCoordinator wired")
             try? await Task.sleep(nanoseconds: 6_000_000_000)  // give the first offload a moment
             // FIX 2(a): DEFER the heavy one-shot 4000-day heal/rescore while an import is in flight. A
             // large Apple Health import is the worst-case launch overlap , running a 4000-iteration heal
@@ -422,20 +448,24 @@ final class AppModel: ObservableObject {
             // non-throwing import HANG would never reach, permanently starving the one-shot passes AND the
             // cadence loop below for the whole session. Bound it so a wedged import can't disable analysis;
             // the merge reads are off-actor now, so proceeding under a still-flagged import is safe.
+            diagPhase("post-6s-sleep, hasActiveImport=\(self.hasActiveImport)")
             var importWaited = 0
             while self.hasActiveImport && !Task.isCancelled && importWaited < 180 {
                 try? await Task.sleep(nanoseconds: 1_000_000_000)  // 1 s, re-check; ~3 min cap then proceed
                 importWaited += 1
             }
+            diagPhase("import wait done after \(importWaited)s")
             // One-shot on-upgrade heal (#547): purge rows a bad-clock strap dated to scattered garbage
             // (far-past / bogus-2027 / FUTURE) from an older build, then rescore the real days. Runs
             // BEFORE the Effort rescore + analyzeRecent loop so both operate on a cleaned DB. Persisted
             // flag → no-op on every subsequent launch; idempotent on a clean DB.
             await self.intelligence.runTimestampHealIfNeeded()
+            diagPhase("timestamp heal done")
             // One-shot on-upgrade Effort rescore (#313): recompute strain from source across the FULL
             // history once, so any deep-history rows an older build left on the 0–21 axis regenerate on
             // the 0–100 axis. Guarded by a persisted flag, so this is a no-op on every subsequent launch.
             await self.intelligence.runEffortRescoreIfNeeded()
+            diagPhase("effort rescore done — entering steady-state loop")
             while !Task.isCancelled {
                 // #547 RE-POLLUTION: a sync since the last tick may have armed a re-heal (its ingest gate
                 // dropped bad-clock records). `runTimestampHealIfNeeded` honours the pending flag even after
@@ -519,8 +549,34 @@ final class AppModel: ObservableObject {
         readSpineCancellable = registry.$activeDeviceId
             .removeDuplicates()
             .sink { [weak self] id in
-                Task { await self?.adoptActiveDevice(id) }
+                Task { await self?.adoptActiveDeviceFromReadSpine(id) }
             }
+    }
+
+    /// The read-spine subscription's own entry point into `adoptActiveDevice`, which classifies the FIRST
+    /// delivery as a launch-time re-point and lets its re-score be gated on "did anything actually change".
+    ///
+    /// WHY (launch-freeze): `AppModel.init` seeds the Repository with the canonical `"my-whoop"` (see the
+    /// note there), so on any install whose registry-active id is a real strap, the replay above always
+    /// MOVES the id — `adoptActiveDeviceId` returns true — and an unconditional `analyzeRecent()` forces a
+    /// full 21-day re-score on EVERY process start. On a large history that pass is minutes of work; the
+    /// watchdog/jetsam killed it, and because the analyze watermark is written only at the end of a
+    /// COMPLETED run (`IntelligenceEngine`), the kill left the watermark un-advanced and the next launch
+    /// repeated the whole thing.
+    ///
+    /// GATED, NOT SKIPPED — and that distinction is the whole point. Dropping the re-score outright looks
+    /// safe only if the 15-minute loop's own `analyzeRecent(force: false)` would pick the work up, and that
+    /// assumption did NOT hold: its gate was blind (see `IntelligenceEngine`'s change-detector note), so on
+    /// a multi-source install this launch call was the only path that reliably re-scored new data. With the
+    /// detector fixed, `skipIfUnchanged` is honest — it skips when nothing landed since the last completed
+    /// pass and re-scores when something did. Every LATER delivery is a genuine Devices-screen
+    /// switch/remove/re-add and still forces, as do the direct callers (`registerDevice`, Apple Watch).
+    ///
+    /// Diverges from upstream, which re-scores unconditionally here.
+    private func adoptActiveDeviceFromReadSpine(_ activeId: String) async {
+        let isInitial = !didInitialReadSpineAdopt
+        didInitialReadSpineAdopt = true
+        await adoptActiveDevice(activeId, skipIfUnchanged: isInitial)
     }
 
     /// Re-point the Repository's ACTIVE-strap READ id at `activeId` and, if it moved, refresh + re-score so a
@@ -536,13 +592,21 @@ final class AppModel: ObservableObject {
     /// already resolves the active strap per day via the registry's own active id (`resolveDayOwner`), so it
     /// reads + scores the re-added strap's raw and writes the computed result to the STABLE canonical
     /// `-noop` sibling, no engine re-point needed.
-    private func adoptActiveDevice(_ activeId: String) async {
+    /// `skipIfUnchanged: true` still re-points the reads and refreshes the dashboard caches, but lets the
+    /// re-score itself no-op when no new sensor data has landed since the last completed pass. Used only for
+    /// the launch-time replay of the registry's current active id — see `adoptActiveDeviceFromReadSpine`.
+    private func adoptActiveDevice(_ activeId: String, skipIfUnchanged: Bool = false) async {
         let trimmed = activeId.trimmingCharacters(in: .whitespaces)
         let repoMoved = repo.adoptActiveDeviceId(trimmed)
         guard repoMoved else { return }
         live.append(log: "Read spine re-pointed to active device after registry change (#814).")
+        // TEMP DIAGNOSTIC: this refresh runs in the read-spine's OWN Task, concurrently with the launch
+        // sequence's refresh, and both queue on the same serial store actor. On a 1.7 GB database that is a
+        // prime suspect for a launch that never even reaches `analyzeRecent`.
+        let diagRefreshStart = Date()
         await repo.refresh()
-        await intelligence.analyzeRecent()
+        NSLog("[FREEZE-DIAG] adoptActiveDevice repo.refresh took=\(String(format: "%.2f", Date().timeIntervalSince(diagRefreshStart)))s")
+        await intelligence.analyzeRecent(skipIfUnchanged: skipIfUnchanged)
     }
 
     #if os(iOS)

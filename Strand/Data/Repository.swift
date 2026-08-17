@@ -2540,8 +2540,27 @@ final class Repository: ObservableObject {
     /// are filtered HERE so every consumer (Workouts screen, Today, Coach context) agrees: the engine
     /// re-derives the detected rows each run, so a plain delete would resurrect them; the dismissed
     /// span list is the durable "not a workout" record.
-    func workoutRows(days: Int = 4000) async -> [WorkoutRow] {
+    /// `reconcileHrCap` bounds the DISPLAY-ONLY Avg/Max-HR reconcile at the end of this function (see
+    /// `reconcileWorkoutHrWithTrace`). It defaults to that function's own budget, so every existing caller
+    /// is unchanged; pass `0` to skip the reconcile entirely, or a small number to spend it only on the rows
+    /// a screen actually renders.
+    ///
+    /// WHY THIS KNOB EXISTS (launch freeze): the reconcile costs one HR-window query PER eligible workout,
+    /// and three independent callers run on the launch path — `TodayView` (4000 days), `GoalTrackingEngine`
+    /// (365) and `PlanReconciliationCoordinator` (45). On a large library that measured 300 + 263 + 15 = 578
+    /// queries before the app was usable, of which SIX were ever displayed: Today renders
+    /// `workouts.prefix(6)`, goal tracking reads only `durationS`, and plan matching keys on
+    /// (startTs, endTs, sport). Because `WhoopStore` is an actor whose `syncRead` blocks its serial
+    /// executor, those queries cannot overlap — a measured ~4.5 s each, and 50 s of pure queueing before a
+    /// batch of six trivial reads could even start. The reconcile writes nothing (it rebuilds `WorkoutRow`
+    /// values in memory), so skipping it costs only the displayed-vs-stored HR distinction it exists for.
+    func workoutRows(days: Int = 4000, reconcileHrCap: Int? = nil) async -> [WorkoutRow] {
         guard let store = await ensureStore() else { return [] }
+        // TEMP DIAGNOSTIC (#freeze-investigation): split the per-source workout reads from the per-workout
+        // HR reconcile below. The latter reads up to `cap` (300) workout windows out of a 1.79 M-row HR
+        // table, and its "bounded concurrency" cannot actually overlap because `WhoopStore` is an actor
+        // whose `syncRead` blocks the serial executor. Remove with the rest of the FREEZE-DIAG block.
+        let diagT0 = Date()
         let now = Int(Date().timeIntervalSince1970)
         let lo = now - days * 86_400, hi = now + 86_400
         // UNION the active strap + canonical (and their computed siblings) so workouts banked under the
@@ -2577,7 +2596,15 @@ final class Repository: ObservableObject {
             deduped = WorkoutSource.dedupCrossSource(filtered)
         }
         let visible = deduped.sorted { $0.startTs > $1.startTs }
-        return await reconcileWorkoutHrWithTrace(visible, store: store)
+        NSLog("[FREEZE-DIAG] workoutRows(days=\(days), hrCap=\(reconcileHrCap.map(String.init) ?? "default")): source reads + dedup done, visible=\(visible.count) at +\(String(format: "%.2f", Date().timeIntervalSince(diagT0)))s")
+        let out: [WorkoutRow]
+        if let reconcileHrCap {
+            out = await reconcileWorkoutHrWithTrace(visible, store: store, cap: reconcileHrCap)
+        } else {
+            out = await reconcileWorkoutHrWithTrace(visible, store: store)
+        }
+        NSLog("[FREEZE-DIAG] workoutRows(days=\(days)): HR reconcile done at +\(String(format: "%.2f", Date().timeIntervalSince(diagT0)))s")
+        return out
     }
 
     /// DISPLAY-ONLY: reconcile each workout's shown Avg/Max HR with the strap trace that actually drives
@@ -2599,6 +2626,11 @@ final class Repository: ObservableObject {
     /// == zones == effort by construction. Kotlin twin: `WhoopRepository.fillWorkoutHrFromStrap`.
     private func reconcileWorkoutHrWithTrace(_ rows: [WorkoutRow], store: WhoopStore,
                                              minSamples: Int = 60, cap: Int = 300) async -> [WorkoutRow] {
+        // `cap == 0` means "this caller never displays Avg/Max HR" — return the stored rows untouched and
+        // issue no queries at all. Used by the launch-path callers that only need duration / sport / keys
+        // (see `workoutRows(days:reconcileHrCap:)`); it is the difference between 578 HR-window queries at
+        // launch and a handful.
+        guard cap > 0 else { return rows }
         // #833 (on-open freeze): this used to run a SEQUENTIAL per-row loop, each awaiting one
         // `store.hrSamples(.., limit: 8000)` then reducing up to 8000 ints SYNCHRONOUSLY on the @MainActor
         // (sum + max), for up to `cap` rows. On a deep history that beach-balled first paint. The eligible
@@ -2630,6 +2662,9 @@ final class Repository: ObservableObject {
             budget -= 1
             eligibleIndices.append(i)
         }
+        // TEMP DIAGNOSTIC: how many windows this pass will actually read. `cap` is 300, so this is the
+        // number of HR-window queries the serial store actor has to serve before launch can continue.
+        NSLog("[FREEZE-DIAG] hrReconcile: eligible=\(eligibleIndices.count) of \(rows.count) rows (cap=\(cap))")
 
         // Phase 2 , read each eligible window with BOUNDED concurrency (chunks of `readChunk`) and reduce it
         // OFF the main actor, then return only PLAIN Ints (index, avg, peak) from the child tasks. Keeping the

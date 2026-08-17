@@ -39,8 +39,8 @@ extension WhoopStore {
     /// back to its PPG estimate (never doubling a beat). This keeps the raw read in lockstep with the
     /// chart path, and lets a PPG-only WHOOP 5 night clear the night-stager's HR-count gate so it is
     /// scorable (#172). The PPG `bpm` is REAL, so it is ROUND-ed to the `HRSample.bpm` Int domain.
-    public func hrSamples(deviceId: String, from: Int, to: Int, limit: Int) async throws -> [HRSample] {
-        try syncRead { db in
+    public nonisolated func hrSamples(deviceId: String, from: Int, to: Int, limit: Int) async throws -> [HRSample] {
+        try await asyncRead { db in
             try Row.fetchAll(db, sql: """
                 SELECT ts, bpm FROM (
                     SELECT ts, bpm FROM hrSample
@@ -65,18 +65,81 @@ extension WhoopStore {
     /// "nothing was inserted since last time, skip the expensive re-read" for pennies, `COUNT(*)` moves on
     /// any insert (including a backfilled OLD night whose `maxTs` wouldn't change), and `maxTs` distinguishes
     /// fresh appends. COALESCE so an empty window is `(0, 0)`, never nil.
-    public func hrFingerprint(deviceId: String, from: Int, to: Int) async throws -> (count: Int, maxTs: Int) {
-        try syncRead { db in
+    public nonisolated func hrFingerprint(deviceId: String, from: Int, to: Int) async throws -> (count: Int, maxTs: Int) {
+        let sql = """
+            SELECT COUNT(*) AS c, COALESCE(MAX(ts), 0) AS m FROM hrSample
+            WHERE deviceId = ? AND ts >= ? AND ts <= ?
+            """
+        return try await asyncRead { db in
+            // TEMP DIAGNOSTIC (#freeze-investigation) — time the query ITSELF, inside the read block.
+            // The caller already logs the total wall time of the `await`; the difference between the two is
+            // the wait to get onto `WhoopStore`'s serial actor executor (`syncRead` blocks it for the whole
+            // query, so a read queues behind any in-flight write). A 7.8 s total on an indexed COUNT over
+            // ~570 k rows is not something SQLite can spend COMPUTING, and this split proves where it went.
+            // The one-shot query plan rules out the other candidate: a full table scan instead of the
+            // (deviceId, ts) primary-key index. Remove with the rest of the FREEZE-DIAG block.
+            let diagStart = Date()
             // COUNT(*) and COALESCE(MAX(ts),0) are both NON-NULL, and the aggregate query always returns
             // exactly one row, so fetchOne is non-nil and the columns read straight into Int. The guard is
             // belt-and-suspenders.
-            guard let row = try Row.fetchOne(db, sql: """
-                SELECT COUNT(*) AS c, COALESCE(MAX(ts), 0) AS m FROM hrSample
-                WHERE deviceId = ? AND ts >= ? AND ts <= ?
-                """, arguments: [deviceId, from, to]) else { return (0, 0) }
+            guard let row = try Row.fetchOne(db, sql: sql,
+                                             arguments: [deviceId, from, to]) else { return (0, 0) }
             let c: Int = row["c"]
             let m: Int = row["m"]
+            let diagSec = Date().timeIntervalSince(diagStart)
+            NSLog("[FREEZE-DIAG] hrFingerprint QUERY itself took=\(String(format: "%.3f", diagSec))s rows=\(c)")
+            // Only dump the plan when the query itself was slow — self-limiting (no state to latch), and it
+            // fires exactly in the case worth explaining. Expect `SEARCH hrSample USING ... (deviceId=?)`;
+            // a `SCAN hrSample` would mean the primary-key index isn't being used at all.
+            if diagSec > 1.0 {
+                let plan = (try? Row.fetchAll(db, sql: "EXPLAIN QUERY PLAN " + sql,
+                                              arguments: [deviceId, from, to])) ?? []
+                let detail = plan.compactMap { $0["detail"] as String? }
+                NSLog("[FREEZE-DIAG] hrFingerprint QUERY PLAN: \(detail.joined(separator: " | "))")
+            }
             return (c, m)
+        }
+    }
+
+    /// Total decoded sensor-row count across ALL sources. DIAGNOSTIC / storage reporting only.
+    ///
+    /// NO LONGER THE ANALYZE GATE. It was, and it is honest about change (see the invariant below), but
+    /// it answers the question by walking every row of eleven tables — 15.3 M rows across 1.7 GB on a
+    /// real library, measured at 11 s per call — and the gate called it above every short-circuit, so an
+    /// idle tick that did no work still paid the full scan. `sensorWriteSeq()` (Cursors.swift) answers
+    /// the same question from one indexed row and cannot go blind after a delete-then-resync. Keep this
+    /// off the launch/analyze path; it is fine where a real total is actually wanted.
+    ///
+    /// WHY NOT `hrFingerprint`: that one is scoped to a single `deviceId`, and its only caller passes the
+    /// engine's `deviceId` — a `let` seeded with the canonical "my-whoop" that is never re-pointed. The
+    /// WRITE side, however, follows the device registry (`BLEManager` re-points itself and the Collector to
+    /// the registry's active id at store open). On any install whose active device is a real strap, new
+    /// samples land under `whoop-<uuid>`, and imported Apple Health lands under "apple-health" — so a
+    /// "my-whoop"-scoped fingerprint STOPS MOVING while data keeps arriving. The gate that is meant to say
+    /// "new data landed" then reports "nothing changed" forever, and the re-score it guards silently stops
+    /// running. Counting every source cannot go blind that way: a source that owns no scored day only ever
+    /// causes an EXTRA pass, never a missed one — the safe direction for a change-detector.
+    ///
+    /// INVARIANT: count ONLY sensor-INPUT tables — never an `analyzeRecent` OUTPUT (dailyMetric /
+    /// sleepSession / workout / metricSeries), or the gate self-retriggers forever.
+    ///
+    /// Adopted from ryanbr's `analyze-loop-change-gate` branch (same name, same invariant, same table set);
+    /// `ppgHrSample` and `sleepStateSample` are added here because they postdate that branch and are written
+    /// by the very same decode-path `insert(_ streams:)` call, so they are inputs by the same test.
+    /// Un-scoped `COUNT(*)` (no WHERE) is the shape SQLite answers from the smallest index b-tree.
+    public nonisolated func syncedRowCount() async throws -> Int {
+        try await asyncRead { db in
+            let diagStart = Date()
+            var total = 0
+            for table in ["hrSample", "rrInterval", "event", "battery", "spo2Sample",
+                          "skinTempSample", "respSample", "gravitySample", "stepSample",
+                          "ppgHrSample", "sleepStateSample"] {
+                total += try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM \(table)") ?? 0
+            }
+            // TEMP DIAGNOSTIC (#freeze-investigation): this replaces a single scoped COUNT that measured
+            // 7.8 s on a large library, so its own cost has to be visible. Remove with the FREEZE-DIAG block.
+            NSLog("[FREEZE-DIAG] syncedRowCount QUERY itself took=\(String(format: "%.3f", Date().timeIntervalSince(diagStart)))s rows=\(total)")
+            return total
         }
     }
 
@@ -101,9 +164,9 @@ extension WhoopStore {
     ///
     /// Passing the same id for both is byte-identical to the old single-id read, so a single-WHOOP
     /// install needs no special case and every existing number is unchanged.
-    public func hrWindowStats(primaryId: String, secondaryId: String,
+    public nonisolated func hrWindowStats(primaryId: String, secondaryId: String,
                               from: Int, to: Int) async throws -> HRWindowStats {
-        try syncRead { db in
+        try await asyncRead { db in
             guard let row = try Row.fetchOne(db, sql: """
                 SELECT COUNT(*) AS n, AVG(bpm) AS avg, MAX(bpm) AS max FROM (
                     SELECT ts, MIN(pri), bpm FROM (
@@ -139,9 +202,9 @@ extension WhoopStore {
     /// second wins, and any second with NO hrSample row falls back to its PPG estimate so the chart
     /// stays continuous through v26-heavy stretches. The fallback rows are `bpm REAL` and only appear
     /// where the device genuinely had no measured HR for that second (anti-join), never doubling a beat.
-    public func hrBuckets(deviceId: String, from: Int, to: Int, bucketSeconds: Int) async throws -> [HRBucket] {
+    public nonisolated func hrBuckets(deviceId: String, from: Int, to: Int, bucketSeconds: Int) async throws -> [HRBucket] {
         let bucket = max(1, bucketSeconds)
-        return try syncRead { db in
+        return try await asyncRead { db in
             // MIN(conf) per bucket: measured rows contribute 1.0, PPG fallback rows their stored
             // autocorrelation conf — so a bucket touched by ANY weak-optical estimate reads as weak
             // (conservative), and a purely-measured bucket stays 1.0. Purely additive projection:
@@ -194,8 +257,8 @@ extension WhoopStore {
     /// Rows are FILTERED, never deleted: the 0x6E stream stays on disk as the cross-check on green.
     /// Every R-R consumer reads through this one function, so the `hrv diag` trace moves with the scores
     /// rather than reporting a coverage nobody can reproduce.
-    public func rrIntervals(deviceId: String, from: Int, to: Int, limit: Int) async throws -> [RRInterval] {
-        try syncRead { db in
+    public nonisolated func rrIntervals(deviceId: String, from: Int, to: Int, limit: Int) async throws -> [RRInterval] {
+        try await asyncRead { db in
             try Row.fetchAll(db, sql: """
                 SELECT ts, rrMs, srcChannel FROM rrInterval
                 WHERE deviceId = ? AND ts >= ? AND ts <= ?
@@ -210,8 +273,8 @@ extension WhoopStore {
         }
     }
 
-    public func events(deviceId: String, from: Int, to: Int, limit: Int) async throws -> [WhoopEvent] {
-        try syncRead { db in
+    public nonisolated func events(deviceId: String, from: Int, to: Int, limit: Int) async throws -> [WhoopEvent] {
+        try await asyncRead { db in
             try Row.fetchAll(db, sql: """
                 SELECT ts, kind, payloadJSON FROM event
                 WHERE deviceId = ? AND ts >= ? AND ts <= ?
@@ -227,8 +290,8 @@ extension WhoopStore {
         }
     }
 
-    public func batterySamples(deviceId: String, from: Int, to: Int, limit: Int) async throws -> [BatterySample] {
-        try syncRead { db in
+    public nonisolated func batterySamples(deviceId: String, from: Int, to: Int, limit: Int) async throws -> [BatterySample] {
+        try await asyncRead { db in
             try Row.fetchAll(db, sql: """
                 SELECT ts, soc, mv FROM battery
                 WHERE deviceId = ? AND ts >= ? AND ts <= ?
@@ -238,8 +301,8 @@ extension WhoopStore {
         }
     }
 
-    public func spo2Samples(deviceId: String, from: Int, to: Int, limit: Int) async throws -> [SpO2Sample] {
-        try syncRead { db in
+    public nonisolated func spo2Samples(deviceId: String, from: Int, to: Int, limit: Int) async throws -> [SpO2Sample] {
+        try await asyncRead { db in
             try Row.fetchAll(db, sql: """
                 SELECT ts, red, ir FROM spo2Sample
                 WHERE deviceId = ? AND ts >= ? AND ts <= ?
@@ -249,8 +312,8 @@ extension WhoopStore {
         }
     }
 
-    public func skinTempSamples(deviceId: String, from: Int, to: Int, limit: Int) async throws -> [SkinTempSample] {
-        try syncRead { db in
+    public nonisolated func skinTempSamples(deviceId: String, from: Int, to: Int, limit: Int) async throws -> [SkinTempSample] {
+        try await asyncRead { db in
             try Row.fetchAll(db, sql: """
                 SELECT ts, raw, aux1Raw, aux2Raw FROM skinTempSample
                 WHERE deviceId = ? AND ts >= ? AND ts <= ?
@@ -264,8 +327,8 @@ extension WhoopStore {
         }
     }
 
-    public func stepSamples(deviceId: String, from: Int, to: Int, limit: Int) async throws -> [StepSample] {
-        try syncRead { db in
+    public nonisolated func stepSamples(deviceId: String, from: Int, to: Int, limit: Int) async throws -> [StepSample] {
+        try await asyncRead { db in
             try Row.fetchAll(db, sql: """
                 SELECT ts, counter, activityClass FROM stepSample
                 WHERE deviceId = ? AND ts >= ? AND ts <= ?
@@ -277,8 +340,8 @@ extension WhoopStore {
         }
     }
 
-    public func respSamples(deviceId: String, from: Int, to: Int, limit: Int) async throws -> [RespSample] {
-        try syncRead { db in
+    public nonisolated func respSamples(deviceId: String, from: Int, to: Int, limit: Int) async throws -> [RespSample] {
+        try await asyncRead { db in
             try Row.fetchAll(db, sql: """
                 SELECT ts, raw FROM respSample
                 WHERE deviceId = ? AND ts >= ? AND ts <= ?
@@ -288,8 +351,8 @@ extension WhoopStore {
         }
     }
 
-    public func gravitySamples(deviceId: String, from: Int, to: Int, limit: Int) async throws -> [GravitySample] {
-        try syncRead { db in
+    public nonisolated func gravitySamples(deviceId: String, from: Int, to: Int, limit: Int) async throws -> [GravitySample] {
+        try await asyncRead { db in
             try Row.fetchAll(db, sql: """
                 SELECT ts, x, y, z, dynAccel FROM gravitySample
                 WHERE deviceId = ? AND ts >= ? AND ts <= ?
@@ -314,8 +377,8 @@ extension WhoopStore {
     /// planner materialize that subquery, walking EVERY index entry for the device. On a 746 MB store
     /// (3.1M hrSample rows) the old shape measured 4.3–5.8 s per call and this one 0.01–0.07 s — the
     /// same answer, verified equal for every device id including one with no rows (both NULL).
-    public func latestHRSampleTs(deviceId: String) async throws -> Int? {
-        try syncRead { db in
+    public nonisolated func latestHRSampleTs(deviceId: String) async throws -> Int? {
+        try await asyncRead { db in
             try Int.fetchOne(db, sql: """
                 SELECT MAX(m) FROM (
                     SELECT (SELECT MAX(ts) FROM hrSample WHERE deviceId = ?) AS m
@@ -326,9 +389,22 @@ extension WhoopStore {
         }
     }
 
+    /// TEMP DIAGNOSTIC (#freeze-investigation) — census of the `hrSample` partitions: one row per
+    /// `deviceId` with its row count and newest timestamp. This is the direct evidence for which source
+    /// actually holds the recent data (strap under `whoop-<uuid>`, imported Apple Health under
+    /// "apple-health", legacy under "my-whoop"), instead of inferring it. Remove with the FREEZE-DIAG block.
+    public nonisolated func diagHrPartitions() async throws -> [(deviceId: String, count: Int, maxTs: Int)] {
+        try await asyncRead { db in
+            try Row.fetchAll(db, sql: """
+                SELECT deviceId, COUNT(*) AS c, COALESCE(MAX(ts), 0) AS m FROM hrSample
+                GROUP BY deviceId ORDER BY c DESC
+                """).map { (deviceId: $0["deviceId"], count: $0["c"], maxTs: $0["m"]) }
+        }
+    }
+
     /// Aggregate storage footprint: total decoded rows, raw batch count, total raw byteSize.
-    public func storageStats() async throws -> (decodedRows: Int, rawBatches: Int, rawBytes: Int) {
-        try syncRead { db in
+    public nonisolated func storageStats() async throws -> (decodedRows: Int, rawBatches: Int, rawBytes: Int) {
+        try await asyncRead { db in
             let hr   = try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM hrSample") ?? 0
             let rr   = try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM rrInterval") ?? 0
             let ev   = try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM event") ?? 0

@@ -189,10 +189,25 @@ enum PlanReconciliationCoordinator {
     @discardableResult
     static func reconcile(repo: Repository, store suppliedStore: CoachPlanStore? = nil,
                           now: Date = Date()) async -> [PlanReconciliationResolution] {
+        // TEMP DIAGNOSTIC (#freeze-investigation): a launch trace showed the startup sequence reaching
+        // "repo.refresh done" and never reaching "plan reconcile done", so the stall is inside this
+        // function. Split its three steps so the next capture names the guilty one.
+        // Remove with the rest of the FREEZE-DIAG block.
+        let diagT0 = Date()
+        func diagStep(_ name: String) {
+            NSLog("[FREEZE-DIAG] reconcile \(name) at +\(String(format: "%.2f", Date().timeIntervalSince(diagT0)))s")
+        }
         let store = suppliedStore ?? CoachPlanStore.shared
         PlanGoalAttributionMigration.runIfNeeded(store: store, goals: CoachGoalStore.shared.goals)
-        let workouts = await repo.workoutRows(days: 45)
+        diagStep("goal-attribution migration done")
+        // `reconcileHrCap: 0` — matching keys on `(startTs, endTs, sport)` and never consults HR. `strain` is
+        // carried into `completionEvidence`, which no view reads, and only for automatic matches. The
+        // display-only HR reconcile would put one query per candidate workout on the launch path for
+        // nothing. See `Repository.workoutRows(days:reconcileHrCap:)`.
+        let workouts = await repo.workoutRows(days: 45, reconcileHrCap: 0)
+        diagStep("workoutRows(45) done n=\(workouts.count) proposals=\(store.proposals.count)")
         let result = PlanWorkoutMatcher.match(proposals: store.proposals, workouts: workouts, now: now)
+        diagStep("match #1 done automatic=\(result.automatic.count)")
         for match in result.automatic {
             let proposal = store.proposals.first { $0.id == match.proposalId }
             store.complete(match.proposalId,
@@ -206,8 +221,10 @@ enum PlanReconciliationCoordinator {
         // Re-run after mutations so conflicts freed by an automatic match and every transient question
         // reflect the persisted state rather than the pre-mutation snapshot.
         let final = PlanWorkoutMatcher.match(proposals: store.proposals, workouts: workouts, now: now)
+        diagStep("match #2 done")
         store.setReconciliationResolutions(final.resolutions)
         CoachNotifier.syncPlanReconciliation(final.resolutions, proposals: store.proposals, now: now)
+        diagStep("notifier sync done")
         return final.resolutions
     }
 }

@@ -4141,7 +4141,12 @@ struct TodayView: View {
         // `async let`, then await each where its result is first used, same data, same derivations, same
         // assignment order as before. (The Rest score + provenance resolves moved to loadDayScoped, #755.)
         async let stepsEstSeriesA    = repo.exploreSeries(key: "steps_est", source: "my-whoop")
-        async let workoutsA          = repo.workoutRows()
+        // `reconcileHrCap: 8` — this screen renders `workouts.prefix(6)`; everything else it does with the
+        // list is `.count` and an Apple-Health tally. The full 300-row HR reconcile therefore spent ~294
+        // queries per launch on rows nobody sees. `visible` is sorted newest-first and the budget is spent
+        // top-down, so the rendered rows keep their trace-reconciled Avg/Max HR exactly as before; the slack
+        // above six covers rows that are skipped as ineligible.
+        async let workoutsA          = repo.workoutRows(reconcileHrCap: 8)
         async let appleDaysA         = repo.appleDailyRows()
         async let xStepsA            = repo.series(key: "steps", source: "xiaomi-band")
         async let xSleepA            = repo.series(key: "sleep_total_min", source: "xiaomi-band")

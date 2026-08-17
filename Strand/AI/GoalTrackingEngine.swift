@@ -412,7 +412,11 @@ final class GoalTrackingStore: ObservableObject {
                  actions: [GoalAction] = [], checkoffs: [GoalActionCheckoff] = [],
                  contributions: [GoalWorkoutContribution] = [],
                  dismissedWorkoutKeys: Set<String> = []) async {
-        let workouts = await repo.workoutRows(days: 365)
+        // `reconcileHrCap: 0` — goal tracking reads only `durationS` (plus sport/keys) off a workout; it
+        // never touches `avgHr`, `maxHr` or `strain`. The display-only HR reconcile would cost one query per
+        // eligible workout (measured: 263 of 520 on a large library, on the launch path) for a value nothing
+        // here reads. See `Repository.workoutRows(days:reconcileHrCap:)`.
+        let workouts = await repo.workoutRows(days: 365, reconcileHrCap: 0)
         let weights = await repo.series(key: "weight", source: "apple-health", days: 365)
         // The stored stress score, same key/source the Stress screen reads. Recovery needs no extra
         // read — it is a field on the daily rows already in `repo.days`.

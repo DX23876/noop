@@ -140,6 +140,10 @@ public struct DeviceRegistryStore: Sendable {
             // namespace. Forgetting a provider must remove those associations too.
             try db.execute(sql: "DELETE FROM scoreInputProvenance WHERE sourceId = ?",
                            arguments: [deviceId])
+            // Sensor rows just disappeared, so the analyze gate must not report "nothing changed" —
+            // every score derived from this device's data is now stale. Same in-transaction bump as
+            // the ingest and heal paths (see `WhoopStore.bumpSensorWriteSeq`).
+            try WhoopStore.bumpSensorWriteSeq(db)
         }
     }
 
@@ -188,6 +192,9 @@ public struct DeviceRegistryStore: Sendable {
             // Drop ONLY the provisional CB-UUID registry rows; other oura-* pairings are left as-is.
             try db.execute(sql: "DELETE FROM pairedDevice WHERE id = ?", arguments: [activeId])
             try db.execute(sql: "DELETE FROM device WHERE id = ?", arguments: [activeId])
+            // The rows did not vanish, but they now live under a DIFFERENT deviceId — which is exactly
+            // what `resolveDayOwner` reads by, so the scores must be recomputed against the new owner.
+            try WhoopStore.bumpSensorWriteSeq(db)
             return true
         }
     }

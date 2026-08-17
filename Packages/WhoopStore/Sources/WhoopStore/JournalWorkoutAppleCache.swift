@@ -216,8 +216,8 @@ extension WhoopStore {
 
     /// Journal entries for days in [from, to] (lexicographic YYYY-MM-DD compare),
     /// oldest day first, then by question.
-    public func journalEntries(deviceId: String, from: String, to: String) async throws -> [JournalEntry] {
-        try syncRead { db in
+    public nonisolated func journalEntries(deviceId: String, from: String, to: String) async throws -> [JournalEntry] {
+        try await asyncRead { db in
             try Row.fetchAll(db, sql: """
                 SELECT day, question, answeredYes, notes, numericValue FROM journal
                 WHERE deviceId = ? AND day >= ? AND day <= ?
@@ -237,10 +237,10 @@ extension WhoopStore {
     /// For the duplicate review, which needs the weight behind each wording ("412 answers" vs "87") to
     /// propose the survivor. Counted in SQL rather than by reading every row into memory: a multi-year
     /// import is tens of thousands of rows and the caller only wants a tally per question.
-    public func journalQuestionCounts(deviceIds: [String]) async throws -> [String: Int] {
+    public nonisolated func journalQuestionCounts(deviceIds: [String]) async throws -> [String: Int] {
         guard !deviceIds.isEmpty else { return [:] }
         let placeholders = Array(repeating: "?", count: deviceIds.count).joined(separator: ",")
-        return try syncRead { db in
+        return try await asyncRead { db in
             var out: [String: Int] = [:]
             let rows = try Row.fetchAll(db, sql: """
                 SELECT question, COUNT(*) AS n FROM journal
@@ -255,8 +255,8 @@ extension WhoopStore {
     }
 
     /// Workouts overlapping [from, to] (by startTs), oldest first.
-    public func workouts(deviceId: String, from: Int, to: Int, limit: Int) async throws -> [WorkoutRow] {
-        try syncRead { db in
+    public nonisolated func workouts(deviceId: String, from: Int, to: Int, limit: Int) async throws -> [WorkoutRow] {
+        try await asyncRead { db in
             try Row.fetchAll(db, sql: """
                 SELECT startTs, endTs, sport, source, durationS, energyKcal, avgHr, maxHr,
                        strain, distanceM, zonesJSON, notes, steps FROM workout
@@ -277,8 +277,8 @@ extension WhoopStore {
     /// recompute an activity-file day's step total from ALL its sessions, so a second file on the same day
     /// adds rather than clobbers — and re-importing a file is idempotent (its row's steps are replaced,
     /// not re-added, by `upsertWorkouts`). Returns 0 when no session in the range carried steps.
-    public func sumWorkoutSteps(deviceId: String, from: Int, to: Int) async throws -> Int {
-        try syncRead { db in
+    public nonisolated func sumWorkoutSteps(deviceId: String, from: Int, to: Int) async throws -> Int {
+        try await asyncRead { db in
             try Int.fetchOne(db, sql: """
                 SELECT COALESCE(SUM(steps), 0) FROM workout
                 WHERE deviceId = ? AND steps IS NOT NULL AND startTs >= ? AND startTs < ?
@@ -287,8 +287,8 @@ extension WhoopStore {
     }
 
     /// Apple-Health daily aggregates for days in [from, to] (lexicographic compare), oldest first.
-    public func appleDaily(deviceId: String, from: String, to: String) async throws -> [AppleDaily] {
-        try syncRead { db in
+    public nonisolated func appleDaily(deviceId: String, from: String, to: String) async throws -> [AppleDaily] {
+        try await asyncRead { db in
             try Row.fetchAll(db, sql: """
                 SELECT day, steps, activeKcal, basalKcal, vo2max, avgHr, maxHr, walkingHr, weightKg
                 FROM appleDaily
