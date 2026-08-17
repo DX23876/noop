@@ -6096,6 +6096,15 @@ private fun ReadinessSection(days: List<DailyMetric>, carriedDay: DailyMetric? =
                 }
             }
 
+            // #1405: mark this card as a DIFFERENT axis from the home Synthesis word (which bands the
+            // Charge %). Stated at the point the two get compared, so "Primed" here vs "Steady" there
+            // doesn't read as one value contradicting itself. Raw string, matching this card's copy.
+            Text(
+                "A training read, separate from your Charge score.",
+                style = NoopType.footnote,
+                color = Palette.textTertiary,
+            )
+
             // Plain-English summary.
             Text(
                 readiness.summary,
@@ -6369,11 +6378,16 @@ private fun greetingWord(): String {
 
 private fun synthesisWord(score: Double?): String {
     if (score == null) return "No Data"
+    // #1405: these are CHARGE/recovery-level words, a different axis from the ReadinessEngine training
+    // verdict (Run down / Strained / Balanced / Primed). They must NOT share a word, or the Synthesis
+    // card ("Steady") and the Charge-breakdown Readiness card ("Primed") read as the same thing
+    // contradicting itself. So the [70,88) band is "Strong" (which also matches this card's own "Charge is
+    // strong" detail copy), leaving "Primed" exclusively to the readiness engine. Keep parity with Swift.
     return when {
         score < 25 -> "Depleted"
         score < 50 -> "Low"
         score < 70 -> "Steady"
-        score < 88 -> "Primed"
+        score < 88 -> "Strong"
         else -> "Peak"
     }
 }
