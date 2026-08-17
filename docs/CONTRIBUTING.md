@@ -40,9 +40,10 @@ non-negotiable (especially on the Bluetooth path).
 
 A few principles run through the whole codebase. Internalize them before opening a PR.
 
-1. **Offline by design.** There is no server, no telemetry, no account, no network call. A change
-   that phones home — for any reason — does not belong here. Strap data, imports, and computed
-   metrics live in a local SQLite database and never leave the device.
+1. **Offline by default.** There is no NOOP server, telemetry, or account. The few explicit,
+   user-controlled network paths are documented in `docs/PRIVACY_SECURITY.md`; a change that adds
+   another one needs an explicit architecture and privacy discussion. Personal metrics otherwise
+   live in a local SQLite database.
 2. **Interoperability, not impersonation.** NOOP talks to a strap the user already owns. It does not
    log into a WHOOP account, bypass a paywall, or ship WHOOP's proprietary code/firmware/assets/logos.
    Keep contributions on the right side of that line, and keep all WHOOP references *nominative*
@@ -92,11 +93,10 @@ still the best way to avoid wasted work — it's just not an enforced gate.
 
 ## Repository layout
 
-The codebase is split into reusable, cross-platform Swift packages plus a thin platform-specific app
-layer. The **macOS app is the reference implementation**; **Android ships as a full app** under
-`android/`, and **iOS was folded into `main` in v1.94** and is a **build-from-source-only target**
-(`NOOPiOS` / `NOOPiOSWidgets`) — no App Store/TestFlight, to keep the project anonymous (see
-[`IOS.md`](IOS.md)). All reuse the same packages where they can.
+The codebase is split into reusable Swift packages plus Apple app targets. The **macOS app is the
+reference implementation**; iOS/iPadOS ships as an unsigned IPA and source target; the optional
+Watch companion ships in the Full IPA. This fork no longer contains Android — use
+[RyanBR's upstream repository](https://github.com/ryanbr/noop) for Android work.
 
 ```
 Strand/
@@ -112,18 +112,22 @@ Strand/
 │   ├── System/                 # MacActions (lock screen, run Shortcut), ProjectInfo
 │   └── Resources/              # Info.plist, Strand.entitlements, Assets.xcassets (AppIcon)
 ├── StrandTests/                # macOS app unit tests
+├── StrandiOS/                  # iOS, widgets/Live Activity and Watch-specific sources
 ├── Packages/
 │   ├── WhoopProtocol/          # BLE frame parsing, CRC, command/event/packet decode
 │   │                           #   (also builds the `whoop-decode` CLI — runs on Linux)
 │   ├── WhoopStore/             # GRDB/SQLite persistence (migrations, streams, caches)
 │   ├── StrandAnalytics/        # HRV / recovery / strain / sleep / correlation math
 │   ├── StrandImport/           # WHOOP CSV + Apple Health importers
-│   └── StrandDesign/           # SwiftUI design system (palette, components, charts)
+│   ├── StrandDesign/           # SwiftUI design system (palette, components, charts)
+│   ├── OuraProtocol/           # Oura BLE protocol/decode
+│   ├── PolarProtocol/          # Polar protocol/decode
+│   ├── SemanticMemory/         # local Coach memory index
+│   └── NoopLocalAccess/        # read-only local access (macOS)
 ├── Tools/
 │   ├── Backfill/               # `swift run backfill` — re-runs importers into the on-device DB
 │   └── linux-capture/          # Headless Linux capture workbench (Python/bleak + whoop-decode)
-├── Fixtures/                   # Sample WHOOP export used by tests
-└── android/                    # Android client — full shipped app (Kotlin/Gradle, separate module)
+└── Fixtures/                   # Sample WHOOP export used by tests
 ```
 
 ### Where logic belongs
@@ -145,9 +149,9 @@ strap, or CoreBluetooth.
 
 ### Cross-platform discipline
 
-Every package declares **both** `.iOS(.v16)` and `.macOS(.v13)` so the protocol, storage, analytics,
-import, and design layers compile and run unmodified on iOS once an app target exists. Any
-framework-specific code must be guarded:
+The core protocol, store, analytics, import and design packages support both iOS and macOS.
+Package-specific floors and watchOS support are declared in each `Package.swift`; `SemanticMemory`
+uses iOS 17 and `NoopLocalAccess` is macOS-only. Framework-specific code must be guarded:
 
 ```swift
 #if canImport(AppKit)
@@ -159,9 +163,9 @@ let ui = UIColor(self)
 #endif
 ```
 
-Do **not** add `import AppKit`/`import UIKit`/`import CoreBluetooth` to any file under `Packages/` —
-that is what breaks the cross-platform contract. CoreBluetooth lives only in the macOS app's
-`Strand/BLE`.
+Do not add AppKit/UIKit/CoreBluetooth to a platform-pure package target. UI bridges belong in
+`StrandDesign`; Bluetooth transports live in `Strand/BLE`; genuine target-specific services belong
+under `StrandiOS/` or behind target membership in `project.yml`.
 
 ---
 
@@ -175,7 +179,7 @@ pairing, re-importing into the on-device DB).
 | Tool | Notes |
 |---|---|
 | macOS 13+ | Deployment target is macOS 13.0. |
-| Xcode 15+ (Swift 5.9 toolchain) | Provides `xcodebuild` + the macOS SDK. |
+| Xcode 26+ | Provides `xcodebuild`, Swift, and the current Apple SDKs used by the app targets. |
 | XcodeGen | Generates `Strand.xcodeproj` from `project.yml` (`brew install xcodegen`). |
 
 The packages themselves only need a Swift toolchain — they build and test with plain `swift build` /
@@ -249,19 +253,13 @@ anonymous, offline, sideloaded project — not a gap to fill with more gates.
 
 - **On every PR (required):** `swift-packages` runs `swift test` for `Packages/**`; `i18n-coverage`
   runs the string audit. These catch the regressions that matter most (protocol/analytics math,
-  storage, i18n) without a device or an Xcode/Gradle app build.
-- **Disabled by design — you build the app yourself:** `app-build.yml` (app-target compile, iOS needs
-  `macos-26`) and `android.yml` (Android app build) are **off**. So a compile error in **app-target**
-  code (SwiftUI Views, `BLEManager`, `Repository`, a Compose screen) passes every default check.
-  Before you push app-layer changes, compile locally — `xcodebuild … build` /
-  `./gradlew compileFullDebugKotlin` — or dispatch `app-build.yml` on demand.
-- **Gated at release, not per PR:** Android release lint (`lintVitalFullRelease`) runs inside
-  `assembleFullRelease` in the staging/release builds, so lint-fatal issues (e.g. an
-  `ExtraTranslation` in a `values-<lang>` file) surface there. Run `./gradlew lintVitalFullRelease`
-  locally before a release if you touched `res/`.
+  storage, i18n) without a device or an Xcode app build.
+- **App builds are on demand/release-scoped:** `app-build.yml` compiles the Apple app targets when
+  dispatched. A package-only green check does not prove SwiftUI app code compiles, so build the
+  affected `Strand` and/or `NOOPiOS` scheme locally before pushing app-layer changes.
 - **On demand:** `app-build.yml` also runs the `StrandTests` macOS integration suite; dispatch it when
   you change app-target Swift that no package test covers.
-- **Absent on purpose:** dependency/vuln scanning and Android instrumentation/connected tests. The
+- **Absent on purpose:** dependency/vulnerability scanning and connected-device automation. The
   dependency set is small and pinned, there is no server or telemetry, and BLE/offload behavior is
   validated **on a real strap** — compile-success proves nothing about connection behavior.
 
@@ -497,7 +495,7 @@ Only after re-reading [The BLE safety contract](#the-ble-safety-contract-read-th
 ### Add a database column or table
 
 Schema lives in `Packages/WhoopStore/Sources/WhoopStore/Database.swift` as a **versioned GRDB
-`DatabaseMigrator`** (currently through `v9`).
+`DatabaseMigrator`** (currently through `v40`).
 
 - **Never edit an existing migration.** They've already run on users' on-device databases. Add a
   **new** `migrator.registerMigration("vN") { db in … }` block.
@@ -506,17 +504,10 @@ Schema lives in `Packages/WhoopStore/Sources/WhoopStore/Database.swift` as a **v
   add metric caches (`sleepSession`, `dailyMetric`, `metricSeries`), cursors, and more. Follow the
   same shape and naming.
 - Add a `MigrationTests` case proving the migration applies cleanly on top of the prior version.
-- **Update `schema_oracle.json` in the same PR.** Room (Android) and GRDB (iOS) must agree on the
-  resulting schema, and that agreement is pinned by a shared fixture committed in two byte-identical
-  copies (`Packages/WhoopStore/Tests/WhoopStoreTests/Resources/` and `android/app/src/test/resources/`).
-  `SchemaOracleTests.swift` compares it to GRDB's `PRAGMA table_info`; `SchemaOracleTest.kt` compares it
-  to the schema Room's KSP processor exports. Both fail on a column added to one side only, a column
-  ORDER difference, a type/nullability/DEFAULT change, a primary-key change, an index change, or a new
-  unpinned table — so a migration cannot land until the twin lands with it. A divergence that is
-  deliberate must be written into the fixture's `divergenceReasons` with the reason and what closing it
-  would cost; the suites also fail on a ledger entry that has stopped being true, so the list can only
-  shrink on purpose. Extend the oracle rather than adding a parallel mechanism (same idiom as
-  `decoder_oracle.json`).
+- **Update `schema_oracle.json` in the same PR.** `SchemaOracleTests.swift` compares the committed
+  GRDB contract to `PRAGMA table_info`/indexes and catches column order, type, nullability, default,
+  primary-key, index and unpinned-table drift. Android-specific keys in that fixture are retained as
+  historical/upstream compatibility metadata; this fork no longer carries the former Room twin.
 - **GRDB migration identifiers are `v<N>[-slug]`, strictly sequential.** GRDB keys migrations by NAME
   and applies them in registration order, so two open PRs that both add a `v31` produce two migrations
   claiming one number (and an exact name collision makes GRDB silently skip the second body). The
@@ -569,16 +560,16 @@ NOOP follows [Semantic Versioning](https://semver.org) — `MAJOR.MINOR.PATCH`:
 
 The three parts are independent counters, **not** decimals: `2.0.10` follows `2.0.9`, and there's no
 "next number after `1.99`" — a new feature line is `2.1.0`, not `1.100`. The marketing version lives
-in `project.yml` (`MARKETING_VERSION`) and `android/app/build.gradle.kts` (`versionName`); the build
-numbers (`CFBundleVersion` / `versionCode`) increment independently on every release.
+in `project.yml` (`MARKETING_VERSION`); `CURRENT_PROJECT_VERSION` is the Apple build number and must
+increase monotonically for releases.
 
 ---
 
 ## Roadmap
 
-NOOP's logic already lives in cross-platform packages, so most platform work is app-layer wiring
-rather than rewrites of the core. Today the **macOS app is the working reference implementation**
-and **Android ships as a full app**; the items below are planned, experimental, or deferred.
+NOOP's logic already lives in shared Swift packages, so most Apple-platform work is app-layer wiring
+rather than rewrites of the core. Today macOS and iOS/iPadOS ship from this fork; the optional Watch
+companion ships inside the Full IPA.
 Contributions toward these are welcome — open an issue to coordinate first.
 
 ### Other platforms
@@ -587,12 +578,8 @@ Contributions toward these are welcome — open an issue to coordinate first.
   `WhoopProtocol/Resources/whoop_protocol.json` and the framing/CRC rules are language-agnostic, so
   the wire behavior is portable; the work is a Windows BLE stack + UI re-implementation that matches
   the shared packages' behavior.
-- **Android (distribution in progress).** A full, native Kotlin/Gradle client lives under `android/`,
-  re-implementing the same wire protocol against Android's BLE stack — it pairs, offloads, persists
-  and scores on-device, and imports WHOOP / Apple Health / Health Connect. Its source version is kept
-  aligned with the Apple beta; a fork-owned public APK follows in a later rollout. Continued
-  real-hardware testing across more devices is always welcome (an emulator can't reach a physical strap).
-- **iOS (unsigned beta on `main`).** iOS is a first-class target — the `NOOPiOS` and
+- **Android.** Not carried by this fork. Use [RyanBR's upstream repository](https://github.com/ryanbr/noop).
+- **iOS (unsigned release).** iOS is a first-class target — the `NOOPiOS` and
   `NOOPiOSWidgets` schemes (app target plus widgets, a Live Activity, and HealthKit), built against
   current code in Xcode. The fork publishes an intentionally unsigned IPA for AltStore and SideStore:
   the sideloader signs it with each user's own Apple ID, keeping the project free of an App Store,

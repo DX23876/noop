@@ -1,10 +1,10 @@
 # Building NOOP
 
-NOOP is a standalone, fully **offline** companion app for WHOOP straps (4.0 and 5.0). It pairs
+NOOP is an **offline-first** companion app for WHOOP straps (4.0 and 5.0/MG). It pairs
 directly with the strap over Bluetooth Low Energy, stores everything on-device in SQLite, imports
 WHOOP CSV exports and Apple Health exports, and computes recovery / strain / HRV / sleep locally.
-There is no cloud, no account — the app talks only to **your own device** and
-works only with **your own data**.
+There is no NOOP cloud or account. Optional, explicit network paths are documented in
+[`PRIVACY_SECURITY.md`](PRIVACY_SECURITY.md).
 
 > **Not affiliated with WHOOP, and not a medical device.** "WHOOP" is used only to identify the
 > hardware this software interoperates with. NOOP contains no WHOOP code, firmware, or assets. All
@@ -15,11 +15,10 @@ works only with **your own data**.
 
 ## Repository layout
 
-The codebase is split into reusable, cross-platform Swift packages plus a thin platform-specific
-app layer. The **macOS app is the reference implementation**; **Android ships as a full app** under
-`android/`, and **iOS ships as a build-from-source target (`NOOPiOS`)** folded into main in v1.94 —
-built in Xcode, not distributed (no App Store / TestFlight, to stay anonymous). All reuse the same
-packages where they can.
+The codebase is split into reusable Swift packages plus Apple app targets. The **macOS app is the
+reference implementation**; iOS/iPadOS ships as an unsigned IPA and as the `NOOPiOS` Xcode target;
+the optional Watch companion ships inside the Full IPA. This fork does not contain or release
+Android — use [RyanBR's upstream repository](https://github.com/ryanbr/noop) for that platform.
 
 ```
 Strand/
@@ -35,15 +34,17 @@ Strand/
 │   ├── System/                 # MacActions (lock screen, run Shortcut), ProjectInfo
 │   └── Resources/              # Info.plist, Strand.entitlements, Assets.xcassets (AppIcon)
 ├── StrandTests/                # macOS app unit tests
-├── StrandiOS/                  # iOS SwiftUI app shell (product name: NOOPiOS)
-├── StrandiOSShared/            # shared iOS-only app code (BLE/scene wiring)
-├── StrandiOSWidgets/           # iOS WidgetKit + Live Activity extension
+├── StrandiOS/                  # iOS shell, HealthKit, widgets, Live Activity and Watch sources
 ├── Packages/
 │   ├── WhoopProtocol/          # BLE frame parsing, CRC, command/event/packet decode
 │   ├── WhoopStore/             # GRDB/SQLite persistence (migrations, streams, caches)
 │   ├── StrandAnalytics/        # HRV / recovery / strain / sleep / correlation math
 │   ├── StrandImport/           # WHOOP CSV + Apple Health importers
-│   └── StrandDesign/           # SwiftUI design system (palette, components, charts)
+│   ├── StrandDesign/           # SwiftUI design system (palette, components, charts)
+│   ├── OuraProtocol/           # Oura BLE protocol/decode
+│   ├── PolarProtocol/          # Polar protocol/decode
+│   ├── SemanticMemory/         # local Coach memory index
+│   └── NoopLocalAccess/        # optional read-only macOS local-access CLI
 ├── Tools/
 │   └── Backfill/               # `swift run backfill` — re-runs importers into the on-device DB
 └── Fixtures/                   # Sample data for tests
@@ -51,10 +52,10 @@ Strand/
 
 ### Packages and platforms
 
-Every package declares **both** `.iOS(.v16)` and `.macOS(.v13)`, so the protocol, storage,
-analytics, import, and design layers compile and run unmodified on iOS once an app target exists.
-Any framework-specific code is guarded with `#if canImport(AppKit) / #elseif canImport(UIKit)`
-(for example the color bridging in `Packages/StrandDesign/Sources/StrandDesign/Palette.swift`).
+The shared protocol, store, analytics, import and design packages declare iOS and macOS support.
+`SemanticMemory` raises its iOS floor to 17; `NoopLocalAccess` is macOS-only; selected analytics and
+design code also supports watchOS. `Package.swift` and `project.yml` are authoritative — do not infer
+target support from this summary alone.
 
 | Package          | Platforms                | Key dependencies                          | Responsibility |
 |------------------|--------------------------|-------------------------------------------|----------------|
@@ -62,7 +63,11 @@ Any framework-specific code is guarded with `#if canImport(AppKit) / #elseif can
 | `WhoopStore`     | iOS 16+, macOS 13+       | `WhoopProtocol`, `GRDB.swift` (≥ 6.0.0)   | SQLite persistence, migrations, decoded streams, metric caches |
 | `StrandAnalytics`| macOS 13+, iOS 16+       | `WhoopProtocol`, `WhoopStore`             | HRV / recovery / strain / sleep / correlation math |
 | `StrandImport`   | macOS 13+, iOS 16+       | `WhoopProtocol`, `WhoopStore`, `ZIPFoundation` (≥ 0.9.0) | WHOOP CSV + Apple Health (`export.xml`, streaming) importers |
-| `StrandDesign`   | macOS 13+, iOS 16+       | none                                      | SwiftUI design system: palette, components, charts |
+| `StrandDesign`   | macOS 13+, iOS 16+, watchOS 10+ | none                               | SwiftUI design system: palette, components, charts |
+| `OuraProtocol`   | macOS 13+, iOS 16+       | none                                      | Oura BLE protocol and clean-room decode |
+| `PolarProtocol`  | macOS 13+, iOS 16+       | none                                      | Polar protocol primitives and PPI decode |
+| `SemanticMemory` | macOS 13+, iOS 17+       | `GRDB.swift`                              | local semantic Coach index |
+| `NoopLocalAccess`| macOS 13+                 | `GRDB.swift`                              | optional read-only local-access CLI/core |
 
 All third-party dependencies are resolved through **Swift Package Manager**; nothing is vendored
 as a binary.
@@ -218,18 +223,16 @@ swift run backfill
 
 ## iOS (unsigned sideload release and source builds)
 
-iOS ships as an **unsigned sideload beta** plus a build-from-source target. There is **no App Store
+iOS ships as an **unsigned sideload release** plus a build-from-source target. There is **no App Store
 or TestFlight build** — both require a real Apple Developer identity, which is fundamentally at odds
 with NOOP staying anonymous. The release IPA carries no signing identity; AltStore or SideStore signs
 it locally with the user's own Apple ID. See [IOS.md](IOS.md) for the source URL and install steps.
-The iOS app is **newer and less battle-tested** than macOS and Android: live BLE on a real iPhone
-isn't yet fully validated. It shares the same analytics packages, so once data is in, results match
-macOS.
+The iOS app uses the same store and analytics implementations as macOS. BLE requires a real iPhone;
+the simulator is suitable only for UI and non-BLE work.
 
 The `NOOPiOS` app target (plus the `NOOPiOSWidgets` WidgetKit / Live Activity extension) already
-exists in `project.yml` — you don't need to add it. All five packages target `.iOS(.v16)`, so the
-protocol, storage, analytics, import, and design cores compile for iOS unmodified; the iOS app
-shell lives in `StrandiOS/` with shared iOS code in `StrandiOSShared/`.
+exists in `project.yml` — you don't need to add it. Shared app code remains under `Strand/`; iOS-only
+lifecycle, HealthKit, widgets, Live Activity and Watch sources live under `StrandiOS/`.
 
 ### Build & run
 
@@ -297,14 +300,6 @@ This fork no longer carries or releases the Android tree. For Android developmen
 [RyanBR's upstream NOOP repository](https://github.com/ryanbr/noop). The Swift packages and Apple
 release gates documented here cover iOS and macOS only.
 
-The Android app re-implements the same wire protocol against Android's BLE stack (the protocol
-facts in `WhoopProtocol/Resources/whoop_protocol.json` are language-agnostic). Build and run
-instructions live in **`android/README.md`** — open the `android/` directory in Android Studio, let
-Gradle sync, and run on a device with Bluetooth (an emulator cannot reach a physical strap).
-
-> The macOS app remains the reference implementation; the shared packages define the protocol,
-> storage, analytics, and import behavior every client matches.
-
 ---
 
 ## Testing
@@ -316,10 +311,15 @@ cd Packages/WhoopStore    && swift test
 cd Packages/StrandAnalytics && swift test
 cd Packages/StrandImport  && swift test
 cd Packages/StrandDesign  && swift test
+cd Packages/OuraProtocol && swift test
+cd Packages/PolarProtocol && swift test
+cd Packages/SemanticMemory && swift test
+cd Packages/NoopLocalAccess && swift test
 
 # macOS app + integration tests via Xcode:
 xcodegen generate
 xcodebuild -project Strand.xcodeproj -scheme Strand -destination 'platform=macOS' test
+xcodebuild -project Strand.xcodeproj -scheme NOOPiOS -destination 'generic/platform=iOS' build
 ```
 
 ---

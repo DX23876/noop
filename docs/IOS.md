@@ -1,636 +1,134 @@
-# iOS — Install & Build
+# iOS / iPadOS — install, sign, and build
 
-> **The iOS release ships in two variants.** Grab **`NOOP-ios-unsigned-v10.1.1-dx.ipa`** from the
-> [NOOP AI 10.1.1 release](https://github.com/DX23876/noop/releases/tag/v10.1.1-dx) page and install it with **AltStore** or **SideStore** — see
-> **[Install (sideload)](#install-sideload)** below. No Mac, no Xcode, no App Store, and no Apple
-> Developer account needed — **and NOOP stays anonymous**, because the `.ipa` we ship is *unsigned*
-> and **you** sign it on your own iPhone with your own free Apple ID. It carries the app **and the
-> Home/Lock-Screen widgets**; only the Apple Watch app is left out, for the reasons below. The release
-> also offers **`NOOP-ios-full-unsigned-v<VERSION>-dx.ipa`**, which adds the **Watch app and
-> complication** on top, for people signing with their own Apple Developer team.
-> The manual [`publish-ios-release.yml`](../.github/workflows/publish-ios-release.yml) workflow builds the
-> unsigned release IPA without an Apple team or personal signing identity.
+NOOP AI 10.1.1 ships as an intentionally unsigned iOS release. You sign it with your own Apple ID
+through AltStore/SideStore or build it with Xcode. There is no App Store or TestFlight distribution
+and no project-owned signing identity.
 
-## Install (sideload)
+## Choose an IPA
 
-The `.ipa` is **unsigned on purpose** — that's what keeps the project anonymous. iOS won't run an
-unsigned app, so a free sideloading tool signs it **on your device, with your own free Apple ID**.
-Nothing about this touches NOOP's identity or Apple's servers on our side.
+The [10.1.1 release](https://github.com/DX23876/noop/releases/tag/v10.1.1-dx) publishes two variants:
 
-1. **Install a sideloader on your computer** — [AltStore](https://altstore.io) or
-   [SideStore](https://sidestore.io) (both free). Follow their one-time setup (it installs a helper +
-   AltStore/SideStore onto your iPhone using your own Apple ID).
-2. **Download `NOOP-ios-unsigned-v10.1.1-dx.ipa`** from the
-   [10.1.1 release](https://github.com/DX23876/noop/releases/tag/v10.1.1-dx) to your iPhone (or your
-   computer, then AirDrop/transfer it).
-3. **Open the `.ipa` with AltStore/SideStore** (Share → AltStore, or the app's "+" button). It signs
-   and installs NOOP. First launch may need **Settings → General → VPN & Device Management → trust
-   your Apple ID**.
+| Artifact | Includes | Intended use |
+|---|---|---|
+| `NOOP-ios-unsigned-v10.1.1-dx.ipa` | iPhone/iPad app, Home/Lock Screen widgets, Live Activity | AltStore/SideStore, including free Apple IDs |
+| `NOOP-ios-full-unsigned-v10.1.1-dx.ipa` | Everything above plus Watch app and complication | A signer/developer team that can provision every nested target |
 
-### Add NOOP as a source (recommended — auto-updates)
+Both IPAs are unsigned. The AltStore variant removes only the embedded Watch bundle; it keeps the
+widget extension and the capability template used to provision the shared App Group and HealthKit.
 
-So you never have to manually re-download, add NOOP's **source** to AltStore/SideStore once — new
-releases then show up (and re-sign) automatically:
+## Install with AltStore or SideStore
 
-**Source URL:** `https://raw.githubusercontent.com/DX23876/noop/main/altstore-source.json`
+1. Install [AltStore](https://altstore.io) or [SideStore](https://sidestore.io) using its official
+   setup guide and your own Apple ID.
+2. Download `NOOP-ios-unsigned-v10.1.1-dx.ipa` from the
+   [release page](https://github.com/DX23876/noop/releases/tag/v10.1.1-dx).
+3. Open the IPA with the sideloader or import it from the sideloader's **My Apps** screen.
+4. If iOS asks, trust your Apple ID under **Settings → General → VPN & Device Management**.
 
-> Make sure you copy the **raw** URL above exactly. If a sideloader says **"given data not valid
-> JSON"** when you add the source, you've pasted a normal web page URL (which returns HTML) instead of
-> the raw file — use the `raw.githubusercontent.com` URL above.
+### Add the update source
 
-- **AltStore:** open AltStore → **Browse** tab → tap **＋** (top-left) → paste the URL → **Add Source**.
-  NOOP appears under the source; tap **Free** / **Get** to install. From then on it updates itself on
-  AltStore's background refresh (you can also pull-to-refresh **My Apps**).
-- **SideStore:** open SideStore → **Browse** / **Sources** → **＋ Add Source** → paste the same URL → add.
+Add this raw source URL once:
 
-The source always tracks the latest release, so you're one tap from the newest build instead of
-hunting for the `.ipa` each time.
+`https://raw.githubusercontent.com/DX23876/noop/main/altstore-source.json`
 
-> ### Three honest notes on free-Apple-ID sideloading
-> - **7-day expiry.** Apps signed with a *free* Apple ID stop launching after 7 days and need
->   re-signing. **AltStore/SideStore refresh this automatically** in the background — keep the
->   sideloader installed and NOOP keeps working.
-> - **Widgets and Live Activities ARE included.** The widget is an ordinary app extension, so
->   AltStore/SideStore re-sign it with the host app, and the release build leaves behind the
->   capability template AltSign needs to provision the App Group the app and widget share — so the
->   widget shows *your* numbers, not sample data. One caveat worth knowing: **every extension consumes
->   one of the ten App IDs a free Apple ID may register per week**, so installing NOOP spends two
->   rather than one.
-> - **The Apple Watch app is deliberately left out of this IPA.** Sideloaders have never installed an
->   embedded watchOS bundle reliably, and when it fails it takes the *entire* installation with it —
->   you would end up with no NOOP at all, not merely no watch app. A free Apple ID is also limited to
->   three sideloaded apps, and the sideloader itself already takes one. The watch app and its
->   complication are in the Full IPA and in any Xcode source build; everything else — pairing your
->   strap, live HR, recovery/strain/sleep, history, the AI Coach, widgets — is here.
+- AltStore: **Browse → + → Add Source**.
+- SideStore: **Browse/Sources → Add Source**.
 
-iOS shares the cross-platform Swift packages with macOS, so the number-crunching (recovery, strain,
-HRV, sleep) is the **same code** and produces the same results. iOS is newer and less battle-tested
-than macOS/Android — live BLE on a real iPhone is still being validated by the community, so reports
-are very welcome.
+The source points at the phone/iPad IPA. The release workflow updates it only after the artifact has
+actually been uploaded.
+
+### Free Apple ID limits
+
+- A free signature expires after seven days; the sideloader must refresh it.
+- The app and widget use separate App IDs, so the install consumes two of Apple's weekly App-ID
+  allowance.
+- The Watch bundle is omitted from the AltStore IPA because nested watchOS provisioning is not
+  reliable with generic free-Apple-ID sideloading.
+- The Full IPA needs matching identifiers, profiles, entitlements, and App Group assignments for all
+  four nested targets. Use it only when your signer supports that topology.
 
 ## Build from source
 
-Prefer to build it yourself? Run
-`Tools/bootstrap-nomic.sh` once to download and verify the pinned on-device Coach model and llama.cpp
-runtime, then run `xcodegen generate` and build the **`NOOPiOS`** scheme in Xcode. The verified files
-remain local build inputs, so later Xcode builds do not download them again. They add roughly 328 MiB
-for the quantized model plus the selected runtime slice to the installed app; Git does not store those
-large binaries. The reconciliation that brought the
-[PR #42](../../../pull/42) port onto current `main` is summarised in **"Lessons from the fold-in"**
-below.
+Requirements:
 
-> 🛠️ **Signing it under your own Apple ID** (thanks @gingerbeardman for the original recipe). Apple
-> requires a bundle id unique to *your* developer account — otherwise the build collides
-> with any other NOOP install already on your device (an AltStore/SideStore sideload, or someone
-> else's build). Two steps:
-> 1. `cp Config/BundleIdSecrets.example.xcconfig Config/BundleIdSecrets.xcconfig` and set
->    `BUNDLE_ID_PREFIX` to your own reverse-domain prefix (e.g. `com.yourdomain`), then re-run
->    `xcodegen generate`. This one gitignored file drives **every** target's bundle id and the shared
->    App Group together (`$(BUNDLE_ID_PREFIX).noopai`, `group.$(BUNDLE_ID_PREFIX).noop.staging`) — nothing
->    hard-coded in Swift, nothing else to edit, and it survives future regenerates.
-> 2. In Xcode, select the **same Team** under Signing & Capabilities for `NOOPiOS`,
->    `NOOPiOSWidgets`, `NOOPWatch` and `NOOPWatchComplications`. Alternatively, add your non-secret
->    team identifier as `DEVELOPMENT_TEAM = ABCDE12345` to the same gitignored xcconfig so it applies
->    consistently to every target. Keep automatic signing enabled.
->
-> Skip step 1 and the build still works under the default `com.noopapp` identifiers — fine if this is
-> the only NOOP install on your device.
+- macOS with Xcode 26 or newer.
+- [XcodeGen](https://github.com/yonaskolb/XcodeGen).
+- A physical iPhone for BLE validation; the simulator cannot connect to a strap.
 
-### Full Apple build — Watch, complications and widgets
+Prepare the pinned on-device Coach model/runtime once, generate the project, and open it:
 
-The canonical `NOOPiOS` build embeds `NOOPiOSWidgets`, `NOOPWatch` and
-`NOOPWatchComplications`. Every GitHub release publishes that complete bundle as
-`NOOP-ios-full-unsigned-v<VERSION>-dx-beta.ipa`. The AltStore source points at
-`NOOP-ios-unsigned-v<VERSION>-dx-beta.ipa`, which is the same bundle with **only** `Watch/` removed —
-the widget extension stays, and `Tools/prepare-ios-sideload-app.sh` embeds the App Group/HealthKit
-capability template so AltSign can provision it.
-
-Both builds include RyanBR's 9.3.1 widget corrections: a widget without readable shared data shows
-dashes instead of gallery sample values, and the system widgets present Charge, Effort and Rest as
-score rings. The Watch app requests the newest phone snapshot on activation and reconnection, while
-the application-context transfer remains the background fallback. The Watch app and its complication
-share the received snapshot inside the Watch container; the phone-to-Watch hop uses WatchConnectivity.
-
-For a direct development install, Xcode can provision the complete build with the Apple team available
-to your account; a Personal Team install expires after seven days and must then be rebuilt. Run
-`xcodegen generate`, then:
-
-1. Select the same Team for `NOOPiOS`, `NOOPiOSWidgets`, `NOOPWatch` and
-   `NOOPWatchComplications`.
-2. Register/enable `$(APP_GROUP_ID)` for all four App IDs, or let Xcode manage the matching
-   development profiles automatically.
-3. Build the `NOOPiOS` scheme to the iPhone paired with the Watch. The phone app carries
-   `Watch/NOOPWatch.app`; the Watch app carries its complication extension.
-
-The Full IPA is unsigned and cannot install by itself. A compatible signer must create matching App
-IDs, signatures, provisioning profiles and App Group assignments for every nested target. This is
-separate from a direct Personal Team development install in Xcode: generic AltStore/SideStore signing
-still uses the phone-only IPA. Both variants use the same main bundle identifier and therefore cannot
-be installed side by side.
-
-> ℹ️ **Cross-platform engineering lives in [`CROSS_PLATFORM.md`](CROSS_PLATFORM.md)** — the shared-code
-> boundary across the macOS / iOS / Android clients, the `Platform.swift` shim convention, the
-> Swift↔Kotlin parity discipline, and the playbook for adding a feature across all three. Read that
-> first if you're building something that should land on more than one client.
-
-This document describes how NOOP — a standalone, fully offline companion app for
-WHOOP straps — is positioned for iOS, what already works, and the concrete plan
-for a native iOS app target.
-
-> **Not affiliated with WHOOP.** NOOP is an independent, unofficial project. It is
-> not affiliated with, endorsed by, or connected to WHOOP, Inc. "WHOOP" is used
-> nominatively only to identify the hardware the app interoperates with — your own
-> device and your own data. NOOP performs no DRM circumvention and ships no WHOOP
-> proprietary code, firmware, or assets. **NOOP is not a medical device;** all
-> metrics (HR, HRV, recovery, strain, sleep, SpO₂, temperature) are approximations
-> and not clinically validated.
-
-The reverse-engineering that makes any of this possible is built on prior
-community work: the WHOOP 4.0 protocol from **`johnmiddleton12/my-whoop`** and
-the WHOOP 5.0 / MG protocol from **`b-nnett/goose`**. See [`../ATTRIBUTION.md`](../ATTRIBUTION.md).
-
----
-
-## TL;DR
-
-- **All five shared packages already build for iOS.** Every `Package.swift` declares
-  `.iOS(.v16)` alongside `.macOS(.v13)`, and the only UI-framework-specific code is
-  guarded with `#if canImport(UIKit)` / `#if canImport(AppKit)`.
-- The work to ship on iOS is **app-layer only**: a new iOS app target that reuses
-  `WhoopProtocol`, `WhoopStore`, `StrandAnalytics`, `StrandImport`, and `StrandDesign`
-  unchanged, plus iOS variants of the handful of macOS-only app-layer services
-  (menu bar, screen lock, Shortcuts, pasteboard).
-- **CoreBluetooth is fully available on iOS** and the BLE engine is already written
-  with iOS background collection in mind (state restoration hooks exist).
-- **HealthKit is available on iOS** (it is not on macOS), so iOS can do *two-way*
-  Apple Health: read live, and write NOOP-computed metrics back. On macOS, Apple
-  Health is import-only via the static `export.xml` / `export.zip` file.
-
----
-
-## Current platform support in the packages
-
-The shared logic lives in five SwiftPM packages under [`Packages/`](../Packages/). Each
-declares both platforms in its manifest:
-
-| Package | Role | Platforms declared | iOS-relevant notes |
-|---|---|---|---|
-| `WhoopProtocol` | BLE frame parsing, CRC, command/event/packet decode — the reverse-engineering core | `.iOS(.v16)`, `.macOS(.v13)` | Platform-pure. **Never imports CoreBluetooth or any UI framework.** Exposes GATT UUIDs as plain *strings* (see `DeviceFamily.swift`); the app wraps them in `CBUUID`. |
-| `WhoopStore` | GRDB/SQLite persistence (migrations, decoded streams, metric caches) | `.iOS(.v16)`, `.macOS(.v13)` | Depends on `WhoopProtocol` + GRDB.swift `6.0.0+`. GRDB supports iOS first-class. |
-| `StrandAnalytics` | HRV / recovery / strain / sleep / correlation math | `.macOS(.v13)`, `.iOS(.v16)` | Pure computation; no platform APIs. |
-| `StrandImport` | WHOOP CSV + Apple Health (`export.xml`, streaming) importers | `.macOS(.v13)`, `.iOS(.v16)` | Depends on `WhoopProtocol`, `WhoopStore`, ZIPFoundation `0.9.0+`. Uses a streaming `XMLParser` (SAX), so it stays memory-bounded even on iOS for multi-hundred-MB exports. |
-| `StrandDesign` | SwiftUI design system (palette, components, charts) | `.macOS(.v13)`, `.iOS(.v16)` | The one package with a platform branch: `Palette.swift` resolves `Color` → sRGB components via `NSColor` under `#if canImport(AppKit)` and `UIColor` under `#elseif canImport(UIKit)`. |
-
-> **Verify:** see each `Packages/<Name>/Package.swift`. The `platforms:` array carries
-> both `.iOS(.v16)` and `.macOS(.v13)` in all five.
-
-### The one cross-platform shim that already exists
-
-`StrandDesign/Sources/StrandDesign/Palette.swift` is the template for how UI-framework
-differences are handled across the codebase:
-
-```swift
-extension Color {
-    /// Resolve to sRGB RGBA components in 0...1.
-    var rgbaComponents: (r: Double, g: Double, b: Double, a: Double) {
-        #if canImport(AppKit)
-        let ns = NSColor(self).usingColorSpace(.sRGB) ?? NSColor(self)
-        var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
-        ns.getRed(&r, green: &g, blue: &b, alpha: &a)
-        return (Double(r), Double(g), Double(b), Double(a))
-        #elseif canImport(UIKit)
-        let ui = UIColor(self)
-        var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
-        ui.getRed(&r, green: &g, blue: &b, alpha: &a)
-        return (Double(r), Double(g), Double(b), Double(a))
-        #else
-        return (0, 0, 0, 1)
-        #endif
-    }
-}
+```bash
+Tools/bootstrap-nomic.sh
+xcodegen generate
+open Strand.xcodeproj
 ```
 
-Because the design system already compiles against UIKit, the SwiftUI components,
-charts, and palette render on iOS as-is.
+Select the `NOOPiOS` scheme and your iPhone. A Personal Team is sufficient for a development
+install, subject to Apple's normal seven-day expiry and capability limits.
 
----
+### Use your own bundle prefix
 
-## The macOS app today (the reference implementation)
+The default identifiers use the repository's development prefix. To install alongside another NOOP
+build or avoid an identifier collision, create the gitignored file
+`Config/BundleIdSecrets.xcconfig`:
 
-The macOS app target lives in [`Strand/`](../Strand/). It is the reference
-implementation; Android ships as a full app (`android/`), and the iOS app is an
-experimental, build-from-source community port ([PR #42](../../../pull/42)). The macOS app composes
-the packages like this:
-
-- `Strand/App/StrandApp.swift` — the `@main` SwiftUI `App`. Declares a `WindowGroup`
-  and a `MenuBarExtra` scene.
-- `Strand/App/AppModel.swift` — root `@MainActor` state object. Owns `LiveState`,
-  the `BLEManager`, the `Repository` read-model, the `ProfileStore`, and the
-  `BehaviorStore`.
-- `Strand/BLE/BLEManager.swift` — the CoreBluetooth engine.
-- `Strand/Collect/` — the collector, backfiller, clock-correlation, and store paths.
-- `Strand/Data/` — `Repository`, importers, and settings stores.
-- `Strand/Screens/` — the SwiftUI screens (Today, Trends, Sleep, Workouts, etc.).
-- `Strand/System/MacActions.swift` — **macOS-only side effects** (screen lock, Shortcuts).
-- `Strand/MenuBar/MenuBarContent.swift` — **macOS-only** menu-bar extra.
-
-Most of `Strand/` is plain SwiftUI + the shared packages and would move to iOS
-unchanged or near-unchanged. The macOS-specific pieces are enumerated below.
-
-The on-device database path is resolved in `Strand/Collect/StorePaths.swift`:
-
-```swift
-enum StorePaths {
-    /// `<AppSupport>/OpenWhoop/whoop.sqlite`, creating the directory if needed.
-    static func defaultDatabasePath() throws -> String {
-        let fm = FileManager.default
-        let base = try fm.url(for: .applicationSupportDirectory, in: .userDomainMask,
-                              appropriateFor: nil, create: true)
-            .appendingPathComponent("OpenWhoop", isDirectory: true)
-        try fm.createDirectory(at: base, withIntermediateDirectories: true)
-        return base.appendingPathComponent("whoop.sqlite").path
-    }
-}
+```xcconfig
+BUNDLE_ID_PREFIX = com.example.yourname
 ```
 
-`FileManager.url(for: .applicationSupportDirectory, …)` is valid on iOS too, so this
-helper works unchanged inside the iOS sandbox container. The `WhoopStore` actor opens
-the database with WAL journaling and a 5-second busy timeout (`WhoopStore.swift`),
-both fully supported on iOS.
+`Config/BundleId.xcconfig` and `project.yml` derive the app, widget, Watch, complication, and App
+Group identifiers from that prefix. Keep automatic signing enabled and select the same team for every
+target Xcode asks to provision.
 
----
+### Command-line build
 
-## CoreBluetooth on iOS
+```bash
+xcodegen generate
 
-The BLE engine (`Strand/BLE/BLEManager.swift`) uses **CoreBluetooth**, which is the
-same framework on iOS and macOS. The strap interaction — scan by service → connect →
-discover → **bond** (one confirmed write) → subscribe → reassemble fragmented frames →
-route — is identical across platforms.
-
-The engine already discovers the WHOOP 4.0 custom service and characteristics, plus
-the standard Heart Rate (`180D` / `2A37`) and Battery (`180F` / `2A19`) services. The
-WHOOP 5.0 / MG service family (`fd4b0001-…`, CRC16-Modbus header, the puffin packet
-types) is modeled in `WhoopProtocol/DeviceFamily.swift` and exposed as UUID strings
-the app wraps in `CBUUID`.
-
-### Background BLE — what's already wired
-
-The engine was written anticipating iOS background collection. `BLEManager` already
-implements **CoreBluetooth state restoration**:
-
-```swift
-static let restoreID = "com.openwhoop.ble.central"
-
-public func centralManager(_ central: CBCentralManager,
-                           willRestoreState dict: [String: Any]) {
-    guard let peripherals = dict[CBCentralManagerRestoredStatePeripheralsKey] as? [CBPeripheral],
-          let p = peripherals.first else { … }
-    self.peripheral = p
-    self.restoredPeripheral = p
-    p.delegate = self
-    // Collection only runs post-bond, so a restored link was already bonded; seed flags.
-    state.bonded = true
-    didBond = true
-    …
-}
+xcodebuild \
+  -project Strand.xcodeproj \
+  -scheme NOOPiOS \
+  -destination 'generic/platform=iOS' \
+  build
 ```
 
-When iOS relaunches the app into the background to deliver a BLE event, it calls
-`willRestoreState` with the previously-connected peripheral. The engine stores it in
-`restoredPeripheral` and, on the next `centralManagerDidUpdateState` `.poweredOn`,
-reconnects that exact peripheral instead of starting a fresh scan — no user
-interaction required.
+The app target deploys to iOS 17+. Package manifests may declare lower reusable-library floors; the
+target settings in `project.yml` are authoritative for the shipped app.
 
-> The macOS init deliberately **does not** pass the restoration identifier — the
-> source comments call state restoration "an iOS background feature." On macOS:
->
-> ```swift
-> // Strand (macOS desktop): no state-restoration identifier (iOS background feature).
-> central = CBCentralManager(delegate: self, queue: .main)
-> ```
+## Current target topology
 
-### Background BLE — what the iOS target must add
-
-To make `willRestoreState` actually fire on iOS, the iOS target's `CBCentralManager`
-must be created **with** the restoration identifier, and the app must declare the
-Bluetooth background mode:
-
-```swift
-// iOS-only initializer
-central = CBCentralManager(
-    delegate: self,
-    queue: .main,
-    options: [CBCentralManagerOptionRestoreIdentifierKey: BLEManager.restoreID]
-)
-```
-
-| Requirement | iOS action |
+| Target | Purpose |
 |---|---|
-| Background execution | `UIBackgroundModes` in `Info.plist` includes `bluetooth-central`. |
-| State restoration | Pass `CBCentralManagerOptionRestoreIdentifierKey: BLEManager.restoreID` when constructing the central. `BLEManager.restoreID` already exists. |
-| Usage description | `NSBluetoothAlwaysUsageDescription` (the macOS target already supplies a copy in its `Info.plist` — reuse and re-word for iOS). |
-| Reconnect on relaunch | Already handled by `willRestoreState` + `centralManagerDidUpdateState`. |
-| App Sandbox / entitlement | iOS does not use `com.apple.security.device.bluetooth` (that is a macOS App Sandbox entitlement); the iOS Bluetooth capability is granted via the usage-description prompt + background mode. |
+| `NOOPiOS` | iOS/iPadOS application |
+| `NOOPiOSWidgets` | Home/Lock Screen widgets and Live Activity |
+| `NOOPWatch` | watchOS companion |
+| `NOOPWatchComplications` | Watch complication extension |
 
-The keep-alive, liveness watchdog, periodic backfill, and reconnect-on-disconnect
-timers in `BLEManager` are platform-neutral `DispatchSource` timers. Note that iOS
-suspends the app between BLE events, so these timers do **not** run continuously in the
-background the way they do on a Mac that stays awake — on iOS, progress is driven by
-the system waking the app for BLE traffic. The existing logic (rate-limited
-`requestSync`, persisted `backfillLastAt` watermark) is already designed to resume
-correctly across process relaunches, which is exactly the iOS background lifecycle.
+The iOS shell and platform services live under `StrandiOS/`. Shared app behavior remains under
+`Strand/`; reusable protocol, store, analytics, import, design, Oura/Polar, and semantic-memory code
+lives under `Packages/`. `project.yml` is the source of truth for target membership.
 
-> **Not available in the Simulator.** CoreBluetooth has no simulator support — the
-> source notes "Cannot run in the simulator; verified manually on-device." iOS BLE
-> work must be tested on a physical device paired with a real strap.
+The phone sends the latest bounded snapshot to the Watch through WatchConnectivity. The Watch does
+not open the phone database. macOS-only menu-bar and automation surfaces are excluded from iOS;
+iOS-specific HealthKit, widgets, Live Activities, App Intents, and quick actions stay under
+`StrandiOS/`.
 
----
+## HealthKit and privacy
 
-## App-layer items that need iOS variants
+HealthKit access is opt-in. The app requests only the read/write types needed by enabled features,
+imports incrementally, and marks NOOP-originated samples so they are not re-imported as external
+data. Raw strap history, scores, and the local database remain on the device.
 
-These are the only pieces of `Strand/` that are macOS-specific. Each needs an iOS
-equivalent (or to be conditionally compiled out).
+The app is offline-first, not network-impossible: the optional Coach contacts the provider you
+configure, a source-built Oura history lane can pull your own Oura data in, and the manual update
+check reads public GitHub release metadata. See [privacy and security](PRIVACY_SECURITY.md).
 
-### 1. Menu bar → there is no menu bar on iOS
+## Publishing
 
-`Strand/MenuBar/MenuBarContent.swift` provides a `MenuBarExtra` (a glanceable
-zone-tinted HR dot + a compact recovery/HR/battery popover), wired in
-`StrandApp.swift`. **iOS has no menu bar.** The iOS equivalents:
+Maintainers publish from `main` with the manual
+[`publish-ios-release.yml`](../.github/workflows/publish-ios-release.yml) workflow. It validates the
+version and release notes, builds both IPAs, attaches the macOS ZIP, promotes the release only after
+all required jobs succeed, and then updates `altstore-source.json`.
 
-- A **Home Screen widget** / **Lock Screen widget** (WidgetKit) showing recovery,
-  live/last HR, and battery — the natural iOS analogue of the menu-bar glance.
-- A **Live Activity** (ActivityKit) during an active workout or live HR session.
-- The popover's content (`RecoveryRing`, `StatePill`, the stats row) is already
-  built from `StrandDesign` components and can be reused inside the widget views.
-
-### 2. Screen lock — macOS-only API
-
-`Strand/System/MacActions.swift` locks the Mac by `dlopen`-ing
-`login.framework` and calling `SACLockScreenImmediate`. **There is no iOS equivalent;**
-a third-party app cannot lock an iPhone. On iOS the `lockScreen` action should be
-hidden from the action picker (`MacActionKind`) or remapped (see Shortcuts below).
-
-### 3. Strap double-tap / wrist-off actions — the "run a Shortcut" gap
-
-On macOS, a strap **double-tap** (or a wrist-off trigger) runs a configurable action.
-The action set is `MacActionKind` in `MacActions.swift`:
-
-```swift
-enum MacActionKind: String, Codable, CaseIterable, Identifiable {
-    case none, lockScreen, buzzBack, markMoment, runShortcut
-}
-```
-
-`AppModel.handleDoubleTap()` dispatches through `runMacAction(_:shortcut:)`. On macOS,
-`runShortcut` opens the `shortcuts://run-shortcut?name=…` URL via `NSWorkspace`:
-
-```swift
-static func runShortcut(_ name: String) {
-    …
-    let url = URL(string: "shortcuts://run-shortcut?name=\(encoded)")
-    NSWorkspace.shared.open(url)
-}
-```
-
-**The portable actions move to iOS directly:**
-
-- `buzzBack` — sends a haptic command to the strap over BLE; purely `BLEManager`, no
-  platform API. Works on iOS.
-- `markMoment` — appends a timestamp to `moments` in `AppModel` and persists to
-  `UserDefaults`. Works on iOS.
-- `none` — trivially portable.
-
-**The Shortcuts story differs on iOS** and deserves its own design:
-
-- iOS **can** open `shortcuts://run-shortcut?name=…` via `UIApplication.shared.open(_:)`,
-  but iOS will *foreground the Shortcuts app to run the shortcut* — it cannot silently
-  run an arbitrary user Shortcut from the background the way a Mac can. This makes the
-  "double-tap runs an arbitrary Shortcut while my phone is in my pocket" pattern
-  unreliable on iOS.
-- The robust iOS approach is to **publish App Intents** (the App Intents framework)
-  from NOOP — e.g. "Mark a moment", "Start live HR", "Buzz strap", "Log recovery". The
-  user then builds Shortcuts/Automations that call *NOOP's* intents, and NOOP also
-  appears in Spotlight, Siri, and the Shortcuts gallery.
-- For invoking *other* apps from NOOP, support **x-callback-url** style deep links
-  (`x-callback-url` is the de-facto inter-app callback convention) and the standard
-  `shortcuts://x-callback-url/run-shortcut?name=…&x-success=…` form so control can
-  return to NOOP after the external shortcut completes.
-
-> Net: replace the macOS `runShortcut(_:)` plumbing with (a) **App Intents exposed by
-> NOOP** for inbound automation and (b) **x-callback-url / `shortcuts://` deep links**
-> for outbound calls, and remove `lockScreen` from the iOS action set.
-
-### 4. Pasteboard
-
-`Strand/Screens/SupportView.swift` copies a string with `NSPasteboard.general`. The
-iOS equivalent is `UIPasteboard.general.string = …`. This is a one-call swap; wrap it
-in a tiny `#if os(iOS)` / `#if os(macOS)` helper (the same pattern `Palette.swift`
-already uses) so the screen compiles on both.
-
-### Summary of app-layer deltas
-
-| macOS-only file/API | iOS replacement |
-|---|---|
-| `MenuBar/MenuBarContent.swift` (`MenuBarExtra`) | WidgetKit widget + Live Activity; reuse `StrandDesign` views |
-| `MacActions.lockScreen()` (`login.framework`) | Not possible on iOS — hide/remap the action |
-| `MacActions.runShortcut(_:)` via `NSWorkspace` | App Intents (inbound) + `UIApplication.open` / x-callback-url (outbound) |
-| `NSPasteboard` (`SupportView.swift`) | `UIPasteboard` behind an `#if os` helper |
-| `NSWorkspace`/`NSImage` app icons in `NotificationSettingsStore.swift` | iOS has no per-app launch icons; replace with iOS notification settings UI |
-| `CBCentralManager(delegate:queue:)` | `CBCentralManager(delegate:queue:options:[…RestoreIdentifierKey…])` + `bluetooth-central` background mode |
-
----
-
-## HealthKit: two-way Apple Health is possible on iOS
-
-This is the biggest *additive* opportunity on iOS.
-
-- **macOS has no HealthKit.** The Mac app therefore consumes Apple Health **one way**,
-  by importing the user's exported archive. `StrandImport/AppleHealthImporter.swift`
-  stream-parses `export.xml` (optionally inside `export.zip`) with a SAX
-  `XMLParser`/`XMLParserDelegate` — never a DOM, because the file can exceed 1 GB. It
-  filters to the relevant `Record` types (HeartRate, RestingHeartRate,
-  HeartRateVariabilitySDNN, OxygenSaturation, BodyTemperature, RespiratoryRate,
-  SleepAnalysis, body-composition, etc.), de-dupes records that appear both top-level
-  and nested in a `<Correlation>`, and normalizes units (e.g. `OxygenSaturation` 0–1 →
-  percent).
-- **iOS has HealthKit**, so the iOS target can do far more than parse a static export:
-
-| Direction | iOS capability |
-|---|---|
-| **Read** | Query HealthKit live (`HKHealthStore`, `HKSampleQuery`, anchored/observer queries) for HR, RHR, HRV SDNN, SpO₂, wrist/body temperature, respiratory rate, sleep stages, workouts, body composition — the same types `relevantTypes` already enumerates in `AppleHealthImporter`. No manual export needed. |
-| **Write** | Write NOOP-computed values back into Apple Health: HR / HRV / SpO₂ / temperature samples decoded from the strap, sleep analysis from `StrandAnalytics.SleepStager`, and workouts from `WorkoutDetector` — so NOOP data shows up across the user's Health ecosystem. |
-| **Background delivery** | `HKObserverQuery` + `enableBackgroundDelivery` to keep the on-device store in sync without opening the app. |
-
-Because `AppleHealthImporter` already defines the canonical type set, units, and
-`SleepStage` mapping, an iOS `HealthKitImporter` can map `HKSample` objects onto the
-**same** `StrandImport` models and feed the identical ingest path into `WhoopStore` —
-the static-export importer and the live HealthKit importer converge on one schema.
-
-> **Entitlement/Info.plist on iOS:** add the **HealthKit** capability and supply
-> `NSHealthShareUsageDescription` (read) and `NSHealthUpdateUsageDescription` (write).
-> Keep both directions strictly opt-in and on-device — consistent with NOOP's
-> offline, no-cloud stance.
-
----
-
-## Concrete iOS target structure
-
-The recommended layout keeps the five packages untouched and adds a sibling iOS app
-target. The bulk of `Strand/`'s SwiftUI screens move into a shared app layer; only the
-platform-specific services are duplicated per OS.
-
-```
-Strand/                      # existing macOS app target (reference)
-StrandiOS/                   # NEW iOS app target
-├── App/
-│   ├── StrandiOSApp.swift          # @main; WindowGroup only (no MenuBarExtra)
-│   └── AppModel+iOS.swift          # iOS BLE options, HealthKit wiring
-├── BLE/
-│   └── BLEManager+iOS.swift        # central built WITH RestoreIdentifierKey
-├── Health/
-│   └── HealthKitBridge.swift       # two-way HealthKit (read + write)
-├── System/
-│   ├── iOSActions.swift            # UIPasteboard, App Intents, x-callback-url
-│   └── NOOPAppIntents.swift        # App Intents exposed to Shortcuts/Siri
-├── Widgets/
-│   └── NOOPWidget.swift            # Home/Lock-Screen widget (menu-bar analogue)
-└── Resources/
-    └── Info.plist                  # UIBackgroundModes, Health + Bluetooth usage strings
-
-Shared/                      # (optional) screens lifted out of Strand/Screens
-└── …                        # TodayView, TrendsView, SleepView, … reused by both targets
-```
-
-The cleanest path is to move the platform-neutral SwiftUI screens
-(`Strand/Screens/*` that don't touch `NS…`/`UI…` directly) into a shared location both
-targets include, leaving each target with only its `@main` scene and its
-platform-specific service shims.
-
-### Package dependencies for the iOS target
-
-The iOS app target depends on exactly the same five local packages the macOS target
-already lists in [`project.yml`](../project.yml). Expressed as a SwiftPM target (e.g.
-in an Xcode project generated by XcodeGen / Tuist, or a `Package.swift` app target):
-
-```swift
-// swift-tools-version: 5.9
-import PackageDescription
-
-let package = Package(
-    name: "NOOPiOS",
-    platforms: [.iOS(.v16)],
-    dependencies: [
-        .package(path: "Packages/WhoopProtocol"),
-        .package(path: "Packages/WhoopStore"),
-        .package(path: "Packages/StrandAnalytics"),
-        .package(path: "Packages/StrandImport"),
-        .package(path: "Packages/StrandDesign"),
-    ],
-    targets: [
-        .executableTarget(
-            name: "NOOPiOS",
-            dependencies: [
-                "WhoopProtocol",
-                "WhoopStore",
-                "StrandAnalytics",
-                "StrandImport",
-                "StrandDesign",
-            ]
-        ),
-    ]
-)
-```
-
-Equivalent XcodeGen stanza (mirroring the existing macOS `Strand` target in
-`project.yml`, which already declares these five packages under `packages:` and lists
-them under the target's `dependencies:`):
-
-```yaml
-targets:
-  NOOPiOS:
-    type: application
-    platform: iOS
-    deploymentTarget: "17.0"
-    sources:
-      - StrandiOS
-      - Shared            # screens lifted from Strand/Screens, if shared
-    info:
-      path: StrandiOS/Resources/Info.plist
-      properties:
-        CFBundleName: NOOP
-        CFBundleDisplayName: NOOP
-        LSApplicationCategoryType: public.app-category.healthcare-fitness
-        UIBackgroundModes:
-          - bluetooth-central
-        NSBluetoothAlwaysUsageDescription: >-
-          NOOP connects directly to your WHOOP strap over Bluetooth to read heart rate,
-          R-R intervals, battery, and sensor data locally on your iPhone. Nothing leaves
-          your device.
-        NSHealthShareUsageDescription: >-
-          NOOP reads your own Apple Health data on-device to compute recovery, strain,
-          and sleep. Nothing leaves your device.
-        NSHealthUpdateUsageDescription: >-
-          NOOP writes the metrics it computes from your strap back into Apple Health,
-          on-device and only when you allow it.
-    entitlements:
-      path: StrandiOS/Resources/NOOP.entitlements
-      properties:
-        com.apple.developer.healthkit: true
-        com.apple.developer.healthkit.background-delivery: true
-    settings:
-      base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.noopapp.noopai
-        PRODUCT_NAME: NOOP
-    dependencies:
-      - package: WhoopProtocol
-      - package: WhoopStore
-      - package: StrandAnalytics
-      - package: StrandImport
-      - package: StrandDesign
-```
-
-> Note the entitlements differ by platform. macOS uses **App Sandbox** entitlements
-> (`com.apple.security.app-sandbox`, `com.apple.security.device.bluetooth`,
-> `com.apple.security.files.user-selected.read-write` — see
-> `Strand/Resources/Strand.entitlements`). iOS instead uses the **HealthKit**
-> entitlement plus the `bluetooth-central` background mode and the usage-description
-> prompts; it does not use the macOS App Sandbox keys.
-
----
-
-## Port checklist — done in the v1.94 fold-in
-
-- [x] `StrandiOS` + `NOOPiOSWidgets` app targets depending on the five existing packages (no package changes).
-- [x] `CBCentralManager` built with `CBCentralManagerOptionRestoreIdentifierKey` (in `AppModel+iOS`).
-- [x] `UIBackgroundModes: [bluetooth-central]` + `NSBluetoothAlwaysUsageDescription` in the iOS Info.plist.
-- [x] `MenuBarExtra` replaced by a WidgetKit widget + Live Activity (`StrandiOSWidgets`), reusing `StrandDesign`.
-- [x] iOS action layer: `lockScreen` returns false on iOS, `buzzBack`/`markMoment` portable, **App Intents** exposed (`StrandiOS/System/NOOPAppIntents.swift`).
-- [x] Clipboard + URL-open routed through `Platform.swift` (`PlatformPasteboard`/`PlatformOpen`).
-- [x] `HealthKitBridge` two-way Apple Health (read live + write NOOP metrics).
-- [ ] **Still TODO (needs hardware):** verify BLE on a **physical iPhone** with a real strap — CoreBluetooth has no Simulator. This is the one thing CI/compile can't cover.
-
-> **Resolved:** the device-id follow-up previously noted here — `HealthKitBridge.writeBack` reading
-> NOOP-computed metrics under the wrong device id — no longer applies. `writeVitals`
-> (`StrandiOS/Health/HealthKitBridge.swift:567-572`) already unions `computedDeviceId` (`deviceId +
-> "-noop"`, where on-device scores live) with `noopDeviceId` (imports), computed first, imported
-> overriding — a strap-only user's recovery/HRV/RHR/SpO₂/resp write back correctly. `writeHeartRate`
-> reads only the base `noopDeviceId`, which is correct as-is: raw HR buckets are live telemetry with no
-> "-noop" computed variant, unlike the daily scores. Still device-untested per the TODO above.
-
----
-
-## Lessons from the fold-in (v1.94)
-
-How PR #42's port was brought onto current `main` — useful the next time a screen has to span platforms.
-
-- **Don't merge a stale port; reconcile it.** PR #42 was ~9 releases behind (139 commits, conflicting). A direct merge would have fought conflicts in shared files the macOS app *also* uses. Instead we stood up a **fresh `StrandiOS` target** on current `main` and **harvested** the field-proven iOS-only files (app shell, HealthKit, widgets, App Intents, the `Platform`/`DocumentPicker`/`FileExport` shims), then applied small guards to the shared screens. The shared **packages already built for iOS** (every `Package.swift` declares `.iOS(.v16)`), so ~90% of the code needed nothing.
-- **The macOS-only API surface is small + enumerable.** Folding in iOS only required touching these in shared code: file dialogs (`NSSavePanel`/`NSOpenPanel` → `DocumentPicker`/`FileExport`), `NSWorkspace.activateFileViewerSelecting` ("reveal in Finder", `#if os(macOS)`-guarded out), clipboard/`NSImage`/`NSWorkspace.open` (→ `Platform.*`), `MacActions.lockScreen` (returns false on iOS) / `runShortcut` (→ `PlatformOpen`), and two macOS-only SwiftUI modifiers (`.toggleStyle(.checkbox)`, `.onExitCommand`). The macOS-only *files* (`StrandApp`, `RootView`, `MenuBar`, notification settings) are **excluded from the iOS target** in `project.yml`.
-- **`ContentView` vs `RootTabView`.** macOS uses a `NavigationSplitView` sidebar (`ContentView` → `RootView`); iOS uses a `TabView` (`RootTabView`). The fold-in's one real drift was `ContentView` (not excluded) referencing the excluded `RootView`. Fix: exclude `ContentView.swift` from iOS and render `RootTabView` via `iOSRootView`, which reproduces the same onboarding / Terms / What's-New gates around the tab bar.
-- **CI is stricter than a bleeding-edge local Xcode — on purpose.** The first `app-build` run was red: `AppleHealthView` interpolated a `String?` into a `LocalizedStringKey` subtitle (`"\(optional)"`). A current local Xcode tolerates it as a deprecation (and renders `Optional(...)`); the runner's older Xcode rejects it. The maintainer can't device-test iOS, so the **CI compile gate on an older Xcode is the safety net** — treat its failures as real and fix the source (don't pin the runner to bleeding-edge).
-- **Anonymity when harvesting a community branch:** the fetched PR branch carried a real-name commit author. The pre-push hook scans `git log --all`, so **delete the fetched PR ref (and any worktree branches) before pushing**, and re-author harvested files as `NoopApp`. (`git checkout <ref> -- <paths>` brings the *content*; commit it yourself.)
-
----
-
-*NOOP keeps everything on-device. The iOS plan changes the front door (menu bar →
-widgets, AppKit → UIKit, file import → HealthKit) but not the principle: your strap,
-your data, no cloud.*
+See [build and release instructions](BUILD.md#publish-an-unsigned-apple-release) for the complete
+checklist.

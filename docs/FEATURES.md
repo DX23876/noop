@@ -1,18 +1,14 @@
 # NOOP — Feature Guide
 
-NOOP is a standalone, fully **offline** companion app for WHOOP straps (4.0 and 5.0). It pairs
+NOOP is an **offline-first** companion app for WHOOP straps (4.0 and 5.0/MG). It pairs
 directly with the strap over Bluetooth Low Energy — **no WHOOP account, no
 cloud** — stores everything on-device in SQLite, imports your WHOOP and Apple Health exports,
 and computes its own daily scores locally — **Charge** (recovery), **Effort** (strain) and **Rest**
 (sleep), an energy economy you wake with, spend, and rebuild — alongside HRV and the raw signals.
-These are honest approximations from published methods, **not WHOOP's scores**. The macOS app (in `Strand/`) is the
-reference implementation (installable via the Homebrew cask); Android (in `android/`) is a full,
-shipped app (sideload the `.apk`); and iOS ships as an **unsigned `.ipa` you sideload** with
-AltStore/SideStore — signed on your own iPhone with your own free Apple ID, so there's no App
-Store or developer account and NOOP stays anonymous (see [docs/IOS.md](IOS.md); you can still
-build it yourself in Xcode). It shares NOOP's analysis code, so its results match
-macOS; it is newer and less battle-tested, with live BLE on a physical iPhone not yet fully
-validated.
+These are honest approximations from published methods, **not WHOOP's scores**. macOS and iOS/iPadOS
+ship from this fork and share the same store and analysis implementations; iOS is distributed as an
+unsigned AltStore/SideStore IPA or built with Xcode. The optional Watch companion is part of the Full
+IPA. Android is maintained in [RyanBR's upstream project](https://github.com/ryanbr/noop), not here.
 
 > **Not affiliated with WHOOP.** NOOP is independent interoperability software for *your own*
 > device and *your own* data. "WHOOP" is used only to identify the hardware NOOP talks to.
@@ -574,10 +570,9 @@ HRV down ≥20%, skin temp up ≥0.6 °C, respiration up — a banner appears on
 
 On a banner transition from clear to raised, NOOP also posts a **system notification** (at most
 once per local day) so the warning reaches you when the window is closed. The toggle lives in
-**Automations → Illness early-warning**. The defaults differ by platform on purpose: macOS is
-**opt-in** (off by default — enabling it triggers the notification-permission prompt), while
-Android is **opt-out** (on by default — the watch has always run there). Needs at least 14 days
-of history. On-device and approximate — informational only, **not** a diagnosis.
+**Automations → Illness early-warning**. It is opt-in; enabling it can trigger the platform's
+notification-permission prompt. It needs at least 14 days of history. On-device and approximate —
+informational only, **not** a diagnosis.
 
 ---
 

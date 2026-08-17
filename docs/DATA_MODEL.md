@@ -1,6 +1,6 @@
 # NOOP — On-Device Data Model
 
-NOOP is a standalone, fully offline companion app for WHOOP straps (4.0 and 5.0). It talks to
+NOOP is an offline-first companion app for WHOOP straps (4.0 and 5.0/MG). Its biometric pipeline talks to
 the user's own strap directly over Bluetooth Low Energy — no WHOOP cloud or account
 is involved, and stores everything it decodes locally in a single SQLite database.
 This document describes that on-device database: every table, its columns, natural keys, indexes,
@@ -16,10 +16,10 @@ and the migration history that produced the current schema.
 ## Where the database lives
 
 The persistence layer is the `WhoopStore` Swift package
-(`Packages/WhoopStore`), built on [GRDB](https://github.com/groue/GRDB.swift) over SQLite. Like
-every package in the repo, it declares both platforms — `.iOS(.v16)` and `.macOS(.v13)`
+(`Packages/WhoopStore`), built on [GRDB](https://github.com/groue/GRDB.swift) over SQLite. It
+declares both platforms — `.iOS(.v16)` and `.macOS(.v13)`
 (`Packages/WhoopStore/Package.swift`) — and is UI-framework agnostic, so the same schema and
-storage code back both the macOS app and the iOS app (the latter build-from-source only — see
+storage code back both the released macOS app and iOS app (see
 `docs/IOS.md`).
 
 The macOS app target opens the database at a fixed, per-user location
@@ -62,18 +62,16 @@ single `DatabaseQueue` and applies these PRAGMAs before any query runs:
 `WhoopStore` is an `actor`: all GRDB calls run on the actor's serial executor (off the main
 thread) through the `syncRead` / `syncWrite` helpers. `WhoopStoreInfo.schemaVersion` is a
 separate, manually-maintained constant (currently `18`) that has lagged the real migration
-history for a while and should not be read as the schema's true version. The migrator itself
-(`makeMigrator()`, below) is the source of truth for what tables/columns exist, and has run
-through **v25** (`v25-oura-raw` — the Oura raw-payload archive, the newest addition; see
-below).
+history and must not be read as the schema's true version. The migrator itself (`makeMigrator()`,
+below) is the source of truth for what tables/columns exist and currently runs through
+**`v40-analysis-input-revision`**.
 
 ---
 
 ## Schema at a glance
 
-The schema falls into five groups (this section predates, and undercounts, everything added
-after v9 — see the schema-version note above; the Oura raw archive below is the one
-post-v9 addition currently documented here):
+The schema falls into the groups below. The migration table is intentionally a selected history;
+`Database.swift` remains authoritative for every intermediate migration.
 
 | Group | Tables | Origin |
 | --- | --- | --- |
@@ -199,7 +197,7 @@ second arrives across separate insert batches or via the live/historical merge. 
 would restart per batch and collide distinct beats — a data-loss regression.
 
 **Read order:** `ts ASC, ord ASC, rrMs ASC, seq ASC`
-(`Reads.swift` `rrIntervals`, `WhoopDao.kt` `rrIntervals`).
+(`Reads.swift` `rrIntervals`).
 
 `ord` leads the sort because ordering by `rrMs` returned a second's beats sorted by **value**, which
 makes successive beats similar by construction and biases RMSSD — built entirely from successive
@@ -211,15 +209,13 @@ Two properties of `ord` a consumer has to know:
 - **Pre-v30 rows have `ord` NULL.** The order was never recorded and cannot be backfilled. SQLite
   sorts NULL first in ASC, so an all-legacy second ties on `ord` and falls through to the old
   `(rrMs, seq)` order — i.e. existing data reads back exactly as before, with the #823 bias intact.
-  No `COALESCE`, no sentinel. Room and GRDB agree here because both are SQLite.
+  No `COALESCE`, no sentinel.
 - **`ord` is batch-local.** A second split across two live flushes restarts `ord` at 0, and
   `ON CONFLICT DO NOTHING` keeps whichever row landed first, so that second also falls back to
   magnitude order. The historical offload path delivers a second atomically and is unaffected.
 
-`ord` is a sort key only. The two platforms differ in whether they carry it back: Swift selects
-`ts, rrMs`, so `ord` is excluded, while `WhoopDao.rrIntervals` is `SELECT *` and Room materialises it
-into every returned `RrInterval` (`Entities.kt`, `val ord: Int? = null`). No consumer reads its value
-on either platform.
+`ord` is a storage/read-order key only. The public Swift read returns `ts, rrMs`; no current consumer
+receives or interprets `ord` directly.
 
 ### `event` *(v1)* — strap events
 
@@ -520,8 +516,7 @@ legacy scores without a row have unknown provenance and the UI omits their provi
 
 ## Oura raw-payload archive
 
-This section documents the one table added after this document's v9 baseline (see the
-schema-version note above): the lossless backstop behind the opt-in Oura history import
+This section documents the lossless backstop behind the opt-in Oura history import
 (off by default; user-initiated OAuth backfill — `docs/PRIVACY_SECURITY.md` §1.1b). It is
 **not** a metric cache like the tables above — it stores verbatim API responses, not decoded
 values, so any field Oura returns can be re-derived later without re-fetching.

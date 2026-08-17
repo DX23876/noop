@@ -62,6 +62,11 @@ the Android target is dropped and no longer kept in sync. Byte-identical analyti
 FNV-1a hashing, the `.noopbak` byte-identical whitelist and Room/GRDB schema agreement are **no longer
 gates** on a change.
 
+This does not make current Apple backups incompatible. NOOP AI 10.1.1 still migrates older upstream
+backups forward, and `MigrationTests.testV40DatabaseRemainsReadableByRyanbrV37Migrator` pins the
+current backwards-reader contract. What was retired is the promise that every future fork change
+must remain byte-identical to the removed Android/Room implementation.
+
 The tree itself was removed on 2026-08-14: `android/` (899 files), `.github/workflows/android.yml`,
 and the Android jobs in both release workflows. Nobody here develops it, and a tree nobody builds
 only rots — it was still absorbing upstream churn on every sync while never being compiled.
@@ -91,8 +96,10 @@ rm -rf android
 An upstream change to a Swift analytics file whose Kotlin twin also changed is still worth reading
 for intent — their Kotlin diff often explains what the Swift one is doing.
 
-**Separate and still binding:** the app stays fully offline, on-device — no server, no account, no
-cloud sync, no telemetry, anonymous. That is upstream's rule and the fork's alike.
+**Separate and still binding:** biometric storage and scoring stay on-device, with no NOOP server,
+account, cloud sync, or telemetry. The only controlled network paths are the configured Coach
+provider, source-built inbound Oura history import, and manual public-release check; see
+[`PRIVACY_SECURITY.md`](PRIVACY_SECURITY.md).
 
 ### The AI coach
 

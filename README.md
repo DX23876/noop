@@ -214,14 +214,16 @@ identity changes with every build.
 |---|---|
 | ⌚ **Own your strap data** | Connect directly to a WHOOP 4.0 or 5.0/MG over Bluetooth. No WHOOP account, subscription, or cloud relay. |
 | 📈 **Compute locally** | Charge, Effort, Rest, sleep, HRV, heart rate, recovery trends, and correlations are calculated and stored on your device. |
-| 🔒 **Keep control** | No telemetry, no NOOP account, and no server. The optional coach only contacts the provider and API key you configure when you send a message. |
+| 🔒 **Keep control** | No telemetry, no NOOP account, and no NOOP server. Network access is limited to explicit features: your chosen Coach provider, an optional source-built Oura import, and the manual public-release check. |
 | 📬 **See what happened** | Today and the bell keep daily signals, important status, and recent alerts visible without turning every event into noise. |
 
 ## Privacy, precisely
 
 NOOP AI is offline-first. Your strap data, database, scores, history, goals, coach memory, and plans
-stay on your device. The optional AI coach is the only feature that can make a network request, and it
-does so only when you choose a provider, provide your own key, and send a message.
+stay on your device. The optional AI Coach contacts only the provider you configure when you ask it
+to; a source-built Oura history lane can pull your own Oura data in; and **Check for updates** reads
+only the latest public release metadata when you tap it. None of these paths uploads raw sensor
+streams or gives NOOP a server or account.
 
 More detail: [Privacy and security](docs/PRIVACY_SECURITY.md).
 
@@ -242,6 +244,7 @@ open Strand.xcodeproj
 
 ## Documentation
 
+- [Complete documentation map](docs/README.md)
 - [iOS install and build guide](docs/IOS.md)
 - [Build and signing guide](docs/BUILD.md)
 - [Coach guide](docs/fork/COACH.md)
@@ -253,7 +256,7 @@ open Strand.xcodeproj
 
 NOOP AI is a personal fork of [ryanbr/noop](https://github.com/ryanbr/noop). The upstream project
 deserves credit for the protocol, analytics, and design-system foundations; this fork develops the
-local coach and Apple-first beta distribution independently. It is an unofficial, non-commercial
+local coach and Apple-first sideload distribution independently. It is an unofficial, non-commercial
 interoperability project and is not affiliated with WHOOP.
 
 ## Disclaimer

@@ -1,10 +1,10 @@
 # NOOP — System Architecture
 
-NOOP is a standalone, fully **offline** companion app for WHOOP straps (4.0 and 5.0). It talks
-directly to the strap over Bluetooth Low Energy, stores everything on-device in SQLite (GRDB on Mac/iOS, Room on Android), and computes
-recovery, strain, HRV, and sleep locally. There is no WHOOP cloud, no account —
-the app interoperates with **your own device and your own data**. It can also import data you already
-own: WHOOP CSV exports and Apple Health exports.
+NOOP is an **offline-first** companion app for WHOOP straps (4.0 and 5.0/MG). It talks directly to
+the strap over Bluetooth Low Energy, stores everything on-device in GRDB/SQLite, and computes
+Charge, Effort, Rest, HRV, and sleep locally. There is no NOOP cloud or account. Explicit optional
+network paths are isolated to the Coach, a source-built Oura history import, and the manual public
+release check; see [privacy and security](PRIVACY_SECURITY.md).
 
 > **Not affiliated with WHOOP.** NOOP is an independent, interoperability project built on
 > community reverse-engineering of the strap's Bluetooth protocol. It is **not a medical device**
@@ -92,21 +92,24 @@ Strand/                         macOS SwiftUI app target (the reference implemen
 ├── MenuBar/                    glanceable menu-bar extra
 └── System/                     macOS integrations (lock screen, Shortcuts)
 
-Packages/                       Cross-platform Swift packages (iOS 16+ / macOS 13+)
+Packages/                       Reusable Swift packages
 ├── WhoopProtocol/              BLE frame parsing, CRC, command/event/packet decode
 ├── WhoopStore/                 GRDB/SQLite persistence (actor)
 ├── StrandAnalytics/            HRV/recovery/strain/sleep/correlation math
 ├── StrandImport/               WHOOP CSV + Apple Health importers
-└── StrandDesign/               SwiftUI design system (palette, components, charts)
+├── StrandDesign/               SwiftUI design system (palette, components, charts)
+├── OuraProtocol/               Oura BLE protocol/decode
+├── PolarProtocol/              Polar protocol/decode
+├── SemanticMemory/             local Coach memory index
+└── NoopLocalAccess/            optional read-only macOS local-access CLI/core
 
 Tools/Backfill/                 CLI offload/replay tool
 ```
 
-The app target (`Strand/`) is the **macOS reference implementation**. The same five packages back the
-**iOS** app (`StrandiOS/`, `StrandiOSShared/`, `StrandiOSWidgets/` — **build-from-source only**, no
-App Store/TestFlight; see [`IOS.md`](./IOS.md)) and the **Android** app (`android/`, Room/Kotlin). The
-packages already declare `.iOS(.v16)` and `.macOS(.v13)` and keep all UI-framework code behind
-`#if canImport(UIKit)` / `#if canImport(AppKit)` guards so the cores port unchanged.
+The app target (`Strand/`) is the **macOS reference implementation**. The released iOS/iPadOS app
+uses `StrandiOS/`, shared `Strand/` sources, and the same package implementations; widgets, Live
+Activity and the optional Watch companion are defined by `project.yml`. This fork no longer carries
+Android. Package manifests declare their real platform floors individually.
 
 ---
 

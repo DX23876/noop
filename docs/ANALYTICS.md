@@ -1,6 +1,6 @@
 # NOOP Analytics
 
-On-device analytics for **NOOP** — a standalone, fully offline companion app for WHOOP straps (4.0 and 5.0/MG). NOOP talks to *your own* strap over Bluetooth, stores everything locally in SQLite, and computes its three daily scores plus HRV and sleep staging on-device. There is no cloud and no account involved in any of the math described here.
+On-device analytics for **NOOP** — an offline-first companion app for WHOOP straps (4.0 and 5.0/MG). NOOP talks to *your own* strap over Bluetooth, stores its biometric history locally in SQLite, and computes its three daily scores plus HRV and sleep staging on-device. No cloud or account participates in any of the math described here.
 
 ## NOOP's three daily scores — Charge / Effort / Rest
 
@@ -26,13 +26,16 @@ All analytics live in the cross-platform `StrandAnalytics` Swift package. Every 
 
 - Package: `Packages/StrandAnalytics/Sources/StrandAnalytics/`
 - Top-level index: `StrandAnalytics.swift` (`StrandAnalytics.version == "0.1.0"`)
-- App reference implementation: `Strand/` (SwiftUI, macOS + iOS). The same `StrandAnalytics` code backs both Swift app targets, and Android (Room/Kotlin) runs equivalent analytics — the number-crunching is shared, so results match across platforms.
+- App integration: shared `Strand/` sources back the released macOS and iOS targets. Both execute the
+  same `StrandAnalytics` code; this fork no longer carries an Android/Kotlin twin.
 
 ---
 
 ## What is actually wired into the app
 
-The package contains more analytics than the app currently surfaces. This section is the honest map of **library-only** vs **live**, verified against the app sources. The status below is shared across the Swift targets (macOS + iOS); Android runs the equivalent code through its own Kotlin/Room layer.
+The package contains more analytics than the app currently surfaces. This section is the honest map
+of **library-only** vs **live**, verified against the app sources. The status below applies to the
+released macOS and iOS targets.
 
 | Engine | File | Status in the app |
 |---|---|---|
@@ -335,12 +338,15 @@ The rule: **elevated HR alone is insufficient to call wake.** An epoch or run at
 - **`confirmSleepWithHR` (V1 detection).** When a run is deeply motion-quiescent (≥ ~90% of its dense-gravity minutes posture-stable), the HR sleep band widens from **×1.05 → ×1.30** so a supplement-elevated but motionless run is not rejected. The band keeps a **floor** (genuine all-night in-bed wakefulness is still dropped); with no gravity evidence the strict ×1.05 band stands.
 - **`adaptiveOvernightHRBaseline`.** A personalised sleep band derived from recent overnight medians (self-calibrating across a supplement/fitness era), with a floor. Threaded through `detectSleep` as an optional argument that defaults to `nil` (byte-identical when unset); live cross-night wiring in `IntelligenceEngine` is a follow-up.
 
-Source: `SleepStager.swift` (`confirmSleepWithHR`, `adaptiveOvernightHRBaseline`) and `SleepStagerV2.swift` (motion-quiescent clamp), both in `Packages/StrandAnalytics`. Filed upstream as [ryanbr/noop#462](https://github.com/ryanbr/noop/issues/462). The Kotlin analytics twin (`com.noop.analytics`) is a deliberate follow-up (Swift-only contributor) — the parity contract requires the two stagers to stay byte-identical once transcribed.
+Source: `SleepStager.swift` (`confirmSleepWithHR`, `adaptiveOvernightHRBaseline`) and
+`SleepStagerV2.swift` (motion-quiescent clamp), both in `Packages/StrandAnalytics`. Filed upstream as
+[ryanbr/noop#462](https://github.com/ryanbr/noop/issues/462). Any upstream Kotlin port is maintained
+upstream; it is not part of this Apple-only fork.
 ### Displayed sleep onset — the headline "Asleep at" spans the whole bridged night
 
 The Sleep screen headline ("Asleep at …") reports the onset of the **whole bridged night**, not the main session's start. A night stored as a short first-sleep fragment + a brief walk + the main session bridges into one group when the gap is under `gapBridgeMaxMin` (60 min). The display onset walk (`SleepView.nightOnsetTs` → `isPreOnsetAwakeStub`) previously mis-classified such a fragment as a spurious pre-onset lead through two stacked defects: (1) the #259 relative "minor lead" test compared the fragment's asleep minutes against 15% of the main block, so on a long main sleep a genuine short first sleep was skipped and the headline jumped forward to the main session's start; (2) the stub test read asleep minutes via the dict-only `decodeStages`, which returns nil for the segment-array `stagesJSON` an on-device **computed** night stores — so every fragment counted as 0 asleep minutes and tripped the "essentially sleepless stub" branch, bypassing defect (1)'s floor entirely.
 
-Fix: an **absolute floor** `preOnsetStubMinorAsleepFloorMin = 20` (min) under the #259 relative test — a leading fragment carrying **≥ 20 asleep minutes** is never treated as a spurious lead, whatever the main block's size — plus a format-agnostic `decodedAsleepMinutes` (dict-of-minutes decode with a segment-array fallback) used at both onset call sites, so the floor's input is populated on computed nights too. The relaxation is strict (it can only un-skip a real first sleep, never newly skip one), so the displayed onset now equals the bridged night's first sleep and agrees with the Apple Health write-back span (bridged night groups, #294/#364). The #736 sleepless-stub skip and the #259 tiny-stray-lead (≤ 10 min) behavior are unchanged. The constant and decode seam live in `Strand/Screens/SleepView.swift`, with the byte-identical Kotlin twin (the floor constant, the onset-walk rule, and the both-format decode + onset clamp) in `com.noop.ui.SleepScreen`.
+Fix: an **absolute floor** `preOnsetStubMinorAsleepFloorMin = 20` (min) under the #259 relative test — a leading fragment carrying **≥ 20 asleep minutes** is never treated as a spurious lead, whatever the main block's size — plus a format-agnostic `decodedAsleepMinutes` (dict-of-minutes decode with a segment-array fallback) used at both onset call sites, so the floor's input is populated on computed nights too. The relaxation is strict (it can only un-skip a real first sleep, never newly skip one), so the displayed onset now equals the bridged night's first sleep and agrees with the Apple Health write-back span (bridged night groups, #294/#364). The #736 sleepless-stub skip and the #259 tiny-stray-lead (≤ 10 min) behavior are unchanged. The constant and decode seam live in `Strand/Screens/SleepView.swift`.
 
 ---
 

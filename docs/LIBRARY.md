@@ -65,10 +65,9 @@ StrandDesign   (standalone — SwiftUI only, no internal deps)
 
 The reference app target (`Strand/`, macOS SwiftUI) is the integration layer: it
 owns the CoreBluetooth transport, wraps the protocol library's UUID *strings* in
-`CBUUID`, and wires the pure packages together. The macOS and iOS reference apps
-(the iOS target is build-from-source only) consume these packages directly, and
-an Android app ships alongside them; the pure packages run unchanged across macOS
-and iOS.
+`CBUUID`, and wires the pure packages together. The released macOS and iOS apps consume these
+packages directly; the platform-neutral packages run unchanged across both Apple targets. This
+fork no longer carries the former Android/Kotlin twin.
 
 ---
 
@@ -230,8 +229,9 @@ targets: [
 
 ### Schema
 
-The migrator (`WhoopStore.makeMigrator()`) runs `v1`…`v9`
-(`WhoopStoreInfo.schemaVersion == 9`). On open, the store enables WAL journal
+The migrator (`WhoopStore.makeMigrator()`) currently runs through
+`v40-analysis-input-revision`. The separate `WhoopStoreInfo.schemaVersion` constant is legacy
+metadata and is not the migration authority. On open, the store enables WAL journal
 mode, `synchronous = NORMAL`, a 16 MB page cache, 256 MB mmap, and a 5-second
 busy timeout so two handles to the same file don't deadlock.
 

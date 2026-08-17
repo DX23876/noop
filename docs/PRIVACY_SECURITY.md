@@ -26,18 +26,20 @@ local SQLite — has no network layer at all: no phone-home, no analytics, no ac
 no login, no cloud sync, and no telemetry. Everything NOOP computes about you lives in a
 single SQLite file on your own device.
 
-There are exactly **two** opt-in exceptions: the **AI Coach** (§1.1a) and the **Oura history
-import** (§1.1b). The AI Coach is off until you turn it on with your own API key; when you
+There are three user-controlled network paths: the **AI Coach** (§1.1a), the source-built **Oura
+history import** (§1.1b), and the manual **Check for updates** action (§1.1c). The AI Coach is off
+until you turn it on with your own API key; when you
 ask it a question it sends a short text summary of your recent metrics to the provider you
 choose. The Oura history import is **not even compiled into a default build** — the code
 only exists in your binary if you build from source with your own Oura developer app's
 credentials (§1.1b); instead of sending data out, it pulls your own Oura data **in** over
-OAuth, once, and never sends any of your existing NOOP data out. Nothing else in the app
-ever touches the network, and your raw biometric streams never leave the device through
-either exception.
+OAuth, once, and never sends any of your existing NOOP data out. The update check reads public
+release metadata from GitHub only when you tap it. Raw biometric streams never leave the device
+through any of these paths.
 
-Data enters NOOP three ways, and leaves it (other than the optional AI Coach) only when **you**
-deliberately export it to another store on the **same device**:
+Data enters NOOP three ways. It leaves the app only when **you** deliberately use the optional AI
+Coach, export it to another store on the **same device**, or launch the separate read-only local
+access CLI:
 
 | Path | Transport | Direction |
 |------|-----------|-----------|
@@ -45,28 +47,26 @@ deliberately export it to another store on the **same device**:
 | File import (Apple Health, WHOOP CSV, nutrition CSV) | User-selected files on disk | Read-only from disk |
 | Oura history import (opt-in build flag, §1.1b) | HTTPS OAuth + REST, `api.ouraring.com` → device | Read-only from your own Oura account |
 | Apple Health export, incl. iOS "Export for Shortcuts" | On-device, user-initiated | NOOP → your Apple Health, on your device only (§1.3) |
+| Check for updates (§1.1c) | HTTPS GET to GitHub's public Releases API | Public version metadata → device; no health payload |
+| Optional local access CLI (§1.4) | Local MCP over standard input/output | Bounded, read-only summaries from SQLite → the local client you launch |
 
-The only **network** paths are the opt-in AI Coach and the compile-time-optional Oura
-history import; the
+The only **network** paths are the opt-in AI Coach, the compile-time-optional Oura history import,
+and the user-initiated public release check; the
 biometric pipeline produces no network traffic of any kind. The Apple Health export above is
 an **on-device** hand-off, not a network upload — see §1.3.
 
-### 1.1 Network code: only the two optional exceptions
+### 1.1 Network code: three controlled paths
 
-The biometric pipeline and all five Swift packages
-(`WhoopProtocol`, `WhoopStore`, `StrandAnalytics`, `StrandImport`, `StrandDesign`)
+The biometric pipeline and reusable Swift packages
+(`WhoopProtocol`, `WhoopStore`, `StrandAnalytics`, `StrandImport`, `StrandDesign`, `OuraProtocol`,
+`PolarProtocol`, `SemanticMemory`, and `NoopLocalAccess`)
 contain **no** use of `URLSession`, `URLRequest`, `NWConnection`, `dataTask`, or any
 other networking API — still true after the Oura history import (§1.1b) landed: its OAuth
 and REST calls live entirely in the app target, `Strand/Oura/`, and `StrandImport`
-gained only pure, network-free parsers for Oura's payload shapes. These Swift packages
-are **shared by the macOS and iOS apps** (iOS is build-from-source only — no App Store /
-TestFlight — and was folded into the main tree in v1.94), so the Swift-side privacy
-behaviour described here applies equally to both. Android is a separate codebase using
-Room for storage and Kotlin for the BLE / import / Coach paths; its own Oura support is
-the local BLE ring-pairing lane, not a network API, so it has no equivalent to §1.1b. The
-**only** networking anywhere in the app is the AI Coach (`Strand/AI/AICoach.swift` on the
-Swift side — macOS and iOS — `com.noop.ai.AiCoach` on Android), described in §1.1a, and
-the Oura history import (`Strand/Oura/`, Swift-only — macOS and iOS), described in §1.1b.
+gained only pure, network-free parsers for Oura's payload shapes. The released macOS and iOS apps
+share these implementations. App-target networking is isolated to the AI Coach (`Strand/AI/`), the
+compile-time Oura cloud lane (`Strand/Oura/`), and the manual release reader
+(`Strand/System/UpdateChecker.swift`).
 The package manifests reference dependency *download* URLs that Swift Package Manager
 resolves at build time, never at runtime:
 
@@ -80,9 +80,8 @@ importers. Neither opens a socket.
 
 ### 1.1a The AI Coach (optional, off by default, bring your own key)
 
-The AI Coach lets you ask questions about your data in plain language. It is one of the
-two features that use the network (the other is the Oura history import, §1.1b), and only
-on your terms:
+The AI Coach lets you ask questions about your data in plain language. It is a user-enabled network
+feature and operates only on your terms:
 
 - **Off until you enable it.** You enter your own API key for the provider you choose
   (Anthropic, OpenAI, or a local / self-hosted OpenAI-compatible LLM such as Ollama or
@@ -107,9 +106,8 @@ on your terms:
   provider you picked, under your own account. NOOP runs no server in between and keeps
   no copy.
 
-If you never enable the AI Coach and never build the Oura import in (§1.1b), NOOP makes
-zero network connections — and in a default build, the Oura code isn't in the binary to
-begin with.
+If you never enable the AI Coach, never build the Oura import, and never tap **Check for updates**,
+NOOP makes no network request. In a default build, the Oura cloud code is not in the binary.
 
 ### 1.1b The Oura history import (compiled out by default, bring your own OAuth app)
 
@@ -152,7 +150,15 @@ API — a one-time, foreground backfill you trigger yourself, not an ongoing bac
 
 If you never build the lane in, your binary cannot call `ouraring.com` — the code is not there.
 
-### 1.2 The macOS sandbox (and what it means for the AI Coach and the Oura import)
+### 1.1c Check for updates (manual, metadata only)
+
+`Strand/System/UpdateChecker.swift` performs one user-initiated HTTPS GET to
+`https://api.github.com/repos/DX23876/noop/releases/latest` when you tap **Check for updates** in
+Settings. It sends no health data, database content, device identifier, NOOP account identifier (none
+exists), or background telemetry. It reads the public tag, notes, and asset links needed to tell you
+whether a newer release exists. There is no timer, launch check, or automatic download.
+
+### 1.2 The macOS sandbox (and what it means for the controlled network paths)
 
 On macOS the App Sandbox is the backstop. The app ships with a minimal entitlement set
 (`Strand/Resources/Strand.entitlements`):
@@ -176,12 +182,12 @@ That is the entire entitlement file. Four keys:
   explicitly picks (and write the database in its own container).
 - **`network.client`** — outbound socket access. Added for the AI Coach on a
   signed/sandboxed build, where the sandbox otherwise refuses any socket the app tries
-  to open (#128); the Oura history import (§1.1b) now relies on the same entitlement. The
+  to open (#128); the Oura history import (§1.1b) and manual update check (§1.1c) rely on the same
+  entitlement. The
   ad-hoc distributed build applies **no** entitlements at all (unsigned build + ad-hoc
   re-sign), so this key only matters for a signed/sandboxed build. The entitlement only
-  permits the socket the sandbox would otherwise refuse — it doesn't make either feature
-  call out on its own; both stay off until you deliberately turn the Coach on or tap
-  Connect Oura.
+  permits the socket the sandbox would otherwise refuse — it does not initiate traffic. Requests
+  happen only when you use the Coach, connect Oura, or tap **Check for updates**.
 
 Notably **absent**:
 
@@ -190,8 +196,8 @@ Notably **absent**:
   the app cannot wander the disk; it sees only what the user hands it through the
   open panel, plus its own sandbox container.
 
-This is the structural guarantee behind "offline by design" on macOS: the sandbox
-permits exactly the two deliberate, opt-in exceptions above and nothing else — no
+This is the structural guarantee behind "offline-first" on macOS: the sandbox
+permits the deliberate outbound paths above and no inbound listener — no
 undeclared entitlement could smuggle out a connection the user didn't ask for. The
 property is enforced by the OS, not merely by convention.
 
@@ -220,6 +226,18 @@ NOOP's own store — but it never leaves your **device**, and never touches the 
   you push into Apple Health and for anything you or your Shortcuts then do with it.** See
   `DISCLAIMER.md` §5.3 and `TERMS.md` §5.
 
+### 1.4 Optional local access CLI — read-only, local process
+
+`Packages/NoopLocalAccess` builds a separate macOS command-line tool; it is not an app background
+service. When you explicitly launch and configure it, the tool opens the selected NOOP SQLite file
+in read-only mode and exposes bounded health summaries to the invoking MCP client over local
+standard input/output. It does not write to the database, open a network connection, or listen on a
+port.
+
+The returned summaries are personal health information. Once a local client receives them, that
+client's storage, model, network, and retention behavior are outside NOOP's control. Only configure
+the CLI with a client you trust.
+
 ---
 
 ## 2. Data at rest
@@ -235,12 +253,10 @@ iOS, which share the `WhoopStore` package) open it at (`Strand/Collect/StorePath
 
 Because the app is sandboxed, `<Application Support>` resolves **inside the app's
 sandbox container**, not the user's global `~/Library/Application Support`. Other
-apps cannot read it through normal filesystem access. (On Android the equivalent store
-is a Room/SQLite database in the app's private storage; the rest of this section
-describes the GRDB/SQLite store shared by the macOS and iOS apps.)
+apps cannot read it through normal filesystem access.
 
 The schema is defined by a versioned `DatabaseMigrator` in
-`Packages/WhoopStore/Sources/WhoopStore/Database.swift` (currently schema version 9).
+`Packages/WhoopStore/Sources/WhoopStore/Database.swift` (currently through migration v40).
 It holds exactly the kinds of data you would expect from the features:
 
 - **Decoded biometric streams** (durable): `hrSample`, `rrInterval`, `spo2Sample`,
@@ -265,12 +281,10 @@ database — they live in the same container.
 The SQLite file is **not encrypted at rest by NOOP itself.** Confidentiality of the
 data on disk relies on the platform:
 
-- **FileVault** (full-disk encryption, on by default on modern Macs) protects the
-  database whenever the disk is at rest / the machine is powered off. On iOS and
-  Android the equivalent is the platform's on-by-default device encryption / data
-  protection, which guards the file while the device is locked.
-- The **sandbox container** (app container on macOS/iOS, private app storage on
-  Android) keeps other user-space apps from reading the file directly.
+- **FileVault** protects the macOS database whenever the disk is at rest. On iOS, Apple's Data
+  Protection and device encryption guard app-container files while the device is locked.
+- The **app sandbox container** on macOS/iOS keeps other user-space apps from reading the file
+  directly through normal filesystem access.
 
 What this does **not** protect against: an attacker with your unlocked, logged-in
 session, or a backup/Time Machine copy of the container made while FileVault is
@@ -300,57 +314,17 @@ aid.)
 
 ### 2.4 Diagnostics: the strap connection log
 
-When a strap won't connect or behaves oddly, the single most useful thing a user can
-send is the connection log. NOOP keeps one so it can be shared **without** needing
-`adb` or a developer setup (this is what made issues #17/#18 reportable), and the same
-log doubles as the primary tool for **debugging and protocol development** (see
-`ANDROID.md` → "Debugging the strap connection").
-
-**What it is.** The BLE client (`android/.../ble/WhoopBleClient.kt`,
-`Strand/BLE/BLEManager.swift` on the Swift side — macOS and iOS) keeps an **in-memory
-ring buffer** — the last
-2000 log lines on Android — of the connection's control flow: scan results (strap
-advertised name + RSSI), the bond/handshake state machine, command names with their
-outbound payload **hex**, and offload progress (trim cursors, chunk acks). It is held
-in RAM only; the "Share strap log" button writes it to a private app-cache file at
-share time and hands that file to the OS share sheet. Nothing is uploaded by NOOP.
+When a strap will not connect or behaves oddly, NOOP's Apple BLE client
+(`Strand/BLE/BLEManager.swift` and `LiveState`) keeps a bounded in-memory connection log. The log
+records control flow such as scans, connection/handshake state, command names and offload progress.
+Sharing is explicit: the app materializes a temporary file only when you choose the share action and
+hands it to the system share sheet. NOOP does not upload it.
 
 **What it does *not* contain.** No account credentials (there is no account), no
 decoded biometric *values* (heart-rate numbers, R-R intervals, SpO₂, skin-temp are not
 written to the log — only control-plane command names and frame-routing), and no
-hello-token or serial hex (the handshake lines log *that* a step happened, not its
-secret payload). The one mild identifier is the strap's advertised name (e.g.
-`WHOOP 5AG…`), which the user chooses to include when they tap Share.
-
-**logcat is opt-in (debug mode), off by default.** By default the log is mirrored
-**only** to the in-app buffer — it is *not* written to Android's system log
-(`Log.d`/logcat). A user has no reason to emit the connection log to the device-wide
-log, so they don't. Developers who want to watch a session live over
-`adb logcat -s WhoopBleClient` turn on **Settings → Strap → "Debug logging"**
-(persisted as `NoopPrefs.KEY_DEBUG_LOGGING`, default `false`); the flag drives
-`WhoopBleClient.debugLogcat`, which gates the single `Log.d` call. The in-app buffer
-and the "Share strap log" export work the same whether or not debug logging is on, so
-the diagnostic path is always available without ever defaulting users into logcat.
-
-### 2.5 Wrist alerts: the Android notification listener
-
-Android wrist alerts (buzz the strap when chosen apps notify you) need a
-`NotificationListenerService` — that's the only way to register in the OS's
-**Notification Access** list and be told a notification was posted. Notification
-access is a powerful permission, so for a privacy-first app it's worth being precise
-about what NOOP does and does not do with it:
-
-- **Off by default, double opt-in.** The service does nothing until you both grant
-  Notification Access in system settings *and* turn on **Wrist alerts** in NOOP, then
-  enable specific apps (each app is off by default).
-- **It reads only the posting package name — never content.** On a posted
-  notification NOOP looks at *which app* posted (and skips ongoing / foreground-service /
-  group-summary noise), checks your settings (master toggle, that app's opt-in, quiet
-  hours, only-when-worn), and if all pass, sends a haptic-pattern command to the strap.
-  The notification's title, text, sender, and extras are never read, stored, logged, or
-  transmitted.
-- **Nothing leaves the device.** There is no server; the only output is a Bluetooth
-  buzz to your own strap. (`android/.../notif/NoopNotificationListener.kt`.)
+hello-token or serial hex (the handshake lines log *that* a step happened, not its secret payload).
+The mild identifier is the strap's advertised name, which you choose to include when sharing.
 
 ---
 
@@ -526,7 +500,8 @@ dedicated source id `nutrition-csv`, alongside your other metrics and entirely o
 
 | Surface | Risk | Mitigation | Where |
 |---------|------|------------|-------|
-| Process | Data exfiltration / network egress | Only two opt-in features network: the AI Coach (your key, to your chosen provider, a text summary — §1.1a) and the Oura history import (your own OAuth app, to `api.ouraring.com`, inbound-only — §1.1b). Nothing else makes a network call, and nothing is sent until you ask. Both work on Android/iOS where shipped (Android's Oura support is local-BLE only, no cloud lane); on macOS both cross the sandbox on the same `network.client` entitlement, present since #128 (§1.2) | `Strand/AI/AICoach.swift`, `Strand/Oura/`, `android/.../ai/AiCoach.kt` |
+| Process | Data exfiltration / network egress | Network paths are isolated and user-controlled: Coach text to the configured provider (§1.1a), source-built inbound Oura import (§1.1b), and a metadata-only manual GitHub release check (§1.1c). Raw streams are never payloads. | `Strand/AI/`, `Strand/Oura/`, `Strand/System/UpdateChecker.swift` |
+| Local access | Unintended disclosure to a local client | Separate user-launched CLI; SQLite opened read-only; bounded tools over standard input/output; no network listener. The user controls the downstream client (§1.4). | `Packages/NoopLocalAccess/` |
 | Oura history import | OAuth token / scope leakage, cross-account data mixing | Compiled out by default (`OURA_CLOUD_IMPORT`, §1.1b); tokens Keychain-only (`kSecAttrAccessibleAfterFirstUnlock`, never UserDefaults/plist); fixed OAuth scopes set at build time; raw + normalized rows partitioned under `deviceId = "oura-api"`; Oura's own scores kept reference-only (`ref_*`/`oura_*` metricSeries keys, never NOOP's Charge/Effort/Rest); `.cloudImport` is structurally priority-2 so it never seizes a WHOOP day; Forget Oura access purges tokens + every `oura-api` row incl. the raw archive | `Strand/Oura/OuraTokenStore.swift`, `Strand/Oura/OuraConnectModel.swift`, `Packages/WhoopStore/Sources/WhoopStore/OuraRawStore.swift` |
 | Filesystem | Broad disk access | Only `files.user-selected.read-write`; data stays in the sandbox container | `Strand.entitlements`, `Strand/Collect/StorePaths.swift` |
 | BLE frames | Malformed / adversarial packets | CRC8 + CRC32 (+ CRC16 for v5) gating; reject on failure | `WhoopProtocol/Framing.swift`, `Strand/BLE/FrameRouter.swift` |
@@ -538,7 +513,7 @@ dedicated source id `nutrition-csv`, alongside your other metrics and entirely o
 | CSV import | Zip bomb / oversized entries | 256 MB per-entry cap (declared + running budget); CRC32 verify | `StrandImport/WhoopExportImporter.swift` |
 | CSV import | Arbitrary archive members | Filename allow-list; tolerant optional-column parsing | `StrandImport/WhoopExportImporter.swift` |
 | Data at rest | Disk theft / offline access | Relies on FileVault + sandbox container; SQLCipher available as an option | `WhoopStore/WhoopStore.swift` |
-| Diagnostics log | Leaking the strap log to the device-wide system log | In-app ring buffer only; logcat mirroring is **opt-in** (Settings → Strap → "Debug logging", default off); no biometric values / tokens logged (§2.4) | `android/.../ble/WhoopBleClient.kt` (`debugLogcat`), `android/.../ui/MainActivity.kt` (`NoopPrefs`) |
+| Diagnostics log | Accidental disclosure when sharing | Bounded in-memory log, temporary file created only for the explicit share action; no decoded biometric values or tokens (§2.4) | `Strand/BLE/BLEManager.swift`, `Strand/BLE/LiveState.swift` |
 
 ---
 

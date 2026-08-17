@@ -1,33 +1,36 @@
-# Platform safeguards — staying within GitHub's Acceptable Use Policy
+# GitHub and release safeguards
 
-NOOP's account was once auto-suspended by GitHub (later **reinstated on appeal** — the review found no violation). The most likely trigger was **automated pattern-matching**, not anything we actually did wrong: an anonymous account that, in a short window, cut a rapid burst of releases *and* posted many comments repeating the same donation address. To a spam filter that looks bot-like, even though it was one developer shipping fast and answering everyone.
+NOOP previously experienced an automated GitHub suspension that was reversed on appeal. This fork
+therefore keeps repository automation deliberate, bounded, and auditable without pretending GitHub
+Actions is disabled.
 
-NOOP's purpose is legitimate — it reads a device **you own** over Bluetooth, fully offline, with no account, no cloud, and no proprietary code. None of that breaks GitHub's terms or any law. These safeguards exist so our **behaviour never again *looks* like abuse** to an automated filter. They're grounded in [GitHub's Acceptable Use Policies](https://docs.github.com/en/site-policy/acceptable-use-policies/github-acceptable-use-policies) and [Terms of Service](https://docs.github.com/en/site-policy/github-terms/github-terms-of-service).
+## Current policy
 
-## The relevant policy lines
+1. **No promotional bulk activity.** Donation or crypto addresses belong only in canonical project
+   pages, never in repeated issue, PR, or comment replies.
+2. **No mass-identical comments.** Batch maintenance should vary wording where a human response is
+   appropriate and avoid bursts that look automated or inauthentic.
+3. **Throttle API operations.** Prefer bounded reads and a small number of intentional writes. Do not
+   create a stream of tiny commits, releases, issues, or comments when one grouped operation works.
+4. **Batch releases.** Release meaningful groups of changes rather than drip-shipping. The maintainer
+   helper `Tools/release.sh` retains its cadence guard for scripted releases.
+5. **GitHub Actions is enabled and scoped.** Current workflows live in `.github/workflows/`.
+   Package/i18n/source checks run on their declared triggers; app and release builds are manual or
+   release-scoped. Release workflows receive `contents: write` only where they must create assets or
+   update `altstore-source.json`.
+6. **Pin and review automation.** Changes to action versions, permissions, release assets, or bot
+   pushes deserve the same review as application code. Avoid unnecessary third-party actions.
+7. **Do not evade enforcement.** If GitHub restricts the repository or account again, stop automated
+   writes and appeal through GitHub Support. Do not create replacement accounts or bypass controls.
 
-GitHub's AUP prohibits, and may suspend accounts for:
-- **"excessive automated bulk activity"** and **"automated inauthentic activity"** (§4)
-- **"bulk distribution of promotions and advertising"** and **"monetized or excessive bulk content in issues"** (§4 / §10)
-- activity that **"significantly or repeatedly disrupts the experience of other users"**
-- **"excessively frequent requests to GitHub via the API"** → temporary or permanent suspension (ToS §H)
+## Release-specific checks
 
-## Our safeguards
+- Publish this fork only under the `v<VERSION>-dx` namespace.
+- Dispatch `publish-ios-release.yml` from `main` with a version already present in `project.yml`
+  and `docs/fork/releases/v<VERSION>.md`.
+- Verify that both iOS IPAs and the macOS ZIP exist before treating a release as complete.
+- Verify the release is public/latest and that the workflow's manifest-only commit placed the new
+  version at the top of `altstore-source.json`.
 
-**1. Donation / crypto addresses live in ONE canonical set of places — never in comments.**
-The BTC/ETH/etc. addresses belong in the in-app **Support** screen and the Donations wiki page — *that's it*. **Never paste a donation or crypto address into an issue, PR, or comment.** If a reply needs to mention donating, **link** to the wiki — don't paste the address. Repeating a crypto address across many comments is the single clearest "promotional bulk content / solicitation" signal, and it's what most likely tripped the filter.
-
-**2. Batch releases — don't drip-ship.**
-Combine multiple fixes into one release and space releases out. `Tools/release.sh` has a **cadence guard**: it refuses to publish if ≥3 releases were cut today or the last was <20 min ago, unless you deliberately set `ALLOW_RAPID_RELEASE=1`. A burst should always be a conscious decision, never an accident. (Tune via `CADENCE_LIMIT` / `CADENCE_MIN_GAP_MIN`.)
-
-**3. No mass-identical comments.**
-When replying across many issues/PRs (e.g. a board sweep), vary the wording and/or space the posts out. A flood of identical comments reads as inauthentic activity.
-
-**4. Throttle automated API activity.**
-Batch API operations; don't burst-create commits, issues, or comments. Stats badges (`refresh-stats-badges.py`) write to the working tree and ride the normal commit — they no longer push a burst of API commits.
-
-**5. GitHub Actions stays OFF.**
-We build and verify **centrally/locally**, so we don't need CI runners. Actions is disabled on the repo (`gh api -X PUT repos/ryanbr/noop/actions/permissions -F enabled=false`). This removes the "unusual Actions volume" flag vector and the supply-chain exposure of third-party actions. Re-enable only deliberately, and SHA-pin every `uses:` if you do.
-
-## If it happens again
-Don't evade or create replacement accounts (that makes a suspension permanent and violates the rules). Appeal at support.github.com with the facts: NOOP reads a device the user owns, offline, no account/cloud/credentials, no proprietary code — there is nothing to violate. The appeal worked once; the facts haven't changed.
+See [build and release instructions](BUILD.md#publish-an-unsigned-apple-release) and the
+[fork CI guide](FORK_GUIDE.md#ci-actually-runs-here).

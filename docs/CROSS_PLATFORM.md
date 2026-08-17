@@ -1,104 +1,57 @@
-# Cross-platform architecture — macOS, iOS & Android
+# Apple-platform architecture — macOS, iOS, and watchOS
 
-NOOP ships three clients. They look different and are written in two languages, but they implement the
-**same on-device pipeline**: read a WHOOP strap over BLE → decode the protocol → persist locally →
-score recovery/strain/sleep → render. This doc is the map of **what's shared, what's mirrored, and how
-to add a feature that should land on more than one of them** — so a new capability is built once
-(conceptually) and ported deliberately, not reinvented three times with drift.
+NOOP AI in this fork is Apple-only. macOS and iOS share the same Swift packages and most app-layer
+code; the watchOS companion receives a bounded snapshot from the iPhone. The fork no longer carries
+an Android source tree or Kotlin parity contract. For Android, use
+[RyanBR's upstream repository](https://github.com/ryanbr/noop).
 
-> New to the codebase? Pair this with [`ARCHITECTURE.md`](ARCHITECTURE.md) (module map),
-> [`IOS.md`](IOS.md) (the iOS target + fold-in lessons) and [`ANDROID.md`](ANDROID.md).
+## Current targets
 
-## The three clients
-
-| Client | Language / UI | Code home | Shares with |
+| Target | Code home | Distribution | Role |
 |---|---|---|---|
-| **macOS** | Swift + SwiftUI/AppKit | `Strand/` (app) + `Packages/` | the reference implementation; shares the 5 Swift packages with iOS |
-| **iOS** | Swift + SwiftUI/UIKit/WidgetKit/HealthKit | `StrandiOS/` + most of `Strand/` + `Packages/` | **shares almost everything with macOS** at the source level (folded in v1.94, build-from-source) |
-| **Android** | Kotlin + Jetpack Compose | `android/` | a **hand-ported parity twin** of the Swift logic — no shared binary, mirrored value-for-value |
+| macOS app (`Strand`) | `Strand/` + `Packages/` | Universal ZIP or Xcode | Reference desktop app |
+| iOS/iPadOS app (`NOOPiOS`) | `StrandiOS/`, shared `Strand/`, `Packages/` | Unsigned IPA or Xcode | Phone/tablet app |
+| Widgets/Live Activity (`NOOPiOSWidgets`) | `StrandiOS/Widgets/` | Embedded in both iOS IPAs | Home/Lock Screen and Live Activity |
+| Watch app (`NOOPWatch`) | Watch sources selected by `project.yml` | Full IPA or Xcode | Companion surface |
+| Watch complication (`NOOPWatchComplications`) | Watch complication sources selected by `project.yml` | Full IPA or Xcode | Snapshot complication |
 
-## Two sharing models, by language boundary
+`project.yml` is the authoritative target and source-membership definition. Generate
+`Strand.xcodeproj` with `xcodegen generate`; never hand-edit the generated project.
 
-### macOS ⇄ iOS — *real* shared source (the 5 Swift packages)
+## Shared Swift packages
 
-Everything platform-neutral lives in five SwiftPM packages under [`Packages/`](../Packages/), each
-declaring **both** `.macOS(.v13)` and `.iOS(.v16)`. Both app targets depend on them unchanged:
+| Package | Purpose | Platforms |
+|---|---|---|
+| `WhoopProtocol` | WHOOP framing, CRC, schema and stream decode | iOS 16+, macOS 13+ |
+| `WhoopStore` | GRDB/SQLite migrations, streams and caches | iOS 16+, macOS 13+ |
+| `StrandAnalytics` | HRV, Charge, Effort, Rest, sleep and workout math | iOS 16+, macOS 13+, watchOS 10+ |
+| `StrandImport` | WHOOP CSV and Apple Health archive import | iOS 16+, macOS 13+ |
+| `StrandDesign` | Shared SwiftUI design system | iOS 16+, macOS 13+, watchOS 10+ |
+| `OuraProtocol` | Clean-room Oura BLE protocol and decode | iOS 16+, macOS 13+ |
+| `PolarProtocol` | Polar protocol primitives and PPI decode | iOS 16+, macOS 13+ |
+| `SemanticMemory` | Local coach-memory index | iOS 17+, macOS 13+ |
+| `NoopLocalAccess` | Optional read-only local-access CLI/package | macOS 13+ |
 
-- **`WhoopProtocol`** — BLE frame parsing, CRC, command/event/historical decode (the reverse-engineering core). *Never* imports CoreBluetooth or any UI framework; exposes GATT UUIDs as plain strings the app wraps in `CBUUID`.
-- **`WhoopStore`** — GRDB/SQLite persistence (decoded streams, daily/sleep/workout caches).
-- **`StrandAnalytics`** — HRV / recovery / strain / sleep / calories / correlation math. Pure computation.
-- **`StrandImport`** — WHOOP CSV + Apple Health (`export.xml`) importers.
-- **`StrandDesign`** — the SwiftUI design system (palette, components, charts).
+## Where platform differences live
 
-**Rule of thumb:** if logic is platform-neutral and would otherwise be duplicated between the macOS and
-iOS apps, it belongs in a package, behind a UI-framework-free API. The app targets hold only the
-SwiftUI screens + the platform service shims.
+- Prefer package code for protocol, storage, analytics and import logic.
+- Put shared SwiftUI/app behavior in `Strand/` and guard genuine OS differences with
+  `#if os(macOS)`, `#if os(iOS)`, or `#if canImport(...)`.
+- Route small AppKit/UIKit differences through `Strand/System/Platform.swift`.
+- Keep iOS-only lifecycle, HealthKit, widgets, Live Activities and quick actions under `StrandiOS/`.
+- Keep menu-bar and other macOS-only integrations behind the macOS target membership in
+  `project.yml`.
+- Treat the Watch app as a companion: the phone sends the latest bounded snapshot through
+  WatchConnectivity; the Watch does not open the phone database.
 
-### macOS/iOS ⇄ Android — *parity*, not shared code
+## Adding a feature
 
-Android is a separate Kotlin reimplementation. There is no Kotlin Multiplatform / shared binary — the
-protocol decode, the analytics, and the scoring are **hand-ported from the Swift packages and kept in
-lockstep**. This is a deliberate trade-off: KMP would couple the two toolchains and the Swift core is
-small enough that a disciplined mirror is cheaper than the integration tax. The discipline that keeps
-it honest:
+1. Put platform-neutral logic in the appropriate package and add package tests.
+2. Reuse the same app-layer implementation on macOS and iOS where possible.
+3. Isolate unavoidable platform services at their existing seams rather than duplicating the
+   feature.
+4. Add Watch behavior only when the bounded snapshot contract supports it honestly.
+5. Build both `Strand` and `NOOPiOS`; test package changes with `swift test`.
 
-- **Value-for-value parity.** A Swift change to decode/analytics/scoring gets the same change in the
-  Kotlin twin (`android/.../protocol`, `.../analytics`, `.../data`). Field names, formulas, thresholds,
-  and constants match. Source comments cross-reference (e.g. `STARTER_JOURNAL_QUESTIONS` notes "Mirrors
-  macOS `JournalCatalogStore.starterQuestions` value-for-value").
-- **Tests on both.** Pure logic is unit-tested on each platform with the *same* cases (e.g. the #137
-  `ManualWorkoutRescore` and the journal hidden-filter tests exist in `swift test` *and* JUnit form).
-- **The changelog is mirrored byte-for-byte.** `Strand/System/AppChangelog.swift`,
-  `android/.../ui/AppChangelog.kt` and `CHANGELOG.md` tell the same story; releases ship in lockstep.
-
-## The `Platform.swift` shim (macOS vs iOS UI frameworks)
-
-Where macOS and iOS differ only in the *UI framework* (AppKit vs UIKit), don't fork the call site —
-route it through [`Strand/System/Platform.swift`](../Strand/System/Platform.swift):
-
-```swift
-PlatformImage              // NSImage on macOS, UIImage on iOS
-Image(platformImage:)      // build a SwiftUI Image from either
-PlatformPasteboard.copy(_) // NSPasteboard / UIPasteboard
-PlatformOpen.url(_)        // NSWorkspace.open / UIApplication.open  (@MainActor)
-```
-
-For genuinely platform-*specific* behaviour (no shared abstraction makes sense), use `#if os(macOS)` /
-`#if os(iOS)` (or `#if canImport(AppKit)` / `#elseif canImport(UIKit)`), and exclude wholly-macOS files
-from the iOS target in `project.yml`. The enumerated macOS-only surface and how each piece was handled
-is in [`IOS.md` → "Lessons from the fold-in"](IOS.md).
-
-## Adding a feature across clients — the playbook
-
-1. **Find the seam.** Is the new logic platform-neutral (decode/analytics/scoring/storage)? Then it's a
-   *package* change on Swift + a *parity* change on Kotlin. Is it UI/platform-service (a screen, a
-   widget, a permission flow)? Then it's per-client.
-2. **Swift first (it's the reference).** Put neutral logic in the right package with a small, pure,
-   **unit-tested** API (scalars in/out beats passing app types around — it keeps the helper out of the
-   WhoopStore/app module graph and trivially testable). Wire it into the macOS app and the iOS app
-   (usually the same call — they share the screens).
-3. **Mirror to Kotlin.** Reimplement the pure helper in `android/.../analytics` (or the matching pkg),
-   matching formulas/constants exactly, with the **same** unit-test cases.
-4. **UI per client.** SwiftUI screen (shared macOS+iOS, guarded where frameworks differ) + a Compose
-   screen on Android, each built from its design system (`StrandDesign` / `NoopType`+`Palette`).
-5. **Mirror the changelog** in all three surfaces; **bump all version surfaces** in lockstep (see
-   [`BUILD.md`](BUILD.md) / the release process). Verify: `swift test` (packages) + the macOS/iOS
-   `app-build` CI + `:app:testFullDebugUnitTest` (Android).
-
-Worked examples from recent releases: **#137** (workout re-score) — a pure `ManualWorkoutRescore`
-helper in `StrandAnalytics` + a Kotlin twin, both wired into each platform's `IntelligenceEngine`;
-**#131** (local-LLM AI Coach) — a provider abstraction added on both; **#140** (journal curation) —
-shared model + per-client edit UI. Each is "one idea, ported deliberately."
-
-## What is *not* shared (and why that's fine)
-
-- **No KMP / shared binary with Android** — see the parity rationale above.
-- **Android reimplements the design system** (Compose) rather than sharing `StrandDesign` (SwiftUI).
-- **Platform-only features stay platform-only:** macOS menu-bar extra / screen-lock / Shortcuts;
-  iOS WidgetKit + Live Activity + two-way HealthKit; Android home-screen widget + Health Connect.
-  These are *front doors* to the same shared core, not duplicated logic.
-
----
-
-*Everything stays on the device on every client. The platforms differ at the edges — the front door and
-the OS integrations — but the strap protocol, the math, and your data are the same NOOP underneath.*
+See [architecture](ARCHITECTURE.md), [build instructions](BUILD.md), and
+[contributing](CONTRIBUTING.md) for the detailed module and verification rules.

@@ -47,16 +47,29 @@ into something diagnosable.
 
 ## Does my data ever leave my device?
 
-No, unless you export it yourself. NOOP has no servers, no accounts and no cloud sync. The only
-feature that makes a network request is the optional AI Coach, which is off by default and uses an
-API key you supply, to a provider you choose.
+NOOP has no server, account, telemetry, or cloud sync. Raw sensor streams and the local database stay
+on your device unless you explicitly export/share them. Three user-controlled paths can use the
+network: the optional Coach sends your question and an approved compact text summary to the provider
+you configure; a source-built Oura lane pulls your own Oura history in; and **Check for updates**
+reads public release metadata from GitHub when you tap it.
 
-Two things do carry your data off-device **when you choose to send them**:
+Two exports can carry your data off-device **when you choose where to send them**:
 
 - a `.noopbak` backup, which is a copy of the whole local database
 - the CSV/JSON export
 
 Both are user-initiated. See [docs/PRIVACY_SECURITY.md](PRIVACY_SECURITY.md).
+
+## Are `.noopbak` backups compatible with RyanBR's NOOP?
+
+For the current releases, yes in both practical directions: NOOP AI 10.1.1 migrates older upstream
+Apple backups forward, and its v40 database remains readable by RyanBR's current v37 Apple migrator.
+That backwards-reader behavior has a regression test in `WhoopStore`.
+
+The retired Android parity contract means byte-for-byte Swift/Room agreement is no longer a release
+gate, not that the backup was deliberately made incompatible. Future compatibility cannot be
+guaranteed across arbitrary version gaps, so keep an untouched backup before switching between
+forks and restore with the same or a newer build when possible.
 
 ## Which numbers are measured, and which are NOOP's own estimates?
 

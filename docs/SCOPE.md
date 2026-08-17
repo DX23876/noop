@@ -9,9 +9,12 @@ features so the boundary is discoverable.
 
 ## The constraints this follows from
 
-NOOP is **fully offline, on-device, and anonymous**: no server, no account, no cloud sync, no telemetry,
-and **not a medical device** (see the [Disclaimer](../DISCLAIMER.md#5-not-a-medical-device)). Those are
-hard constraints, not preferences. Everything below is a consequence of them, not a separate rule.
+NOOP is **offline-first, on-device, and anonymous**: no NOOP server, account, cloud sync, or telemetry,
+and **not a medical device** (see the [Disclaimer](../DISCLAIMER.md#5-not-a-medical-device)). The
+user-controlled exceptions are narrow: Coach requests go directly to the configured provider, a
+source-built Oura lane imports data from the user's own account, and the manual update check reads
+public GitHub release metadata. These are hard boundaries, not permission to add general cloud
+features.
 
 ## Out of scope
 
@@ -43,5 +46,5 @@ on-device from NOOP's own data and make no medical claim.
 
 Scope changes are deliberate, not incidental. If you believe one of the out-of-scope areas should move,
 open an issue that names the constraint it touches and how it would be satisfied — don't open the PR
-first. A "WHOOP has it" argument, on its own, is not a reason: NOOP is a clean-room, offline, anonymous
+first. A "WHOOP has it" argument, on its own, is not a reason: NOOP is a clean-room, offline-first, anonymous
 tool, not a WHOOP clone.
