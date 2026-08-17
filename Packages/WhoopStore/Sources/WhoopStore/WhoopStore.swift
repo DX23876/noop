@@ -5,7 +5,9 @@ import WhoopProtocol
 /// OpenWhoop persistence library — decoded streams are durable; raw frames are a
 /// transient, compressed, prunable outbox. Built on GRDB/SQLite.
 public enum WhoopStoreInfo {
-    /// Bumped whenever the migrator gains a new migration.
+    /// The store schema-version marker, bumped per migration. Surfaced in the backup manifest (#1410) so an
+    /// export records the platform's schema version (a platform-scoped indicator — Android reports its Room
+    /// version independently; the two numbering schemes are not expected to match).
     public static let schemaVersion = 18
 }
 
@@ -170,6 +172,17 @@ public actor WhoopStore {
     /// must. Best-effort: throws on a hard SQLite error so callers can fall back to a plain copy.
     public func checkpointWAL() async throws {
         try checkpointWALImpl()
+    }
+
+    /// #1410: append one app-level event (e.g. `APP_VERSION_CHANGED`) onto the event table. Idempotent on
+    /// the `(deviceId, ts, kind)` primary key. Twin of Android `WhoopRepository.recordEvent`.
+    public func recordEvent(deviceId: String, ts: Int, kind: String, payloadJSON: String) async throws {
+        try syncWrite { db in
+            try db.execute(sql: """
+                INSERT INTO event (deviceId, ts, kind, payloadJSON) VALUES (?, ?, ?, ?)
+                ON CONFLICT(deviceId, ts, kind) DO NOTHING
+                """, arguments: [deviceId, ts, kind, payloadJSON])
+        }
     }
 
     /// Non-async so GRDB's synchronous `writeWithoutTransaction` overload is chosen (mirrors the
