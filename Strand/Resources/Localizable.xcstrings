@@ -282901,6 +282901,238 @@
         }
       }
     },
+    "Haptic heart-rate coaching and more reliable local memory": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Haptisches Herzfrequenz-Coaching und zuverlässigere lokale Erinnerung"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Entrenamiento háptico de frecuencia cardíaca y memoria local más fiable"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Coaching haptique de fréquence cardiaque et mémoire locale plus fiable"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Guida aptica della frequenza cardiaca e memoria locale più affidabile"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Haptyczne prowadzenie tętna i bardziej niezawodna pamięć lokalna"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Orientação háptica da frequência cardíaca e memória local mais fiável"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Тактильные подсказки по пульсу и более надёжная локальная память"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "心率触觉指导与更可靠的本地记忆"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "心率觸覺指導與更可靠的本機記憶"
+          }
+        }
+      }
+    },
+    "**Train inside a chosen heart-rate zone.** Pick any profile zone before a workout or Live Session and the strap tells you when to increase, hold or ease off.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "**Trainiere in einer ausgewählten Herzfrequenzzone.** Wähle vor einem Workout oder einer Live Session eine Profilzone, und das Band signalisiert, wann du steigern, halten oder reduzieren solltest."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "**Entrena dentro de una zona de frecuencia cardíaca elegida.** Selecciona una zona del perfil antes de un entrenamiento o una sesión en vivo y la pulsera te indica cuándo aumentar, mantener o reducir."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "**Entraînez-vous dans une zone de fréquence cardiaque choisie.** Sélectionnez une zone du profil avant un entraînement ou une session en direct et le bracelet vous indique quand accélérer, maintenir ou ralentir."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "**Allenati nella zona di frequenza cardiaca scelta.** Seleziona una zona del profilo prima di un allenamento o di una sessione live e il cinturino indica quando aumentare, mantenere o ridurre."
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "**Trenuj w wybranej strefie tętna.** Wybierz strefę profilu przed treningiem lub sesją na żywo, a opaska podpowie, kiedy zwiększyć, utrzymać lub zmniejszyć intensywność."
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "**Treine numa zona de frequência cardíaca escolhida.** Selecione uma zona do perfil antes de um treino ou sessão em direto e a pulseira indica quando aumentar, manter ou reduzir."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "**Тренируйтесь в выбранной зоне пульса.** Выберите зону профиля перед тренировкой или сеансом в реальном времени, и браслет подскажет, когда ускориться, держать темп или снизить нагрузку."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "**在选定的心率区间内训练。** 在锻炼或实时训练前选择个人资料中的任一区间，腕带会提示何时提高、保持或降低强度。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "**在選定的心率區間內訓練。** 在鍛鍊或即時訓練前選擇個人資料中的任一區間，腕帶會提示何時提高、維持或降低強度。"
+          }
+        }
+      }
+    },
+    "**Heart-rate ceilings warn immediately.** The separate safety-oriented ceiling buzz takes priority as soon as the smoothed pulse reaches the configured limit.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "**Herzfrequenzgrenzen warnen sofort.** Der separate sicherheitsorientierte Grenzwertalarm hat Vorrang, sobald der geglättete Puls den eingestellten Wert erreicht."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "**Los límites de frecuencia cardíaca avisan de inmediato.** La alerta independiente de seguridad tiene prioridad en cuanto el pulso suavizado alcanza el límite configurado."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "**Les plafonds de fréquence cardiaque avertissent immédiatement.** L’alerte de sécurité distincte est prioritaire dès que le pouls lissé atteint la limite configurée."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "**I limiti di frequenza cardiaca avvisano subito.** L’avviso di sicurezza separato ha la priorità non appena il battito filtrato raggiunge il limite configurato."
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "**Limity tętna ostrzegają natychmiast.** Oddzielny alarm bezpieczeństwa ma pierwszeństwo, gdy tylko wygładzone tętno osiągnie ustawiony limit."
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "**Os limites de frequência cardíaca avisam imediatamente.** O alerta de segurança separado tem prioridade assim que o pulso suavizado atinge o limite configurado."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "**Предельный пульс предупреждает сразу.** Отдельный сигнал безопасности получает приоритет, как только сглаженный пульс достигает заданного предела."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "**心率上限会立即发出提醒。** 一旦平滑后的心率达到设定上限，独立的安全提醒将获得最高优先级。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "**心率上限會立即發出提醒。** 一旦平滑後的心率達到設定上限，獨立的安全提醒將取得最高優先順序。"
+          }
+        }
+      }
+    },
+    "**Local coach memory handles multilingual text more reliably.** Chinese and Japanese notes are segmented and chunked correctly without keyword matches disturbing semantic ranking.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "**Die lokale Coach-Erinnerung verarbeitet mehrsprachige Texte zuverlässiger.** Chinesische und japanische Notizen werden korrekt segmentiert und aufgeteilt, ohne dass Stichworttreffer die semantische Rangfolge stören."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "**La memoria local del entrenador procesa texto multilingüe con mayor fiabilidad.** Las notas en chino y japonés se segmentan y dividen correctamente sin que las coincidencias de palabras clave alteren la clasificación semántica."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "**La mémoire locale du coach traite les textes multilingues de manière plus fiable.** Les notes chinoises et japonaises sont correctement segmentées et découpées sans que les correspondances de mots-clés perturbent le classement sémantique."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "**La memoria locale del coach gestisce i testi multilingue in modo più affidabile.** Le note cinesi e giapponesi vengono segmentate e suddivise correttamente senza che le corrispondenze di parole chiave alterino l’ordine semantico."
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "**Lokalna pamięć trenera niezawodniej obsługuje tekst wielojęzyczny.** Notatki chińskie i japońskie są prawidłowo segmentowane i dzielone, bez zakłócania rankingu semantycznego przez dopasowania słów kluczowych."
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "**A memória local do treinador processa texto multilingue com maior fiabilidade.** As notas em chinês e japonês são segmentadas e divididas corretamente sem que as correspondências de palavras-chave alterem a classificação semântica."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "**Локальная память тренера надёжнее работает с многоязычным текстом.** Китайские и японские заметки правильно сегментируются и разбиваются на части, а совпадения ключевых слов не нарушают семантическое ранжирование."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "**本地教练记忆能更可靠地处理多语言文本。** 中文和日文笔记会被正确分段和分块，关键词匹配不会干扰语义排序。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "**本機教練記憶能更可靠地處理多語言文字。** 中文和日文筆記會被正確分段和分塊，關鍵字比對不會干擾語意排序。"
+          }
+        }
+      }
+    },
     "Warning frequency": {
       "localizations": {
         "de": {

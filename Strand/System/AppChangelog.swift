@@ -7,7 +7,7 @@ enum AppChangelog {
 
     /// Bump this when you add a release below. The "What's New" sheet shows automatically when the
     /// stored last-seen version is behind this. (Decoupled from the bundle version on purpose.)
-    static let currentVersion = "10.1.1"
+    static let currentVersion = "10.1.2"
 
     struct Release: Identifiable {
         let version: String
@@ -19,6 +19,16 @@ enum AppChangelog {
 
     /// Newest first.
     static let releases: [Release] = [
+        Release(
+            version: "10.1.2",
+            title: "Haptic heart-rate coaching and more reliable local memory",
+            date: "August 2026",
+            items: [
+                "**Train inside a chosen heart-rate zone.** Pick any profile zone before a workout or Live Session and the strap tells you when to increase, hold or ease off.",
+                "**Heart-rate ceilings warn immediately.** The separate safety-oriented ceiling buzz takes priority as soon as the smoothed pulse reaches the configured limit.",
+                "**Local coach memory handles multilingual text more reliably.** Chinese and Japanese notes are segmented and chunked correctly without keyword matches disturbing semantic ranking.",
+            ]
+        ),
         Release(
             version: "10.1.1",
             title: "A fast launch, complete sensor tails, and safer background analysis",
