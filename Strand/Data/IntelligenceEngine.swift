@@ -34,6 +34,21 @@ final class IntelligenceEngine: ObservableObject {
     /// `defer` re-invokes `analyzeRecent(force: true)` ONCE when it clears. A single re-arm (the flag is
     /// cleared BEFORE the re-invoke) bounds it to one extra pass , no recompute storm.
     private var pendingForcedRescore = false
+    /// The WIDEST window any dropped forced call asked for, so the re-pass covers what was actually
+    /// requested rather than whatever the pass that happened to be running was doing.
+    ///
+    /// The re-arm used to re-invoke with the RUNNING pass's `maxDays`. That is right in one direction —
+    /// a heal firing during a wide one-shot pass must re-score the same width — and wrong in the other:
+    /// a 4000-day Effort rescore or timestamp heal arriving while an ordinary 21-day tick held the lock
+    /// came back as a 21-day pass, so the wide pass it stood for never ran. It is not lost (the one-shot
+    /// flags only latch when the pass actually ran, so it retries on a later launch), but it defers the
+    /// deep rescore to a future launch and is part of why "something is computing again" recurs.
+    ///
+    /// Taking the MAX satisfies both directions at once. Android sidesteps this differently — it
+    /// SERIALISES on a Mutex rather than coalescing, precisely because "callers pass heterogeneous
+    /// windows — the Effort rescore uses maxDays=4000, not 21, and can overlap" — which is the cleaner
+    /// shape; this keeps the existing single-re-arm bound while removing the width bug.
+    private var pendingForcedRescoreMaxDays = 0
     /// #899 heal bound: true while the last heal already re-armed a rescore, so a heal firing again on
     /// the very next pass cannot re-arm a second time (the Android twin is hard-bounded to exactly one
     /// re-pass; this mirrors it). Reset by any pass whose heal finds nothing, restoring the budget.
@@ -484,7 +499,10 @@ final class IntelligenceEngine: ObservableObject {
         // post-backfill rescore after a sync) , dropping it would leave a freshly-synced night unscored
         // until the next cycle. Re-arm instead: flag it so the running pass's `defer` re-invokes once.
         guard !computing else {
-            if force { pendingForcedRescore = true }
+            if force {
+                pendingForcedRescore = true
+                pendingForcedRescoreMaxDays = max(pendingForcedRescoreMaxDays, maxDays)
+            }
             NSLog("[FREEZE-DIAG] analyzeRecent SKIPPED (already computing); re-armed=\(force)")
             return
         }
@@ -568,10 +586,12 @@ final class IntelligenceEngine: ObservableObject {
             computing = false
             if pendingForcedRescore {
                 pendingForcedRescore = false
-                // Carry THIS pass's window into the re-pass: a heal firing during a wide one-shot pass
-                // must re-score the same width, not the default 21 days (Kotlin re-passes with the same
-                // maxDays; keep the platforms in lockstep).
-                Task { await self.analyzeRecent(maxDays: maxDays, force: true) }
+                // The WIDER of this pass's window and the widest one any dropped call asked for. Covers
+                // both directions: a heal firing during a wide one-shot pass still re-scores that width,
+                // and a 4000-day pass dropped by an ordinary 21-day tick no longer returns as 21 days.
+                let reWidth = max(maxDays, pendingForcedRescoreMaxDays)
+                pendingForcedRescoreMaxDays = 0
+                Task { await self.analyzeRecent(maxDays: reWidth, force: true) }
             }
         }
 
