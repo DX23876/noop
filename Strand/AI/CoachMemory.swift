@@ -533,9 +533,9 @@ final class CoachMemory: ObservableObject {
     /// Only words of 3+ characters matter: `tokens` already drops anything shorter, which is why the
     /// short forms (de "am", es "de", fr "le") are absent — they can never reach this set.
     ///
-    /// Chinese is deliberately NOT represented: it is unsegmented, so `tokens`' letter/number split
-    /// yields whole clauses rather than words and no stopword list can apply. That is a pre-existing
-    /// limit of this tokeniser, not something this set can fix.
+    /// Chinese is deliberately NOT represented: `tokens` reaches it through character bigrams, which
+    /// are not words, so a word-level stopword list has nothing to match. Its function words are single
+    /// characters that only ever appear inside a gram alongside a content character.
     nonisolated private static let stopwords: Set<String> = [
         // English
         "the", "and", "but", "for", "with", "not", "you", "your", "yours", "our", "its",
@@ -578,15 +578,84 @@ final class CoachMemory: ObservableObject {
         "если", "когда", "где", "почему", "очень", "уже", "ещё", "еще", "так", "все", "всё",
     ]
 
-    /// Lowercased, punctuation-stripped word tokens ≥ 3 chars, stopwords removed.
+    /// Lowercased, punctuation-stripped word tokens ≥ 3 chars, stopwords removed — plus character
+    /// bigrams wherever the text is ideographic.
+    ///
+    /// Splitting on non-letters is a word tokeniser, and Chinese has no spaces between words, so a
+    /// whole clause used to come back as a single token that matched only an identical clause. Every
+    /// caller that keys on token overlap was blind in the two Chinese locales: the keyword arm of
+    /// semantic retrieval, `relevanceScore` (whose zero-overlap guard then withheld EVERY stored fact
+    /// from the prompt), conversation recall, and the near-duplicate check. Ideographic runs are
+    /// therefore cut into overlapping two-character grams — the standard segmentation-free approach —
+    /// so "睡眠质量" and "最近睡眠质量变差" share 睡眠, 眠质, 质量 instead of nothing.
+    ///
+    /// Overlap counts are only ever compared between candidates for the SAME query, so the fact that a
+    /// bigrammed text yields more tokens than a Latin one does not distort any of the callers' ranking;
+    /// the ratio-based thresholds (`candidates`, `hasDuplicateTokenOverlap`) keep their meaning too.
     ///
     /// `nonisolated` because it is pure and shared: the journal's duplicate finder compares question
     /// wordings with the very same tokeniser this file's own near-duplicate check uses, and it has no
     /// business hopping to the main actor to split a string.
     nonisolated static func tokens(_ s: String) -> Set<String> {
-        let lowered = s.lowercased()
-        let parts = lowered.split { !$0.isLetter && !$0.isNumber }
-        return Set(parts.map(String.init).filter { $0.count >= 3 && !stopwords.contains($0) })
+        var result: Set<String> = []
+        for part in s.lowercased().split(whereSeparator: { !$0.isLetter && !$0.isNumber }) {
+            addTokens(from: part, into: &result)
+        }
+        return result
+    }
+
+    /// One punctuation-free run, cut into maximal ideographic and non-ideographic stretches so mixed
+    /// text like "hrv低于平均" yields the Latin word AND the ideographic bigrams.
+    nonisolated private static func addTokens(from part: Substring, into result: inout Set<String>) {
+        var start = part.startIndex
+        while start < part.endIndex {
+            let ideographic = isIdeographic(part[start])
+            var end = part.index(after: start)
+            while end < part.endIndex, isIdeographic(part[end]) == ideographic {
+                end = part.index(after: end)
+            }
+            let run = part[start..<end]
+            if ideographic {
+                addBigrams(of: run, into: &result)
+            } else if run.count >= 3, !stopwords.contains(String(run)) {
+                result.insert(String(run))
+            }
+            start = end
+        }
+    }
+
+    /// Adjacent character pairs. A single ideograph is kept whole — it is a word on its own, and
+    /// dropping it would lose the shortest questions ("痛?").
+    nonisolated private static func addBigrams(of run: Substring, into result: inout Set<String>) {
+        guard run.count > 1 else {
+            result.insert(String(run))
+            return
+        }
+        var index = run.startIndex
+        while true {
+            let next = run.index(after: index)
+            guard next < run.endIndex else { return }
+            result.insert(String(run[index...next]))
+            index = next
+        }
+    }
+
+    /// Scripts written without word spacing. Hangul is deliberately absent: Korean IS space-separated
+    /// and belongs on the word path (and is not a shipped language). Judged on the first scalar, so a
+    /// character carrying a variation selector still counts.
+    nonisolated private static func isIdeographic(_ character: Character) -> Bool {
+        guard let value = character.unicodeScalars.first?.value else { return false }
+        switch value {
+        case 0x3040...0x30FF,   // Hiragana, Katakana
+             0x3400...0x4DBF,   // CJK unified ideographs extension A
+             0x4E00...0x9FFF,   // CJK unified ideographs
+             0xF900...0xFAFF,   // CJK compatibility ideographs
+             0x20000...0x2EBEF, // CJK unified ideographs extensions B–F
+             0x2F800...0x2FA1F: // CJK compatibility ideographs supplement
+            return true
+        default:
+            return false
+        }
     }
 
     private static func overlap(_ a: Set<String>, _ b: Set<String>) -> Int { a.intersection(b).count }
