@@ -83,11 +83,24 @@ final class SplitTests: XCTestCase {
         XCTAssertEqual(extended.devQueryIDs, split.devQueryIDs)
         XCTAssertEqual(extended.testQueryIDs, split.testQueryIDs)
 
-        // And the from-scratch generator now disagrees, which is the expected consequence rather than a bug. If
-        // this ever became equal again it would mean the split had been regenerated, throwing away the freeze.
+        // The companion check is against the audit log, not against the generator.
+        //
+        // A first version asserted that the committed split must DIFFER from a fresh computation, on the theory
+        // that equality would reveal an accidental regeneration. That assertion is nearly vacuous: any corpus
+        // edit that touches categories re-steers the packing, so the two drift apart on their own and the test
+        // passes for a reason unrelated to what it claims. It was passing that way when written.
+        //
+        // What actually matters is that a regeneration left a trace. `memorybench split --regenerate --write`
+        // refuses without a reason and appends a REGENERATED line, so if the committed file does match a fresh
+        // computation, the log has to show why.
         let recomputed = corpus.computeSplit(testFraction: split.testFraction, seed: split.seed)
-        XCTAssertNotEqual(recomputed.testQueryIDs, split.testQueryIDs,
-                          "the committed split matches a fresh computation — was it regenerated?")
+        if recomputed.testQueryIDs == split.testQueryIDs {
+            let log = try String(contentsOf: corpusDirectory.appendingPathComponent("holdout-access.log"),
+                                encoding: .utf8)
+            XCTAssertTrue(log.contains("REGENERATED"),
+                          "the committed split matches a fresh computation, but no regeneration is recorded — "
+                          + "the freeze was thrown away silently")
+        }
     }
 
     /// Determinism within one seed, across processes. Swift randomises dictionary iteration order per process,
@@ -129,18 +142,32 @@ final class SplitTests: XCTestCase {
         for group in groups {
             for id in group.queryIDs { groupOfQuery[id] = group.key }
         }
-        // Two queries sharing a graded document must share a group.
+        // Two queries sharing an ANSWER (grade ≥ the scenario floor) must share a group. This used to read
+        // `> 0`, and the corpus outgrew it: with realistic cross-theme questions, grade-1 support wires 73% of
+        // all queries into one component and no holdout can exist. See `Corpus.scenarioGradeFloor`.
         let main = corpus.queries.filter { $0.index == Corpus.splitIndex }
+        var sawGradeOneOnlySharing = false
         for a in main {
             for b in main where a.id < b.id {
-                let sharedEvidence = Set(a.judgments.filter { $0.value > 0 }.keys)
-                    .intersection(b.judgments.filter { $0.value > 0 }.keys)
-                if !sharedEvidence.isEmpty {
+                let strong = Set(a.judgments.filter { $0.value >= Corpus.scenarioGradeFloor }.keys)
+                    .intersection(b.judgments.filter { $0.value >= Corpus.scenarioGradeFloor }.keys)
+                if !strong.isEmpty {
                     XCTAssertEqual(groupOfQuery[a.id], groupOfQuery[b.id],
-                                   "\(a.id) and \(b.id) share evidence but sit in different groups")
+                                   "\(a.id) and \(b.id) share an answer but sit in different groups")
+                    continue
+                }
+                let anyShared = Set(a.judgments.filter { $0.value > 0 }.keys)
+                    .intersection(b.judgments.filter { $0.value > 0 }.keys)
+                if !anyShared.isEmpty, groupOfQuery[a.id] != groupOfQuery[b.id] {
+                    sawGradeOneOnlySharing = true
                 }
             }
         }
+        // And the weakening is asserted rather than merely tolerated: grade-1-only sharing across groups has to
+        // actually occur, or the floor is doing nothing and the stricter definition should be restored.
+        XCTAssertTrue(sawGradeOneOnlySharing,
+                      "no pair shares only grade-1 support across groups — the grade floor buys nothing here, "
+                      + "so it should go back to 1")
     }
 
     func testEveryMainQueryLandsInExactlyOneGroup() throws {

@@ -52,7 +52,33 @@ extension Corpus {
     /// halving 24 documents would leave neither side able to say anything at all.
     static let splitIndex = "main"
 
-    /// Groups of queries that must not be separated, as connected components of the query-document graph.
+    /// The grade at which two queries count as sharing evidence, and the number the corpus forced.
+    ///
+    /// It was `1` — any positive judgment — which is the strongest definition and the obvious one. Growing the
+    /// corpus to 384 queries destroyed it, and the measurement is worth keeping because the cause is
+    /// structural rather than an authoring slip:
+    ///
+    /// | edges from | components | largest holds |
+    /// |---|---|---|
+    /// | any positive judgment (≥1) | 62 | **73% of all queries** |
+    /// | answer or strongly relevant (≥2) | 130 | 17% |
+    /// | direct answer only (=3) | 220 | 2% |
+    ///
+    /// A realistic index cannot be split at grade 1. Questions people actually ask combine evidence across
+    /// themes — "what changed this training year" legitimately touches shoes, knees, supplements and sleep —
+    /// and one long conversation summary that mentions everything wires the whole graph together. At grade 1
+    /// the corpus is a single blob and there is no holdout to be had.
+    ///
+    /// So a scenario is documents that share an **answer or strongly relevant evidence**, and grade-1
+    /// supporting lines are allowed to appear on both sides. That is a real weakening and it is stated rather
+    /// than buried: the holdout now guarantees no shared ANSWER, not no shared evidence. `splitProblems`
+    /// measures and reports how much grade-1 sharing actually remains, so the weakening is a number instead of
+    /// a footnote. The alternative was to stop writing cross-theme questions, which would have bought a
+    /// stronger guarantee about a corpus that no longer resembled anybody's memories.
+    static let scenarioGradeFloor = 2
+
+    /// Groups of queries that must not be separated, as connected components of the query-document graph over
+    /// edges at `scenarioGradeFloor` or above.
     ///
     /// Returned sorted by size descending and then by key, so packing is deterministic without depending on
     /// dictionary iteration order — which Swift randomises per process and would otherwise make the split
@@ -75,22 +101,27 @@ extension Corpus {
         }
 
         for query in queries {
-            let graded = query.judgments.filter { $0.value > 0 && documents.contains($0.key) }.keys.sorted()
+            let graded = query.judgments
+                .filter { $0.value >= Corpus.scenarioGradeFloor && documents.contains($0.key) }
+                .keys.sorted()
             guard let first = graded.first else { continue }
             for other in graded.dropFirst() { union(first, other) }
         }
 
-        // Queries with no graded document — the `unanswerable` ones — join no component and cannot leak at
-        // all: there is no relevant document for a model to have been shown. So each becomes its own group of
-        // one and is packed individually.
+        // Queries with no document at or above the floor join no component. That is the `unanswerable` ones,
+        // which cannot leak at all — there is no relevant document for a model to have been shown — and also
+        // the rare query answered only by grade-1 support. Each becomes its own group of one and is packed
+        // individually.
         //
         // Grouping them together instead was the first attempt, and it put all ten on the dev side, leaving
         // the holdout with zero abstention cases — unable to measure the very behaviour the floor exists for.
         // Indivisibility is a property of shared evidence, and these share none.
         var byComponent: [String: [String]] = [:]
         for query in queries {
-            let graded = query.judgments.filter { $0.value > 0 && documents.contains($0.key) }.keys.sorted()
-            let key = graded.first.map { find($0) } ?? "«no-graded-evidence»:\(query.id)"
+            let graded = query.judgments
+                .filter { $0.value >= Corpus.scenarioGradeFloor && documents.contains($0.key) }
+                .keys.sorted()
+            let key = graded.first.map { find($0) } ?? "«no-shared-evidence»:\(query.id)"
             byComponent[key, default: []].append(query.id)
         }
         return byComponent
@@ -274,16 +305,37 @@ extension Corpus {
             problems.append("\(id) is on BOTH sides")
         }
 
-        // The property the whole design rests on: no document may be graded from both sides.
-        func gradedDocuments(_ ids: Set<String>) -> Set<String> {
+        // The property the design rests on: no document may be an ANSWER on both sides. See
+        // `scenarioGradeFloor` for why this is grade 2 rather than any positive judgment — at grade 1 a
+        // realistic corpus is one connected blob and no holdout exists at all.
+        func documents(_ ids: Set<String>, atLeast grade: Int) -> Set<String> {
             Set(ids.compactMap { queries[$0] }
-                .flatMap { $0.judgments.filter { $0.value > 0 }.keys })
+                .flatMap { $0.judgments.filter { $0.value >= grade }.keys })
         }
-        let shared = gradedDocuments(split.dev).intersection(gradedDocuments(split.test))
+        let shared = documents(split.dev, atLeast: Corpus.scenarioGradeFloor)
+            .intersection(documents(split.test, atLeast: Corpus.scenarioGradeFloor))
         for document in shared.sorted() {
-            problems.append("document \(document) is graded relevant on BOTH sides — the split leaks")
+            problems.append("document \(document) is an answer on BOTH sides — the split leaks")
         }
         return problems
+    }
+
+    /// How much weaker sharing the split still permits, as a number rather than a caveat.
+    ///
+    /// Grade-1 supporting lines may appear on both sides, because forbidding that makes the corpus unsplittable
+    /// (see `scenarioGradeFloor`). That is the residual leak, and the only honest way to carry it is to measure
+    /// it every time the split is printed: a holdout whose evidence overlaps dev heavily is weaker than one
+    /// whose overlap is a handful of lines, and the difference is invisible unless counted.
+    func residualSharing(_ split: CorpusSplit) -> (documents: Int, share: Double) {
+        let queries = Dictionary(uniqueKeysWithValues:
+            self.queries.filter { $0.index == Corpus.splitIndex }.map { ($0.id, $0) })
+        func positives(_ ids: Set<String>) -> Set<String> {
+            Set(ids.compactMap { queries[$0] }.flatMap { $0.judgments.filter { $0.value > 0 }.keys })
+        }
+        let devSide = positives(split.dev)
+        let shared = devSide.intersection(positives(split.test))
+        let all = devSide.union(positives(split.test))
+        return (shared.count, all.isEmpty ? 0 : Double(shared.count) / Double(all.count))
     }
 }
 

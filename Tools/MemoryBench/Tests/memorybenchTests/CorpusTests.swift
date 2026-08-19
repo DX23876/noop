@@ -29,7 +29,7 @@ final class CorpusTests: XCTestCase {
     func testTheCommittedCorpusLoadsAndValidates() throws {
         let corpus = try loadedCorpus()
         XCTAssertGreaterThan(corpus.documents.count, 400)
-        XCTAssertGreaterThan(corpus.queries.count, 300)
+        XCTAssertGreaterThan(corpus.queries.count, 550)
     }
 
     /// The reason this corpus was rebuilt. With ~25 candidates per query the retrieval problem is trivial and
@@ -40,7 +40,10 @@ final class CorpusTests: XCTestCase {
         let main = corpus.documents.filter { $0.index == Self.mainIndex }
         XCTAssertGreaterThanOrEqual(main.count, 250,
                                     "the main index has to be big enough that ranking, not recall, decides")
-        XCTAssertGreaterThanOrEqual(corpus.queries.filter { $0.index == Self.mainIndex }.count, 100)
+        // Raised from 100 as the corpus grew. The number matters because the holdout is a third of it: at 120
+        // queries the frozen half held 41 and could resolve nothing, which is why growing `main` was the
+        // prerequisite for the split meaning anything rather than a later refinement of it.
+        XCTAssertGreaterThanOrEqual(corpus.queries.filter { $0.index == Self.mainIndex }.count, 350)
     }
 
     /// A bilingual person's own index, not nine translations of one fact. The ratio matters: too little
@@ -60,8 +63,9 @@ final class CorpusTests: XCTestCase {
         let corpus = try loadedCorpus()
         let queries = corpus.queries.filter { $0.index == Self.mainIndex }
         for category in QueryCategory.allCases {
-            XCTAssertGreaterThanOrEqual(queries.filter { $0.category == category }.count, 8,
-                                        "\(category.rawValue) needs enough cases to mean something")
+            XCTAssertGreaterThanOrEqual(queries.filter { $0.category == category }.count, 20,
+                                        "\(category.rawValue) needs enough cases to mean something — and enough "
+                                        + "that both halves of the split get a usable share of it")
         }
     }
 

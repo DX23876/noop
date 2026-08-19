@@ -9,7 +9,8 @@
       "text": "Wie lautet mein Schlafziel im Moment?",
       "judgments": {
         "m-sleep-goal-new": 3,
-        "m-sleep-goal-old": 0
+        "m-sleep-goal-old": 0,
+        "m-sleep-j1": 1
       }
     },
     {
@@ -20,7 +21,9 @@
       "text": "Bis wann darf ich aktuell Koffein trinken?",
       "judgments": {
         "m-sleep-caf-14": 3,
-        "m-sleep-caf-16": 0
+        "m-sleep-caf-16": 0,
+        "m-j-caf-01": 1,
+        "m-sleep-summary": 1
       }
     },
     {
@@ -44,7 +47,8 @@
       "judgments": {
         "m-freq-5": 3,
         "m-freq-4": 0,
-        "m-freq-3": 0
+        "m-freq-3": 0,
+        "m-plan-summary": 2
       }
     },
     {
@@ -55,7 +59,8 @@
       "text": "Welche Magnesiumform nehme ich jetzt?",
       "judgments": {
         "m-mag-glycinate": 3,
-        "m-mag-citrate": 0
+        "m-mag-citrate": 0,
+        "m-mag-timing": 1
       }
     },
     {
@@ -79,7 +84,8 @@
       "judgments": {
         "m-ferritin-latest": 3,
         "m-ferritin-2025": 0,
-        "m-ferritin-2024": 0
+        "m-ferritin-2024": 0,
+        "m-labs-en": 1
       }
     },
     {
@@ -90,7 +96,9 @@
       "text": "Was ist mein aktuelles Wettkampfziel?",
       "judgments": {
         "m-race-half-goal": 3,
-        "m-race-half-old-goal": 0
+        "m-race-half-old-goal": 0,
+        "m-plan-summary": 2,
+        "m-race-10k": 1
       }
     },
     {
@@ -101,7 +109,8 @@
       "text": "Ist mein CRP inzwischen wieder normal?",
       "judgments": {
         "m-crp-normal": 3,
-        "m-crp": 0
+        "m-crp": 0,
+        "m-j-cold-end": 1
       }
     },
     {
@@ -160,7 +169,8 @@
       "judgments": {
         "m-j-goodnight": 3,
         "m-sleep-msg3": 0,
-        "m-sleep-msg5": 0
+        "m-sleep-msg5": 0,
+        "m-j-earlywake": 0
       }
     },
     {
@@ -220,7 +230,8 @@
       "text": "Welcher Mittagsschlaf war zu lang?",
       "judgments": {
         "m-sleep-nap-long": 3,
-        "m-sleep-nap-short": 0
+        "m-sleep-nap-short": 0,
+        "m-sleep-j3": 1
       }
     },
     {
@@ -437,7 +448,8 @@
       "text": "Schlafziel?",
       "judgments": {
         "m-sleep-goal-new": 3,
-        "m-sleep-goal-old": 0
+        "m-sleep-goal-old": 0,
+        "m-plan-summary": 1
       }
     },
     {
@@ -507,7 +519,8 @@
       "text": "Erholung heute",
       "judgments": {
         "m-d-rec-01": 3,
-        "m-d-rec-02": 0
+        "m-d-rec-02": 0,
+        "m-d-rec-03": 0
       }
     },
     {

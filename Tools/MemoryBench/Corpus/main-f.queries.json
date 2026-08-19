@@ -1,0 +1,796 @@
+{
+  "version": 1,
+  "queries": [
+    {
+      "id": "mqf-en-01",
+      "index": "main",
+      "lang": "en",
+      "category": "paraphrase",
+      "text": "How did the hotel gym change my strength session?",
+      "judgments": {
+        "m-train-en-gym": 3,
+        "m-en-d-gym": 2,
+        "m-supp-en-list": 0
+      }
+    },
+    {
+      "id": "mqf-en-02",
+      "index": "main",
+      "lang": "en",
+      "category": "synonym",
+      "text": "What do I have to add to plain water on long rides?",
+      "judgments": {
+        "m-en-fact-water": 3,
+        "m-electrolytes": 1
+      }
+    },
+    {
+      "id": "mqf-en-03",
+      "index": "main",
+      "lang": "en",
+      "category": "numeric",
+      "text": "How many kilometres was the run before the first meeting?",
+      "judgments": {
+        "m-en-d-run": 3,
+        "m-en-j-walk": 0
+      }
+    },
+    {
+      "id": "mqf-en-04",
+      "index": "main",
+      "lang": "en",
+      "category": "paraphrase",
+      "text": "Does flying west cost me as much sleep as flying east?",
+      "judgments": {
+        "m-sleep-en-jetlag": 3,
+        "m-sleep-travel": 1
+      }
+    },
+    {
+      "id": "mqf-en-05",
+      "index": "main",
+      "lang": "en",
+      "category": "near-miss",
+      "text": "Which warm room kept me awake, the hotel or my own bedroom?",
+      "judgments": {
+        "m-sleep-en-hotel": 3,
+        "m-en-d-sleep": 2,
+        "m-d-heat-02": 0
+      }
+    },
+    {
+      "id": "mqf-en-06",
+      "index": "main",
+      "lang": "en",
+      "category": "terse",
+      "text": "waterfront walk",
+      "judgments": {
+        "m-en-j-walk": 3
+      }
+    },
+    {
+      "id": "mqf-en-07",
+      "index": "main",
+      "lang": "en",
+      "category": "terse",
+      "text": "filter coffee",
+      "judgments": {
+        "m-en-fact-coffee": 3,
+        "m-sleep-tea-evening": 1
+      }
+    },
+    {
+      "id": "mqf-en-08",
+      "index": "main",
+      "lang": "en",
+      "category": "negation",
+      "text": "Which session had no barbell available?",
+      "judgments": {
+        "m-en-d-gym": 3,
+        "m-train-en-gym": 2,
+        "m-d-str-01": 0
+      }
+    },
+    {
+      "id": "mqf-en-09",
+      "index": "main",
+      "lang": "en",
+      "category": "paraphrase",
+      "text": "What did the London GP want instead of starting iron?",
+      "judgments": {
+        "m-labs-en": 3,
+        "m-iron-no": 1,
+        "m-ferritin-2025": 1
+      }
+    },
+    {
+      "id": "mqf-en-10",
+      "index": "main",
+      "lang": "en",
+      "category": "synonym",
+      "text": "Why is eating out every evening a problem for me?",
+      "judgments": {
+        "m-en-msg-food": 3,
+        "m-en-hyp": 2,
+        "m-sleep-late-meal": 1
+      }
+    },
+    {
+      "id": "mqf-en-11",
+      "index": "main",
+      "lang": "en",
+      "category": "near-miss",
+      "text": "Which knee complained during split squats?",
+      "judgments": {
+        "m-knee-en-gym": 3,
+        "m-knee-r-squat": 2,
+        "m-knee-en-note": 1,
+        "m-knee-l-fast-gone": 0
+      }
+    },
+    {
+      "id": "mqf-en-12",
+      "index": "main",
+      "lang": "en",
+      "category": "numeric",
+      "text": "What weight on the leg press felt fine?",
+      "judgments": {
+        "m-knee-en-gym": 3,
+        "m-d-str-01": 0
+      }
+    },
+    {
+      "id": "mqf-mt-01",
+      "index": "main",
+      "lang": "de",
+      "category": "paraphrase",
+      "text": "Was war am Tag mit der schlechtesten Erholung sonst noch los?",
+      "judgments": {
+        "m-d-rec-03": 3,
+        "m-fb-restday": 2,
+        "m-j-screen-02": 1
+      }
+    },
+    {
+      "id": "mqf-mt-02",
+      "index": "main",
+      "lang": "de",
+      "category": "numeric",
+      "text": "Was ist am 2026-08-07 alles passiert?",
+      "judgments": {
+        "m-hrv-alcohol-drop": 2,
+        "m-j-alc-03": 2,
+        "m-j-caf-03": 2,
+        "m-sleep-nap-short": 2,
+        "m-d-swim-02": 2,
+        "m-d-rec-03": 0
+      }
+    },
+    {
+      "id": "mqf-mt-03",
+      "index": "main",
+      "lang": "de",
+      "category": "paraphrase",
+      "text": "Welche Faktoren kamen in der schlechten Schlafwoche zusammen?",
+      "judgments": {
+        "m-sleep-summary": 3,
+        "m-sleep-msg2": 1,
+        "m-d-food-01": 1,
+        "m-j-alc-03": 1,
+        "m-sleep-stress-week": 1
+      }
+    },
+    {
+      "id": "mqf-mt-04",
+      "index": "main",
+      "lang": "de",
+      "category": "paraphrase",
+      "text": "Was hat sich in diesem Trainingsjahr insgesamt verändert?",
+      "judgments": {
+        "m-year-review": 3,
+        "m-freq-5": 1,
+        "m-shoes-new": 1,
+        "m-supp-summary": 1
+      }
+    },
+    {
+      "id": "mqf-mt-05",
+      "index": "main",
+      "lang": "de",
+      "category": "synonym",
+      "text": "Wie hängen Schuhe, Einlagen und das linke Knie zusammen?",
+      "judgments": {
+        "m-knee-l-fast-gone": 3,
+        "m-shoes-new": 2,
+        "m-insoles": 2,
+        "m-d-insole-note": 2,
+        "m-knee-l-fast-old": 1
+      }
+    },
+    {
+      "id": "mqf-mt-06",
+      "index": "main",
+      "lang": "de",
+      "category": "paraphrase",
+      "text": "Was spricht dafür, dass die Basis für unter 1:50 trägt?",
+      "judgments": {
+        "m-race-10k": 3,
+        "m-msg-race2": 2,
+        "m-plan-summary": 2,
+        "m-freq-5": 1
+      }
+    },
+    {
+      "id": "mqf-mt-07",
+      "index": "main",
+      "lang": "de",
+      "category": "synonym",
+      "text": "Welche Rolle spielt Alkohol bei meinen Messwerten?",
+      "judgments": {
+        "m-hrv-alcohol-drop": 3,
+        "m-sleep-alcohol": 2,
+        "m-msg-hrv2": 2,
+        "m-j-alc-03": 1
+      }
+    },
+    {
+      "id": "mqf-mt-08",
+      "index": "main",
+      "lang": "de",
+      "category": "paraphrase",
+      "text": "Was weiß ich über den Zusammenhang von Abendessen und Nacht?",
+      "judgments": {
+        "m-hyp-earlymeal": 3,
+        "m-sleep-late-meal": 2,
+        "m-d-food-01": 2,
+        "m-d-food-02": 2,
+        "m-d-food-03": 1
+      }
+    },
+    {
+      "id": "mqf-mt-09",
+      "index": "main",
+      "lang": "de",
+      "category": "synonym",
+      "text": "Wie reagiert mein Körper auf Wärme, drinnen und draußen?",
+      "judgments": {
+        "m-d-heat-01": 3,
+        "m-d-heat-02": 2,
+        "m-sleep-room-temp": 2,
+        "m-msg-heat1": 1
+      }
+    },
+    {
+      "id": "mqf-mt-10",
+      "index": "main",
+      "lang": "de",
+      "category": "paraphrase",
+      "text": "Was habe ich alles gegen die Knieprobleme unternommen?",
+      "judgments": {
+        "m-knee-physio": 3,
+        "m-d-str-04": 2,
+        "m-hyp-strength": 2,
+        "m-insoles": 1,
+        "m-knee-exercises-done": 1
+      }
+    },
+    {
+      "id": "mqf-mt-11",
+      "index": "main",
+      "lang": "de",
+      "category": "numeric",
+      "text": "Welche Werte waren im Blutbild vom 2026-07-27 auffällig?",
+      "judgments": {
+        "m-d3-level": 3,
+        "m-cholesterol": 2,
+        "m-tsh": 0,
+        "m-hba1c": 0,
+        "m-crp-normal": 0
+      }
+    },
+    {
+      "id": "mqf-mt-12",
+      "index": "main",
+      "lang": "de",
+      "category": "paraphrase",
+      "text": "Was hat sich beim Schlaf über das Jahr verschoben?",
+      "judgments": {
+        "m-sleep-wake-3am": 3,
+        "m-sleep-onset-slow": 2,
+        "m-year-review": 2,
+        "m-sleep-caf-14": 1
+      }
+    },
+    {
+      "id": "mqf-mt-13",
+      "index": "main",
+      "lang": "de",
+      "category": "paraphrase",
+      "text": "Welche Supplemente sind geblieben und welche sind weggefallen?",
+      "judgments": {
+        "m-supp-summary": 3,
+        "m-mag-glycinate": 2,
+        "m-creatine-stop": 2,
+        "m-cbd-stopped": 2,
+        "m-omega3": 1,
+        "m-d3-new": 1
+      }
+    },
+    {
+      "id": "mqf-mt-14",
+      "index": "main",
+      "lang": "de",
+      "category": "paraphrase",
+      "text": "Was hat der Wettkampftag Ende Juli nach sich gezogen?",
+      "judgments": {
+        "m-race-10k": 3,
+        "m-j-soreness-02": 2,
+        "m-d-food-03": 2,
+        "m-knee-race-ok": 1
+      }
+    },
+    {
+      "id": "mqf-mt-15",
+      "index": "main",
+      "lang": "de",
+      "category": "negation",
+      "text": "Wann fällt die harte Einheit aus, ohne Ausnahme?",
+      "judgments": {
+        "m-plan-summary": 3,
+        "m-intervals-declined2": 2,
+        "m-hrv-cold-drop": 1
+      }
+    },
+    {
+      "id": "mqf-mt-16",
+      "index": "main",
+      "lang": "de",
+      "category": "synonym",
+      "text": "Was passiert an Tagen, an denen ich viel sitze?",
+      "judgments": {
+        "m-j-desk": 3,
+        "m-j-steps-low": 2,
+        "m-d-work-01": 2,
+        "m-hip-tight": 2
+      }
+    },
+    {
+      "id": "mqf-mt-17",
+      "index": "main",
+      "lang": "de",
+      "category": "synonym",
+      "text": "Woran erkenne ich eine beginnende Infektion an meinen Werten?",
+      "judgments": {
+        "m-hrv-cold-drop": 3,
+        "m-j-cold-start": 2,
+        "m-zinc-cold": 1,
+        "m-crp": 1
+      }
+    },
+    {
+      "id": "mqf-mt-18",
+      "index": "main",
+      "lang": "de",
+      "category": "paraphrase",
+      "text": "Ab wann darf ich nach einer Krankheitspause wieder Intervalle machen?",
+      "judgments": {
+        "m-hrv-cold-drop": 3,
+        "m-j-cold-end": 2,
+        "m-injury-pause": 1
+      }
+    },
+    {
+      "id": "mqf-mt-19",
+      "index": "main",
+      "lang": "de",
+      "category": "near-miss",
+      "text": "Welche Pause war wegen Krankheit und welche wegen der Sehne?",
+      "judgments": {
+        "m-j-cold-mid": 3,
+        "m-injury-pause": 2,
+        "m-d-family-02": 0
+      }
+    },
+    {
+      "id": "mqf-mt-20",
+      "index": "main",
+      "lang": "de",
+      "category": "synonym",
+      "text": "Welche Gewohnheiten hängen laut den Hypothesen mit dem Schlaf zusammen?",
+      "judgments": {
+        "m-hyp-screens": 3,
+        "m-hyp-steps": 2,
+        "m-sleep-late-meal": 2,
+        "m-sleep-alcohol": 2,
+        "m-hyp-sauna": 1
+      }
+    },
+    {
+      "id": "mqf-mt-21",
+      "index": "main",
+      "lang": "de",
+      "category": "paraphrase",
+      "text": "Was sagen die Rückmeldungen über harte gegen ruhige Einheiten?",
+      "judgments": {
+        "m-intervals-done": 3,
+        "m-easy-run-helpful": 2,
+        "m-intervals-declined1": 2,
+        "m-tempo-worse": 2,
+        "m-fb-restday": 1
+      }
+    },
+    {
+      "id": "mqf-mt-22",
+      "index": "main",
+      "lang": "de",
+      "category": "recency",
+      "text": "Wie ist der aktuelle Stand bei beiden Knien?",
+      "judgments": {
+        "m-knee-r-squat": 3,
+        "m-knee-l-fast-gone": 2,
+        "m-msg-knee2": 2,
+        "m-knee-l-fast-old": 0
+      }
+    },
+    {
+      "id": "mqf-mt-23",
+      "index": "main",
+      "lang": "de",
+      "category": "numeric",
+      "text": "Wie viele Kilo habe ich vom Herbstgewicht bis heute verloren?",
+      "judgments": {
+        "m-weight-new": 3,
+        "m-weight-old": 2,
+        "m-msg-weight1": 2
+      }
+    },
+    {
+      "id": "mqf-mt-24",
+      "index": "main",
+      "lang": "de",
+      "category": "near-miss",
+      "text": "Welche Erhöhung war beim Vitamin D und welche beim Schlafziel?",
+      "judgments": {
+        "m-d3-new": 3,
+        "m-sleep-goal-new": 2,
+        "m-d3-old": 0,
+        "m-sleep-goal-old": 0
+      }
+    },
+    {
+      "id": "mqf-mt-25",
+      "index": "main",
+      "lang": "de",
+      "category": "terse",
+      "text": "Jahresrückblick",
+      "judgments": {
+        "m-year-review": 3,
+        "m-title-race": 0
+      }
+    },
+    {
+      "id": "mqf-mt-26",
+      "index": "main",
+      "lang": "de",
+      "category": "terse",
+      "text": "Blutbild Juli",
+      "judgments": {
+        "m-d3-level": 3,
+        "m-hba1c": 2,
+        "m-tsh": 2,
+        "m-crp-normal": 2,
+        "m-cholesterol": 2,
+        "m-ferritin-latest": 2
+      }
+    },
+    {
+      "id": "mqf-mt-27",
+      "index": "main",
+      "lang": "de",
+      "category": "terse",
+      "text": "Schlafwoche",
+      "judgments": {
+        "m-sleep-summary": 3,
+        "m-title-sleepweek": 2,
+        "m-sleep-msg3": 1
+      }
+    },
+    {
+      "id": "mqf-mt-28",
+      "index": "main",
+      "lang": "de",
+      "category": "terse",
+      "text": "Supplements aufräumen",
+      "judgments": {
+        "m-supp-summary": 3,
+        "m-title-supp": 2,
+        "m-msg-supp1": 1
+      }
+    },
+    {
+      "id": "mqf-mt-29",
+      "index": "main",
+      "lang": "de",
+      "category": "negation",
+      "text": "Welche Werte im Juli waren gerade nicht auffällig?",
+      "judgments": {
+        "m-tsh": 3,
+        "m-hba1c": 2,
+        "m-crp-normal": 2,
+        "m-d3-level": 0
+      }
+    },
+    {
+      "id": "mqf-mt-30",
+      "index": "main",
+      "lang": "de",
+      "category": "negation",
+      "text": "Welche Gelenke machen beim Radfahren keine Probleme?",
+      "judgments": {
+        "m-knee-bike-fine": 3,
+        "m-d-bike-01": 1,
+        "m-shoulder-swim": 0
+      }
+    },
+    {
+      "id": "mqf-mt-31",
+      "index": "main",
+      "lang": "de",
+      "category": "recency",
+      "text": "Welche Frequenz, welches Ziel und welches Gewicht gelten jetzt?",
+      "judgments": {
+        "m-freq-5": 3,
+        "m-race-half-goal": 2,
+        "m-weight-new": 2,
+        "m-freq-3": 0,
+        "m-race-half-old-goal": 0,
+        "m-weight-old": 0
+      }
+    },
+    {
+      "id": "mqf-mt-32",
+      "index": "main",
+      "lang": "de",
+      "category": "near-miss",
+      "text": "Welche Einheit war der Tiefpunkt und welche der Höhepunkt der Woche?",
+      "judgments": {
+        "m-d-run-05": 3,
+        "m-d-run-01": 2,
+        "m-d-strain-01": 2,
+        "m-d-rec-05": 0
+      }
+    },
+    {
+      "id": "mqf-mt-33",
+      "index": "main",
+      "lang": "de",
+      "category": "numeric",
+      "text": "Wie viele Kilometer und welcher Puls waren beim letzten ruhigen Lauf?",
+      "judgments": {
+        "m-d-run-01": 3,
+        "m-hr-zones": 1,
+        "m-d-run-04": 0
+      }
+    },
+    {
+      "id": "mqf-mt-34",
+      "index": "main",
+      "lang": "de",
+      "category": "synonym",
+      "text": "Welche Beschwerden hängen mit zu wenig Trinken zusammen?",
+      "judgments": {
+        "m-d-hydration": 3,
+        "m-j-headache": 2,
+        "m-j-water-02": 1
+      }
+    },
+    {
+      "id": "mqf-mt-35",
+      "index": "main",
+      "lang": "de",
+      "category": "paraphrase",
+      "text": "Wie gehe ich mit dem Konflikt zwischen Wochenendregel und langem Lauf um?",
+      "judgments": {
+        "m-long-run-sunday": 3,
+        "m-fb-swap-weekend": 2,
+        "m-weekend-no-run": 2,
+        "m-fb-longrun-move": 2,
+        "m-weekend-bike-ok": 1
+      }
+    },
+    {
+      "id": "mqf-x-01",
+      "index": "main",
+      "lang": "de",
+      "category": "crosslingual",
+      "text": "Was hat der Hausarzt im Ausland zum Eisen empfohlen?",
+      "judgments": {
+        "m-labs-en": 3,
+        "m-iron-no": 1
+      }
+    },
+    {
+      "id": "mqf-x-02",
+      "index": "main",
+      "lang": "de",
+      "category": "crosslingual",
+      "text": "Was ist mir beim Essen unterwegs jeden Abend aufgefallen?",
+      "judgments": {
+        "m-en-msg-food": 3,
+        "m-en-hyp": 2
+      }
+    },
+    {
+      "id": "mqf-x-03",
+      "index": "main",
+      "lang": "de",
+      "category": "crosslingual",
+      "text": "Wie war die Nacht im Hotelzimmer in Boston?",
+      "judgments": {
+        "m-sleep-en-hotel": 3,
+        "m-en-d-sleep": 2
+      }
+    },
+    {
+      "id": "mqf-x-04",
+      "index": "main",
+      "lang": "de",
+      "category": "crosslingual",
+      "text": "Was war das Thema der Unterhaltung über das Training auf Reisen?",
+      "judgments": {
+        "m-en-title": 3,
+        "m-en-msg-work": 2
+      }
+    },
+    {
+      "id": "mqf-x-05",
+      "index": "main",
+      "lang": "en",
+      "category": "crosslingual",
+      "text": "How many sessions a week am I doing now?",
+      "judgments": {
+        "m-freq-5": 3,
+        "m-plan-summary": 2,
+        "m-freq-3": 0,
+        "m-freq-4": 0
+      }
+    },
+    {
+      "id": "mqf-x-06",
+      "index": "main",
+      "lang": "en",
+      "category": "crosslingual",
+      "text": "Which magnesium form am I on since the switch?",
+      "judgments": {
+        "m-mag-glycinate": 3,
+        "m-mag-timing": 2,
+        "m-mag-citrate": 0
+      }
+    },
+    {
+      "id": "mqf-x-07",
+      "index": "main",
+      "lang": "en",
+      "category": "crosslingual",
+      "text": "What is my zone two heart rate range?",
+      "judgments": {
+        "m-hr-zones": 3,
+        "m-max-hr": 1
+      }
+    },
+    {
+      "id": "mqf-x-08",
+      "index": "main",
+      "lang": "en",
+      "category": "crosslingual",
+      "text": "What time did I finish the ten kilometre race in?",
+      "judgments": {
+        "m-race-10k": 3,
+        "m-msg-race1": 2
+      }
+    },
+    {
+      "id": "mqf-x-09",
+      "index": "main",
+      "lang": "en",
+      "category": "crosslingual",
+      "text": "Which knee hurts on deep squats?",
+      "judgments": {
+        "m-knee-r-squat": 3,
+        "m-msg-knee1": 2,
+        "m-knee-l-fast-old": 0
+      }
+    },
+    {
+      "id": "mqf-x-10",
+      "index": "main",
+      "lang": "en",
+      "category": "crosslingual",
+      "text": "Did the physiotherapist find anything about my leg alignment?",
+      "judgments": {
+        "m-knee-physio": 3,
+        "m-d-str-04": 2
+      }
+    },
+    {
+      "id": "mqf-un-01",
+      "index": "main",
+      "lang": "de",
+      "category": "unanswerable",
+      "text": "Wie viel Miete zahle ich im Monat?",
+      "judgments": {}
+    },
+    {
+      "id": "mqf-un-02",
+      "index": "main",
+      "lang": "de",
+      "category": "unanswerable",
+      "text": "Welchen Sport macht meine Partnerin?",
+      "judgments": {}
+    },
+    {
+      "id": "mqf-un-03",
+      "index": "main",
+      "lang": "de",
+      "category": "unanswerable",
+      "text": "Wann ist mein nächster Arzttermin?",
+      "judgments": {}
+    },
+    {
+      "id": "mqf-un-04",
+      "index": "main",
+      "lang": "de",
+      "category": "unanswerable",
+      "text": "Wie hoch ist mein Körperfettanteil?",
+      "judgments": {}
+    },
+    {
+      "id": "mqf-un-05",
+      "index": "main",
+      "lang": "de",
+      "category": "unanswerable",
+      "text": "Welche Musik höre ich beim Laufen?",
+      "judgments": {}
+    },
+    {
+      "id": "mqf-un-06",
+      "index": "main",
+      "lang": "en",
+      "category": "unanswerable",
+      "text": "Where did I park the car?",
+      "judgments": {}
+    },
+    {
+      "id": "mqf-un-07",
+      "index": "main",
+      "lang": "de",
+      "category": "unanswerable",
+      "text": "Wie lange ist mein Arbeitsweg?",
+      "judgments": {}
+    },
+    {
+      "id": "mqf-un-08",
+      "index": "main",
+      "lang": "de",
+      "category": "unanswerable",
+      "text": "Wie heißt mein Laufverein?",
+      "judgments": {}
+    },
+    {
+      "id": "mqf-un-09",
+      "index": "main",
+      "lang": "de",
+      "category": "unanswerable",
+      "text": "Wie viele Urlaubstage habe ich noch?",
+      "judgments": {}
+    },
+    {
+      "id": "mqf-un-10",
+      "index": "main",
+      "lang": "en",
+      "category": "unanswerable",
+      "text": "How much did the new running shoes cost?",
+      "judgments": {}
+    }
+  ]
+}

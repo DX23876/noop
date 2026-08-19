@@ -83,12 +83,12 @@ quantisation and Matryoshka loss the device actually has.
 
 ## What the corpus is, and what it is not
 
-520 documents / 380 queries, organised into **indexes** rather than languages, because an index is what a
+520 documents / 624 queries, organised into **indexes** rather than languages, because an index is what a
 question is actually asked against: one person's own memories.
 
 | Index | Documents | Queries | Languages | Job |
 |---|---|---|---|---|
-| `main` | 272 | 140 | de + en (~1 in 10) | every ranking and reranking question |
+| `main` | 272 | 384 | de + en (~1 in 10) | every ranking and reranking question |
 | `locale-*` × 10 | 24–28 each | 24 each | one each | does this model work in this language at all |
 
 `main` is shaped like a real index and sized so that **ranking, not recall, decides** — the previous version
@@ -233,6 +233,17 @@ Around a dozen settings have been chosen by looking at scores on this corpus. `m
 of the query-document graph, so no document is graded from both sides. The assignment is committed
 (`Corpus/split.json`); every reading of the holdout is appended to `Corpus/holdout-access.log`.
 
+`main` grew from 120 queries to 384, which is what the holdout needed: a third of 120 is 41 frozen queries,
+enough to catch a large regression and nothing else. It now holds 134, and the paired intervals on it are worth
+reading. Growth was authored per theme against the documents rather than in bulk — judgments are the handwork,
+and a judgment written without reading the document it points at is worse than no query.
+
+Two things the growth changed on its own. **Single-target queries fell from 50% to 33%** through an additive
+audit: supporting evidence was added only where it genuinely exists, never to hit a ratio, because inventing
+relevance is a worse defect than a query that legitimately has one answer. And the questions got
+**cross-theme** — "what changed this training year", "what came together in the bad sleep week" — which is the
+realistic shape and turned out to have a structural consequence for the split, below.
+
 **Growth extends that assignment, it does not recompute it.** Recomputing after every batch of new queries is
 the obvious implementation and it quietly destroys what the split is for: a query that sat in the holdout while
 a dozen settings were tuned against dev has been kept honest, and moving it to dev spends that; moving a
@@ -243,8 +254,37 @@ and `--regenerate` is the deliberate, almost-never-right escape hatch.
 That leaves exactly one way growth can still leak, and it is not obvious: a **new** query whose graded documents
 span a dev scenario and a holdout scenario merges two components that were kept apart on purpose. There is no
 correct side for the result, so it is a hard error naming the query to regrade rather than a heuristic that
-picks one. The corpus is what has to change, not the split. Adding the 20 crosslingual queries triggered none of
-these, and left all 120 prior assignments byte-identical.
+picks one. Adding the 20 crosslingual queries triggered none of these, and left all 120 prior assignments
+byte-identical.
+
+### What a scenario is had to change, and the corpus is what forced it
+
+A scenario was the connected component of the query-document graph over **any** positive judgment. Growing to
+384 queries destroyed that definition outright:
+
+| edges from | components | largest holds |
+|---|---|---|
+| any positive judgment (≥1) | 62 | **73% of all queries** |
+| answer or strongly relevant (≥2) | 130 | 17% |
+| direct answer only (=3) | 220 | 2% |
+
+This is structural, not an authoring slip. Questions people actually ask combine evidence across themes, and one
+long conversation summary that mentions shoes, knees, supplements and sleep wires the whole graph together. At
+grade 1 the corpus is a single blob and **there is no holdout to be had at all**. The choice was between a
+stronger guarantee about a corpus that no longer resembles anyone's memories, and a weaker guarantee about a
+realistic one.
+
+So a scenario is now documents sharing an **answer or strongly relevant evidence** (grade ≥2), and the guarantee
+is stated precisely: no shared **answer** across the halves, not no shared evidence. The residual is measured
+rather than footnoted — `memorybench split` prints it every time, currently **46 documents (19%) carry grade-1
+support on both sides**. A holdout whose evidence overlaps dev heavily is weaker than one whose overlap is a
+handful of lines, and without the number the difference is invisible.
+
+Changing the definition cost the freeze once: six scenarios spanned both sides under the new grouping, so the
+assignment could not be extended across the change. It was regenerated exactly once, and because a regeneration
+matters more to the holdout's meaning than any reading of it, `--regenerate --write` **refuses without a reason**
+and appends a `REGENERATED` line to `Corpus/holdout-access.log` beside the two readings. The previous holdout's
+two readings are in that log and neither was used to choose anything.
 
 One consequence worth stating plainly: the committed split is now deliberately **not** what a from-scratch
 computation produces, so the test that used to assert exactly that has been inverted rather than deleted — it

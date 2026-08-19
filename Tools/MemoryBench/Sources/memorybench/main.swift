@@ -145,6 +145,18 @@ while let key = iterator.next() {
 /// configuration alongside the reason, so a later reader can see whether settings changed AFTER a reading —
 /// which is the specific failure this guards against, since tuning on the holdout is invisible in the
 /// numbers themselves.
+/// Records that the frozen assignment was thrown away and rebuilt, in the same log as the readings.
+func appendSplitRegeneration(corpusDirectory: URL, reason: String, split: CorpusSplit) throws {
+    let line = "\(ISO8601DateFormatter().string(from: Date()))  "
+        + "REGENERATED split=v\(split.version)/seed\(split.seed) "
+        + "dev=\(split.devQueryIDs.count) test=\(split.testQueryIDs.count)  reason=\(reason)\n"
+    let url = corpusDirectory.appendingPathComponent("holdout-access.log")
+    let handle = try FileHandle(forWritingTo: url)
+    defer { try? handle.close() }
+    try handle.seekToEnd()
+    try handle.write(contentsOf: Data(line.utf8))
+}
+
 func appendHoldoutAccess(corpusDirectory: URL,
                          reason: String,
                          model: String,
@@ -288,8 +300,12 @@ case .split:
                 + String(format: "%4d", dev) + String(format: "%6d", test))
         }
 
+        let residual = corpus.residualSharing(split)
         if problems.isEmpty {
-            print("\nleak check: PASS — no document is graded relevant on both sides")
+            print("\nleak check: PASS — no document is an ANSWER on both sides")
+            print("  residual: \(residual.documents) documents "
+                + "(\(String(format: "%.0f%%", 100 * residual.share))) carry grade-1 support on both sides — "
+                + "allowed by design, because forbidding it makes the corpus unsplittable")
         } else {
             print("\nleak check: FAIL")
             for problem in problems { print("  - \(problem)") }
@@ -297,6 +313,18 @@ case .split:
 
         if writeSplit {
             guard problems.isEmpty else { fail("\nrefusing to write a split that does not pass its own checks") }
+            // A regeneration is the single most consequential thing that can happen to the holdout's meaning —
+            // more than any reading of it — so it goes in the same log, with a reason, and refuses without one.
+            // The log's own header says the honest fix for an over-read holdout is a fresh split; a fresh split
+            // that leaves no trace would defeat exactly that.
+            if regenerateSplit, existing != nil {
+                guard !holdoutReason.isEmpty else {
+                    fail("\nregenerating moves queries across the freeze — pass --holdout \"<reason>\" so the "
+                        + "reason is recorded in holdout-access.log")
+                }
+                try appendSplitRegeneration(corpusDirectory: directory, reason: holdoutReason, split: split)
+                print("recorded the regeneration in holdout-access.log")
+            }
             try split.write(directory: directory)
             print("\nwrote \(directory.appendingPathComponent(CorpusSplit.filename).path)")
         } else {

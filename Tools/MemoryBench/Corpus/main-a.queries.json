@@ -21,7 +21,9 @@
       "category": "synonym",
       "text": "Wie hoch ist mein Erholungspuls in Ruhe normalerweise?",
       "judgments": {
-        "m-rhr-baseline": 3
+        "m-rhr-baseline": 3,
+        "m-hrv-baseline": 1,
+        "m-d-rec-02": 1
       }
     },
     {
@@ -81,7 +83,8 @@
       "judgments": {
         "m-freq-5": 3,
         "m-freq-4": 0,
-        "m-freq-3": 0
+        "m-freq-3": 0,
+        "m-plan-summary": 2
       }
     },
     {
@@ -114,7 +117,8 @@
       "text": "Welche Zielzeit habe ich mir für die 21 Kilometer gesetzt?",
       "judgments": {
         "m-race-half-goal": 3,
-        "m-race-half-old-goal": 0
+        "m-race-half-old-goal": 0,
+        "m-plan-summary": 2
       }
     },
     {
@@ -232,7 +236,9 @@
       "category": "paraphrase",
       "text": "Wie lange hat der Wiedereinstieg nach der Sehnenreizung gedauert?",
       "judgments": {
-        "m-injury-pause": 3
+        "m-injury-pause": 3,
+        "m-year-review": 1,
+        "m-j-cold-mid": 1
       }
     },
     {
@@ -305,7 +311,8 @@
       "category": "negation",
       "text": "Wann trage ich die Bandage nicht?",
       "judgments": {
-        "m-knee-brace": 3
+        "m-knee-brace": 3,
+        "m-knee-race-ok": 1
       }
     },
     {
@@ -316,7 +323,8 @@
       "text": "Welche Nickerchen-Länge schadet dem Abendschlaf nicht?",
       "judgments": {
         "m-sleep-nap-short": 3,
-        "m-sleep-nap-long": 0
+        "m-sleep-nap-long": 0,
+        "m-sleep-j3": 1
       }
     },
     {
@@ -355,7 +363,8 @@
       "category": "negation",
       "text": "Wann nehme ich kein Elektrolytpulver?",
       "judgments": {
-        "m-electrolytes": 3
+        "m-electrolytes": 3,
+        "m-en-fact-water": 1
       }
     },
     {
@@ -378,7 +387,8 @@
       "text": "Was war der Ferritinwert im Blutbild vom 2026-07-27?",
       "judgments": {
         "m-ferritin-latest": 3,
-        "m-ferritin-2025": 0
+        "m-ferritin-2025": 0,
+        "m-ferritin-2024": 0
       }
     },
     {
@@ -389,7 +399,9 @@
       "text": "Wie viele IE Vitamin D nehme ich jetzt?",
       "judgments": {
         "m-d3-new": 3,
-        "m-d3-old": 0
+        "m-d3-old": 0,
+        "m-d3-level": 1,
+        "m-d3-summer-pause": 1
       }
     },
     {
@@ -400,7 +412,8 @@
       "text": "Wie viel Magnesium in Milligramm nehme ich aktuell?",
       "judgments": {
         "m-mag-glycinate": 3,
-        "m-mag-citrate": 0
+        "m-mag-citrate": 0,
+        "m-mag-timing": 1
       }
     },
     {
@@ -423,7 +436,8 @@
       "text": "Was war mein höchster gemessener Puls?",
       "judgments": {
         "m-max-hr": 3,
-        "m-hr-zones": 0
+        "m-hr-zones": 0,
+        "m-msg-zone2": 2
       }
     },
     {
@@ -433,7 +447,9 @@
       "category": "numeric",
       "text": "Welche Zeit bin ich auf dem Zehner gelaufen?",
       "judgments": {
-        "m-race-10k": 3
+        "m-race-10k": 3,
+        "m-msg-race1": 2,
+        "m-title-race": 1
       }
     },
     {
@@ -455,7 +471,8 @@
       "text": "Wie hoch war der CRP-Wert im März?",
       "judgments": {
         "m-crp": 3,
-        "m-crp-normal": 0
+        "m-crp-normal": 0,
+        "m-j-cold-mid": 1
       }
     },
     {
@@ -499,7 +516,9 @@
       "category": "numeric",
       "text": "Wie viel Kilo bei den Kniebeugen zuletzt?",
       "judgments": {
-        "m-d-str-01": 3
+        "m-d-str-01": 3,
+        "m-msg-knee1": 1,
+        "m-knee-r-squat": 1
       }
     },
     {
@@ -510,7 +529,8 @@
       "text": "Wie viel wiege ich aktuell?",
       "judgments": {
         "m-weight-new": 3,
-        "m-weight-old": 0
+        "m-weight-old": 0,
+        "m-msg-weight1": 2
       }
     },
     {
@@ -531,7 +551,9 @@
       "category": "numeric",
       "text": "Was stand am 2026-02-25 im MRT-Befund?",
       "judgments": {
-        "m-knee-mri": 3
+        "m-knee-mri": 3,
+        "m-injury-pause": 1,
+        "m-knee-en-note": 1
       }
     },
     {
@@ -562,7 +584,8 @@
       "category": "numeric",
       "text": "Wie viele Kilometer hatten die alten Schuhe?",
       "judgments": {
-        "m-shoes-old": 3
+        "m-shoes-old": 3,
+        "m-shoes-new": 1
       }
     },
     {
