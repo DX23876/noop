@@ -43,7 +43,76 @@ class SleepStagerV2Test {
             RrInterval(deviceId = dev, ts = start + i, rrMs = 1000 + rsa)
         }
 
+    private fun <T> oddEven(rows: List<T>): List<T> =
+        rows.filterIndexed { index, _ -> index % 2 == 0 } +
+            rows.filterIndexed { index, _ -> index % 2 == 1 }
+
     // ── drop-in contract ─────────────────────────────────────────────────────────────────────────────
+
+    /**
+     * bhelm/noop#67 mirrored control: Android already sorts before binary-search clipping. The same rows in
+     * this deterministic permutation must produce the frozen sorted-input result on both native twins.
+     */
+    @Test
+    fun shuffledInputsMatchSortedInputs() {
+        val start = refMidnight + 2_000_000L
+        val duration = 90 * 60
+        val padding = 600
+        val streamStart = start - padding
+        val streamDuration = duration + 2 * padding
+        val grav = (0 until streamDuration).map { i ->
+            if (i % 2 == 0) GravitySample(dev, streamStart + i, x = 1.0, y = 0.0, z = 0.0)
+            else GravitySample(dev, streamStart + i, x = 0.0, y = 0.0, z = 1.0)
+        }
+        val hr = sleepHR(streamStart, streamDuration, base = 50)
+        val rr = regularRR(streamStart, streamDuration)
+
+        val sorted = SleepStagerV2.stageSession(start, start + duration, grav, hr, rr, emptyList())
+        assertEquals(
+            "the sorted-input output is the frozen control",
+            listOf(StageSegment(start, start + duration, "light")), sorted)
+
+        val shuffled = SleepStagerV2.stageSession(
+            start, start + duration, oddEven(grav), oddEven(hr), oddEven(rr), emptyList())
+        assertEquals(
+            "clipping must establish timestamp order before binary-search bounds", sorted, shuffled)
+    }
+
+    /**
+     * Same-second gravity accumulation is order-sensitive under catastrophic cancellation. Each call uses a
+     * distinct translated window so the memo cannot answer one permutation from another's cache entry.
+     */
+    @Test
+    fun shuffledTimestampGroupsPreserveOrderSensitiveDuplicateOutcomes() {
+        val duration = 90 * 60
+        val padding = 600
+        val streamDuration = duration + 2 * padding
+        fun stagedShape(start: Long, signalLast: Boolean, shuffled: Boolean): List<String> {
+            val streamStart = start - padding
+            val gravGroups = (0 until streamDuration).map { i ->
+                val ts = streamStart + i
+                val signal = if (i % 30 == 15) 0.25 else 0.0
+                val huge = GravitySample(dev, ts, x = 8e15, y = 0.0, z = 0.0)
+                val small = GravitySample(dev, ts, x = signal, y = 0.0, z = 0.0)
+                val negative = GravitySample(dev, ts, x = -8e15, y = 0.0, z = 0.0)
+                if (signalLast) listOf(huge, negative, small) else listOf(huge, small, negative)
+            }
+            val grav = (if (shuffled) oddEven(gravGroups) else gravGroups).flatten()
+            val hr = sleepHR(streamStart, streamDuration, base = 50)
+            val rr = regularRR(streamStart, streamDuration)
+            return SleepStagerV2.stageSession(
+                start, start + duration, grav,
+                if (shuffled) oddEven(hr) else hr, if (shuffled) oddEven(rr) else rr, emptyList())
+                .map { "${it.start - start}:${it.end - start}:${it.stage}" }
+        }
+        val base = refMidnight + 3_000_000L
+        val cancelledOracle = listOf("0:5400:light")
+        val retainedOracle = listOf("0:5400:wake")
+        assertEquals(cancelledOracle, stagedShape(base, signalLast = false, shuffled = false))
+        assertEquals(cancelledOracle, stagedShape(base + 10_000_000L, signalLast = false, shuffled = true))
+        assertEquals(retainedOracle, stagedShape(base + 20_000_000L, signalLast = true, shuffled = false))
+        assertEquals(retainedOracle, stagedShape(base + 30_000_000L, signalLast = true, shuffled = true))
+    }
 
     @Test
     fun stagesTileTheWholeSpanContiguously() {

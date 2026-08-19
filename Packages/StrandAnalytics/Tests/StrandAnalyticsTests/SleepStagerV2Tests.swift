@@ -31,7 +31,77 @@ final class SleepStagerV2Tests: XCTestCase {
         }
     }
 
+    private func oddEven<T>(_ rows: [T]) -> [T] {
+        stride(from: 0, to: rows.count, by: 2).map { rows[$0] }
+            + stride(from: 1, to: rows.count, by: 2).map { rows[$0] }
+    }
+
     // MARK: - drop-in contract
+
+    /// bhelm/noop#67: the public entry accepts caller streams in any order. Binary-search clipping must not
+    /// run until timestamp order is established, otherwise this deterministic permutation drops valid rows.
+    func testShuffledInputsMatchSortedInputs() {
+        let start = 1_751_513_600
+        let duration = 90 * 60
+        let padding = 600
+        let streamStart = start - padding
+        let streamDuration = duration + 2 * padding
+        let grav = (0..<streamDuration).map { i in
+            i.isMultiple(of: 2)
+                ? GravitySample(ts: streamStart + i, x: 1, y: 0, z: 0)
+                : GravitySample(ts: streamStart + i, x: 0, y: 0, z: 1)
+        }
+        let hr = sleepHR(start: streamStart, durationS: streamDuration, base: 50)
+        let rr = regularRR(start: streamStart, durationS: streamDuration)
+
+        let sorted = SleepStagerV2.stageSession(
+            start: start, end: start + duration, grav: grav, hr: hr, rr: rr, resp: [])
+        XCTAssertEqual(sorted, [StageSegment(start: start, end: start + duration, stage: "light")],
+                       "the sorted-input output is the frozen control")
+
+        let shuffled = SleepStagerV2.stageSession(
+            start: start, end: start + duration,
+            grav: oddEven(grav), hr: oddEven(hr), rr: oddEven(rr), resp: [])
+        XCTAssertEqual(shuffled, sorted,
+                       "clipping must establish timestamp order before binary-search bounds")
+    }
+
+    /// Same-second gravity accumulation is order-sensitive under catastrophic cancellation. Each call uses a
+    /// distinct translated window so the memo cannot answer one permutation from another's cache entry.
+    func testShuffledTimestampGroupsPreserveOrderSensitiveDuplicateOutcomes() {
+        let duration = 90 * 60
+        let padding = 600
+        let streamDuration = duration + 2 * padding
+        func stagedShape(start: Int, signalLast: Bool, shuffled: Bool) -> [String] {
+            let streamStart = start - padding
+            let gravGroups = (0..<streamDuration).map { i -> [GravitySample] in
+                let ts = streamStart + i
+                let signal = i % 30 == 15 ? 0.25 : 0.0
+                let huge = GravitySample(ts: ts, x: 8e15, y: 0, z: 0)
+                let small = GravitySample(ts: ts, x: signal, y: 0, z: 0)
+                let negative = GravitySample(ts: ts, x: -8e15, y: 0, z: 0)
+                return signalLast ? [huge, negative, small] : [huge, small, negative]
+            }
+            let grav = (shuffled ? oddEven(gravGroups) : gravGroups).flatMap { $0 }
+            let hr = sleepHR(start: streamStart, durationS: streamDuration, base: 50)
+            let rr = regularRR(start: streamStart, durationS: streamDuration)
+            let segments = SleepStagerV2.stageSession(
+                start: start, end: start + duration,
+                grav: grav, hr: shuffled ? oddEven(hr) : hr, rr: shuffled ? oddEven(rr) : rr, resp: [])
+            return segments.map { "\($0.start - start):\($0.end - start):\($0.stage)" }
+        }
+        let base = 1_752_513_600
+        let cancelledSorted = stagedShape(start: base, signalLast: false, shuffled: false)
+        let cancelledShuffled = stagedShape(start: base + 10_000_000, signalLast: false, shuffled: true)
+        let retainedSorted = stagedShape(start: base + 20_000_000, signalLast: true, shuffled: false)
+        let retainedShuffled = stagedShape(start: base + 30_000_000, signalLast: true, shuffled: true)
+        let cancelledOracle = ["0:5400:light"]
+        let retainedOracle = ["0:5400:wake"]
+        XCTAssertEqual(cancelledSorted, cancelledOracle)
+        XCTAssertEqual(cancelledShuffled, cancelledOracle)
+        XCTAssertEqual(retainedSorted, retainedOracle)
+        XCTAssertEqual(retainedShuffled, retainedOracle)
+    }
 
     func testStagesTileTheWholeSpanContiguously() {
         let start = 1_700_000_000
