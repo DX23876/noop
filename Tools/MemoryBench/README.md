@@ -177,33 +177,56 @@ is in `docs/fork/decisions.md`; what follows replaces it.
 
 ### The model question is settled: no change is justified
 
-| Configuration | nomic-embed-text-v2-moe (shipped, 256d) | harrier-oss-v1-0.6b (1024d) |
-|---|---|---|
-| `semantic-only` | 0.804 | 0.806 |
-| `today (+rescue)` | 0.798 | 0.800 |
-| `+IDF rescue` | 0.806 | 0.812 |
-| `+recency` | **0.821** | 0.814 |
-| `RERANK@8 +recency` | **0.860** | 0.838 |
-| Oracle ceiling K=32 | 0.992 | 0.978 |
+| Configuration | nomic (shipped, 256d) | embeddinggemma-300m (256d) | harrier-oss-v1-0.6b (1024d) |
+|---|---|---|---|
+| `semantic-only` | 0.804 | **0.814** | 0.806 |
+| `today (+rescue)` | 0.798 | 0.807 | 0.800 |
+| `+IDF rescue` | 0.806 | **0.824** | 0.812 |
+| `+recency` | 0.821 | **0.831** | 0.814 |
+| `RERANK@8 +recency` | **0.860** | not measured | 0.838 |
+| Oracle ceiling K=32 | 0.992 | 0.994 | 0.978 |
+| Embedding wall clock | 56 s | **44 s** | 61 s |
+| Bundle | 328 MB | **278 MB** | 397 MB |
 
-**The difference between the two models is 0.002.** Reported as +0.239 on the first corpus and +0.036 on the
-second, it is now noise — and with the full selection stack the shipped model is ahead, 0.860 to 0.838. Both
-earlier gaps were measuring the corpus, not the models: the first measured how well a model separates
+**The three models span 0.010.** Reported as a +0.239 gap on the first corpus and +0.036 on the second, the
+spread between the shipped model and the best alternative is now smaller than the noise on 120 questions. Both
+earlier gaps were measuring the corpus rather than the models: the first measured how well a model separates
 languages, the second measured almost nothing at all.
 
-So the 397 MB bundle, the 4× index bytes and the whole contract migration a decoder-only model would need
-buy nothing here. That is a real result, not an absence of one: it is what closes the question.
+Two honest caveats on that conclusion:
+
+- **If one were to switch, it would be EmbeddingGemma, not harrier.** It is nominally best, 50 MB smaller and
+  the fastest to embed. What stops it being worth doing is 0.010 against a Gemma Terms licence and re-embedding
+  every existing index — not a quality argument.
+- **One category is not noise.** EmbeddingGemma scores 0.776 on `synonym` against Nomic's 0.549, and `synonym`
+  is Nomic's weakest category by a distance. Nomic is the better of the two on `recency` (0.758 vs 0.680). If a
+  future product decision makes synonym retrieval the thing that matters, that +0.227 is a real reason to
+  revisit this; nothing else in the table is.
 
 ### What does help, in order
 
 | Change | nDCG@8 | R@1 | MRR | Costs |
 |---|---|---|---|---|
 | `today (+rescue)` — the baseline | 0.798 | 0.544 | 0.826 | — |
+| `today + IDF/numeric rescue` | 0.798 | 0.544 | 0.826 | **nothing, and it buys nothing** |
 | `+recency` | 0.821 | 0.581 | 0.853 | nothing; the column is already in the index |
-| `+IDF rescue` (numeric/date tokens) | 0.806 | 0.548 | 0.830 | nothing |
+| `+IDF rescue` (inside the new selection) | 0.806 | 0.548 | 0.830 | nothing |
 | `RERANK@8` | 0.846 | 0.595 | 0.876 | a second model |
 | **`RERANK@8 +recency`** | **0.860** | **0.629** | **0.897** | a second model |
 | Oracle ceiling K=32 | 0.992 | 0.772 | 1.000 | — |
+
+The second row is the one that changed a plan. Improving the lexical arm **inside the shipped `fuse`** — IDF
+weighting, numeric and date tokens, the whole point of the rescue slots — moves nDCG@8, R@1, R@3, R@8 and MRR
+by **exactly nothing**. `fuse` gives that arm two tail slots and only for sources the semantic arm never
+returned at all, and on a 272-document index the semantic top-32 already holds nearly everything relevant, so
+there is almost nothing left to rescue and no amount of better ranking *within* the unused candidates can show
+up. The rescue MECHANISM is the bottleneck, not the lexical scoring.
+
+The same tokeniser work is worth +0.008 in the fourth row, where the lexical signal enters as an additive
+bonus across all candidates instead of as two tail slots. So this is not two independent cheap wins: the
+numeric/date tokeniser pays for itself only together with the new scoring stage, and shipping it on its own
+would have been churn with a measured benefit of zero. That distinction only exists because the production
+shape was measured separately from the proposed one.
 
 The two interventions are **complementary, not competing**, which the per-category table is what shows:
 

@@ -124,6 +124,19 @@ extension SelectionConfig {
     /// nothing — as it did. The two tail rows re-test it where it can actually bind.
     static func ladder(floor: Double?) -> [SelectionConfig] {
         var steps: [SelectionConfig] = [.semanticOnly, .today]
+        // The SHIPPED shape with only the lexical arm improved: `fuse` unchanged, two rescue slots unchanged,
+        // but the arm that fills them ranks by numeric/date-aware tokens and then by IDF instead of by a raw
+        // overlap count. This is the smallest production change on the table, and the ladder's later
+        // `+IDF rescue` row does NOT measure it — that one runs inside the proposed pipeline. Shipping on the
+        // strength of a number measured in a different pipeline is exactly the mistake this tool exists to stop.
+        var shippedNumeric = SelectionConfig.today
+        shippedNumeric.numericTokens = true
+        shippedNumeric.name = "today + numeric rescue"
+        steps.append(shippedNumeric)
+        var shippedIDF = shippedNumeric
+        shippedIDF.lexicalIDF = true
+        shippedIDF.name = "today + IDF rescue"
+        steps.append(shippedIDF)
         var current = SelectionConfig(name: "", useProductionFuse: false)
         current.name = "+proposed pipeline (no features)"
         steps.append(current)
