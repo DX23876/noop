@@ -61,6 +61,10 @@ struct VariantReport {
     var underruns: Int?
     var perCategory: [QueryCategory: (value: Double, count: Int)?]
     var perLanguage: [String: (value: Double, count: Int)?]
+    /// nDCG per query id, so two variants can be compared on the SAME questions. Without this a comparison
+    /// could only put two independent means side by side, which discards most of the available precision and
+    /// would call nearly every difference inconclusive.
+    var perQueryNDCG: [String: Double]
 }
 
 /// Which scopes a run is allowed to produce.
@@ -391,7 +395,11 @@ private func report(name: String,
             }.count
             : nil,
         perCategory: perCategory,
-        perLanguage: perLanguage
+        perLanguage: perLanguage,
+        perQueryNDCG: Dictionary(uniqueKeysWithValues: scored.compactMap { result in
+            normalizedDCG(ranked: result.ranked, judgments: result.query.judgments)
+                .map { (result.query.id, $0) }
+        })
     )
 }
 
@@ -510,6 +518,13 @@ private func printTable(_ reports: [VariantReport], vectors: VectorSet, corpus: 
         """)
     for report in rows(.all) { printRow(report) }
 
+    printComparisons(rows(.dev), baselineName: SelectionConfig.today.name,
+                     scopeLabel: "development half of `main`")
+    if !rows(.test).isEmpty {
+        printComparisons(rows(.test), baselineName: SelectionConfig.today.name,
+                         scopeLabel: "FROZEN HOLDOUT — confirmation only")
+    }
+
     printCategories(rows(.dev), title: "C. PER CATEGORY (nDCG@8) — development half of `main`")
     printLanguages(rows(.dev), title: "D1. PER LANGUAGE within the development half (nDCG@8)",
                    note: """
@@ -522,6 +537,40 @@ private func printTable(_ reports: [VariantReport], vectors: VectorSet, corpus: 
                    comparable to D1: those questions are asked against an index ten times larger.
                    """)
     print("")
+}
+
+/// Every variant against the shipped baseline, with a paired bootstrap interval.
+///
+/// The section exists because a table of bare deltas invites a ranking, and several rankings in this file's
+/// history were noise: one model read 0.850, then 0.806, then 0.677 as the measurement got more honest, and a
+/// 0.004 gap was once reported as an ordering. A row whose interval straddles zero is marked `~` and must be
+/// described as indistinguishable, not placed above or below anything.
+private func printComparisons(_ reports: [VariantReport], baselineName: String, scopeLabel: String) {
+    guard let baseline = reports.first(where: { $0.name == baselineName }) else { return }
+    print("")
+    print("================================================================================")
+    print("E. VS `\(baselineName)` — paired bootstrap, 95% CI  (\(scopeLabel))")
+    print("================================================================================")
+    print("Paired on purpose: both variants answer the same questions, so the per-query")
+    print("differences carry far less variance than two independent means would. A row marked")
+    print("`~` has an interval containing zero — the corpus cannot tell it apart from the")
+    print("baseline, and it must not be ranked above or below it however tempting the delta is.")
+    print("")
+    print("variant                            Δ nDCG@8      95% CI            n  verdict")
+    print("------------------------------------------------------------------------------------")
+    for report in reports where report.name != baselineName {
+        guard let interval = pairedBootstrap(baseline: baseline.perQueryNDCG,
+                                             candidate: report.perQueryNDCG) else { continue }
+        let verdict = interval.isInconclusive
+            ? "~ indistinguishable"
+            : (interval.delta > 0 ? "+ better" : "- worse")
+        let name = report.name.padding(toLength: 34, withPad: " ", startingAt: 0)
+        print(name
+            + String(format: "%+8.3f", interval.delta)
+            + String(format: "   [%+.3f, %+.3f]", interval.low, interval.high)
+            + String(format: "  %3d  ", interval.n)
+            + verdict)
+    }
 }
 
 private func printRow(_ report: VariantReport) {

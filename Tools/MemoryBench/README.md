@@ -187,6 +187,65 @@ runs on a Mac. Nothing here is a device measurement.
 
 ---
 
+## Tuning, holdout, and what the intervals say
+
+Around a dozen settings have been chosen by looking at scores on this corpus. `main` is therefore split into a
+**development** half (79 queries) and a **frozen holdout** (41), by whole scenarios — the connected components
+of the query-document graph, so no document is graded from both sides. The assignment is committed
+(`Corpus/split.json`); every reading of the holdout is appended to `Corpus/holdout-access.log`.
+
+Every comparison now carries a **paired** bootstrap interval. Paired matters: both variants answer the same
+questions, so what limits resolution is the variance of the *differences*, not of the scores. A small but
+consistent gain is resolvable even when scores swing across the whole range; a gain that changes sign per
+query is not, however good its mean looks.
+
+### On development, several effects are solid
+
+Against `today (+rescue)`, 72 scored queries:
+
+| Variant | Δ nDCG@8 | 95% CI | verdict |
+|---|---|---|---|
+| `semantic-only` | +0.013 | [+0.003, +0.026] | **better** — the shipped rescue arm is a measurable loss |
+| `+IDF rescue` | +0.020 | [−0.002, +0.044] | indistinguishable |
+| `+recency` | +0.058 | [+0.030, +0.088] | **better** |
+| `+kind prior` | +0.071 | [+0.039, +0.104] | **better** |
+| `+floor` | +0.070 | [+0.036, +0.103] | **better** |
+| `+quotas` | +0.021 | [−0.020, +0.060] | indistinguishable |
+| `+MMR` | −0.037 | [−0.090, +0.015] | indistinguishable |
+| `top×0.7 + gate` | +0.046 | [+0.014, +0.077] | **better** |
+| `top×0.9 + gate` | −0.055 | [−0.103, −0.010] | **worse** |
+| Oracle K=32 | +0.288 | [+0.230, +0.352] | ceiling |
+
+Two corrections fall straight out of this. **The kind prior was dropped earlier on a −0.005 reading from a
+pooled measurement; on dev it is the single strongest addition** at +0.071 and clearly resolved. And **MMR and
+quotas were described as costing 0.017 and 0.020 — neither is resolvable**, so the earlier statements were
+firmer than the data supported in both directions.
+
+### On the holdout, nothing is resolvable — and the effects shrink
+
+Read once, for statistical power rather than for choosing anything (logged as such). 38 scored queries:
+
+| Variant | Δ on dev | Δ on holdout | holdout 95% CI |
+|---|---|---|---|
+| `+recency` | +0.058 | **+0.014** | [−0.037, +0.066] |
+| `+kind prior` | +0.071 | **+0.009** | [−0.042, +0.057] |
+| `+floor` | +0.070 | **−0.014** | [−0.074, +0.042] |
+| `recommended` | +0.057 | **+0.003** | [−0.052, +0.056] |
+
+Every point estimate collapses toward zero and not one interval excludes it. That is the signature of
+overfitting — but it is **not proof of it**, and the difference matters: the holdout's intervals are wide
+enough (±0.05) to contain the dev estimates too, so the two halves are not in statistical conflict. What is
+real is that **no effect measured here has been confirmed on data it was not chosen on**, and that the pattern
+of every variant shrinking at once is a warning rather than a coincidence.
+
+The practical conclusion is about the corpus, not the architecture: at 41 holdout queries the frozen half can
+catch a large regression and confirm nothing. It becomes decisive only when `main` grows. Until then the dev
+numbers are the best available evidence and should be read as provisional — including the two corrections
+above.
+
+Note also that an earlier estimate of ±0.11 for the holdout's resolution was too pessimistic: it modelled the
+variance of scores instead of the variance of paired differences. The measured width is about ±0.05.
+
 ## Results
 
 **Scope matters, and getting it wrong cost every number in this file once already.** The corpus holds 320

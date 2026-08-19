@@ -3,3 +3,4 @@
 # second development set, and the honest fix is a fresh split rather than a fresh interpretation.
 
 2026-08-19T10:40:48Z  model=nomic-embed-text-v2-moe floors=0.35 candidates=128 rerank=off split=v1/seed20260819  reason=verify holdout gating mechanism only; numbers not used for any decision
+2026-08-19T10:52:26Z  model=nomic-embed-text-v2-moe floors=0.35 candidates=128 rerank=off split=v1/seed20260819  reason=recompute the holdout's real resolving power from paired differences; my earlier +/-0.11 estimate modelled score variance instead of difference variance

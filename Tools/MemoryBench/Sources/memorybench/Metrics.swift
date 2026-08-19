@@ -148,3 +148,66 @@ func meanEmittedLines(_ emittedCounts: [Int]) -> Double? {
     guard !emittedCounts.isEmpty else { return nil }
     return Double(emittedCounts.reduce(0, +)) / Double(emittedCounts.count)
 }
+
+// MARK: - Uncertainty
+
+// Why every comparison needs an interval, not just a delta.
+//
+// The decisions taken so far turned on differences between 0.002 and 0.043 nDCG@8, ranked as though the order
+// were meaningful. It was not: a model read 0.850, then 0.806, then 0.677 as the measurement got more honest,
+// and a ranking built on 0.004 was noise presented as a finding. A paired bootstrap is the cheapest way to
+// stop that, because it answers the only question that matters — is this difference bigger than the corpus's
+// own sampling error?
+//
+// PAIRED is the important word. Both variants answer the SAME queries, so the per-query differences carry far
+// less variance than two independent means would, and the interval is correspondingly tighter. Comparing
+// independent confidence intervals instead would throw that away and call almost everything inconclusive.
+
+struct BootstrapInterval {
+    let delta: Double
+    let low: Double
+    let high: Double
+    /// Queries both variants scored. A difference measured over fewer queries is a weaker claim, so the count
+    /// travels with the interval.
+    let n: Int
+
+    /// True when the interval straddles zero, i.e. the corpus cannot tell these two apart. Such a pair must be
+    /// reported as indistinguishable rather than ranked.
+    var isInconclusive: Bool { low <= 0 && high >= 0 }
+}
+
+/// Percentile bootstrap over the per-query differences of two variants.
+///
+/// Deterministic for a given seed, so a reported interval can be reproduced exactly rather than shifting on
+/// every run — the same reason the dev/test split is committed instead of derived.
+func pairedBootstrap(baseline: [String: Double],
+                     candidate: [String: Double],
+                     samples: Int = 2_000,
+                     seed: UInt64 = 20_260_819) -> BootstrapInterval? {
+    // Only queries both variants actually scored. nDCG is nil for unanswerable questions, and a variant that
+    // silences a query has no score for it, so the intersection is the honest common ground.
+    let shared = Set(baseline.keys).intersection(candidate.keys).sorted()
+    guard shared.count >= 2 else { return nil }
+    let differences = shared.map { candidate[$0]! - baseline[$0]! }
+    let delta = differences.reduce(0, +) / Double(differences.count)
+
+    var rng = SplitMix64(seed: seed)
+    var means: [Double] = []
+    means.reserveCapacity(samples)
+    for _ in 0..<samples {
+        var total = 0.0
+        for _ in differences.indices {
+            total += differences[Int(rng.next() % UInt64(differences.count))]
+        }
+        means.append(total / Double(differences.count))
+    }
+    means.sort()
+    func percentile(_ fraction: Double) -> Double {
+        let index = min(means.count - 1, max(0, Int((Double(means.count - 1) * fraction).rounded())))
+        return means[index]
+    }
+    return BootstrapInterval(delta: delta,
+                             low: percentile(0.025),
+                             high: percentile(0.975),
+                             n: differences.count)
+}
