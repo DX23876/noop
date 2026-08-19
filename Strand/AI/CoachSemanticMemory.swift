@@ -434,9 +434,32 @@ final class CoachSemanticMemory: ObservableObject, SemanticMemoryCoordinator {
                           mode: lexical.isEmpty ? .unavailable : .keywordFallback,
                           startedAt: startedAt)
         }
+        // `rescueSlots: 0` — the two guaranteed tail slots are given up, and this is the one retrieval change
+        // that survived a frozen-holdout read.
+        //
+        // The slots were kept for "an exact name, date or number that the embedding missed". Measured on a
+        // 404-query corpus, they cost rather than buy: removing them is +0.008 nDCG@8 on the development half
+        // ([+0.003, +0.011]) and +0.008 on the frozen holdout ([+0.002, +0.017]) — small, but confirmed on data
+        // it was not chosen on, which is more than any ADDITION to this pipeline managed.
+        //
+        // Two measurements explain why, and they are worth keeping next to the change. Improving the arm that
+        // fills the slots (IDF weighting plus numeric and date tokens) is +0.000 on both halves: two guaranteed
+        // places at the end cannot express a better ranking, however good the arm behind them gets. And the
+        // `numeric` category — the one built precisely for the case the slots exist for — is marginally BETTER
+        // without them (0.803 against 0.797). The mechanism was not serving the purpose it was kept for.
+        //
+        // What is genuinely given up: a source the semantic arm did not return at all can no longer enter on
+        // keyword evidence alone. That capability is real, and on this corpus it is worth less than the two
+        // slots it costs. `fuse` keeps the mechanism and its tests, so re-enabling it is a one-argument change
+        // if a future corpus disagrees.
+        //
+        // Unaffected: when the model loses the 2.5-second race there is no semantic arm at all, and `fuse`
+        // returns the keyword ranking in full — `testWithoutSemanticHitsTheLexicalOrderSurvives` pins that, and
+        // it is the path that matters most, since losing the race costs −0.285.
         let fused = SemanticRanking.fuse(semantic: semantic,
                                          lexical: lexical,
-                                         limit: 8)
+                                         limit: 8,
+                                         rescueSlots: 0)
         await refreshStatus()
         return finish(handoffContext(from: fused, requestedScopes: allowedScopes),
                       mode: .semantic,
