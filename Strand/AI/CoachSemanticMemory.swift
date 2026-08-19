@@ -58,6 +58,9 @@ final class CoachSemanticMemory: ObservableObject, SemanticMemoryCoordinator {
         isModelLoaded: false
     )
     @Published private(set) var lastRetrievalMode: CoachSemanticRetrievalMode = .unavailable
+    /// Session-local counters behind the Expert card's retrieval row. Measurement only — see
+    /// `CoachSemanticTelemetry`. Never persisted, never sent anywhere.
+    @Published private(set) var telemetry = CoachSemanticTelemetry()
     @Published private(set) var selfTestSummary: String?
     @Published private(set) var isIndexing = false
     @Published private(set) var isManualIndexing = false
@@ -388,9 +391,16 @@ final class CoachSemanticMemory: ObservableObject, SemanticMemoryCoordinator {
         }
 
         let race = SemanticSearchRace()
-        Task {
+        Task { [weak self] in
                 do {
+                    // Timed around the embedding alone, not the search: the embedding is what the 2.5-second
+                    // budget is actually spent on, and it is the number that says whether the budget is the
+                    // problem. The sample is recorded even when the race has already been lost — a turn that
+                    // times out is precisely the measurement worth keeping.
+                    let startedAt = DispatchTime.now().uptimeNanoseconds
                     let vector = try await provider.embedQuery(question)
+                    let elapsed = Double(DispatchTime.now().uptimeNanoseconds - startedAt) / 1_000_000
+                    await self?.recordQueryEmbed(milliseconds: elapsed)
                     let hits = try await store.search(vector: vector,
                                                       allowedScopes: allowedScopes,
                                                       limit: 32)
@@ -598,6 +608,11 @@ final class CoachSemanticMemory: ObservableObject, SemanticMemoryCoordinator {
         let error = try? await store.state(for: Self.lastErrorStateKey)
         #if os(iOS)
         let loaded = await (provider as? NomicTextEmbeddingProvider)?.isLoaded() ?? false
+        // Only this type knows when the load began and ended, so the duration is read back rather than timed
+        // out here. Same iOS-only cast as `isLoaded()` above: macOS has no provider at all.
+        if let load = await (provider as? NomicTextEmbeddingProvider)?.lastLoadMilliseconds {
+            telemetry.recordModelLoad(milliseconds: load)
+        }
         #else
         let loaded = false
         #endif
@@ -615,7 +630,13 @@ final class CoachSemanticMemory: ObservableObject, SemanticMemoryCoordinator {
     private func finish(_ context: String,
                         mode: CoachSemanticRetrievalMode) -> CoachSemanticRetrieval {
         lastRetrievalMode = mode
+        telemetry.record(mode: mode)
         return CoachSemanticRetrieval(context: context, mode: mode)
+    }
+
+    /// Called from the racing task, which may still be running after the turn has already fallen back.
+    private func recordQueryEmbed(milliseconds: Double) {
+        telemetry.recordQueryEmbed(milliseconds: milliseconds)
     }
 
     /// Second consent gate at the last possible point. Retrieval can suspend for model inference, so a
