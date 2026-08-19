@@ -42,7 +42,8 @@ public enum SleepWindowReclip {
         for seg in arr {
             guard let start = (seg["start"] as? NSNumber)?.intValue,
                   let end = (seg["end"] as? NSNumber)?.intValue,
-                  let stage = seg["stage"] as? String, end > start else { continue }
+                  let stage = seg["stage"] as? String,
+                  start >= 0, end > start, !stage.isEmpty else { continue }
             if start >= newEnd { continue }                 // wholly after the new wake → drop
             if end <= newStart { continue }                 // wholly before the new bed time → drop
             let clippedStart = max(start, newStart)         // clip the segment spanning the new bed time

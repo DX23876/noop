@@ -35,6 +35,43 @@ class SleepWindowReclipTest {
     // ── segment array (computed nights) ──────────────────────────────────────────────────────────
 
     @Test
+    fun segmentValidationMatchesCanonicalDecodedJson() {
+        data class Case(val json: String, val newStart: Long, val newEnd: Long, val expected: List<Seg>)
+
+        val cases = listOf(
+            Case(
+                json = """[{"start":-10,"end":10,"stage":"light"}]""",
+                newStart = 0,
+                newEnd = 20,
+                expected = listOf(Seg(0, 20, "wake")),
+            ),
+            Case(
+                json = """[{"start":100,"end":200,"stage":""}]""",
+                newStart = 100,
+                newEnd = 300,
+                expected = listOf(Seg(100, 300, "wake")),
+            ),
+            Case(
+                json = """[{"start":50,"end":200,"stage":"light"}]""",
+                newStart = 100,
+                newEnd = 300,
+                expected = listOf(Seg(100, 200, "light"), Seg(200, 300, "wake")),
+            ),
+        )
+
+        cases.forEach { case ->
+            val output = SleepWindowReclip.reclip(
+                case.json,
+                case.newStart,
+                case.newEnd,
+                case.newStart,
+                case.newEnd,
+            )!!
+            assertEquals(case.expected, segments(output))
+        }
+    }
+
+    @Test
     fun segmentTrimDropsAndClips() {
         val json = """
             [{"start":1000,"end":2000,"stage":"light"},
