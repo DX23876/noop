@@ -61,6 +61,9 @@ import com.noop.analytics.DaytimeStress
 import com.noop.analytics.HrvFreqDomain
 import com.noop.analytics.StressIndex
 import com.noop.data.DailyMetric
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
 import java.util.Locale
 import kotlin.math.exp
 import kotlin.math.roundToInt
@@ -174,11 +177,10 @@ private data class DaytimeReadout(
  */
 private suspend fun loadDaytimeStress(vm: AppViewModel, personalBaseline: Boolean): DaytimeReadout {
     val nowSeconds = System.currentTimeMillis() / 1000L
-    val tzOffsetSeconds = java.util.TimeZone.getDefault().getOffset(nowSeconds * 1_000L) / 1_000L
-    // Local midnight (wall-clock seconds): floor the LOCAL time to the day, then undo the
-    // offset so the bound is back on the wall clock the samples are stored in.
-    val localNow = nowSeconds + tzOffsetSeconds
-    val from = (localNow - Math.floorMod(localNow, 86_400L)) - tzOffsetSeconds
+    val zone = ZoneId.systemDefault()
+    val todayWindow = stressLocalDayWindowContaining(nowSeconds, zone)
+    val from = todayWindow.fromEpochSecond
+    val tzOffsetSeconds = zone.rules.getOffset(Instant.ofEpochSecond(nowSeconds)).totalSeconds.toLong()
     val hr = vm.repo.hrSamples("my-whoop", from, nowSeconds, limit = 200_000)
     if (hr.size < DaytimeStress.minHourHrSamples) {
         return DaytimeReadout(DaytimeStress.Result.EMPTY, null, null)
@@ -193,7 +195,11 @@ private suspend fun loadDaytimeStress(vm: AppViewModel, personalBaseline: Boolea
     // hours (DayRelative, the default). The trailing-history reads happen only past the HR-count guard
     // above and only while the toggle is ON, so the default read is byte-identical to before. Twin of
     // the iOS StressView daytimeScoringMode.
-    val mode = if (personalBaseline) daytimeScoringMode(vm, todayLocalMidnight = from) else DaytimeStress.ScoringMode.DayRelative
+    val mode = if (personalBaseline) {
+        daytimeScoringMode(vm, todayWindow.day, zone)
+    } else {
+        DaytimeStress.ScoringMode.DayRelative
+    }
     val daytime = DaytimeStress.analyze(hr, rr, gravity, tzOffsetSeconds, mode)
     // ADDITIVE advanced readouts from the SAME `rr`. Each engine self-gates and returns null when
     // its requirement is not met, in which case its row is simply hidden in the UI.
@@ -208,21 +214,39 @@ private suspend fun loadDaytimeStress(vm: AppViewModel, personalBaseline: Boolea
  * today's intraday read: BaselineRelative once there's enough real worn daytime-HR history for a usable
  * baseline, else DayRelative (the unchanged default). Reads each past day's raw HR once (bounded per
  * day) via [vm].repo; unworn days (no HR) are skipped without an R-R read. Faithful twin of the iOS
- * StressView.daytimeScoringMode. [todayLocalMidnight] is today's local-midnight wall-clock second.
+ * StressView.daytimeScoringMode. [todayLocalDay] is today's date in [zone].
  */
-private suspend fun daytimeScoringMode(vm: AppViewModel, todayLocalMidnight: Long): DaytimeStress.ScoringMode {
+private suspend fun daytimeScoringMode(
+    vm: AppViewModel,
+    todayLocalDay: LocalDate,
+    zone: ZoneId,
+): DaytimeStress.ScoringMode {
     // 30 mirrors the app's other rolling baselines (nightly resting-HR / HRV) and the iOS baselineHistoryDays.
     val baselineHistoryDays = 30
     val days = ArrayList<DaytimeBaselines.DaytimeDayStreams>(baselineHistoryDays)
     // Oldest → newest so the EWMA fold replays the history in order.
     for (back in baselineHistoryDays downTo 1) {
-        val dayStart = todayLocalMidnight - back * 86_400L
-        val dayEnd = dayStart + 86_400L - 1L
-        val dayTz = java.util.TimeZone.getDefault().getOffset(dayStart * 1_000L) / 1_000L
-        val dayHr = vm.repo.hrSamples("my-whoop", dayStart, dayEnd, limit = 200_000)
+        val window = stressLocalDayWindow(todayLocalDay.minusDays(back.toLong()), zone)
+        val dayHr = vm.repo.hrSamples(
+            "my-whoop",
+            window.fromEpochSecond,
+            window.toEpochSecondInclusive,
+            limit = 200_000,
+        )
         if (dayHr.isEmpty()) continue   // unworn day — no floor to learn, skip the R-R read
-        val dayRr = vm.repo.rrIntervals("my-whoop", dayStart, dayEnd, limit = 200_000)
-        days.add(DaytimeBaselines.DaytimeDayStreams(hr = dayHr, rr = dayRr, tzOffsetSeconds = dayTz))
+        val dayRr = vm.repo.rrIntervals(
+            "my-whoop",
+            window.fromEpochSecond,
+            window.toEpochSecondInclusive,
+            limit = 200_000,
+        )
+        days.add(
+            DaytimeBaselines.DaytimeDayStreams(
+                hr = dayHr,
+                rr = dayRr,
+                tzOffsetSeconds = window.offsetSeconds.toLong(),
+            ),
+        )
     }
     return DaytimeBaselines.scoringMode(days)
 }
