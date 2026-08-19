@@ -81,6 +81,38 @@ class HrvAnalyzerRollingTest {
         assertTrue(out.all { (_, v) -> v < 30.0 })
     }
 
+    @Test fun usesExclusiveLeftWindowBoundary() {
+        // Every candidate window has only seven beats under (t - windowSec, t]. Including the beat
+        // exactly at t - windowSec would incorrectly create qualifying eight-beat points at t=7 and t=8.
+        val series = (0L..8L).map { rr(it, if (it % 2L == 0L) 800 else 810) }
+        val out = HrvAnalyzer.rollingRmssd(
+            series, windowSec = 7, stepSec = 0, minBeatsPerWindow = 8,
+        )
+        assertTrue(out.isEmpty())
+    }
+
+    @Test fun cleansEachRawWindowIndependently() {
+        // The 1006 ms beat is acceptable in the local [845, 1006, 847] window at t=14, but not in
+        // [804, 845, 1006] at t=12. A whole-series clean incorrectly emits the t=12 window too.
+        val values = listOf(800, 821, 812, 783, 804, 845, 1006, 847)
+        val series = values.mapIndexed { index, value -> rr(index * 2L, value) }
+        val out = HrvAnalyzer.rollingRmssd(
+            series, windowSec = 5, stepSec = 0, minBeatsPerWindow = 3,
+        )
+        assertEquals(listOf(4L, 6L, 8L, 10L, 14L), out.map { it.first })
+    }
+
+    @Test fun repeatedValuesCannotReattachRejectedTimestamp() {
+        // Whole-series cleaning rejects the first 900 ms beat but keeps the second. Matching survivors
+        // back by RR value reattaches that survivor to t=12 and fabricates a 141.42 ms point there.
+        val values = listOf(700, 700, 700, 700, 700, 700, 900, 900)
+        val series = values.mapIndexed { index, value -> rr(index * 2L, value) }
+        val out = HrvAnalyzer.rollingRmssd(
+            series, windowSec = 5, stepSec = 0, minBeatsPerWindow = 3,
+        )
+        assertEquals(listOf(4L, 6L, 8L, 10L), out.map { it.first })
+    }
+
     @Test fun honestNoEmDashAndNoFabricatedValuesOnEmpty() {
         // Zero rows -> zero points (never a fabricated 0.0 reading). Guards the "honest empty" contract.
         assertTrue(HrvAnalyzer.rollingRmssd(emptyList(), windowSec = 300).isEmpty())

@@ -331,12 +331,11 @@ public enum HRVAnalyzer {
         public init(ts: Int, rmssd: Double) { self.ts = ts; self.rmssd = rmssd }
     }
 
-    /// Pure rolling/windowed rMSSD over an R-R series (#803). For each input interval, the window is the
-    /// trailing `windowSec` seconds ending at that interval's `ts`; the window's R-R values are cleaned with
-    /// the SAME range filter + Malik ectopic rejection the nightly path uses (`cleanRR`), and a point is
-    /// emitted only when at least `minBeatsPerWindow` clean intervals survive (so a sparse / artifact-heavy
-    /// window emits nothing rather than a noisy spike). The result is one `(ts, rMSSD)` per qualifying
-    /// window, in input order.
+    /// Pure rolling/windowed rMSSD over an R-R series (#803). For each input interval at `ts`, the window is
+    /// `(ts - windowSec, ts]`; that window's raw R-R values are cleaned locally with the SAME range filter +
+    /// Malik ectopic rejection the nightly path uses (`cleanRR`). A point is emitted only when at least
+    /// `minBeatsPerWindow` clean intervals survive (so a sparse / artifact-heavy window emits nothing rather
+    /// than a noisy spike). The result is one `(ts, rMSSD)` per qualifying window, in timestamp order.
     ///
     /// - Parameters:
     ///   - rr: the R-R intervals (each carries its own wall-clock `ts` and `rrMs`). Need not be pre-sorted;
@@ -358,8 +357,8 @@ public enum HRVAnalyzer {
         var left = 0   // index of the oldest interval still inside the trailing window
         for right in 0..<sorted.count {
             let edgeTs = sorted[right].ts
-            // Advance the left edge so [left, right] spans only the trailing `windowSec` ending at edgeTs.
-            while left < right && edgeTs - sorted[left].ts > windowSec { left += 1 }
+            // Advance the left edge so [left, right] contains exactly (edgeTs - windowSec, edgeTs].
+            while left < right && edgeTs - sorted[left].ts >= windowSec { left += 1 }
             // Thinning stride: skip emitting until at least `stepSec` has passed since the last emitted point.
             if stepSec > 0, let last = lastEmitTs, edgeTs - last < stepSec { continue }
             // Clean the window's raw R-R values with the shared range + Malik ectopic pipeline, then

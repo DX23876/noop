@@ -660,11 +660,12 @@ object HrvAnalyzer {
     // The Deep Timeline's "HRV" trace used to plot RAW RR-interval values (ms) and label them "HRV",
     // which is dishonest: an RR interval is NOT an HRV number, and the spikiness it shows is just the
     // beat-to-beat heart period, not variability. [rollingRmssd] is the pure, on-device twin of the
-    // Swift HRVAnalyzer.rollingRmssd: it slides a [windowSec] window across the cleaned RR series and,
-    // for each RR sample, emits the Task-Force rMSSD over the beats inside that trailing window. The
-    // SAME Malik/range artifact filter the nightly path uses ([cleanRR]) is applied first, so an
-    // ectopic beat or an out-of-range RR can't inflate the curve. The Deep Timeline plots THIS, relabelled
-    // to honest windowed rMSSD. Pure: no clock, no IO. (#803)
+    // Swift HRVAnalyzer.rollingRmssd: it slides a [windowSec] window across the raw RR series and, for
+    // each RR sample, cleans the beats inside that trailing window before emitting the Task-Force rMSSD.
+    // The SAME Malik/range artifact filter the nightly path uses ([cleanRR]) is applied independently in
+    // each window, so an ectopic beat or an out-of-range RR can't inflate the curve or couple otherwise
+    // separate windows. The Deep Timeline plots THIS, relabelled to honest windowed rMSSD. Pure: no clock,
+    // no IO. (#803)
 
     /** Default rolling-window width (seconds) for the Deep Timeline windowed rMSSD trace. ~5 min, the
      *  shortest span the Task Force calls a short-term recording, so the curve has enough beats to mean
@@ -672,13 +673,12 @@ object HrvAnalyzer {
     const val DEFAULT_ROLLING_WINDOW_SEC: Int = 300
 
     /**
-     * Rolling/windowed rMSSD over an RR series. For each input sample (ascending by ts), computes the
-     * Task-Force rMSSD over the cleaned beats whose ts falls in the trailing window `(ts - windowSec, ts]`,
-     * emitting `(ts, rmssd)` only when at least [minBeatsPerWindow] clean beats survive in that window (a
-     * 2-beat window is one successive difference = a noisy spike, not HRV — matches the Swift twin's
-     * minBeatsPerWindow gate). Range + Malik ectopic filtering ([cleanRR]) is applied to the WHOLE series
-     * once, so artifacts never enter any window. Empty when fewer than [minBeatsPerWindow] input rows.
-     * Pure, deterministic.
+     * Rolling/windowed rMSSD over an RR series. For each input sample at `ts`, the window is
+     * `(ts - windowSec, ts]`; that window's raw RR values are cleaned locally with the same range + Malik
+     * ectopic filter the nightly path uses ([cleanRR]). Emits `(ts, rmssd)` only when at least
+     * [minBeatsPerWindow] clean beats survive (a 2-beat window is one successive difference = a noisy
+     * spike, not HRV — matches the Swift twin's minBeatsPerWindow gate). Empty when fewer than
+     * [minBeatsPerWindow] input rows. Pure, deterministic.
      *
      * @param rr the RR intervals (each carries a ts in unix SECONDS and rrMs); the Android twin of the
      *   Swift `[RRSample]`.
@@ -701,39 +701,26 @@ object HrvAnalyzer {
         // Ascending by ts so the trailing-window scan is monotone (the table read is already ordered, but
         // we don't assume it). Stable on equal ts.
         val sorted = rr.sortedBy { it.ts }
-        // Clean the WHOLE series first (range + Malik ectopic), keeping each surviving beat's ts so a
-        // window can be cut by timestamp. cleanRR works on the raw ms values; we re-pair to ts by walking
-        // the same filters here so the kept ts/ms stay aligned (cleanRR drops items, losing the index map).
-        val ranged = sorted.filter { it.rrMs.toDouble() in RR_MIN_MS..RR_MAX_MS }
-        if (ranged.size < 2) return emptyList()
-        val cleanMs = rejectEctopic(ranged.map { it.rrMs.toDouble() })
-        // rejectEctopic preserves order and only drops items, so re-pair by walking both in lockstep: a
-        // kept ms value corresponds to the next not-yet-consumed ranged beat with that value.
-        val kept = ArrayList<RrInterval>(cleanMs.size)
-        var ri = 0
-        for (ms in cleanMs) {
-            while (ri < ranged.size && ranged[ri].rrMs.toDouble() != ms) ri++
-            if (ri < ranged.size) { kept.add(ranged[ri]); ri++ }
-        }
-        if (kept.size < 2) return emptyList()
         val window = windowSec.toLong()
-        val out = ArrayList<Pair<Long, Double>>(kept.size)
+        val out = ArrayList<Pair<Long, Double>>(sorted.size)
         var lo = 0
         var lastEmitTs: Long? = null
-        for (hi in kept.indices) {
-            val tEnd = kept[hi].ts
+        for (hi in sorted.indices) {
+            val tEnd = sorted[hi].ts
             val tStart = tEnd - window
             // Advance the trailing edge so only beats with ts in (tStart, tEnd] remain.
-            while (lo < hi && kept[lo].ts <= tStart) lo++
+            while (lo < hi && sorted[lo].ts <= tStart) lo++
             // Thinning stride (#1036): skip emitting until at least [stepSec] has passed since the last
             // EMITTED point (measured against emits, not candidates), matching the Swift twin's stepSec branch.
             val last = lastEmitTs
             if (stepSec > 0 && last != null && tEnd - last < stepSec) continue
-            val span = kept.subList(lo, hi + 1).map { it.rrMs.toDouble() }
+            // Clean this raw window in place. Timestamps stay on the samples used to define the window,
+            // so no value-based matching back to timestamps is needed after cleaning.
+            val clean = cleanRR(sorted.subList(lo, hi + 1).map { it.rrMs.toDouble() })
             // A window with too few clean beats is a noisy spike, not a trustworthy rMSSD — require
             // [minBeatsPerWindow] survivors (#1035), matching the Swift HRVAnalyzer.rollingRmssd default (8).
-            if (span.size < minBeatsPerWindow) continue
-            val r = rmssdRaw(span) ?: continue
+            if (clean.size < minBeatsPerWindow) continue
+            val r = rmssdRaw(clean) ?: continue
             out.add(tEnd to r)
             lastEmitTs = tEnd
         }
