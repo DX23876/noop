@@ -113,3 +113,38 @@ func mean(_ values: [Double?]) -> (value: Double, count: Int)? {
     guard !defined.isEmpty else { return nil }
     return (defined.reduce(0, +) / Double(defined.count), defined.count)
 }
+
+// MARK: - Abstention and coverage
+
+// The metrics that make the floor's actual value visible.
+//
+// nDCG is `nil` for an `unanswerable` query, which is mathematically right — there is no ideal ranking to
+// normalise against — but it means the biggest measured effect of the floor never appears in the primary
+// number at all. Going from eight irrelevant lines to nearly none is plausibly worth more to the product than
+// ±0.02 nDCG, and it was invisible.
+//
+// The reverse error needs its own number too, and had none: a floor tuned to silence noise will eventually
+// silence answers. `falseAbstentionRate` is the cost side of every threshold decision, and without it a
+// tighter floor looks free.
+
+/// Share of `unanswerable` queries the pipeline correctly said nothing about. Higher is better.
+func abstentionRate(emittedCounts: [Int]) -> Double? {
+    guard !emittedCounts.isEmpty else { return nil }
+    return Double(emittedCounts.filter { $0 == 0 }.count) / Double(emittedCounts.count)
+}
+
+/// Share of ANSWERABLE queries the pipeline wrongly said nothing about. Lower is better, and it is the price
+/// of every floor: silence on a question that had an answer is a worse failure than a mediocre ranking,
+/// because the coach then has nothing at all to work from.
+func falseAbstentionRate(emittedCounts: [Int]) -> Double? {
+    guard !emittedCounts.isEmpty else { return nil }
+    return Double(emittedCounts.filter { $0 == 0 }.count) / Double(emittedCounts.count)
+}
+
+/// Mean lines handed to the model, over every query. Reported beside precision on purpose: precision divides
+/// by what was emitted, so a pipeline that answers one line and gets it right scores 1.0, and only this column
+/// shows that it did so by declining to say anything else.
+func meanEmittedLines(_ emittedCounts: [Int]) -> Double? {
+    guard !emittedCounts.isEmpty else { return nil }
+    return Double(emittedCounts.reduce(0, +)) / Double(emittedCounts.count)
+}

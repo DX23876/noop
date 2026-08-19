@@ -17,7 +17,15 @@ struct QueryResult {
 /// them is two thirds driven by the easy problem. Every number now says which scope it came from, and the
 /// pooled one is labelled as mixed difficulty rather than quoted as a result.
 enum ReportScope: String {
-    /// The large realistic index — the headline, and the only scope where ranking questions can be decided.
+    /// The development half of the large realistic index. **This is where tuning happens** and the only scope
+    /// printed by default: floors, weights, candidate depths, rerank settings and model choice are all chosen
+    /// here, and choosing them on the holdout would make the holdout worthless.
+    case dev
+    /// The holdout half. Frozen — see `CorpusSplit`. Reaching it needs `--holdout <reason>`, and every access
+    /// is appended to `Corpus/holdout-access.log` so the repository records how often it has been consulted.
+    case test
+    /// Dev and holdout together. Kept for diagnosis only, because a number measured across both is exactly
+    /// the tuned-on-your-own-test-set figure the split exists to stop producing.
     case main
     /// The ten locale sets combined. A language smoke test on 24-document indexes, not a ranking measurement.
     case locales
@@ -36,6 +44,13 @@ struct VariantReport {
     var mrr: (value: Double, count: Int)?
     /// Mean lines emitted for `irrelevant` queries. The target is 0.
     var irrelevantLines: Double
+    /// Share of `unanswerable` queries answered with nothing at all — the floor working, and invisible in nDCG.
+    var abstention: Double?
+    /// Share of ANSWERABLE queries answered with nothing — the floor's cost, and the column that stops a
+    /// tighter threshold from looking free.
+    var falseAbstention: Double?
+    /// Mean lines handed over across every query, so precision can never be read on its own.
+    var meanEmitted: Double?
     var dominance: (value: Double, count: Int)?
     /// Queries that emitted fewer lines than they had relevant material for — but only meaningful for a
     /// variant with NO floor.
@@ -46,6 +61,15 @@ struct VariantReport {
     var underruns: Int?
     var perCategory: [QueryCategory: (value: Double, count: Int)?]
     var perLanguage: [String: (value: Double, count: Int)?]
+}
+
+/// Which scopes a run is allowed to produce.
+///
+/// The holdout is absent unless explicitly unlocked, so the ordinary path cannot report it even by accident —
+/// which is the whole point: a frozen set that is easy to glance at is not frozen.
+private func scopesToReport(showHoldout: Bool, split: CorpusSplit?) -> [ReportScope] {
+    guard split != nil else { return [.main, .locales, .all] }   // no split committed yet
+    return showHoldout ? [.dev, .test, .locales, .all] : [.dev, .locales, .all]
 }
 
 /// Builds the index, runs every variant, and reports.
@@ -60,7 +84,9 @@ func runScore(corpus: Corpus,
               now: Date = Date(),
               quiet: Bool = false,
               rerank: RerankClient? = nil,
-              mixedLanguageIndex: Bool = false) async throws -> [VariantReport] {
+              mixedLanguageIndex: Bool = false,
+              split: CorpusSplit? = nil,
+              showHoldout: Bool = false) async throws -> [VariantReport] {
     // ONE STORE PER INDEX, not one store filtered afterwards.
     //
     // A device holds one person's index and searches that. Filtering after a shared search is not the same
@@ -203,9 +229,9 @@ func runScore(corpus: Corpus,
         // `under` only means something for a variant that never declines a line. The dynamic floor and the
         // confidence gate decline lines too, so they are excluded on the same grounds as the absolute floor.
         let restrains = config.floor != nil || config.floorRelativeToTop != nil || config.confidenceGate != nil
-        for scope in [ReportScope.main, .locales, .all] {
-            reports.append(report(name: config.name, scope: scope,
-                                  allResults: results, countsUnderruns: !restrains))
+        for scope in scopesToReport(showHoldout: showHoldout, split: split) {
+            reports.append(report(name: config.name, scope: scope, allResults: results,
+                                  split: split, countsUnderruns: !restrains))
         }
     }
 
@@ -225,9 +251,10 @@ func runScore(corpus: Corpus,
                                            groups: ranked.compactMap { documentsByID[$0]?.diversityGroup },
                                            availableRelevant: query.judgments.values.filter { $0 > 0 }.count))
             }
-            for scope in [ReportScope.main, .locales, .all] {
+            for scope in scopesToReport(showHoldout: showHoldout, split: split) {
                 reports.append(report(name: "ORACLE ceiling K=\(depth)\(padded ? "" : ", no padding")",
-                                      scope: scope, allResults: results, countsUnderruns: false))
+                                      scope: scope, allResults: results, split: split,
+                                      countsUnderruns: false))
             }
         }
     }
@@ -296,9 +323,9 @@ func runScore(corpus: Corpus,
                                                groups: ranked.compactMap { documentsByID[$0]?.diversityGroup },
                                                availableRelevant: query.judgments.values.filter { $0 > 0 }.count))
                 }
-                for scope in [ReportScope.main, .locales, .all] {
-                    reports.append(report(name: config.name, scope: scope,
-                                          allResults: results, countsUnderruns: threshold == nil))
+                for scope in scopesToReport(showHoldout: showHoldout, split: split) {
+                    reports.append(report(name: config.name, scope: scope, allResults: results,
+                                          split: split, countsUnderruns: threshold == nil))
                 }
             }
         }
@@ -317,9 +344,14 @@ func runScore(corpus: Corpus,
 private func report(name: String,
                     scope: ReportScope,
                     allResults: [QueryResult],
+                    split: CorpusSplit?,
                     countsUnderruns: Bool) -> VariantReport {
     let results: [QueryResult]
     switch scope {
+    case .dev:
+        results = allResults.filter { $0.query.index == "main" && split?.dev.contains($0.query.id) != false }
+    case .test:
+        results = allResults.filter { $0.query.index == "main" && split?.test.contains($0.query.id) == true }
     case .main: results = allResults.filter { $0.query.index == "main" }
     case .locales: results = allResults.filter { $0.query.index != "main" }
     case .all: results = allResults
@@ -348,6 +380,9 @@ private func report(name: String,
         irrelevantLines: irrelevant.isEmpty
             ? 0
             : Double(irrelevant.reduce(0) { $0 + emittedLineCount(ranked: $1.ranked) }) / Double(irrelevant.count),
+        abstention: abstentionRate(emittedCounts: irrelevant.map { emittedLineCount(ranked: $0.ranked) }),
+        falseAbstention: falseAbstentionRate(emittedCounts: scored.map { emittedLineCount(ranked: $0.ranked) }),
+        meanEmitted: meanEmittedLines(results.map { emittedLineCount(ranked: $0.ranked) }),
         dominance: mean(scored.map { $0.groups.isEmpty ? nil : dominance($0.groups) }),
         underruns: countsUnderruns
             ? scored.filter {
@@ -400,22 +435,52 @@ private func printTable(_ reports: [VariantReport], vectors: VectorSet, corpus: 
 
         ================================================================================
         B. ABLATION LADDER — \(vectors.meta.model), \(vectors.dimensions) dims
-           SCOPE: the `main` index only — \(mainDocuments) documents, \(rows(.main).first?.ndcg?.count ?? 0) scored queries
+           SCOPE: DEVELOPMENT half of `main` — \(mainDocuments) documents, \(rows(.dev).first?.ndcg?.count ?? 0) scored queries
         ================================================================================
-        This is the headline, and it is deliberately NOT an average over the whole corpus.
-        Pooling was a real error: of 320 answerable queries only 110 sit on this index and
-        210 on the ten 24-document locale sets, so a pooled mean is two thirds driven by a
-        problem too easy to separate anything. Ranking decisions are made here.
+        Tuning happens here and nowhere else. Floors, weights, candidate depths, rerank
+        settings and model choice are all chosen on this half; the holdout stays frozen
+        (see Corpus/split.json) and needs --holdout <reason> to appear at all, which is
+        logged. Roughly a dozen decisions have already been fitted to this corpus, so
+        without that separation the numbers would increasingly describe the benchmark
+        rather than retrieval.
 
-        nDCG@8 and P@8 exclude `unanswerable` (no ideal ranking); that category is scored by
-        `irrel.` — mean lines emitted, target 0. `domin.` is the largest share one thread or
-        kind holds among the 8 lines. `under` counts contexts shorter than the available
-        material, and is reported only for variants that never decline a line on purpose.
+        Also deliberately NOT an average over the whole corpus: of 320 answerable queries
+        only 110 sit on `main` and 210 on the ten 24-document locale sets, so a pooled mean
+        is two thirds driven by a problem too easy to separate anything.
 
-        variant                          nDCG@8   P@8   R@1   R@3   R@8   MRR  irrel. domin. under
+        nDCG@8 and P@8 exclude `unanswerable` (no ideal ranking), which is exactly why the
+        abstention columns exist: the floor's largest measured effect never shows up in nDCG.
+        `abst.` = share of unanswerable questions answered with NOTHING (higher is better).
+        `f.abst` = share of ANSWERABLE questions wrongly answered with nothing — the price of
+        every threshold, and without it a tighter floor looks free. `irrel.` = mean lines on an
+        unanswerable question (target 0). `lines` = mean lines over all queries, so `P@8` can
+        never be read alone: a pipeline that emits one correct line scores P@8 = 1.00, and only
+        `lines` and `f.abst` reveal that it bought that by staying silent elsewhere.
+
+        variant                          nDCG@8   P@8   R@1   R@8   MRR  abst. f.abst irrel. lines domin.
         ------------------------------------------------------------------------------------------
         """)
-    for report in rows(.main) { printRow(report) }
+    for report in rows(.dev) { printRow(report) }
+
+    if !rows(.test).isEmpty {
+        print("""
+
+            ================================================================================
+            B0. HOLDOUT — frozen half of `main`, \(rows(.test).first?.ndcg?.count ?? 0) scored queries
+            ================================================================================
+            UNLOCKED FOR THIS RUN. Every access is recorded in Corpus/holdout-access.log.
+
+            Read this to CONFIRM a configuration chosen on dev, never to choose one. At the
+            corpus's current size a paired bootstrap here spans roughly ±0.11, so it can
+            catch a large regression and cannot resolve the 0.002–0.043 differences the
+            decisions so far turned on. It becomes decisive once `main` grows.
+
+            variant                          nDCG@8   P@8   R@1   R@8   MRR  abst. f.abst irrel. lines domin.
+            ------------------------------------------------------------------------------------------
+            """)
+        for report in rows(.test) { printRow(report) }
+    }
+
 
     print("""
 
@@ -427,7 +492,7 @@ private func printTable(_ reports: [VariantReport], vectors: VectorSet, corpus: 
         not are separating noise. Read it to answer "does this model work in this language at
         all", never to choose between selection variants.
 
-        variant                          nDCG@8   P@8   R@1   R@3   R@8   MRR  irrel. domin. under
+        variant                          nDCG@8   P@8   R@1   R@8   MRR  abst. f.abst irrel. lines domin.
         ------------------------------------------------------------------------------------------
         """)
     for report in rows(.locales) { printRow(report) }
@@ -440,13 +505,13 @@ private func printTable(_ reports: [VariantReport], vectors: VectorSet, corpus: 
         MIXED DIFFICULTY. Kept only so the figures published before this split stay
         reproducible. Do not quote a number from this table.
 
-        variant                          nDCG@8   P@8   R@1   R@3   R@8   MRR  irrel. domin. under
+        variant                          nDCG@8   P@8   R@1   R@8   MRR  abst. f.abst irrel. lines domin.
         ------------------------------------------------------------------------------------------
         """)
     for report in rows(.all) { printRow(report) }
 
-    printCategories(rows(.main), title: "C. PER CATEGORY (nDCG@8) — `main` index")
-    printLanguages(rows(.main), title: "D1. PER LANGUAGE within `main` (nDCG@8)",
+    printCategories(rows(.dev), title: "C. PER CATEGORY (nDCG@8) — development half of `main`")
+    printLanguages(rows(.dev), title: "D1. PER LANGUAGE within the development half (nDCG@8)",
                    note: """
                    Both cells come from the same 272-document index, so they are comparable to
                    each other. The English one rests on very few queries — a smoke signal.
@@ -460,11 +525,16 @@ private func printTable(_ reports: [VariantReport], vectors: VectorSet, corpus: 
 }
 
 private func printRow(_ report: VariantReport) {
+    func pct(_ value: Double?) -> String {
+        guard let value else { return "    —" }
+        return String(format: "%5.2f", value)
+    }
     let name = report.name.padding(toLength: 32, withPad: " ", startingAt: 0)
     print("\(name) \(format(report.ndcg)) \(format(report.precision)) \(format(report.recall1)) "
-        + "\(format(report.recall3)) \(format(report.recall8)) \(format(report.mrr)) "
-        + String(format: "%5.2f", report.irrelevantLines) + " \(format(report.dominance)) "
-        + (report.underruns.map { String(format: "%5d", $0) } ?? "    —"))
+        + "\(format(report.recall8)) \(format(report.mrr)) "
+        + "\(pct(report.abstention)) \(pct(report.falseAbstention)) "
+        + String(format: "%5.2f", report.irrelevantLines) + " "
+        + String(format: "%5.2f", report.meanEmitted ?? 0) + " \(format(report.dominance))")
 }
 
 private func printCategories(_ reports: [VariantReport], title: String) {

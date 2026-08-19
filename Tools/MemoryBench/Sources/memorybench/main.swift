@@ -19,6 +19,7 @@ enum Command: String {
     case embed
     case models
     case lint
+    case split
 }
 
 let usage = """
@@ -34,6 +35,8 @@ usage: memorybench <score|embed|models|lint> [options]
          --rerank-server <url> adds cross-encoder rerank rows, scored through llama.cpp's
          own /rerank endpoint. Opt-in on purpose: without it `score` needs no network and
          stays deterministic, which is what lets CI run it.
+         Reports the DEVELOPMENT half of `main` by default. --holdout "<reason>" also reports the
+         frozen half and appends the access to Corpus/holdout-access.log.
          --mixed-language-index searches all ten locales at once. The default restricts
          candidates to the query's own language, because a real index holds one person's
          memories rather than nine translations of them — see Score.swift.
@@ -51,6 +54,12 @@ usage: memorybench <score|embed|models|lint> [options]
          debugging of a model already known to be broken; the run is loudly marked as such.
 
   models List the known embedding contracts and which are comparable on the pinned runtime.
+
+  split  --corpus <dir> [--test-fraction 0.35] [--seed N] [--write]
+         Computes the development / holdout split over the `main` index and prints its shape. Whole
+         scenarios move together — the connected components of the query-document graph — so no
+         document can be graded from both sides. Without --write it only reports; with --write it
+         commits Corpus/split.json, which is what makes the boundary stable across corpus edits.
 """
 
 var arguments = Array(CommandLine.arguments.dropFirst())
@@ -77,6 +86,10 @@ var rerankServer = ""
 var rerankTop = 32
 var mixedLanguageIndex = false
 var skipSanityCheck = false
+var testFraction = 0.35
+var splitSeed: UInt64 = 20_260_819
+var writeSplit = false
+var holdoutReason = ""
 
 var iterator = arguments.makeIterator()
 while let key = iterator.next() {
@@ -96,6 +109,10 @@ while let key = iterator.next() {
     case "--rerank-top": rerankTop = Int(iterator.next() ?? "") ?? rerankTop
     case "--mixed-language-index": mixedLanguageIndex = true
     case "--skip-sanity-check": skipSanityCheck = true
+    case "--test-fraction": testFraction = Double(iterator.next() ?? "") ?? testFraction
+    case "--seed": splitSeed = UInt64(iterator.next() ?? "") ?? splitSeed
+    case "--write": writeSplit = true
+    case "--holdout": holdoutReason = iterator.next() ?? ""
     case "--floor":
         floors = (iterator.next() ?? "").split(separator: ",").compactMap { Double($0) }
     case "--":
@@ -103,6 +120,43 @@ while let key = iterator.next() {
     default:
         FileHandle.standardError.write(Data("unknown argument \(key)\n".utf8))
         exit(2)
+    }
+}
+
+/// Appends one line to the committed holdout access log.
+///
+/// The log is the enforcement: a frozen set is only frozen if looking at it leaves a trace. It records the
+/// configuration alongside the reason, so a later reader can see whether settings changed AFTER a reading —
+/// which is the specific failure this guards against, since tuning on the holdout is invisible in the
+/// numbers themselves.
+func appendHoldoutAccess(corpusDirectory: URL,
+                         reason: String,
+                         model: String,
+                         floors: [Double],
+                         candidates: Int,
+                         rerankServer: String,
+                         rerankTop: Int,
+                         split: CorpusSplit) throws {
+    let configuration = [
+        "model=\(model)",
+        "floors=\(floors.map { String(format: "%.2f", $0) }.joined(separator: "/"))",
+        "candidates=\(candidates)",
+        rerankServer.isEmpty ? "rerank=off" : "rerank=on@\(rerankTop)",
+        "split=v\(split.version)/seed\(split.seed)",
+    ].joined(separator: " ")
+    let line = "\(ISO8601DateFormatter().string(from: Date()))  \(configuration)  reason=\(reason)\n"
+
+    let url = corpusDirectory.appendingPathComponent("holdout-access.log")
+    let header = "# Every reading of the frozen holdout half, appended by `memorybench score --holdout`.\n"
+        + "# A short log means the holdout still means something. A long one means it has quietly become a\n"
+        + "# second development set, and the honest fix is a fresh split rather than a fresh interpretation.\n\n"
+    if FileManager.default.fileExists(atPath: url.path) {
+        let handle = try FileHandle(forWritingTo: url)
+        defer { try? handle.close() }
+        try handle.seekToEnd()
+        try handle.write(contentsOf: Data(line.utf8))
+    } else {
+        try Data((header + line).utf8).write(to: url)
     }
 }
 
@@ -140,6 +194,51 @@ case .lint:
             print("\(index.padding(toLength: 14, withPad: " ", startingAt: 0)) "
                 + String(format: "%4d", documents.count) + "  " + String(format: "%7d", queries.count)
                 + "  \(langs.padding(toLength: 12, withPad: " ", startingAt: 0))  \(cells.joined())")
+        }
+        print("")
+    } catch {
+        fail(error.localizedDescription)
+    }
+
+case .split:
+    do {
+        let directory = URL(fileURLWithPath: corpusPath)
+        let corpus = try Corpus.load(directory: directory)
+        let split = corpus.computeSplit(testFraction: testFraction, seed: splitSeed)
+        let problems = corpus.splitProblems(split)
+
+        let queries = corpus.queries.filter { $0.index == Corpus.splitIndex }
+        let groups = corpus.scenarioGroups()
+        print("""
+
+            split over `\(Corpus.splitIndex)` — seed \(split.seed), target test fraction \(split.testFraction)
+              \(groups.count) indivisible scenario groups, largest holds \(groups.first?.queryIDs.count ?? 0) queries
+              dev \(split.devQueryIDs.count) queries · test \(split.testQueryIDs.count) queries \
+            (\(String(format: "%.0f%%", 100 * Double(split.testQueryIDs.count) / Double(max(1, queries.count)))) test)
+
+            category      dev  test
+            ------------------------
+            """)
+        for category in QueryCategory.allCases {
+            let dev = queries.filter { split.dev.contains($0.id) && $0.category == category }.count
+            let test = queries.filter { split.test.contains($0.id) && $0.category == category }.count
+            print("\(category.rawValue.padding(toLength: 13, withPad: " ", startingAt: 0)) "
+                + String(format: "%4d", dev) + String(format: "%6d", test))
+        }
+
+        if problems.isEmpty {
+            print("\nleak check: PASS — no document is graded relevant on both sides")
+        } else {
+            print("\nleak check: FAIL")
+            for problem in problems { print("  - \(problem)") }
+        }
+
+        if writeSplit {
+            guard problems.isEmpty else { fail("\nrefusing to write a split that does not pass its own checks") }
+            try split.write(directory: directory)
+            print("\nwrote \(directory.appendingPathComponent(CorpusSplit.filename).path)")
+        } else {
+            print("\n(dry run — pass --write to commit this assignment)")
         }
         print("")
     } catch {
@@ -253,6 +352,33 @@ case .score:
         } else {
             vectors = try VectorSet.read(directory: URL(fileURLWithPath: vectorsPath))
         }
+        // The committed split, when there is one. Absent only before `split --write` has ever run, in which
+        // case `score` falls back to reporting the whole index and says so loudly.
+        let split = try? CorpusSplit.load(directory: URL(fileURLWithPath: corpusPath))
+        if split == nil {
+            FileHandle.standardError.write(Data(("NOTE: no Corpus/split.json — reporting the whole `main` "
+                + "index, which means any tuning against these numbers is fitted to the same queries it will "
+                + "later be judged on.\n  Run `memorybench split --corpus " + corpusPath
+                + " --write` to fix that.\n\n").utf8))
+        }
+        if !holdoutReason.isEmpty {
+            guard let split else {
+                fail("--holdout needs a committed split; run `memorybench split --write` first")
+            }
+            try appendHoldoutAccess(corpusDirectory: URL(fileURLWithPath: corpusPath),
+                                    reason: holdoutReason,
+                                    model: synthetic ? "synthetic" : vectors.meta.model,
+                                    floors: floors,
+                                    candidates: candidates,
+                                    rerankServer: rerankServer,
+                                    rerankTop: rerankTop,
+                                    split: split)
+            FileHandle.standardError.write(Data(("HOLDOUT UNLOCKED — recorded in "
+                + "Corpus/holdout-access.log.\n  Use it to confirm a configuration chosen on dev, not to "
+                + "choose one. If any setting changes after reading these numbers, the holdout has been "
+                + "spent and the next honest reading needs a fresh split.\n\n").utf8))
+        }
+
         var client: RerankClient?
         if !rerankServer.isEmpty {
             guard let url = URL(string: rerankServer) else { fail("--rerank-server is not a URL") }
@@ -267,7 +393,9 @@ case .score:
                                floors: floors,
                                candidateCeiling: candidates,
                                rerank: client,
-                               mixedLanguageIndex: mixedLanguageIndex)
+                               mixedLanguageIndex: mixedLanguageIndex,
+                               split: split,
+                               showHoldout: !holdoutReason.isEmpty)
     } catch {
         fail(error.localizedDescription)
     }

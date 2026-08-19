@@ -112,4 +112,42 @@ final class MetricsTests: XCTestCase {
     func testMeanOfNothingDefinedIsNil() {
         XCTAssertNil(mean([nil, nil]))
     }
+
+    // MARK: - Abstention and coverage
+
+    /// The floor's largest measured effect is invisible in nDCG, because nDCG is `nil` for an unanswerable
+    /// query by construction. These are the columns that make it visible.
+    func testAbstentionRateCountsQueriesAnsweredWithNothing() {
+        XCTAssertEqual(abstentionRate(emittedCounts: [0, 0, 8, 8])!, 0.5, accuracy: 1e-9)
+        XCTAssertEqual(abstentionRate(emittedCounts: [0, 0, 0])!, 1, accuracy: 1e-9)
+        XCTAssertEqual(abstentionRate(emittedCounts: [8, 8])!, 0, accuracy: 1e-9)
+    }
+
+    /// The cost side of every threshold, and the number that had no metric at all before. A floor tuned to
+    /// silence noise will eventually silence answers, and without this column a tighter floor looks free.
+    func testFalseAbstentionCountsAnswerableQueriesLeftUnanswered() {
+        XCTAssertEqual(falseAbstentionRate(emittedCounts: [0, 3, 3, 3])!, 0.25, accuracy: 1e-9)
+        XCTAssertEqual(falseAbstentionRate(emittedCounts: [5, 5])!, 0, accuracy: 1e-9)
+    }
+
+    func testAbstentionMetricsAreNilRatherThanZeroWithNothingToScore() {
+        XCTAssertNil(abstentionRate(emittedCounts: []))
+        XCTAssertNil(falseAbstentionRate(emittedCounts: []))
+        XCTAssertNil(meanEmittedLines([]))
+    }
+
+    /// Precision alone rewards silence: one correct line out of one emitted is P@8 = 1.0. This is the column
+    /// that exposes it, which is why the two are always printed together.
+    func testMeanEmittedLinesExposesPrecisionBoughtBySilence() throws {
+        let conservative = [1, 1, 1, 1]
+        let generous = [8, 8, 8, 8]
+        XCTAssertEqual(meanEmittedLines(conservative)!, 1, accuracy: 1e-9)
+        XCTAssertEqual(meanEmittedLines(generous)!, 8, accuracy: 1e-9)
+        // Same perfect precision, wildly different coverage — indistinguishable without this metric.
+        let judgments = ["a": 2, "b": 2, "c": 2]
+        XCTAssertEqual(precision(ranked: ["a"], judgments: judgments)!, 1, accuracy: 1e-9)
+        XCTAssertEqual(precision(ranked: ["a", "b", "c"], judgments: judgments)!, 1, accuracy: 1e-9)
+        XCTAssertLessThan(recall(ranked: ["a"], judgments: judgments, k: 8)!,
+                          recall(ranked: ["a", "b", "c"], judgments: judgments, k: 8)!)
+    }
 }
