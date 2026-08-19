@@ -78,6 +78,18 @@ extension SelectionConfig {
     /// What ships today: semantic order authoritative, two rescue slots for lexical-only sources.
     static let today = SelectionConfig(name: "today (+rescue)")
 
+    /// The keyword arm alone — and this is a SHIPPED configuration, not a hypothetical.
+    ///
+    /// macOS has no embedding provider at all, so it runs exactly this; on iOS it is what a turn falls back to
+    /// when the 2.5-second race is lost. It was missing from the ladder, which meant the report had no row for
+    /// one of the two configurations the product actually ships, and no way to answer the question a
+    /// half-rebuilt index raises: is degraded semantic retrieval better or worse than honest keyword retrieval?
+    ///
+    /// `candidateLimit: 0` starves the semantic arm, and `fuse` then returns the lexical hits deduplicated per
+    /// source up to the limit — its `guard !ranked.isEmpty` branch. That is the shipped fallback path exactly,
+    /// so this row measures production code rather than an approximation of it.
+    static let keywordOnly = SelectionConfig(name: "keyword-only (macOS / lost race)", candidateLimit: 0)
+
     static func proposed(floor: Double?) -> SelectionConfig {
         SelectionConfig(name: "proposed",
                         candidateLimit: 128,
@@ -123,7 +135,7 @@ extension SelectionConfig {
     /// are still zero nothing can promote them, so an early `+K=128` step is guaranteed to measure exactly
     /// nothing — as it did. The two tail rows re-test it where it can actually bind.
     static func ladder(floor: Double?) -> [SelectionConfig] {
-        var steps: [SelectionConfig] = [.semanticOnly, .today]
+        var steps: [SelectionConfig] = [.keywordOnly, .semanticOnly, .today]
         // The SHIPPED shape with only the lexical arm improved: `fuse` unchanged, two rescue slots unchanged,
         // but the arm that fills them ranks by numeric/date-aware tokens and then by IDF instead of by a raw
         // overlap count. This is the smallest production change on the table, and the ladder's later

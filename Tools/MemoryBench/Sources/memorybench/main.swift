@@ -23,6 +23,7 @@ enum Command: String {
     case golden
     case scale
     case pareto
+    case rebuild
 }
 
 let usage = """
@@ -67,6 +68,14 @@ usage: memorybench <score|embed|models|lint> [options]
          Prints quality beside index bytes, model size and embed time for several vector sets,
          and marks the Pareto front. No axis is weighted into a score, because a weight decides
          the ranking before the measurement does. Quality is the DEV half of `main` only.
+
+  rebuild --corpus <dir> (--vectors <path> | --synthetic) [--fractions 0.25,0.5,0.75,1.0]
+         What the coach receives while a model swap is still rebuilding the index. A swap calls
+         `invalidate`, which marks every row of the old model `pending`, and `search` filters
+         those out — so the index is genuinely part-empty for a while. The store's consistency
+         during that is already covered by SemanticMemoryTests; this measures the QUALITY, which
+         is what decides whether a rebuild may run in the background or needs a foreground
+         notice.
 
   scale  --corpus <dir> (--vectors <path> | --synthetic) [--tiers 250,1000,5000]
          Answers the two questions a 272-document index cannot: is K=32 still enough when the
@@ -120,6 +129,7 @@ var holdoutReason = ""
 var fixturesPath = "Fixtures"
 var regenerateSplit = false
 var tiers = [250, 1_000, 5_000]
+var fractions = [0.25, 0.5, 0.75, 1.0]
 var vectorPaths: [String] = []
 var storedDimensions = 0
 
@@ -153,6 +163,8 @@ while let key = iterator.next() {
     case "--fixtures": fixturesPath = iterator.next() ?? fixturesPath
     case "--regenerate": regenerateSplit = true
     case "--dims": storedDimensions = Int(iterator.next() ?? "") ?? 0
+    case "--fractions":
+        fractions = (iterator.next() ?? "").split(separator: ",").compactMap { Double($0) }
     case "--tiers": tiers = (iterator.next() ?? "").split(separator: ",").compactMap { Int($0) }
     case "--floor":
         floors = (iterator.next() ?? "").split(separator: ",").compactMap { Double($0) }
@@ -289,6 +301,56 @@ case .pareto:
         // The incumbent is the comparison point, because the only decision on the table is whether to REPLACE
         // what ships — not which candidate ranks highest among themselves.
         printModelComparisons(ordered, incumbent: EmbeddingContract.nomic.id)
+    } catch {
+        fail(error.localizedDescription)
+    }
+
+case .rebuild:
+    do {
+        let corpus = try Corpus.load(directory: URL(fileURLWithPath: corpusPath))
+        let split = try? CorpusSplit.load(directory: URL(fileURLWithPath: corpusPath))
+        guard !vectorsPath.isEmpty || synthetic else { fail("rebuild needs --vectors <path> or --synthetic") }
+        let vectors = synthetic
+            ? SyntheticVectors.build(for: corpus)
+            : try VectorSet.read(directory: URL(fileURLWithPath: vectorsPath))
+        print("""
+
+            ================================================================================
+            REBUILD DEGRADATION — \(vectors.meta.model), \(vectors.dimensions) dims
+            ================================================================================
+            Quality on the DEV half while only part of the index has been re-embedded. The rows
+            that are not stored yet stay `pending`, which is exactly what `invalidate` leaves
+            behind after a model change, and `search` skips them.
+
+            Read `f.abst` beside nDCG@8: a half-built index does not return worse answers so
+            much as FEWER, and the honest failure mode is silence on a question that has an
+            answer.
+
+            rebuilt   nDCG@8    R@8   f.abst   lines   scored
+            --------------------------------------------------
+            """)
+        for fraction in fractions.sorted() {
+            let reports = try await runScore(corpus: corpus,
+                                             vectors: vectors,
+                                             floors: floors,
+                                             candidateCeiling: candidates,
+                                             quiet: true,
+                                             split: split,
+                                             showHoldout: false,
+                                             rebuiltFraction: fraction >= 1 ? nil : fraction)
+            guard let row = reports.first(where: { $0.scope == .dev && $0.name == "today (+rescue)" }) else {
+                continue
+            }
+            print(String(format: "  %6.0f%%   %6.3f  %5.3f   %6.2f  %6.2f     %4d",
+                         fraction * 100,
+                         row.ndcg?.value ?? .nan,
+                         row.recall8?.value ?? .nan,
+                         row.falseAbstention ?? .nan,
+                         row.meanEmitted ?? .nan,
+                         row.ndcg?.count ?? 0))
+            fflush(stdout)
+        }
+        print("")
     } catch {
         fail(error.localizedDescription)
     }

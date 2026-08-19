@@ -406,6 +406,57 @@ does not by itself justify shipping a cross-encoder — the latency argument in 
 measurement shows the scan is not what loses the race, so the second model's load and forward passes would be —
 but "too little headroom" is no longer a true statement.
 
+### The keyword arm alone — the row that was missing, and it costs 0.227
+
+The ladder had no row for one of the **two configurations the product actually ships**. macOS has no embedding
+provider, so it runs keyword-only always; on iOS it is what a turn falls back to when the 2.5-second race is
+lost. `SelectionConfig.keywordOnly` starves the semantic arm and `fuse` takes its `guard !ranked.isEmpty` branch,
+returning lexical hits deduplicated per source — the shipped fallback path exactly, not an approximation.
+
+| variant | nDCG@8 | Δ vs shipped | 95% CI | abst. | f.abst | irrel. lines | lines |
+|---|---|---|---|---|---|---|---|
+| keyword-only (macOS / lost race) | 0.492 | −0.227 | [−0.273, −0.182] | 0.47 | 0.02 | 2.24 | 5.88 |
+| today (+rescue) | 0.719 | — | — | 0.00 | 0.00 | 8.00 | 8.00 |
+
+**Losing the race costs 0.227 nDCG@8** — as much as the entire Oracle ranking headroom, and eight times the best
+feature on the ladder. That finally prices P7: whatever fallback rate the device measurement reports translates
+into roughly this much quality loss on those turns. Latency work is not competing with ranking work; it is the
+same size as all of it.
+
+**And the keyword arm is the honest one.** It abstains on 47% of unanswerable questions and emits 2.24 irrelevant
+lines against the semantic path's 8.00, because keyword overlap has a natural floor at `overlap > 0` while cosine
+similarity has none. The arm with the better retrieval is also the one that never admits it has nothing.
+
+### Quality during an incomplete rebuild — and when to suppress semantic retrieval
+
+A model swap calls `invalidate`, which marks every row of the old model `pending`, and `search` filters those
+out. So the index is genuinely part-empty for a while. `SemanticMemoryTests` already covers that the store stays
+consistent through it; what was never measured is what the coach *receives* meanwhile.
+
+```bash
+swift run -c release memorybench rebuild --corpus Corpus --vectors <dir>
+```
+
+| rebuilt | nDCG@8 | R@8 | f.abst | lines |
+|---|---|---|---|---|
+| 25% | 0.343 | 0.489 | 0.00 | 8.00 |
+| 50% | 0.464 | 0.592 | 0.00 | 8.00 |
+| 75% | 0.564 | 0.650 | 0.00 | 8.00 |
+| 100% | 0.719 | 0.748 | 0.00 | 8.00 |
+
+**The failure mode is not silence — it is confidence.** `f.abst` stays 0.00 and the pipeline emits eight lines at
+every fraction, including at 25% rebuilt where quality is less than half. A migrating index does not tell the
+coach it is missing three quarters of its evidence; it hands over a full-looking context of eight lines. This is
+P1 in a different costume, and it is the strongest argument yet that a "ranking is not a reason to disclose"
+policy belongs on the semantic path too.
+
+**The two measurements together give a threshold.** Keyword-only scores 0.492. The rebuild curve crosses that
+between 50% (0.464) and 75% (0.564), so **below roughly 55% rebuilt, a half-migrated semantic index is worse than
+simply using the keyword arm** — and worse while claiming eight lines' worth of confidence. `SemanticIndexStore`
+already exposes `counts()` (indexed against pending), so gating semantic retrieval on that ratio is a small,
+well-supported change rather than a new mechanism. A model swap can then run in the background honestly instead
+of quietly degrading every turn for the duration.
+
 ### The reranker, measured against the grown corpus — and 16 candidates is the knee
 
 `llama-server` from the pinned `b9623` with `--reranking` on `jina-reranker-v2-base-multilingual` (Q8_0), dev

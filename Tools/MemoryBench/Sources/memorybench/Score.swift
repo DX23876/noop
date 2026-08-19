@@ -91,7 +91,11 @@ func runScore(corpus: Corpus,
               rerank: RerankClient? = nil,
               mixedLanguageIndex: Bool = false,
               split: CorpusSplit? = nil,
-              showHoldout: Bool = false) async throws -> [VariantReport] {
+              showHoldout: Bool = false,
+              /// Share of chunk vectors actually stored, to model an index mid-rebuild. `nil` stores all of them,
+              /// and must be byte-identical to `1.0` — asserted, because a mode that changes the full-index
+              /// numbers would make its own curve unreadable.
+              rebuiltFraction: Double? = nil) async throws -> [VariantReport] {
     // ONE STORE PER INDEX, not one store filtered afterwards.
     //
     // A device holds one person's index and searches that. Filtering after a shared search is not the same
@@ -132,10 +136,32 @@ func runScore(corpus: Corpus,
     for (index, entries) in Dictionary(grouping: semanticDocuments, by: { chunkOwner[$0.chunk]!.index }) {
         try await stores[index]!.enqueue(entries.map(\.document))
     }
+    // Which chunks have a vector stored, for the partial-rebuild mode.
+    //
+    // A model swap calls `invalidate`, which marks every row whose `modelId` no longer matches as `pending`, and
+    // `search` filters on `pending = 0`. So during a rebuild the index is genuinely part-empty, and the question
+    // this mode answers is not whether the store stays consistent — three `SemanticMemoryTests` already cover
+    // that — but what the coach RECEIVES while it happens.
+    //
+    // Deterministic by seed, and chosen over sorted chunk ids, so a fraction is reproducible rather than
+    // depending on dictionary order.
+    let rebuiltChunks: Set<String>? = rebuiltFraction.map { fraction in
+        let ordered = semanticDocuments.map(\.chunk).sorted()
+        var rng = SplitMix64(seed: 20_260_819)
+        var shuffled = ordered
+        for index in shuffled.indices.reversed() where index > 0 {
+            shuffled.swapAt(index, Int(rng.next() % UInt64(index + 1)))
+        }
+        return Set(shuffled.prefix(Int((Double(ordered.count) * fraction).rounded())))
+    }
     for entry in semanticDocuments {
         guard let vector = vectors.documents[entry.chunk] else {
             throw VectorError.missing("vector for chunk \(entry.chunk) — re-run `embed` for this corpus")
         }
+        // The guard above still fires for an ACCIDENTALLY missing vector, which is the behaviour
+        // `testAMissingVectorIsAnErrorNotASilentlySmallerIndex` pins. This skip is the declared case: the vector
+        // exists and is deliberately not stored yet, so the row stays `pending` exactly as it would mid-rebuild.
+        if let rebuiltChunks, !rebuiltChunks.contains(entry.chunk) { continue }
         let store = stores[chunkOwner[entry.chunk]!.index]!
         // The store keys the vector on (documentId, contentHash), the same pairing the app uses to invalidate
         // a vector when its text changes. Writing it any other way would let a stale vector score a document
