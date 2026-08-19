@@ -182,24 +182,87 @@ final class SplitTests: XCTestCase {
     /// by mutating the real corpus, so the assertion is about the detector and not about today's data.
     func testSplitProblemsDetectsAHandBuiltLeak() throws {
         let (corpus, split) = try loaded()
-        let main = corpus.queries.filter { $0.index == Corpus.splitIndex }
-        // Find a document graded by two queries, then force those queries onto opposite sides.
-        var byDocument: [String: [String]] = [:]
-        for query in main {
-            for (document, grade) in query.judgments where grade > 0 {
-                byDocument[document, default: []].append(query.id)
-            }
-        }
-        guard let shared = byDocument.first(where: { $0.value.count >= 2 }) else {
+        // Built from a document two queries grade at or above the scenario floor, chosen deterministically.
+        //
+        // This test was flaky, and the flake was a real signal rather than noise. It used to pick any document
+        // with two positive judgments via `Dictionary.first(where:)` — whose order Swift randomises per process
+        // — and since the leak check now only fires at grade ≥2, a run that happened to pick a grade-1 document
+        // saw no leak reported and failed. Both halves of that are fixed here: the choice is sorted, and the
+        // grade is the one the check actually enforces.
+        guard let shared = coGradedDocument(in: corpus, atLeast: Corpus.scenarioGradeFloor) else {
             return XCTFail("corpus has no co-graded document to build a leak from")
         }
+        let main = corpus.queries.filter { $0.index == Corpus.splitIndex }
         let leaking = CorpusSplit(version: split.version,
                                   seed: split.seed,
                                   testFraction: split.testFraction,
-                                  devQueryIDs: main.map(\.id).filter { $0 != shared.value[1] },
-                                  testQueryIDs: [shared.value[1]])
+                                  devQueryIDs: main.map(\.id).filter { $0 != shared.queries[1] },
+                                  testQueryIDs: [shared.queries[1]])
         XCTAssertTrue(corpus.splitProblems(leaking).contains { $0.contains("leaks") },
-                      "a document graded from both sides must be reported")
+                      "a document graded as an answer on both sides must be reported")
+    }
+
+    /// The other half of the same rule, and the one that makes the weakening explicit: a document that only
+    /// SUPPORTS on both sides is not a leak. That is deliberate — forbidding it makes the corpus unsplittable —
+    /// and without this assertion the design could tighten back by accident and nothing would notice until the
+    /// split failed to generate.
+    func testADocumentThatOnlySupportsOnBothSidesIsNotReportedAsALeak() throws {
+        let (corpus, split) = try loaded()
+        let main = corpus.queries.filter { $0.index == Corpus.splitIndex }.sorted { $0.id < $1.id }
+
+        // A pair that shares grade-1 support and NO answer. Isolating the pair is the point: a first attempt put
+        // every other query on the dev side, and that one test query shared its own answers with a dozen dev
+        // queries, so real leaks were reported and the assertion failed for a reason unrelated to what it claims.
+        func strong(_ query: CorpusQuery) -> Set<String> {
+            Set(query.judgments.filter { $0.value >= Corpus.scenarioGradeFloor }.keys)
+        }
+        func supporting(_ query: CorpusQuery) -> Set<String> {
+            Set(query.judgments.filter { $0.value == 1 }.keys)
+        }
+        var pair: (CorpusQuery, CorpusQuery)?
+        outer: for a in main {
+            for b in main where a.id < b.id {
+                if !supporting(a).intersection(supporting(b)).isEmpty,
+                   strong(a).intersection(strong(b)).isEmpty {
+                    pair = (a, b)
+                    break outer
+                }
+            }
+        }
+        guard let (a, b) = pair else {
+            throw XCTSkip("no two queries share only grade-1 support")
+        }
+
+        let sharing = CorpusSplit(version: split.version,
+                                  seed: split.seed,
+                                  testFraction: split.testFraction,
+                                  devQueryIDs: [a.id],
+                                  testQueryIDs: [b.id])
+        let problems = corpus.splitProblems(sharing)
+        XCTAssertFalse(problems.contains { $0.contains("leaks") },
+                       "grade-1 support on both sides is allowed by design — see Corpus.scenarioGradeFloor: "
+                       + "\(problems.filter { $0.contains("leaks") })")
+        // Every other query is unassigned in this hand-built split, which `splitProblems` rightly complains
+        // about. Asserting that keeps the test honest about what it did rather than reading as a clean split.
+        XCTAssertTrue(problems.contains { $0.contains("neither side") })
+    }
+
+    /// Deterministic by construction: sorted at every step, because dictionary order is per-process random and a
+    /// test that depends on it fails one run in four.
+    private func coGradedDocument(in corpus: Corpus,
+                                  atLeast minimum: Int,
+                                  atMost maximum: Int = 3) -> (document: String, queries: [String])? {
+        var byDocument: [String: [String]] = [:]
+        for query in corpus.queries.filter({ $0.index == Corpus.splitIndex }) {
+            for (document, grade) in query.judgments where grade >= minimum && grade <= maximum {
+                byDocument[document, default: []].append(query.id)
+            }
+        }
+        return byDocument
+            .filter { $0.value.count >= 2 }
+            .map { (document: $0.key, queries: $0.value.sorted()) }
+            .sorted { $0.document < $1.document }
+            .first
     }
 
     // MARK: - Growing the corpus

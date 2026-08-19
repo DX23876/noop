@@ -22,6 +22,7 @@ enum Command: String {
     case split
     case golden
     case scale
+    case pareto
 }
 
 let usage = """
@@ -61,6 +62,11 @@ usage: memorybench <score|embed|models|lint> [options]
          Checks (or with --write regenerates) Fixtures/tokeniser-golden.json, the fixture shared with
          StrandTests so the app's tokeniser/chunker and this tool's transcriptions of them cannot
          drift apart while both stay internally consistent.
+
+  pareto --corpus <dir> --vectors <dirA> --vectors <dirB> [...]   (--vectors is repeatable)
+         Prints quality beside index bytes, model size and embed time for several vector sets,
+         and marks the Pareto front. No axis is weighted into a score, because a weight decides
+         the ranking before the measurement does. Quality is the DEV half of `main` only.
 
   scale  --corpus <dir> (--vectors <path> | --synthetic) [--tiers 250,1000,5000]
          Answers the two questions a 272-document index cannot: is K=32 still enough when the
@@ -114,12 +120,19 @@ var holdoutReason = ""
 var fixturesPath = "Fixtures"
 var regenerateSplit = false
 var tiers = [250, 1_000, 5_000]
+var vectorPaths: [String] = []
+var storedDimensions = 0
 
 var iterator = arguments.makeIterator()
 while let key = iterator.next() {
     switch key {
     case "--corpus": corpusPath = iterator.next() ?? corpusPath
-    case "--vectors": vectorsPath = iterator.next() ?? ""
+    // Repeatable: `score` uses the last one, `pareto` uses all of them. One flag rather than two, so there is
+    // no way to pass a set to one command and have the other silently ignore it.
+    case "--vectors":
+        let path = iterator.next() ?? ""
+        vectorsPath = path
+        vectorPaths.append(path)
     case "--out": outPath = iterator.next() ?? ""
     case "--model": modelPath = iterator.next() ?? ""
     case "--contract": contractID = iterator.next() ?? contractID
@@ -139,6 +152,7 @@ while let key = iterator.next() {
     case "--holdout": holdoutReason = iterator.next() ?? ""
     case "--fixtures": fixturesPath = iterator.next() ?? fixturesPath
     case "--regenerate": regenerateSplit = true
+    case "--dims": storedDimensions = Int(iterator.next() ?? "") ?? 0
     case "--tiers": tiers = (iterator.next() ?? "").split(separator: ",").compactMap { Int($0) }
     case "--floor":
         floors = (iterator.next() ?? "").split(separator: ",").compactMap { Double($0) }
@@ -235,6 +249,41 @@ case .lint:
                 + "  \(langs.padding(toLength: 12, withPad: " ", startingAt: 0))  \(cells.joined())")
         }
         print("")
+    } catch {
+        fail(error.localizedDescription)
+    }
+
+case .pareto:
+    do {
+        let corpus = try Corpus.load(directory: URL(fileURLWithPath: corpusPath))
+        let split = try? CorpusSplit.load(directory: URL(fileURLWithPath: corpusPath))
+        guard vectorPaths.count >= 1 else {
+            fail("pareto needs at least one --vectors <dir>; pass several to see a front")
+        }
+        var rows: [ParetoRow] = []
+        for path in vectorPaths {
+            let vectors = try VectorSet.read(directory: URL(fileURLWithPath: path))
+            FileHandle.standardError.write(Data("  scoring \(vectors.meta.model)…\n".utf8))
+            let reports = try await runScore(corpus: corpus,
+                                            vectors: vectors,
+                                            floors: floors,
+                                            candidateCeiling: candidates,
+                                            quiet: true,
+                                            split: split,
+                                            showHoldout: false)
+            // The baseline variant on the dev scope: comparing models under a tuned selection would fold the
+            // selection's fit to one model into the model's score.
+            let baseline = reports.first { $0.scope == .dev && $0.name == "semantic-only" }
+            rows.append(ParetoRow(model: vectors.meta.model,
+                                  dimensions: vectors.dimensions,
+                                  matryoshka: vectors.meta.matryoshka,
+                                  ndcg: baseline?.ndcg?.value,
+                                  indexBytes: vectors.indexBytes,
+                                  modelFileBytes: vectors.meta.modelFileBytes,
+                                  embedMilliseconds: vectors.meta.embedMilliseconds,
+                                  scoredQueries: baseline?.ndcg?.count ?? 0))
+        }
+        printPareto(rows.sorted { ($0.ndcg ?? 0) > ($1.ndcg ?? 0) })
     } catch {
         fail(error.localizedDescription)
     }
@@ -429,6 +478,26 @@ case .models:
         }
     }
     print("")
+
+case .embed where synthetic:
+    // Writes a synthetic vectors set without a model, so everything downstream that READS a vectors file —
+    // `score`, `scale`, `pareto` — can be exercised in CI, where no GGUF exists. The meta names itself
+    // "synthetic-hashed-tokens (NOT a model)", which is what keeps such a file from being mistaken for a
+    // measurement: every report prints the model name it came from.
+    do {
+        let corpus = try Corpus.load(directory: URL(fileURLWithPath: corpusPath))
+        let dimensions = storedDimensions > 0 ? storedDimensions : 256
+        let vectors = SyntheticVectors.build(for: corpus, dimensions: dimensions)
+        let out = URL(fileURLWithPath: outPath)
+        try FileManager.default.createDirectory(at: out, withIntermediateDirectories: true)
+        try VectorSet.write(directory: out,
+                            meta: vectors.meta,
+                            documents: vectors.documents,
+                            queries: vectors.queries)
+        print("wrote a SYNTHETIC vectors set (\(dimensions) dims) to \(out.path) — not a model measurement")
+    } catch {
+        fail(error.localizedDescription)
+    }
 
 case .embed:
     guard !modelPath.isEmpty, !llamaEmbeddingPath.isEmpty, !outPath.isEmpty else {

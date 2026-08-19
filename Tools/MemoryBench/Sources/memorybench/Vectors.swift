@@ -22,6 +22,13 @@ struct VectorSetMeta: Codable {
     /// this stage can honestly report — device latency has to be measured on a device.
     let embedMilliseconds: Double
     let embeddedTexts: Int
+    /// Bytes of the GGUF this run used. Optional so vector sets written before it existed still decode —
+    /// a required field would have made every earlier run unreadable, which is a bad trade for one number.
+    ///
+    /// It belongs beside quality because it is the cost the user actually pays twice: once in the download and
+    /// once in resident memory. A model that wins by being four times larger should have to show that in the
+    /// same table.
+    var modelFileBytes: Int?
 }
 
 struct VectorSet {

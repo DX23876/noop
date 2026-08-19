@@ -169,8 +169,10 @@ func runScore(corpus: Corpus,
     // Truncating a deeper ranked list to K is identical to having searched with limit K — the order is by
     // score either way — so the K ablation costs no extra scans.
     var semanticByQuery: [String: [SelectionCandidate]] = [:]
-    var relevantCosines: [Double] = []
-    var bestIrrelevantCosines: [Double] = []
+    // Keyed by scope, not pooled. See `printCalibration` for why pooling here was the worst possible place
+    // for it: this section is where the floor is CHOSEN.
+    var relevantCosines: [ReportScope: [Double]] = [:]
+    var bestIrrelevantCosines: [ReportScope: [Double]] = [:]
     for query in corpus.queries {
         guard let vector = vectors.queries[query.id] else {
             throw VectorError.missing("vector for query \(query.id) — re-run `embed` for this corpus")
@@ -192,11 +194,12 @@ func runScore(corpus: Corpus,
         // Floor calibration inputs: the cosine of a genuinely relevant hit, versus the best cosine a query
         // with nothing relevant produces. A threshold has to come out of these two distributions; guessing
         // one costs recall on the first and buys nothing on the second.
+        let calibrationScope = memorybench.calibrationScope(for: query, split: split)
         for candidate in candidates where (query.judgments[candidate.sourceID] ?? 0) > 0 {
-            relevantCosines.append(candidate.cosine)
+            relevantCosines[calibrationScope, default: []].append(candidate.cosine)
         }
         if !query.category.isAnswerable, let best = candidates.first?.cosine {
-            bestIrrelevantCosines.append(best)
+            bestIrrelevantCosines[calibrationScope, default: []].append(best)
         }
     }
 
@@ -340,7 +343,9 @@ func runScore(corpus: Corpus,
     }
 
     if !quiet {
-        printCalibration(relevant: relevantCosines, irrelevant: bestIrrelevantCosines)
+        printCalibration(relevant: relevantCosines,
+                         irrelevant: bestIrrelevantCosines,
+                         showHoldout: showHoldout)
         printTable(reports, vectors: vectors, corpus: corpus)
     }
     return reports
@@ -411,7 +416,24 @@ private func format(_ metric: (value: Double, count: Int)?) -> String {
     return String(format: "%5.3f", metric.value)
 }
 
-private func printCalibration(relevant: [Double], irrelevant: [Double]) {
+/// Which calibration bucket a query's cosines belong to.
+///
+/// Extracted so it can be tested, because the rule it encodes is the one that matters and the samples are
+/// otherwise only ever printed: **a holdout query must never contribute to the distribution a floor is chosen
+/// from.** Without a test, that could regress into a pooled calibration again — which is how it started, and the
+/// symptom would be a slightly different threshold rather than anything that looks like a failure.
+///
+/// With no split loaded every `main` query counts as dev. That is deliberate: no split means no freeze to
+/// protect, and silently treating everything as holdout would suppress the only row the report is meant to show.
+func calibrationScope(for query: CorpusQuery, split: CorpusSplit?) -> ReportScope {
+    guard query.index == Corpus.splitIndex else { return .locales }
+    if let split, split.test.contains(query.id) { return .test }
+    return .dev
+}
+
+private func printCalibration(relevant: [ReportScope: [Double]],
+                              irrelevant: [ReportScope: [Double]],
+                              showHoldout: Bool) {
     func percentile(_ values: [Double], _ p: Double) -> Double {
         guard !values.isEmpty else { return .nan }
         let sorted = values.sorted()
@@ -421,16 +443,40 @@ private func printCalibration(relevant: [Double], irrelevant: [Double]) {
     print("""
 
         ================================================================================
-        A. FLOOR CALIBRATION
+        A. FLOOR CALIBRATION — per scope, and the floor is chosen on DEV only
         ================================================================================
         Cosine of a genuinely relevant hit, against the best cosine a query with nothing
         relevant produces. A usable floor lies between these two distributions; if they
         overlap heavily, no single threshold exists and the floor must be per-kind or
         relative to the top hit instead of absolute.
 
-        relevant hits      n=\(relevant.count)   p05 \(String(format: "%.3f", percentile(relevant, 0.05)))   p25 \(String(format: "%.3f", percentile(relevant, 0.25)))   median \(String(format: "%.3f", percentile(relevant, 0.5)))
-        best-of-irrelevant n=\(irrelevant.count)   median \(String(format: "%.3f", percentile(irrelevant, 0.5)))   p75 \(String(format: "%.3f", percentile(irrelevant, 0.75)))   p95 \(String(format: "%.3f", percentile(irrelevant, 0.95)))
+        This used to pool every query in the corpus, which is the worst place in the report
+        for that mistake: this section is where the threshold is CHOSEN, so a pooled floor is
+        fitted partly on the frozen holdout — leaking exactly what the split exists to
+        prevent — and partly on ten 24-document locale sets whose cosines come from a much
+        easier problem. Read the DEV row. The others are diagnostics.
+
+        Absolute cosines are also not comparable BETWEEN models, so this is per model too: a
+        floor calibrated on one and applied to another measures the mismatch, not the model.
         """)
+    func row(_ label: String, _ scope: ReportScope) {
+        let hits = relevant[scope] ?? []
+        let noise = irrelevant[scope] ?? []
+        guard !hits.isEmpty || !noise.isEmpty else { return }
+        print("""
+
+              \(label)
+                relevant hits      n=\(hits.count)   p05 \(String(format: "%.3f", percentile(hits, 0.05)))   p25 \(String(format: "%.3f", percentile(hits, 0.25)))   median \(String(format: "%.3f", percentile(hits, 0.5)))
+                best-of-irrelevant n=\(noise.count)   median \(String(format: "%.3f", percentile(noise, 0.5)))   p75 \(String(format: "%.3f", percentile(noise, 0.75)))   p95 \(String(format: "%.3f", percentile(noise, 0.95)))
+            """)
+    }
+    row("DEV of `main` — the only scope a floor may be chosen from", .dev)
+    if showHoldout {
+        row("HOLDOUT of `main` — read once, never used to pick a threshold", .test)
+    } else {
+        print("\n  HOLDOUT of `main` — withheld (pass --holdout <reason> to see it)")
+    }
+    row("locale sets — 24-document indexes, an easier problem and a different distribution", .locales)
 }
 
 private func printTable(_ reports: [VariantReport], vectors: VectorSet, corpus: Corpus) {

@@ -25,6 +25,13 @@ struct Embedder {
     /// prompts and shift every subsequent vector onto the wrong text.
     let separator: String
 
+    /// Size of the GGUF on disk, recorded so the Pareto table can put quality next to what the model costs to
+    /// ship and to keep resident. Read here rather than at report time because the file may well not be on the
+    /// machine that reads the vectors — `embed` runs outside the repository, `score` runs in CI.
+    var modelFileBytes: Int? {
+        (try? FileManager.default.attributesOfItem(atPath: model.path)[.size]) as? Int
+    }
+
     init(binary: URL,
          model: URL,
          contract: EmbeddingContract,
@@ -232,7 +239,8 @@ func runEmbed(corpus: Corpus,
                              documentIDs: documentTexts.map(\.id),
                              queryIDs: queryTexts.map(\.id),
                              embedMilliseconds: elapsed,
-                             embeddedTexts: documentTexts.count + queryTexts.count)
+                             embeddedTexts: documentTexts.count + queryTexts.count,
+                             modelFileBytes: embedder.modelFileBytes)
     try VectorSet.write(directory: output, meta: meta, documents: documents, queries: queries)
     print("""
         wrote \(documentTexts.count) document and \(queryTexts.count) query vectors for \(contract.id)

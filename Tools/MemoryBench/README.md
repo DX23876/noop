@@ -457,6 +457,55 @@ positives. If it is used at all it belongs far lower.
 
 ---
 
+## Pareto instead of a winner column
+
+Every model comparison so far ended in a ranking, and a ranking hides the trade that decides the question.
+harrier scored best on retrieval while storing four times the index and shipping a larger file; EmbeddingGemma
+scored slightly lower at a quarter of the index. As a league table the first one simply "wins".
+
+```bash
+swift run memorybench pareto --corpus Corpus --vectors out/nomic-256 --vectors out/gemma-256 --vectors out/harrier-1024
+```
+
+prints quality beside index bytes, model size and embed time, and marks the **front**: a row is dominated only
+when another is at least as good on *every* axis and strictly better on one. No axis is weighted into a score,
+because a weight is a decision disguised as arithmetic — choose bytes-per-point and the ranking follows from the
+choice rather than the measurement.
+
+Two rules the tests pin. An unrecorded cost is **unknown, not zero**: `modelFileBytes` is optional so vector sets
+written before it existed still load, and a row with no size cannot dominate one whose size is known — otherwise
+an old run would sweep the front by being unmeasurable. And a row with no quality number is not on the front at
+all: a model that failed to load is not a cheap model.
+
+The `trained` column says whether the stored dimension is a documented Matryoshka stage or an untrained
+truncation. It is not a cost. It is a different contract, and it is in the table because comparing an untrained
+truncation against a trained stage measures the truncation — which is exactly what harrier@256 versus
+EmbeddingGemma@256 turned out to be.
+
+`embed --synthetic --dims N --out <dir>` writes a vectors set without a model, so `score`, `scale` and `pareto`
+can all be exercised where no GGUF exists. Such a file names itself `synthetic-hashed-tokens (NOT a model)` and
+every report prints the model name it came from, which is what keeps it from being mistaken for a measurement.
+
+## Floors are calibrated on dev only, per model
+
+Section A of the report used to pool every query in the corpus — and that is the worst place in the report for
+that mistake, because section A is where the threshold is **chosen**. A pooled floor is fitted partly on the
+frozen holdout, leaking precisely what the split exists to prevent, and partly on ten 24-document locale sets
+whose cosines come from a much easier problem. It is now split by scope, the dev row is the only one a floor may
+come from, the holdout row is withheld unless `--holdout <reason>` is passed, and the locale row is labelled as a
+different distribution.
+
+The separation matters empirically, not just in principle: on the same run the dev best-of-irrelevant median sits
+at 0.387 while the locale sets' sits at 0.217. A single threshold drawn from the pool would land between two
+different problems.
+
+Absolute cosines are also not comparable **between** models — Nomic's relevant-hit p25 was 0.405 where harrier's
+was 0.590 on the same corpus — so the calibration is per model as well as per scope. A floor calibrated on one
+model and applied to another measures the mismatch.
+
+One limit worth stating: the noise side of the calibration rests on the `unanswerable` queries, of which dev holds
+17. That is enough to see the distributions separate and not enough to place a threshold to two decimals.
+
 ## Scale: what a lived-in index costs
 
 `main` holds 272 documents. A real one is bigger — fifty conversations, a journal running for years — and two

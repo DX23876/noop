@@ -160,3 +160,54 @@ final class ScorePipelineTests: XCTestCase {
         }
     }
 }
+
+/// The rule behind section A: a holdout query may never contribute to the distribution a floor is chosen from.
+///
+/// Separate from the pipeline tests above because the calibration samples are only ever printed, so nothing else
+/// can assert this. The failure it guards against does not look like a failure — it looks like a slightly
+/// different threshold, which is how the pooled version survived as long as it did.
+final class CalibrationScopeTests: XCTestCase {
+
+    private var corpusDirectory: URL {
+        URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appendingPathComponent("Corpus")
+    }
+
+    func testHoldoutQueriesNeverLandInTheDevCalibration() throws {
+        let corpus = try Corpus.load(directory: corpusDirectory)
+        let split = try CorpusSplit.load(directory: corpusDirectory)
+        var counts: [ReportScope: Int] = [:]
+        for query in corpus.queries {
+            let scope = calibrationScope(for: query, split: split)
+            counts[scope, default: 0] += 1
+            if split.test.contains(query.id) {
+                XCTAssertEqual(scope, .test, "\(query.id) is frozen but calibrates as \(scope.rawValue)")
+            }
+        }
+        XCTAssertEqual(counts[.dev], split.dev.count)
+        XCTAssertEqual(counts[.test], split.test.count)
+        XCTAssertEqual(counts[.locales], corpus.queries.count - split.dev.count - split.test.count)
+    }
+
+    /// The locale sets are a different problem, not a smaller one, so their cosines must not be mixed into the
+    /// basis either — that half of the pooling error had nothing to do with the freeze.
+    func testLocaleQueriesAreTheirOwnBasisEvenThoughTheyAreNotFrozen() throws {
+        let corpus = try Corpus.load(directory: corpusDirectory)
+        let split = try CorpusSplit.load(directory: corpusDirectory)
+        for query in corpus.queries where query.index != Corpus.splitIndex {
+            XCTAssertEqual(calibrationScope(for: query, split: split), .locales)
+        }
+    }
+
+    /// No split loaded means no freeze to protect, so everything on `main` is dev. Treating it as holdout
+    /// instead would suppress the one row the section exists to print.
+    func testWithoutASplitEveryMainQueryCalibratesAsDev() throws {
+        let corpus = try Corpus.load(directory: corpusDirectory)
+        for query in corpus.queries where query.index == Corpus.splitIndex {
+            XCTAssertEqual(calibrationScope(for: query, split: nil), .dev)
+        }
+    }
+}
