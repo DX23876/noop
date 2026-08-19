@@ -8,19 +8,21 @@ import WhoopStore
 /// though the detector had already computed a valid average for that exact window.
 final class WorkoutDetectorBackfillTests: XCTestCase {
 
-    private func manualRow(avgHr: Int? = nil, maxHr: Int? = nil, energyKcal: Double? = nil, strain: Double? = nil) -> WorkoutRow {
+    private func manualRow(avgHr: Int? = nil, maxHr: Int? = nil, energyKcal: Double? = nil,
+                           strain: Double? = nil, steps: Int? = 4_200) -> WorkoutRow {
         WorkoutRow(startTs: 1_000, endTs: 1_600, sport: "Running", source: "manual",
                    durationS: 600, energyKcal: energyKcal, avgHr: avgHr, maxHr: maxHr,
-                   strain: strain, distanceM: nil, zonesJSON: nil, notes: nil)
+                   strain: strain, distanceM: nil, zonesJSON: nil, notes: nil, steps: steps)
     }
 
-    func testFillsAllMissingFields() {
+    func testFillsAllMissingFieldsAndPreservesSteps() {
         let real = manualRow()
         let filled = WorkoutDetector.backfillWorkout(real, avgBpm: 150, peakHR: 170, caloriesKcal: 80.0, strain: 9.5)
         XCTAssertEqual(filled.avgHr, 150)
         XCTAssertEqual(filled.maxHr, 170)
         XCTAssertEqual(filled.energyKcal, 80.0)
         XCTAssertEqual(filled.strain, 9.5)
+        XCTAssertEqual(filled.steps, 4_200, "stored per-session steps must survive backfill")
         // The rest of the row is carried over untouched.
         XCTAssertEqual(filled.startTs, real.startTs)
         XCTAssertEqual(filled.sport, real.sport)
@@ -37,7 +39,7 @@ final class WorkoutDetectorBackfillTests: XCTestCase {
         XCTAssertEqual(filled.strain, 9.5, "a missing field must still be filled")
     }
 
-    func testRowWithEverythingAlreadyPresentIsUnchanged() {
+    func testRowWithStepsAndEverythingAlreadyPresentIsUnchanged() {
         let real = manualRow(avgHr: 140, maxHr: 160, energyKcal: 50.0, strain: 8.0)
         let filled = WorkoutDetector.backfillWorkout(real, avgBpm: 150, peakHR: 170, caloriesKcal: 80.0, strain: 9.5)
         XCTAssertEqual(filled, real, "nothing to fill -> byte-identical row, so the caller can skip the write")
