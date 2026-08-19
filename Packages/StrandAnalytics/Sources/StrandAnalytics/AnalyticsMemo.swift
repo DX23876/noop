@@ -102,4 +102,5 @@ struct StreamFingerprint: Hashable {
         if count == 0 { return StreamFingerprint(count: 0, firstTs: 0, lastTs: 0, checksum: 0) }
         return StreamFingerprint(count: count, firstTs: firstTs, lastTs: lastTs, checksum: sum)
     }
+
 }
