@@ -70,6 +70,10 @@ swift run memorybench score --corpus Corpus --vectors ~/vectors/nomic --floor 0.
 Build `llama-embedding` from the **tag pinned in `Tools/bootstrap-nomic.sh`** (currently `b9623`). A different
 build is a different runtime, and the point of pinning is that the number means something.
 
+Before it writes anything, `embed` runs three trivial-pair checks through the model's own contract and
+refuses to proceed if any of them ranks the wrong document first — see "The trivial-pair check" below. That
+is what stands between a real measurement and reporting a broken GGUF's quantisation damage as model quality.
+
 `embed` asks for the raw pooled vector (`--embd-normalize -1`) and then applies the app's own
 `SemanticVector.normalizedTruncated` — truncate to the stored width, then renormalise, exactly as
 `NomicTextEmbeddingProvider.embedOne` does — before encoding to Float16. So the score includes the
@@ -142,6 +146,26 @@ incorrect Nomic embeddings on its synthetic Metal device and runs the CPU backen
 its rankings are wrong. Those figures come from the Expert memory card on real hardware.
 
 ---
+
+## The trivial-pair check
+
+A community GGUF is an instrument of unknown calibration. `multilingual-e5-small`'s Q4_K_M quant scored an
+nDCG@8 of 0.187 — a plausible-looking number — while ranking a diesel-oil-filter passage (0.9367) above the
+correct magnesium one (0.9303) for a magnesium query. Nothing in the retrieval metrics alone said the artifact
+was broken rather than the model being weak; only inspecting one trivial pair by hand did.
+
+`embed` now runs that check itself, automatically, before it writes anything. Three fixed pairs — a German
+paraphrase, a German exact-value question, and an English one so a German-only failure cannot hide — are
+embedded through the model's own contract (`SanityPair.all` in `SanityCheck.swift`) and each must rank its
+correct document above an unrelated one. Any failure aborts the run with `exit(1)` and **no vectors file is
+written**, so a broken artifact cannot silently reach `score` and produce a comparison-table row.
+`--skip-sanity-check` overrides this for deliberately debugging a model already known to be broken; using it
+prints a loud warning and the run must not be quoted as a result.
+
+`SanityCheckTests` pins the checking logic itself (`SanityCheck.evaluate`) on hand-built vectors — no model, no
+network — the same split as everywhere else pure scoring is tested in this tool. What it cannot test is
+whether a NEW model's embeddings are healthy; only a real `embed` run answers that, which is why the check
+lives inside `embed` rather than only in `swift test`.
 
 ## Where the bench is not the app
 
@@ -244,7 +268,7 @@ is what a reranker looks like when the extra candidates it can promote are mostl
 answer winning on quality as well as cost: `RERANK@8` alone runs at **p50 37 ms, p95 55 ms** on a Mac with
 Metal. Assume two to four times that on a phone, against a 2.5-second budget the embedder already loses
 sometimes, and remember it needs a second model resident (jina-reranker-v2-base-multilingual is 222 MB at
-Q4_K_M, 305 MB at Q8_0 — and Q4_K_M was not verified, see the trivial-pair rule below).
+Q4_K_M, 305 MB at Q8_0 — and Q4_K_M was checked once, separately from Q8_0, before the language artifact below was found. A quantisation-specific re-check is cheap now that `embed` runs one automatically; see "The trivial-pair check" below.
 
 ### The floor should be relative, not absolute
 

@@ -44,6 +44,11 @@ usage: memorybench <score|embed|models|lint> [options]
          --dimensions overrides the stored width. For a model with trained Matryoshka this is a
          supported mode; for one without it, it is an EXPERIMENT whose result is the answer to
          "what does truncating this cost", and the run is labelled as untrained truncation.
+         Before writing any vectors, `embed` scores three fixed trivial pairs through this model's
+         own contract and REFUSES to proceed if any of them ranks the wrong document first — this
+         is the check that would have caught multilingual-e5-small's broken Q4_K_M quant before it
+         produced a plausible-looking nDCG@8. --skip-sanity-check overrides it for deliberate
+         debugging of a model already known to be broken; the run is loudly marked as such.
 
   models List the known embedding contracts and which are comparable on the pinned runtime.
 """
@@ -71,6 +76,7 @@ var dimensionOverride: Int?
 var rerankServer = ""
 var rerankTop = 32
 var mixedLanguageIndex = false
+var skipSanityCheck = false
 
 var iterator = arguments.makeIterator()
 while let key = iterator.next() {
@@ -89,6 +95,7 @@ while let key = iterator.next() {
     case "--rerank-server": rerankServer = iterator.next() ?? ""
     case "--rerank-top": rerankTop = Int(iterator.next() ?? "") ?? rerankTop
     case "--mixed-language-index": mixedLanguageIndex = true
+    case "--skip-sanity-check": skipSanityCheck = true
     case "--floor":
         floors = (iterator.next() ?? "").split(separator: ",").compactMap { Double($0) }
     case "--":
@@ -185,6 +192,41 @@ case .embed:
                                 extraArguments: passthrough,
                                 batchSize: batch,
                                 separator: separator)
+
+        // Three pairs, one prompt each way, before the expensive corpus run. This is what would have
+        // caught e5-small's broken quant immediately instead of after a full nDCG@8 table looked plausible.
+        let sanity = try runSanityCheck(contract: contract, embedder: embedder)
+        print("sanity check for \(contract.id):")
+        for result in sanity {
+            let verdict = result.passed ? "PASS" : "FAIL"
+            print("  \(result.pair.id.padding(toLength: 20, withPad: " ", startingAt: 0)) "
+                + "correct \(String(format: "%+.4f", result.correctScore))  "
+                + "wrong \(String(format: "%+.4f", result.wrongScore))  \(verdict)")
+        }
+        let failed = sanity.filter { !$0.passed }
+        if !failed.isEmpty {
+            if skipSanityCheck {
+                FileHandle.standardError.write(Data("""
+
+                    WARNING: \(failed.count) of \(sanity.count) sanity pairs failed for \(contract.id).
+                      Proceeding only because --skip-sanity-check was passed. Do not put this row in a
+                      comparison table without first ruling out a broken quantisation — see the
+                      multilingual-e5-small entry in Contracts.swift for what that looks like.
+
+                    """.utf8))
+            } else {
+                fail("""
+                    \(failed.count) of \(sanity.count) sanity pairs failed for \(contract.id): \
+                    \(failed.map(\.pair.id).joined(separator: ", ")).
+                      The model ranked an unrelated document above the correct one for a trivial question.
+                      This is the signature multilingual-e5-small's broken Q4_K_M quant showed — do not
+                      trust retrieval numbers from this artifact. Try a different quantisation, or pass
+                      --skip-sanity-check to proceed anyway for deliberate debugging.
+                    """)
+            }
+        }
+        print("")
+
         try runEmbed(corpus: corpus,
                      contract: contract,
                      embedder: embedder,
