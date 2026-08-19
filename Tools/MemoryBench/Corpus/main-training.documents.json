@@ -1,0 +1,302 @@
+{
+ "version": 1,
+ "documents": [
+  {
+   "id": "m-freq-3",
+   "index": "main",
+   "lang": "de",
+   "kind": "userMessage",
+   "scope": "memory",
+   "priority": 30,
+   "ageDays": 230,
+   "conversation": "m-c-plan-old",
+   "text": "Momentan schaffe ich drei Einheiten pro Woche, bei einer guten Woche vier."
+  },
+  {
+   "id": "m-freq-4",
+   "index": "main",
+   "lang": "de",
+   "kind": "userMessage",
+   "scope": "memory",
+   "priority": 30,
+   "ageDays": 120,
+   "conversation": "m-c-plan-mid",
+   "text": "Inzwischen sind es meistens vier Einheiten, fünf wenn das Wochenende frei ist."
+  },
+  {
+   "id": "m-freq-5",
+   "index": "main",
+   "lang": "de",
+   "kind": "userMessage",
+   "scope": "memory",
+   "priority": 90,
+   "ageDays": 8,
+   "conversation": "m-c-plan-new",
+   "text": "Ich bin jetzt stabil bei fünf Einheiten pro Woche und das fühlt sich tragfähig an."
+  },
+  {
+   "id": "m-weekend-no-run",
+   "index": "main",
+   "lang": "de",
+   "kind": "memoryFact",
+   "scope": "memory",
+   "priority": 100,
+   "ageDays": 140,
+   "conversation": null,
+   "text": "Bestätigte Erinnerung: am Wochenende möchte ich nicht laufen, samstags schon gar nicht."
+  },
+  {
+   "id": "m-weekend-bike-ok",
+   "index": "main",
+   "lang": "de",
+   "kind": "memoryFact",
+   "scope": "memory",
+   "priority": 100,
+   "ageDays": 100,
+   "conversation": null,
+   "text": "Bestätigte Erinnerung: Radfahren am Wochenende ist in Ordnung, nur Laufen nicht."
+  },
+  {
+   "id": "m-morning-person",
+   "index": "main",
+   "lang": "de",
+   "kind": "memoryFact",
+   "scope": "memory",
+   "priority": 100,
+   "ageDays": 175,
+   "conversation": null,
+   "text": "Bestätigte Erinnerung: Einheiten vor der Arbeit funktionieren bei mir besser als abends."
+  },
+  {
+   "id": "m-evening-strength",
+   "index": "main",
+   "lang": "de",
+   "kind": "memoryFact",
+   "scope": "memory",
+   "priority": 100,
+   "ageDays": 62,
+   "conversation": null,
+   "text": "Bestätigte Erinnerung: Krafttraining klappt trotzdem nur abends, weil das Studio morgens zu voll ist."
+  },
+  {
+   "id": "m-intervals-declined1",
+   "index": "main",
+   "lang": "de",
+   "kind": "recommendationFeedback",
+   "scope": "patterns",
+   "priority": 60,
+   "ageDays": 42,
+   "conversation": null,
+   "text": "Empfehlungs-Feedback: harte Intervalleinheit vorgeschlagen und abgelehnt, als zu fordernd für den Tag markiert."
+  },
+  {
+   "id": "m-intervals-declined2",
+   "index": "main",
+   "lang": "de",
+   "kind": "recommendationFeedback",
+   "scope": "patterns",
+   "priority": 60,
+   "ageDays": 25,
+   "conversation": null,
+   "text": "Empfehlungs-Feedback: harte Intervalleinheit ein zweites Mal vorgeschlagen und wieder abgelehnt, diesmal mit Verweis auf schlechten Schlaf."
+  },
+  {
+   "id": "m-intervals-done",
+   "index": "main",
+   "lang": "de",
+   "kind": "recommendationFeedback",
+   "scope": "patterns",
+   "priority": 60,
+   "ageDays": 10,
+   "conversation": null,
+   "text": "Empfehlungs-Feedback: mittlere Intervalleinheit angenommen und absolviert, danach als hilfreich bewertet."
+  },
+  {
+   "id": "m-tempo-worse",
+   "index": "main",
+   "lang": "de",
+   "kind": "recommendationFeedback",
+   "scope": "patterns",
+   "priority": 60,
+   "ageDays": 55,
+   "conversation": null,
+   "text": "Empfehlungs-Feedback: Tempodauerlauf absolviert, danach fühlte sich die Person schlechter als vorher."
+  },
+  {
+   "id": "m-easy-run-helpful",
+   "index": "main",
+   "lang": "de",
+   "kind": "recommendationFeedback",
+   "scope": "patterns",
+   "priority": 60,
+   "ageDays": 14,
+   "conversation": null,
+   "text": "Empfehlungs-Feedback: ruhiger Dauerlauf am Erholungstag angenommen und als hilfreich bewertet."
+  },
+  {
+   "id": "m-bike-easy-recovery",
+   "index": "main",
+   "lang": "de",
+   "kind": "userMessage",
+   "scope": "memory",
+   "priority": 90,
+   "ageDays": 9,
+   "conversation": "m-c-recovery",
+   "text": "Nach der ruhigen Stunde auf dem Rad gestern bin ich richtig erholt aufgewacht."
+  },
+  {
+   "id": "m-bike-hard-bad",
+   "index": "main",
+   "lang": "de",
+   "kind": "userMessage",
+   "scope": "memory",
+   "priority": 90,
+   "ageDays": 30,
+   "conversation": "m-c-recovery",
+   "text": "Die harte Radausfahrt am Berg hat mich zwei Tage gekostet, das war zu viel."
+  },
+  {
+   "id": "m-swim-weekly",
+   "index": "main",
+   "lang": "de",
+   "kind": "memoryFact",
+   "scope": "memory",
+   "priority": 100,
+   "ageDays": 85,
+   "conversation": null,
+   "text": "Bestätigte Erinnerung: einmal pro Woche schwimmen als Ausgleich, meistens dienstags."
+  },
+  {
+   "id": "m-strength-2x",
+   "index": "main",
+   "lang": "de",
+   "kind": "memoryFact",
+   "scope": "memory",
+   "priority": 100,
+   "ageDays": 70,
+   "conversation": null,
+   "text": "Bestätigte Erinnerung: zweimal pro Woche Krafttraining, Beine und Rumpf im Fokus."
+  },
+  {
+   "id": "m-race-10k",
+   "index": "main",
+   "lang": "de",
+   "kind": "memoryFact",
+   "scope": "memory",
+   "priority": 120,
+   "ageDays": 20,
+   "conversation": null,
+   "text": "Bestätigte Erinnerung: Zehn-Kilometer-Wettkampf am 2026-07-30 in 48:12 gelaufen."
+  },
+  {
+   "id": "m-race-half-goal",
+   "index": "main",
+   "lang": "de",
+   "kind": "memoryFact",
+   "scope": "memory",
+   "priority": 120,
+   "ageDays": 15,
+   "conversation": null,
+   "text": "Bestätigte Erinnerung: Ziel ist ein Halbmarathon unter 1:50 im Oktober."
+  },
+  {
+   "id": "m-race-half-old-goal",
+   "index": "main",
+   "lang": "de",
+   "kind": "memoryFact",
+   "scope": "memory",
+   "priority": 100,
+   "ageDays": 200,
+   "conversation": null,
+   "text": "Bestätigte Erinnerung: das Halbmarathonziel war ursprünglich unter 2:00, das ist überholt."
+  },
+  {
+   "id": "m-long-run-sunday",
+   "index": "main",
+   "lang": "de",
+   "kind": "memoryFact",
+   "scope": "memory",
+   "priority": 100,
+   "ageDays": 45,
+   "conversation": null,
+   "text": "Bestätigte Erinnerung: der lange Lauf liegt sonntags, obwohl ich am Wochenende sonst nicht laufe — das ist die eine Ausnahme."
+  },
+  {
+   "id": "m-hr-zones",
+   "index": "main",
+   "lang": "de",
+   "kind": "memoryFact",
+   "scope": "memory",
+   "priority": 100,
+   "ageDays": 66,
+   "conversation": null,
+   "text": "Bestätigte Erinnerung: Zone 2 liegt bei mir zwischen 132 und 148 Schlägen, darüber wird es zäh."
+  },
+  {
+   "id": "m-max-hr",
+   "index": "main",
+   "lang": "de",
+   "kind": "memoryFact",
+   "scope": "memory",
+   "priority": 100,
+   "ageDays": 180,
+   "conversation": null,
+   "text": "Bestätigte Erinnerung: höchster gemessener Puls war 189 bei einem Bergsprint."
+  },
+  {
+   "id": "m-plan-summary",
+   "index": "main",
+   "lang": "de",
+   "kind": "conversationSummary",
+   "scope": "memory",
+   "priority": 95,
+   "ageDays": 15,
+   "conversation": "m-c-plan-new",
+   "text": "Der Zehn-Wochen-Plan auf den Oktober-Halbmarathon wurde festgelegt. Fünf Einheiten pro Woche: zwei ruhige Läufe morgens vor der Arbeit, ein langer Lauf am Sonntag, eine Intervall- oder Tempoeinheit in der Wochenmitte und zweimal Krafttraining abends, wovon eines mit einem Lauftag zusammenfällt. Schwimmen bleibt dienstags als Ausgleich, zählt aber nicht als Einheit. Der Umfang steigt in Dreierblöcken mit jeweils einer leichteren Woche, und die harte Einheit fällt weg, wenn die Erholung morgens unter fünfzig liegt oder das rechte Knie am Vortag gemeldet hat. Wettkampfziel unter 1:50, was gegenüber dem alten Ziel von unter 2:00 eine deutliche Steigerung ist und auf der Zehner-Zeit von 48:12 aufbaut. Ausdrücklich nicht Teil des Plans: Laufen am Samstag, und Tempoarbeit in Wochen mit weniger als sechs Stunden Schlaf im Schnitt."
+  },
+  {
+   "id": "m-train-en-gym",
+   "index": "main",
+   "lang": "en",
+   "kind": "userMessage",
+   "scope": "memory",
+   "priority": 90,
+   "ageDays": 41,
+   "conversation": "m-c-en-gym",
+   "text": "Hotel gym only had dumbbells, so I did split squats and step-ups instead of the usual squat session."
+  },
+  {
+   "id": "m-train-en-tempo",
+   "index": "main",
+   "lang": "en",
+   "kind": "memoryFact",
+   "scope": "memory",
+   "priority": 100,
+   "ageDays": 39,
+   "conversation": null,
+   "text": "Confirmed memory: tempo runs work better for me on a flat route; hills turn them into interval sessions."
+  },
+  {
+   "id": "m-train-en-coach",
+   "index": "main",
+   "lang": "en",
+   "kind": "userMessage",
+   "scope": "memory",
+   "priority": 90,
+   "ageDays": 75,
+   "conversation": "m-c-en-travel",
+   "text": "The running club coach suggested adding strides twice a week rather than more mileage."
+  },
+  {
+   "id": "m-year-review",
+   "index": "main",
+   "lang": "de",
+   "kind": "conversationSummary",
+   "scope": "memory",
+   "priority": 95,
+   "ageDays": 12,
+   "conversation": "m-c-review",
+   "text": "Der Jahresrückblick ging das ganze Trainingsjahr durch und ist bewusst lang geworden, weil mehrere Fäden zusammenlaufen. Angefangen hat das Jahr mit drei Einheiten pro Woche und dem Ziel, einen Halbmarathon überhaupt durchzulaufen, damals in unter zwei Stunden. Im Februar kam die Reizung der Patellasehne am linken Knie dazwischen, ausgelöst nach Einschätzung der Physiotherapeutin durch eine einseitige Beinachsenschwäche und verstärkt durch abgelaufene Schuhe mit über achthundert Kilometern. Der Wiedereinstieg dauerte vier statt drei Wochen, weil Ende März eine schwere Erkältung dazukam, bei der der Ruhepuls über fünf Nächte etwa acht Schläge erhöht blieb und die Herzratenvariabilität auf rund zwei Drittel des Dreißig-Tage-Mittels fiel. Aus dieser Phase stammt die Regel, den Ruhepuls als Signal zu nehmen und nicht die Variabilität einer einzelnen Nacht. Ab April ging es aufwärts: vier Einheiten pro Woche, ab Juli fünf, dazu zweimal Krafttraining mit Schwerpunkt auf der Oberschenkelvorderseite und einmal Schwimmen als Ausgleich. Im Juli wurden neue Schuhe mit mehr Dämpfung gekauft und kurz darauf Einlagen vom Orthopäden ergänzt, seit denen das linke Knie bei Tempoeinheiten ruhig ist. Parallel wurde die Supplementliste aufgeräumt: Magnesium blieb, wechselte aber von Citrat auf Glycinat, Vitamin D wurde nach einem niedrigen Spiegel von tausend auf zweitausend Einheiten erhöht, Omega-3 blieb, während Kreatin wegen Wassereinlagerung in den Beinen und CBD-Öl wegen fehlender Wirkung wieder wegfielen. Beim Schlaf hat sich das Bild verschoben, vom Einschlafproblem zu nächtlichem Aufwachen gegen drei Uhr, weshalb die Koffeingrenze von sechzehn auf vierzehn Uhr gezogen und das Schlafziel von sieben auf acht Stunden angehoben wurde. Der Zehner Ende Juli in 48:12 gilt als Beleg, dass die Basis für das neue Ziel unter 1:50 im Oktober trägt. Offen geblieben ist die Frage, ob weiteres Abnehmen unter 78 Kilogramm für den Halbmarathon überhaupt etwas bringt, und ob das rechte Knie, das seit kurzem bei tiefen Kniebeugen zieht, ein eigenes Thema ist oder eine Folge derselben Beinachsenschwäche auf der anderen Seite."
+  }
+ ]
+}

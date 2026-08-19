@@ -953,6 +953,13 @@ struct CoachSettingsView: View {
                     case .unavailable:
                         Text("Last retrieval: no matching memory used")
                     }
+                    // How often the model actually beats the 2.5-second budget on THIS device, plus what the
+                    // embedding and the cold load cost. Session-local, never stored, never sent — see
+                    // CoachSemanticTelemetry. A losing race costs the whole semantic arm for that turn, so
+                    // this rate is the number that says whether latency or ranking is the thing to fix.
+                    if let telemetry = semanticMemory.telemetry.summary {
+                        Text("This session: \(telemetry)")
+                    }
                     if let error = semanticMemory.status.lastError, !error.isEmpty {
                         Text("Fallback active: \(error)")
                             .foregroundStyle(StrandPalette.statusCritical)

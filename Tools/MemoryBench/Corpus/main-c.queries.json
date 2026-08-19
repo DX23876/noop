@@ -1,0 +1,630 @@
+{
+  "version": 1,
+  "queries": [
+    {
+      "id": "mqc-syn-01",
+      "index": "main",
+      "lang": "de",
+      "category": "synonym",
+      "text": "Was hat die Bildgebung am Gelenk gezeigt?",
+      "judgments": {
+        "m-knee-mri": 3,
+        "m-injury-pause": 1,
+        "m-knee-en-note": 1
+      }
+    },
+    {
+      "id": "mqc-syn-02",
+      "index": "main",
+      "lang": "de",
+      "category": "synonym",
+      "text": "Bei welchen ausgedehnten ruhigen Einheiten bleibt das linke Knie unauffällig?",
+      "judgments": {
+        "m-knee-l-long": 3,
+        "m-knee-l-fast-old": 0,
+        "m-knee-l-fast-gone": 1,
+        "m-long-run-sunday": 1
+      }
+    },
+    {
+      "id": "mqc-syn-03",
+      "index": "main",
+      "lang": "de",
+      "category": "synonym",
+      "text": "Welche Verletzung am Fußgelenk liegt in meiner Vorgeschichte?",
+      "judgments": {
+        "m-ankle-sprain": 3
+      }
+    },
+    {
+      "id": "mqc-syn-04",
+      "index": "main",
+      "lang": "de",
+      "category": "synonym",
+      "text": "Wodurch ist mein Problem an der vorderen Unterschenkelkante entstanden?",
+      "judgments": {
+        "m-shin-splints": 3,
+        "m-shoes-old": 1
+      }
+    },
+    {
+      "id": "mqc-syn-05",
+      "index": "main",
+      "lang": "de",
+      "category": "synonym",
+      "text": "Auf welche Körperpartien zielt mein Hanteltraining?",
+      "judgments": {
+        "m-strength-2x": 3,
+        "m-plan-summary": 1,
+        "m-evening-strength": 1
+      }
+    },
+    {
+      "id": "mqc-syn-06",
+      "index": "main",
+      "lang": "de",
+      "category": "synonym",
+      "text": "Zu welcher Tageszeit gelingen mir Ausdauereinheiten am besten?",
+      "judgments": {
+        "m-morning-person": 3,
+        "m-evening-strength": 0
+      }
+    },
+    {
+      "id": "mqc-syn-07",
+      "index": "main",
+      "lang": "de",
+      "category": "synonym",
+      "text": "Welche Sportart nutze ich als Ausgleich neben dem Laufen?",
+      "judgments": {
+        "m-swim-weekly": 3,
+        "m-plan-summary": 1
+      }
+    },
+    {
+      "id": "mqc-syn-08",
+      "index": "main",
+      "lang": "de",
+      "category": "synonym",
+      "text": "Was hat der Facharzt zusätzlich zu den Schuhen verordnet?",
+      "judgments": {
+        "m-insoles": 3,
+        "m-shoes-new": 1
+      }
+    },
+    {
+      "id": "mqc-syn-09",
+      "index": "main",
+      "lang": "de",
+      "category": "synonym",
+      "text": "Wie viele Wochen exzentrische Arbeit hat die rechte Sehne gebraucht?",
+      "judgments": {
+        "m-achilles-r": 3,
+        "m-achilles-l-now": 0,
+        "m-shin-splints": 1
+      }
+    },
+    {
+      "id": "mqc-par-01",
+      "index": "main",
+      "lang": "de",
+      "category": "paraphrase",
+      "text": "Wie ist es dem Knie beim letzten Wettkampf ergangen?",
+      "judgments": {
+        "m-knee-race-ok": 3,
+        "m-knee-brace": 1,
+        "m-race-10k": 1
+      }
+    },
+    {
+      "id": "mqc-par-02",
+      "index": "main",
+      "lang": "de",
+      "category": "paraphrase",
+      "text": "Welche Regel gilt für Tempoarbeit, solange das Knie wehtut?",
+      "judgments": {
+        "m-injury-pause": 3,
+        "m-plan-summary": 2
+      }
+    },
+    {
+      "id": "mqc-par-03",
+      "index": "main",
+      "lang": "de",
+      "category": "paraphrase",
+      "text": "Warum ist das linke Knie bei schnellen Einheiten inzwischen ruhig?",
+      "judgments": {
+        "m-knee-l-fast-gone": 3,
+        "m-shoes-new": 2,
+        "m-insoles": 2,
+        "m-knee-l-fast-old": 1
+      }
+    },
+    {
+      "id": "mqc-par-04",
+      "index": "main",
+      "lang": "de",
+      "category": "paraphrase",
+      "text": "Wie war der Wiedereinstieg nach der Reizung aufgebaut?",
+      "judgments": {
+        "m-injury-pause": 3,
+        "m-year-review": 1
+      }
+    },
+    {
+      "id": "mqc-par-05",
+      "index": "main",
+      "lang": "de",
+      "category": "paraphrase",
+      "text": "Wie oft in der Woche gehe ich ins Kraftstudio?",
+      "judgments": {
+        "m-strength-2x": 3,
+        "m-plan-summary": 1,
+        "m-evening-strength": 1
+      }
+    },
+    {
+      "id": "mqc-par-06",
+      "index": "main",
+      "lang": "de",
+      "category": "paraphrase",
+      "text": "Wie fühlt sich die Hüfte nach einem langen Tag am Schreibtisch an?",
+      "judgments": {
+        "m-hip-tight": 3,
+        "m-j-desk": 2
+      }
+    },
+    {
+      "id": "mqc-par-07",
+      "index": "main",
+      "lang": "de",
+      "category": "paraphrase",
+      "text": "Was war das Abbruchkriterium bei Schmerzen während der Einheit?",
+      "judgments": {
+        "m-injury-pause": 3,
+        "m-plan-summary": 1
+      }
+    },
+    {
+      "id": "mqc-par-08",
+      "index": "main",
+      "lang": "de",
+      "category": "paraphrase",
+      "text": "Warum trainiere ich Kraft nicht morgens, obwohl ich Frühsportler bin?",
+      "judgments": {
+        "m-evening-strength": 3,
+        "m-morning-person": 2
+      }
+    },
+    {
+      "id": "mqc-neg-01",
+      "index": "main",
+      "lang": "de",
+      "category": "negation",
+      "text": "Welche Einheit fällt weg, wenn die Erholung schlecht ist?",
+      "judgments": {
+        "m-plan-summary": 3,
+        "m-intervals-declined2": 1
+      }
+    },
+    {
+      "id": "mqc-neg-02",
+      "index": "main",
+      "lang": "de",
+      "category": "negation",
+      "text": "Welche Achillessehne macht mir keine Beschwerden mehr?",
+      "judgments": {
+        "m-achilles-r": 3,
+        "m-achilles-l-now": 0
+      }
+    },
+    {
+      "id": "mqc-neg-03",
+      "index": "main",
+      "lang": "de",
+      "category": "negation",
+      "text": "Bei welchem Schwimmstil zwickt die Schulter nicht?",
+      "judgments": {
+        "m-shoulder-swim": 3,
+        "m-d-swim-02": 2,
+        "m-d-swim-01": 1
+      }
+    },
+    {
+      "id": "mqc-neg-04",
+      "index": "main",
+      "lang": "de",
+      "category": "negation",
+      "text": "Was ist ausdrücklich nicht Teil des Trainingsplans?",
+      "judgments": {
+        "m-plan-summary": 3,
+        "m-weekend-no-run": 2,
+        "m-long-run-sunday": 0
+      }
+    },
+    {
+      "id": "mqc-neg-05",
+      "index": "main",
+      "lang": "de",
+      "category": "negation",
+      "text": "Nach welcher Übung meldet sich der untere Rücken nicht?",
+      "judgments": {
+        "m-lower-back": 3,
+        "m-d-str-03": 2,
+        "m-d-str-01": 0
+      }
+    },
+    {
+      "id": "mqc-neg-06",
+      "index": "main",
+      "lang": "de",
+      "category": "negation",
+      "text": "Welche Einheit zählt nicht als Trainingseinheit?",
+      "judgments": {
+        "m-plan-summary": 3,
+        "m-swim-weekly": 2
+      }
+    },
+    {
+      "id": "mqc-neg-07",
+      "index": "main",
+      "lang": "de",
+      "category": "negation",
+      "text": "Welches Knie meldet sich beim Laufen nicht?",
+      "judgments": {
+        "m-knee-r-squat": 3,
+        "m-knee-l-fast-old": 0,
+        "m-msg-knee2": 2,
+        "m-knee-bike-fine": 1
+      }
+    },
+    {
+      "id": "mqc-neg-08",
+      "index": "main",
+      "lang": "de",
+      "category": "negation",
+      "text": "Welcher Sport macht meinen Knien überhaupt keine Probleme?",
+      "judgments": {
+        "m-knee-bike-fine": 3,
+        "m-knee-r-squat": 0
+      }
+    },
+    {
+      "id": "mqc-num-01",
+      "index": "main",
+      "lang": "de",
+      "category": "numeric",
+      "text": "Unter welchem Erholungswert fällt die harte Einheit aus?",
+      "judgments": {
+        "m-plan-summary": 3
+      }
+    },
+    {
+      "id": "mqc-num-02",
+      "index": "main",
+      "lang": "de",
+      "category": "numeric",
+      "text": "Wie viele Stunden Schlaf im Schnitt braucht es für Tempoarbeit?",
+      "judgments": {
+        "m-plan-summary": 3
+      }
+    },
+    {
+      "id": "mqc-num-03",
+      "index": "main",
+      "lang": "de",
+      "category": "numeric",
+      "text": "Welche Zielzeit steht im Zehn-Wochen-Plan?",
+      "judgments": {
+        "m-plan-summary": 3,
+        "m-race-half-goal": 2,
+        "m-race-half-old-goal": 0
+      }
+    },
+    {
+      "id": "mqc-num-04",
+      "index": "main",
+      "lang": "de",
+      "category": "numeric",
+      "text": "Welche alte Halbmarathon-Zielzeit ist überholt?",
+      "judgments": {
+        "m-race-half-old-goal": 3,
+        "m-race-half-goal": 0
+      }
+    },
+    {
+      "id": "mqc-num-05",
+      "index": "main",
+      "lang": "de",
+      "category": "numeric",
+      "text": "An welchem Datum war der Zehn-Kilometer-Wettkampf?",
+      "judgments": {
+        "m-race-10k": 3,
+        "m-msg-race1": 1,
+        "m-title-race": 1
+      }
+    },
+    {
+      "id": "mqc-num-06",
+      "index": "main",
+      "lang": "de",
+      "category": "numeric",
+      "text": "Ab welchem Puls wird Zone 2 nach oben verlassen?",
+      "judgments": {
+        "m-hr-zones": 3,
+        "m-max-hr": 0,
+        "m-msg-zone1": 1,
+        "m-d-bike-01": 1
+      }
+    },
+    {
+      "id": "mqc-rec-01",
+      "index": "main",
+      "lang": "de",
+      "category": "recency",
+      "text": "In welchen Laufschuhen laufe ich aktuell?",
+      "judgments": {
+        "m-shoes-new": 3,
+        "m-insoles": 2,
+        "m-shoes-old": 0
+      }
+    },
+    {
+      "id": "mqc-rec-02",
+      "index": "main",
+      "lang": "de",
+      "category": "recency",
+      "text": "Reizt das linke Knie bei schnellen Läufen noch?",
+      "judgments": {
+        "m-knee-l-fast-gone": 3,
+        "m-knee-l-fast-old": 0
+      }
+    },
+    {
+      "id": "mqc-rec-03",
+      "index": "main",
+      "lang": "de",
+      "category": "near-miss",
+      "text": "Ist die rechte Achillessehne inzwischen beschwerdefrei?",
+      "judgments": {
+        "m-achilles-r": 3,
+        "m-achilles-l-now": 0
+      }
+    },
+    {
+      "id": "mqc-rec-04",
+      "index": "main",
+      "lang": "de",
+      "category": "recency",
+      "text": "Habe ich die Knieübungen zuletzt gemacht?",
+      "judgments": {
+        "m-knee-exercises-done": 3,
+        "m-knee-exercises-skipped": 0
+      }
+    },
+    {
+      "id": "mqc-rec-05",
+      "index": "main",
+      "lang": "de",
+      "category": "recency",
+      "text": "Wie viele Einheiten pro Woche sind inzwischen stabil?",
+      "judgments": {
+        "m-freq-5": 3,
+        "m-plan-summary": 2,
+        "m-freq-4": 0,
+        "m-freq-3": 0
+      }
+    },
+    {
+      "id": "mqc-nm-01",
+      "index": "main",
+      "lang": "de",
+      "category": "near-miss",
+      "text": "An welchem Wochentag laufe ich trotz der Wochenendregel?",
+      "judgments": {
+        "m-long-run-sunday": 3,
+        "m-weekend-no-run": 1,
+        "m-weekend-bike-ok": 0
+      }
+    },
+    {
+      "id": "mqc-nm-02",
+      "index": "main",
+      "lang": "de",
+      "category": "near-miss",
+      "text": "Welche Radausfahrt hat die Erholung verbessert?",
+      "judgments": {
+        "m-bike-easy-recovery": 3,
+        "m-bike-hard-bad": 0
+      }
+    },
+    {
+      "id": "mqc-nm-03",
+      "index": "main",
+      "lang": "de",
+      "category": "near-miss",
+      "text": "Welches Knie ist bei Kälte in den ersten Minuten steif?",
+      "judgments": {
+        "m-knee-cold-weather": 3,
+        "m-knee-r-squat": 0,
+        "m-knee-l-fast-gone": 1
+      }
+    },
+    {
+      "id": "mqc-nm-04",
+      "index": "main",
+      "lang": "de",
+      "category": "near-miss",
+      "text": "Welche Intervalleinheit habe ich wegen schlechtem Schlaf abgelehnt?",
+      "judgments": {
+        "m-intervals-declined2": 3,
+        "m-intervals-declined1": 0,
+        "m-intervals-done": 0
+      }
+    },
+    {
+      "id": "mqc-nm-05",
+      "index": "main",
+      "lang": "de",
+      "category": "near-miss",
+      "text": "Welcher Lauf wurde hinterher als hilfreich bewertet?",
+      "judgments": {
+        "m-easy-run-helpful": 3,
+        "m-tempo-worse": 0
+      }
+    },
+    {
+      "id": "mqc-nm-06",
+      "index": "main",
+      "lang": "de",
+      "category": "near-miss",
+      "text": "Welches Schuhpaar hat mehr Dämpfung?",
+      "judgments": {
+        "m-shoes-new": 3,
+        "m-shoes-old": 0
+      }
+    },
+    {
+      "id": "mqc-nm-07",
+      "index": "main",
+      "lang": "de",
+      "category": "near-miss",
+      "text": "Auf welcher Seite ist die Beinachse schwach?",
+      "judgments": {
+        "m-knee-physio": 3,
+        "m-knee-en-note": 1,
+        "m-knee-r-squat": 0
+      }
+    },
+    {
+      "id": "mqc-nm-08",
+      "index": "main",
+      "lang": "de",
+      "category": "near-miss",
+      "text": "Von welchem Knie war das MRT?",
+      "judgments": {
+        "m-knee-mri": 3,
+        "m-knee-r-squat": 0
+      }
+    },
+    {
+      "id": "mqc-nm-09",
+      "index": "main",
+      "lang": "de",
+      "category": "near-miss",
+      "text": "Welche Frequenz war es vor der aktuellen, vier oder drei Einheiten?",
+      "judgments": {
+        "m-freq-4": 3,
+        "m-freq-3": 0,
+        "m-freq-5": 0
+      }
+    },
+    {
+      "id": "mqc-ter-01",
+      "index": "main",
+      "lang": "de",
+      "category": "terse",
+      "text": "Achillessehne",
+      "judgments": {
+        "m-achilles-l-now": 3,
+        "m-achilles-r": 1
+      }
+    },
+    {
+      "id": "mqc-ter-02",
+      "index": "main",
+      "lang": "de",
+      "category": "terse",
+      "text": "Beinachse",
+      "judgments": {
+        "m-knee-physio": 3
+      }
+    },
+    {
+      "id": "mqc-ter-03",
+      "index": "main",
+      "lang": "de",
+      "category": "terse",
+      "text": "Schuhe Kilometer",
+      "judgments": {
+        "m-shoes-old": 3,
+        "m-shoes-new": 1
+      }
+    },
+    {
+      "id": "mqc-ter-04",
+      "index": "main",
+      "lang": "de",
+      "category": "terse",
+      "text": "MRT",
+      "judgments": {
+        "m-knee-mri": 3
+      }
+    },
+    {
+      "id": "mqc-ter-05",
+      "index": "main",
+      "lang": "de",
+      "category": "terse",
+      "text": "Wochenplan",
+      "judgments": {
+        "m-plan-summary": 3,
+        "m-freq-5": 1
+      }
+    },
+    {
+      "id": "mqc-ter-06",
+      "index": "main",
+      "lang": "de",
+      "category": "terse",
+      "text": "schwimmen",
+      "judgments": {
+        "m-swim-weekly": 3,
+        "m-shoulder-swim": 1
+      }
+    },
+    {
+      "id": "mqc-ter-07",
+      "index": "main",
+      "lang": "de",
+      "category": "terse",
+      "text": "maximalpuls",
+      "judgments": {
+        "m-max-hr": 3,
+        "m-hr-zones": 1
+      }
+    },
+    {
+      "id": "mqc-ter-08",
+      "index": "main",
+      "lang": "de",
+      "category": "terse",
+      "text": "Hüftbeuger",
+      "judgments": {
+        "m-hip-tight": 3
+      }
+    },
+    {
+      "id": "mqc-x-01",
+      "index": "main",
+      "lang": "de",
+      "category": "crosslingual",
+      "text": "Welches Gewicht ging bei der Beinpresse problemlos?",
+      "judgments": {
+        "m-knee-en-gym": 3
+      }
+    },
+    {
+      "id": "mqc-x-02",
+      "index": "main",
+      "lang": "en",
+      "category": "crosslingual",
+      "text": "Which running shoes am I in at the moment?",
+      "judgments": {
+        "m-shoes-new": 3,
+        "m-insoles": 2,
+        "m-shoes-old": 0
+      }
+    }
+  ]
+}

@@ -1,0 +1,236 @@
+{
+  "version": 1,
+  "documents": [
+    {
+      "id": "m-ferritin-2024",
+      "index": "main",
+      "lang": "de",
+      "kind": "memoryFact",
+      "scope": "memory",
+      "priority": 100,
+      "ageDays": 520,
+      "conversation": null,
+      "text": "Bestätigte Erinnerung: Ferritin lag im Blutbild vom 2025-03-18 bei 61."
+    },
+    {
+      "id": "m-ferritin-2025",
+      "index": "main",
+      "lang": "de",
+      "kind": "memoryFact",
+      "scope": "memory",
+      "priority": 100,
+      "ageDays": 158,
+      "conversation": null,
+      "text": "Bestätigte Erinnerung: Ferritin lag im Blutbild vom 2026-03-14 bei 42."
+    },
+    {
+      "id": "m-ferritin-latest",
+      "index": "main",
+      "lang": "de",
+      "kind": "memoryFact",
+      "scope": "memory",
+      "priority": 100,
+      "ageDays": 23,
+      "conversation": null,
+      "text": "Bestätigte Erinnerung: Ferritin im Blutbild vom 2026-07-27 bei 55, also wieder gestiegen."
+    },
+    {
+      "id": "m-d3-level",
+      "index": "main",
+      "lang": "de",
+      "kind": "memoryFact",
+      "scope": "memory",
+      "priority": 100,
+      "ageDays": 23,
+      "conversation": null,
+      "text": "Bestätigte Erinnerung: Vitamin-D-Spiegel am 2026-07-27 bei 21 ng/ml, damit im unteren Bereich."
+    },
+    {
+      "id": "m-hba1c",
+      "index": "main",
+      "lang": "de",
+      "kind": "memoryFact",
+      "scope": "memory",
+      "priority": 100,
+      "ageDays": 23,
+      "conversation": null,
+      "text": "Bestätigte Erinnerung: HbA1c am 2026-07-27 bei 5,2 Prozent."
+    },
+    {
+      "id": "m-tsh",
+      "index": "main",
+      "lang": "de",
+      "kind": "memoryFact",
+      "scope": "memory",
+      "priority": 100,
+      "ageDays": 23,
+      "conversation": null,
+      "text": "Bestätigte Erinnerung: TSH am 2026-07-27 bei 1,8 mU/l, unauffällig."
+    },
+    {
+      "id": "m-crp",
+      "index": "main",
+      "lang": "de",
+      "kind": "memoryFact",
+      "scope": "memory",
+      "priority": 100,
+      "ageDays": 158,
+      "conversation": null,
+      "text": "Bestätigte Erinnerung: CRP am 2026-03-14 bei 4,1 mg/l, leicht erhöht während der Erkältung."
+    },
+    {
+      "id": "m-crp-normal",
+      "index": "main",
+      "lang": "de",
+      "kind": "memoryFact",
+      "scope": "memory",
+      "priority": 100,
+      "ageDays": 23,
+      "conversation": null,
+      "text": "Bestätigte Erinnerung: CRP am 2026-07-27 wieder bei 0,8 mg/l."
+    },
+    {
+      "id": "m-b12",
+      "index": "main",
+      "lang": "de",
+      "kind": "memoryFact",
+      "scope": "memory",
+      "priority": 100,
+      "ageDays": 158,
+      "conversation": null,
+      "text": "Bestätigte Erinnerung: Vitamin B12 am 2026-03-14 bei 402 pg/ml."
+    },
+    {
+      "id": "m-cholesterol",
+      "index": "main",
+      "lang": "de",
+      "kind": "memoryFact",
+      "scope": "memory",
+      "priority": 100,
+      "ageDays": 23,
+      "conversation": null,
+      "text": "Bestätigte Erinnerung: LDL am 2026-07-27 bei 118 mg/dl, HDL bei 61."
+    },
+    {
+      "id": "m-rhr-baseline",
+      "index": "main",
+      "lang": "de",
+      "kind": "memoryFact",
+      "scope": "memory",
+      "priority": 100,
+      "ageDays": 40,
+      "conversation": null,
+      "text": "Bestätigte Erinnerung: mein Ruhepuls liegt normalerweise bei 52, im Urlaub eher bei 48."
+    },
+    {
+      "id": "m-hrv-baseline",
+      "index": "main",
+      "lang": "de",
+      "kind": "memoryFact",
+      "scope": "memory",
+      "priority": 100,
+      "ageDays": 38,
+      "conversation": null,
+      "text": "Bestätigte Erinnerung: HRV-Basislinie liegt bei etwa 68 Millisekunden über dreißig Tage."
+    },
+    {
+      "id": "m-hrv-cold-drop",
+      "index": "main",
+      "lang": "de",
+      "kind": "conversationSummary",
+      "scope": "memory",
+      "priority": 95,
+      "ageDays": 155,
+      "conversation": "m-c-cold",
+      "text": "Ende März kam eine schwere Erkältung, und es ging um die Frage, was die Werte in dieser Zeit gemacht haben. Der Ruhepuls lag über fünf Nächte hinweg etwa acht Schläge über dem gewohnten Ausgangswert, und die Herzratenvariabilität fiel in der schlechtesten Nacht auf rund zwei Drittel des Dreißig-Tage-Mittels. Die Schlafdauer war nicht auffällig kurz, aber der Anteil an Tiefschlaf ging merklich zurück, dazu wiederholtes Aufwachen mit trockenem Hals. Das Gespräch endete bei der Regel, den erhöhten Ruhepuls als das eigentliche Signal zu behandeln und nicht die Variabilität einer einzelnen Nacht, weil eine einzelne Nacht verrauscht ist und eine Infektion sich als Serie von Nächten zeigt. Vereinbart wurde, jede Intensität zu streichen, solange der Ruhepuls erhöht bleibt, weiter spazieren zu gehen und erst dann zu Intervallen zurückzukehren, wenn der Ruhepuls zwei Nächte hintereinander am Ausgangswert liegt."
+    },
+    {
+      "id": "m-hrv-alcohol-drop",
+      "index": "main",
+      "lang": "de",
+      "kind": "journalNote",
+      "scope": "personalLogs",
+      "priority": 80,
+      "ageDays": 12,
+      "conversation": null,
+      "text": "2026-08-07: Nach zwei Gläsern Wein war die HRV am Morgen bei 51 statt der üblichen 68."
+    },
+    {
+      "id": "m-hrv-altitude",
+      "index": "main",
+      "lang": "de",
+      "kind": "journalNote",
+      "scope": "personalLogs",
+      "priority": 80,
+      "ageDays": 220,
+      "conversation": null,
+      "text": "2025-12-30: Auf 1800 Metern lag der Ruhepuls die ersten drei Nächte um sechs Schläge höher."
+    },
+    {
+      "id": "m-weight-old",
+      "index": "main",
+      "lang": "de",
+      "kind": "memoryFact",
+      "scope": "memory",
+      "priority": 100,
+      "ageDays": 300,
+      "conversation": null,
+      "text": "Bestätigte Erinnerung: Gewicht lag im Herbst bei 82 Kilogramm."
+    },
+    {
+      "id": "m-weight-new",
+      "index": "main",
+      "lang": "de",
+      "kind": "memoryFact",
+      "scope": "memory",
+      "priority": 100,
+      "ageDays": 16,
+      "conversation": null,
+      "text": "Bestätigte Erinnerung: Gewicht liegt aktuell bei 78,5 Kilogramm."
+    },
+    {
+      "id": "m-bp",
+      "index": "main",
+      "lang": "de",
+      "kind": "memoryFact",
+      "scope": "memory",
+      "priority": 100,
+      "ageDays": 23,
+      "conversation": null,
+      "text": "Bestätigte Erinnerung: Blutdruck beim Hausarzt am 2026-07-27 bei 118 zu 74."
+    },
+    {
+      "id": "m-labs-en",
+      "index": "main",
+      "lang": "en",
+      "kind": "memoryFact",
+      "scope": "memory",
+      "priority": 100,
+      "ageDays": 157,
+      "conversation": null,
+      "text": "Confirmed memory: the London GP wanted ferritin rechecked in four months rather than starting iron."
+    },
+    {
+      "id": "m-spo2",
+      "index": "main",
+      "lang": "de",
+      "kind": "journalNote",
+      "scope": "personalLogs",
+      "priority": 80,
+      "ageDays": 33,
+      "conversation": null,
+      "text": "2026-07-17: Sauerstoffsättigung nachts im Schnitt bei 96 Prozent, kein Ausreißer nach unten."
+    },
+    {
+      "id": "m-weight-mid",
+      "index": "main",
+      "lang": "de",
+      "kind": "memoryFact",
+      "scope": "memory",
+      "priority": 100,
+      "ageDays": 150,
+      "conversation": null,
+      "text": "Bestätigte Erinnerung: Gewicht lag im Frühjahr bei 80 Kilogramm."
+    }
+  ]
+}

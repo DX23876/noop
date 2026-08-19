@@ -27,6 +27,13 @@ actor NomicTextEmbeddingProvider: TextEmbeddingProvider {
 
     private var model: OpaquePointer?
     private var context: OpaquePointer?
+    /// How long the most recent cold load took, in milliseconds.
+    ///
+    /// The first question of a session pays this inside the same 2.5-second budget as the inference, so it is
+    /// the likeliest single reason a turn falls back to keyword retrieval. Measured here because only this
+    /// type knows where the load begins and ends; read by `CoachSemanticMemory` for the Expert card, and kept
+    /// in memory only.
+    private(set) var lastLoadMilliseconds: Double?
     private var idleUnloadTask: Task<Void, Never>?
     private let modelURL: URL
     private let maximumInputTokens = NomicEmbeddingContract.maximumInputTokens
@@ -58,6 +65,7 @@ actor NomicTextEmbeddingProvider: TextEmbeddingProvider {
             )
         }
 
+        let loadStartedAt = DispatchTime.now().uptimeNanoseconds
         _ = Self.initializeBackend
         var modelParameters = llama_model_default_params()
         #if targetEnvironment(simulator)
@@ -105,6 +113,7 @@ actor NomicTextEmbeddingProvider: TextEmbeddingProvider {
         }
         model = loadedModel
         context = loadedContext
+        lastLoadMilliseconds = Double(DispatchTime.now().uptimeNanoseconds - loadStartedAt) / 1_000_000
         scheduleIdleUnload()
     }
 

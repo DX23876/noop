@@ -1,0 +1,815 @@
+{
+  "version": 1,
+  "queries": [
+    {
+      "id": "mq-rec-01",
+      "index": "main",
+      "lang": "de",
+      "category": "recency",
+      "text": "Wie lautet mein Schlafziel im Moment?",
+      "judgments": {
+        "m-sleep-goal-new": 3,
+        "m-sleep-goal-old": 0,
+        "m-sleep-j1": 1
+      }
+    },
+    {
+      "id": "mq-rec-02",
+      "index": "main",
+      "lang": "de",
+      "category": "recency",
+      "text": "Bis wann darf ich aktuell Koffein trinken?",
+      "judgments": {
+        "m-sleep-caf-14": 3,
+        "m-sleep-caf-16": 0,
+        "m-j-caf-01": 1,
+        "m-sleep-summary": 1
+      }
+    },
+    {
+      "id": "mq-rec-03",
+      "index": "main",
+      "lang": "de",
+      "category": "recency",
+      "text": "Wie geht es meinem linken Knie inzwischen?",
+      "judgments": {
+        "m-knee-l-fast-gone": 3,
+        "m-knee-l-fast-old": 0,
+        "m-knee-l-long": 1
+      }
+    },
+    {
+      "id": "mq-rec-04",
+      "index": "main",
+      "lang": "de",
+      "category": "recency",
+      "text": "Wie oft trainiere ich derzeit pro Woche?",
+      "judgments": {
+        "m-freq-5": 3,
+        "m-freq-4": 0,
+        "m-freq-3": 0,
+        "m-plan-summary": 2
+      }
+    },
+    {
+      "id": "mq-rec-05",
+      "index": "main",
+      "lang": "de",
+      "category": "recency",
+      "text": "Welche Magnesiumform nehme ich jetzt?",
+      "judgments": {
+        "m-mag-glycinate": 3,
+        "m-mag-citrate": 0,
+        "m-mag-timing": 1
+      }
+    },
+    {
+      "id": "mq-rec-06",
+      "index": "main",
+      "lang": "de",
+      "category": "recency",
+      "text": "Nehme ich noch Kreatin?",
+      "judgments": {
+        "m-creatine-stop": 3,
+        "m-supp-en-creatine": 1,
+        "m-creatine-start": 0
+      }
+    },
+    {
+      "id": "mq-rec-07",
+      "index": "main",
+      "lang": "de",
+      "category": "recency",
+      "text": "Wie hoch ist mein Ferritin zuletzt gewesen?",
+      "judgments": {
+        "m-ferritin-latest": 3,
+        "m-ferritin-2025": 0,
+        "m-ferritin-2024": 0,
+        "m-labs-en": 1
+      }
+    },
+    {
+      "id": "mq-rec-08",
+      "index": "main",
+      "lang": "de",
+      "category": "recency",
+      "text": "Was ist mein aktuelles Wettkampfziel?",
+      "judgments": {
+        "m-race-half-goal": 3,
+        "m-race-half-old-goal": 0,
+        "m-plan-summary": 2,
+        "m-race-10k": 1
+      }
+    },
+    {
+      "id": "mq-rec-09",
+      "index": "main",
+      "lang": "de",
+      "category": "recency",
+      "text": "Ist mein CRP inzwischen wieder normal?",
+      "judgments": {
+        "m-crp-normal": 3,
+        "m-crp": 0,
+        "m-j-cold-end": 1
+      }
+    },
+    {
+      "id": "mq-rec-10",
+      "index": "main",
+      "lang": "de",
+      "category": "recency",
+      "text": "Welche Dosis Vitamin D gilt jetzt?",
+      "judgments": {
+        "m-d3-new": 3,
+        "m-d3-old": 0,
+        "m-d3-summer-pause": 1
+      }
+    },
+    {
+      "id": "mq-rec-11",
+      "index": "main",
+      "lang": "de",
+      "category": "recency",
+      "text": "Ist das Einschlafen oder das Durchschlafen mein aktuelles Problem?",
+      "judgments": {
+        "m-sleep-wake-3am": 3,
+        "m-sleep-onset-slow": 0,
+        "m-j-earlywake": 1
+      }
+    },
+    {
+      "id": "mq-rec-12",
+      "index": "main",
+      "lang": "de",
+      "category": "recency",
+      "text": "Welche Achillessehne macht mir gerade zu schaffen?",
+      "judgments": {
+        "m-achilles-l-now": 3,
+        "m-achilles-r": 0
+      }
+    },
+    {
+      "id": "mq-rec-13",
+      "index": "main",
+      "lang": "de",
+      "category": "recency",
+      "text": "Wie war die Erholung heute Morgen?",
+      "judgments": {
+        "m-d-rec-01": 3,
+        "m-d-rec-02": 0,
+        "m-d-rec-03": 0
+      }
+    },
+    {
+      "id": "mq-rec-14",
+      "index": "main",
+      "lang": "de",
+      "category": "recency",
+      "text": "Habe ich zuletzt gut geschlafen?",
+      "judgments": {
+        "m-j-goodnight": 3,
+        "m-sleep-msg3": 0,
+        "m-sleep-msg5": 0,
+        "m-j-earlywake": 0
+      }
+    },
+    {
+      "id": "mq-nm-01",
+      "index": "main",
+      "lang": "de",
+      "category": "near-miss",
+      "text": "Welches Knie zieht bei tiefen Kniebeugen?",
+      "judgments": {
+        "m-knee-r-squat": 3,
+        "m-knee-l-fast-gone": 0,
+        "m-knee-l-fast-old": 0,
+        "m-knee-r-stairs": 1
+      }
+    },
+    {
+      "id": "mq-nm-02",
+      "index": "main",
+      "lang": "de",
+      "category": "near-miss",
+      "text": "Bei welcher Richtung auf der Treppe merke ich das Knie stärker?",
+      "judgments": {
+        "m-knee-r-stairs": 3,
+        "m-knee-r-squat": 1,
+        "m-knee-l-fast-gone": 0
+      }
+    },
+    {
+      "id": "mq-nm-03",
+      "index": "main",
+      "lang": "de",
+      "category": "near-miss",
+      "text": "Welche Magnesiumform ging mir auf den Magen?",
+      "judgments": {
+        "m-mag-glycinate": 3,
+        "m-mag-citrate": 1,
+        "m-ashwagandha-tried": 0
+      }
+    },
+    {
+      "id": "mq-nm-04",
+      "index": "main",
+      "lang": "de",
+      "category": "near-miss",
+      "text": "Hat Magnesium morgens statt abends etwas gebracht?",
+      "judgments": {
+        "m-mag-morning-tried": 3,
+        "m-mag-timing": 1,
+        "m-mag-glycinate": 0
+      }
+    },
+    {
+      "id": "mq-nm-05",
+      "index": "main",
+      "lang": "de",
+      "category": "near-miss",
+      "text": "Welcher Mittagsschlaf war zu lang?",
+      "judgments": {
+        "m-sleep-nap-long": 3,
+        "m-sleep-nap-short": 0,
+        "m-sleep-j3": 1
+      }
+    },
+    {
+      "id": "mq-nm-06",
+      "index": "main",
+      "lang": "de",
+      "category": "near-miss",
+      "text": "Welche Radausfahrt hat mich zwei Tage gekostet?",
+      "judgments": {
+        "m-bike-hard-bad": 2,
+        "m-d-bike-02": 2,
+        "m-bike-easy-recovery": 0,
+        "m-d-bike-01": 0
+      }
+    },
+    {
+      "id": "mq-nm-07",
+      "index": "main",
+      "lang": "de",
+      "category": "near-miss",
+      "text": "Nach welcher Kraftübung meldet sich der untere Rücken?",
+      "judgments": {
+        "m-lower-back": 3,
+        "m-d-str-03": 1,
+        "m-knee-r-squat": 0
+      }
+    },
+    {
+      "id": "mq-nm-08",
+      "index": "main",
+      "lang": "de",
+      "category": "near-miss",
+      "text": "Welcher Schwimmstil macht der Schulter Probleme?",
+      "judgments": {
+        "m-shoulder-swim": 3,
+        "m-d-swim-01": 1,
+        "m-d-swim-02": 0
+      }
+    },
+    {
+      "id": "mq-nm-09",
+      "index": "main",
+      "lang": "de",
+      "category": "near-miss",
+      "text": "Welche Intervalleinheit habe ich tatsächlich gemacht?",
+      "judgments": {
+        "m-intervals-done": 3,
+        "m-intervals-declined1": 0,
+        "m-intervals-declined2": 0,
+        "m-d-run-02": 1
+      }
+    },
+    {
+      "id": "mq-nm-10",
+      "index": "main",
+      "lang": "de",
+      "category": "near-miss",
+      "text": "Welcher Lauf fühlte sich hinterher schlechter an als vorher?",
+      "judgments": {
+        "m-tempo-worse": 3,
+        "m-easy-run-helpful": 0,
+        "m-d-run-04": 0
+      }
+    },
+    {
+      "id": "mq-nm-11",
+      "index": "main",
+      "lang": "de",
+      "category": "near-miss",
+      "text": "An welchem Abend war das Essen zu spät?",
+      "judgments": {
+        "m-d-food-01": 3,
+        "m-d-food-02": 0,
+        "m-d-family-01": 1
+      }
+    },
+    {
+      "id": "mq-nm-12",
+      "index": "main",
+      "lang": "de",
+      "category": "near-miss",
+      "text": "Welcher Ferritinwert war der niedrigste?",
+      "judgments": {
+        "m-ferritin-2025": 3,
+        "m-ferritin-latest": 0,
+        "m-ferritin-2024": 0
+      }
+    },
+    {
+      "id": "mq-nm-13",
+      "index": "main",
+      "lang": "de",
+      "category": "near-miss",
+      "text": "Bei welcher Temperatur im Schlafzimmer schlafe ich schlecht?",
+      "judgments": {
+        "m-d-heat-02": 3,
+        "m-sleep-room-temp": 0
+      }
+    },
+    {
+      "id": "mq-nm-14",
+      "index": "main",
+      "lang": "de",
+      "category": "near-miss",
+      "text": "An welchem Tag habe ich die Knieübungen ausgelassen?",
+      "judgments": {
+        "m-knee-exercises-skipped": 3,
+        "m-knee-exercises-done": 0
+      }
+    },
+    {
+      "id": "mq-nm-15",
+      "index": "main",
+      "lang": "de",
+      "category": "near-miss",
+      "text": "Welcher Lauf wurde abgebrochen?",
+      "judgments": {
+        "m-d-run-05": 3,
+        "m-d-run-01": 0,
+        "m-d-run-03": 0
+      }
+    },
+    {
+      "id": "mq-nm-16",
+      "index": "main",
+      "lang": "de",
+      "category": "near-miss",
+      "text": "Welche Erholungsmaßnahme hat die Beine leichter gemacht?",
+      "judgments": {
+        "m-j-massage": 3,
+        "m-j-sauna": 0,
+        "m-j-cold-shower": 0
+      }
+    },
+    {
+      "id": "mq-nm-17",
+      "index": "main",
+      "lang": "de",
+      "category": "near-miss",
+      "text": "Was hat nach dem Abend einen höheren Nachtpuls gemacht, Sauna oder kalt duschen?",
+      "judgments": {
+        "m-j-sauna": 2,
+        "m-j-cold-shower": 0,
+        "m-hyp-sauna": 2
+      }
+    },
+    {
+      "id": "mq-nm-18",
+      "index": "main",
+      "lang": "de",
+      "category": "near-miss",
+      "text": "Welche Empfehlung habe ich verschoben statt abgelehnt?",
+      "judgments": {
+        "m-fb-swap-weekend": 3,
+        "m-fb-swim": 0,
+        "m-fb-longrun-move": 0
+      }
+    },
+    {
+      "id": "mq-nm-19",
+      "index": "main",
+      "lang": "de",
+      "category": "near-miss",
+      "text": "An welchem Journal-Tag habe ich Alkohol getrunken und schlecht geschlafen?",
+      "judgments": {
+        "m-j-alc-03": 2,
+        "m-hrv-alcohol-drop": 2,
+        "m-j-caf-03": 1,
+        "m-j-alc-01": 0
+      }
+    },
+    {
+      "id": "mq-nm-20",
+      "index": "main",
+      "lang": "de",
+      "category": "near-miss",
+      "text": "Welche Übung fällt mir links schwerer als rechts?",
+      "judgments": {
+        "m-d-str-04": 3,
+        "m-knee-physio": 1,
+        "m-strength-2x": 0
+      }
+    },
+    {
+      "id": "mq-ter-01",
+      "index": "main",
+      "lang": "de",
+      "category": "terse",
+      "text": "Knie rechts?",
+      "judgments": {
+        "m-knee-r-squat": 2,
+        "m-knee-r-stairs": 2,
+        "m-msg-knee1": 1
+      }
+    },
+    {
+      "id": "mq-ter-02",
+      "index": "main",
+      "lang": "de",
+      "category": "terse",
+      "text": "Ferritin?",
+      "judgments": {
+        "m-ferritin-latest": 3,
+        "m-ferritin-2025": 1,
+        "m-ferritin-2024": 1,
+        "m-iron-no": 1
+      }
+    },
+    {
+      "id": "mq-ter-03",
+      "index": "main",
+      "lang": "de",
+      "category": "terse",
+      "text": "Schlafziel?",
+      "judgments": {
+        "m-sleep-goal-new": 3,
+        "m-sleep-goal-old": 0,
+        "m-plan-summary": 1
+      }
+    },
+    {
+      "id": "mq-ter-04",
+      "index": "main",
+      "lang": "de",
+      "category": "terse",
+      "text": "Magnesium Dosis",
+      "judgments": {
+        "m-mag-glycinate": 3,
+        "m-mag-citrate": 1,
+        "m-mag-timing": 1
+      }
+    },
+    {
+      "id": "mq-ter-05",
+      "index": "main",
+      "lang": "de",
+      "category": "terse",
+      "text": "wie oft training",
+      "judgments": {
+        "m-freq-5": 3,
+        "m-strength-2x": 1,
+        "m-swim-weekly": 1
+      }
+    },
+    {
+      "id": "mq-ter-06",
+      "index": "main",
+      "lang": "de",
+      "category": "terse",
+      "text": "Zone 2",
+      "judgments": {
+        "m-hr-zones": 3,
+        "m-max-hr": 1
+      }
+    },
+    {
+      "id": "mq-ter-07",
+      "index": "main",
+      "lang": "de",
+      "category": "terse",
+      "text": "Halbmarathon Ziel",
+      "judgments": {
+        "m-race-half-goal": 3,
+        "m-race-half-old-goal": 0,
+        "m-plan-summary": 1
+      }
+    },
+    {
+      "id": "mq-ter-08",
+      "index": "main",
+      "lang": "de",
+      "category": "terse",
+      "text": "Kreatin",
+      "judgments": {
+        "m-creatine-stop": 3,
+        "m-creatine-start": 1,
+        "m-supp-en-creatine": 1
+      }
+    },
+    {
+      "id": "mq-ter-09",
+      "index": "main",
+      "lang": "de",
+      "category": "terse",
+      "text": "Erholung heute",
+      "judgments": {
+        "m-d-rec-01": 3,
+        "m-d-rec-02": 0,
+        "m-d-rec-03": 0
+      }
+    },
+    {
+      "id": "mq-ter-10",
+      "index": "main",
+      "lang": "de",
+      "category": "terse",
+      "text": "Schulter",
+      "judgments": {
+        "m-shoulder-swim": 3,
+        "m-d-swim-01": 1
+      }
+    },
+    {
+      "id": "mq-ter-11",
+      "index": "main",
+      "lang": "de",
+      "category": "terse",
+      "text": "Gewicht",
+      "judgments": {
+        "m-weight-new": 3,
+        "m-weight-old": 1,
+        "m-msg-weight1": 1
+      }
+    },
+    {
+      "id": "mq-ter-12",
+      "index": "main",
+      "lang": "de",
+      "category": "terse",
+      "text": "Einlagen seit wann",
+      "judgments": {
+        "m-insoles": 3,
+        "m-d-insole-note": 1
+      }
+    },
+    {
+      "id": "mq-ter-13",
+      "index": "main",
+      "lang": "de",
+      "category": "terse",
+      "text": "CBD",
+      "judgments": {
+        "m-cbd-stopped": 3,
+        "m-cbd-journal": 1,
+        "m-cbd-journal2": 1
+      }
+    },
+    {
+      "id": "mq-ter-14",
+      "index": "main",
+      "lang": "de",
+      "category": "terse",
+      "text": "Wochenende laufen",
+      "judgments": {
+        "m-weekend-no-run": 2,
+        "m-long-run-sunday": 2,
+        "m-weekend-bike-ok": 1
+      }
+    },
+    {
+      "id": "mq-en-01",
+      "index": "main",
+      "lang": "en",
+      "category": "paraphrase",
+      "text": "What did the physio in London say about my knee?",
+      "judgments": {
+        "m-knee-en-note": 3,
+        "m-knee-physio": 1,
+        "m-knee-mri": 1
+      }
+    },
+    {
+      "id": "mq-en-02",
+      "index": "main",
+      "lang": "en",
+      "category": "synonym",
+      "text": "Why do I need electrolyte drinks on longer rides?",
+      "judgments": {
+        "m-en-fact-water": 2,
+        "m-electrolytes": 2
+      }
+    },
+    {
+      "id": "mq-en-03",
+      "index": "main",
+      "lang": "en",
+      "category": "recency",
+      "text": "Am I still taking creatine?",
+      "judgments": {
+        "m-supp-en-creatine": 2,
+        "m-creatine-stop": 2,
+        "m-creatine-start": 0
+      }
+    },
+    {
+      "id": "mq-en-04",
+      "index": "main",
+      "lang": "en",
+      "category": "near-miss",
+      "text": "Which coffee affects me more, filter or espresso?",
+      "judgments": {
+        "m-en-fact-coffee": 3,
+        "m-sleep-tea-evening": 1,
+        "m-sleep-caf-14": 0
+      }
+    },
+    {
+      "id": "mq-x-01",
+      "index": "main",
+      "lang": "de",
+      "category": "crosslingual",
+      "text": "Was hat der Arzt in London zum Eisenwert gesagt?",
+      "judgments": {
+        "m-labs-en": 3,
+        "m-iron-no": 1,
+        "m-ferritin-2025": 1
+      }
+    },
+    {
+      "id": "mq-x-02",
+      "index": "main",
+      "lang": "de",
+      "category": "crosslingual",
+      "text": "Was habe ich im Hotelstudio trainiert, als keine Langhantel da war?",
+      "judgments": {
+        "m-train-en-gym": 3,
+        "m-en-d-gym": 1
+      }
+    },
+    {
+      "id": "mq-x-03",
+      "index": "main",
+      "lang": "en",
+      "category": "crosslingual",
+      "text": "What is my current caffeine cut-off time?",
+      "judgments": {
+        "m-sleep-caf-14": 3,
+        "m-sleep-caf-16": 0
+      }
+    },
+    {
+      "id": "mq-un-01",
+      "index": "main",
+      "lang": "de",
+      "category": "unanswerable",
+      "text": "Wie wird das Wetter nächste Woche in Lissabon?",
+      "judgments": {
+        "m-d-heat-01": 0,
+        "m-sleep-travel": 0
+      }
+    },
+    {
+      "id": "mq-un-02",
+      "index": "main",
+      "lang": "de",
+      "category": "unanswerable",
+      "text": "Wie wechsle ich den Ölfilter an einem Dieselmotor?",
+      "judgments": {}
+    },
+    {
+      "id": "mq-un-03",
+      "index": "main",
+      "lang": "de",
+      "category": "unanswerable",
+      "text": "Welches Formular brauche ich für eine freiberufliche Rechnung?",
+      "judgments": {}
+    },
+    {
+      "id": "mq-un-04",
+      "index": "main",
+      "lang": "de",
+      "category": "unanswerable",
+      "text": "Wie hoch war mein Cholesterinwert vor fünf Jahren?",
+      "judgments": {
+        "m-cholesterol": 0
+      }
+    },
+    {
+      "id": "mq-un-05",
+      "index": "main",
+      "lang": "de",
+      "category": "unanswerable",
+      "text": "Wann war mein letzter Zahnarzttermin?",
+      "judgments": {}
+    },
+    {
+      "id": "mq-un-06",
+      "index": "main",
+      "lang": "de",
+      "category": "unanswerable",
+      "text": "Welche Schuhgröße habe ich?",
+      "judgments": {
+        "m-shoes-new": 0,
+        "m-shoes-old": 0
+      }
+    },
+    {
+      "id": "mq-un-07",
+      "index": "main",
+      "lang": "de",
+      "category": "unanswerable",
+      "text": "Wie viele Kalorien habe ich gestern gegessen?",
+      "judgments": {
+        "m-d-food-01": 0
+      }
+    },
+    {
+      "id": "mq-un-08",
+      "index": "main",
+      "lang": "de",
+      "category": "unanswerable",
+      "text": "Wie heißt meine Physiotherapeutin?",
+      "judgments": {
+        "m-knee-physio": 0
+      }
+    },
+    {
+      "id": "mq-un-09",
+      "index": "main",
+      "lang": "en",
+      "category": "unanswerable",
+      "text": "What time does my flight leave on Friday?",
+      "judgments": {
+        "m-en-msg-work": 0
+      }
+    },
+    {
+      "id": "mq-un-10",
+      "index": "main",
+      "lang": "de",
+      "category": "unanswerable",
+      "text": "Welche Blutgruppe habe ich?",
+      "judgments": {}
+    },
+    {
+      "id": "mq-neg-11",
+      "index": "main",
+      "lang": "de",
+      "category": "negation",
+      "text": "Welche Einheit mache ich morgens nicht?",
+      "judgments": {
+        "m-evening-strength": 3,
+        "m-morning-person": 0
+      }
+    },
+    {
+      "id": "mq-neg-12",
+      "index": "main",
+      "lang": "de",
+      "category": "negation",
+      "text": "Wann nehme ich das Koffeingel nicht?",
+      "judgments": {
+        "m-caffeine-gel": 3,
+        "m-electrolytes": 0
+      }
+    },
+    {
+      "id": "mq-neg-13",
+      "index": "main",
+      "lang": "de",
+      "category": "negation",
+      "text": "Nach welchem Training brauche ich keinen Shake?",
+      "judgments": {
+        "m-protein": 3,
+        "m-strength-2x": 0
+      }
+    },
+    {
+      "id": "mq-neg-14",
+      "index": "main",
+      "lang": "de",
+      "category": "negation",
+      "text": "An welchem Tag war ich nicht draußen?",
+      "judgments": {
+        "m-j-out-02": 3,
+        "m-j-out-01": 0
+      }
+    },
+    {
+      "id": "mq-neg-15",
+      "index": "main",
+      "lang": "de",
+      "category": "negation",
+      "text": "Wann habe ich das Handy abends nicht weggelegt?",
+      "judgments": {
+        "m-j-screen-01": 3,
+        "m-j-screen-02": 0
+      }
+    }
+  ]
+}

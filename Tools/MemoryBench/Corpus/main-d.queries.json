@@ -1,0 +1,599 @@
+{
+  "version": 1,
+  "queries": [
+    {
+      "id": "mqd-syn-01",
+      "index": "main",
+      "lang": "de",
+      "category": "synonym",
+      "text": "Welche Übung fiel mir auf der linken Seite deutlich schwerer?",
+      "judgments": {
+        "m-d-str-04": 3,
+        "m-knee-physio": 2
+      }
+    },
+    {
+      "id": "mqd-syn-02",
+      "index": "main",
+      "lang": "de",
+      "category": "synonym",
+      "text": "Was hat sich bemerkbar gemacht, als ich zu wenig getrunken hatte?",
+      "judgments": {
+        "m-d-hydration": 3,
+        "m-j-headache": 2,
+        "m-j-water-02": 1
+      }
+    },
+    {
+      "id": "mqd-syn-03",
+      "index": "main",
+      "lang": "de",
+      "category": "synonym",
+      "text": "Welches Messgerät liefert die glattere Herzfrequenzkurve?",
+      "judgments": {
+        "m-d-strap": 3,
+        "m-d-watch": 2,
+        "m-msg-gear1": 1,
+        "m-title-gear": 1
+      }
+    },
+    {
+      "id": "mqd-syn-04",
+      "index": "main",
+      "lang": "de",
+      "category": "synonym",
+      "text": "Welche Phase im Jahr hatte die beste Regeneration?",
+      "judgments": {
+        "m-d-rec-05": 3,
+        "m-d-rec-01": 1
+      }
+    },
+    {
+      "id": "mqd-syn-05",
+      "index": "main",
+      "lang": "de",
+      "category": "synonym",
+      "text": "Wie viele Meter bin ich zuletzt im Becken unterwegs gewesen?",
+      "judgments": {
+        "m-d-swim-01": 3,
+        "m-d-swim-02": 1
+      }
+    },
+    {
+      "id": "mqd-syn-06",
+      "index": "main",
+      "lang": "de",
+      "category": "synonym",
+      "text": "Wie hoch war die Tagesanstrengung an einem reinen Schreibtischtag?",
+      "judgments": {
+        "m-d-strain-02": 3,
+        "m-d-strain-01": 0
+      }
+    },
+    {
+      "id": "mqd-syn-07",
+      "index": "main",
+      "lang": "de",
+      "category": "synonym",
+      "text": "Was hat meine Anspannung sofort gesenkt?",
+      "judgments": {
+        "m-d-work-02": 3,
+        "m-d-work-01": 1
+      }
+    },
+    {
+      "id": "mqd-par-01",
+      "index": "main",
+      "lang": "de",
+      "category": "paraphrase",
+      "text": "Wie ist der lange Lauf letzte Woche gelaufen?",
+      "judgments": {
+        "m-d-run-03": 3,
+        "m-hyp-longrun": 1,
+        "m-long-run-sunday": 1
+      }
+    },
+    {
+      "id": "mqd-par-02",
+      "index": "main",
+      "lang": "de",
+      "category": "paraphrase",
+      "text": "Warum habe ich einen Lauf vorzeitig beendet?",
+      "judgments": {
+        "m-d-run-05": 3
+      }
+    },
+    {
+      "id": "mqd-par-03",
+      "index": "main",
+      "lang": "de",
+      "category": "paraphrase",
+      "text": "Was hat der Lauf im Regen nach sich gezogen?",
+      "judgments": {
+        "m-d-run-08": 3,
+        "m-j-cold-start": 1
+      }
+    },
+    {
+      "id": "mqd-par-04",
+      "index": "main",
+      "lang": "de",
+      "category": "paraphrase",
+      "text": "Wie war das erste Laufen mit den Einlagen?",
+      "judgments": {
+        "m-d-insole-note": 3,
+        "m-insoles": 2,
+        "m-knee-l-fast-gone": 1
+      }
+    },
+    {
+      "id": "mqd-par-05",
+      "index": "main",
+      "lang": "de",
+      "category": "paraphrase",
+      "text": "Was ist auf den ersten Kilometern in den neuen Schuhen passiert?",
+      "judgments": {
+        "m-d-shoes-note": 3,
+        "m-shoes-new": 2
+      }
+    },
+    {
+      "id": "mqd-par-06",
+      "index": "main",
+      "lang": "de",
+      "category": "paraphrase",
+      "text": "Was hat der Kindergeburtstag mit dem Training gemacht?",
+      "judgments": {
+        "m-d-family-02": 3,
+        "m-j-steps-high": 1
+      }
+    },
+    {
+      "id": "mqd-par-07",
+      "index": "main",
+      "lang": "de",
+      "category": "paraphrase",
+      "text": "Wann war der erste Lauf über zwanzig Kilometer in diesem Jahr?",
+      "judgments": {
+        "m-d-run-07": 3,
+        "m-d-run-03": 1
+      }
+    },
+    {
+      "id": "mqd-par-08",
+      "index": "main",
+      "lang": "de",
+      "category": "paraphrase",
+      "text": "Was wollte ich über meine Abendroutine wissen?",
+      "judgments": {
+        "m-msg-food3": 3,
+        "m-title-evening": 2,
+        "m-msg-food1": 1,
+        "m-msg-food2": 1
+      }
+    },
+    {
+      "id": "mqd-neg-01",
+      "index": "main",
+      "lang": "de",
+      "category": "negation",
+      "text": "An welchem Tag habe ich nicht trainiert?",
+      "judgments": {
+        "m-d-family-02": 3,
+        "m-d-strain-02": 2,
+        "m-d-run-01": 0
+      }
+    },
+    {
+      "id": "mqd-neg-02",
+      "index": "main",
+      "lang": "de",
+      "category": "negation",
+      "text": "Welche Maßnahme hat keinen merkbaren Unterschied gemacht?",
+      "judgments": {
+        "m-fb-strength-cut": 3,
+        "m-d-food-04": 2,
+        "m-fb-morning": 0
+      }
+    },
+    {
+      "id": "mqd-neg-03",
+      "index": "main",
+      "lang": "de",
+      "category": "negation",
+      "text": "Was hatte keinen Effekt auf meinen Schlaf?",
+      "judgments": {
+        "m-d-food-04": 3,
+        "m-fb-sleep-earlier": 0
+      }
+    },
+    {
+      "id": "mqd-neg-04",
+      "index": "main",
+      "lang": "de",
+      "category": "negation",
+      "text": "Welchen Vorschlag habe ich nicht angenommen?",
+      "judgments": {
+        "m-fb-longrun-move": 3,
+        "m-fb-heat": 0,
+        "m-fb-morning": 0
+      }
+    },
+    {
+      "id": "mqd-neg-05",
+      "index": "main",
+      "lang": "de",
+      "category": "negation",
+      "text": "Bei welcher Radtour war kaum Belastung dabei?",
+      "judgments": {
+        "m-d-bike-03": 3,
+        "m-d-bike-02": 0
+      }
+    },
+    {
+      "id": "mqd-num-01",
+      "index": "main",
+      "lang": "de",
+      "category": "numeric",
+      "text": "Wie hoch war der Puls beim Tempodauerlauf?",
+      "judgments": {
+        "m-d-run-04": 3,
+        "m-hr-zones": 1
+      }
+    },
+    {
+      "id": "mqd-num-02",
+      "index": "main",
+      "lang": "de",
+      "category": "numeric",
+      "text": "Wie viele Wiederholungen über 1000 Meter waren es?",
+      "judgments": {
+        "m-d-run-02": 3
+      }
+    },
+    {
+      "id": "mqd-num-03",
+      "index": "main",
+      "lang": "de",
+      "category": "numeric",
+      "text": "Wie hoch war die Belastung an den Intervallen?",
+      "judgments": {
+        "m-d-strain-01": 3,
+        "m-d-run-02": 1,
+        "m-d-strain-02": 0
+      }
+    },
+    {
+      "id": "mqd-num-04",
+      "index": "main",
+      "lang": "de",
+      "category": "numeric",
+      "text": "Wie viele Klimmzüge habe ich zum ersten Mal saubergeschafft?",
+      "judgments": {
+        "m-d-str-02": 3,
+        "m-d-str-01": 0
+      }
+    },
+    {
+      "id": "mqd-num-05",
+      "index": "main",
+      "lang": "de",
+      "category": "numeric",
+      "text": "Wie warm war es beim Laufen am 2026-07-25?",
+      "judgments": {
+        "m-d-heat-01": 3,
+        "m-d-heat-02": 0
+      }
+    },
+    {
+      "id": "mqd-num-06",
+      "index": "main",
+      "lang": "de",
+      "category": "numeric",
+      "text": "Wie viele Grad hatte das Schlafzimmer in der unruhigen Nacht?",
+      "judgments": {
+        "m-d-heat-02": 3,
+        "m-sleep-room-temp": 1
+      }
+    },
+    {
+      "id": "mqd-num-07",
+      "index": "main",
+      "lang": "de",
+      "category": "numeric",
+      "text": "Um welche Uhrzeit war das späte Abendessen?",
+      "judgments": {
+        "m-d-food-01": 3,
+        "m-d-food-02": 0
+      }
+    },
+    {
+      "id": "mqd-num-08",
+      "index": "main",
+      "lang": "de",
+      "category": "numeric",
+      "text": "Wie hoch war die Erholung am 2026-08-18?",
+      "judgments": {
+        "m-d-rec-01": 3,
+        "m-d-rec-02": 0,
+        "m-d-rec-05": 1
+      }
+    },
+    {
+      "id": "mqd-num-09",
+      "index": "main",
+      "lang": "de",
+      "category": "numeric",
+      "text": "Wie viele Kilometer hatte die Ausfahrt mit den zwei Anstiegen?",
+      "judgments": {
+        "m-d-bike-02": 3
+      }
+    },
+    {
+      "id": "mqd-num-10",
+      "index": "main",
+      "lang": "de",
+      "category": "numeric",
+      "text": "Wie hoch war die HRV am 2026-08-08?",
+      "judgments": {
+        "m-d-rec-04": 3,
+        "m-hrv-baseline": 1
+      }
+    },
+    {
+      "id": "mqd-rec-01",
+      "index": "main",
+      "lang": "de",
+      "category": "recency",
+      "text": "Wie war mein letzter Lauf?",
+      "judgments": {
+        "m-d-run-01": 3,
+        "m-d-run-02": 0,
+        "m-d-run-05": 0
+      }
+    },
+    {
+      "id": "mqd-rec-02",
+      "index": "main",
+      "lang": "de",
+      "category": "near-miss",
+      "text": "Womit messe ich den Puls bei Intervallen inzwischen?",
+      "judgments": {
+        "m-d-strap": 3,
+        "m-d-watch": 0
+      }
+    },
+    {
+      "id": "mqd-rec-03",
+      "index": "main",
+      "lang": "de",
+      "category": "paraphrase",
+      "text": "Wie steht die Erholung gerade im Vergleich zur Wochenmitte?",
+      "judgments": {
+        "m-d-rec-01": 3,
+        "m-d-rec-03": 1,
+        "m-d-rec-02": 1
+      }
+    },
+    {
+      "id": "mqd-nm-01",
+      "index": "main",
+      "lang": "de",
+      "category": "near-miss",
+      "text": "Welcher Lauf war auf flacher Strecke?",
+      "judgments": {
+        "m-d-run-04": 3,
+        "m-d-run-06": 0,
+        "m-train-en-tempo": 1
+      }
+    },
+    {
+      "id": "mqd-nm-02",
+      "index": "main",
+      "lang": "de",
+      "category": "near-miss",
+      "text": "Nach welcher Einheit waren die Waden zwei Tage schwer?",
+      "judgments": {
+        "m-d-run-06": 3,
+        "m-d-bike-02": 0
+      }
+    },
+    {
+      "id": "mqd-nm-03",
+      "index": "main",
+      "lang": "de",
+      "category": "near-miss",
+      "text": "Nach welcher Belastung war ich zwei Tage komplett platt?",
+      "judgments": {
+        "m-d-bike-02": 3,
+        "m-d-run-06": 0,
+        "m-bike-hard-bad": 2
+      }
+    },
+    {
+      "id": "mqd-nm-04",
+      "index": "main",
+      "lang": "de",
+      "category": "near-miss",
+      "text": "An welchem Abend war der Schlaf nach dem Essen ruhig?",
+      "judgments": {
+        "m-d-food-02": 3,
+        "m-d-food-01": 0,
+        "m-hyp-earlymeal": 1
+      }
+    },
+    {
+      "id": "mqd-nm-05",
+      "index": "main",
+      "lang": "de",
+      "category": "near-miss",
+      "text": "Bei welcher Schwimmeinheit habe ich nur Brust geschwommen?",
+      "judgments": {
+        "m-d-swim-02": 3,
+        "m-d-swim-01": 0,
+        "m-shoulder-swim": 1
+      }
+    },
+    {
+      "id": "mqd-nm-06",
+      "index": "main",
+      "lang": "de",
+      "category": "near-miss",
+      "text": "Welcher Tag hatte drei Meetings ohne Pause?",
+      "judgments": {
+        "m-d-work-01": 3,
+        "m-d-work-02": 0,
+        "m-j-stress-01": 2,
+        "m-j-steps-low": 1
+      }
+    },
+    {
+      "id": "mqd-nm-07",
+      "index": "main",
+      "lang": "de",
+      "category": "near-miss",
+      "text": "Nach welchem Essen war der Ruhepuls in der Nacht hoch?",
+      "judgments": {
+        "m-d-food-03": 3,
+        "m-d-food-01": 1,
+        "m-d-food-02": 0
+      }
+    },
+    {
+      "id": "mqd-nm-08",
+      "index": "main",
+      "lang": "de",
+      "category": "near-miss",
+      "text": "An welchem Tag lag die Erholung bei 44?",
+      "judgments": {
+        "m-d-rec-02": 3,
+        "m-d-rec-03": 0,
+        "m-d-rec-04": 0
+      }
+    },
+    {
+      "id": "mqd-nm-09",
+      "index": "main",
+      "lang": "de",
+      "category": "near-miss",
+      "text": "Welche Empfehlung zur Bettzeit habe ich angenommen?",
+      "judgments": {
+        "m-fb-sleep-earlier": 3,
+        "m-fb-longrun-move": 0
+      }
+    },
+    {
+      "id": "mqd-ter-01",
+      "index": "main",
+      "lang": "de",
+      "category": "terse",
+      "text": "Erholung 38",
+      "judgments": {
+        "m-d-rec-03": 3,
+        "m-d-rec-02": 0
+      }
+    },
+    {
+      "id": "mqd-ter-02",
+      "index": "main",
+      "lang": "de",
+      "category": "terse",
+      "text": "Brustgurt",
+      "judgments": {
+        "m-d-strap": 3,
+        "m-msg-gear1": 1,
+        "m-title-gear": 1
+      }
+    },
+    {
+      "id": "mqd-ter-03",
+      "index": "main",
+      "lang": "de",
+      "category": "terse",
+      "text": "Hitze Puls",
+      "judgments": {
+        "m-d-heat-01": 3,
+        "m-msg-heat1": 2,
+        "m-fb-heat": 1
+      }
+    },
+    {
+      "id": "mqd-ter-04",
+      "index": "main",
+      "lang": "de",
+      "category": "terse",
+      "text": "Klimmzüge",
+      "judgments": {
+        "m-d-str-02": 3,
+        "m-d-str-01": 1
+      }
+    },
+    {
+      "id": "mqd-ter-05",
+      "index": "main",
+      "lang": "de",
+      "category": "terse",
+      "text": "Kreuzheben",
+      "judgments": {
+        "m-d-str-03": 3,
+        "m-lower-back": 2
+      }
+    },
+    {
+      "id": "mqd-ter-06",
+      "index": "main",
+      "lang": "de",
+      "category": "terse",
+      "text": "Abendessen spät",
+      "judgments": {
+        "m-d-food-01": 3,
+        "m-hyp-earlymeal": 1,
+        "m-sleep-late-meal": 1
+      }
+    },
+    {
+      "id": "mqd-ter-07",
+      "index": "main",
+      "lang": "de",
+      "category": "terse",
+      "text": "1500 Meter",
+      "judgments": {
+        "m-d-swim-01": 3,
+        "m-d-swim-02": 0
+      }
+    },
+    {
+      "id": "mqd-ter-08",
+      "index": "main",
+      "lang": "de",
+      "category": "terse",
+      "text": "Belastung Intervalle",
+      "judgments": {
+        "m-d-strain-01": 3,
+        "m-d-run-02": 1
+      }
+    },
+    {
+      "id": "mqd-x-01",
+      "index": "main",
+      "lang": "en",
+      "category": "crosslingual",
+      "text": "What was my recovery on the worst morning of that week?",
+      "judgments": {
+        "m-d-rec-03": 3,
+        "m-d-rec-02": 0
+      }
+    },
+    {
+      "id": "mqd-x-02",
+      "index": "main",
+      "lang": "en",
+      "category": "crosslingual",
+      "text": "How hot was the bedroom on that restless night?",
+      "judgments": {
+        "m-d-heat-02": 3,
+        "m-sleep-room-temp": 1
+      }
+    }
+  ]
+}

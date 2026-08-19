@@ -926,6 +926,34 @@ The Expert memory card can run a fixed on-device retrieval check against the act
 German corpus covers paraphrases, synonyms, negation and ambiguous health wording, compares recall with
 the keyword baseline, and separately verifies that exact-name queries remain correct.
 
+The same card reports **how often the semantic arm actually wins its own race**, for this session:
+how many turns retrieved semantically against how many fell back to keywords, the p50/p95 of the
+query embedding, and how long the model's cold load took. A lost race costs the whole semantic arm for
+that turn — a far larger loss than any ranking detail — and `lastRetrievalMode` only ever showed the
+most recent turn, so the rate had no answer on any device, least of all for the first question of a
+session, which pays the cold load inside the same budget. The counters live in memory for the life of
+the process (`CoachSemanticTelemetry`): never written to disk, never in `.noopbak`, never sent anywhere.
+They measure; they change nothing about what is retrieved.
+
+### Measuring retrieval off-device
+
+[`Tools/MemoryBench`](../../Tools/MemoryBench/README.md) is the instrument any change to this ranking
+has to be argued with. It runs in two stages, because the embedder is iOS-only and because a model
+comparison is only fair when the selection is identical: `embed` drives the pinned llama.cpp's own
+`llama-embedding` once per model, applying that model's own contract (prefix or instruction, pooling,
+attention) and then the app's own truncate-renormalise-Float16 path; `score` is deterministic and
+model-free, replaying the real `SemanticIndexStore`, the real Float16 encoding, the real cosine scan
+and the real `SemanticRanking.fuse` — the baseline calls the shipped code rather than re-describing it.
+
+Its corpus is synthetic and committed (248 documents / 242 queries across all ten shipped locales); no
+wearer's health data is involved and no NOOP database is opened. Four query categories are scored
+separately, because a change that wins one and loses another is not an improvement and one average
+hides the trade: `paraphrase`, `exact` (a name, date, number — what the two rescue slots were kept
+for), `temporal` (two documents contradict and the newer one is right) and `irrelevant`, where the
+target is **zero** emitted lines. That last category and the report's floor-calibration section are
+what the existing measurement could not express: every target in it was reachable semantically, so
+nothing measured what the retrieval does when the honest answer is nothing.
+
 For a provider without tool calling (for example a local OpenAI-compatible server), a second conservative
 router covers the obvious deep-history case. It activates only when the user's own question explicitly
 asks for a long trend (such as weight over three years), selects one named metric locally and appends the

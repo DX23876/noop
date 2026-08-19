@@ -58,6 +58,9 @@ final class CoachSemanticMemory: ObservableObject, SemanticMemoryCoordinator {
         isModelLoaded: false
     )
     @Published private(set) var lastRetrievalMode: CoachSemanticRetrievalMode = .unavailable
+    /// Session-local counters behind the Expert card's retrieval row. Measurement only — see
+    /// `CoachSemanticTelemetry`. Never persisted, never sent anywhere.
+    @Published private(set) var telemetry = CoachSemanticTelemetry()
     @Published private(set) var selfTestSummary: String?
     @Published private(set) var isIndexing = false
     @Published private(set) var isManualIndexing = false
@@ -377,20 +380,31 @@ final class CoachSemanticMemory: ObservableObject, SemanticMemoryCoordinator {
                   conversations: [CoachConversation],
                   journalEntries: [JournalEntry],
                   allowedScopes: Set<SemanticConsentScope>) async -> CoachSemanticRetrieval {
+        // Stamped here rather than inside `finish`, because the turn includes the reconcile below and the
+        // keyword arm — both of which run before any embedding does. Passed explicitly to `finish` instead of
+        // parked in a property: a property holding "when the current turn began" means nothing between turns.
+        let startedAt = DispatchTime.now().uptimeNanoseconds
         await reconcile(conversations: conversations,
                         journalEntries: journalEntries,
                         allowedScopes: allowedScopes)
         let lexical = lexicalHits(question: question, allowedScopes: allowedScopes)
         guard isEnabled, CoachFeaturePrefs.isEnabled, let provider, let store else {
-            return finish(handoffContext(from: Array(lexical.prefix(8)),
-                                         requestedScopes: allowedScopes),
-                          mode: lexical.isEmpty ? .unavailable : .keywordFallback)
+            return finish(handoffContext(from: lexical, requestedScopes: allowedScopes),
+                          mode: lexical.isEmpty ? .unavailable : .keywordFallback,
+                          startedAt: startedAt)
         }
 
         let race = SemanticSearchRace()
-        Task {
+        Task { [weak self] in
                 do {
+                    // Timed around the embedding alone, not the search: the embedding is what the 2.5-second
+                    // budget is actually spent on, and it is the number that says whether the budget is the
+                    // problem. The sample is recorded even when the race has already been lost — a turn that
+                    // times out is precisely the measurement worth keeping.
+                    let startedAt = DispatchTime.now().uptimeNanoseconds
                     let vector = try await provider.embedQuery(question)
+                    let elapsed = Double(DispatchTime.now().uptimeNanoseconds - startedAt) / 1_000_000
+                    await self?.recordQueryEmbed(milliseconds: elapsed)
                     let hits = try await store.search(vector: vector,
                                                       allowedScopes: allowedScopes,
                                                       limit: 32)
@@ -416,16 +430,17 @@ final class CoachSemanticMemory: ObservableObject, SemanticMemoryCoordinator {
 
         guard let semantic else {
             await refreshStatus()
-            return finish(handoffContext(from: Array(lexical.prefix(8)),
-                                         requestedScopes: allowedScopes),
-                          mode: lexical.isEmpty ? .unavailable : .keywordFallback)
+            return finish(handoffContext(from: lexical, requestedScopes: allowedScopes),
+                          mode: lexical.isEmpty ? .unavailable : .keywordFallback,
+                          startedAt: startedAt)
         }
         let fused = SemanticRanking.fuse(semantic: semantic,
                                          lexical: lexical,
                                          limit: 8)
         await refreshStatus()
         return finish(handoffContext(from: fused, requestedScopes: allowedScopes),
-                      mode: .semantic)
+                      mode: .semantic,
+                      startedAt: startedAt)
     }
 
     /// Used by a delivered BGProcessingTask and the foreground 24-hour catch-up. Each row is committed
@@ -598,6 +613,11 @@ final class CoachSemanticMemory: ObservableObject, SemanticMemoryCoordinator {
         let error = try? await store.state(for: Self.lastErrorStateKey)
         #if os(iOS)
         let loaded = await (provider as? NomicTextEmbeddingProvider)?.isLoaded() ?? false
+        // Only this type knows when the load began and ended, so the duration is read back rather than timed
+        // out here. Same iOS-only cast as `isLoaded()` above: macOS has no provider at all.
+        if let load = await (provider as? NomicTextEmbeddingProvider)?.lastLoadMilliseconds {
+            telemetry.recordModelLoad(milliseconds: load)
+        }
         #else
         let loaded = false
         #endif
@@ -612,10 +632,28 @@ final class CoachSemanticMemory: ObservableObject, SemanticMemoryCoordinator {
         )
     }
 
+    /// The single funnel every retrieval outcome passes through, which is why the whole-turn measurements are
+    /// taken here: a turn that falls back, a turn that finds nothing and a turn that succeeds all arrive at this
+    /// one line, so none of the three can be forgotten by adding an early return somewhere else.
     private func finish(_ context: String,
-                        mode: CoachSemanticRetrievalMode) -> CoachSemanticRetrieval {
+                        mode: CoachSemanticRetrievalMode,
+                        startedAt: UInt64) -> CoachSemanticRetrieval {
         lastRetrievalMode = mode
+        telemetry.record(mode: mode)
+        telemetry.recordTurn(milliseconds: Double(DispatchTime.now().uptimeNanoseconds - startedAt) / 1_000_000)
+        // Sampled at the end of the turn, which is where the peak of a retrieval turn sits: the model is loaded,
+        // the vectors have been decoded and the context has been built. Reuses the app's existing reader rather
+        // than a second copy of the same mach call.
+        if let footprint = DisplayPerformanceMonitor.residentFootprintMB() {
+            telemetry.recordFootprint(megabytes: footprint)
+        }
+        telemetry.recordThermalState(ProcessInfo.processInfo.thermalState)
         return CoachSemanticRetrieval(context: context, mode: mode)
+    }
+
+    /// Called from the racing task, which may still be running after the turn has already fallen back.
+    private func recordQueryEmbed(milliseconds: Double) {
+        telemetry.recordQueryEmbed(milliseconds: milliseconds)
     }
 
     /// Second consent gate at the last possible point. Retrieval can suspend for model inference, so a
@@ -788,27 +826,37 @@ final class CoachSemanticMemory: ObservableObject, SemanticMemoryCoordinator {
                                updatedAt: Date,
                                scope: SemanticConsentScope,
                                priority: Int) -> [SemanticDocument] {
-        let words = text.split(whereSeparator: \.isWhitespace).map(String.init)
-        guard !words.isEmpty else { return [] }
-        func document(_ index: Int, _ text: String) -> SemanticDocument {
+        chunkTexts(text).enumerated().map { index, chunk in
             SemanticDocument(sourceKind: kind,
                              sourceID: sourceID,
                              chunkIndex: index,
-                             text: text,
+                             text: chunk,
                              updatedAt: updatedAt,
                              consentScope: scope,
                              priority: priority)
         }
+    }
+
+    /// The text splitting on its own, without the document metadata around it.
+    ///
+    /// Split out and left `internal` so `CoachChunkerGoldenTests` can compare it against
+    /// `Tools/MemoryBench/Fixtures/tokeniser-golden.json` — the same fixture the benchmark's own copy of this
+    /// logic is checked against. The benchmark cannot import this target, so it carries a transcription; a
+    /// shared fixture is what stops the two from drifting apart while each stays internally consistent, which
+    /// unit tests on either side alone would never catch.
+    nonisolated static func chunkTexts(_ text: String) -> [String] {
+        let words = text.split(whereSeparator: \.isWhitespace).map(String.init)
+        guard !words.isEmpty else { return [] }
         if words.contains(where: { $0.count > unbrokenWordLimit }) {
             let characters = Array(words.joined(separator: " "))
             return slice(count: characters.count,
                          size: characterChunkSize,
-                         overlap: characterChunkOverlap) { range, index in
-                document(index, String(characters[range]))
+                         overlap: characterChunkOverlap) { range in
+                String(characters[range])
             }
         }
-        return slice(count: words.count, size: 192, overlap: 24) { range, index in
-            document(index, words[range].joined(separator: " "))
+        return slice(count: words.count, size: 192, overlap: 24) { range in
+            words[range].joined(separator: " ")
         }
     }
 
@@ -825,17 +873,15 @@ final class CoachSemanticMemory: ObservableObject, SemanticMemoryCoordinator {
         count: Int,
         size: Int,
         overlap: Int,
-        build: (Range<Int>, Int) -> SemanticDocument
-    ) -> [SemanticDocument] {
-        var result: [SemanticDocument] = []
+        build: (Range<Int>) -> String
+    ) -> [String] {
+        var result: [String] = []
         var start = 0
-        var chunk = 0
         while start < count {
             let end = min(count, start + size)
-            result.append(build(start..<end, chunk))
+            result.append(build(start..<end))
             guard end < count else { break }
             start = max(start + 1, end - overlap)
-            chunk += 1
         }
         return result
     }
@@ -873,12 +919,29 @@ final class CoachSemanticMemory: ObservableObject, SemanticMemoryCoordinator {
             .map(\.0)
     }
 
-    private static func context(from hits: [SemanticHit],
-                                documents: [String: SemanticDocument]) -> String {
+    /// The ≤8 context lines, one per source.
+    ///
+    /// Deduplication happens over the WHOLE hit list and the cut to 8 comes after it, which is why the
+    /// callers must not pre-truncate: `lexicalHits` ranks CHUNKS, and eight chunks of one long conversation
+    /// are one line. The keyword-fallback callers used to hand over `lexical.prefix(8)` and so could emit
+    /// three lines while five more sources sat unused in the rest of the list — in the one path that runs
+    /// when the embedding model loses its race, i.e. exactly when the context is already thinnest.
+    ///
+    /// Not `private` so `CoachSemanticContextTests` can pin that directly, the same way
+    /// `CoachMemory.relevanceScore` is reachable for its own test.
+    static func context(from hits: [SemanticHit],
+                        documents: [String: SemanticDocument]) -> String {
         var seen = Set<String>()
         let selected = hits.compactMap { hit -> SemanticDocument? in
+            // Resolved BEFORE the source is marked as seen. A hit the live set cannot resolve — an index row
+            // whose canonical source has since been deleted — must not spend the slot for its source. Today
+            // that ordering cannot change an outcome (the fused list holds one hit per source, and the
+            // fallback list's hits all come from `liveDocuments`, so a miss and a duplicate never meet), so
+            // this is defensive rather than a fix. It stops being defensive the moment either arm starts
+            // handing over several chunks of one source AND the index can outlive a source.
+            guard let document = documents[hit.documentID] else { return nil }
             guard seen.insert(hit.sourceID).inserted else { return nil }
-            return documents[hit.documentID]
+            return document
         }.prefix(8)
         guard !selected.isEmpty else { return "" }
         var lines = ["RELEVANT LOCAL TEXT MEMORY (retrieved on device; treat as user-provided context):"]

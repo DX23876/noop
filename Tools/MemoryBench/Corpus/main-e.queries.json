@@ -1,0 +1,790 @@
+{
+  "version": 1,
+  "queries": [
+    {
+      "id": "mqe-syn-01",
+      "index": "main",
+      "lang": "de",
+      "category": "synonym",
+      "text": "Was hat die Atemübung vor dem Zubettgehen gebracht?",
+      "judgments": {
+        "m-j-breathwork": 3,
+        "m-sleep-onset-slow": 1
+      }
+    },
+    {
+      "id": "mqe-syn-02",
+      "index": "main",
+      "lang": "de",
+      "category": "synonym",
+      "text": "Wie viele Schritte kamen an einem reinen Bürotag zusammen?",
+      "judgments": {
+        "m-j-steps-low": 3,
+        "m-j-steps-high": 0
+      }
+    },
+    {
+      "id": "mqe-syn-03",
+      "index": "main",
+      "lang": "de",
+      "category": "synonym",
+      "text": "Was bewirkt das kalte Duschen am Morgen bei mir?",
+      "judgments": {
+        "m-j-cold-shower": 3,
+        "m-j-sauna": 0
+      }
+    },
+    {
+      "id": "mqe-syn-04",
+      "index": "main",
+      "lang": "de",
+      "category": "synonym",
+      "text": "Wie hat die Pollenzeit das Laufen im Freien beeinflusst?",
+      "judgments": {
+        "m-j-allergy": 3,
+        "m-d-run-08": 1
+      }
+    },
+    {
+      "id": "mqe-syn-05",
+      "index": "main",
+      "lang": "de",
+      "category": "synonym",
+      "text": "Was hat der lange Tag am Schreibtisch mit mir gemacht?",
+      "judgments": {
+        "m-j-desk": 3,
+        "m-hip-tight": 2,
+        "m-d-work-01": 1
+      }
+    },
+    {
+      "id": "mqe-syn-06",
+      "index": "main",
+      "lang": "de",
+      "category": "synonym",
+      "text": "Wann bin ich zu früh aufgewacht und nicht mehr eingeschlafen?",
+      "judgments": {
+        "m-j-earlywake": 3,
+        "m-sleep-wake-3am": 2
+      }
+    },
+    {
+      "id": "mqe-syn-07",
+      "index": "main",
+      "lang": "de",
+      "category": "synonym",
+      "text": "Wie war der Muskelkater nach der Hanteleinheit?",
+      "judgments": {
+        "m-j-soreness-01": 3,
+        "m-j-soreness-02": 0
+      }
+    },
+    {
+      "id": "mqe-syn-08",
+      "index": "main",
+      "lang": "de",
+      "category": "synonym",
+      "text": "Kann der Wein von vorgestern die Variabilität noch drücken?",
+      "judgments": {
+        "m-msg-hrv2": 3,
+        "m-hrv-alcohol-drop": 2,
+        "m-title-hrv": 1,
+        "m-sleep-alcohol": 1
+      }
+    },
+    {
+      "id": "mqe-par-01",
+      "index": "main",
+      "lang": "de",
+      "category": "paraphrase",
+      "text": "Wie ist die Erkältung im März verlaufen?",
+      "judgments": {
+        "m-j-cold-mid": 3,
+        "m-j-cold-start": 2,
+        "m-j-cold-end": 2,
+        "m-hrv-cold-drop": 1
+      }
+    },
+    {
+      "id": "mqe-par-02",
+      "index": "main",
+      "lang": "de",
+      "category": "paraphrase",
+      "text": "Wann war die Erkältung überstanden?",
+      "judgments": {
+        "m-j-cold-end": 3,
+        "m-j-cold-mid": 0
+      }
+    },
+    {
+      "id": "mqe-par-03",
+      "index": "main",
+      "lang": "de",
+      "category": "paraphrase",
+      "text": "Was wollte ich zur Wochenplanung wissen?",
+      "judgments": {
+        "m-msg-plan1": 3,
+        "m-title-plan": 2,
+        "m-msg-plan2": 1,
+        "m-msg-plan3": 1
+      }
+    },
+    {
+      "id": "mqe-par-04",
+      "index": "main",
+      "lang": "de",
+      "category": "paraphrase",
+      "text": "Wie lange braucht die Variabilität normalerweise zurück?",
+      "judgments": {
+        "m-msg-hrv3": 3,
+        "m-title-hrv": 1,
+        "m-msg-hrv1": 1
+      }
+    },
+    {
+      "id": "mqe-par-05",
+      "index": "main",
+      "lang": "de",
+      "category": "paraphrase",
+      "text": "Was habe ich zum rechten Knie in der tiefen Beuge gefragt?",
+      "judgments": {
+        "m-msg-knee1": 3,
+        "m-msg-knee2": 2,
+        "m-msg-knee3": 2,
+        "m-title-knee": 1
+      }
+    },
+    {
+      "id": "mqe-par-06",
+      "index": "main",
+      "lang": "de",
+      "category": "paraphrase",
+      "text": "Wie zufrieden war ich mit der Zeit auf dem Zehner?",
+      "judgments": {
+        "m-msg-race1": 3,
+        "m-race-10k": 2,
+        "m-title-race": 1,
+        "m-msg-race2": 1
+      }
+    },
+    {
+      "id": "mqe-par-07",
+      "index": "main",
+      "lang": "de",
+      "category": "paraphrase",
+      "text": "Wie viel habe ich seit dem Herbst abgenommen?",
+      "judgments": {
+        "m-msg-weight1": 3,
+        "m-weight-old": 2,
+        "m-weight-new": 2,
+        "m-title-weight": 1
+      }
+    },
+    {
+      "id": "mqe-par-08",
+      "index": "main",
+      "lang": "de",
+      "category": "paraphrase",
+      "text": "Warum war der Tag ruhiger als erwartet?",
+      "judgments": {
+        "m-j-stress-03": 3,
+        "m-j-stress-01": 0,
+        "m-j-stress-02": 2
+      }
+    },
+    {
+      "id": "mqe-neg-01",
+      "index": "main",
+      "lang": "de",
+      "category": "negation",
+      "text": "An welchem Tag habe ich keinen Alkohol getrunken?",
+      "judgments": {
+        "m-j-alc-01": 3,
+        "m-j-alc-04": 2,
+        "m-j-alc-02": 0,
+        "m-j-alc-03": 0
+      }
+    },
+    {
+      "id": "mqe-neg-02",
+      "index": "main",
+      "lang": "de",
+      "category": "negation",
+      "text": "An welchem Tag habe ich nicht gedehnt?",
+      "judgments": {
+        "m-j-stretch-02": 3,
+        "m-j-stretch-01": 0,
+        "m-j-stretch-03": 0
+      }
+    },
+    {
+      "id": "mqe-neg-03",
+      "index": "main",
+      "lang": "de",
+      "category": "negation",
+      "text": "Habe ich an dem Tag meditiert oder nicht?",
+      "judgments": {
+        "m-j-meditation": 3
+      }
+    },
+    {
+      "id": "mqe-neg-04",
+      "index": "main",
+      "lang": "de",
+      "category": "negation",
+      "text": "An welchem Tag habe ich die zwei Liter nicht geschafft?",
+      "judgments": {
+        "m-j-water-02": 3,
+        "m-j-water-01": 0
+      }
+    },
+    {
+      "id": "mqe-neg-05",
+      "index": "main",
+      "lang": "de",
+      "category": "negation",
+      "text": "Welchen Vorschlag habe ich aus Zeitmangel nicht angenommen?",
+      "judgments": {
+        "m-fb-swim": 3,
+        "m-fb-restday": 0
+      }
+    },
+    {
+      "id": "mqe-neg-06",
+      "index": "main",
+      "lang": "de",
+      "category": "negation",
+      "text": "Was hat bei der Erholung keinen Effekt gezeigt?",
+      "judgments": {
+        "m-j-cold-shower": 3,
+        "m-fb-strides": 2,
+        "m-j-massage": 0
+      }
+    },
+    {
+      "id": "mqe-neg-07",
+      "index": "main",
+      "lang": "de",
+      "category": "negation",
+      "text": "An welchem Tag war es nicht stressig?",
+      "judgments": {
+        "m-j-stress-02": 3,
+        "m-j-stress-01": 0
+      }
+    },
+    {
+      "id": "mqe-neg-08",
+      "index": "main",
+      "lang": "de",
+      "category": "negation",
+      "text": "Bei welchem Muskelkater war das Knie unbeteiligt?",
+      "judgments": {
+        "m-j-soreness-01": 3,
+        "m-msg-knee1": 1
+      }
+    },
+    {
+      "id": "mqe-num-01",
+      "index": "main",
+      "lang": "de",
+      "category": "numeric",
+      "text": "Wie viele Schritte waren es am Tag mit der Stadtbesichtigung?",
+      "judgments": {
+        "m-j-steps-high": 3,
+        "m-j-steps-low": 0
+      }
+    },
+    {
+      "id": "mqe-num-02",
+      "index": "main",
+      "lang": "de",
+      "category": "numeric",
+      "text": "Wie viele Stunden war ich am Schreibtisch?",
+      "judgments": {
+        "m-j-desk": 3,
+        "m-hip-tight": 1,
+        "m-j-steps-low": 1
+      }
+    },
+    {
+      "id": "mqe-num-03",
+      "index": "main",
+      "lang": "de",
+      "category": "numeric",
+      "text": "Ab wie vielen Schritten ist die Einschlafzeit kürzer?",
+      "judgments": {
+        "m-hyp-steps": 3,
+        "m-j-steps-high": 1
+      }
+    },
+    {
+      "id": "mqe-num-04",
+      "index": "main",
+      "lang": "de",
+      "category": "numeric",
+      "text": "An welchem Tag war der Kaffee beim Kunden am Nachmittag?",
+      "judgments": {
+        "m-j-caf-03": 3,
+        "m-j-caf-04": 0
+      }
+    },
+    {
+      "id": "mqe-num-05",
+      "index": "main",
+      "lang": "de",
+      "category": "numeric",
+      "text": "Wie viele Espresso waren es nach dem Mittagessen?",
+      "judgments": {
+        "m-j-caf-04": 3,
+        "m-j-caf-03": 0
+      }
+    },
+    {
+      "id": "mqe-num-06",
+      "index": "main",
+      "lang": "de",
+      "category": "numeric",
+      "text": "Wie viele Schläge über normal lag der Ruhepuls beim Kratzen im Hals?",
+      "judgments": {
+        "m-j-cold-start": 3,
+        "m-hrv-cold-drop": 1
+      }
+    },
+    {
+      "id": "mqe-num-07",
+      "index": "main",
+      "lang": "de",
+      "category": "numeric",
+      "text": "Wie viele Minuten Atemübung waren es vor dem Schlafen?",
+      "judgments": {
+        "m-j-breathwork": 3,
+        "m-sleep-onset-slow": 1
+      }
+    },
+    {
+      "id": "mqe-num-08",
+      "index": "main",
+      "lang": "de",
+      "category": "numeric",
+      "text": "Über wie viele Tage läuft die Hypothese zu den Krafteinheiten?",
+      "judgments": {
+        "m-hyp-strength": 3,
+        "m-hyp-steps": 0
+      }
+    },
+    {
+      "id": "mqe-num-09",
+      "index": "main",
+      "lang": "de",
+      "category": "numeric",
+      "text": "Auf welchem Gewicht stehe ich laut dem Gespräch?",
+      "judgments": {
+        "m-msg-weight1": 3,
+        "m-weight-new": 2,
+        "m-weight-old": 0
+      }
+    },
+    {
+      "id": "mqe-num-10",
+      "index": "main",
+      "lang": "de",
+      "category": "numeric",
+      "text": "Welche Halbmarathonzeit habe ich als Frage in den Raum gestellt?",
+      "judgments": {
+        "m-msg-race2": 3,
+        "m-race-half-goal": 2,
+        "m-race-half-old-goal": 0
+      }
+    },
+    {
+      "id": "mqe-rec-01",
+      "index": "main",
+      "lang": "de",
+      "category": "recency",
+      "text": "Habe ich gestern Alkohol getrunken?",
+      "judgments": {
+        "m-j-alc-01": 3,
+        "m-j-alc-02": 0,
+        "m-j-alc-03": 0
+      }
+    },
+    {
+      "id": "mqe-rec-02",
+      "index": "main",
+      "lang": "de",
+      "category": "recency",
+      "text": "Habe ich zuletzt gedehnt?",
+      "judgments": {
+        "m-j-stretch-01": 3,
+        "m-j-stretch-02": 0,
+        "m-j-stretch-03": 0
+      }
+    },
+    {
+      "id": "mqe-rec-03",
+      "index": "main",
+      "lang": "de",
+      "category": "recency",
+      "text": "Hatte ich zuletzt noch Koffein nach vierzehn Uhr?",
+      "judgments": {
+        "m-j-caf-01": 3,
+        "m-j-caf-02": 0
+      }
+    },
+    {
+      "id": "mqe-rec-04",
+      "index": "main",
+      "lang": "de",
+      "category": "recency",
+      "text": "War ich zuletzt lange genug draußen?",
+      "judgments": {
+        "m-j-out-01": 3,
+        "m-j-out-02": 0
+      }
+    },
+    {
+      "id": "mqe-rec-05",
+      "index": "main",
+      "lang": "de",
+      "category": "recency",
+      "text": "Habe ich das Handy abends zuletzt weggelegt?",
+      "judgments": {
+        "m-j-screen-01": 3,
+        "m-j-screen-02": 0,
+        "m-sleep-screens": 1
+      }
+    },
+    {
+      "id": "mqe-rec-06",
+      "index": "main",
+      "lang": "de",
+      "category": "recency",
+      "text": "Wie war die letzte Nacht?",
+      "judgments": {
+        "m-j-goodnight": 3,
+        "m-j-earlywake": 0,
+        "m-sleep-j1": 1,
+        "m-sleep-wake-3am": 0
+      }
+    },
+    {
+      "id": "mqe-rec-07",
+      "index": "main",
+      "lang": "de",
+      "category": "recency",
+      "text": "Hat sich die Stimmung inzwischen gebessert?",
+      "judgments": {
+        "m-j-mood-01": 3,
+        "m-j-mood-02": 0,
+        "m-j-goodnight": 1
+      }
+    },
+    {
+      "id": "mqe-rec-08",
+      "index": "main",
+      "lang": "de",
+      "category": "recency",
+      "text": "Ist die Erkältung inzwischen durch?",
+      "judgments": {
+        "m-j-cold-end": 3,
+        "m-j-cold-mid": 0,
+        "m-j-cold-start": 0
+      }
+    },
+    {
+      "id": "mqe-nm-01",
+      "index": "main",
+      "lang": "de",
+      "category": "near-miss",
+      "text": "An welchem Alkoholtag war die Variabilität am Morgen niedrig?",
+      "judgments": {
+        "m-j-alc-03": 3,
+        "m-hrv-alcohol-drop": 2,
+        "m-j-alc-02": 0,
+        "m-j-alc-05": 0
+      }
+    },
+    {
+      "id": "mqe-nm-02",
+      "index": "main",
+      "lang": "de",
+      "category": "near-miss",
+      "text": "Welcher Kaffeetag hat den Schlaf gekostet?",
+      "judgments": {
+        "m-j-caf-03": 3,
+        "m-j-caf-04": 0
+      }
+    },
+    {
+      "id": "mqe-nm-03",
+      "index": "main",
+      "lang": "de",
+      "category": "near-miss",
+      "text": "Welcher Espresso-Nachmittag war überraschend unproblematisch?",
+      "judgments": {
+        "m-j-caf-04": 3,
+        "m-j-caf-03": 0
+      }
+    },
+    {
+      "id": "mqe-nm-04",
+      "index": "main",
+      "lang": "de",
+      "category": "near-miss",
+      "text": "Nach welchem Ereignis waren die Waden hart wie Holz?",
+      "judgments": {
+        "m-j-soreness-02": 3,
+        "m-j-soreness-01": 0
+      }
+    },
+    {
+      "id": "mqe-nm-05",
+      "index": "main",
+      "lang": "de",
+      "category": "near-miss",
+      "text": "Welche Maßnahme hat den Nachtpuls erhöht?",
+      "judgments": {
+        "m-j-sauna": 3,
+        "m-hyp-sauna": 2,
+        "m-j-cold-shower": 0,
+        "m-j-massage": 0
+      }
+    },
+    {
+      "id": "mqe-nm-06",
+      "index": "main",
+      "lang": "de",
+      "category": "near-miss",
+      "text": "An welchem Tag war die Stimmung gut, obwohl der Schlaf mäßig war?",
+      "judgments": {
+        "m-j-mood-01": 3,
+        "m-j-mood-02": 0
+      }
+    },
+    {
+      "id": "mqe-nm-07",
+      "index": "main",
+      "lang": "de",
+      "category": "near-miss",
+      "text": "Welcher Vorschlag wurde erst abgelehnt und dann doch angenommen?",
+      "judgments": {
+        "m-fb-swap-weekend": 3,
+        "m-fb-longrun-move": 1,
+        "m-fb-swim": 0
+      }
+    },
+    {
+      "id": "mqe-nm-08",
+      "index": "main",
+      "lang": "de",
+      "category": "near-miss",
+      "text": "Welcher komplette Ruhetag wurde als hilfreich bewertet?",
+      "judgments": {
+        "m-fb-restday": 3,
+        "m-fb-strides": 0
+      }
+    },
+    {
+      "id": "mqe-nm-09",
+      "index": "main",
+      "lang": "de",
+      "category": "near-miss",
+      "text": "Welche Hypothese betrifft den Tiefschlafanteil?",
+      "judgments": {
+        "m-hyp-screens": 3,
+        "m-sleep-late-meal": 2,
+        "m-hyp-steps": 0
+      }
+    },
+    {
+      "id": "mqe-nm-10",
+      "index": "main",
+      "lang": "de",
+      "category": "near-miss",
+      "text": "Welche Hypothese betrifft Knieschmerzen?",
+      "judgments": {
+        "m-hyp-strength": 3,
+        "m-hyp-screens": 0,
+        "m-hyp-sauna": 0
+      }
+    },
+    {
+      "id": "mqe-ter-01",
+      "index": "main",
+      "lang": "de",
+      "category": "terse",
+      "text": "Alkohol gestern",
+      "judgments": {
+        "m-j-alc-01": 3,
+        "m-j-alc-02": 0
+      }
+    },
+    {
+      "id": "mqe-ter-02",
+      "index": "main",
+      "lang": "de",
+      "category": "terse",
+      "text": "Schritte Bürotag",
+      "judgments": {
+        "m-j-steps-low": 3,
+        "m-j-steps-high": 0
+      }
+    },
+    {
+      "id": "mqe-ter-03",
+      "index": "main",
+      "lang": "de",
+      "category": "terse",
+      "text": "Sauna",
+      "judgments": {
+        "m-j-sauna": 3,
+        "m-hyp-sauna": 2
+      }
+    },
+    {
+      "id": "mqe-ter-04",
+      "index": "main",
+      "lang": "de",
+      "category": "terse",
+      "text": "Atemübung",
+      "judgments": {
+        "m-j-breathwork": 3
+      }
+    },
+    {
+      "id": "mqe-ter-05",
+      "index": "main",
+      "lang": "de",
+      "category": "terse",
+      "text": "Muskelkater",
+      "judgments": {
+        "m-j-soreness-01": 3,
+        "m-j-soreness-02": 1
+      }
+    },
+    {
+      "id": "mqe-ter-06",
+      "index": "main",
+      "lang": "de",
+      "category": "terse",
+      "text": "Erkältung März",
+      "judgments": {
+        "m-j-cold-mid": 3,
+        "m-j-cold-start": 2,
+        "m-j-cold-end": 2
+      }
+    },
+    {
+      "id": "mqe-ter-07",
+      "index": "main",
+      "lang": "de",
+      "category": "terse",
+      "text": "Kopfschmerzen",
+      "judgments": {
+        "m-j-headache": 3,
+        "m-d-hydration": 2
+      }
+    },
+    {
+      "id": "mqe-ter-08",
+      "index": "main",
+      "lang": "de",
+      "category": "terse",
+      "text": "Heuschnupfen",
+      "judgments": {
+        "m-j-allergy": 3,
+        "m-d-run-08": 0
+      }
+    },
+    {
+      "id": "mqe-x-01",
+      "index": "main",
+      "lang": "de",
+      "category": "crosslingual",
+      "text": "Wie lange war der Spaziergang an der Uferpromenade?",
+      "judgments": {
+        "m-en-j-walk": 3
+      }
+    },
+    {
+      "id": "mqe-x-02",
+      "index": "main",
+      "lang": "de",
+      "category": "crosslingual",
+      "text": "Habe ich am 2026-07-09 trainiert?",
+      "judgments": {
+        "m-en-j-gym": 3
+      }
+    },
+    {
+      "id": "mqe-x-03",
+      "index": "main",
+      "lang": "en",
+      "category": "crosslingual",
+      "text": "Which day did I skip stretching?",
+      "judgments": {
+        "m-j-stretch-02": 3,
+        "m-j-stretch-01": 0
+      }
+    },
+    {
+      "id": "mqe-x-04",
+      "index": "main",
+      "lang": "en",
+      "category": "crosslingual",
+      "text": "What did the sauna do to my heart rate that night?",
+      "judgments": {
+        "m-j-sauna": 3,
+        "m-hyp-sauna": 2
+      }
+    },
+    {
+      "id": "mqe-un-01",
+      "index": "main",
+      "lang": "de",
+      "category": "unanswerable",
+      "text": "Wie hoch ist meine VO2max?",
+      "judgments": {}
+    },
+    {
+      "id": "mqe-un-02",
+      "index": "main",
+      "lang": "de",
+      "category": "unanswerable",
+      "text": "Wann läuft mein Fitnessstudio-Vertrag aus?",
+      "judgments": {}
+    },
+    {
+      "id": "mqe-un-03",
+      "index": "main",
+      "lang": "de",
+      "category": "unanswerable",
+      "text": "Was kostet eine Sportmassage bei mir?",
+      "judgments": {}
+    },
+    {
+      "id": "mqe-un-04",
+      "index": "main",
+      "lang": "en",
+      "category": "unanswerable",
+      "text": "What is my best bench press?",
+      "judgments": {}
+    },
+    {
+      "id": "mqe-un-05",
+      "index": "main",
+      "lang": "de",
+      "category": "unanswerable",
+      "text": "Welche verschreibungspflichtigen Medikamente nehme ich?",
+      "judgments": {}
+    },
+    {
+      "id": "mqe-un-06",
+      "index": "main",
+      "lang": "de",
+      "category": "unanswerable",
+      "text": "Wie war meine Zeit beim letzten Halbmarathon?",
+      "judgments": {}
+    }
+  ]
+}
