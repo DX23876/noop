@@ -908,6 +908,31 @@ object IntelligenceEngine {
                         "rmssd40=${ms(hDd.rmssd)}ms sdnn40=${ms(hDd.sdnn)}ms meanNN40=${ms(hDd.meanNN)}ms " +
                         "| xsecN=${xs.second.size} covXsec=${String.format(java.util.Locale.US, "%.2f", covXs)} " +
                         "beatAccXsec=${String.format(java.util.Locale.US, "%.2f", accXs)} (1s upper bound)")
+                    // #1118 sweep: the same-second collapse at a range of tolerances, so a capture shows
+                    // WHICH tolerance the over-count actually responds to instead of only the one 40 ms
+                    // point. 34 ms is the two-optical-channel twin spacing; 0 is exact-duplicates-only.
+                    // The 0 and 40 points are NOT recomputed: `ex` and `dd` above ARE those collapses
+                    // (collapseOverCount's default tolerance is 40), and each collapse sorts the night's
+                    // intervals — ~50k on an over-count night. Reusing them keeps the sweep to three extra
+                    // passes instead of five on a block that runs for EVERY night of an affected strap.
+                    val accEx = HrvAnalyzer.beatAccurateFraction(ex.first, ex.second)
+                    fun sweepPoint(tol: Int): Pair<Double, Double> {
+                        val c = HrvAnalyzer.collapseOverCount(ts, sleepRr, tol.toDouble())
+                        return HrvAnalyzer.rrCoverage(c.first, c.second) to
+                            HrvAnalyzer.beatAccurateFraction(c.first, c.second)
+                    }
+                    val p20 = sweepPoint(20)
+                    val p34 = sweepPoint(34)
+                    val p60 = sweepPoint(60)
+                    val sweep = listOf(
+                        Triple(0, covEx, accEx), Triple(20, p20.first, p20.second),
+                        Triple(34, p34.first, p34.second), Triple(40, covDd, accDd),
+                        Triple(60, p60.first, p60.second),
+                    ).joinToString(" ") { (tol, cov, acc) ->
+                        "t$tol=${String.format(java.util.Locale.US, "%.2f", cov)}/" +
+                            String.format(java.util.Locale.US, "%.2f", acc)
+                    }
+                    dayDiag("hrv sweep day=${res.daily.day} n=${sleepRr.size} cov/acc by same-second tol: $sweep")
                 }
             } else if (res.sleepSessions.isEmpty()) {
                 // #1244: no in-sleep R-R AND no detected session (past the >=200-HR gate) = the "HR tracked,

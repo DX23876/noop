@@ -1110,6 +1110,30 @@ final class IntelligenceEngine: ObservableObject {
                             + "rmssd40=\(ms(hDd.rmssd))ms sdnn40=\(ms(hDd.sdnn))ms meanNN40=\(ms(hDd.meanNN))ms "
                             + "| xsecN=\(xs.rrMs.count) covXsec=\(String(format: "%.2f", covXs)) "
                             + "beatAccXsec=\(String(format: "%.2f", accXs)) (1s upper bound)"
+                        // #1118 sweep: the same-second collapse at a range of tolerances, so a capture shows
+                        // WHICH tolerance the over-count actually responds to instead of only the one 40 ms
+                        // point. 34 ms is the two-optical-channel twin spacing; 0 is exact-duplicates-only.
+                        // The 0 and 40 points are NOT recomputed: `ex` and `dd` above ARE those collapses
+                        // (`collapseOverCount`'s default tolerance is 40), and each collapse sorts the night's
+                        // intervals — ~50k on an over-count night. Reusing them keeps the sweep to three extra
+                        // passes instead of five on a block that runs for EVERY night of an affected strap,
+                        // inside the per-day rescore loop #836 already had to slim down. Twin of Kotlin.
+                        let accEx = HRVAnalyzer.beatAccurateFraction(tsSec: ex.tsSec, rrMs: ex.rrMs)
+                        func sweepPoint(_ tol: Int) -> (cov: Double, acc: Double) {
+                            let c = HRVAnalyzer.collapseOverCount(tsSec: ts, rrMs: sleepRr, rrTolMs: Double(tol))
+                            return (HRVAnalyzer.rrCoverage(tsSec: c.tsSec, rrMs: c.rrMs),
+                                    HRVAnalyzer.beatAccurateFraction(tsSec: c.tsSec, rrMs: c.rrMs))
+                        }
+                        let p20 = sweepPoint(20), p34 = sweepPoint(34), p60 = sweepPoint(60)
+                        let points: [(tol: Int, cov: Double, acc: Double)] = [
+                            (0, covEx, accEx), (20, p20.cov, p20.acc), (34, p34.cov, p34.acc),
+                            (40, covDd, accDd), (60, p60.cov, p60.acc),
+                        ]
+                        let sweep = points.map { p -> String in
+                            "t\(p.tol)=\(String(format: "%.2f", p.cov))/\(String(format: "%.2f", p.acc))"
+                        }.joined(separator: " ")
+                        diagLine += "\nhrv sweep day=\(res.daily.day) n=\(sleepRr.count) "
+                            + "cov/acc by same-second tol: \(sweep)"
                     }
                     hrvDiag = diagLine
                     // #1118: flag this night's HRV as over-counted (same verdict the diag logs) so the
