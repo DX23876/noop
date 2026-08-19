@@ -23,6 +23,9 @@ struct SelectionCandidate {
     let vector: [Float]
     /// Share of the query's IDF mass this source matches by exact token. 0 when the lexical arm never saw it.
     var lexicalMass: Double = 0
+    /// A cross-encoder's relevance score, when a reranking stage ran. Kept beside the cosine rather than
+    /// overwriting it so a rerank row can still be read against the embedding order it replaced.
+    var rerankScore: Double?
 }
 
 struct SelectionConfig {
@@ -50,6 +53,9 @@ struct SelectionConfig {
     var quotas = false
     /// λ for maximal-marginal-relevance diversification; `nil` disables it.
     var mmrLambda: Double?
+    /// Score on the reranker's scale instead of the embedding cosine. Only the base term changes; every policy
+    /// above it — floor, quotas, MMR — is the same code, so a rerank row isolates the relevance model.
+    var usesRerankScore = false
 }
 
 // MARK: - Named variants
@@ -164,7 +170,7 @@ let maximumDocumentPriority = 120.0
 /// scores off that scale and the floor would have to be re-calibrated per variant — which would make the
 /// ablation table incomparable, the same way a re-ordering lexical term made RRF incomparable.
 func score(_ candidate: SelectionCandidate, _ config: SelectionConfig) -> Double {
-    var value = candidate.cosine
+    var value = config.usesRerankScore ? (candidate.rerankScore ?? 0) : candidate.cosine
     if config.recencyWeight > 0, let halfLife = recencyHalfLifeDays(candidate.kind) {
         let decay = exp(-log(2.0) * max(0, candidate.ageDays) / halfLife)
         value *= (1 - config.recencyWeight) + config.recencyWeight * decay

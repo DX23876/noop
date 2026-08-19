@@ -197,6 +197,61 @@ raising the floor by 25% — visible above as `+floor` leaking 0.33 lines with t
 
 ---
 
+## CORRECTION: the numbers below were measured in a broken mode
+
+Everything in the two sections that follow was measured with all ten locales in one index, and that mode
+does not measure what it claims to. The corpus was built by translating one set of scenarios into ten
+languages, so **every query has nine semantically correct answers that the judgments grade 0.** Measured
+directly: for the German `Wie hoch war mein Ferritin am 2026-03-14?`, jina-reranker-v2 scored the Spanish
+(+2.15), French (+2.12) and Italian (+2.10) versions of the same fact ABOVE the German one (+2.00). The
+reranker was right; the judgments were wrong.
+
+That artifact does not fall evenly. An embedder gets a free language cue — same-language text sits closer
+in the space — while a multilingual cross-encoder deliberately erases exactly that cue, so the mixed mode
+was largely measuring *how well a model separates languages* rather than how well it retrieves. A real
+index holds one person's memories in the language or two they write in, never nine translations of their
+own notes, so `score` now restricts candidates to the query's own language by default
+(`--mixed-language-index` keeps the old behaviour).
+
+Corrected, per-language, same corpus and same pinned runtime:
+
+| Model | Dims | semantic-only | +IDF rescue | +recency | RERANK@16 | Oracle K=32 |
+|---|---|---|---|---|---|---|
+| nomic-embed-text-v2-moe (shipped) | 256 | 0.837 | 0.837 | 0.845 | **0.876** | 0.996 |
+| google/embeddinggemma-300m | 256 | 0.852 | 0.858 | 0.851 | 0.870 | 0.999 |
+| microsoft/harrier-oss-v1-0.6b | 1024 | **0.873** | 0.873 | 0.858 | 0.868 | 1.000 |
+
+What changes, and it is most of the story:
+
+- **The model gap collapses from +0.239 to +0.036.** The shipped model is 0.837 against harrier's 0.873, not
+  0.611 against 0.850. Paying 4× index bytes and +69 MB of bundle for +0.036 is a very different proposition
+  from paying it for +0.239.
+- **A reranker helps, and the earlier argument against it was wrong.** The oracle ceiling at K=32 is
+  0.996–1.000, so recall is essentially perfect and ranking is the entire bottleneck — the opposite of the
+  "not enough headroom" reasoning this file used to carry. Measured, jina-reranker-v2-base-multilingual Q8_0
+  adds +0.039 to Nomic, +0.018 to EmbeddingGemma and −0.005 to harrier: it compensates for a weaker first
+  stage and has nothing to add to a strong one.
+- **The three best configurations are indistinguishable**: Nomic + reranker 0.876, harrier alone 0.873,
+  EmbeddingGemma + reranker 0.870. On 242 queries those are the same number.
+- **The floor is still the one change with a large, unambiguous effect.** With it, EmbeddingGemma emits 0.03
+  lines for a question nothing answers instead of 8.00, and P@8 rises from 0.166 to 0.591, for 0.055 nDCG.
+
+Reranker cost, for the record: p50 67–87 ms and p95 94–120 ms for 15–20 pairs, on a Mac with Metal. A phone
+should be assumed two to four times slower, against a 2.5-second budget the embedder already loses.
+
+### And the corpus itself is the next thing to fix
+
+Neither mode is realistic, which is the deeper finding. Mixed-language poisons the judgments; per-language
+leaves roughly 25 documents per query's language, so the retrieval problem becomes far easier than a real
+index of thousands of notes. The ten-locale spread bought locale coverage at the cost of index realism.
+
+The shape to build instead: **one large single-language index** — 400+ documents with many near-miss
+distractors — for every ranking and reranking measurement, plus the existing small per-locale sets used only
+to answer "does this model work in this language at all". Until that exists, treat every absolute number
+here as soft, and only compare rows measured in the same mode.
+
+---
+
 ## The model comparison
 
 Same corpus, same selection, same `llama-embedding` build, same truncate-renormalise-Float16 path. The

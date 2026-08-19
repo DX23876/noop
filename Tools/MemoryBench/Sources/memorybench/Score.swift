@@ -42,7 +42,9 @@ func runScore(corpus: Corpus,
               floors: [Double],
               candidateCeiling: Int = 128,
               now: Date = Date(),
-              quiet: Bool = false) async throws -> [VariantReport] {
+              quiet: Bool = false,
+              rerank: RerankClient? = nil,
+              mixedLanguageIndex: Bool = false) async throws -> [VariantReport] {
     let store = try SemanticIndexStore(inMemory: true)
     let documentsByID = corpus.documentsByID
 
@@ -119,7 +121,25 @@ func runScore(corpus: Corpus,
         let candidates = hits.compactMap { hit in
             candidateSkeleton(chunk: chunkID(hit.sourceID, hit.chunkIndex), cosine: hit.score)
         }
-        semanticByQuery[query.id] = candidates
+        // A real index holds ONE person's memories, in the language or two they write in — not nine
+        // translations of their own notes. This corpus has them, because ten locales were built by
+        // translating one set of scenarios, so every query has nine semantically correct answers graded 0.
+        //
+        // That artifact punishes a language-agnostic reranker far harder than an embedder: the embedder gets
+        // a free language cue (same-language text sits closer in the space), while a multilingual
+        // cross-encoder deliberately erases exactly that cue. Measured directly — for the German
+        // `Wie hoch war mein Ferritin am 2026-03-14?`, jina-reranker-v2 scored the Spanish (+2.15), French
+        // (+2.12) and Italian (+2.10) versions of the same fact ABOVE the German one (+2.00). It was right;
+        // the judgments were the thing that was wrong.
+        //
+        // So by default the candidate set is restricted to the query's own language, plus any language its
+        // judgments deliberately reach into (the crosslingual cases). `--mixed-language-index` keeps the old
+        // behaviour for comparison.
+        let judgedLanguages = Set(query.judgments.keys.compactMap { documentsByID[$0]?.lang })
+        let allowedLanguages = judgedLanguages.union([query.lang])
+        semanticByQuery[query.id] = mixedLanguageIndex
+            ? candidates
+            : candidates.filter { allowedLanguages.contains(documentsByID[$0.sourceID]?.lang ?? "") }
         // Floor calibration inputs: the cosine of a genuinely relevant hit, versus the best cosine a query
         // with nothing relevant produces. A threshold has to come out of these two distributions; guessing
         // one costs recall on the first and buys nothing on the second.
@@ -163,6 +183,95 @@ func runScore(corpus: Corpus,
                                        availableRelevant: available))
         }
         reports.append(report(name: config.name, results: results, countsUnderruns: config.floor == nil))
+    }
+
+    // The reranker ceilings. Not variants of the pipeline — they cheat, by construction — but the bound on
+    // what any reranking stage plugged in at that candidate depth could achieve. `K=32` is the depth the app
+    // searches today, so its row is the one that prices a cross-encoder for the shipped configuration.
+    for depth in [32, candidateCeiling] {
+        for padded in [true, false] {
+            var results: [QueryResult] = []
+            for query in corpus.queries {
+                let candidates = Array((semanticByQuery[query.id] ?? []).prefix(depth))
+                let ranked = padded
+                    ? RerankOracle.rank(candidates: candidates, judgments: query.judgments)
+                    : RerankOracle.rankWithoutPadding(candidates: candidates, judgments: query.judgments)
+                results.append(QueryResult(query: query,
+                                           ranked: ranked,
+                                           groups: ranked.compactMap { documentsByID[$0]?.diversityGroup },
+                                           availableRelevant: query.judgments.values.filter { $0 > 0 }.count))
+            }
+            reports.append(report(name: "ORACLE ceiling K=\(depth)\(padded ? "" : ", no padding")",
+                                  results: results,
+                                  countsUnderruns: false))
+        }
+    }
+
+    // MARK: the reranking stage, when a server was provided
+    //
+    // Only the best chunk per source is scored. The context holds one line per source, so paying a
+    // cross-encoder forward pass to reorder two chunks of the same conversation buys nothing — and a
+    // reranker's whole problem is that its passes are expensive.
+    //
+    // The floor is deliberately dropped for these rows: a rerank score is not a cosine, and carrying the
+    // cosine-calibrated threshold onto a different scale would measure a mistake instead of a model. Its own
+    // thresholds are swept separately below, because "does the relevance model know when nothing matches"
+    // is a fair question to ask of it and one it could plausibly answer better than a threshold can.
+    if let rerank {
+        var cost = RerankCost()
+        for depth in [16, 32] {
+            var scored: [String: [SelectionCandidate]] = [:]
+            for query in corpus.queries {
+                var bestPerSource: [String: SelectionCandidate] = [:]
+                for candidate in semanticByQuery[query.id] ?? [] {
+                    if let existing = bestPerSource[candidate.sourceID],
+                       existing.cosine >= candidate.cosine { continue }
+                    bestPerSource[candidate.sourceID] = candidate
+                }
+                let shortlist = Array(bestPerSource.values
+                    .sorted { $0.cosine > $1.cosine }
+                    .prefix(depth))
+                let texts = shortlist.compactMap { chunkTexts[$0.documentID] }
+                guard texts.count == shortlist.count else {
+                    throw VectorError.missing("chunk text for a rerank candidate")
+                }
+                let startedAt = DispatchTime.now().uptimeNanoseconds
+                let relevance = try await rerank.scores(query: query.text, documents: texts)
+                cost.record(milliseconds: Double(DispatchTime.now().uptimeNanoseconds - startedAt) / 1_000_000,
+                            pairs: texts.count)
+                // The rerank score replaces the cosine, so the SAME selection policy runs on top of it and the
+                // comparison isolates the relevance model rather than the policy.
+                scored[query.id] = zip(shortlist, relevance).map { candidate, score in
+                    var rescored = candidate
+                    rescored.rerankScore = score
+                    return rescored
+                }
+            }
+            // Thresholds on the RERANKER's scale, which is a logit and not a cosine: the sanity pair scored
+            // +1.77 for the right document and −3.58 for an off-topic one. Zero is the natural decision
+            // boundary, so that and one notch above it are the two worth trying.
+            for threshold in [nil, 0.0, 1.0] as [Double?] {
+                var config = SelectionConfig.recommended(floor: threshold)
+                config.recencyWeight = 0
+                config.idfBonus = 0
+                config.usesRerankScore = true
+                config.name = threshold == nil
+                    ? "RERANK@\(depth)"
+                    : "RERANK@\(depth), logit ≥ \(String(format: "%.1f", threshold!))"
+                var results: [QueryResult] = []
+                for query in corpus.queries {
+                    let ranked = select(semantic: scored[query.id] ?? [], lexical: [], config: config)
+                    results.append(QueryResult(query: query,
+                                               ranked: ranked,
+                                               groups: ranked.compactMap { documentsByID[$0]?.diversityGroup },
+                                               availableRelevant: query.judgments.values.filter { $0 > 0 }.count))
+                }
+                reports.append(report(name: config.name, results: results, countsUnderruns: threshold == nil))
+            }
+        }
+        if !quiet {
+            print("\nrerank cost: \(cost.summary)")
+        }
     }
 
     if !quiet {

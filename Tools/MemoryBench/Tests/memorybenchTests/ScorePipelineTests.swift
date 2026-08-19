@@ -38,7 +38,13 @@ final class ScorePipelineTests: XCTestCase {
 
     func testTheWholeLadderRunsAndEveryVariantIsScored() async throws {
         let reports = try await ladder(floors: [0.30])
-        XCTAssertEqual(reports.count, SelectionConfig.ladder(floor: 0.30).count)
+        // Every ladder step must appear by name, and so must the oracle ceilings. A bare count would pass
+        // just as happily if a variant vanished and a ceiling took its place.
+        for config in SelectionConfig.ladder(floor: 0.30) {
+            XCTAssertTrue(reports.contains { $0.name == config.name }, "\(config.name) is missing")
+        }
+        XCTAssertEqual(reports.filter { $0.name.hasPrefix("ORACLE") }.count, 4,
+                       "two candidate depths, padded and unpadded")
         for report in reports {
             XCTAssertNotNil(report.ndcg, "\(report.name) scored no query at all")
             // Every variant must cover the SAME set of scoreable queries. A variant that improves its mean
@@ -52,8 +58,12 @@ final class ScorePipelineTests: XCTestCase {
     func testWithoutAFloorIrrelevantQuestionsStillGetAFullContext() async throws {
         let reports = try await ladder(floors: [0.30])
         let today = try XCTUnwrap(reports.first { $0.name == SelectionConfig.today.name })
-        XCTAssertEqual(today.irrelevantLines, Double(contextSlots), accuracy: 0.001,
-                       "today's pipeline emits a full context for a question with no answer")
+        // Essentially a full context rather than exactly eight lines: with the candidate set restricted to the
+        // query's own language, a few `irrelevant` queries simply have fewer than eight documents in their
+        // language to pad with. The point stands — the pipeline fills every slot it can for a question nothing
+        // answers, because it has no notion of "nothing here is relevant".
+        XCTAssertGreaterThan(today.irrelevantLines, Double(contextSlots) - 0.5,
+                             "today's pipeline pads a question with no answer up to a full context")
 
         let floored = try XCTUnwrap(reports.first { $0.name.contains("floor") })
         XCTAssertLessThan(floored.irrelevantLines, today.irrelevantLines)

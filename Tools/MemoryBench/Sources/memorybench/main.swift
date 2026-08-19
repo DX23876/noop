@@ -31,6 +31,12 @@ usage: memorybench <score|embed|models|lint> [options]
          Replays the shipped index + fusion and every proposed variant. Deterministic.
          --synthetic replaces the vectors with hashed token bags: it exercises the whole
          pipeline with no model, and is NOT a measurement of any model.
+         --rerank-server <url> adds cross-encoder rerank rows, scored through llama.cpp's
+         own /rerank endpoint. Opt-in on purpose: without it `score` needs no network and
+         stays deterministic, which is what lets CI run it.
+         --mixed-language-index searches all ten locales at once. The default restricts
+         candidates to the query's own language, because a real index holds one person's
+         memories rather than nine translations of them — see Score.swift.
 
   embed  --corpus <dir> --contract <id> --model <gguf> --llama-embedding <bin> --out <dir>
          [--batch 32] [--dimensions N] [--separator <string>] [-- <extra llama-embedding args>]
@@ -62,6 +68,9 @@ var separator = "\u{1}"
 var passthrough: [String] = []
 var synthetic = false
 var dimensionOverride: Int?
+var rerankServer = ""
+var rerankTop = 32
+var mixedLanguageIndex = false
 
 var iterator = arguments.makeIterator()
 while let key = iterator.next() {
@@ -77,6 +86,9 @@ while let key = iterator.next() {
     case "--candidates": candidates = Int(iterator.next() ?? "") ?? candidates
     case "--synthetic": synthetic = true
     case "--dimensions": dimensionOverride = Int(iterator.next() ?? "")
+    case "--rerank-server": rerankServer = iterator.next() ?? ""
+    case "--rerank-top": rerankTop = Int(iterator.next() ?? "") ?? rerankTop
+    case "--mixed-language-index": mixedLanguageIndex = true
     case "--floor":
         floors = (iterator.next() ?? "").split(separator: ",").compactMap { Double($0) }
     case "--":
@@ -194,10 +206,21 @@ case .score:
         } else {
             vectors = try VectorSet.read(directory: URL(fileURLWithPath: vectorsPath))
         }
+        var client: RerankClient?
+        if !rerankServer.isEmpty {
+            guard let url = URL(string: rerankServer) else { fail("--rerank-server is not a URL") }
+            let candidate = RerankClient(baseURL: url, topCandidates: rerankTop)
+            // Checked once, up front: 242 queries each timing out against a server that is not there is a
+            // twenty-minute way to learn something a single request settles.
+            try await candidate.checkReachable()
+            client = candidate
+        }
         _ = try await runScore(corpus: corpus,
                                vectors: vectors,
                                floors: floors,
-                               candidateCeiling: candidates)
+                               candidateCeiling: candidates,
+                               rerank: client,
+                               mixedLanguageIndex: mixedLanguageIndex)
     } catch {
         fail(error.localizedDescription)
     }
