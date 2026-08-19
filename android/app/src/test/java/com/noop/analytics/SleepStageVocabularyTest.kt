@@ -35,6 +35,8 @@ class SleepStageVocabularyTest {
         assertTrue(SleepStageVocabulary.isWake("Awake"))
         assertTrue(SleepStageVocabulary.isWake("  WAKE "))
         assertTrue(SleepStageVocabulary.isWake("\tAwAkE"))
+        assertTrue(SleepStageVocabulary.isWake("\nwake\n"))
+        assertTrue(SleepStageVocabulary.isWake("\rawake\r"))
     }
 
     /**

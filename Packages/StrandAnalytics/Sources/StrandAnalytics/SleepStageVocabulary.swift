@@ -24,7 +24,7 @@ public enum SleepStageVocabulary {
     /// Use on a SEGMENT stage string. Minutes dictionaries are keyed `"awake"` by construction and do
     /// not need it.
     public static func isWake(_ stage: String) -> Bool {
-        let s = stage.trimmingCharacters(in: .whitespaces).lowercased()
+        let s = stage.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         return s == "wake" || s == "awake"
     }
 }
