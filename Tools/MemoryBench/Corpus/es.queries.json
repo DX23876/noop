@@ -1,234 +1,234 @@
 {
- "version": 1,
- "queries": [
-  {
-   "id": "es-q-mag",
-   "lang": "es",
-   "category": "paraphrase",
-   "text": "¿El Mg por la noche me sirve para la rutina de antes de dormir?",
-   "judgments": {
-    "es-mag": 2,
-    "es-goal": 1
-   }
-  },
-  {
-   "id": "es-q-mag2",
-   "lang": "es",
-   "category": "paraphrase",
-   "text": "¿Cuál era el suplemento que me ayudaba a coger el sueño?",
-   "judgments": {
-    "es-mag": 2,
-    "es-d3": 1
-   }
-  },
-  {
-   "id": "es-q-caf",
-   "lang": "es",
-   "category": "paraphrase",
-   "text": "¿Un café tardío me mantiene despierto por la noche?",
-   "judgments": {
-    "es-caf": 2,
-    "es-nap": 1
-   }
-  },
-  {
-   "id": "es-q-caf2",
-   "lang": "es",
-   "category": "paraphrase",
-   "text": "¿Qué me impide dormirme por la noche?",
-   "judgments": {
-    "es-caf": 2,
-    "es-nap": 2,
-    "es-mag": 1,
-    "es-stress": 1
-   }
-  },
-  {
-   "id": "es-q-bike",
-   "lang": "es",
-   "category": "paraphrase",
-   "text": "¿Qué sesión suave vino antes de una buena recuperación?",
-   "judgments": {
-    "es-bike": 2
-   }
-  },
-  {
-   "id": "es-q-weekend",
-   "lang": "es",
-   "category": "paraphrase",
-   "text": "¿Ponemos una carrera el sábado?",
-   "judgments": {
-    "es-weekend": 2
-   }
-  },
-  {
-   "id": "es-q-weekend2",
-   "lang": "es",
-   "category": "paraphrase",
-   "text": "¿Qué es lo que no quiero hacer el fin de semana?",
-   "judgments": {
-    "es-weekend": 2
-   }
-  },
-  {
-   "id": "es-q-alcohol",
-   "lang": "es",
-   "category": "paraphrase",
-   "text": "¿Beber afecta a lo descansado que estoy?",
-   "judgments": {
-    "es-alcohol": 2
-   }
-  },
-  {
-   "id": "es-q-cold",
-   "lang": "es",
-   "category": "paraphrase",
-   "text": "¿Qué habíamos decidido sobre entrenar estando enfermo?",
-   "judgments": {
-    "es-cold": 2
-   }
-  },
-  {
-   "id": "es-q-cold2",
-   "lang": "es",
-   "category": "paraphrase",
-   "text": "¿Qué valor debo mirar cuando estoy pillando algo?",
-   "judgments": {
-    "es-cold": 2
-   }
-  },
-  {
-   "id": "es-q-interval",
-   "lang": "es",
-   "category": "paraphrase",
-   "text": "¿Cómo reaccioné las últimas veces que propusiste series duras?",
-   "judgments": {
-    "es-interval": 2
-   }
-  },
-  {
-   "id": "es-q-cbd",
-   "lang": "es",
-   "category": "paraphrase",
-   "text": "¿Me salté el cannabidiol a finales de julio?",
-   "judgments": {
-    "es-cbd": 2
-   }
-  },
-  {
-   "id": "es-q-ferritin",
-   "lang": "es",
-   "category": "numeric",
-   "text": "¿Cuánta ferritina tenía el 2026-03-14?",
-   "judgments": {
-    "es-ferritin": 2
-   }
-  },
-  {
-   "id": "es-q-ferritin2",
-   "lang": "es",
-   "category": "numeric",
-   "text": "¿El 42 era el valor de ferritina?",
-   "judgments": {
-    "es-ferritin": 2
-   }
-  },
-  {
-   "id": "es-q-goal",
-   "lang": "es",
-   "category": "numeric",
-   "text": "¿Sigue siendo el objetivo apagar la luz antes de las 23:00?",
-   "judgments": {
-    "es-goal": 2
-   }
-  },
-  {
-   "id": "es-q-d3",
-   "lang": "es",
-   "category": "numeric",
-   "text": "¿Cuántas UI de vitamina D tomo?",
-   "judgments": {
-    "es-d3": 2
-   }
-  },
-  {
-   "id": "es-q-shoes",
-   "lang": "es",
-   "category": "numeric",
-   "text": "¿Cuándo compré las zapatillas nuevas?",
-   "judgments": {
-    "es-shoes": 2,
-    "es-knee-new": 1
-   }
-  },
-  {
-   "id": "es-q-knee",
-   "lang": "es",
-   "category": "recency",
-   "text": "¿Cómo va mi rodilla izquierda ahora mismo?",
-   "judgments": {
-    "es-knee-new": 2,
-    "es-knee-old": 0
-   }
-  },
-  {
-   "id": "es-q-knee2",
-   "lang": "es",
-   "category": "recency",
-   "text": "¿Sigo teniendo molestias de rodilla tras las series rápidas?",
-   "judgments": {
-    "es-knee-new": 2,
-    "es-knee-old": 0
-   }
-  },
-  {
-   "id": "es-q-freq",
-   "lang": "es",
-   "category": "recency",
-   "text": "¿Cuántas veces por semana entreno estos días?",
-   "judgments": {
-    "es-freq-new": 2,
-    "es-freq-old": 0
-   }
-  },
-  {
-   "id": "es-q-sleep",
-   "lang": "es",
-   "category": "paraphrase",
-   "text": "¿Por qué ha empeorado mi calidad de sueño últimamente?",
-   "judgments": {
-    "es-caf": 2,
-    "es-nap": 2,
-    "es-stress": 2,
-    "es-noise2": 1,
-    "es-noise4": 1
-   }
-  },
-  {
-   "id": "es-q-irr1",
-   "lang": "es",
-   "category": "unanswerable",
-   "text": "¿Qué tiempo va a hacer la semana que viene en Lisboa?",
-   "judgments": {
-    "es-noise5": 0,
-    "es-cold": 0
-   }
-  },
-  {
-   "id": "es-q-irr2",
-   "lang": "es",
-   "category": "unanswerable",
-   "text": "¿Cómo se cambia el filtro de aceite de un motor diésel?",
-   "judgments": {
-    "es-noise6": 0
-   }
-  },
-  {
-   "id": "es-q-irr3",
-   "lang": "es",
-   "category": "unanswerable",
-   "text": "¿Qué formulario necesito para una factura como autónomo?",
-   "judgments": {}
-  }
- ]
+  "version": 1,
+  "queries": [
+    {
+      "id": "es-q-mag",
+      "lang": "es",
+      "category": "paraphrase",
+      "text": "¿El Mg por la noche me sirve para la rutina de antes de dormir?",
+      "judgments": {
+        "es-mag": 3,
+        "es-goal": 1
+      }
+    },
+    {
+      "id": "es-q-mag2",
+      "lang": "es",
+      "category": "paraphrase",
+      "text": "¿Cuál era el suplemento que me ayudaba a coger el sueño?",
+      "judgments": {
+        "es-mag": 3,
+        "es-d3": 1
+      }
+    },
+    {
+      "id": "es-q-caf",
+      "lang": "es",
+      "category": "paraphrase",
+      "text": "¿Un café tardío me mantiene despierto por la noche?",
+      "judgments": {
+        "es-caf": 3,
+        "es-nap": 1
+      }
+    },
+    {
+      "id": "es-q-caf2",
+      "lang": "es",
+      "category": "paraphrase",
+      "text": "¿Qué me impide dormirme por la noche?",
+      "judgments": {
+        "es-caf": 2,
+        "es-nap": 2,
+        "es-mag": 1,
+        "es-stress": 1
+      }
+    },
+    {
+      "id": "es-q-bike",
+      "lang": "es",
+      "category": "paraphrase",
+      "text": "¿Qué sesión suave vino antes de una buena recuperación?",
+      "judgments": {
+        "es-bike": 3
+      }
+    },
+    {
+      "id": "es-q-weekend",
+      "lang": "es",
+      "category": "paraphrase",
+      "text": "¿Ponemos una carrera el sábado?",
+      "judgments": {
+        "es-weekend": 3
+      }
+    },
+    {
+      "id": "es-q-weekend2",
+      "lang": "es",
+      "category": "paraphrase",
+      "text": "¿Qué es lo que no quiero hacer el fin de semana?",
+      "judgments": {
+        "es-weekend": 3
+      }
+    },
+    {
+      "id": "es-q-alcohol",
+      "lang": "es",
+      "category": "paraphrase",
+      "text": "¿Beber afecta a lo descansado que estoy?",
+      "judgments": {
+        "es-alcohol": 3
+      }
+    },
+    {
+      "id": "es-q-cold",
+      "lang": "es",
+      "category": "paraphrase",
+      "text": "¿Qué habíamos decidido sobre entrenar estando enfermo?",
+      "judgments": {
+        "es-cold": 3
+      }
+    },
+    {
+      "id": "es-q-cold2",
+      "lang": "es",
+      "category": "paraphrase",
+      "text": "¿Qué valor debo mirar cuando estoy pillando algo?",
+      "judgments": {
+        "es-cold": 3
+      }
+    },
+    {
+      "id": "es-q-interval",
+      "lang": "es",
+      "category": "paraphrase",
+      "text": "¿Cómo reaccioné las últimas veces que propusiste series duras?",
+      "judgments": {
+        "es-interval": 3
+      }
+    },
+    {
+      "id": "es-q-cbd",
+      "lang": "es",
+      "category": "paraphrase",
+      "text": "¿Me salté el cannabidiol a finales de julio?",
+      "judgments": {
+        "es-cbd": 3
+      }
+    },
+    {
+      "id": "es-q-ferritin",
+      "lang": "es",
+      "category": "numeric",
+      "text": "¿Cuánta ferritina tenía el 2026-03-14?",
+      "judgments": {
+        "es-ferritin": 3
+      }
+    },
+    {
+      "id": "es-q-ferritin2",
+      "lang": "es",
+      "category": "numeric",
+      "text": "¿El 42 era el valor de ferritina?",
+      "judgments": {
+        "es-ferritin": 3
+      }
+    },
+    {
+      "id": "es-q-goal",
+      "lang": "es",
+      "category": "numeric",
+      "text": "¿Sigue siendo el objetivo apagar la luz antes de las 23:00?",
+      "judgments": {
+        "es-goal": 3
+      }
+    },
+    {
+      "id": "es-q-d3",
+      "lang": "es",
+      "category": "numeric",
+      "text": "¿Cuántas UI de vitamina D tomo?",
+      "judgments": {
+        "es-d3": 3
+      }
+    },
+    {
+      "id": "es-q-shoes",
+      "lang": "es",
+      "category": "numeric",
+      "text": "¿Cuándo compré las zapatillas nuevas?",
+      "judgments": {
+        "es-shoes": 3,
+        "es-knee-new": 1
+      }
+    },
+    {
+      "id": "es-q-knee",
+      "lang": "es",
+      "category": "recency",
+      "text": "¿Cómo va mi rodilla izquierda ahora mismo?",
+      "judgments": {
+        "es-knee-new": 3,
+        "es-knee-old": 0
+      }
+    },
+    {
+      "id": "es-q-knee2",
+      "lang": "es",
+      "category": "recency",
+      "text": "¿Sigo teniendo molestias de rodilla tras las series rápidas?",
+      "judgments": {
+        "es-knee-new": 3,
+        "es-knee-old": 0
+      }
+    },
+    {
+      "id": "es-q-freq",
+      "lang": "es",
+      "category": "recency",
+      "text": "¿Cuántas veces por semana entreno estos días?",
+      "judgments": {
+        "es-freq-new": 3,
+        "es-freq-old": 0
+      }
+    },
+    {
+      "id": "es-q-sleep",
+      "lang": "es",
+      "category": "paraphrase",
+      "text": "¿Por qué ha empeorado mi calidad de sueño últimamente?",
+      "judgments": {
+        "es-caf": 2,
+        "es-nap": 2,
+        "es-stress": 2,
+        "es-noise2": 1,
+        "es-noise4": 1
+      }
+    },
+    {
+      "id": "es-q-irr1",
+      "lang": "es",
+      "category": "unanswerable",
+      "text": "¿Qué tiempo va a hacer la semana que viene en Lisboa?",
+      "judgments": {
+        "es-noise5": 0,
+        "es-cold": 0
+      }
+    },
+    {
+      "id": "es-q-irr2",
+      "lang": "es",
+      "category": "unanswerable",
+      "text": "¿Cómo se cambia el filtro de aceite de un motor diésel?",
+      "judgments": {
+        "es-noise6": 0
+      }
+    },
+    {
+      "id": "es-q-irr3",
+      "lang": "es",
+      "category": "unanswerable",
+      "text": "¿Qué formulario necesito para una factura como autónomo?",
+      "judgments": {}
+    }
+  ]
 }

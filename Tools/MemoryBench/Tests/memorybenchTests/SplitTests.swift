@@ -64,14 +64,30 @@ final class SplitTests: XCTestCase {
 
     // MARK: - The generator
 
-    /// Recomputing must reproduce the committed assignment. If it did not, every corpus edit would quietly
-    /// move the boundary, and the holdout would be contaminated by everything measured before the move —
-    /// silently, because the numbers themselves would not change shape.
-    func testRecomputingWithTheCommittedSeedReproducesTheCommittedSplit() throws {
+    /// The committed split is deliberately NOT the from-scratch computation any more, and this test records why
+    /// the assertion was inverted rather than deleted.
+    ///
+    /// It used to demand that `computeSplit` reproduce `split.json`, which was the right guard while the split
+    /// was generated once: it caught a hand-edited file and a corpus edit that moved the boundary. But the
+    /// corpus grows, and recomputing on a grown corpus repacks everything — spending holdout queries that were
+    /// kept honest and pulling tuned-on queries into the holdout. Growth therefore extends the assignment
+    /// instead, which by construction makes the committed file diverge from a fresh computation.
+    ///
+    /// What still has to hold is the property the old test was really protecting: the committed assignment must
+    /// be exactly what the maintenance path produces from it. That is idempotence of `extendedSplit`, asserted
+    /// here and again in `testExtendingAnUnchangedCorpusReproducesTheCommittedSplitExactly` from the growth
+    /// side. A hand-edited split.json still fails, which was the point.
+    func testTheCommittedSplitIsAFixedPointOfTheMaintenancePath() throws {
         let (corpus, split) = try loaded()
+        let extended = try corpus.extendedSplit(from: split)
+        XCTAssertEqual(extended.devQueryIDs, split.devQueryIDs)
+        XCTAssertEqual(extended.testQueryIDs, split.testQueryIDs)
+
+        // And the from-scratch generator now disagrees, which is the expected consequence rather than a bug. If
+        // this ever became equal again it would mean the split had been regenerated, throwing away the freeze.
         let recomputed = corpus.computeSplit(testFraction: split.testFraction, seed: split.seed)
-        XCTAssertEqual(recomputed.devQueryIDs, split.devQueryIDs)
-        XCTAssertEqual(recomputed.testQueryIDs, split.testQueryIDs)
+        XCTAssertNotEqual(recomputed.testQueryIDs, split.testQueryIDs,
+                          "the committed split matches a fresh computation — was it regenerated?")
     }
 
     /// Determinism within one seed, across processes. Swift randomises dictionary iteration order per process,
@@ -157,5 +173,89 @@ final class SplitTests: XCTestCase {
                                   testQueryIDs: [shared.value[1]])
         XCTAssertTrue(corpus.splitProblems(leaking).contains { $0.contains("leaks") },
                       "a document graded from both sides must be reported")
+    }
+
+    // MARK: - Growing the corpus
+
+    /// Helper: a probe query built by decoding, because `CorpusQuery.index` is derived from a private field.
+    private func probe(id: String,
+                       category: String = "paraphrase",
+                       judgments: [String: Int]) throws -> CorpusQuery {
+        struct ProbeFile: Decodable { let queries: [CorpusQuery] }
+        let body = judgments.map { "\"\($0.key)\": \($0.value)" }.sorted().joined(separator: ", ")
+        let json = "{\"queries\": [{\"id\": \"\(id)\", \"index\": \"main\", \"lang\": \"de\", "
+            + "\"category\": \"\(category)\", \"text\": \"probe \(id)\", \"judgments\": {\(body)}}]}"
+        return try JSONDecoder().decode(ProbeFile.self, from: Data(json.utf8)).queries[0]
+    }
+
+    /// A graded document belonging to exactly one side, used to aim a probe query at that side's scenario.
+    private func gradedDocument(on side: Set<String>, in corpus: Corpus, split: CorpusSplit) throws -> String {
+        let queries = Dictionary(uniqueKeysWithValues: corpus.queries.map { ($0.id, $0) })
+        func graded(_ ids: Set<String>) -> Set<String> {
+            Set(ids.compactMap { queries[$0] }.flatMap { $0.judgments.filter { $0.value > 0 }.keys })
+        }
+        let other = side == split.dev ? split.test : split.dev
+        return try XCTUnwrap(graded(side).subtracting(graded(other)).sorted().first)
+    }
+
+    /// The property that makes growth safe: adding nothing changes nothing. If extension could reshuffle even
+    /// one query, the freeze would expire every time the corpus was touched.
+    func testExtendingAnUnchangedCorpusReproducesTheCommittedSplitExactly() throws {
+        let (corpus, committed) = try loaded()
+        let extended = try corpus.extendedSplit(from: committed)
+        XCTAssertEqual(extended.devQueryIDs, committed.devQueryIDs)
+        XCTAssertEqual(extended.testQueryIDs, committed.testQueryIDs)
+    }
+
+    /// A new query that stays inside one existing scenario inherits that scenario's side — including when that
+    /// side is the holdout, which is the case that would otherwise silently hand tuning material a free pass.
+    func testANewQueryInsideAnExistingScenarioInheritsItsSide() throws {
+        let (corpus, committed) = try loaded()
+
+        for side in [committed.dev, committed.test] {
+            let document = try gradedDocument(on: side, in: corpus, split: committed)
+            let fresh = try probe(id: "probe-inherit", judgments: [document: 3])
+            let grown = Corpus(documents: corpus.documents, queries: corpus.queries + [fresh])
+            let extended = try grown.extendedSplit(from: committed)
+            if side == committed.dev {
+                XCTAssertTrue(extended.dev.contains("probe-inherit"))
+            } else {
+                XCTAssertTrue(extended.test.contains("probe-inherit"),
+                              "a query about held-out evidence must not land in the tuning half")
+            }
+            XCTAssertTrue(grown.splitProblems(extended).isEmpty)
+        }
+    }
+
+    /// The failure the mechanism exists for, and the reason it is an error rather than a heuristic: a new query
+    /// grading evidence from both halves merges two scenarios that were separated on purpose. There is no
+    /// correct side for the result, so the corpus has to change — and the message has to say which query.
+    func testANewQueryBridgingBothHalvesIsARejectedRatherThanResolved() throws {
+        let (corpus, committed) = try loaded()
+        let devDocument = try gradedDocument(on: committed.dev, in: corpus, split: committed)
+        let testDocument = try gradedDocument(on: committed.test, in: corpus, split: committed)
+
+        let bridge = try probe(id: "probe-bridge", judgments: [devDocument: 3, testDocument: 2])
+        let grown = Corpus(documents: corpus.documents, queries: corpus.queries + [bridge])
+        do {
+            _ = try grown.extendedSplit(from: committed)
+            XCTFail("a bridging query was accepted, which silently thaws the holdout")
+        } catch let CorpusError.invalid(problems) {
+            XCTAssertTrue(problems.contains { $0.contains("probe-bridge") },
+                          "the report has to name the query to regrade: \(problems)")
+            XCTAssertTrue(problems.contains { $0.contains("spans both sides") })
+        }
+    }
+
+    /// A brand-new scenario, connected to nothing, is free to place — and gets placed rather than dropped.
+    func testAnIndependentNewScenarioIsAssignedToOneSide() throws {
+        let (corpus, committed) = try loaded()
+        // An unanswerable query shares no evidence with anything, which is exactly an independent scenario.
+        let fresh = try probe(id: "probe-fresh", category: "unanswerable", judgments: [:])
+        let grown = Corpus(documents: corpus.documents, queries: corpus.queries + [fresh])
+        let extended = try grown.extendedSplit(from: committed)
+        XCTAssertEqual(extended.dev.contains("probe-fresh") || extended.test.contains("probe-fresh"), true)
+        XCTAssertFalse(extended.dev.contains("probe-fresh") && extended.test.contains("probe-fresh"))
+        XCTAssertTrue(grown.splitProblems(extended).isEmpty)
     }
 }

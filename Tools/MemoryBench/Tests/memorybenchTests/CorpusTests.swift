@@ -148,6 +148,77 @@ final class CorpusTests: XCTestCase {
         XCTAssertTrue(crosslingual)
     }
 
+    // MARK: - The four-point grade scale
+
+    /// The scale grew from 0–2 to 0–3 on 2026-08-19. These are the invariants that keep the new band from
+    /// decaying into a second word for "relevant", which is what happens to every graded scale nobody enforces.
+    func testEveryJudgmentSitsOnTheFourPointScale() throws {
+        for query in try loadedCorpus().queries {
+            for (judged, grade) in query.judgments {
+                XCTAssertTrue((0...3).contains(grade), "\(query.id): grade \(grade) for \(judged)")
+            }
+        }
+    }
+
+    /// Grade 3 means "the one document that directly answers". More than one per query would make it a synonym
+    /// for grade 2 and throw away the distinction the scale was widened to express.
+    func testAtMostOneDocumentPerQueryIsTheDirectAnswer() throws {
+        for query in try loadedCorpus().queries {
+            XCTAssertLessThanOrEqual(query.judgments.filter { $0.value == 3 }.count, 1,
+                                     "\(query.id): co-equal answers belong at grade 2")
+        }
+    }
+
+    /// The other half of the same rule: a question with several equally good answers must NOT be forced to name
+    /// a winner. If every answerable query had a 3, the middle band would go unused and the scale would be 0–2
+    /// again with different numbers on it.
+    func testQuestionsWithCoEqualAnswersMayHaveNoSingleWinner() throws {
+        let answerable = try loadedCorpus().queries.filter { $0.category.isAnswerable }
+        let withoutWinner = answerable.filter { !$0.judgments.values.contains(3) }
+        XCTAssertFalse(withoutWinner.isEmpty,
+                       "not one question has co-equal answers, which is implausible for a real index")
+        XCTAssertTrue(withoutWinner.allSatisfy { $0.judgments.values.contains(2) },
+                      "a query with no direct answer still needs a strongly relevant one")
+    }
+
+    /// All four bands must be in use, or the scale is decoration. The supporting band matters most: it is what
+    /// lets `gain` express that one answer beats a context packed with loosely-related lines.
+    func testAllFourBandsAreActuallyUsed() throws {
+        let grades = Set(try loadedCorpus().queries.flatMap { $0.judgments.values })
+        XCTAssertEqual(grades, [0, 1, 2, 3], "an unused band is a scale that does not exist")
+    }
+
+    /// The validator's own teeth, shown a broken corpus rather than the committed one.
+    ///
+    /// The committed files passing proves only that they pass. A check earns trust by rejecting something, and
+    /// this is the test that makes it do so — including the last assertion, that a legal grading is still
+    /// accepted, without which an over-eager validator would look just as green.
+    func testTheValidatorRejectsAnOffScaleGradeAndASecondDirectAnswer() throws {
+        let corpus = try loadedCorpus()
+        let first = try XCTUnwrap(corpus.documents.first { $0.index == Self.mainIndex })
+        let second = try XCTUnwrap(corpus.documents.last { $0.index == Self.mainIndex })
+
+        func problems(_ judgments: [String: Int]) throws -> [String] {
+            struct ProbeFile: Decodable { let queries: [CorpusQuery] }
+            let body = judgments.map { "\"\($0.key)\": \($0.value)" }.sorted().joined(separator: ", ")
+            let json = "{\"queries\": [{\"id\": \"probe\", \"index\": \"\(Self.mainIndex)\", \"lang\": \"de\", "
+                + "\"category\": \"paraphrase\", \"text\": \"probe\", \"judgments\": {\(body)}}]}"
+            let probe = try JSONDecoder().decode(ProbeFile.self, from: Data(json.utf8))
+            do {
+                _ = try Corpus.validated(documents: corpus.documents, queries: probe.queries)
+                return []
+            } catch let CorpusError.invalid(problems) {
+                return problems
+            }
+        }
+
+        XCTAssertTrue(try problems([first.id: 4]).contains { $0.contains("outside the 0…3 scale") })
+        XCTAssertTrue(try problems([first.id: -1]).contains { $0.contains("outside the 0…3 scale") })
+        XCTAssertTrue(try problems([first.id: 3, second.id: 3]).contains { $0.contains("graded 3") })
+        XCTAssertEqual(try problems([first.id: 3, second.id: 2]), [],
+                       "a legal grading must not be rejected")
+    }
+
     /// The flood that makes the diversity cap measurable, and long documents that make chunking occur.
     func testTheMainIndexHasAThreadBigEnoughToFloodAContextAndDocumentsThatChunk() throws {
         let corpus = try loadedCorpus()

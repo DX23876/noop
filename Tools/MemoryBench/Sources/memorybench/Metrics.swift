@@ -3,9 +3,13 @@ import Foundation
 // The scoring primitives. Everything here is a pure function over a ranked list of source ids and a
 // judgment table, so `memorybenchTests` pins all of it on hand-built inputs.
 
-/// Graded relevance. `0` is explicitly stored rather than omitted for the documents a query deliberately
-/// must NOT retrieve — an omitted judgment and a judged-irrelevant one are the same for scoring, but
-/// writing the zero down is how the corpus records that the case was considered.
+/// Graded relevance on the corpus's four-point scale: 3 = the one document that directly answers, 2 =
+/// strongly relevant, 1 = supporting, 0 = judged and rejected. `CorpusQuery.judgments` carries the full
+/// definition and the invariants that keep it meaningful.
+///
+/// `0` is explicitly stored rather than omitted for the documents a query deliberately must NOT retrieve — an
+/// omitted judgment and a judged-irrelevant one are the same for scoring, but writing the zero down is how
+/// the corpus records that the case was considered.
 public typealias Judgments = [String: Int]
 
 /// The retrieval metric that matches what the coach actually consumes.
@@ -15,10 +19,14 @@ public typealias Judgments = [String: Int]
 /// improvements the product never sees.
 public let contextSlots = 8
 
-/// Standard exponential gain, `2^grade − 1`: grade 2 (the fact the question is actually about) is worth
-/// three times grade 1 (related, worth having in context), and grade 0 is worth nothing. A linear gain
-/// would make three loosely-related lines beat the one correct one, which is precisely the failure this
-/// benchmark exists to catch.
+/// Standard exponential gain, `2^grade − 1`: 7 for the document that directly answers, 3 for a strongly
+/// relevant one, 1 for supporting context, 0 for a rejected one. The exponent is what makes the metric refuse
+/// to accept padding — under a linear gain three loosely-related lines would outscore the one correct
+/// answer, which is precisely the failure this benchmark exists to catch.
+///
+/// The scale grew from 0–2 to 0–3 on 2026-08-19, which steepened the answer-to-support ratio from 3:1 to 7:1.
+/// That is a deliberate change of the instrument, not a tweak: it moves nDCG@8 by up to 0.149 on a single
+/// query. Nothing measured before it may be compared with anything measured after.
 func gain(_ grade: Int) -> Double {
     grade <= 0 ? 0 : pow(2, Double(grade)) - 1
 }

@@ -61,11 +61,17 @@ usage: memorybench <score|embed|models|lint> [options]
          StrandTests so the app's tokeniser/chunker and this tool's transcriptions of them cannot
          drift apart while both stay internally consistent.
 
-  split  --corpus <dir> [--test-fraction 0.35] [--seed N] [--write]
-         Computes the development / holdout split over the `main` index and prints its shape. Whole
-         scenarios move together — the connected components of the query-document graph — so no
-         document can be graded from both sides. Without --write it only reports; with --write it
-         commits Corpus/split.json, which is what makes the boundary stable across corpus edits.
+  split  --corpus <dir> [--test-fraction 0.35] [--seed N] [--regenerate] [--write]
+         Assigns the `main` index to a development half and a frozen holdout. Whole scenarios move
+         together — the connected components of the query-document graph — so no document can be
+         graded from both sides. Without --write it only reports; with --write it commits
+         Corpus/split.json, which is what makes the boundary stable across corpus edits.
+
+         With a committed split.json it EXTENDS that assignment rather than recomputing: existing
+         queries never move, only new scenarios are placed, and a new query that bridges the two
+         halves is a hard error naming the query to regrade. `--regenerate` rebuilds from scratch
+         and WILL move queries across the freeze, spending holdout queries and contaminating the
+         holdout with tuned-on ones. It is almost never the right answer.
 """
 
 var arguments = Array(CommandLine.arguments.dropFirst())
@@ -97,6 +103,7 @@ var splitSeed: UInt64 = 20_260_819
 var writeSplit = false
 var holdoutReason = ""
 var fixturesPath = "Fixtures"
+var regenerateSplit = false
 
 var iterator = arguments.makeIterator()
 while let key = iterator.next() {
@@ -121,6 +128,7 @@ while let key = iterator.next() {
     case "--write": writeSplit = true
     case "--holdout": holdoutReason = iterator.next() ?? ""
     case "--fixtures": fixturesPath = iterator.next() ?? fixturesPath
+    case "--regenerate": regenerateSplit = true
     case "--floor":
         floors = (iterator.next() ?? "").split(separator: ",").compactMap { Double($0) }
     case "--":
@@ -189,7 +197,7 @@ case .lint:
             fact and call it a big index, which is the mistake this corpus was rebuilt to stop making.
 
             index          docs  queries  langs         \(QueryCategory.allCases.map { $0.rawValue.prefix(5).padding(toLength: 7, withPad: " ", startingAt: 0) }.joined())
-            ------------------------------------------------------------------------------------------------
+            \(String(repeating: "-", count: 45 + 7 * QueryCategory.allCases.count))
             """)
         for index in corpus.indexes {
             let documents = corpus.documents.filter { $0.index == index }
@@ -244,7 +252,21 @@ case .split:
     do {
         let directory = URL(fileURLWithPath: corpusPath)
         let corpus = try Corpus.load(directory: directory)
-        let split = corpus.computeSplit(testFraction: testFraction, seed: splitSeed)
+        // Extending is the default once a split exists, because recomputing would move queries between the
+        // tuned half and the frozen one and there is no way to un-see a holdout query. `--regenerate` is the
+        // deliberate escape hatch, and it is what the first split was built with.
+        let existing = try? CorpusSplit.load(directory: directory)
+        let split: CorpusSplit
+        if let existing, !regenerateSplit {
+            split = try corpus.extendedSplit(from: existing)
+            let inherited = split.dev.intersection(existing.dev).count
+                + split.test.intersection(existing.test).count
+            print("\nextending the committed split — \(inherited) existing assignments kept, "
+                + "\(split.dev.count + split.test.count - inherited) newly placed")
+        } else {
+            if existing != nil { print("\nREGENERATING from scratch — every existing assignment may move") }
+            split = corpus.computeSplit(testFraction: testFraction, seed: splitSeed)
+        }
         let problems = corpus.splitProblems(split)
 
         let queries = corpus.queries.filter { $0.index == Corpus.splitIndex }

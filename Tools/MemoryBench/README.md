@@ -83,12 +83,12 @@ quantisation and Matryoshka loss the device actually has.
 
 ## What the corpus is, and what it is not
 
-520 documents / 360 queries, organised into **indexes** rather than languages, because an index is what a
+520 documents / 380 queries, organised into **indexes** rather than languages, because an index is what a
 question is actually asked against: one person's own memories.
 
 | Index | Documents | Queries | Languages | Job |
 |---|---|---|---|---|
-| `main` | 272 | 120 | de + en (~1 in 10) | every ranking and reranking question |
+| `main` | 272 | 140 | de + en (~1 in 10) | every ranking and reranking question |
 | `locale-*` × 10 | 24–28 each | 24 each | one each | does this model work in this language at all |
 
 `main` is shaped like a real index and sized so that **ranking, not recall, decides** — the previous version
@@ -98,7 +98,7 @@ forms and two timings, two sleep goals, two caffeine cut-offs, three training fr
 tendons, five recovery mornings, declined-versus-accepted recommendations. Plus curated facts next to raw
 chat turns, one-liners next to a summary long enough to chunk, and a thread big enough to flood a context.
 
-Eight categories, scored separately, because a change that wins one and loses another is not an improvement:
+Nine categories, scored separately, because a change that wins one and loses another is not an improvement:
 
 | Category | What it is for |
 |---|---|
@@ -109,14 +109,53 @@ Eight categories, scored separately, because a change that wins one and loses an
 | `recency` | Two memories contradict and the **newer** is right. |
 | `near-miss` | Almost the same sentence, only one answers — a different knee, dose, time of day. |
 | `terse` | Three or four words, the way people type. |
+| `crosslingual` | The question is in one language and the only answer is in the other. |
 | `unanswerable` | Nothing answers it. Target: **zero** lines. |
 
-Judgments are graded 0/1/2, and `0` is written down rather than omitted: an omitted judgment and a
-judged-irrelevant one score the same, but writing the zero records that the case was considered.
-`CorpusTests` enforce the design, not the syntax — every `recency` case really grades the newer document
-above an older distractor, every `numeric` case turns on a token with a digit, every `near-miss` case carries
-a deliberately rejected sibling, `terse` questions really are short, and `main` really is bilingual without
-holding two translations of one sentence. Those tests caught three authoring gaps on their first run.
+### The grade scale is 0–3, and the change is not cosmetic
+
+| Grade | Meaning |
+|---|---|
+| `3` | The one document that directly answers. **At most one per query** — enforced. |
+| `2` | Strongly relevant: a co-equal answer, or something the coach clearly ought to see. |
+| `1` | Supporting. The diagnosis behind the complaint, the goal behind the habit. Not an answer alone. |
+| `0` | Judged and rejected. Written down rather than omitted, because that is how the corpus records that a near-miss sibling was considered. |
+
+It was 0–2 until 2026-08-19. **Numbers taken before that date were taken with a different instrument.** Adding
+a top band steepens the answer-to-support ratio in `gain` from 3:1 to 7:1, and brute-forcing every ranking of
+every affected query puts the worst single-query shift at **0.149 nDCG@8**, mean worst case 0.099 across the
+quarter of queries that can move at all. That is larger than every effect under study (0.002–0.071), so old and
+new numbers must never be compared — the change was made deliberately and once, alongside the corpus growth
+that requires re-embedding anyway.
+
+The relabel itself was mechanical and meaning-preserving rather than a re-reading: a query with exactly one
+grade-2 had a unique direct answer, so that became 3; a query with several kept them at 2, because 34 of them
+genuinely have co-equal answers and forcing a winner would have invented a distinction the corpus does not
+contain. That is also why the invariant is "at most one 3", not "exactly one".
+
+### Crosslingual is a category, which it should have been from the start
+
+It was originally left as a property of individual judgments, on the reasoning that a crosslingual case is just
+an ordinary query pointing across. That was wrong in a way worth recording: with no category it had no slice in
+any report, so it disappeared into the average — and counting revealed only **two** genuine cases in the whole
+index, which nobody had noticed for exactly the same reason. Multilinguality is the largest single cost the
+bundled model is paid for; it needs a column. There are now 23.
+
+Genuine means enforced: a `crosslingual` query may have no answer graded 2 or 3 in its **own** language, or it
+is measuring content rather than language crossing. Under that rule only three of the pre-existing candidates
+qualified; the rest were ordinary queries that happened to have a supporting line in the other language.
+
+And explicitly **not** translation pairs. Ten translations of one fact in one index is what ruined the first
+corpus: every model then had nine correct answers graded 0, which punished precisely the language-agnostic
+behaviour being tested. These are facts that exist in one language only — a work trip's notes written in
+English inside an otherwise German index — the way a bilingual person's own memories actually look.
+
+`CorpusTests` enforce the design, not the syntax — every `recency` case really grades the newer document above
+an older distractor, every `numeric` case turns on a token with a digit, every `near-miss` case carries a
+deliberately rejected sibling, `terse` questions really are short, all four grade bands are actually in use, and
+`main` really is bilingual without holding two translations of one sentence. The validator is also tested by
+being shown broken input and made to reject it, because a check that has only ever seen a passing corpus is not
+known to fire at all. Those tests caught three authoring gaps on their first run.
 
 **What it cannot tell you.** It is synthetic, so it cannot capture how a particular person phrases things;
 `main` is one person, so it cannot capture variation between people; and the locale sets are far too small for
@@ -194,6 +233,24 @@ Around a dozen settings have been chosen by looking at scores on this corpus. `m
 of the query-document graph, so no document is graded from both sides. The assignment is committed
 (`Corpus/split.json`); every reading of the holdout is appended to `Corpus/holdout-access.log`.
 
+**Growth extends that assignment, it does not recompute it.** Recomputing after every batch of new queries is
+the obvious implementation and it quietly destroys what the split is for: a query that sat in the holdout while
+a dozen settings were tuned against dev has been kept honest, and moving it to dev spends that; moving a
+tuned-on dev query into the holdout contaminates the holdout with material already used for decisions. So
+`memorybench split` extends by default — existing queries never move, only genuinely new scenarios are placed —
+and `--regenerate` is the deliberate, almost-never-right escape hatch.
+
+That leaves exactly one way growth can still leak, and it is not obvious: a **new** query whose graded documents
+span a dev scenario and a holdout scenario merges two components that were kept apart on purpose. There is no
+correct side for the result, so it is a hard error naming the query to regrade rather than a heuristic that
+picks one. The corpus is what has to change, not the split. Adding the 20 crosslingual queries triggered none of
+these, and left all 120 prior assignments byte-identical.
+
+One consequence worth stating plainly: the committed split is now deliberately **not** what a from-scratch
+computation produces, so the test that used to assert exactly that has been inverted rather than deleted — it
+now pins that extension is a fixed point, and warns if the committed file ever matches a fresh computation
+again, because that would mean the freeze was thrown away.
+
 Every comparison now carries a **paired** bootstrap interval. Paired matters: both variants answer the same
 questions, so what limits resolution is the variance of the *differences*, not of the scores. A small but
 consistent gain is resolvable even when scores swing across the whole range; a gain that changes sign per
@@ -247,6 +304,13 @@ Note also that an earlier estimate of ±0.11 for the holdout's resolution was to
 variance of scores instead of the variance of paired differences. The measured width is about ±0.05.
 
 ## Results
+
+> **All numbers below were measured on the 0–2 grade scale, before the crosslingual category existed and
+> before the corpus grew.** They are kept because they are the evidence the current decisions rest on and the
+> record of how the measurement got more honest, not because they are current. Re-measuring needs a re-embed
+> (the corpus changed, so the vector files are invalid by construction), and the 0–3 scale alone can move a
+> single query's nDCG@8 by up to 0.149. Do not compare a new figure with one from this section.
+
 
 **Scope matters, and getting it wrong cost every number in this file once already.** The corpus holds 320
 answerable queries: 110 on the `main` index (272 documents, the realistic problem) and 210 spread over ten

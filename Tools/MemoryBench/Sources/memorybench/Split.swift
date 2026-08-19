@@ -159,6 +159,103 @@ extension Corpus {
                            testQueryIDs: test.sorted())
     }
 
+    // MARK: - Growing the corpus without thawing the holdout
+
+    /// The split as it must be maintained once queries start being added: existing assignments are preserved
+    /// exactly, and only genuinely new scenarios are placed.
+    ///
+    /// Recomputing from scratch after every growth spurt would be much simpler and would quietly destroy the
+    /// thing the split exists for. A query that sat in the holdout while a dozen settings were tuned against
+    /// dev has been kept honest; move it to dev and that honesty is spent, move a tuned-on dev query into the
+    /// holdout and the holdout is contaminated with material already used for decisions. Freezing means the
+    /// assignment survives corpus growth, so growth has to be additive here too.
+    ///
+    /// That leaves one way growth can still leak, and it is not obvious: a NEW query whose graded documents
+    /// span a dev scenario and a test scenario merges two previously separate components into one. There is no
+    /// correct side for that group, so it is a hard error rather than a heuristic — the corpus, not the split,
+    /// is what has to change, and the report names the queries involved so it can be.
+    func extendedSplit(from existing: CorpusSplit) throws -> CorpusSplit {
+        let queries = Dictionary(uniqueKeysWithValues:
+            self.queries.filter { $0.index == Corpus.splitIndex }.map { ($0.id, $0) })
+        var dev = existing.dev.intersection(queries.keys)
+        var test = existing.test.intersection(queries.keys)
+
+        var bridges: [String] = []
+        var freeGroups: [(key: String, queryIDs: [String])] = []
+        var placed: [(group: [String], side: Bool)] = []   // side: true = test
+
+        for group in scenarioGroups() {
+            let onDev = group.queryIDs.filter { dev.contains($0) }
+            let onTest = group.queryIDs.filter { test.contains($0) }
+            let fresh = group.queryIDs.filter { !dev.contains($0) && !test.contains($0) }
+            switch (onDev.isEmpty, onTest.isEmpty) {
+            case (false, false):
+                bridges.append("scenario \(group.key) now spans both sides of the frozen split: "
+                    + "dev holds \(onDev.sorted().joined(separator: ", ")), "
+                    + "holdout holds \(onTest.sorted().joined(separator: ", ")). "
+                    + "One of the new queries (\(fresh.sorted().joined(separator: ", "))) grades documents "
+                    + "from both, which merges two scenarios that were kept apart on purpose. "
+                    + "Regrade it to stay inside one of them — do not resplit")
+            case (false, true):
+                placed.append((fresh, false))
+            case (true, false):
+                placed.append((fresh, true))
+            case (true, true):
+                freeGroups.append(group)
+            }
+        }
+        guard bridges.isEmpty else { throw CorpusError.invalid(bridges) }
+
+        for entry in placed {
+            if entry.side { test.formUnion(entry.group) } else { dev.formUnion(entry.group) }
+        }
+
+        // Only the genuinely new scenarios are free to place, so they are packed against the deficit the
+        // inherited assignment leaves behind rather than against the target share — otherwise a lopsided
+        // inheritance would be doubled instead of corrected.
+        var rng = SplitMix64(seed: existing.seed &+ UInt64(queries.count))
+        let ordered = freeGroups
+            .map { (order: rng.next(), group: $0) }
+            .sorted {
+                $0.group.queryIDs.count != $1.group.queryIDs.count
+                    ? $0.group.queryIDs.count > $1.group.queryIDs.count
+                    : $0.order < $1.order
+            }
+            .map(\.group)
+
+        func counts(_ ids: Set<String>) -> [QueryCategory: Int] {
+            var result: [QueryCategory: Int] = [:]
+            for id in ids { if let category = queries[id]?.category { result[category, default: 0] += 1 } }
+            return result
+        }
+        var devCounts = counts(dev)
+        var testCounts = counts(test)
+        let totals = counts(Set(queries.keys))
+
+        for group in ordered {
+            let categories = group.queryIDs.compactMap { queries[$0]?.category }
+            func deficit(_ assigned: [QueryCategory: Int], share: Double) -> Double {
+                categories.reduce(0.0) { total, category in
+                    total + (Double(totals[category] ?? 0) * share - Double(assigned[category] ?? 0))
+                }
+            }
+            if deficit(testCounts, share: existing.testFraction)
+                > deficit(devCounts, share: 1 - existing.testFraction) {
+                test.formUnion(group.queryIDs)
+                for category in categories { testCounts[category, default: 0] += 1 }
+            } else {
+                dev.formUnion(group.queryIDs)
+                for category in categories { devCounts[category, default: 0] += 1 }
+            }
+        }
+
+        return CorpusSplit(version: CorpusSplit.currentVersion,
+                           seed: existing.seed,
+                           testFraction: existing.testFraction,
+                           devQueryIDs: dev.sorted(),
+                           testQueryIDs: test.sorted())
+    }
+
     /// Everything that would make a split untrustworthy. Hard errors, not warnings: a contaminated holdout is
     /// worse than no holdout, because it looks like evidence.
     func splitProblems(_ split: CorpusSplit) -> [String] {

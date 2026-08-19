@@ -1,0 +1,84 @@
+{
+  "version": 1,
+  "queries": [
+    {"id": "mqx-01", "index": "main", "lang": "de", "category": "crosslingual",
+     "text": "Was hat der Physiotherapeut in London zu meinem Knie gesagt?",
+     "judgments": {"m-knee-en-note": 3, "m-knee-physio": 1, "m-knee-mri": 1}},
+
+    {"id": "mqx-02", "index": "main", "lang": "de", "category": "crosslingual",
+     "text": "Wie lange leidet mein Schlaf nach einem Flug nach Osten?",
+     "judgments": {"m-sleep-en-jetlag": 3, "m-sleep-travel": 1}},
+
+    {"id": "mqx-03", "index": "main", "lang": "de", "category": "crosslingual",
+     "text": "Warum brauche ich auf langen Radausfahrten Elektrolyte und nicht nur Wasser?",
+     "judgments": {"m-en-fact-water": 3, "m-electrolytes": 1}},
+
+    {"id": "mqx-04", "index": "main", "lang": "de", "category": "crosslingual",
+     "text": "Was hat der Trainer im Laufverein vorgeschlagen?",
+     "judgments": {"m-train-en-coach": 3}},
+
+    {"id": "mqx-05", "index": "main", "lang": "de", "category": "crosslingual",
+     "text": "Auf welcher Art von Strecke funktionieren meine Tempoläufe besser?",
+     "judgments": {"m-train-en-tempo": 3}},
+
+    {"id": "mqx-06", "index": "main", "lang": "de", "category": "crosslingual",
+     "text": "Warum habe ich im Hotel in Boston so schlecht geschlafen?",
+     "judgments": {"m-sleep-en-hotel": 3, "m-en-d-sleep": 2, "m-sleep-room-temp": 1, "m-sleep-travel": 1}},
+
+    {"id": "mqx-07", "index": "main", "lang": "de", "category": "crosslingual",
+     "text": "Welche Nahrungsergänzung hatte ich für die Reise eingepackt?",
+     "judgments": {"m-supp-en-list": 3, "m-supp-summary": 0}},
+
+    {"id": "mqx-08", "index": "main", "lang": "de", "category": "crosslingual",
+     "text": "Welcher Kaffee wirkt bei mir stärker, Filterkaffee oder Espresso?",
+     "judgments": {"m-en-fact-coffee": 3, "m-sleep-tea-evening": 1}},
+
+    {"id": "mqx-09", "index": "main", "lang": "de", "category": "crosslingual",
+     "text": "Was war beim rechten Knie in der letzten Kraftsession?",
+     "judgments": {"m-knee-en-gym": 3}},
+
+    {"id": "mqx-10", "index": "main", "lang": "de", "category": "crosslingual",
+     "text": "Wie lange war ich beruflich in Boston unterwegs?",
+     "judgments": {"m-en-msg-work": 3, "m-en-title": 1, "m-en-msg-food": 1}},
+
+    {"id": "mqx-11", "index": "main", "lang": "de", "category": "crosslingual",
+     "text": "Was besagt die Hypothese zu Essen außer Haus und meiner Erholung?",
+     "judgments": {"m-en-hyp": 3, "m-sleep-late-meal": 1}},
+
+    {"id": "mqx-12", "index": "main", "lang": "de", "category": "crosslingual",
+     "text": "Wie weit war der leichte Lauf am Fluss?",
+     "judgments": {"m-en-d-run": 3}},
+
+    {"id": "mqx-13", "index": "main", "lang": "en", "category": "crosslingual",
+     "text": "What was my ferritin in the most recent blood work?",
+     "judgments": {"m-ferritin-latest": 3, "m-ferritin-2025": 0, "m-ferritin-2024": 0}},
+
+    {"id": "mqx-14", "index": "main", "lang": "en", "category": "crosslingual",
+     "text": "How many hours of sleep am I aiming for these days?",
+     "judgments": {"m-sleep-goal-new": 3, "m-sleep-goal-old": 0}},
+
+    {"id": "mqx-15", "index": "main", "lang": "en", "category": "crosslingual",
+     "text": "What bedroom temperature actually helps me sleep?",
+     "judgments": {"m-sleep-room-temp": 3}},
+
+    {"id": "mqx-16", "index": "main", "lang": "en", "category": "crosslingual",
+     "text": "What is my usual resting heart rate?",
+     "judgments": {"m-rhr-baseline": 3}},
+
+    {"id": "mqx-17", "index": "main", "lang": "en", "category": "crosslingual",
+     "text": "Do earplugs work for me at night?",
+     "judgments": {"m-sleep-earplugs": 3}},
+
+    {"id": "mqx-18", "index": "main", "lang": "en", "category": "crosslingual",
+     "text": "What did two glasses of wine do to my HRV?",
+     "judgments": {"m-hrv-alcohol-drop": 3, "m-sleep-alcohol": 1}},
+
+    {"id": "mqx-19", "index": "main", "lang": "en", "category": "crosslingual",
+     "text": "melatonin",
+     "judgments": {"m-sleep-melatonin-no": 3}},
+
+    {"id": "mqx-20", "index": "main", "lang": "en", "category": "crosslingual",
+     "text": "How much do I weigh at the moment?",
+     "judgments": {"m-weight-new": 3, "m-weight-old": 0}}
+  ]
+}

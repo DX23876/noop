@@ -78,7 +78,20 @@
     "mq-un-09",
     "mq-un-10",
     "mq-x-01",
-    "mq-x-03"
+    "mq-x-03",
+    "mqx-01",
+    "mqx-04",
+    "mqx-05",
+    "mqx-07",
+    "mqx-08",
+    "mqx-09",
+    "mqx-10",
+    "mqx-12",
+    "mqx-13",
+    "mqx-17",
+    "mqx-18",
+    "mqx-19",
+    "mqx-20"
   ],
   "seed" : 20260819,
   "testFraction" : 0.35,
@@ -123,7 +136,14 @@
     "mq-un-04",
     "mq-un-05",
     "mq-un-08",
-    "mq-x-02"
+    "mq-x-02",
+    "mqx-02",
+    "mqx-03",
+    "mqx-06",
+    "mqx-11",
+    "mqx-14",
+    "mqx-15",
+    "mqx-16"
   ],
   "version" : 1
 }

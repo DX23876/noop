@@ -97,6 +97,19 @@ enum QueryCategory: String, Codable, CaseIterable {
     /// Three or four words, the way people actually type into a chat box. Short queries carry little signal
     /// for either arm and are the most common shape in a real transcript.
     case terse
+    /// The question is in one language and the only document that answers it is in another.
+    ///
+    /// This was originally left as a property of individual judgments rather than a category, on the reasoning
+    /// that a crosslingual case is just an ordinary query pointing across. That was wrong in a way worth
+    /// recording: without a category it has no slice in any report, so it vanished into the average — and
+    /// counting them showed only two genuine cases in the whole index, which nobody had noticed for the same
+    /// reason. Multilinguality is the single biggest cost the bundled model is paid for; it needs a column.
+    ///
+    /// Explicitly NOT built from translation pairs. Ten translations of one fact in one index is what ruined
+    /// the first corpus: every model then had nine correct answers graded 0, which punished exactly the
+    /// language-agnostic behaviour being tested. These are facts that exist in one language only, the way a
+    /// bilingual person's own notes actually look.
+    case crosslingual
     /// Nothing in the index answers this. The target is ZERO emitted lines, and it is the only category that
     /// measures restraint rather than reach.
     case unanswerable
@@ -114,9 +127,24 @@ struct CorpusQuery: Codable {
     var index: String { indexName ?? "locale-\(lang)" }
     let category: QueryCategory
     let text: String
-    /// Source id → grade (2 = the document the question is about, 1 = worth having in context, 0 = judged
-    /// and rejected). A `crosslingual` case is an ordinary query whose graded documents are in another
-    /// language; it needs no category of its own, only a judgment pointing across.
+    /// Source id → grade on a four-point scale:
+    ///
+    /// - `3` — the one document that directly answers. **At most one per query**, and many questions have
+    ///   none: several co-equal answers are graded 2 rather than picking an arbitrary winner.
+    /// - `2` — strongly relevant. Either a co-equal answer, or a document the coach clearly ought to see.
+    /// - `1` — supporting. Worth having in context (the diagnosis behind the current complaint, the goal
+    ///   behind the habit) but not an answer on its own.
+    /// - `0` — judged and rejected. Written down rather than omitted, because that is how the corpus records
+    ///   that a near-miss sibling was considered and deliberately excluded.
+    ///
+    /// The band that carries the design is `1`. Without it, `gain` cannot express that one right answer beats
+    /// a context full of loosely-related lines, which is the failure this whole benchmark exists to catch.
+    ///
+    /// **This scale replaced a 0–2 one on 2026-08-19 and the change is not cosmetic.** Adding a top band
+    /// steepens the ratio between an answer and its supporting evidence from 3:1 to 7:1, which moves nDCG@8
+    /// by up to 0.149 on a single query — larger than every effect measured so far (0.002–0.071). Numbers
+    /// from before that date were taken with a different instrument and must never be compared to numbers
+    /// taken after it.
     let judgments: [String: Int]
 
     enum CodingKeys: String, CodingKey {
@@ -172,7 +200,16 @@ struct Corpus {
                 "no <lang>.documents.json / <lang>.queries.json pairs found in \(directory.path)",
             ])
         }
+        return try validated(documents: documents, queries: queries)
+    }
 
+    /// Every rule the corpus has to satisfy to be scoreable at all, separated from reading files so it can be
+    /// tested on hand-built input.
+    ///
+    /// That separation is the point: the committed corpus passing says nothing about whether a check would
+    /// FIRE. A validator only earns trust from being shown a broken corpus and rejecting it, and there is no
+    /// way to show it one while it is welded to the file reader.
+    static func validated(documents: [CorpusDocument], queries: [CorpusQuery]) throws -> Corpus {
         var problems: [String] = []
         var seen = Set<String>()
         for document in documents {
@@ -190,6 +227,17 @@ struct Corpus {
             for judged in query.judgments.keys where !ids.contains(judged) {
                 problems.append("\(query.id): judgment references unknown document \(judged)")
             }
+            for (judged, grade) in query.judgments where !(0...3).contains(grade) {
+                problems.append("\(query.id): grade \(grade) for \(judged) is outside the 0…3 scale")
+            }
+            // At most one direct answer. Without this the top band silently becomes a synonym for "relevant"
+            // and the distinction it was introduced to make disappears — a corpus can only enforce a scale's
+            // meaning through an invariant, not through a comment.
+            let directAnswers = query.judgments.filter { $0.value == 3 }.keys.sorted()
+            if directAnswers.count > 1 {
+                problems.append("\(query.id): \(directAnswers.count) documents graded 3 "
+                    + "(\(directAnswers.joined(separator: ", "))) — co-equal answers belong at grade 2")
+            }
             let relevant = query.judgments.values.contains { $0 > 0 }
             // The two halves of the same rule: an `irrelevant` query with a relevant document is not
             // irrelevant, and any other query without one can never be scored.
@@ -198,6 +246,21 @@ struct Corpus {
             }
             if query.category.isAnswerable && !relevant {
                 problems.append("\(query.id): \(query.category.rawValue) query has no relevant judgment")
+            }
+            // What makes a crosslingual case crosslingual. Without this the category would drift into ordinary
+            // paraphrases over time — the cheapest question to write is one in the language you are already
+            // typing, and nothing else would notice.
+            if query.category == .crosslingual {
+                let answers = query.judgments.filter { $0.value >= 2 }.keys
+                let sameLanguage = answers.compactMap { judged in
+                    documents.first { $0.id == judged }
+                }.filter { $0.lang == query.lang }
+                if answers.isEmpty {
+                    problems.append("\(query.id): crosslingual query has no answer graded 2 or 3")
+                } else if !sameLanguage.isEmpty {
+                    problems.append("\(query.id): answered by \(sameLanguage.map(\.id).sorted().joined(separator: ", ")) "
+                        + "in its OWN language (\(query.lang)) — then it is not testing language crossing")
+                }
             }
             // A judgment pointing outside the query's own index is unreachable: the search will never see
             // that document, so the query would score zero for a reason that has nothing to do with ranking.

@@ -1,234 +1,234 @@
 {
- "version": 1,
- "queries": [
-  {
-   "id": "zhs-q-mag",
-   "lang": "zh-Hans",
-   "category": "paraphrase",
-   "text": "晚上补镁对我的睡前流程有帮助吗？",
-   "judgments": {
-    "zhs-mag": 2,
-    "zhs-goal": 1
-   }
-  },
-  {
-   "id": "zhs-q-mag2",
-   "lang": "zh-Hans",
-   "category": "paraphrase",
-   "text": "帮我更容易入睡的那个补剂是哪个？",
-   "judgments": {
-    "zhs-mag": 2,
-    "zhs-d3": 1
-   }
-  },
-  {
-   "id": "zhs-q-caf",
-   "lang": "zh-Hans",
-   "category": "paraphrase",
-   "text": "喝咖啡太晚会让我晚上睡不着吗？",
-   "judgments": {
-    "zhs-caf": 2,
-    "zhs-nap": 1
-   }
-  },
-  {
-   "id": "zhs-q-caf2",
-   "lang": "zh-Hans",
-   "category": "paraphrase",
-   "text": "晚上是什么让我难以入睡？",
-   "judgments": {
-    "zhs-caf": 2,
-    "zhs-nap": 2,
-    "zhs-mag": 1,
-    "zhs-stress": 1
-   }
-  },
-  {
-   "id": "zhs-q-bike",
-   "lang": "zh-Hans",
-   "category": "paraphrase",
-   "text": "哪一次轻松的训练之后恢复得比较好？",
-   "judgments": {
-    "zhs-bike": 2
-   }
-  },
-  {
-   "id": "zhs-q-weekend",
-   "lang": "zh-Hans",
-   "category": "paraphrase",
-   "text": "星期六安排一次跑步可以吗？",
-   "judgments": {
-    "zhs-weekend": 2
-   }
-  },
-  {
-   "id": "zhs-q-weekend2",
-   "lang": "zh-Hans",
-   "category": "paraphrase",
-   "text": "周末我不想做什么？",
-   "judgments": {
-    "zhs-weekend": 2
-   }
-  },
-  {
-   "id": "zhs-q-alcohol",
-   "lang": "zh-Hans",
-   "category": "paraphrase",
-   "text": "喝酒会影响我休息得好不好吗？",
-   "judgments": {
-    "zhs-alcohol": 2
-   }
-  },
-  {
-   "id": "zhs-q-cold",
-   "lang": "zh-Hans",
-   "category": "paraphrase",
-   "text": "生病期间要不要训练，我们当时是怎么决定的？",
-   "judgments": {
-    "zhs-cold": 2
-   }
-  },
-  {
-   "id": "zhs-q-cold2",
-   "lang": "zh-Hans",
-   "category": "paraphrase",
-   "text": "快要感冒的时候我该看哪个指标？",
-   "judgments": {
-    "zhs-cold": 2
-   }
-  },
-  {
-   "id": "zhs-q-interval",
-   "lang": "zh-Hans",
-   "category": "paraphrase",
-   "text": "前几次你建议高强度间歇时我是什么反应？",
-   "judgments": {
-    "zhs-interval": 2
-   }
-  },
-  {
-   "id": "zhs-q-cbd",
-   "lang": "zh-Hans",
-   "category": "paraphrase",
-   "text": "七月底我有没有漏掉大麻二酚？",
-   "judgments": {
-    "zhs-cbd": 2
-   }
-  },
-  {
-   "id": "zhs-q-ferritin",
-   "lang": "zh-Hans",
-   "category": "numeric",
-   "text": "2026-03-14 我的铁蛋白是多少？",
-   "judgments": {
-    "zhs-ferritin": 2
-   }
-  },
-  {
-   "id": "zhs-q-ferritin2",
-   "lang": "zh-Hans",
-   "category": "numeric",
-   "text": "那个 42 是铁蛋白的值吗？",
-   "judgments": {
-    "zhs-ferritin": 2
-   }
-  },
-  {
-   "id": "zhs-q-goal",
-   "lang": "zh-Hans",
-   "category": "numeric",
-   "text": "目标还是 23:00 之前关灯吗？",
-   "judgments": {
-    "zhs-goal": 2
-   }
-  },
-  {
-   "id": "zhs-q-d3",
-   "lang": "zh-Hans",
-   "category": "numeric",
-   "text": "我每天吃多少 IU 的维生素D？",
-   "judgments": {
-    "zhs-d3": 2
-   }
-  },
-  {
-   "id": "zhs-q-shoes",
-   "lang": "zh-Hans",
-   "category": "numeric",
-   "text": "新跑鞋我是什么时候买的？",
-   "judgments": {
-    "zhs-shoes": 2,
-    "zhs-knee-new": 1
-   }
-  },
-  {
-   "id": "zhs-q-knee",
-   "lang": "zh-Hans",
-   "category": "recency",
-   "text": "我的左膝现在怎么样？",
-   "judgments": {
-    "zhs-knee-new": 2,
-    "zhs-knee-old": 0
-   }
-  },
-  {
-   "id": "zhs-q-knee2",
-   "lang": "zh-Hans",
-   "category": "recency",
-   "text": "做速度训练之后我还会膝盖不舒服吗？",
-   "judgments": {
-    "zhs-knee-new": 2,
-    "zhs-knee-old": 0
-   }
-  },
-  {
-   "id": "zhs-q-freq",
-   "lang": "zh-Hans",
-   "category": "recency",
-   "text": "我现在一周训练几次？",
-   "judgments": {
-    "zhs-freq-new": 2,
-    "zhs-freq-old": 0
-   }
-  },
-  {
-   "id": "zhs-q-sleep",
-   "lang": "zh-Hans",
-   "category": "paraphrase",
-   "text": "最近我的睡眠质量为什么变差了？",
-   "judgments": {
-    "zhs-caf": 2,
-    "zhs-nap": 2,
-    "zhs-stress": 2,
-    "zhs-noise2": 1,
-    "zhs-noise4": 1
-   }
-  },
-  {
-   "id": "zhs-q-irr1",
-   "lang": "zh-Hans",
-   "category": "unanswerable",
-   "text": "下周里斯本的天气怎么样？",
-   "judgments": {
-    "zhs-noise5": 0,
-    "zhs-cold": 0
-   }
-  },
-  {
-   "id": "zhs-q-irr2",
-   "lang": "zh-Hans",
-   "category": "unanswerable",
-   "text": "柴油发动机的机油滤清器怎么换？",
-   "judgments": {
-    "zhs-noise6": 0
-   }
-  },
-  {
-   "id": "zhs-q-irr3",
-   "lang": "zh-Hans",
-   "category": "unanswerable",
-   "text": "自由职业开发票需要哪个表格？",
-   "judgments": {}
-  }
- ]
+  "version": 1,
+  "queries": [
+    {
+      "id": "zhs-q-mag",
+      "lang": "zh-Hans",
+      "category": "paraphrase",
+      "text": "晚上补镁对我的睡前流程有帮助吗？",
+      "judgments": {
+        "zhs-mag": 3,
+        "zhs-goal": 1
+      }
+    },
+    {
+      "id": "zhs-q-mag2",
+      "lang": "zh-Hans",
+      "category": "paraphrase",
+      "text": "帮我更容易入睡的那个补剂是哪个？",
+      "judgments": {
+        "zhs-mag": 3,
+        "zhs-d3": 1
+      }
+    },
+    {
+      "id": "zhs-q-caf",
+      "lang": "zh-Hans",
+      "category": "paraphrase",
+      "text": "喝咖啡太晚会让我晚上睡不着吗？",
+      "judgments": {
+        "zhs-caf": 3,
+        "zhs-nap": 1
+      }
+    },
+    {
+      "id": "zhs-q-caf2",
+      "lang": "zh-Hans",
+      "category": "paraphrase",
+      "text": "晚上是什么让我难以入睡？",
+      "judgments": {
+        "zhs-caf": 2,
+        "zhs-nap": 2,
+        "zhs-mag": 1,
+        "zhs-stress": 1
+      }
+    },
+    {
+      "id": "zhs-q-bike",
+      "lang": "zh-Hans",
+      "category": "paraphrase",
+      "text": "哪一次轻松的训练之后恢复得比较好？",
+      "judgments": {
+        "zhs-bike": 3
+      }
+    },
+    {
+      "id": "zhs-q-weekend",
+      "lang": "zh-Hans",
+      "category": "paraphrase",
+      "text": "星期六安排一次跑步可以吗？",
+      "judgments": {
+        "zhs-weekend": 3
+      }
+    },
+    {
+      "id": "zhs-q-weekend2",
+      "lang": "zh-Hans",
+      "category": "paraphrase",
+      "text": "周末我不想做什么？",
+      "judgments": {
+        "zhs-weekend": 3
+      }
+    },
+    {
+      "id": "zhs-q-alcohol",
+      "lang": "zh-Hans",
+      "category": "paraphrase",
+      "text": "喝酒会影响我休息得好不好吗？",
+      "judgments": {
+        "zhs-alcohol": 3
+      }
+    },
+    {
+      "id": "zhs-q-cold",
+      "lang": "zh-Hans",
+      "category": "paraphrase",
+      "text": "生病期间要不要训练，我们当时是怎么决定的？",
+      "judgments": {
+        "zhs-cold": 3
+      }
+    },
+    {
+      "id": "zhs-q-cold2",
+      "lang": "zh-Hans",
+      "category": "paraphrase",
+      "text": "快要感冒的时候我该看哪个指标？",
+      "judgments": {
+        "zhs-cold": 3
+      }
+    },
+    {
+      "id": "zhs-q-interval",
+      "lang": "zh-Hans",
+      "category": "paraphrase",
+      "text": "前几次你建议高强度间歇时我是什么反应？",
+      "judgments": {
+        "zhs-interval": 3
+      }
+    },
+    {
+      "id": "zhs-q-cbd",
+      "lang": "zh-Hans",
+      "category": "paraphrase",
+      "text": "七月底我有没有漏掉大麻二酚？",
+      "judgments": {
+        "zhs-cbd": 3
+      }
+    },
+    {
+      "id": "zhs-q-ferritin",
+      "lang": "zh-Hans",
+      "category": "numeric",
+      "text": "2026-03-14 我的铁蛋白是多少？",
+      "judgments": {
+        "zhs-ferritin": 3
+      }
+    },
+    {
+      "id": "zhs-q-ferritin2",
+      "lang": "zh-Hans",
+      "category": "numeric",
+      "text": "那个 42 是铁蛋白的值吗？",
+      "judgments": {
+        "zhs-ferritin": 3
+      }
+    },
+    {
+      "id": "zhs-q-goal",
+      "lang": "zh-Hans",
+      "category": "numeric",
+      "text": "目标还是 23:00 之前关灯吗？",
+      "judgments": {
+        "zhs-goal": 3
+      }
+    },
+    {
+      "id": "zhs-q-d3",
+      "lang": "zh-Hans",
+      "category": "numeric",
+      "text": "我每天吃多少 IU 的维生素D？",
+      "judgments": {
+        "zhs-d3": 3
+      }
+    },
+    {
+      "id": "zhs-q-shoes",
+      "lang": "zh-Hans",
+      "category": "numeric",
+      "text": "新跑鞋我是什么时候买的？",
+      "judgments": {
+        "zhs-shoes": 3,
+        "zhs-knee-new": 1
+      }
+    },
+    {
+      "id": "zhs-q-knee",
+      "lang": "zh-Hans",
+      "category": "recency",
+      "text": "我的左膝现在怎么样？",
+      "judgments": {
+        "zhs-knee-new": 3,
+        "zhs-knee-old": 0
+      }
+    },
+    {
+      "id": "zhs-q-knee2",
+      "lang": "zh-Hans",
+      "category": "recency",
+      "text": "做速度训练之后我还会膝盖不舒服吗？",
+      "judgments": {
+        "zhs-knee-new": 3,
+        "zhs-knee-old": 0
+      }
+    },
+    {
+      "id": "zhs-q-freq",
+      "lang": "zh-Hans",
+      "category": "recency",
+      "text": "我现在一周训练几次？",
+      "judgments": {
+        "zhs-freq-new": 3,
+        "zhs-freq-old": 0
+      }
+    },
+    {
+      "id": "zhs-q-sleep",
+      "lang": "zh-Hans",
+      "category": "paraphrase",
+      "text": "最近我的睡眠质量为什么变差了？",
+      "judgments": {
+        "zhs-caf": 2,
+        "zhs-nap": 2,
+        "zhs-stress": 2,
+        "zhs-noise2": 1,
+        "zhs-noise4": 1
+      }
+    },
+    {
+      "id": "zhs-q-irr1",
+      "lang": "zh-Hans",
+      "category": "unanswerable",
+      "text": "下周里斯本的天气怎么样？",
+      "judgments": {
+        "zhs-noise5": 0,
+        "zhs-cold": 0
+      }
+    },
+    {
+      "id": "zhs-q-irr2",
+      "lang": "zh-Hans",
+      "category": "unanswerable",
+      "text": "柴油发动机的机油滤清器怎么换？",
+      "judgments": {
+        "zhs-noise6": 0
+      }
+    },
+    {
+      "id": "zhs-q-irr3",
+      "lang": "zh-Hans",
+      "category": "unanswerable",
+      "text": "自由职业开发票需要哪个表格？",
+      "judgments": {}
+    }
+  ]
 }

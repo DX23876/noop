@@ -1,234 +1,234 @@
 {
- "version": 1,
- "queries": [
-  {
-   "id": "de-q-mag",
-   "lang": "de",
-   "category": "paraphrase",
-   "text": "Hilft mir Mg am Abend bei meiner Nachtroutine?",
-   "judgments": {
-    "de-mag": 2,
-    "de-goal": 1
-   }
-  },
-  {
-   "id": "de-q-mag2",
-   "lang": "de",
-   "category": "paraphrase",
-   "text": "Welches Präparat war das, das mir beim Einschlafen geholfen hat?",
-   "judgments": {
-    "de-mag": 2,
-    "de-d3": 1
-   }
-  },
-  {
-   "id": "de-q-caf",
-   "lang": "de",
-   "category": "paraphrase",
-   "text": "Hält mich später Kaffee nachts wach?",
-   "judgments": {
-    "de-caf": 2,
-    "de-nap": 1
-   }
-  },
-  {
-   "id": "de-q-caf2",
-   "lang": "de",
-   "category": "paraphrase",
-   "text": "Was hält mich abends vom Einschlafen ab?",
-   "judgments": {
-    "de-caf": 2,
-    "de-nap": 2,
-    "de-mag": 1,
-    "de-stress": 1
-   }
-  },
-  {
-   "id": "de-q-bike",
-   "lang": "de",
-   "category": "paraphrase",
-   "text": "Welche sanfte Einheit ging guter Regeneration voraus?",
-   "judgments": {
-    "de-bike": 2
-   }
-  },
-  {
-   "id": "de-q-weekend",
-   "lang": "de",
-   "category": "paraphrase",
-   "text": "Können wir am Samstag einen Lauf einplanen?",
-   "judgments": {
-    "de-weekend": 2
-   }
-  },
-  {
-   "id": "de-q-weekend2",
-   "lang": "de",
-   "category": "paraphrase",
-   "text": "Was möchte ich am Wochenende nicht machen?",
-   "judgments": {
-    "de-weekend": 2
-   }
-  },
-  {
-   "id": "de-q-alcohol",
-   "lang": "de",
-   "category": "paraphrase",
-   "text": "Wirkt sich Trinken darauf aus, wie ausgeruht ich bin?",
-   "judgments": {
-    "de-alcohol": 2
-   }
-  },
-  {
-   "id": "de-q-cold",
-   "lang": "de",
-   "category": "paraphrase",
-   "text": "Was hatten wir zum Training während der Krankheit entschieden?",
-   "judgments": {
-    "de-cold": 2
-   }
-  },
-  {
-   "id": "de-q-cold2",
-   "lang": "de",
-   "category": "paraphrase",
-   "text": "Welchen Wert soll ich beobachten, wenn ich mir etwas eingefangen habe?",
-   "judgments": {
-    "de-cold": 2
-   }
-  },
-  {
-   "id": "de-q-interval",
-   "lang": "de",
-   "category": "paraphrase",
-   "text": "Wie habe ich auf die letzten Vorschläge für harte Intervalle reagiert?",
-   "judgments": {
-    "de-interval": 2
-   }
-  },
-  {
-   "id": "de-q-cbd",
-   "lang": "de",
-   "category": "paraphrase",
-   "text": "Habe ich Cannabidiol Ende Juli ausgelassen?",
-   "judgments": {
-    "de-cbd": 2
-   }
-  },
-  {
-   "id": "de-q-ferritin",
-   "lang": "de",
-   "category": "numeric",
-   "text": "Wie hoch war mein Ferritin am 2026-03-14?",
-   "judgments": {
-    "de-ferritin": 2
-   }
-  },
-  {
-   "id": "de-q-ferritin2",
-   "lang": "de",
-   "category": "numeric",
-   "text": "War die 42 der Ferritinwert?",
-   "judgments": {
-    "de-ferritin": 2
-   }
-  },
-  {
-   "id": "de-q-goal",
-   "lang": "de",
-   "category": "numeric",
-   "text": "Ist Licht aus vor 23:00 noch das Ziel?",
-   "judgments": {
-    "de-goal": 2
-   }
-  },
-  {
-   "id": "de-q-d3",
-   "lang": "de",
-   "category": "numeric",
-   "text": "Wie viele IE Vitamin D nehme ich?",
-   "judgments": {
-    "de-d3": 2
-   }
-  },
-  {
-   "id": "de-q-shoes",
-   "lang": "de",
-   "category": "numeric",
-   "text": "Wann habe ich die neuen Laufschuhe gekauft?",
-   "judgments": {
-    "de-shoes": 2,
-    "de-knee-new": 1
-   }
-  },
-  {
-   "id": "de-q-knee",
-   "lang": "de",
-   "category": "recency",
-   "text": "Wie geht es meinem linken Knie im Moment?",
-   "judgments": {
-    "de-knee-new": 2,
-    "de-knee-old": 0
-   }
-  },
-  {
-   "id": "de-q-knee2",
-   "lang": "de",
-   "category": "recency",
-   "text": "Habe ich nach Tempoeinheiten noch Knieprobleme?",
-   "judgments": {
-    "de-knee-new": 2,
-    "de-knee-old": 0
-   }
-  },
-  {
-   "id": "de-q-freq",
-   "lang": "de",
-   "category": "recency",
-   "text": "Wie oft pro Woche trainiere ich zurzeit?",
-   "judgments": {
-    "de-freq-new": 2,
-    "de-freq-old": 0
-   }
-  },
-  {
-   "id": "de-q-sleep",
-   "lang": "de",
-   "category": "paraphrase",
-   "text": "Warum ist meine Schlafqualität in letzter Zeit schlechter geworden?",
-   "judgments": {
-    "de-caf": 2,
-    "de-nap": 2,
-    "de-stress": 2,
-    "de-noise2": 1,
-    "de-noise4": 1
-   }
-  },
-  {
-   "id": "de-q-irr1",
-   "lang": "de",
-   "category": "unanswerable",
-   "text": "Wie wird das Wetter nächste Woche in Lissabon?",
-   "judgments": {
-    "de-noise6": 0,
-    "de-cold": 0
-   }
-  },
-  {
-   "id": "de-q-irr2",
-   "lang": "de",
-   "category": "unanswerable",
-   "text": "Wie wechsle ich den Ölfilter an einem Dieselmotor?",
-   "judgments": {
-    "de-noise8": 0
-   }
-  },
-  {
-   "id": "de-q-irr3",
-   "lang": "de",
-   "category": "unanswerable",
-   "text": "Welches Formular brauche ich für eine freiberufliche Rechnung?",
-   "judgments": {}
-  }
- ]
+  "version": 1,
+  "queries": [
+    {
+      "id": "de-q-mag",
+      "lang": "de",
+      "category": "paraphrase",
+      "text": "Hilft mir Mg am Abend bei meiner Nachtroutine?",
+      "judgments": {
+        "de-mag": 3,
+        "de-goal": 1
+      }
+    },
+    {
+      "id": "de-q-mag2",
+      "lang": "de",
+      "category": "paraphrase",
+      "text": "Welches Präparat war das, das mir beim Einschlafen geholfen hat?",
+      "judgments": {
+        "de-mag": 3,
+        "de-d3": 1
+      }
+    },
+    {
+      "id": "de-q-caf",
+      "lang": "de",
+      "category": "paraphrase",
+      "text": "Hält mich später Kaffee nachts wach?",
+      "judgments": {
+        "de-caf": 3,
+        "de-nap": 1
+      }
+    },
+    {
+      "id": "de-q-caf2",
+      "lang": "de",
+      "category": "paraphrase",
+      "text": "Was hält mich abends vom Einschlafen ab?",
+      "judgments": {
+        "de-caf": 2,
+        "de-nap": 2,
+        "de-mag": 1,
+        "de-stress": 1
+      }
+    },
+    {
+      "id": "de-q-bike",
+      "lang": "de",
+      "category": "paraphrase",
+      "text": "Welche sanfte Einheit ging guter Regeneration voraus?",
+      "judgments": {
+        "de-bike": 3
+      }
+    },
+    {
+      "id": "de-q-weekend",
+      "lang": "de",
+      "category": "paraphrase",
+      "text": "Können wir am Samstag einen Lauf einplanen?",
+      "judgments": {
+        "de-weekend": 3
+      }
+    },
+    {
+      "id": "de-q-weekend2",
+      "lang": "de",
+      "category": "paraphrase",
+      "text": "Was möchte ich am Wochenende nicht machen?",
+      "judgments": {
+        "de-weekend": 3
+      }
+    },
+    {
+      "id": "de-q-alcohol",
+      "lang": "de",
+      "category": "paraphrase",
+      "text": "Wirkt sich Trinken darauf aus, wie ausgeruht ich bin?",
+      "judgments": {
+        "de-alcohol": 3
+      }
+    },
+    {
+      "id": "de-q-cold",
+      "lang": "de",
+      "category": "paraphrase",
+      "text": "Was hatten wir zum Training während der Krankheit entschieden?",
+      "judgments": {
+        "de-cold": 3
+      }
+    },
+    {
+      "id": "de-q-cold2",
+      "lang": "de",
+      "category": "paraphrase",
+      "text": "Welchen Wert soll ich beobachten, wenn ich mir etwas eingefangen habe?",
+      "judgments": {
+        "de-cold": 3
+      }
+    },
+    {
+      "id": "de-q-interval",
+      "lang": "de",
+      "category": "paraphrase",
+      "text": "Wie habe ich auf die letzten Vorschläge für harte Intervalle reagiert?",
+      "judgments": {
+        "de-interval": 3
+      }
+    },
+    {
+      "id": "de-q-cbd",
+      "lang": "de",
+      "category": "paraphrase",
+      "text": "Habe ich Cannabidiol Ende Juli ausgelassen?",
+      "judgments": {
+        "de-cbd": 3
+      }
+    },
+    {
+      "id": "de-q-ferritin",
+      "lang": "de",
+      "category": "numeric",
+      "text": "Wie hoch war mein Ferritin am 2026-03-14?",
+      "judgments": {
+        "de-ferritin": 3
+      }
+    },
+    {
+      "id": "de-q-ferritin2",
+      "lang": "de",
+      "category": "numeric",
+      "text": "War die 42 der Ferritinwert?",
+      "judgments": {
+        "de-ferritin": 3
+      }
+    },
+    {
+      "id": "de-q-goal",
+      "lang": "de",
+      "category": "numeric",
+      "text": "Ist Licht aus vor 23:00 noch das Ziel?",
+      "judgments": {
+        "de-goal": 3
+      }
+    },
+    {
+      "id": "de-q-d3",
+      "lang": "de",
+      "category": "numeric",
+      "text": "Wie viele IE Vitamin D nehme ich?",
+      "judgments": {
+        "de-d3": 3
+      }
+    },
+    {
+      "id": "de-q-shoes",
+      "lang": "de",
+      "category": "numeric",
+      "text": "Wann habe ich die neuen Laufschuhe gekauft?",
+      "judgments": {
+        "de-shoes": 3,
+        "de-knee-new": 1
+      }
+    },
+    {
+      "id": "de-q-knee",
+      "lang": "de",
+      "category": "recency",
+      "text": "Wie geht es meinem linken Knie im Moment?",
+      "judgments": {
+        "de-knee-new": 3,
+        "de-knee-old": 0
+      }
+    },
+    {
+      "id": "de-q-knee2",
+      "lang": "de",
+      "category": "recency",
+      "text": "Habe ich nach Tempoeinheiten noch Knieprobleme?",
+      "judgments": {
+        "de-knee-new": 3,
+        "de-knee-old": 0
+      }
+    },
+    {
+      "id": "de-q-freq",
+      "lang": "de",
+      "category": "recency",
+      "text": "Wie oft pro Woche trainiere ich zurzeit?",
+      "judgments": {
+        "de-freq-new": 3,
+        "de-freq-old": 0
+      }
+    },
+    {
+      "id": "de-q-sleep",
+      "lang": "de",
+      "category": "paraphrase",
+      "text": "Warum ist meine Schlafqualität in letzter Zeit schlechter geworden?",
+      "judgments": {
+        "de-caf": 2,
+        "de-nap": 2,
+        "de-stress": 2,
+        "de-noise2": 1,
+        "de-noise4": 1
+      }
+    },
+    {
+      "id": "de-q-irr1",
+      "lang": "de",
+      "category": "unanswerable",
+      "text": "Wie wird das Wetter nächste Woche in Lissabon?",
+      "judgments": {
+        "de-noise6": 0,
+        "de-cold": 0
+      }
+    },
+    {
+      "id": "de-q-irr2",
+      "lang": "de",
+      "category": "unanswerable",
+      "text": "Wie wechsle ich den Ölfilter an einem Dieselmotor?",
+      "judgments": {
+        "de-noise8": 0
+      }
+    },
+    {
+      "id": "de-q-irr3",
+      "lang": "de",
+      "category": "unanswerable",
+      "text": "Welches Formular brauche ich für eine freiberufliche Rechnung?",
+      "judgments": {}
+    }
+  ]
 }
