@@ -389,8 +389,7 @@ final class CoachSemanticMemory: ObservableObject, SemanticMemoryCoordinator {
                         allowedScopes: allowedScopes)
         let lexical = lexicalHits(question: question, allowedScopes: allowedScopes)
         guard isEnabled, CoachFeaturePrefs.isEnabled, let provider, let store else {
-            return finish(handoffContext(from: Array(lexical.prefix(8)),
-                                         requestedScopes: allowedScopes),
+            return finish(handoffContext(from: lexical, requestedScopes: allowedScopes),
                           mode: lexical.isEmpty ? .unavailable : .keywordFallback,
                           startedAt: startedAt)
         }
@@ -431,8 +430,7 @@ final class CoachSemanticMemory: ObservableObject, SemanticMemoryCoordinator {
 
         guard let semantic else {
             await refreshStatus()
-            return finish(handoffContext(from: Array(lexical.prefix(8)),
-                                         requestedScopes: allowedScopes),
+            return finish(handoffContext(from: lexical, requestedScopes: allowedScopes),
                           mode: lexical.isEmpty ? .unavailable : .keywordFallback,
                           startedAt: startedAt)
         }
@@ -921,12 +919,29 @@ final class CoachSemanticMemory: ObservableObject, SemanticMemoryCoordinator {
             .map(\.0)
     }
 
-    private static func context(from hits: [SemanticHit],
-                                documents: [String: SemanticDocument]) -> String {
+    /// The ≤8 context lines, one per source.
+    ///
+    /// Deduplication happens over the WHOLE hit list and the cut to 8 comes after it, which is why the
+    /// callers must not pre-truncate: `lexicalHits` ranks CHUNKS, and eight chunks of one long conversation
+    /// are one line. The keyword-fallback callers used to hand over `lexical.prefix(8)` and so could emit
+    /// three lines while five more sources sat unused in the rest of the list — in the one path that runs
+    /// when the embedding model loses its race, i.e. exactly when the context is already thinnest.
+    ///
+    /// Not `private` so `CoachSemanticContextTests` can pin that directly, the same way
+    /// `CoachMemory.relevanceScore` is reachable for its own test.
+    static func context(from hits: [SemanticHit],
+                        documents: [String: SemanticDocument]) -> String {
         var seen = Set<String>()
         let selected = hits.compactMap { hit -> SemanticDocument? in
+            // Resolved BEFORE the source is marked as seen. A hit the live set cannot resolve — an index row
+            // whose canonical source has since been deleted — must not spend the slot for its source. Today
+            // that ordering cannot change an outcome (the fused list holds one hit per source, and the
+            // fallback list's hits all come from `liveDocuments`, so a miss and a duplicate never meet), so
+            // this is defensive rather than a fix. It stops being defensive the moment either arm starts
+            // handing over several chunks of one source AND the index can outlive a source.
+            guard let document = documents[hit.documentID] else { return nil }
             guard seen.insert(hit.sourceID).inserted else { return nil }
-            return documents[hit.documentID]
+            return document
         }.prefix(8)
         guard !selected.isEmpty else { return "" }
         var lines = ["RELEVANT LOCAL TEXT MEMORY (retrieved on device; treat as user-provided context):"]

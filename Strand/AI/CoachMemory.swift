@@ -536,6 +536,10 @@ final class CoachMemory: ObservableObject {
     /// Chinese is deliberately NOT represented: `tokens` reaches it through character bigrams, which
     /// are not words, so a word-level stopword list has nothing to match. Its function words are single
     /// characters that only ever appear inside a gram alongside a content character.
+    ///
+    /// Every other shipped locale IS represented, which was not true before: `pl` was missing entirely
+    /// while shipping, and `testStopwordsCoverTheShippedLanguages` probed only seven of the ten — so the
+    /// test's name promised a guarantee it did not check, and the gap survived behind it.
     nonisolated private static let stopwords: Set<String> = [
         // English
         "the", "and", "but", "for", "with", "not", "you", "your", "yours", "our", "its",
@@ -576,6 +580,24 @@ final class CoachMemory: ObservableObject {
         "это", "как", "что", "для", "который", "которая", "мой", "моя", "мои", "меня", "мне",
         "тебя", "они", "она", "оно", "был", "была", "были", "быть", "есть", "нет", "или",
         "если", "когда", "где", "почему", "очень", "уже", "ещё", "еще", "так", "все", "всё",
+        // Polish. Absent until #P9's review noticed that `pl` ships and had no entries at all, so every
+        // Polish function word counted as topic overlap — in the keyword ranker, in the rescue arm, and in
+        // the near-duplicate check. Diacritic and stripped spellings are both listed, as for German and
+        // Spanish above, because `tokens` lowercases but does not fold diacritics.
+        "jest", "być", "byc", "był", "byl", "była", "byla", "było", "bylo", "były", "byly",
+        "będzie", "bedzie", "jestem", "jesteś", "jestes", "mam", "masz", "mają", "maja",
+        "może", "moze", "można", "mozna", "musi", "trzeba", "powinien", "powinna",
+        "nie", "tak", "czy", "jak", "ale", "lub", "albo", "oraz", "czyli", "więc", "wiec",
+        "dla", "bez", "przez", "przy", "pod", "nad", "między", "miedzy",
+        "mój", "moj", "moja", "moje", "moim", "moich", "mnie",
+        "twój", "twoj", "twoja", "twoje", "ciebie", "nasz", "nasze", "wasz", "wasze",
+        "ona", "ono", "oni", "ich", "jego", "jej", "się", "sie",
+        "ten", "tego", "tym", "temu", "tej", "tych", "tam", "tutaj", "teraz",
+        "który", "ktory", "która", "ktora", "które", "ktore", "którego", "ktorego",
+        "aby", "żeby", "zeby", "jeśli", "jesli", "jeżeli", "jezeli", "gdy", "kiedy", "gdzie",
+        "dlaczego", "dlatego", "ponieważ", "poniewaz",
+        "bardzo", "już", "juz", "jeszcze", "tylko", "też", "tez", "także", "takze", "znowu",
+        "wszystko", "wszystkie", "coś", "cos", "nic", "nikt",
     ]
 
     /// Lowercased, punctuation-stripped word tokens ≥ 3 chars, stopwords removed — plus character
