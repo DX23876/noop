@@ -83,12 +83,12 @@ quantisation and Matryoshka loss the device actually has.
 
 ## What the corpus is, and what it is not
 
-520 documents / 624 queries, organised into **indexes** rather than languages, because an index is what a
+526 documents / 644 queries, organised into **indexes** rather than languages, because an index is what a
 question is actually asked against: one person's own memories.
 
 | Index | Documents | Queries | Languages | Job |
 |---|---|---|---|---|
-| `main` | 272 | 384 | de + en (~1 in 10) | every ranking and reranking question |
+| `main` | 278 | 404 | de + en (~1 in 10) | every ranking and reranking question |
 | `locale-*` × 10 | 24–28 each | 24 each | one each | does this model work in this language at all |
 
 `main` is shaped like a real index and sized so that **ranking, not recall, decides** — the previous version
@@ -405,6 +405,33 @@ oracle 0.532. That earlier saturation was a property of a 25-candidates-per-quer
 does not by itself justify shipping a cross-encoder — the latency argument in section 4 stands, and the scale
 measurement shows the scan is not what loses the race, so the second model's load and forward passes would be —
 but "too little headroom" is no longer a true statement.
+
+### State change is where the weakness is, so that is where the corpus grew
+
+`recency` scored 0.581 — the weakest of the nine categories — and the recency term does not fix it: it reaches
+0.634 where the IDF arm reaches 0.647 on the same cases. More weighting is not the answer, harder cases are the
+test. Counting the structure showed why the category was soft: **19 of 30 cases had only one superseded
+distractor**, and just two had three.
+
+Six documents were added to turn two-step chains into three-step ones (an intermediate caffeine limit, an
+intermediate weight, an intermediate sleep goal, a knee state between "irritated in winter" and "quiet since the
+shoe change") plus two resolved states (a lower back that stopped complaining after a technique correction, a hip
+flexor that loosened up). Then twenty cases in `Corpus/main-g.queries.json`, in three forms:
+
+- **Resolved states asked in the present tense** — "is the left knee quiet by now?" — where the *newer* document
+  is the answer and two older states are graded 0.
+- **Three-step chains**, so the current answer has to beat two superseded ones rather than one.
+- **Value-free questions** — "does that still hold with the magnesium?" — which name no value and therefore lean
+  entirely on recency.
+
+`recency` now holds 43 cases and the two-superseded shape went from 9 to 16.
+
+**One design decision worth stating, because it looks like a gap otherwise.** The *inverted* question — "what is
+**no longer** my problem?" — has the **older** document as its answer, which violates the enforced invariant that
+a recency case grades the newer document above an older distractor. That invariant is not being softened; it has
+already caught five miscategorised queries of my own. So inverted state-change questions live in `negation`
+instead, where no ordering is implied. Six of them were added there, and the split extension placed all twenty
+new cases without a single dev/holdout bridge.
 
 ### The keyword arm alone — the row that was missing, and it costs 0.227
 
