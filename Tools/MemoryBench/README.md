@@ -296,6 +296,11 @@ questions, so what limits resolution is the variance of the *differences*, not o
 consistent gain is resolvable even when scores swing across the whole range; a gain that changes sign per
 query is not, however good its mean looks.
 
+> **Superseded.** The two subsections that follow were measured on the 120-query `main`, the 0–2 grade scale and
+> a 79/41 split. They are kept because the *method* they introduced is still the method, and because one of them
+> records a reversal that later turned out to be noise — which is itself the argument for intervals. The current
+> figures are under [Results](#results). Do not carry a number across that line.
+
 ### On development, several effects are solid
 
 Against `today (+rescue)`, 72 scored queries:
@@ -345,24 +350,65 @@ variance of scores instead of the variance of paired differences. The measured w
 
 ## Results
 
-> **All numbers below were measured on the 0–2 grade scale, before the crosslingual category existed and
-> before the corpus grew.** They are kept because they are the evidence the current decisions rest on and the
-> record of how the measurement got more honest, not because they are current. Re-measuring needs a re-embed
-> (the corpus changed, so the vector files are invalid by construction), and the 0–3 scale alone can move a
-> single query's nDCG@8 by up to 0.149. Do not compare a new figure with one from this section.
+### Current measurement: 384 queries, 0–3 scale, dev only, real Nomic vectors
 
+Taken 2026-08-19 after the corpus grew, with `llama-embedding` from the pinned `b9623` over the bundled
+`nomic-embed-text-v2-moe.Q4_K_M`. All three trivial pairs passed (+0.72/+0.58/+0.51 margins). Scope is the
+**development** half of `main` — 233 scored queries — and the paired-bootstrap baseline is the **shipped**
+configuration, `today (+rescue)`.
 
-**Scope matters, and getting it wrong cost every number in this file once already.** The corpus holds 320
-answerable queries: 110 on the `main` index (272 documents, the realistic problem) and 210 spread over ten
-24-document locale sets. Averaging all of them makes two thirds of every headline come from a problem too easy
-to separate anything — which is what the earlier tables did, and they ran about 0.06 optimistic as a result.
+| variant | nDCG@8 | Δ vs shipped | 95% CI | verdict |
+|---|---|---|---|---|
+| semantic-only (drop the rescue arm) | 0.727 | +0.008 | [+0.004, +0.013] | **better** |
+| today (+rescue) — shipped | 0.719 | — | — | baseline |
+| + IDF rescue | **0.746** | **+0.027** | [+0.015, +0.040] | **better** |
+| + recency | 0.729 | +0.010 | [−0.012, +0.030] | indistinguishable |
+| + kind prior | 0.724 | +0.005 | [−0.021, +0.029] | indistinguishable |
+| + floor | 0.721 | +0.002 | [−0.024, +0.027] | indistinguishable |
+| + quotas | 0.701 | −0.018 | [−0.046, +0.009] | indistinguishable |
+| + MMR | 0.679 | −0.040 | [−0.068, −0.012] | **worse** |
+| absolute floor 0.35 | 0.669 | −0.050 | [−0.079, −0.021] | **worse** |
+| absolute floor 0.40 | 0.613 | −0.106 | [−0.147, −0.067] | **worse** |
+| relative floor top×0.9 + gate | 0.641 | −0.078 | [−0.106, −0.049] | **worse** |
+| relative floor top×0.7 + gate | 0.724 | +0.004 | [−0.018, +0.025] | indistinguishable |
+| **ORACLE, same 32 candidates** | **0.954** | **+0.235** | [+0.201, +0.270] | ceiling |
+| ORACLE, K=128 candidates | 0.995 | +0.276 | [+0.238, +0.314] | ceiling |
 
-`score` now reports three scopes explicitly: **`main`** (the headline, where ranking is decided), **locale
-sets** (a language smoke test, never a ranking measurement) and **pooled** (labelled as mixed difficulty, kept
-only so the older figures stay reproducible). `ScorePipelineTests` asserts every variant reports all three and
-that the pooled mean lies between its parts, so the mistake cannot be made silently again.
+**What holds.** The shipped rescue arm is a small but now *resolvable* loss — third independent confirmation of
+P5 — and replacing it with an IDF-weighted arm carrying numeric tokens is the only feature on the ladder that
+wins outside its interval (+0.027). `negation` 0.718 → 0.783 and `recency` 0.581 → 0.647 are where it earns it.
 
-Everything below is the **`main` scope** unless it says otherwise.
+**What this overturns.** Three earlier conclusions do not survive a realistic index:
+
+- **Recency is not confirmed, and it does not win its own category.** It read as "real and targeted" before
+  (+0.009 overall, `temporal` 0.681 → 0.785). Here it is +0.010 [−0.012, +0.030], and on the `recency` category
+  it scores 0.634 against the IDF arm's 0.647 — adding the recency term makes the recency cases *worse*. The
+  earlier result came from a 24-document-dominated pooled average.
+- **The kind prior is unresolvable again.** It had been dropped at −0.005, then reinstated as "the strongest
+  single addition" at +0.071 [+0.039, +0.104] on the 79-query dev half. At 233 queries it is +0.005
+  [−0.021, +0.029]. That reversal was itself noise, and this is the second time this feature has moved with the
+  measurement rather than with the code.
+- **The absolute floor is not the good trade it looked like.** It was calibrated at 0.35 on the old corpus with
+  relevant p25 0.395 against best-irrelevant p95 0.396 — clean separation. On dev of the grown corpus the
+  distributions **overlap heavily**: relevant p25 0.397, best-irrelevant *median* 0.418. Any threshold that
+  silences the median unanswerable query cuts below a quarter of the true hits, and the measurement agrees:
+  floor 0.35 costs −0.050 nDCG and still leaks 2.35 lines per unanswerable question (it took them to 0.33 on the
+  old corpus). The mechanism is plain — in a denser index something always looks moderately similar.
+
+**The largest finding is the ceiling.** Reordering the *same 32 candidates* perfectly is worth **+0.235** nDCG@8
+[+0.201, +0.270] — an order of magnitude more than every feature on the ladder combined. Deepening to 128
+candidates adds only 0.041 on top of that, so the candidate pool is not the binding constraint; the ranking is.
+
+This is the number that reopens the reranker question, which was closed on the reasoning that recall was
+saturated (R@1 86%, R@3 96.7% on the old measurement). On dev of the grown corpus R@1 is **0.368** against an
+oracle 0.532. That earlier saturation was a property of a 25-candidates-per-query index, not of the problem. It
+does not by itself justify shipping a cross-encoder — the latency argument in section 4 stands, and the scale
+measurement shows the scan is not what loses the race, so the second model's load and forward passes would be —
+but "too little headroom" is no longer a true statement.
+
+> Everything in the subsections below predates this: **0–2 grade scale, no crosslingual category, 120-query
+> `main`, and metrics pooled across ten 24-document locale sets.** They are kept as the record of how the
+> measurement got more honest, not as current results. Do not compare a figure across that line.
 
 ### The model question is settled, and harrier is the worst of the three
 
