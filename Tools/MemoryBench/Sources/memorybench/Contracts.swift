@@ -30,6 +30,22 @@ struct EmbeddingContract {
 
     func query(_ text: String) -> String { queryTemplate.replacingOccurrences(of: "%@", with: text) }
     func document(_ text: String) -> String { documentTemplate.replacingOccurrences(of: "%@", with: text) }
+
+    /// The same contract storing a narrower vector.
+    ///
+    /// The id carries the width so a vectors set built this way can never be mistaken for the model's default,
+    /// and an untrained truncation is marked in the id itself — a table row reading
+    /// `harrier-oss-v1-0.6b@256-untruncated-training` explains itself, where a bare model name would not.
+    func truncated(to dimensions: Int) -> EmbeddingContract {
+        EmbeddingContract(id: "\(id)@\(dimensions)\(matryoshka ? "" : "-untrained-truncation")",
+                          queryTemplate: queryTemplate,
+                          documentTemplate: documentTemplate,
+                          pooling: pooling,
+                          fullDimensions: fullDimensions,
+                          storedDimensions: dimensions,
+                          matryoshka: matryoshka,
+                          incomparable: incomparable)
+    }
 }
 
 extension EmbeddingContract {
@@ -62,6 +78,17 @@ extension EmbeddingContract {
     /// Decoder-only, last-token pooling, instruction on the query only. No documented Matryoshka, so it is
     /// measured at its full 640 — which costs 2.5× the index bytes of the current 256 and is part of its
     /// price, not a detail to hide.
+    ///
+    /// Its architecture (`Gemma3TextModel`) IS supported by the pinned runtime, so this is not a dead end —
+    /// but the only GGUF that exists is community-built and does not load on `b9623`:
+    ///
+    ///     error loading model vocabulary: key tokenizer.ggml.suffix_token_id
+    ///     has wrong type i32 but expected type u32
+    ///
+    /// Measured 2026-08-19 against `cstr/harrier-270m-GGUF` (`harrier-270m-q4_k.gguf`). The quantiser wrote a
+    /// metadata key with a type this runtime rejects, so the file is unusable here — and running it on a
+    /// NEWER llama.cpp would measure a runtime the app does not ship. The fair test is to convert the HF
+    /// weights with the pinned tag's own `convert_hf_to_gguf.py`; until someone does, there is no number.
     static let harrier270m = EmbeddingContract(
         id: "harrier-oss-v1-270m",
         queryTemplate: "Instruct: Given a question about the user's own health, sleep and training notes, retrieve the notes that answer it\nQuery: %@",
@@ -86,6 +113,20 @@ extension EmbeddingContract {
 
     /// The cheap control. If a 118M model is close on short personal facts, the interesting question stops
     /// being "which big model" and becomes "why are we carrying 328 MB".
+    ///
+    /// Not answered yet, and the first attempt is a cautionary tale about community quantisations. With
+    /// `keisuke-miyako/multilingual-e5-small-gguf-q4_k_m` (2026-08-19) the corpus scored nDCG@8 0.187 against
+    /// Nomic's 0.611 — but the floor calibration came back INVERTED (relevant hits median 0.934, best hit of
+    /// an unanswerable question median 0.957) and every cosine sat above 0.89, which is the signature of a
+    /// degenerate representation rather than of bad retrieval. A three-line check settled it: for
+    /// `query: Magnesium vor dem Schlafengehen`, the passage about a diesel oil filter scored 0.9367 and the
+    /// passage about magnesium at bedtime scored 0.9303. A model that cannot separate that pair is not being
+    /// measured; the file is broken (or Q4_K_M destroys a 384-dimension model).
+    ///
+    /// So there is **no e5 number here**, only a rejected artifact. Re-run against the f16 or Q8_0 build of
+    /// the same weights before drawing any conclusion about the model — and note the size surprise while
+    /// doing so: Q4_K_M is 124 MB, not the ~90 MB the parameter count suggests, because the 250k XLM-R
+    /// vocabulary dominates a model this small.
     static let e5Small = EmbeddingContract(
         id: "multilingual-e5-small",
         queryTemplate: "query: %@",

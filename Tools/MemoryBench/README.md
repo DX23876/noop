@@ -138,6 +138,26 @@ its rankings are wrong. Those figures come from the Expert memory card on real h
 
 ---
 
+## Where the bench is not the app
+
+Two known gaps, both in `embed`:
+
+- **The app truncates a prompt at 384 tokens** (`NomicEmbeddingContract.maximumInputTokens`, enforced with
+  the model's own tokenizer); `embed` does not. It does not bite for word-chunked text, but a
+  240-character unsegmented chunk sits right at that boundary by design — the chunker's own comment says
+  240 characters "stay clear of the provider's 384-token ceiling even at the worst case of more than one
+  token per character", and 240 × 1.6 is 384. So for Chinese chunks the app may truncate where the bench
+  does not, and a model that handles those chunks well could look very slightly better here than it is.
+- **`-c`/`-b`/`-ub` are scaled to the batch**, not pinned at the app's 512. They are a throughput knob:
+  n_batch counts the total tokens across the batch, and n_batch may not exceed n_ctx. Both halves of that
+  were got wrong here in turn — see the comment in `Embed.swift` — and neither changes the window a single
+  prompt gets, because every chunk is far below 512 tokens by construction.
+
+A third gap is deliberate, not a defect: the bench applies no rate, thermal or memory pressure, and it
+runs on a Mac. Nothing here is a device measurement.
+
+---
+
 ## The first run, for reference
 
 Against the bundled `nomic-embed-text-v2-moe.Q4_K_M` at 256 dimensions, `llama-embedding` built from
@@ -174,6 +194,55 @@ One methodological wrinkle worth knowing before trusting a floor number: the sco
 multiplicative, so it is **not** floor-neutral. Shrinking scores by 20% is arithmetically the same as
 raising the floor by 25% — visible above as `+floor` leaking 0.33 lines with the kind prior on and
 `recommended` leaking 0.87 with it off. Calibrate the floor and the modulation weights together.
+
+---
+
+## The model comparison
+
+Same corpus, same selection, same `llama-embedding` build, same truncate-renormalise-Float16 path. The
+`semantic-only` baseline is quoted because it is independent of any selection change.
+
+| Model | GGUF | Dims | Index | nDCG@8 | R@1 | R@8 | parap. | exact | temp. | Embed |
+|---|---|---|---|---|---|---|---|---|---|---|
+| nomic-embed-text-v2-moe (shipped) | 328 MB Q4_K_M | 256 | 131 k | 0.611 | 0.423 | 0.704 | 0.499 | 0.862 | 0.682 | 45.3 s |
+| google/embeddinggemma-300m | **278 MB** q4_0-QAT | 256 | 131 k | 0.755 | 0.563 | 0.823 | 0.698 | 0.934 | 0.707 | **25.5 s** |
+| microsoft/harrier-oss-v1-0.6b | 397 MB Q4_K_M | 1024 | 524 k | **0.850** | **0.637** | **0.929** | **0.803** | **0.993** | **0.816** | 36.8 s |
+| harrier-oss-v1-0.6b **@256, untrained truncation** | 397 MB | 256 | 131 k | 0.725 | 0.496 | 0.846 | 0.628 | 0.931 | 0.803 | 36.8 s |
+
+Both alternatives beat the incumbent clearly and in every language — EmbeddingGemma wins 9 of 10
+(losing `zh-Hant` by 0.006), harrier all 10, and harrier is the most even of the three (0.791–0.921 per
+language, against Nomic's 0.487–0.761). Both are also **faster** than the shipped model despite being
+dense rather than MoE, which is the on-device case where a mixture of experts pays its cost without
+collecting its benefit: all the weights stay resident, only the compute is sparse.
+
+The last row is the one that decides between them. Truncating harrier to 256 costs **0.125 nDCG** and
+inverts its floor separation (relevant p25 0.643 against best-of-irrelevant p95 0.685 — no usable
+absolute threshold left). That is the difference between trained Matryoshka and extrapolation, and it
+means **at equal index size EmbeddingGemma wins**: 0.755 against 0.725.
+
+So the choice reduces to one question — are 4× index bytes acceptable? If yes, harrier-0.6b at its full
+1024 is the best retrieval available here, under MIT, and still faster than what ships. If no,
+EmbeddingGemma-300m gives the best result per byte with the smallest bundle, trained MRL at 256 and
+official ggml-org quants, at the price of Gemma Terms instead of MIT. Keeping Nomic is the only option
+no number here supports.
+
+### Two candidates could not be measured, which is itself a result
+
+- **harrier-oss-v1-270m does not load on the pinned `b9623`.** The only GGUF that exists is
+  community-built and writes `tokenizer.ggml.suffix_token_id` as i32 where this runtime expects u32. Its
+  architecture is supported; the artifact is not. The fair test is converting the HF weights with the
+  pinned tag's own `convert_hf_to_gguf.py` — running it on a newer llama.cpp would measure a runtime the
+  app does not ship.
+- **The `multilingual-e5-small` community quant is broken, so there is no e5 number.** It scored 0.187,
+  but the calibration came back inverted and every cosine sat above 0.89. Three lines settled it: for
+  `query: Magnesium vor dem Schlafengehen`, the diesel-oil-filter passage scored 0.9367 and the magnesium
+  passage 0.9303.
+
+**Hence a rule this harness now follows: run a trivial-pair check before scoring any model.** A
+community GGUF is an instrument of unknown calibration, and two of four candidates failed on it. The
+check costs three invocations and it is the difference between measuring a model and reporting
+quantisation damage as model quality. EmbeddingGemma passes it decisively (0.756 against 0.212);
+harrier-0.6b passes it (0.489 against 0.324).
 
 ---
 

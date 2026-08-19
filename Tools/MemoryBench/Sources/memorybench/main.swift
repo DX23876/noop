@@ -33,8 +33,11 @@ usage: memorybench <score|embed|models|lint> [options]
          pipeline with no model, and is NOT a measurement of any model.
 
   embed  --corpus <dir> --contract <id> --model <gguf> --llama-embedding <bin> --out <dir>
-         [--batch 32] [--separator <string>] [-- <extra llama-embedding args>]
+         [--batch 32] [--dimensions N] [--separator <string>] [-- <extra llama-embedding args>]
          One run per model. Build `llama-embedding` from the tag pinned in Tools/bootstrap-nomic.sh.
+         --dimensions overrides the stored width. For a model with trained Matryoshka this is a
+         supported mode; for one without it, it is an EXPERIMENT whose result is the answer to
+         "what does truncating this cost", and the run is labelled as untrained truncation.
 
   models List the known embedding contracts and which are comparable on the pinned runtime.
 """
@@ -58,6 +61,7 @@ var batch = 32
 var separator = "\u{1}"
 var passthrough: [String] = []
 var synthetic = false
+var dimensionOverride: Int?
 
 var iterator = arguments.makeIterator()
 while let key = iterator.next() {
@@ -72,6 +76,7 @@ while let key = iterator.next() {
     case "--separator": separator = iterator.next() ?? separator
     case "--candidates": candidates = Int(iterator.next() ?? "") ?? candidates
     case "--synthetic": synthetic = true
+    case "--dimensions": dimensionOverride = Int(iterator.next() ?? "")
     case "--floor":
         floors = (iterator.next() ?? "").split(separator: ",").compactMap { Double($0) }
     case "--":
@@ -136,8 +141,24 @@ case .embed:
         print(usage)
         exit(2)
     }
-    guard let contract = EmbeddingContract.named(contractID) else {
+    guard var contract = EmbeddingContract.named(contractID) else {
         fail("unknown contract \(contractID) — run `memorybench models`")
+    }
+    if let dimensionOverride {
+        guard dimensionOverride > 0, dimensionOverride <= contract.fullDimensions else {
+            fail("--dimensions must be between 1 and \(contract.fullDimensions) for \(contract.id)")
+        }
+        // Truncating a model that was never trained for it is an experiment, not a mode. Say so, and record
+        // it in the vectors set's own metadata so a table built from it cannot quietly present the number as
+        // a supported configuration.
+        if !contract.matryoshka && dimensionOverride < contract.fullDimensions {
+            FileHandle.standardError.write(Data("""
+                NOTE: \(contract.id) documents no Matryoshka training, so \(dimensionOverride) dimensions is
+                UNTRAINED truncation. The result is evidence about what truncating costs, not a supported mode.
+
+                """.utf8))
+        }
+        contract = contract.truncated(to: dimensionOverride)
     }
     do {
         let corpus = try Corpus.load(directory: URL(fileURLWithPath: corpusPath))
