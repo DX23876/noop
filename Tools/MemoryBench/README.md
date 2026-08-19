@@ -406,6 +406,61 @@ does not by itself justify shipping a cross-encoder — the latency argument in 
 measurement shows the scan is not what loses the race, so the second model's load and forward passes would be —
 but "too little headroom" is no longer a true statement.
 
+## The holdout, read once — and what survived
+
+The configuration was frozen on dev, then the frozen half was read **once** (logged in
+`Corpus/holdout-access.log` with the reason). 249 dev queries against 129 holdout queries, real Nomic vectors on
+the final 404-query corpus, reranker attached so one read could cover every frozen decision.
+
+The measured interval width on the holdout is **±0.035**, not the ±0.11 an earlier estimate claimed — that
+estimate had modelled score variance instead of difference variance. Wide enough that +0.01 cannot be told from
+zero; narrow enough to confirm +0.05.
+
+| change | dev Δ | holdout Δ | verdict |
+|---|---|---|---|
+| **drop the two guaranteed rescue slots** | +0.007 [+0.003, +0.011] | **+0.008 [+0.002, +0.017]** | **CONFIRMED** |
+| **RERANK@16** | +0.062 [+0.035, +0.088] | **+0.061 [+0.023, +0.101]** | **CONFIRMED** |
+| RERANK@8 | +0.048 [+0.025, +0.071] | +0.056 [+0.021, +0.091] | CONFIRMED |
+| RERANK@32 | +0.062 [+0.033, +0.090] | +0.062 [+0.018, +0.108] | CONFIRMED |
+| ORACLE ceiling K=32 | +0.243 | +0.213 [+0.166, +0.264] | CONFIRMED |
+| **IDF/numeric lexical arm** | +0.025 [+0.014, +0.037] | **+0.010 [−0.004, +0.023]** | **NOT confirmed** |
+| recency | +0.008 [−0.014, +0.029] | −0.000 [−0.028, +0.029] | not confirmed |
+| kind prior | +0.004 [−0.020, +0.028] | −0.010 [−0.042, +0.020] | not confirmed |
+| absolute floor (calibrated) | +0.001 [−0.023, +0.025] | −0.016 [−0.050, +0.017] | not confirmed |
+| quotas | −0.020 [−0.046, +0.004] | −0.045 [−0.082, −0.008] | **worse** |
+| MMR | −0.039 [−0.066, −0.010] | −0.081 [−0.124, −0.041] | **worse** |
+| absolute floor 0.35 / 0.40 | −0.048 / −0.103 | −0.086 / −0.124 | **worse** |
+| `p≥0.5` rerank gate | −0.283 | −0.254 [−0.325, −0.187] | **worse** |
+| keyword-only (lost race) | −0.234 | −0.285 [−0.350, −0.219] | **worse** |
+
+### What this means for what ships
+
+**One improvement survived, and it is a deletion.** Removing the two guaranteed rescue slots is confirmed on
+both halves at +0.008. Nothing added to the pipeline is confirmed.
+
+**The IDF/numeric lexical arm did not confirm.** It was the single feature that looked resolvable on dev
+(+0.025), and on frozen data its interval contains zero. The two intervals overlap in [+0.014, +0.023], so the
+halves are not in conflict — but an effect chosen on dev and unresolvable on data it was not chosen on is **not
+confirmed**, and that was the rule agreed before the read rather than after it. It does not ship on this
+evidence.
+
+That is the whole apparatus doing its job. Without the split, +0.025 with a clean interval would have shipped as
+a measured win. Note also that `today + IDF rescue` — the same arm inside the shipped `fuse` — is +0.000 on
+**both** halves: the guaranteed tail slots cannot use a better arm at all.
+
+**The reranker is the one large lever that confirmed.** +0.061 at depth 16 on frozen data, four times anything
+else and stable across depths, with 16 the knee (8 collects most of it, 32 adds nothing). It still reaches only
+29% of the Oracle's +0.213, so most ranking headroom needs something other than a better relevance model.
+
+It does not follow that it ships. It costs a second resident model (222 MB at Q4_K_M), a second cold load, and
+p50 97 ms per turn on a Mac — landing in the budget that already loses races, where losing one costs **−0.285**.
+Whether +0.061 of ranking is worth a higher fallback rate is a device question, and this benchmark cannot answer
+it. It is confirmed, and it is gated.
+
+**Every other proposed feature is now rejected on frozen data**: recency, kind prior, quotas, MMR, and every
+absolute or relative floor. The original backlog's Stage 1 was six components; one of them survives, as a
+removal.
+
 ### State change is where the weakness is, so that is where the corpus grew
 
 `recency` scored 0.581 — the weakest of the nine categories — and the recency term does not fix it: it reaches

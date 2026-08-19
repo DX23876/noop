@@ -556,10 +556,12 @@ private func printTable(_ reports: [VariantReport], vectors: VectorSet, corpus: 
             ================================================================================
             UNLOCKED FOR THIS RUN. Every access is recorded in Corpus/holdout-access.log.
 
-            Read this to CONFIRM a configuration chosen on dev, never to choose one. At the
-            corpus's current size a paired bootstrap here spans roughly ±0.11, so it can
-            catch a large regression and cannot resolve the 0.002–0.043 differences the
-            decisions so far turned on. It becomes decisive once `main` grows.
+            Read this to CONFIRM a configuration chosen on dev, never to choose one. At 129
+            scored queries a paired interval here measures about ±0.035 — wide enough that an
+            effect of +0.01 cannot be told from zero, narrow enough to confirm +0.05. (An
+            earlier version of this paragraph claimed ±0.11; that was an estimate built from
+            score variance instead of difference variance, and the measured widths are a third
+            of it. It is corrected here rather than quietly dropped.)
 
             variant                          nDCG@8   P@8   R@1   R@8   MRR  abst. f.abst irrel. lines domin.
             ------------------------------------------------------------------------------------------
