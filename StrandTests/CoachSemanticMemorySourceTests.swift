@@ -203,3 +203,46 @@ final class CoachSemanticMemorySourceTests: XCTestCase {
         XCTAssertTrue(chunks.last!.text.hasSuffix("Wort500"))
     }
 }
+
+/// The rebuild gate: how complete the index has to be before searching it beats not searching it.
+///
+/// A model change marks every row of the old model `pending`, and `search` skips those, so the index is
+/// genuinely part-empty for a while. Measured on a 404-query corpus, nDCG@8 runs 0.302 / 0.387 / 0.444 / 0.508 /
+/// 0.576 / 0.713 at 25 / 40 / 50 / 60 / 75 / 100 % embedded, against 0.479 for the keyword arm alone — so below
+/// roughly 55 % the semantic arm is worse than not using it, while still emitting eight confident lines.
+@MainActor
+final class CoachSemanticRebuildGateTests: XCTestCase {
+
+    func testAMostlyEmbeddedIndexIsSearchedSemantically() {
+        XCTAssertTrue(CoachSemanticMemory.shouldSearchSemantically(indexed: 1_000, pending: 0))
+        XCTAssertTrue(CoachSemanticMemory.shouldSearchSemantically(indexed: 950, pending: 50))
+        // Exactly at the threshold counts as enough: the comparison is >=, so 60 % is inside.
+        XCTAssertTrue(CoachSemanticMemory.shouldSearchSemantically(indexed: 60, pending: 40))
+    }
+
+    func testAHalfRebuiltIndexFallsBackToTheKeywordArm() {
+        XCTAssertFalse(CoachSemanticMemory.shouldSearchSemantically(indexed: 50, pending: 50))
+        XCTAssertFalse(CoachSemanticMemory.shouldSearchSemantically(indexed: 25, pending: 75))
+        XCTAssertFalse(CoachSemanticMemory.shouldSearchSemantically(indexed: 59, pending: 41))
+    }
+
+    /// First launch and a freshly invalidated index are the same case, and neither needs its own branch.
+    func testAnEmptyOrFreshlyInvalidatedIndexIsNotSearched() {
+        XCTAssertFalse(CoachSemanticMemory.shouldSearchSemantically(indexed: 0, pending: 0))
+        XCTAssertFalse(CoachSemanticMemory.shouldSearchSemantically(indexed: 0, pending: 4_000))
+    }
+
+    /// Ordinary incremental indexing must NOT trip the gate: a handful of newly enqueued chunks against a
+    /// populated index is a negligible share, and gating there would disable retrieval after every conversation.
+    func testNewlyEnqueuedChunksOnAPopulatedIndexDoNotTripTheGate() {
+        XCTAssertTrue(CoachSemanticMemory.shouldSearchSemantically(indexed: 4_000, pending: 64))
+        XCTAssertTrue(CoachSemanticMemory.shouldSearchSemantically(indexed: 500, pending: 32))
+    }
+
+    /// The threshold sits ABOVE the measured crossing point on purpose: six points do not justify two decimal
+    /// places, and the error belongs on the side of never sitting where semantic retrieval loses.
+    func testTheThresholdIsAboveTheMeasuredCrossingPoint() {
+        XCTAssertGreaterThan(CoachSemanticMemory.minimumEmbeddedShareForSemanticSearch, 0.55)
+        XCTAssertLessThan(CoachSemanticMemory.minimumEmbeddedShareForSemanticSearch, 0.75)
+    }
+}

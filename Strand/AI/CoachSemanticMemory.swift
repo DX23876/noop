@@ -42,6 +42,23 @@ private actor SemanticSearchRace {
 final class CoachSemanticMemory: ObservableObject, SemanticMemoryCoordinator {
     static let shared = CoachSemanticMemory()
 
+    /// Whether enough of the index is embedded for a semantic search to beat the keyword arm.
+    ///
+    /// Pure and `nonisolated` so it can be tested directly, like `documents(...)` and `chunkTexts(...)`: the rule
+    /// is the part worth pinning, and the wiring around it is one call. An empty index answers `false` — there is
+    /// nothing to search, which is also first launch and needs no special case.
+    nonisolated static func shouldSearchSemantically(indexed: Int, pending: Int) -> Bool {
+        let total = indexed + pending
+        guard total > 0 else { return false }
+        return Double(indexed) / Double(total) >= minimumEmbeddedShareForSemanticSearch
+    }
+
+    /// Below this share of the index being embedded, semantic search is skipped in favour of the keyword arm.
+    ///
+    /// Derived from the rebuild-degradation curve rather than chosen: see the gate in `retrieve` for the
+    /// measurements and for why the value sits above the measured crossing point instead of on it.
+    static let minimumEmbeddedShareForSemanticSearch = 0.60
+
     static let enabledKey = "coach.semanticMemory.enabled"
     private static let lastForegroundCatchUpKey = "coach.semanticMemory.lastForegroundCatchUp"
     private static let lastRunStateKey = "lastRunAt"
@@ -389,6 +406,35 @@ final class CoachSemanticMemory: ObservableObject, SemanticMemoryCoordinator {
                         allowedScopes: allowedScopes)
         let lexical = lexicalHits(question: question, allowedScopes: allowedScopes)
         guard isEnabled, CoachFeaturePrefs.isEnabled, let provider, let store else {
+            return finish(handoffContext(from: lexical, requestedScopes: allowedScopes),
+                          mode: lexical.isEmpty ? .unavailable : .keywordFallback,
+                          startedAt: startedAt)
+        }
+
+        // Too little of the index is embedded to search it honestly — answer from the keyword arm instead.
+        //
+        // A model change calls `invalidate`, which marks every row of the old model `pending`, and `search`
+        // skips those. So for a while the index is genuinely part-empty, and measurement says what that costs:
+        // nDCG@8 runs 0.302 / 0.387 / 0.444 / 0.508 / 0.576 / 0.713 at 25 / 40 / 50 / 60 / 75 / 100 % embedded,
+        // against 0.479 for the keyword arm alone. Below roughly 55 % the semantic arm is simply worse than not
+        // using it.
+        //
+        // The reason a threshold is needed rather than nothing at all: the pipeline does not notice. False
+        // abstention stays at 0.00 and it emits eight lines at every fraction, so a quarter-built index hands
+        // the coach a full-looking context at less than half the quality. It never says it is missing three
+        // quarters of its evidence — the failure mode is confidence, not silence.
+        //
+        // 0.60 rather than the measured 0.55 crossing: six points do not justify two decimal places, and the
+        // error is deliberately on the side of never sitting in the region where semantic retrieval loses. The
+        // cost is a narrow band, 55–60 %, where the keyword arm is used while the semantic one would have been
+        // marginally better.
+        //
+        // The same test covers first launch (nothing embedded yet) without a special case, and it does not
+        // misfire on ordinary incremental indexing: a handful of newly enqueued chunks against a populated index
+        // is a negligible share. A SMALL index that is genuinely half-embedded does gate — correctly, because
+        // the curve is about completeness and not about cause.
+        let counts = (try? await store.counts()) ?? (indexed: 0, pending: 0)
+        if !Self.shouldSearchSemantically(indexed: counts.indexed, pending: counts.pending) {
             return finish(handoffContext(from: lexical, requestedScopes: allowedScopes),
                           mode: lexical.isEmpty ? .unavailable : .keywordFallback,
                           startedAt: startedAt)
