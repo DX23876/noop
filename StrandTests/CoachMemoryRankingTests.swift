@@ -187,12 +187,28 @@ final class CoachMemoryRankingTests: XCTestCase {
                       "filtering function words must not also filter the topic")
     }
 
+    /// One unmistakable function word per shipped locale, each 3+ chars so `tokens` can reach it.
+    ///
+    /// This used to probe seven of the ten and still be called "the shipped languages", which is how `pl`
+    /// went out with no stopwords at all: every Polish function word counted as topic overlap, in the keyword
+    /// ranker, in the rescue arm and in the near-duplicate check. The two Chinese locales are covered by the
+    /// separate ideographic case below — a word-level list has nothing to match there, by design — so the
+    /// count here is eight, and the name now means what it says.
     func testStopwordsCoverTheShippedLanguages() {
-        // One unmistakable function word per language, each 3+ chars so `tokens` can reach it.
-        for word in ["the", "und", "que", "les", "che", "com", "как"] {
+        let probes = ["en": "the", "de": "und", "es": "que", "fr": "les",
+                      "it": "che", "pt-PT": "com", "ru": "как", "pl": "jest"]
+        for (locale, word) in probes {
             XCTAssertTrue(CoachMemory.tokens(word).isEmpty,
-                          "'\(word)' is a function word and must not survive tokenisation")
+                          "'\(word)' (\(locale)) is a function word and must not survive tokenisation")
         }
+    }
+
+    /// Polish content words must still retrieve — a stopword list that swallows the topic is worse than none.
+    func testPolishContentWordsStillRetrieve() {
+        let tokens = CoachMemory.tokens("Czy magnez pomaga mi zasnąć?")
+        XCTAssertTrue(tokens.contains("magnez"))
+        XCTAssertTrue(tokens.contains("pomaga"))
+        XCTAssertFalse(tokens.contains("czy"))
     }
 
     /// End to end through the block the send path actually appends.
