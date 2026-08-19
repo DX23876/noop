@@ -380,6 +380,10 @@ final class CoachSemanticMemory: ObservableObject, SemanticMemoryCoordinator {
                   conversations: [CoachConversation],
                   journalEntries: [JournalEntry],
                   allowedScopes: Set<SemanticConsentScope>) async -> CoachSemanticRetrieval {
+        // Stamped here rather than inside `finish`, because the turn includes the reconcile below and the
+        // keyword arm — both of which run before any embedding does. Passed explicitly to `finish` instead of
+        // parked in a property: a property holding "when the current turn began" means nothing between turns.
+        let startedAt = DispatchTime.now().uptimeNanoseconds
         await reconcile(conversations: conversations,
                         journalEntries: journalEntries,
                         allowedScopes: allowedScopes)
@@ -387,7 +391,8 @@ final class CoachSemanticMemory: ObservableObject, SemanticMemoryCoordinator {
         guard isEnabled, CoachFeaturePrefs.isEnabled, let provider, let store else {
             return finish(handoffContext(from: Array(lexical.prefix(8)),
                                          requestedScopes: allowedScopes),
-                          mode: lexical.isEmpty ? .unavailable : .keywordFallback)
+                          mode: lexical.isEmpty ? .unavailable : .keywordFallback,
+                          startedAt: startedAt)
         }
 
         let race = SemanticSearchRace()
@@ -428,14 +433,16 @@ final class CoachSemanticMemory: ObservableObject, SemanticMemoryCoordinator {
             await refreshStatus()
             return finish(handoffContext(from: Array(lexical.prefix(8)),
                                          requestedScopes: allowedScopes),
-                          mode: lexical.isEmpty ? .unavailable : .keywordFallback)
+                          mode: lexical.isEmpty ? .unavailable : .keywordFallback,
+                          startedAt: startedAt)
         }
         let fused = SemanticRanking.fuse(semantic: semantic,
                                          lexical: lexical,
                                          limit: 8)
         await refreshStatus()
         return finish(handoffContext(from: fused, requestedScopes: allowedScopes),
-                      mode: .semantic)
+                      mode: .semantic,
+                      startedAt: startedAt)
     }
 
     /// Used by a delivered BGProcessingTask and the foreground 24-hour catch-up. Each row is committed
@@ -627,10 +634,22 @@ final class CoachSemanticMemory: ObservableObject, SemanticMemoryCoordinator {
         )
     }
 
+    /// The single funnel every retrieval outcome passes through, which is why the whole-turn measurements are
+    /// taken here: a turn that falls back, a turn that finds nothing and a turn that succeeds all arrive at this
+    /// one line, so none of the three can be forgotten by adding an early return somewhere else.
     private func finish(_ context: String,
-                        mode: CoachSemanticRetrievalMode) -> CoachSemanticRetrieval {
+                        mode: CoachSemanticRetrievalMode,
+                        startedAt: UInt64) -> CoachSemanticRetrieval {
         lastRetrievalMode = mode
         telemetry.record(mode: mode)
+        telemetry.recordTurn(milliseconds: Double(DispatchTime.now().uptimeNanoseconds - startedAt) / 1_000_000)
+        // Sampled at the end of the turn, which is where the peak of a retrieval turn sits: the model is loaded,
+        // the vectors have been decoded and the context has been built. Reuses the app's existing reader rather
+        // than a second copy of the same mach call.
+        if let footprint = DisplayPerformanceMonitor.residentFootprintMB() {
+            telemetry.recordFootprint(megabytes: footprint)
+        }
+        telemetry.recordThermalState(ProcessInfo.processInfo.thermalState)
         return CoachSemanticRetrieval(context: context, mode: mode)
     }
 
