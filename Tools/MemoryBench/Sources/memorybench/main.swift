@@ -275,6 +275,7 @@ case .pareto:
             // selection's fit to one model into the model's score.
             let baseline = reports.first { $0.scope == .dev && $0.name == "semantic-only" }
             rows.append(ParetoRow(model: vectors.meta.model,
+                                  perQueryNDCG: baseline?.perQueryNDCG ?? [:],
                                   dimensions: vectors.dimensions,
                                   matryoshka: vectors.meta.matryoshka,
                                   ndcg: baseline?.ndcg?.value,
@@ -283,7 +284,11 @@ case .pareto:
                                   embedMilliseconds: vectors.meta.embedMilliseconds,
                                   scoredQueries: baseline?.ndcg?.count ?? 0))
         }
-        printPareto(rows.sorted { ($0.ndcg ?? 0) > ($1.ndcg ?? 0) })
+        let ordered = rows.sorted { ($0.ndcg ?? 0) > ($1.ndcg ?? 0) }
+        printPareto(ordered)
+        // The incumbent is the comparison point, because the only decision on the table is whether to REPLACE
+        // what ships — not which candidate ranks highest among themselves.
+        printModelComparisons(ordered, incumbent: EmbeddingContract.nomic.id)
     } catch {
         fail(error.localizedDescription)
     }

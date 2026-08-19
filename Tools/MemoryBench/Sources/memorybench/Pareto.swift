@@ -17,6 +17,12 @@ import Foundation
 
 struct ParetoRow {
     let model: String
+    /// Per-query nDCG on the dev half, kept so models can be compared PAIRED.
+    ///
+    /// Without this the section would print 0.728 against 0.707 as a ranking, which is the exact mistake the
+    /// intervals were introduced to stop. Models answer the same questions, so the difference is paired and far
+    /// more resolvable than two independent means would be.
+    let perQueryNDCG: [String: Double]
     let dimensions: Int
     /// Whether the dimension count is a trained Matryoshka stage or an untrained truncation. Not a cost, but it
     /// belongs in the same table: an untrained truncation is a different model contract, not a cheaper setting,
@@ -56,6 +62,37 @@ func paretoFront(_ rows: [ParetoRow]) -> Set<Int> {
         if !dominated { front.insert(index) }
     }
     return front
+}
+
+/// Paired intervals between models, against whichever row is named the incumbent.
+///
+/// Printed beside the front rather than instead of it: the front answers "what is not beaten outright", and this
+/// answers "is the quality difference real at all". A model that wins the quality column by less than its
+/// interval has not won it.
+func printModelComparisons(_ rows: [ParetoRow], incumbent: String) {
+    guard let baseline = rows.first(where: { $0.model == incumbent }) else { return }
+    print("""
+
+          vs `\(incumbent)` — paired bootstrap over the same dev queries, 95% CI
+        -----------------------------------------------------------------------------------------------
+        """)
+    for row in rows where row.model != incumbent {
+        guard let interval = pairedBootstrap(baseline: baseline.perQueryNDCG,
+                                            candidate: row.perQueryNDCG) else { continue }
+        let verdict = interval.isInconclusive
+            ? "~ indistinguishable"
+            : (interval.delta > 0 ? "+ better" : "- worse")
+        // Padded explicitly: `%-38@` does not pad an NSString, which ran the model name into the delta the
+        // first time this printed — the second time that same mistake was made in this file.
+        let name = row.model.count >= 40
+            ? String(row.model.prefix(40))
+            : row.model + String(repeating: " ", count: 40 - row.model.count)
+        print(String(format: "  %@ %+.3f   [%+.3f, %+.3f]  n=%d  %@",
+                     name as NSString,
+                     interval.delta, interval.low, interval.high, interval.n,
+                     verdict as NSString))
+    }
+    print("")
 }
 
 func printPareto(_ rows: [ParetoRow]) {

@@ -406,6 +406,49 @@ does not by itself justify shipping a cross-encoder — the latency argument in 
 measurement shows the scan is not what loses the race, so the second model's load and forward passes would be —
 but "too little headroom" is no longer a true statement.
 
+### The model comparison, redone — and it inverts the earlier verdict
+
+All four rows: same 384-query corpus, same 0–3 judgments, **dev half only**, same `llama-embedding` from the
+pinned `b9623`, same truncate-renormalise-Float16 path, and the **same batch size of 8**. The batch matters: at
+32 the harrier run failed to allocate a 9.5 GiB Metal buffer, so a fair embed-time column required re-running
+Nomic and Gemma at 8 as well. Comparing 115 s at batch 8 against 39 s at batch 32 would have compared batch
+sizes.
+
+| model | dim | trained | nDCG@8 | Δ vs shipped | 95% CI | verdict | index KB | model MB | embed s |
+|---|---|---|---|---|---|---|---|---|---|
+| **nomic-embed-text-v2-moe** (shipped) | 256 | yes | **0.728** | — | — | incumbent ★ | 264 | 328 | 128 |
+| embeddinggemma-300m | 256 | yes | 0.707 | −0.021 | [−0.053, +0.011] | **indistinguishable** ★ | 264 | 265 | 97 |
+| harrier-oss-v1-0.6b | 1024 | NO | 0.670 | −0.058 | [−0.096, −0.021] | **worse** | 1058 | 378 | 115 |
+| harrier-oss-v1-0.6b @256 | 256 | NO | 0.478 | −0.250 | [−0.295, −0.204] | **much worse** | 264 | 378 | 115 |
+
+★ = Pareto front. Gemma dominates harrier on all four axes at once (better quality, quarter of the index,
+smaller file, faster), so harrier is not on the front at all.
+
+**This reverses the previous verdict completely.** The earlier measurement read nomic 0.611, gemma 0.755,
+harrier 0.850 — and a decision was recorded on it to replace the shipped model with harrier at 1024 dimensions.
+That decision was wrong, and it is retracted here. The order is now the exact opposite, with harrier resolvably
+*worse* than what ships.
+
+Why the inversion, mechanically: two thirds of every number in the old comparison came from ten 24-document
+locale sets, and harrier's reported advantage was largest precisely there ("most even language coverage,
+0.791–0.921 per locale"). Retrieval among 24 short documents is close to a lookup. On a 272-document index of one
+person's German notes, with near-miss siblings and cross-theme questions, that advantage is gone. The 0–3 scale
+and the dev/holdout split move numbers too, but neither can turn +0.24 into −0.06 — the pooling did that.
+
+**Untrained truncation is worse than it looked, not better.** harrier at 256 loses 0.250 against the shipped
+model, where the old measurement put the truncation cost at 0.125. A decoder-only model with no documented
+Matryoshka training does not survive being cut to a quarter width, and the sanity pairs show it directly: the
+margin between the correct and the wrong passage collapses to +0.26/+0.19/+0.24, against +0.64/+0.71/+0.61 at
+full width. It still passes the trivial check, which is the point of that check being a floor and not a
+certificate.
+
+**What follows for the decision.** Nothing forces a change. Nomic and Gemma cannot be told apart on quality at
+233 dev queries, so the choice between them is not a quality question at all — it is 63 MB of bundle, a quarter
+off the embedding time, Gemma Terms instead of Apache-2.0, and a full re-index on every device that upgrades.
+On that balance the shipped model stays, and the only honest reason to revisit is the device measurement: if
+model load and query latency are what lose the 2.5-second race, Gemma's 24% faster embedding is a latency
+argument that this benchmark cannot settle.
+
 > Everything in the subsections below predates this: **0–2 grade scale, no crosslingual category, 120-query
 > `main`, and metrics pooled across ten 24-document locale sets.** They are kept as the record of how the
 > measurement got more honest, not as current results. Do not compare a figure across that line.
