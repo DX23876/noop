@@ -435,8 +435,7 @@ final class CoachSemanticMemory: ObservableObject, SemanticMemoryCoordinator {
         // the curve is about completeness and not about cause.
         let counts = (try? await store.counts()) ?? (indexed: 0, pending: 0)
         if !Self.shouldSearchSemantically(indexed: counts.indexed, pending: counts.pending) {
-            return finish(handoffContext(from: Array(lexical.prefix(8)),
-                                         requestedScopes: allowedScopes),
+            return finish(handoffContext(from: lexical, requestedScopes: allowedScopes),
                           mode: lexical.isEmpty ? .unavailable : .keywordFallback,
                           startedAt: startedAt)
         }
