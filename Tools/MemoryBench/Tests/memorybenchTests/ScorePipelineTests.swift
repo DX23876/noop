@@ -211,3 +211,66 @@ final class CalibrationScopeTests: XCTestCase {
         }
     }
 }
+
+/// The partial-rebuild mode, which needs its own tests for a specific reason: it deliberately skips writing
+/// vectors, and the guard it steps around (`a missing vector is an error, not a silently smaller index`) is one
+/// this tool relies on everywhere else. If the mode leaked into the ordinary path, every number in every table
+/// would quietly be measured against a smaller index than it claims.
+final class RebuildFractionTests: XCTestCase {
+
+    private var corpusDirectory: URL {
+        URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appendingPathComponent("Corpus")
+    }
+
+    private func run(_ fraction: Double?) async throws -> VariantReport {
+        let corpus = try Corpus.load(directory: corpusDirectory)
+        // The committed split is passed because `.dev` only exists as a scope when there is one — without it
+        // the report is scoped `.main`, and the first version of this test unwrapped a row that never existed.
+        let split = try CorpusSplit.load(directory: corpusDirectory)
+        let reports = try await runScore(corpus: corpus,
+                                        vectors: SyntheticVectors.build(for: corpus),
+                                        floors: [0.35],
+                                        quiet: true,
+                                        split: split,
+                                        rebuiltFraction: fraction)
+        return try XCTUnwrap(reports.first { $0.scope == .dev && $0.name == "today (+rescue)" })
+    }
+
+    /// A fully rebuilt index must be indistinguishable from no flag at all. Without this the degradation curve
+    /// could be measuring a side effect of the mode rather than the missing vectors — and its 100% row is the
+    /// reference every other row is read against.
+    func testAFullyRebuiltIndexMatchesTheOrdinaryPathExactly() async throws {
+        let complete = try await run(1.0)
+        let ordinary = try await run(nil)
+        XCTAssertEqual(complete.ndcg?.value ?? .nan, ordinary.ndcg?.value ?? .nan, accuracy: 1e-12)
+        XCTAssertEqual(complete.ndcg?.count, ordinary.ndcg?.count)
+        XCTAssertEqual(complete.recall8?.value ?? .nan, ordinary.recall8?.value ?? .nan, accuracy: 1e-12)
+        XCTAssertEqual(complete.meanEmitted ?? .nan, ordinary.meanEmitted ?? .nan, accuracy: 1e-12)
+    }
+
+    /// The negative control: a partial index must actually rank worse. A mode that silently stored everything
+    /// would pass the test above and print a flat curve, which reads as "migrations are free".
+    ///
+    /// Only nDCG is asserted, and the reason is worth recording. A first version also required `recall8` to fall,
+    /// and it did not: on SYNTHETIC vectors a quarter-sized index scored 0.407 against the full index's 0.348,
+    /// because hashed token bags retrieve so poorly that deleting three quarters of the distractors helps more
+    /// than losing three quarters of the answers hurts. With real vectors the curve is monotone in both
+    /// (R@8 0.489 / 0.592 / 0.650 / 0.748). So recall falling is an empirical result about real embeddings, not
+    /// an invariant of the mode, and asserting it here would pin the synthetic embedder's incompetence.
+    func testAPartialIndexRanksMeasurablyWorse() async throws {
+        let quarter = try await run(0.25)
+        let complete = try await run(nil)
+        XCTAssertLessThan(quarter.ndcg?.value ?? 1, complete.ndcg?.value ?? 0)
+    }
+
+    /// Reproducible from the seed, so a curve can be compared across runs rather than re-rolled each time.
+    func testTheSameFractionSelectsTheSameChunksTwice() async throws {
+        let first = try await run(0.5)
+        let second = try await run(0.5)
+        XCTAssertEqual(first.ndcg?.value ?? .nan, second.ndcg?.value ?? .nan, accuracy: 1e-12)
+    }
+}
