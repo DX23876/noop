@@ -149,7 +149,8 @@ extension RecoveryScorer {
         // full set, dropping one and renormalising returns the same score, collapsing the delta to
         // 0 even for a clearly good or bad term.
         func points(_ neutralised: Double?) -> Int {
-            Int((full - (neutralised ?? full)).rounded())
+            // Shared Swift/Kotlin rule: nearest integer, with exact half-ties away from zero.
+            Int((full - (neutralised ?? full)).rounded(.toNearestOrAwayFromZero))
         }
 
         var drivers: [ChargeDriver] = []

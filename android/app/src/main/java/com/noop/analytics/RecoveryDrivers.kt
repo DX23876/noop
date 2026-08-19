@@ -89,7 +89,11 @@ object RecoveryDrivers {
         // weighting, same logistic) so the points can never drift from the headline. A term reaches
         // z = 0 at: HRV / resting HR / respiration = the baseline mean, Rest quality = sleepPerfCenter,
         // skin-temp deviation = 0. Mirrors the Swift ChargeDrivers `points(...)` helper.
-        fun points(neutralised: Double?): Int = (full - (neutralised ?: full)).roundToInt()
+        fun points(neutralised: Double?): Int {
+            val delta = full - (neutralised ?: full)
+            // Shared Swift/Kotlin rule: nearest integer, with exact half-ties away from zero.
+            return if (delta < 0.0) -Math.round(-delta).toInt() else Math.round(delta).toInt()
+        }
 
         // Did the parasympathetic-saturation signature fire on THIS night (low HRV corroborated by a low,
         // decoupled resting HR)? Detection ONLY: the guard's easing is not applied, so deltaPoints below is

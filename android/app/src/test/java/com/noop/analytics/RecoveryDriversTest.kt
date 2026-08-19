@@ -21,6 +21,114 @@ class RecoveryDriversTest {
             status = if (nValid >= 14) BaselineStatus.TRUSTED else BaselineStatus.PROVISIONAL,
         )
 
+    @Test fun driverPointRoundingUsesNearestWithHalfTiesAwayFromZero() {
+        fun hrvMarginal(
+            hrv: Double,
+            rhr: Double,
+            hrvBaseline: BaselineState,
+            rhrBaseline: BaselineState? = null,
+        ): Pair<Double, Int> {
+            val full = RecoveryScorer.recovery(
+                hrv = hrv, rhr = rhr, resp = null,
+                hrvBaseline = hrvBaseline, rhrBaseline = rhrBaseline,
+                respBaseline = null, sleepPerf = null,
+            )!!
+            val neutral = RecoveryScorer.recovery(
+                hrv = hrvBaseline.baseline, rhr = rhr, resp = null,
+                hrvBaseline = hrvBaseline, rhrBaseline = rhrBaseline,
+                respBaseline = null, sleepPerf = null,
+            )!!
+            val row = RecoveryDrivers.chargeDrivers(
+                hrv = hrv, rhr = rhr, resp = null,
+                hrvBaseline = hrvBaseline, rhrBaseline = rhrBaseline,
+                respBaseline = null, sleepPerf = null,
+            ).first { it.label == "Heart rate variability" }
+            return (full - neutral) to row.deltaPoints
+        }
+
+        val negativeBaseline = BaselineState(
+            baseline = 30.0, spread = 0.55, nValid = 14,
+            nightsSinceUpdate = 0, status = BaselineStatus.TRUSTED,
+        )
+        val negativeBelowTie = hrvMarginal(29.991177275907276, 60.0, negativeBaseline)
+        val negativeTie = hrvMarginal(29.99117725828923, 60.0, negativeBaseline)
+        val negativeBeyondTie = hrvMarginal(29.991177240671185, 60.0, negativeBaseline)
+        assertTrue(negativeBelowTie.first > -0.5)
+        assertEquals(0, negativeBelowTie.second)
+        assertEquals(-0.5, negativeTie.first, 0.0)
+        assertEquals(-1, negativeTie.second)
+        assertTrue(negativeBeyondTie.first < -0.5)
+        assertEquals(-1, negativeBeyondTie.second)
+
+        val positiveHRVBaseline = BaselineState(
+            baseline = 30.0, spread = 0.55, nValid = 14,
+            nightsSinceUpdate = 0, status = BaselineStatus.TRUSTED,
+        )
+        val positiveRHRBaseline = BaselineState(
+            baseline = 60.0, spread = 0.1, nValid = 14,
+            nightsSinceUpdate = 0, status = BaselineStatus.TRUSTED,
+        )
+        val positiveBelowTie = hrvMarginal(
+            33.09890762408082, 58.541, positiveHRVBaseline, positiveRHRBaseline,
+        )
+        val positiveTie = hrvMarginal(
+            33.099135135290354, 58.541, positiveHRVBaseline, positiveRHRBaseline,
+        )
+        val positiveBeyondTie = hrvMarginal(
+            33.09936273466694, 58.541, positiveHRVBaseline, positiveRHRBaseline,
+        )
+        assertTrue(positiveBelowTie.first < 0.5)
+        assertEquals(0, positiveBelowTie.second)
+        assertEquals(0.5, positiveTie.first, 0.0)
+        assertEquals(1, positiveTie.second)
+        assertTrue(positiveBeyondTie.first > 0.5)
+        assertEquals(1, positiveBeyondTie.second)
+    }
+
+    @Test fun issue51NegativeHalfTieUsesDefaultArg8WithoutChangingScoreOrDriverFields() {
+        val hrvBaseline = BaselineState(
+            baseline = 30.0, spread = 0.55, nValid = 14,
+            nightsSinceUpdate = 0, status = BaselineStatus.TRUSTED,
+        )
+        val scoreBefore = RecoveryScorer.recovery(
+            hrv = 29.99117725828923, rhr = 60.0, resp = null,
+            hrvBaseline = hrvBaseline, rhrBaseline = null,
+            respBaseline = null, sleepPerf = null,
+        )
+        val neutralScore = RecoveryScorer.recovery(
+            hrv = hrvBaseline.baseline, rhr = 60.0, resp = null,
+            hrvBaseline = hrvBaseline, rhrBaseline = null,
+            respBaseline = null, sleepPerf = null,
+        )
+
+        // Intentionally omit arg 8 (skinTempDev) to exercise the real default path from #51.
+        val drivers = RecoveryDrivers.chargeDrivers(
+            hrv = 29.99117725828923, rhr = 60.0, resp = null,
+            hrvBaseline = hrvBaseline, rhrBaseline = null,
+            respBaseline = null, sleepPerf = null,
+        )
+        val scoreAfter = RecoveryScorer.recovery(
+            hrv = 29.99117725828923, rhr = 60.0, resp = null,
+            hrvBaseline = hrvBaseline, rhrBaseline = null,
+            respBaseline = null, sleepPerf = null,
+        )
+
+        assertEquals(-0.5, scoreBefore!! - neutralScore!!, 0.0)
+        assertEquals(scoreBefore, scoreAfter)
+        assertEquals(
+            listOf(
+                ChargeDriver(
+                    label = "Heart rate variability",
+                    deltaPoints = -1,
+                    valueText = "30 ms",
+                    baselineText = "30 ms baseline",
+                    verdict = "below baseline, limiting recovery",
+                ),
+            ),
+            drivers,
+        )
+    }
+
     @Test fun allTermsPresentYieldOneRowEachInOrder() {
         val drivers = RecoveryDrivers.chargeDrivers(
             hrv = 62.0, rhr = 51.0, resp = 15.0,
