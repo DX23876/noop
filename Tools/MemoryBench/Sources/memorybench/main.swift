@@ -20,6 +20,7 @@ enum Command: String {
     case models
     case lint
     case split
+    case golden
 }
 
 let usage = """
@@ -54,6 +55,11 @@ usage: memorybench <score|embed|models|lint> [options]
          debugging of a model already known to be broken; the run is loudly marked as such.
 
   models List the known embedding contracts and which are comparable on the pinned runtime.
+
+  golden [--fixtures <dir>] [--write]
+         Checks (or with --write regenerates) Fixtures/tokeniser-golden.json, the fixture shared with
+         StrandTests so the app's tokeniser/chunker and this tool's transcriptions of them cannot
+         drift apart while both stay internally consistent.
 
   split  --corpus <dir> [--test-fraction 0.35] [--seed N] [--write]
          Computes the development / holdout split over the `main` index and prints its shape. Whole
@@ -90,6 +96,7 @@ var testFraction = 0.35
 var splitSeed: UInt64 = 20_260_819
 var writeSplit = false
 var holdoutReason = ""
+var fixturesPath = "Fixtures"
 
 var iterator = arguments.makeIterator()
 while let key = iterator.next() {
@@ -113,6 +120,7 @@ while let key = iterator.next() {
     case "--seed": splitSeed = UInt64(iterator.next() ?? "") ?? splitSeed
     case "--write": writeSplit = true
     case "--holdout": holdoutReason = iterator.next() ?? ""
+    case "--fixtures": fixturesPath = iterator.next() ?? fixturesPath
     case "--floor":
         floors = (iterator.next() ?? "").split(separator: ",").compactMap { Double($0) }
     case "--":
@@ -196,6 +204,38 @@ case .lint:
                 + "  \(langs.padding(toLength: 12, withPad: " ", startingAt: 0))  \(cells.joined())")
         }
         print("")
+    } catch {
+        fail(error.localizedDescription)
+    }
+
+case .golden:
+    do {
+        let directory = URL(fileURLWithPath: fixturesPath)
+        let fixture = try GoldenFixture.load(directory: directory)
+        let filled = fixture.filled()
+        if writeSplit {
+            try filled.write(directory: directory)
+            print("wrote \(filled.cases.count) golden cases to \(directory.appendingPathComponent(GoldenFixture.filename).path)")
+        } else {
+            var mismatches: [String] = []
+            for (stored, computed) in zip(fixture.cases, filled.cases) {
+                if let tokens = stored.tokens, tokens != computed.tokens {
+                    mismatches.append("\(stored.id): tokens differ")
+                }
+                if let chunks = stored.chunks, chunks != computed.chunks {
+                    mismatches.append("\(stored.id): chunks differ")
+                }
+                if stored.tokens == nil || stored.chunks == nil {
+                    mismatches.append("\(stored.id): fixture has no expected values — run with --write")
+                }
+            }
+            if mismatches.isEmpty {
+                print("golden fixture matches this tool's tokeniser and chunker (\(fixture.cases.count) cases)")
+            } else {
+                for mismatch in mismatches { print("  - \(mismatch)") }
+                fail("golden fixture does not match")
+            }
+        }
     } catch {
         fail(error.localizedDescription)
     }

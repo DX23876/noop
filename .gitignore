@@ -91,6 +91,15 @@ android/noop-release.jks
 
 # ── Personal data — NEVER publish (real WHOOP/Apple Health exports) ──
 Fixtures/
+# One narrow exception, and the reason it is safe: MemoryBench's golden fixture holds no export at all —
+# fifteen hand-written strings (a German sentence, a Chinese clause, an ISO date) whose only purpose is to
+# pin the tokeniser and chunker. It has to be committed, because it is the ONLY thing tying the app's
+# implementation to the benchmark's transcription of it; uncommitted, both test suites fail in CI for
+# whoever does not happen to have the file locally. Git cannot re-include a file inside an excluded
+# directory, so the directory is un-ignored first and the single file named after it — everything else
+# under it stays out.
+!Tools/MemoryBench/Fixtures/
+!Tools/MemoryBench/Fixtures/tokeniser-golden.json
 *.sqlite
 *.sqlite-wal
 *.sqlite-shm

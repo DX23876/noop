@@ -809,27 +809,37 @@ final class CoachSemanticMemory: ObservableObject, SemanticMemoryCoordinator {
                                updatedAt: Date,
                                scope: SemanticConsentScope,
                                priority: Int) -> [SemanticDocument] {
-        let words = text.split(whereSeparator: \.isWhitespace).map(String.init)
-        guard !words.isEmpty else { return [] }
-        func document(_ index: Int, _ text: String) -> SemanticDocument {
+        chunkTexts(text).enumerated().map { index, chunk in
             SemanticDocument(sourceKind: kind,
                              sourceID: sourceID,
                              chunkIndex: index,
-                             text: text,
+                             text: chunk,
                              updatedAt: updatedAt,
                              consentScope: scope,
                              priority: priority)
         }
+    }
+
+    /// The text splitting on its own, without the document metadata around it.
+    ///
+    /// Split out and left `internal` so `CoachChunkerGoldenTests` can compare it against
+    /// `Tools/MemoryBench/Fixtures/tokeniser-golden.json` — the same fixture the benchmark's own copy of this
+    /// logic is checked against. The benchmark cannot import this target, so it carries a transcription; a
+    /// shared fixture is what stops the two from drifting apart while each stays internally consistent, which
+    /// unit tests on either side alone would never catch.
+    nonisolated static func chunkTexts(_ text: String) -> [String] {
+        let words = text.split(whereSeparator: \.isWhitespace).map(String.init)
+        guard !words.isEmpty else { return [] }
         if words.contains(where: { $0.count > unbrokenWordLimit }) {
             let characters = Array(words.joined(separator: " "))
             return slice(count: characters.count,
                          size: characterChunkSize,
-                         overlap: characterChunkOverlap) { range, index in
-                document(index, String(characters[range]))
+                         overlap: characterChunkOverlap) { range in
+                String(characters[range])
             }
         }
-        return slice(count: words.count, size: 192, overlap: 24) { range, index in
-            document(index, words[range].joined(separator: " "))
+        return slice(count: words.count, size: 192, overlap: 24) { range in
+            words[range].joined(separator: " ")
         }
     }
 
@@ -846,17 +856,15 @@ final class CoachSemanticMemory: ObservableObject, SemanticMemoryCoordinator {
         count: Int,
         size: Int,
         overlap: Int,
-        build: (Range<Int>, Int) -> SemanticDocument
-    ) -> [SemanticDocument] {
-        var result: [SemanticDocument] = []
+        build: (Range<Int>) -> String
+    ) -> [String] {
+        var result: [String] = []
         var start = 0
-        var chunk = 0
         while start < count {
             let end = min(count, start + size)
-            result.append(build(start..<end, chunk))
+            result.append(build(start..<end))
             guard end < count else { break }
             start = max(start + 1, end - overlap)
-            chunk += 1
         }
         return result
     }

@@ -353,16 +353,55 @@ positives. If it is used at all it belongs far lower.
 
 ---
 
-## Known debt: two mirrors
+## The two mirrors, and the fixture that keeps them honest
 
 `MirroredTokeniser` and `MirroredChunker` are transcriptions of `CoachMemory.tokens` and
-`CoachSemanticMemory.chunks`, which live in the `Strand` app target and cannot be reached from a SwiftPM
-executable. `Tools/SleepBench` carries the same kind of mirror for the same kind of reason, and it is handled
-the same way: transcribed line for line, with `MirrorTests` pinning the properties that must not drift.
+`CoachSemanticMemory.chunkTexts`, which live in the `Strand` app target and cannot be reached from a SwiftPM
+executable. `Tools/SleepBench` carries the same kind of mirror for the same kind of reason.
 
-The honest fix is to move the tokeniser into `Packages/SemanticMemory` so there is one copy. That belongs to
-the change which introduces IDF weighting — it has to touch this code anyway — not to a benchmark whose whole
-point is to change no production behaviour.
+Transcribing line for line and pinning each copy with its own tests is not enough, and it is worth being
+precise about why: two implementations with two passing test suites can drift apart while every check stays
+green, because nothing compares them to each other. The failure mode is silent and it is bad — the benchmark
+would keep reporting numbers for a pipeline the app no longer runs, and every conclusion drawn from it would
+be about a system that does not ship.
+
+`Fixtures/tokeniser-golden.json` closes that. Fifteen inputs with their expected tokens and chunks, read by
+**both** sides:
+
+- `Tests/memorybenchTests/GoldenFixtureTests.swift` — against `MirroredTokeniser` / `MirroredChunker`
+- `StrandTests/CoachTokeniserGoldenTests.swift` — against `CoachMemory.tokens` /
+  `CoachSemanticMemory.chunkTexts`
+
+A one-sided change now breaks one of the two suites on the next run. The cases are chosen for the paths that
+actually differ rather than for coverage: CJK bigrams, a single ideograph, mixed script in one run, an ISO
+date, sub-three-character runs, unsegmented text long enough to force the character chunker, empty and
+punctuation-only input. Verified by perturbing the fixture and confirming both suites fail, which is the only
+way to know a golden test is wired up at all.
+
+```bash
+swift run memorybench golden --fixtures Fixtures
+```
+
+checks the fixture; `--write` regenerates it. **Order matters when it fails**: find out which side is wrong
+and fix that, then regenerate. Regenerating first makes the red go away and destroys the only signal.
+
+One asymmetry to know about, because it is the wrong way round. `swift-packages.yml` runs the bench half on
+every change, but the app half lives in `StrandTests` and only runs under `xcodebuild … test` on macOS, which
+no default workflow does. So the direction most likely to drift — somebody edits `CoachMemory.tokens` for a
+good reason and never opens this directory — is the direction default CI does **not** catch. Until the
+tokeniser moves into a package, editing either function means running the macOS suite by hand:
+
+```bash
+xcodebuild -project Strand.xcodeproj -scheme Strand -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO test -only-testing:StrandTests/CoachTokeniserGoldenTests
+```
+
+The expected values are produced by this tool rather than by the app, for the mundane reason that the app
+cannot be run from here. That makes `StrandTests` the real check — a bad transcription fails there on the
+first run, which is the detection working, not a gap in it.
+
+The honest fix is still to move the tokeniser into `Packages/SemanticMemory` so there is one copy. That belongs
+to the change which introduces IDF weighting — it has to touch this code anyway — not to a benchmark whose
+whole point is to change no production behaviour. Until then the fixture is what makes one copy safe.
 
 One thing the transcription surfaced: the stopword list covers `en de es fr it pt ru` and deliberately leaves
 CJK to the bigram path, but **`pl` is missing entirely** despite being a shipped locale, and
