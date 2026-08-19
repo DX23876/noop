@@ -457,6 +457,56 @@ positives. If it is used at all it belongs far lower.
 
 ---
 
+## Scale: what a lived-in index costs
+
+`main` holds 272 documents. A real one is bigger — fifty conversations, a journal running for years — and two
+questions follow that a 272-document index cannot answer: is K=32 still enough when the pool is twenty times
+larger, and how does the full-table scan grow.
+
+```bash
+swift run -c release memorybench scale --corpus Corpus --synthetic --tiers 1000,5000,20000
+```
+
+The plan called for committed `scale-1k` and `scale-5k` indexes of generated distractors, with a test forbidding
+any judgment from pointing at them. Generating at run time is strictly safer at the same cost: generated text
+cannot leak into a quality claim if it never exists in the corpus, so there is no rule to enforce and none to
+forget. It also keeps six thousand machine-written sentences out of the repository and out of every model's
+embedding run.
+
+The filler is vectors. Each one is a real corpus vector pushed away by gaussian noise, calibrated so the
+resulting cosine spread matches the corpus's own document-to-document spread. **The calibration is the entire
+design**, and getting it wrong is not a small error: a first version omitted the dimension factor in
+`σ = √((1/c² − 1)/d)`, which at 256 dimensions is sixteen times too much noise — asking for cosine 0.8 produced
+0.088 and every filler vector came out near-orthogonal to the whole corpus. Orthogonal filler sits below every
+real document, so crowding becomes invisible and the tier cheerfully reports that scale is free. That is the exact
+failure the calibration exists to prevent, a full release measurement had already been taken with it, and
+`ScaleTests` caught it on the first run.
+
+| documents | index | scan p50 | scan p95 | best hit within 8 / 32 / 128 | doc-doc cos med/p95 |
+|---|---|---|---|---|---|
+| 1 000 | 832 KB | 6.06 ms | 6.16 ms | 0.54 / 0.77 / 0.84 | 0.00 / 0.29 |
+| 5 000 | 3 992 KB | 30.66 ms | 31.08 ms | 0.53 / 0.65 / 0.80 | 0.00 / 0.29 |
+| 20 000 | 15 844 KB | 133.68 ms | 137.06 ms | 0.51 / 0.58 / 0.70 | 0.00 / 0.29 |
+
+**What is valid here and what is not.** The scan decodes and dots every row regardless of what the vectors
+contain, so the timings are real: the cost is linear (20× rows → 22.1× scan) and 20 000 chunks cost ~134 ms per
+query on an M-series Mac in a release build. Against the app's 2.5-second race budget the scan is not the binding
+constraint even at that size — the model load and the query embedding are — which is worth knowing before
+optimising `cosine` into a dot product. An iPhone will be several times slower; the device measurement decides.
+
+The K columns are **not** valid from this run, and the last column is why it is visible. `--synthetic` vectors are
+hashed token bags whose own document-to-document cosine median is 0.00, so calibrated filler is near-orthogonal
+because the corpus is, and the tier says nothing about crowding. With real vectors that column rises well above
+zero and the K figures become meaningful. Even then they are a **floor** on real difficulty rather than an
+estimate: noise reproduces the geometry of a bigger index, never its semantics, and a real distractor is
+confusable in ways only text carries — the same supplement at another dose, the other knee.
+
+Two build notes, both learned the hard way. Timings need `-c release`: the first debug run reported 76 ms per scan
+at 1 000 documents, which reads as a finding about the race budget and is an artefact of unoptimised Float16
+decoding, so the timing columns now refuse to print from a debug build. And the tier is file-backed rather than
+in-memory, because `byteSize()` returns 0 for an in-memory store — the index-size column was silently empty — and
+because the app searches a file.
+
 ## The two mirrors, and the fixture that keeps them honest
 
 `MirroredTokeniser` and `MirroredChunker` are transcriptions of `CoachMemory.tokens` and

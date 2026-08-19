@@ -21,6 +21,7 @@ enum Command: String {
     case lint
     case split
     case golden
+    case scale
 }
 
 let usage = """
@@ -60,6 +61,14 @@ usage: memorybench <score|embed|models|lint> [options]
          Checks (or with --write regenerates) Fixtures/tokeniser-golden.json, the fixture shared with
          StrandTests so the app's tokeniser/chunker and this tool's transcriptions of them cannot
          drift apart while both stay internally consistent.
+
+  scale  --corpus <dir> (--vectors <path> | --synthetic) [--tiers 250,1000,5000]
+         Answers the two questions a 272-document index cannot: is K=32 still enough when the
+         history is twenty times longer, and how does the full-table scan grow. Filler is
+         generated at RUN TIME as vectors — real corpus vectors pushed apart by noise calibrated
+         to the corpus's own cosine spread — so nothing generated ever enters the corpus and
+         nothing generated can ever reach a quality claim. It reproduces the geometry of a bigger
+         index, not its semantics, so the K figure is a floor on real difficulty, not an estimate.
 
   split  --corpus <dir> [--test-fraction 0.35] [--seed N] [--regenerate] [--write]
          Assigns the `main` index to a development half and a frozen holdout. Whole scenarios move
@@ -104,6 +113,7 @@ var writeSplit = false
 var holdoutReason = ""
 var fixturesPath = "Fixtures"
 var regenerateSplit = false
+var tiers = [250, 1_000, 5_000]
 
 var iterator = arguments.makeIterator()
 while let key = iterator.next() {
@@ -129,6 +139,7 @@ while let key = iterator.next() {
     case "--holdout": holdoutReason = iterator.next() ?? ""
     case "--fixtures": fixturesPath = iterator.next() ?? fixturesPath
     case "--regenerate": regenerateSplit = true
+    case "--tiers": tiers = (iterator.next() ?? "").split(separator: ",").compactMap { Int($0) }
     case "--floor":
         floors = (iterator.next() ?? "").split(separator: ",").compactMap { Double($0) }
     case "--":
@@ -222,6 +233,76 @@ case .lint:
             print("\(index.padding(toLength: 14, withPad: " ", startingAt: 0)) "
                 + String(format: "%4d", documents.count) + "  " + String(format: "%7d", queries.count)
                 + "  \(langs.padding(toLength: 12, withPad: " ", startingAt: 0))  \(cells.joined())")
+        }
+        print("")
+    } catch {
+        fail(error.localizedDescription)
+    }
+
+case .scale:
+    do {
+        let corpus = try Corpus.load(directory: URL(fileURLWithPath: corpusPath))
+        guard !vectorsPath.isEmpty || synthetic else {
+            fail("scale needs --vectors <path> or --synthetic")
+        }
+        let vectors = synthetic
+            ? SyntheticVectors.build(for: corpus)
+            : try VectorSet.read(directory: URL(fileURLWithPath: vectorsPath))
+        print("""
+
+            ================================================================================
+            SCALE TIERS — \(vectors.meta.model), \(vectors.dimensions) dims
+            ================================================================================
+            Filler is generated at run time and never enters the corpus. Each filler vector is a
+            real one pushed away by gaussian noise, calibrated so the resulting cosine spread
+            matches the corpus's own document-to-document spread — uniform random directions
+            would be near-orthogonal to everything and make the scan look free.
+
+            This reproduces the GEOMETRY of a larger index, not its semantics. A real distractor
+            can be confusable in ways only text carries (the same supplement at another dose, the
+            other knee), and noise does not invent that. So `best hit within K` here is the
+            difficulty crowding alone produces: a FLOOR on the real difficulty, not an estimate.
+
+            \(latencyIsMeasurable ? "" : """
+            DEBUG BUILD — the timing columns are suppressed. Unoptimised Float16 decoding made the
+            first run of this command report 76 ms per scan at 1 000 documents, which looks like a
+            finding about the app's 2.5-second race budget and is an artefact of the build. Re-run
+            with `swift run -c release` for timings; the K columns are build-independent.
+
+            """)
+            documents   index bytes   scan p50   scan p95   within 8 / 32 / 128   doc-doc cos med/p95
+            ------------------------------------------------------------------------------------------
+            """)
+        var previous: ScaleTier?
+        for tier in tiers.sorted() {
+            FileHandle.standardError.write(Data("  building \(tier) documents…\n".utf8))
+            guard let measured = try await measureTier(targetDocuments: tier,
+                                                       corpus: corpus,
+                                                       vectors: vectors,
+                                                       seed: splitSeed) else {
+                print("  \(tier): below the real index size — skipped, because hitting it would mean "
+                    + "deleting real documents")
+                continue
+            }
+            var growth = ""
+            if let earlier = previous, earlier.scanMillisecondsP50 > 0 {
+                let rows = Double(measured.documents) / Double(earlier.documents)
+                let scan = measured.scanMillisecondsP50 / earlier.scanMillisecondsP50
+                growth = String(format: "   (%.1f× rows → %.1f× scan)", rows, scan)
+            }
+            let timings = latencyIsMeasurable
+                ? String(format: "%6.2f ms  %6.2f ms",
+                         measured.scanMillisecondsP50, measured.scanMillisecondsP95)
+                : "  (debug)    (debug)"
+            let row = String(format: "  %8d   %9d KB   %@   %.2f / %.2f / %.2f        %.2f / %.2f",
+                             measured.documents,
+                             Int(measured.indexBytes / 1024),
+                             timings as NSString,
+                             measured.withinTop8, measured.withinTop32, measured.withinTop128,
+                             measured.spreadMedian, measured.spreadP95)
+            print(row + growth)
+            fflush(stdout)
+            previous = measured
         }
         print("")
     } catch {
