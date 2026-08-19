@@ -12,10 +12,11 @@ struct QueryResult {
 /// Everything one variant scored, aggregated the ways that can actually change a decision.
 /// Which queries a report covers.
 ///
-/// The unit exists because pooling them was a real error: 320 answerable queries live in this corpus, 110 on
-/// the realistic 272-document index and 210 on the ten 24-document locale sets, and a single mean over all of
-/// them is two thirds driven by the easy problem. Every number now says which scope it came from, and the
-/// pooled one is labelled as mixed difficulty rather than quoted as a result.
+/// The unit exists because pooling them was a real error: the answerable queries are split between one
+/// realistic 272-document index and ten 24-document locale sets, and a single mean over all of them is largely
+/// driven by the easy problem. Every number now says which scope it came from, and the pooled one is labelled
+/// as mixed difficulty rather than quoted as a result. (The exact counts used to be written out here and in the
+/// printed header; both went stale the first time the corpus grew, so the header computes them now.)
 enum ReportScope: String {
     /// The development half of the large realistic index. **This is where tuning happens** and the only scope
     /// printed by default: floors, weights, candidate depths, rerank settings and model choice are all chosen
@@ -438,6 +439,9 @@ private func printTable(_ reports: [VariantReport], vectors: VectorSet, corpus: 
     let mainDocuments = corpus.documents.filter { $0.index == "main" }.count
     let localeDocuments = corpus.documents.filter { $0.index != "main" }.count
     let localeIndexes = corpus.indexes.filter { $0 != "main" }.count
+    let answerable = corpus.queries.filter { $0.category.isAnswerable }
+    let answerableTotal = answerable.count
+    let answerableOnMain = answerable.filter { $0.index == "main" }.count
 
     print("""
 
@@ -452,9 +456,11 @@ private func printTable(_ reports: [VariantReport], vectors: VectorSet, corpus: 
         without that separation the numbers would increasingly describe the benchmark
         rather than retrieval.
 
-        Also deliberately NOT an average over the whole corpus: of 320 answerable queries
-        only 110 sit on `main` and 210 on the ten 24-document locale sets, so a pooled mean
-        is two thirds driven by a problem too easy to separate anything.
+        Also deliberately NOT an average over the whole corpus: of \(answerableTotal) answerable
+        queries \(answerableOnMain) sit on `main` and \(answerableTotal - answerableOnMain) on the
+        ten 24-document locale sets, so a pooled mean is largely driven by a problem too easy to
+        separate anything. (Computed, not carried — these counts were written out by hand once and
+        went stale the first time the corpus grew.)
 
         nDCG@8 and P@8 exclude `unanswerable` (no ideal ranking), which is exactly why the
         abstention columns exist: the floor's largest measured effect never shows up in nDCG.
