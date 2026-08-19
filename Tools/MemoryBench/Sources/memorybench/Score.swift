@@ -184,7 +184,10 @@ func runScore(corpus: Corpus,
                                        groups: groups,
                                        availableRelevant: available))
         }
-        reports.append(report(name: config.name, results: results, countsUnderruns: config.floor == nil))
+        // `under` only means something for a variant that never declines a line. The dynamic floor and the
+        // confidence gate decline lines too, so they are excluded on the same grounds as the absolute floor.
+        let restrains = config.floor != nil || config.floorRelativeToTop != nil || config.confidenceGate != nil
+        reports.append(report(name: config.name, results: results, countsUnderruns: !restrains))
     }
 
     // The reranker ceilings. Not variants of the pipeline — they cheat, by construction — but the bound on
@@ -221,7 +224,7 @@ func runScore(corpus: Corpus,
     // is a fair question to ask of it and one it could plausibly answer better than a threshold can.
     if let rerank {
         var cost = RerankCost()
-        for depth in [16, 32] {
+        for depth in [8, 16, 32] {
             var scored: [String: [SelectionCandidate]] = [:]
             for query in corpus.queries {
                 var bestPerSource: [String: SelectionCandidate] = [:]
@@ -252,14 +255,19 @@ func runScore(corpus: Corpus,
             // Thresholds on the RERANKER's scale, which is a logit and not a cosine: the sanity pair scored
             // +1.77 for the right document and −3.58 for an off-topic one. Zero is the natural decision
             // boundary, so that and one notch above it are the two worth trying.
-            for threshold in [nil, 0.0, 1.0] as [Double?] {
+            // Thresholds are probabilities now that the logit is squashed, so 0.5 is the model's own decision
+            // boundary. `withRecency` is the row the per-category table asked for: the reranker wins
+            // paraphrase, negation and near-miss while recency wins its own category and synonym, so the
+            // interesting question is whether they add up or fight.
+            for (threshold, withRecency) in [(nil, false), (0.5, false), (nil, true), (0.5, true)]
+                as [(Double?, Bool)] {
                 var config = SelectionConfig.recommended(floor: threshold)
-                config.recencyWeight = 0
+                config.recencyWeight = withRecency ? 0.25 : 0
                 config.idfBonus = 0
                 config.usesRerankScore = true
-                config.name = threshold == nil
-                    ? "RERANK@\(depth)"
-                    : "RERANK@\(depth), logit ≥ \(String(format: "%.1f", threshold!))"
+                config.name = "RERANK@\(depth)"
+                    + (withRecency ? " +recency" : "")
+                    + (threshold == nil ? "" : " p≥\(String(format: "%.1f", threshold!))")
                 var results: [QueryResult] = []
                 for query in corpus.queries {
                     let ranked = select(semantic: scored[query.id] ?? [], lexical: [], config: config)

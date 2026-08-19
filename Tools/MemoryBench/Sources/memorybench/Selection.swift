@@ -53,6 +53,16 @@ struct SelectionConfig {
     var quotas = false
     /// λ for maximal-marginal-relevance diversification; `nil` disables it.
     var mmrLambda: Double?
+    /// Keep a candidate only if its score is at least this fraction of the TOP score for the query.
+    ///
+    /// A dynamic floor, which an absolute one cannot be: cosine scale drifts per model and per query type, so
+    /// one number that suits a well-answered question throws away everything on a weakly-answered one, and one
+    /// that suits the weak case lets noise through on the strong case. Relative to the best hit, "clearly
+    /// worse than what we already found" means the same thing everywhere.
+    var floorRelativeToTop: Double?
+    /// Emit NOTHING when the best hit for the query is below this. The absolute floor's remaining job once the
+    /// relative one handles the shape: deciding whether the question is answerable at all.
+    var confidenceGate: Double?
     /// Score on the reranker's scale instead of the embedding cosine. Only the base term changes; every policy
     /// above it — floor, quotas, MMR — is the same code, so a rerank row isolates the relevance model.
     var usesRerankScore = false
@@ -129,6 +139,19 @@ extension SelectionConfig {
         // The two rows that isolate K where it can bind: identical to `recommended` apart from the candidate
         // depth, and placed after every rescoring feature is switched on.
         steps.append(recommended(floor: floor))
+        // The dynamic floor, which is what an absolute threshold is a crude stand-in for. Two shapes: keep
+        // what is within a fraction of the best hit, and refuse to answer at all when the best hit is weak.
+        for relative in [0.9, 0.8, 0.7] {
+            var dynamic = recommended(floor: nil)
+            dynamic.floorRelativeToTop = relative
+            dynamic.confidenceGate = floor
+            dynamic.name = "recommended, top×\(String(format: "%.1f", relative)) + gate"
+            steps.append(dynamic)
+        }
+        var gateOnly = recommended(floor: nil)
+        gateOnly.confidenceGate = floor
+        gateOnly.name = "recommended, gate only"
+        steps.append(gateOnly)
         var shallow = recommended(floor: floor)
         shallow.candidateLimit = 32
         shallow.name = "recommended, K=32"
@@ -170,7 +193,14 @@ let maximumDocumentPriority = 120.0
 /// scores off that scale and the floor would have to be re-calibrated per variant — which would make the
 /// ablation table incomparable, the same way a re-ordering lexical term made RRF incomparable.
 func score(_ candidate: SelectionCandidate, _ config: SelectionConfig) -> Double {
-    var value = config.usesRerankScore ? (candidate.rerankScore ?? 0) : candidate.cosine
+    // A rerank score is a LOGIT, not a similarity: the sanity pair scored +1.77 and −3.58. Squashed to a
+    // probability before anything else touches it, for two reasons. Multiplying a negative logit by a decay
+    // below one makes it LARGER, so recency would reward staleness on exactly the candidates it should
+    // punish — silent and in the right direction to look plausible. And a threshold on (0,1) means the same
+    // thing for a reranker as for a cosine, so the floor and the gate stay comparable across the table.
+    var value = config.usesRerankScore
+        ? 1 / (1 + exp(-(candidate.rerankScore ?? 0)))
+        : candidate.cosine
     if config.recencyWeight > 0, let halfLife = recencyHalfLifeDays(candidate.kind) {
         let decay = exp(-log(2.0) * max(0, candidate.ageDays) / halfLife)
         value *= (1 - config.recencyWeight) + config.recencyWeight * decay
@@ -249,6 +279,14 @@ func select(semantic: [SelectionCandidate],
         }
     if let floor = config.floor {
         pool = pool.filter { $0.value >= floor }
+    }
+    // The gate first: if even the best candidate is weak, the honest answer is no context at all, and the
+    // relative floor below cannot express that — everything is 100% of the top score when the top score is bad.
+    if let gate = config.confidenceGate, let best = pool.first?.value, best < gate {
+        pool = []
+    }
+    if let relative = config.floorRelativeToTop, let best = pool.first?.value, best > 0 {
+        pool = pool.filter { $0.value >= best * relative }
     }
 
     // 4. Greedy selection under quotas and MMR.

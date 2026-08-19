@@ -79,40 +79,45 @@ quantisation and Matryoshka loss the device actually has.
 
 ## What the corpus is, and what it is not
 
-248 documents / 242 queries across all ten shipped locales (`de en es fr it pl pt-PT ru zh-Hans zh-Hant`).
-It is shaped like the real index rather than like a clean evaluation set: curated memory facts next to raw
-chat turns, one-line notes next to a summary long enough to chunk, priorities and ages spread the way the app
-spreads them, and a five-message sleep thread per language whose every message is a plausible answer to one
-question.
+520 documents / 360 queries, organised into **indexes** rather than languages, because an index is what a
+question is actually asked against: one person's own memories.
 
-Four query categories, each scored separately, because a variant that wins one and loses another is not an
-improvement and a single average hides the trade:
+| Index | Documents | Queries | Languages | Job |
+|---|---|---|---|---|
+| `main` | 272 | 120 | de + en (~1 in 10) | every ranking and reranking question |
+| `locale-*` × 10 | 24–28 each | 24 each | one each | does this model work in this language at all |
+
+`main` is shaped like a real index and sized so that **ranking, not recall, decides** — the previous version
+left about 25 candidates per query, which made every ranking change unmeasurable. The near-misses are the
+point of the size: three ferritin values on three dates, two knees across five activities, two magnesium
+forms and two timings, two sleep goals, two caffeine cut-offs, three training frequencies, two Achilles
+tendons, five recovery mornings, declined-versus-accepted recommendations. Plus curated facts next to raw
+chat turns, one-liners next to a summary long enough to chunk, and a thread big enough to flood a context.
+
+Eight categories, scored separately, because a change that wins one and loses another is not an improvement:
 
 | Category | What it is for |
 |---|---|
-| `paraphrase` | Synonym, rephrasing, negation — the semantic arm's core competence. |
-| `exact` | A name, a date, a number, a dose. What the two rescue slots were kept for. |
-| `temporal` | Two documents contradict each other and the **newer** one is right. |
-| `irrelevant` | Nothing answers this. The target is **zero** emitted lines. |
+| `synonym` | A different word for the same thing — and the weakest category in practice. |
+| `paraphrase` | Same vocabulary, different sentence. |
+| `negation` | The question turns on a NOT, and the positive counterpart is graded 0 so a model that ignores the negation cannot score. |
+| `numeric` | A name, a date, a dose. |
+| `recency` | Two memories contradict and the **newer** is right. |
+| `near-miss` | Almost the same sentence, only one answers — a different knee, dose, time of day. |
+| `terse` | Three or four words, the way people type. |
+| `unanswerable` | Nothing answers it. Target: **zero** lines. |
 
-Crosslingual cases are ordinary queries whose graded documents sit in another language; they need no category
-of their own, only a judgment pointing across.
+Judgments are graded 0/1/2, and `0` is written down rather than omitted: an omitted judgment and a
+judged-irrelevant one score the same, but writing the zero records that the case was considered.
+`CorpusTests` enforce the design, not the syntax — every `recency` case really grades the newer document
+above an older distractor, every `numeric` case turns on a token with a digit, every `near-miss` case carries
+a deliberately rejected sibling, `terse` questions really are short, and `main` really is bilingual without
+holding two translations of one sentence. Those tests caught three authoring gaps on their first run.
 
-Judgments are graded 0/1/2 so nDCG is computable, and `0` is written down rather than omitted — an omitted
-judgment and a judged-irrelevant one score the same, but writing the zero records that the case was
-considered. `CorpusTests` enforces the design, not just the syntax: every locale carries every category, every
-`temporal` case really does grade the newer document above an older distractor, every `exact` case really does
-turn on a token containing a digit, and every locale really does have a thread big enough to flood a context.
-
-**It is smaller than the 600/300 that was planned.** 248/242 is what could be written at a quality worth
-scoring; the shortfall is in query count per locale, not in category or locale coverage. Growing it is
-additive — one more `<lang>.queries.json` entry at a time — and the shape to keep is above.
-
-**What it cannot tell you.** It is synthetic, so it cannot capture how a particular person actually phrases
-things, and it is small enough that a per-language cell rests on ~24 queries. Use the global and per-category
-columns to decide, and treat a single per-language cell as a smoke signal rather than a verdict.
-
----
+**What it cannot tell you.** It is synthetic, so it cannot capture how a particular person phrases things;
+`main` is one person, so it cannot capture variation between people; and the locale sets are far too small for
+their per-language cells to be verdicts rather than smoke signals. A second large index in another language is
+the obvious next addition, and the format takes it without changes — one more `index` value.
 
 ## What the report says
 
@@ -158,146 +163,102 @@ runs on a Mac. Nothing here is a device measurement.
 
 ---
 
-## The first run, for reference
+## Results
 
-Against the bundled `nomic-embed-text-v2-moe.Q4_K_M` at 256 dimensions, `llama-embedding` built from
-`b9623` (2026-08-19). Embedding the whole corpus took 45 s on an M-series Mac; the index is 131 072 bytes.
+All numbers below are on the **`main` index** — 272 documents, one bilingual person's own notes — through
+the pinned `b9623`, the app's own truncate-renormalise-Float16 path, and one identical selection.
 
-```
-variant                          nDCG@8   P@8   R@1   R@8  irrel. domin.
-semantic-only                    0.611 0.114 0.423 0.704   8.00 0.643
-today (+rescue)                  0.606 0.114 0.423 0.689   8.00 0.579
-+IDF rescue (numeric tokens)     0.643 0.117 0.457 0.725   8.00 0.642
-+recency                         0.652 0.117 0.467 0.723   8.00 0.725
-+kind prior                      0.647 0.117 0.463 0.725   8.00 0.728
-+floor 0.35                      0.630 0.118 0.463 0.688   0.33 0.745
-+quotas                          0.616 0.215 0.463 0.668   0.27 0.476
-+MMR                             0.609 0.216 0.463 0.655   0.27 0.477
-recommended (IDF+recency+floor)  0.634 0.116 0.463 0.690   0.87 0.737
-recommended, K=32                0.634 0.116 0.463 0.690   0.87 0.736
-```
+Two earlier rounds of numbers were deleted rather than kept for comparison, because both were measured on
+corpora that could not answer the question. The first pooled ten translations of every fact into one index,
+which flattered the embedders (same-language text sits closer in the space) and punished a language-agnostic
+reranker for being right. The second fixed that by searching only the query's own language and thereby left
+about 25 documents to rank, which is a problem so easy that any ranking change measures noise. The history
+is in `docs/fork/decisions.md`; what follows replaces it.
 
-Three things this settled, none of which could be argued before:
+### The model question is settled: no change is justified
 
-- **The rescue arm as shipped is a small net loss** (0.606 against 0.611 semantic-only), and it loses most
-  in `es`, `pl` and `zh-Hant`. Weighted by IDF and given a tokeniser that can see numbers and dates, the
-  same arm becomes the biggest single gain in the ladder (+0.037, R@1 0.423 → 0.457, and it helps every
-  one of the ten languages).
-- **A floor is calibratable here.** Relevant hits sit at p25 = 0.395; the best hit of a question with no
-  answer sits at p95 = 0.396. A floor at 0.35 cuts emitted lines for those questions from 8.00 to
-  0.33–0.87 for about 0.018 nDCG.
-- **Three plausible-sounding ideas do not survive contact**: the kind prior costs 0.005, MMR costs 0.017
-  and buys no diversity beyond the quotas, and raising K from 32 to 128 changes literally nothing — even
-  when re-tested at the end of the ladder, where rescoring could have made it bind.
+| Configuration | nomic-embed-text-v2-moe (shipped, 256d) | harrier-oss-v1-0.6b (1024d) |
+|---|---|---|
+| `semantic-only` | 0.804 | 0.806 |
+| `today (+rescue)` | 0.798 | 0.800 |
+| `+IDF rescue` | 0.806 | 0.812 |
+| `+recency` | **0.821** | 0.814 |
+| `RERANK@8 +recency` | **0.860** | 0.838 |
+| Oracle ceiling K=32 | 0.992 | 0.978 |
 
-One methodological wrinkle worth knowing before trusting a floor number: the score modulation is
-multiplicative, so it is **not** floor-neutral. Shrinking scores by 20% is arithmetically the same as
-raising the floor by 25% — visible above as `+floor` leaking 0.33 lines with the kind prior on and
-`recommended` leaking 0.87 with it off. Calibrate the floor and the modulation weights together.
+**The difference between the two models is 0.002.** Reported as +0.239 on the first corpus and +0.036 on the
+second, it is now noise — and with the full selection stack the shipped model is ahead, 0.860 to 0.838. Both
+earlier gaps were measuring the corpus, not the models: the first measured how well a model separates
+languages, the second measured almost nothing at all.
 
----
+So the 397 MB bundle, the 4× index bytes and the whole contract migration a decoder-only model would need
+buy nothing here. That is a real result, not an absence of one: it is what closes the question.
 
-## CORRECTION: the numbers below were measured in a broken mode
+### What does help, in order
 
-Everything in the two sections that follow was measured with all ten locales in one index, and that mode
-does not measure what it claims to. The corpus was built by translating one set of scenarios into ten
-languages, so **every query has nine semantically correct answers that the judgments grade 0.** Measured
-directly: for the German `Wie hoch war mein Ferritin am 2026-03-14?`, jina-reranker-v2 scored the Spanish
-(+2.15), French (+2.12) and Italian (+2.10) versions of the same fact ABOVE the German one (+2.00). The
-reranker was right; the judgments were wrong.
+| Change | nDCG@8 | R@1 | MRR | Costs |
+|---|---|---|---|---|
+| `today (+rescue)` — the baseline | 0.798 | 0.544 | 0.826 | — |
+| `+recency` | 0.821 | 0.581 | 0.853 | nothing; the column is already in the index |
+| `+IDF rescue` (numeric/date tokens) | 0.806 | 0.548 | 0.830 | nothing |
+| `RERANK@8` | 0.846 | 0.595 | 0.876 | a second model |
+| **`RERANK@8 +recency`** | **0.860** | **0.629** | **0.897** | a second model |
+| Oracle ceiling K=32 | 0.992 | 0.772 | 1.000 | — |
 
-That artifact does not fall evenly. An embedder gets a free language cue — same-language text sits closer
-in the space — while a multilingual cross-encoder deliberately erases exactly that cue, so the mixed mode
-was largely measuring *how well a model separates languages* rather than how well it retrieves. A real
-index holds one person's memories in the language or two they write in, never nine translations of their
-own notes, so `score` now restricts candidates to the query's own language by default
-(`--mixed-language-index` keeps the old behaviour).
+The two interventions are **complementary, not competing**, which the per-category table is what shows:
 
-Corrected, per-language, same corpus and same pinned runtime:
+| Category | `semantic-only` | `+recency` | `RERANK@8` | Oracle |
+|---|---|---|---|---|
+| synonym | 0.549 | **0.630** | 0.623 | 0.922 |
+| paraphrase | 0.769 | 0.764 | **0.839** | 0.993 |
+| negation | 0.773 | 0.806 | **0.834** | 0.986 |
+| numeric | 0.960 | **0.964** | 0.957 | 0.998 |
+| recency | 0.758 | **0.836** | 0.771 | 1.000 |
+| near-miss | 0.825 | 0.840 | **0.865** | 0.987 |
+| terse | 0.762 | **0.793** | 0.780 | 0.988 |
 
-| Model | Dims | semantic-only | +IDF rescue | +recency | RERANK@16 | Oracle K=32 |
-|---|---|---|---|---|---|---|
-| nomic-embed-text-v2-moe (shipped) | 256 | 0.837 | 0.837 | 0.845 | **0.876** | 0.996 |
-| google/embeddinggemma-300m | 256 | 0.852 | 0.858 | 0.851 | 0.870 | 0.999 |
-| microsoft/harrier-oss-v1-0.6b | 1024 | **0.873** | 0.873 | 0.858 | 0.868 | 1.000 |
+The reranker takes the semantic discriminations — paraphrase, negation, and the near-misses it was hoped
+would be its strength. Recency takes the time dimension, which a cross-encoder cannot see at all: it has the
+two contradicting sentences in front of it and no way to know which one is current. `synonym` is the weakest
+category for both (0.549 raw), and `numeric` the strongest (0.960), which is worth remembering next time
+someone assumes an embedder cannot handle dates.
 
-What changes, and it is most of the story:
+### The reranker needs fewer candidates than expected
 
-- **The model gap collapses from +0.239 to +0.036.** The shipped model is 0.837 against harrier's 0.873, not
-  0.611 against 0.850. Paying 4× index bytes and +69 MB of bundle for +0.036 is a very different proposition
-  from paying it for +0.239.
-- **A reranker helps, and the earlier argument against it was wrong.** The oracle ceiling at K=32 is
-  0.996–1.000, so recall is essentially perfect and ranking is the entire bottleneck — the opposite of the
-  "not enough headroom" reasoning this file used to carry. Measured, jina-reranker-v2-base-multilingual Q8_0
-  adds +0.039 to Nomic, +0.018 to EmbeddingGemma and −0.005 to harrier: it compensates for a weaker first
-  stage and has nothing to add to a strong one.
-- **The three best configurations are indistinguishable**: Nomic + reranker 0.876, harrier alone 0.873,
-  EmbeddingGemma + reranker 0.870. On 242 queries those are the same number.
-- **The floor is still the one change with a large, unambiguous effect.** With it, EmbeddingGemma emits 0.03
-  lines for a question nothing answers instead of 8.00, and P@8 rises from 0.166 to 0.591, for 0.055 nDCG.
+| Depth | nDCG@8 | +recency | Pairs scored per query |
+|---|---|---|---|
+| `RERANK@8` | 0.846 | **0.860** | 8 |
+| `RERANK@16` | 0.840 | 0.852 | 16 |
+| `RERANK@32` | 0.832 | 0.843 | 32 |
 
-Reranker cost, for the record: p50 67–87 ms and p95 94–120 ms for 15–20 pairs, on a Mac with Metal. A phone
-should be assumed two to four times slower, against a 2.5-second budget the embedder already loses.
+Eight is not merely good enough, it is the **best** of the three — deeper candidate sets make it worse, which
+is what a reranker looks like when the extra candidates it can promote are mostly noise. That is the cheap
+answer winning on quality as well as cost: `RERANK@8` alone runs at **p50 37 ms, p95 55 ms** on a Mac with
+Metal. Assume two to four times that on a phone, against a 2.5-second budget the embedder already loses
+sometimes, and remember it needs a second model resident (jina-reranker-v2-base-multilingual is 222 MB at
+Q4_K_M, 305 MB at Q8_0 — and Q4_K_M was not verified, see the trivial-pair rule below).
 
-### And the corpus itself is the next thing to fix
+### The floor should be relative, not absolute
 
-Neither mode is realistic, which is the deeper finding. Mixed-language poisons the judgments; per-language
-leaves roughly 25 documents per query's language, so the retrieval problem becomes far easier than a real
-index of thousands of notes. The ten-locale spread bought locale coverage at the cost of index realism.
+| Variant | nDCG@8 | P@8 | lines emitted for an unanswerable question |
+|---|---|---|---|
+| no floor | 0.804 | 0.178 | 8.00 |
+| absolute ≥ 0.35 | 0.768 | 0.411 | 0.70 |
+| `top×0.7` + gate | **0.776** | **0.499** | 1.73 |
+| `top×0.8` + gate | 0.754 | 0.627 | 1.57 |
+| `top×0.9` + gate | 0.713 | 0.742 | 0.88 |
 
-The shape to build instead: **one large single-language index** — 400+ documents with many near-miss
-distractors — for every ranking and reranking measurement, plus the existing small per-locale sets used only
-to answer "does this model work in this language at all". Until that exists, treat every absolute number
-here as soft, and only compare rows measured in the same mode.
+`top×0.7` **dominates** the absolute floor — higher nDCG *and* higher precision — because "clearly worse than
+the best thing we found" means the same thing on every query, while one absolute number cannot suit both a
+well-answered question and a weakly-answered one. The absolute threshold keeps one job worth having:
+refusing to answer at all when even the best hit is poor. Note the calibration is unfinished — the gate at
+0.35 lets more through than the absolute floor did (1.73 lines against 0.70), so gate and ratio have to be
+tuned together, and the same applies per model: harrier's relevant p25 (0.590) sits *below* its
+best-of-unanswerable p95 (0.627), so no absolute threshold separates them at all.
 
----
-
-## The model comparison
-
-Same corpus, same selection, same `llama-embedding` build, same truncate-renormalise-Float16 path. The
-`semantic-only` baseline is quoted because it is independent of any selection change.
-
-| Model | GGUF | Dims | Index | nDCG@8 | R@1 | R@8 | parap. | exact | temp. | Embed |
-|---|---|---|---|---|---|---|---|---|---|---|
-| nomic-embed-text-v2-moe (shipped) | 328 MB Q4_K_M | 256 | 131 k | 0.611 | 0.423 | 0.704 | 0.499 | 0.862 | 0.682 | 45.3 s |
-| google/embeddinggemma-300m | **278 MB** q4_0-QAT | 256 | 131 k | 0.755 | 0.563 | 0.823 | 0.698 | 0.934 | 0.707 | **25.5 s** |
-| microsoft/harrier-oss-v1-0.6b | 397 MB Q4_K_M | 1024 | 524 k | **0.850** | **0.637** | **0.929** | **0.803** | **0.993** | **0.816** | 36.8 s |
-| harrier-oss-v1-0.6b **@256, untrained truncation** | 397 MB | 256 | 131 k | 0.725 | 0.496 | 0.846 | 0.628 | 0.931 | 0.803 | 36.8 s |
-
-Both alternatives beat the incumbent clearly and in every language — EmbeddingGemma wins 9 of 10
-(losing `zh-Hant` by 0.006), harrier all 10, and harrier is the most even of the three (0.791–0.921 per
-language, against Nomic's 0.487–0.761). Both are also **faster** than the shipped model despite being
-dense rather than MoE, which is the on-device case where a mixture of experts pays its cost without
-collecting its benefit: all the weights stay resident, only the compute is sparse.
-
-The last row is the one that decides between them. Truncating harrier to 256 costs **0.125 nDCG** and
-inverts its floor separation (relevant p25 0.643 against best-of-irrelevant p95 0.685 — no usable
-absolute threshold left). That is the difference between trained Matryoshka and extrapolation, and it
-means **at equal index size EmbeddingGemma wins**: 0.755 against 0.725.
-
-So the choice reduces to one question — are 4× index bytes acceptable? If yes, harrier-0.6b at its full
-1024 is the best retrieval available here, under MIT, and still faster than what ships. If no,
-EmbeddingGemma-300m gives the best result per byte with the smallest bundle, trained MRL at 256 and
-official ggml-org quants, at the price of Gemma Terms instead of MIT. Keeping Nomic is the only option
-no number here supports.
-
-### Two candidates could not be measured, which is itself a result
-
-- **harrier-oss-v1-270m does not load on the pinned `b9623`.** The only GGUF that exists is
-  community-built and writes `tokenizer.ggml.suffix_token_id` as i32 where this runtime expects u32. Its
-  architecture is supported; the artifact is not. The fair test is converting the HF weights with the
-  pinned tag's own `convert_hf_to_gguf.py` — running it on a newer llama.cpp would measure a runtime the
-  app does not ship.
-- **The `multilingual-e5-small` community quant is broken, so there is no e5 number.** It scored 0.187,
-  but the calibration came back inverted and every cosine sat above 0.89. Three lines settled it: for
-  `query: Magnesium vor dem Schlafengehen`, the diesel-oil-filter passage scored 0.9367 and the magnesium
-  passage 0.9303.
-
-**Hence a rule this harness now follows: run a trivial-pair check before scoring any model.** A
-community GGUF is an instrument of unknown calibration, and two of four candidates failed on it. The
-check costs three invocations and it is the difference between measuring a model and reporting
-quantisation damage as model quality. EmbeddingGemma passes it decisively (0.756 against 0.212);
-harrier-0.6b passes it (0.489 against 0.324).
+A probability threshold on the reranker's own score is not the answer either, at least not at 0.5: it lifts
+P@8 to 0.845 and takes unanswerable output to zero, but nDCG collapses to 0.435 because it discards most true
+positives. If it is used at all it belongs far lower.
 
 ---
 
