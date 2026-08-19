@@ -142,6 +142,36 @@ final class ChargeDriversTests: XCTestCase {
         XCTAssertEqual(sleep.baselineText, "")
     }
 
+    func testSkinTempAndRespirationFormattingUseSharedPOSIXContract() {
+        let expectedSkinText: [(Double, String)] = [
+            (-0.35, "-0.4 C vs baseline"),
+            (0.35, "+0.4 C vs baseline"),
+            (-0.34, "-0.3 C vs baseline"),
+            (0.34, "+0.3 C vs baseline"),
+            (-0.36, "-0.4 C vs baseline"),
+            (0.36, "+0.4 C vs baseline"),
+            (-0.0, "-0.0 C vs baseline"),
+            (0.0, "+0.0 C vs baseline"),
+        ]
+
+        for (deviation, expected) in expectedSkinText {
+            let drivers = RecoveryScorer.chargeDrivers(
+                hrv: 46, rhr: 58, resp: 14,
+                hrvBaseline: baseline(mean: 51, sigma: 6.265),
+                rhrBaseline: baseline(mean: 58, sigma: 5.012, nValid: 12),
+                respBaseline: baseline(mean: 15, sigma: 1.8795, nValid: 12),
+                sleepPerf: 0.9, skinTempDev: deviation)
+            let skin = try! XCTUnwrap(drivers.first { $0.label == "Skin temperature" })
+            XCTAssertEqual(skin.valueText, expected)
+            XCTAssertEqual(skin.baselineText, "")
+            XCTAssertLessThanOrEqual(skin.deltaPoints, 0)
+
+            let respiration = try! XCTUnwrap(drivers.first { $0.label == "Respiratory rate" })
+            XCTAssertEqual(respiration.valueText, "14.0 br/min")
+            XCTAssertEqual(respiration.baselineText, "15.0 br/min baseline")
+        }
+    }
+
     func testNoEmDashesInOutput() {
         let drivers = RecoveryScorer.chargeDrivers(
             hrv: 60, rhr: 50, resp: 15,

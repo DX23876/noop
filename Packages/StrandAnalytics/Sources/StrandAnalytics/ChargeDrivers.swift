@@ -211,8 +211,8 @@ extension RecoveryScorer {
                                              hrvBaseline: hrvBaseline, rhrBaseline: rhrBaseline,
                                              respBaseline: respBaseline, sleepPerf: sleepPerf,
                                              skinTempDev: skinTempDev)),
-                valueText: String(format: "%.1f br/min", r),
-                baselineText: String(format: "%.1f br/min baseline", b.baseline),
+                valueText: String(format: "%.1f br/min", locale: Locale(identifier: "en_US_POSIX"), r),
+                baselineText: String(format: "%.1f br/min baseline", locale: Locale(identifier: "en_US_POSIX"), b.baseline),
                 verdict: respVerdict(value: r, baseline: b.baseline)))
         }
 
@@ -283,7 +283,11 @@ extension RecoveryScorer {
     }
 
     static func skinTempDevText(_ dev: Double) -> String {
-        let sign = dev >= 0 ? "+" : ""
-        return "\(sign)\(String(format: "%.1f", dev)) C vs baseline"
+        // Foundation's `%+f` renders negative zero as "-+0.0" on some runtimes. Preserve the
+        // IEEE sign explicitly so this edge stays byte-identical to Java Formatter.
+        if dev == 0 {
+            return dev.sign == .minus ? "-0.0 C vs baseline" : "+0.0 C vs baseline"
+        }
+        return String(format: "%+.1f C vs baseline", locale: Locale(identifier: "en_US_POSIX"), dev)
     }
 }

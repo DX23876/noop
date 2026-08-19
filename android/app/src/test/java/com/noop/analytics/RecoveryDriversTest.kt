@@ -99,6 +99,37 @@ class RecoveryDriversTest {
         assertTrue(skin.deltaPoints <= 0)
     }
 
+    @Test fun skinTempAndRespirationFormattingUseSharedUSContract() {
+        val expectedSkinText = listOf(
+            -0.35 to "-0.4 C vs baseline",
+            0.35 to "+0.4 C vs baseline",
+            -0.34 to "-0.3 C vs baseline",
+            0.34 to "+0.3 C vs baseline",
+            -0.36 to "-0.4 C vs baseline",
+            0.36 to "+0.4 C vs baseline",
+            -0.0 to "-0.0 C vs baseline",
+            0.0 to "+0.0 C vs baseline",
+        )
+
+        expectedSkinText.forEach { (deviation, expected) ->
+            val drivers = RecoveryDrivers.chargeDrivers(
+                hrv = 46.0, rhr = 58.0, resp = 14.0,
+                hrvBaseline = baseline(51.0, 6.265),
+                rhrBaseline = baseline(58.0, 5.012, nValid = 12),
+                respBaseline = baseline(15.0, 1.8795, nValid = 12),
+                sleepPerf = 0.9, skinTempDev = deviation,
+            )
+            val skin = drivers.first { it.label == "Skin temperature" }
+            assertEquals(expected, skin.valueText)
+            assertEquals("", skin.baselineText)
+            assertTrue(skin.deltaPoints <= 0)
+
+            val respiration = drivers.first { it.label == "Respiratory rate" }
+            assertEquals("14.0 br/min", respiration.valueText)
+            assertEquals("15.0 br/min baseline", respiration.baselineText)
+        }
+    }
+
     @Test fun coldStartYieldsEmptyDrivers() {
         val coldHRV = BaselineState(
             baseline = 50.0, spread = 5.0, nValid = 2, nightsSinceUpdate = 0,
