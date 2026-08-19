@@ -1,53 +1,234 @@
 {
-  "version": 1,
-  "queries": [
-    {"id": "ru-q-mag", "lang": "ru", "category": "paraphrase", "text": "Помогает ли Mg вечером моему ритуалу перед сном?",
-     "judgments": {"ru-mag": 2, "ru-goal": 1}},
-    {"id": "ru-q-mag2", "lang": "ru", "category": "paraphrase", "text": "Какая добавка помогала мне засыпать?",
-     "judgments": {"ru-mag": 2, "ru-d3": 1}},
-    {"id": "ru-q-caf", "lang": "ru", "category": "paraphrase", "text": "Держит ли меня поздний кофе ночью без сна?",
-     "judgments": {"ru-caf": 2, "ru-nap": 1}},
-    {"id": "ru-q-caf2", "lang": "ru", "category": "paraphrase", "text": "Что мешает мне заснуть вечером?",
-     "judgments": {"ru-caf": 2, "ru-nap": 2, "ru-mag": 1, "ru-stress": 1}},
-    {"id": "ru-q-bike", "lang": "ru", "category": "paraphrase", "text": "Какая мягкая тренировка предшествовала хорошему восстановлению?",
-     "judgments": {"ru-bike": 2}},
-    {"id": "ru-q-weekend", "lang": "ru", "category": "paraphrase", "text": "Поставим бег в субботу?",
-     "judgments": {"ru-weekend": 2}},
-    {"id": "ru-q-weekend2", "lang": "ru", "category": "paraphrase", "text": "Чего я не хочу делать на выходных?",
-     "judgments": {"ru-weekend": 2}},
-    {"id": "ru-q-alcohol", "lang": "ru", "category": "paraphrase", "text": "Влияет ли выпивка на то, насколько я отдохнул?",
-     "judgments": {"ru-alcohol": 2}},
-    {"id": "ru-q-cold", "lang": "ru", "category": "paraphrase", "text": "Что мы решили насчёт тренировок во время болезни?",
-     "judgments": {"ru-cold": 2}},
-    {"id": "ru-q-cold2", "lang": "ru", "category": "paraphrase", "text": "Какой показатель наблюдать, когда я начинаю заболевать?",
-     "judgments": {"ru-cold": 2}},
-    {"id": "ru-q-interval", "lang": "ru", "category": "paraphrase", "text": "Как я реагировал в прошлые разы, когда ты предлагал тяжёлые интервалы?",
-     "judgments": {"ru-interval": 2}},
-    {"id": "ru-q-cbd", "lang": "ru", "category": "paraphrase", "text": "Пропустил ли я каннабидиол в конце июля?",
-     "judgments": {"ru-cbd": 2}},
-    {"id": "ru-q-ferritin", "lang": "ru", "category": "exact", "text": "Каким был мой ферритин 2026-03-14?",
-     "judgments": {"ru-ferritin": 2}},
-    {"id": "ru-q-ferritin2", "lang": "ru", "category": "exact", "text": "42 — это был ферритин?",
-     "judgments": {"ru-ferritin": 2}},
-    {"id": "ru-q-goal", "lang": "ru", "category": "exact", "text": "Цель по-прежнему свет выключен до 23:00?",
-     "judgments": {"ru-goal": 2}},
-    {"id": "ru-q-d3", "lang": "ru", "category": "exact", "text": "Сколько МЕ витамина D я принимаю?",
-     "judgments": {"ru-d3": 2}},
-    {"id": "ru-q-shoes", "lang": "ru", "category": "exact", "text": "Когда я купил новые беговые кроссовки?",
-     "judgments": {"ru-shoes": 2, "ru-knee-new": 1}},
-    {"id": "ru-q-knee", "lang": "ru", "category": "temporal", "text": "Как сейчас дела с моим левым коленом?",
-     "judgments": {"ru-knee-new": 2, "ru-knee-old": 0}},
-    {"id": "ru-q-knee2", "lang": "ru", "category": "temporal", "text": "Бывают ли у меня ещё проблемы с коленом после быстрых тренировок?",
-     "judgments": {"ru-knee-new": 2, "ru-knee-old": 0}},
-    {"id": "ru-q-freq", "lang": "ru", "category": "temporal", "text": "Сколько раз в неделю я тренируюсь сейчас?",
-     "judgments": {"ru-freq-new": 2, "ru-freq-old": 0}},
-    {"id": "ru-q-sleep", "lang": "ru", "category": "paraphrase", "text": "Почему качество моего сна недавно стало хуже?",
-     "judgments": {"ru-caf": 2, "ru-nap": 2, "ru-stress": 2, "ru-noise2": 1, "ru-noise4": 1}},
-    {"id": "ru-q-irr1", "lang": "ru", "category": "irrelevant", "text": "Какая погода будет на следующей неделе в Лиссабоне?",
-     "judgments": {"ru-noise5": 0, "ru-cold": 0}},
-    {"id": "ru-q-irr2", "lang": "ru", "category": "irrelevant", "text": "Как поменять масляный фильтр на дизельном двигателе?",
-     "judgments": {"ru-noise6": 0}},
-    {"id": "ru-q-irr3", "lang": "ru", "category": "irrelevant", "text": "Какой бланк нужен для счёта самозанятого?",
-     "judgments": {}}
-  ]
+ "version": 1,
+ "queries": [
+  {
+   "id": "ru-q-mag",
+   "lang": "ru",
+   "category": "paraphrase",
+   "text": "Помогает ли Mg вечером моему ритуалу перед сном?",
+   "judgments": {
+    "ru-mag": 2,
+    "ru-goal": 1
+   }
+  },
+  {
+   "id": "ru-q-mag2",
+   "lang": "ru",
+   "category": "paraphrase",
+   "text": "Какая добавка помогала мне засыпать?",
+   "judgments": {
+    "ru-mag": 2,
+    "ru-d3": 1
+   }
+  },
+  {
+   "id": "ru-q-caf",
+   "lang": "ru",
+   "category": "paraphrase",
+   "text": "Держит ли меня поздний кофе ночью без сна?",
+   "judgments": {
+    "ru-caf": 2,
+    "ru-nap": 1
+   }
+  },
+  {
+   "id": "ru-q-caf2",
+   "lang": "ru",
+   "category": "paraphrase",
+   "text": "Что мешает мне заснуть вечером?",
+   "judgments": {
+    "ru-caf": 2,
+    "ru-nap": 2,
+    "ru-mag": 1,
+    "ru-stress": 1
+   }
+  },
+  {
+   "id": "ru-q-bike",
+   "lang": "ru",
+   "category": "paraphrase",
+   "text": "Какая мягкая тренировка предшествовала хорошему восстановлению?",
+   "judgments": {
+    "ru-bike": 2
+   }
+  },
+  {
+   "id": "ru-q-weekend",
+   "lang": "ru",
+   "category": "paraphrase",
+   "text": "Поставим бег в субботу?",
+   "judgments": {
+    "ru-weekend": 2
+   }
+  },
+  {
+   "id": "ru-q-weekend2",
+   "lang": "ru",
+   "category": "paraphrase",
+   "text": "Чего я не хочу делать на выходных?",
+   "judgments": {
+    "ru-weekend": 2
+   }
+  },
+  {
+   "id": "ru-q-alcohol",
+   "lang": "ru",
+   "category": "paraphrase",
+   "text": "Влияет ли выпивка на то, насколько я отдохнул?",
+   "judgments": {
+    "ru-alcohol": 2
+   }
+  },
+  {
+   "id": "ru-q-cold",
+   "lang": "ru",
+   "category": "paraphrase",
+   "text": "Что мы решили насчёт тренировок во время болезни?",
+   "judgments": {
+    "ru-cold": 2
+   }
+  },
+  {
+   "id": "ru-q-cold2",
+   "lang": "ru",
+   "category": "paraphrase",
+   "text": "Какой показатель наблюдать, когда я начинаю заболевать?",
+   "judgments": {
+    "ru-cold": 2
+   }
+  },
+  {
+   "id": "ru-q-interval",
+   "lang": "ru",
+   "category": "paraphrase",
+   "text": "Как я реагировал в прошлые разы, когда ты предлагал тяжёлые интервалы?",
+   "judgments": {
+    "ru-interval": 2
+   }
+  },
+  {
+   "id": "ru-q-cbd",
+   "lang": "ru",
+   "category": "paraphrase",
+   "text": "Пропустил ли я каннабидиол в конце июля?",
+   "judgments": {
+    "ru-cbd": 2
+   }
+  },
+  {
+   "id": "ru-q-ferritin",
+   "lang": "ru",
+   "category": "numeric",
+   "text": "Каким был мой ферритин 2026-03-14?",
+   "judgments": {
+    "ru-ferritin": 2
+   }
+  },
+  {
+   "id": "ru-q-ferritin2",
+   "lang": "ru",
+   "category": "numeric",
+   "text": "42 — это был ферритин?",
+   "judgments": {
+    "ru-ferritin": 2
+   }
+  },
+  {
+   "id": "ru-q-goal",
+   "lang": "ru",
+   "category": "numeric",
+   "text": "Цель по-прежнему свет выключен до 23:00?",
+   "judgments": {
+    "ru-goal": 2
+   }
+  },
+  {
+   "id": "ru-q-d3",
+   "lang": "ru",
+   "category": "numeric",
+   "text": "Сколько МЕ витамина D я принимаю?",
+   "judgments": {
+    "ru-d3": 2
+   }
+  },
+  {
+   "id": "ru-q-shoes",
+   "lang": "ru",
+   "category": "numeric",
+   "text": "Когда я купил новые беговые кроссовки?",
+   "judgments": {
+    "ru-shoes": 2,
+    "ru-knee-new": 1
+   }
+  },
+  {
+   "id": "ru-q-knee",
+   "lang": "ru",
+   "category": "recency",
+   "text": "Как сейчас дела с моим левым коленом?",
+   "judgments": {
+    "ru-knee-new": 2,
+    "ru-knee-old": 0
+   }
+  },
+  {
+   "id": "ru-q-knee2",
+   "lang": "ru",
+   "category": "recency",
+   "text": "Бывают ли у меня ещё проблемы с коленом после быстрых тренировок?",
+   "judgments": {
+    "ru-knee-new": 2,
+    "ru-knee-old": 0
+   }
+  },
+  {
+   "id": "ru-q-freq",
+   "lang": "ru",
+   "category": "recency",
+   "text": "Сколько раз в неделю я тренируюсь сейчас?",
+   "judgments": {
+    "ru-freq-new": 2,
+    "ru-freq-old": 0
+   }
+  },
+  {
+   "id": "ru-q-sleep",
+   "lang": "ru",
+   "category": "paraphrase",
+   "text": "Почему качество моего сна недавно стало хуже?",
+   "judgments": {
+    "ru-caf": 2,
+    "ru-nap": 2,
+    "ru-stress": 2,
+    "ru-noise2": 1,
+    "ru-noise4": 1
+   }
+  },
+  {
+   "id": "ru-q-irr1",
+   "lang": "ru",
+   "category": "unanswerable",
+   "text": "Какая погода будет на следующей неделе в Лиссабоне?",
+   "judgments": {
+    "ru-noise5": 0,
+    "ru-cold": 0
+   }
+  },
+  {
+   "id": "ru-q-irr2",
+   "lang": "ru",
+   "category": "unanswerable",
+   "text": "Как поменять масляный фильтр на дизельном двигателе?",
+   "judgments": {
+    "ru-noise6": 0
+   }
+  },
+  {
+   "id": "ru-q-irr3",
+   "lang": "ru",
+   "category": "unanswerable",
+   "text": "Какой бланк нужен для счёта самозанятого?",
+   "judgments": {}
+  }
+ ]
 }

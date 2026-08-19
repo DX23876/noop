@@ -1,53 +1,234 @@
 {
-  "version": 1,
-  "queries": [
-    {"id": "en-q-mag", "lang": "en", "category": "paraphrase", "text": "Does Mg in the evening do anything for my night routine?",
-     "judgments": {"en-mag": 2, "en-goal": 1}},
-    {"id": "en-q-mag2", "lang": "en", "category": "paraphrase", "text": "Which supplement was it that helped me drop off?",
-     "judgments": {"en-mag": 2, "en-d3": 1}},
-    {"id": "en-q-caf", "lang": "en", "category": "paraphrase", "text": "Does a late coffee keep me awake at night?",
-     "judgments": {"en-caf": 2, "en-nap": 1}},
-    {"id": "en-q-caf2", "lang": "en", "category": "paraphrase", "text": "What stops me falling asleep in the evening?",
-     "judgments": {"en-caf": 2, "en-nap": 2, "en-mag": 1, "en-stress": 1}},
-    {"id": "en-q-bike", "lang": "en", "category": "paraphrase", "text": "Which gentle session came before a good recovery?",
-     "judgments": {"en-bike": 2}},
-    {"id": "en-q-weekend", "lang": "en", "category": "paraphrase", "text": "Can we put a run in on Saturday?",
-     "judgments": {"en-weekend": 2}},
-    {"id": "en-q-weekend2", "lang": "en", "category": "paraphrase", "text": "What do I not want to do at the weekend?",
-     "judgments": {"en-weekend": 2}},
-    {"id": "en-q-alcohol", "lang": "en", "category": "paraphrase", "text": "Does drinking affect how rested I am?",
-     "judgments": {"en-alcohol": 2}},
-    {"id": "en-q-cold", "lang": "en", "category": "paraphrase", "text": "What did we decide about training while I was ill?",
-     "judgments": {"en-cold": 2}},
-    {"id": "en-q-cold2", "lang": "en", "category": "paraphrase", "text": "Which number should I watch when I am coming down with something?",
-     "judgments": {"en-cold": 2}},
-    {"id": "en-q-interval", "lang": "en", "category": "paraphrase", "text": "How did I react the last times you suggested hard intervals?",
-     "judgments": {"en-interval": 2}},
-    {"id": "en-q-cbd", "lang": "en", "category": "paraphrase", "text": "Did I skip the cannabidiol at the end of July?",
-     "judgments": {"en-cbd": 2}},
-    {"id": "en-q-ferritin", "lang": "en", "category": "exact", "text": "What was my ferritin on 2026-03-14?",
-     "judgments": {"en-ferritin": 2}},
-    {"id": "en-q-ferritin2", "lang": "en", "category": "exact", "text": "Was the 42 the ferritin reading?",
-     "judgments": {"en-ferritin": 2}},
-    {"id": "en-q-goal", "lang": "en", "category": "exact", "text": "Is lights out before 23:00 still the target?",
-     "judgments": {"en-goal": 2}},
-    {"id": "en-q-d3", "lang": "en", "category": "exact", "text": "How many IU of vitamin D am I on?",
-     "judgments": {"en-d3": 2}},
-    {"id": "en-q-shoes", "lang": "en", "category": "exact", "text": "When did I buy the new running shoes?",
-     "judgments": {"en-shoes": 2, "en-knee-new": 1}},
-    {"id": "en-q-knee", "lang": "en", "category": "temporal", "text": "How is my left knee doing at the moment?",
-     "judgments": {"en-knee-new": 2, "en-knee-old": 0}},
-    {"id": "en-q-knee2", "lang": "en", "category": "temporal", "text": "Do I still get knee trouble after fast sessions?",
-     "judgments": {"en-knee-new": 2, "en-knee-old": 0}},
-    {"id": "en-q-freq", "lang": "en", "category": "temporal", "text": "How many times a week am I training these days?",
-     "judgments": {"en-freq-new": 2, "en-freq-old": 0}},
-    {"id": "en-q-sleep", "lang": "en", "category": "paraphrase", "text": "Why has my sleep quality got worse recently?",
-     "judgments": {"en-caf": 2, "en-nap": 2, "en-stress": 2, "en-noise2": 1, "en-noise4": 1}},
-    {"id": "en-q-irr1", "lang": "en", "category": "irrelevant", "text": "What is the weather going to be like in Lisbon next week?",
-     "judgments": {"en-noise6": 0, "en-cold": 0}},
-    {"id": "en-q-irr2", "lang": "en", "category": "irrelevant", "text": "How do I change the oil filter on a diesel engine?",
-     "judgments": {"en-noise8": 0}},
-    {"id": "en-q-irr3", "lang": "en", "category": "irrelevant", "text": "Which tax form do I need for a freelance invoice?",
-     "judgments": {}}
-  ]
+ "version": 1,
+ "queries": [
+  {
+   "id": "en-q-mag",
+   "lang": "en",
+   "category": "paraphrase",
+   "text": "Does Mg in the evening do anything for my night routine?",
+   "judgments": {
+    "en-mag": 2,
+    "en-goal": 1
+   }
+  },
+  {
+   "id": "en-q-mag2",
+   "lang": "en",
+   "category": "paraphrase",
+   "text": "Which supplement was it that helped me drop off?",
+   "judgments": {
+    "en-mag": 2,
+    "en-d3": 1
+   }
+  },
+  {
+   "id": "en-q-caf",
+   "lang": "en",
+   "category": "paraphrase",
+   "text": "Does a late coffee keep me awake at night?",
+   "judgments": {
+    "en-caf": 2,
+    "en-nap": 1
+   }
+  },
+  {
+   "id": "en-q-caf2",
+   "lang": "en",
+   "category": "paraphrase",
+   "text": "What stops me falling asleep in the evening?",
+   "judgments": {
+    "en-caf": 2,
+    "en-nap": 2,
+    "en-mag": 1,
+    "en-stress": 1
+   }
+  },
+  {
+   "id": "en-q-bike",
+   "lang": "en",
+   "category": "paraphrase",
+   "text": "Which gentle session came before a good recovery?",
+   "judgments": {
+    "en-bike": 2
+   }
+  },
+  {
+   "id": "en-q-weekend",
+   "lang": "en",
+   "category": "paraphrase",
+   "text": "Can we put a run in on Saturday?",
+   "judgments": {
+    "en-weekend": 2
+   }
+  },
+  {
+   "id": "en-q-weekend2",
+   "lang": "en",
+   "category": "paraphrase",
+   "text": "What do I not want to do at the weekend?",
+   "judgments": {
+    "en-weekend": 2
+   }
+  },
+  {
+   "id": "en-q-alcohol",
+   "lang": "en",
+   "category": "paraphrase",
+   "text": "Does drinking affect how rested I am?",
+   "judgments": {
+    "en-alcohol": 2
+   }
+  },
+  {
+   "id": "en-q-cold",
+   "lang": "en",
+   "category": "paraphrase",
+   "text": "What did we decide about training while I was ill?",
+   "judgments": {
+    "en-cold": 2
+   }
+  },
+  {
+   "id": "en-q-cold2",
+   "lang": "en",
+   "category": "paraphrase",
+   "text": "Which number should I watch when I am coming down with something?",
+   "judgments": {
+    "en-cold": 2
+   }
+  },
+  {
+   "id": "en-q-interval",
+   "lang": "en",
+   "category": "paraphrase",
+   "text": "How did I react the last times you suggested hard intervals?",
+   "judgments": {
+    "en-interval": 2
+   }
+  },
+  {
+   "id": "en-q-cbd",
+   "lang": "en",
+   "category": "paraphrase",
+   "text": "Did I skip the cannabidiol at the end of July?",
+   "judgments": {
+    "en-cbd": 2
+   }
+  },
+  {
+   "id": "en-q-ferritin",
+   "lang": "en",
+   "category": "numeric",
+   "text": "What was my ferritin on 2026-03-14?",
+   "judgments": {
+    "en-ferritin": 2
+   }
+  },
+  {
+   "id": "en-q-ferritin2",
+   "lang": "en",
+   "category": "numeric",
+   "text": "Was the 42 the ferritin reading?",
+   "judgments": {
+    "en-ferritin": 2
+   }
+  },
+  {
+   "id": "en-q-goal",
+   "lang": "en",
+   "category": "numeric",
+   "text": "Is lights out before 23:00 still the target?",
+   "judgments": {
+    "en-goal": 2
+   }
+  },
+  {
+   "id": "en-q-d3",
+   "lang": "en",
+   "category": "numeric",
+   "text": "How many IU of vitamin D am I on?",
+   "judgments": {
+    "en-d3": 2
+   }
+  },
+  {
+   "id": "en-q-shoes",
+   "lang": "en",
+   "category": "numeric",
+   "text": "When did I buy the new running shoes?",
+   "judgments": {
+    "en-shoes": 2,
+    "en-knee-new": 1
+   }
+  },
+  {
+   "id": "en-q-knee",
+   "lang": "en",
+   "category": "recency",
+   "text": "How is my left knee doing at the moment?",
+   "judgments": {
+    "en-knee-new": 2,
+    "en-knee-old": 0
+   }
+  },
+  {
+   "id": "en-q-knee2",
+   "lang": "en",
+   "category": "recency",
+   "text": "Do I still get knee trouble after fast sessions?",
+   "judgments": {
+    "en-knee-new": 2,
+    "en-knee-old": 0
+   }
+  },
+  {
+   "id": "en-q-freq",
+   "lang": "en",
+   "category": "recency",
+   "text": "How many times a week am I training these days?",
+   "judgments": {
+    "en-freq-new": 2,
+    "en-freq-old": 0
+   }
+  },
+  {
+   "id": "en-q-sleep",
+   "lang": "en",
+   "category": "paraphrase",
+   "text": "Why has my sleep quality got worse recently?",
+   "judgments": {
+    "en-caf": 2,
+    "en-nap": 2,
+    "en-stress": 2,
+    "en-noise2": 1,
+    "en-noise4": 1
+   }
+  },
+  {
+   "id": "en-q-irr1",
+   "lang": "en",
+   "category": "unanswerable",
+   "text": "What is the weather going to be like in Lisbon next week?",
+   "judgments": {
+    "en-noise6": 0,
+    "en-cold": 0
+   }
+  },
+  {
+   "id": "en-q-irr2",
+   "lang": "en",
+   "category": "unanswerable",
+   "text": "How do I change the oil filter on a diesel engine?",
+   "judgments": {
+    "en-noise8": 0
+   }
+  },
+  {
+   "id": "en-q-irr3",
+   "lang": "en",
+   "category": "unanswerable",
+   "text": "Which tax form do I need for a freelance invoice?",
+   "judgments": {}
+  }
+ ]
 }

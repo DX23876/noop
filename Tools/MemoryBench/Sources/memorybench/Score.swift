@@ -45,7 +45,17 @@ func runScore(corpus: Corpus,
               quiet: Bool = false,
               rerank: RerankClient? = nil,
               mixedLanguageIndex: Bool = false) async throws -> [VariantReport] {
-    let store = try SemanticIndexStore(inMemory: true)
+    // ONE STORE PER INDEX, not one store filtered afterwards.
+    //
+    // A device holds one person's index and searches that. Filtering after a shared search is not the same
+    // thing: with many candidates tied on score, `search(limit:)` returns an arbitrary slice of the whole
+    // pile and the filter can leave fewer than the eight lines the context has room for. That is an artifact
+    // of the harness, not of the app, and it showed up immediately on synthetic vectors — where every
+    // unanswerable query ties at cosine 0.
+    var stores: [String: SemanticIndexStore] = [:]
+    for index in corpus.indexes {
+        stores[index] = try SemanticIndexStore(inMemory: true)
+    }
     let documentsByID = corpus.documentsByID
 
     // MARK: index
@@ -72,11 +82,14 @@ func runScore(corpus: Corpus,
                                                            priority: document.priority)))
         }
     }
-    try await store.enqueue(semanticDocuments.map(\.document))
+    for (index, entries) in Dictionary(grouping: semanticDocuments, by: { chunkOwner[$0.chunk]!.index }) {
+        try await stores[index]!.enqueue(entries.map(\.document))
+    }
     for entry in semanticDocuments {
         guard let vector = vectors.documents[entry.chunk] else {
             throw VectorError.missing("vector for chunk \(entry.chunk) — re-run `embed` for this corpus")
         }
+        let store = stores[chunkOwner[entry.chunk]!.index]!
         // The store keys the vector on (documentId, contentHash), the same pairing the app uses to invalidate
         // a vector when its text changes. Writing it any other way would let a stale vector score a document
         // it no longer describes.
@@ -115,38 +128,27 @@ func runScore(corpus: Corpus,
         guard let vector = vectors.queries[query.id] else {
             throw VectorError.missing("vector for query \(query.id) — re-run `embed` for this corpus")
         }
-        let hits = try await store.search(vector: vector,
-                                         allowedScopes: Set(SemanticConsentScope.allCases),
-                                         limit: candidateCeiling)
+        // Searched against the query's OWN index, which is also what makes `--mixed-language-index` a
+        // deliberate opt-in rather than the default: it pools every locale set into one pile.
+        let searched = mixedLanguageIndex ? corpus.indexes : [query.index]
+        var hits: [SemanticHit] = []
+        for index in searched {
+            hits += try await stores[index]!.search(vector: vector,
+                                                   allowedScopes: Set(SemanticConsentScope.allCases),
+                                                   limit: candidateCeiling)
+        }
+        hits = Array(hits.sorted { $0.score > $1.score }.prefix(candidateCeiling))
         let candidates = hits.compactMap { hit in
             candidateSkeleton(chunk: chunkID(hit.sourceID, hit.chunkIndex), cosine: hit.score)
         }
-        // A real index holds ONE person's memories, in the language or two they write in — not nine
-        // translations of their own notes. This corpus has them, because ten locales were built by
-        // translating one set of scenarios, so every query has nine semantically correct answers graded 0.
-        //
-        // That artifact punishes a language-agnostic reranker far harder than an embedder: the embedder gets
-        // a free language cue (same-language text sits closer in the space), while a multilingual
-        // cross-encoder deliberately erases exactly that cue. Measured directly — for the German
-        // `Wie hoch war mein Ferritin am 2026-03-14?`, jina-reranker-v2 scored the Spanish (+2.15), French
-        // (+2.12) and Italian (+2.10) versions of the same fact ABOVE the German one (+2.00). It was right;
-        // the judgments were the thing that was wrong.
-        //
-        // So by default the candidate set is restricted to the query's own language, plus any language its
-        // judgments deliberately reach into (the crosslingual cases). `--mixed-language-index` keeps the old
-        // behaviour for comparison.
-        let judgedLanguages = Set(query.judgments.keys.compactMap { documentsByID[$0]?.lang })
-        let allowedLanguages = judgedLanguages.union([query.lang])
-        semanticByQuery[query.id] = mixedLanguageIndex
-            ? candidates
-            : candidates.filter { allowedLanguages.contains(documentsByID[$0.sourceID]?.lang ?? "") }
+        semanticByQuery[query.id] = candidates
         // Floor calibration inputs: the cosine of a genuinely relevant hit, versus the best cosine a query
         // with nothing relevant produces. A threshold has to come out of these two distributions; guessing
         // one costs recall on the first and buys nothing on the second.
         for candidate in candidates where (query.judgments[candidate.sourceID] ?? 0) > 0 {
             relevantCosines.append(candidate.cosine)
         }
-        if query.category == .irrelevant, let best = candidates.first?.cosine {
+        if !query.category.isAnswerable, let best = candidates.first?.cosine {
             bestIrrelevantCosines.append(best)
         }
     }
@@ -282,10 +284,10 @@ func runScore(corpus: Corpus,
 }
 
 private func report(name: String, results: [QueryResult], countsUnderruns: Bool) -> VariantReport {
-    let scored = results.filter { $0.query.category != .irrelevant }
-    let irrelevant = results.filter { $0.query.category == .irrelevant }
+    let scored = results.filter { $0.query.category.isAnswerable }
+    let irrelevant = results.filter { !$0.query.category.isAnswerable }
     var perCategory: [QueryCategory: (value: Double, count: Int)?] = [:]
-    for category in QueryCategory.allCases where category != .irrelevant {
+    for category in QueryCategory.allCases where category.isAnswerable {
         let subset = results.filter { $0.query.category == category }
         perCategory[category] = mean(subset.map { normalizedDCG(ranked: $0.ranked, judgments: $0.query.judgments) })
     }
@@ -381,13 +383,13 @@ private func printTable(_ reports: [VariantReport], vectors: VectorSet, corpus: 
         A variant is only an improvement if it wins its own category without losing
         another. This is the table that would have rejected symmetric RRF.
 
-        variant                          \(QueryCategory.allCases.filter { $0 != .irrelevant }.map { $0.rawValue.padding(toLength: 11, withPad: " ", startingAt: 0) }.joined())
+        variant                          \(QueryCategory.allCases.filter(\.isAnswerable).map { $0.rawValue.padding(toLength: 10, withPad: " ", startingAt: 0) }.joined())
         ------------------------------------------------------------------------------------------
         """)
     for report in reports {
         let name = report.name.padding(toLength: 32, withPad: " ", startingAt: 0)
-        let cells = QueryCategory.allCases.filter { $0 != .irrelevant }.map { category -> String in
-            format(report.perCategory[category] ?? nil).padding(toLength: 11, withPad: " ", startingAt: 0)
+        let cells = QueryCategory.allCases.filter(\.isAnswerable).map { category -> String in
+            format(report.perCategory[category] ?? nil).padding(toLength: 10, withPad: " ", startingAt: 0)
         }
         print("\(name) \(cells.joined())")
     }

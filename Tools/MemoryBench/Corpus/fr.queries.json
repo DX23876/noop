@@ -1,53 +1,234 @@
 {
-  "version": 1,
-  "queries": [
-    {"id": "fr-q-mag", "lang": "fr", "category": "paraphrase", "text": "Est-ce que le Mg le soir aide ma routine du coucher ?",
-     "judgments": {"fr-mag": 2, "fr-goal": 1}},
-    {"id": "fr-q-mag2", "lang": "fr", "category": "paraphrase", "text": "C'était quel complément qui m'aidait à m'endormir ?",
-     "judgments": {"fr-mag": 2, "fr-d3": 1}},
-    {"id": "fr-q-caf", "lang": "fr", "category": "paraphrase", "text": "Est-ce qu'un café tardif me tient éveillé la nuit ?",
-     "judgments": {"fr-caf": 2, "fr-nap": 1}},
-    {"id": "fr-q-caf2", "lang": "fr", "category": "paraphrase", "text": "Qu'est-ce qui m'empêche de m'endormir le soir ?",
-     "judgments": {"fr-caf": 2, "fr-nap": 2, "fr-mag": 1, "fr-stress": 1}},
-    {"id": "fr-q-bike", "lang": "fr", "category": "paraphrase", "text": "Quelle séance douce a précédé une bonne récupération ?",
-     "judgments": {"fr-bike": 2}},
-    {"id": "fr-q-weekend", "lang": "fr", "category": "paraphrase", "text": "On peut placer une course samedi ?",
-     "judgments": {"fr-weekend": 2}},
-    {"id": "fr-q-weekend2", "lang": "fr", "category": "paraphrase", "text": "Qu'est-ce que je ne veux pas faire le week-end ?",
-     "judgments": {"fr-weekend": 2}},
-    {"id": "fr-q-alcohol", "lang": "fr", "category": "paraphrase", "text": "Est-ce que boire influence à quel point je suis reposé ?",
-     "judgments": {"fr-alcohol": 2}},
-    {"id": "fr-q-cold", "lang": "fr", "category": "paraphrase", "text": "Qu'avions-nous décidé sur l'entraînement pendant la maladie ?",
-     "judgments": {"fr-cold": 2}},
-    {"id": "fr-q-cold2", "lang": "fr", "category": "paraphrase", "text": "Quelle valeur surveiller quand je suis en train de tomber malade ?",
-     "judgments": {"fr-cold": 2}},
-    {"id": "fr-q-interval", "lang": "fr", "category": "paraphrase", "text": "Comment ai-je réagi les dernières fois où tu as proposé du fractionné dur ?",
-     "judgments": {"fr-interval": 2}},
-    {"id": "fr-q-cbd", "lang": "fr", "category": "paraphrase", "text": "Est-ce que j'ai sauté le cannabidiol fin juillet ?",
-     "judgments": {"fr-cbd": 2}},
-    {"id": "fr-q-ferritin", "lang": "fr", "category": "exact", "text": "Quelle était ma ferritine le 2026-03-14 ?",
-     "judgments": {"fr-ferritin": 2}},
-    {"id": "fr-q-ferritin2", "lang": "fr", "category": "exact", "text": "Le 42, c'était la valeur de ferritine ?",
-     "judgments": {"fr-ferritin": 2}},
-    {"id": "fr-q-goal", "lang": "fr", "category": "exact", "text": "L'objectif est toujours lumière éteinte avant 23:00 ?",
-     "judgments": {"fr-goal": 2}},
-    {"id": "fr-q-d3", "lang": "fr", "category": "exact", "text": "Combien d'UI de vitamine D est-ce que je prends ?",
-     "judgments": {"fr-d3": 2}},
-    {"id": "fr-q-shoes", "lang": "fr", "category": "exact", "text": "Quand est-ce que j'ai acheté les nouvelles chaussures de course ?",
-     "judgments": {"fr-shoes": 2, "fr-knee-new": 1}},
-    {"id": "fr-q-knee", "lang": "fr", "category": "temporal", "text": "Comment va mon genou gauche en ce moment ?",
-     "judgments": {"fr-knee-new": 2, "fr-knee-old": 0}},
-    {"id": "fr-q-knee2", "lang": "fr", "category": "temporal", "text": "Est-ce que j'ai encore des soucis de genou après les séances rapides ?",
-     "judgments": {"fr-knee-new": 2, "fr-knee-old": 0}},
-    {"id": "fr-q-freq", "lang": "fr", "category": "temporal", "text": "Combien de fois par semaine est-ce que je m'entraîne en ce moment ?",
-     "judgments": {"fr-freq-new": 2, "fr-freq-old": 0}},
-    {"id": "fr-q-sleep", "lang": "fr", "category": "paraphrase", "text": "Pourquoi ma qualité de sommeil s'est-elle dégradée récemment ?",
-     "judgments": {"fr-caf": 2, "fr-nap": 2, "fr-stress": 2, "fr-noise2": 1, "fr-noise4": 1}},
-    {"id": "fr-q-irr1", "lang": "fr", "category": "irrelevant", "text": "Quel temps fera-t-il la semaine prochaine à Lisbonne ?",
-     "judgments": {"fr-noise5": 0, "fr-cold": 0}},
-    {"id": "fr-q-irr2", "lang": "fr", "category": "irrelevant", "text": "Comment change-t-on le filtre à huile d'un moteur diesel ?",
-     "judgments": {"fr-noise6": 0}},
-    {"id": "fr-q-irr3", "lang": "fr", "category": "irrelevant", "text": "Quel formulaire faut-il pour une facture en freelance ?",
-     "judgments": {}}
-  ]
+ "version": 1,
+ "queries": [
+  {
+   "id": "fr-q-mag",
+   "lang": "fr",
+   "category": "paraphrase",
+   "text": "Est-ce que le Mg le soir aide ma routine du coucher ?",
+   "judgments": {
+    "fr-mag": 2,
+    "fr-goal": 1
+   }
+  },
+  {
+   "id": "fr-q-mag2",
+   "lang": "fr",
+   "category": "paraphrase",
+   "text": "C'était quel complément qui m'aidait à m'endormir ?",
+   "judgments": {
+    "fr-mag": 2,
+    "fr-d3": 1
+   }
+  },
+  {
+   "id": "fr-q-caf",
+   "lang": "fr",
+   "category": "paraphrase",
+   "text": "Est-ce qu'un café tardif me tient éveillé la nuit ?",
+   "judgments": {
+    "fr-caf": 2,
+    "fr-nap": 1
+   }
+  },
+  {
+   "id": "fr-q-caf2",
+   "lang": "fr",
+   "category": "paraphrase",
+   "text": "Qu'est-ce qui m'empêche de m'endormir le soir ?",
+   "judgments": {
+    "fr-caf": 2,
+    "fr-nap": 2,
+    "fr-mag": 1,
+    "fr-stress": 1
+   }
+  },
+  {
+   "id": "fr-q-bike",
+   "lang": "fr",
+   "category": "paraphrase",
+   "text": "Quelle séance douce a précédé une bonne récupération ?",
+   "judgments": {
+    "fr-bike": 2
+   }
+  },
+  {
+   "id": "fr-q-weekend",
+   "lang": "fr",
+   "category": "paraphrase",
+   "text": "On peut placer une course samedi ?",
+   "judgments": {
+    "fr-weekend": 2
+   }
+  },
+  {
+   "id": "fr-q-weekend2",
+   "lang": "fr",
+   "category": "paraphrase",
+   "text": "Qu'est-ce que je ne veux pas faire le week-end ?",
+   "judgments": {
+    "fr-weekend": 2
+   }
+  },
+  {
+   "id": "fr-q-alcohol",
+   "lang": "fr",
+   "category": "paraphrase",
+   "text": "Est-ce que boire influence à quel point je suis reposé ?",
+   "judgments": {
+    "fr-alcohol": 2
+   }
+  },
+  {
+   "id": "fr-q-cold",
+   "lang": "fr",
+   "category": "paraphrase",
+   "text": "Qu'avions-nous décidé sur l'entraînement pendant la maladie ?",
+   "judgments": {
+    "fr-cold": 2
+   }
+  },
+  {
+   "id": "fr-q-cold2",
+   "lang": "fr",
+   "category": "paraphrase",
+   "text": "Quelle valeur surveiller quand je suis en train de tomber malade ?",
+   "judgments": {
+    "fr-cold": 2
+   }
+  },
+  {
+   "id": "fr-q-interval",
+   "lang": "fr",
+   "category": "paraphrase",
+   "text": "Comment ai-je réagi les dernières fois où tu as proposé du fractionné dur ?",
+   "judgments": {
+    "fr-interval": 2
+   }
+  },
+  {
+   "id": "fr-q-cbd",
+   "lang": "fr",
+   "category": "paraphrase",
+   "text": "Est-ce que j'ai sauté le cannabidiol fin juillet ?",
+   "judgments": {
+    "fr-cbd": 2
+   }
+  },
+  {
+   "id": "fr-q-ferritin",
+   "lang": "fr",
+   "category": "numeric",
+   "text": "Quelle était ma ferritine le 2026-03-14 ?",
+   "judgments": {
+    "fr-ferritin": 2
+   }
+  },
+  {
+   "id": "fr-q-ferritin2",
+   "lang": "fr",
+   "category": "numeric",
+   "text": "Le 42, c'était la valeur de ferritine ?",
+   "judgments": {
+    "fr-ferritin": 2
+   }
+  },
+  {
+   "id": "fr-q-goal",
+   "lang": "fr",
+   "category": "numeric",
+   "text": "L'objectif est toujours lumière éteinte avant 23:00 ?",
+   "judgments": {
+    "fr-goal": 2
+   }
+  },
+  {
+   "id": "fr-q-d3",
+   "lang": "fr",
+   "category": "numeric",
+   "text": "Combien d'UI de vitamine D est-ce que je prends ?",
+   "judgments": {
+    "fr-d3": 2
+   }
+  },
+  {
+   "id": "fr-q-shoes",
+   "lang": "fr",
+   "category": "numeric",
+   "text": "Quand est-ce que j'ai acheté les nouvelles chaussures de course ?",
+   "judgments": {
+    "fr-shoes": 2,
+    "fr-knee-new": 1
+   }
+  },
+  {
+   "id": "fr-q-knee",
+   "lang": "fr",
+   "category": "recency",
+   "text": "Comment va mon genou gauche en ce moment ?",
+   "judgments": {
+    "fr-knee-new": 2,
+    "fr-knee-old": 0
+   }
+  },
+  {
+   "id": "fr-q-knee2",
+   "lang": "fr",
+   "category": "recency",
+   "text": "Est-ce que j'ai encore des soucis de genou après les séances rapides ?",
+   "judgments": {
+    "fr-knee-new": 2,
+    "fr-knee-old": 0
+   }
+  },
+  {
+   "id": "fr-q-freq",
+   "lang": "fr",
+   "category": "recency",
+   "text": "Combien de fois par semaine est-ce que je m'entraîne en ce moment ?",
+   "judgments": {
+    "fr-freq-new": 2,
+    "fr-freq-old": 0
+   }
+  },
+  {
+   "id": "fr-q-sleep",
+   "lang": "fr",
+   "category": "paraphrase",
+   "text": "Pourquoi ma qualité de sommeil s'est-elle dégradée récemment ?",
+   "judgments": {
+    "fr-caf": 2,
+    "fr-nap": 2,
+    "fr-stress": 2,
+    "fr-noise2": 1,
+    "fr-noise4": 1
+   }
+  },
+  {
+   "id": "fr-q-irr1",
+   "lang": "fr",
+   "category": "unanswerable",
+   "text": "Quel temps fera-t-il la semaine prochaine à Lisbonne ?",
+   "judgments": {
+    "fr-noise5": 0,
+    "fr-cold": 0
+   }
+  },
+  {
+   "id": "fr-q-irr2",
+   "lang": "fr",
+   "category": "unanswerable",
+   "text": "Comment change-t-on le filtre à huile d'un moteur diesel ?",
+   "judgments": {
+    "fr-noise6": 0
+   }
+  },
+  {
+   "id": "fr-q-irr3",
+   "lang": "fr",
+   "category": "unanswerable",
+   "text": "Quel formulaire faut-il pour une facture en freelance ?",
+   "judgments": {}
+  }
+ ]
 }

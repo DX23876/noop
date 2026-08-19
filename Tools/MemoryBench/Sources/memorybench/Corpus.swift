@@ -11,6 +11,16 @@ import SemanticMemory
 struct CorpusDocument: Codable {
     let id: String
     let lang: String
+    /// Which index this document lives in.
+    ///
+    /// The unit of realism. A person has ONE index, holding their own notes in the language or two they
+    /// actually write in — not nine translations of the same fact, which is what the first version of this
+    /// corpus accidentally measured. `main` is the large German-dominant index with real English memories
+    /// mixed in at roughly one in ten, and each `locale-<lang>` is a small set that only answers "does this
+    /// model work in this language at all". Defaults to `locale-<lang>` so the older per-locale files need no
+    /// edit.
+    private let indexName: String?
+    var index: String { indexName ?? "locale-\(lang)" }
     /// Must parse as a `SemanticSourceKind`; validated at load so a typo fails loudly rather than
     /// silently dropping a document out of the run.
     let kind: String
@@ -27,6 +37,11 @@ struct CorpusDocument: Codable {
     /// the proposed selection is measured against.
     let conversation: String?
     let text: String
+
+    enum CodingKeys: String, CodingKey {
+        case id, lang, kind, scope, priority, ageDays, conversation, text
+        case indexName = "index"
+    }
 
     var sourceKind: SemanticSourceKind? { SemanticSourceKind(rawValue: kind) }
     var consentScope: SemanticConsentScope? { SemanticConsentScope(rawValue: scope) }
@@ -51,27 +66,52 @@ struct CorpusDocument: Codable {
     }
 }
 
-/// The four things a query can be testing. Each is scored separately, because a variant that helps one
-/// and wrecks another is not an improvement and a single global average would hide the trade.
+/// What a query is testing. Each is scored separately, because a variant that helps one and wrecks another
+/// is not an improvement and a single global average would hide the trade.
+///
+/// The first version of this corpus had four of these. The split below is finer because the coarse ones were
+/// hiding exactly the trades that matter: `paraphrase` was carrying synonyms, negation AND terse questions,
+/// which fail for different reasons and are fixed by different things.
 enum QueryCategory: String, Codable, CaseIterable {
-    /// Synonym, rephrasing, negation — the semantic arm's core competence and the reason Nomic is bundled.
+    /// A different word for the same thing. The semantic arm's core competence and the reason an embedding
+    /// model is bundled at all.
+    case synonym
+    /// A rephrasing that keeps the vocabulary but changes the sentence. Easier than `synonym` and worth
+    /// separating: a model can be good at one and weak at the other.
     case paraphrase
-    /// A name, a date, a number, a supplement brand. The case the two rescue slots were explicitly kept
-    /// for, and the one the current tokeniser cannot reach (it discards runs under three characters, so
-    /// "42", "8h" and the day and month of an ISO date all vanish).
-    case exact
-    /// Two documents contradict each other and the NEWER one is right. The current semantic ranking has no
-    /// notion of time at all, so this category is where a recency term either earns its place or does not.
-    case temporal
-    /// Nothing in the corpus answers this. The target is ZERO emitted lines. The keyword ranker already
-    /// declines to answer here on principle ("a ranking is not a reason to disclose"); the semantic arm
-    /// has no equivalent floor and fills all eight slots regardless.
-    case irrelevant
+    /// The question turns on a NOT. Embeddings are notoriously weak here — "which supplement did I stop"
+    /// sits very close to "which supplement do I take" in most spaces — and nothing in the current pipeline
+    /// addresses it.
+    case negation
+    /// A name, a date, a number, a dose. What the two rescue slots were kept for, and what the shipped
+    /// tokeniser cannot see: it discards runs under three characters, so `42`, `8h` and the day and month of
+    /// an ISO date all vanish.
+    case numeric
+    /// Two or more memories contradict each other and the NEWER one is right. The recency term either earns
+    /// its place here or nowhere.
+    case recency
+    /// Several memories are almost the same sentence and only one answers the question — a different knee, a
+    /// different dose, a different time of day. This is the category a large index makes possible and a small
+    /// one cannot express, and the one a reranker should be best at.
+    case nearMiss = "near-miss"
+    /// Three or four words, the way people actually type into a chat box. Short queries carry little signal
+    /// for either arm and are the most common shape in a real transcript.
+    case terse
+    /// Nothing in the index answers this. The target is ZERO emitted lines, and it is the only category that
+    /// measures restraint rather than reach.
+    case unanswerable
+
+    /// Whether nDCG is defined for the category. `unanswerable` has no ideal ranking, so it is scored by how
+    /// many lines the pipeline emitted instead.
+    var isAnswerable: Bool { self != .unanswerable }
 }
 
 struct CorpusQuery: Codable {
     let id: String
     let lang: String
+    /// The index this question is asked against; defaults to the query's own locale set.
+    private let indexName: String?
+    var index: String { indexName ?? "locale-\(lang)" }
     let category: QueryCategory
     let text: String
     /// Source id → grade (2 = the document the question is about, 1 = worth having in context, 0 = judged
@@ -79,7 +119,10 @@ struct CorpusQuery: Codable {
     /// language; it needs no category of its own, only a judgment pointing across.
     let judgments: [String: Int]
 
-    var isCrosslingual: Bool { false }
+    enum CodingKeys: String, CodingKey {
+        case id, lang, category, text, judgments
+        case indexName = "index"
+    }
 }
 
 struct Corpus {
@@ -91,6 +134,12 @@ struct Corpus {
     }
 
     var languages: [String] { Array(Set(documents.map(\.lang))).sorted() }
+
+    /// Indexes, largest first — the unit a question is asked against.
+    var indexes: [String] {
+        let counts = documents.reduce(into: [String: Int]()) { $0[$1.index, default: 0] += 1 }
+        return counts.sorted { $0.value != $1.value ? $0.value > $1.value : $0.key < $1.key }.map(\.key)
+    }
 
     /// Loads every `<lang>.documents.json` / `<lang>.queries.json` pair in a directory and rejects anything
     /// that cannot be scored.
@@ -144,11 +193,19 @@ struct Corpus {
             let relevant = query.judgments.values.contains { $0 > 0 }
             // The two halves of the same rule: an `irrelevant` query with a relevant document is not
             // irrelevant, and any other query without one can never be scored.
-            if query.category == .irrelevant && relevant {
-                problems.append("\(query.id): irrelevant query has a relevant judgment")
+            if !query.category.isAnswerable && relevant {
+                problems.append("\(query.id): unanswerable query has a relevant judgment")
             }
-            if query.category != .irrelevant && !relevant {
+            if query.category.isAnswerable && !relevant {
                 problems.append("\(query.id): \(query.category.rawValue) query has no relevant judgment")
+            }
+            // A judgment pointing outside the query's own index is unreachable: the search will never see
+            // that document, so the query would score zero for a reason that has nothing to do with ranking.
+            for judged in query.judgments.keys where query.judgments[judged]! > 0 {
+                if let document = documents.first(where: { $0.id == judged }), document.index != query.index {
+                    problems.append("\(query.id): graded \(judged) lives in index \(document.index), "
+                        + "not \(query.index)")
+                }
             }
         }
         guard problems.isEmpty else {

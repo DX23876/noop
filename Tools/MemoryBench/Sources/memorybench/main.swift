@@ -113,21 +113,26 @@ case .lint:
 
             corpus at \(corpusPath) is well formed
               \(corpus.documents.count) documents → \(chunks) chunks (what the index actually holds)
-              \(corpus.queries.count) queries across \(corpus.languages.count) languages
+              \(corpus.queries.count) queries across \(corpus.indexes.count) indexes
 
-            language   docs  queries  \(QueryCategory.allCases.map { $0.rawValue.prefix(5).padding(toLength: 7, withPad: " ", startingAt: 0) }.joined())
-            ---------------------------------------------------------------
+            Reported per INDEX, because that is the unit a question is actually asked against: one
+            person's own memories. Per-language totals would add up nine translations of the same
+            fact and call it a big index, which is the mistake this corpus was rebuilt to stop making.
+
+            index          docs  queries  langs         \(QueryCategory.allCases.map { $0.rawValue.prefix(5).padding(toLength: 7, withPad: " ", startingAt: 0) }.joined())
+            ------------------------------------------------------------------------------------------------
             """)
-        for language in corpus.languages {
-            let documents = corpus.documents.filter { $0.lang == language }.count
-            let queries = corpus.queries.filter { $0.lang == language }
+        for index in corpus.indexes {
+            let documents = corpus.documents.filter { $0.index == index }
+            let queries = corpus.queries.filter { $0.index == index }
+            let langs = Set(documents.map(\.lang)).sorted().joined(separator: "+")
             let cells = QueryCategory.allCases.map { category in
                 String(queries.filter { $0.category == category }.count)
                     .padding(toLength: 7, withPad: " ", startingAt: 0)
             }
-            print("\(language.padding(toLength: 10, withPad: " ", startingAt: 0)) "
-                + String(format: "%4d", documents) + "  " + String(format: "%7d", queries.count)
-                + "  \(cells.joined())")
+            print("\(index.padding(toLength: 14, withPad: " ", startingAt: 0)) "
+                + String(format: "%4d", documents.count) + "  " + String(format: "%7d", queries.count)
+                + "  \(langs.padding(toLength: 12, withPad: " ", startingAt: 0))  \(cells.joined())")
         }
         print("")
     } catch {
