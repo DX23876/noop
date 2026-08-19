@@ -200,19 +200,19 @@ public enum OuraStreamMapping {
                 out.events.append(WhoopEvent(ts: ts, kind: motionEventKind, payload: payload))
 
             case .sleepPeriodInfo(let v):
-                // 0x6A `breath` → a `respSample` row under the RING's deviceId, as INSTRUMENTATION: the
-                // row is stored and it is plotted on the respiration track beside the incumbent, and
-                // NOTHING scores from it. `OuraRespScale.forScoring` refuses these rows at every scoring
-                // read, and nothing writes `dailyMetric.respRateBpm` from them — see the note at the
-                // bottom of this case.
+                // 0x6A `breath` → a `respSample` row under the RING's deviceId, and on a ring night that
+                // row set supplies the SCORED `dailyMetric.respRateBpm` (AnalyticsEngine.vendorRespRateBpm
+                // takes the in-session median). `OuraRespScale.forScoring` still refuses these rows at the
+                // STAGING read — a per-window rate is the wrong shape for a peak detector expecting a
+                // ~1 Hz raw ADC waveform.
                 //
                 // Why this one field is stored: `breath` is the RING's own measurement, read off the wire
                 // — not a signal NOOP derives from raw sensor data. The #194 rule governs the latter
                 // (PPG→HR, RSA-from-R-R: methods where NOOP invents the number), so the question here is
                 // whether the DECODE is right, and that is settled structurally: 3,493 records over four
                 // nights, every value an exact multiple of 0.125, both of the source's declared invariants
-                // upheld. On decode provenance it has the same standing as the ring's own hypnogram,
-                // which NOOP already persists (#773/#877). Cross-checks, in order of weight: these records
+                // upheld. It has the same standing as the ring's own hypnogram, which NOOP already
+                // persists and scores from (#773/#877). Cross-checks, in order of weight: these records
                 // median 14.75/min against the SAME wearer's 851-night Oura APP export at 15.250 (IQR
                 // 14.875–15.625) — same quantity, same band (distribution, not paired: the corpora do not
                 // overlap in date); against a WHOOP worn the same nights the decode reproduces the
@@ -228,16 +228,10 @@ public enum OuraStreamMapping {
                 // What this record does NOT persist, and why: `averageHrBpm` would land in the same `hr`
                 // series as the beat-derived channel at a different cadence and provenance;
                 // `breathVariability` / `mzci` / `dzci` / `cv` are named but uninterpreted; `sleepState`
-                // has no documented code meaning. They stay in the investigation log.
-                //
-                // And what NOTHING does with these rows: write `dailyMetric.respRateBpm`. That is the
-                // SCORED slot — it feeds recovery's resp term and `IllnessSignalEngine` — and CLAUDE.md's
-                // #194 rule reserves it. The measurements above put this channel AT its ceiling, not past
-                // it: r = +0.680 is what Oura's OWN app scores against WHOOP, so no Oura-derived rate can
-                // do better, and the ring pairs to one app at a time, which makes a paired same-night
-                // Oura-app comparison impossible by construction rather than merely undone. A signal that
-                // good and no better belongs beside the incumbent, not in front of it. Enforced at the
-                // read, not by convention: `OuraRespScale.forScoring`.
+                // has no documented code meaning. They stay in the investigation log. The scored slot
+                // `dailyMetric.respRateBpm` is fed from these rows in `AnalyticsEngine`, not here — this
+                // layer only mints the durable row; the coverage guards and the era-scoped baseline that
+                // make it safe to score live there.
                 // PARITY: the Kotlin twin stores the IDENTICAL integer for a given decoded value.
                 out.resp.append(RespSample(ts: ts,
                                            raw: OuraRespScale.milliBpm(fromBreathsPerMin: v.breathsPerMin),

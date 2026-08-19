@@ -64,7 +64,19 @@ object OuraRespScale {
         if (isRingRateStream(deviceId)) breathsPerMin(raw) else raw.toDouble()
 
     /**
-     * The respiration rows a SCORING read is allowed to see: a ring's are REMOVED.
+     * The complement of [forScoring]: the rows a device measured ITSELF as a respiratory RATE, which is
+     * a night's `dailyMetric.respRateBpm` candidate rather than a stager input. A ring's rows pass; a
+     * WHOOP's raw ADC waveform does not (it is not a rate, and its night already has one from the R-R
+     * RSA path).
+     *
+     * The two functions partition the same read on the same predicate, deliberately: every caller has to
+     * say which of the two things it wants, and neither can silently take both.
+     */
+    fun forVendorRate(rows: List<RespSample>, deviceId: String): List<RespSample> =
+        if (isRingRateStream(deviceId)) rows else emptyList()
+
+    /**
+     * The respiration rows the sleep stager is allowed to see: a ring's are REMOVED.
      *
      * This is a SHAPE refusal, not a trust one — it would hold even for a value nobody doubts, which
      * this one increasingly is not (the ring computes it; see `OuraSleepPeriodInfo`). `SleepStager`
@@ -80,12 +92,10 @@ object OuraRespScale {
      * cadence, or a decoder that expanded one record into per-second rows, would quietly switch the
      * path on. Refuse it by provenance instead, where the reason stays legible.
      *
-     * There is NO second door. These rows are instrumentation: stored, plotted ([displayValue]) and
-     * nothing else. In particular nothing derives `dailyMetric.respRateBpm` from them — that is the
-     * SCORED slot (the recovery resp term, the illness signal), and CLAUDE.md's #194 rule reserves it:
-     * a channel that already sits at its vendor ceiling gets instrumented beside the incumbent, not made
-     * the default and not wired to a downstream gate. If a future change wants to score them, it needs
-     * its own evidence and its own review — not a quiet extra caller of this file.
+     * This is about the STAGER only. The same rows DO reach the daily metric by the other door:
+     * [forVendorRate] hands them to `AnalyticsEngine`, which takes the night's median as
+     * `dailyMetric.respRateBpm`. Stager input and nightly value are separate questions, and the answer
+     * differs because the stager wants a waveform and the daily metric wants a rate.
      */
     fun forScoring(rows: List<RespSample>, deviceId: String): List<RespSample> =
         if (isRingRateStream(deviceId)) emptyList() else rows

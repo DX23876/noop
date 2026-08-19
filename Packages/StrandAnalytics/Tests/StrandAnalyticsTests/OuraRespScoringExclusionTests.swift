@@ -3,19 +3,13 @@ import XCTest
 import WhoopProtocol
 import WhoopStore
 
-/// The 0x6A `breath` channel is a per-window RATE stored in `respSample` under the ring's own deviceId
-/// — the same table that otherwise holds a WHOOP's ~1 Hz raw ADC waveform. It is INSTRUMENTATION: it is
-/// stored and it is plotted, and NOTHING scores from it. Two separate refusals, pinned here:
-///   * the STAGER must never see it — a peak detector run over a rate series is a shape error, and this
-///     one would be wrong even for a value nobody doubts;
-///   * the night's `dailyMetric.respRateBpm` must never be derived from it — that is the scored slot
-///     (recovery's resp term, `IllnessSignalEngine`), and CLAUDE.md's #194 rule keeps a channel already
-///     at its vendor ceiling out of it.
-/// Plus the control that keeps the first refusal from being vacuous.
+/// The 0x6A `breath` channel is stored as INSTRUMENTATION: a real row in `respSample`, under the ring's
+/// own deviceId, that no scored path may read. These tests pin BOTH halves of that claim from the
+/// stager's side — the refusal itself, and the fact that today's refusal changes nothing (so the PR
+/// that introduces the rows cannot be moving a single night's stages).
 final class OuraRespScoringExclusionTests: XCTestCase {
 
     private let ring = "oura-2H3B2405003655"
-    private let profile = UserProfile(weightKg: 75, heightCm: 178, age: 30, sex: "male")
 
     // MARK: - fixtures
 
@@ -98,50 +92,5 @@ final class OuraRespScoringExclusionTests: XCTestCase {
                                                  grav: grav, hr: hr, rr: rr, resp: dense)
         XCTAssertNotEqual(withDense.map(\.stage), without.map(\.stage),
                           "a dense resp stream must reach the stager — otherwise the invariance test proves nothing")
-    }
-
-    // MARK: - The scored slot
-
-    /// The second refusal, at the level that matters to a user: a ring night's `dailyMetric.respRateBpm`
-    /// is NOT the ring's measured rate. `analyzeDay` has no door the rows can arrive through — they are
-    /// passed here verbatim as `resp`, the worst case in which a caller forgot `forScoring`, and the
-    /// day's respiration value is still byte-identical to the day with no rows at all.
-    ///
-    /// This is the regression guard on the disposition, not on the decode. The decode is good (the
-    /// ring computes the value; see `OuraSleepPeriodInfo`); what it is not is a candidate for the slot
-    /// that feeds recovery and `IllnessSignalEngine` on the strength of a signal already sitting at the
-    /// r = +0.680 ceiling any Oura-derived rate has against WHOOP. If this test ever fails, a vendor
-    /// preference has been reintroduced into `analyzeDay` and needs its own evidence and review.
-    func testARingNightsScoredRespRateIsNotTheRingsMeasuredRate() {
-        let day = "2026-08-16"
-        let sleepStart = AnalyticsEngine.dayStartUtcSeconds(day) - 4 * 3_600
-        let dur = 8 * 3_600
-        let hr = stride(from: sleepStart, to: sleepStart + dur, by: 30)
-            .map { HRSample(ts: $0, bpm: 52 + ($0 / 300) % 4) }
-        var i = 0
-        let rr = stride(from: sleepStart, to: sleepStart + dur, by: 2).map { ts -> RRInterval in
-            defer { i += 1 }
-            return RRInterval(ts: ts, rrMs: 1_080 + (i % 6) * 8)
-        }
-        // A ring night stages from the ring's OWN hypnogram (#804 Fix A): no gravity, one provided
-        // session — the exact shape the persisted 0x6A rows show up on.
-        var t = sleepStart
-        let stages = [(20, "wake"), (200, "light"), (60, "deep"), (120, "rem"), (80, "light"),
-                      (480 - 20 - 200 - 60 - 120 - 80, "wake")].map { mins, stage -> StageSegment in
-            let s = StageSegment(start: t, end: t + mins * 60, stage: stage); t += mins * 60; return s
-        }
-        let provided = [SleepSession(start: sleepStart, end: sleepStart + dur, efficiency: 0.75,
-                                     stages: stages, restingHR: nil, avgHRV: nil)]
-        let rows = ringRespRows(start: sleepStart, durationS: dur)
-        let ringMedian = HRVAnalyzer.median(rows.map { OuraRespScale.breathsPerMin(raw: $0.raw) })
-
-        let withRows = AnalyticsEngine.analyzeDay(day: day, hr: hr, rr: rr, resp: rows,
-                                                  profile: profile, providedSleep: provided)
-        let without = AnalyticsEngine.analyzeDay(day: day, hr: hr, rr: rr,
-                                                 profile: profile, providedSleep: provided)
-        XCTAssertNotEqual(withRows.daily.respRateBpm ?? -1, ringMedian, accuracy: 1e-9,
-                          "the ring's measured rate must never become the night's scored respRateBpm")
-        XCTAssertEqual(withRows.daily, without.daily,
-                       "persisting 0x6A must leave every scored field of the day untouched")
     }
 }

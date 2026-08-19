@@ -1,5 +1,6 @@
 import Foundation
 import WhoopProtocol
+import WhoopStore   // OuraRespScale: the one place a ring's milli-bpm respiration row is read
 @preconcurrency import WhoopStore
 
 // AnalyticsEngine.swift — orchestrator producing DailyMetric + sleep-session results.
@@ -254,10 +255,48 @@ public enum AnalyticsEngine {
     ///   - baselines: personal baselines for recovery normalization.
     ///   - maxHROverride: explicit HRmax (bpm) to use for strain/zones; nil →
     ///     Tanaka from profile.age.
+    /// The night's respiratory rate (breaths/min) from a strap's OWN per-window rate rows, or nil when
+    /// the night has too little of it to summarise. Pure → unit-testable, and byte-twinned in Kotlin.
+    ///
+    /// This is NOT the RSA estimate `SleepStager.respRateFromRR` computes: these rows are a measurement
+    /// the device made and NOOP decoded (the Oura ring's 0x6A `breath`, stored in milli-bpm), so the
+    /// question is coverage, not method. The night's value is the MEDIAN of the rows that fall inside a
+    /// matched in-bed session — the same statistic the ledger this decode was validated with used, and
+    /// robust to the odd out-of-band record.
+    ///
+    /// Two guards, both about representativeness rather than trust:
+    ///   * the in-session rows must SPAN at least `vendorRespMinSpanS`. A record cadence is not a
+    ///     reliable proxy for coverage (real nights hold both ~30 s and ~296 s spacing), so the gate is on
+    ///     the time the rows actually cover: a 36-minute tail of a night is not that night's respiration,
+    ///     and it would enter the personal baseline as though it were.
+    ///   * the median must land inside `SleepStager.respPlausibleRangeBpm` (8–25), the SAME band the RSA
+    ///     path is clamped to, so one corrupt record can never publish an impossible rate.
+    public static func vendorRespRateBpm(_ rows: [RespSample],
+                                         sessions: [(start: Int, end: Int)]) -> Double? {
+        guard !rows.isEmpty, !sessions.isEmpty else { return nil }
+        let inSession = rows.filter { r in sessions.contains { r.ts >= $0.start && r.ts <= $0.end } }
+        guard let first = inSession.map(\.ts).min(), let last = inSession.map(\.ts).max(),
+              last - first >= vendorRespMinSpanS else { return nil }
+        let median = HRVAnalyzer.median(inSession.map { OuraRespScale.breathsPerMin(raw: $0.raw) })
+        return SleepStager.respPlausibleRangeBpm.contains(median) ? median : nil
+    }
+
+    /// Minimum span (seconds) a night's vendor respiration rows must cover before their median is taken
+    /// as the night's rate. One hour: enough that the value describes the night rather than a fragment,
+    /// and low enough to keep a partially-drained night. Twin of the Kotlin constant.
+    public static let vendorRespMinSpanS = 3_600
+
     public static func analyzeDay(day: String,
                                   hr: [HRSample] = [],
                                   rr: [RRInterval] = [],
                                   resp: [RespSample] = [],
+                                  // The strap's OWN per-window respiratory RATE rows, when it measures one
+                                  // (the Oura ring's 0x6A `breath`, stored in milli-bpm — see
+                                  // `OuraRespScale`). Kept separate from `resp` on purpose: `resp` is the
+                                  // WHOOP raw respiration ADC WAVEFORM the stager peak-detects, a different
+                                  // quantity that must never be pooled with a rate. Empty for every WHOOP
+                                  // night, which therefore scores exactly as before.
+                                  vendorResp: [RespSample] = [],
                                   gravity: [GravitySample] = [],
                                   steps: [StepSample] = [],
                                   // Calendar-day-scoped overrides for the ADDITIVE daily totals
@@ -661,16 +700,17 @@ public enum AnalyticsEngine {
         // over [start, end]; the night's value = median of finite per-session
         // estimates; nil only when no session yields a finite estimate.
         //
-        // An Oura ring's 0x6A `breath` rows do NOT enter here, deliberately. They are the ring's own
-        // per-window respiratory RATE, decoded and stored as INSTRUMENTATION only (`OuraRespScale`,
-        // OURA_PROTOCOL.md §6.12): shown beside the incumbent on the respiration track, never scored.
-        // `dailyMetric.respRateBpm` is the scored slot — it feeds the recovery resp term and
-        // `IllnessSignalEngine` — and a signal sitting at the vendor ceiling (r = +0.680 is the BEST any
-        // Oura-derived rate can score against WHOOP, which is Oura's own app's number) is exactly what
-        // CLAUDE.md's #194 rule says to instrument rather than make the default and gate on. So a ring
-        // night's `respRateBpm` is whatever the RSA path returns — on banked R-R that is nil — and this
-        // block is byte-identical to what it was before 0x6A was decoded.
+        // A DEVICE-MEASURED rate wins over that estimate when the night has one. `vendorResp` carries a
+        // strap's own respiratory-rate rows — today the Oura ring's 0x6A `breath`, one value per sleep
+        // window, computed by the ring's firmware rather than derived here (see `vendorRespRateBpm`).
+        // Preferring it is not a close call: on a ring night the RSA estimate is built from BANKED R-R,
+        // where shuffling or reversing the night returns the same 13.3333 bpm — it carries no breathing
+        // information at all. A WHOOP night passes no `vendorResp`, so it keeps the RSA path verbatim.
         let respRateDaily: Double? = {
+            if let vendor = Self.vendorRespRateBpm(vendorResp,
+                                                   sessions: matched.map { (start: $0.start, end: $0.end) }) {
+                return vendor
+            }
             let perSession = matched
                 .map { SleepStager.respRateFromRR(rr, start: $0.start, end: $0.end) }
                 .filter { $0.isFinite }

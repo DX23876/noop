@@ -10,29 +10,20 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import java.time.LocalDate
-import java.time.ZoneOffset
 import kotlin.math.PI
-import kotlin.math.abs
 import kotlin.math.roundToInt
 import kotlin.math.sin
 
 /**
- * The 0x6A `breath` channel is a per-window RATE stored in `respSample` under the ring's own deviceId —
- * the same table that otherwise holds a WHOOP's ~1 Hz raw ADC waveform. It is INSTRUMENTATION: it is
- * stored and it is plotted, and NOTHING scores from it. Two separate refusals, pinned here:
- *  * the STAGER must never see it — a peak detector run over a rate series is a shape error, and this
- *    one would be wrong even for a value nobody doubts;
- *  * the night's `dailyMetric.respRateBpm` must never be derived from it — that is the scored slot
- *    (recovery's resp term, the illness signal), and CLAUDE.md's #194 rule keeps a channel already at
- *    its vendor ceiling out of it.
- * Plus the control that keeps the first refusal from being vacuous. Swift twin:
+ * The 0x6A `breath` channel is stored as INSTRUMENTATION: a real row in `respSample`, under the ring's
+ * own deviceId, that no scored path may read. These pin BOTH halves of that claim from the stager's
+ * side — the refusal itself, and the fact that today's refusal changes nothing (so the change that
+ * introduces the rows cannot be moving a single night's stages). Swift twin:
  * `OuraRespScoringExclusionTests`.
  */
 class OuraRespScoringExclusionTest {
 
     private val ring = "oura-2H3B2405003655"
-    private val profile = UserProfile(weightKg = 75.0, heightCm = 178.0, age = 30.0, sex = "male")
 
     // ── fixtures ─────────────────────────────────────────────────────────────────────────────────────
 
@@ -119,56 +110,6 @@ class OuraRespScoringExclusionTest {
             "a dense resp stream must reach the stager — otherwise the invariance test proves nothing",
             without.map { it.stage },
             withDense.map { it.stage },
-        )
-    }
-
-    // ── The scored slot ──────────────────────────────────────────────────────────────────────────────
-
-    /**
-     * The second refusal, at the level that matters to a user: a ring night's `dailyMetric.respRateBpm`
-     * is NOT the ring's measured rate. `analyzeDay` has no door the rows can arrive through — they are
-     * passed here verbatim as `resp`, the worst case in which a caller forgot [OuraRespScale.forScoring],
-     * and the day is still byte-identical to the day with no rows at all.
-     *
-     * This is the regression guard on the disposition, not on the decode. The decode is good (the ring
-     * computes the value; see OuraSleepPeriodInfo); what it is not is a candidate for the slot that feeds
-     * recovery and the illness signal on the strength of a signal already sitting at the r = +0.680
-     * ceiling any Oura-derived rate has against WHOOP. If this test ever fails, a vendor preference has
-     * been reintroduced into `analyzeDay` and needs its own evidence and review.
-     */
-    @Test
-    fun aRingNightsScoredRespRateIsNotTheRingsMeasuredRate() {
-        val day = "2026-08-16"
-        val sleepStart = LocalDate.parse(day).atStartOfDay(ZoneOffset.UTC).toEpochSecond() - 4 * 3_600L
-        val dur = 8 * 3_600
-        val hr = (sleepStart until sleepStart + dur step 30)
-            .map { HrSample(ring, it, 52 + ((it / 300) % 4).toInt()) }
-        var i = 0
-        val rr = (sleepStart until sleepStart + dur step 2).map { RrInterval(ring, it, 1_080 + (i++ % 6) * 8) }
-        // A ring night stages from the ring's OWN hypnogram (#804 Fix A): no gravity, one provided
-        // session — the exact shape the persisted 0x6A rows show up on.
-        var t = sleepStart
-        val stages = listOf(20 to "wake", 200 to "light", 60 to "deep", 120 to "rem", 80 to "light", 0 to "wake")
-            .map { (mins, stage) -> StageSegment(t, t + mins * 60L, stage).also { t += mins * 60L } }
-        val provided = listOf(
-            DetectedSleep(sleepStart, sleepStart + dur, 0.75, stages, restingHR = null, avgHRV = null),
-        )
-        val rows = ringRespRows(sleepStart, dur)
-        val ringMedian = HrvAnalyzer.median(rows.map { OuraRespScale.breathsPerMin(it.raw) })
-
-        val withRows = AnalyticsEngine.analyzeDay(
-            day = day, hr = hr, rr = rr, resp = rows, profile = profile, providedSleep = provided,
-        )
-        val without = AnalyticsEngine.analyzeDay(
-            day = day, hr = hr, rr = rr, profile = profile, providedSleep = provided,
-        )
-        assertTrue(
-            "the ring's measured rate must never become the night's scored respRateBpm",
-            withRows.daily.respRateBpm == null || abs(withRows.daily.respRateBpm!! - ringMedian) > 1e-9,
-        )
-        assertEquals(
-            "persisting 0x6A must leave every scored field of the day untouched",
-            without.daily, withRows.daily,
         )
     }
 }

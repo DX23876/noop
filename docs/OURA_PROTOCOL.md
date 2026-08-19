@@ -650,11 +650,12 @@ like its sibling banked streams (`.hrv`/`.temp`/`.spo2`/`.sleepPhase`) — the f
   (the 4 nights' records span far less wall-clock than their ring-time range).
 
   ⚠️ **`breath` is the RING's own measurement, not a NOOP-derived estimate — Tier B on decode
-  provenance, stored and shown, and deliberately NOT scored (see the disposition below).** The
+  provenance, stored, and on a ring night it IS the scored `dailyMetric.respRateBpm` (see the three
+  constraints below).** The
   distinction matters: the #194 rule governs signals NOOP *derives* from raw sensor data (PPG→HR
   autocorrelation, RSA-from-R-R), where the method can manufacture a plausible number. Here the firmware
-  computes it and NOOP only decodes a field, the same standing on decode provenance as the ring's own
-  SleepNet hypnogram — which NOOP already persists. What must be right is the decode.
+  computes it and NOOP only decodes a field, the same standing as the ring's own SleepNet hypnogram —
+  which NOOP already persists and scores from. What must be right is the decode.
 
   Both decoders **return nil/null when either declared invariant is violated**: the source's own
   parser throws there, so such a body is not this layout, and "not decoded" is the honest answer. It
@@ -684,27 +685,23 @@ like its sibling banked streams (`.hrv`/`.temp`/`.spo2`/`.sleepPhase`) — the f
   **milli-breaths-per-minute** (`raw == wireByte × 125`, exact for all 256 wire values — the same table
   otherwise carries a WHOOP's raw respiration ADC waveform, a different quantity, so the row's owner is
   what distinguishes them, via `OuraRespScale`). It is shown on the day/Deep-Timeline respiration track
-  in breaths/min.
-
-  **Disposition: INSTRUMENTATION — stored and shown, never scored.** The same measurements that make the
-  decode believable also place it AT the vendor ceiling rather than past it, and CLAUDE.md's #194 rule
-  says what to do with a signal in that position: land it beside the incumbent, never as the default and
-  never feeding a downstream gate. Concretely:
-  1. **Nothing writes `dailyMetric.respRateBpm` from these rows.** That is the scored slot — it feeds
-     recovery's respiration term and `IllnessSignalEngine` — so a ring night's value stays whatever the
-     RSA path returns, which on banked R-R is nothing at all. Pinned by
-     `OuraRespScoringExclusionTests` / `OuraRespScoringExclusionTest`, which passes the rows to
-     `analyzeDay` verbatim and asserts the day comes back byte-identical.
-  2. **It never reaches the sleep stager.** `OuraRespScale.forScoring` keeps it out at every scoring
-     read: the stager reads `respSample` as a ~1 Hz raw ADC WAVEFORM and would run a peak detector over a
-     per-window RATE — a shape mismatch, not a trust one, and the same reason 0x47 motion is never folded
-     into `gravitySample` (#804). This refusal is by PROVENANCE, not by cadence: today's ~296 s spacing
-     would starve the peak detector anyway, and that is luck a decoder change could revoke.
-  3. **What it would take to score it.** Its own evidence and its own review — and a decision about the
-     baseline it would enter, which is one day-keyed series shared across sources: a WHOOP export reports
-     its own measured rate (~16.1 on the reference history) against the ring's ~14.6, so a strap SWITCH
-     would read as a ~3σ illness-ward step against a ~0.52 bpm spread. `Baselines.deviceEraEpoch` (#459)
-     is the primitive for that and is still unwired for every baseline.
+  in breaths/min, and it **becomes the night's `dailyMetric.respRateBpm`** — the scored slot — in place of
+  NOOP's RSA-from-R-R estimate, which on a ring night is built from banked R-R and carries no breathing
+  information at all (shuffling the night returns the same 13.3333 bpm). Three constraints ride with that:
+  1. **Coverage, not trust:** the night's value is the MEDIAN of the rows inside a matched in-bed session,
+     and only when they SPAN ≥ 1 h (`AnalyticsEngine.vendorRespMinSpanS`) and the median lands inside the
+     8–25 bpm band the RSA path is clamped to. A 36-minute tail of a night is not that night's
+     respiration — and the gate is on span, not row count, because the record cadence is not constant
+     (real nights hold both ~30 s and ~296 s spacing).
+  2. **The baseline is scoped to the current device era** (`Baselines.deviceEraEpoch`, #459). A WHOOP
+     export reports its own measured rate (~16.1 on the reference history) and the ring reports ~14.6, so
+     pooling them in one 28-day baseline turns a strap SWITCH into a ~3σ illness-ward step against a
+     ~0.52 bpm spread — a device artifact scored as physiology. A single-brand history is unaffected
+     (the epoch is 0.0, i.e. the fold is byte-identical to before).
+  3. **It never reaches the sleep stager.** `OuraRespScale.forScoring` keeps it out: the stager reads
+     `respSample` as a ~1 Hz raw ADC WAVEFORM and would run a peak detector over a per-window RATE — a
+     shape mismatch, not a trust one, and the same reason 0x47 motion is never folded into
+     `gravitySample` (#804).
 
   📌 **This does not retract the respiratory-rate gate.** That work proved RSA is unrecoverable *from
   banked IBI* (shuffling the beats returns the same value; re-timing defeats the gate) and refusing to

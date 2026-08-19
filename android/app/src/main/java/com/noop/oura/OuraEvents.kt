@@ -325,8 +325,8 @@ data class OuraRealStepsFields(val tag: Int, val ringTimestamp: Long, val fields
  * the wire - it is not a signal NOOP derives from raw sensor data. The #194 rule is written for the
  * opposite case (PPG->HR autocorrelation, RSA-from-R-R: methods where NOOP invents the number and can
  * manufacture a peak that looks physiological), so what has to be right here is the DECODE, which is
- * what the structural verification above establishes. On decode provenance it has the same standing as
- * the ring's own SleepNet hypnogram, which NOOP already persists (#773 / #877).
+ * what the structural verification above establishes. Same standing as the ring's own SleepNet
+ * hypnogram, which NOOP already persists and scores from (#773 / #877).
  *
  * Independent support that byte 4 is the quantity Oura's own app calls respiratory rate: these records
  * median 14.75/min against the SAME wearer's 851-night Oura app export at 15.250 (IQR 14.875-15.625) -
@@ -340,16 +340,15 @@ data class OuraRealStepsFields(val tag: Int, val ringTimestamp: Long, val fields
  * documentation - a decode-provenance caveat, not a doubt about whether the ring measures respiration.
  *
  * `OuraStreamMapping` maps `breathsPerMin` - and nothing else from this record - to a `respSample` row
- * in milli-bpm under the ring's own deviceId, as INSTRUMENTATION: the row is stored and plotted on the
- * respiration track beside the incumbent, and NOTHING scores from it. In particular nothing writes
- * `dailyMetric.respRateBpm` from it - that is the scored slot (recovery's respiration term, the illness
- * signal), and the same measurements that make this decode believable also place it AT the vendor
- * ceiling rather than past it (r = +0.680 is what Oura's OWN app manages against WHOOP), which is
- * precisely the case CLAUDE.md's #194 rule says to instrument rather than make the default. It also
- * never reaches the sleep STAGER (`OuraRespScale.forScoring`): that stream is read there as a ~1 Hz raw
- * ADC waveform and a per-window rate is the wrong shape for a peak detector, however good the rate.
- * `averageHrBpm` stays diagnostic-only: it must not join the beat-derived HR series at a different
- * cadence and a different provenance.
+ * in milli-bpm under the ring's own deviceId, and `AnalyticsEngine` takes the night's median of those
+ * rows as `dailyMetric.respRateBpm`: on a ring night that replaces an RSA-from-banked-R-R estimate which
+ * carries no breathing information at all (shuffling the night returns the same 13.3333 bpm). The
+ * baseline that value feeds is scoped to the current device era (`Baselines.deviceEraEpoch`, #459) so a
+ * strap switch - WHOOP reads ~16.1, the ring ~14.6 - is not folded into one 28-day mean and read as
+ * physiology. It still never reaches the sleep STAGER (`OuraRespScale.forScoring`): that stream is read
+ * there as a ~1 Hz raw ADC waveform and a per-window rate is the wrong shape for a peak detector,
+ * however good the rate. `averageHrBpm` stays diagnostic-only: it must not join the beat-derived HR
+ * series at a different cadence and a different provenance.
  *
  * `mzci` / `dzci` keep the source's opaque names deliberately - we do not know what they measure, and
  * inventing a friendlier name would assert an interpretation the evidence does not support. Kotlin twin
@@ -434,9 +433,8 @@ sealed class OuraEvent {
      * (see [OuraSleepPeriodInfo] doc) - split out of the raw-bytes [TierB] wrapper for the same reason
      * [ActivityInfo] was: a cited third-party layout worth surfacing as real numbers instead of hex.
      * Same gate (`allowTierB`); its `breathsPerMin` - alone among the record's fields - is mapped to a
-     * durable `respSample` row and shown on the respiration track. It is NOT scored: `dailyMetric.respRateBpm`
-     * is untouched, and `OuraRespScale.forScoring` refuses the ring's rows at every scoring read (see the
-     * type doc). Every other field of the record stays diagnostic-only.
+     * durable `respSample` row and, on a ring night, supplies `dailyMetric.respRateBpm` (see the type
+     * doc). Every other field of the record stays diagnostic-only.
      */
     data class SleepPeriodInfo(val value: OuraSleepPeriodInfo) : OuraEvent()
 

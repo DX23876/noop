@@ -5,6 +5,7 @@ import com.noop.data.EventRow
 import com.noop.data.GravitySample
 import com.noop.data.V18AuxRow
 import com.noop.data.HrSample
+import com.noop.data.OuraRespScale
 import com.noop.data.SkinTempSample
 import com.noop.data.Spo2Sample
 import com.noop.data.RespSample
@@ -236,11 +237,52 @@ object AnalyticsEngine {
      *   Tanaka from profile.age.
      */
     @Suppress("UNUSED_PARAMETER") // sleepNeedNights kept for signature stability (unused in the current body)
+    /**
+     * Minimum span (seconds) a night's vendor respiration rows must cover before their median is taken
+     * as the night's rate. One hour: enough that the value describes the night rather than a fragment,
+     * and low enough to keep a partially-drained night. Twin of the Swift constant.
+     */
+    const val VENDOR_RESP_MIN_SPAN_S = 3_600L
+
+    /**
+     * The night's respiratory rate (breaths/min) from a strap's OWN per-window rate rows, or null when
+     * the night has too little of it to summarise. Pure → unit-testable, and byte-twinned in Swift.
+     *
+     * This is NOT the RSA estimate `SleepStager.respRateFromRR` computes: these rows are a measurement
+     * the device made and NOOP decoded (the Oura ring's 0x6A `breath`, stored in milli-bpm), so the
+     * question is coverage, not method. The night's value is the MEDIAN of the rows that fall inside a
+     * matched in-bed session — the same statistic the ledger this decode was validated with used, and
+     * robust to the odd out-of-band record.
+     *
+     * Two guards, both about representativeness rather than trust:
+     *  * the in-session rows must SPAN at least [VENDOR_RESP_MIN_SPAN_S]. A record cadence is not a
+     *    reliable proxy for coverage (real nights hold both ~30 s and ~296 s spacing), so the gate is on
+     *    the time the rows actually cover: a 36-minute tail of a night is not that night's respiration,
+     *    and it would enter the personal baseline as though it were.
+     *  * the median must land inside `SleepStager.respPlausibleRangeBpm` (8–25), the SAME band the RSA
+     *    path is clamped to, so one corrupt record can never publish an impossible rate.
+     */
+    fun vendorRespRateBpm(rows: List<RespSample>, sessions: List<Pair<Long, Long>>): Double? {
+        if (rows.isEmpty() || sessions.isEmpty()) return null
+        val inSession = rows.filter { r -> sessions.any { r.ts >= it.first && r.ts <= it.second } }
+        val first = inSession.minOfOrNull { it.ts } ?: return null
+        val last = inSession.maxOfOrNull { it.ts } ?: return null
+        if (last - first < VENDOR_RESP_MIN_SPAN_S) return null
+        val median = HrvAnalyzer.median(inSession.map { OuraRespScale.breathsPerMin(it.raw) })
+        return if (median in SleepStager.respPlausibleRangeBpm) median else null
+    }
+
     fun analyzeDay(
         day: String,
         hr: List<HrSample> = emptyList(),
         rr: List<RrInterval> = emptyList(),
         resp: List<RespSample> = emptyList(),
+        // The strap's OWN per-window respiratory RATE rows, when it measures one (the Oura ring's 0x6A
+        // `breath`, stored in milli-bpm — see [com.noop.data.OuraRespScale]). Kept separate from [resp]
+        // on purpose: [resp] is the WHOOP raw respiration ADC WAVEFORM the stager peak-detects, a
+        // different quantity that must never be pooled with a rate. Empty for every WHOOP night, which
+        // therefore scores exactly as before.
+        vendorResp: List<RespSample> = emptyList(),
         gravity: List<GravitySample> = emptyList(),
         steps: List<StepSample> = emptyList(),
         // Calendar-day-scoped overrides for the ADDITIVE daily totals (steps + activeKcalEst) AND
@@ -549,21 +591,22 @@ object AnalyticsEngine {
         // over [start, end]; the night's value = median of finite per-session
         // estimates; null only when no session yields a finite estimate.
         //
-        // An Oura ring's 0x6A `breath` rows do NOT enter here, deliberately. They are the ring's own
-        // per-window respiratory RATE, decoded and stored as INSTRUMENTATION only
-        // ([com.noop.data.OuraRespScale], OURA_PROTOCOL.md §6.12): shown beside the incumbent on the
-        // respiration track, never scored. `dailyMetric.respRateBpm` is the scored slot — it feeds the
-        // recovery resp term and the illness signal — and a signal sitting at the vendor ceiling
-        // (r = +0.680 is the BEST any Oura-derived rate can score against WHOOP, which is Oura's own
-        // app's number) is exactly what CLAUDE.md's #194 rule says to instrument rather than make the
-        // default and gate on. So a ring night's `respRateBpm` is whatever the RSA path returns — on
-        // banked R-R that is null — and this block is byte-identical to what it was before 0x6A was
-        // decoded. Mirrors Swift.
+        // A DEVICE-MEASURED rate wins over that estimate when the night has one. [vendorResp] carries a
+        // strap's own respiratory-rate rows — today the Oura ring's 0x6A `breath`, one value per sleep
+        // window, computed by the ring's firmware rather than derived here (see [vendorRespRateBpm]).
+        // Preferring it is not a close call: on a ring night the RSA estimate is built from BANKED R-R,
+        // where shuffling or reversing the night returns the same 13.3333 bpm — it carries no breathing
+        // information at all. A WHOOP night passes no [vendorResp], so it keeps the RSA path verbatim.
         val respRateDaily: Double? = run {
-            val perSession = matched
-                .map { SleepStager.respRateFromRR(rr, it.start, it.end) }
-                .filter { it.isFinite() }
-            if (perSession.isEmpty()) null else HrvAnalyzer.median(perSession)
+            val vendor = vendorRespRateBpm(vendorResp, matched.map { it.start to it.end })
+            if (vendor != null) {
+                vendor
+            } else {
+                val perSession = matched
+                    .map { SleepStager.respRateFromRR(rr, it.start, it.end) }
+                    .filter { it.isFinite() }
+                if (perSession.isEmpty()) null else HrvAnalyzer.median(perSession)
+            }
         }
 
         // sleepStart/sleepEnd available for callers wiring sleep_start/end columns.

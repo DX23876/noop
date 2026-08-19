@@ -1631,15 +1631,13 @@ public final class OuraLiveSource: NSObject, ObservableObject {
                 // time, like 0x50 MET rather than once-per-kind: its cadence is a modest ~5 min and the
                 // series is what the respiration ledger is reconstructed from, sample by sample.
                 //
-                // The record's `breath` field is also PERSISTED, as instrumentation: anchored to its own
-                // ring-time and enqueued exactly like the sibling banked streams (.hrv/.temp/.spo2), so a
-                // night's ~5-min windows land where they were MEASURED and never at the drain-arrival
-                // moment. `OuraStreamMapping` maps that ONE field onto a `respSample` row in milli-bpm;
-                // everything else in this record stays here in the log. Nothing SCORES the row — not the
-                // sleep stager, and not `dailyMetric.respRateBpm` (see `OuraRespScale`). The logging is
-                // kept as well as the row: the log line is what the ledger is reconstructed from,
-                // including for records no anchor can place, and it carries the fields the store
-                // deliberately does not.
+                // The record's `breath` field is also PERSISTED, and on a ring night it is what
+                // `dailyMetric.respRateBpm` is scored from: anchored to its own ring-time and enqueued
+                // exactly like the sibling banked streams (.hrv/.temp/.spo2), so a night's ~5-min windows
+                // land where they were MEASURED and never at the drain-arrival moment. `OuraStreamMapping`
+                // maps that ONE field onto a `respSample` row in milli-bpm; everything else in this record
+                // stays here in the log. The logging is kept as well as the row: it covers records no
+                // anchor can place, and it carries the fields the store deliberately does not.
                 let periodWhen = driver.unixSeconds(forRingTimestamp: info.ringTimestamp)
                     .map { Self.cursorDateFormatter.string(from: Date(timeIntervalSince1970: TimeInterval($0))) }
                     ?? "no anchor yet"

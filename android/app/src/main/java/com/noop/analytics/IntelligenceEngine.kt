@@ -653,13 +653,16 @@ object IntelligenceEngine {
                 continue
             }
             val rr = repo.rrIntervals(owner, from, to, STREAM_LIMIT)
-            // `forScoring` drops an Oura ring's respiration rows: those are the ring's OWN per-window
-            // RATE (0x6A, milli-bpm, ~1 row per 5 min), stored as instrumentation, while the stager reads
-            // this stream as a ~1 Hz raw ADC waveform. Refusing by provenance keeps the instrumentation
-            // out of every scored path by construction rather than by cadence luck. A WHOOP owner is
-            // unaffected, and this day scores exactly as it did before those rows existed — including its
-            // `respRateBpm`, which nothing here derives from a ring row. Mirrors Swift.
-            val resp = OuraRespScale.forScoring(repo.respSamples(owner, from, to, STREAM_LIMIT), owner)
+            // ONE read, TWO consumers, and they must not be confused for each other. `forScoring` strips
+            // an Oura ring's rows from the STAGER's input: the stager reads this stream as a ~1 Hz raw ADC
+            // waveform and peak-detects it, and the ring's rows are a per-window RATE — the wrong shape,
+            // however good the rate. `forVendorRate` hands those same rows to analyzeDay as what they
+            // are: the device's OWN measured respiratory rate, which becomes the night's `respRateBpm`
+            // instead of the RSA estimate. A WHOOP owner gets the rows in the first list and nothing in
+            // the second, so its night is unchanged. Mirrors Swift.
+            val respRows = repo.respSamples(owner, from, to, STREAM_LIMIT)
+            val resp = OuraRespScale.forScoring(respRows, owner)
+            val vendorResp = OuraRespScale.forVendorRate(respRows, owner)
             val grav = repo.gravitySamples(owner, from, to, STREAM_LIMIT)
             val steps = repo.stepSamples(owner, from, to, STREAM_LIMIT)
             val skin = repo.skinTempSamples(owner, from, to, STREAM_LIMIT)
@@ -764,6 +767,7 @@ object IntelligenceEngine {
                 hr = hr,
                 rr = rr,
                 resp = resp,
+                vendorResp = vendorResp,
                 gravity = grav,
                 steps = steps,
                 dayHr = dayHr,
@@ -1066,6 +1070,16 @@ object IntelligenceEngine {
         mergeNightlyIntoHistory(histHrvByDay, nightlyHrvByDay)
         mergeNightlyIntoHistory(histRhrByDay, nightlyRhrByDay)
         mergeNightlyIntoHistory(histRespByDay, nightlyRespByDay)
+        // Which SOURCE measured each night's respiration — the input `Baselines.deviceEraEpoch` (#459)
+        // needs for the resp fold below. `resolvedScoreOwnerByDay` (THIS PASS's freshly resolved per-day
+        // owner, before any re-homing) must win over `hist`, not just fill its gaps: `hist` is every day
+        // already stored under `importedDeviceId` by construction (that is where a scored day is written),
+        // so filling from `hist` first would tag an Oura-owned day "whoop" on every re-score after its
+        // first — the exact "brand is lost once a wearable day is re-homed" trap `deviceEraEpoch`'s own
+        // contract warns against. `hist` still fills days outside this pass's scan window. Mirrors Swift.
+        val respSourceByDay = LinkedHashMap<String, String>()
+        for ((day, owner) in resolvedScoreOwnerByDay) respSourceByDay[day] = owner
+        for (d in hist) respSourceByDay.putIfAbsent(d.day, importedDeviceId)
         // Sort once so the HRV values + their "yyyy-MM-dd" day keys stay parallel (same order/length) for
         // the recalibration-aware foldHistory below.
         val hrvSorted = histHrvByDay.entries.sortedBy { it.key }
@@ -1082,13 +1096,24 @@ object IntelligenceEngine {
         // A 0.0 epoch is byte-identical to the plain fold, so scoring is unchanged until the user taps it.
         val hrvBase2 = Baselines.foldHistory(hrvSeq, hrvDayKeys, hrvCfg, baselineEpoch)
         val rhrBase2 = Baselines.foldHistory(rhrSeq, rhrDayKeys, rhrCfg, recoveryEpoch)
-        // Resp baseline mixes imported (cloud) values with on-device RSA estimates , acceptable: the
-        // z-score is scale-tolerant, foldHistory winsorizes, and respRateBpm already carries no source
-        // flag anywhere else (the illness gate treats it the same way). Gated on `usable` because
-        // RecoveryScorer includes the resp term whenever a baseline object is present , a CALIBRATING
-        // (<4-night) baseline would let one noisy RSA night move recovery (mirrors the skin-temp
-        // use-site gate; honest cold-start).
-        val respBase2 = Baselines.foldHistory(respSeq, respDayKeys, respCfg, recoveryEpoch).takeIf { it.usable }
+        // Resp baseline: WITHIN one brand it still mixes imported (cloud) values with on-device RSA
+        // estimates, which stays an accepted tradeoff (the z-score is scale-tolerant and foldHistory
+        // winsorizes). ACROSS brands it is not acceptable, and that is new: a WHOOP export reports its own
+        // measured rate (~16.1 on this history) while an Oura ring reports the rate its firmware measured
+        // (~14.6), so pooling them turns a strap SWITCH into a ~3 sigma illness-ward step against a
+        // ~0.52 bpm spread — a device artifact scored as physiology, the same failure #459 named for HRV.
+        // `deviceEraEpoch` returns 0.0 for a single-brand history (every WHOOP-origin id — import, strap,
+        // the computed sibling, the Apple/HC riders — buckets to one brand), so a WHOOP-only user folds
+        // byte-identically to before; `max` with the manual Recalibrate epoch keeps whichever cut is
+        // LATER, since both mean "ignore nights before this". Gated on `usable` because RecoveryScorer
+        // includes the resp term whenever a baseline object is present , a CALIBRATING (<4-night)
+        // baseline would let one noisy night move recovery (mirrors the skin-temp use-site gate).
+        val respEraEpoch = Baselines.deviceEraEpoch(
+            respDayKeys.map { it to (respSourceByDay[it] ?: importedDeviceId) },
+        )
+        val respBase2 = Baselines
+            .foldHistory(respSeq, respDayKeys, respCfg, maxOf(recoveryEpoch, respEraEpoch))
+            .takeIf { it.usable }
         // Skin-temp baseline is on-device-only (imported rows carry skinTempDevC, not the raw mean),
         // so fold purely over the pass-1 nightly means in chronological order. (PR #85)
         // Gated on `usable` for consistency with the resp baseline above AND the Swift reference
