@@ -10,8 +10,24 @@ struct QueryResult {
 }
 
 /// Everything one variant scored, aggregated the ways that can actually change a decision.
+/// Which queries a report covers.
+///
+/// The unit exists because pooling them was a real error: 320 answerable queries live in this corpus, 110 on
+/// the realistic 272-document index and 210 on the ten 24-document locale sets, and a single mean over all of
+/// them is two thirds driven by the easy problem. Every number now says which scope it came from, and the
+/// pooled one is labelled as mixed difficulty rather than quoted as a result.
+enum ReportScope: String {
+    /// The large realistic index — the headline, and the only scope where ranking questions can be decided.
+    case main
+    /// The ten locale sets combined. A language smoke test on 24-document indexes, not a ranking measurement.
+    case locales
+    /// Everything at once. Kept only so the old pooled figure stays reproducible; never a result on its own.
+    case all
+}
+
 struct VariantReport {
     let name: String
+    let scope: ReportScope
     var ndcg: (value: Double, count: Int)?
     var precision: (value: Double, count: Int)?
     var recall1: (value: Double, count: Int)?
@@ -187,7 +203,10 @@ func runScore(corpus: Corpus,
         // `under` only means something for a variant that never declines a line. The dynamic floor and the
         // confidence gate decline lines too, so they are excluded on the same grounds as the absolute floor.
         let restrains = config.floor != nil || config.floorRelativeToTop != nil || config.confidenceGate != nil
-        reports.append(report(name: config.name, results: results, countsUnderruns: !restrains))
+        for scope in [ReportScope.main, .locales, .all] {
+            reports.append(report(name: config.name, scope: scope,
+                                  allResults: results, countsUnderruns: !restrains))
+        }
     }
 
     // The reranker ceilings. Not variants of the pipeline — they cheat, by construction — but the bound on
@@ -206,9 +225,10 @@ func runScore(corpus: Corpus,
                                            groups: ranked.compactMap { documentsByID[$0]?.diversityGroup },
                                            availableRelevant: query.judgments.values.filter { $0 > 0 }.count))
             }
-            reports.append(report(name: "ORACLE ceiling K=\(depth)\(padded ? "" : ", no padding")",
-                                  results: results,
-                                  countsUnderruns: false))
+            for scope in [ReportScope.main, .locales, .all] {
+                reports.append(report(name: "ORACLE ceiling K=\(depth)\(padded ? "" : ", no padding")",
+                                      scope: scope, allResults: results, countsUnderruns: false))
+            }
         }
     }
 
@@ -276,7 +296,10 @@ func runScore(corpus: Corpus,
                                                groups: ranked.compactMap { documentsByID[$0]?.diversityGroup },
                                                availableRelevant: query.judgments.values.filter { $0 > 0 }.count))
                 }
-                reports.append(report(name: config.name, results: results, countsUnderruns: threshold == nil))
+                for scope in [ReportScope.main, .locales, .all] {
+                    reports.append(report(name: config.name, scope: scope,
+                                          allResults: results, countsUnderruns: threshold == nil))
+                }
             }
         }
         if !quiet {
@@ -291,7 +314,16 @@ func runScore(corpus: Corpus,
     return reports
 }
 
-private func report(name: String, results: [QueryResult], countsUnderruns: Bool) -> VariantReport {
+private func report(name: String,
+                    scope: ReportScope,
+                    allResults: [QueryResult],
+                    countsUnderruns: Bool) -> VariantReport {
+    let results: [QueryResult]
+    switch scope {
+    case .main: results = allResults.filter { $0.query.index == "main" }
+    case .locales: results = allResults.filter { $0.query.index != "main" }
+    case .all: results = allResults
+    }
     let scored = results.filter { $0.query.category.isAnswerable }
     let irrelevant = results.filter { !$0.query.category.isAnswerable }
     var perCategory: [QueryCategory: (value: Double, count: Int)?] = [:]
@@ -306,6 +338,7 @@ private func report(name: String, results: [QueryResult], countsUnderruns: Bool)
     }
     return VariantReport(
         name: name,
+        scope: scope,
         ndcg: mean(scored.map { normalizedDCG(ranked: $0.ranked, judgments: $0.query.judgments) }),
         precision: mean(scored.map { precision(ranked: $0.ranked, judgments: $0.query.judgments) }),
         recall1: mean(scored.map { recall(ranked: $0.ranked, judgments: $0.query.judgments, k: 1) }),
@@ -357,69 +390,123 @@ private func printCalibration(relevant: [Double], irrelevant: [Double]) {
 }
 
 private func printTable(_ reports: [VariantReport], vectors: VectorSet, corpus: Corpus) {
+    func rows(_ scope: ReportScope) -> [VariantReport] { reports.filter { $0.scope == scope } }
+
+    let mainDocuments = corpus.documents.filter { $0.index == "main" }.count
+    let localeDocuments = corpus.documents.filter { $0.index != "main" }.count
+    let localeIndexes = corpus.indexes.filter { $0 != "main" }.count
+
     print("""
 
         ================================================================================
-        B. ABLATION LADDER — model \(vectors.meta.model), \(vectors.dimensions) dims
+        B. ABLATION LADDER — \(vectors.meta.model), \(vectors.dimensions) dims
+           SCOPE: the `main` index only — \(mainDocuments) documents, \(rows(.main).first?.ndcg?.count ?? 0) scored queries
         ================================================================================
-        \(corpus.documents.count) documents / \(corpus.queries.count) queries / \(corpus.languages.count) languages
-        index bytes at Float16: \(vectors.indexBytes)
+        This is the headline, and it is deliberately NOT an average over the whole corpus.
+        Pooling was a real error: of 320 answerable queries only 110 sit on this index and
+        210 on the ten 24-document locale sets, so a pooled mean is two thirds driven by a
+        problem too easy to separate anything. Ranking decisions are made here.
 
-        nDCG@8 and P@8 exclude the `irrelevant` category (it has no ideal ranking); that
-        category is scored by `irrel.` — mean lines emitted, where the target is 0.
-        `domin.` is the largest share one conversation or kind holds among the 8 lines.
-        `under` counts queries that emitted fewer lines than they had relevant material for —
-        only reported for variants with NO floor, where a short context is a fault rather
-        than the policy working (the recall columns price the floor's cost already).
+        nDCG@8 and P@8 exclude `unanswerable` (no ideal ranking); that category is scored by
+        `irrel.` — mean lines emitted, target 0. `domin.` is the largest share one thread or
+        kind holds among the 8 lines. `under` counts contexts shorter than the available
+        material, and is reported only for variants that never decline a line on purpose.
 
         variant                          nDCG@8   P@8   R@1   R@3   R@8   MRR  irrel. domin. under
         ------------------------------------------------------------------------------------------
         """)
-    for report in reports {
-        let name = report.name.padding(toLength: 32, withPad: " ", startingAt: 0)
-        print("\(name) \(format(report.ndcg)) \(format(report.precision)) \(format(report.recall1)) "
-            + "\(format(report.recall3)) \(format(report.recall8)) \(format(report.mrr)) "
-            + String(format: "%5.2f", report.irrelevantLines) + " \(format(report.dominance)) "
-            + (report.underruns.map { String(format: "%5d", $0) } ?? "    —"))
-    }
+    for report in rows(.main) { printRow(report) }
 
     print("""
 
         ================================================================================
-        C. PER CATEGORY (nDCG@8)
+        B2. LOCALE SETS — \(localeIndexes) indexes, \(localeDocuments) documents in total
         ================================================================================
-        A variant is only an improvement if it wins its own category without losing
-        another. This is the table that would have rejected symmetric RRF.
+        A LANGUAGE SMOKE TEST, not a ranking measurement. Each of these indexes holds about
+        two dozen documents, which is few enough that most variants tie and the ones that do
+        not are separating noise. Read it to answer "does this model work in this language at
+        all", never to choose between selection variants.
 
-        variant                          \(QueryCategory.allCases.filter(\.isAnswerable).map { $0.rawValue.padding(toLength: 10, withPad: " ", startingAt: 0) }.joined())
+        variant                          nDCG@8   P@8   R@1   R@3   R@8   MRR  irrel. domin. under
+        ------------------------------------------------------------------------------------------
+        """)
+    for report in rows(.locales) { printRow(report) }
+
+    print("""
+
+        ================================================================================
+        B3. POOLED — every index at once
+        ================================================================================
+        MIXED DIFFICULTY. Kept only so the figures published before this split stay
+        reproducible. Do not quote a number from this table.
+
+        variant                          nDCG@8   P@8   R@1   R@3   R@8   MRR  irrel. domin. under
+        ------------------------------------------------------------------------------------------
+        """)
+    for report in rows(.all) { printRow(report) }
+
+    printCategories(rows(.main), title: "C. PER CATEGORY (nDCG@8) — `main` index")
+    printLanguages(rows(.main), title: "D1. PER LANGUAGE within `main` (nDCG@8)",
+                   note: """
+                   Both cells come from the same 272-document index, so they are comparable to
+                   each other. The English one rests on very few queries — a smoke signal.
+                   """)
+    printLanguages(rows(.locales), title: "D2. PER LANGUAGE across the locale sets (nDCG@8)",
+                   note: """
+                   Each cell is its own ~24-document index. Comparable to each other, and NOT
+                   comparable to D1: those questions are asked against an index ten times larger.
+                   """)
+    print("")
+}
+
+private func printRow(_ report: VariantReport) {
+    let name = report.name.padding(toLength: 32, withPad: " ", startingAt: 0)
+    print("\(name) \(format(report.ndcg)) \(format(report.precision)) \(format(report.recall1)) "
+        + "\(format(report.recall3)) \(format(report.recall8)) \(format(report.mrr)) "
+        + String(format: "%5.2f", report.irrelevantLines) + " \(format(report.dominance)) "
+        + (report.underruns.map { String(format: "%5d", $0) } ?? "    —"))
+}
+
+private func printCategories(_ reports: [VariantReport], title: String) {
+    let categories = QueryCategory.allCases.filter(\.isAnswerable)
+    print("""
+
+        ================================================================================
+        \(title)
+        ================================================================================
+        A variant is only an improvement if it wins its own category without losing another.
+        This is the table that would have rejected symmetric RRF.
+
+        variant                          \(categories.map { $0.rawValue.padding(toLength: 10, withPad: " ", startingAt: 0) }.joined())
         ------------------------------------------------------------------------------------------
         """)
     for report in reports {
         let name = report.name.padding(toLength: 32, withPad: " ", startingAt: 0)
-        let cells = QueryCategory.allCases.filter(\.isAnswerable).map { category -> String in
-            format(report.perCategory[category] ?? nil).padding(toLength: 10, withPad: " ", startingAt: 0)
+        let cells = categories.map {
+            format(report.perCategory[$0] ?? nil).padding(toLength: 10, withPad: " ", startingAt: 0)
         }
         print("\(name) \(cells.joined())")
     }
+}
 
+private func printLanguages(_ reports: [VariantReport], title: String, note: String) {
     let languages = (reports.first?.perLanguage.keys).map { Array($0).sorted() } ?? []
+    guard !languages.isEmpty else { return }
     print("""
 
         ================================================================================
-        D. PER LANGUAGE (nDCG@8)
+        \(title)
         ================================================================================
-        The app ships ten locales. A model or a tokeniser change that helps English and
-        hurts Polish or Chinese is not an improvement, and only this table can say so.
+        \(note)
 
         variant                          \(languages.map { $0.padding(toLength: 8, withPad: " ", startingAt: 0) }.joined())
         ------------------------------------------------------------------------------------------
         """)
     for report in reports {
         let name = report.name.padding(toLength: 32, withPad: " ", startingAt: 0)
-        let cells = languages.map { language in
-            format(report.perLanguage[language] ?? nil).padding(toLength: 8, withPad: " ", startingAt: 0)
+        let cells = languages.map {
+            format(report.perLanguage[$0] ?? nil).padding(toLength: 8, withPad: " ", startingAt: 0)
         }
         print("\(name) \(cells.joined())")
     }
-    print("")
 }

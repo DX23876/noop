@@ -165,86 +165,71 @@ runs on a Mac. Nothing here is a device measurement.
 
 ## Results
 
-All numbers below are on the **`main` index** — 272 documents, one bilingual person's own notes — through
-the pinned `b9623`, the app's own truncate-renormalise-Float16 path, and one identical selection.
+**Scope matters, and getting it wrong cost every number in this file once already.** The corpus holds 320
+answerable queries: 110 on the `main` index (272 documents, the realistic problem) and 210 spread over ten
+24-document locale sets. Averaging all of them makes two thirds of every headline come from a problem too easy
+to separate anything — which is what the earlier tables did, and they ran about 0.06 optimistic as a result.
 
-Two earlier rounds of numbers were deleted rather than kept for comparison, because both were measured on
-corpora that could not answer the question. The first pooled ten translations of every fact into one index,
-which flattered the embedders (same-language text sits closer in the space) and punished a language-agnostic
-reranker for being right. The second fixed that by searching only the query's own language and thereby left
-about 25 documents to rank, which is a problem so easy that any ranking change measures noise. The history
-is in `docs/fork/decisions.md`; what follows replaces it.
+`score` now reports three scopes explicitly: **`main`** (the headline, where ranking is decided), **locale
+sets** (a language smoke test, never a ranking measurement) and **pooled** (labelled as mixed difficulty, kept
+only so the older figures stay reproducible). `ScorePipelineTests` asserts every variant reports all three and
+that the pooled mean lies between its parts, so the mistake cannot be made silently again.
 
-### The model question is settled: no change is justified
+Everything below is the **`main` scope** unless it says otherwise.
+
+### The model question is settled, and harrier is the worst of the three
 
 | Configuration | nomic (shipped, 256d) | embeddinggemma-300m (256d) | harrier-oss-v1-0.6b (1024d) |
 |---|---|---|---|
-| `semantic-only` | 0.804 | **0.814** | 0.806 |
-| `today (+rescue)` | 0.798 | 0.807 | 0.800 |
-| `+IDF rescue` | 0.806 | **0.824** | 0.812 |
-| `+recency` | 0.821 | **0.831** | 0.814 |
-| `RERANK@8 +recency` | **0.860** | not measured | 0.838 |
-| Oracle ceiling K=32 | 0.992 | 0.994 | 0.978 |
-| Embedding wall clock | 56 s | **44 s** | 61 s |
+| `semantic-only` | **0.744** | 0.740 | 0.677 |
+| `today (+rescue)` | **0.735** | 0.732 | 0.668 |
+| `+IDF rescue` | 0.751 | **0.760** | 0.696 |
+| `+recency` | 0.778 | **0.792** | 0.730 |
+| Oracle ceiling K=32 | 0.976 | 0.982 | 0.936 |
 | Bundle | 328 MB | **278 MB** | 397 MB |
+| Index bytes | **0.5 kB/chunk** | **0.5 kB/chunk** | 2 kB/chunk |
 
-**The three models span 0.010.** Reported as a +0.239 gap on the first corpus and +0.036 on the second, the
-spread between the shipped model and the best alternative is now smaller than the noise on 120 questions. Both
-earlier gaps were measuring the corpus rather than the models: the first measured how well a model separates
-languages, the second measured almost nothing at all.
+harrier's history in this file is a lesson in scope. It read 0.850 on the first corpus (ten translations
+pooled), 0.806 on the second (pooled across index sizes), and **0.677 on the realistic index** — where it is
+now last by 0.067. Its pooled figures were carried by the easy locale sets, where its language separation
+looked like retrieval quality.
 
-Two honest caveats on that conclusion:
-
-- **If one were to switch, it would be EmbeddingGemma, not harrier.** It is nominally best, 50 MB smaller and
-  the fastest to embed. What stops it being worth doing is 0.010 against a Gemma Terms licence and re-embedding
-  every existing index — not a quality argument.
-- **One category is not noise.** EmbeddingGemma scores 0.776 on `synonym` against Nomic's 0.549, and `synonym`
-  is Nomic's weakest category by a distance. Nomic is the better of the two on `recency` (0.758 vs 0.680). If a
-  future product decision makes synonym retrieval the thing that matters, that +0.227 is a real reason to
-  revisit this; nothing else in the table is.
+Nomic and EmbeddingGemma are within 0.004 raw and 0.014 with recency, which is noise on 110 questions. So the
+shipped model sits at the top of the pack, the 397 MB bundle and 4× index bytes buy a **regression**, and
+nothing here justifies a change. The one non-noise difference from earlier still stands: EmbeddingGemma is far
+better on `synonym`, Nomic better on `recency`.
 
 ### What does help, in order
 
-| Change | nDCG@8 | R@1 | MRR | Costs |
-|---|---|---|---|---|
-| `today (+rescue)` — the baseline | 0.798 | 0.544 | 0.826 | — |
-| `today + IDF/numeric rescue` | 0.798 | 0.544 | 0.826 | **nothing, and it buys nothing** |
-| `+recency` | 0.821 | 0.581 | 0.853 | nothing; the column is already in the index |
-| `+IDF rescue` (inside the new selection) | 0.806 | 0.548 | 0.830 | nothing |
-| `RERANK@8` | 0.846 | 0.595 | 0.876 | a second model |
-| **`RERANK@8 +recency`** | **0.860** | **0.629** | **0.897** | a second model |
-| Oracle ceiling K=32 | 0.992 | 0.772 | 1.000 | — |
+Measured on `main`, against `today (+rescue)` at 0.735:
 
-The second row is the one that changed a plan. Improving the lexical arm **inside the shipped `fuse`** — IDF
-weighting, numeric and date tokens, the whole point of the rescue slots — moves nDCG@8, R@1, R@3, R@8 and MRR
-by **exactly nothing**. `fuse` gives that arm two tail slots and only for sources the semantic arm never
-returned at all, and on a 272-document index the semantic top-32 already holds nearly everything relevant, so
-there is almost nothing left to rescue and no amount of better ranking *within* the unused candidates can show
-up. The rescue MECHANISM is the bottleneck, not the lexical scoring.
+| Change | nDCG@8 | Δ | Costs |
+|---|---|---|---|
+| `today + IDF/numeric rescue` | 0.735 | **±0.000** | nothing, and it buys nothing |
+| `+IDF rescue` (inside the new selection) | 0.751 | +0.016 | nothing |
+| `+recency` | 0.778 | **+0.043** | nothing; the column is already in the index |
+| `RERANK@8 +recency` | to be re-measured | — | a second model |
+| Oracle ceiling K=32 | 0.976 | +0.241 | — |
 
-The same tokeniser work is worth +0.008 in the fourth row, where the lexical signal enters as an additive
-bonus across all candidates instead of as two tail slots. So this is not two independent cheap wins: the
-numeric/date tokeniser pays for itself only together with the new scoring stage, and shipping it on its own
-would have been churn with a measured benefit of zero. That distinction only exists because the production
-shape was measured separately from the proposed one.
+Two things changed with the scope fix. **Recency is worth nearly twice what was reported** — +0.043 on the real
+index against +0.023 pooled — and the **reorderable headroom is 0.241**, not 0.194. The case for the ranking
+work is stronger on the realistic index, not weaker.
 
-The two interventions are **complementary, not competing**, which the per-category table is what shows:
+The first row is the one that cancelled a planned change. Improving the lexical arm **inside the shipped
+`fuse`** — IDF weighting, numeric and date tokens, the entire declared purpose of the rescue slots — moves
+every retrieval metric by exactly nothing, on either scope. `fuse` gives that arm two tail slots and only for
+sources the semantic arm never returned at all, and the semantic top-32 already holds nearly everything
+relevant, so no amount of better ranking *within* unused candidates can surface. The rescue MECHANISM is the
+bottleneck, not the lexical scoring — and the same tokeniser work is worth +0.016 one row down, where the
+lexical signal enters as an additive bonus across all candidates. It is not an independent cheap win.
 
-| Category | `semantic-only` | `+recency` | `RERANK@8` | Oracle |
-|---|---|---|---|---|
-| synonym | 0.549 | **0.630** | 0.623 | 0.922 |
-| paraphrase | 0.769 | 0.764 | **0.839** | 0.993 |
-| negation | 0.773 | 0.806 | **0.834** | 0.986 |
-| numeric | 0.960 | **0.964** | 0.957 | 0.998 |
-| recency | 0.758 | **0.836** | 0.771 | 1.000 |
-| near-miss | 0.825 | 0.840 | **0.865** | 0.987 |
-| terse | 0.762 | **0.793** | 0.780 | 0.988 |
+### The reranker and the floor
 
-The reranker takes the semantic discriminations — paraphrase, negation, and the near-misses it was hoped
-would be its strength. Recency takes the time dimension, which a cross-encoder cannot see at all: it has the
-two contradicting sentences in front of it and no way to know which one is current. `synonym` is the weakest
-category for both (0.549 raw), and `numeric` the strongest (0.960), which is worth remembering next time
-someone assumes an embedder cannot handle dates.
+The reranker and floor tables below were measured **pooled**, before the scope split, and are kept because
+their internal comparisons were all made against each other under identical conditions — but their absolute
+values carry the same ~0.06 optimism as the old model table, and they need re-running on `main`. The
+directional findings that survive scope are: depth 8 beats 16 beats 32, the reranker and recency are
+complementary rather than competing, and a relative floor dominates an absolute one.
 
 ### The reranker needs fewer candidates than expected
 

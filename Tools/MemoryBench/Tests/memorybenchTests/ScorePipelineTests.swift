@@ -36,8 +36,11 @@ final class ScorePipelineTests: XCTestCase {
         return reports
     }
 
+    /// Reports are per scope now, so the assertions below look at the headline scope unless they say otherwise.
+    private func main(_ reports: [VariantReport]) -> [VariantReport] { reports.filter { $0.scope == .main } }
+
     func testTheWholeLadderRunsAndEveryVariantIsScored() async throws {
-        let reports = try await ladder(floors: [0.30])
+        let reports = main(try await ladder(floors: [0.30]))
         // Every ladder step must appear by name, and so must the oracle ceilings. A bare count would pass
         // just as happily if a variant vanished and a ceiling took its place.
         for config in SelectionConfig.ladder(floor: 0.30) {
@@ -57,7 +60,7 @@ final class ScorePipelineTests: XCTestCase {
     /// question nothing in the corpus answers.
     func testWithoutAFloorIrrelevantQuestionsStillGetAFullContext() async throws {
         let reports = try await ladder(floors: [0.30])
-        let today = try XCTUnwrap(reports.first { $0.name == SelectionConfig.today.name })
+        let today = try XCTUnwrap(main(reports).first { $0.name == SelectionConfig.today.name })
         // Essentially a full context rather than exactly eight lines: with the candidate set restricted to the
         // query's own language, a few `irrelevant` queries simply have fewer than eight documents in their
         // language to pad with. The point stands — the pipeline fills every slot it can for a question nothing
@@ -65,7 +68,7 @@ final class ScorePipelineTests: XCTestCase {
         XCTAssertGreaterThan(today.irrelevantLines, Double(contextSlots) - 0.5,
                              "today's pipeline pads a question with no answer up to a full context")
 
-        let floored = try XCTUnwrap(reports.first { $0.name.contains("floor") })
+        let floored = try XCTUnwrap(main(reports).first { $0.name.contains("floor") })
         XCTAssertLessThan(floored.irrelevantLines, today.irrelevantLines)
     }
 
@@ -73,8 +76,8 @@ final class ScorePipelineTests: XCTestCase {
     /// quota variant must hold a smaller share of the eight lines than the unquotaed one.
     func testQuotasReduceHowMuchOneThreadCanOwn() async throws {
         let reports = try await ladder(floors: [0.30])
-        let beforeQuotas = try XCTUnwrap(reports.first { $0.name == "+floor" }?.dominance?.value)
-        let afterQuotas = try XCTUnwrap(reports.first { $0.name == "+quotas" }?.dominance?.value)
+        let beforeQuotas = try XCTUnwrap(main(reports).first { $0.name == "+floor" }?.dominance?.value)
+        let afterQuotas = try XCTUnwrap(main(reports).first { $0.name == "+quotas" }?.dominance?.value)
         XCTAssertLessThanOrEqual(afterQuotas, beforeQuotas)
     }
 
@@ -84,9 +87,49 @@ final class ScorePipelineTests: XCTestCase {
     /// report that rather than silently picking a threshold.
     func testAFloorThatSuitsNothingStillProducesAReport() async throws {
         let reports = try await ladder(floors: [0.99])
-        let extreme = try XCTUnwrap(reports.first { $0.name == "+MMR (= proposed)" })
+        let extreme = try XCTUnwrap(main(reports).first { $0.name == "+MMR (= proposed)" })
         XCTAssertEqual(extreme.irrelevantLines, 0, accuracy: 0.001)
         XCTAssertNil(extreme.precision, "with everything floored out there is nothing to be precise about")
+    }
+
+    /// The regression guard for the error this scope split exists to fix.
+    ///
+    /// Every published figure was once a mean over all 320 answerable queries, of which only 110 sit on the
+    /// 272-document index and 210 on the ten 24-document locale sets — so two thirds of each headline came
+    /// from a problem too easy to separate anything, and the numbers ran about 0.06 optimistic. This asserts
+    /// the shape that makes that impossible to do accidentally again: every variant reports all three scopes,
+    /// the two real ones genuinely disagree on this corpus, and the pooled figure sits between them rather
+    /// than standing alone.
+    func testEveryVariantReportsEachScopeAndPoolingIsVisiblyDifferent() async throws {
+        let reports = try await ladder(floors: [0.30])
+        let names = Set(reports.map(\.name))
+        for name in names {
+            let scopes = Set(reports.filter { $0.name == name }.map(\.scope))
+            XCTAssertEqual(scopes, [.main, .locales, .all], "\(name) is missing a scope")
+        }
+        // The two real scopes must differ, or the corpus has lost the difficulty gap that makes `main`
+        // the place ranking is decided — and the pooled mean must lie between them, which is exactly why
+        // quoting it as a result was misleading.
+        let baseline = SelectionConfig.semanticOnly.name
+        let onMain = try XCTUnwrap(reports.first { $0.name == baseline && $0.scope == .main }?.ndcg?.value)
+        let onLocales = try XCTUnwrap(reports.first { $0.name == baseline && $0.scope == .locales }?.ndcg?.value)
+        let pooled = try XCTUnwrap(reports.first { $0.name == baseline && $0.scope == .all }?.ndcg?.value)
+        XCTAssertNotEqual(onMain, onLocales, accuracy: 0.001,
+                          "main and the locale sets should not score alike; the difficulty gap is the point")
+        XCTAssertTrue((min(onMain, onLocales)...max(onMain, onLocales)).contains(pooled),
+                      "a pooled mean has to sit between its parts — \(pooled) is outside")
+    }
+
+    /// The scoped counts have to add up, or a query is being dropped or double-counted somewhere.
+    func testScopedQueryCountsPartitionTheCorpus() async throws {
+        let reports = try await ladder(floors: [0.30])
+        let baseline = SelectionConfig.semanticOnly.name
+        func count(_ scope: ReportScope) throws -> Int {
+            try XCTUnwrap(reports.first { $0.name == baseline && $0.scope == scope }?.ndcg?.count)
+        }
+        let onMain = try count(.main)
+        let onLocales = try count(.locales)
+        XCTAssertEqual(onMain + onLocales, try count(.all))
     }
 
     /// Synthetic vectors must be deterministic, or no two runs of the ladder are comparable.
