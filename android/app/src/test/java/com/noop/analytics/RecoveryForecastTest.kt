@@ -195,4 +195,23 @@ class RecoveryForecastTest {
         assertEquals(1.0, RecoveryForecaster.leastSquaresSlope(listOf(1.0, 2.0, 3.0, 4.0)), 1e-9)
         assertEquals(0.0, RecoveryForecaster.leastSquaresSlope(listOf(5.0)), 1e-9)
     }
+
+    @Test
+    fun clampPreservesInputSignedZeroAtInclusiveBounds() {
+        // Cross-platform contract (#56): a value numerically equal to either bound is
+        // already in range, so clamp returns x itself and preserves x's IEEE sign bit.
+        val cases = listOf(
+            Triple(+0.0, -0.0, 1.0),
+            Triple(-0.0, +0.0, 1.0),
+            Triple(+0.0, -1.0, -0.0),
+            Triple(-0.0, -1.0, +0.0),
+        )
+        cases.forEach { (x, lo, hi) ->
+            assertEquals(x.toRawBits(), RecoveryForecaster.clamp(x, lo, hi).toRawBits())
+        }
+
+        assertEquals(-1.0, RecoveryForecaster.clamp(-1.01, -1.0, 1.0), 0.0)
+        assertEquals(0.25, RecoveryForecaster.clamp(0.25, -1.0, 1.0), 0.0)
+        assertEquals(1.0, RecoveryForecaster.clamp(1.01, -1.0, 1.0), 0.0)
+    }
 }

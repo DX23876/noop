@@ -238,5 +238,11 @@ object RecoveryForecaster {
         return if (den == 0.0) 0.0 else num / den
     }
 
-    internal fun clamp(x: Double, lo: Double, hi: Double): Double = min(max(x, lo), hi)
+    internal fun clamp(x: Double, lo: Double, hi: Double): Double {
+        // Inclusive-bound equality is already in range: return x itself so Swift
+        // and Kotlin preserve the same IEEE signed-zero bit (#56).
+        if (x < lo) return lo
+        if (x > hi) return hi
+        return x
+    }
 }
