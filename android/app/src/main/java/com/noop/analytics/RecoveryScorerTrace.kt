@@ -14,7 +14,11 @@ import kotlin.math.abs
 
 object RecoveryScorerTrace {
 
-    private fun r2(x: Double): Double = Math.round(x * 100.0) / 100.0
+    /** Trace numbers use nearest rounding with half-ties away from zero on both platforms. */
+    private fun r2(x: Double): Double {
+        val scaled = x * 100.0
+        return if (scaled < 0.0) -Math.round(-scaled) / 100.0 else Math.round(scaled) / 100.0
+    }
 
     /**
      * Side-effect-free diagnostic twin of [RecoveryScorer.recovery]: returns the SAME score recovery(...)

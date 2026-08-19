@@ -92,4 +92,44 @@ class RecoveryScorerTraceTest {
         assertTrue(base.contains("nValid=9"))
         assertTrue(base.contains("status=provisional"))
     }
+
+    @Test fun traceRoundsHalfTiesAwayFromZeroWithoutChangingScore() {
+        val hrvB = baseline(50.0, 6.0)
+        val plain = RecoveryScorer.recovery(
+            hrv = 50.0, rhr = 55.0, resp = null,
+            hrvBaseline = hrvB, rhrBaseline = null, respBaseline = null,
+            sleepPerf = null, skinTempDev = 0.125,
+        )
+        val (traced, lines) = RecoveryScorerTrace.recoveryTrace(
+            hrv = 50.0, rhr = 55.0, resp = null,
+            hrvBaseline = hrvB, rhrBaseline = null, respBaseline = null,
+            sleepPerf = null, skinTempDev = 0.125,
+        )
+
+        assertEquals(plain, traced)
+        assertEquals(
+            "charge term skinTempDev z=-0.13 w=0.05 (dev=0.13C penalty=-|dev|/1.0)",
+            lines.first { it.startsWith("charge term skinTempDev ") },
+        )
+    }
+
+    @Test fun tracePreservesNonTieRounding() {
+        val hrvB = baseline(50.0, 6.0)
+        val plain = RecoveryScorer.recovery(
+            hrv = 50.0, rhr = 55.0, resp = null,
+            hrvBaseline = hrvB, rhrBaseline = null, respBaseline = null,
+            sleepPerf = null, skinTempDev = 0.124,
+        )
+        val (traced, lines) = RecoveryScorerTrace.recoveryTrace(
+            hrv = 50.0, rhr = 55.0, resp = null,
+            hrvBaseline = hrvB, rhrBaseline = null, respBaseline = null,
+            sleepPerf = null, skinTempDev = 0.124,
+        )
+
+        assertEquals(plain, traced)
+        assertEquals(
+            "charge term skinTempDev z=-0.12 w=0.05 (dev=0.12C penalty=-|dev|/1.0)",
+            lines.first { it.startsWith("charge term skinTempDev ") },
+        )
+    }
 }

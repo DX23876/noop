@@ -82,4 +82,40 @@ final class RecoveryScorerTraceTests: XCTestCase {
         XCTAssertTrue(base!.contains("nValid=9"))
         XCTAssertTrue(base!.contains("status=provisional"))
     }
+
+    func testTraceRoundsHalfTiesAwayFromZeroWithoutChangingScore() {
+        let hrvB = baseline(mean: 50, sigma: 6)
+        let plain = RecoveryScorer.recovery(
+            hrv: 50, rhr: 55, resp: nil,
+            hrvBaseline: hrvB, rhrBaseline: nil, respBaseline: nil,
+            sleepPerf: nil, skinTempDev: 0.125)
+        let (traced, lines) = RecoveryScorer.recoveryTrace(
+            hrv: 50, rhr: 55, resp: nil,
+            hrvBaseline: hrvB, rhrBaseline: nil, respBaseline: nil,
+            sleepPerf: nil, skinTempDev: 0.125)
+
+        XCTAssertEqual(traced, plain)
+        XCTAssertEqual(
+            lines.first { $0.hasPrefix("charge term skinTempDev ") },
+            "charge term skinTempDev z=-0.13 w=0.05 (dev=0.13C penalty=-|dev|/1.0)"
+        )
+    }
+
+    func testTracePreservesNonTieRounding() {
+        let hrvB = baseline(mean: 50, sigma: 6)
+        let plain = RecoveryScorer.recovery(
+            hrv: 50, rhr: 55, resp: nil,
+            hrvBaseline: hrvB, rhrBaseline: nil, respBaseline: nil,
+            sleepPerf: nil, skinTempDev: 0.124)
+        let (traced, lines) = RecoveryScorer.recoveryTrace(
+            hrv: 50, rhr: 55, resp: nil,
+            hrvBaseline: hrvB, rhrBaseline: nil, respBaseline: nil,
+            sleepPerf: nil, skinTempDev: 0.124)
+
+        XCTAssertEqual(traced, plain)
+        XCTAssertEqual(
+            lines.first { $0.hasPrefix("charge term skinTempDev ") },
+            "charge term skinTempDev z=-0.12 w=0.05 (dev=0.12C penalty=-|dev|/1.0)"
+        )
+    }
 }

@@ -34,7 +34,10 @@ extension RecoveryScorer {
                                      skinTempDev: Double? = nil)
         -> (score: Double?, trace: [String]) {
 
-        func r2(_ x: Double) -> Double { (x * 100.0).rounded() / 100.0 }
+        // Trace numbers use nearest rounding with half-ties away from zero on both platforms.
+        func r2(_ x: Double) -> Double {
+            (x * 100.0).rounded(.toNearestOrAwayFromZero) / 100.0
+        }
 
         var lines: [String] = []
         var nilTerms: [String] = []
