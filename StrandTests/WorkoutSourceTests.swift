@@ -12,7 +12,7 @@ final class WorkoutSourceTests: XCTestCase {
                      avgHr: Int? = nil, maxHr: Int? = nil, strain: Double? = nil) -> WorkoutRow {
         WorkoutRow(startTs: start, endTs: end, sport: sport, source: source,
                    durationS: Double(end - start), energyKcal: nil, avgHr: avgHr, maxHr: maxHr,
-                   strain: strain, distanceM: nil, zonesJSON: nil, notes: nil)
+                   strain: strain, distanceM: nil, zonesJSON: nil, notes: nil, steps: nil)
     }
 
     // MARK: - classify
@@ -83,13 +83,13 @@ final class WorkoutSourceTests: XCTestCase {
         // A live strap session: HR trace, peak, strain, zones, distance, energy all captured.
         WorkoutRow(startTs: start, endTs: end, sport: sport, source: source,
                    durationS: Double(end - start), energyKcal: 600, avgHr: 150, maxHr: 178,
-                   strain: 14.0, distanceM: 10_000, zonesJSON: #"{"z1":10}"#, notes: nil)
+                   strain: 14.0, distanceM: 10_000, zonesJSON: #"{"z1":10}"#, notes: nil, steps: nil)
     }
     private func thinImport(start: Int, end: Int, sport: String, source: String) -> WorkoutRow {
         // A thin Health Connect / Apple import: only duration + calories.
         WorkoutRow(startTs: start, endTs: end, sport: sport, source: source,
                    durationS: Double(end - start), energyKcal: 590, avgHr: nil, maxHr: nil,
-                   strain: nil, distanceM: nil, zonesJSON: nil, notes: nil)
+                   strain: nil, distanceM: nil, zonesJSON: nil, notes: nil, steps: nil)
     }
 
     func testSportKeyFoldsCamelCaseAndSpacing() {
@@ -430,6 +430,21 @@ final class WorkoutSourceTests: XCTestCase {
         XCTAssertNil(m?.zonesJSON)
         // Avg HR = duration-weighted: (150*3600 + 120*2400) / 6000 = 138.
         XCTAssertEqual(m?.avgHr, 138)
+    }
+
+    /// #1444: steps is cumulative per session, exactly like distance, so a merge must SUM it rather
+    /// than drop it. It was dropped until making the field explicit forced the question. Kotlin twin:
+    /// `merge_sumsStepsLikeDistance`.
+    func testMergeSumsStepsLikeDistance() {
+        let a = fullRow(start: 1000, end: 4600, sport: "Running", source: "manual",
+                        dist: 10_000, steps: 6_200)
+        let b = fullRow(start: 5000, end: 7400, sport: "Running", source: "manual",
+                        dist: 5_000, steps: 3_100)
+        XCTAssertEqual(WorkoutMerge.merge([a, b])?.steps, 9_300)
+        // Nothing carried steps -> nil, never a fake 0 (same rule energy and distance follow).
+        let c = fullRow(start: 1000, end: 4600, sport: "Running", source: "manual")
+        let d = fullRow(start: 5000, end: 7400, sport: "Running", source: "manual")
+        XCTAssertNil(WorkoutMerge.merge([c, d])?.steps)
     }
 
     func testMergeWeightsOnlyRowsWithHr() {
