@@ -117,6 +117,29 @@ enum MirroredTokeniser {
         "это", "как", "что", "для", "который", "которая", "мой", "моя", "мои", "меня", "мне",
         "тебя", "они", "она", "оно", "был", "была", "были", "быть", "есть", "нет", "или",
         "если", "когда", "где", "почему", "очень", "уже", "ещё", "еще", "так", "все", "всё",
+
+        // Polish, copied verbatim when PR #7 added it to `CoachMemory.stopwords`. The shared golden fixture
+        // caught the one-sided change on its first real use: `StrandTests/CoachTokeniserGoldenTests` failed
+        // against the fixture while this side still passed, which is exactly the asymmetry the cross-target
+        // test exists to make impossible to miss.
+        // Polish. Absent until #P9's review noticed that `pl` ships and had no entries at all, so every
+        // Polish function word counted as topic overlap — in the keyword ranker, in the rescue arm, and in
+        // the near-duplicate check. Diacritic and stripped spellings are both listed, as for German and
+        // Spanish above, because `tokens` lowercases but does not fold diacritics.
+        "jest", "być", "byc", "był", "byl", "była", "byla", "było", "bylo", "były", "byly",
+        "będzie", "bedzie", "jestem", "jesteś", "jestes", "mam", "masz", "mają", "maja",
+        "może", "moze", "można", "mozna", "musi", "trzeba", "powinien", "powinna",
+        "nie", "tak", "czy", "jak", "ale", "lub", "albo", "oraz", "czyli", "więc", "wiec",
+        "dla", "bez", "przez", "przy", "pod", "nad", "między", "miedzy",
+        "mój", "moj", "moja", "moje", "moim", "moich", "mnie",
+        "twój", "twoj", "twoja", "twoje", "ciebie", "nasz", "nasze", "wasz", "wasze",
+        "ona", "ono", "oni", "ich", "jego", "jej", "się", "sie",
+        "ten", "tego", "tym", "temu", "tej", "tych", "tam", "tutaj", "teraz",
+        "który", "ktory", "która", "ktora", "które", "ktore", "którego", "ktorego",
+        "aby", "żeby", "zeby", "jeśli", "jesli", "jeżeli", "jezeli", "gdy", "kiedy", "gdzie",
+        "dlaczego", "dlatego", "ponieważ", "poniewaz",
+        "bardzo", "już", "juz", "jeszcze", "tylko", "też", "tez", "także", "takze", "znowu",
+        "wszystko", "wszystkie", "coś", "cos", "nic", "nikt",
     ]
 }
 

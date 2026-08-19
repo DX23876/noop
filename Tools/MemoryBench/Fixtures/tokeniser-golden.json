@@ -32,9 +32,7 @@
       "id" : "polish-stopwords",
       "text" : "Czy magnez pomaga mi zasnąć jest to dobre",
       "tokens" : [
-        "czy",
         "dobre",
-        "jest",
         "magnez",
         "pomaga",
         "zasnąć"
