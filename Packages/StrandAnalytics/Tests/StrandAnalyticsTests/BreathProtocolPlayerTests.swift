@@ -4,6 +4,24 @@ import XCTest
 /// Golden vectors for content-driven breath protocols (holds + Presence tempos).
 final class BreathProtocolPlayerTests: XCTestCase {
 
+    func test_negative_stage_duration_clamps_and_schedules_safely() {
+        let stage = BreathStage(type: .inhale, durationMs: -1)
+        let proto = BreathProtocol(
+            id: "negative_duration",
+            title: "Negative duration",
+            subtitle: "",
+            edu: "",
+            mode: .playable,
+            category: .ans,
+            recommendedDurationMs: 1_000,
+            stages: [stage]
+        )
+
+        XCTAssertEqual(stage.durationMs, 0)
+        XCTAssertEqual(proto.cycleDurationMs, 0)
+        XCTAssertTrue(BreathProtocolPlayer.schedule(proto, sessionMs: 1_000).isEmpty)
+    }
+
     func test_box_one_cycle_cues() {
         let proto = BreathProtocolCatalog.protocolById("box_4_4_4_4")!
         let cues = BreathProtocolPlayer.schedule(proto, sessionMs: 16_000)

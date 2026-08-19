@@ -11,6 +11,25 @@ import org.junit.Test
 class BreathProtocolPlayerTest {
 
     @Test
+    fun test_negative_stage_duration_clamps_and_schedules_safely() {
+        val stage = BreathStage(BreathPhase.INHALE, -1)
+        val proto = BreathProtocol(
+            id = "negative_duration",
+            title = "Negative duration",
+            subtitle = "",
+            edu = "",
+            mode = BreathProtocolMode.PLAYABLE,
+            category = BreathProtocolCategory.ANS,
+            recommendedDurationMs = 1_000,
+            stages = listOf(stage),
+        )
+
+        assertEquals(0, stage.durationMs)
+        assertEquals(0, proto.cycleDurationMs)
+        assertTrue(BreathProtocolPlayer.schedule(proto, sessionMs = 1_000).isEmpty())
+    }
+
+    @Test
     fun test_box_one_cycle_cues() {
         val proto = BreathProtocolCatalog.protocolById("box_4_4_4_4")!!
         val cues = BreathProtocolPlayer.schedule(proto, sessionMs = 16_000)

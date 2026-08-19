@@ -20,13 +20,21 @@ enum class BreathProtocolCategory {
     BIOFEEDBACK,
 }
 
-data class BreathStage(
+data class BreathStage private constructor(
     val type: BreathPhase,
     val durationMs: Int,
     val label: String? = null,
 ) {
     init {
         require(durationMs >= 0)
+    }
+
+    companion object {
+        operator fun invoke(
+            type: BreathPhase,
+            durationMs: Int,
+            label: String? = null,
+        ): BreathStage = BreathStage(type, durationMs.coerceAtLeast(0), label)
     }
 }
 
