@@ -400,11 +400,39 @@ wins outside its interval (+0.027). `negation` 0.718 → 0.783 and `recency` 0.5
 candidates adds only 0.041 on top of that, so the candidate pool is not the binding constraint; the ranking is.
 
 This is the number that reopens the reranker question, which was closed on the reasoning that recall was
-saturated (R@1 86%, R@3 96.7% on the old measurement). On dev of the grown corpus R@1 is **0.368** against an
-oracle 0.532. That earlier saturation was a property of a 25-candidates-per-query index, not of the problem. It
-does not by itself justify shipping a cross-encoder — the latency argument in section 4 stands, and the scale
-measurement shows the scan is not what loses the race, so the second model's load and forward passes would be —
-but "too little headroom" is no longer a true statement.
+already saturated. On dev of the grown corpus the top line answers the question **66%** of the time (`hit@1`
+0.659) against an oracle 0.984 — a gap of a third of all queries, on a metric that cannot be blamed on judgment
+density. It does not by itself justify shipping a cross-encoder: the latency argument in section 4 stands, the
+scale measurement shows the scan is not what loses the race, so a second model's load and forward passes would
+be — but "too little headroom" is no longer a true statement.
+
+*A comparison that used to stand here has been removed rather than repaired.* It set the old evaluation's
+"R@1 86%" beside this corpus's R@1 of 0.368, which made the headroom argument look far stronger than it is:
+the two are almost certainly not the same quantity. See the note on `hit@1` below — recall@1 divides by how many
+relevant documents a query has, and an 86% figure alongside a 96.7% R@3 reads like a hit rate. The argument does
+not need that comparison; it rests on the Oracle gap, which is definition-stable and confirmed on the holdout.
+
+### Why the report prints `hit@1` and not `R@1`
+
+Recall divides by how many relevant documents a query **has**. So `recall@1` is bounded by `1/|relevant|`: a
+question with three good answers caps at 0.333 no matter how perfect the ranking, because one slot cannot hold
+three documents. On this corpus the structural ceiling for mean R@1 is **0.555**, and the Oracle scores 0.539
+against it — so the shipped pipeline's R@1 of 0.361 is two thirds of everything achievable, not "right a third of
+the time".
+
+Nearly every reader takes "R@1" to mean the second thing. The column is therefore `hit@1` — was the first line
+relevant at all — which is uncapped, comparable across queries of different judgment density, and directly
+answers the question people are actually asking:
+
+| variant | hit@1 |
+|---|---|
+| keyword-only (lost race) | 0.402 |
+| shipped pipeline | 0.659 |
+| ORACLE, same 32 candidates | 0.984 |
+
+`R@1` is still computed, and `R@8` is still printed beside it as the coverage number — "how much of what exists
+did the eight lines actually collect" is a real question, just not the one `R@1` was being read for. `R@3` was
+computed and never printed; it is gone.
 
 ## The holdout, read once — and what survived
 

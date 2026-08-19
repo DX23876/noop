@@ -40,7 +40,10 @@ struct VariantReport {
     var ndcg: (value: Double, count: Int)?
     var precision: (value: Double, count: Int)?
     var recall1: (value: Double, count: Int)?
-    var recall3: (value: Double, count: Int)?
+    /// Was the FIRST line relevant at all. See `hitRate`: this is what "R@1" is usually taken to mean, and
+    /// `recall1` is not it — recall divides by how many relevant documents a query has, so it is structurally
+    /// capped (ceiling 0.555 on this corpus) and reads far worse than the ranking actually is.
+    var hit1: (value: Double, count: Int)?
     var recall8: (value: Double, count: Int)?
     var mrr: (value: Double, count: Int)?
     /// Mean lines emitted for `irrelevant` queries. The target is 0.
@@ -410,7 +413,7 @@ private func report(name: String,
         ndcg: mean(scored.map { normalizedDCG(ranked: $0.ranked, judgments: $0.query.judgments) }),
         precision: mean(scored.map { precision(ranked: $0.ranked, judgments: $0.query.judgments) }),
         recall1: mean(scored.map { recall(ranked: $0.ranked, judgments: $0.query.judgments, k: 1) }),
-        recall3: mean(scored.map { recall(ranked: $0.ranked, judgments: $0.query.judgments, k: 3) }),
+        hit1: mean(scored.map { hitRate(ranked: $0.ranked, judgments: $0.query.judgments) }),
         recall8: mean(scored.map { recall(ranked: $0.ranked, judgments: $0.query.judgments, k: 8) }),
         mrr: mean(scored.map { reciprocalRank(ranked: $0.ranked, judgments: $0.query.judgments) }),
         irrelevantLines: irrelevant.isEmpty
@@ -543,7 +546,7 @@ private func printTable(_ reports: [VariantReport], vectors: VectorSet, corpus: 
         never be read alone: a pipeline that emits one correct line scores P@8 = 1.00, and only
         `lines` and `f.abst` reveal that it bought that by staying silent elsewhere.
 
-        variant                          nDCG@8   P@8   R@1   R@8   MRR  abst. f.abst irrel. lines domin.
+        variant                          nDCG@8   P@8  hit@1   R@8   MRR  abst. f.abst irrel. lines domin.
         ------------------------------------------------------------------------------------------
         """)
     for report in rows(.dev) { printRow(report) }
@@ -563,7 +566,7 @@ private func printTable(_ reports: [VariantReport], vectors: VectorSet, corpus: 
             score variance instead of difference variance, and the measured widths are a third
             of it. It is corrected here rather than quietly dropped.)
 
-            variant                          nDCG@8   P@8   R@1   R@8   MRR  abst. f.abst irrel. lines domin.
+            variant                          nDCG@8   P@8  hit@1   R@8   MRR  abst. f.abst irrel. lines domin.
             ------------------------------------------------------------------------------------------
             """)
         for report in rows(.test) { printRow(report) }
@@ -580,7 +583,7 @@ private func printTable(_ reports: [VariantReport], vectors: VectorSet, corpus: 
         not are separating noise. Read it to answer "does this model work in this language at
         all", never to choose between selection variants.
 
-        variant                          nDCG@8   P@8   R@1   R@8   MRR  abst. f.abst irrel. lines domin.
+        variant                          nDCG@8   P@8  hit@1   R@8   MRR  abst. f.abst irrel. lines domin.
         ------------------------------------------------------------------------------------------
         """)
     for report in rows(.locales) { printRow(report) }
@@ -593,7 +596,7 @@ private func printTable(_ reports: [VariantReport], vectors: VectorSet, corpus: 
         MIXED DIFFICULTY. Kept only so the figures published before this split stay
         reproducible. Do not quote a number from this table.
 
-        variant                          nDCG@8   P@8   R@1   R@8   MRR  abst. f.abst irrel. lines domin.
+        variant                          nDCG@8   P@8  hit@1   R@8   MRR  abst. f.abst irrel. lines domin.
         ------------------------------------------------------------------------------------------
         """)
     for report in rows(.all) { printRow(report) }
@@ -659,7 +662,7 @@ private func printRow(_ report: VariantReport) {
         return String(format: "%5.2f", value)
     }
     let name = report.name.padding(toLength: 32, withPad: " ", startingAt: 0)
-    print("\(name) \(format(report.ndcg)) \(format(report.precision)) \(format(report.recall1)) "
+    print("\(name) \(format(report.ndcg)) \(format(report.precision)) \(format(report.hit1)) "
         + "\(format(report.recall8)) \(format(report.mrr)) "
         + "\(pct(report.abstention)) \(pct(report.falseAbstention)) "
         + String(format: "%5.2f", report.irrelevantLines) + " "

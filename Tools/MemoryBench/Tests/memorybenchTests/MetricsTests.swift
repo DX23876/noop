@@ -151,3 +151,38 @@ final class MetricsTests: XCTestCase {
                           recall(ranked: ["a", "b", "c"], judgments: judgments, k: 8)!)
     }
 }
+
+/// Why the report prints `hit@1` and not `R@1`.
+///
+/// `recall(k: 1)` divides by how many relevant documents a query has, so one slot cannot hold three answers and
+/// the metric is capped at 1/|relevant| however perfect the ranking is. Read as a hit rate — which is how almost
+/// everyone reads "R@1" — it understates the ranking badly. These tests pin both the trap and the replacement.
+final class HitRateTests: XCTestCase {
+
+    func testRecallAtOneIsCappedByHowManyAnswersAQueryHas() {
+        let three = ["a": 3, "b": 2, "c": 1]
+        // A perfect ranking, and recall@1 still reads 0.333 — the other two answers cannot fit in one slot.
+        XCTAssertEqual(recall(ranked: ["a", "b", "c"], judgments: three, k: 1)!, 1.0 / 3, accuracy: 1e-9)
+        // The same perfect ranking on a single-answer query reads 1.0. The two numbers are not comparable, which
+        // is exactly why a mean over mixed queries partly measures judgment density instead of retrieval.
+        XCTAssertEqual(recall(ranked: ["a"], judgments: ["a": 3], k: 1)!, 1, accuracy: 1e-9)
+    }
+
+    func testHitRateAsksTheQuestionPeopleThinkRecallAtOneAsks() {
+        let three = ["a": 3, "b": 2, "c": 1]
+        XCTAssertEqual(hitRate(ranked: ["a", "b", "c"], judgments: three)!, 1, accuracy: 1e-9)
+        XCTAssertEqual(hitRate(ranked: ["x", "a"], judgments: three)!, 0, accuracy: 1e-9)
+    }
+
+    /// Undefined rather than 0 for a query with nothing to find, like every other metric here: an `unanswerable`
+    /// query has no top line to get right, and averaging in a zero would punish correct silence.
+    func testHitRateIsUndefinedWhenNothingIsRelevant() {
+        XCTAssertNil(hitRate(ranked: ["a"], judgments: ["a": 0]))
+        XCTAssertNil(hitRate(ranked: [], judgments: [:]))
+    }
+
+    /// An empty result is a miss, not undefined — the query HAD an answer and no line was emitted.
+    func testEmittingNothingOnAnAnswerableQueryIsAMiss() {
+        XCTAssertEqual(hitRate(ranked: [], judgments: ["a": 3])!, 0, accuracy: 1e-9)
+    }
+}

@@ -65,6 +65,27 @@ func precision(ranked: [String], judgments: Judgments, k: Int = contextSlots) ->
     return Double(hits) / Double(emitted.count)
 }
 
+/// Whether the FIRST line handed over was relevant at all — a hit rate, not a recall.
+///
+/// This exists because `recall(k: 1)` is almost always misread. Recall divides by the number of relevant
+/// documents, so a query with three relevant memories caps R@1 at 0.333 no matter how perfect the ranking is:
+/// one slot cannot hold three documents. On this corpus the structural ceiling for mean R@1 is **0.555**, and the
+/// Oracle scores 0.539 against it — so an R@1 of 0.361 is two thirds of what is achievable, not "right a third
+/// of the time". Every reader who has not just read this comment will get that wrong.
+///
+/// `hitRate@1` is what people mean when they say R@1: did the top line answer the question. It is uncapped,
+/// comparable across queries with different judgment density, and it is the number to quote when asking whether
+/// the first line is any good.
+func hitRate(ranked: [String], judgments: Judgments, k: Int = 1) -> Double? {
+    guard judgments.values.contains(where: { $0 > 0 }) else { return nil }
+    return ranked.prefix(k).contains(where: { (judgments[$0] ?? 0) > 0 }) ? 1 : 0
+}
+
+/// Share of a query's relevant documents that reached the first `k` slots.
+///
+/// **Not a hit rate.** The denominator is how many relevant documents the query HAS, so `recall(k: 1)` is bounded
+/// by `1/|relevant|` and its mean partly reflects the corpus's judgment density rather than retrieval quality.
+/// Use `hitRate` for "was the top line right" and this for coverage.
 func recall(ranked: [String], judgments: Judgments, k: Int) -> Double? {
     let relevant = Set(judgments.filter { $0.value > 0 }.keys)
     guard !relevant.isEmpty else { return nil }
