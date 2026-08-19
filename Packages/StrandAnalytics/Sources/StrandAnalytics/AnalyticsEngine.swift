@@ -78,7 +78,7 @@ public enum AnalyticsEngine {
         public let skinTempRelative: SkinTempRelative?
         /// Day strain / "Effort" [0,100] or nil (insufficient HR samples / invalid HRR).
         public let strain: Double?
-        /// Rest composite [0,100] or nil (no in-bed data). This is the value the
+        /// Rest composite [0,100] or nil (no asleep time). This is the value the
         /// `sleep_performance` metric key carries (duration-vs-need 0.50 + efficiency
         /// 0.20 + restorative share 0.20 + consistency 0.10). The downstream metric-series
         /// builder reads it from here; the Charge "Rest quality" term reads it ÷100.
@@ -555,10 +555,10 @@ public enum AnalyticsEngine {
         // ── Rest composite (Charge/Effort/Rest) ───────────────────────────────
         // The 0–100 sleep score the `sleep_performance` metric key now carries:
         //   duration-vs-personal-need 0.50 + efficiency 0.20 + restorative share 0.20
-        //   + consistency 0.10. nil when there is no in-bed data. The Charge "Rest
+        //   + consistency 0.10. nil when there is no asleep time. The Charge "Rest
         //   quality" term reads it ÷100 (replacing raw efficiency).
         let hasStagedSleep = (deepS + remS) > 0
-        let restScore: Double? = matched.isEmpty ? nil : Rest.composite(
+        let restScore: Double? = tstS <= 0 ? nil : Rest.composite(
             tstSeconds: tstS,
             inBedSeconds: inBedS,
             efficiency: efficiency,

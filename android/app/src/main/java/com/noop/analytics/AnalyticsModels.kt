@@ -254,7 +254,7 @@ data class DayResult(
     /** Effort (strain) score [0,100] or null (insufficient HR samples / invalid HRR). */
     val strain: Double?,
     /**
-     * Rest (sleep_performance) composite [0,100] or null (no in-bed session). The persistence /
+     * Rest (sleep_performance) composite [0,100] or null (no asleep time). The persistence /
      * series layer stores this under the `sleep_performance` key. Replaces the bare efficiency
      * proxy (duration-vs-need 0.50 + efficiency 0.20 + restorative 0.20 + consistency 0.10).
      */

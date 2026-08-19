@@ -2,6 +2,7 @@ package com.noop.analytics
 
 import com.noop.data.HrSample
 import com.noop.data.RrInterval
+import com.noop.protocol.DeviceFamily
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -90,5 +91,81 @@ class AnalyticsEngineProvidedSleepTest {
             providedSleep = provided)
         assertEquals(48, res.daily.restingHr)
         assertEquals(65.0, res.daily.avgHrv!!, 0.001)
+    }
+
+    /** Keep the public analyzeDay seam fully named and mirrored by the Swift twin. */
+    private fun analyzeProvided(fixtureDay: String, provided: List<DetectedSleep>): DayResult =
+        AnalyticsEngine.analyzeDay(
+            day = fixtureDay,
+            hr = emptyList(),
+            rr = emptyList(),
+            resp = emptyList(),
+            vendorResp = emptyList(),
+            gravity = emptyList(),
+            steps = emptyList(),
+            dayHr = null,
+            daySteps = null,
+            dayGravity = null,
+            skinTemp = emptyList(),
+            skinTempFamily = DeviceFamily.WHOOP5,
+            skinTempAnchorRaw = null,
+            spo2 = emptyList(),
+            profile = profile,
+            baselines = ProfileBaselines(),
+            maxHROverride = null,
+            tzOffsetSeconds = 0,
+            wristOff = emptyList(),
+            sleepNeedHours = RestScorer.defaultSleepNeedHours,
+            sleepNeedNights = 0,
+            sleepConsistency = null,
+            habitualMidsleepSec = null,
+            bandSleepState = emptyList(),
+            useSleepStagerV2 = false,
+            useMotionAwareWake = false,
+            providedSleep = provided,
+            traceSink = null,
+            hrvTraceSink = null,
+            hrvWindowDetail = false,
+            deepHrvWindow = false,
+        )
+
+    /** bhelm/noop#74: an all-wake provided session has no TST and therefore no Rest score. */
+    @Test
+    fun wakeOnlyProvidedSessionHasNoRestScore() {
+        val fixtureDay = "2025-06-10"
+        val start = LocalDate.parse(fixtureDay).atStartOfDay(ZoneOffset.UTC).toEpochSecond() + 3600
+        val end = start + 1800
+        val provided = listOf(
+            DetectedSleep(
+                start = start,
+                end = end,
+                efficiency = 0.0,
+                stages = listOf(StageSegment(start, end, "wake")),
+                restingHR = null,
+                avgHRV = null,
+            ),
+        )
+
+        assertNull(analyzeProvided(fixtureDay, provided).rest)
+    }
+
+    /** Positive boundary: staged sleep does not require deep or REM to earn a Rest score. */
+    @Test
+    fun lightOnlyProvidedSessionHasRestScore() {
+        val fixtureDay = "2025-06-10"
+        val start = LocalDate.parse(fixtureDay).atStartOfDay(ZoneOffset.UTC).toEpochSecond() + 3600
+        val end = start + 1800
+        val provided = listOf(
+            DetectedSleep(
+                start = start,
+                end = end,
+                efficiency = 1.0,
+                stages = listOf(StageSegment(start, end, "light")),
+                restingHR = null,
+                avgHRV = null,
+            ),
+        )
+
+        assertNotNull(analyzeProvided(fixtureDay, provided).rest)
     }
 }

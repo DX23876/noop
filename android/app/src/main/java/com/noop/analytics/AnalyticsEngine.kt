@@ -633,7 +633,7 @@ object AnalyticsEngine {
         // ── Rest (sleep_performance composite, 0–100) ─────────────────────────
         // Replaces the bare efficiency proxy: duration-vs-personal-need 0.50 + efficiency 0.20 +
         // restorative (deep+REM)/asleep 0.20 + consistency 0.10. Stored under the sleep_performance
-        // key. null when no in-bed session. (Charge/Effort/Rest)
+        // key. null when there is no asleep time. (Charge/Effort/Rest)
         val rest: Double? = if (matched.isEmpty()) null else RestScorer.rest(
             asleepSeconds = tstS,
             efficiency = efficiency,
