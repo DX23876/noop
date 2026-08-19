@@ -17,6 +17,9 @@ final class ParetoTests: XCTestCase {
                      dimensions: Int = 256,
                      matryoshka: Bool = true) -> ParetoRow {
         ParetoRow(model: model,
+                  // Empty: the dominance rule under test never looks at per-query scores, and the paired
+                  // bootstrap that does has its own tests in `BootstrapTests`.
+                  perQueryNDCG: [:],
                   dimensions: dimensions,
                   matryoshka: matryoshka,
                   ndcg: ndcg,

@@ -406,6 +406,50 @@ does not by itself justify shipping a cross-encoder — the latency argument in 
 measurement shows the scan is not what loses the race, so the second model's load and forward passes would be —
 but "too little headroom" is no longer a true statement.
 
+### The reranker, measured against the grown corpus — and 16 candidates is the knee
+
+`llama-server` from the pinned `b9623` with `--reranking` on `jina-reranker-v2-base-multilingual` (Q8_0), dev
+half of `main`, paired intervals against the shipped configuration. The reranker's score replaces the cosine and
+the *same* selection policy runs on top, so the comparison isolates the relevance model rather than the policy.
+Its own trivial pair separates cleanly (+2.10 for the right passage, −3.72 for the diesel oil filter).
+
+| variant | nDCG@8 | Δ vs shipped | 95% CI | verdict | share of oracle headroom |
+|---|---|---|---|---|---|
+| RERANK@8 | 0.773 | +0.054 | [+0.031, +0.077] | **better** | 23% |
+| RERANK@16 | 0.785 | +0.066 | [+0.041, +0.094] | **better** | 28% |
+| RERANK@32 | 0.786 | +0.067 | [+0.040, +0.097] | **better** | 29% |
+| RERANK@32 +recency | 0.787 | +0.068 | [+0.040, +0.096] | **better** | 29% |
+| RERANK@8 p≥0.5 | 0.435 | −0.284 | [−0.334, −0.234] | **much worse** | — |
+| *for reference:* +IDF rescue | 0.746 | +0.027 | [+0.015, +0.040] | better | 11% |
+| *for reference:* ORACLE K=32 | 0.954 | +0.235 | [+0.201, +0.270] | ceiling | 100% |
+
+**Depth 16 is where the curve flattens.** 8 candidates already collect 80% of what 32 collect; 16 collect 98%,
+and 32 add nothing resolvable over 16 (+0.067 against +0.066, intervals almost identical). That answers the
+question the Oracle raised: a real reranker does not need a deep pool. It needs sixteen.
+
+**And it only reaches 29% of the ceiling.** The Oracle is a perfect reorderer of the same candidates and worth
++0.235; the best cross-encoder configuration here captures +0.067. So the ranking headroom is real but mostly
+*not* reachable by this relevance model — two thirds of it needs something else, most plausibly the query side
+(P8: "und am Wochenende?" embeds almost nothing) rather than a stronger reranker.
+
+**Where it earns its keep** (against the shipped configuration): `numeric` 0.797 → 0.872, `crosslingual` 0.762 →
+0.812, `near-miss` 0.763 → 0.804, `negation` 0.718 → 0.808. It does **not** help `paraphrase` (0.627 → 0.634)
+and it is roughly flat on `recency` (0.576 → 0.644, which the IDF arm reaches on its own at 0.647).
+
+**Recency adds nothing on top of it** — +0.054/+0.066/+0.068 against +0.054/+0.066/+0.067 at the three depths.
+Third independent confirmation that the recency term is not earning a place in the pipeline.
+
+**The probability gate is still wrong at 0.5**, and now quantifiably: it abstains on 100% of unanswerable
+questions, which is the goal, and falsely abstains on **42–48% of answerable ones**, which is disqualifying.
+nDCG collapses by 0.28–0.31. If a gate is used at all it belongs far lower, and `falseAbstentionRate` is the
+column that has to be read beside it.
+
+**Cost, and why it is not free.** 1 872 calls over 33 216 pairs: p50 **93 ms**, p95 **252 ms** per call on an
+M-series Mac in a release build, plus a second model resident (222 MB at Q4_K_M, 305 MB at Q8_0) and a second
+cold load. Set against the same machine's 6 ms scan at 1 000 documents, reranking is two orders of magnitude
+more expensive than the retrieval step it improves — and it lands in exactly the budget that already loses
+races. That trade is a device question, not a benchmark question.
+
 ### The model comparison, redone — and it inverts the earlier verdict
 
 All four rows: same 384-query corpus, same 0–3 judgments, **dev half only**, same `llama-embedding` from the
@@ -620,24 +664,32 @@ real document, so crowding becomes invisible and the tier cheerfully reports tha
 failure the calibration exists to prevent, a full release measurement had already been taken with it, and
 `ScaleTests` caught it on the first run.
 
-| documents | index | scan p50 | scan p95 | best hit within 8 / 32 / 128 | doc-doc cos med/p95 |
+Measured with the real Nomic vectors (a `--synthetic` run cannot answer the K question at all — see below):
+
+| documents | index | scan p50 | scan p95 | ≥1 relevant chunk within 8 / 32 / 128 | doc-doc cos med/p95 |
 |---|---|---|---|---|---|
-| 1 000 | 832 KB | 6.06 ms | 6.16 ms | 0.54 / 0.77 / 0.84 | 0.00 / 0.29 |
-| 5 000 | 3 992 KB | 30.66 ms | 31.08 ms | 0.53 / 0.65 / 0.80 | 0.00 / 0.29 |
-| 20 000 | 15 844 KB | 133.68 ms | 137.06 ms | 0.51 / 0.58 / 0.70 | 0.00 / 0.29 |
+| 1 000 | 828 KB | 6.04 ms | 6.22 ms | 0.96 / 0.99 / 1.00 | 0.55 / 0.71 |
+| 5 000 | 3 992 KB | 30.61 ms | 31.10 ms | 0.96 / 0.99 / 0.99 | 0.55 / 0.71 |
+| 20 000 | 15 844 KB | 132.64 ms | 135.27 ms | 0.95 / 0.98 / 0.99 | 0.55 / 0.71 |
 
-**What is valid here and what is not.** The scan decodes and dots every row regardless of what the vectors
-contain, so the timings are real: the cost is linear (20× rows → 22.1× scan) and 20 000 chunks cost ~134 ms per
-query on an M-series Mac in a release build. Against the app's 2.5-second race budget the scan is not the binding
-constraint even at that size — the model load and the query embedding are — which is worth knowing before
-optimising `cosine` into a dot product. An iPhone will be several times slower; the device measurement decides.
+**K=32 is amply sufficient, and P4 is closed.** At twenty thousand documents — twenty times the real index, with
+filler crowded to the corpus's own cosine spread — 98% of answerable queries still have a relevant chunk inside
+the top 32, and 95% inside the top 8. Going from 1 000 to 20 000 costs one percentage point at K=32. The
+candidate pool was never the constraint; the Oracle already said the ranking is, and this closes the other half
+of the question. (The column counts whether *at least one* relevant chunk falls inside the cut, which is not the
+ladder's R@8 — that one asks how many of a query's relevant sources reach the eight emitted lines.)
 
-The K columns are **not** valid from this run, and the last column is why it is visible. `--synthetic` vectors are
-hashed token bags whose own document-to-document cosine median is 0.00, so calibrated filler is near-orthogonal
-because the corpus is, and the tier says nothing about crowding. With real vectors that column rises well above
-zero and the K figures become meaningful. Even then they are a **floor** on real difficulty rather than an
-estimate: noise reproduces the geometry of a bigger index, never its semantics, and a real distractor is
-confusable in ways only text carries — the same supplement at another dose, the other knee.
+**Scan cost is linear and not the thing that loses the race.** 20× the rows costs 22× the time, and 20 000
+chunks scan in ~133 ms on an M-series Mac in release. Against a 2.5-second budget that is not the bottleneck,
+which reorders the P7 backlog: turning `cosine` into a dot product and reaching for vDSP is not the urgent part.
+For comparison, one reranker call over sixteen candidates costs 93 ms at p50 on the same machine — the scan of a
+twenty-thousand-document index is about the price of a single rerank.
+
+**Why the earlier `--synthetic` run had to be thrown away, and how the report says so.** It reported
+0.54 / 0.77 / 0.84 falling to 0.51 / 0.58 / 0.70, which reads as K=32 degrading badly with scale. It was
+measuring the hashed-token embedder's own incompetence: with a doc-doc cosine median of **0.00** the relevant
+chunk often was not in the top 32 even before any filler existed. The last column is what distinguishes the two
+runs — 0.00 against 0.55 — and it is printed for exactly that reason.
 
 Two build notes, both learned the hard way. Timings need `-c release`: the first debug run reported 76 ms per scan
 at 1 000 documents, which reads as a finding about the race budget and is an artefact of unoptimised Float16
