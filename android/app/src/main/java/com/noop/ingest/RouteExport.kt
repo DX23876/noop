@@ -2,6 +2,8 @@ package com.noop.ingest
 
 import java.io.ByteArrayOutputStream
 import java.time.Instant
+import kotlin.math.ceil
+import kotlin.math.floor
 import kotlin.math.roundToLong
 
 /**
@@ -169,8 +171,16 @@ object RouteExport {
 
     private fun fitTime(unix: Long): Long = (unix - FIT_EPOCH).coerceIn(0, 0xFFFFFFFFL)
 
-    private fun semicircles(deg: Double): Int =
-        (deg * SEMI_PER_DEG).roundToLong().coerceIn(Int.MIN_VALUE.toLong(), Int.MAX_VALUE.toLong()).toInt()
+    private fun semicircles(deg: Double): Int = roundNearestTiesAwayFromZero(deg * SEMI_PER_DEG)
+        .coerceIn(Int.MIN_VALUE.toLong(), Int.MAX_VALUE.toLong()).toInt()
+
+    /** Deterministic FIT coordinate rounding, matching Swift `.toNearestOrAwayFromZero`. */
+    private fun roundNearestTiesAwayFromZero(value: Double): Long {
+        require(!value.isNaN()) { "Cannot round NaN value." }
+        if (value >= Long.MAX_VALUE.toDouble()) return Long.MAX_VALUE
+        if (value <= Long.MIN_VALUE.toDouble()) return Long.MIN_VALUE
+        return if (value >= 0.0) floor(value + 0.5).toLong() else ceil(value - 0.5).toLong()
+    }
 
     /** ISO-8601 UTC to whole seconds, e.g. `2026-08-11T04:47:38Z`. */
     private fun iso(unix: Long): String = Instant.ofEpochSecond(unix).toString()

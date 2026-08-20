@@ -87,6 +87,30 @@ class RouteExportTest {
         assertEquals(RouteExport.fitCrc(bytes.copyOfRange(0, bytes.size - 2)), crc)
     }
 
+    @Test fun fitSemicircleHalfTiesRoundAwayFromZeroOnBothPlatforms() {
+        // One-point FIT layout: record data starts at byte 50, then local header (1), timestamp (4),
+        // and signed little-endian latitude (4). Exercise exact negative half-ties plus positive controls.
+        val semicirclesPerDegree = 2_147_483_648.0 / 180.0
+        val targets = listOf(-1.5, -0.5, 0.5, 1.5)
+        val expectedPositionBytes = listOf(
+            listOf(0xfe, 0xff, 0xff, 0xff), listOf(0xff, 0xff, 0xff, 0xff),
+            listOf(0x01, 0x00, 0x00, 0x00), listOf(0x02, 0x00, 0x00, 0x00),
+        )
+        val expectedCrcBytes = listOf(listOf(0xb6, 0xee), listOf(0xda, 0x25), listOf(0x1d, 0xf4), listOf(0xaa, 0xe9))
+        val outputs = targets.map { target ->
+            val bytes = RouteExport.buildFit(
+                listOf(RouteExport.Point(target / semicirclesPerDegree, 0.0)),
+                startTs, endTs, "run",
+            )
+            val raw = (bytes[55].toInt() and 0xFF) or ((bytes[56].toInt() and 0xFF) shl 8) or
+                ((bytes[57].toInt() and 0xFF) shl 16) or (bytes[58].toInt() shl 24)
+            Triple(raw, bytes.slice(55..58).map { it.toInt() and 0xFF }, bytes.takeLast(2).map { it.toInt() and 0xFF })
+        }
+        assertEquals(listOf(-2, -1, 1, 2), outputs.map { it.first })
+        assertEquals(expectedPositionBytes, outputs.map { it.second })
+        assertEquals(expectedCrcBytes, outputs.map { it.third })
+    }
+
     @Test fun singlePointAndEmptyDegradeGracefully() {
         // One point: still a valid file, one trackpoint at startTs.
         val one = RouteExport.buildFit(listOf(route.first()), startTs, endTs, "walk")
