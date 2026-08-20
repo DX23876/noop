@@ -39,6 +39,7 @@ object StepsEstimateEngine {
     /** The fitted (or manually-set) personal model. */
     data class Calibration(
         val coefficient: Double,
+        /** How many usable auto-fit days exist alongside this model (0 when none). */
         val sampleDays: Int,
         val confidence: Double,
         val manual: Boolean,
@@ -142,7 +143,7 @@ object StepsEstimateEngine {
      * are met, else [CalibrationStatus.NeedsMoreDays]. Mirror of Swift `status(...)`.
      */
     fun status(points: List<CalibrationPoint>, manualOverride: Double? = null): CalibrationStatus {
-        val usableDays = points.count { it.motion >= MIN_MOTION_FOR_FIT && it.steps > 0 }
+        val usableDays = points.count(::isUsableCalibrationPoint)
         if (manualOverride != null && manualOverride > 0) {
             return CalibrationStatus.Manual(manualOverride, usableDays)
         }
@@ -180,12 +181,12 @@ object StepsEstimateEngine {
      * null below MIN_CALIBRATION_DAYS unless a positive [manualOverride] is supplied (which always wins, conf 1).
      */
     fun calibrate(points: List<CalibrationPoint>, manualOverride: Double? = null): Calibration? {
+        val usable = points.filter(::isUsableCalibrationPoint)
         if (manualOverride != null && manualOverride > 0) {
-            return Calibration(manualOverride, points.size, 1.0, manual = true)
+            return Calibration(manualOverride, usable.size, 1.0, manual = true)
         }
         // Usable days carry (ratio, weight) where weight = motion volume: a busier day votes harder.
-        val weighted = points
-            .filter { it.motion >= MIN_MOTION_FOR_FIT && it.steps > 0 }
+        val weighted = usable
             .map { Pair(it.steps / it.motion, it.motion) }
         if (weighted.size < MIN_CALIBRATION_DAYS) return null
         val ratios = weighted.map { it.first }
@@ -211,6 +212,9 @@ object StepsEstimateEngine {
         if (motion < MIN_MOTION_FOR_FIT || calibration.coefficient <= 0) return null
         return Math.round(motion * calibration.coefficient).toInt().coerceIn(0, MAX_DAILY_STEPS)
     }
+
+    internal fun isUsableCalibrationPoint(point: CalibrationPoint): Boolean =
+        point.motion >= MIN_MOTION_FOR_FIT && point.steps > 0
 
     internal fun median(xs: List<Double>): Double {
         if (xs.isEmpty()) return 0.0

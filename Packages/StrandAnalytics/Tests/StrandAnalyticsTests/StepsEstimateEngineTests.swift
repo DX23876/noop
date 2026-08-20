@@ -92,6 +92,22 @@ final class StepsEstimateEngineTests: XCTestCase {
         XCTAssertEqual(cal!.confidence, 1.0)
     }
 
+    func testManualOverrideCountsOnlyUsableCalibrationDays() {
+        let points = [
+            StepsEstimateEngine.CalibrationPoint(motion: 0.5, steps: 500),
+            StepsEstimateEngine.CalibrationPoint(motion: 10, steps: 0),
+            StepsEstimateEngine.CalibrationPoint(motion: 10, steps: 1_000),
+        ]
+
+        let cal = StepsEstimateEngine.calibrate(points, manualOverride: 9.5)
+        XCTAssertEqual(cal?.coefficient, 9.5)
+        XCTAssertEqual(cal?.sampleDays, 1)
+        XCTAssertEqual(cal?.confidence, 1.0)
+        XCTAssertEqual(cal?.manual, true)
+        XCTAssertEqual(StepsEstimateEngine.status(points, manualOverride: 9.5),
+                       .manual(coefficient: 9.5, sampleDays: 1))
+    }
+
     func testTightFitMoreConfidentThanScattered() {
         let tight = (0..<14).map { _ in StepsEstimateEngine.CalibrationPoint(motion: 10, steps: 1000) }
         let scattered = (0..<14).map { i in

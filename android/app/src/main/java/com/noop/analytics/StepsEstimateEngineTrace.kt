@@ -42,9 +42,7 @@ object StepsEstimateEngineTrace {
         val lines = ArrayList<String>()
 
         // Per-usable-day points: the SAME filter the fit applies, so the trace shows exactly the days that voted.
-        val usable = points.filter {
-            it.motion >= StepsEstimateEngine.MIN_MOTION_FOR_FIT && it.steps > 0
-        }
+        val usable = points.filter(StepsEstimateEngine::isUsableCalibrationPoint)
         for (p in usable) {
             val ratio = if (p.motion > 0) p.steps / p.motion else 0.0
             lines.add(
@@ -56,10 +54,11 @@ object StepsEstimateEngineTrace {
         // The calibration outcome, read from calibrate(...) verbatim so it matches the stored coefficient.
         val cal = StepsEstimateEngine.calibrate(points, manualOverride)
         if (cal != null && (usable.size >= StepsEstimateEngine.MIN_CALIBRATION_DAYS || cal.manual)) {
+            val source = if (cal.manual) "user-set k" else "k = motion-weighted median of steps/motion"
             lines.add(
                 "stepsCal fit k=${r2(cal.coefficient)} sampleDays=${cal.sampleDays} " +
                     "confidence=${r2(cal.confidence)} manual=${cal.manual} " +
-                    "(k = motion-weighted median of steps/motion)",
+                    "($source)",
             )
         } else {
             // Withheld: name the status the tile shows, via status(...) verbatim (SAME usable-day filter).

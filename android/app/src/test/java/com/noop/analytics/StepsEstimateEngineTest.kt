@@ -75,6 +75,24 @@ class StepsEstimateEngineTest {
         assertEquals(1.0, cal.confidence, 1e-9)
     }
 
+    @Test fun manualOverrideCountsOnlyUsableCalibrationDays() {
+        val points = listOf(
+            p(0.5, 500.0),
+            p(10.0, 0.0),
+            p(10.0, 1_000.0),
+        )
+
+        val cal = StepsEstimateEngine.calibrate(points, manualOverride = 9.5)
+        assertEquals(9.5, cal!!.coefficient, 1e-9)
+        assertEquals(1, cal.sampleDays)
+        assertEquals(1.0, cal.confidence, 1e-9)
+        assertTrue(cal.manual)
+        assertEquals(
+            StepsEstimateEngine.CalibrationStatus.Manual(coefficient = 9.5, sampleDays = 1),
+            StepsEstimateEngine.status(points, manualOverride = 9.5),
+        )
+    }
+
     @Test fun tightFitMoreConfidentThanScattered() {
         val tight = (0 until 14).map { p(10.0, 1000.0) }
         val scattered = (0 until 14).map { i -> p(10.0, (500 + (i % 2) * 1500).toDouble()) }

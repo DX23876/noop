@@ -41,7 +41,7 @@ extension StepsEstimateEngine {
 
         // Per-usable-day points: the SAME filter the fit applies (motion >= minMotionForFit && steps > 0),
         // so the trace shows exactly the days that voted. Phone reference count is the calibration anchor.
-        let usable = points.filter { $0.motion >= minMotionForFit && $0.steps > 0 }
+        let usable = points.filter(isUsableCalibrationPoint)
         for p in usable {
             let ratio = p.motion > 0 ? p.steps / p.motion : 0
             lines.append("stepsCal point motion=\(r2(p.motion)) phoneRef=\(Int(p.steps)) "
@@ -50,9 +50,10 @@ extension StepsEstimateEngine {
 
         // The calibration outcome, read from calibrate(...) verbatim so it matches the stored coefficient.
         if let cal = calibrate(points, manualOverride: manualOverride), usable.count >= minCalibrationDays || cal.manual {
+            let source = cal.manual ? "user-set k" : "k = motion-weighted median of steps/motion"
             lines.append("stepsCal fit k=\(r2(cal.coefficient)) sampleDays=\(cal.sampleDays) "
                 + "confidence=\(r2(cal.confidence)) manual=\(cal.manual) "
-                + "(k = motion-weighted median of steps/motion)")
+                + "(\(source))")
         } else {
             // Withheld: name the status the tile shows (the "need N more days" reason), via status(...)
             // verbatim so the trace explains the blank tile with the SAME usable-day filter.

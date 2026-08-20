@@ -164,6 +164,25 @@ final class StepsEstimateEngineTraceTests: XCTestCase {
         XCTAssertNotNil(fitLine)
         XCTAssertTrue(fitLine!.contains("manual=true"))
         XCTAssertTrue(fitLine!.contains("k=9.5"))
+        XCTAssertTrue(fitLine!.contains("sampleDays=1"))
+        XCTAssertTrue(fitLine!.contains("(user-set k)"))
+        XCTAssertFalse(fitLine!.contains("motion-weighted median"))
+    }
+
+    func testManualOverrideTraceUsesTheSingleUsablePointAndUserSetSource() {
+        let points = [
+            StepsEstimateEngine.CalibrationPoint(motion: 0.5, steps: 500),
+            StepsEstimateEngine.CalibrationPoint(motion: 10, steps: 0),
+            StepsEstimateEngine.CalibrationPoint(motion: 10, steps: 1_000),
+        ]
+
+        XCTAssertEqual(
+            StepsEstimateEngine.calibrationTrace(points: points, manualOverride: 9.5),
+            [
+                "stepsCal point motion=10.0 phoneRef=1000 ratio=100.0 (steps/motion votes weighted by motion)",
+                "stepsCal fit k=9.5 sampleDays=1 confidence=1.0 manual=true (user-set k)",
+            ]
+        )
     }
 
     // MARK: - Readout parsers

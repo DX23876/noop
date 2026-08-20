@@ -165,6 +165,25 @@ class StepsEstimateEngineTraceTest {
         val fit = lines.first { it.startsWith("stepsCal fit ") }
         assertTrue(fit.contains("manual=true"))
         assertTrue(fit.contains("k=9.5"))
+        assertTrue(fit.contains("sampleDays=1"))
+        assertTrue(fit.contains("(user-set k)"))
+        assertFalse(fit.contains("motion-weighted median"))
+    }
+
+    @Test fun manualOverrideTraceUsesTheSingleUsablePointAndUserSetSource() {
+        val points = listOf(
+            StepsEstimateEngine.CalibrationPoint(0.5, 500.0),
+            StepsEstimateEngine.CalibrationPoint(10.0, 0.0),
+            StepsEstimateEngine.CalibrationPoint(10.0, 1_000.0),
+        )
+
+        assertEquals(
+            listOf(
+                "stepsCal point motion=10.0 phoneRef=1000 ratio=100.0 (steps/motion votes weighted by motion)",
+                "stepsCal fit k=9.5 sampleDays=1 confidence=1.0 manual=true (user-set k)",
+            ),
+            StepsEstimateEngineTrace.calibrationTrace(points, manualOverride = 9.5),
+        )
     }
 
     // MARK: readout parsers
