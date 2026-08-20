@@ -554,6 +554,74 @@ like its sibling banked streams (`.hrv`/`.temp`/`.spo2`/`.sleepPhase`) — the f
     one bonded to each client. Until one of these happens the transform stays UNKNOWN and is documented,
     not guessed.
 
+#### 6.5.0.1 The corpus above was itself collision-lossy — re-measured on clean post-#1070 data (2026-08-19)
+
+- **The ~51 %/no-reconciliation numbers above were measured on data where the #1070 primary-key
+  collision (§ this file's issue tracker; `spo2Sample` keyed `(deviceId, ts)` with all 13 samples of a
+  record written at one `ts`) was still dropping 12 of every 13 samples, and the survivor was always the
+  record's FIRST value — a non-random selection, not a random subsample.** That is a real confound on top
+  of the reduced sample count, not just noise.
+- Re-measured on one wearer's own staging capture (`oura-2H3B2405003655`) across three nights that post-date
+  the #1070 fix and hit 95–97 % of theoretical 1 Hz coverage (2026-08-04/05/06, n=93,700 samples, ~1
+  sample/second all night): **mean 98.36 (not 99.98), median 98.0 (not 101), max 106 (not 107), 20.4 %
+  over 100 (not ~51 %)**. Already visibly closer to the Cloud reference (mean 97.59, median 97.68) before
+  any correction.
+- **Re-running the offset fit on this clean data narrows the mean/median disagreement by >4×.** The offset
+  that centers the mean to Cloud truth is −0.77; the offset that centers the median is −0.32 — a **0.45 pt
+  gap**, vs. the original corpus's ~2 pt gap ("−2 matches the mean but not the median; −4 the median but
+  not the mean"). **Offset −0.32 + clamp[85,100] reproduces the Cloud reference almost exactly: mean 97.64
+  (target 97.59), median 97.68 (exact).** This does not hold up the original "no offset+clamp pair
+  reconciles it" framing — that conclusion was drawn from the collision-lossy corpus.
+- **Independent same-wearer cross-check:** the wearer's own WHOOP strap reports a 96 % 30-day SpO2 score
+  (roughly contemporaneous, unlike the Cloud reference's non-overlapping history). Oura raw on the same 3
+  nights: 98.4 %. A **ceiling-only clamp** (`min(x,100)`, no offset) brings it to 97.9 % — still 1.9 pts
+  above WHOOP, because a ceiling only touches the ~20 % of samples that were already over 100 and leaves
+  the rest of the distribution untouched. Consistent with the offset-based fits above needing more than a
+  ceiling; not proof, since WHOOP's own SpO2 is a different sensor/algorithm, not ground truth.
+- **⚠️ Unrelated contamination found in the same table, outside these 3 nights:** ~10 % of this device's
+  all-time `spo2Sample` rows are not plausible percentages — negative down to −1016, positive up to
+  **+11,709,098**, which is exactly the magnitude range this section already names for the `0x77` DC/
+  perfusion channel that the `unit == "raw"` guard (`OuraStreamMapping.swift`) is supposed to exclude.
+  None of it falls inside the three clean nights above (verified: min 84, max 106, zero negative in that
+  window). Not yet root-caused — check whether the affected rows predate the guard, or whether there is a
+  live regression, before treating it as fixed.
+- **This still does not clear the bar to ship a correction.** n = 3 nights from one wearer, the fit is to
+  an *aggregate* nightly-average reference (not paired same-night truth — the one-client-at-a-time bonding
+  limit above still applies), and the known 7.6–52 % night-to-night swing in overshoot rate means a
+  3-night offset may not generalize. **Next step in progress:** pulling the same wearer's WHOOP *per-night*
+  SpO2 for these exact 3 dates (08-04/05/06) — the first comparator close enough in both subject and time
+  to actually attempt decomposing offset from clamp, rather than fitting to an aggregate.
+
+#### 6.5.0.2 First same-night paired comparison (2026-08-19, same wearer's WHOOP export)
+
+- The wearer's WHOOP export (`physiological_cycles.csv`, `Niveau d'oxygène %`) has cycle-start
+  timestamps within ~2 minutes of the three Oura sleep sessions above — the first same-person,
+  same-night SpO2 comparator this project has had (the Cloud reference above has zero overlapping days
+  with any NOOP capture; this one is the same three nights exactly).
+
+  | night | Oura raw mean | Oura ceiling@100 | **WHOOP (truth)** | raw Δ | ceiling Δ |
+  |---|---|---|---|---|---|
+  | 08-04 | 99.12 | 98.18 | **97.14** | +1.98 | +1.04 |
+  | 08-05 | 98.12 | 97.90 | **97.45** | +0.67 | +0.45 |
+  | 08-06 | 97.92 | 97.63 | **96.88** | +1.04 | +0.75 |
+  | MAE | | | | **1.23** | **0.75** |
+
+  (WHOOP's 30-day rolling score reads 96 % — lower than any of these three nights individually; the
+  30-day figure is not a valid stand-in for a same-night comparison, it pulls in other nights.)
+
+- **The offset −0.32 + clamp[85,100] fit above (§6.5.0.1, derived from the unrelated 922-night Cloud
+  aggregate) scores MAE 0.49 against this real paired WHOOP data — matching a same-night best-fit offset
+  (−1.23, fit directly to these 3 WHOOP nights, MAE 0.50).** Two corrections derived from completely
+  non-overlapping references converge on the same accuracy — evidence the §6.5.0.1 fit is in the right
+  neighborhood, not a coincidence of fitting to the wrong reference.
+- **Still not a clean single-number fit.** Even the same-night best-fit offset (exact on the 3-night
+  average, by construction) leaves per-night residuals of −0.6 to +0.75 pts — more than half the size of
+  the correction itself. Consistent with the documented 7.6–52 % overshoot swing: a flat additive offset
+  has a real accuracy floor here, it does not eliminate the error.
+- **n = 3 nights is still the binding limit.** This is the first real paired decomposition NOOP has had
+  for this signal, not a validated calibration. More nights (ideally spanning the known overshoot swing)
+  are needed before any offset is defensible enough to write to `spo2Pct`.
+
 ### 6.5.1 SpO2 ratio-of-ratios - `0x8b` `spo2_r_pi_event` — **NOT OBSERVED in NOOP captures**
 - Carries the raw **ratio-of-ratios `r`** plus a **perfusion index `pi`** (quality parameter). This is the
   input the official app converts to a percentage, NOT a percentage itself. [open_oura-spo2]
