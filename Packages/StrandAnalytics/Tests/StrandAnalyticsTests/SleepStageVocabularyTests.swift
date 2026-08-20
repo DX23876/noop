@@ -29,6 +29,8 @@ final class SleepStageVocabularyTests: XCTestCase {
         XCTAssertTrue(SleepStageVocabulary.isWake("Awake"))
         XCTAssertTrue(SleepStageVocabulary.isWake("  WAKE "))
         XCTAssertTrue(SleepStageVocabulary.isWake("\tAwAkE"))
+        XCTAssertTrue(SleepStageVocabulary.isWake("\nwake\n"))
+        XCTAssertTrue(SleepStageVocabulary.isWake("\rawake\r"))
     }
 
     /// An absent or unknown stage is NOT wake, which preserves the existing behaviour of the callers

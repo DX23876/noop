@@ -61,6 +61,31 @@ final class RouteExporterTests: XCTestCase {
         XCTAssertEqual(RouteExporter.fitCrc(Array(bytes[0..<(bytes.count - 2)])), crc)
     }
 
+    func testFitSemicircleHalfTiesRoundAwayFromZeroOnBothPlatforms() {
+        // One-point FIT layout: record data starts at byte 50, then local header (1), timestamp (4),
+        // and signed little-endian latitude (4). Exercise exact negative half-ties plus positive controls.
+        let semicirclesPerDegree = 2_147_483_648.0 / 180.0
+        let targets = [-1.5, -0.5, 0.5, 1.5]
+        let expected: [Int32] = [-2, -1, 1, 2]
+        let expectedPositionBytes: [[UInt8]] = [
+            [0xfe, 0xff, 0xff, 0xff], [0xff, 0xff, 0xff, 0xff],
+            [0x01, 0x00, 0x00, 0x00], [0x02, 0x00, 0x00, 0x00],
+        ]
+        let expectedCrcBytes: [[UInt8]] = [[0xb6, 0xee], [0xda, 0x25], [0x1d, 0xf4], [0xaa, 0xe9]]
+        let outputs = targets.map { target -> (Int32, [UInt8], [UInt8]) in
+            let point = RoutePoint(lat: target / semicirclesPerDegree, lon: 0)
+            let bytes = [UInt8](RouteExporter.buildFit(
+                route: [point], startTs: startTs, endTs: endTs, sport: "run"
+            ))
+            let raw = UInt32(bytes[55]) | (UInt32(bytes[56]) << 8)
+                | (UInt32(bytes[57]) << 16) | (UInt32(bytes[58]) << 24)
+            return (Int32(bitPattern: raw), Array(bytes[55...58]), Array(bytes.suffix(2)))
+        }
+        XCTAssertEqual(outputs.map(\.0), expected)
+        XCTAssertEqual(outputs.map(\.1), expectedPositionBytes)
+        XCTAssertEqual(outputs.map(\.2), expectedCrcBytes)
+    }
+
     func testFitWithoutHrDoesNotFabricateHr() {
         // Regression: the FIT "no HR" case must decode to nil HR. validHr accepts 1...300, so a 0xFF
         // sentinel would be misread as a real HR of 255 — the fields must be OMITTED, not sentinelled.

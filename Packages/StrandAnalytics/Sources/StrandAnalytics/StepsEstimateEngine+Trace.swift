@@ -41,7 +41,7 @@ extension StepsEstimateEngine {
 
         // Per-usable-day points: the SAME filter the fit applies (motion >= minMotionForFit && steps > 0),
         // so the trace shows exactly the days that voted. Phone reference count is the calibration anchor.
-        let usable = points.filter { $0.motion >= minMotionForFit && $0.steps > 0 }
+        let usable = points.filter(isUsableCalibrationPoint)
         for p in usable {
             let ratio = p.motion > 0 ? p.steps / p.motion : 0
             lines.append("stepsCal point motion=\(r2(p.motion)) phoneRef=\(Int(p.steps)) "
@@ -50,9 +50,10 @@ extension StepsEstimateEngine {
 
         // The calibration outcome, read from calibrate(...) verbatim so it matches the stored coefficient.
         if let cal = calibrate(points, manualOverride: manualOverride), usable.count >= minCalibrationDays || cal.manual {
+            let source = cal.manual ? "user-set k" : "k = motion-weighted median of steps/motion"
             lines.append("stepsCal fit k=\(r2(cal.coefficient)) sampleDays=\(cal.sampleDays) "
                 + "confidence=\(r2(cal.confidence)) manual=\(cal.manual) "
-                + "(k = motion-weighted median of steps/motion)")
+                + "(\(source))")
         } else {
             // Withheld: name the status the tile shows (the "need N more days" reason), via status(...)
             // verbatim so the trace explains the blank tile with the SAME usable-day filter.
@@ -95,15 +96,22 @@ extension StepsEstimateEngine {
             .sorted { $0.ts < $1.ts }
 
         var lines: [String] = []
-        // #810: a WHOOP 4.0 sends NO raw step counter over BLE at all, so `sorted` is empty for it; its
+        // #810: a WHOOP 4.0 sends NO raw step counter over BLE at all, so `daySteps` is empty for it; its
         // steps are MOTION-ESTIMATED (the calibrationTrace path), not counted. Emitting the bare
         // "counterSamples=0 (need >=2 for a delta)" line made a 4.0 export read as BROKEN. When there is
         // no counter sample at all, say so honestly so the trace reflects the model, not a fault. (A 5/MG
         // with a single counter sample still falls through to the "need >=2" line: it HAS a counter, just
         // one read this window.) The Kotlin twin emits the same branch first; keep them byte-identical.
-        if sorted.isEmpty {
+        if daySteps.isEmpty {
             lines.append("stepsRaw day=\(dayKey) counterSamples=0 noRawCounter "
                 + "(no step counter on this device; steps are motion-estimated, e.g. WHOOP 4.0)")
+            return lines
+        }
+        // A non-empty input proves a counter exists. If its rows all fall outside the requested local day,
+        // report only that window mismatch; never infer device capability or motion-estimation semantics.
+        if sorted.isEmpty {
+            lines.append("stepsRaw day=\(dayKey) counterSamples=0 inputSamples=\(daySteps.count) noRowsForDay "
+                + "(no counter rows matched the requested local day)")
             return lines
         }
         guard sorted.count >= 2 else {

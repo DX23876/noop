@@ -13,6 +13,99 @@ final class ChargeDriversTests: XCTestCase {
                       nightsSinceUpdate: 0, status: nValid >= 14 ? .trusted : .provisional)
     }
 
+    // MARK: - Integer marginal rounding parity (#51)
+
+    func testDriverPointRoundingUsesNearestWithHalfTiesAwayFromZero() {
+        func hrvMarginal(hrv: Double, rhr: Double, hrvBaseline: BaselineState,
+                         rhrBaseline: BaselineState? = nil) -> (raw: Double, points: Int) {
+            let full = RecoveryScorer.recovery(
+                hrv: hrv, rhr: rhr, resp: nil,
+                hrvBaseline: hrvBaseline, rhrBaseline: rhrBaseline,
+                respBaseline: nil, sleepPerf: nil)!
+            let neutral = RecoveryScorer.recovery(
+                hrv: hrvBaseline.baseline, rhr: rhr, resp: nil,
+                hrvBaseline: hrvBaseline, rhrBaseline: rhrBaseline,
+                respBaseline: nil, sleepPerf: nil)!
+            let row = RecoveryScorer.chargeDrivers(
+                hrv: hrv, rhr: rhr, resp: nil,
+                hrvBaseline: hrvBaseline, rhrBaseline: rhrBaseline,
+                respBaseline: nil, sleepPerf: nil)
+                .first { $0.label == "Heart rate variability" }!
+            return (full - neutral, row.deltaPoints)
+        }
+
+        let negativeBaseline = BaselineState(
+            baseline: 30.0, spread: 0.55, nValid: 14,
+            nightsSinceUpdate: 0, status: .trusted)
+        let negativeBelowTie = hrvMarginal(
+            hrv: 29.991177275907276, rhr: 60.0, hrvBaseline: negativeBaseline)
+        let negativeTie = hrvMarginal(
+            hrv: 29.99117725828923, rhr: 60.0, hrvBaseline: negativeBaseline)
+        let negativeBeyondTie = hrvMarginal(
+            hrv: 29.991177240671185, rhr: 60.0, hrvBaseline: negativeBaseline)
+        XCTAssertGreaterThan(negativeBelowTie.raw, -0.5)
+        XCTAssertEqual(negativeBelowTie.points, 0)
+        XCTAssertEqual(negativeTie.raw, -0.5)
+        XCTAssertEqual(negativeTie.points, -1)
+        XCTAssertLessThan(negativeBeyondTie.raw, -0.5)
+        XCTAssertEqual(negativeBeyondTie.points, -1)
+
+        let positiveHRVBaseline = BaselineState(
+            baseline: 30.0, spread: 0.55, nValid: 14,
+            nightsSinceUpdate: 0, status: .trusted)
+        let positiveRHRBaseline = BaselineState(
+            baseline: 60.0, spread: 0.1, nValid: 14,
+            nightsSinceUpdate: 0, status: .trusted)
+        let positiveBelowTie = hrvMarginal(
+            hrv: 33.09890762408082, rhr: 58.541,
+            hrvBaseline: positiveHRVBaseline, rhrBaseline: positiveRHRBaseline)
+        let positiveTie = hrvMarginal(
+            hrv: 33.099135135290354, rhr: 58.541,
+            hrvBaseline: positiveHRVBaseline, rhrBaseline: positiveRHRBaseline)
+        let positiveBeyondTie = hrvMarginal(
+            hrv: 33.09936273466694, rhr: 58.541,
+            hrvBaseline: positiveHRVBaseline, rhrBaseline: positiveRHRBaseline)
+        XCTAssertLessThan(positiveBelowTie.raw, 0.5)
+        XCTAssertEqual(positiveBelowTie.points, 0)
+        XCTAssertEqual(positiveTie.raw, 0.5)
+        XCTAssertEqual(positiveTie.points, 1)
+        XCTAssertGreaterThan(positiveBeyondTie.raw, 0.5)
+        XCTAssertEqual(positiveBeyondTie.points, 1)
+    }
+
+    func testIssue51NegativeHalfTieUsesDefaultArg8WithoutChangingScoreOrDriverFields() {
+        let hrvBaseline = BaselineState(
+            baseline: 30.0, spread: 0.55, nValid: 14,
+            nightsSinceUpdate: 0, status: .trusted)
+        let scoreBefore = RecoveryScorer.recovery(
+            hrv: 29.99117725828923, rhr: 60.0, resp: nil,
+            hrvBaseline: hrvBaseline, rhrBaseline: nil,
+            respBaseline: nil, sleepPerf: nil)
+        let neutralScore = RecoveryScorer.recovery(
+            hrv: hrvBaseline.baseline, rhr: 60.0, resp: nil,
+            hrvBaseline: hrvBaseline, rhrBaseline: nil,
+            respBaseline: nil, sleepPerf: nil)
+
+        // Intentionally omit arg 8 (skinTempDev) to exercise the real default path from #51.
+        let drivers = RecoveryScorer.chargeDrivers(
+            hrv: 29.99117725828923, rhr: 60.0, resp: nil,
+            hrvBaseline: hrvBaseline, rhrBaseline: nil,
+            respBaseline: nil, sleepPerf: nil)
+        let scoreAfter = RecoveryScorer.recovery(
+            hrv: 29.99117725828923, rhr: 60.0, resp: nil,
+            hrvBaseline: hrvBaseline, rhrBaseline: nil,
+            respBaseline: nil, sleepPerf: nil)
+
+        XCTAssertEqual(scoreBefore! - neutralScore!, -0.5)
+        XCTAssertEqual(scoreAfter, scoreBefore)
+        XCTAssertEqual(drivers, [ChargeDriver(
+            label: "Heart rate variability",
+            deltaPoints: -1,
+            valueText: "30 ms",
+            baselineText: "30 ms baseline",
+            verdict: "below baseline, limiting recovery")])
+    }
+
     // MARK: - Presence / omission
 
     func testColdStartHRVBaselineYieldsNoDrivers() {
@@ -140,6 +233,36 @@ final class ChargeDriversTests: XCTestCase {
         // Sleep quality has no learned baseline -> empty baselineText (UI omits the line).
         let sleep = drivers.first { $0.label == "Sleep quality" }!
         XCTAssertEqual(sleep.baselineText, "")
+    }
+
+    func testSkinTempAndRespirationFormattingUseSharedPOSIXContract() {
+        let expectedSkinText: [(Double, String)] = [
+            (-0.35, "-0.4 C vs baseline"),
+            (0.35, "+0.4 C vs baseline"),
+            (-0.34, "-0.3 C vs baseline"),
+            (0.34, "+0.3 C vs baseline"),
+            (-0.36, "-0.4 C vs baseline"),
+            (0.36, "+0.4 C vs baseline"),
+            (-0.0, "-0.0 C vs baseline"),
+            (0.0, "+0.0 C vs baseline"),
+        ]
+
+        for (deviation, expected) in expectedSkinText {
+            let drivers = RecoveryScorer.chargeDrivers(
+                hrv: 46, rhr: 58, resp: 14,
+                hrvBaseline: baseline(mean: 51, sigma: 6.265),
+                rhrBaseline: baseline(mean: 58, sigma: 5.012, nValid: 12),
+                respBaseline: baseline(mean: 15, sigma: 1.8795, nValid: 12),
+                sleepPerf: 0.9, skinTempDev: deviation)
+            let skin = try! XCTUnwrap(drivers.first { $0.label == "Skin temperature" })
+            XCTAssertEqual(skin.valueText, expected)
+            XCTAssertEqual(skin.baselineText, "")
+            XCTAssertLessThanOrEqual(skin.deltaPoints, 0)
+
+            let respiration = try! XCTUnwrap(drivers.first { $0.label == "Respiratory rate" })
+            XCTAssertEqual(respiration.valueText, "14.0 br/min")
+            XCTAssertEqual(respiration.baselineText, "15.0 br/min baseline")
+        }
     }
 
     func testNoEmDashesInOutput() {

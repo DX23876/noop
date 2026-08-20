@@ -51,7 +51,7 @@ public enum StepsEstimateEngine {
     public struct Calibration: Equatable {
         /// Steps per unit of motion.
         public let coefficient: Double
-        /// How many days fed the auto-fit (0 when purely manual).
+        /// How many usable auto-fit days exist alongside this model (0 when none).
         public let sampleDays: Int
         /// 0–1: how much to trust the estimate, from sample size and fit spread. 1.0 for a user-set manual `k`.
         public let confidence: Double
@@ -116,6 +116,13 @@ public enum StepsEstimateEngine {
             case let .calibrated(_, sampleDays, _):
                 return "Estimated from \(sampleDays) day\(sampleDays == 1 ? "" : "s") your phone also counted"
             case let .needsMoreDays(have, need):
+                // #589 follow-up: `have == 0` means NO day yet had BOTH strap motion and a phone-counted step
+                // total. A WHOOP 4.0 always streams motion, so on a 4.0 this is really "no phone step source
+                // connected" — the "Need N more days" countdown would never advance (no day will ever gain a
+                // phone step count). Say what actually unblocks it instead of a frozen counter.
+                if have == 0 {
+                    return "Connect your phone's step count to estimate steps"
+                }
                 let more = Swift.max(0, need - have)
                 return "Need \(more) more day\(more == 1 ? "" : "s") where your phone also counted steps"
             }
@@ -170,7 +177,7 @@ public enum StepsEstimateEngine {
     /// days (same filter the fit uses) and report `.calibrated` once `minCalibrationDays` are met, else
     /// `.needsMoreDays`. Mirror of the Kotlin `status(...)`.
     public static func status(_ points: [CalibrationPoint], manualOverride: Double? = nil) -> CalibrationStatus {
-        let usableDays = points.filter { $0.motion >= minMotionForFit && $0.steps > 0 }.count
+        let usableDays = points.filter(isUsableCalibrationPoint).count
         if let k = manualOverride, k > 0 {
             return .manual(coefficient: k, sampleDays: usableDays)
         }
@@ -207,12 +214,12 @@ public enum StepsEstimateEngine {
     /// volume. Returns nil when there aren't enough usable days AND no manual override is supplied. A non-nil
     /// `manualOverride` always wins (confidence 1.0) — for users with no phone step data.
     public static func calibrate(_ points: [CalibrationPoint], manualOverride: Double? = nil) -> Calibration? {
+        let usable = points.filter(isUsableCalibrationPoint)
         if let k = manualOverride, k > 0 {
-            return Calibration(coefficient: k, sampleDays: points.count, confidence: 1.0, manual: true)
+            return Calibration(coefficient: k, sampleDays: usable.count, confidence: 1.0, manual: true)
         }
         // Usable days carry (ratio, weight) where weight = motion volume: a busier day votes harder.
-        let weighted = points
-            .filter { $0.motion >= minMotionForFit && $0.steps > 0 }
+        let weighted = usable
             .map { (ratio: $0.steps / $0.motion, weight: $0.motion) }
         guard weighted.count >= minCalibrationDays else { return nil }
         let ratios = weighted.map { $0.ratio }
@@ -241,6 +248,10 @@ public enum StepsEstimateEngine {
     }
 
     // MARK: - Helpers
+
+    static func isUsableCalibrationPoint(_ point: CalibrationPoint) -> Bool {
+        point.motion >= minMotionForFit && point.steps > 0
+    }
 
     static func median(_ xs: [Double]) -> Double {
         guard !xs.isEmpty else { return 0 }

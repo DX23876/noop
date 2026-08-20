@@ -100,6 +100,39 @@ final class LabMarkerCsvImportTests: XCTestCase {
         XCTAssertEqual(result.customMarkerKeys, ["custom_magnesium"])
     }
 
+    func testCustomMarkerKeyCanonicalizesNFCAndNFDBeforeSlugging() {
+        // Compare UTF-8 bytes: Swift String equality deliberately treats canonically equivalent
+        // spellings as equal and would mask a decomposed persisted identifier.
+        let expected: [UInt8] = [
+            0x63, 0x75, 0x73, 0x74, 0x6f, 0x6d, 0x5f, 0x63, 0x61, 0x66,
+            0xc3, 0xa9, 0x5f, 0x6d, 0x61, 0x72, 0x6b, 0x65, 0x72,
+        ]
+        XCTAssertEqual(Array(LabMarkerCsvImport.customKey("Caf\u{e9} Marker").utf8), expected)
+        XCTAssertEqual(Array(LabMarkerCsvImport.customKey("Cafe\u{301} Marker").utf8), expected)
+        XCTAssertEqual(LabMarkerCsvImport.customKey("Apo B"), "custom_apo_b")
+    }
+
+    func testCanonicalEquivalentCustomMarkerRowsShareKeyAndLastRowWins() {
+        let csv = """
+        date,marker,value,unit
+        2026-05-01,Caf\u{e9} Marker,1,mg/L
+        2026-05-01,Cafe\u{301} Marker,2,mg/L
+        """
+        let expected: [UInt8] = [
+            0x63, 0x75, 0x73, 0x74, 0x6f, 0x6d, 0x5f, 0x63, 0x61, 0x66,
+            0xc3, 0xa9, 0x5f, 0x6d, 0x61, 0x72, 0x6b, 0x65, 0x72,
+        ]
+        let result = LabMarkerCsvImport.parse(text: csv)
+
+        XCTAssertEqual(result.importedReadings, 1)
+        XCTAssertEqual(result.distinctMarkers, 1)
+        XCTAssertEqual(result.rows.count, 1)
+        XCTAssertEqual(result.rows[0].value, 2)
+        XCTAssertEqual(Array(result.rows[0].markerKey.utf8), expected)
+        XCTAssertEqual(result.customMarkerKeys.count, 1)
+        XCTAssertEqual(Array(result.customMarkerKeys[0].utf8), expected)
+    }
+
     // MARK: - Blood pressure pairs (diastolic must never be dropped)
 
     func testCombinedBloodPressureSplitsIntoPair() {

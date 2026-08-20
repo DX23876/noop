@@ -529,21 +529,80 @@ public enum OuraDecoders {
         return out.isEmpty ? nil : out
     }
 
+    // MARK: - Sleep period info (0x6A; s6.12) - Tier B, third-party field names
+
+    /// Decode the 0x6A sleep_period_info: a fixed 10-byte body carrying the ring's OWN per-window sleep
+    /// summary — an average heart rate and a CANDIDATE breath rate. Field names and multipliers are a
+    /// clean-room fact citation of [open_ring]'s `decode_sleep_period_info_2`
+    /// (`parse_api_sleep_period_info`, multipliers from its `.rodata` block); no code is copied. See
+    /// `OuraSleepPeriodInfo` for what our own captures do and do not establish, and OURA_PROTOCOL.md
+    /// s6.12.
+    ///   byte0 = average_hr, u8 × 0.5      (so wire 130 = 65 bpm — NOT a bare bpm byte)
+    ///   byte1 = hr_trend,   s8 × 0.0625   (the only SIGNED field in the body)
+    ///   byte2 = mzci,       u8 × 0.0625
+    ///   byte3 = dzci,       u8 × 0.0625
+    ///   byte4 = breath,     u8 / 8.0      (breaths per minute — the reason this tag matters)
+    ///   byte5 = breath_v,   u8 / 8.0
+    ///   byte6 = motion_count, u8          (source DECLARES < 121)
+    ///   byte7 = sleep_state,  u8          (source DECLARES ∈ {0,1,2})
+    ///   byte8-9 = cv, u16 LE / 65536      (so [0,1))
+    ///
+    /// Returns nil on a short body OR when either declared invariant is violated. Rejecting on the
+    /// invariants is deliberate and is what makes this decode falsifiable rather than credulous: the
+    /// source's own parser throws there, so a body that breaks them is not this layout, and the honest
+    /// answer is "not decoded" rather than a number built from bytes that mean something else. It costs
+    /// nothing on real data — all 3 493 records across four consecutive Gen 3 overnights pass both.
+    public static func decodeSleepPeriodInfo(_ rec: OuraRecord) -> OuraSleepPeriodInfo? {
+        let b = rec.payload
+        guard b.count >= 10 else { return nil }
+        let motionCount = Int(b[6])
+        let sleepState = Int(b[7])
+        guard motionCount < 121, sleepState <= 2 else { return nil }   // the source's own invariants
+        return OuraSleepPeriodInfo(
+            ringTimestamp: rec.ringTimestamp,
+            averageHrBpm: Double(b[0]) * 0.5,
+            hrTrend: Double(Int8(bitPattern: b[1])) * 0.0625,
+            mzci: Double(b[2]) * 0.0625,
+            dzci: Double(b[3]) * 0.0625,
+            breathsPerMin: Double(b[4]) / 8.0,
+            breathVariability: Double(b[5]) / 8.0,
+            motionCount: motionCount,
+            sleepState: sleepState,
+            cv: Double(u16le(b, 8)) / 65536.0)
+    }
+
     // MARK: - Motion period, 2-bit MOTION_STATE codes (0x6B; s6.13)
 
-    /// Decode the 0x6B motion_period: 12-bit period header, byte6 bits[5:4]=leading-symbol count, then
-    /// 2-bit MOTION_STATE codes, 4 per byte (MSB-first). 0=NO_MOTION,1=RESTLESS,2=TOSSING,3=ACTIVE.
-    /// Per OURA_PROTOCOL.md s6.13. Returns nil on a short body. The first two bytes carry the period
-    /// header; codes follow from byte index 2.
+    /// Decode the 0x6B motion_period: a compact run of 2-bit MOTION_STATE codes. Layout cross-checked
+    /// against the native `parse_api_motion_period` (attribution, not a port — re-derived from a real
+    /// capture; OURA_PROTOCOL.md s6.13), the SAME shape as the validated `decodeSleepPhase` (one header
+    /// byte, then 2-bit codes from byte 1):
+    ///   byte0 = header — bits[7:6] period_type; bits[5:4] = `count` of valid codes in the FINAL byte;
+    ///           bits[3:0] = a rolling mod-16 sequence counter (record ordering / dedup, not a state).
+    ///   byte1… = 2-bit codes, 4 per byte, MSB-first ([7:6][5:4][3:2][1:0]); every byte carries 4 codes
+    ///           EXCEPT the last, which carries `count` — where `count == 0` means 4 (a full final byte):
+    ///           the field is only 2 bits but the byte holds up to 4 codes, so 4 has to wrap to 0. In a real
+    ///           capture all 81 `count == 0` records have a NON-ZERO final byte (0xc0/0x80/0x40 — real
+    ///           codes), never 0x00, confirming 0 ⇒ 4 rather than 0 ⇒ empty.
+    /// 0=NO_MOTION, 1=RESTLESS, 2=TOSSING, 3=ACTIVE. Returns nil on a body too short to hold the header
+    /// plus one code byte (< 2), or when no codes result.
+    ///
+    /// The header's low-nibble sequence counter is what pins this layout: in a real capture it increments
+    /// and wraps mod-16 across consecutive records (…c, d, e, f, 0, 1…), proving byte0 is a header and the
+    /// codes begin at byte1 — NOT the earlier reading (byte0/1 a 12-bit period, codes from byte2), which
+    /// dropped the first code byte and read phantom codes from the final byte's padding.
     public static func decodeMotionPeriod(_ rec: OuraRecord) -> [OuraMotion]? {
         let b = rec.payload
-        guard b.count >= 3 else { return nil }
+        guard b.count >= 2 else { return nil }
+        let countField = Int((b[0] >> 4) & 0x03)     // bits[5:4] of the header: codes in the FINAL byte
+        let lastCount = countField == 0 ? 4 : countField   // 0 encodes a full (4-code) final byte
         var out: [OuraMotion] = []
         var index = 0
-        for k in 2..<b.count {
+        for k in 1..<b.count {
+            let n = (k == b.count - 1) ? lastCount : 4   // last byte carries `lastCount` codes; others 4
             let byte = b[k]
-            for shift in stride(from: 6, through: 0, by: -2) {
-                let code = Int((byte >> UInt8(shift)) & 0x03)
+            for j in 0..<n {
+                let code = Int((byte >> UInt8(6 - 2 * j)) & 0x03)
                 if let state = OuraMotionState(rawValue: code) {
                     out.append(OuraMotion(ringTimestamp: rec.ringTimestamp, index: index, state: state))
                     index += 1
@@ -610,5 +669,73 @@ public enum OuraDecoders {
             return (raw * 100).rounded() / 100
         }
         return OuraActivityInfo(ringTimestamp: rec.ringTimestamp, state: Int(state), met: met)
+    }
+
+    // MARK: - Real steps features (0x7E/0x7F; s6.13) - Tier B, third-party formula
+
+    /// The byte offset at which a real_steps record's packed field block starts, per tag.
+    ///
+    /// `0x7E` starts at byte 0. **`0x7F` starts at byte 2** - its block is shifted by two bytes, so
+    /// applying `0x7E`'s layout to it (what this decoder did until 2026-08-01) mis-assembles every
+    /// field. Established from a real 5,122-record capture:
+    /// - Aligning `0x7F`'s per-byte statistics onto `0x7E`'s scores a **+2** shift at total error 19.0
+    ///   vs 58.6 for the next-best offset (a 3x separation); at +2 the per-byte mean, standard
+    ///   deviation AND MSB-set rate all match.
+    /// - The carry-bit test is decisive: fields 0/8 take their 9th bit from a neighbouring byte's MSB,
+    ///   which for a real carry bit sits near 50% set. `0x7E` reads 49.7%/49.0%; `0x7F` at the OLD
+    ///   (unshifted) offsets read 41.6%/**17.5%** - byte 11 at 17.5% is plainly a data byte, not a
+    ///   carry bit - and at +2 reads 51.6%/45.3%.
+    /// - Behaviourally, `0x7F`'s field 0 decoded to an INVERTED movement signal (Cohen's d = -1.72
+    ///   against a sleep-vs-activity contrast, i.e. higher at rest); at +2 it reads +2.36, matching
+    ///   `0x7E`'s own +2.35, and paired-window agreement goes r = -0.557 -> **+0.790**.
+    ///
+    /// See OURA_PROTOCOL.md s6.13. NOOP's own finding - not in the [oura-rs] source, which applies one
+    /// layout to both tags.
+    static func realStepsFieldOffset(forTag tag: UInt8) -> Int {
+        tag == OuraEventTag.realSteps2.rawValue ? 2 : 0
+    }
+
+    /// Decode a `0x7E`/`0x7F` real_steps_features record's bit-packed field block.
+    /// Formula ([oura-rs] - Th0rgal/open_oura `crates/oura-protocol/src/events.rs`, clean-room fact
+    /// citation, no code copied): fields 0 and 8 are 9-bit values built as `byte*2 + carry_bit`, where
+    /// the carry bit is the MSB of a neighboring byte (block byte 3's MSB for field 0, block byte 11's
+    /// MSB for field 8) - the same byte then also supplies field 3 / field 11 from its own low 7 bits.
+    /// Fields 1, 2, 9, 10 are a bare `byte<<1` (no carry completion). Fields 4-7 and 12-13 are plain
+    /// bytes. Returns nil unless the body is exactly 14 bytes (the source's own length gate).
+    ///
+    /// TAG-DEPENDENT OFFSET (NOOP, 2026-08-01): the block starts at byte 0 for `0x7E` but at **byte 2**
+    /// for `0x7F` - see `realStepsFieldOffset(forTag:)` for the evidence. Consequences for `0x7F`:
+    /// - It yields **12 fields, not 14**: fields 12/13 would need block bytes 12/13 = record bytes
+    ///   14/15, which do not exist in a 14-byte body. They are OMITTED rather than zero-filled - a
+    ///   fabricated zero would be indistinguishable from a real one (honest-data invariant).
+    /// - CONFIDENCE TIERS on the 12 it does yield, from the same capture: **fields 0-7 are validated**
+    ///   (mean and standard deviation match `0x7E`'s to ~1%, and the sleep-vs-activity effect size
+    ///   matches within 0.13 on two independent contrasts); **field 8 is likely right** (effect +2.82 vs
+    ///   `0x7E`'s +2.33, r = +0.854, but its mean is offset); **fields 9-11 remain uncertain** (they
+    ///   improve but do not converge, consistent with the block being truncated by the record boundary).
+    ///   All 12 are emitted because the only consumer is the Tier-B research sidecar; nothing is scored.
+    public static func decodeRealStepsFields(_ rec: OuraRecord) -> OuraRealStepsFields? {
+        let p = rec.payload
+        guard p.count == 14 else { return nil }
+        let off = realStepsFieldOffset(forTag: rec.type)
+        func b(_ i: Int) -> Int { Int(p[off + i]) }
+        var fields: [Int] = [
+            (b(3) >> 7) | (b(0) << 1),
+            b(1) << 1,
+            b(2) << 1,
+            b(3) & 0x7f,
+            b(4), b(5), b(6), b(7),
+            (b(11) >> 7) | (b(8) << 1),
+            b(9) << 1,
+            b(10) << 1,
+            b(11) & 0x7f,
+        ]
+        // Fields 12/13 exist only when the block starts at byte 0 (0x7E); for 0x7F they would read past
+        // the 14-byte body, so they are omitted rather than invented.
+        if off == 0 {
+            fields.append(b(12))
+            fields.append(b(13))
+        }
+        return OuraRealStepsFields(tag: rec.type, ringTimestamp: rec.ringTimestamp, fields: fields)
     }
 }

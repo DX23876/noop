@@ -151,6 +151,10 @@ enum MoreCatalog {
                       keywords: ["diagnostics", "bug report", "strap log", "probes"]),
             MoreEntry("Siri & Shortcuts", "mic.fill", .siriShortcuts,
                       keywords: ["voice", "App Intents", "automation"]),
+            // #477 lives here rather than inside Settings: the strap-battery levers are the ones
+            // people reach for when a strap is running down, so they get their own row.
+            MoreEntry("Power saving", "battery.25", .powerSaving,
+                      keywords: ["battery", "strap battery", "low power", "sampling"]),
             MoreEntry("Settings", "gearshape.fill", .settings,
                       keywords: ["preferences", "options", "configuration"]),
         ]),

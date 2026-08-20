@@ -303,6 +303,7 @@ struct TodayView: View {
     // on Today so the buried Explore features sit on the home screen. Loaded in loadAll; nil hides the row.
     @State private var stressToday: Double?
     @State private var fitnessAgeToday: Double?
+    @State private var vo2maxToday: Double?   // #1391
     @State private var vitalityToday: Double?
     /// Distinct days + sleep sessions imported from a Mi Band (Mi Fitness), for the Data Sources row.
     @State private var xiaomiDays = 0
@@ -1718,6 +1719,13 @@ struct TodayView: View {
                                     .help("Acute (7-day) vs chronic (28-day) training load. 0.8-1.3 is the sweet spot.")
                             }
                         }
+                        // #1405: mark this as a DIFFERENT axis from the home Synthesis word (the Charge-%
+                        // band). Stated where the two get compared, so "Primed" here vs "Steady" there
+                        // doesn't read as one value contradicting itself. Keep parity with Kotlin.
+                        Text("A training read, separate from your Charge score.")
+                            .font(StrandFont.footnote)
+                            .foregroundStyle(StrandPalette.textTertiary)
+                            .fixedSize(horizontal: false, vertical: true)
                         Text(LocalizedStringKey(r.summary)).font(StrandFont.subhead)
                             .foregroundStyle(StrandPalette.textSecondary)
                             .fixedSize(horizontal: false, vertical: true)
@@ -2452,7 +2460,7 @@ struct TodayView: View {
         case .stress:
             pinnedCardRow(icon: card.icon, tint: tint, title: card.title, subtitle: card.subtitle,
                           value: dashboardValue(card), route: .stress)
-        case .fitnessAge, .vitality, .steps, .calories:
+        case .fitnessAge, .vo2max, .vitality, .steps, .calories:
             pinnedCardRow(icon: card.icon, tint: tint, title: card.title, subtitle: card.subtitle,
                           value: dashboardValue(card), route: .health)
         case .hrv, .restingHr, .respiratory, .bloodOxygen, .skinTemp:
@@ -2485,6 +2493,7 @@ struct TodayView: View {
         switch card {
         case .stress:      return StrandPalette.effortColor
         case .fitnessAge:  return StrandPalette.chargeColor
+        case .vo2max:      return StrandPalette.chargeColor
         case .vitality:    return StrandPalette.restColor
         case .hrv:         return StrandPalette.metricPurple
         case .restingHr:   return StrandPalette.metricRose
@@ -2585,6 +2594,8 @@ struct TodayView: View {
             return stressToday.map { "\(Int($0.rounded()))" } ?? Self.calibratingPlaceholder
         case .fitnessAge:
             return withUnit(fitnessAgeToday.map { "\(Int($0.rounded()))" } ?? "—")
+        case .vo2max:
+            return vo2maxToday.map { "\(Int($0.rounded()))" } ?? "—"
         case .vitality:
             return vitalityToday.map { "\(Int($0.rounded()))" } ?? "—"
         case .hydration:
@@ -4162,6 +4173,7 @@ struct TodayView: View {
         // `repo.refreshSeq` task key (loadAll's TodayLoadKey) and stay in sync.
         async let stressStoredA      = repo.series(key: "stress", source: "my-whoop", days: 120)
         async let fitnessAgeSeriesA  = repo.exploreSeries(key: "fitness_age", source: "my-whoop", days: 120)
+        async let vo2maxSeriesA      = repo.exploreSeries(key: "vo2max_est", source: "my-whoop", days: 120)
         async let vitalitySeriesA    = repo.exploreSeries(key: "vitality", source: "my-whoop", days: 120)
 
         // Steps ESTIMATE per day (WHOOP 4.0 motion → calibrated steps). exploreSeries reads the computed
@@ -4185,6 +4197,7 @@ struct TodayView: View {
         // placeholder, matching StressView's empty state. Fitness age / Vitality keep their merged reads.
         stressToday = StressModel(days: repo.days, stored: await stressStoredA)?.score
         fitnessAgeToday = (await fitnessAgeSeriesA).last?.value
+        vo2maxToday = (await vo2maxSeriesA).last?.value   // #1391: latest banked VO₂max estimate
         vitalityToday = (await vitalitySeriesA).last?.value
         // Hydration card (opt-in): today's stored total + the sex/Effort goal. Only loaded when the
         // feature is on, so a disabled feature does zero work and the card stays hidden.
@@ -4211,6 +4224,7 @@ struct TodayView: View {
             xiaomiSleeps: xiaomiSleeps,
             stressToday: stressToday,
             fitnessAgeToday: fitnessAgeToday,
+            vo2maxToday: vo2maxToday,
             vitalityToday: vitalityToday
         )
     }
@@ -4229,6 +4243,7 @@ struct TodayView: View {
         xiaomiSleeps = c.xiaomiSleeps
         stressToday = c.stressToday
         fitnessAgeToday = c.fitnessAgeToday
+        vo2maxToday = c.vo2maxToday
         vitalityToday = c.vitalityToday
         // Hydration is deliberately NOT part of the snapshot (#989): logging a drink never bumps
         // refreshSeq, so a restored total could be stale. It is re-read live instead (see loadAll).
@@ -4619,11 +4634,16 @@ struct TodayView: View {
     /// A short recovery state word for the synthesis hero.
     private func synthesisWord(_ score: Double?) -> String {
         guard let s = score else { return String(localized: "No Data") }
+        // #1405: these are CHARGE/recovery-level words, a different axis from the ReadinessEngine training
+        // verdict (Run down / Strained / Balanced / Primed). They must NOT share a word, or the Synthesis
+        // card ("Steady") and the Charge-breakdown Readiness card ("Primed") read as the same thing
+        // contradicting itself. So the [70,88) band is "Strong" (which also matches this card's own "Charge
+        // is strong" detail copy), leaving "Primed" exclusively to the readiness engine. Keep parity with Kotlin.
         switch s {
         case ..<25:  return String(localized: "Depleted")
         case ..<50:  return String(localized: "Low")
         case ..<70:  return String(localized: "Steady")
-        case ..<88:  return String(localized: "Primed")
+        case ..<88:  return String(localized: "Strong")
         default:     return String(localized: "Peak")
         }
     }
@@ -4845,6 +4865,7 @@ struct TodayHistoryWideCache {
     let xiaomiSleeps: Int
     let stressToday: Double?
     let fitnessAgeToday: Double?
+    let vo2maxToday: Double?
     let vitalityToday: Double?
     // Hydration total/goal intentionally absent (#989): mutations don't bump refreshSeq, so a cached
     // value could restore stale. TodayView re-reads hydration live on restore instead.
@@ -4943,12 +4964,16 @@ enum SyncChipState: Equatable {
         return .hidden
     }
 
-    /// Compact relative age for the status card ("now" / "Nm" / "Nh" / "Nd") — deliberately terse.
-    /// "now" is the only word in here (the rest is digits + a unit letter), so it's the only piece that
-    /// needs a catalog entry to translate; localized here rather than at each of the two call sites.
+    /// Compact relative age for the status card ("<1m" / "Nm" / "Nh" / "Nd") — deliberately terse.
+    ///
+    /// EVERY branch must read correctly with a trailing "ago", because that is the only way this value is
+    /// ever consumed (`DevicesView` wraps it in "Synced %@ ago" and "Strap history synced %@ ago"). The
+    /// sub-minute branch used to return the word "now", which produced the user-visible "Synced now ago"
+    /// for the first minute after any sync (#1472). "<1m" composes; it also needs no catalog entry, being
+    /// digits and symbols in every language.
     private static func shortAgo(_ ts: TimeInterval) -> String {
         let secs = max(0, Int(Date().timeIntervalSince1970 - ts))
-        if secs < 60 { return String(localized: "now") }
+        if secs < 60 { return "<1m" }
         let mins = secs / 60
         if mins < 60 { return "\(mins)m" }
         let hrs = mins / 60

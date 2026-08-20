@@ -27,7 +27,7 @@ final class GoalActionsTests: XCTestCase {
         return WorkoutRow(startTs: start, endTs: start + minutes * 60, sport: sport,
                           source: "test", durationS: Double(minutes * 60), energyKcal: nil,
                           avgHr: nil, maxHr: nil, strain: nil, distanceM: nil,
-                          zonesJSON: nil, notes: nil)
+                          zonesJSON: nil, notes: nil, steps: nil)
     }
 
     func testStepActionCompletesAutomaticallyAtThreshold() {

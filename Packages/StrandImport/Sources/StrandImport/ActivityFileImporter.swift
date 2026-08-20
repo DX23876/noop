@@ -452,6 +452,7 @@ public enum ActivityFileImporter {
         if a.gpsPointCount > 0 { parts.append("\(a.gpsPointCount) GPS points") }
         if a.hrSampleCount > 0 { parts.append("\(a.hrSampleCount) HR samples") }
         if let avg = a.avgHr { parts.append("avg \(avg) bpm") }
+        if let steps = a.steps, steps > 0 { parts.append("\(steps) steps") }
         return parts.joined(separator: " · ")
     }
 }

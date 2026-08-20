@@ -46,6 +46,8 @@ ANDROID_LOCALE_DIRS = {
 UNIVERSAL = {
     "", "-", "–", "—", "·", "•", "✓", "→", "↔",
     "NOOP", "bpm", "BPM", "HRV", "SpO2", "SpO₂", "OK", "ID",
+    # Training-load acronyms — universal training-science terms, identical in every language (like HRV).
+    "CTL", "ATL", "TSB",
 }
 
 # A bare printf/String.format conversion specifier, e.g. "%.1f" or "%02d" — a
@@ -1118,6 +1120,30 @@ def ci_check(base_ref: str) -> int:
             if format_gaps:
                 failed = True
                 print(f"FAIL {catalog_path.relative_to(ROOT)} {lang}: {len(format_gaps)} format mismatch(es): {format_gaps[:10]}")
+
+    # A key that EXISTS in a language still says nothing about whether it was TRANSLATED. This section is
+    # the difference between "complete" and "translated": it counts localizations whose value is the
+    # English source verbatim, on BOTH platforms. See `echoed_translation_counts`.
+    print("\n--- Translations that are still the English source (ratcheting allowance) ---")
+    echo_failed = False
+    echoes = echoed_translation_counts()
+    echo_allowed = echo_allowance()
+    echo_improved: list[str] = []
+    for target in sorted(set(echoes) | set(echo_allowed)):
+        found = echoes.get(target, 0)
+        allowed = echo_allowed.get(target, 0)
+        if found > allowed:
+            failed = True
+            echo_failed = True
+            print(f"FAIL {target}: {found} untranslated echo(es) exceeds the allowance of {allowed}")
+        elif found < allowed:
+            echo_improved.append(f"{target}: {allowed} -> {found}")
+    for line in echo_improved:
+        print(f"  IMPROVED {line}")
+    if echo_improved:
+        print(f"  Lower these in {ECHO_BASELINE_PATH.relative_to(ROOT)} to lock the gain in.")
+    if not echo_failed and not echo_improved:
+        print(f"  OK no new English-only translations ({sum(echoes.values())} tracked, ratcheting down)")
 
     # #844: every OTHER shipped locale, gated against a ratcheting allowance. LANGS above stays at zero
     # tolerance; these carry real pre-existing debt (StrandDesign ships 14 of 95 Italian), so the gate

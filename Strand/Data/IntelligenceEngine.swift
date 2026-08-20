@@ -70,6 +70,12 @@ final class IntelligenceEngine: ObservableObject {
     /// re-pass; this mirrors it). Reset by any pass whose heal finds nothing, restoring the budget.
     private var healRearmedThisCycle = false
 
+    // #1005 (upstream) landed an IN-MEMORY per-day reuse cache for `analyzeRecent`'s pass-1 loop. This
+    // fork skips the same work through the PERSISTED `dayScanFingerprint` / `analysisInputRevision` rows
+    // instead (v38-v40; see the skip block in `analyzeRecent`), which survives relaunch and is invalidated
+    // by the write-side revision rather than by a session-local key — so the in-memory twin is not carried
+    // here. `AnalyzeRecentDayCache` (StrandAnalytics) still ships with upstream's key derivation, unused.
+
     /// Who supplies the dashboard headline for a By-Day row. The By-Day card always shows NOOP's OWN
     /// on-device numbers, but the WHOLE-DASHBOARD value for the same day can come from an IMPORTED row
     /// that won the per-day merge (imports win field-by-field over computed , see Repository.mergeDaily).
@@ -272,6 +278,29 @@ final class IntelligenceEngine: ObservableObject {
     /// separates the causes: `grav=0` = no motion offloaded (the in-bed detector can't gate — the WHOOP
     /// 4.0 sparse-motion path has no HR-only fallback); a large `hr` with a night still empty = coverage
     /// gap or the sleep hours fell outside `window`; `provided=` = a persisted hypnogram was (not) available.
+    /// The END of the window the sleep pipeline reads for the night that finishes on `dayStart`'s day.
+    ///
+    /// A PAST day reads through to the next local midnight: the night may end any time before it — late
+    /// sleepers, weekend lie-ins, shift workers who wake well after noon. A hard `dayStart + 18h` (6 PM)
+    /// bound truncated the read at exactly 18:00 and reported a flat 18:00 wake (#500).
+    ///
+    /// **#500 follow-up — the half that was left broken.** TODAY kept the 18:00 cap, on the reasoning that
+    /// "the store clamps to `now` anyway". That holds only for someone who wakes in the MORNING. A
+    /// day-sleeper — asleep ~12:00, awake ~20:00 — is still inside today when they wake, so the cap cut the
+    /// read three hours short and reported a flat 18:00 wake for the entire evening. At the next local
+    /// midnight the day became PAST, the other branch took over, and the SAME night silently re-scored to
+    /// the real time. That is exactly the reported symptom: *"it shows 18:00 every day no matter what time
+    /// I wake up, then as soon as it hits 00:01 it updates to the actual wake time."* Not offload lag, not
+    /// a stager gate, not clock drift — this bound.
+    ///
+    /// Today is now capped at `now`, which keeps the only property the old bound was there for — never read
+    /// past the present — and is what that original comment already assumed was happening. It stops the
+    /// window from asserting that nobody wakes after 6 PM.
+    nonisolated static func sleepReadWindowEnd(dayStart: Int, nowLocalMidnight: Int, now: Int) -> Int {
+        let nextMidnight = dayStart + 86_400
+        return dayStart < nowLocalMidnight ? nextMidnight : min(nextMidnight, now)
+    }
+
     /// Counts + a window length only — same privacy class as the sibling `sleep day=` line, no PII. Pure so
     /// it's unit-tested directly; byte-identical to the Android `sleepDetectNoNightLogLine`.
     nonisolated static func sleepDetectNoNightLogLine(day: String, hrCount: Int, rrCount: Int,
@@ -338,7 +367,15 @@ final class IntelligenceEngine: ObservableObject {
                     activeDaysPerWeek: strains.count, meanActiveStrain: meanStrain),
                 waistCm: waist) else { return [] }
         var rows = [MetricPoint(day: satKey, key: "fitness_age", value: res.fitnessAge)]
-        if let v = res.vo2max { rows.append(MetricPoint(day: satKey, key: "vo2max_est", value: v)) }
+        // #1391: offer a VO₂max even without a waist. res.vo2max is the Nes 2011 waist-based estimate (nil
+        // when no waist is set). Fall back to the Uth 2004 HR-ratio estimate (15.3·HRmax/RHR — waist-free,
+        // the SAME formula the calorie path already uses), so any user past the age+RHR fitness-age gate gets
+        // a (rougher) VO₂max instead of a blank. HRmax via the shared Tanaka estimator (no HR history here →
+        // age-predicted); RHR = the same median the Nes value used. Both persist under "vo2max_est"; the card
+        // labels it "Estimated". Mirrors the Android twin.
+        let vo2 = res.vo2max
+            ?? Calories.vo2maxFor(hrmax: StrainScorer.estimateHRmax([], age: Double(age)).0, restingHR: medianOf(rhrs))
+        if let v = vo2 { rows.append(MetricPoint(day: satKey, key: "vo2max_est", value: v)) }
         return rows
     }
 
@@ -895,14 +932,10 @@ final class IntelligenceEngine: ObservableObject {
                 let day = AnalyticsEngine.dayString(dayStart, offsetSec: tzOffset)
                 // Read a generous window around the night that ends on `day`; the stager finds the span.
                 let from = dayStart - 30 * 3_600
-                // Sleep read-window END. For a PAST day the night may end any time before the NEXT local
-                // midnight (late sleepers / weekend lie-ins / shift workers wake well after noon), so a
-                // hard `dayStart + 18h` (6 PM) bound TRUNCATED the read at exactly 18:00 , and a real wake
-                // past it was reported as a flat 18:00 wake (#500). Read a PAST day through to the next
-                // local midnight so the stager sees the whole night; TODAY keeps the 18:00 cap (the store
-                // clamps to `now` anyway, and an in-progress nap shouldn't be read as a finished night).
-                let nextMidnight = dayStart + 86_400
-                let to = (dayStart < nowLocalMidnight) ? nextMidnight : dayStart + 18 * 3_600
+                // Sleep read-window END — see `sleepReadWindowEnd`.
+                let to = Self.sleepReadWindowEnd(dayStart: dayStart,
+                                                 nowLocalMidnight: nowLocalMidnight,
+                                                 now: now)
 
                 // I2: pick the single device that owns this day, and read ITS streams below. With one device
                 // this resolves to `deviceId` (active strap, has data → priority 0), so nothing changes; with
@@ -984,11 +1017,27 @@ final class IntelligenceEngine: ObservableObject {
                     continue
                 }
                 let rr = (try? await store.rrIntervals(deviceId: owner, from: from, to: to, limit: Int.max)) ?? []
-                let resp = (try? await store.respSamples(deviceId: owner, from: from, to: to, limit: Int.max)) ?? []
+                // `forScoring` drops an Oura ring's respiration rows: those are the ring's OWN per-window
+                // RATE (0x6A, milli-bpm, ~1 row per 5 min), stored as instrumentation, while the stager
+                // reads this stream as a ~1 Hz raw ADC waveform. Refusing by provenance keeps the
+                // instrumentation out of every scored path by construction rather than by cadence luck.
+                // A WHOOP owner is unaffected, and this day scores exactly as it did before those rows
+                // existed. See `OuraRespScale.forScoring`.
+                // ONE read, TWO consumers, and they must not be confused for each other. `forScoring`
+                // strips an Oura ring's rows from the STAGER's input: the stager reads this stream as a
+                // ~1 Hz raw ADC waveform and peak-detects it, and the ring's rows are a per-window RATE —
+                // the wrong shape, however good the rate. `forVendorRate` hands those same rows to
+                // `analyzeDay` as what they are: the device's OWN measured respiratory rate, which
+                // becomes the night's `respRateBpm` instead of the RSA estimate. A WHOOP owner gets the
+                // rows in the first list and nothing in the second, so its night is unchanged.
+                let respRows = (try? await store.respSamples(deviceId: owner, from: from, to: to,
+                                                             limit: Int.max)) ?? []
+                let resp = OuraRespScale.forScoring(respRows, deviceId: owner)
+                let vendorResp = OuraRespScale.forVendorRate(respRows, deviceId: owner)
                 let grav = (try? await store.gravitySamples(deviceId: owner, from: from, to: to, limit: Int.max)) ?? []
                 let steps = (try? await store.stepSamples(deviceId: owner, from: from, to: to, limit: Int.max)) ?? []
                 let skin = (try? await store.skinTempSamples(deviceId: owner, from: from, to: to, limit: Int.max)) ?? []
-                _ = diagLap()   // TEMP DIAGNOSTIC: fold the five plain reads above into `diagReadsMs`
+                _ = diagLap()   // TEMP DIAGNOSTIC: fold the plain reads above into `diagReadsMs`
                 // #93: WHOOP 4.0 raw SpO2 PPG samples for the night; analyzeDay banks the nightly red/IR ADC
                 // means on the DailyMetric. Empty on a 5/MG (no v24 spo2 channels) → the raw means stay nil.
                 let spo2 = (try? await store.spo2Samples(deviceId: owner, from: from, to: to, limit: Int.max)) ?? []
@@ -998,6 +1047,8 @@ final class IntelligenceEngine: ObservableObject {
                 // registry knows each device's model; unknown/non-WHOOP owners fall back to `.whoop5` (the prior
                 // /100 behaviour), so this only changes the mapping for a device positively identified as a 4.0.
                 let skinFamily = Self.skinTempFamily(forOwner: owner, devices: regDevices)
+                // #1467: the worn-gate timestamp tolerance for this owner (0 for WHOOP, byte-identical).
+                let skinWornToleranceSec = Self.skinTempWornToleranceSec(forOwner: owner, devices: regDevices)
                 // #938 (second capture): learn THIS device's worn skin-temp anchor raw ONCE, WINDOW-WIDE (the
                 // whole scan window's skin samples), not per-night. The @72 skin-temp ADC's register offset is
                 // per-device — a second real 4.0 strap shares the no-contact floor (~509) + 11-bit saturation
@@ -1157,12 +1208,14 @@ final class IntelligenceEngine: ObservableObject {
                     providedSleep = []
                 }
                 let diagAnalyzeStart = Date()   // TEMP DIAGNOSTIC: math cost, separated from the read cost
-                let res = AnalyticsEngine.analyzeDay(day: day, hr: hr, rr: rr, resp: resp, gravity: grav,
+                let res = AnalyticsEngine.analyzeDay(day: day, hr: hr, rr: rr, resp: resp,
+                                                     vendorResp: vendorResp, gravity: grav,
                                                      steps: steps, dayHr: dayHr, daySteps: daySteps,
                                                      dayGravity: dayGrav,
                                                      skinTemp: skin,
                                                      skinTempFamily: skinFamily,   // #938
                                                      skinTempAnchorRaw: skinAnchorRaw,   // #938 second capture
+                                                     skinTempWornToleranceSec: skinWornToleranceSec,   // #1467
                                                      spo2: spo2,                   // #93
                                                      profile: up, baselines: baselines1, maxHROverride: maxHR,
                                                      tzOffsetSeconds: tzOffset, wristOff: wristOff,
@@ -1271,8 +1324,15 @@ final class IntelligenceEngine: ObservableObject {
                     // srcChannel rides from the read model. Byte-identical to the Kotlin `hrv rrsample` line.
                     if verdict == .crossSecondOverCount || verdict == .sameSecondOverCount {
                         let sample = HRVAnalyzer.densestSecondWindowSample(
-                            tsSec: ts, rrMs: sleepRr, srcCodes: sleepRrRows.map { $0.srcChannel?.rawValue })
+                            tsSec: ts, rrMs: sleepRr, srcCodes: sleepRrRows.map { $0.srcChannel?.rawValue },
+                            ords: sleepRrRows.map { $0.ord })
                         if !sample.isEmpty { diagLine += "\nhrv rrsample day=\(res.daily.day) \(sample)" }
+                        // #1331/#1008: the sample above shows ords for a handful of seconds; this counts
+                        // them across the WHOLE night, which is what decides whether the fix belongs at
+                        // ingest. Kotlin twin.
+                        let deliveries = HRVAnalyzer.deliveryHistogram(
+                            tsSec: ts, rrMs: sleepRr, ords: sleepRrRows.map { $0.ord })
+                        if !deliveries.isEmpty { diagLine += "\n\(deliveries) day=\(res.daily.day)" }
                         // #1331/#1008/#1118 SHADOW: log the DEDUPED stream's HRV + coverage + beat-accuracy
                         // beside the raw (above), so the candidate two-channel de-dup can be validated
                         // against WHOOP's own numbers and @artemc's Polar H10 BEFORE it becomes the read
@@ -1284,6 +1344,21 @@ final class IntelligenceEngine: ObservableObject {
                         // same-second collapse is the aggressive UPPER BOUND (it also catches the two-channel
                         // twins but can over-merge two real neighbours whose values sit within 40 ms). The
                         // real de-dup lives between them; the log shows both so we can see where.
+                        // #1331 RETIRED (two of them). `xsec` — the 40 ms collapse widened to a 1-second
+                        // window — was a strict UPPER BOUND that over-merges real beats, kept only to size
+                        // how far a cross-second collapse COULD get. It has now produced that number in the
+                        // field: covXsec 0.80 with beatAccXsec 0.26, i.e. it eats real beats exactly as its
+                        // own comment predicted. And the same-second TOLERANCE SWEEP (20/34/60) was sizing a
+                        // fix already ruled out — every affected night reads `crossSecondOverCount`, so no
+                        // same-second tolerance can reach duplicates that straddle the boundary.
+                        //
+                        // Both cost real work on the phones least able to spare it: this block runs for
+                        // EVERY night of an affected strap, `analyzeRecent` re-scores ~21 days every 15
+                        // minutes, and each `collapseOverCount` SORTS the night's ~50-70k intervals. Six
+                        // sorts per night became two. What survives is the honest floor (`ex`, exact
+                        // duplicates only — provably no real-beat loss) and the incumbent candidate (`dd`,
+                        // 40 ms same-second). The delivery histogram above supersedes what both retired
+                        // measurements were reaching for, and costs one pass instead of nine.
                         let ex = HRVAnalyzer.collapseOverCount(tsSec: ts, rrMs: sleepRr, rrTolMs: 0)
                         let dd = HRVAnalyzer.collapseOverCount(tsSec: ts, rrMs: sleepRr)
                         let hDd = HRVAnalyzer.analyze(rawRR: dd.rrMs)
@@ -1293,7 +1368,16 @@ final class IntelligenceEngine: ObservableObject {
                         diagLine += "\nhrv dedup day=\(res.daily.day) exactN=\(ex.rrMs.count)/\(sleepRr.count) "
                             + "covExact=\(String(format: "%.2f", covEx)) | ch40N=\(dd.rrMs.count) "
                             + "cov40=\(String(format: "%.2f", covDd)) beatAcc40=\(String(format: "%.2f", accDd)) "
-                            + "rmssd40=\(ms(hDd.rmssd))ms sdnn40=\(ms(hDd.sdnn))ms meanNN40=\(ms(hDd.meanNN))ms"
+                            + "rmssd40=\(ms(hDd.rmssd))ms sdnn40=\(ms(hDd.sdnn))ms meanNN40=\(ms(hDd.meanNN))ms "
+                            + "| collapse candidates only; the DELIVERY histogram above sizes the fix"
+                        // #1118 sweep: the same-second collapse at a range of tolerances, so a capture shows
+                        // WHICH tolerance the over-count actually responds to instead of only the one 40 ms
+                        // point. 34 ms is the two-optical-channel twin spacing; 0 is exact-duplicates-only.
+                        // The 0 and 40 points are NOT recomputed: `ex` and `dd` above ARE those collapses
+                        // (`collapseOverCount`'s default tolerance is 40), and each collapse sorts the night's
+                        // intervals — ~50k on an over-count night. Reusing them keeps the sweep to three extra
+                        // passes instead of five on a block that runs for EVERY night of an affected strap,
+                        // inside the per-day rescore loop #836 already had to slim down. Twin of Kotlin.
                     }
                     hrvDiag = diagLine
                     // #1118: flag this night's HRV as over-counted (same verdict the diag logs) so the
@@ -1491,6 +1575,29 @@ final class IntelligenceEngine: ObservableObject {
         Self.mergeNightlyIntoHistory(&histHrvByDay, nightlyHrvByDay)
         Self.mergeNightlyIntoHistory(&histRhrByDay, nightlyRhrByDay)
         Self.mergeNightlyIntoHistory(&histRespByDay, nightlyRespByDay)
+        // Which SOURCE measured each night's respiration — the input `Baselines.deviceEraEpoch` (#459)
+        // needs, and respiration is now a metric that requires it: a WHOOP export reports its OWN measured
+        // rate (~16.1 for this history) while an Oura ring reports the rate its firmware measured (~14.6),
+        // and NOOP's own RSA estimate is a third method again. Pooling them in one 28-day baseline turns a
+        // strap SWITCH into a ~3σ illness-ward step against a ~0.52 bpm spread — a device artifact scored
+        // as physiology, which is exactly the failure #459 named for HRV (Oura RMSSD ~120-155 ms vs WHOOP
+        // ~72-112 ms).
+        //
+        // `resolvedScoreOwnerByDay` — THIS PASS's freshly resolved per-day owner (`resolveDayOwner`,
+        // straight off `DayOwnerResolver`, BEFORE any re-homing) — must win over `hist`, not just fill its
+        // gaps. `hist` is `store.dailyMetrics(deviceId: deviceId, ...)`: every row in it is already stored
+        // under THIS device's own id, by construction, because that is where `analyzeRecent` writes every
+        // day's result once scored — an Oura-owned day scored on a PRIOR run is filed there exactly the
+        // same as a WHOOP-owned one. Filling from `hist` first (the value-priority order, correct for
+        // `histRespByDay` because an import legitimately outranks a computed value) would tag that day
+        // "whoop" for every re-score after its first, which is precisely the "brand is lost once a
+        // wearable day is re-homed under the computed WHOOP id" trap `deviceEraEpoch`'s own contract warns
+        // against — it would neuter era-scoping for any day already scored once, i.e. almost all of them in
+        // steady state. `hist` still fills the days OUTSIDE this pass's scan window (older than `maxDays`),
+        // where no fresher source is available and the pre-existing storage id is the best guess.
+        var respSourceByDay: [String: String] = [:]
+        for (day, owner) in resolvedScoreOwnerByDay { respSourceByDay[day] = owner }
+        for d in hist where respSourceByDay[d.day] == nil { respSourceByDay[d.day] = deviceId }
         // rhr/resp/skin honour the Charge-wide recalibration epoch (noop.recoveryBaselineEpoch); 0 = no-op,
         // so this is byte-identical to the plain fold until the user taps Recalibrate, at which point the
         // whole Charge build-up (HRV + resting HR + resp + skin) re-anchors together.
@@ -1508,7 +1615,18 @@ final class IntelligenceEngine: ObservableObject {
         // Resp baseline gated on `usable`: RecoveryScorer includes the resp term whenever a
         // baseline object is present , a CALIBRATING (<4-night) baseline would let one noisy
         // RSA night move recovery (mirrors the skin-temp use-site gate; honest cold-start).
-        let respFold = Baselines.foldHistory(respSeq, dayKeys: respDayKeys, cfg: respCfg, baselineEpoch: recoveryEpoch)
+        // The respiration baseline is scoped to the CURRENT device era. `deviceEraEpoch` returns 0.0 for a
+        // single-brand history — every WHOOP-origin id (import, strap, the "-noop" computed sibling, the
+        // Apple/HC riders) buckets to one brand — so a WHOOP-only user folds byte-identically to before;
+        // only a history that actually crosses brands is truncated. `max` with the manual Recalibrate
+        // epoch keeps whichever cut is LATER, since both mean "ignore nights before this".
+        // KNOWN GAP, and pre-existing: the bucket is per BRAND, so it does not separate an imported WHOOP
+        // vendor rate from NOOP's own RSA estimate on WHOOP nights — two methods that were already pooled
+        // before this change and still are. #459's primitive is likewise still unwired for the HRV and
+        // resting-HR baselines it was written for; that is #459's own scope, not this change's.
+        let respEraEpoch = Baselines.deviceEraEpoch(respDayKeys.map { (day: $0, sourceId: respSourceByDay[$0] ?? deviceId) })
+        let respFold = Baselines.foldHistory(respSeq, dayKeys: respDayKeys, cfg: respCfg,
+                                             baselineEpoch: max(recoveryEpoch, respEraEpoch))
         // Skin-temp gated the same way for consistency: its only use-site re-checks `.usable`
         // (AnalyticsEngine's skinTempDevC guard) so this is belt-and-suspenders, but it stops a
         // future use-site from trusting a CALIBRATING baseline. (PR #97 review.)
@@ -1785,7 +1903,7 @@ final class IntelligenceEngine: ObservableObject {
                                               durationS: s.durationS, energyKcal: s.caloriesKcal,
                                               avgHr: avgBpm, maxHr: s.peakHR,
                                               strain: s.strain, distanceM: nil,
-                                              zonesJSON: nil, notes: nil))
+                                              zonesJSON: nil, notes: nil, steps: nil))
                 if workoutsTraceActive {
                     diagnosticSink?(WorkoutsTrace.detectedBoutLine(
                         verdict: "persisted", durMin: durMin, avgBpm: avgBpm), .workouts)
@@ -2185,6 +2303,15 @@ final class IntelligenceEngine: ObservableObject {
         // `freshStarts` (this pass's computed bank witness) only matches the computedId rows; the others
         // fall back to longest-wins, the read-side dedup's own default. Sorted for a deterministic order.
         let healDeviceIds = Self.healDeviceIds(computedId: computedId, registeredIds: regDevices.map { $0.id })
+        // Compact shape of a row for the #1284 heal log — the two measures that adjudicate WHICH copy is
+        // fuller (stage-segment count + decoded JSON length), in the SAME format as the dup-gen diagnostic
+        // (`dupGenShape`) so the two lines parse identically. Window + shape counts only, never stage content
+        // or vitals; the strap log stays local and is shared only when the user exports it (as dup-gen does).
+        func sleepShape(_ s: CachedSleepSession) -> String {
+            let json = s.stagesJSON ?? ""
+            let segs = json.components(separatedBy: "\"stage\"").count - 1
+            return "[\(s.startTs) -> \(s.endTs)] min=\((s.endTs - s.effectiveStartTs) / 60) segs=\(segs) json=\(json.utf8.count)"
+        }
         var healDropped: [CachedSleepSession] = []
         for healId in healDeviceIds {
             let storedSessions = (try? await store.sleepSessions(deviceId: healId, from: windowStart,
@@ -2198,11 +2325,16 @@ final class IntelligenceEngine: ObservableObject {
             let healable = storedSessions.filter {
                 scannedDays.contains(AnalyticsEngine.dayString($0.endTs, offsetSec: tzOffset))
             }
-            let dropped = SleepSessionDedup.dedupe(healable, freshStarts: keptStarts).dropped
-            for stale in dropped {
+            let sweep = SleepSessionDedup.dedupe(healable, freshStarts: keptStarts)
+            for stale in sweep.dropped {
                 _ = try? await store.deleteSleepSession(deviceId: healId, startTs: stale.startTs)
+                // #1284: log which copy was dropped and which survived, so the corpus can confirm the heal
+                // keeps the fuller / end-correct row (the survivor the collapse resolved this stale into).
+                if let survivor = sweep.kept.first(where: { SleepSessionDedup.isDuplicate($0, stale) }) {
+                    diagnosticSink?("Dedup(#1284): dropped \(sleepShape(stale)) kept \(sleepShape(survivor)) - heal", nil)
+                }
             }
-            healDropped.append(contentsOf: dropped)
+            healDropped.append(contentsOf: sweep.dropped)
         }
         // #1284: log the sweep ALWAYS, even at zero removals — a heal that collapsed rows was previously
         // silent (the line below only fired on a non-empty drop), so from the strap log alone it was
@@ -2395,6 +2527,19 @@ final class IntelligenceEngine: ObservableObject {
         return DeviceFamily.forRegistryDevice(model: d?.model, brand: d?.brand) ?? .whoop5
     }
 
+    /// #1467: the skin-temp "worn" gate's timestamp tolerance for `owner` — 0 (exact match) for a WHOOP
+    /// strap, whose HR and skin-temp are one co-sampled 1 Hz stream, so this is byte-identical to before
+    /// this change for every WHOOP night. An Oura ring streams the two on independent clocks (dense HR,
+    /// ~1/min skin-temp), so an exact-second match only ever caught ~40-55% of real worn samples — every
+    /// one of 7 straight real nights landed just under `minSkinTempSamples`, ground-truthed against the
+    /// Oura app's own reported skin-temp trend (queue 11b, `worklog/BOARD.md`). Same registry lookup
+    /// `skinTempFamily` uses; deliberately its own small helper rather than folding into `DeviceFamily`,
+    /// which has no Oura case (#1086) and a tolerance-in-seconds isn't a temperature-scale concern.
+    nonisolated static func skinTempWornToleranceSec(forOwner owner: String, devices: [PairedDevice]) -> Int {
+        devices.first(where: { $0.id == owner })?.brand == "Oura"
+            ? AnalyticsEngine.defaultOuraWornToleranceSec : 0
+    }
+
     /// #137: re-score under-sampled manual workouts. A `manual` workout is scored from the live HR
     /// captured during the session; on a 5/MG that stream is sparse, so calories/strain land near zero.
     /// The strap banks its own HR and offloads it on sync , once that denser HR covers the workout's
@@ -2428,7 +2573,8 @@ final class IntelligenceEngine: ObservableObject {
             updated.append(WorkoutRow(
                 startTs: row.startTs, endTs: row.endTs, sport: row.sport, source: row.source,
                 durationS: row.durationS, energyKcal: energyKcal, avgHr: s.avgHr, maxHr: s.maxHr,
-                strain: s.strain, distanceM: row.distanceM, zonesJSON: row.zonesJSON, notes: row.notes))
+                strain: s.strain, distanceM: row.distanceM, zonesJSON: row.zonesJSON, notes: row.notes,
+                steps: row.steps))
         }
         if !updated.isEmpty { _ = try? await store.upsertWorkouts(updated, deviceId: deviceId) }
     }

@@ -132,6 +132,10 @@ public struct DeviceRegistryStore: Sendable {
         // v40-analysis-input-revision: cache-invalidation metadata is device data too. A delete must not
         // leave revisions behind that describe raw rows which no longer exist.
         "analysisInputRevision", "analysisDeviceRevision",
+        // v41-apple-step-hour (upstream v38): the hourly Apple Health step buckets are deviceId-keyed ("apple-health"),
+        // so forgetting that source must clear them — otherwise an imported phone's hour-by-hour step
+        // history survives the delete (the same privacy defect this list exists to close).
+        "appleStepHour",
     ]
 
     /// Permanently delete every recorded sample/derived row belonging to one device, across all

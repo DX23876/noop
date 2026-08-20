@@ -355,19 +355,20 @@ enum WorkoutSource: Equatable {
 
     // MARK: - Building / preserving rows
 
-    /// Carry the captured fields the add/edit sheet does NOT expose (maxHr, strain, zonesJSON, notes)
-    /// over from the row being edited. A v1.67 live-tracked session has real captured strain/maxHr;
-    /// rebuilding the row from the sheet's inputs alone would silently wipe them on an edit. No-op for a
-    /// fresh add (`old == nil`). `distanceM` is NOW a sheet field (#1195), so it comes from the freshly
-    /// built `row` (the sheet pre-fills it from the edited row, so an untouched field preserves the
-    /// captured GPS distance and a cleared one clears it) rather than being force-carried from `old`.
+    /// Carry the captured fields the add/edit sheet does NOT expose (maxHr, strain, zonesJSON, notes,
+    /// steps) over from the row being edited. A v1.67 live-tracked session has real captured
+    /// strain/maxHr; rebuilding the row from the sheet's inputs alone would silently wipe them on an
+    /// edit. No-op for a fresh add (`old == nil`). `distanceM` is NOW a sheet field (#1195), so it comes
+    /// from the freshly built `row` (the sheet pre-fills it from the edited row, so an untouched field
+    /// preserves the captured GPS distance and a cleared one clears it) rather than being force-carried
+    /// from `old`. `steps` (#1058) has no sheet field at all, so it is carried like the others (#1444).
     static func preservingCaptured(_ row: WorkoutRow, from old: WorkoutRow?) -> WorkoutRow {
         guard let old else { return row }
         return WorkoutRow(startTs: row.startTs, endTs: row.endTs, sport: row.sport,
                           source: row.source, durationS: row.durationS,
                           energyKcal: row.energyKcal, avgHr: row.avgHr,
                           maxHr: old.maxHr, strain: old.strain, distanceM: row.distanceM,
-                          zonesJSON: old.zonesJSON, notes: old.notes)
+                          zonesJSON: old.zonesJSON, notes: old.notes, steps: old.steps)
     }
 
     /// Build a retroactive manual workout (source "manual", persisted under the strap deviceId by the
@@ -396,7 +397,7 @@ enum WorkoutSource: Equatable {
         return WorkoutRow(startTs: s, endTs: end, sport: trimmed, source: "manual",
                           durationS: Double(durationSeconds), energyKcal: energyKcal,
                           avgHr: avgHr, maxHr: nil, strain: nil, distanceM: distanceM,
-                          zonesJSON: nil, notes: nil)
+                          zonesJSON: nil, notes: nil, steps: nil)
     }
 }
 
@@ -506,11 +507,15 @@ enum WorkoutMerge {
         // Duration = sum of each session's active duration (fall back to its own span when nil).
         let durationS = rows.reduce(0.0) { $0 + ($1.durationS ?? Double(max(0, $1.endTs - $1.startTs))) }
 
-        // Energy + distance sum only the present values; nil when NOTHING carried one (never a fake 0).
+        // Energy + distance + steps sum only the present values; nil when NOTHING carried one (never a
+        // fake 0). #1444: steps is cumulative per session exactly like distance, so a merge sums it too —
+        // it was silently dropped here until making the field explicit forced the question.
         let kcals = rows.compactMap(\.energyKcal)
         let energyKcal = kcals.isEmpty ? nil : kcals.reduce(0, +)
         let dists = rows.compactMap(\.distanceM)
         let distanceM = dists.isEmpty ? nil : dists.reduce(0, +)
+        let stepCounts = rows.compactMap(\.steps)
+        let mergedSteps = stepCounts.isEmpty ? nil : stepCounts.reduce(0, +)
 
         // Avg HR = duration-weighted mean over the rows that HAVE an avg; weight = that row's duration
         // (fall back to its span). maxHr = the max present peak. Both nil when no row carried the field.
@@ -534,6 +539,7 @@ enum WorkoutMerge {
 
         return WorkoutRow(startTs: start, endTs: end, sport: mergedSport, source: "manual",
                           durationS: durationS, energyKcal: energyKcal, avgHr: avgHr, maxHr: maxHr,
-                          strain: nil, distanceM: distanceM, zonesJSON: nil, notes: mergedNotes)
+                          strain: nil, distanceM: distanceM, zonesJSON: nil, notes: mergedNotes,
+                          steps: mergedSteps)
     }
 }

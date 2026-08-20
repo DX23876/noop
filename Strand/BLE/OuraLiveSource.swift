@@ -141,6 +141,9 @@ public final class OuraLiveSource: NSObject, ObservableObject {
     /// Wired at the composition root to `store.upsertSleepSessions([_], deviceId:)`; default no-op so the
     /// discovery-only scanner and tests take the byte-identical inert path.
     private let persistSleepSession: (CachedSleepSession) -> Void
+    /// #1284 residual 3 (default OFF): read live at persist — when true, an Oura hypnogram night is keyed on
+    /// its rounded 0x49 onset (stable per-night anchor) instead of the end-anchored first-code time.
+    private let onsetKeying: () -> Bool
     private let log: (String) -> Void
     private let onBattery: (Int) -> Void
     /// Fired with the ring's TRUE model label ("Oura Ring 3/4/5") once the GetProductInfo hardware id resolves
@@ -281,6 +284,9 @@ public final class OuraLiveSource: NSObject, ObservableObject {
     private let activityDump: OuraActivityDump?
     /// Append-only JSONL sidecar for the 0x47 motion vectors (Tier-A), for offline LSB→g calibration (#804).
     private let motionDump: OuraMotionDump?
+    /// Append-only JSONL research corpus for 0x7E/0x7F real_steps_features (Tier-B, third-party
+    /// [oura-rs] unpack formula, never scored/persisted to SQLite). See OuraRealStepsDump.
+    private let realStepsDump: OuraRealStepsDump?
     /// Append-only JSONL capture of the RAW, undecoded history-drain notification bytes (`oura-raw-<id>.jsonl`).
     /// Complement to the decoded sidecars above: those show what NOOP interpreted, this shows exactly what the
     /// ring sent, so after a full connect a hole in a decoded file can be pinned as a decode drop vs ring-side.
@@ -794,8 +800,16 @@ public final class OuraLiveSource: NSObject, ObservableObject {
         // imported-over-computed rule surfaces Oura's SleepNet staging as the night's stages (#325 persist).
         // Reuses the anchored+0x49-refined `end` via `laid`, so the session end IS the true sleep end. The
         // confirmation line makes the persist self-evident in the strap log for on-device validation.
-        if let session = OuraSleepSessionMapping.session(fromCodes: laid.map { (ts: $0.ts, stage: $0.phase.stage) }) {
-            let start = laid.first!.ts
+        if let mapped = OuraSleepSessionMapping.session(fromCodes: laid.map { (ts: $0.ts, stage: $0.phase.stage) }) {
+            // #1284 residual 3: when onset keying is on and a 0x49 onset was applied, key the session's
+            // startTs on the ROUNDED onset (stable across the ring's re-serves) rather than the end-anchored
+            // first-code time — so re-serves of one night share a PK and the displayed bedtime is the true
+            // onset. The completeness guard in the persist closure then suppresses/replaces any duplicate.
+            let session: CachedSleepSession = {
+                guard onsetKeying(), let onset = sleepStart else { return mapped }
+                return mapped.withStartTs(SleepSessionDedup.keyedStart(onsetUnixSeconds: onset))
+            }()
+            let start = session.startTs
             // #1284 residual 3: log when this persist lands wholly inside — or overlapping — a session already
             // banked this connection (the duplicate GENERATION an early partial drain creates, which the #899
             // heal only cleans up afterward). `sleepStart != nil` = a 0x49 anchor was applied; a persist with
@@ -935,6 +949,7 @@ public final class OuraLiveSource: NSObject, ObservableObject {
                 onBattery: @escaping (Int) -> Void = { _ in },
                 onModel: @escaping (String) -> Void = { _ in },
                 onSerial: @escaping (String) -> Void = { _ in },
+                onsetKeying: @escaping () -> Bool = { false },
                 feedsLive: Bool = true,
                 adoptIntent: Bool = false) {
         self.live = live
@@ -947,6 +962,7 @@ public final class OuraLiveSource: NSObject, ObservableObject {
         self.onBattery = onBattery
         self.onModel = onModel
         self.onSerial = onSerial
+        self.onsetKeying = onsetKeying
         self.feedsLive = feedsLive
         self.adoptIntent = adoptIntent
         // Tier-B MET research corpus: only on a live/persisting source, never the discovery-only scanner.
@@ -955,6 +971,8 @@ public final class OuraLiveSource: NSObject, ObservableObject {
         self.motionDump = feedsLive && !deviceId.isEmpty ? OuraMotionDump(deviceId: deviceId, log: log) : nil
         // RAW undecoded history-drain capture: same live/persisting gate; complements the decoded sidecars.
         self.rawDump = feedsLive && !deviceId.isEmpty ? OuraRawDump(deviceId: deviceId, log: log) : nil
+        // 0x7E/0x7F real_steps research corpus: same gate as the other Tier-B dumps.
+        self.realStepsDump = feedsLive && !deviceId.isEmpty ? OuraRealStepsDump(deviceId: deviceId, log: log) : nil
         super.init()
         // Dedicated queue-less central -> callbacks arrive on the main queue, matching @MainActor.
         #if os(iOS)
@@ -1588,6 +1606,49 @@ public final class OuraLiveSource: NSObject, ObservableObject {
                     }
                     lastActivityUtc = utc
                     lastActivitySampleCount = info.met.count
+                }
+
+            case .realStepsFields(let steps):
+                // INVESTIGATION ONLY (0x7E/0x7F real_steps_features, Tier B - a cited third-party unpack
+                // formula [oura-rs], NOT ground-truth-validated; see OuraRealStepsFields). Logged once per
+                // kind (like the other raw Tier-B tags) rather than every occurrence - this stream runs at
+                // a much higher rate than 0x50 MET, so the JSONL corpus is the real record; the strap log
+                // just confirms the ring sends it at all. Never persisted, never scored, and NEVER
+                // converted into steps (OuraStreamMapping drops .realStepsFields unconditionally) - not
+                // even from fields[0]/fields[8], which ground truth showed are movement FEATURES, not a
+                // count (a 13,349-step day; every field large and non-zero asleep - OURA_PROTOCOL.md §6.13).
+                if !loggedTierBKinds.contains("real_steps_fields") {
+                    loggedTierBKinds.insert("real_steps_fields")
+                    log("Oura: Tier-B real_steps_fields seen (tag 0x\(String(steps.tag, radix: 16))) - first fields: \(steps.fields)")
+                }
+                if let utc = driver.unixSeconds(forRingTimestamp: steps.ringTimestamp) {
+                    realStepsDump?.record(tag: steps.tag, ringTs: steps.ringTimestamp, utc: utc, fields: steps.fields)
+                }
+
+            case .sleepPeriodInfo(let info):
+                // 0x6A sleep_period_info (Tier B - third-party field NAMES [open_ring] over offsets our
+                // own §6.12 already had; see OuraSleepPeriodInfo). Logged with the DECODED values every
+                // time, like 0x50 MET rather than once-per-kind: its cadence is a modest ~5 min and the
+                // series is what the respiration ledger is reconstructed from, sample by sample.
+                //
+                // The record's `breath` field is also PERSISTED, and on a ring night it is what
+                // `dailyMetric.respRateBpm` is scored from: anchored to its own ring-time and enqueued
+                // exactly like the sibling banked streams (.hrv/.temp/.spo2), so a night's ~5-min windows
+                // land where they were MEASURED and never at the drain-arrival moment. `OuraStreamMapping`
+                // maps that ONE field onto a `respSample` row in milli-bpm; everything else in this record
+                // stays here in the log. The logging is kept as well as the row: it covers records no
+                // anchor can place, and it carries the fields the store deliberately does not.
+                let periodWhen = driver.unixSeconds(forRingTimestamp: info.ringTimestamp)
+                    .map { Self.cursorDateFormatter.string(from: Date(timeIntervalSince1970: TimeInterval($0))) }
+                    ?? "no anchor yet"
+                log("Oura: sleep_period (Tier-B) [\(periodWhen)] hr=\(info.averageHrBpm) "
+                    + "trend=\(info.hrTrend) breath=\(info.breathsPerMin) "
+                    + "breathV=\(info.breathVariability) motion=\(info.motionCount) state=\(info.sleepState)")
+                if let ts = driver.unixSeconds(forRingTimestamp: info.ringTimestamp) {
+                    enqueue([e], ts: ts)
+                    noteStoredHistoryRingTime(info.ringTimestamp)
+                } else {
+                    pendingAnchorEvents.append((e, info.ringTimestamp))
                 }
 
             case .state(let s):

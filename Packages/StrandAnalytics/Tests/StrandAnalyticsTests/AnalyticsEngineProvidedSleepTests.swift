@@ -88,4 +88,67 @@ final class AnalyticsEngineProvidedSleepTests: XCTestCase {
         XCTAssertEqual(res.daily.restingHr, 48)
         XCTAssertEqual(res.daily.avgHrv ?? 0, 65, accuracy: 0.001)
     }
+
+    /// Keep the public analyzeDay seam fully named and mirrored by the Kotlin twin.
+    private func analyzeProvided(day: String, provided: [SleepSession]) -> AnalyticsEngine.DayResult {
+        AnalyticsEngine.analyzeDay(
+            day: day,
+            hr: [],
+            rr: [],
+            resp: [],
+            vendorResp: [],
+            gravity: [],
+            steps: [],
+            dayHr: nil,
+            daySteps: nil,
+            dayGravity: nil,
+            skinTemp: [],
+            skinTempFamily: .whoop5,
+            skinTempAnchorRaw: nil,
+            spo2: [],
+            profile: profile,
+            baselines: AnalyticsEngine.ProfileBaselines(),
+            maxHROverride: nil,
+            tzOffsetSeconds: 0,
+            wristOff: [],
+            sleepNeedHours: AnalyticsEngine.Rest.defaultNeedHours,
+            sleepConsistency: nil,
+            habitualMidsleepSec: nil,
+            bandSleepState: [],
+            useSleepStagerV2: false,
+            useMotionAwareWake: false,
+            providedSleep: provided,
+            sleepProvenance: .measured,
+            traceSink: nil,
+            hrvTraceSink: nil,
+            hrvWindowDetail: false,
+            deepHrvWindow: false)
+    }
+
+    /// bhelm/noop#74: a real in-bed session whose hypnogram is entirely wake has no TST,
+    /// so it must not manufacture a Rest score.
+    func testWakeOnlyProvidedSessionHasNoRestScore() {
+        let day = "2025-06-10"
+        let start = AnalyticsEngine.dayStartUtcSeconds(day) + 3600
+        let end = start + 1800
+        let provided = [SleepSession(
+            start: start, end: end, efficiency: 0,
+            stages: [StageSegment(start: start, end: end, stage: "wake")],
+            restingHR: nil, avgHRV: nil)]
+
+        XCTAssertNil(analyzeProvided(day: day, provided: provided).restScore)
+    }
+
+    /// Positive boundary: staged sleep does not require deep or REM to earn a Rest score.
+    func testLightOnlyProvidedSessionHasRestScore() {
+        let day = "2025-06-10"
+        let start = AnalyticsEngine.dayStartUtcSeconds(day) + 3600
+        let end = start + 1800
+        let provided = [SleepSession(
+            start: start, end: end, efficiency: 1,
+            stages: [StageSegment(start: start, end: end, stage: "light")],
+            restingHR: nil, avgHRV: nil)]
+
+        XCTAssertNotNil(analyzeProvided(day: day, provided: provided).restScore)
+    }
 }

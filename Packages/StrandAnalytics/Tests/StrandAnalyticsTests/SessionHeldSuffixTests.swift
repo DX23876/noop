@@ -18,6 +18,14 @@ final class SessionHeldSuffixTests: XCTestCase {
         XCTAssertEqual(ConnectionTrace.sessionHeldSuffix(millis: 432), " after 0.4s")
     }
 
+    /// Exact half-ties round up to the next tenth on both platforms. This is an integer-millisecond
+    /// trace contract, so its result must not depend on the host runtime's floating-point formatter.
+    func testHalfTiesRoundUpToTheNextTenth() {
+        XCTAssertEqual(ConnectionTrace.sessionHeldSuffix(millis: 50), " after 0.1s")
+        XCTAssertEqual(ConnectionTrace.sessionHeldSuffix(millis: 150), " after 0.2s")
+        XCTAssertEqual(ConnectionTrace.sessionHeldSuffix(millis: 250), " after 0.3s")
+    }
+
     /// An unknown start yields NO suffix rather than `after 0.0s` — "dropped instantly" and "we do not
     /// know when it came up" are different diagnoses and must not render alike.
     func testAnUnknownStartAddsNothing() {

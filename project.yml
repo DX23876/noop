@@ -17,11 +17,11 @@ configFiles:
   Release: Config/BundleId.xcconfig
 settings:
   base:
-    MARKETING_VERSION: "10.1.2"
+    MARKETING_VERSION: "10.5.0"
     # iOS build number (CFBundleVersion). GLOBAL so the iOS app AND its widget extension inherit the
     # SAME value — they must match or iOS warns "extension version must match parent app" (#416).
     # macOS sets its own CFBundleVersion on the Strand target and is unaffected by this.
-    CURRENT_PROJECT_VERSION: "221"
+    CURRENT_PROJECT_VERSION: "230"
     SWIFT_VERSION: "5.0"
     # Emit localizable strings so Xcode auto-extracts every LocalizedStringKey into the
     # String Catalog on build (the English (US) base entries).
@@ -77,6 +77,12 @@ packages:
   # zero CoreBluetooth, so it stays headless/JVM-testable; the app target imports it for OuraLiveSource.
   OuraProtocol:
     path: Packages/OuraProtocol
+  # Clean-room local Polar sensor facts: model identification + PMD stream capability catalog (pure value
+  # types, zero CoreBluetooth, headless/JVM-testable). The app target imports it so StandardHRSource can
+  # log which Polar model a connecting strap is, and the Test Centre can auto-detect it from the paired
+  # record. The live PMD data path is not wired yet — this is identification/diagnostics only.
+  PolarProtocol:
+    path: Packages/PolarProtocol
   # Compresses the full-database `.noopbak` backup (single-entry deflate ZIP) in DataBackup.swift.
   # Already resolved transitively via StrandImport; linked directly so the app target can
   # `import ZIPFoundation`. Same exact version as StrandImport's, so SPM resolves one copy.
@@ -172,6 +178,7 @@ targets:
       - package: MarkdownUI
       - package: ZIPFoundation
       - package: OuraProtocol
+      - package: PolarProtocol
   StrandTests:
     type: bundle.unit-test
     platform: macOS
@@ -287,16 +294,17 @@ targets:
           # launch in StrandiOSApp.init) or the submit fails gracefully and only the foreground/"Run now"
           # paths run.
           - fetch
-          # Best-effort local semantic-memory indexing. No network access; iOS decides whether and when
-          # the processing lease is granted.
-          - processing
-        # #510: permit the scheduled debug auto-export's BGAppRefreshTask identifier. Built from
-        # $(PRODUCT_BUNDLE_IDENTIFIER) so it tracks BUNDLE_ID_PREFIX automatically; MUST still match
-        # ScheduledDebugExport.bgTaskIdentifier EXACTLY (which derives it from Bundle.main the same
-        # way) and be registered at launch (StrandiOSApp.init), or iOS refuses to schedule/deliver it.
+        # Permit every BGAppRefreshTask/BGProcessingTask identifier. Each derives from Bundle.main at
+        # runtime so it tracks BUNDLE_ID_PREFIX, and each is registered from StrandiOSApp.init before
+        # launch finishes. MUST match the registering site EXACTLY or iOS refuses to schedule/deliver.
         BGTaskSchedulerPermittedIdentifiers:
           - $(PRODUCT_BUNDLE_IDENTIFIER).debugexport
+          # Best-effort local semantic-memory indexing. No network access; iOS decides whether and when
+          # the processing lease is granted.
           - $(PRODUCT_BUNDLE_IDENTIFIER).semanticmemory
+          # Best-effort fallback that writes already-banked WHOOP data to HealthKit when iOS grants
+          # background time. Fresh offloads also write immediately from their completion hook.
+          - $(PRODUCT_BUNDLE_IDENTIFIER).healthwriteback
         NSBluetoothAlwaysUsageDescription: "NOOP connects directly to your WHOOP strap over Bluetooth to read heart rate, R-R intervals, battery, and sensor data locally on your iPhone. Nothing leaves your device."
         NSLocationWhenInUseUsageDescription: "NOOP records your route during an outdoor workout to show distance, pace, and a map, and keeps recording while the screen is off. The route stays on your device. Nothing leaves it."
         NSHealthShareUsageDescription: "NOOP reads your own Apple Health data on-device to compute recovery, strain, and sleep. Nothing leaves your device."
@@ -326,6 +334,8 @@ targets:
       path: StrandiOS/Resources/NOOP.entitlements
       properties:
         com.apple.developer.healthkit: true
+        # Required by HealthKit on iOS 15+ for the observer queries registered by HealthKitBridge.
+        com.apple.developer.healthkit.background-delivery: true
         com.apple.developer.healthkit.access: []
         com.apple.security.application-groups:
           - $(APP_GROUP_ID)
@@ -356,6 +366,7 @@ targets:
       - package: SemanticMemory
       - package: MarkdownUI
       - package: ZIPFoundation
+      - package: PolarProtocol
       - framework: Vendor/Nomic/llama.xcframework
         embed: true
       # The canonical Apple build is complete. Release packaging derives the free-Apple-ID
@@ -485,6 +496,7 @@ targets:
         SWIFT_EMIT_LOC_STRINGS: YES
     dependencies:
       - package: StrandDesign
+      - package: StrandAnalytics
       # The complication WidgetKit extension is embedded inside the watch app.
       - target: NOOPWatchComplications
 
