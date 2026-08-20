@@ -396,11 +396,40 @@ final class DecoderGoldenTests: XCTestCase {
         XCTAssertNil(s?.text)               // body too short for a trailing string
     }
 
+    func testStateMalformedUTF8IsNotReplacementDecoded() {
+        let malformed = OuraRecord(
+            type: OuraEventTag.stateChange.rawValue, ringTimestamp: rt,
+            payload: [0x08, 0x63, 0x68, 0x67, 0x2e, 0x20, 0x64, 0x65,
+                      0x74, 0x65, 0x63, 0x74, 0x65, 0x64, 0xff])
+        let decoded = OuraDecoders.decodeState(malformed)
+        XCTAssertEqual(decoded?.stateCode, 8)
+        XCTAssertNil(decoded?.text)
+
+        // Valid UTF-8 remains decoded and only surrounding NULs are trimmed.
+        let valid = OuraRecord(
+            type: OuraEventTag.stateChange.rawValue, ringTimestamp: rt,
+            payload: [0x04, 0x00, 0x63, 0x61, 0x66, 0xc3, 0xa9, 0x00])
+        XCTAssertEqual(OuraDecoders.decodeState(valid)?.text, "café")
+    }
+
     // MARK: - 0x43 debug text
 
     func testDebugText0x43() {
         let rec = record("4306020001004142")
         XCTAssertEqual(OuraDecoders.decodeDebugText(rec), "AB")
+    }
+
+    func testDebugTextMalformedUTF8IsRejected() {
+        let malformed = OuraRecord(
+            type: OuraEventTag.debugText.rawValue, ringTimestamp: rt,
+            payload: [0x41, 0xff, 0x42])
+        XCTAssertNil(OuraDecoders.decodeDebugText(malformed))
+
+        // The valid ASCII control remains unchanged.
+        let ascii = OuraRecord(
+            type: OuraEventTag.debugText.rawValue, ringTimestamp: rt,
+            payload: [0x41, 0x42])
+        XCTAssertEqual(OuraDecoders.decodeDebugText(ascii), "AB")
     }
 
     // MARK: - 0x0D battery (outer response body; percent at [0], voltage at [4..6] LE)

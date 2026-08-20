@@ -507,7 +507,7 @@ object OuraDecoders {
         if (b.size > 5) {
             val tailBytes = ByteArray(b.size - 1) { b[it + 1].toByte() }
             // Swift trims the NUL character set; match that exactly (trim only U+0000, not whitespace).
-            text = String(tailBytes, Charsets.UTF_8).trim('\u0000')
+            text = strictUtf8(tailBytes)?.trim('\u0000')
         }
         return OuraState(ringTimestamp = rec.ringTimestamp, stateCode = code, text = text)
     }
@@ -534,8 +534,16 @@ object OuraDecoders {
     fun decodeDebugText(rec: OuraRecord): String? {
         if (rec.payload.isEmpty()) return null
         val raw = ByteArray(rec.payload.size) { rec.payload[it].toByte() }
-        return String(raw, Charsets.UTF_8)
+        return strictUtf8(raw)
     }
+
+    private fun strictUtf8(bytes: ByteArray): String? = runCatching {
+        Charsets.UTF_8.newDecoder()
+            .onMalformedInput(java.nio.charset.CodingErrorAction.REPORT)
+            .onUnmappableCharacter(java.nio.charset.CodingErrorAction.REPORT)
+            .decode(java.nio.ByteBuffer.wrap(bytes))
+            .toString()
+    }.getOrNull()
 
     // MARK: - Sleep phase, 2-bit codes (0x4E / 0x5A; s6.12)
 

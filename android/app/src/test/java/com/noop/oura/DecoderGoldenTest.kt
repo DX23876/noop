@@ -454,12 +454,52 @@ class DecoderGoldenTest {
         assertNull(s?.text)               // body too short for a trailing string
     }
 
+    @Test
+    fun testStateMalformedUTF8IsNotReplacementDecoded() {
+        val malformed = OuraRecord(
+            type = OuraEventTag.STATE_CHANGE.raw,
+            ringTimestamp = rt,
+            payload = intArrayOf(
+                0x08, 0x63, 0x68, 0x67, 0x2e, 0x20, 0x64, 0x65,
+                0x74, 0x65, 0x63, 0x74, 0x65, 0x64, 0xff,
+            ),
+        )
+        // Valid UTF-8 remains decoded and only surrounding NULs are trimmed.
+        val valid = OuraRecord(
+            type = OuraEventTag.STATE_CHANGE.raw,
+            ringTimestamp = rt,
+            payload = intArrayOf(0x04, 0x00, 0x63, 0x61, 0x66, 0xc3, 0xa9, 0x00),
+        )
+        assertEquals("café", OuraDecoders.decodeState(valid)?.text)
+
+        val decoded = OuraDecoders.decodeState(malformed)
+        assertEquals(8, decoded?.stateCode)
+        assertNull(decoded?.text)
+    }
+
     // MARK: - 0x43 debug text
 
     @Test
     fun testDebugText0x43() {
         val rec = record("4306020001004142")
         assertEquals("AB", OuraDecoders.decodeDebugText(rec))
+    }
+
+    @Test
+    fun testDebugTextMalformedUTF8IsRejected() {
+        val malformed = OuraRecord(
+            type = OuraEventTag.DEBUG_TEXT.raw,
+            ringTimestamp = rt,
+            payload = intArrayOf(0x41, 0xff, 0x42),
+        )
+        // The valid ASCII control remains unchanged.
+        val ascii = OuraRecord(
+            type = OuraEventTag.DEBUG_TEXT.raw,
+            ringTimestamp = rt,
+            payload = intArrayOf(0x41, 0x42),
+        )
+        assertEquals("AB", OuraDecoders.decodeDebugText(ascii))
+        assertNull(OuraDecoders.decodeDebugText(malformed))
     }
 
     // MARK: - 0x0D battery (outer response body; percent at [0], voltage at [4..6] LE)
