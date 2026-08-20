@@ -639,6 +639,111 @@ public enum HRVAnalyzer {
         return rrCoverage(tsSec: keptTs, rrMs: keptRr)
     }
 
+    /// One second's tallies for `deliveryHistogram` — kept in a single dictionary so each row costs one
+    /// hash lookup rather than one per metric.
+    ///
+    /// A CLASS, not a struct, deliberately: a struct is a value type, so accumulating into it would mean
+    /// read-modify-write-back — two lookups per row, which is half the saving thrown away. Mutating through
+    /// a reference keeps it at one, and matches the Kotlin twin's shape exactly.
+    final class SecondTally {
+        var knownRows = 0
+        var ms = 0.0
+        var deliveries = 0
+    }
+
+    /// #1331/#1008: how many separate DELIVERIES wrote each stored second, across a whole night.
+    ///
+    /// `ord` restarts at 0 on every delivery, so two rows on one second both carrying `ord == 0` came from
+    /// two different offloads writing the same wall second. `densestSecondWindowSample` already shows that
+    /// — but only for the 5-8 seconds around the densest one, which is a sample, not a measurement. This
+    /// aggregates it over the night, because the fix turns on a question a sample cannot answer: is the
+    /// over-count mostly seconds touched by SEVERAL deliveries, or genuinely too many beats inside one?
+    ///
+    /// `multiMs` is the share of attributable BEAT-TIME on those seconds, and it is the number the fix is
+    /// sized against: coverage is Σ(rrMs) over wall span, so beat-time is what inflates it. A high
+    /// `multiRows` with a low `multiMs` would mean the extra rows are short and barely move coverage —
+    /// a different problem from the one this is chasing.
+    ///
+    /// `multiRows` is a share of ATTRIBUTABLE rows (those carrying an `ord`), not of every row — dividing
+    /// by the total would let a night that half-predates `ord` read artificially benign, which is precisely
+    /// the conclusion this exists to prevent.
+    ///
+    /// Rows whose `ord` is nil are counted in `ordUnknown` and excluded from the histogram rather than
+    /// assumed to be first-of-delivery: `ord` was added later, so a night that predates it would otherwise
+    /// read as "every second written once" and quietly argue against the mechanism it cannot see.
+    ///
+    /// Percentages are integer half-up on both platforms — no float formatting, so the two logs cannot
+    /// disagree on a tie (the #1473 lesson). Byte-parity twin of Kotlin `HrvAnalyzer.deliveryHistogram`.
+    public static func deliveryHistogram(tsSec: [Int], rrMs: [Double], ords: [Int?]) -> String {
+        let n = min(tsSec.count, rrMs.count)
+        guard n > 0 else { return "" }
+        // ONE dictionary keyed by the second, not four. An earlier revision kept `secsSeen`,
+        // `knownRowsPerSec`, `knownMsPerSec` and `deliveriesPerSec` in parallel — 3-4 hash lookups per row,
+        // on a path that runs once per over-counted night and so ~21 times per `analyzeRecent` cycle, every
+        // 15 minutes. At ~70k rows a night that is several million redundant lookups for a diagnostic.
+        var bySec: [Int: SecondTally] = [:]
+        var unknown = 0
+        var known = 0
+        var knownMs = 0.0
+        for i in 0 ..< n {
+            let tally: SecondTally
+            if let existing = bySec[tsSec[i]] {
+                tally = existing
+            } else {
+                tally = SecondTally()
+                bySec[tsSec[i]] = tally
+            }
+            if i < ords.count, let o = ords[i] {
+                known += 1
+                knownMs += rrMs[i]
+                tally.knownRows += 1
+                tally.ms += rrMs[i]
+                if o == 0 { tally.deliveries += 1 }
+            } else {
+                unknown += 1
+            }
+        }
+        var hist = [0, 0, 0, 0]      // 1, 2, 3, 4+
+        var multiSecs = 0
+        var multiRows = 0
+        var multiMs = 0.0
+        var maxDeliv = 0
+        var secs = 0
+        for (_, tally) in bySec where tally.deliveries > 0 {
+            secs += 1
+            hist[min(tally.deliveries, 4) - 1] += 1
+            if tally.deliveries > maxDeliv { maxDeliv = tally.deliveries }
+            if tally.deliveries >= 2 {
+                multiSecs += 1
+                multiRows += tally.knownRows
+                multiMs += tally.ms
+            }
+        }
+        // Seconds carrying rows but NO ord==0 row at all. Reachable: the primary key absorbs a cross-batch
+        // exact duplicate, and the row it drops can be the delivery's first on that second. Reported rather
+        // than folded into the histogram, so `secs` staying below the night's real second count is visible
+        // instead of quietly shrinking the denominator underneath `multiSec`.
+        let secsNoStart = bySec.count - secs
+        return "rr deliveries secs[1/2/3/4+]=\(hist[0])/\(hist[1])/\(hist[2])/\(hist[3])"
+            + " multiSec=\(pct(multiSecs, secs))% multiRows=\(pct(multiRows, known))%"
+            + " multiMs=\(pct(msToInt(multiMs), msToInt(knownMs)))%"
+            + " maxDeliv=\(maxDeliv) secsNoStart=\(secsNoStart) ordUnknown=\(unknown)"
+    }
+
+    /// Beat-time milliseconds to a whole number, half-up, WITHOUT `rounded()` or `round()`.
+    ///
+    /// Swift's `.rounded()` is half-away-from-zero and Kotlin's `kotlin.math.round` is half-toward-positive
+    /// -infinity. They agree here only because these sums are positive — the same "agrees until it doesn't"
+    /// shape as the `%.1f` divergence in #1473, where one platform's formatter rounded a tie the other way.
+    /// `x + 0.5` truncated is half-up on both, with no stdlib rounding involved, so the agreement is by
+    /// construction rather than by luck. Byte-parity twin of Kotlin `HrvAnalyzer.msToInt`.
+    static func msToInt(_ ms: Double) -> Int { ms > 0 ? Int(ms + 0.5) : 0 }
+
+    /// Whole-percent, integer half-up, so both platforms round a tie the same way. 0 when `total` is 0.
+    static func pct(_ part: Int, _ total: Int) -> Int {
+        total > 0 ? (part * 200 + total) / (total * 2) : 0
+    }
+
     /// #1008: a compact, deterministic RAW-ROW sample of the beats around the DENSEST second, for the
     /// always-on `hrv diag` log — emitted ONLY on an over-count night, so the mechanism of a `coverage>1`
     /// verdict can be READ off the log instead of guessed at. The coverage stats above say THAT a night is
