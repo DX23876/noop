@@ -2138,7 +2138,12 @@ public final class BLEManager: NSObject, ObservableObject {
             let rows = bf.sessionRowsPersisted
             let result: String
             if reason == "timeout" {
-                result = "stalled (idle timeout, rows=\(rows) so far)"
+                // #1466: an idle timeout that banked rows is a productive end, not a stall — the strap
+                // simply went quiet after handing everything over. Only rows=0 is a genuine stall. Calling
+                // both "stalled" made a healthy 17k-row night read as a failure in the log.
+                result = rows > 0
+                    ? "idle-timeout after rows=\(rows)"
+                    : "stalled (idle timeout, rows=0)"
             } else if reason == "HISTORY_COMPLETE" {
                 result = rows > 0
                     ? "complete rows=\(rows) nights=\(bf.sessionNights)"
@@ -2265,9 +2270,10 @@ public final class BLEManager: NSObject, ObservableObject {
             // 5/MG case isn't a failure — live HR is streaming fine over 0x2A37, the history offload is
             // just experimental/empty on that firmware. "Banked" = this offload made ANY offload progress
             // (chunks acked, rows persisted, or deep packets seen); an empty 5/MG offload has none.
-            let bankedThisOffload = state.syncChunksThisSession > 0
-                || (backfiller?.sessionRowsPersisted ?? 0) > 0
-                || state.deepPacketsThisSession > 0
+            let bankedThisOffload = BLEManager.offloadBankedAnything(
+                chunks: state.syncChunksThisSession,
+                rows: backfiller?.sessionRowsPersisted ?? 0,
+                deepPackets: state.deepPacketsThisSession)
             if selectedModel.deviceFamily == .whoop5 {
                 let crossed = whoop5EmptyOffload.recordOffload(bankedRecords: bankedThisOffload)
                 if whoop5EmptyOffload.historyEmpty {
@@ -2288,8 +2294,16 @@ public final class BLEManager: NSObject, ObservableObject {
                 // #324/#928: a future-dated strap TIMES OUT on its deep future-dated backlog — that's not
                 // "the strap went quiet", it's the clock being set ahead. Prefer the honest future-clock
                 // banner so the reporter's timeout case (the common one) names the real cause + remedy.
-                state.lastSyncError = futureClockBanner
-                    ?? "Sync interrupted - the strap went quiet. It will retry on the next sync."
+                //
+                // #1466: past that, only claim the strap went quiet when this offload actually handed over
+                // NOTHING. A WHOOP 4.0 routinely ends a full, successful night on the idle timeout rather
+                // than HISTORY_COMPLETE — one field log shows a session banking 17,205 rows across a night
+                // and still exiting reason=timeout. Announcing "sync interrupted" there tells the user a
+                // sync that worked had failed, which is worse than saying nothing: it trains them to
+                // distrust the one banner that matters when a sync really does stall. `bankedThisOffload`
+                // was already computed above for the 5/MG path and simply never consulted here.
+                state.lastSyncError = BLEManager.timeoutSyncError(futureClockBanner: futureClockBanner,
+                                                                  bankedThisOffload: bankedThisOffload)
             }
         }
         checkStrapLiveness()         // safety-net: strap ahead of us AND our frontier frozen ⇒ stuck?
@@ -2434,6 +2448,36 @@ public final class BLEManager: NSObject, ObservableObject {
     /// (that flag guards the once-per-connect INITIAL kick); the periodic re-trigger is separate.
     static func shouldRunPeriodicBackfill(connected: Bool, bonded: Bool, backfilling: Bool) -> Bool {
         connected && bonded && !backfilling
+    }
+
+    /// #1466: did this offload hand over anything at all? Acked chunks, persisted rows, or deep packets.
+    ///
+    /// Deliberately NOT a frame count. A stalled session still receives frames — three in one field log ran
+    /// 66–109s and took 42, 51 and 59 frames while banking ZERO rows. Gating the "strap went quiet" banner
+    /// on frames would therefore silence it on exactly the sessions it exists for. Twin of the Kotlin
+    /// `offloadBankedAnything`; both platforms must answer this the same way or one of them goes quiet on a
+    /// real stall.
+    nonisolated static func offloadBankedAnything(chunks: Int, rows: Int, deepPackets: Int) -> Bool {
+        chunks > 0 || rows > 0 || deepPackets > 0
+    }
+
+    /// #1466: the banner (if any) for an offload that ended on the idle TIMEOUT rather than
+    /// HISTORY_COMPLETE, for a non-5/MG strap. Pure so the decision is unit-testable — the surrounding
+    /// method is a long side-effecting BLE callback.
+    ///
+    /// A WHOOP 4.0 routinely ends a full, successful night this way: a field log shows a session banking
+    /// 17,205 rows across a night and still exiting `reason=timeout`. So "the strap went quiet" is only
+    /// honest when the offload handed over NOTHING; saying it after a productive sync reports a success as
+    /// a failure, and teaches the user to ignore the banner that matters when a sync really does stall.
+    ///
+    /// A future-dated clock still wins: it names a cause and a remedy, and #324/#928 showed that strap
+    /// times out precisely BECAUSE of the bad clock. Twin of the Kotlin `timeoutSyncError`.
+    nonisolated static func timeoutSyncError(futureClockBanner: String?,
+                                             bankedThisOffload: Bool) -> String? {
+        if let futureClockBanner { return futureClockBanner }
+        return bankedThisOffload
+            ? nil
+            : "Sync interrupted - the strap went quiet. It will retry on the next sync."
     }
 
     /// Pure classification of a COMPLETED (HISTORY_COMPLETE) offload, extracted from exitBackfilling so
