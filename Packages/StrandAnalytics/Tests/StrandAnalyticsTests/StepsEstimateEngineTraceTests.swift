@@ -88,9 +88,7 @@ final class StepsEstimateEngineTraceTests: XCTestCase {
     func testFewerThanTwoSamplesReportsNoDelta() {
         let lines = StepsEstimateEngine.rawCounterTrace(
             daySteps: [step(0, 100)], dayKey: dayUtc, tzOffsetSeconds: 0, ticksPerStep: 1.0)
-        XCTAssertEqual(lines.count, 1)
-        XCTAssertTrue(lines[0].contains("counterSamples=1"))
-        XCTAssertTrue(lines[0].contains("need >=2"))
+        XCTAssertEqual(lines, ["stepsRaw day=2026-01-02 counterSamples=1 (need >=2 for a delta)"])
     }
 
     func testEmptyCounterReportsNoRawCounterNotBroken() {
@@ -100,24 +98,26 @@ final class StepsEstimateEngineTraceTests: XCTestCase {
         // emptyCounterReportsNoRawCounterNotBroken.
         let lines = StepsEstimateEngine.rawCounterTrace(
             daySteps: [], dayKey: dayUtc, tzOffsetSeconds: 0, ticksPerStep: 1.0)
-        XCTAssertEqual(lines.count, 1)
-        XCTAssertTrue(lines[0].contains("counterSamples=0"))
-        XCTAssertTrue(lines[0].contains("noRawCounter"))
-        XCTAssertTrue(lines[0].contains("motion-estimated"))
-        XCTAssertFalse(lines[0].contains("need >=2"))  // not the misleading "broken" line
-        XCTAssertFalse(lines[0].contains("\u{2014}"))   // no em-dash
+        XCTAssertEqual(lines, [
+            "stepsRaw day=2026-01-02 counterSamples=0 noRawCounter "
+                + "(no step counter on this device; steps are motion-estimated, e.g. WHOOP 4.0)",
+        ])
     }
 
-    func testEmptyAfterDayFilterAlsoReportsNoRawCounter() {
-        // daySteps has rows, but none fall on the requested day (e.g. all on a neighbouring day). After the
-        // local-day filter the sorted list is empty, so the same honest noRawCounter line is emitted rather
-        // than a broken-looking counterSamples=0 ... need >=2. Twin of the Android
-        // emptyAfterDayFilterAlsoReportsNoRawCounter.
+    func testNonemptyInputWithNoRowsForDayReportsOnlyThatMismatch() {
+        // The supplied rows prove that a raw counter exists; they merely do not match the requested local day.
+        // Never turn that day-window mismatch into a device-capability or motion-estimation claim. Twin of the
+        // Android nonemptyInputWithNoRowsForDayReportsOnlyThatMismatch.
         let otherDay = [step(2 * 86_400, 100), step(2 * 86_400 + 60, 150)]
         let lines = StepsEstimateEngine.rawCounterTrace(
             daySteps: otherDay, dayKey: dayUtc, tzOffsetSeconds: 0, ticksPerStep: 1.0)
-        XCTAssertEqual(lines.count, 1)
-        XCTAssertTrue(lines[0].contains("noRawCounter"))
+        XCTAssertEqual(lines, [
+            "stepsRaw day=2026-01-02 counterSamples=0 inputSamples=2 noRowsForDay "
+                + "(no counter rows matched the requested local day)",
+        ])
+        XCTAssertFalse(lines[0].contains("noRawCounter"))
+        XCTAssertFalse(lines[0].contains("no step counter on this device"))
+        XCTAssertFalse(lines[0].contains("motion-estimated"))
     }
 
     // MARK: - WHOOP-4 calibration trace

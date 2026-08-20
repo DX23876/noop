@@ -112,10 +112,19 @@ object StepsEstimateEngineTrace {
         // no counter sample at all, say so honestly so the trace reflects the model, not a fault. (A 5/MG
         // with a single counter sample still falls through to the "need >=2" line: it HAS a counter, just
         // one read this window.)
-        if (sorted.isEmpty()) {
+        if (daySteps.isEmpty()) {
             lines.add(
                 "stepsRaw day=$dayKey counterSamples=0 noRawCounter " +
                     "(no step counter on this device; steps are motion-estimated, e.g. WHOOP 4.0)",
+            )
+            return lines
+        }
+        // A non-empty input proves a counter exists. If its rows all fall outside the requested local day,
+        // report only that window mismatch; never infer device capability or motion-estimation semantics.
+        if (sorted.isEmpty()) {
+            lines.add(
+                "stepsRaw day=$dayKey counterSamples=0 inputSamples=${daySteps.size} noRowsForDay " +
+                    "(no counter rows matched the requested local day)",
             )
             return lines
         }
