@@ -27,12 +27,15 @@ enum DebugDataDiagnostics {
         lines.append(String(repeating: "─", count: 40))
         lines.append("Strap & data")
         let d = UserDefaults.standard
-        let model: String
-        switch d.string(forKey: "selectedWhoopModel") {
-        case "whoop5": model = "WHOOP 5.0 / MG"
-        case "whoop4": model = "WHOOP 4.0"
-        default:       model = "unknown (never paired)"
-        }
+        // Parse through the enum, never against string literals. `selectedWhoopModel` stores
+        // `WhoopModel.rawValue` ("WHOOP 4.0" / "WHOOP 5.0 / MG") — both writers use `.rawValue` — but this
+        // switch tested for "whoop5"/"whoop4", which are the CASE names, not the raw values. Neither ever
+        // matched, so this header reported "unknown (never paired)" for every strap, forever, including one
+        // actively syncing. The sibling block ~270 lines below already compares `.rawValue` and carries a
+        // comment warning about this exact trap; this site never got the same treatment. Going through
+        // `WhoopModel(rawValue:)` makes the enum the single parser, so a future rename cannot re-open it.
+        let model = WhoopModel(rawValue: d.string(forKey: "selectedWhoopModel") ?? "")?.displayName
+            ?? "unknown (never paired)"
         lines.append("Model:       \(model)")
         lines.append("Firmware:    \(d.string(forKey: "noop.lastFirmware") ?? "unknown (connect to record)")")
         let syncSec = d.double(forKey: "lastSyncedAt")
@@ -155,7 +158,15 @@ enum DebugDataDiagnostics {
         }
         let det = SleepSession(start: cs.startTs, end: cs.endTs, efficiency: cs.efficiency ?? 0,
                                stages: [], restingHR: cs.restingHr, avgHRV: cs.avgHrv)
-        let family: DeviceFamily = (UserDefaults.standard.string(forKey: "selectedWhoopModel") == "whoop5") ? .whoop5 : .whoop4
+        // Third instance of the same literal bug in this file: "whoop5" is the enum CASE name, while the
+        // pref stores `WhoopModel.rawValue` ("WHOOP 5.0 / MG"). It never matched, so this resolved to
+        // `.whoop4` for EVERY strap — and unlike the two header sites, that is not a label. It picks the
+        // WHOOP-4 device anchor and runs `skinTempFunnel` under the wrong family, so the skin-temp funnel
+        // diagnostic has been reporting 4.0 numbers for every 5/MG on Apple. Parse through the enum.
+        // Unknown still resolves to `.whoop4`: this chooses an analysis default, matching the Kotlin twin.
+        let family: DeviceFamily =
+            WhoopModel(rawValue: UserDefaults.standard.string(forKey: "selectedWhoopModel") ?? "") == .whoop5mg
+            ? .whoop5 : .whoop4
         // Mirror the real per-device anchor (#404): learn it from the WHOLE recent window's raws — not just
         // this night — so a single sparse night (<100 in-band) can't misreport under the global fallback when
         // the window as a whole has enough in-band samples for analyzeDay to learn a device anchor.
@@ -300,11 +311,17 @@ enum DebugDataDiagnostics {
         lines.append("Enabled: \(on ? "yes" : "no") · set \(String(format: "%02d:%02d", mins / 60, mins % 60))")
         // #3: model + the 5/MG experimental gate — a 5/MG firmware alarm is NOT armed unless Experimental is on.
         // (selectedWhoopModel stores the WhoopModel rawValue — "WHOOP 5.0 / MG" / "WHOOP 4.0" — not "whoop5".)
-        let model = d.string(forKey: "selectedWhoopModel") ?? WhoopModel.whoop4.rawValue
-        if model == WhoopModel.whoop5mg.rawValue {
-            lines.append("Model: \(model) · experimental: \(PuffinExperiment.isEnabled ? "on" : "off → firmware alarm NOT armed")")
-        } else {
-            lines.append("Model: \(model)")
+        // Same rule as the header above: parse through the enum, and ABSTAIN when nothing is known. This
+        // defaulted to `whoop4.rawValue`, so an unknown family was reported as a WHOOP 4.0 — the very
+        // fabrication this change removes on Android, and it would have left the two platforms disagreeing
+        // about the one case that matters. Three arms, mirroring the Kotlin `when`.
+        switch WhoopModel(rawValue: d.string(forKey: "selectedWhoopModel") ?? "") {
+        case .whoop5mg:
+            lines.append("Model: \(WhoopModel.whoop5mg.displayName) · experimental: \(PuffinExperiment.isEnabled ? "on" : "off → firmware alarm NOT armed")")
+        case .whoop4:
+            lines.append("Model: \(WhoopModel.whoop4.displayName)")
+        case nil:
+            lines.append("Model: unknown (family not yet detected)")
         }
         // #4 / #67: strap clock health — a reset/stale OR future-dated clock (the #34 / #928 causes) breaks
         // the alarm even when armed, AND misdates offloaded sleep: the strap banks last night with its wrong
