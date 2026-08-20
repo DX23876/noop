@@ -52,8 +52,12 @@ SW = ROOT / "Strand/System/AppChangelog.swift"
 RES = ROOT / "android/app/src/main/res"
 
 #: The locale resource dirs the i18n gate treats as the focus set. `values` is the English source.
+# Polish shipped in #1250 but was never added here, so a `title_locales.pl` entry was accepted and then
+# silently dropped — v10.1.0 supplied one and Polish users still saw the English card. Keep this in step
+# with the res/values-* directories that actually exist.
 LOCALE_DIRS = {"en": "values", "de": "values-de", "es": "values-es",
-               "fr": "values-fr", "pt-PT": "values-pt-rPT", "zh": "values-zh"}
+               "fr": "values-fr", "pt-PT": "values-pt-rPT", "zh": "values-zh",
+               "pl": "values-pl"}
 
 
 def title_key(title: str) -> str:
