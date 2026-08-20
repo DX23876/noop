@@ -11,10 +11,32 @@ package com.noop.data
  * The JSON is a minimal, sorted-key object built by hand so it is byte-identical to Swift's
  * `JSONSerialization(.sortedKeys)` and testable in a plain JVM (no `org.json` stub).
  */
+private fun jsonString(value: String): String = buildString(value.length + 2) {
+    append('"')
+    value.forEach { char ->
+        when (char) {
+            '"' -> append("\\\"")
+            '\\' -> append("\\\\")
+            '\b' -> append("\\b")
+            '\u000c' -> append("\\f")
+            '\n' -> append("\\n")
+            '\r' -> append("\\r")
+            '\t' -> append("\\t")
+            else -> if (char.code in 0x00..0x1f) {
+                append("\\u")
+                append(char.code.toString(radix = 16).padStart(length = 4, padChar = '0'))
+            } else {
+                append(char)
+            }
+        }
+    }
+    append('"')
+}
+
 private fun sortedJsonObject(entries: List<Pair<String, Any>>): String =
     entries.sortedBy { it.first }.joinToString(separator = ",", prefix = "{", postfix = "}") { (k, v) ->
         val value = when (v) {
-            is String -> "\"" + v.replace("\\", "\\\\").replace("\"", "\\\"") + "\""
+            is String -> jsonString(v)
             else -> v.toString()   // Int/Long → unquoted numeric literal
         }
         "\"$k\":$value"

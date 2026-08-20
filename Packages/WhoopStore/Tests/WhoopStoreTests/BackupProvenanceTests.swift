@@ -22,6 +22,40 @@ final class BackupProvenanceTests: XCTestCase {
         )
     }
 
+    func test_versionEvent_payload_escapes_named_controls_like_kotlin() throws {
+        let from = "10.1\n0"
+        let to = "10.1\t1\u{1}"
+        let json = AppVersionEvent.payloadJson(from: from, to: to, schemaVersion: 30)
+
+        XCTAssertEqual(
+            json,
+            #"{"from":"10.1\n0","schemaVersion":30,"to":"10.1\t1\u0001"}"#
+        )
+        let decoded = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: Data(json.utf8)) as? [String: Any]
+        )
+        XCTAssertEqual(decoded["from"] as? String, from)
+        XCTAssertEqual(decoded["to"] as? String, to)
+    }
+
+    func test_versionEvent_payload_round_trips_every_json_control_character() throws {
+        var controls = ""
+        for value in 0x00...0x1F {
+            controls.unicodeScalars.append(UnicodeScalar(value)!)
+        }
+        let json = AppVersionEvent.payloadJson(from: controls, to: "ordinary", schemaVersion: 30)
+
+        XCTAssertEqual(
+            json,
+            #"{"from":"\u0000\u0001\u0002\u0003\u0004\u0005\u0006\u0007\b\t\n\u000b\f\r\u000e\u000f\u0010\u0011\u0012\u0013\u0014\u0015\u0016\u0017\u0018\u0019\u001a\u001b\u001c\u001d\u001e\u001f","schemaVersion":30,"to":"ordinary"}"#
+        )
+        XCTAssertFalse(json.unicodeScalars.contains { $0.value <= 0x1F })
+        let decoded = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: Data(json.utf8)) as? [String: Any]
+        )
+        XCTAssertEqual(decoded["from"] as? String, controls)
+    }
+
     func test_shouldRecord_only_on_a_real_transition() {
         XCTAssertFalse(AppVersionEvent.shouldRecord(lastSeen: nil, current: "10.1.1"))   // first launch
         XCTAssertFalse(AppVersionEvent.shouldRecord(lastSeen: "", current: "10.1.1"))
