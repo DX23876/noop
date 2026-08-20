@@ -372,8 +372,8 @@ public enum WorkoutDetector {
 
     /// #510: backfill ONLY the avgHr/maxHr/energyKcal/strain fields `real` doesn't already have, from a
     /// detected bout's own computed values — never touching a field that's already present, whether
-    /// typed by the user, imported, or filled by an earlier pass. `real` unchanged (`==`) means it
-    /// already had everything, so the caller can tell whether a write is actually needed. Kotlin twin
+    /// typed by the user, imported, or filled by an earlier pass. `real` unchanged (`==`) means no
+    /// available value was filled, so the caller can tell whether a write is actually needed. Kotlin twin
     /// IntelligenceEngine.backfillWorkoutFromDetectedBout.
     public static func backfillWorkout(_ real: WorkoutRow, avgBpm: Int, peakHR: Int, caloriesKcal: Double?, strain: Double?) -> WorkoutRow {
         WorkoutRow(
@@ -383,7 +383,8 @@ public enum WorkoutDetector {
             avgHr: real.avgHr ?? avgBpm,
             maxHr: real.maxHr ?? peakHR,
             strain: real.strain ?? strain,
-            distanceM: real.distanceM, zonesJSON: real.zonesJSON, notes: real.notes)
+            distanceM: real.distanceM, zonesJSON: real.zonesJSON, notes: real.notes,
+            steps: real.steps)
     }
 }
 
@@ -462,7 +463,9 @@ public enum Calories {
     /// with no resting baseline is scored exactly as before. A function of HRmax + resting HR ONLY,
     /// so every call site resolves it locally and day derivation stays deterministic (no cross-day
     /// dependency). (Uth et al. 2004, Eur. J. Appl. Physiol. 91.)
-    static func vo2maxFor(hrmax: Double, restingHR: Double?) -> Double? {
+    // `public`: the app-target IntelligenceEngine reads this shared Uth 2004 estimate for the waist-free
+    // VO₂max fallback (#1391), across the StrandAnalytics module boundary. The Kotlin twin is already public.
+    public static func vo2maxFor(hrmax: Double, restingHR: Double?) -> Double? {
         guard let rhr = restingHR, rhr > 0, hrmax > 0 else { return nil }
         return 15.3 * hrmax / rhr
     }

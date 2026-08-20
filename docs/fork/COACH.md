@@ -472,7 +472,7 @@ risk label.
 
 ## 7. Memory
 
-`CoachMemory` is a `@MainActor` singleton, JSON in `UserDefaults`, capped at **40 facts**.
+`CoachMemory` is a `@MainActor` singleton, JSON in `UserDefaults`, capped at **120 facts**.
 
 ### Storage size and bounds
 
@@ -481,7 +481,7 @@ material's current serialised footprint on-device: drive icon = conversation + f
 bubbles = conversation count, brain = fact count. It does **not** count the main health database,
 sensor streams, attachments, provider traffic or the separately displayed rebuildable semantic index.
 
-- Facts: maximum **40** entries; normal use is tiny because each is short text plus metadata.
+- Facts: maximum **120** entries; normal use is still small because each is short text plus metadata.
 - Normal conversation history: up to **50** conversations, with the newest **200** messages retained in
   each. A pinned conversation is deliberately exempt from the 50-thread count cap, so there is no false
   promise of a global byte ceiling when someone explicitly pins many long chats.
@@ -535,7 +535,7 @@ This is the part that decides whether a fact ever reaches the model at all.
 
 ### Retrieval — the interesting part
 
-Dumping 40 facts into every prompt is the naive approach: expensive, unfocused, and it crowds small
+Dumping 120 facts into every prompt is the naive approach: expensive, unfocused, and it crowds small
 context windows. Instead:
 
 - **`pinnedBlock`** — every `.pinned`, `.confirmed`, in-force fact. Goes in the *system prompt* only
@@ -580,8 +580,11 @@ carries — otherwise one sentence goes on the wire twice.
   strictest thresholds regardless of category — deleting the wrong memory is the costlier error — and
   when that finds nothing the tool result names the **near misses** so the coach can ask which was
   meant instead of giving up.
-- Eviction at the 40 cap takes the oldest **expired** fact first, then the oldest **non-pinned** one,
-  and only then the oldest fact outright.
+- Eviction at the 120 cap takes the oldest **expired** fact first. Otherwise non-pinned facts compete
+  by verification (`hypothesis` before `pendingConfirmation` before `confirmed`), then by lower evidence
+  count, then by age. The incoming fact competes under the same rules, so a weak new hypothesis is
+  rejected instead of displacing stronger memory. A fully pinned store also rejects new writes rather
+  than silently deleting an always-on constraint; the tool and manual-add UI tell the user to review it.
 
 Everything is visible and editable in `CoachSettingsView`'s Memory subpage: grouped by what needs the
 user first (awaiting confirmation, then always-on, then by category, then expired), with confirm, pin,
@@ -725,6 +728,13 @@ FACT: <another>
 The summary lands on the conversation; the facts go through `CoachMemory.add` (so near-dup detection
 and the cap still apply). It runs in a background `Task`, is best-effort, and **fails silently** —
 memory upkeep must never interrupt a chat. A manual "Summarise this chat now" is in Settings.
+
+Fact distillation deliberately favours precision over recall. Only explicit statements in the user's
+new turns may become facts; coach text, tool output, previous summaries, prompt-like instructions,
+transient measurements, hypotheticals and rejected/corrected claims are excluded. Facts stay atomic,
+standalone and in the user's language, and one maintenance call is capped at three facts in both the
+prompt and parser. The prior summary may update the thread-level `SUMMARY`, but it is never itself a
+source of new facts.
 
 ---
 

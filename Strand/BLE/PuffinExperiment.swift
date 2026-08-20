@@ -66,6 +66,17 @@ enum PuffinExperiment {
 
     static var spo2CandidateDisplayEnabled: Bool { UserDefaults.standard.bool(forKey: spo2CandidateDisplayKey) }
 
+    /// Opt-in "Personal daytime-stress baseline" (#463): score TODAY's intraday stress timeline against a
+    /// PERSONAL cross-day rolling baseline (Oura-style `.baselineRelative`) instead of the day's own calm
+    /// hours (`.dayRelative`, the default). Default OFF — the validated r≈0.6 HR-only margin is so far
+    /// SINGLE-SUBJECT (see `DaytimeStress.baselineRelativeHighMarginBPM`), so this stays a chooseable lens,
+    /// not a silent default, until it is validated on more subjects. When OFF, `StressView` /
+    /// `StressScreen` pass no mode and the read is byte-identical to before. Mirrors the Android
+    /// `NoopPrefs.KEY_STRESS_PERSONAL_BASELINE`.
+    static let stressPersonalBaselineKey = "noopStressPersonalBaseline"
+
+    static var stressPersonalBaselineEnabled: Bool { UserDefaults.standard.bool(forKey: stressPersonalBaselineKey) }
+
     /// Opt-in "Continuous HRV capture": hold the dense realtime HR stream armed even with no Live screen
     /// open, so the strap banks beat-to-beat R-R intervals 24/7 for far better overnight HRV/recovery/
     /// sleep (vs the sparse history offload). Uses more battery (continuous HR streaming). Default OFF;
@@ -146,6 +157,12 @@ enum PuffinExperiment {
     /// "Power saving" master: battery-adaptive strap-sync cadence. Default off. */
     static let powerSavingKey = "noopPowerSaving"
     static var powerSavingEnabled: Bool { UserDefaults.standard.bool(forKey: powerSavingKey) }
+
+    /// "Low refresh": a sub-option of Power saving (only meaningful while that master is on). Stretches
+    /// the periodic history offload to hourly at ANY strap charge, instead of only while the battery is
+    /// low. Default off. Cadence only — no data is lost (the strap banks to flash and trims on our ack).
+    static let lowRefreshKey = "noopLowRefresh"
+    static var lowRefreshEnabled: Bool { UserDefaults.standard.bool(forKey: lowRefreshKey) }
 
     /// Battery-% threshold for power saving (10–30). Default 20 (0 in the store means "unset" → 20).
     static let powerSavingBatteryPctKey = "noopPowerSavingBatteryPct"

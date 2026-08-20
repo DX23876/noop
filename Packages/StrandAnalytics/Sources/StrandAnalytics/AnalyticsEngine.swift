@@ -1,5 +1,6 @@
 import Foundation
 import WhoopProtocol
+import WhoopStore   // OuraRespScale: the one place a ring's milli-bpm respiration row is read
 @preconcurrency import WhoopStore
 
 // AnalyticsEngine.swift — orchestrator producing DailyMetric + sleep-session results.
@@ -77,7 +78,7 @@ public enum AnalyticsEngine {
         public let skinTempRelative: SkinTempRelative?
         /// Day strain / "Effort" [0,100] or nil (insufficient HR samples / invalid HRR).
         public let strain: Double?
-        /// Rest composite [0,100] or nil (no in-bed data). This is the value the
+        /// Rest composite [0,100] or nil (no asleep time). This is the value the
         /// `sleep_performance` metric key carries (duration-vs-need 0.50 + efficiency
         /// 0.20 + restorative share 0.20 + consistency 0.10). The downstream metric-series
         /// builder reads it from here; the Charge "Rest quality" term reads it ÷100.
@@ -254,10 +255,48 @@ public enum AnalyticsEngine {
     ///   - baselines: personal baselines for recovery normalization.
     ///   - maxHROverride: explicit HRmax (bpm) to use for strain/zones; nil →
     ///     Tanaka from profile.age.
+    /// The night's respiratory rate (breaths/min) from a strap's OWN per-window rate rows, or nil when
+    /// the night has too little of it to summarise. Pure → unit-testable, and byte-twinned in Kotlin.
+    ///
+    /// This is NOT the RSA estimate `SleepStager.respRateFromRR` computes: these rows are a measurement
+    /// the device made and NOOP decoded (the Oura ring's 0x6A `breath`, stored in milli-bpm), so the
+    /// question is coverage, not method. The night's value is the MEDIAN of the rows that fall inside a
+    /// matched in-bed session — the same statistic the ledger this decode was validated with used, and
+    /// robust to the odd out-of-band record.
+    ///
+    /// Two guards, both about representativeness rather than trust:
+    ///   * the in-session rows must SPAN at least `vendorRespMinSpanS`. A record cadence is not a
+    ///     reliable proxy for coverage (real nights hold both ~30 s and ~296 s spacing), so the gate is on
+    ///     the time the rows actually cover: a 36-minute tail of a night is not that night's respiration,
+    ///     and it would enter the personal baseline as though it were.
+    ///   * the median must land inside `SleepStager.respPlausibleRangeBpm` (8–25), the SAME band the RSA
+    ///     path is clamped to, so one corrupt record can never publish an impossible rate.
+    public static func vendorRespRateBpm(_ rows: [RespSample],
+                                         sessions: [(start: Int, end: Int)]) -> Double? {
+        guard !rows.isEmpty, !sessions.isEmpty else { return nil }
+        let inSession = rows.filter { r in sessions.contains { r.ts >= $0.start && r.ts <= $0.end } }
+        guard let first = inSession.map(\.ts).min(), let last = inSession.map(\.ts).max(),
+              last - first >= vendorRespMinSpanS else { return nil }
+        let median = HRVAnalyzer.median(inSession.map { OuraRespScale.breathsPerMin(raw: $0.raw) })
+        return SleepStager.respPlausibleRangeBpm.contains(median) ? median : nil
+    }
+
+    /// Minimum span (seconds) a night's vendor respiration rows must cover before their median is taken
+    /// as the night's rate. One hour: enough that the value describes the night rather than a fragment,
+    /// and low enough to keep a partially-drained night. Twin of the Kotlin constant.
+    public static let vendorRespMinSpanS = 3_600
+
     public static func analyzeDay(day: String,
                                   hr: [HRSample] = [],
                                   rr: [RRInterval] = [],
                                   resp: [RespSample] = [],
+                                  // The strap's OWN per-window respiratory RATE rows, when it measures one
+                                  // (the Oura ring's 0x6A `breath`, stored in milli-bpm — see
+                                  // `OuraRespScale`). Kept separate from `resp` on purpose: `resp` is the
+                                  // WHOOP raw respiration ADC WAVEFORM the stager peak-detects, a different
+                                  // quantity that must never be pooled with a rate. Empty for every WHOOP
+                                  // night, which therefore scores exactly as before.
+                                  vendorResp: [RespSample] = [],
                                   gravity: [GravitySample] = [],
                                   steps: [StepSample] = [],
                                   // Calendar-day-scoped overrides for the ADDITIVE daily totals
@@ -304,6 +343,11 @@ public enum AnalyticsEngine {
                                   // uses the global `Whoop4SkinTemp.anchorRaw`, so every 5/MG + pure-function
                                   // caller stays byte-identical (`.whoop5` ignores the anchor entirely).
                                   skinTempAnchorRaw: Double? = nil,
+                                  // #1467: 0 (default) keeps every existing caller's skin-temp "worn" gate
+                                  // exact-timestamp, byte-identical. IntelligenceEngine passes a non-zero
+                                  // value for an owner whose HR and skin-temp streams aren't co-sampled at
+                                  // 1 Hz (an Oura ring) — see `AnalyticsEngine.defaultOuraWornToleranceSec`.
+                                  skinTempWornToleranceSec: Int = 0,
                                   // WHOOP 4.0 raw SpO2 PPG ADC samples (red/IR) for the night window
                                   // (#93). The nightly red/IR means over detected sleep are banked on the
                                   // DailyMetric as RAW ADC — honest "the sensor decoded" data, NOT a
@@ -516,10 +560,10 @@ public enum AnalyticsEngine {
         // ── Rest composite (Charge/Effort/Rest) ───────────────────────────────
         // The 0–100 sleep score the `sleep_performance` metric key now carries:
         //   duration-vs-personal-need 0.50 + efficiency 0.20 + restorative share 0.20
-        //   + consistency 0.10. nil when there is no in-bed data. The Charge "Rest
+        //   + consistency 0.10. nil when there is no asleep time. The Charge "Rest
         //   quality" term reads it ÷100 (replacing raw efficiency).
         let hasStagedSleep = (deepS + remS) > 0
-        let restScore: Double? = matched.isEmpty ? nil : Rest.composite(
+        let restScore: Double? = tstS <= 0 ? nil : Rest.composite(
             tstSeconds: tstS,
             inBedSeconds: inBedS,
             efficiency: efficiency,
@@ -535,11 +579,13 @@ public enum AnalyticsEngine {
         // `subScoreLine` itself reuses `Rest.composite` for the final value. Side-effect-only; emitted
         // only when a trace is requested and this day actually scored a night.
         if let traceSink, !matched.isEmpty {
-            traceSink(Rest.subScoreLine(
-                tstSeconds: tstS, inBedSeconds: inBedS, efficiency: efficiency,
-                restorativeSeconds: deepS + remS, needHours: sleepNeedHours,
-                consistency: sleepConsistency, deepSeconds: deepS,
-                groupFragments: mainGroup.count, groupInBedSeconds: inBedS))
+            if restScore != nil {
+                traceSink(Rest.subScoreLine(
+                    tstSeconds: tstS, inBedSeconds: inBedS, efficiency: efficiency,
+                    restorativeSeconds: deepS + remS, needHours: sleepNeedHours,
+                    consistency: sleepConsistency, deepSeconds: deepS,
+                    groupFragments: mainGroup.count, groupInBedSeconds: inBedS))
+            }
             // #319: the motion-coverage + staging context behind the Rest number, so a high score on a poor
             // night can be explained from an export (WHOOP 4.0 banks motion coarsely → sparse=true → most
             // epochs default to sleep → over-counted duration → high Rest). `stager` says whether V1/V2 ran.
@@ -660,7 +706,18 @@ public enum AnalyticsEngine {
         // NOT a cloud/clinical respiration value. Per matched in-bed session, estimate
         // over [start, end]; the night's value = median of finite per-session
         // estimates; nil only when no session yields a finite estimate.
+        //
+        // A DEVICE-MEASURED rate wins over that estimate when the night has one. `vendorResp` carries a
+        // strap's own respiratory-rate rows — today the Oura ring's 0x6A `breath`, one value per sleep
+        // window, computed by the ring's firmware rather than derived here (see `vendorRespRateBpm`).
+        // Preferring it is not a close call: on a ring night the RSA estimate is built from BANKED R-R,
+        // where shuffling or reversing the night returns the same 13.3333 bpm — it carries no breathing
+        // information at all. A WHOOP night passes no `vendorResp`, so it keeps the RSA path verbatim.
         let respRateDaily: Double? = {
+            if let vendor = Self.vendorRespRateBpm(vendorResp,
+                                                   sessions: matched.map { (start: $0.start, end: $0.end) }) {
+                return vendor
+            }
             let perSession = matched
                 .map { SleepStager.respRateFromRR(rr, start: $0.start, end: $0.end) }
                 .filter { $0.isFinite }
@@ -677,7 +734,8 @@ public enum AnalyticsEngine {
         // and the mean is harvested; IntelligenceEngine seeds the baseline from those means
         // and re-derives the deviation in pass 2 (mirrors avgHrv→recovery). APPROXIMATE.
         let nightlySkinTempC = wornNightlySkinTempC(matched, hr: hr, skinTemp: skinTemp,
-                                                    family: skinTempFamily, anchorRaw: skinTempAnchorRaw)
+                                                    family: skinTempFamily, anchorRaw: skinTempAnchorRaw,
+                                                    wornToleranceSec: skinTempWornToleranceSec)
         let skinTempDevC: Double? = nightlySkinTempC.flatMap { (v: Double) -> Double? in
             guard let b = baselines.skinTemp, b.usable else { return nil }
             return round2(Baselines.deviation(v, state: b).delta)
@@ -1041,9 +1099,15 @@ public enum AnalyticsEngine {
                                      // `Whoop4SkinTemp.anchorRaw`, keeping 5/MG + pure-function callers
                                      // byte-identical. Threaded straight to the funnel's conversion.
                                      anchorRaw: Double? = nil,
-                                     minSamples: Int = minSkinTempSamples) -> Double? {
+                                     minSamples: Int = minSkinTempSamples,
+                                     // #1467: how many seconds apart a "worn" HR sample may sit from a
+                                     // skin-temp sample and still count it as concurrent. Default 0 =
+                                     // today's exact-timestamp match, byte-identical for every existing
+                                     // caller. See `skinTempFunnel`'s doc for why a ring needs this > 0.
+                                     wornToleranceSec: Int = 0) -> Double? {
         skinTempFunnel(sessions, hr: hr, skinTemp: skinTemp, family: family,
-                       anchorRaw: anchorRaw, minSamples: minSamples).mean
+                       anchorRaw: anchorRaw, minSamples: minSamples,
+                       wornToleranceSec: wornToleranceSec).mean
     }
 
     /// Nightly means of the WHOOP 4.0 raw SpO2 PPG channels (red/IR ADC) over the detected in-bed
@@ -1245,6 +1309,17 @@ public enum AnalyticsEngine {
         }
     }
 
+    /// #1467: how far apart (seconds) a valid HR sample may sit from a skin-temp sample and still mark it
+    /// "worn", when the caller opts in via `wornToleranceSec` > 0. Ground-truthed against a 7-night Oura
+    /// gap: exact-timestamp co-occurrence (tolerance 0) landed every one of those nights just under
+    /// `minSkinTempSamples` (155-296 kept, minSamples=300) despite 269-675 raw skin-temp samples and
+    /// 3,900-14,600 valid HR samples each night — the ring's HR and skin-temp channels are independently
+    /// clocked, unlike a WHOOP strap's single co-sampled per-second stream, so only ~40-55% of timestamps
+    /// coincide exactly by chance. A ±2 s window alone recovered every real (non-fragment) night comfortably
+    /// past the floor (622-635 kept); this default carries margin. See `worklog/BOARD.md` queue 11b and
+    /// `worklog/analysis/2026-08-19-1745-oura-app-skintemp-groundtruth-check.txt`.
+    public static let defaultOuraWornToleranceSec = 5
+
     /// Read-only skin-temp funnel for one night (#752). Re-runs the SAME wear/window/range gates
     /// `wornNightlySkinTempC` uses (and produces the IDENTICAL mean), additionally counting where each
     /// sample dropped, so an absent skin temp is self-explaining. The public `wornNightlySkinTempC` is a
@@ -1257,7 +1332,14 @@ public enum AnalyticsEngine {
                                       // global `Whoop4SkinTemp.anchorRaw`, so 5/MG + pure-function callers are
                                       // byte-identical.
                                       anchorRaw: Double? = nil,
-                                      minSamples: Int = minSkinTempSamples) -> SkinTempFunnelDiagnostic {
+                                      minSamples: Int = minSkinTempSamples,
+                                      // #1467: 0 (default) = exact-timestamp "worn" match, byte-identical to
+                                      // every caller before this change. A device whose HR and skin-temp
+                                      // streams aren't co-sampled at 1 Hz (an Oura ring) needs > 0 — see
+                                      // `defaultOuraWornToleranceSec`'s doc for the ground truth behind the
+                                      // value. IntelligenceEngine threads it per the OWNER device, never
+                                      // globally, so WHOOP behavior is untouched by construction.
+                                      wornToleranceSec: Int = 0) -> SkinTempFunnelDiagnostic {
         let total = skinTemp.count
         // #skin-diag: raw-ADC band + resolved anchor — PURE observation of the input, computed once and
         // reported on both return paths. Never touches the mean/gate logic below (byte-parity preserved).
@@ -1281,13 +1363,40 @@ public enum AnalyticsEngine {
                                             inBandCount: inBandCount, resolvedAnchorRaw: usedAnchor,
                                             medianMappedC: medianMappedC)
         }
-        var wornSeconds = Set<Int>(minimumCapacity: hr.count)
-        for h in hr where (30...220).contains(h.bpm) { wornSeconds.insert(h.ts) }
+        // #1467: tolerance 0 keeps the ORIGINAL O(1) exact-second Set lookup, untouched — every caller
+        // before this change, and every WHOOP night today, takes this branch and is byte-identical.
+        // tolerance > 0 (an Oura owner) instead sorts the valid HR timestamps once and binary-searches
+        // each skin-temp sample for the nearest one, so the check stays O(hr log hr + skinTemp log hr)
+        // rather than an O(hr × skinTemp) scan.
+        let wornSeconds: Set<Int>?
+        let sortedValidHrTs: [Int]?
+        if wornToleranceSec <= 0 {
+            var s = Set<Int>(minimumCapacity: hr.count)
+            for h in hr where (30...220).contains(h.bpm) { s.insert(h.ts) }
+            wornSeconds = s
+            sortedValidHrTs = nil
+        } else {
+            wornSeconds = nil
+            sortedValidHrTs = hr.filter { (30...220).contains($0.bpm) }.map { $0.ts }.sorted()
+        }
+        // True when some valid HR reading sits within `wornToleranceSec` of `ts` (inclusive both sides).
+        func isWorn(_ ts: Int) -> Bool {
+            if let wornSeconds { return wornSeconds.contains(ts) }
+            guard let sortedValidHrTs, !sortedValidHrTs.isEmpty else { return false }
+            var lo = 0, hi = sortedValidHrTs.count - 1
+            while lo <= hi {
+                let mid = (lo + hi) / 2
+                let d = sortedValidHrTs[mid] - ts
+                if abs(d) <= wornToleranceSec { return true }
+                if d < 0 { lo = mid + 1 } else { hi = mid - 1 }
+            }
+            return false
+        }
         var sum = 0.0
         var kept = 0
         var notWorn = 0, outOfWindow = 0, outOfRange = 0
         for t in skinTemp {
-            if !wornSeconds.contains(t.ts) { notWorn += 1; continue }
+            if !isWorn(t.ts) { notWorn += 1; continue }
             if !sessions.contains(where: { t.ts >= $0.start && t.ts <= $0.end }) { outOfWindow += 1; continue }
             // WHOOP 4.0 ONLY (#938 second capture): drop raws outside the plausible worn ADC band BEFORE the
             // anchor map. The no-contact floor (~509) and the 11-bit saturation ceiling (2047) are doff /

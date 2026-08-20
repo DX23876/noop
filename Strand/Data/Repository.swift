@@ -563,7 +563,7 @@ final class Repository: ObservableObject {
 
     /// Canonical source ids the resolver knows how to cross-reference. The strap's actual id is
     /// `deviceId` (and its computed sibling `deviceId + "-noop"`); these are the FIXED ids.
-    static let whoopSource = "my-whoop"
+    nonisolated static let whoopSource = "my-whoop"
     static let appleHealthSource = "apple-health"
     static let healthConnectSource = "health-connect"
     static let activityFileSource = "activity-file"
@@ -1582,7 +1582,12 @@ final class Repository: ObservableObject {
         guard inWindowGravity >= max(20, windowSeconds / 120) else { return nil }
         let hr = (try? await store.hrSamples(deviceId: deviceId, from: lo, to: hi, limit: Int.max)) ?? []
         let rr = (try? await store.rrIntervals(deviceId: deviceId, from: lo, to: hi, limit: Int.max)) ?? []
-        let resp = (try? await store.respSamples(deviceId: deviceId, from: lo, to: hi, limit: Int.max)) ?? []
+        // Same provenance refusal as the nightly scan (`IntelligenceEngine`): an Oura ring's respiration
+        // rows are its own per-window RATE stored as instrumentation, not the ~1 Hz raw ADC waveform this
+        // stager reads, so they never reach a re-stage either. See `OuraRespScale.forScoring`.
+        let resp = OuraRespScale.forScoring(
+            (try? await store.respSamples(deviceId: deviceId, from: lo, to: hi, limit: Int.max)) ?? [],
+            deviceId: deviceId)
         // Read only when the refinement below might actually use it (see `useMotionAwareWake`) — a plain
         // read cost, but no point paying it on the (default) off path.
         let useMotionAwareWake = PuffinExperiment.motionAwareWakeEnabled
@@ -1895,9 +1900,13 @@ final class Repository: ObservableObject {
                 s.map { Self.timelinePoint($0.ts, skinTempCelsius(raw: $0.raw, family: family)) }
             }.value
         case .respiration:
+            // Two quantities share this table: a WHOOP's raw respiration ADC waveform (plotted verbatim,
+            // as before) and an Oura ring's own per-window RATE in milli-bpm (0x6A instrumentation), which
+            // is scaled back to breaths/min so the track reads as ~14–16 instead of ~14,375.
+            // `OuraRespScale` is the single place that mapping lives.
             let s = (try? await store.respSamples(deviceId: source, from: from, to: to, limit: Int.max)) ?? []
             return await Task.detached(priority: .utility) {
-                s.map { Self.timelinePoint($0.ts, Double($0.raw)) }
+                s.map { Self.timelinePoint($0.ts, OuraRespScale.displayValue(raw: $0.raw, deviceId: source)) }
             }.value
         case .motion:
             // Gravity vector magnitude as a coarse movement signal (1 g at rest).
@@ -2302,7 +2311,7 @@ final class Repository: ObservableObject {
     nonisolated static func nonEmptyMetricIDs(_ catalog: [MetricDescriptor],
                                               keysBySource: [String: Set<String>],
                                               days: [DailyMetric],
-                                              whoopSource: String = "my-whoop") -> Set<String> {
+                                              whoopSource: String = Repository.whoopSource) -> Set<String> {
         Set(catalog.lazy.filter { metric in
             if keysBySource[metric.source]?.contains(metric.key) == true { return true }
             // The daily-column fallback is WHOOP-only, exactly as `exploreSeries` gates it.
@@ -2795,7 +2804,7 @@ final class Repository: ObservableObject {
             return WorkoutRow(startTs: row.startTs, endTs: row.endTs, sport: row.sport,
                               source: row.source, durationS: row.durationS, energyKcal: row.energyKcal,
                               avgHr: r.avg, maxHr: newMax, strain: newStrain, distanceM: row.distanceM,
-                              zonesJSON: row.zonesJSON, notes: row.notes)
+                              zonesJSON: row.zonesJSON, notes: row.notes, steps: row.steps)
         }
     }
 
@@ -2878,7 +2887,8 @@ final class Repository: ObservableObject {
         let manual = WorkoutRow(startTs: row.startTs, endTs: row.endTs, sport: trimmed, source: "manual",
                                 durationS: row.durationS, energyKcal: row.energyKcal,
                                 avgHr: row.avgHr, maxHr: row.maxHr, strain: row.strain,
-                                distanceM: row.distanceM, zonesJSON: row.zonesJSON, notes: row.notes)
+                                distanceM: row.distanceM, zonesJSON: row.zonesJSON, notes: row.notes,
+                                steps: row.steps)
         _ = try? await store.upsertWorkouts([manual], deviceId: deviceId)
         _ = try? await store.deleteWorkouts(deviceId: computedDeviceId, sport: "detected",
                                             from: row.startTs, to: row.startTs)

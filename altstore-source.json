@@ -104,6 +104,7 @@
       "appPermissions": {
         "entitlements": [
           "com.apple.developer.healthkit",
+          "com.apple.developer.healthkit.background-delivery",
           "com.apple.security.application-groups"
         ],
         "privacy": {

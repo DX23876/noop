@@ -295,17 +295,44 @@ final class DecoderGoldenTests: XCTestCase {
         XCTAssertEqual(phases?.contains { $0.unwritten }, false)
     }
 
-    // MARK: - 0x6B motion period (2-bit MOTION_STATE codes; 2 header bytes skipped)
+    // MARK: - 0x6B motion period (2-bit MOTION_STATE codes; 1 header byte, codes from byte1)
 
     func testMotionPeriod0x6B() {
-        // 2 header bytes 0x00 0x00, code byte 0x1B = 00 01 10 11 -> noMotion, restless, tossing, active.
-        let rec = record("6b070200010000001b")
+        // header 0x13 = 0001_0011: period_type 0, count(bits[5:4]) = 1 code in the FINAL byte, seq 0x3.
+        // byte1 0x1B = 00 01 10 11 -> noMotion, restless, tossing, active (a full middle byte, 4 codes).
+        // byte2 0xC0 = 11 00 00 00 -> LAST byte, truncated to count=1 -> just active. The 0.. padding is
+        // NOT read (the earlier decoder would have emitted 3 phantom noMotion codes here).
+        let rec = record("6b0702000100131bc0")
         let m = OuraDecoders.decodeMotionPeriod(rec)
         XCTAssertEqual(m, [
             OuraMotion(ringTimestamp: rt, index: 0, state: .noMotion),
             OuraMotion(ringTimestamp: rt, index: 1, state: .restless),
             OuraMotion(ringTimestamp: rt, index: 2, state: .tossing),
             OuraMotion(ringTimestamp: rt, index: 3, state: .active),
+            OuraMotion(ringTimestamp: rt, index: 4, state: .active),
+        ])
+    }
+
+    func testMotionPeriod0x6BShortSingleCodeRecord() {
+        // Real short capture `1ea0`: header 0x1E = 0001_1110 -> count = 1, seq 0xE; byte1 0xA0 = 10 00 00 00
+        // truncated to count=1 -> a single TOSSING code. The earlier decoder (codes from byte2) produced
+        // NOTHING for this 2-byte payload; the corrected one recovers the one real code.
+        let rec = record("6b06020001001ea0")
+        XCTAssertEqual(OuraDecoders.decodeMotionPeriod(rec),
+                       [OuraMotion(ringTimestamp: rt, index: 0, state: .tossing)])
+    }
+
+    func testMotionPeriod0x6BCountZeroMeansFullFinalByte() {
+        // Real short capture `05c0`: header 0x05 -> count FIELD 0, which encodes a FULL final byte (4 codes),
+        // NOT 0 — the 2-bit field can't hold 4, so 4 wraps to 0 (all 81 count==0 records in the capture have
+        // a non-zero final byte, never 0x00). byte1 0xC0 = 11 00 00 00 -> active, noMotion, noMotion,
+        // noMotion. The `count==0 ? 0` reading returned NIL for this record; `count==0 ? 4` recovers 4 codes.
+        let rec = record("6b06020001000dc0")   // header 0x0D: count field 0 (0x0D>>4 & 3 == 0), seq 0xD
+        XCTAssertEqual(OuraDecoders.decodeMotionPeriod(rec), [
+            OuraMotion(ringTimestamp: rt, index: 0, state: .active),
+            OuraMotion(ringTimestamp: rt, index: 1, state: .noMotion),
+            OuraMotion(ringTimestamp: rt, index: 2, state: .noMotion),
+            OuraMotion(ringTimestamp: rt, index: 3, state: .noMotion),
         ])
     }
 
@@ -369,11 +396,40 @@ final class DecoderGoldenTests: XCTestCase {
         XCTAssertNil(s?.text)               // body too short for a trailing string
     }
 
+    func testStateMalformedUTF8IsNotReplacementDecoded() {
+        let malformed = OuraRecord(
+            type: OuraEventTag.stateChange.rawValue, ringTimestamp: rt,
+            payload: [0x08, 0x63, 0x68, 0x67, 0x2e, 0x20, 0x64, 0x65,
+                      0x74, 0x65, 0x63, 0x74, 0x65, 0x64, 0xff])
+        let decoded = OuraDecoders.decodeState(malformed)
+        XCTAssertEqual(decoded?.stateCode, 8)
+        XCTAssertNil(decoded?.text)
+
+        // Valid UTF-8 remains decoded and only surrounding NULs are trimmed.
+        let valid = OuraRecord(
+            type: OuraEventTag.stateChange.rawValue, ringTimestamp: rt,
+            payload: [0x04, 0x00, 0x63, 0x61, 0x66, 0xc3, 0xa9, 0x00])
+        XCTAssertEqual(OuraDecoders.decodeState(valid)?.text, "café")
+    }
+
     // MARK: - 0x43 debug text
 
     func testDebugText0x43() {
         let rec = record("4306020001004142")
         XCTAssertEqual(OuraDecoders.decodeDebugText(rec), "AB")
+    }
+
+    func testDebugTextMalformedUTF8IsRejected() {
+        let malformed = OuraRecord(
+            type: OuraEventTag.debugText.rawValue, ringTimestamp: rt,
+            payload: [0x41, 0xff, 0x42])
+        XCTAssertNil(OuraDecoders.decodeDebugText(malformed))
+
+        // The valid ASCII control remains unchanged.
+        let ascii = OuraRecord(
+            type: OuraEventTag.debugText.rawValue, ringTimestamp: rt,
+            payload: [0x41, 0x42])
+        XCTAssertEqual(OuraDecoders.decodeDebugText(ascii), "AB")
     }
 
     // MARK: - 0x0D battery (outer response body; percent at [0], voltage at [4..6] LE)

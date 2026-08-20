@@ -189,6 +189,32 @@ final class HRVAnalyzerTests: XCTestCase {
         for p in pts { XCTAssertEqual(p.rmssd, 0.0, accuracy: 1e-9, "the 1400 ms artifact must be filtered, never spiking a window") }
     }
 
+    /// #1448: a difference that STRADDLES a dropped beat is a splice, not a physiological delta, and the
+    /// nightly `analyze` already excludes it via the gap-aware pair. The rolling trace must too. The
+    /// 2400 ms beat is out of range and removed, joining a 1000 ms run to a 1150 ms run that were never
+    /// adjacent; counting that 150 ms jump yields 50.0 ms of "variability" invented entirely by the
+    /// filter. Kotlin twin: `excludesDifferencesStraddlingADroppedBeat`.
+    func testRollingRmssdExcludesDifferencesStraddlingADroppedBeat() {
+        let raw = [1000, 1000, 1000, 1000, 1000, 2400, 1150, 1150, 1150, 1150, 1150]
+        let rr = raw.enumerated().map { RRInterval(ts: $0.offset, rrMs: $0.element) }
+        let pts = HRVAnalyzer.rollingRmssd(rr: rr, windowSec: 300, stepSec: 0, minBeatsPerWindow: 8)
+        XCTAssertFalse(pts.isEmpty)
+        // Ten survivors, every counted pair identical: the only non-zero difference was the splice.
+        XCTAssertEqual(pts.last!.rmssd, 0.0, accuracy: 1e-9)
+    }
+
+    /// #1448 control: a window with NO dropped beat must be byte-identical to the old behaviour, so this
+    /// is not a numbers-move for clean data. Same two runs without the out-of-range beat between them —
+    /// the 1000 → 1150 step is now a REAL adjacent difference and is counted, giving sqrt(150²/9) = 50.
+    /// Kotlin twin: `gaplessWindowIsUnchanged`.
+    func testRollingRmssdGaplessWindowIsUnchanged() {
+        let raw = [1000, 1000, 1000, 1000, 1000, 1150, 1150, 1150, 1150, 1150]
+        let rr = raw.enumerated().map { RRInterval(ts: $0.offset, rrMs: $0.element) }
+        let pts = HRVAnalyzer.rollingRmssd(rr: rr, windowSec: 300, stepSec: 0, minBeatsPerWindow: 8)
+        XCTAssertFalse(pts.isEmpty)
+        XCTAssertEqual(pts.last!.rmssd, 50.0, accuracy: 1e-9)
+    }
+
     func testRollingRmssdSparseSeriesEmitsNothing() {
         // Fewer beats than minBeatsPerWindow → no point at all (honest absence, no fabricated value).
         let rr = (0..<5).map { RRInterval(ts: 3000 + $0, rrMs: 800) }
@@ -207,6 +233,40 @@ final class HRVAnalyzerTests: XCTestCase {
         XCTAssertFalse(pts.isEmpty)
         XCTAssertEqual(pts.map { $0.ts }, pts.map { $0.ts }.sorted())
         for p in pts { XCTAssertEqual(p.rmssd, 10.0, accuracy: 1e-9) }
+    }
+
+    func testRollingRmssdUsesExclusiveLeftWindowBoundary() {
+        // Every candidate window has only seven beats under (t - windowSec, t]. Including the beat
+        // exactly at t - windowSec would incorrectly create qualifying eight-beat points at t=7 and t=8.
+        let rr = (0...8).map {
+            RRInterval(ts: $0, rrMs: $0.isMultiple(of: 2) ? 800 : 810)
+        }
+        let pts = HRVAnalyzer.rollingRmssd(
+            rr: rr, windowSec: 7, stepSec: 0, minBeatsPerWindow: 8
+        )
+        XCTAssertTrue(pts.isEmpty)
+    }
+
+    func testRollingRmssdCleansEachRawWindowIndependently() {
+        // The 1006 ms beat is acceptable in the local [845, 1006, 847] window at t=14, but not in
+        // [804, 845, 1006] at t=12. A whole-series clean incorrectly emits the t=12 window too.
+        let values = [800, 821, 812, 783, 804, 845, 1006, 847]
+        let rr = values.enumerated().map { RRInterval(ts: $0.offset * 2, rrMs: $0.element) }
+        let pts = HRVAnalyzer.rollingRmssd(
+            rr: rr, windowSec: 5, stepSec: 0, minBeatsPerWindow: 3
+        )
+        XCTAssertEqual(pts.map(\.ts), [4, 6, 8, 10, 14])
+    }
+
+    func testRollingRmssdRepeatedValuesCannotReattachRejectedTimestamp() {
+        // Whole-series cleaning rejects the first 900 ms beat but keeps the second. Matching survivors
+        // back by RR value reattaches that survivor to t=12 and fabricates a 141.42 ms point there.
+        let values = [700, 700, 700, 700, 700, 700, 900, 900]
+        let rr = values.enumerated().map { RRInterval(ts: $0.offset * 2, rrMs: $0.element) }
+        let pts = HRVAnalyzer.rollingRmssd(
+            rr: rr, windowSec: 5, stepSec: 0, minBeatsPerWindow: 3
+        )
+        XCTAssertEqual(pts.map(\.ts), [4, 6, 8, 10])
     }
 
     func testAnalyzeWindowFiltersByTimestamp() {

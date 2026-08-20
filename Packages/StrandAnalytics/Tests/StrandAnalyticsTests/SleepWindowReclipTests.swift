@@ -4,13 +4,19 @@ import Foundation
 
 final class SleepWindowReclipTests: XCTestCase {
 
-    private func segments(_ json: String) -> [(start: Int, end: Int, stage: String)] {
+    private struct Segment: Equatable {
+        let start: Int
+        let end: Int
+        let stage: String
+    }
+
+    private func segments(_ json: String) -> [Segment] {
         let arr = (try? JSONSerialization.jsonObject(with: Data(json.utf8))) as? [[String: Any]] ?? []
         return arr.compactMap {
             guard let s = ($0["start"] as? NSNumber)?.intValue,
                   let e = ($0["end"] as? NSNumber)?.intValue,
                   let st = $0["stage"] as? String else { return nil }
-            return (s, e, st)
+            return Segment(start: s, end: e, stage: st)
         }
     }
 
@@ -20,6 +26,43 @@ final class SleepWindowReclipTests: XCTestCase {
     }
 
     // MARK: - segment array (computed nights)
+
+    func testSegmentValidationMatchesCanonicalDecodedJSON() throws {
+        let cases: [(json: String, newStart: Int, newEnd: Int, expected: [Segment])] = [
+            (
+                #"[{"start":-10,"end":10,"stage":"light"}]"#,
+                0,
+                20,
+                [Segment(start: 0, end: 20, stage: "wake")]
+            ),
+            (
+                #"[{"start":100,"end":200,"stage":""}]"#,
+                100,
+                300,
+                [Segment(start: 100, end: 300, stage: "wake")]
+            ),
+            (
+                #"[{"start":50,"end":200,"stage":"light"}]"#,
+                100,
+                300,
+                [
+                    Segment(start: 100, end: 200, stage: "light"),
+                    Segment(start: 200, end: 300, stage: "wake"),
+                ]
+            ),
+        ]
+
+        for testCase in cases {
+            let output = try XCTUnwrap(SleepWindowReclip.reclip(
+                stagesJSON: testCase.json,
+                sessionStart: testCase.newStart,
+                oldEnd: testCase.newEnd,
+                newStart: testCase.newStart,
+                newEnd: testCase.newEnd
+            ))
+            XCTAssertEqual(segments(output), testCase.expected)
+        }
+    }
 
     func testSegmentTrimDropsAndClips() throws {
         let json = """

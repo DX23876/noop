@@ -8,6 +8,12 @@ import Foundation
 /// Keep in lockstep with the Android `EXPECTED_UNHANDLED_HISTORICAL_TYPES`.
 let expectedUnhandledHistoricalTypes: Set<String> = ["METADATA", "CONSOLE_LOGS"]
 
+/// How stale the strap RTC must be before the `(wall - device)` offset is applied to a historical
+/// record's own unix second. BELOW this the offset is discarded and the raw stamp is kept verbatim, so
+/// an everyday drift of seconds-to-minutes never reaches stored timestamps. Shared with `ChunkClockDiag`
+/// so the strap log's `corr=on|off` cannot disagree with what the decoder actually did.
+public let histStaleClockThresholdSec = 86_400   // 1 day
+
 /// Shared plausibility bounds for a type-47 record's own unix timestamp (#547). A WHOOP strap with a
 /// bad clock/flash (repeated trim=0xFFFFFFFF no-cursor) emits records whose decoded unix is scattered
 /// garbage — far-past (2024/2029), a bogus 2027=1827642881, and even FUTURE dates. NOOP used to trust
@@ -147,7 +153,16 @@ public func extractHistoricalStreams(_ parsed: [ParsedFrame],
                                      // The pure package can't read prefs, so the app-layer caller (Backfiller /
                                      // archive replay) reads PuffinExperiment.ppgHrSubLagInterpEnabled and passes
                                      // it. Default false = byte-identical to today. Mirrors the Android arg.
-                                     subLagInterp: Bool = false) -> Streams {
+                                     subLagInterp: Bool = false,
+                                     // TEST SEAM (#547 gate's "now"): overrides the live-clock upper bound
+                                     // resolved just below. nil everywhere in production — every caller keeps
+                                     // the live clock and today's behaviour is byte-identical. It exists so a
+                                     // fixture can pin a record whose own timestamp is in the future relative
+                                     // to the machine running the test, which is the only way to cover the
+                                     // post-2038 (bit-31-set) unix domain at all. Android's
+                                     // `extractHistoricalStreams` already had this parameter; this is Swift
+                                     // catching up, so the two oracle harnesses can drive the gate identically.
+                                     wallNow wallNowOverride: Int? = nil) -> Streams {
     func wall(_ deviceTs: Int?) -> Int? {
         guard let d = deviceTs else { return nil }
         return wallClockRef + (d - deviceClockRef)
@@ -159,7 +174,7 @@ public func extractHistoricalStreams(_ parsed: [ParsedFrame],
     // grid so the same record re-syncs to the SAME corrected ts (offloaded rows dedupe by (deviceId, ts);
     // an un-snapped, slightly-different offset on re-sync would duplicate every row). For a normal or
     // identity clockRef the offset is ~0 (< threshold) → rawTs is returned unchanged (current behavior).
-    let staleThreshold = 86_400          // 1 day
+    let staleThreshold = histStaleClockThresholdSec
     let snapGranularity = 300            // 5 min
     let clockOffset = wallClockRef - deviceClockRef
     // The wall "now" the plausibility gate's FUTURE bound measures against. A record genuinely can't
@@ -169,7 +184,7 @@ public func extractHistoricalStreams(_ parsed: [ParsedFrame],
     // nor a paused live clock wrongly rejects a real record. The MIN_PLAUSIBLE_UNIX floor is unconditional
     // and still catches the far-past garbage in every caller. Genuine future garbage (pikapik's records
     // dated beyond now, the field's year-2081 overshoot) is still > now + FUTURE_MARGIN → dropped. (#547)
-    let wallNow = max(wallClockRef, Int(Date().timeIntervalSince1970))
+    let wallNow = wallNowOverride ?? max(wallClockRef, Int(Date().timeIntervalSince1970))
     // PRIMARY FIX (#547): a record's own decoded ts must be near "now". A bad-clock strap emits records
     // whose unix is scattered garbage (far-past, a bogus 2027, even future dates); trusted verbatim, one
     // polluted block was re-attributed to every day and a future row surfaced as "last night". Returns

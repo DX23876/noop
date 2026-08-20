@@ -142,9 +142,10 @@ struct CoachSettingsView: View {
     @State private var addingFact = false
     @State private var newFactText: String = ""
     @State private var newFactCategory: CoachMemory.Category = .other
+    @State private var showMemoryCapacityAlert = false
     /// Which facts have their provenance row open — per fact, so opening one doesn't open all of them.
     @State private var expandedFactIDs: Set<UUID> = []
-    /// Guards "Forget everything", which drops up to 40 facts irreversibly and used to fire on the tap.
+    /// Guards "Forget everything", which drops up to 120 facts irreversibly and used to fire on the tap.
     /// Two steps, not one: nothing here is recoverable, so the first asks and the second says what is
     /// actually being lost before it goes.
     @State private var showForgetAllConfirm = false
@@ -264,14 +265,23 @@ struct CoachSettingsView: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {
-                        memory.add(newFactText,
-                                   category: newFactCategory,
-                                   source: .user,
-                                   confirmedByUser: true)
-                        addingFact = false
+                        let saved = memory.add(newFactText,
+                                               category: newFactCategory,
+                                               source: .user,
+                                               confirmedByUser: true)
+                        if saved {
+                            addingFact = false
+                        } else {
+                            showMemoryCapacityAlert = true
+                        }
                     }
                     .disabled(newFactText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
+            }
+            .alert("Memory", isPresented: $showMemoryCapacityAlert) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text("Nothing was saved. Coach memory is full of pinned or more strongly verified facts. Remove one before trying again.")
             }
         }
     }
@@ -2168,7 +2178,7 @@ struct CoachSettingsView: View {
                         VStack(alignment: .leading, spacing: 10) {
                             // Grouped by what a fact IS, in the order that matches how much it needs the
                             // user: anything waiting on them first, then what frames every reply, then
-                            // the rest. A flat 40-row list gave all of them the same weight.
+                            // the rest. A flat 120-row list would give all of them the same weight.
                             ForEach(memoryGroups, id: \.title) { group in
                                 VStack(alignment: .leading, spacing: 6) {
                                     Text(LocalizedStringKey(group.title)).strandOverline()
@@ -2220,7 +2230,7 @@ struct CoachSettingsView: View {
 
     /// One section per kind of fact. Unconfirmed first (they're waiting on the user), then the ones that
     /// frame every reply, then everything else by category, then expired — so the list leads with what
-    /// needs the user rather than treating all forty rows as equals.
+    /// needs the user rather than treating all 120 rows as equals.
     private var memoryGroups: [(title: String, facts: [CoachMemory.MemoryFact])] {
         let all = memory.facts
         let pending = all.filter { $0.verification == .pendingConfirmation && memory.isActive($0) }
@@ -2398,7 +2408,7 @@ struct CoachSettingsView: View {
             .buttonStyle(.plain)
             .foregroundStyle(StrandPalette.accent)
             .accessibilityLabel("Forget all remembered facts")
-            // Up to 40 facts, gone for good, on a single tap — the only other irreversible control on
+            // Up to 120 facts, gone for good, on a single tap — the only other irreversible control on
             // this screen ("Forget saved key") has asked first all along.
             .confirmationDialog("Forget everything the coach remembers?",
                                 isPresented: $showForgetAllConfirm,

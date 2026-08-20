@@ -169,4 +169,25 @@ final class RecoveryForecastTests: XCTestCase {
         XCTAssertEqual(RecoveryForecaster.leastSquaresSlope([1, 2, 3, 4]), 1, accuracy: 1e-9)
         XCTAssertEqual(RecoveryForecaster.leastSquaresSlope([5]), 0, accuracy: 1e-9)
     }
+
+    func testClampPreservesInputSignedZeroAtInclusiveBounds() {
+        // Cross-platform contract (#56): a value numerically equal to either bound is
+        // already in range, so clamp returns x itself and preserves x's IEEE sign bit.
+        let cases: [(x: Double, lo: Double, hi: Double)] = [
+            (+0.0, -0.0, 1.0),
+            (-0.0, +0.0, 1.0),
+            (+0.0, -1.0, -0.0),
+            (-0.0, -1.0, +0.0),
+        ]
+        for value in cases {
+            XCTAssertEqual(
+                RecoveryForecaster.clamp(value.x, value.lo, value.hi).bitPattern,
+                value.x.bitPattern
+            )
+        }
+
+        XCTAssertEqual(RecoveryForecaster.clamp(-1.01, -1.0, 1.0), -1.0)
+        XCTAssertEqual(RecoveryForecaster.clamp(0.25, -1.0, 1.0), 0.25)
+        XCTAssertEqual(RecoveryForecaster.clamp(1.01, -1.0, 1.0), 1.0)
+    }
 }

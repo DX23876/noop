@@ -981,6 +981,7 @@ extension AICoachEngine {
             return await handlePlotMetric(metric: metric, days: days)
         case .rememberFact:
             let fact = (input["fact"] as? String) ?? ""
+            let cleanFact = fact.trimmingCharacters(in: .whitespacesAndNewlines)
             let category = (input["category"] as? String)
                 .flatMap(CoachMemory.Category.init(rawValue:)) ?? .other
             let importance = (input["importance"] as? String)
@@ -993,7 +994,9 @@ extension AICoachEngine {
                                          source: .coachTool,
                                          confirmedByUser: confirmedByUser,
                                          validUntil: validUntil) else {
-                return "Nothing saved (the fact was empty)."
+                if cleanFact.isEmpty { return "Nothing saved (the fact was empty)." }
+                return "Nothing saved: coach memory is full of pinned or more strongly verified facts. "
+                    + "Ask the user to review Coach memory and remove a fact before trying again."
             }
             // Say which of the two states it landed in. A fact the coach INFERRED about an injury, goal
             // or physiology is stored unconfirmed and is deliberately kept out of the block that frames

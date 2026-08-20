@@ -104,6 +104,12 @@ struct SettingsView: View {
     /// writes nothing to the strap. See [PuffinExperiment.spo2CandidateDisplayKey].
     @AppStorage(PuffinExperiment.spo2CandidateDisplayKey) private var spo2CandidateDisplayEnabled = false
 
+    /// #463 opt-in: score the intraday stress timeline against a PERSONAL cross-day baseline
+    /// (`.baselineRelative`) instead of the day's own calm hours. Default off — the r≈0.6 margin is
+    /// single-subject so far. Display-only; never feeds recovery/illness. See
+    /// [PuffinExperiment.stressPersonalBaselineKey].
+    @AppStorage(PuffinExperiment.stressPersonalBaselineKey) private var stressPersonalBaselineEnabled = false
+
     /// True when the connected strap has positively attested itself a WHOOP MG. The variant is published as
     /// its label string (`LiveState.whoop5Variant`); "MG" is `Whoop5Variant.mg.label`. nil / not-yet-
     /// identified / a plain 5.0 is not an MG.
@@ -176,11 +182,9 @@ struct SettingsView: View {
     /// false and get the 24/7 behaviour they were trying to avoid.
     @AppStorage(PuffinExperiment.continuousHrvOvernightOnlyKey) private var continuousHrvOvernightOnly = true
 
-    // #477 Power saving (parity with Android). Battery-adaptive sync cadence + an HRV-pause sub-option.
-    @AppStorage(PuffinExperiment.powerSavingKey) private var powerSavingEnabled = false
-    @AppStorage(PuffinExperiment.powerSavingBatteryPctKey) private var powerSavingPct = 20
-    /// Stored INVERTED so the default (absent = false) reads as "HRV pause on". The toggle shows `!this`.
-    @AppStorage(PuffinExperiment.pauseHrvDisabledKey) private var pauseHrvDisabled = false
+    // #477 Power saving moved OUT of this screen into `PowerSavingView` — a first-class More row on
+    // iPhone (between Test Centre and Settings) and its own sidebar item on macOS. Its `@AppStorage`
+    // keys live there now; nothing here reads them.
 
     /// "Experimental sleep staging (V2)" (ON by default, promoted after the 44-subject cross-subject
     /// benchmark). When on, detected nights are re-staged with `SleepStagerV2` (the transparent
@@ -358,9 +362,8 @@ struct SettingsView: View {
                 if shows(.units) { unitsCard.staggeredAppear(index: 1) }
                 if shows(.appearance) { appearanceCard.staggeredAppear(index: 2) }
                 if shows(.strap) { strapCard.staggeredAppear(index: 3) }
-                if shows(.powerSaving) { powerSavingCard.staggeredAppear(index: 4) }
-                if shows(.streak) { streakCard.staggeredAppear(index: 5) }
-                if shows(.features) { featuresCard.staggeredAppear(index: 6) }
+                if shows(.streak) { streakCard.staggeredAppear(index: 4) }
+                if shows(.features) { featuresCard.staggeredAppear(index: 5) }
 
                 // Lower-frequency sections collapse behind a single default-closed disclosure so the
                 // screen opens at ~6 sections instead of 11. Nothing is removed; every section here
@@ -599,10 +602,11 @@ struct SettingsView: View {
                     }
                 }
                 rowDivider
-                // Waist (optional). Unlike the rows above it, an empty waist is valid (0 = unset) —
-                // it's the ONE measurement that ADDS the VO₂max estimate alongside Fitness Age. It does
-                // NOT sharpen the Fitness Age itself (the body term cancels in the Nes model), so it sits
-                // apart with an honest "adds your VO₂max estimate" note rather than implying it tunes the age.
+                // Waist (optional). Unlike the rows above it, an empty waist is valid (0 = unset).
+                // VO₂max is ALWAYS offered (the Uth HR-ratio fallback needs no waist, #1391); a waist just
+                // upgrades it to the more accurate Nes waist-based estimate. It does NOT sharpen the Fitness
+                // Age itself (the body term cancels in the Nes model), so the note says it makes VO₂max more
+                // accurate rather than implying it tunes the age.
                 FormRow(label: "Waist (optional)") {
                     // Imperial mode steps in whole inches and stores the cm equivalent; metric steps in cm.
                     if unitSystem == .imperial {
@@ -611,7 +615,7 @@ struct SettingsView: View {
                         waistCentimetresField(waistCm: $profile.waistCm)
                     }
                 }
-                Text("Optional: adds your VO₂max estimate. The Fitness Age itself doesn't need it. Measure around your middle, at the navel.")
+                Text("Optional: VO₂max builds from about 4 nights of heart rate; a waist makes it more accurate. The Fitness Age itself doesn't need it. Measure around your middle, at the navel.")
                     .font(StrandFont.footnote)
                     .foregroundStyle(StrandPalette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -1578,63 +1582,6 @@ struct SettingsView: View {
         }
     }
 
-    // MARK: - Power saving (#477)
-    private var powerSavingCard: some View {
-        SettingsSection(
-            icon: "battery.25",
-            title: "Power saving",
-            blurb: "Ease the load on your strap when its battery is running low. The strap keeps banking data on its own, so nothing is lost — NOOP just talks to it less often to help it last until you can charge it."
-        ) {
-            VStack(alignment: .leading, spacing: 16) {
-                Toggle(isOn: $powerSavingEnabled) {
-                    Text("Power saving mode")
-                        .font(StrandFont.subhead)
-                        .foregroundStyle(StrandPalette.textPrimary)
-                }
-                .toggleStyle(.switch)
-                .appleInspiredTint("settings.controls")
-                .onChangeCompat(of: powerSavingEnabled) { _ in model.applyPowerSaving() }
-                Text("Slows background strap-sync (every 45 min instead of 15) while your strap's battery is low. No data loss — the strap banks everything, so sync just batches into larger, less frequent pulls.")
-                    .font(StrandFont.caption)
-                    .foregroundStyle(StrandPalette.textSecondary)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                if powerSavingEnabled {
-                    rowDivider
-                    HStack {
-                        Text("Kick in at (strap battery)")
-                            .font(StrandFont.subhead)
-                            .foregroundStyle(StrandPalette.textPrimary)
-                        Spacer()
-                        Text(verbatim: "\(powerSavingPct)%")
-                            .font(StrandFont.subhead)
-                            .foregroundStyle(StrandPalette.accent)
-                    }
-                    Slider(
-                        value: Binding(get: { Double(powerSavingPct) }, set: { powerSavingPct = Int($0) }),
-                        in: 10...30, step: 5,
-                        onEditingChanged: { editing in if !editing { model.applyPowerSaving() } }
-                    )
-                    .appleInspiredTint("settings.controls")
-
-                    rowDivider
-                    // HRV pause: a sub-option, ON by default when the master is on (stored inverted).
-                    Toggle(isOn: Binding(get: { !pauseHrvDisabled }, set: { pauseHrvDisabled = !$0 })) {
-                        Text("Pause HRV capture")
-                            .font(StrandFont.subhead)
-                            .foregroundStyle(StrandPalette.textPrimary)
-                    }
-                    .toggleStyle(.switch)
-                    .appleInspiredTint("settings.controls")
-                    .onChangeCompat(of: pauseHrvDisabled) { _ in model.applyPowerSaving() }
-                    Text("While your strap's battery is low, stop the always-on background HRV stream — the biggest continuous drain on the strap. A Live screen still shows heart rate, and it re-arms automatically once the strap is charged.")
-                        .font(StrandFont.caption)
-                        .foregroundStyle(StrandPalette.textSecondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-            }
-        }
-    }
 
     /// Rename the WHOOP 4.0's BLE advertising name. Shows the current name (read back from firmware in
     /// the connect handshake → `LiveState.advertisingName`) and writes a new one via `renameStrap`. The
@@ -2252,6 +2199,22 @@ struct SettingsView: View {
                     Task { await model.intelligence.analyzeRecent(); await model.repo.refresh() }
                 }
                 Text("Your WHOOP 5.0/MG sends a strap-computed SpO₂ percentage (the @82 candidate byte) every second. An 8-night independent validation tracked it at corr +0.99 against the WHOOP app, but two nights on the original test device moved the OPPOSITE direction — device/firmware variance is unresolved. Turning this on surfaces the nightly mean in the Blood Oxygen tile as \"strap estimate (unverified)\" when no calibrated import exists. It never feeds recovery or illness scoring. WHOOP 4.0 has no @82 stream, so this does nothing there.")
+                    .font(StrandFont.caption)
+                    .foregroundStyle(StrandPalette.textTertiary)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                // MARK: #463 Personal daytime-stress baseline — score today's timeline vs a personal
+                //       cross-day baseline instead of the day's own calm hours. Off by default.
+                Divider().overlay(StrandPalette.hairline)
+
+                Toggle(isOn: $stressPersonalBaselineEnabled) {
+                    Text("Stress: personal daytime baseline")
+                        .font(StrandFont.subhead)
+                        .foregroundStyle(StrandPalette.textPrimary)
+                }
+                .toggleStyle(.switch)
+                .tint(StrandPalette.accent)
+                Text("Scores your hour-by-hour stress timeline against YOUR own cross-day baseline (how your days usually run, Oura-style) instead of the day's own calm hours. Needs a few worn days; until then it stays on the default. The high-stress cutoff is tuned from a single-subject reference so far, so it's an alternative lens rather than the default. HR-only, and it never feeds recovery or illness scoring. Off by default.")
                     .font(StrandFont.caption)
                     .foregroundStyle(StrandPalette.textTertiary)
                     .fixedSize(horizontal: false, vertical: true)

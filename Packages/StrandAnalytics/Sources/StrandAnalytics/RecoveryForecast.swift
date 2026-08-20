@@ -226,6 +226,10 @@ public enum RecoveryForecaster {
     }
 
     static func clamp(_ x: Double, _ lo: Double, _ hi: Double) -> Double {
-        Swift.min(Swift.max(x, lo), hi)
+        // Inclusive-bound equality is already in range: return x itself so Swift
+        // and Kotlin preserve the same IEEE signed-zero bit (#56).
+        if x < lo { return lo }
+        if x > hi { return hi }
+        return x
     }
 }

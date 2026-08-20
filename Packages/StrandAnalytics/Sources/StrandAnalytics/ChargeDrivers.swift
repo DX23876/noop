@@ -149,10 +149,19 @@ extension RecoveryScorer {
         // full set, dropping one and renormalising returns the same score, collapsing the delta to
         // 0 even for a clearly good or bad term.
         func points(_ neutralised: Double?) -> Int {
-            Int((full - (neutralised ?? full)).rounded())
+            // Shared Swift/Kotlin rule: nearest integer, with exact half-ties away from zero.
+            Int((full - (neutralised ?? full)).rounded(.toNearestOrAwayFromZero))
         }
 
         var drivers: [ChargeDriver] = []
+
+        // Did the parasympathetic-saturation signature fire on THIS night (low HRV corroborated by a
+        // low, decoupled resting HR)? Detection ONLY: the guard's easing is not applied, so deltaPoints
+        // below is the full, unguarded HRV penalty. The verdict merely NAMES the detected pattern so the
+        // UI can surface it while real firings accumulate. See the MARK header in RecoveryScorer.swift.
+        let hrvZFull = zScore(hrv, mean: hrvBaseline.baseline, spread: hrvBaseline.spread)
+        let rhrZFull: Double? = rhrBaseline.map { zScore($0.baseline, mean: rhr, spread: $0.spread) }
+        let hrvSaturationDetected = parasympatheticSaturation(hrvZ: hrvZFull, rhrZ: rhrZFull).active
 
         // ── HRV (dominant driver; always present once the score exists) ──────────
         // Higher HRV vs baseline supports recovery. Neutral = HRV at the baseline mean.
@@ -164,7 +173,8 @@ extension RecoveryScorer {
                                          skinTempDev: skinTempDev)),
             valueText: "\(Int(hrv.rounded())) ms",
             baselineText: "\(Int(hrvBaseline.baseline.rounded())) ms baseline",
-            verdict: hrvVerdict(value: hrv, baseline: hrvBaseline.baseline)))
+            verdict: hrvVerdict(value: hrv, baseline: hrvBaseline.baseline,
+                                saturationDetected: hrvSaturationDetected)))
 
         // ── Resting HR (lower vs baseline supports recovery) ─────────────────────
         // Neutral = resting HR at the baseline mean.
@@ -202,8 +212,8 @@ extension RecoveryScorer {
                                              hrvBaseline: hrvBaseline, rhrBaseline: rhrBaseline,
                                              respBaseline: respBaseline, sleepPerf: sleepPerf,
                                              skinTempDev: skinTempDev)),
-                valueText: String(format: "%.1f br/min", r),
-                baselineText: String(format: "%.1f br/min baseline", b.baseline),
+                valueText: String(format: "%.1f br/min", locale: Locale(identifier: "en_US_POSIX"), r),
+                baselineText: String(format: "%.1f br/min baseline", locale: Locale(identifier: "en_US_POSIX"), b.baseline),
                 verdict: respVerdict(value: r, baseline: b.baseline)))
         }
 
@@ -232,9 +242,18 @@ extension RecoveryScorer {
 
     // MARK: - Plain-English verdicts (no fabricated numbers; direction only)
 
-    static func hrvVerdict(value: Double, baseline: Double) -> String {
+    static func hrvVerdict(value: Double, baseline: Double, saturationDetected: Bool = false) -> String {
         if value > baseline { return "above baseline, supporting recovery" }
-        if value < baseline { return "below baseline, limiting recovery" }
+        if value < baseline {
+            // Parasympathetic-saturation signature detected: resting HR is also low and decoupled from
+            // HRV. NAME the pattern, but keep the plain "limiting recovery" read, because that is what
+            // the score actually did: the easing is detected-only and did NOT change these points. The
+            // hedge is deliberate too, since the same low-HRV + low-RHR pattern is also reported for
+            // non-functional overreaching, which is the opposite of benign.
+            return saturationDetected
+                ? "below baseline, limiting recovery, though low resting HR suggests this may be parasympathetic saturation rather than fatigue"
+                : "below baseline, limiting recovery"
+        }
         return "at baseline"
     }
 
@@ -265,7 +284,15 @@ extension RecoveryScorer {
     }
 
     static func skinTempDevText(_ dev: Double) -> String {
-        let sign = dev >= 0 ? "+" : ""
-        return "\(sign)\(String(format: "%.1f", dev)) C vs baseline"
+        // Negative zero needs its sign taken from the IEEE bit, never from a comparison: `-0.0 >= 0` is
+        // TRUE, so the hand-built sign this replaced prepended "+" to a value that already formatted as
+        // "-0.0", printing "+-0.0". `%+.1f` on its own gets BOTH zeroes right (checked against C printf
+        // and Java's Formatter, which the Kotlin twin uses); the explicit branch is redundant there and
+        // kept only to pin this edge, so the two zeroes cannot drift apart from the twin on a Foundation
+        // whose formatter we have not checked.
+        if dev == 0 {
+            return dev.sign == .minus ? "-0.0 C vs baseline" : "+0.0 C vs baseline"
+        }
+        return String(format: "%+.1f C vs baseline", locale: Locale(identifier: "en_US_POSIX"), dev)
     }
 }

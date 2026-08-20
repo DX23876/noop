@@ -161,7 +161,7 @@ public enum RouteExporter {
     }
 
     private static func semicircles(_ deg: Double) -> Int32 {
-        let v = (deg * semiPerDeg).rounded()
+        let v = (deg * semiPerDeg).rounded(.toNearestOrAwayFromZero)
         if v >= Double(Int32.max) { return Int32.max }
         if v <= Double(Int32.min) { return Int32.min }
         return Int32(v)

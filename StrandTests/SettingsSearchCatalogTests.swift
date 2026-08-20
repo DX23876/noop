@@ -37,7 +37,7 @@ final class SettingsSearchCatalogTests: XCTestCase {
     /// The queries in the plan's own acceptance list, plus the ones that motivated the keywords.
     func testRealQueriesReachTheirSection() {
         XCTAssertTrue(SettingsSearchCatalog.section(.strap, matches: "live activity"))
-        XCTAssertTrue(SettingsSearchCatalog.section(.powerSaving, matches: "battery"))
+        XCTAssertTrue(SettingsSearchCatalog.section(.strap, matches: "bluetooth"))
         XCTAssertTrue(SettingsSearchCatalog.section(.appearance, matches: "dark mode"))
         XCTAssertTrue(SettingsSearchCatalog.section(.appearance, matches: "language"))
         XCTAssertTrue(SettingsSearchCatalog.section(.backup, matches: "restore"))
@@ -46,8 +46,10 @@ final class SettingsSearchCatalogTests: XCTestCase {
     }
 
     func testAQueryNarrowsRatherThanReturningTheWholeScreen() {
-        let hits = SettingsSearchCatalog.matching("battery")
-        XCTAssertTrue(hits.contains { $0.id == .powerSaving })
+        // Power saving moved out of Settings into its own screen (upstream #1431), so "battery" is no
+        // longer a Settings query at all — the narrowing property is pinned on a query that still is one.
+        let hits = SettingsSearchCatalog.matching("bluetooth")
+        XCTAssertTrue(hits.contains { $0.id == .strap })
         XCTAssertLessThan(hits.count, SettingsSectionID.allCases.count,
                           "a specific query that keeps every section is not a filter")
     }

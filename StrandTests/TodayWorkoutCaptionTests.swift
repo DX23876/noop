@@ -23,7 +23,7 @@ final class TodayWorkoutCaptionTests: XCTestCase {
         return WorkoutRow(startTs: start, endTs: start + minutes * 60, sport: "Running",
                           source: "test", durationS: Double(minutes * 60), energyKcal: 347,
                           avgHr: nil, maxHr: nil, strain: nil, distanceM: nil,
-                          zonesJSON: nil, notes: nil)
+                          zonesJSON: nil, notes: nil, steps: nil)
     }
 
     private let august14 = DateComponents(year: 2026, month: 8, day: 14, hour: 18, minute: 27)

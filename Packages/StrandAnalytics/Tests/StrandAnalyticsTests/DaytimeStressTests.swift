@@ -283,4 +283,153 @@ final class DaytimeStressTests: XCTestCase {
         XCTAssertEqual(a.activityMaskedHours, 0)
         XCTAssertEqual(b.activityMaskedHours, 1, "the memo key ignored gravity and returned a stale Result")
     }
+
+    // MARK: - Additivity: the `mode` parameter is opt-in, day-relative stays the default
+
+    func testDayRelativeDefaultIsByteIdenticalToExplicitMode() {
+        // The additive `mode` parameter defaults to `.dayRelative`. Confirms the implicit call
+        // (every pre-existing call site, unmodified) and the explicit `.dayRelative` case
+        // produce a BYTE-IDENTICAL `Result` — every field, not just the pre-existing ones —
+        // proving the new mode is purely additive and never a silent behaviour change.
+        var hr: [HRSample] = []
+        for h in [8, 9, 10] { hr += hourHR(h, bpm: 58) }
+        hr += hourHR(13, bpm: 120)
+        hr += hourHR(14, bpm: 125)
+        hr += hourHR(15, bpm: 130)
+        var rr: [RRInterval] = []
+        rr += hourRRVariable(9, rrMs: 900, jitter: 40)
+        rr += hourRRVariable(14, rrMs: 900, jitter: 5)
+
+        let implicit = DaytimeStress.analyze(hr: hr, rr: rr, tzOffsetSeconds: 3_600)
+        let explicit = DaytimeStress.analyze(hr: hr, rr: rr, tzOffsetSeconds: 3_600, mode: .dayRelative)
+        XCTAssertEqual(implicit, explicit,
+            "omitting `mode` must be byte-identical to passing `.dayRelative` explicitly")
+    }
+
+    func testHighStressMinutesCountsAllHighBandHoursNotJustTheTrailingRun() {
+        // An isolated morning spike, then a calm run ending the day: sustainedHigh only cares
+        // about the TRAILING run (and must be false here, since the day ends calm), but
+        // highStressMinutes is a day-wide tally and must still count the earlier spike hour —
+        // proving it is computed independently, not derived from sustainedRun.
+        var hr: [HRSample] = []
+        hr += hourHR(7, bpm: 130)   // isolated high spike
+        hr += hourHR(8, bpm: 60)
+        hr += hourHR(9, bpm: 60)
+        hr += hourHR(10, bpm: 60)
+        hr += hourHR(11, bpm: 60)   // trailing hour is calm -> NOT sustained
+        let r = DaytimeStress.analyze(hr: hr, rr: [])
+
+        XCTAssertFalse(r.sustainedHigh, "the trailing hour is calm, so sustained-high must not fire")
+        let expectedHighHours = r.scored.filter { $0.level! >= DaytimeStress.highBandFloor }.count
+        XCTAssertGreaterThan(expectedHighHours, 0, "the isolated morning spike should read as high band")
+        XCTAssertEqual(r.highStressMinutes, expectedHighHours * (DaytimeStress.bucketSeconds / 60))
+        XCTAssertFalse(r.hrOnlyFallback, "day-relative mode never sets the baseline-relative fallback flag")
+    }
+
+    // MARK: - Baseline-relative mode (Oura-style, vs a PERSONAL rolling baseline)
+    //
+    // Fixtures below use a 65 bpm personal HR baseline (matching the ~65 bpm pooled
+    // 10th-percentile figure from the validated 26-day Oura-reference correlation — see
+    // `DaytimeStress.baselineRelativeHighMarginBPM`) and elevations measured from it in terms of
+    // that validated ~15 bpm margin, so the expected band crossings are exact, not approximate.
+
+    func testMarginToSigmaLandsExactlyOnBand() {
+        // The validated 15 bpm margin over baseline must land EXACTLY on highBandFloor (2.0) on
+        // the shared squash curve — the core identity `.baselineRelative` scoring relies on.
+        let sd = DaytimeStress.marginToSigma(marginBPM: DaytimeStress.baselineRelativeHighMarginBPM,
+                                             atBand: DaytimeStress.highBandFloor)
+        XCTAssertEqual(DaytimeStress.squash(DaytimeStress.baselineRelativeHighMarginBPM / sd),
+                      DaytimeStress.highBandFloor, accuracy: 1e-9)
+    }
+
+    func testBaselineRelativeModeRecoversMultipleInjectedElevations() {
+        // Personal daytime-HR baseline: 20 constant "days" at 65 bpm converges the EWMA center
+        // to exactly 65 (spread is folded but NOT used for the HR high-band threshold — see
+        // baselineRelativeHighMarginBPM).
+        let hrBaseline = Baselines.foldHistory(Array(repeating: 65.0, count: 20), cfg: Baselines.daytimeHRCfg)
+        XCTAssertEqual(hrBaseline.baseline, 65.0, accuracy: 1e-6)
+
+        // FOUR distinct injected HR elevations across the SAME day's waking hours — the repo's
+        // derived-signal rule (CLAUDE.md "validate against the artifact, not one match") requires
+        // recovering MULTIPLE injected values, not a single high-vs-low pair. 65 (at baseline),
+        // 72 (+7, mild), 80 (+15, exactly the validated margin), 95 (+30, well past it).
+        let levels: [(hour: Int, bpm: Int)] = [(8, 65), (10, 72), (13, 80), (16, 95)]
+        var hr: [HRSample] = []
+        for (h, bpm) in levels { hr += hourHR(h, bpm: bpm) }
+
+        let r = DaytimeStress.analyze(hr: hr, rr: [], mode: .baselineRelative(hr: hrBaseline, rmssd: nil))
+        let scores = levels.map { pair in r.scored.first { $0.hour == pair.hour }!.level! }
+
+        // Strictly increasing with the injected elevation — all four levels recovered, in order.
+        for i in 1..<scores.count {
+            XCTAssertGreaterThan(scores[i], scores[i - 1],
+                "hour \(levels[i].hour) (\(levels[i].bpm) bpm) should score higher than hour \(levels[i - 1].hour) (\(levels[i - 1].bpm) bpm)")
+        }
+        // The at-baseline hour reads at the 1.5 midpoint; +15 bpm (the validated margin) lands
+        // exactly on highBandFloor; the most-elevated hour clears well past it.
+        XCTAssertEqual(scores[0], 1.5, accuracy: 0.05)
+        XCTAssertEqual(scores[2], DaytimeStress.highBandFloor, accuracy: 0.01,
+            "the validated +15 bpm margin should land exactly on highBandFloor")
+        XCTAssertGreaterThan(scores.last!, DaytimeStress.highBandFloor)
+        XCTAssertTrue(r.hrOnlyFallback, "rmssd: nil must flag the HR-only fallback")
+    }
+
+    func testBaselineRelativeCalmDayAtPersonalBaselineReadsLowNotHigh() {
+        let hrBaseline = Baselines.foldHistory(Array(repeating: 65.0, count: 20), cfg: Baselines.daytimeHRCfg)
+        var hr: [HRSample] = []
+        for h in [8, 10, 13, 16] { hr += hourHR(h, bpm: 65) }   // every hour sits exactly at baseline
+        let r = DaytimeStress.analyze(hr: hr, rr: [], mode: .baselineRelative(hr: hrBaseline, rmssd: nil))
+
+        for p in r.scored {
+            XCTAssertEqual(p.level!, 1.5, accuracy: 0.05,
+                "a day flat at the personal baseline should read ~1.5, not elevated")
+        }
+        XCTAssertEqual(r.highStressMinutes, 0)
+        XCTAssertFalse(r.sustainedHigh)
+    }
+
+    func testBaselineRelativeElevatedDayProducesHighStressMinutes() {
+        let hrBaseline = Baselines.foldHistory(Array(repeating: 65.0, count: 20), cfg: Baselines.daytimeHRCfg)
+        var hr: [HRSample] = []
+        for h in 8...16 { hr += hourHR(h, bpm: 95) }   // +30 bpm — twice the validated high-band margin
+        let r = DaytimeStress.analyze(hr: hr, rr: [], mode: .baselineRelative(hr: hrBaseline, rmssd: nil))
+
+        XCTAssertGreaterThan(r.highStressMinutes, 0)
+        XCTAssertEqual(r.highStressMinutes,
+                      r.scored.filter { $0.level! >= DaytimeStress.highBandFloor }.count * (DaytimeStress.bucketSeconds / 60))
+        for p in r.scored { XCTAssertGreaterThanOrEqual(p.level!, DaytimeStress.highBandFloor) }
+    }
+
+    func testBaselineRelativeNilRMSSDFallsBackToHROnlyAndFlagsDegraded() {
+        // An imported, Oura-era day: no personal RMSSD baseline exists yet (rmssd: nil) and no
+        // R-R stream is available either. The read must still complete honestly, never crash.
+        let hrBaseline = Baselines.foldHistory(Array(repeating: 65.0, count: 20), cfg: Baselines.daytimeHRCfg)
+        var hr: [HRSample] = []
+        for h in [9, 14] { hr += hourHR(h, bpm: 80) }   // right at the validated +15 bpm margin
+        let r = DaytimeStress.analyze(hr: hr, rr: [], mode: .baselineRelative(hr: hrBaseline, rmssd: nil))
+
+        XCTAssertTrue(r.hrOnlyFallback)
+        XCTAssertFalse(r.scored.isEmpty, "HR-only scoring must still produce a timeline")
+        for p in r.scored { XCTAssertNotNil(p.level) }
+    }
+
+    func testBaselineRelativeUsesRMSSDBaselineWhenAvailable() {
+        // Personal baselines: HR steady at 65 bpm, RMSSD steady at 40 ms (both spread-floored).
+        let hrBaseline = Baselines.foldHistory(Array(repeating: 65.0, count: 20), cfg: Baselines.daytimeHRCfg)
+        let rmssdBaseline = Baselines.foldHistory(Array(repeating: 40.0, count: 20), cfg: Baselines.daytimeRMSSDCfg)
+
+        var hr: [HRSample] = []
+        var rr: [RRInterval] = []
+        for h in [9, 14] { hr += hourHR(h, bpm: 65) }        // HR AT baseline in both hours — isolates RMSSD
+        rr += hourRRVariable(9, rrMs: 900, jitter: 40)        // normal variability
+        rr += hourRRVariable(14, rrMs: 900, jitter: 2)        // suppressed HRV -> more stressed
+
+        let r = DaytimeStress.analyze(hr: hr, rr: rr,
+                                      mode: .baselineRelative(hr: hrBaseline, rmssd: rmssdBaseline))
+        XCTAssertFalse(r.hrOnlyFallback, "an RMSSD baseline was supplied — no fallback")
+        let normal = r.scored.first { $0.hour == 9 }!.level!
+        let suppressed = r.scored.first { $0.hour == 14 }!.level!
+        XCTAssertGreaterThan(suppressed, normal,
+            "suppressed RMSSD vs. the personal baseline should read MORE stressed than normal variability")
+    }
 }

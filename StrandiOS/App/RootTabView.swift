@@ -666,7 +666,7 @@ enum MoreDestination: Hashable {
     case insightsHub, intelligence, coach, coachSettings, goalJourney, insights, explore, compare
     case live, workouts, health, labBook, stress, breathe, intervals, rhythm
     case fusedRecord, appleHealth, miBand, dataSources, backupSync, shortcutsExport, noopLimitations
-    case alarms, automations, testCentre, siriShortcuts, settings
+    case alarms, automations, testCentre, siriShortcuts, powerSaving, settings
     /// Settings opened from a search hit, carrying the query so the screen lands already filtered to
     /// the matching section. Distinct from `.settings` (the plain row) so an ordinary tap on the
     /// Settings row still opens the whole screen.
@@ -703,6 +703,7 @@ enum MoreDestination: Hashable {
         case .automations:     AutomationsView()
         case .testCentre:      TestCentreView()
         case .siriShortcuts:   SiriShortcutsSettingsView()
+        case .powerSaving:     PowerSavingView()
         case .settings:        SettingsView()
         case .settingsSearch(let query): SettingsView(searchSeed: query)
         }

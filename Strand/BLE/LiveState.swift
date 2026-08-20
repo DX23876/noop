@@ -54,6 +54,10 @@ public final class LiveState: ObservableObject {
     /// surface for stress/breathing logic that reacts to the most recent arrival (and the standard
     /// 0x2A37 profile, which is the reliable R-R source). Drive it ONLY via `setRRIntervals(_:)`.
     @Published public var rr: [Int] = []
+    /// Monotonic count of R-R packet arrivals, bumped by every `setRRIntervals(_:)` call. Consume
+    /// packets via `onRRPackets` (keyed on this), never by watching `rr` — see RRPacketObserver.swift.
+    /// Twin of Android LiveState.rrSeq.
+    @Published public private(set) var rrSeq: Int = 0
     /// Rolling UI buffer of recent R-R intervals (capped, oldest dropped first). Standard BLE HR
     /// notifications usually carry only one or two intervals per packet, so the Live console needs a
     /// separate short history to render an actually-moving R-R strip / rolling RMSSD. Appended (never
@@ -519,6 +523,7 @@ public final class LiveState: ObservableObject {
     /// rolling buffer. `recentLimit` caps the buffer; the oldest intervals fall off first.
     public func setRRIntervals(_ intervals: [Int], recentLimit: Int = 60) {
         rr = intervals
+        rrSeq += 1
         let valid = intervals.filter { $0 > 0 }
         guard !valid.isEmpty else { return }
         rrRecent.append(contentsOf: valid)
@@ -713,9 +718,17 @@ public final class LiveState: ObservableObject {
         iso.timeZone = TimeZone(identifier: "UTC")
         // The stamp is when the roll happened (i.e. this launch), NOT when those lines were written — the
         // lines carry their own clock. Said plainly in the text so nobody reads it as the session's end.
-        let header = "===== previous app session, \(tail.count) line(s), rolled at "
-            + iso.string(from: now) + " (this launch) ====="
         let clipped = tail.count > generationTailLimit ? Array(tail.suffix(generationTailLimit)) : tail
+        // Say the KEPT count, and say so when the head was dropped. The header used to report only
+        // `tail.count` (the pre-clip total), so a generation that had lost its first 1,000 lines still
+        // announced "2,000 line(s)" and read as a complete session — a reader (or a log tool) then
+        // measures the missing head as silence. Both numbers are printed: the pre-clip total is what
+        // tells anyone how much is gone.
+        let count = clipped.count == tail.count
+            ? "\(tail.count) line(s)"
+            : "\(clipped.count) of \(tail.count) line(s), head clipped"
+        let header = "===== previous app session, \(count), rolled at "
+            + iso.string(from: now) + " (this launch) ====="
         var gens = persistedLogGenerations()
         gens.append([header] + clipped)
         if gens.count > maxLogGenerations { gens.removeFirst(gens.count - maxLogGenerations) }

@@ -21,7 +21,7 @@ final class PlanWorkoutMatcherTests: XCTestCase {
         let s = Int(date(start).timeIntervalSince1970)
         return WorkoutRow(startTs: s, endTs: s + 3600, sport: sport, source: "apple-health",
                           durationS: 3600, energyKcal: nil, avgHr: 140, maxHr: 170,
-                          strain: 48, distanceM: 10_000, zonesJSON: nil, notes: nil)
+                          strain: 48, distanceM: 10_000, zonesJSON: nil, notes: nil, steps: nil)
     }
 
     private func commitment(day: String = "2026-08-10", sport: String = "Easy run",
