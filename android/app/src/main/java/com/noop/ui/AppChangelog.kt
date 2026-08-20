@@ -26,7 +26,7 @@ object AppChangelog {
      * Bump this when you add a release below. The "What's New" sheet shows automatically when the
      * stored last-seen version is behind this. (Decoupled from the bundle version on purpose.)
      */
-    const val CURRENT_VERSION = "10.1.0"
+    const val CURRENT_VERSION = "10.5.0"
 
     data class Release(
         val version: String,
@@ -37,6 +37,18 @@ object AppChangelog {
 
     /** Newest first. */
     val releases: List<Release> = listOf(
+        Release(
+            version = "10.5.0",
+            title = uiString(R.string.l10n_app_changelog_training_load_a_vo_max_without_f9205a67),
+            date = "August 2026",
+            items = listOf(
+                "**Training load — CTL, ATL and form (#1423, #1425).** A Trends card tracks fitness, fatigue and the balance between them, so a hard block and the recovery it needs are both visible.",
+                "**A VO₂max without measuring your waist (#1391).** If NOOP knows your resting heart rate it can estimate VO₂max from age and sex alone, and it says which method it used rather than presenting one number as if there were only one way to get it.",
+                "**Much less battery spent re-scoring (#1005, thanks @bartmuskala).** A per-day cache stops NOOP recomputing days whose data hasn't changed — the single biggest background drain on Android — and \"Low refresh\" now offers hourly syncing at any charge.",
+                "**Apple Health write-back and hourly steps (#1432, thanks @MikaSchultes; #1429).** Workouts can flow back into Apple Health automatically, and iPhone steps import hour by hour with a 90-day backfill.",
+                "**More of the Oura ring read honestly (thanks @pipiche38).** The ring's own breath rate is shown as instrumentation (#1384, #1450), its skin-temp gate now fits a ring's independently-clocked sensors (#1467), and Rhythm says \"no data\" outright on hardware that cannot produce the reading (#1360).",
+            ),
+        ),
         Release(
             version = "10.1.0",
             title = uiString(R.string.l10n_app_changelog_personalized_heart_rate_zones_compare_and_8d89ee2a),
