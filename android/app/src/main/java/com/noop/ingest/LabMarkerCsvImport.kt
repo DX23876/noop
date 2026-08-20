@@ -7,6 +7,7 @@ import com.noop.analytics.MarkerCatalog
 import com.noop.data.ImportSummary
 import com.noop.data.LabMarkerRow
 import com.noop.data.WhoopRepository
+import java.text.Normalizer
 import java.text.SimpleDateFormat
 import java.util.Locale
 import java.util.TimeZone
@@ -447,7 +448,7 @@ object LabMarkerCsvImport {
      * marker folds onto a hand-added one. Returns "" for a name with no usable characters.
      */
     internal fun customKey(name: String): String {
-        val lowered = name.trim().lowercase()
+        val lowered = Normalizer.normalize(name, Normalizer.Form.NFC).trim().lowercase()
         val mapped = lowered.map { if (it.isLetterOrDigit()) it else '_' }.joinToString("")
         val collapsed = mapped.replace("__", "_").trim('_')
         return if (collapsed.isEmpty()) "" else "custom_$collapsed"
@@ -596,4 +597,3 @@ object LabMarkerCsvImport {
 }
 
 // MARK: - Stream helper (file-private; the other importers' twins are not visible here)
-

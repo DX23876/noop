@@ -43,6 +43,7 @@ import com.noop.analytics.LabMarkerCategory
 import com.noop.analytics.MarkerCatalog
 import com.noop.analytics.MarkerDefinition
 import com.noop.data.LabMarkerRow
+import java.text.Normalizer
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
@@ -437,7 +438,7 @@ object MarkerUnits {
 
     /** A lower-cased, underscored slug for a custom marker name → its stable key. */
     fun slug(name: String): String {
-        val lowered = name.trim().lowercase()
+        val lowered = Normalizer.normalize(name, Normalizer.Form.NFC).trim().lowercase()
         val mapped = lowered.map { if (it.isLetterOrDigit()) it else '_' }.joinToString("")
         val collapsed = mapped.replace("__", "_").trim('_')
         return "custom_$collapsed"

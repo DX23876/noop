@@ -1,6 +1,7 @@
 package com.noop.ingest
 
 import com.noop.analytics.LabMarkerCategory
+import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -108,6 +109,39 @@ class LabMarkerCsvImportTest {
         assertEquals(LabMarkerCategory.OTHER, row.category)
         assertTrue(row.isCustomMarker)
         assertEquals(listOf("custom_magnesium"), result.customMarkerKeys)
+    }
+
+    @Test fun customMarkerKeyCanonicalizesNfcAndNfdBeforeSlugging() {
+        val expected = byteArrayOf(
+            0x63, 0x75, 0x73, 0x74, 0x6f, 0x6d, 0x5f, 0x63, 0x61, 0x66,
+            0xc3.toByte(), 0xa9.toByte(), 0x5f, 0x6d, 0x61, 0x72, 0x6b, 0x65, 0x72,
+        )
+        assertArrayEquals(expected, LabMarkerCsvImport.customKey("Caf\u00e9 Marker").toByteArray())
+        assertArrayEquals(expected, LabMarkerCsvImport.customKey("Cafe\u0301 Marker").toByteArray())
+        assertEquals("custom_apo_b", LabMarkerCsvImport.customKey("Apo B"))
+    }
+
+    @Test fun canonicalEquivalentCustomMarkerRowsShareKeyAndLastRowWins() {
+        val nfc = "Caf\u00e9 Marker"
+        val nfd = "Cafe\u0301 Marker"
+        val csv = """
+            date,marker,value,unit
+            2026-05-01,$nfc,1,mg/L
+            2026-05-01,$nfd,2,mg/L
+        """.trimIndent()
+        val expected = byteArrayOf(
+            0x63, 0x75, 0x73, 0x74, 0x6f, 0x6d, 0x5f, 0x63, 0x61, 0x66,
+            0xc3.toByte(), 0xa9.toByte(), 0x5f, 0x6d, 0x61, 0x72, 0x6b, 0x65, 0x72,
+        )
+        val result = LabMarkerCsvImport.parse(csv)
+
+        assertEquals(1, result.importedReadings)
+        assertEquals(1, result.distinctMarkers)
+        assertEquals(1, result.rows.size)
+        assertEquals(2.0, result.rows[0].value, 1e-9)
+        assertArrayEquals(expected, result.rows[0].markerKey.toByteArray())
+        assertEquals(1, result.customMarkerKeys.size)
+        assertArrayEquals(expected, result.customMarkerKeys[0].toByteArray())
     }
 
     // MARK: - Blood pressure pairs (diastolic must never be dropped)

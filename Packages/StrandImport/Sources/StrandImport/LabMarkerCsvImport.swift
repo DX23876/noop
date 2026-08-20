@@ -346,7 +346,8 @@ public enum LabMarkerCsvImport {
     /// so a CSV custom marker folds onto a hand-added one. Returns "" for a name with no
     /// usable characters.
     static func customKey(_ name: String) -> String {
-        let lowered = name.trimmingCharacters(in: .whitespaces).lowercased()
+        let lowered = name.precomposedStringWithCanonicalMapping
+            .trimmingCharacters(in: .whitespaces).lowercased()
         let mapped = lowered.map { ch -> Character in
             (ch.isLetter || ch.isNumber) ? ch : "_"
         }
