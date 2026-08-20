@@ -574,11 +574,13 @@ public enum AnalyticsEngine {
         // `subScoreLine` itself reuses `Rest.composite` for the final value. Side-effect-only; emitted
         // only when a trace is requested and this day actually scored a night.
         if let traceSink, !matched.isEmpty {
-            traceSink(Rest.subScoreLine(
-                tstSeconds: tstS, inBedSeconds: inBedS, efficiency: efficiency,
-                restorativeSeconds: deepS + remS, needHours: sleepNeedHours,
-                consistency: sleepConsistency, deepSeconds: deepS,
-                groupFragments: mainGroup.count, groupInBedSeconds: inBedS))
+            if restScore != nil {
+                traceSink(Rest.subScoreLine(
+                    tstSeconds: tstS, inBedSeconds: inBedS, efficiency: efficiency,
+                    restorativeSeconds: deepS + remS, needHours: sleepNeedHours,
+                    consistency: sleepConsistency, deepSeconds: deepS,
+                    groupFragments: mainGroup.count, groupInBedSeconds: inBedS))
+            }
             // #319: the motion-coverage + staging context behind the Rest number, so a high score on a poor
             // night can be explained from an export (WHOOP 4.0 banks motion coarsely → sparse=true → most
             // epochs default to sleep → over-counted duration → high Rest). `stager` says whether V1/V2 ran.

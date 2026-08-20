@@ -649,12 +649,14 @@ object AnalyticsEngine {
         // IDENTICAL inputs `rest` consumed above so the trace can never disagree with the score. Emitted
         // only when a trace is requested and this day scored a night. Mirrors Swift.
         if (traceSink != null && matched.isNotEmpty()) {
-            traceSink(RestScorer.subScoreLine(
-                tstSeconds = tstS, inBedSeconds = inBedS, efficiency = efficiency,
-                restorativeSeconds = deepS + remS,
-                needHours = sleepNeedHours ?: RestScorer.defaultSleepNeedHours,
-                consistency = sleepConsistency, deepSeconds = deepS,
-                groupFragments = mainGroup.size, groupInBedSeconds = inBedS))
+            if (rest != null) {
+                traceSink(RestScorer.subScoreLine(
+                    tstSeconds = tstS, inBedSeconds = inBedS, efficiency = efficiency,
+                    restorativeSeconds = deepS + remS,
+                    needHours = sleepNeedHours ?: RestScorer.defaultSleepNeedHours,
+                    consistency = sleepConsistency, deepSeconds = deepS,
+                    groupFragments = mainGroup.size, groupInBedSeconds = inBedS))
+            }
             // #319: the motion-coverage + staging context behind the Rest number, so a high score on a poor
             // night can be explained from an export — WHOOP 4.0 banks motion coarsely (sparse=true), so most
             // epochs default to sleep → over-counted duration → high Rest; `stager` says whether V1/V2 ran.
