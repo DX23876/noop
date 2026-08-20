@@ -27,9 +27,11 @@ class Whoop4HistoricalV25Test {
             val p = decodeHistorical(rec, DeviceFamily.WHOOP4)
             assertNotNull("v25 record must decode (not rejected)", p)
             assertEquals(25, p!!["hist_version"])
-            val unix = p["unix"] as? Int
+            // Long, not Int: `unix` is an unsigned u32 carried in the unsigned domain so a post-2038
+            // value cannot go negative on Kotlin's 32-bit Int (see `histU32`).
+            val unix = p["unix"] as? Long
             assertNotNull(unix)
-            assertTrue(unix!! > 1_781_000_000)
+            assertTrue(unix!! > 1_781_000_000L)
             val gx = p["gravity_x"] as? Double
             assertNotNull("v25 must decode gravity (the sleep-staging input)", gx)
             val gy = (p["gravity_y"] as? Double) ?: 0.0
@@ -38,7 +40,7 @@ class Whoop4HistoricalV25Test {
             assertTrue("|gravity| ~1 g, got $mag", mag in 0.8..1.2)
         }
         // unix increments 1 Hz across the three.
-        val ts = records.map { decodeHistorical(it, DeviceFamily.WHOOP4)!!["unix"] as Int }
+        val ts = records.map { decodeHistorical(it, DeviceFamily.WHOOP4)!!["unix"] as Long }
         assertEquals(listOf(ts[0], ts[0] + 1, ts[0] + 2), ts)
     }
 
@@ -48,7 +50,7 @@ class Whoop4HistoricalV25Test {
     }
 
     @Test fun v25ProducesGravityStream() {
-        val ref = decodeHistorical(records[0], DeviceFamily.WHOOP4)!!["unix"] as Int
+        val ref = (decodeHistorical(records[0], DeviceFamily.WHOOP4)!!["unix"] as Long).toInt()
         val streams = extractHistoricalStreams(records, deviceClockRef = ref, wallClockRef = ref)
         assertEquals(records.size, streams.gravity.size)
     }

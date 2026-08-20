@@ -30,12 +30,16 @@ object Spo2ReTrace {
      * One record's RE line: the mapped SpO2 channels + timestamp + layout version, then the FULL frame
      * hex (no prefix cap - a v24 record is ~84 B and the unmapped tail is exactly where a banked SpO2
      * would sit). Absent channels render "null" so a channel-less record still proves what it lacks.
-     * Takes already-extracted ints (ConnectionTrace's primitive style, matching the Swift signature);
+     * Takes already-extracted numbers (ConnectionTrace's primitive style, matching the Swift signature);
      * the caller reads them off its decoded record map.
+     *
+     * [unix] is a LONG here where the other fields are Int: it is an unsigned u32 off the wire, and the
+     * Swift twin's `Int` is 64-bit, so narrowing it on this side would render a NEGATIVE unix in the dump
+     * past 2038-01-19 and break the byte-identical-line promise above. See `histU32` in HistoricalStreams.
      */
-    fun recordLine(frame: ByteArray, version: Int?, unix: Int?, red: Int?, ir: Int?, skinRaw: Int?): String {
+    fun recordLine(frame: ByteArray, version: Int?, unix: Long?, red: Int?, ir: Int?, skinRaw: Int?): String {
         val hex = frame.joinToString("") { String.format("%02x", it.toInt() and 0xFF) }
-        fun f(v: Int?): String = v?.toString() ?: "null"
+        fun f(v: Any?): String = v?.toString() ?: "null"
         return "spo2re v=${f(version)} unix=${f(unix)} red=${f(red)} ir=${f(ir)} " +
             "skinRaw=${f(skinRaw)} len=${frame.size} raw=$hex"
     }

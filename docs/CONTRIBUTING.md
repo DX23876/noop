@@ -532,6 +532,15 @@ Schema lives in `Packages/WhoopStore/Sources/WhoopStore/Database.swift` as a **v
   workout detection), and the CSV / Apple Health importers (including real-export tests).
 - **`Fixtures/`** holds a sample WHOOP export for the import tests; `StrandImport` test resources are
   bundled via the package's `Package.swift`.
+- **The golden decoder oracle is where cross-platform decode parity is pinned.** `decoder_oracle.json`
+  lives in two byte-identical copies (`Packages/WhoopProtocol/Tests/WhoopProtocolTests/Resources/`
+  and `android/app/src/test/resources/`) and both `DecoderOracleTests.swift` and `DecoderOracleTest.kt`
+  run the *same* assertions against it: decoded field VALUES per fixture frame, and the assembled
+  `Streams`/`StreamBatch` shape (per-stream row counts + the emptiness verdict) per fixture batch.
+  Pinning values rather than bytes is the point — the wire bytes are identical on both platforms, so
+  a 32-vs-64-bit or signedness split is invisible to a per-platform fixture-hex test. **Extend the
+  oracle rather than adding a parallel mechanism**; a `coverage` manifest in the file makes silently
+  dropping an assertion a test failure, so adding one means listing it there too.
 - **Prefer pure tests.** Because `WhoopProtocol`, `StrandAnalytics`, and `FrameRouter` are
   framework-free, you can (and should) cover new decode/routing/math with captured frames and
   fixtures rather than requiring a strap.

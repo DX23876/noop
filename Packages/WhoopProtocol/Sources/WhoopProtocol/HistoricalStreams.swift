@@ -153,7 +153,16 @@ public func extractHistoricalStreams(_ parsed: [ParsedFrame],
                                      // The pure package can't read prefs, so the app-layer caller (Backfiller /
                                      // archive replay) reads PuffinExperiment.ppgHrSubLagInterpEnabled and passes
                                      // it. Default false = byte-identical to today. Mirrors the Android arg.
-                                     subLagInterp: Bool = false) -> Streams {
+                                     subLagInterp: Bool = false,
+                                     // TEST SEAM (#547 gate's "now"): overrides the live-clock upper bound
+                                     // resolved just below. nil everywhere in production — every caller keeps
+                                     // the live clock and today's behaviour is byte-identical. It exists so a
+                                     // fixture can pin a record whose own timestamp is in the future relative
+                                     // to the machine running the test, which is the only way to cover the
+                                     // post-2038 (bit-31-set) unix domain at all. Android's
+                                     // `extractHistoricalStreams` already had this parameter; this is Swift
+                                     // catching up, so the two oracle harnesses can drive the gate identically.
+                                     wallNow wallNowOverride: Int? = nil) -> Streams {
     func wall(_ deviceTs: Int?) -> Int? {
         guard let d = deviceTs else { return nil }
         return wallClockRef + (d - deviceClockRef)
@@ -175,7 +184,7 @@ public func extractHistoricalStreams(_ parsed: [ParsedFrame],
     // nor a paused live clock wrongly rejects a real record. The MIN_PLAUSIBLE_UNIX floor is unconditional
     // and still catches the far-past garbage in every caller. Genuine future garbage (pikapik's records
     // dated beyond now, the field's year-2081 overshoot) is still > now + FUTURE_MARGIN → dropped. (#547)
-    let wallNow = max(wallClockRef, Int(Date().timeIntervalSince1970))
+    let wallNow = wallNowOverride ?? max(wallClockRef, Int(Date().timeIntervalSince1970))
     // PRIMARY FIX (#547): a record's own decoded ts must be near "now". A bad-clock strap emits records
     // whose unix is scattered garbage (far-past, a bogus 2027, even future dates); trusted verbatim, one
     // polluted block was re-attributed to every day and a future row surfaced as "last night". Returns

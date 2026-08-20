@@ -13,9 +13,74 @@
     "android/app/src/test/resources/decoder_oracle.json and a test in each suite asserts the two",
     "byte streams match. Doubles are compared within 1e-4; ints exact. A field absent from a record's",
     "'expect' map is simply not asserted (decoders legitimately emit supersets per family).",
-    "Frames carry only biometrics + timestamp (no serial / name / token), so they are safe to commit."
+    "Frames carry only biometrics + timestamp (no serial / name / token), so they are safe to commit.",
+    "",
+    "THIS FILE PINS THREE THINGS, each with a test in BOTH suites (issues #647, #775):",
+    "  1. 'frames'         - the DECODED VALUES of a fixture frame. Same bytes in, same numbers out.",
+    "                        A fixture-hex test cannot catch a 32-vs-64-bit or signedness divergence,",
+    "                        because the wire bytes are identical on both platforms and each suite",
+    "                        asserts its own answer; comparing the decoded NUMBERS against one shared",
+    "                        expectation is what catches it.",
+    "  2. 'stream_batches' - the ASSEMBLED stream shape for a set of fixture frames: per-stream row",
+    "                        counts, the emptiness verdict, and the #547 dropped-record counter. Frame",
+    "                        decode agreeing does not imply assembly agrees.",
+    "  3. 'coverage'       - the self-defence manifest. See its own comment."
   ],
   "tolerance": 1e-4,
+  "coverage": {
+    "_comment": [
+      "SELF-DEFENCE MANIFEST. Every name this oracle claims to pin, listed once. Both suites assert",
+      "the manifest and the fixtures agree EXACTLY, in both directions, so silently deleting an",
+      "'expect' key, a frame or a batch fails a test instead of quietly shrinking coverage; adding one",
+      "requires listing it here. Precedent: PR #848 needed a test that every storage slot's decoder key",
+      "exists in a real decode, because a rename had silently broken an extractor and nothing failed.",
+      "  fields            - every key used in any frame's 'expect', mapped to HOW MANY fixture frames",
+      "                      assert it. The count, not just the name: a set would let one frame quietly",
+      "                      drop a key that another frame still carries, which is the same silent loss",
+      "                      of coverage one frame smaller. Each key must also appear in at least one",
+      "                      real decode (the #848 check), except the derived ones below.",
+      "  derived_fields    - names asserted here that are NOT decoder keys: 'gravity_mag' is computed",
+      "                      from gravity_x/y/z because the components are family-specific.",
+      "  frames / batches  - every fixture / batch name, so removing one is a failure.",
+      "  streams           - the persisted streams that define the emptiness verdict. Both suites also",
+      "                      assert this list equals the array-typed fields actually declared on",
+      "                      Streams (Swift) / StreamBatch (Kotlin), so a NEW stream added on one",
+      "                      platform without oracle coverage fails there.",
+      "  non_stream_lists  - array-typed fields on those types that are diagnostics, deliberately",
+      "                      excluded from the emptiness verdict."
+    ],
+    "fields": {
+      "activity_class": 1, "aux_byte_82": 1, "cardiac_flags": 1, "cardiac_status": 1,
+      "dynamic_acceleration": 6, "gravity_mag": 9, "heart_rate": 11, "heart_rate_alt": 4,
+      "hist_version": 15, "hr_quality_flags": 4, "motion_wear_quality": 1, "onwrist": 2,
+      "optical_amp_a": 4, "optical_amp_b": 4, "optical_baseline_a": 4, "optical_baseline_b": 4,
+      "record_index": 3, "resp_rate_raw": 1, "rr_count": 7, "rr_intervals": 11, "rr_packed": 1,
+      "skin_temp_raw": 5, "sleep_state": 2, "spo2_ir": 1, "spo2_red": 1, "status_word": 1,
+      "status_word_1": 2, "status_word_2": 2, "step_cadence": 1, "step_motion_counter": 1,
+      "temp_aux_1_raw": 2, "temp_aux_2_raw": 2, "unix": 15, "unknown_f32_113": 1,
+      "wake_quality": 2
+    },
+    "derived_fields": ["gravity_mag"],
+    "frames": [
+      "whoop4_v24_real_worn", "whoop4_v24_synthetic_anchor", "whoop4_v25_real_a", "whoop4_v25_real_b",
+      "whoop4_v25_real_c", "whoop5_v18_real_worn", "whoop5_v18_real_one_rr",
+      "whoop5_v18_real_offwrist", "whoop5_v18_real_ack_capture", "whoop5_v18_real_device2_hr57",
+      "whoop5_v18_real_device2_hr63", "whoop5_v18_synthetic_record_index_high_bit",
+      "whoop4_v24_synthetic_unix_high_bit", "whoop4_v25_synthetic_unix_high_bit",
+      "whoop5_v18_synthetic_unix_high_bit"
+    ],
+    "batches": [
+      "empty_input", "whoop4_v24_single", "whoop4_v25_gravity_only", "whoop5_v18_worn_pair",
+      "whoop5_v18_offwrist_single", "whoop5_v18_outside_session_range",
+      "whoop4_v24_high_bit_unix_survives", "whoop4_v25_high_bit_unix_survives",
+      "whoop5_v18_high_bit_unix_survives"
+    ],
+    "streams": [
+      "hr", "rr", "spo2", "skin_temp", "resp", "gravity", "steps", "sleep_state", "ppg_hr",
+      "ppg_waveform", "v18_aux", "events", "battery"
+    ],
+    "non_stream_lists": ["dropped_rtc_events"]
+  },
   "frames": [
     {
       "name": "whoop4_v24_real_worn",
@@ -214,6 +279,269 @@
         "unix": 1781124622,
         "heart_rate": 63,
         "dynamic_acceleration": 0.008421
+      }
+    },
+    {
+      "name": "whoop5_v18_synthetic_record_index_high_bit",
+      "family": "whoop5",
+      "synthetic": true,
+      "note": [
+        "whoop5_v18_real_worn with ONLY the u32 record_index@11 replaced by 0xC0A7619D (bit 31 set)",
+        "and the CRC32 trailer recomputed; every other byte is the real capture, which is why the",
+        "unix/heart_rate anchors below are identical to that frame's.",
+        "WHY: a u32 whose high bit is set is where Swift and Kotlin stop agreeing. Swift's Int is",
+        "64-bit, Kotlin's is 32-bit, so a decoder that narrows the value reads 3232194973 on one",
+        "platform and -1062772323 on the other from byte-identical bytes. That divergence is invisible",
+        "to a per-platform fixture-hex test (the wire bytes match and each suite asserts its own",
+        "answer) and it shipped in PR #848's first pass. Asserting the same decimal literal on both",
+        "sides is what catches it. No real capture reaches bit 31 (the observed lifetime counters are",
+        "~8-25 million), so the value has to be synthesised to be covered at all."
+      ],
+      "hex": "aa01740001003fb12f12809d61a7c0b69f266a66460066025a0265020000000000007b0a8d656463ff0012163cf6a439bf2924fd3ed763fe3e3200aa000000000000000000f7000901f10b0007010c020c00000000000000000000000000000000000000000000000100656f1e1e0000009d61a7c000000074fc28e0",
+      "expect": {
+        "record_index": 3232194973,
+        "hist_version": 18,
+        "unix": 1780916150,
+        "heart_rate": 102,
+        "rr_count": 2,
+        "rr_intervals": [602, 613]
+      }
+    },
+    {
+      "name": "whoop4_v24_synthetic_unix_high_bit",
+      "family": "whoop4",
+      "synthetic": true,
+      "note": [
+        "whoop4_v24_real_worn with ONLY the u32 unix@11 replaced by 0x80000000 = 2147483648 and the",
+        "CRC32 trailer recomputed (whoop4 checksums frame[4:length] into a trailer at frame[length]);",
+        "every other byte is the real capture, which is why the heart_rate/R-R/gravity anchors below",
+        "are identical to that frame's.",
+        "WHY 0x80000000: it is 2038-01-19T03:14:08Z, the exact second bit 31 of a unix u32 first sets.",
+        "That is the boundary where a decoder narrowing the u32 to Kotlin's 32-bit Int reads -2147483648",
+        "while Swift's 64-bit Int reads 2147483648, from byte-identical bytes. For `unix` specifically",
+        "the consequence is worse than a wrong number: the negative value fails the #547 MIN_PLAUSIBLE_UNIX",
+        "floor, so extractHistoricalStreams DROPS the record and the strap's entire banked history goes",
+        "silently missing on Android while macOS/iOS keeps ingesting it. The paired stream batch",
+        "`whoop4_v24_high_bit_unix_survives` pins that consequence; this frame pins the decoded value.",
+        "No real capture can reach bit 31 before 2038, so the value has to be synthesised to be covered."
+      ],
+      "hex": "aa6400a12f18054c1c0a02000000805037805418016d022b0234020000000000006b07ff0085593c1f65cebed7b3e63eb85a5f3f000080401f65cebed7b3e63eb85a5f3f500264025d03640229014009010c020c00000000000f0001c402000000000000ee3e8ed0",
+      "expect": {
+        "hist_version": 24,
+        "unix": 2147483648,
+        "heart_rate": 109,
+        "rr_count": 2,
+        "rr_intervals": [555, 564],
+        "gravity_mag": 1.0
+      }
+    },
+    {
+      "name": "whoop4_v25_synthetic_unix_high_bit",
+      "family": "whoop4",
+      "synthetic": true,
+      "note": [
+        "whoop4_v25_real_a with ONLY the u32 unix@11 replaced by 0x80000000 and the CRC32 trailer",
+        "recomputed; every other byte is the real capture. Same boundary and same failure mode as",
+        "whoop4_v24_synthetic_unix_high_bit — this one covers the SEPARATE v25 decode path, which reads",
+        "unix at its own offset in its own branch and would have to be narrowed (or widened) on its own.",
+        "v25 stores no per-second HR (it is PPG-derived on-device), so gravity is the only stream it",
+        "yields; the paired batch `whoop4_v25_high_bit_unix_survives` pins that it still yields it."
+      ],
+      "hex": "aa50000c2f1900006800000000008020430900433103007e026502ba026c022eff70f996f879fad6fd8300d6017e0267027201be00290258030e05c507f00c030ead11cb15791500d2553c90030000000d237e0c",
+      "expect": {
+        "hist_version": 25,
+        "unix": 2147483648,
+        "rr_intervals": [],
+        "gravity_mag": 1.0
+      }
+    },
+    {
+      "name": "whoop5_v18_synthetic_unix_high_bit",
+      "family": "whoop5",
+      "synthetic": true,
+      "note": [
+        "whoop5_v18_real_worn with ONLY the u32 unix@15 replaced by 0x80000000 and the CRC32 trailer",
+        "recomputed (whoop5 checksums frame[8:payloadEnd], payloadEnd = declaredLength + 8 - 4 — a",
+        "DIFFERENT range from whoop4's, which is why each family needs its own patched frame).",
+        "Same boundary and same failure mode as the two whoop4 frames; this covers the third and last",
+        "narrowing site, the WHOOP 5/MG v18 decoder. record_index below is the frame's REAL value,",
+        "unchanged, so this frame also proves the patch touched unix@15 and nothing else — the two u32",
+        "fields sit four bytes apart and a decoder reading the wrong one would surface here."
+      ],
+      "hex": "aa01740001003fb12f1280733d84010000008066460066025a0265020000000000007b0a8d656463ff0012163cf6a439bf2924fd3ed763fe3e3200aa000000000000000000f7000901f10b0007010c020c00000000000000000000000000000000000000000000000100656f1e1e0000009d61a7c000000074c9fb37",
+      "expect": {
+        "hist_version": 18,
+        "unix": 2147483648,
+        "record_index": 25443699,
+        "heart_rate": 102,
+        "rr_count": 2,
+        "rr_intervals": [602, 613]
+      }
+    }
+  ],
+  "stream_batches": [
+    {
+      "_comment": [
+        "STREAM ASSEMBLY. Each batch runs the named fixture frames through extractHistoricalStreams",
+        "and pins the resulting Streams (Swift) / StreamBatch (Kotlin): every stream's row count",
+        "(zeros included, so a stream appearing on one platform only is a failure), the emptiness",
+        "verdict, and the #547 dropped-record counter. Agreement on frame decode does not imply",
+        "agreement on assembly: PR #848 shipped a Kotlin StreamBatch.isEmpty that omitted a stream",
+        "Swift's included, and insert() early-returns on empty, so that batch banked nothing on",
+        "Android alone. Both platforms use identity clock refs (device_clock_ref = wall_clock_ref = 0,",
+        "the archive-replay seam) so no clock correction is applied and the batches stay reproducible."
+      ],
+      "name": "empty_input",
+      "family": "whoop5",
+      "frames": [],
+      "device_clock_ref": 0,
+      "wall_clock_ref": 0,
+      "expect": {
+        "is_empty": true,
+        "dropped_implausible": 0,
+        "counts": {
+          "hr": 0, "rr": 0, "spo2": 0, "skin_temp": 0, "resp": 0, "gravity": 0,
+          "steps": 0, "sleep_state": 0, "ppg_hr": 0, "ppg_waveform": 0, "v18_aux": 0, "events": 0, "battery": 0
+        }
+      }
+    },
+    {
+      "name": "whoop4_v24_single",
+      "family": "whoop4",
+      "frames": ["whoop4_v24_real_worn"],
+      "device_clock_ref": 0,
+      "wall_clock_ref": 0,
+      "expect": {
+        "is_empty": false,
+        "dropped_implausible": 0,
+        "counts": {
+          "hr": 1, "rr": 2, "spo2": 1, "skin_temp": 1, "resp": 1, "gravity": 1,
+          "steps": 0, "sleep_state": 0, "ppg_hr": 0, "ppg_waveform": 0, "v18_aux": 0, "events": 0, "battery": 0
+        }
+      }
+    },
+    {
+      "name": "whoop4_v25_gravity_only",
+      "family": "whoop4",
+      "frames": ["whoop4_v25_real_a", "whoop4_v25_real_b", "whoop4_v25_real_c"],
+      "device_clock_ref": 0,
+      "wall_clock_ref": 0,
+      "expect": {
+        "is_empty": false,
+        "dropped_implausible": 0,
+        "counts": {
+          "hr": 0, "rr": 0, "spo2": 0, "skin_temp": 0, "resp": 0, "gravity": 3,
+          "steps": 0, "sleep_state": 0, "ppg_hr": 0, "ppg_waveform": 0, "v18_aux": 0, "events": 0, "battery": 0
+        }
+      }
+    },
+    {
+      "name": "whoop5_v18_worn_pair",
+      "family": "whoop5",
+      "frames": ["whoop5_v18_real_worn", "whoop5_v18_real_one_rr"],
+      "device_clock_ref": 0,
+      "wall_clock_ref": 0,
+      "expect": {
+        "is_empty": false,
+        "dropped_implausible": 0,
+        "counts": {
+          "hr": 2, "rr": 3, "spo2": 0, "skin_temp": 2, "resp": 0, "gravity": 2,
+          "steps": 2, "sleep_state": 2, "ppg_hr": 0, "ppg_waveform": 0, "v18_aux": 2, "events": 0, "battery": 0
+        }
+      }
+    },
+    {
+      "name": "whoop5_v18_offwrist_single",
+      "family": "whoop5",
+      "frames": ["whoop5_v18_real_offwrist"],
+      "device_clock_ref": 0,
+      "wall_clock_ref": 0,
+      "expect": {
+        "is_empty": false,
+        "dropped_implausible": 0,
+        "counts": {
+          "hr": 0, "rr": 0, "spo2": 0, "skin_temp": 1, "resp": 0, "gravity": 1,
+          "steps": 1, "sleep_state": 1, "ppg_hr": 0, "ppg_waveform": 0, "v18_aux": 1, "events": 0, "battery": 0
+        }
+      }
+    },
+    {
+      "name": "whoop5_v18_outside_session_range",
+      "family": "whoop5",
+      "frames": ["whoop5_v18_real_worn", "whoop5_v18_real_one_rr"],
+      "device_clock_ref": 0,
+      "wall_clock_ref": 0,
+      "session_oldest_unix": 1700000000,
+      "session_newest_unix": 1700100000,
+      "expect": {
+        "is_empty": true,
+        "dropped_implausible": 2,
+        "counts": {
+          "hr": 0, "rr": 0, "spo2": 0, "skin_temp": 0, "resp": 0, "gravity": 0,
+          "steps": 0, "sleep_state": 0, "ppg_hr": 0, "ppg_waveform": 0, "v18_aux": 0, "events": 0, "battery": 0
+        }
+      }
+    },
+    {
+      "_comment": [
+        "THE POST-2038 BATCHES. These three run the high-bit-unix frames through the SAME assembly the",
+        "batches above use, and they are where the u32-narrowing bug becomes visible as data loss rather",
+        "than as a wrong number. With `unix` narrowed to a 32-bit Int the timestamp goes negative, fails",
+        "the #547 MIN_PLAUSIBLE_UNIX floor, and every record is dropped: all counts 0, is_empty true,",
+        "dropped_implausible equal to the frame count. Carried as a Long it decodes to 2147483648 and the",
+        "record assembles normally — the counts below are exactly the ones the same frames produce today",
+        "with their real timestamps (whoop4_v24_single, whoop4_v25_gravity_only, and whoop5_v18_worn_pair",
+        "minus its second frame), because only the timestamp changed.",
+        "`wall_now` pins the #547 gate's future bound. Without it the bound is the live clock, every one",
+        "of these records is ~12 years in the future, and the batch would assert nothing about narrowing",
+        "— it would drop the records on BOTH platforms for an unrelated reason and pass. It is a test-only",
+        "seam on extractHistoricalStreams (nil/absent in production on both platforms)."
+      ],
+      "name": "whoop4_v24_high_bit_unix_survives",
+      "family": "whoop4",
+      "frames": ["whoop4_v24_synthetic_unix_high_bit"],
+      "device_clock_ref": 0,
+      "wall_clock_ref": 0,
+      "wall_now": 2147500000,
+      "expect": {
+        "is_empty": false,
+        "dropped_implausible": 0,
+        "counts": {
+          "hr": 1, "rr": 2, "spo2": 1, "skin_temp": 1, "resp": 1, "gravity": 1,
+          "steps": 0, "sleep_state": 0, "ppg_hr": 0, "ppg_waveform": 0, "v18_aux": 0, "events": 0, "battery": 0
+        }
+      }
+    },
+    {
+      "name": "whoop4_v25_high_bit_unix_survives",
+      "family": "whoop4",
+      "frames": ["whoop4_v25_synthetic_unix_high_bit"],
+      "device_clock_ref": 0,
+      "wall_clock_ref": 0,
+      "wall_now": 2147500000,
+      "expect": {
+        "is_empty": false,
+        "dropped_implausible": 0,
+        "counts": {
+          "hr": 0, "rr": 0, "spo2": 0, "skin_temp": 0, "resp": 0, "gravity": 1,
+          "steps": 0, "sleep_state": 0, "ppg_hr": 0, "ppg_waveform": 0, "v18_aux": 0, "events": 0, "battery": 0
+        }
+      }
+    },
+    {
+      "name": "whoop5_v18_high_bit_unix_survives",
+      "family": "whoop5",
+      "frames": ["whoop5_v18_synthetic_unix_high_bit"],
+      "device_clock_ref": 0,
+      "wall_clock_ref": 0,
+      "wall_now": 2147500000,
+      "expect": {
+        "is_empty": false,
+        "dropped_implausible": 0,
+        "counts": {
+          "hr": 1, "rr": 2, "spo2": 0, "skin_temp": 1, "resp": 0, "gravity": 1,
+          "steps": 1, "sleep_state": 1, "ppg_hr": 0, "ppg_waveform": 0, "v18_aux": 1, "events": 0, "battery": 0
+        }
       }
     }
   ]

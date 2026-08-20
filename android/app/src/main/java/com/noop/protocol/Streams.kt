@@ -348,6 +348,19 @@ internal fun Map<String, Any?>.intOrNull(key: String): Int? = when (val v = this
     else -> null
 }
 
+/**
+ * Read a parsed-map value in the LONG (unsigned-u32-safe) domain. Use this, never [intOrNull], for a
+ * field the decoder read with an unsigned u32 reader: [intOrNull]'s `is Long -> v.toInt()` branch
+ * narrows to Kotlin's 32-bit Int, which sends any value with bit 31 set negative and re-opens the
+ * cross-platform split against Swift's 64-bit Int. Swift needs no analogue — its `intValue` is
+ * already 64-bit, which is exactly why the divergence is Android-only.
+ */
+internal fun Map<String, Any?>.longOrNull(key: String): Long? = when (val v = this[key]) {
+    is Long -> v
+    is Int -> v.toLong()
+    else -> null
+}
+
 internal fun Map<String, Any?>.doubleOrNull(key: String): Double? = when (val v = this[key]) {
     is Double -> v
     is Int -> v.toDouble()
