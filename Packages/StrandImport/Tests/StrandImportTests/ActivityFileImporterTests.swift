@@ -272,6 +272,27 @@ final class ActivityFileImporterTests: XCTestCase {
         XCTAssertEqual(ActivityFileImporter.workoutSport(from: "Trail Run"), "Trail Run") // already spaced
         XCTAssertEqual(ActivityFileImporter.workoutSport(from: "kayaking"), "Kayaking")   // title-cased
     }
+
+    func testSummaryTextIncludesOnlyPositiveStepsWithKotlinParity() {
+        func activity(steps: Int?) -> ActivityFile {
+            ActivityFile(
+                kind: .fit,
+                start: Date(timeIntervalSince1970: 1_000),
+                end: Date(timeIntervalSince1970: 1_060),
+                sport: "walking",
+                distanceM: 1_000,
+                steps: steps
+            )
+        }
+
+        let base = "Imported a 1.00 km Walking activity"
+        XCTAssertEqual(ActivityFileImporter.summaryText(activity(steps: nil)), base)
+        XCTAssertEqual(ActivityFileImporter.summaryText(activity(steps: 0)), base)
+        XCTAssertEqual(
+            ActivityFileImporter.summaryText(activity(steps: 2_350)),
+            base + " · 2350 steps"
+        )
+    }
 }
 
 // MARK: - FIT byte fixture builder (little-endian, test-only)

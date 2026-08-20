@@ -277,6 +277,33 @@ class ActivityFileImporterTest {
         assertEquals("Trail Run", ActivityFileImporter.workoutSport("Trail Run"))
         assertEquals("Kayaking", ActivityFileImporter.workoutSport("kayaking"))
     }
+
+    @Test
+    fun summaryTextIncludesOnlyPositiveStepsWithSwiftParity() {
+        fun activity(steps: Int?) = ActivityFileImporter.Activity(
+            kind = ActivityFileImporter.Kind.FIT,
+            startTs = 1_000,
+            endTs = 1_060,
+            sport = "walking",
+            distanceM = 1_000.0,
+            energyKcal = null,
+            steps = steps,
+            avgHr = null,
+            maxHr = null,
+            ascentM = null,
+            gpsPointCount = 0,
+            hrSampleCount = 0,
+            route = emptyList(),
+        )
+
+        val base = "Imported a 1.00 km Walking activity"
+        assertEquals(base, ActivityFileImporter.summaryText(activity(null)))
+        assertEquals(base, ActivityFileImporter.summaryText(activity(0)))
+        assertEquals(
+            "$base · 2350 steps",
+            ActivityFileImporter.summaryText(activity(2_350)),
+        )
+    }
 }
 
 // MARK: - FIT byte fixture builder (little-endian, test-only). Mirrors the Swift FitFixture.
