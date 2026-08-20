@@ -103,7 +103,24 @@ class SourceCoordinator(
      *  generic-HR strap path (a footpod / bike sensor / power meter rides StandardHrSource). Default no-op
      *  keeps existing call sites + JVM tests compiling unchanged. */
     private val sensorSink: (StandardHrSource.SensorMetrics) -> Unit = {},
+    /** Initial registry id for process composition. Nullable keeps plain JVM harnesses honest until their
+     * first successful reconcile; production injects its already-resolved startup id. */
+    initialActiveDeviceId: String? = null,
+    /** Move Oura's install key alongside serial-identity adoption. Plain JVM tests inject a no-op;
+     * production retains the encrypted-store behavior through this default. */
+    private val migrateOuraInstallKey: (fromId: String, toId: String) -> Unit = { fromId, toId ->
+        context?.let { ctx ->
+            OuraInstallKeyStore.load(ctx, fromId)?.let { key ->
+                OuraInstallKeyStore.save(ctx, toId, key)
+                OuraInstallKeyStore.clear(ctx, fromId)
+            }
+        }
+    },
 ) {
+
+    /** The single success-only active-id publication for UI and internal identity-adoption consumers. */
+    private val _activeDeviceId = MutableStateFlow(initialActiveDeviceId)
+    val activeDeviceId: StateFlow<String?> = _activeDeviceId.asStateFlow()
 
     /** Latest instantaneous speed/cadence/power from the active standard fitness sensor (RSC/CSC/CPS),
      *  read ADDITIVELY alongside HR by [StandardHrSource]. The in-workout UI observes this to surface the
@@ -170,7 +187,7 @@ class SourceCoordinator(
     fun start() {
         scope.launch {
             val id = registry.activeDeviceId() ?: WhoopBleClient.DEFAULT_DEVICE_ID
-            reconcileLock.withLock { reconcile(id) }
+            reconcileActiveDevice(id)
         }
     }
 
@@ -180,8 +197,20 @@ class SourceCoordinator(
      * repeated call for the same id is dropped (the `removeDuplicates()` equivalent).
      */
     fun onActiveDeviceChanged(id: String) {
-        scope.launch { reconcileLock.withLock { reconcile(id) } }
+        scope.launch { reconcileActiveDevice(id) }
     }
+
+    /**
+     * Await the serialized source switch and report its completed outcome. Callers which publish active
+     * source state must use this API so they never advertise an id whose activation later failed.
+     * Re-selecting the already reconciled id is a successful, idempotent completion.
+     */
+    suspend fun reconcileActiveDevice(id: String): Boolean =
+        reconcileLock.withLock {
+            reconcile(id).also { success ->
+                if (success) _activeDeviceId.value = id
+            }
+        }
 
     /**
      * The BLE engine connected to a WHOOP strap at [address] (null on disconnect). Persist that stable
@@ -228,10 +257,9 @@ class SourceCoordinator(
         }
     }
 
-    private suspend fun reconcile(id: String) {
-        if (id == lastSeenId) return
+    private suspend fun reconcile(id: String): Boolean {
+        if (id == lastSeenId) return true
         lastSeenId = id
-        val devices = registry.all()
         // CONTAIN every device-switch failure here. reconcile is the single entry point for both
         // start() (launch, against the PERSISTED active id) and onActiveDeviceChanged(), and it runs
         // inside a bare `scope.launch {}` — a SupervisorJob does NOT stop an uncaught throw from
@@ -240,13 +268,16 @@ class SourceCoordinator(
         // regression: making a Polar H10 active bricked the app). A strap switch must never crash the
         // app. We log the exception into the EXPORTABLE strap log too, so the next shared log reveals
         // the exact underlying throw, and reset lastSeenId so the user can retry after switching away.
-        try {
+        return try {
+            val devices = registry.all()
             if (isWhoop(id, devices)) switchToWhoop(id, devices) else switchToStrap(id, devices)
+            true
         } catch (t: Throwable) {
             lastSeenId = null
             log("SourceCoordinator: device switch to '$id' failed: ${t.javaClass.simpleName}: ${t.message}")
             straplog("HR-strap: activating this device failed (${t.javaClass.simpleName}: ${t.message}) - " +
                 "staying on the previous source. Please share this log so we can fix it.")
+            false
         }
     }
 
@@ -540,16 +571,12 @@ class SourceCoordinator(
      * off the BLE callback thread; re-checks it is still the active device before acting.
      */
     private fun adoptOuraSerial(currentId: String, serial: String) {
-        val ctx = context ?: return
         val serialId = "${ExperimentalBrand.OURA.idPrefix}-$serial"
         if (currentId == serialId) return
         scope.launch {
             if (registry.activeDeviceId() != currentId) return@launch
             if (registry.adoptSerialIdentity(currentId, serialId)) {
-                OuraInstallKeyStore.load(ctx, currentId)?.let { key ->
-                    OuraInstallKeyStore.save(ctx, serialId, key)
-                    OuraInstallKeyStore.clear(ctx, currentId)
-                }
+                migrateOuraInstallKey(currentId, serialId)
                 straplog("Oura: adopted stable serial id $serialId (was $currentId) - re-pointing onto the ring's serial (#771)")
                 registry.setActive(serialId)
                 onActiveDeviceChanged(serialId)

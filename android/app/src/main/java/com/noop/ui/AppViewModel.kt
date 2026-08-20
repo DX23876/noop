@@ -128,9 +128,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     val repo: WhoopRepository get() = repository
 
-    /** The registry's active strap id (the same id the read path resolves to). Public so the Test Centre
-     *  can read the right source for the CAPTURE-D data-volume snapshot. */
-    val activeStrapId: String get() = deviceId
+    /** The registry's active strap id (the same id the read path resolves to). The getter stays source
+     * compatible for existing call sites; reactive screens collect [activeStrapIdFlow]. */
+    val activeStrapId: String get() = noopApp.sourceCoordinator.activeDeviceId.value ?: noopApp.activeDeviceId
+    val activeStrapIdFlow: StateFlow<String?> get() = noopApp.sourceCoordinator.activeDeviceId
 
     // MARK: - Devices screen (multi-source Phase 1B)
     //
@@ -169,8 +170,11 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
      *  (a no-op for a single-WHOOP install). Mirrors macOS DevicesView's `registry.setActive`. */
     suspend fun setActiveDevice(id: String) {
         noopApp.deviceRegistry.setActive(id)
-        noopApp.sourceCoordinator.onActiveDeviceChanged(id)
-        refreshActiveDeviceName()
+        // Publish only after BOTH authoritative mutations succeed. A registry/coordinator failure leaves
+        // observers on the last fully-applied id instead of advertising a half-switched source.
+        if (noopApp.sourceCoordinator.reconcileActiveDevice(id)) {
+            refreshActiveDeviceName()
+        }
     }
 
     /** The active band's display name (nickname, else collapsed brand+model), surfaced on the Live screen

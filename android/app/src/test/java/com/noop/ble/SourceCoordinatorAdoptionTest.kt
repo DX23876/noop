@@ -10,6 +10,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -148,6 +149,13 @@ class SourceCoordinatorAdoptionTest {
         peripheralId = peripheralId,
     )
 
+    private fun strapRow(id: String, peripheralId: String) = PairedDeviceRow(
+        id = id, brand = "Polar", model = "H10", nickname = null,
+        sourceKind = SourceKind.liveBLE.name, capabilities = "hr",
+        status = DeviceStatus.paired.name, addedAt = 200, lastSeenAt = 200,
+        peripheralId = peripheralId,
+    )
+
     private fun coordinatorOver(dao: FakeRegistryDao, log: (String) -> Unit = {}): SourceCoordinator =
         SourceCoordinator(
             context = null,                       // adoption path never reaches switchToStrap
@@ -174,6 +182,74 @@ class SourceCoordinatorAdoptionTest {
         stopWhoop = stops,
         scope = CoroutineScope(Dispatchers.Unconfined),
     )
+
+    private fun ouraAdoptionCoordinatorOver(dao: FakeRegistryDao): SourceCoordinator = SourceCoordinator(
+        context = null,
+        registry = registryWith(dao),
+        repository = null,
+        liveSink = { _, _ -> },
+        startWhoop = {},
+        stopWhoop = {},
+        scope = CoroutineScope(Dispatchers.Unconfined),
+        migrateOuraInstallKey = { _, _ -> },
+    )
+
+    @Test
+    fun awaitedReconcileReturnsTrueAfterSuccessIncludingSameId() = runBlocking {
+        val dao = FakeRegistryDao().apply {
+            devices["whoop-a"] = whoopRow("whoop-a", peripheralId = "AA:BB:CC:DD:EE:01")
+        }
+        val coordinator = coordinatorOver(dao)
+
+        assertNull(coordinator.activeDeviceId.value)
+        assertTrue(coordinator.reconcileActiveDevice("whoop-a"))
+        assertEquals("whoop-a", coordinator.activeDeviceId.value)
+        assertTrue("an already-reconciled id is still a successful completion", coordinator.reconcileActiveDevice("whoop-a"))
+        assertEquals("same-id success must keep the single published source stable", "whoop-a", coordinator.activeDeviceId.value)
+    }
+
+    @Test
+    fun awaitedReconcileReturnsFalseWhenStrapActivationFails() = runBlocking {
+        val dao = FakeRegistryDao().apply {
+            devices["whoop-a"] = whoopRow("whoop-a", peripheralId = "AA:BB:CC:DD:EE:01")
+            devices["polar-b"] = strapRow("polar-b", peripheralId = "11:22:33:44:55:66")
+        }
+        val coordinator = coordinatorOver(dao)
+
+        assertTrue(coordinator.reconcileActiveDevice("whoop-a"))
+        assertEquals("whoop-a", coordinator.activeDeviceId.value)
+        assertFalse(
+            "completion must report the context-less makeSource activation failure",
+            coordinator.reconcileActiveDevice("polar-b"),
+        )
+        assertEquals("a failed switch must never publish its requested id", "whoop-a", coordinator.activeDeviceId.value)
+    }
+
+    @Test
+    fun ouraSerialAdoptionPublishesReconciledStableId() = runBlocking {
+        val transientId = "oura-transient-address"
+        val stableId = "oura-S12345678"
+        val dao = FakeRegistryDao().apply {
+            // The direct adoption callback is under test. A liveBLE-shaped row keeps this plain-JVM
+            // harness off Android BLE while exercising the real registry re-key + internal reconcile.
+            devices[transientId] = whoopRow(transientId, peripheralId = "AA:BB:CC:DD:EE:01")
+        }
+        val coordinator = ouraAdoptionCoordinatorOver(dao)
+        assertTrue(coordinator.reconcileActiveDevice(transientId))
+        assertEquals(transientId, coordinator.activeDeviceId.value)
+
+        SourceCoordinator::class.java
+            .getDeclaredMethod("adoptOuraSerial", String::class.java, String::class.java)
+            .apply { isAccessible = true }
+            .invoke(coordinator, transientId, "S12345678")
+
+        assertEquals(stableId, dao.activeDeviceId())
+        assertEquals(
+            "the Oura-internal A→S path must reach the same success-only publication as UI selection",
+            stableId,
+            coordinator.activeDeviceId.value,
+        )
+    }
 
     @Test
     fun nullPeripheralIdRowAdoptsConnectedAddress() = runBlocking {

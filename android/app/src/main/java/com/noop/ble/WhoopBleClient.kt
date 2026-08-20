@@ -1636,6 +1636,11 @@ class WhoopBleClient(
     )
     val state: StateFlow<LiveState> = _state.asStateFlow()
 
+    /** Monotonic event for the in-memory/exportable strap log. Test Centre panels collect it only while
+     * active and coalesce bursts, so a new tagged line refreshes its readout without mutating LiveState. */
+    private val _logRevision = MutableStateFlow(0L)
+    val logRevision: StateFlow<Long> = _logRevision.asStateFlow()
+
     // MARK: Multi-WHOOP (additive — inert on the single-WHOOP path; MW-2/MW-3 parity with iOS BLEManager).
 
     /**
@@ -8350,6 +8355,7 @@ class WhoopBleClient(
                 }
                 line
             }
+            _logRevision.update { it + 1 }
             // #1263: durable-tail mirror (batched), OUTSIDE the logBuffer monitor.
             tailToPersist?.let { persistLogTail(it) }
             // #1121: when detailed capture is on, ALSO append the (already PII-scrubbed) line to the
@@ -8364,6 +8370,7 @@ class WhoopBleClient(
                     logBuffer.addLast("[log error: ${t.javaClass.simpleName}]")
                     while (logBuffer.size > LOG_BUFFER_MAX) logBuffer.removeFirst()
                 }
+                _logRevision.update { it + 1 }
             }
         }
     }
