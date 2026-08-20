@@ -67,4 +67,13 @@ class RegistryDayOwnerSource(private val registry: DeviceRegistry) : Intelligenc
         val d = registry.all().firstOrNull { it.id == deviceId }
         return DeviceFamily.forRegistryDevice(d?.model, d?.brand)
     }
+
+    // #1467: the worn-gate timestamp tolerance for this owner (0 for WHOOP, byte-identical). Same
+    // registry lookup skinTempFamily uses; deliberately its own small helper rather than folding into
+    // DeviceFamily, which has no Oura case (#1086) and a tolerance-in-seconds isn't a temperature-scale
+    // concern. Mirrors the Swift IntelligenceEngine.skinTempWornToleranceSec(forOwner:devices:).
+    override suspend fun skinTempWornToleranceSec(deviceId: String): Long {
+        val d = registry.all().firstOrNull { it.id == deviceId }
+        return if (d?.brand == "Oura") AnalyticsEngine.DEFAULT_OURA_WORN_TOLERANCE_SEC else 0
+    }
 }

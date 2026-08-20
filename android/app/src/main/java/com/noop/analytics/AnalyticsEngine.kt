@@ -315,6 +315,11 @@ object AnalyticsEngine {
         // owner's own worn median. null → the family-aware conversion uses the global Whoop4SkinTemp.ANCHOR_RAW,
         // so every 5/MG + pure-function caller stays byte-identical (WHOOP5 ignores the anchor entirely).
         skinTempAnchorRaw: Double? = null,
+        // #1467: 0 (default) keeps every existing caller's skin-temp "worn" gate exact-timestamp,
+        // byte-identical. IntelligenceEngine passes a non-zero value for an owner whose HR and
+        // skin-temp streams aren't co-sampled at 1 Hz (an Oura ring) — see
+        // [AnalyticsEngine.DEFAULT_OURA_WORN_TOLERANCE_SEC].
+        skinTempWornToleranceSec: Long = 0,
         // WHOOP 4.0 raw SpO2 PPG ADC samples (red/IR) for the night window (#93). The nightly red/IR
         // means over detected sleep are banked on the DailyMetric as RAW ADC — honest "the sensor
         // decoded" data, NOT a calibrated blood-oxygen % (that needs WHOOP's proprietary curve). Default
@@ -619,7 +624,8 @@ object AnalyticsEngine {
         // mean is harvested; IntelligenceEngine seeds the baseline from those means and re-derives the
         // deviation in pass 2 (mirrors avgHrv→recovery). Computed BEFORE Charge so the Charge skin-temp
         // penalty can read it. APPROXIMATE. (PR #85)
-        val nightlySkinTempC = wornNightlySkinTempC(matched, hr, skinTemp, skinTempFamily, skinTempAnchorRaw)
+        val nightlySkinTempC = wornNightlySkinTempC(matched, hr, skinTemp, skinTempFamily, skinTempAnchorRaw,
+            wornToleranceSec = skinTempWornToleranceSec)
         val skinTempDevC: Double? = nightlySkinTempC?.let { v ->
             baselines.skinTemp?.takeIf { it.usable }?.let { round2(Baselines.deviation(v, it).delta) }
         }
@@ -895,7 +901,11 @@ object AnalyticsEngine {
         // 5/MG + pure-function callers byte-identical. Threaded straight to the funnel's conversion.
         anchorRaw: Double? = null,
         minSamples: Int = MIN_SKIN_TEMP_SAMPLES_INLINE,
-    ): Double? = skinTempFunnel(sessions, hr, skinTemp, family, anchorRaw, minSamples).mean
+        // #1467: how many seconds apart a "worn" HR sample may sit from a skin-temp sample and still
+        // count it as concurrent. Default 0 = today's exact-timestamp match, byte-identical for every
+        // existing caller. See [skinTempFunnel]'s doc for why a ring needs this > 0.
+        wornToleranceSec: Long = 0,
+    ): Double? = skinTempFunnel(sessions, hr, skinTemp, family, anchorRaw, minSamples, wornToleranceSec).mean
 
     /**
      * Nightly means of the WHOOP 4.0 raw SpO2 PPG channels (red/IR ADC) over the detected in-bed
@@ -1083,6 +1093,19 @@ object AnalyticsEngine {
     }
 
     /**
+     * #1467: how far apart (seconds) a valid HR sample may sit from a skin-temp sample and still mark
+     * it "worn", when the caller opts in via [wornToleranceSec] > 0. Ground-truthed against a 7-night
+     * Oura gap: exact-timestamp co-occurrence (tolerance 0) landed every one of those nights just under
+     * [MIN_SKIN_TEMP_SAMPLES_INLINE] (155-296 kept, floor 300) despite 269-675 raw skin-temp samples
+     * and 3,900-14,600 valid HR samples each night — the ring's HR and skin-temp channels are
+     * independently clocked, unlike a WHOOP strap's single co-sampled per-second stream, so only
+     * ~40-55% of timestamps coincide exactly by chance. A ±2 s window alone recovered every real
+     * (non-fragment) night comfortably past the floor (622-635 kept); this default carries margin. See
+     * worklog/BOARD.md queue 11b and worklog/analysis/2026-08-19-1745-oura-app-skintemp-groundtruth-check.txt.
+     */
+    const val DEFAULT_OURA_WORN_TOLERANCE_SEC = 5L
+
+    /**
      * Read-only skin-temp funnel for one night (#752). Re-runs the SAME wear/window/range gates
      * [wornNightlySkinTempC] uses (and produces the IDENTICAL mean), additionally counting where each
      * sample dropped, so an absent skin temp is self-explaining. [wornNightlySkinTempC] is a thin wrapper
@@ -1097,6 +1120,11 @@ object AnalyticsEngine {
         // Whoop4SkinTemp.ANCHOR_RAW, so 5/MG + pure-function callers are byte-identical.
         anchorRaw: Double? = null,
         minSamples: Int = MIN_SKIN_TEMP_SAMPLES_INLINE,
+        // #1467: 0 (default) = exact-timestamp "worn" match, byte-identical to every caller before this
+        // change. A device whose HR and skin-temp streams aren't co-sampled at 1 Hz (an Oura ring)
+        // needs > 0 — see [DEFAULT_OURA_WORN_TOLERANCE_SEC]'s doc for the ground truth behind the value.
+        // IntelligenceEngine threads it per the OWNER device, never globally, so WHOOP is untouched.
+        wornToleranceSec: Long = 0,
     ): SkinTempFunnelDiagnostic {
         val total = skinTemp.size
         // #skin-diag: raw-ADC band + resolved anchor — PURE observation of the input, computed once and
@@ -1127,15 +1155,43 @@ object AnalyticsEngine {
                 inBandCount = inBandCount, resolvedAnchorRaw = usedAnchor, medianMappedC = medianMappedC,
             )
         }
-        val wornSeconds = HashSet<Long>(hr.size)
-        for (h in hr) if (h.bpm in 30..220) wornSeconds.add(h.ts)
+        // #1467: tolerance 0 keeps the ORIGINAL O(1) exact-second HashSet lookup, untouched — every
+        // caller before this change, and every WHOOP night today, takes this branch and is byte-
+        // identical. tolerance > 0 (an Oura owner) instead sorts the valid HR timestamps once and
+        // binary-searches each skin-temp sample for the nearest one, so the check stays
+        // O(hr log hr + skinTemp log hr) rather than an O(hr × skinTemp) scan.
+        val wornSeconds: HashSet<Long>?
+        val sortedValidHrTs: LongArray?
+        if (wornToleranceSec <= 0) {
+            val s = HashSet<Long>(hr.size)
+            for (h in hr) if (h.bpm in 30..220) s.add(h.ts)
+            wornSeconds = s
+            sortedValidHrTs = null
+        } else {
+            wornSeconds = null
+            sortedValidHrTs = hr.filter { it.bpm in 30..220 }.map { it.ts }.sorted().toLongArray()
+        }
+        // True when some valid HR reading sits within [wornToleranceSec] of [ts] (inclusive both sides).
+        fun isWorn(ts: Long): Boolean {
+            if (wornSeconds != null) return ts in wornSeconds
+            if (sortedValidHrTs == null || sortedValidHrTs.isEmpty()) return false
+            var lo = 0
+            var hi = sortedValidHrTs.size - 1
+            while (lo <= hi) {
+                val mid = (lo + hi) / 2
+                val d = sortedValidHrTs[mid] - ts
+                if (kotlin.math.abs(d) <= wornToleranceSec) return true
+                if (d < 0) lo = mid + 1 else hi = mid - 1
+            }
+            return false
+        }
         var sum = 0.0
         var kept = 0
         var notWorn = 0
         var outOfWindow = 0
         var outOfRange = 0
         for (t in skinTemp) {
-            if (t.ts !in wornSeconds) { notWorn++; continue }
+            if (!isWorn(t.ts)) { notWorn++; continue }
             if (sessions.none { t.ts in it.start..it.end }) { outOfWindow++; continue }
             // WHOOP 4.0 ONLY (#938 second capture): drop raws outside the plausible worn ADC band BEFORE the
             // anchor map. The no-contact floor (~509) and the 11-bit saturation ceiling (2047) are doff /

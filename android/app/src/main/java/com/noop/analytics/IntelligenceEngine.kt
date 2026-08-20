@@ -122,6 +122,14 @@ object IntelligenceEngine {
          *  [RegistryDayOwnerSource] resolves a positively-identified 4.0 to WHOOP4. */
         suspend fun skinTempFamily(deviceId: String): DeviceFamily = DeviceFamily.WHOOP5
 
+        /** #1467: the skin-temp "worn" gate's timestamp tolerance (seconds) for [deviceId] — 0 (exact
+         *  match, the default) for a WHOOP strap, whose HR and skin-temp are one co-sampled 1 Hz stream.
+         *  An Oura ring streams the two on independent clocks (dense HR, ~1/min skin-temp), so an exact-
+         *  second match only ever caught a fraction of real worn samples. [RegistryDayOwnerSource]
+         *  resolves a positively-identified Oura device to [AnalyticsEngine.DEFAULT_OURA_WORN_TOLERANCE_SEC].
+         *  Mirrors the Swift `IntelligenceEngine.skinTempWornToleranceSec(forOwner:devices:)`. */
+        suspend fun skinTempWornToleranceSec(deviceId: String): Long = 0
+
         /** The registered WHOOP family for [deviceId] — WHOOP4 or WHOOP5 for a positively-identified strap,
          *  or **null** for a non-WHOOP owner (ring / import / unknown). UNLIKE [skinTempFamily], which
          *  coalesces an unknown to WHOOP5 for the skin-temp scale, this must NOT coalesce — the #1005 reuse
@@ -518,6 +526,8 @@ object IntelligenceEngine {
         // registry is stable for the run (same assumption [candidatePriorities] above already makes), so
         // every day sees the exact value the per-day call would have returned: byte-identical scoring.
         val skinFamilyByOwner = HashMap<String, DeviceFamily>()
+        // #1467: same per-owner memoization as skinFamilyByOwner, for the worn-gate timestamp tolerance.
+        val skinWornToleranceByOwner = HashMap<String, Long>()
         // #938: the WHOOP 4.0 ADC offset is per-device, not per-night. Learn one anchor per owner from the
         // whole scan window and reuse it for every night so cross-night deviations survive.
         val skinAnchorScanFrom = nowLocalMidnight - (maxDays - 1).toLong() * SECONDS_PER_DAY - 30 * 3_600L
@@ -677,6 +687,10 @@ object IntelligenceEngine {
             val skinFamily = skinFamilyByOwner.getOrPut(owner) {
                 ownerSource?.skinTempFamily(owner) ?: DeviceFamily.WHOOP5
             }
+            // #1467: the worn-gate timestamp tolerance for this owner (0 for WHOOP, byte-identical).
+            val skinWornToleranceSec = skinWornToleranceByOwner.getOrPut(owner) {
+                ownerSource?.skinTempWornToleranceSec(owner) ?: 0
+            }
             // #938 (second capture): learn THIS device's worn skin-temp anchor raw ONCE, WINDOW-WIDE (the
             // whole scan window's skin samples), not per-night. The @72 skin-temp ADC's register offset is
             // per-device — a second real 4.0 strap shares the no-contact floor (~509) + 11-bit saturation
@@ -776,6 +790,7 @@ object IntelligenceEngine {
                 skinTemp = skin,
                 skinTempFamily = skinFamily,   // #938
                 skinTempAnchorRaw = skinAnchorRaw,   // #938 second capture: per-device worn anchor
+                skinTempWornToleranceSec = skinWornToleranceSec,   // #1467
                 spo2 = spo2,                   // #93
                 profile = profile,
                 baselines = baselines1,

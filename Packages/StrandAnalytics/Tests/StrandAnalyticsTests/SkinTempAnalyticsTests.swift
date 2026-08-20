@@ -87,6 +87,101 @@ final class SkinTempAnalyticsTests: XCTestCase {
         XCTAssertNil(AnalyticsEngine.wornNightlySkinTempC([], hr: [], skinTemp: []))
     }
 
+    // MARK: - worn-gate timestamp tolerance (#1467)
+    //
+    // Ground truth: an Oura ring's HR and skin-temp channels are independently clocked (dense HR,
+    // ~1/min skin-temp), so an exact-second "worn" match only ever caught ~40-55% of real worn
+    // samples — 7 straight real nights landed just under `minSkinTempSamples` despite hundreds of
+    // raw skin-temp samples and thousands of valid HR samples each night. `wornToleranceSec` lets a
+    // caller widen the match to "some valid HR within N seconds"; default 0 keeps the exact-match
+    // behavior above byte-identical (every session in this file uses HR co-sampled every second, so
+    // exact and tolerant agree on those; these tests isolate the case where they diverge).
+
+    // These four tests space skin-temp samples 60 s apart with exactly ONE HR sample per skin-temp
+    // sample (not a dense per-second stream), so an intentional offset creates a REAL gap rather than
+    // incidentally overlapping a neighboring skin-temp sample's own HR window — the same sparse shape
+    // as the ground-truthed night test below, isolated to a smaller sample count.
+
+    func testDefaultToleranceIsExactMatchByteIdentical() {
+        // HR sits exactly 3 s off every skin-temp sample — a real gap, not co-sampled. Tolerance 0
+        // (the default, and every pre-#1467 caller) must NOT rescue these: 0 kept, nil mean.
+        let start = 6_000_000
+        let sampleCount = 400
+        let sess = [session(start: start, durSec: sampleCount * 60)]
+        let temps = (0..<sampleCount).map { skin(start + $0 * 60, rawX100: 3400) }
+        let hrs = (0..<sampleCount).map { hr(start + $0 * 60 + 3) }
+        XCTAssertNil(AnalyticsEngine.wornNightlySkinTempC(sess, hr: hrs, skinTemp: temps))
+    }
+
+    func testNonZeroToleranceRescuesNearbyHr() throws {
+        // Same 3 s-offset HR as above, but wornToleranceSec: 5 covers the gap — every sample kept.
+        let start = 6_100_000
+        let sampleCount = 400
+        let sess = [session(start: start, durSec: sampleCount * 60)]
+        let temps = (0..<sampleCount).map { skin(start + $0 * 60, rawX100: 3400) }
+        let hrs = (0..<sampleCount).map { hr(start + $0 * 60 + 3) }
+        let mean = try XCTUnwrap(AnalyticsEngine.wornNightlySkinTempC(
+            sess, hr: hrs, skinTemp: temps, wornToleranceSec: 5))
+        XCTAssertEqual(mean, 34.0, accuracy: 1e-9)
+    }
+
+    func testToleranceStillExcludesHrBeyondTheWindow() {
+        // HR offset +30 s is outside a 5 s tolerance — still nil, tolerance isn't unlimited.
+        let start = 6_200_000
+        let sampleCount = 400
+        let sess = [session(start: start, durSec: sampleCount * 60)]
+        let temps = (0..<sampleCount).map { skin(start + $0 * 60, rawX100: 3400) }
+        let hrs = (0..<sampleCount).map { hr(start + $0 * 60 + 30) }
+        XCTAssertNil(AnalyticsEngine.wornNightlySkinTempC(
+            sess, hr: hrs, skinTemp: temps, wornToleranceSec: 5))
+    }
+
+    func testToleranceIsSymmetric() throws {
+        // A skin-temp sample with its nearest valid HR BEFORE it (not after) is rescued the same way.
+        let start = 6_300_000
+        let sampleCount = 400
+        let sess = [session(start: start, durSec: sampleCount * 60)]
+        let temps = (0..<sampleCount).map { skin(start + $0 * 60, rawX100: 3400) }
+        let hrs = (0..<sampleCount).map { hr(start + $0 * 60 - 2) }
+        let mean = try XCTUnwrap(AnalyticsEngine.wornNightlySkinTempC(
+            sess, hr: hrs, skinTemp: temps, wornToleranceSec: 5))
+        XCTAssertEqual(mean, 34.0, accuracy: 1e-9)
+    }
+
+    func testToleranceReproducesTheGroundTruthedOuraNightShape() throws {
+        // A shape modeled on the real 08-13/14 night: 644 skin-temp samples every ~60 s, valid HR
+        // covering only ~46 % of the window at unpredictable offsets (not exact seconds) — exact
+        // match kept 296 (< 300 floor, nil); a 5 s tolerance kept 634 (well past it). Model a sparser
+        // HR stream (every 2nd second) offset +1 s from each skin-temp sample's true second, which
+        // exact-match entirely misses but a >=1 s tolerance entirely recovers.
+        let start = 6_400_000
+        let sampleCount = 500
+        let sess = [session(start: start, durSec: sampleCount * 60)]
+        let temps = (0..<sampleCount).map { skin(start + $0 * 60, rawX100: 3400) }
+        let hrs = (0..<sampleCount).map { hr(start + $0 * 60 + 1) }   // 1 s off every skin-temp sample
+        XCTAssertNil(AnalyticsEngine.wornNightlySkinTempC(sess, hr: hrs, skinTemp: temps))
+        let mean = try XCTUnwrap(AnalyticsEngine.wornNightlySkinTempC(
+            sess, hr: hrs, skinTemp: temps, wornToleranceSec: 5))
+        XCTAssertEqual(mean, 34.0, accuracy: 1e-9)
+    }
+
+    func testFunnelToleranceMovesSamplesFromNotWornToKept() {
+        // The funnel's bucket accounting must still sum to totalSamples, and the rescued samples move
+        // specifically from `droppedNotWorn` into `kept` — not from any other bucket.
+        let start = 6_500_000
+        let sampleCount = 400
+        let sess = [session(start: start, durSec: sampleCount * 60)]
+        let temps = (0..<sampleCount).map { skin(start + $0 * 60, rawX100: 3400) }
+        let hrs = (0..<sampleCount).map { hr(start + $0 * 60 + 3) }
+        let exact = AnalyticsEngine.skinTempFunnel(sess, hr: hrs, skinTemp: temps)
+        XCTAssertEqual(exact.droppedNotWorn, sampleCount)
+        XCTAssertEqual(exact.kept, 0)
+        let tolerant = AnalyticsEngine.skinTempFunnel(sess, hr: hrs, skinTemp: temps, wornToleranceSec: 5)
+        XCTAssertEqual(tolerant.droppedNotWorn, 0)
+        XCTAssertEqual(tolerant.kept, sampleCount)
+        XCTAssertEqual(tolerant.totalSamples, exact.totalSamples)
+    }
+
     // MARK: - skin-temp funnel diagnostic (#752)
 
     /// The kept-path: the funnel's mean is byte-identical to `wornNightlySkinTempC`, and the drop buckets +

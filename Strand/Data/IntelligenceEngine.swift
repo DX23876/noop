@@ -824,6 +824,8 @@ final class IntelligenceEngine: ObservableObject {
                 // registry knows each device's model; unknown/non-WHOOP owners fall back to `.whoop5` (the prior
                 // /100 behaviour), so this only changes the mapping for a device positively identified as a 4.0.
                 let skinFamily = Self.skinTempFamily(forOwner: owner, devices: regDevices)
+                // #1467: the worn-gate timestamp tolerance for this owner (0 for WHOOP, byte-identical).
+                let skinWornToleranceSec = Self.skinTempWornToleranceSec(forOwner: owner, devices: regDevices)
                 // #938 (second capture): learn THIS device's worn skin-temp anchor raw ONCE, WINDOW-WIDE (the
                 // whole scan window's skin samples), not per-night. The @72 skin-temp ADC's register offset is
                 // per-device — a second real 4.0 strap shares the no-contact floor (~509) + 11-bit saturation
@@ -973,6 +975,7 @@ final class IntelligenceEngine: ObservableObject {
                                                      skinTemp: skin,
                                                      skinTempFamily: skinFamily,   // #938
                                                      skinTempAnchorRaw: skinAnchorRaw,   // #938 second capture
+                                                     skinTempWornToleranceSec: skinWornToleranceSec,   // #1467
                                                      spo2: spo2,                   // #93
                                                      profile: up, baselines: baselines1, maxHROverride: maxHR,
                                                      tzOffsetSeconds: tzOffset, wristOff: wristOff,
@@ -2184,6 +2187,19 @@ final class IntelligenceEngine: ObservableObject {
         // Non-WHOOP owner (nil) shares the non-4.0 temp scale, so coalesce to `.whoop5` — same conversion
         // as before; the brand-aware resolver just no longer mislabels the owner as a WHOOP (#1086).
         return DeviceFamily.forRegistryDevice(model: d?.model, brand: d?.brand) ?? .whoop5
+    }
+
+    /// #1467: the skin-temp "worn" gate's timestamp tolerance for `owner` — 0 (exact match) for a WHOOP
+    /// strap, whose HR and skin-temp are one co-sampled 1 Hz stream, so this is byte-identical to before
+    /// this change for every WHOOP night. An Oura ring streams the two on independent clocks (dense HR,
+    /// ~1/min skin-temp), so an exact-second match only ever caught ~40-55% of real worn samples — every
+    /// one of 7 straight real nights landed just under `minSkinTempSamples`, ground-truthed against the
+    /// Oura app's own reported skin-temp trend (queue 11b, `worklog/BOARD.md`). Same registry lookup
+    /// `skinTempFamily` uses; deliberately its own small helper rather than folding into `DeviceFamily`,
+    /// which has no Oura case (#1086) and a tolerance-in-seconds isn't a temperature-scale concern.
+    nonisolated static func skinTempWornToleranceSec(forOwner owner: String, devices: [PairedDevice]) -> Int {
+        devices.first(where: { $0.id == owner })?.brand == "Oura"
+            ? AnalyticsEngine.defaultOuraWornToleranceSec : 0
     }
 
     /// #137: re-score under-sampled manual workouts. A `manual` workout is scored from the live HR

@@ -96,6 +96,99 @@ class SkinTempAnalyticsTest {
         assertNull(AnalyticsEngine.wornNightlySkinTempC(emptyList(), emptyList(), emptyList()))
     }
 
+    // ── worn-gate timestamp tolerance (#1467) ───────────────────────────────
+    //
+    // Ground truth: an Oura ring's HR and skin-temp channels are independently clocked (dense HR,
+    // ~1/min skin-temp), so an exact-second "worn" match only ever caught ~40-55% of real worn
+    // samples — 7 straight real nights landed just under MIN_SKIN_TEMP_SAMPLES_INLINE despite hundreds
+    // of raw skin-temp samples and thousands of valid HR samples each night. wornToleranceSec lets a
+    // caller widen the match to "some valid HR within N seconds"; default 0 keeps the exact-match
+    // behavior above byte-identical. These four tests space skin-temp samples 60 s apart with exactly
+    // ONE HR sample per skin-temp sample (not a dense per-second stream), so an intentional offset
+    // creates a REAL gap rather than incidentally overlapping a neighboring sample's own HR window.
+
+    @Test
+    fun defaultToleranceIsExactMatchByteIdentical() {
+        // HR sits exactly 3 s off every skin-temp sample — a real gap, not co-sampled. Tolerance 0
+        // (the default, and every pre-#1467 caller) must NOT rescue these.
+        val start = 6_000_000L
+        val n = 400
+        val sess = listOf(session(start, n * 60L))
+        val temps = (0 until n).map { skin(start + it * 60L, 3400) }
+        val hrs = (0 until n).map { hr(start + it * 60L + 3) }
+        assertNull(AnalyticsEngine.wornNightlySkinTempC(sess, hrs, temps))
+    }
+
+    @Test
+    fun nonZeroToleranceRescuesNearbyHr() {
+        // Same 3 s-offset HR as above, but wornToleranceSec = 5 covers the gap — every sample kept.
+        val start = 6_100_000L
+        val n = 400
+        val sess = listOf(session(start, n * 60L))
+        val temps = (0 until n).map { skin(start + it * 60L, 3400) }
+        val hrs = (0 until n).map { hr(start + it * 60L + 3) }
+        val mean = AnalyticsEngine.wornNightlySkinTempC(sess, hrs, temps, wornToleranceSec = 5)
+        assertEquals(34.0, mean!!, 1e-9)
+    }
+
+    @Test
+    fun toleranceStillExcludesHrBeyondTheWindow() {
+        // HR offset +30 s is outside a 5 s tolerance — still null, tolerance isn't unlimited.
+        val start = 6_200_000L
+        val n = 400
+        val sess = listOf(session(start, n * 60L))
+        val temps = (0 until n).map { skin(start + it * 60L, 3400) }
+        val hrs = (0 until n).map { hr(start + it * 60L + 30) }
+        assertNull(AnalyticsEngine.wornNightlySkinTempC(sess, hrs, temps, wornToleranceSec = 5))
+    }
+
+    @Test
+    fun toleranceIsSymmetric() {
+        // A skin-temp sample with its nearest valid HR BEFORE it (not after) is rescued the same way.
+        val start = 6_300_000L
+        val n = 400
+        val sess = listOf(session(start, n * 60L))
+        val temps = (0 until n).map { skin(start + it * 60L, 3400) }
+        val hrs = (0 until n).map { hr(start + it * 60L - 2) }
+        val mean = AnalyticsEngine.wornNightlySkinTempC(sess, hrs, temps, wornToleranceSec = 5)
+        assertEquals(34.0, mean!!, 1e-9)
+    }
+
+    @Test
+    fun toleranceReproducesTheGroundTruthedOuraNightShape() {
+        // A shape modeled on the real 08-13/14 night: 644 skin-temp samples every ~60 s, valid HR
+        // covering only ~46% of the window at unpredictable offsets (not exact seconds) — exact match
+        // kept 296 (< 300 floor, null); a 5 s tolerance kept 634 (well past it). Model a sparse HR
+        // stream (one sample per skin-temp sample) offset +1 s, which exact-match entirely misses but
+        // any >=1 s tolerance entirely recovers.
+        val start = 6_400_000L
+        val n = 500
+        val sess = listOf(session(start, n * 60L))
+        val temps = (0 until n).map { skin(start + it * 60L, 3400) }
+        val hrs = (0 until n).map { hr(start + it * 60L + 1) }
+        assertNull(AnalyticsEngine.wornNightlySkinTempC(sess, hrs, temps))
+        val mean = AnalyticsEngine.wornNightlySkinTempC(sess, hrs, temps, wornToleranceSec = 5)
+        assertEquals(34.0, mean!!, 1e-9)
+    }
+
+    @Test
+    fun funnelToleranceMovesSamplesFromNotWornToKept() {
+        // The funnel's bucket accounting must still sum to totalSamples, and the rescued samples move
+        // specifically from droppedNotWorn into kept — not from any other bucket.
+        val start = 6_500_000L
+        val n = 400
+        val sess = listOf(session(start, n * 60L))
+        val temps = (0 until n).map { skin(start + it * 60L, 3400) }
+        val hrs = (0 until n).map { hr(start + it * 60L + 3) }
+        val exact = AnalyticsEngine.skinTempFunnel(sess, hrs, temps)
+        assertEquals(n, exact.droppedNotWorn)
+        assertEquals(0, exact.kept)
+        val tolerant = AnalyticsEngine.skinTempFunnel(sess, hrs, temps, wornToleranceSec = 5)
+        assertEquals(0, tolerant.droppedNotWorn)
+        assertEquals(n, tolerant.kept)
+        assertEquals(exact.totalSamples, tolerant.totalSamples)
+    }
+
     // ── skin-temp funnel diagnostic (#752) ──────────────────────────────────
 
     /** The kept-path: the funnel's mean is identical to [AnalyticsEngine.wornNightlySkinTempC], and the
