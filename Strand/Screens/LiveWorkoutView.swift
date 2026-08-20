@@ -194,18 +194,15 @@ struct LiveWorkoutView: View {
         // VoiceOver needs the selected scale maximum (0–21 / 0–100) even though the visible denominator
         // was removed from the glanceable layout. Reuse the same localized "of %@" caption as Today /
         // Week-in-review, and format the spoken value like the on-screen CountUpText.
-        let valueText = effortScale == .whoop
-            ? String(format: "%.1f", displayEffort)
-            : "\(Int(displayEffort.rounded()))"
+        let valueText = String(format: "%.1f", displayEffort)
         let scaleCaption = String(localized: "of \(UnitFormatter.effortScaleMax(effortScale))")
         let effortAccessibilityLabel = "\(String(localized: "Effort")) \(valueText) \(scaleCaption)"
         return VStack(spacing: NoopMetrics.space1) {
             CountUpText(value: displayEffort,
-                        format: { value in
-                            effortScale == .whoop
-                                ? String(format: "%.1f", value)
-                                : "\(Int(value.rounded()))"
-                        },
+                        // One decimal on BOTH scales — the app-wide `effortDisplay` convention (#45).
+                        // `displayEffort` has already been through `effortValue`, so the interpolated
+                        // count-up value is formatted directly rather than scaled a second time.
+                        format: { String(format: "%.1f", $0) },
                         font: StrandFont.rounded(56, weight: .semibold),
                         color: StrandPalette.textPrimary)
             .accessibilityLabel(effortAccessibilityLabel)
