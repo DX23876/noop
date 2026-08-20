@@ -64,11 +64,23 @@ class ConnectionDownReasonTest {
         assertEquals(" after 0.4s", ConnectionTrace.sessionHeldSuffix(432))
     }
 
+    /** Exact half-ties round up on both platforms, independently of the host runtime's formatter. */
+    @Test fun sessionLengthHalfTiesRoundUpToTheNextTenth() {
+        assertEquals(" after 0.1s", ConnectionTrace.sessionHeldSuffix(50))
+        assertEquals(" after 0.2s", ConnectionTrace.sessionHeldSuffix(150))
+        assertEquals(" after 0.3s", ConnectionTrace.sessionHeldSuffix(250))
+    }
+
     /**
      * Unknown session start yields no suffix rather than a misleading zero — "after 0.0s" would read as
      * an instant drop, which is a different diagnosis from "we do not know".
      */
     @Test fun anUnknownSessionStartYieldsNoSuffix() {
         assertEquals("", ConnectionTrace.sessionHeldSuffix(-1))
+    }
+
+    /** Zero is a measured instant drop, not the negative unknown-start sentinel. */
+    @Test fun anInstantDropIsStillReported() {
+        assertEquals(" after 0.0s", ConnectionTrace.sessionHeldSuffix(0))
     }
 }

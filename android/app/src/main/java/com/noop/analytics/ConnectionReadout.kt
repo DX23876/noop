@@ -22,11 +22,15 @@ object ConnectionTrace {
      * before anyone could start on it.
      *
      * An unknown start yields NO suffix rather than `after 0.0s` — "instant drop" and "we do not know"
-     * are different diagnoses. Locale-fixed so a decimal comma cannot follow the phone language into a
-     * log people paste into issues. Twin of the Swift `ConnectionTrace.sessionHeldSuffix`.
+     * are different diagnoses. Integer half-up quantization makes exact 50 ms ties deterministic, and
+     * rendering the whole and fractional digits directly keeps locale out of pasted logs. Twin of the
+     * Swift `ConnectionTrace.sessionHeldSuffix`.
      */
-    fun sessionHeldSuffix(millis: Long): String =
-        if (millis < 0L) "" else " after ${"%.1f".format(java.util.Locale.US, millis / 1000.0)}s"
+    fun sessionHeldSuffix(millis: Long): String {
+        if (millis < 0L) return ""
+        val tenths = millis / 100L + if (millis % 100L >= 50L) 1L else 0L
+        return " after ${tenths / 10L}.${tenths % 10L}s"
+    }
 
 
     /**
