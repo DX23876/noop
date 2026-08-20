@@ -87,9 +87,23 @@ prs="$(gh pr list --repo "$REPO" --state merged --limit "$LIMIT" \
 # stateReason rides along as a 4th column so the truncation guard below can count what was FETCHED.
 # Filtering inside the jq would hide truncation: 300 issues fetched of which 260 are completed leaves 260
 # rows, under the limit, and the guard stays silent about the 300-item wall it just hit.
-issues_raw="$(gh issue list --repo "$REPO" --state closed --limit "$LIMIT" \
-        --search "closed:>=$SINCE" --json number,author,title,stateReason \
-        --jq '.[] | "\(.author.login)\t#\(.number)\t\(.title | gsub("[\r\n\t]+"; " "))\t\(.stateReason // "NULL")"')"
+#
+# Fetched over GRAPHQL, not `gh issue list --json stateReason`. That field is only exposed by newer gh
+# builds: on gh 2.45 the whole command exits with "Unknown JSON field: stateReason" and prints the list of
+# fields it does support, so the script produced NOTHING — no rows, no warning, no non-zero signal that
+# anyone noticed until a release was being cut by hand. GraphQL has carried stateReason for far longer and
+# its search connection excludes pull requests natively, so this also drops the PR-vs-issue ambiguity the
+# REST endpoint has (REST /issues returns PRs too, with state_reason null).
+# PAGINATED: the search connection refuses a `first` above 100, so the LIMIT is reached a page at a time
+# rather than in one request. Without this the whole call errors out and, again, prints nothing useful.
+GQL_ISSUES='query($q:String!,$endCursor:String){search(query:$q,type:ISSUE,first:100,after:$endCursor){
+  nodes{... on Issue{number title stateReason author{login}}}
+  pageInfo{hasNextPage endCursor}}}'
+issues_raw="$(gh api graphql --paginate -f query="$GQL_ISSUES" \
+        -f q="repo:$REPO is:issue is:closed closed:>=$SINCE" \
+        --jq '.data.search.nodes[] | select(.author != null)
+              | "\(.author.login)\t#\(.number)\t\(.title | gsub("[\r\n\t]+"; " "))\t\(.stateReason // "NULL")"' \
+        | head -n "$LIMIT")"
 
 # A silent top-N cap would read as "that is everyone" when it is not.
 warn_if_truncated() {   # warn_if_truncated <what> <rows>
