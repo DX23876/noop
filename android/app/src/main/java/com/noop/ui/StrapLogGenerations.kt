@@ -65,6 +65,12 @@ object StrapLogGenerations {
         return gens
     }
 
+    /** The marker separating banked previous sessions from this process's live tail. ONE definition:
+     *  `WhoopBleClient.exportLogLines` emits the same marker when it builds the line form without going
+     *  through [previousSessionsText], and two copies of this literal could drift apart silently — the
+     *  export would still render, just with a boundary the log parsers no longer agree on. */
+    const val CURRENT_SESSION_MARKER = "===== current app session ====="
+
     /**
      * The previous processes' lines, oldest-first, ready to sit AHEAD of the current session in an export.
      * Each generation is its own newline-joined block (its first line is its own separator header), and a
@@ -74,7 +80,28 @@ object StrapLogGenerations {
      */
     fun previousSessionsText(generations: List<List<String>>): String {
         if (generations.isEmpty()) return ""
-        return generations.joinToString("\n") { it.joinToString("\n") } + "\n" +
-            "===== current app session =====\n"
+        return previousSessionsLines(generations).joinToString("\n") + "\n"
+    }
+
+    /**
+     * The same block as [previousSessionsText], as LINES — for callers that immediately split it again
+     * (`WhoopBleClient.exportLogLines`, feeding readouts that filter by domain tag).
+     *
+     * [previousSessionsText] is DERIVED from this, rather than the two being written separately, so they
+     * cannot drift. An earlier revision built the line form with `flatten()` and that was already wrong:
+     * `joinToString` renders an EMPTY generation as a blank line, while `flatten()` drops it, so a corrupt
+     * or legacy empty block would have shifted every line after it in one form but not the other. Empty
+     * generations are not supposed to be stored — `roll` never pushes one — but `persistedLogGenerations`
+     * decodes an empty block to `emptyList()`, so the case is representable and must be rendered the same
+     * way by both forms.
+     */
+    fun previousSessionsLines(generations: List<List<String>>): List<String> {
+        if (generations.isEmpty()) return emptyList()
+        val out = ArrayList<String>()
+        for (generation in generations) {
+            if (generation.isEmpty()) out.add("") else out.addAll(generation)
+        }
+        out.add(CURRENT_SESSION_MARKER)
+        return out
     }
 }

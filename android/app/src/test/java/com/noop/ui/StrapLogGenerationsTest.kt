@@ -1,6 +1,7 @@
 package com.noop.ui
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -127,5 +128,89 @@ class StrapLogGenerationsTest {
     @Test
     fun noGenerationsRendersNothing() {
         assertEquals("", StrapLogGenerations.previousSessionsText(emptyList()))
+    }
+
+    /**
+     * #1468 follow-up: [StrapLogGenerations.previousSessionsText] must be a PURE function of its argument.
+     *
+     * `WhoopBleClient.exportLogText` memoises this half of the export for the process lifetime — safe only
+     * because the generations are written exactly once (inside the latched roll) and this formatting reads
+     * no clock and no other state. If someone later folds a timestamp or a live counter in here, the memo
+     * would start serving a stale string and nothing else would notice: the strap log would simply stop
+     * updating that section, which is far harder to spot than a crash.
+     */
+    @Test
+    fun previousSessionsTextIsPureSoItCanBeMemoised() {
+        val generations = listOf(
+            listOf("===== session 2026-08-19 =====", "line a", "line b"),
+            listOf("===== session 2026-08-20 =====", "line c"),
+        )
+        val first = StrapLogGenerations.previousSessionsText(generations)
+        repeat(3) { assertEquals(first, StrapLogGenerations.previousSessionsText(generations)) }
+
+        // A DIFFERENT input must still produce a different string — the equality above must come from
+        // purity, not from the function ignoring its argument.
+        assertNotEquals(first, StrapLogGenerations.previousSessionsText(generations.take(1)))
+        assertEquals("", StrapLogGenerations.previousSessionsText(emptyList()))
+    }
+
+    /**
+     * #1468 follow-up: the LINE form and the TEXT form of the previous-sessions block must describe the
+     * same content.
+     *
+     * `WhoopBleClient.exportLogLines` builds its previous-session lines straight from the generations —
+     * `gens.flatten() + CURRENT_SESSION_MARKER` — instead of formatting the string and splitting it back
+     * apart. That shortcut is only valid while [previousSessionsText] renders exactly those lines in that
+     * order. Reformatting it (an extra header, a blank line between generations, a different marker) would
+     * make the two exports disagree, and nothing else would catch it: the share sheet would keep showing
+     * the new shape while the live readouts kept filtering the old one.
+     */
+    @Test
+    fun lineFormMatchesTheRenderedTextForm() {
+        val generations = listOf(
+            listOf("===== session 2026-08-19 =====", "line a", "line b"),
+            listOf("===== session 2026-08-20 =====", "line c"),
+        )
+        val rendered = StrapLogGenerations.previousSessionsText(generations)
+        // The rendered form ends in a newline, so splitting yields one trailing empty segment.
+        val renderedLines = rendered.split("\n").dropLast(1)
+        val lineForm = StrapLogGenerations.previousSessionsLines(generations)
+
+        assertEquals(lineForm, renderedLines)
+        assertEquals("", rendered.split("\n").last())
+        // ...and the marker really is the last content line, not buried mid-block.
+        assertEquals(StrapLogGenerations.CURRENT_SESSION_MARKER, renderedLines.last())
+        // Empty generations render empty on both sides, so a caller can concatenate unconditionally.
+        assertEquals("", StrapLogGenerations.previousSessionsText(emptyList()))
+    }
+
+    /**
+     * The rendering must still match what `joinToString` produced before [previousSessionsText] was
+     * rewritten to derive from [StrapLogGenerations.previousSessionsLines] — including for an EMPTY
+     * generation, which renders as a blank line.
+     *
+     * This is the case that caught a real bug: the line form was first built with `flatten()`, which DROPS
+     * an empty generation instead of rendering its blank line, so every line after it would have shifted in
+     * one form but not the other. `roll` never stores an empty generation, but `persistedLogGenerations`
+     * decodes an empty block to `emptyList()`, so the shape is representable.
+     */
+    @Test
+    fun anEmptyGenerationRendersAsABlankLineInBothForms() {
+        val generations = listOf(listOf("a"), emptyList(), listOf("b"))
+
+        // The pre-rewrite expression, spelled out, as the reference.
+        val legacy = generations.joinToString("\n") { it.joinToString("\n") } + "\n" +
+            StrapLogGenerations.CURRENT_SESSION_MARKER + "\n"
+        assertEquals(legacy, StrapLogGenerations.previousSessionsText(generations))
+
+        assertEquals(
+            listOf("a", "", "b", StrapLogGenerations.CURRENT_SESSION_MARKER),
+            StrapLogGenerations.previousSessionsLines(generations),
+        )
+        // flatten() would have produced ["a", "b", MARKER] — one line short, and misaligned from here on.
+        assertNotEquals(
+            generations.flatten() + StrapLogGenerations.CURRENT_SESSION_MARKER,
+            StrapLogGenerations.previousSessionsLines(generations),
+        )
     }
 }
