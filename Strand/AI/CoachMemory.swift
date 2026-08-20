@@ -158,8 +158,9 @@ final class CoachMemory: ObservableObject {
     private let d: UserDefaults
     private let updatesSemanticIndex: Bool
     private static let factsKey = "ai.memory.facts"
-    /// Hard cap on stored facts — old ones fall off the end when the model over-remembers.
-    static let maxFacts = 40
+    /// Hard cap on stored facts. Retrieval still sends only a compact relevant subset; the larger
+    /// canonical pool lets a coach retain years of durable context without inflating every prompt.
+    static let maxFacts = 120
 
     init(defaults: UserDefaults = .standard) {
         self.d = defaults
@@ -172,7 +173,8 @@ final class CoachMemory: ObservableObject {
 
     /// Add a fact (newest first), enforcing the cap. Near-duplicates (same normalised text, or one text
     /// fully contained in the other) UPDATE the existing fact in place instead of stacking a rephrasing,
-    /// so the 40-slot budget isn't wasted. Returns false only when the text is empty.
+    /// so the 120-slot budget isn't wasted. Returns false when the text is empty OR when a full store is
+    /// already made entirely of facts more valuable than the proposed one.
     ///
     /// Only matched against facts in the SAME category — dedup is category-scoped (see `isNearDuplicate`),
     /// so an "injury" restating a knee problem never collapses onto an unrelated "preference".
@@ -237,7 +239,14 @@ final class CoachMemory: ObservableObject {
             evidence: [Evidence(source: source, referenceID: referenceID, recordedAt: Date())]
         )
         var updated = [fact] + facts
-        if updated.count > Self.maxFacts, let dropIdx = Self.evictionIndex(in: updated) {
+        if updated.count > Self.maxFacts {
+            // The proposed fact is at index zero. Let it compete honestly with the existing pool: a fresh
+            // background hypothesis must not evict a confirmed fact merely because it arrived later. If it
+            // is itself the least valuable candidate (or every fact is pinned), reject the write and leave
+            // the persisted array byte-for-byte alone.
+            guard let dropIdx = Self.evictionIndex(in: updated), dropIdx != updated.startIndex else {
+                return false
+            }
             updated.remove(at: dropIdx)
         }
         facts = updated
@@ -249,18 +258,45 @@ final class CoachMemory: ObservableObject {
     /// 1. the oldest **expired** fact — it is already invisible to every retrieval path, so it is
     ///    occupying a slot while contributing nothing (before `validUntil` was ever written, this arm
     ///    could not fire and dead facts sat in the store forever);
-    /// 2. otherwise the oldest **non-pinned** fact, so a pinned injury or hard constraint never falls
-    ///    off merely for being old;
-    /// 3. otherwise the oldest fact — everything is pinned and unexpired, and something has to give.
+    /// 2. otherwise an active **non-pinned** fact, ordered by verification (hypothesis before pending
+    ///    confirmation before confirmed), then lower evidence count, then oldest observation;
+    /// 3. no candidate when everything is pinned — the incoming write is rejected instead of silently
+    ///    deleting a constraint the user chose to put in every prompt.
     ///
     /// Pure and static so the eviction order can be pinned by a test without a `UserDefaults` fixture.
-    /// `facts` is newest-first, so "oldest" is the LAST match.
     static func evictionIndex(in facts: [MemoryFact], now: Date = Date()) -> Int? {
         guard !facts.isEmpty else { return nil }
-        if let expired = facts.lastIndex(where: { $0.validUntil.map { $0 < now } ?? false }) {
-            return expired
+        let expired = facts.indices.filter { facts[$0].validUntil.map { $0 < now } ?? false }
+        if let index = expired.min(by: { lhs, rhs in
+            if facts[lhs].createdAt != facts[rhs].createdAt {
+                return facts[lhs].createdAt < facts[rhs].createdAt
+            }
+            return lhs > rhs
+        }) {
+            return index
         }
-        return facts.lastIndex(where: { $0.importance != .pinned }) ?? facts.indices.last
+        let candidates = facts.indices.filter { facts[$0].importance != .pinned }
+        return candidates.min { lhs, rhs in
+            let a = facts[lhs]
+            let b = facts[rhs]
+            let aVerification = Self.evictionRank(a.verification)
+            let bVerification = Self.evictionRank(b.verification)
+            if aVerification != bVerification { return aVerification < bVerification }
+            if a.evidenceCount != b.evidenceCount { return a.evidenceCount < b.evidenceCount }
+            if a.createdAt != b.createdAt { return a.createdAt < b.createdAt }
+            return lhs > rhs
+        }
+    }
+
+    /// Lower means cheaper to lose. Confirmation is deliberately the primary signal: repeated model
+    /// observations remain hypotheses until the user endorses them, whereas one explicit user confirmation
+    /// is authoritative enough to shape later coaching.
+    nonisolated private static func evictionRank(_ verification: Verification) -> Int {
+        switch verification {
+        case .hypothesis: return 0
+        case .pendingConfirmation: return 1
+        case .confirmed: return 2
+        }
     }
 
     /// Edit a fact's text in place (a model correction, or the user editing in settings).
@@ -404,7 +440,7 @@ final class CoachMemory: ObservableObject {
 
     /// The `limit` facts most relevant to `query`: pinned first, then normal facts ranked by keyword
     /// overlap with the question, decayed by age. Injected into the question's context so the coach gets
-    /// the pertinent memory without every prompt carrying all 40 facts.
+    /// the pertinent memory without every prompt carrying all 120 facts.
     ///
     /// `excludingPinned` drops the pinned facts from the result AND from the budget, for the caller
     /// that is going to discard them anyway: `relevantBlock` filters them out because `pinnedBlock`

@@ -220,24 +220,62 @@ final class CoachMemoryVerificationTests: XCTestCase {
         XCTAssertEqual(index, 1)
     }
 
-    func testEvictionOtherwiseDropsTheOldestUnpinnedFact() {
+    func testEvictionOtherwiseDropsTheOldestUnpinnedFactWithinTheSameQualityTier() {
         let now = Date()
-        let newest = CoachMemory.MemoryFact(text: "newest", createdAt: now)
+        let newest = CoachMemory.MemoryFact(text: "newest", createdAt: now, verification: .confirmed)
         let oldPinned = CoachMemory.MemoryFact(text: "old but pinned",
                                               importance: .pinned,
-                                              createdAt: now.addingTimeInterval(-1_000))
-        let oldPlain = CoachMemory.MemoryFact(text: "old", createdAt: now.addingTimeInterval(-500))
+                                              createdAt: now.addingTimeInterval(-1_000),
+                                              verification: .confirmed)
+        let oldPlain = CoachMemory.MemoryFact(text: "old",
+                                              createdAt: now.addingTimeInterval(-500),
+                                              verification: .confirmed)
         let index = try! XCTUnwrap(CoachMemory.evictionIndex(in: [newest, oldPlain, oldPinned], now: now))
         XCTAssertEqual(index, 1, "the pinned fact must survive being the oldest")
     }
 
-    func testEvictionFallsBackToTheOldestWhenEverythingIsPinned() {
+    func testEvictionPrefersHypothesisThenPendingThenConfirmed() {
+        let now = Date()
+        let confirmed = CoachMemory.MemoryFact(text: "confirmed",
+                                               createdAt: now.addingTimeInterval(-1_000),
+                                               verification: .confirmed)
+        let pending = CoachMemory.MemoryFact(text: "pending",
+                                             createdAt: now.addingTimeInterval(-500),
+                                             verification: .pendingConfirmation)
+        let hypothesis = CoachMemory.MemoryFact(text: "hypothesis",
+                                                createdAt: now,
+                                                verification: .hypothesis)
+        XCTAssertEqual(CoachMemory.evictionIndex(in: [confirmed, pending, hypothesis], now: now), 2)
+        XCTAssertEqual(CoachMemory.evictionIndex(in: [confirmed, pending], now: now), 1)
+    }
+
+    func testEvictionUsesEvidenceBeforeAgeWithinAQualityTier() {
+        let now = Date()
+        let oldWellSupported = CoachMemory.MemoryFact(text: "old but repeated",
+                                                      createdAt: now.addingTimeInterval(-1_000),
+                                                      verification: .hypothesis,
+                                                      evidenceCount: 3)
+        let newerWeak = CoachMemory.MemoryFact(text: "new and weak",
+                                               createdAt: now,
+                                               verification: .hypothesis,
+                                               evidenceCount: 1)
+        XCTAssertEqual(CoachMemory.evictionIndex(in: [oldWellSupported, newerWeak], now: now), 1)
+
+        let newerEqual = CoachMemory.MemoryFact(text: "newer equal",
+                                                createdAt: now,
+                                                verification: .hypothesis,
+                                                evidenceCount: 3)
+        XCTAssertEqual(CoachMemory.evictionIndex(in: [oldWellSupported, newerEqual], now: now), 0,
+                       "age breaks a tie only after verification and evidence")
+    }
+
+    func testEvictionRefusesWhenEverythingIsPinned() {
         let now = Date()
         let newest = CoachMemory.MemoryFact(text: "newest", importance: .pinned, createdAt: now)
         let oldest = CoachMemory.MemoryFact(text: "oldest",
                                             importance: .pinned,
                                             createdAt: now.addingTimeInterval(-1_000))
-        XCTAssertEqual(CoachMemory.evictionIndex(in: [newest, oldest], now: now), 1)
+        XCTAssertNil(CoachMemory.evictionIndex(in: [newest, oldest], now: now))
     }
 
     // MARK: - What the settings card is allowed to claim

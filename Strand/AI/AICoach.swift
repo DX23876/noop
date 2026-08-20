@@ -4446,7 +4446,7 @@ final class AICoachEngine: ObservableObject {
 
     /// The chat as `(role, content)` pairs, with the metrics context prepended to the first user turn.
     /// The facts most relevant to the CURRENT question are folded into that context (pinned facts already
-    /// ride the system prompt), so memory scales without every prompt carrying all 40 facts.
+    /// ride the system prompt), so memory scales without every prompt carrying all 120 facts.
     /// Chart-host messages (`flushPendingCharts` appends an empty assistant turn per chart) never go on
     /// the wire: Anthropic rejects empty content, so a follow-up question after a chart would 400.
     ///

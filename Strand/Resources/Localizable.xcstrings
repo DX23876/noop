@@ -162856,6 +162856,70 @@
         }
       }
     },
+    "Nothing was saved. Coach memory is full of pinned or more strongly verified facts. Remove one before trying again.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Es wurde nichts gespeichert. Der Coach-Speicher ist mit angehefteten oder zuverlässiger bestätigten Fakten gefüllt. Entferne einen davon, bevor du es erneut versuchst."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nothing was saved. Coach memory is full of pinned or more strongly verified facts. Remove one before trying again."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se ha guardado nada. La memoria del Coach está llena de datos fijados o mejor verificados. Elimina uno antes de volver a intentarlo."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rien n’a été enregistré. La mémoire du Coach est pleine de faits épinglés ou mieux vérifiés. Supprimez-en un avant de réessayer."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Non è stato salvato nulla. La memoria del Coach è piena di fatti fissati o verificati in modo più affidabile. Rimuovine uno prima di riprovare."
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nada foi guardado. A memória do Coach está cheia de factos afixados ou verificados com maior confiança. Remove um antes de tentares novamente."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ничего не сохранено. Память тренера заполнена закреплёнными или более надёжно подтверждёнными фактами. Удалите один из них и повторите попытку."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未保存任何内容。教练记忆中已存满置顶或验证更充分的事实。请先移除一项，然后重试。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未儲存任何內容。教練記憶中已存滿置頂或驗證更充分的事實。請先移除一項，然後再試一次。"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nic nie zapisano. Pamięć trenera jest pełna przypiętych lub lepiej potwierdzonych faktów. Usuń jeden z nich przed ponowną próbą."
+          }
+        }
+      }
+    },
     "Nothing leaves your %@": {
       "localizations": {
         "de": {
