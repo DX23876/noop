@@ -62,9 +62,17 @@ jobs:
   # .githooks/commit-msg blocks it before the commit exists, and this job is the net for whatever
   # bypasses the hook (--no-verify, a fresh clone with no core.hooksPath, the GitHub web editor).
   #
-  # Deliberately scoped to the commits this push/PR ADDS. History already carries such trailers —
-  # including three commits that came from upstream, where they are ryanbr's to keep — and a job that
-  # audits all of history would be permanently red and therefore ignored.
+  # Deliberately scoped to the commits this push/PR ADDS, and within those, to the ones written under
+  # THIS fork's identity. History already carries such trailers — including commits that came from
+  # upstream, where they are their own authors' to keep — and a job that audits all of history would be
+  # permanently red and therefore ignored.
+  #
+  # The author filter is what makes an upstream sync mergeable at all: `git merge upstream/main` ADDS
+  # every upstream commit to base..head, four of which carry these trailers, and the only way to clear
+  # them would be to rewrite other people's commits — which changes their shas, drops their signatures
+  # and destroys the ancestry the next sync has to merge against. It weakens nothing for the fork's own
+  # work: a commit authored as DX23876 is audited exactly as before, and one authored under some other
+  # identity was never this project's to publish under its name anyway.
   commit-attribution:
     runs-on: ubuntu-latest
     steps:
@@ -91,13 +99,24 @@ jobs:
           fi
           echo "auditing: ${RANGE[*]}"
 
+          # The one identity this fork's own commits carry (docs/FORK_GUIDE.md § Commit and attribution
+          # conventions). Anything else in the range arrived from elsewhere — an upstream sync, a merged
+          # third-party PR — and is not ours to rewrite.
+          OURS="176692557+DX23876@users.noreply.github.com"
+
           # -z NUL-terminates each commit so a multi-line body cannot be misattributed to its
           # neighbour, and suppresses the newline git otherwise appends after every entry (which would
-          # arrive glued to the FRONT of the next sha). %x1f separates the sha from the message.
+          # arrive glued to the FRONT of the next sha). %x1f separates sha, author email and message.
           bad=0
           while IFS= read -r -d '' entry; do
             sha=${entry%%$'\x1f'*}
-            msg=${entry#*$'\x1f'}
+            rest=${entry#*$'\x1f'}
+            email=${rest%%$'\x1f'*}
+            msg=${rest#*$'\x1f'}
+            if [ "$email" != "$OURS" ]; then
+              echo "skipping ${sha:0:9} — authored by <$email>, not this fork"
+              continue
+            fi
             hit=""
             grep -qiE '^[[:space:]]*(co-authored-by|signed-off-by)[[:space:]]*:.*(claude|anthropic|copilot|chatgpt|openai|gemini|cursor)' <<<"$msg" \
               && hit="AI co-author trailer"
@@ -109,7 +128,7 @@ jobs:
               echo "::error::${sha:0:9} — $hit"
               bad=1
             fi
-          done < <(git log -z --format="%H%x1f%B" "${RANGE[@]}")
+          done < <(git log -z --format="%H%x1f%ae%x1f%B" "${RANGE[@]}")
 
           if [ "$bad" -ne 0 ]; then
             echo "::error::NOOP commits carry no AI authorship. Amend the message(s) and force-push."

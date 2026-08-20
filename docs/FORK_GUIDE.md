@@ -28,9 +28,16 @@ reached `origin/main` repeatedly while the rule already existed.
 | `commit-msg` hook | `.githooks/commit-msg` | Before the commit object exists. Enable once per clone: `git config core.hooksPath .githooks` |
 | CI job `commit-attribution` | `.github/workflows/source-hygiene.yml` | Anything that bypasses the hook — `--no-verify`, a clone without `core.hooksPath`, the GitHub web editor |
 
-The CI job audits only the commits a push or PR **adds**. History already carries such trailers,
-including three commits inherited from upstream where they are ryanbr's to keep, and a job that
-audited all of history would be permanently red and therefore ignored.
+The CI job audits only the commits a push or PR **adds**, and within those, only the ones **authored
+as `DX23876`**. History already carries such trailers, including commits inherited from upstream where
+they are their own authors' to keep, and a job that audited all of history would be permanently red
+and therefore ignored.
+
+The author filter is what makes an upstream sync mergeable: `git merge upstream/main` adds every
+upstream commit to the audited range — four of them carry these trailers today — and clearing them
+would mean rewriting other people's commits, changing their shas, dropping their signatures and
+destroying the ancestry the next sync merges against. Nothing is relaxed for this fork's own work: a
+commit authored as `DX23876` is audited exactly as before.
 
 The subject matter is not the target — only authorship. "Anthropic" is a real AI provider this app
 integrates (`Strand/AI/AIProvider.swift`), so a message may freely say "add Anthropic streaming".
