@@ -16,6 +16,30 @@ import java.io.ByteArrayOutputStream
  */
 class ActivityFileImporterTest {
 
+    @Test
+    fun routeDistanceOrderedThreePointsUsesCanonicalBitPattern() {
+        // Fork governance #99: exact twin parity matters even when the numerical delta is too small
+        // to survive UI formatting. Keep point order and assert the binary64 result, not a tolerance.
+        val route = listOf(
+            ActivityFileImporter.RoutePoint(lat = 52.5, lon = 13.4),
+            ActivityFileImporter.RoutePoint(lat = 52.5001, lon = 13.4001),
+            ActivityFileImporter.RoutePoint(lat = 52.5002, lon = 13.4003),
+        )
+
+        assertEquals(0x403e89813f76c75cL, ActivityFileImporter.routeDistanceM(route).toRawBits())
+    }
+
+    @Test
+    fun routeDistanceOneSegmentKeepsAdjacentControlBitPattern() {
+        // Adjacent control: this first segment is already identical on both twins and must stay so.
+        val route = listOf(
+            ActivityFileImporter.RoutePoint(lat = 52.5, lon = 13.4),
+            ActivityFileImporter.RoutePoint(lat = 52.5001, lon = 13.4001),
+        )
+
+        assertEquals(0x402a0921667f2bacL, ActivityFileImporter.routeDistanceM(route).toRawBits())
+    }
+
     @Before
     fun installRealParser() {
         ActivityFileImporter.newPullParser = {

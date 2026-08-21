@@ -16,10 +16,11 @@ object RouteMath {
     private const val EARTH_R = 6_371_000.0 // metres
 
     fun haversineMeters(a: LatLng, b: LatLng): Double {
-        val dLat = Math.toRadians(b.lat - a.lat)
-        val dLon = Math.toRadians(b.lon - a.lon)
+        // Keep multiply-then-divide ordering identical to Swift's `x * .pi / 180`.
+        val dLat = (b.lat - a.lat) * Math.PI / 180.0
+        val dLon = (b.lon - a.lon) * Math.PI / 180.0
         val s = sin(dLat / 2) * sin(dLat / 2) +
-            cos(Math.toRadians(a.lat)) * cos(Math.toRadians(b.lat)) * sin(dLon / 2) * sin(dLon / 2)
+            cos(a.lat * Math.PI / 180.0) * cos(b.lat * Math.PI / 180.0) * sin(dLon / 2) * sin(dLon / 2)
         return EARTH_R * 2 * atan2(sqrt(s), sqrt(1 - s))
     }
 

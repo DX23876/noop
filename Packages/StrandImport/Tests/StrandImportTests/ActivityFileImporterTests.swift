@@ -6,6 +6,28 @@ import XCTest
 /// contract (must not crash, must reject gracefully) and the security guards (XXE entity, bad coords).
 final class ActivityFileImporterTests: XCTestCase {
 
+    func testRouteDistanceOrderedThreePointsUsesCanonicalBitPattern() {
+        // Fork governance #99: exact twin parity matters even when the numerical delta is too small
+        // to survive UI formatting. Keep point order and assert the binary64 result, not a tolerance.
+        let route = [
+            RoutePoint(lat: 52.5, lon: 13.4),
+            RoutePoint(lat: 52.5001, lon: 13.4001),
+            RoutePoint(lat: 52.5002, lon: 13.4003),
+        ]
+
+        XCTAssertEqual(ActivityFileImporter.routeDistanceM(route).bitPattern, 0x403e89813f76c75c)
+    }
+
+    func testRouteDistanceOneSegmentKeepsAdjacentControlBitPattern() {
+        // Adjacent control: this first segment is already identical on both twins and must stay so.
+        let route = [
+            RoutePoint(lat: 52.5, lon: 13.4),
+            RoutePoint(lat: 52.5001, lon: 13.4001),
+        ]
+
+        XCTAssertEqual(ActivityFileImporter.routeDistanceM(route).bitPattern, 0x402a0921667f2bac)
+    }
+
     // MARK: - GPX
 
     func testGpxTrackWithHrExtension() {
