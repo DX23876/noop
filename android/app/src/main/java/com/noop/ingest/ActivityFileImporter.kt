@@ -438,7 +438,7 @@ object ActivityFileImporter {
         if (times.isEmpty()) {
             // A pure coordinate track (no timestamps): keep it but with no interval.
             if (route.isEmpty()) return Result(null, kind, skipped)
-            val dist = summaryDistanceM ?: routeDistanceM(route)
+            val dist = summaryDistanceM ?: if (route.size >= 2) routeDistanceM(route) else null
             val a = Activity(kind, 0L, 0L, sportHint, dist, summaryEnergyKcal, null, summaryAvgHr, summaryMaxHr,
                 summaryAscentM, route.size, 0, cappedRoute(route))
             return Result(a, kind, skipped)

@@ -2,6 +2,7 @@ package com.noop.ingest
 
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -149,6 +150,33 @@ class ActivityFileImporterTest {
         """.trimIndent()
         val r = ActivityFileImporter.parse(gpx.toByteArray(Charsets.UTF_8), "x.gpx")
         assertEquals(1, r.activity!!.gpsPointCount)
+    }
+
+    @Test
+    fun untimedGpxRequiresTwoPointsForDerivedDistance() {
+        // bhelm/noop#100: without a summary distance, one coordinate has no measurable segment.
+        // The untimed parser must preserve that absence as null, matching the timestamped branch.
+        val onePoint = """
+            <gpx><trk><trkseg>
+              <trkpt lat="48.1" lon="11.5"></trkpt>
+            </trkseg></trk></gpx>
+        """.trimIndent()
+        val single = ActivityFileImporter.parse(onePoint.toByteArray(Charsets.UTF_8), "route.gpx").activity!!
+        assertEquals(1, single.gpsPointCount)
+        assertNull(single.distanceM)
+
+        // Adjacent control: two untimed coordinates do define a segment and retain derived distance.
+        val twoPoints = """
+            <gpx><trk><trkseg>
+              <trkpt lat="48.1" lon="11.5"></trkpt>
+              <trkpt lat="48.1001" lon="11.5001"></trkpt>
+            </trkseg></trk></gpx>
+        """.trimIndent()
+        val pair = ActivityFileImporter.parse(twoPoints.toByteArray(Charsets.UTF_8), "route.gpx").activity!!
+        assertEquals(2, pair.gpsPointCount)
+        val derivedDistance = pair.distanceM
+        assertNotNull(derivedDistance)
+        assertTrue((derivedDistance ?: 0.0) > 0.0)
     }
 
     // MARK: - TCX

@@ -289,7 +289,7 @@ public enum ActivityFileImporter {
             guard !route.isEmpty else {
                 return ActivityFileImportResult(activity: nil, kind: kind, skipped: skipped)
             }
-            let dist = summaryDistanceM ?? routeDistanceM(route)
+            let dist = summaryDistanceM ?? (route.count >= 2 ? routeDistanceM(route) : nil)
             let now = Date(timeIntervalSince1970: 0)
             let a = ActivityFile(
                 kind: kind, start: now, end: now, sport: sportHint,

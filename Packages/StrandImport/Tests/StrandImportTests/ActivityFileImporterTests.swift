@@ -133,6 +133,34 @@ final class ActivityFileImporterTests: XCTestCase {
         XCTAssertEqual(r.skipped, 0)               // it still carried a time, so not "skipped"
     }
 
+    func testUntimedGpxRequiresTwoPointsForDerivedDistance() {
+        // bhelm/noop#100: without a summary distance, one coordinate has no measurable segment.
+        // The untimed parser must preserve that absence as nil, matching the timestamped branch.
+        let onePoint = """
+        <gpx><trk><trkseg>
+          <trkpt lat="48.1" lon="11.5"></trkpt>
+        </trkseg></trk></gpx>
+        """
+        let single = try! XCTUnwrap(
+            ActivityFileImporter.parse(data: Data(onePoint.utf8), filename: "route.gpx").activity
+        )
+        XCTAssertEqual(single.gpsPointCount, 1)
+        XCTAssertNil(single.distanceM)
+
+        // Adjacent control: two untimed coordinates do define a segment and retain derived distance.
+        let twoPoints = """
+        <gpx><trk><trkseg>
+          <trkpt lat="48.1" lon="11.5"></trkpt>
+          <trkpt lat="48.1001" lon="11.5001"></trkpt>
+        </trkseg></trk></gpx>
+        """
+        let pair = try! XCTUnwrap(
+            ActivityFileImporter.parse(data: Data(twoPoints.utf8), filename: "route.gpx").activity
+        )
+        XCTAssertEqual(pair.gpsPointCount, 2)
+        XCTAssertGreaterThan(try! XCTUnwrap(pair.distanceM), 0)
+    }
+
     // MARK: - TCX
 
     func testTcxActivityWithLapSummaries() {
