@@ -295,6 +295,44 @@ final class ActivityFileImporterTests: XCTestCase {
         XCTAssertEqual(ActivityFileImporter.workoutSport(from: "kayaking"), "Kayaking")   // title-cased
     }
 
+    func testDetectFormatTreatsTrailingDotAsEmptyExtensionWithKotlinParity() {
+        let empty = Data()
+        let unknownXML = Data("<unknown/>".utf8)
+        let fitMagic = Data([0, 0, 0, 0, 0, 0, 0, 0, 46, 70, 73, 84])
+        let gpx = Data("<gpx></gpx>".utf8)
+        let tcx = Data("<TrainingCenterDatabase></TrainingCenterDatabase>".utf8)
+
+        XCTAssertEqual(
+            ActivityFileImporter.detectFormat(filename: "ride.fit.", data: empty), .unknown
+        )
+        XCTAssertEqual(
+            ActivityFileImporter.detectFormat(filename: "ride.fit..", data: empty), .unknown
+        )
+        XCTAssertEqual(
+            ActivityFileImporter.detectFormat(filename: "route.gpx.", data: unknownXML), .unknown
+        )
+        XCTAssertEqual(ActivityFileImporter.detectFormat(filename: "fit", data: empty), .unknown)
+
+        XCTAssertEqual(ActivityFileImporter.detectFormat(filename: "ride.fit", data: empty), .fit)
+        XCTAssertEqual(ActivityFileImporter.detectFormat(filename: "route.gpx", data: empty), .gpx)
+        XCTAssertEqual(ActivityFileImporter.detectFormat(filename: "route.GPX", data: empty), .gpx)
+        XCTAssertEqual(
+            ActivityFileImporter.detectFormat(filename: "ride.fit.", data: fitMagic), .fit
+        )
+        XCTAssertEqual(
+            ActivityFileImporter.detectFormat(filename: "ride.bin", data: fitMagic), .fit
+        )
+        XCTAssertEqual(
+            ActivityFileImporter.detectFormat(filename: "route.gpx.", data: gpx), .gpx
+        )
+        XCTAssertEqual(
+            ActivityFileImporter.detectFormat(filename: "route.bin", data: gpx), .gpx
+        )
+        XCTAssertEqual(
+            ActivityFileImporter.detectFormat(filename: "workout.tcx.", data: tcx), .tcx
+        )
+    }
+
     func testSummaryTextIncludesOnlyPositiveStepsWithKotlinParity() {
         func activity(steps: Int?) -> ActivityFile {
             ActivityFile(

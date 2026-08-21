@@ -195,7 +195,11 @@ public enum ActivityFileImporter {
     /// Detect the format from the filename extension first, then content magic bytes. FIT has a
     /// definitive ".FIT" signature at offset 8; GPX/TCX are sniffed from their root XML element.
     public static func detectFormat(filename: String?, data: Data) -> Format {
-        if let ext = filename?.split(separator: ".").last?.lowercased() {
+        // Match Kotlin substringAfterLast('.', "") exactly: only text after a literal final dot is
+        // an extension. A missing or trailing dot therefore has no usable extension and falls through
+        // to content detection instead of reusing an earlier non-empty token.
+        if let filename, let dot = filename.lastIndex(of: ".") {
+            let ext = filename[filename.index(after: dot)...].lowercased()
             switch ext {
             case "gpx": return .gpx
             case "tcx": return .tcx

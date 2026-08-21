@@ -303,6 +303,38 @@ class ActivityFileImporterTest {
     }
 
     @Test
+    fun detectFormatTreatsTrailingDotAsEmptyExtensionWithSwiftParity() {
+        val empty = byteArrayOf()
+        val unknownXml = "<unknown/>".toByteArray(Charsets.UTF_8)
+        val fitMagic = byteArrayOf(0, 0, 0, 0, 0, 0, 0, 0, 46, 70, 73, 84)
+        val gpx = "<gpx></gpx>".toByteArray(Charsets.UTF_8)
+        val tcx = "<TrainingCenterDatabase></TrainingCenterDatabase>".toByteArray(Charsets.UTF_8)
+
+        assertEquals(
+            ActivityFileImporter.Format.UNKNOWN,
+            ActivityFileImporter.detectFormat("ride.fit.", empty),
+        )
+        assertEquals(
+            ActivityFileImporter.Format.UNKNOWN,
+            ActivityFileImporter.detectFormat("ride.fit..", empty),
+        )
+        assertEquals(
+            ActivityFileImporter.Format.UNKNOWN,
+            ActivityFileImporter.detectFormat("route.gpx.", unknownXml),
+        )
+        assertEquals(ActivityFileImporter.Format.UNKNOWN, ActivityFileImporter.detectFormat("fit", empty))
+
+        assertEquals(ActivityFileImporter.Format.FIT, ActivityFileImporter.detectFormat("ride.fit", empty))
+        assertEquals(ActivityFileImporter.Format.GPX, ActivityFileImporter.detectFormat("route.gpx", empty))
+        assertEquals(ActivityFileImporter.Format.GPX, ActivityFileImporter.detectFormat("route.GPX", empty))
+        assertEquals(ActivityFileImporter.Format.FIT, ActivityFileImporter.detectFormat("ride.fit.", fitMagic))
+        assertEquals(ActivityFileImporter.Format.FIT, ActivityFileImporter.detectFormat("ride.bin", fitMagic))
+        assertEquals(ActivityFileImporter.Format.GPX, ActivityFileImporter.detectFormat("route.gpx.", gpx))
+        assertEquals(ActivityFileImporter.Format.GPX, ActivityFileImporter.detectFormat("route.bin", gpx))
+        assertEquals(ActivityFileImporter.Format.TCX, ActivityFileImporter.detectFormat("workout.tcx.", tcx))
+    }
+
+    @Test
     fun summaryTextIncludesOnlyPositiveStepsWithSwiftParity() {
         fun activity(steps: Int?) = ActivityFileImporter.Activity(
             kind = ActivityFileImporter.Kind.FIT,
