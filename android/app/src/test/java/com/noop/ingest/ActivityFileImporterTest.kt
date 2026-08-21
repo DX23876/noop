@@ -360,6 +360,39 @@ class ActivityFileImporterTest {
             ActivityFileImporter.summaryText(activity(2_350)),
         )
     }
+
+    @Test
+    fun distanceTextUsesExplicitHalfUpRoundingWithSwiftParity() {
+        fun activity(distanceM: Double) = ActivityFileImporter.Activity(
+            kind = ActivityFileImporter.Kind.GPX,
+            startTs = 1_000,
+            endTs = 1_060,
+            sport = "running",
+            distanceM = distanceM,
+            energyKcal = null,
+            steps = null,
+            avgHr = null,
+            maxHr = null,
+            ascentM = null,
+            gpsPointCount = 0,
+            hrSampleCount = 0,
+            route = emptyList(),
+        )
+
+        val cases = listOf(
+            9_500.0 to "9.50 km",
+            10_500.0 to "11 km",
+            11_500.0 to "12 km",
+        )
+        for ((metres, distance) in cases) {
+            val value = activity(metres)
+            assertEquals("Imported GPX · $distance", value.importNote())
+            assertEquals(
+                "Imported a $distance Running activity",
+                ActivityFileImporter.summaryText(value),
+            )
+        }
+    }
 }
 
 // MARK: - FIT byte fixture builder (little-endian, test-only). Mirrors the Swift FitFixture.

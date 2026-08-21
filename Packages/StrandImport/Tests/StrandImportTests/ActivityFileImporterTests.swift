@@ -353,6 +353,32 @@ final class ActivityFileImporterTests: XCTestCase {
             base + " · 2350 steps"
         )
     }
+
+    func testDistanceTextUsesExplicitHalfUpRoundingWithKotlinParity() {
+        func activity(_ distanceM: Double) -> ActivityFile {
+            ActivityFile(
+                kind: .gpx,
+                start: Date(timeIntervalSince1970: 1_000),
+                end: Date(timeIntervalSince1970: 1_060),
+                sport: "running",
+                distanceM: distanceM
+            )
+        }
+
+        let cases: [(metres: Double, distance: String)] = [
+            (9_500, "9.50 km"),
+            (10_500, "11 km"),
+            (11_500, "12 km"),
+        ]
+        for item in cases {
+            let value = activity(item.metres)
+            XCTAssertEqual(value.importNote(), "Imported GPX · \(item.distance)")
+            XCTAssertEqual(
+                ActivityFileImporter.summaryText(value),
+                "Imported a \(item.distance) Running activity"
+            )
+        }
+    }
 }
 
 // MARK: - FIT byte fixture builder (little-endian, test-only)

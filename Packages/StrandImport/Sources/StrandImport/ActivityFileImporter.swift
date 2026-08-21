@@ -27,6 +27,16 @@ import Foundation
 
 // MARK: - Normalized model
 
+/// Shared display formatter for imported-activity distance. Distances are nonnegative, so explicit
+/// ties-away-from-zero is the same half-up policy as Kotlin's `roundToInt()` (10.5 km → 11 km).
+/// Keep the sub-10 km two-decimal path unchanged; this formats text only and never mutates `distanceM`.
+private func activityDistanceText(_ distanceM: Double) -> String {
+    let km = distanceM / 1000.0
+    return km >= 10
+        ? String(format: "%.0f km", km.rounded(.toNearestOrAwayFromZero))
+        : String(format: "%.2f km", km)
+}
+
 /// One imported activity (the shape the app layer maps onto a `WorkoutRow`, plus optional
 /// activity-file daily metrics when present). Distances are metres, HR is bpm, energy is kcal.
 /// Times are UTC `Date`s. A field is `nil` when the file didn't carry it — never fabricated.
@@ -116,8 +126,7 @@ public struct ActivityFile: Sendable, Equatable {
     public func importNote() -> String {
         var parts: [String] = ["Imported \(kind.rawValue.uppercased())"]
         if let d = distanceM, d > 0 {
-            let km = d / 1000.0
-            parts.append(String(format: km >= 10 ? "%.0f km" : "%.2f km", km))
+            parts.append(activityDistanceText(d))
         }
         if gpsPointCount > 0 { parts.append("\(gpsPointCount) GPS points") }
         if hrSampleCount > 0 { parts.append("\(hrSampleCount) HR samples") }
@@ -444,8 +453,7 @@ public enum ActivityFileImporter {
     public static func summaryText(_ a: ActivityFile) -> String {
         var head = "Imported"
         if let d = a.distanceM, d > 0 {
-            let km = d / 1000.0
-            head += String(format: km >= 10 ? " a %.0f km" : " a %.2f km", km)
+            head += " a \(activityDistanceText(d))"
         } else {
             head += " an"
         }
