@@ -61,6 +61,34 @@ class WhoopLiveCapabilitiesTest {
     }
 
     @Test
+    fun stripSpo2TokenCanonicalizesWhitespaceBearingStoredRows() {
+        val cases = listOf(
+            // Canonical controls.
+            "hr,spo2,hrv" to "hr,hrv",
+            "hr,hrv,skinTemp" to "hr,hrv,skinTemp",
+            // Same logical tokens as they can appear in a restored SQLite row.
+            "hr, spo2,hrv" to "hr,hrv",
+            " hr , spo2 , hrv " to "hr,hrv",
+            "hr,,spo2, ,hrv" to "hr,hrv",
+            "\thr,\tspo2,\nhrv\t" to "hr,hrv",
+            " hr ,hrv" to "hr,hrv",
+            ", hr ,, spo2 , skinTemp ,sleep ," to "hr,skinTemp,sleep",
+            " spo2 " to "",
+            " spo2 , spo2 " to "",
+        )
+
+        for ((encoded, expected) in cases) {
+            assertEquals(
+                "encoded=${encoded.quoteForFailure()}",
+                expected,
+                WhoopLiveCapabilities.stripSpo2Token(encoded),
+            )
+        }
+    }
+
+    private fun String.quoteForFailure(): String = "\"$this\""
+
+    @Test
     fun withoutCalibratedSpo2() {
         val raw = setOf(Metric.hr, Metric.hrv, Metric.spo2, Metric.skinTemp)
         assertEquals(
