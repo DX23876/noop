@@ -203,16 +203,15 @@ class LiftingImporterTest {
     }
 
     @Test
-    fun volumeLoadNoteIsHonestlyLabelled() {
-        val s = LiftingImporter.Session(
+    fun volumeLoadNoteMatchesSwiftForTitledAndUntitledSessions() {
+        fun session(title: String?) = LiftingImporter.Session(
             startTs = 0, endTs = 0, volumeLoadKg = 12400.0, setCount = 18,
-            exerciseCount = 5, totalReps = 120, topSetKg = 140.0, title = "Leg Day",
+            exerciseCount = 5, totalReps = 120, topSetKg = 140.0, title = title,
         )
-        val note = s.volumeLoadNote()
-        assertTrue(note, note.contains("volume load 12,400 kg"))
-        assertTrue(note, note.contains("Strength"))
-        assertTrue(note, note.contains("18 sets"))
-        assertTrue(note, note.contains("5 exercises"))
-        assertTrue(note, note.contains("Leg Day"))
+
+        val body = "Strength · volume load 12,400 kg · 18 sets · 5 exercises"
+        assertEquals(body, session(null).volumeLoadNote())
+        assertEquals(body, session("").volumeLoadNote())
+        assertEquals("Leg Day: $body", session("Leg Day").volumeLoadNote())
     }
 }

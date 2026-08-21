@@ -182,15 +182,16 @@ final class LiftingImporterTests: XCTestCase {
         XCTAssertEqual(LiftingImporter.detectFormat(data: Data("title,start_time\n".utf8)), .hevyCsv)
     }
 
-    func testVolumeLoadNoteIsHonestlyLabelled() {
-        let s = LiftingSession(start: Date(timeIntervalSince1970: 0), end: Date(timeIntervalSince1970: 0),
-                               volumeLoadKg: 12400, setCount: 18, exerciseCount: 5, totalReps: 120,
-                               topSetKg: 140, title: "Leg Day")
-        let note = s.volumeLoadNote()
-        XCTAssertTrue(note.contains("volume load 12,400 kg"), note)
-        XCTAssertTrue(note.contains("Strength"), note)
-        XCTAssertTrue(note.contains("18 sets"), note)
-        XCTAssertTrue(note.contains("5 exercises"), note)
-        XCTAssertTrue(note.contains("Leg Day"), note)
+    func testVolumeLoadNoteMatchesKotlinForTitledAndUntitledSessions() {
+        func session(title: String?) -> LiftingSession {
+            LiftingSession(start: Date(timeIntervalSince1970: 0), end: Date(timeIntervalSince1970: 0),
+                           volumeLoadKg: 12400, setCount: 18, exerciseCount: 5, totalReps: 120,
+                           topSetKg: 140, title: title)
+        }
+
+        let body = "Strength · volume load 12,400 kg · 18 sets · 5 exercises"
+        XCTAssertEqual(session(title: nil).volumeLoadNote(), body)
+        XCTAssertEqual(session(title: "").volumeLoadNote(), body)
+        XCTAssertEqual(session(title: "Leg Day").volumeLoadNote(), "Leg Day: \(body)")
     }
 }
