@@ -241,7 +241,8 @@ public enum LiftingImporter {
 
         var sessions: [LiftingSession] = []
         var skipped = 0
-        for case let record as [String: Any] in history {
+        for element in history {
+            guard let record = element as? [String: Any] else { skipped += 1; continue }
             if let s = liftosaurSession(record) { sessions.append(s) } else { skipped += 1 }
         }
         return finish(sessions, skipped: skipped)

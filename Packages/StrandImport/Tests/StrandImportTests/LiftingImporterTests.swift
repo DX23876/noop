@@ -174,6 +174,36 @@ final class LiftingImporterTests: XCTestCase {
         XCTAssertEqual(LiftingImporter.parseLiftosaur(data: Data(wrapped.utf8)).sessionCount, 1)
     }
 
+    func testLiftosaurHeterogeneousHistoryCountsEveryRejectedRecord() {
+        let json = """
+        { "history": [
+          { "startTime": 1748772000000, "endTime": 1748775600000, "dayName": "Day 1",
+            "entries": [ { "sets": [ { "weight": 80, "completedReps": 5 } ] } ] },
+          7,
+          { "dayName": "Missing timestamp",
+            "entries": [ { "sets": [ { "weight": 60, "completedReps": 8 } ] } ] },
+          "not a record"
+        ] }
+        """
+
+        let r = LiftingImporter.parse(data: Data(json.utf8))
+
+        XCTAssertEqual(r.sessions.map(\.start), [Date(timeIntervalSince1970: 1748772000)])
+        XCTAssertEqual(r.sessionCount, 1)
+        let s = r.sessions[0]
+        XCTAssertEqual(s.end, Date(timeIntervalSince1970: 1748775600))
+        XCTAssertEqual(s.durationS, 3600)
+        XCTAssertEqual(s.volumeLoadKg, 400, accuracy: 1e-6)
+        XCTAssertEqual(s.setCount, 1)
+        XCTAssertEqual(s.exerciseCount, 1)
+        XCTAssertEqual(s.totalReps, 5)
+        XCTAssertEqual(s.topSetKg, 80)
+        XCTAssertEqual(s.title, "Day 1")
+        XCTAssertEqual(r.earliest, Date(timeIntervalSince1970: 1748772000))
+        XCTAssertEqual(r.latest, Date(timeIntervalSince1970: 1748772000))
+        XCTAssertEqual(r.skipped, 3)
+    }
+
     // MARK: - Auto-detection + note
 
     func testDetectFormatRoutesByLeadingByte() {

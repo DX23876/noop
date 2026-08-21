@@ -190,6 +190,38 @@ class LiftingImporterTest {
         assertEquals(1, LiftingImporter.parseLiftosaur(wrapped).sessions.size)
     }
 
+    @Test
+    fun liftosaurHeterogeneousHistoryCountsEveryRejectedRecord() {
+        val json =
+            """
+            { "history": [
+              { "startTime": 1748772000000, "endTime": 1748775600000, "dayName": "Day 1",
+                "entries": [ { "sets": [ { "weight": 80, "completedReps": 5 } ] } ] },
+              7,
+              { "dayName": "Missing timestamp",
+                "entries": [ { "sets": [ { "weight": 60, "completedReps": 8 } ] } ] },
+              "not a record"
+            ] }
+            """.trimIndent()
+
+        val r = LiftingImporter.parse(json.toByteArray())
+
+        assertEquals(listOf(1748772000L), r.sessions.map { it.startTs })
+        assertEquals(1, r.sessions.size)
+        val s = r.sessions[0]
+        assertEquals(1748775600L, s.endTs)
+        assertEquals(3600.0, s.durationS!!, 1e-9)
+        assertEquals(400.0, s.volumeLoadKg, 1e-6)
+        assertEquals(1, s.setCount)
+        assertEquals(1, s.exerciseCount)
+        assertEquals(5, s.totalReps)
+        assertEquals(80.0, s.topSetKg!!, 1e-9)
+        assertEquals("Day 1", s.title)
+        assertEquals("2025-06-01", r.firstDay)
+        assertEquals("2025-06-01", r.lastDay)
+        assertEquals(3, r.skipped)
+    }
+
     // MARK: - Auto-detection + note
 
     @Test
