@@ -138,6 +138,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import android.app.DatePickerDialog
+import android.content.Context
 import android.view.HapticFeedbackConstants
 import android.widget.Toast
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -153,6 +154,7 @@ import com.noop.analytics.SleepMark
 import com.noop.analytics.SleepMarkType
 import com.noop.analytics.StepsEstimateEngine
 import com.noop.analytics.StrainScorer
+import com.noop.ble.WhoopModel
 import com.noop.data.DailyMetric
 import com.noop.data.HrBucket
 import com.noop.data.SleepSession
@@ -1523,6 +1525,14 @@ fun TodayScreen(
                                     caloriesSpark = caloriesSpark,                    // #616: imported-first trend
                                     stepActivityClassForDay = stepActivityClassForDay,
                                     stepsEstimateCaption = stepsEstimateCaption(profileStore),
+                                    // Remembered on the calibration state it reads, matching the same
+                                    // preference lookup in SettingsScreen: this is a SharedPreferences
+                                    // read and the Today body recomposes with live HR.
+                                    stepsCalibrationPrompt = remember(
+                                        profileStore.stepsCalibrationSampleDays,
+                                        profileStore.stepsCalibrationCoefficient,
+                                        profileStore.stepsCalibrationManual,
+                                    ) { stepsCalibrationPrompt(context, profileStore) },
                                     restScore = restScoreForDay,
                                     restSpark = restCompositeSpark,
                                     enabledMetrics = enabledKeyMetrics,
@@ -3578,6 +3588,35 @@ private fun DashboardCardRow(
     }
 }
 
+/** #1491: the blank-Steps-tile line for a strap that ESTIMATES steps, or null when the prompt does not
+ *  apply. A WHOOP 4.0 sends no step count, so NOOP fits an estimate from motion against a phone-counted
+ *  reference and withholds it until it has one — and until #1491 the tile just went blank, with no
+ *  explanation and no route to the sheet where a coefficient can be set by hand.
+ *
+ *  Keyed on the persisted model NAME rather than [DeviceFamily.forRegistryModel]: that resolver maps
+ *  REGISTRY labels ("4.0", "WHOOP 4.0") and answers WHOOP5 for everything else, including the enum names
+ *  this preference actually stores — so routing through it would classify every 4.0 as a 5 and this would
+ *  silently never appear. A null preference (no model ever selected) also yields null, so a user with no
+ *  strap is never told to calibrate one. Mirrors the iOS `stepsPipelineActive` gate.
+ *
+ *  The wording is the engine's own [StepsEstimateEngine.CalibrationStatus.headline], which already says
+ *  "connect your phone's step count" when NO day has both motion and a phone total, rather than a
+ *  countdown that would never advance. */
+private fun stepsCalibrationPrompt(context: Context, profileStore: ProfileStore): String? {
+    val model = context.getSharedPreferences(NoopPrefs.NAME, Context.MODE_PRIVATE)
+        .getString("noop.selectedWhoopModel", null) ?: return null
+    if (model != WhoopModel.WHOOP4.name) return null
+    // Already calibrated? Then a blank day is just a quiet one — the estimate exists, this day simply did
+    // not move enough to earn a number, and there is nothing for the user to go and do. Saying otherwise
+    // would render "Need 0 more days where your phone also counted steps", because the headline's
+    // countdown is max(0, need - have) and a calibrated user is already past `need`.
+    if (profileStore.stepsCalibrationCoefficient > 0.0 || profileStore.stepsCalibrationManual) return null
+    return StepsEstimateEngine.CalibrationStatus.NeedsMoreDays(
+        have = profileStore.stepsCalibrationSampleDays,
+        need = StepsEstimateEngine.MIN_CALIBRATION_DAYS,
+    ).headline
+}
+
 /** #760/#792: the caption under an ESTIMATED Steps tile: "est. · <status detail>", where the detail is the
  *  engine's own STATUS line (manual k, or k=… from N days + confidence tier) built from the SAME persisted
  *  calibration the estimate used. So a WHOOP 4.0 user can see WHY the number reads as it does (and why it may
@@ -4700,6 +4739,9 @@ private fun MetricGrid(
     // k=… from N days + confidence tier) so a frozen-looking estimate self-explains. Built from the SAME
     // persisted calibration the estimate used; defaults to a bare "est." for callers that don't supply it.
     stepsEstimateCaption: String = "est.",
+    // #1491: the blank-tile line for a strap that ESTIMATES steps — null for a 5/MG (its strap reports a
+    // real count) and for a user who has never selected a model, so neither is told to calibrate anything.
+    stepsCalibrationPrompt: String? = null,
     restScore: Double? = null,
     // The Rest tile's sparkline: the trailing-window Rest composite (0–100, `sleep_performance`), so the
     // mini-graph tracks the Rest SCORE rather than raw sleep minutes (#614 follow-up). Other tiles still
@@ -4818,6 +4860,13 @@ private fun MetricGrid(
                 tint = Palette.metricCyan,
                 frac = steps?.let { (it / 10000.0).coerceIn(0.0, 1.0) },
                 spark = w.steps,   // #616: was missing → no trend line under the tile
+                // A measured count needs no explanation; an ESTIMATE says what it was fitted from
+                // (#760/#792); a BLANK tile on a strap that estimates says what would unblock it (#1491).
+                caption = when {
+                    realSteps != null -> null
+                    estimatedStepsForDay != null -> stepsEstimateCaption
+                    else -> stepsCalibrationPrompt
+                },
             )
         },
         KeyMetric.WEIGHT to run {
@@ -4928,6 +4977,9 @@ private data class KeyTileData(
     val unit: String,
     val tint: Color,
     val frac: Double?,
+    /** #1491: an optional one-line subtitle under the value. Only the Steps tile sets one today — the
+     *  estimate's calibration status, or why a blank tile is blank. Null leaves the tile exactly as it was. */
+    val caption: String? = null,
     val spark: List<Double> = emptyList(),
 )
 
@@ -5025,6 +5077,19 @@ private fun LiquidKeyTile(
                     maxLines = 1,
                 )
             }
+        }
+        // #1491: the Steps subtitle — the calibration status behind an estimate (#760/#792, computed and
+        // then dropped on the floor until now: `stepsEstimateCaption` was passed into this grid and never
+        // read), or, on a blank tile, what actually unblocks it. One line, ellipsised, and only rendered
+        // when a tile supplies one, so every other tile keeps its current height.
+        data.caption?.let { cap ->
+            Text(
+                cap,
+                style = NoopType.caption,
+                color = Palette.textTertiary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
         // Detailed rows are height-equalised (fillMaxHeight): pin the bar + graph to the bottom edge so a
         // graph-less tile's bar lines up with its neighbours' bars rather than floating mid-card.
