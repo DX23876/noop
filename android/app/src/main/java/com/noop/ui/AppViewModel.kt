@@ -1547,6 +1547,16 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         rescoreAfterEdit()
     }
 
+    /** Persist a bed/wake edit across a BRIDGED night's fragments (#1492), then re-score as
+     *  [updateSleepSessionTimes] does. The single-row call edits the winning fragment only, which on a
+     *  split night defines neither the displayed bedtime nor the displayed wake. */
+    suspend fun updateSleepGroupTimes(
+        group: List<com.noop.data.SleepSession>, newStartTs: Long, newEndTs: Long,
+    ) {
+        runCatching { repository.updateSleepGroupTimes(group, newStartTs, newEndTs) }
+        rescoreAfterEdit()
+    }
+
     /** Delete one sleep session, then re-score the affected day immediately so the dashboard aggregates
      *  recompute as if the misread night were never recorded — matching Swift SleepView's analyzeRecent()
      *  after deleteSleepSession. Swallows persist failures — the Sleep screen already removed it
@@ -1561,6 +1571,18 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
      *  analyzeRecent() after undoDeleteSleepSession. Swallows persist failures. */
     suspend fun undoDeleteSleepSession(session: com.noop.data.SleepSession) {
         runCatching { repository.undoDeleteSleepSession(session) }
+        rescoreAfterEdit()
+    }
+
+    /** Restore EVERY session the undo strip is holding, then re-score ONCE (#1492).
+     *
+     *  A bed/wake correction can retire several fragments of a bridged night, and the single-session call
+     *  above re-scores on each invocation — looping it would run a full analyzeRecent per restored
+     *  fragment, back to back, on the exact pass #1005/#836 found to be the heaviest thing NOOP does in the
+     *  background. The restores are independent; only the scoring needs to see the finished set. */
+    suspend fun undoDeleteSleepSessions(sessions: List<com.noop.data.SleepSession>) {
+        if (sessions.isEmpty()) return
+        sessions.forEach { runCatching { repository.undoDeleteSleepSession(it) } }
         rescoreAfterEdit()
     }
 
