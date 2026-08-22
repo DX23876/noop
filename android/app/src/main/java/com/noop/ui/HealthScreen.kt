@@ -1998,8 +1998,12 @@ private fun VitalReadingsTable(rows: List<VitalReadingRow>) {
                         style = NoopType.bodyNumber,
                         color = Palette.textPrimary,
                     )
+                    val sourceLabel = when (val source = row.source) {
+                        is DisplayText.Resource -> uiString(source.id, *source.args.toTypedArray())
+                        is DisplayText.Dynamic -> source.value
+                    }
                     Text(
-                        row.source,
+                        sourceLabel,
                         style = NoopType.footnote,
                         color = provenanceLabelTint(row.source),
                         textAlign = TextAlign.End,

@@ -66,7 +66,14 @@ class HrWindowTest {
     fun pill_order_is_today_then_widest_to_narrowest() {
         // Declaration order IS the pill order, and TODAY must stay ordinal 0: the rememberSaveable
         // default is the ordinal, so reordering the enum would silently change the default window.
-        assertEquals(listOf("Today", "24h", "12h", "6h", "3h", "1h"), HrWindow.entries.map { it.label })
+        assertEquals(
+            listOf(
+                com.noop.R.string.today_hr_window_today, com.noop.R.string.today_hr_window_24h,
+                com.noop.R.string.today_hr_window_12h, com.noop.R.string.today_hr_window_6h,
+                com.noop.R.string.today_hr_window_3h, com.noop.R.string.today_hr_window_1h,
+            ),
+            HrWindow.entries.map { it.labelRes },
+        )
         assertEquals(0, HrWindow.TODAY.ordinal)
     }
 }

@@ -230,14 +230,14 @@ class RecoverySaturationGuardTest {
             hrv = 41.0, rhr = 48.0, resp = null,
             hrvBaseline = hrvB, rhrBaseline = rhrB, respBaseline = null, sleepPerf = null,
         )
-        val satHRV = sat.first { it.label == "Heart rate variability" }
-        assertTrue("verdict must surface the detection", satHRV.verdict.contains("saturation"))
-        assertTrue(
-            "verdict must not imply the penalty was lifted: ${satHRV.verdict}",
-            satHRV.verdict.contains("limiting recovery"),
+        val satHRV = sat.first { it.label == ChargeDriverLabel.HEART_RATE_VARIABILITY }
+        assertEquals(
+            "verdict must surface the detection while preserving the limiting meaning",
+            ChargeDriverVerdict.HRV_SATURATION_LIMITING,
+            satHRV.verdict,
         )
-        assertFalse(satHRV.verdict.contains("penalty is eased"))
-        assertFalse(satHRV.verdict.contains("—"))
+        assertFalse(satHRV.verdict == ChargeDriverVerdict.BELOW_BASELINE_LIMITING)
+        assertFalse(satHRV.verdict == ChargeDriverVerdict.ABOVE_BASELINE_SUPPORTING)
         assertTrue("the HRV penalty is still fully charged", satHRV.deltaPoints < 0)
 
         // Real-fatigue night: plain limiting verdict, no saturation mention.
@@ -245,9 +245,9 @@ class RecoverySaturationGuardTest {
             hrv = 41.0, rhr = 62.0, resp = null,
             hrvBaseline = hrvB, rhrBaseline = rhrB, respBaseline = null, sleepPerf = null,
         )
-        val fatHRV = fat.first { it.label == "Heart rate variability" }
-        assertTrue(fatHRV.verdict.contains("limiting recovery"))
-        assertFalse(fatHRV.verdict.contains("saturation"))
+        val fatHRV = fat.first { it.label == ChargeDriverLabel.HEART_RATE_VARIABILITY }
+        assertEquals(ChargeDriverVerdict.BELOW_BASELINE_LIMITING, fatHRV.verdict)
+        assertFalse(fatHRV.verdict == ChargeDriverVerdict.HRV_SATURATION_LIMITING)
         assertTrue(fatHRV.deltaPoints < 0)
     }
 }

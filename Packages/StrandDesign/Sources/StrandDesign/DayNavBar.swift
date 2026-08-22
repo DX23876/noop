@@ -18,6 +18,7 @@ public struct DayNavBar: View {
     private let onSelect: (Int) -> Void
 
     @State private var showingPicker = false
+    @Environment(\.locale) private var locale
 
     /// `today` is the caller's LOGICAL day (the same anchor the rest of Today uses, rolling at 04:00),
     /// so every label here counts back from it. Passing it in instead of reading `Date()` keeps the
@@ -40,7 +41,11 @@ public struct DayNavBar: View {
         switch selectedOffset {
         case 0:  return "Today"
         case 1:  return "Yesterday"
-        default: return "\(Self.dayFmt.string(from: selectedDay))"
+        default:
+            let formattedDay = selectedDay.formatted(
+                .dateTime.weekday(.abbreviated).day().month(.abbreviated).locale(locale)
+            )
+            return LocalizedStringKey(formattedDay)
         }
     }
 
@@ -67,7 +72,9 @@ public struct DayNavBar: View {
                     // On today the label already reads "Today"; the full date would just duplicate the
                     // header, so it's shown only once you've navigated to another day (for orientation).
                     if selectedOffset > 0 {
-                        Text(Self.fullDateFmt.string(from: selectedDay))
+                        Text(selectedDay.formatted(
+                            .dateTime.day().month(.abbreviated).year().locale(locale)
+                        ))
                             .font(StrandFont.captionNumber)
                             .foregroundStyle(StrandPalette.accent)
                             .lineLimit(1)
@@ -83,7 +90,7 @@ public struct DayNavBar: View {
                 .overlay(blockShape.strokeBorder(StrandPalette.hairline, lineWidth: 1))
             }
             .buttonStyle(.plain)
-            .accessibilityLabel("Pick a date")
+            .accessibilityLabel(Text("Pick a date", bundle: .module))
             .popover(isPresented: $showingPicker) {
                 datePickerPopover
             }
@@ -143,11 +150,5 @@ public struct DayNavBar: View {
         #endif
     }
 
-    private static let dayFmt: DateFormatter = {
-        let f = DateFormatter(); f.dateFormat = "EEE d MMM"; f.locale = Locale(identifier: "en_US_POSIX"); return f
-    }()
-    private static let fullDateFmt: DateFormatter = {
-        let f = DateFormatter(); f.dateFormat = "d MMM yyyy"; f.locale = Locale(identifier: "en_US_POSIX"); return f
-    }()
 }
 #endif

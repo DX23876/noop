@@ -1,7 +1,6 @@
 package com.noop.analytics
 
 import kotlin.math.abs
-import kotlin.math.roundToInt
 
 // RecoveryDrivers.kt - the USER-FACING "What shaped it" breakdown for the Charge (recovery) score.
 //
@@ -22,23 +21,57 @@ import kotlin.math.roundToInt
 // the exact rows. No em-dashes, no PII (values + baselines are the user's own, never logged here).
 
 /**
- * One driver row behind the Charge (recovery) score, in the SHARED CONTRACT shape the iOS/macOS and
- * Android dashboards both render. Field names are byte-identical across platforms.
+ * One semantic driver row behind the Charge (recovery) score. Presentation layers map its enums and
+ * measurements to localized copy and locale-aware formatting.
  *
- * @property label short signal name, e.g. "Resting HR".
+ * @property label stable semantic identity of the signal.
  * @property deltaPoints signed contribution to the 0-100 Charge score versus this signal sitting at
  *   the personal baseline (positive = lifted Charge, negative = pulled it down). A real marginal
  *   sensitivity, never a fabricated apportionment.
- * @property valueText the night's value, formatted with its unit, e.g. "58 bpm".
- * @property baselineText the personal baseline the value was scored against, e.g. "61 bpm baseline".
- * @property verdict short plain-English read, e.g. "below baseline, supporting recovery".
+ * @property value the night's numeric value in [unit].
+ * @property baseline the personal baseline the value was scored against, or null when the value is
+ *   already relative to its reference (skin temperature) or uses a fixed centre (sleep quality).
+ * @property unit semantic measurement unit shared by [value] and [baseline].
+ * @property verdict semantic interpretation for presentation by the UI layer.
  */
+enum class ChargeDriverLabel {
+    HEART_RATE_VARIABILITY,
+    RESTING_HEART_RATE,
+    SLEEP_QUALITY,
+    RESPIRATORY_RATE,
+    SKIN_TEMPERATURE,
+}
+
+enum class ChargeDriverUnit {
+    MILLISECONDS,
+    BEATS_PER_MINUTE,
+    PERCENT,
+    BREATHS_PER_MINUTE,
+    CELSIUS_DEVIATION,
+}
+
+enum class ChargeDriverVerdict {
+    ABOVE_BASELINE_SUPPORTING,
+    BELOW_BASELINE_SUPPORTING,
+    ABOVE_BASELINE_LIMITING,
+    BELOW_BASELINE_LIMITING,
+    AT_BASELINE,
+    HRV_SATURATION_LIMITING,
+    STRONG_NIGHT_SUPPORTING,
+    BELOW_GOOD_NIGHT_LIMITING,
+    TYPICAL_NIGHT,
+    NEAR_BASELINE,
+    WARMER_THAN_BASELINE_LIMITING,
+    COOLER_THAN_BASELINE_LIMITING,
+}
+
 data class ChargeDriver(
-    val label: String,
+    val label: ChargeDriverLabel,
     val deltaPoints: Int,
-    val valueText: String,
-    val baselineText: String,
-    val verdict: String,
+    val value: Double,
+    val baseline: Double?,
+    val unit: ChargeDriverUnit,
+    val verdict: ChargeDriverVerdict,
 )
 
 object RecoveryDrivers {
@@ -106,13 +139,13 @@ object RecoveryDrivers {
 
         // One row per present term, appended in the SAME order the iOS twin uses (HRV, resting HR, Sleep,
         // respiration, skin temp), then sorted biggest-mover-first so the row that explains the most sits on
-        // top. Labels / value text / verdicts are byte-identical to the Swift canonical.
+        // top. The semantic cases retain the same distinctions as the Swift canonical.
         val drivers = ArrayList<ChargeDriver>()
 
         // HRV (dominant driver; always present once the score exists). Neutral = HRV at the baseline mean.
         drivers.add(
             ChargeDriver(
-                label = "Heart rate variability",
+                label = ChargeDriverLabel.HEART_RATE_VARIABILITY,
                 deltaPoints = points(
                     RecoveryScorer.recovery(
                         hrv = hrvBaseline.baseline, rhr = rhr, resp = resp,
@@ -120,8 +153,9 @@ object RecoveryDrivers {
                         respBaseline = respBaseline, sleepPerf = sleepPerf, skinTempDev = skinTempDev,
                     ),
                 ),
-                valueText = "${hrv.roundToInt()} ms",
-                baselineText = "${hrvBaseline.baseline.roundToInt()} ms baseline",
+                value = hrv,
+                baseline = hrvBaseline.baseline,
+                unit = ChargeDriverUnit.MILLISECONDS,
                 verdict = hrvVerdict(
                     value = hrv,
                     baseline = hrvBaseline.baseline,
@@ -133,7 +167,7 @@ object RecoveryDrivers {
         if (rhrBaseline != null) {
             drivers.add(
                 ChargeDriver(
-                    label = "Resting heart rate",
+                    label = ChargeDriverLabel.RESTING_HEART_RATE,
                     deltaPoints = points(
                         RecoveryScorer.recovery(
                             hrv = hrv, rhr = rhrBaseline.baseline, resp = resp,
@@ -141,8 +175,9 @@ object RecoveryDrivers {
                             respBaseline = respBaseline, sleepPerf = sleepPerf, skinTempDev = skinTempDev,
                         ),
                     ),
-                    valueText = "${rhr.roundToInt()} bpm",
-                    baselineText = "${rhrBaseline.baseline.roundToInt()} bpm baseline",
+                    value = rhr,
+                    baseline = rhrBaseline.baseline,
+                    unit = ChargeDriverUnit.BEATS_PER_MINUTE,
                     verdict = rhrVerdict(value = rhr, baseline = rhrBaseline.baseline),
                 ),
             )
@@ -151,7 +186,7 @@ object RecoveryDrivers {
         if (sleepPerf != null) {
             drivers.add(
                 ChargeDriver(
-                    label = "Sleep quality",
+                    label = ChargeDriverLabel.SLEEP_QUALITY,
                     deltaPoints = points(
                         RecoveryScorer.recovery(
                             hrv = hrv, rhr = rhr, resp = resp,
@@ -160,8 +195,9 @@ object RecoveryDrivers {
                             skinTempDev = skinTempDev,
                         ),
                     ),
-                    valueText = "${(sleepPerf * 100.0).roundToInt()}%",
-                    baselineText = "",   // centred on a fixed "good night", not a learned baseline
+                    value = sleepPerf * 100.0,
+                    baseline = null,
+                    unit = ChargeDriverUnit.PERCENT,
                     verdict = sleepVerdict(sleepPerf),
                 ),
             )
@@ -170,7 +206,7 @@ object RecoveryDrivers {
         if (resp != null && respBaseline != null) {
             drivers.add(
                 ChargeDriver(
-                    label = "Respiratory rate",
+                    label = ChargeDriverLabel.RESPIRATORY_RATE,
                     deltaPoints = points(
                         RecoveryScorer.recovery(
                             hrv = hrv, rhr = rhr, resp = respBaseline.baseline,
@@ -178,8 +214,9 @@ object RecoveryDrivers {
                             respBaseline = respBaseline, sleepPerf = sleepPerf, skinTempDev = skinTempDev,
                         ),
                     ),
-                    valueText = String.format(java.util.Locale.US, "%.1f br/min", resp),
-                    baselineText = String.format(java.util.Locale.US, "%.1f br/min baseline", respBaseline.baseline),
+                    value = resp,
+                    baseline = respBaseline.baseline,
+                    unit = ChargeDriverUnit.BREATHS_PER_MINUTE,
                     verdict = respVerdict(value = resp, baseline = respBaseline.baseline),
                 ),
             )
@@ -189,7 +226,7 @@ object RecoveryDrivers {
         if (skinTempDev != null) {
             drivers.add(
                 ChargeDriver(
-                    label = "Skin temperature",
+                    label = ChargeDriverLabel.SKIN_TEMPERATURE,
                     deltaPoints = points(
                         RecoveryScorer.recovery(
                             hrv = hrv, rhr = rhr, resp = resp,
@@ -197,8 +234,9 @@ object RecoveryDrivers {
                             respBaseline = respBaseline, sleepPerf = sleepPerf, skinTempDev = 0.0,
                         ),
                     ),
-                    valueText = String.format(java.util.Locale.US, "%+.1f C vs baseline", skinTempDev),
-                    baselineText = "",   // a deviation already; the reference is the personal baseline (0)
+                    value = skinTempDev,
+                    baseline = null,
+                    unit = ChargeDriverUnit.CELSIUS_DEVIATION,
                     verdict = skinTempVerdict(skinTempDev),
                 ),
             )
@@ -217,37 +255,40 @@ object RecoveryDrivers {
      * same low-HRV + low-RHR pattern is also reported for non-functional overreaching, which is the opposite
      * of benign. Byte-for-byte the same strings as the iOS twin.
      */
-    private fun hrvVerdict(value: Double, baseline: Double, saturationDetected: Boolean): String = when {
-        value > baseline -> "above baseline, supporting recovery"
+    private fun hrvVerdict(
+        value: Double,
+        baseline: Double,
+        saturationDetected: Boolean,
+    ): ChargeDriverVerdict = when {
+        value > baseline -> ChargeDriverVerdict.ABOVE_BASELINE_SUPPORTING
         value < baseline ->
             if (saturationDetected) {
-                "below baseline, limiting recovery, though low resting HR suggests this may be " +
-                    "parasympathetic saturation rather than fatigue"
+                ChargeDriverVerdict.HRV_SATURATION_LIMITING
             } else {
-                "below baseline, limiting recovery"
+                ChargeDriverVerdict.BELOW_BASELINE_LIMITING
             }
-        else -> "at baseline"
+        else -> ChargeDriverVerdict.AT_BASELINE
     }
 
     /** Resting-HR verdict (lower is better). Mirrors Swift `rhrVerdict` exactly. */
-    private fun rhrVerdict(value: Double, baseline: Double): String = when {
-        value < baseline -> "below baseline, supporting recovery"
-        value > baseline -> "above baseline, limiting recovery"
-        else -> "at baseline"
+    private fun rhrVerdict(value: Double, baseline: Double): ChargeDriverVerdict = when {
+        value < baseline -> ChargeDriverVerdict.BELOW_BASELINE_SUPPORTING
+        value > baseline -> ChargeDriverVerdict.ABOVE_BASELINE_LIMITING
+        else -> ChargeDriverVerdict.AT_BASELINE
     }
 
     /** Respiration verdict (lower is better). Mirrors Swift `respVerdict` exactly. */
-    private fun respVerdict(value: Double, baseline: Double): String = when {
-        value < baseline -> "below baseline, supporting recovery"
-        value > baseline -> "above baseline, limiting recovery"
-        else -> "at baseline"
+    private fun respVerdict(value: Double, baseline: Double): ChargeDriverVerdict = when {
+        value < baseline -> ChargeDriverVerdict.BELOW_BASELINE_SUPPORTING
+        value > baseline -> ChargeDriverVerdict.ABOVE_BASELINE_LIMITING
+        else -> ChargeDriverVerdict.AT_BASELINE
     }
 
     /** Rest-quality verdict (higher is better), centred on sleepPerfCenter. Mirrors Swift `sleepVerdict`. */
-    private fun sleepVerdict(sleepPerf: Double): String = when {
-        sleepPerf > RecoveryScorer.sleepPerfCenter -> "a strong night, supporting recovery"
-        sleepPerf < RecoveryScorer.sleepPerfCenter -> "below a good night, limiting recovery"
-        else -> "a typical night"
+    private fun sleepVerdict(sleepPerf: Double): ChargeDriverVerdict = when {
+        sleepPerf > RecoveryScorer.sleepPerfCenter -> ChargeDriverVerdict.STRONG_NIGHT_SUPPORTING
+        sleepPerf < RecoveryScorer.sleepPerfCenter -> ChargeDriverVerdict.BELOW_GOOD_NIGHT_LIMITING
+        else -> ChargeDriverVerdict.TYPICAL_NIGHT
     }
 
     /** Half-width (C) of the "typical" skin-temp band; matches Swift skinTempTypicalBandC. */
@@ -257,9 +298,9 @@ object RecoveryDrivers {
      * Skin-temp verdict (symmetric): a drift within the typical band reads neutral, beyond it limits
      * recovery, warmer or cooler. Mirrors the Swift skinTempVerdict exactly.
      */
-    private fun skinTempVerdict(dev: Double): String = when {
-        abs(dev) <= SKIN_TEMP_TYPICAL_BAND_C -> "near baseline"
-        dev > 0.0 -> "warmer than baseline, limiting recovery"
-        else -> "cooler than baseline, limiting recovery"
+    private fun skinTempVerdict(dev: Double): ChargeDriverVerdict = when {
+        abs(dev) <= SKIN_TEMP_TYPICAL_BAND_C -> ChargeDriverVerdict.NEAR_BASELINE
+        dev > 0.0 -> ChargeDriverVerdict.WARMER_THAN_BASELINE_LIMITING
+        else -> ChargeDriverVerdict.COOLER_THAN_BASELINE_LIMITING
     }
 }

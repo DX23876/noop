@@ -40,7 +40,7 @@ internal fun mergeReadings(vararg stores: Map<String, VitalReading>): List<Vital
 internal data class VitalReadingRow(
     val time: String,
     val value: String,
-    val source: String,
+    val source: DisplayText,
 )
 
 /**

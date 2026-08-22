@@ -1,6 +1,279 @@
 {
   "sourceLanguage": "en",
   "strings": {
+    "RHR +%lld": { "localizations": {
+      "de": { "stringUnit": { "state": "translated", "value": "Ruhepuls +%lld" } }, "en": { "stringUnit": { "state": "translated", "value": "RHR +%lld" } }, "es": { "stringUnit": { "state": "translated", "value": "FC en reposo +%lld" } }, "fr": { "stringUnit": { "state": "translated", "value": "FC au repos +%lld" } }, "it": { "stringUnit": { "state": "translated", "value": "FC a riposo +%lld" } }, "pl": { "stringUnit": { "state": "translated", "value": "Tętno spocz. +%lld" } }, "pt-PT": { "stringUnit": { "state": "translated", "value": "FC em repouso +%lld" } }, "ru": { "stringUnit": { "state": "translated", "value": "Пульс в покое +%lld" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "静息心率 +%lld" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "靜息心率 +%lld" } }
+    } },
+    "HRV −%lld%%": { "localizations": {
+      "de": { "stringUnit": { "state": "translated", "value": "HRV −%lld%%" } }, "en": { "stringUnit": { "state": "translated", "value": "HRV −%lld%%" } }, "es": { "stringUnit": { "state": "translated", "value": "VFC −%lld%%" } }, "fr": { "stringUnit": { "state": "translated", "value": "VFC −%lld%%" } }, "it": { "stringUnit": { "state": "translated", "value": "HRV −%lld%%" } }, "pl": { "stringUnit": { "state": "translated", "value": "HRV −%lld%%" } }, "pt-PT": { "stringUnit": { "state": "translated", "value": "VFC −%lld%%" } }, "ru": { "stringUnit": { "state": "translated", "value": "ВСР −%lld%%" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "HRV −%lld%%" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "HRV −%lld%%" } }
+    } },
+    "Skin temperature +%@ °C": { "localizations": {
+      "de": { "stringUnit": { "state": "translated", "value": "Hauttemperatur +%@ °C" } }, "en": { "stringUnit": { "state": "translated", "value": "Skin temperature +%@ °C" } }, "es": { "stringUnit": { "state": "translated", "value": "Temperatura de la piel +%@ °C" } }, "fr": { "stringUnit": { "state": "translated", "value": "Température cutanée +%@ °C" } }, "it": { "stringUnit": { "state": "translated", "value": "Temperatura cutanea +%@ °C" } }, "pl": { "stringUnit": { "state": "translated", "value": "Temperatura skóry +%@ °C" } }, "pt-PT": { "stringUnit": { "state": "translated", "value": "Temperatura da pele +%@ °C" } }, "ru": { "stringUnit": { "state": "translated", "value": "Температура кожи +%@ °C" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "皮肤温度 +%@ °C" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "皮膚溫度 +%@ °C" } }
+    } },
+    "Respiration up": { "localizations": {
+      "de": { "stringUnit": { "state": "translated", "value": "Atemfrequenz erhöht" } }, "en": { "stringUnit": { "state": "translated", "value": "Respiration up" } }, "es": { "stringUnit": { "state": "translated", "value": "Respiración elevada" } }, "fr": { "stringUnit": { "state": "translated", "value": "Respiration élevée" } }, "it": { "stringUnit": { "state": "translated", "value": "Respirazione elevata" } }, "pl": { "stringUnit": { "state": "translated", "value": "Oddech podwyższony" } }, "pt-PT": { "stringUnit": { "state": "translated", "value": "Respiração elevada" } }, "ru": { "stringUnit": { "state": "translated", "value": "Частота дыхания повышена" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "呼吸频率升高" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "呼吸頻率升高" } }
+    } },
+    "%@ vs %@ %@": { "localizations": {
+      "de": { "stringUnit": { "state": "translated", "value": "%1$@ vs. %2$@ %3$@" } }, "en": { "stringUnit": { "state": "translated", "value": "%@ vs %@ %@" } }, "es": { "stringUnit": { "state": "translated", "value": "%1$@ frente a %2$@ %3$@" } }, "fr": { "stringUnit": { "state": "translated", "value": "%1$@ contre %2$@ %3$@" } }, "it": { "stringUnit": { "state": "translated", "value": "%1$@ rispetto a %2$@ %3$@" } }, "pl": { "stringUnit": { "state": "translated", "value": "%1$@ vs %2$@ %3$@" } }, "pt-PT": { "stringUnit": { "state": "translated", "value": "%1$@ vs. %2$@ %3$@" } }, "ru": { "stringUnit": { "state": "translated", "value": "%1$@ против %2$@ %3$@" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "%1$@ 对比 %2$@ %3$@" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "%1$@ 對比 %2$@ %3$@" } }
+    } },
+    "7d %@ / 28d %@": { "localizations": {
+      "de": { "stringUnit": { "state": "translated", "value": "7 T %@ / 28 T %@" } }, "en": { "stringUnit": { "state": "translated", "value": "7d %@ / 28d %@" } }, "es": { "stringUnit": { "state": "translated", "value": "7 d %@ / 28 d %@" } }, "fr": { "stringUnit": { "state": "translated", "value": "7 j %@ / 28 j %@" } }, "it": { "stringUnit": { "state": "translated", "value": "7 g %@ / 28 g %@" } }, "pl": { "stringUnit": { "state": "translated", "value": "7 d %@ / 28 d %@" } }, "pt-PT": { "stringUnit": { "state": "translated", "value": "7 d %@ / 28 d %@" } }, "ru": { "stringUnit": { "state": "translated", "value": "7 д %@ / 28 д %@" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "7 天 %@ / 28 天 %@" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "7 天 %@ / 28 天 %@" } }
+    } },
+    "monotony %@": { "localizations": {
+      "de": { "stringUnit": { "state": "translated", "value": "Monotonie %@" } }, "en": { "stringUnit": { "state": "translated", "value": "monotony %@" } }, "es": { "stringUnit": { "state": "translated", "value": "monotonía %@" } }, "fr": { "stringUnit": { "state": "translated", "value": "monotonie %@" } }, "it": { "stringUnit": { "state": "translated", "value": "monotonia %@" } }, "pl": { "stringUnit": { "state": "translated", "value": "monotonia %@" } }, "pt-PT": { "stringUnit": { "state": "translated", "value": "monotonia %@" } }, "ru": { "stringUnit": { "state": "translated", "value": "монотонность %@" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "单调度 %@" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "單調度 %@" } }
+    } },
+    "Your body looks strained. Signals up: %@. No alcohol or travel was logged, so consider taking it easy. On-device estimate, not a diagnosis.": { "localizations": {
+      "de": { "stringUnit": { "state": "translated", "value": "Dein Körper wirkt belastet. Auffällige Signale: %@. Da weder Alkohol noch Reisen protokolliert wurden, solltest du es ruhiger angehen. Schätzung auf dem Gerät, keine Diagnose." } }, "en": { "stringUnit": { "state": "translated", "value": "Your body looks strained. Signals up: %@. No alcohol or travel was logged, so consider taking it easy. On-device estimate, not a diagnosis." } }, "es": { "stringUnit": { "state": "translated", "value": "Tu cuerpo parece estar bajo presión. Señales elevadas: %@. Como no has registrado alcohol ni viajes, plantéate tomártelo con calma. Estimación en el dispositivo, no es un diagnóstico." } }, "fr": { "stringUnit": { "state": "translated", "value": "Votre corps semble éprouvé. Signaux élevés : %@. Comme aucun alcool ni voyage n’a été enregistré, envisagez de lever le pied. Estimation sur l’appareil, pas un diagnostic." } }, "pt-PT": { "stringUnit": { "state": "translated", "value": "O teu corpo parece sob esforço. Sinais elevados: %@. Como não registaste álcool nem viagens, considera abrandar. Estimativa no dispositivo, não é um diagnóstico." } },
+      "it": { "stringUnit": { "state": "translated", "value": "Il tuo corpo sembra sotto sforzo. Segnali elevati: %@. Non risultano alcol o viaggi registrati, quindi considera di prendertela con calma. Stima sul dispositivo, non è una diagnosi." } },
+      "pl": { "stringUnit": { "state": "translated", "value": "Twój organizm wygląda na przeciążony. Podwyższone sygnały: %@. Nie zarejestrowano alkoholu ani podróży, więc rozważ spokojniejszy dzień. Ocena na urządzeniu, nie diagnoza." } },
+      "ru": { "stringUnit": { "state": "translated", "value": "Похоже, организм испытывает нагрузку. Повышенные показатели: %@. Алкоголь и поездки не отмечены, поэтому постарайтесь снизить нагрузку. Оценка на устройстве, не диагноз." } },
+      "zh-Hans": { "stringUnit": { "state": "translated", "value": "你的身体似乎承受着较大压力。升高的信号：%@。未记录饮酒或旅行，因此请考虑放松一些。设备端估算，不是诊断。" } },
+      "zh-Hant": { "stringUnit": { "state": "translated", "value": "你的身體似乎承受著較大壓力。升高的訊號：%@。未記錄飲酒或旅行，因此請考慮放鬆一些。裝置端估算，不是診斷。" } }
+    } },
+    "You logged feeling unwell, and your signals agree. Take it easy today. On-device estimate, not a diagnosis.": { "localizations": {
+      "de": { "stringUnit": { "state": "translated", "value": "Du hast angegeben, dass du dich unwohl fühlst, und deine Signale passen dazu. Geh es heute ruhig an. Schätzung auf dem Gerät, keine Diagnose." } }, "en": { "stringUnit": { "state": "translated", "value": "You logged feeling unwell, and your signals agree. Take it easy today. On-device estimate, not a diagnosis." } }, "es": { "stringUnit": { "state": "translated", "value": "Has registrado que no te encuentras bien y tus señales coinciden. Tómatelo con calma hoy. Estimación en el dispositivo, no es un diagnóstico." } }, "fr": { "stringUnit": { "state": "translated", "value": "Vous avez indiqué ne pas vous sentir bien et vos signaux concordent. Levez le pied aujourd’hui. Estimation sur l’appareil, pas un diagnostic." } }, "pt-PT": { "stringUnit": { "state": "translated", "value": "Registaste que não te sentes bem e os teus sinais estão de acordo. Tem calma hoje. Estimativa no dispositivo, não é um diagnóstico." } },
+      "it": { "stringUnit": { "state": "translated", "value": "Hai registrato di non sentirti bene e i tuoi segnali lo confermano. Riposati oggi. Stima sul dispositivo, non è una diagnosi." } },
+      "pl": { "stringUnit": { "state": "translated", "value": "Zarejestrowano złe samopoczucie, a sygnały organizmu to potwierdzają. Dziś zwolnij tempo. Ocena na urządzeniu, nie diagnoza." } },
+      "ru": { "stringUnit": { "state": "translated", "value": "Вы отметили плохое самочувствие, и показатели это подтверждают. Сегодня снизьте нагрузку. Оценка на устройстве, не диагноз." } },
+      "zh-Hans": { "stringUnit": { "state": "translated", "value": "你记录了身体不适，相关信号也与之吻合。今天请放松休息。设备端估算，不是诊断。" } },
+      "zh-Hant": { "stringUnit": { "state": "translated", "value": "你記錄了身體不適，相關訊號也與之吻合。今天請放鬆休息。裝置端估算，不是診斷。" } }
+    } },
+    "You logged feeling unwell. Take it easy today. On-device estimate, not a diagnosis.": { "localizations": {
+      "de": { "stringUnit": { "state": "translated", "value": "Du hast angegeben, dass du dich unwohl fühlst. Geh es heute ruhig an. Schätzung auf dem Gerät, keine Diagnose." } }, "en": { "stringUnit": { "state": "translated", "value": "You logged feeling unwell. Take it easy today. On-device estimate, not a diagnosis." } }, "es": { "stringUnit": { "state": "translated", "value": "Has registrado que no te encuentras bien. Tómatelo con calma hoy. Estimación en el dispositivo, no es un diagnóstico." } }, "fr": { "stringUnit": { "state": "translated", "value": "Vous avez indiqué ne pas vous sentir bien. Levez le pied aujourd’hui. Estimation sur l’appareil, pas un diagnostic." } }, "pt-PT": { "stringUnit": { "state": "translated", "value": "Registaste que não te sentes bem. Tem calma hoje. Estimativa no dispositivo, não é um diagnóstico." } },
+      "it": { "stringUnit": { "state": "translated", "value": "Hai registrato di non sentirti bene. Riposati oggi. Stima sul dispositivo, non è una diagnosi." } },
+      "pl": { "stringUnit": { "state": "translated", "value": "Zarejestrowano złe samopoczucie. Dziś zwolnij tempo. Ocena na urządzeniu, nie diagnoza." } },
+      "ru": { "stringUnit": { "state": "translated", "value": "Вы отметили плохое самочувствие. Сегодня снизьте нагрузку. Оценка на устройстве, не диагноз." } },
+      "zh-Hans": { "stringUnit": { "state": "translated", "value": "你记录了身体不适。今天请放松休息。设备端估算，不是诊断。" } },
+      "zh-Hant": { "stringUnit": { "state": "translated", "value": "你記錄了身體不適。今天請放鬆休息。裝置端估算，不是診斷。" } }
+    } },
+    "Some signals are up, but you logged %@. That is the more likely explanation. On-device estimate, not a diagnosis.": { "localizations": {
+      "de": { "stringUnit": { "state": "translated", "value": "Einige Signale sind erhöht, aber du hast %@ protokolliert. Das ist die wahrscheinlichere Erklärung. Schätzung auf dem Gerät, keine Diagnose." } }, "en": { "stringUnit": { "state": "translated", "value": "Some signals are up, but you logged %@. That is the more likely explanation. On-device estimate, not a diagnosis." } }, "es": { "stringUnit": { "state": "translated", "value": "Algunas señales están elevadas, pero has registrado %@. Esa es la explicación más probable. Estimación en el dispositivo, no es un diagnóstico." } }, "fr": { "stringUnit": { "state": "translated", "value": "Certains signaux sont élevés, mais vous avez enregistré %@. C’est l’explication la plus probable. Estimation sur l’appareil, pas un diagnostic." } }, "pt-PT": { "stringUnit": { "state": "translated", "value": "Alguns sinais estão elevados, mas registaste %@. Essa é a explicação mais provável. Estimativa no dispositivo, não é um diagnóstico." } },
+      "it": { "stringUnit": { "state": "translated", "value": "Alcuni segnali sono elevati, ma hai registrato %@. Questa è la spiegazione più probabile. Stima sul dispositivo, non è una diagnosi." } },
+      "pl": { "stringUnit": { "state": "translated", "value": "Niektóre sygnały są podwyższone, ale zarejestrowano %@. To najbardziej prawdopodobne wyjaśnienie. Ocena na urządzeniu, nie diagnoza." } },
+      "ru": { "stringUnit": { "state": "translated", "value": "Некоторые показатели повышены, но отмечено: %@. Скорее всего, причина именно в этом. Оценка на устройстве, не диагноз." } },
+      "zh-Hans": { "stringUnit": { "state": "translated", "value": "部分信号升高，但你记录了%@。这更可能是原因。设备端估算，不是诊断。" } },
+      "zh-Hant": { "stringUnit": { "state": "translated", "value": "部分訊號升高，但你記錄了%@。這更可能是原因。裝置端估算，不是診斷。" } }
+    } },
+    "A few signals are mildly up: %@. Nothing alarming, but a calmer day may help. On-device estimate, not a diagnosis.": { "localizations": {
+      "de": { "stringUnit": { "state": "translated", "value": "Einige Signale sind leicht erhöht: %@. Kein Grund zur Sorge, aber ein ruhigerer Tag könnte helfen. Schätzung auf dem Gerät, keine Diagnose." } }, "en": { "stringUnit": { "state": "translated", "value": "A few signals are mildly up: %@. Nothing alarming, but a calmer day may help. On-device estimate, not a diagnosis." } }, "es": { "stringUnit": { "state": "translated", "value": "Algunas señales están ligeramente elevadas: %@. No es alarmante, pero un día más tranquilo podría ayudar. Estimación en el dispositivo, no es un diagnóstico." } }, "fr": { "stringUnit": { "state": "translated", "value": "Quelques signaux sont légèrement élevés : %@. Rien d’alarmant, mais une journée plus calme peut aider. Estimation sur l’appareil, pas un diagnostic." } }, "pt-PT": { "stringUnit": { "state": "translated", "value": "Alguns sinais estão ligeiramente elevados: %@. Não é alarmante, mas um dia mais calmo pode ajudar. Estimativa no dispositivo, não é um diagnóstico." } },
+      "it": { "stringUnit": { "state": "translated", "value": "Alcuni segnali sono leggermente elevati: %@. Nulla di allarmante, ma una giornata più tranquilla può aiutare. Stima sul dispositivo, non è una diagnosi." } },
+      "pl": { "stringUnit": { "state": "translated", "value": "Kilka sygnałów jest lekko podwyższonych: %@. Nie ma powodów do niepokoju, ale spokojniejszy dzień może pomóc. Ocena na urządzeniu, nie diagnoza." } },
+      "ru": { "stringUnit": { "state": "translated", "value": "Несколько показателей немного повышены: %@. Ничего тревожного, но более спокойный день может помочь. Оценка на устройстве, не диагноз." } },
+      "zh-Hans": { "stringUnit": { "state": "translated", "value": "有几个信号略有升高：%@。无需担心，但轻松度过一天可能会有帮助。设备端估算，不是诊断。" } },
+      "zh-Hant": { "stringUnit": { "state": "translated", "value": "有幾個訊號略有升高：%@。無需擔心，但輕鬆度過一天可能會有幫助。裝置端估算，不是診斷。" } }
+    } },
+    "Still learning your baseline and keeping an eye on your signals.": { "localizations": {
+      "de": { "stringUnit": { "state": "translated", "value": "Dein Ausgangswert wird noch gelernt und deine Signale werden weiter beobachtet." } }, "en": { "stringUnit": { "state": "translated", "value": "Still learning your baseline and keeping an eye on your signals." } }, "es": { "stringUnit": { "state": "translated", "value": "Todavía estamos aprendiendo tu valor de referencia y observando tus señales." } }, "fr": { "stringUnit": { "state": "translated", "value": "Votre valeur de référence est encore en cours d’apprentissage et vos signaux restent sous surveillance." } }, "pt-PT": { "stringUnit": { "state": "translated", "value": "Ainda estamos a aprender o teu valor de referência e a acompanhar os teus sinais." } },
+      "it": { "stringUnit": { "state": "translated", "value": "Stiamo ancora imparando i tuoi valori di riferimento e tenendo d’occhio i tuoi segnali." } },
+      "pl": { "stringUnit": { "state": "translated", "value": "Nadal uczymy się Twoich wartości bazowych i obserwujemy sygnały organizmu." } },
+      "ru": { "stringUnit": { "state": "translated", "value": "Мы всё ещё изучаем ваши базовые значения и следим за показателями." } },
+      "zh-Hans": { "stringUnit": { "state": "translated", "value": "仍在了解你的基线并持续关注相关信号。" } },
+      "zh-Hant": { "stringUnit": { "state": "translated", "value": "仍在瞭解你的基線並持續關注相關訊號。" } }
+    } },
+    "Nothing notable. Your signals look like their normal range.": { "localizations": {
+      "de": { "stringUnit": { "state": "translated", "value": "Nichts Auffälliges. Deine Signale liegen im normalen Bereich." } }, "en": { "stringUnit": { "state": "translated", "value": "Nothing notable. Your signals look like their normal range." } }, "es": { "stringUnit": { "state": "translated", "value": "Nada destacable. Tus señales parecen estar dentro de su rango normal." } }, "fr": { "stringUnit": { "state": "translated", "value": "Rien de notable. Vos signaux semblent dans leur plage habituelle." } }, "pt-PT": { "stringUnit": { "state": "translated", "value": "Nada de relevante. Os teus sinais parecem estar dentro do intervalo normal." } },
+      "it": { "stringUnit": { "state": "translated", "value": "Nulla di rilevante. I tuoi segnali sembrano rientrare nell’intervallo normale." } },
+      "pl": { "stringUnit": { "state": "translated", "value": "Nic szczególnego. Sygnały organizmu mieszczą się w typowym zakresie." } },
+      "ru": { "stringUnit": { "state": "translated", "value": "Ничего необычного. Показатели находятся в обычном диапазоне." } },
+      "zh-Hans": { "stringUnit": { "state": "translated", "value": "没有明显异常。你的信号处于正常范围内。" } },
+      "zh-Hant": { "stringUnit": { "state": "translated", "value": "沒有明顯異常。你的訊號處於正常範圍內。" } }
+    } },
+    "Sauna": { "localizations": {
+      "de": { "stringUnit": { "state": "translated", "value": "Sauna" } }, "en": { "stringUnit": { "state": "translated", "value": "Sauna" } }, "es": { "stringUnit": { "state": "translated", "value": "sauna" } }, "fr": { "stringUnit": { "state": "translated", "value": "sauna" } }, "pt-PT": { "stringUnit": { "state": "translated", "value": "sauna" } },
+      "it": { "stringUnit": { "state": "translated", "value": "sauna" } },
+      "pl": { "stringUnit": { "state": "translated", "value": "sauna" } },
+      "ru": { "stringUnit": { "state": "translated", "value": "sauna" } },
+      "zh-Hans": { "stringUnit": { "state": "translated", "value": "sauna" } },
+      "zh-Hant": { "stringUnit": { "state": "translated", "value": "sauna" } }
+    } },
+    "Travel": { "localizations": {
+      "de": { "stringUnit": { "state": "translated", "value": "Reise" } }, "en": { "stringUnit": { "state": "translated", "value": "travel" } }, "es": { "stringUnit": { "state": "translated", "value": "viaje" } }, "fr": { "stringUnit": { "state": "translated", "value": "voyage" } }, "pt-PT": { "stringUnit": { "state": "translated", "value": "viagem" } },
+      "it": { "stringUnit": { "state": "translated", "value": "viagem" } },
+      "pl": { "stringUnit": { "state": "translated", "value": "viagem" } },
+      "ru": { "stringUnit": { "state": "translated", "value": "viagem" } },
+      "zh-Hans": { "stringUnit": { "state": "translated", "value": "viagem" } },
+      "zh-Hant": { "stringUnit": { "state": "translated", "value": "viagem" } }
+    } },
+    "Hard or late workout": { "localizations": {
+      "de": { "stringUnit": { "state": "translated", "value": "hartes oder spätes Training" } }, "en": { "stringUnit": { "state": "translated", "value": "hard or late workout" } }, "es": { "stringUnit": { "state": "translated", "value": "entrenamiento intenso o tardío" } }, "fr": { "stringUnit": { "state": "translated", "value": "entraînement intense ou tardif" } }, "pt-PT": { "stringUnit": { "state": "translated", "value": "treino intenso ou tardio" } },
+      "it": { "stringUnit": { "state": "translated", "value": "treino intenso ou tardio" } },
+      "pl": { "stringUnit": { "state": "translated", "value": "treino intenso ou tardio" } },
+      "ru": { "stringUnit": { "state": "translated", "value": "treino intenso ou tardio" } },
+      "zh-Hans": { "stringUnit": { "state": "translated", "value": "treino intenso ou tardio" } },
+      "zh-Hant": { "stringUnit": { "state": "translated", "value": "treino intenso ou tardio" } }
+    } },
+    "For awareness only. Not a medical device, not contraception, not a substitute for professional care.": { "localizations": {
+      "de": { "stringUnit": { "state": "translated", "value": "Nur zur Orientierung. Kein Medizinprodukt, keine Verhütungsmethode und kein Ersatz für professionelle medizinische Beratung." } },
+      "en": { "stringUnit": { "state": "translated", "value": "For awareness only. Not a medical device, not contraception, not a substitute for professional care." } },
+      "es": { "stringUnit": { "state": "translated", "value": "Solo con fines informativos. No es un dispositivo médico ni un método anticonceptivo, ni sustituye la atención profesional." } },
+      "fr": { "stringUnit": { "state": "translated", "value": "À titre informatif uniquement. Ce n’est ni un dispositif médical, ni un moyen de contraception, ni un substitut à un avis professionnel." } },
+      "pt-PT": { "stringUnit": { "state": "translated", "value": "Apenas para fins informativos. Não é um dispositivo médico nem um método contracetivo, nem substitui cuidados profissionais." } },
+      "it": { "stringUnit": { "state": "translated", "value": "Apenas para fins informativos. Não é um dispositivo médico nem um método contracetivo, nem substitui cuidados profissionais." } },
+      "pl": { "stringUnit": { "state": "translated", "value": "Apenas para fins informativos. Não é um dispositivo médico nem um método contracetivo, nem substitui cuidados profissionais." } },
+      "ru": { "stringUnit": { "state": "translated", "value": "Apenas para fins informativos. Não é um dispositivo médico nem um método contracetivo, nem substitui cuidados profissionais." } },
+      "zh-Hans": { "stringUnit": { "state": "translated", "value": "Apenas para fins informativos. Não é um dispositivo médico nem um método contracetivo, nem substitui cuidados profissionais." } },
+      "zh-Hant": { "stringUnit": { "state": "translated", "value": "Apenas para fins informativos. Não é um dispositivo médico nem um método contracetivo, nem substitui cuidados profissionais." } }
+    } },
+    "Follicular range – temperature is near your baseline.": { "localizations": {
+      "de": { "stringUnit": { "state": "translated", "value": "Follikuläre Phase – die Temperatur liegt nahe deinem Ausgangswert." } }, "en": { "stringUnit": { "state": "translated", "value": "Follicular range – temperature is near your baseline." } }, "es": { "stringUnit": { "state": "translated", "value": "Fase folicular: la temperatura está cerca de tu valor de referencia." } }, "fr": { "stringUnit": { "state": "translated", "value": "Phase folliculaire : la température est proche de votre valeur de référence." } }, "pt-PT": { "stringUnit": { "state": "translated", "value": "Fase folicular: a temperatura está próxima do teu valor de referência." } },
+      "it": { "stringUnit": { "state": "translated", "value": "Fase folicular: a temperatura está próxima do teu valor de referência." } },
+      "pl": { "stringUnit": { "state": "translated", "value": "Fase folicular: a temperatura está próxima do teu valor de referência." } },
+      "ru": { "stringUnit": { "state": "translated", "value": "Fase folicular: a temperatura está próxima do teu valor de referência." } },
+      "zh-Hans": { "stringUnit": { "state": "translated", "value": "Fase folicular: a temperatura está próxima do teu valor de referência." } },
+      "zh-Hant": { "stringUnit": { "state": "translated", "value": "Fase folicular: a temperatura está próxima do teu valor de referência." } }
+    } },
+    "Around your mid-cycle shift – temperature is changing.": { "localizations": {
+      "de": { "stringUnit": { "state": "translated", "value": "Um die Zyklusmitte – deine Temperatur verändert sich." } }, "en": { "stringUnit": { "state": "translated", "value": "Around your mid-cycle shift – temperature is changing." } }, "es": { "stringUnit": { "state": "translated", "value": "En torno al cambio de mitad del ciclo: tu temperatura está variando." } }, "fr": { "stringUnit": { "state": "translated", "value": "Autour du changement de milieu de cycle : votre température évolue." } }, "pt-PT": { "stringUnit": { "state": "translated", "value": "Perto da mudança a meio do ciclo: a tua temperatura está a mudar." } },
+      "it": { "stringUnit": { "state": "translated", "value": "Perto da mudança a meio do ciclo: a tua temperatura está a mudar." } },
+      "pl": { "stringUnit": { "state": "translated", "value": "Perto da mudança a meio do ciclo: a tua temperatura está a mudar." } },
+      "ru": { "stringUnit": { "state": "translated", "value": "Perto da mudança a meio do ciclo: a tua temperatura está a mudar." } },
+      "zh-Hans": { "stringUnit": { "state": "translated", "value": "Perto da mudança a meio do ciclo: a tua temperatura está a mudar." } },
+      "zh-Hant": { "stringUnit": { "state": "translated", "value": "Perto da mudança a meio do ciclo: a tua temperatura está a mudar." } }
+    } },
+    "Luteal range – temperature is above your baseline.": { "localizations": {
+      "de": { "stringUnit": { "state": "translated", "value": "Luteale Phase – die Temperatur liegt über deinem Ausgangswert." } }, "en": { "stringUnit": { "state": "translated", "value": "Luteal range – temperature is above your baseline." } }, "es": { "stringUnit": { "state": "translated", "value": "Fase lútea: la temperatura está por encima de tu valor de referencia." } }, "fr": { "stringUnit": { "state": "translated", "value": "Phase lutéale : la température est supérieure à votre valeur de référence." } }, "pt-PT": { "stringUnit": { "state": "translated", "value": "Fase lútea: a temperatura está acima do teu valor de referência." } },
+      "it": { "stringUnit": { "state": "translated", "value": "Fase lútea: a temperatura está acima do teu valor de referência." } },
+      "pl": { "stringUnit": { "state": "translated", "value": "Fase lútea: a temperatura está acima do teu valor de referência." } },
+      "ru": { "stringUnit": { "state": "translated", "value": "Fase lútea: a temperatura está acima do teu valor de referência." } },
+      "zh-Hans": { "stringUnit": { "state": "translated", "value": "Fase lútea: a temperatura está acima do teu valor de referência." } },
+      "zh-Hant": { "stringUnit": { "state": "translated", "value": "Fase lútea: a temperatura está acima do teu valor de referência." } }
+    } },
+    "No clear temperature pattern yet. This can happen with irregular cycles, hormonal contraception or shift work.": { "localizations": {
+      "de": { "stringUnit": { "state": "translated", "value": "Noch kein klares Temperaturmuster. Das kann bei unregelmäßigen Zyklen, hormoneller Verhütung oder Schichtarbeit vorkommen." } }, "en": { "stringUnit": { "state": "translated", "value": "No clear temperature pattern yet. This can happen with irregular cycles, hormonal contraception or shift work." } }, "es": { "stringUnit": { "state": "translated", "value": "Aún no hay un patrón de temperatura claro. Puede ocurrir con ciclos irregulares, anticoncepción hormonal o trabajo por turnos." } }, "fr": { "stringUnit": { "state": "translated", "value": "Aucun profil de température clair pour le moment. Cela peut arriver avec des cycles irréguliers, une contraception hormonale ou le travail posté." } }, "pt-PT": { "stringUnit": { "state": "translated", "value": "Ainda não existe um padrão de temperatura claro. Isto pode acontecer com ciclos irregulares, contraceção hormonal ou trabalho por turnos." } },
+      "it": { "stringUnit": { "state": "translated", "value": "Ainda não existe um padrão de temperatura claro. Isto pode acontecer com ciclos irregulares, contraceção hormonal ou trabalho por turnos." } },
+      "pl": { "stringUnit": { "state": "translated", "value": "Ainda não existe um padrão de temperatura claro. Isto pode acontecer com ciclos irregulares, contraceção hormonal ou trabalho por turnos." } },
+      "ru": { "stringUnit": { "state": "translated", "value": "Ainda não existe um padrão de temperatura claro. Isto pode acontecer com ciclos irregulares, contraceção hormonal ou trabalho por turnos." } },
+      "zh-Hans": { "stringUnit": { "state": "translated", "value": "Ainda não existe um padrão de temperatura claro. Isto pode acontecer com ciclos irregulares, contraceção hormonal ou trabalho por turnos." } },
+      "zh-Hant": { "stringUnit": { "state": "translated", "value": "Ainda não existe um padrão de temperatura claro. Isto pode acontecer com ciclos irregulares, contraceção hormonal ou trabalho por turnos." } }
+    } },
+    "Learning your pattern from your nightly temperature. Keep wearing your device overnight.": { "localizations": {
+      "de": { "stringUnit": { "state": "translated", "value": "Dein Muster wird anhand deiner nächtlichen Temperatur gelernt. Trage dein Gerät weiter über Nacht." } }, "en": { "stringUnit": { "state": "translated", "value": "Learning your pattern from your nightly temperature. Keep wearing your device overnight." } }, "es": { "stringUnit": { "state": "translated", "value": "Estamos aprendiendo tu patrón a partir de la temperatura nocturna. Sigue llevando el dispositivo por la noche." } }, "fr": { "stringUnit": { "state": "translated", "value": "Votre profil est appris à partir de votre température nocturne. Continuez à porter votre appareil la nuit." } }, "pt-PT": { "stringUnit": { "state": "translated", "value": "Estamos a aprender o teu padrão a partir da temperatura noturna. Continua a usar o dispositivo durante a noite." } },
+      "it": { "stringUnit": { "state": "translated", "value": "Estamos a aprender o teu padrão a partir da temperatura noturna. Continua a usar o dispositivo durante a noite." } },
+      "pl": { "stringUnit": { "state": "translated", "value": "Estamos a aprender o teu padrão a partir da temperatura noturna. Continua a usar o dispositivo durante a noite." } },
+      "ru": { "stringUnit": { "state": "translated", "value": "Estamos a aprender o teu padrão a partir da temperatura noturna. Continua a usar o dispositivo durante a noite." } },
+      "zh-Hans": { "stringUnit": { "state": "translated", "value": "Estamos a aprender o teu padrão a partir da temperatura noturna. Continua a usar o dispositivo durante a noite." } },
+      "zh-Hant": { "stringUnit": { "state": "translated", "value": "Estamos a aprender o teu padrão a partir da temperatura noturna. Continua a usar o dispositivo durante a noite." } }
+    } },
+    "Your temperature shift came at a different time than your logged date – the logged start may be off.": { "localizations": {
+      "de": { "stringUnit": { "state": "translated", "value": "Deine Temperaturveränderung trat zu einem anderen Zeitpunkt als das protokollierte Datum auf – der eingetragene Beginn könnte abweichen." } }, "en": { "stringUnit": { "state": "translated", "value": "Your temperature shift came at a different time than your logged date – the logged start may be off." } }, "es": { "stringUnit": { "state": "translated", "value": "El cambio de temperatura se produjo en otro momento distinto a la fecha registrada; puede que el inicio anotado no sea correcto." } }, "fr": { "stringUnit": { "state": "translated", "value": "Le changement de température est survenu à un autre moment que la date enregistrée ; le début indiqué est peut-être décalé." } }, "pt-PT": { "stringUnit": { "state": "translated", "value": "A mudança de temperatura ocorreu num momento diferente da data registada; o início indicado pode estar desfasado." } },
+      "it": { "stringUnit": { "state": "translated", "value": "A mudança de temperatura ocorreu num momento diferente da data registada; o início indicado pode estar desfasado." } },
+      "pl": { "stringUnit": { "state": "translated", "value": "A mudança de temperatura ocorreu num momento diferente da data registada; o início indicado pode estar desfasado." } },
+      "ru": { "stringUnit": { "state": "translated", "value": "A mudança de temperatura ocorreu num momento diferente da data registada; o início indicado pode estar desfasado." } },
+      "zh-Hans": { "stringUnit": { "state": "translated", "value": "A mudança de temperatura ocorreu num momento diferente da data registada; o início indicado pode estar desfasado." } },
+      "zh-Hant": { "stringUnit": { "state": "translated", "value": "A mudança de temperatura ocorreu num momento diferente da data registada; o início indicado pode estar desfasado." } }
+    } },
+    "Your rhythm is hard to read right now. Keep wearing your device for a clearer picture.": { "localizations": {
+      "de": { "stringUnit": { "state": "translated", "value": "Dein Rhythmus ist gerade schwer zu erkennen. Trage dein Gerät weiter, damit das Bild klarer wird." } }, "en": { "stringUnit": { "state": "translated", "value": "Your rhythm is hard to read right now. Keep wearing your device for a clearer picture." } }, "es": { "stringUnit": { "state": "translated", "value": "Ahora mismo es difícil interpretar tu ritmo. Sigue llevando el dispositivo para obtener una imagen más clara." } }, "fr": { "stringUnit": { "state": "translated", "value": "Votre rythme est difficile à interpréter pour le moment. Continuez à porter votre appareil pour obtenir une image plus claire." } }, "pt-PT": { "stringUnit": { "state": "translated", "value": "Neste momento, é difícil interpretar o teu ritmo. Continua a usar o dispositivo para obter uma imagem mais clara." } },
+      "it": { "stringUnit": { "state": "translated", "value": "Neste momento, é difícil interpretar o teu ritmo. Continua a usar o dispositivo para obter uma imagem mais clara." } },
+      "pl": { "stringUnit": { "state": "translated", "value": "Neste momento, é difícil interpretar o teu ritmo. Continua a usar o dispositivo para obter uma imagem mais clara." } },
+      "ru": { "stringUnit": { "state": "translated", "value": "Neste momento, é difícil interpretar o teu ritmo. Continua a usar o dispositivo para obter uma imagem mais clara." } },
+      "zh-Hans": { "stringUnit": { "state": "translated", "value": "Neste momento, é difícil interpretar o teu ritmo. Continua a usar o dispositivo para obter uma imagem mais clara." } },
+      "zh-Hant": { "stringUnit": { "state": "translated", "value": "Neste momento, é difícil interpretar o teu ritmo. Continua a usar o dispositivo para obter uma imagem mais clara." } }
+    } },
+    "Your body clock looks later, with a night-owl tendency.": { "localizations": {
+      "de": { "stringUnit": { "state": "translated", "value": "Deine innere Uhr scheint später zu laufen – mit einer Tendenz zum Nachtmenschen." } }, "en": { "stringUnit": { "state": "translated", "value": "Your body clock looks later, with a night-owl tendency." } }, "es": { "stringUnit": { "state": "translated", "value": "Tu reloj biológico parece más tardío, con tendencia nocturna." } }, "fr": { "stringUnit": { "state": "translated", "value": "Votre horloge biologique semble plus tardive, avec une tendance couche-tard." } }, "pt-PT": { "stringUnit": { "state": "translated", "value": "O teu relógio biológico parece mais tardio, com tendência noturna." } },
+      "it": { "stringUnit": { "state": "translated", "value": "O teu relógio biológico parece mais tardio, com tendência noturna." } },
+      "pl": { "stringUnit": { "state": "translated", "value": "O teu relógio biológico parece mais tardio, com tendência noturna." } },
+      "ru": { "stringUnit": { "state": "translated", "value": "O teu relógio biológico parece mais tardio, com tendência noturna." } },
+      "zh-Hans": { "stringUnit": { "state": "translated", "value": "O teu relógio biológico parece mais tardio, com tendência noturna." } },
+      "zh-Hant": { "stringUnit": { "state": "translated", "value": "O teu relógio biológico parece mais tardio, com tendência noturna." } }
+    } },
+    "Your body clock looks earlier, with a morning tendency.": { "localizations": {
+      "de": { "stringUnit": { "state": "translated", "value": "Deine innere Uhr scheint früher zu laufen – mit einer Tendenz zum Morgenmenschen." } }, "en": { "stringUnit": { "state": "translated", "value": "Your body clock looks earlier, with a morning tendency." } }, "es": { "stringUnit": { "state": "translated", "value": "Tu reloj biológico parece más temprano, con tendencia matutina." } }, "fr": { "stringUnit": { "state": "translated", "value": "Votre horloge biologique semble plus précoce, avec une tendance matinale." } }, "pt-PT": { "stringUnit": { "state": "translated", "value": "O teu relógio biológico parece mais adiantado, com tendência matinal." } },
+      "it": { "stringUnit": { "state": "translated", "value": "O teu relógio biológico parece mais adiantado, com tendência matinal." } },
+      "pl": { "stringUnit": { "state": "translated", "value": "O teu relógio biológico parece mais adiantado, com tendência matinal." } },
+      "ru": { "stringUnit": { "state": "translated", "value": "O teu relógio biológico parece mais adiantado, com tendência matinal." } },
+      "zh-Hans": { "stringUnit": { "state": "translated", "value": "O teu relógio biológico parece mais adiantado, com tendência matinal." } },
+      "zh-Hant": { "stringUnit": { "state": "translated", "value": "O teu relógio biológico parece mais adiantado, com tendência matinal." } }
+    } },
+    "Your body clock looks aligned with your schedule.": { "localizations": {
+      "de": { "stringUnit": { "state": "translated", "value": "Deine innere Uhr scheint zu deinem Zeitplan zu passen." } }, "en": { "stringUnit": { "state": "translated", "value": "Your body clock looks aligned with your schedule." } }, "es": { "stringUnit": { "state": "translated", "value": "Tu reloj biológico parece estar alineado con tu horario." } }, "fr": { "stringUnit": { "state": "translated", "value": "Votre horloge biologique semble alignée sur votre emploi du temps." } }, "pt-PT": { "stringUnit": { "state": "translated", "value": "O teu relógio biológico parece alinhado com o teu horário." } },
+      "it": { "stringUnit": { "state": "translated", "value": "O teu relógio biológico parece alinhado com o teu horário." } },
+      "pl": { "stringUnit": { "state": "translated", "value": "O teu relógio biológico parece alinhado com o teu horário." } },
+      "ru": { "stringUnit": { "state": "translated", "value": "O teu relógio biológico parece alinhado com o teu horário." } },
+      "zh-Hans": { "stringUnit": { "state": "translated", "value": "O teu relógio biológico parece alinhado com o teu horário." } },
+      "zh-Hant": { "stringUnit": { "state": "translated", "value": "O teu relógio biológico parece alinhado com o teu horário." } }
+    } },
+    "Shifting your clock %@ h earlier, about an hour a day. Light and sleep timing only.": { "localizations": {
+      "de": { "stringUnit": { "state": "translated", "value": "Deine innere Uhr wird um %@ Std. nach vorn verschoben, etwa eine Stunde pro Tag. Nur Licht- und Schlafzeiten." } }, "en": { "stringUnit": { "state": "translated", "value": "Shifting your clock %@ h earlier, about an hour a day. Light and sleep timing only." } }, "es": { "stringUnit": { "state": "translated", "value": "Adelanta tu reloj %@ h, aproximadamente una hora al día. Solo se ajustan la luz y los horarios de sueño." } }, "fr": { "stringUnit": { "state": "translated", "value": "Avance de votre horloge de %@ h, environ une heure par jour. Uniquement la lumière et les horaires de sommeil." } }, "pt-PT": { "stringUnit": { "state": "translated", "value": "Adianta o teu relógio %@ h, cerca de uma hora por dia. Apenas luz e horários de sono." } },
+      "it": { "stringUnit": { "state": "translated", "value": "Adianta o teu relógio %@ h, cerca de uma hora por dia. Apenas luz e horários de sono." } },
+      "pl": { "stringUnit": { "state": "translated", "value": "Adianta o teu relógio %@ h, cerca de uma hora por dia. Apenas luz e horários de sono." } },
+      "ru": { "stringUnit": { "state": "translated", "value": "Adianta o teu relógio %@ h, cerca de uma hora por dia. Apenas luz e horários de sono." } },
+      "zh-Hans": { "stringUnit": { "state": "translated", "value": "Adianta o teu relógio %@ h, cerca de uma hora por dia. Apenas luz e horários de sono." } },
+      "zh-Hant": { "stringUnit": { "state": "translated", "value": "Adianta o teu relógio %@ h, cerca de uma hora por dia. Apenas luz e horários de sono." } }
+    } },
+    "Shifting your clock %@ h later, about an hour a day. Light and sleep timing only.": { "localizations": {
+      "de": { "stringUnit": { "state": "translated", "value": "Deine innere Uhr wird um %@ Std. nach hinten verschoben, etwa eine Stunde pro Tag. Nur Licht- und Schlafzeiten." } }, "en": { "stringUnit": { "state": "translated", "value": "Shifting your clock %@ h later, about an hour a day. Light and sleep timing only." } }, "es": { "stringUnit": { "state": "translated", "value": "Retrasa tu reloj %@ h, aproximadamente una hora al día. Solo se ajustan la luz y los horarios de sueño." } }, "fr": { "stringUnit": { "state": "translated", "value": "Retarde votre horloge de %@ h, environ une heure par jour. Uniquement la lumière et les horaires de sommeil." } }, "pt-PT": { "stringUnit": { "state": "translated", "value": "Atrasa o teu relógio %@ h, cerca de uma hora por dia. Apenas luz e horários de sono." } },
+      "it": { "stringUnit": { "state": "translated", "value": "Atrasa o teu relógio %@ h, cerca de uma hora por dia. Apenas luz e horários de sono." } },
+      "pl": { "stringUnit": { "state": "translated", "value": "Atrasa o teu relógio %@ h, cerca de uma hora por dia. Apenas luz e horários de sono." } },
+      "ru": { "stringUnit": { "state": "translated", "value": "Atrasa o teu relógio %@ h, cerca de uma hora por dia. Apenas luz e horários de sono." } },
+      "zh-Hans": { "stringUnit": { "state": "translated", "value": "Atrasa o teu relógio %@ h, cerca de uma hora por dia. Apenas luz e horários de sono." } },
+      "zh-Hant": { "stringUnit": { "state": "translated", "value": "Atrasa o teu relógio %@ h, cerca de uma hora por dia. Apenas luz e horários de sono." } }
+    } },
+    "No meaningful body-clock shift is needed. You are about aligned.": { "localizations": {
+      "de": { "stringUnit": { "state": "translated", "value": "Keine nennenswerte Verschiebung deiner inneren Uhr nötig. Du bist weitgehend im Rhythmus." } }, "en": { "stringUnit": { "state": "translated", "value": "No meaningful body-clock shift is needed. You are about aligned." } }, "es": { "stringUnit": { "state": "translated", "value": "No necesitas ajustar de forma significativa tu reloj biológico. Está prácticamente alineado." } }, "fr": { "stringUnit": { "state": "translated", "value": "Aucun décalage notable de votre horloge biologique n’est nécessaire. Vous êtes globalement aligné." } }, "pt-PT": { "stringUnit": { "state": "translated", "value": "Não é necessário um ajuste significativo do teu relógio biológico. Está praticamente alinhado." } },
+      "it": { "stringUnit": { "state": "translated", "value": "Não é necessário um ajuste significativo do teu relógio biológico. Está praticamente alinhado." } },
+      "pl": { "stringUnit": { "state": "translated", "value": "Não é necessário um ajuste significativo do teu relógio biológico. Está praticamente alinhado." } },
+      "ru": { "stringUnit": { "state": "translated", "value": "Não é necessário um ajuste significativo do teu relógio biológico. Está praticamente alinhado." } },
+      "zh-Hans": { "stringUnit": { "state": "translated", "value": "Não é necessário um ajuste significativo do teu relógio biológico. Está praticamente alinhado." } },
+      "zh-Hant": { "stringUnit": { "state": "translated", "value": "Não é necessário um ajuste significativo do teu relógio biológico. Está praticamente alinhado." } }
+    } },
+    "Cached": {
+      "localizations": {
+        "de": { "stringUnit": { "state": "translated", "value": "Zwischengespeichert" } },
+        "en": { "stringUnit": { "state": "translated", "value": "Cached" } },
+        "es": { "stringUnit": { "state": "translated", "value": "En caché" } },
+        "fr": { "stringUnit": { "state": "translated", "value": "En cache" } },
+        "pt-PT": { "stringUnit": { "state": "translated", "value": "Em cache" } },
+      "it": { "stringUnit": { "state": "translated", "value": "Em cache" } },
+      "pl": { "stringUnit": { "state": "translated", "value": "Em cache" } },
+      "ru": { "stringUnit": { "state": "translated", "value": "Em cache" } },
+      "zh-Hans": { "stringUnit": { "state": "translated", "value": "Em cache" } },
+      "zh-Hant": { "stringUnit": { "state": "translated", "value": "Em cache" } }
+      }
+    },
+    "Swipe": {
+      "localizations": {
+        "de": { "stringUnit": { "state": "translated", "value": "Wischen" } },
+        "en": { "stringUnit": { "state": "translated", "value": "Swipe" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Desliza" } },
+        "fr": { "stringUnit": { "state": "translated", "value": "Balayer" } },
+        "pt-PT": { "stringUnit": { "state": "translated", "value": "Deslizar" } },
+      "it": { "stringUnit": { "state": "translated", "value": "Deslizar" } },
+      "pl": { "stringUnit": { "state": "translated", "value": "Deslizar" } },
+      "ru": { "stringUnit": { "state": "translated", "value": "Deslizar" } },
+      "zh-Hans": { "stringUnit": { "state": "translated", "value": "Deslizar" } },
+      "zh-Hant": { "stringUnit": { "state": "translated", "value": "Deslizar" } }
+      }
+    },
+    "Tap": {
+      "localizations": {
+        "de": { "stringUnit": { "state": "translated", "value": "Tippen" } },
+        "en": { "stringUnit": { "state": "translated", "value": "Tap" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Toca" } },
+        "fr": { "stringUnit": { "state": "translated", "value": "Toucher" } },
+        "pt-PT": { "stringUnit": { "state": "translated", "value": "Tocar" } },
+      "it": { "stringUnit": { "state": "translated", "value": "Tocar" } },
+      "pl": { "stringUnit": { "state": "translated", "value": "Tocar" } },
+      "ru": { "stringUnit": { "state": "translated", "value": "Tocar" } },
+      "zh-Hans": { "stringUnit": { "state": "translated", "value": "Tocar" } },
+      "zh-Hant": { "stringUnit": { "state": "translated", "value": "Tocar" } }
+      }
+    },
+    "Workout files": {
+      "localizations": {
+        "de": { "stringUnit": { "state": "translated", "value": "Trainingsdateien" } },
+        "en": { "stringUnit": { "state": "translated", "value": "Workout files" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Archivos de entrenamiento" } },
+        "fr": { "stringUnit": { "state": "translated", "value": "Fichiers d’entraînement" } },
+        "pt-PT": { "stringUnit": { "state": "translated", "value": "Ficheiros de treino" } },
+      "it": { "stringUnit": { "state": "translated", "value": "Ficheiros de treino" } },
+      "pl": { "stringUnit": { "state": "translated", "value": "Ficheiros de treino" } },
+      "ru": { "stringUnit": { "state": "translated", "value": "Ficheiros de treino" } },
+      "zh-Hans": { "stringUnit": { "state": "translated", "value": "Ficheiros de treino" } },
+      "zh-Hant": { "stringUnit": { "state": "translated", "value": "Ficheiros de treino" } }
+      }
+    },
     "Auto-backup hasn't run in a few days. Check the backup folder is still available — a moved or disconnected cloud folder stops backups silently.": {
       "localizations": {
         "de": {
@@ -1305,7 +1578,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ Anstrengung"
+            "value": "%@ Belastung"
           }
         },
         "es": {
@@ -6374,7 +6647,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "%1$@: %2$@ der Ladung"
+            "value": "%1$@: %2$@ der Energie"
           }
         },
         "en": {
@@ -8146,34 +8419,40 @@
     "%lld days": {
       "localizations": {
         "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld Tage"
-          }
+          "variations": { "plural": {
+            "one": { "stringUnit": { "state": "translated", "value": "%lld Tag" } },
+            "other": { "stringUnit": { "state": "translated", "value": "%lld Tage" } }
+          } }
+        },
+        "en": {
+          "variations": { "plural": {
+            "one": { "stringUnit": { "state": "translated", "value": "%lld day" } },
+            "other": { "stringUnit": { "state": "translated", "value": "%lld days" } }
+          } }
         },
         "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld días"
-          }
+          "variations": { "plural": {
+            "one": { "stringUnit": { "state": "translated", "value": "%lld día" } },
+            "other": { "stringUnit": { "state": "translated", "value": "%lld días" } }
+          } }
         },
         "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld jours"
-          }
+          "variations": { "plural": {
+            "one": { "stringUnit": { "state": "translated", "value": "%lld jour" } },
+            "other": { "stringUnit": { "state": "translated", "value": "%lld jours" } }
+          } }
         },
         "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld giorni"
-          }
+          "variations": { "plural": {
+            "one": { "stringUnit": { "state": "translated", "value": "%lld giorno" } },
+            "other": { "stringUnit": { "state": "translated", "value": "%lld giorni" } }
+          } }
         },
         "pt-PT": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld dias"
-          }
+          "variations": { "plural": {
+            "one": { "stringUnit": { "state": "translated", "value": "%lld dia" } },
+            "other": { "stringUnit": { "state": "translated", "value": "%lld dias" } }
+          } }
         },
         "ru": {
           "variations": {
@@ -8562,7 +8841,7 @@
         "pt-PT": {
           "stringUnit": {
             "state": "translated",
-            "value": "%1$lld dias · %2$lld dorme"
+            "value": "%1$lld dias · %2$lld noites de sono"
           }
         },
         "ru": {
@@ -12514,38 +12793,100 @@
         }
       }
     },
+    "%lld sleeps": {
+      "localizations": {
+        "de": { "variations": { "plural": {
+          "one": { "stringUnit": { "state": "translated", "value": "%lld Nacht" } },
+          "other": { "stringUnit": { "state": "translated", "value": "%lld Nächte" } }
+        } } },
+        "en": { "variations": { "plural": {
+          "one": { "stringUnit": { "state": "translated", "value": "%lld sleep" } },
+          "other": { "stringUnit": { "state": "translated", "value": "%lld sleeps" } }
+        } } },
+        "es": { "variations": { "plural": {
+          "one": { "stringUnit": { "state": "translated", "value": "%lld noche" } },
+          "other": { "stringUnit": { "state": "translated", "value": "%lld noches" } }
+        } } },
+        "fr": { "variations": { "plural": {
+          "one": { "stringUnit": { "state": "translated", "value": "%lld nuit" } },
+          "other": { "stringUnit": { "state": "translated", "value": "%lld nuits" } }
+        } } },
+        "it": { "variations": { "plural": {
+          "one": { "stringUnit": { "state": "translated", "value": "%lld notte" } },
+          "other": { "stringUnit": { "state": "translated", "value": "%lld notti" } }
+        } } },
+        "pl": { "variations": { "plural": {
+          "one": { "stringUnit": { "state": "translated", "value": "%lld noc" } },
+          "few": { "stringUnit": { "state": "translated", "value": "%lld noce" } },
+          "many": { "stringUnit": { "state": "translated", "value": "%lld nocy" } },
+          "other": { "stringUnit": { "state": "translated", "value": "%lld nocy" } }
+        } } },
+        "pt-PT": { "variations": { "plural": {
+          "one": { "stringUnit": { "state": "translated", "value": "%lld noite de sono" } },
+          "other": { "stringUnit": { "state": "translated", "value": "%lld noites de sono" } }
+        } } },
+        "ru": { "variations": { "plural": {
+          "one": { "stringUnit": { "state": "translated", "value": "%lld ночь" } },
+          "few": { "stringUnit": { "state": "translated", "value": "%lld ночи" } },
+          "many": { "stringUnit": { "state": "translated", "value": "%lld ночей" } },
+          "other": { "stringUnit": { "state": "translated", "value": "%lld ночи" } }
+        } } },
+        "zh-Hans": { "variations": { "plural": {
+          "one": { "stringUnit": { "state": "translated", "value": "%lld 次睡眠" } },
+          "other": { "stringUnit": { "state": "translated", "value": "%lld 次睡眠" } }
+        } } },
+        "zh-Hant": { "variations": { "plural": {
+          "one": { "stringUnit": { "state": "translated", "value": "%lld 次睡眠" } },
+          "other": { "stringUnit": { "state": "translated", "value": "%lld 次睡眠" } }
+        } } }
+      }
+    },
     "%lld workouts": {
       "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld Workouts"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld entrenamientos"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld entraînements"
-          }
-        },
-        "pt-PT": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld treinos"
-          }
-        },
-        "pl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Treningi %lld"
-          }
-        }
+        "de": { "variations": { "plural": {
+          "one": { "stringUnit": { "state": "translated", "value": "%lld Workout" } },
+          "other": { "stringUnit": { "state": "translated", "value": "%lld Workouts" } }
+        } } },
+        "en": { "variations": { "plural": {
+          "one": { "stringUnit": { "state": "translated", "value": "%lld workout" } },
+          "other": { "stringUnit": { "state": "translated", "value": "%lld workouts" } }
+        } } },
+        "es": { "variations": { "plural": {
+          "one": { "stringUnit": { "state": "translated", "value": "%lld entrenamiento" } },
+          "other": { "stringUnit": { "state": "translated", "value": "%lld entrenamientos" } }
+        } } },
+        "fr": { "variations": { "plural": {
+          "one": { "stringUnit": { "state": "translated", "value": "%lld entraînement" } },
+          "other": { "stringUnit": { "state": "translated", "value": "%lld entraînements" } }
+        } } },
+        "it": { "variations": { "plural": {
+          "one": { "stringUnit": { "state": "translated", "value": "%lld allenamento" } },
+          "other": { "stringUnit": { "state": "translated", "value": "%lld allenamenti" } }
+        } } },
+        "pl": { "variations": { "plural": {
+          "one": { "stringUnit": { "state": "translated", "value": "%lld trening" } },
+          "few": { "stringUnit": { "state": "translated", "value": "%lld treningi" } },
+          "many": { "stringUnit": { "state": "translated", "value": "%lld treningów" } },
+          "other": { "stringUnit": { "state": "translated", "value": "%lld treningu" } }
+        } } },
+        "pt-PT": { "variations": { "plural": {
+          "one": { "stringUnit": { "state": "translated", "value": "%lld treino" } },
+          "other": { "stringUnit": { "state": "translated", "value": "%lld treinos" } }
+        } } },
+        "ru": { "variations": { "plural": {
+          "one": { "stringUnit": { "state": "translated", "value": "%lld тренировка" } },
+          "few": { "stringUnit": { "state": "translated", "value": "%lld тренировки" } },
+          "many": { "stringUnit": { "state": "translated", "value": "%lld тренировок" } },
+          "other": { "stringUnit": { "state": "translated", "value": "%lld тренировки" } }
+        } } },
+        "zh-Hans": { "variations": { "plural": {
+          "one": { "stringUnit": { "state": "translated", "value": "%lld 次训练" } },
+          "other": { "stringUnit": { "state": "translated", "value": "%lld 次训练" } }
+        } } },
+        "zh-Hant": { "variations": { "plural": {
+          "one": { "stringUnit": { "state": "translated", "value": "%lld 次訓練" } },
+          "other": { "stringUnit": { "state": "translated", "value": "%lld 次訓練" } }
+        } } }
       }
     },
     "%lld year%@ %@ than your age": {
@@ -13031,7 +13372,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "%lld%% Ladung"
+            "value": "%lld%% Energie"
           }
         },
         "es": {
@@ -20325,7 +20666,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Eine niedrigere Ruheherzfrequenz bedeutet meist eine höhere Ladung."
+            "value": "Eine niedrigere Ruheherzfrequenz bedeutet meist eine höhere Energie."
           }
         },
         "es": {
@@ -21137,7 +21478,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Einmal täglich ein Hinweis, wenn deine Anstrengung das untere Ende des heutigen optimalen Bereichs erreicht, berechnet aus deiner Erholung."
+            "value": "Einmal täglich ein Hinweis, wenn deine Belastung das untere Ende des heutigen optimalen Bereichs erreicht, berechnet aus deiner Erholung."
           }
         },
         "es": {
@@ -21474,7 +21815,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ein Read-Only Plews / Altini am kleinsten Wert während der Änderung Ihrer nächtlichen HRV: Es zeigt an, ob Ihre 7-Nächte-HRV-Basislinie über, innerhalb oder unter Ihrem persönlichen normalen Band liegt. Es ändert nichts anderes - der Ladungsring ist identisch, ob dieser ein- oder ausgeschaltet ist. Dies ist eine grobe / frühe Prüfung, die noch nicht gegen unterschiedliche reale Daten (n = 1) validiert wurde."
+            "value": "Ein Read-Only Plews / Altini am kleinsten Wert während der Änderung Ihrer nächtlichen HRV: Es zeigt an, ob Ihre 7-Nächte-HRV-Basislinie über, innerhalb oder unter Ihrem persönlichen normalen Band liegt. Es ändert nichts anderes - der Energiering ist identisch, ob dieser ein- oder ausgeschaltet ist. Dies ist eine grobe / frühe Prüfung, die noch nicht gegen unterschiedliche reale Daten (n = 1) validiert wurde."
           }
         },
         "es": {
@@ -21856,7 +22197,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ein einfaches Ziel, das sich deiner Anstrengung anpasst. Allgemeine Wellness-Orientierung, kein medizinischer Rat."
+            "value": "Ein einfaches Ziel, das sich deiner Belastung anpasst. Allgemeine Wellness-Orientierung, kein medizinischer Rat."
           }
         },
         "es": {
@@ -22303,7 +22644,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Eine Uhr misst deine Herzfrequenzvariabilität stichprobenartig, statt sie die ganze Nacht zu streamen, daher braucht dein Ladungswert etwa sieben Nächte zum Kalibrieren. Bis dahin zeigt NOOP „braucht mehr Daten“, nie eine geratene Zahl."
+            "value": "Eine Uhr misst deine Herzfrequenzvariabilität stichprobenartig, statt sie die ganze Nacht zu streamen, daher braucht dein Energiewert etwa sieben Nächte zum Kalibrieren. Bis dahin zeigt NOOP „braucht mehr Daten“, nie eine geratene Zahl."
           }
         },
         "es": {
@@ -25587,7 +25928,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Fügt ein einfaches Flüssigkeitsprotokoll mit einem Tagesziel hinzu, das sich deiner Anstrengung anpasst. Tippe, um einen Schluck, eine Tasse oder eine Flasche zu erfassen, und sieh zu, wie sich der Fortschrittsring füllt. Nur auf %@. Nichts wird synchronisiert."
+            "value": "Fügt ein einfaches Flüssigkeitsprotokoll mit einem Tagesziel hinzu, das sich deiner Belastung anpasst. Tippe, um einen Schluck, eine Tasse oder eine Flasche zu erfassen, und sieh zu, wie sich der Fortschrittsring füllt. Nur auf %@. Nichts wird synchronisiert."
           }
         },
         "es": {
@@ -29131,7 +29472,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Apples eigene Schlafphasen fließen direkt in Ruhe ein. Das ist eine der Stärken der Uhr."
+            "value": "Apples eigene Schlafphasen fließen direkt in die Erholung ein. Das ist eine der Stärken der Uhr."
           }
         },
         "es": {
@@ -29189,7 +29530,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Apples Schlafphasen sind stark und fließen direkt in deinen Ruhewert ein."
+            "value": "Apples Schlafphasen sind zuverlässig und fließen direkt in deinen Erholungswert ein."
           }
         },
         "es": {
@@ -29685,7 +30026,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Frage nach deiner Ladung, Anstrengung, Ruhe und deinen Workouts, basierend auf deinen eigenen Zahlen."
+            "value": "Frage nach deiner Energie, Belastung, Erholung und deinen Workouts, basierend auf deinen eigenen Zahlen."
           }
         },
         "es": {
@@ -31737,7 +32078,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Die Ø-HF wird wie eingegeben angezeigt. HF-Graph, Zonen und Anstrengung bleiben aus der aufgezeichneten Sitzung."
+            "value": "Die Ø-HF wird wie eingegeben angezeigt. HF-Graph, Zonen und Belastung bleiben aus der aufgezeichneten Sitzung."
           }
         },
         "es": {
@@ -42850,7 +43191,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ladung"
+            "value": "Energie"
           }
         },
         "en": {
@@ -42914,7 +43255,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ladung %@%%"
+            "value": "Energie %@%%"
           }
         },
         "es": {
@@ -43030,7 +43371,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ladung (gesamter Verlauf)"
+            "value": "Energie (gesamter Verlauf)"
           }
         },
         "es": {
@@ -43088,7 +43429,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ladung (letztes Jahr)"
+            "value": "Energie (letztes Jahr)"
           }
         },
         "es": {
@@ -43146,7 +43487,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ladungs-Basislinie wird kalibriert. %1$@, %2$@. %3$@."
+            "value": "Energie-Basislinie wird kalibriert. %1$@, %2$@. %3$@."
           }
         },
         "en": {
@@ -43210,7 +43551,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ladungs-Basislinie wird neu kalibriert"
+            "value": "Energie-Basislinie wird neu kalibriert"
           }
         },
         "es": {
@@ -43268,7 +43609,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Die Ladung ist niedrig und der Schlaf war konsistent."
+            "value": "Die Energie ist niedrig und der Schlaf war konsistent."
           }
         },
         "es": {
@@ -43326,7 +43667,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Die Ladung ist niedrig, aber der Schlaf war zu kurz."
+            "value": "Die Energie ist niedrig, aber der Schlaf war zu kurz."
           }
         },
         "es": {
@@ -43384,7 +43725,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Die Ladung ist niedrig."
+            "value": "Die Energie ist niedrig."
           }
         },
         "es": {
@@ -43442,7 +43783,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Die Ladung ist stabil und der Schlaf war konsistent."
+            "value": "Die Energie ist stabil und der Schlaf war konsistent."
           }
         },
         "es": {
@@ -43500,7 +43841,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Die Ladung ist stabil, aber der Schlaf war zu kurz."
+            "value": "Die Energie ist stabil, aber der Schlaf war zu kurz."
           }
         },
         "es": {
@@ -43558,7 +43899,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Die Ladung ist stabil."
+            "value": "Die Energie ist stabil."
           }
         },
         "es": {
@@ -43616,7 +43957,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Die Ladung ist stark und der Schlaf war konsistent."
+            "value": "Die Energie ist stark und der Schlaf war konsistent."
           }
         },
         "es": {
@@ -43674,7 +44015,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Die Ladung ist stark, aber der Schlaf war zu kurz."
+            "value": "Die Energie ist stark, aber der Schlaf war zu kurz."
           }
         },
         "es": {
@@ -43732,7 +44073,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Die Ladung ist stark."
+            "value": "Die Energie ist stark."
           }
         },
         "es": {
@@ -43790,7 +44131,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ladungsmodell"
+            "value": "Energiemodell"
           }
         },
         "es": {
@@ -43906,7 +44247,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ladungstrend"
+            "value": "Energietrend"
           }
         },
         "es": {
@@ -43964,7 +44305,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ladung wiegt Ihre HRV gegen Ihre persönliche Grundlinie (~ 55%%), Ruheherzfrequenz (~ 20%%), Ruhequalität (~ 15%%), Atmung (~ 5%%) und Hauttemperaturabweichung (~ 5%%). Anstrengung ist eine 0-%lld kardiovaskuläre Belastung aus der Zeit in Herzfrequenzzonen. Ruhe wird von Bewegung und Herzfrequenz inszeniert. Alles wird hier aus den Rohdaten des Bandes berechnet. Es funktioniert für jeden Tag, an dem NOOP Rohströme gesammelt hat."
+            "value": "Energie gewichtet Ihre HRV gegenüber Ihrer persönlichen Basislinie (~55%%), Ruheherzfrequenz (~20%%), Erholungsqualität (~15%%), Atmung (~5%%) und Hauttemperaturabweichung (~5%%). Belastung ist eine kardiovaskuläre Belastung von 0–%lld aus der Zeit in Herzfrequenzzonen. Erholung wird aus Bewegung und Herzfrequenz in Schlafphasen eingeteilt. Alles wird hier aus den Rohdaten des Straps berechnet."
           }
         },
         "es": {
@@ -43998,7 +44339,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Die Ladung gewichtet deine HRV gegenüber deiner persönlichen Basislinie (~55%%), Ruheherzfrequenz (~20%%), Ruhequalität (~15%%), Atmung (~5%%) und Hauttemperatur-Abweichung (~5%%). Anstrengung ist eine kardiovaskuläre Last von 0–%@ aus der Zeit in Herzfrequenzzonen. Ruhe wird aus Bewegung und Herzfrequenz in Phasen eingeteilt. Alles wird hier aus den Rohdaten des Straps berechnet. Es funktioniert für jeden Tag, an dem NOOP Roh-Streams gesammelt hat."
+            "value": "Die Energie gewichtet deine HRV gegenüber deiner persönlichen Basislinie (~55%%), Ruheherzfrequenz (~20%%), Erholungsqualität (~15%%), Atmung (~5%%) und Hauttemperatur-Abweichung (~5%%). Belastung ist eine kardiovaskuläre Last von 0–%@ aus der Zeit in Herzfrequenzzonen. Erholung wird aus Bewegung und Herzfrequenz in Schlafphasen eingeteilt. Alles wird hier aus den Rohdaten des Straps berechnet. Es funktioniert für jeden Tag, an dem NOOP Roh-Streams gesammelt hat."
           }
         },
         "es": {
@@ -44114,7 +44455,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ladung · %@ Pkt."
+            "value": "Energie · %@ Pkt."
           }
         },
         "es": {
@@ -44172,7 +44513,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ladung · Anstrengung · Ruhe"
+            "value": "Energie · Belastung · Erholung"
           }
         },
         "es": {
@@ -44230,7 +44571,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ladung → Ladung am Folgetag"
+            "value": "Energie → Energie am Folgetag"
           }
         },
         "es": {
@@ -44288,7 +44629,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ladung, Anstrengung und Ruhe (und wie sie sich von WHOOP unterscheiden)."
+            "value": "Energie, Belastung und Erholung (und wie sie sich von WHOOP unterscheiden)."
           }
         },
         "es": {
@@ -44346,7 +44687,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ladung, Anstrengung und Ruhe werden auf deinem eigenen Gerät aus deinen Strap-Daten berechnet. Die Ladung braucht etwa vier Nächte Schlaf, um deine Basislinie zu lernen (das ist „Kalibrierung“, auf dem Ring als Nächte von 4 gezählt), und wird über deine ersten Wochen immer genauer. Auf einem WHOOP 5 oder MG speichert der Strap wenig Verlauf, dieser Zähler kann also auf 0 von 4 stehen, bis du ihn ein paar Nächte getragen hast. Das ist die Sync-Grenze des Straps, kein Fehler. Bevor es eine Zahl gibt, zeigt NOOP, was es kann, ohne eine zu erfinden."
+            "value": "Energie, Belastung und Erholung werden auf deinem eigenen Gerät aus deinen Strap-Daten berechnet. Die Energie braucht etwa vier Nächte Schlaf, um deine Basislinie zu lernen (das ist „Kalibrierung“, auf dem Ring als Nächte von 4 gezählt), und wird über deine ersten Wochen immer genauer. Auf einem WHOOP 5 oder MG speichert der Strap wenig Verlauf, dieser Zähler kann also auf 0 von 4 stehen, bis du ihn ein paar Nächte getragen hast. Das ist die Sync-Grenze des Straps, kein Fehler. Bevor es eine Zahl gibt, zeigt NOOP, was es kann, ohne eine zu erfinden."
           }
         },
         "es": {
@@ -44404,7 +44745,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ladung, Anstrengung und Ruhe werden nach ein paar Nächten Tragen persönlich."
+            "value": "Energie, Belastung und Erholung werden nach ein paar Nächten Tragen persönlich."
           }
         },
         "es": {
@@ -44462,7 +44803,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ladung, Anstrengung und Ruhe bauen sich über die nächsten Nächte am Handgelenk auf."
+            "value": "Energie, Belastung und Erholung bauen sich über die nächsten Nächte am Handgelenk auf."
           }
         },
         "es": {
@@ -44520,7 +44861,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ladung, Anstrengung, Ruhe, HRV, Ruhe- und Live-Herzfrequenz sowie Strap-Akku auf einen Blick."
+            "value": "Energie, Belastung, Erholung, HRV, Ruhe- und Live-Herzfrequenz sowie Strap-Akku auf einen Blick."
           }
         },
         "es": {
@@ -44578,7 +44919,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ladung: Wie erholt bist du?"
+            "value": "Energie: Wie gut bist du erholt?"
           }
         },
         "es": {
@@ -45692,7 +46033,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Wähle, wie Distanzen, Gewichte, Größen, Temperaturen und Anstrengung angezeigt werden. Deine Daten werden immer gleich gespeichert. Das ändert nur die Anzeige."
+            "value": "Wähle, wie Distanzen, Gewichte, Größen, Temperaturen und Belastung angezeigt werden. Deine Daten werden immer gleich gespeichert. Das ändert nur die Anzeige."
           }
         },
         "es": {
@@ -52944,7 +53285,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Aktuelle Ladung"
+            "value": "Aktuelle Energie"
           }
         },
         "es": {
@@ -62286,7 +62627,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Anstrengung"
+            "value": "Belastung"
           }
         },
         "en": {
@@ -62350,7 +62691,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Anstrengung (0–100)"
+            "value": "Belastung (0–100)"
           }
         },
         "es": {
@@ -62408,7 +62749,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Anstrengungsskala"
+            "value": "Belastungsskala"
           }
         },
         "es": {
@@ -62466,7 +62807,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Anstrengung · %@"
+            "value": "Belastung · %@"
           }
         },
         "es": {
@@ -62524,7 +62865,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Anstrengung: Wie hart hat dein Herz gearbeitet?"
+            "value": "Belastung: Wie stark hat dein Herz gearbeitet?"
           }
         },
         "es": {
@@ -63929,7 +64270,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Schätzung aus der heutigen Anstrengung, deinem typischen Schlaf und deiner Erholungs-Basislinie aus %lld Nächten, keine Messung. Deine echte Ladung wird aus der HRV von morgen berechnet, wenn du aufwachst."
+            "value": "Schätzung aus der heutigen Belastung, deinem typischen Schlaf und deiner Erholungs-Basislinie aus %lld Nächten, keine Messung. Deine echte Energie wird aus der HRV von morgen berechnet, wenn du aufwachst."
           }
         },
         "es": {
@@ -72820,7 +73161,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "HF %@ · Anstrengung %@"
+            "value": "HF %@ · Belastung %@"
           }
         },
         "es": {
@@ -74436,7 +74777,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "HRV ↔ Ladung"
+            "value": "HRV ↔ Energie"
           }
         },
         "es": {
@@ -76493,7 +76834,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Herzfrequenzvariabilität als Motor hinter deinem Ladungswert."
+            "value": "Herzfrequenzvariabilität als Motor hinter deinem Energiewert."
           }
         },
         "es": {
@@ -78077,7 +78418,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "So wird Ladung berechnet"
+            "value": "So wird Energie berechnet"
           }
         },
         "en": {
@@ -78141,7 +78482,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "So wird Ladung berechnet. Die Methode hinter dem Wert."
+            "value": "So wird Energie berechnet. Die Methode hinter dem Wert."
           }
         },
         "es": {
@@ -78199,7 +78540,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "So werden Ladung, Anstrengung und Ruhe berechnet, und so unterscheiden sie sich von WHOOP."
+            "value": "So werden Energie, Belastung und Erholung berechnet, und so unterscheiden sie sich von WHOOP."
           }
         },
         "es": {
@@ -78257,7 +78598,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "So wird Anstrengung berechnet"
+            "value": "So wird Belastung berechnet"
           }
         },
         "en": {
@@ -78437,7 +78778,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "So wird Ruhe berechnet"
+            "value": "So wird Erholung berechnet"
           }
         },
         "en": {
@@ -78862,7 +79203,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Wie eng eine gute Nacht der Ladung am nächsten Morgen folgt."
+            "value": "Wie eng eine gute Nacht der Energie am nächsten Morgen folgt."
           }
         },
         "es": {
@@ -78920,7 +79261,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Wie viel der Ladung eines Tages in den nächsten hinüberträgt."
+            "value": "Wie viel der Energie eines Tages in den nächsten hinüberträgt."
           }
         },
         "es": {
@@ -79836,7 +80177,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Wie entwickelt sich meine Ladung?"
+            "value": "Wie entwickelt sich meine Energie?"
           }
         },
         "es": {
@@ -82475,7 +82816,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Importiere deinen Krafttrainings-Verlauf aus einem Hevy-CSV-Export oder einem Liftosaur-JSON-Export. Jedes Workout wird eine Kraftsitzung mit einer Trainingsvolumen-Schätzung (Gewicht × Wiederholungen). Es ist eine Volumenzahl, keine gemessene Belastung. Sie ändert nie deine Anstrengung."
+            "value": "Importiere deinen Krafttrainings-Verlauf aus einem Hevy-CSV-Export oder einem Liftosaur-JSON-Export. Jedes Workout wird eine Kraftsitzung mit einer Trainingsvolumen-Schätzung (Gewicht × Wiederholungen). Es ist eine Volumenzahl, keine gemessene Belastung. Sie ändert nie deine Belastung."
           }
         },
         "es": {
@@ -86944,7 +87285,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Letzte Ladungs-Aufschlüsselung"
+            "value": "Letzte Energie-Aufschlüsselung"
           }
         },
         "es": {
@@ -89080,7 +89421,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Angeführt von deiner Herzfrequenzvariabilität (HRV) gegenüber deiner persönlichen Basislinie, plus Ruheherzfrequenz, Ruhe der letzten Nacht, Atemfrequenz und einem Hauttemperatur-Signal (ein frühes Zeichen für Krankheit oder Überlastung). Höhere HRV gegenüber deiner Basislinie bedeutet mehr Ladung. NOOP braucht zuerst ein paar Nächte, um deine Basislinie zu lernen. Bis dahin siehst du „Kalibrierung“."
+            "value": "Angeführt von deiner Herzfrequenzvariabilität (HRV) gegenüber deiner persönlichen Basislinie, plus Ruheherzfrequenz, Erholung der letzten Nacht, Atemfrequenz und einem Hauttemperatur-Signal (ein frühes Zeichen für Krankheit oder Überlastung). Höhere HRV gegenüber deiner Basislinie bedeutet mehr Energie. NOOP braucht zuerst ein paar Nächte, um deine Basislinie zu lernen. Bis dahin siehst du „Kalibrierung“."
           }
         },
         "es": {
@@ -91133,7 +91474,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Live-Gerätedaten über Bluetooth FTMS. Kein Schlaf, keine Erholung, keine Hauttemperatur, kein SpO₂. Anstrengung braucht die Herzfrequenz des Geräts; ohne sie protokolliert die Sitzung nur die Gerätemetriken."
+            "value": "Live-Gerätedaten über Bluetooth FTMS. Kein Schlaf, keine Erholung, keine Hauttemperatur, kein SpO₂. Belastung braucht die Herzfrequenz des Geräts; ohne sie protokolliert die Sitzung nur die Gerätemetriken."
           }
         },
         "es": {
@@ -92387,7 +92728,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Erfasse oben Verhaltensweisen. Nach ein paar Tagen mit Antworten stuft NOOP ein, wie jedes davon deine Ladung, HRV und Ruhe bewegt. Der Import eines WHOOP-Exports (der sein Tagebuch enthält) füllt den Verlauf sofort rückwirkend."
+            "value": "Erfasse oben Verhaltensweisen. Nach ein paar Tagen mit Antworten stuft NOOP ein, wie jedes davon deine Energie, HRV und Erholung bewegt. Der Import eines WHOOP-Exports (der sein Tagebuch enthält) füllt den Verlauf sofort rückwirkend."
           }
         },
         "es": {
@@ -99880,7 +100221,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "NOOP-Ladung"
+            "value": "NOOP-Energie"
           }
         },
         "es": {
@@ -99996,7 +100337,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "NOOP kann allein mit einer Apple Watch laufen, kein Brustgurt nötig. Die Uhr ist der Sensor; NOOP übernimmt das Denken auf deinem Telefon und berechnet Ladung, Ruhe, Anstrengung und dein Fitnessalter aus deinen Health-Daten, alles auf dem Gerät."
+            "value": "NOOP kann allein mit einer Apple Watch laufen, kein Brustgurt nötig. Die Uhr ist der Sensor; NOOP übernimmt das Denken auf deinem Telefon und berechnet Energie, Erholung, Belastung und dein Fitnessalter aus deinen Health-Daten, alles auf dem Gerät."
           }
         },
         "es": {
@@ -100262,7 +100603,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "NOOP gibt dir drei Tageswerte (Ladung, Anstrengung und Ruhe), jeweils auf einer Skala von 0–100. Sie entstehen aus den Rohsignalen deines Straps mit veröffentlichter, begutachteter Sportwissenschaft und werden vollständig auf deinem Gerät berechnet. Es sind NICHT WHOOPs Werte: Wir haben WHOOPs private Algorithmen nicht und tun auch nicht so. Sie zielen mit offener Wissenschaft auf dieselben drei Fragen, folgen WHOOPs Werten also meist in der Richtung, stimmen aber nicht Zahl für Zahl überein. Und genau das ist der Punkt."
+            "value": "NOOP gibt dir drei Tageswerte (Energie, Belastung und Erholung), jeweils auf einer Skala von 0–100. Sie entstehen aus den Rohsignalen deines Straps mit veröffentlichter, begutachteter Sportwissenschaft und werden vollständig auf deinem Gerät berechnet. Es sind NICHT WHOOPs Werte: Wir haben WHOOPs private Algorithmen nicht und tun auch nicht so. Sie zielen mit offener Wissenschaft auf dieselben drei Fragen, folgen WHOOPs Werten also meist in der Richtung, stimmen aber nicht Zahl für Zahl überein. Und genau das ist der Punkt."
           }
         },
         "es": {
@@ -101485,7 +101826,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "NOOP berechnet deine Ladung, Anstrengung und Ruhe selbst: auf dem Gerät, keine Cloud."
+            "value": "NOOP berechnet deine Energie, Belastung und Erholung selbst: auf dem Gerät, keine Cloud."
           }
         },
         "es": {
@@ -102125,7 +102466,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "NOOPs eigene Ladung, Anstrengung und Ruhe, berechnet auf deinem Gerät nach veröffentlichten Methoden."
+            "value": "NOOPs eigene Energie, Belastung und Erholung, berechnet auf deinem Gerät nach veröffentlichten Methoden."
           }
         },
         "es": {
@@ -103097,7 +103438,7 @@
         "pt-PT": {
           "stringUnit": {
             "state": "translated",
-            "value": "Precisa da pega"
+            "value": "Requer a pulseira"
           }
         },
         "ru": {
@@ -104187,7 +104528,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Noch keine Ladungs-Aufschlüsselung"
+            "value": "Noch keine Energie-Aufschlüsselung"
           }
         },
         "es": {
@@ -104889,7 +105230,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Noch keine Cardio-Last. Anstrengung baut sich auf, sobald deine Herzfrequenz in deine Anstrengungszone steigt (etwa 50 % deiner Herzfrequenzreserve). Ein ruhiger Tag liest sich ehrlich nahe null."
+            "value": "Noch keine Cardio-Last. Belastung baut sich auf, sobald deine Herzfrequenz in deine Belastungszone steigt (etwa 50 % deiner Herzfrequenzreserve). Ein ruhiger Tag liest sich ehrlich nahe null."
           }
         },
         "es": {
@@ -104947,7 +105288,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Kein Brustgurt? Kein Problem. NOOP kann allein mit deiner Apple Watch laufen. Es liest die Daten deiner Uhr über Apple Health und berechnet deine Ladung, Ruhe, Anstrengung und dein Fitnessalter direkt hier auf deinem Telefon. Alles bleibt auf dem Gerät."
+            "value": "Kein Brustgurt? Kein Problem. NOOP kann allein mit deiner Apple Watch laufen. Es liest die Daten deiner Uhr über Apple Health und berechnet deine Energie, Erholung, Belastung und dein Fitnessalter direkt hier auf deinem Telefon. Alles bleibt auf dem Gerät."
           }
         },
         "es": {
@@ -111522,7 +111863,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Benachrichtigen, wenn die optimale Anstrengung erreicht ist"
+            "value": "Benachrichtigen, wenn die optimale Belastung erreicht ist"
           }
         },
         "es": {
@@ -113460,7 +113801,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "An: Deine Ladung, Ruhe, HRV und Workouts werden für maßgeschneidertes Coaching mit dem Anbieter geteilt."
+            "value": "An: Deine Energie, Erholung, HRV und Workouts werden für maßgeschneidertes Coaching mit dem Anbieter geteilt."
           }
         },
         "es": {
@@ -115149,7 +115490,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Optimale Anstrengung erreicht"
+            "value": "Optimale Belastung erreicht"
           }
         },
         "es": {
@@ -119111,7 +119452,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Wähle eine Sportart. NOOP zeichnet HF, Spitze, Durchschnitt und Anstrengung aus dem Live-Feed auf."
+            "value": "Wähle eine Sportart. NOOP zeichnet HF, Spitze, Durchschnitt und Belastung aus dem Live-Feed auf."
           }
         },
         "es": {
@@ -119169,7 +119510,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Wähle ein Wearable-Signal (Ruhe-HF, HRV, Schlaf, Ladung, Gewicht …), um es gegen diesen Marker zu stellen. NOOP mittelt das Signal über die %@ vor jeder Messung."
+            "value": "Wähle ein Wearable-Signal (Ruhe-HF, HRV, Schlaf, Energie, Gewicht …), um es gegen diesen Marker zu stellen. NOOP mittelt das Signal über die %@ vor jeder Messung."
           }
         },
         "es": {
@@ -120373,7 +120714,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Speist Ladung, Anstrengung, Ruhe und Schlaf"
+            "value": "Speist Energie, Belastung, Erholung und Schlaf"
           }
         },
         "es": {
@@ -120431,7 +120772,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Speist Ladung, Anstrengung, Ruhe, Schlaf + Gesundheitsmonitor"
+            "value": "Speist Energie, Belastung, Erholung, Schlaf + Gesundheitsmonitor"
           }
         },
         "es": {
@@ -120489,7 +120830,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Speist jetzt Anstrengung; Ladung und Ruhe, sobald genug Nächte und die Dekodierung bestätigt sind"
+            "value": "Speist jetzt Belastung; Energie und Erholung, sobald genug Nächte und die Dekodierung bestätigt sind"
           }
         },
         "es": {
@@ -120547,7 +120888,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Speist Ruhe, Anstrengung, Fitnessalter und Schritte, plus Ladung, sobald die Erholung kalibriert ist"
+            "value": "Speist Erholung, Belastung, Fitnessalter und Schritte sowie Energie, sobald die Basislinie kalibriert ist"
           }
         },
         "es": {
@@ -120605,7 +120946,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Speist die Live-Konsole + Anstrengung. Keine Ladung, keine Ruhe, kein Schlaf"
+            "value": "Speist die Live-Konsole + Belastung. Keine Energie, keine Erholung, kein Schlaf"
           }
         },
         "es": {
@@ -121923,7 +122264,7 @@
         "pt-PT": {
           "stringUnit": {
             "state": "translated",
-            "value": "Pressionar"
+            "value": "Avançar"
           }
         },
         "ru": {
@@ -124104,7 +124445,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Eingestuft, mit Zeitversatz: welche deiner Gewohnheiten deine Ladung wirklich bewegen, plus deine persönliche Alkohol-/Koffein-Dosis-Wirkung."
+            "value": "Eingestuft, mit Zeitversatz: welche deiner Gewohnheiten deine Energie wirklich bewegen, plus deine persönliche Alkohol-/Koffein-Dosis-Wirkung."
           }
         },
         "es": {
@@ -124337,7 +124678,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Verankert jede Basislinie, die in die Ladung einfließt, neu an deinen letzten Nächten. Kein gespeicherter Tag wird gelöscht."
+            "value": "Verankert jede Basislinie, die in die Energie einfließt, neu an deinen letzten Nächten. Kein gespeicherter Tag wird gelöscht."
           }
         },
         "es": {
@@ -126083,7 +126424,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Bereit für eine deutliche Anstrengung."
+            "value": "Bereit für eine deutliche Belastung."
           }
         },
         "es": {
@@ -126529,7 +126870,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ladungs-Basislinie neu kalibrieren"
+            "value": "Energie-Basislinie neu kalibrieren"
           }
         },
         "es": {
@@ -126587,7 +126928,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Deine Ladungs-Basislinie neu kalibrieren?"
+            "value": "Deine Energie-Basislinie neu kalibrieren?"
           }
         },
         "es": {
@@ -127765,7 +128106,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Zeichnet ein Live-Geräte-Workout auf, Anstrengung aus der HF bewertet, wenn das Gerät sie meldet"
+            "value": "Zeichnet ein Live-Geräte-Workout auf, Belastung aus der HF bewertet, wenn das Gerät sie meldet"
           }
         },
         "es": {
@@ -127887,7 +128228,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Erholung / Ladung"
+            "value": "Erholung / Energie"
           }
         },
         "es": {
@@ -128102,7 +128443,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Die Erholung, NOOPs Ladungswert, wird von deiner Herzfrequenzvariabilität gegenüber deiner persönlichen Basislinie angeführt. Ein Brustgurt streamt Schlag-zu-Schlag-Daten die ganze Nacht dicht, er kann diese Basislinie also schnell lernen. Eine Apple Watch misst HRV dagegen stichprobenartig, eine Handvoll Messungen über den Tag plus nachts – das Signal ist echt, aber dünner."
+            "value": "Die Erholung, NOOPs Energiewert, wird von deiner Herzfrequenzvariabilität gegenüber deiner persönlichen Basislinie angeführt. Ein Brustgurt streamt Schlag-zu-Schlag-Daten die ganze Nacht dicht, er kann diese Basislinie also schnell lernen. Eine Apple Watch misst HRV dagegen stichprobenartig, eine Handvoll Messungen über den Tag plus nachts – das Signal ist echt, aber dünner."
           }
         },
         "es": {
@@ -128218,7 +128559,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Erholung, Anstrengung und Schlaf auf einen Blick"
+            "value": "Erholung, Belastung und Schlaf auf einen Blick"
           }
         },
         "es": {
@@ -131704,7 +132045,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ruhe"
+            "value": "Erholung"
           }
         },
         "en": {
@@ -131792,7 +132133,7 @@
         "pt-PT": {
           "stringUnit": {
             "state": "translated",
-            "value": "Descanse RH"
+            "value": "FC repouso"
           }
         },
         "ru": {
@@ -132000,7 +132341,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ruhe ↔ Ladung"
+            "value": "Ruhe ↔ Energie"
           }
         },
         "es": {
@@ -132058,7 +132399,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ruhe: Wie erholsam war dein Schlaf?"
+            "value": "Erholung: Wie erholsam war dein Schlaf?"
           }
         },
         "es": {
@@ -132328,7 +132669,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Startet den etwa 4-nächtigen Aufbau für Ladung und deine HRV-Basislinie ab heute Nacht neu. Nutze es, wenn eine schlechte erste Woche deine Basislinie verzerrt hat. Dein Verlauf bleibt."
+            "value": "Startet den etwa 4-nächtigen Aufbau für Energie und deine HRV-Basislinie ab heute Nacht neu. Nutze es, wenn eine schlechte erste Woche deine Basislinie verzerrt hat. Dein Verlauf bleibt."
           }
         },
         "es": {
@@ -132416,7 +132757,7 @@
         "pt-PT": {
           "stringUnit": {
             "state": "translated",
-            "value": "Descansando RH"
+            "value": "FC em repouso"
           }
         },
         "ru": {
@@ -132508,7 +132849,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ruhe-HF ↔ Ladung"
+            "value": "Ruhe-HF ↔ Energie"
           }
         },
         "es": {
@@ -132804,7 +133145,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Die Ruheherzfrequenz läuft hoch gegenüber deiner Norm. Dein Körper steht heute unter Last. Halte die Anstrengung leicht."
+            "value": "Die Ruheherzfrequenz läuft hoch gegenüber deiner Norm. Dein Körper steht heute unter Last. Halte die Belastung leicht."
           }
         },
         "es": {
@@ -134846,7 +135187,7 @@
         "pt-PT": {
           "stringUnit": {
             "state": "translated",
-            "value": "Atropelar"
+            "value": "Esgotado"
           }
         },
         "ru": {
@@ -136360,7 +136701,7 @@
         "pt-PT": {
           "stringUnit": {
             "state": "translated",
-            "value": "SYNTHESIS"
+            "value": "SÍNTESE"
           }
         },
         "ru": {
@@ -138886,7 +139227,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Sieh, wie Ladung, Anstrengung und Ruhe berechnet werden und wie sie sich von WHOOP unterscheiden."
+            "value": "Sieh, wie Energie, Belastung und Erholung berechnet werden und wie sie sich von WHOOP unterscheiden."
           }
         },
         "es": {
@@ -139002,7 +139343,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Sieh, was deine Ladung geprägt hat"
+            "value": "Sieh, was deine Energie geprägt hat"
           }
         },
         "es": {
@@ -144748,7 +145089,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Schlafstetigkeit: Ruhe schwankte ±%@ Pkt. von Nacht zu Nacht."
+            "value": "Schlafstabilität: Erholung schwankte von Nacht zu Nacht um ±%@ Punkte."
           }
         },
         "es": {
@@ -147294,7 +147635,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Starte ein Workout, wenn der Stream zählt. NOOP zeichnet Intervall, HF, Spitze, Durchschnitt und Anstrengung aus demselben Live-Feed auf."
+            "value": "Starte ein Workout, wenn der Stream zählt. NOOP zeichnet Intervall, HF, Spitze, Durchschnitt und Belastung aus demselben Live-Feed auf."
           }
         },
         "es": {
@@ -148710,7 +149051,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Schritte, aktive Energie und erfasste Workouts fließen in die Anstrengung ein. Dicht und verlässlich."
+            "value": "Schritte, aktive Energie und erfasste Workouts fließen in die Belastung ein. Dicht und verlässlich."
           }
         },
         "es": {
@@ -148768,7 +149109,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Schritte, aktive Energie und erfasste Workouts fließen in deine Anstrengung ein. Dicht und verlässlich."
+            "value": "Schritte, aktive Energie und erfasste Workouts fließen in deine Belastung ein. Dicht und verlässlich."
           }
         },
         "es": {
@@ -148966,7 +149307,7 @@
         "pt-PT": {
           "stringUnit": {
             "state": "translated",
-            "value": "Continuar"
+            "value": "Parado"
           }
         },
         "ru": {
@@ -149888,7 +150229,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Anstrengungsziel"
+            "value": "Belastungsziel"
           }
         },
         "es": {
@@ -150184,7 +150525,7 @@
         "pt-PT": {
           "stringUnit": {
             "state": "translated",
-            "value": "Bateria de pega"
+            "value": "Bateria da pulseira"
           }
         },
         "ru": {
@@ -156286,7 +156627,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Deshalb beginnt eine Watch-Only-Ladung mit \"Kalibrieren\". NOOP benötigt etwa sieben Nächte Ihrer HRV, um zu erfahren, wie normal für Sie aussieht. Bis es sie hat, hält es die Punktzahl zurück, anstatt zu erraten. Sobald die Basislinie festgelegt ist, erscheint Ihre Ladung mit ihrem Vertrauen auf der gleichen 0-100-Skala wie ein Gurt."
+            "value": "Deshalb beginnt eine Watch-Only-Energie mit \"Kalibrieren\". NOOP benötigt etwa sieben Nächte Ihrer HRV, um zu erfahren, wie normal für Sie aussieht. Bis es sie hat, hält es die Punktzahl zurück, anstatt zu erraten. Sobald die Basislinie festgelegt ist, erscheint Ihre Energie mit ihrem Vertrauen auf der gleichen 0-100-Skala wie ein Gurt."
           }
         },
         "es": {
@@ -156320,7 +156661,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Deshalb startet eine Nur-Uhr-Ladung als „Kalibrierung“. NOOP braucht etwa sieben Nächte deiner HRV, um zu lernen, was für dich normal ist. Bis dahin hält es den Wert zurück, statt zu raten. Sobald die Basislinie steht, erscheint deine Ladung mit ihrer Konfidenz, auf derselben Skala von 0–100 wie bei einem Strap."
+            "value": "Deshalb startet eine Nur-Uhr-Energie als „Kalibrierung“. NOOP braucht etwa sieben Nächte deiner HRV, um zu lernen, was für dich normal ist. Bis dahin hält es den Wert zurück, statt zu raten. Sobald die Basislinie steht, erscheint deine Energie mit ihrer Konfidenz, auf derselben Skala von 0–100 wie bei einem Strap."
           }
         },
         "es": {
@@ -156528,7 +156869,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Der Durchschnitt oben wurde bearbeitet. Graph, Zonen und Anstrengung bleiben aus der aufgezeichneten Sitzung."
+            "value": "Der Durchschnitt oben wurde bearbeitet. Graph, Zonen und Belastung bleiben aus der aufgezeichneten Sitzung."
           }
         },
         "es": {
@@ -158575,7 +158916,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Das baut sich aus dem Strap auf, während er synchronisiert. Anstrengung und Ruhe erscheinen, nachdem du ihn getragen und eine Nacht geschlafen hast. Die Ladung braucht etwa vier Nächte Schlaf, um deine Basislinie zu lernen (bis dahin siehst du „Kalibrierung“), und wird über deine ersten Wochen immer genauer. Auf einem WHOOP 5 oder MG speichert der Strap wenig Verlauf, der Nachtzähler kann also langsam steigen oder auf 0 von 4 stehen, bis du ihn ein paar Nächte getragen hast. Das ist seine Sync-Grenze, kein Fehler. Importiere deinen WHOOP-Export, um die Wartezeit zu überspringen."
+            "value": "Das baut sich aus dem Strap auf, während er synchronisiert. Belastung und Erholung erscheinen, nachdem du ihn getragen und eine Nacht geschlafen hast. Die Energie braucht etwa vier Nächte Schlaf, um deine Basislinie zu lernen (bis dahin siehst du „Kalibrierung“), und wird über deine ersten Wochen immer genauer. Auf einem WHOOP 5 oder MG speichert der Strap wenig Verlauf, der Nachtzähler kann also langsam steigen oder auf 0 von 4 stehen, bis du ihn ein paar Nächte getragen hast. Das ist seine Sync-Grenze, kein Fehler. Importiere deinen WHOOP-Export, um die Wartezeit zu überspringen."
           }
         },
         "es": {
@@ -159861,7 +160202,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Das startet den etwa 4-nächtigen Aufbau für Ladung und deine HRV-Basislinie neu. Dein Verlauf bleibt."
+            "value": "Das startet den etwa 4-nächtigen Aufbau für Energie und deine HRV-Basislinie neu. Dein Verlauf bleibt."
           }
         },
         "es": {
@@ -159919,7 +160260,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Das startet den etwa 4-nächtigen Aufbau für Ladung und deine HRV-Basislinie neu. Dein Verlauf bleibt. Nutze es, wenn eine schlechte erste Woche, etwa krank getragen, deine Basislinie verzerrt hat."
+            "value": "Das startet den etwa 4-nächtigen Aufbau für Energie und deine HRV-Basislinie neu. Dein Verlauf bleibt. Nutze es, wenn eine schlechte erste Woche, etwa krank getragen, deine Basislinie verzerrt hat."
           }
         },
         "es": {
@@ -160035,7 +160376,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Der Beitrag dieser Sitzung zur Tages-Anstrengung, wie während des Workouts erfasst."
+            "value": "Der Beitrag dieser Sitzung zur Tages-Belastung, wie während des Workouts erfasst."
           }
         },
         "es": {
@@ -162245,7 +162586,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ladung von morgen"
+            "value": "Energie von morgen"
           }
         },
         "es": {
@@ -162303,7 +162644,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ladungs-Schätzung für morgen %1$lld plus/minus %2$lld"
+            "value": "Energie-Schätzung für morgen %1$lld plus/minus %2$lld"
           }
         },
         "en": {
@@ -163029,7 +163370,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Zeichne ein Workout manuell auf. Erfasst Herzfrequenz und Anstrengung, bis du es beendest."
+            "value": "Zeichne ein Workout manuell auf. Erfasst Herzfrequenz und Belastung, bis du es beendest."
           }
         },
         "es": {
@@ -172574,7 +172915,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Was deine Ladung geprägt hat"
+            "value": "Was deine Energie geprägt hat"
           }
         },
         "es": {
@@ -174327,7 +174668,7 @@
         "pt-PT": {
           "stringUnit": {
             "state": "translated",
-            "value": "Grito"
+            "value": "WHOOP"
           }
         },
         "ru": {
@@ -176904,7 +177245,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Du wachst voraussichtlich mit etwa %1$lld ± %2$lld Ladung auf, wenn du heute Nacht ungefähr %3$@ schläfst."
+            "value": "Du wachst voraussichtlich mit etwa %1$lld ± %2$lld Energie auf, wenn du heute Nacht ungefähr %3$@ schläfst."
           }
         },
         "en": {
@@ -177154,7 +177495,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Du bist verbunden. NOOP liest jetzt deine Apple-Watch-Daten. Dein Ladungswert kalibriert etwa in der ersten Woche, dann pendelt er sich ein."
+            "value": "Du bist verbunden. NOOP liest jetzt deine Apple-Watch-Daten. Dein Energiewert kalibriert etwa in der ersten Woche, dann pendelt er sich ein."
           }
         },
         "es": {
@@ -177682,7 +178023,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Du hast dein heutiges optimales Anstrengungsziel von %lld erreicht. Stark — deine Erholung hat es ermöglicht."
+            "value": "Du hast dein heutiges optimales Belastungsziel von %lld erreicht. Stark — deine Erholung hat es ermöglicht."
           }
         },
         "es": {
@@ -177774,7 +178115,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Deine Ladung (Erholung) auf dem Zifferblatt, mit Anstrengung und Ruhe in der rechteckigen Karte."
+            "value": "Deine Energie (Erholung) auf dem Zifferblatt, mit Belastung und Erholung in der rechteckigen Karte."
           }
         },
         "es": {
@@ -177832,7 +178173,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Dein Ladungswert lernt mit der Zeit eine persönliche Basislinie aus deiner Herzfrequenzvariabilität, Ruheherzfrequenz und mehr. Wenn eine schlechte erste Woche sie verzerrt hat, kannst du sie ab heute Nacht neu lernen lassen. Dein Verlauf bleibt."
+            "value": "Dein Energiewert lernt mit der Zeit eine persönliche Basislinie aus deiner Herzfrequenzvariabilität, Ruheherzfrequenz und weiteren Signalen. Wenn eine schlechte erste Woche sie verzerrt hat, kannst du sie ab heute Nacht neu lernen lassen. Dein Verlauf bleibt."
           }
         },
         "es": {
@@ -178552,7 +178893,7 @@
         "pt-PT": {
           "stringUnit": {
             "state": "translated",
-            "value": "As tuas cartas"
+            "value": "Os teus cartões"
           }
         },
         "ru": {
@@ -179068,7 +179409,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Deine Live-Herzfrequenz funktioniert bereits vom Strap, und Ladung, Anstrengung und Ruhe bauen sich daraus über die nächsten Nächte am Handgelenk auf und werden genauer, während er deine Basislinie lernt. Willst du deinen vollen Verlauf sofort? Importiere deinen WHOOP-Export unter „Datenquellen“, und er füllt sich in etwa einer Minute rückwirkend."
+            "value": "Deine Live-Herzfrequenz funktioniert bereits vom Strap, und Energie, Belastung und Erholung bauen sich daraus über die nächsten Nächte am Handgelenk auf und werden genauer, während er deine Basislinie lernt. Willst du deinen vollen Verlauf sofort? Importiere deinen WHOOP-Export unter „Datenquellen“, und er füllt sich in etwa einer Minute rückwirkend."
           }
         },
         "es": {
@@ -182617,6 +182958,64 @@
         }
       }
     },
+    "below baseline, limiting recovery, though low resting HR suggests this may be parasympathetic saturation rather than fatigue": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "unter der Basislinie, bremst die Erholung; die niedrige Ruheherzfrequenz deutet jedoch darauf hin, dass es sich eher um parasympathische Sättigung als um Ermüdung handeln könnte"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "por debajo de tu línea base, limita la recuperación, aunque la baja frecuencia cardíaca en reposo sugiere que podría tratarse de saturación parasimpática en lugar de fatiga"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "en dessous de la référence, limite la récupération, bien qu’une faible fréquence cardiaque au repos suggère qu’il pourrait s’agir d’une saturation parasympathique plutôt que de fatigue"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "sotto la linea di base, limita il recupero, anche se la bassa frequenza cardiaca a riposo suggerisce che potrebbe trattarsi di saturazione parasimpatica anziché affaticamento"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "abaixo do valor de referência, limita a recuperação, embora a frequência cardíaca baixa em repouso sugira que possa tratar-se de saturação parassimpática em vez de fadiga"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ниже нормы, ограничивает восстановление, однако низкий пульс в покое указывает, что причиной может быть парасимпатическое насыщение, а не усталость"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "低于基线，限制恢复，但较低的静息心率表明这可能是副交感饱和，而非疲劳"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "低於基線，限制恢復，但較低的靜息心率顯示這可能是副交感飽和，而非疲勞"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "poniżej wartości wyjściowej, ogranicza regenerację, choć niskie tętno spoczynkowe sugeruje, że może to być nasycenie przywspółczulne, a nie zmęczenie"
+          }
+        }
+      }
+    },
     "below baseline, supporting recovery": {
       "localizations": {
         "de": {
@@ -183926,7 +184325,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Anstrengung %@"
+            "value": "Belastung %@"
           }
         },
         "es": {
@@ -193261,7 +193660,7 @@
         "pt-PT": {
           "stringUnit": {
             "state": "translated",
-            "value": "~%lldh esquerda"
+            "value": "Faltam ~%lld h"
           }
         },
         "ru": {
@@ -207055,7 +207454,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Benötigt %1$lld+ aufeinanderfolgende Tage mit Anstrengung, um zu starten. Bisher %2$lld."
+            "value": "Benötigt %1$lld+ aufeinanderfolgende Tage mit Belastung, um zu starten. Bisher %2$lld."
           }
         },
         "es": {

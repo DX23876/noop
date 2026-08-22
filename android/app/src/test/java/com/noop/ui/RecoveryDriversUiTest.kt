@@ -1,6 +1,7 @@
 package com.noop.ui
 
 import com.noop.analytics.ScoreConfidence
+import com.noop.analytics.ChargeDriverLabel
 import com.noop.data.DailyMetric
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -39,10 +40,10 @@ class RecoveryDriversUiTest {
         val drivers = recoveryChargeDrivers(days, days.last())
         assertTrue("a usable baseline should yield driver rows", drivers.isNotEmpty())
         val labels = drivers.map { it.label }
-        assertTrue(labels.contains("Heart rate variability"))
-        assertTrue(labels.contains("Resting heart rate"))
+        assertTrue(labels.contains(ChargeDriverLabel.HEART_RATE_VARIABILITY))
+        assertTrue(labels.contains(ChargeDriverLabel.RESTING_HEART_RATE))
         // Skin-temp was supplied on the scored day, so its row is present.
-        assertTrue(labels.contains("Skin temperature"))
+        assertTrue(labels.contains(ChargeDriverLabel.SKIN_TEMPERATURE))
     }
 
     @Test fun coldStartHistoryProducesNoRows() {

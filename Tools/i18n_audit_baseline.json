@@ -709,66 +709,6 @@
       "Share captured log"
     ],
     [
-      "android/app/src/main/java/com/noop/ui/TodayScreen.kt",
-      "A training read, separate from your Charge score."
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/TodayScreen.kt",
-      "CALIBRATING"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/TodayScreen.kt",
-      "Calibrating , no heart rate banked yet today. Your curve fills in as the strap offloads."
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/TodayScreen.kt",
-      "How ${it.label} is calculated"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/TodayScreen.kt",
-      "How this score is calculated"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/TodayScreen.kt",
-      "No heart rate for this day. Step back to a day the strap was worn."
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/TodayScreen.kt",
-      "No heart rate in the last ${hrWindow.label}. Try a wider window or Today."
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/TodayScreen.kt",
-      "Not connected"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/TodayScreen.kt",
-      "Pinch to zoom · drag to pan"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/TodayScreen.kt",
-      "SOLID"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/TodayScreen.kt",
-      "Show all metrics ($hidden)"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/TodayScreen.kt",
-      "Show fewer"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/TodayScreen.kt",
-      "Strap battery"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/TodayScreen.kt",
-      "Strap battery ${it.roundToInt()} percent"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/TodayScreen.kt",
-      "Zoomed in · drag to pan"
-    ],
-    [
       "android/app/src/main/java/com/noop/ui/TrendsScreen.kt",
       "Share recap"
     ],
@@ -963,20 +903,12 @@
       "\\(value), \\(label!)"
     ],
     [
-      "Packages/StrandDesign/Sources/StrandDesign/DayNavBar.swift",
-      "Pick a date"
-    ],
-    [
       "Packages/StrandDesign/Sources/StrandDesign/YearHeatStrip.swift",
       "\\(DateFormatterCache.day.string(from: day.date)) · recovery \\(Int(score.rounded()))"
     ],
     [
       "Strand/Liquid/LiquidPrimitives.swift",
       "%.\\(decimals)f"
-    ],
-    [
-      "Strand/Liquid/LiquidTodayView.swift",
-      " \\(unit)"
     ],
     [
       "Strand/Screens/AddDeviceWizard.swift",
@@ -1157,10 +1089,6 @@
     [
       "Strand/Screens/TestCentreView.swift",
       "\\(identity). Logs this to the strap log on each connect, so a Polar bug report shows the model NOOP resolved your strap to."
-    ],
-    [
-      "Strand/Screens/TodayView.swift",
-      "Acute (7-day) vs chronic (28-day) training load. 0.8-1.3 is the sweet spot."
     ],
     [
       "Strand/Screens/TrendsView.swift",

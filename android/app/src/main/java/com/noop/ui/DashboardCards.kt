@@ -1,6 +1,7 @@
 package com.noop.ui
 
 import android.content.Context
+import androidx.annotation.StringRes
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Air
 import androidx.compose.material.icons.filled.AutoAwesome
@@ -17,6 +18,7 @@ import androidx.compose.material.icons.filled.Thermostat
 import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.ui.graphics.vector.ImageVector
 import org.json.JSONArray
+import com.noop.R
 
 // MARK: - "Your cards" customisable dashboard (WHOOP "My Dashboard") — Kotlin twin of DashboardCards.swift
 //
@@ -39,30 +41,30 @@ import org.json.JSONArray
  */
 enum class DashboardCard(
     val raw: String,
-    val title: String,
-    val subtitle: String,
+    @StringRes val titleRes: Int,
+    @StringRes val subtitleRes: Int,
     val unit: String,
     val icon: ImageVector,
 ) {
-    HRV("hrv", "HRV", "Heart-rate variability", "ms", Icons.Filled.MonitorHeart),
-    RESTING_HR("restingHr", "Resting HR", "Resting heart rate", "bpm", Icons.Filled.Favorite),
-    RESPIRATORY("respiratory", "Respiratory", "Breaths per minute", "rpm", Icons.Filled.Air),
-    STEPS("steps", "Steps", "Today", "", Icons.AutoMirrored.Filled.DirectionsWalk),
-    STRESS("stress", "Stress", "Autonomic load", "", Icons.Filled.Bolt),
-    FITNESS_AGE("fitnessAge", "Fitness Age", "Updated weekly", "yrs", Icons.AutoMirrored.Filled.DirectionsRun),
-    VO2MAX("vo2max", "VO₂ Max", "Estimated, updated weekly", "", Icons.Filled.Air),
-    VITALITY("vitality", "Vitality", "Wellness score", "", Icons.Filled.AutoAwesome),
-    BLOOD_OXYGEN("bloodOxygen", "Blood Oxygen", "Blood oxygen", "", Icons.Filled.WaterDrop),
-    SKIN_TEMP("skinTemp", "Skin Temp", "Skin temperature", "", Icons.Filled.Thermostat),
-    SLEEP("sleep", "Sleep", "Last night", "", Icons.Filled.Bedtime),
-    CALORIES("calories", "Calories", "Active energy", "kcal", Icons.Filled.LocalFireDepartment),
-    HYDRATION("hydration", "Hydration", "Today's fluid", "", Icons.Filled.LocalDrink),
+    HRV("hrv", R.string.today_card_hrv, R.string.today_card_hrv_subtitle, "ms", Icons.Filled.MonitorHeart),
+    RESTING_HR("restingHr", R.string.today_card_resting_hr, R.string.today_card_resting_hr_subtitle, "bpm", Icons.Filled.Favorite),
+    RESPIRATORY("respiratory", R.string.today_card_respiratory, R.string.today_card_respiratory_subtitle, "rpm", Icons.Filled.Air),
+    STEPS("steps", R.string.today_card_steps, R.string.today_card_steps_subtitle, "", Icons.AutoMirrored.Filled.DirectionsWalk),
+    STRESS("stress", R.string.today_card_stress, R.string.today_card_stress_subtitle, "", Icons.Filled.Bolt),
+    FITNESS_AGE("fitnessAge", R.string.today_card_fitness_age, R.string.today_card_fitness_age_subtitle, "yrs", Icons.AutoMirrored.Filled.DirectionsRun),
+    VO2MAX("vo2max", R.string.today_card_vo2max, R.string.today_card_vo2max_subtitle, "", Icons.Filled.Air),
+    VITALITY("vitality", R.string.today_card_vitality, R.string.today_card_vitality_subtitle, "", Icons.Filled.AutoAwesome),
+    BLOOD_OXYGEN("bloodOxygen", R.string.today_card_blood_oxygen, R.string.today_card_blood_oxygen_subtitle, "", Icons.Filled.WaterDrop),
+    SKIN_TEMP("skinTemp", R.string.today_card_skin_temp, R.string.today_card_skin_temp_subtitle, "", Icons.Filled.Thermostat),
+    SLEEP("sleep", R.string.today_card_sleep, R.string.today_card_sleep_subtitle, "", Icons.Filled.Bedtime),
+    CALORIES("calories", R.string.today_card_calories, R.string.today_card_calories_subtitle, "kcal", Icons.Filled.LocalFireDepartment),
+    HYDRATION("hydration", R.string.today_card_hydration, R.string.today_card_hydration_subtitle, "", Icons.Filled.LocalDrink),
 
     // Optional, default-OFF (task #43): a tap-through to the Coupled view (the WHOOP-style day read). Unlike
     // every other card it carries NO metric value of its own, it is a navigation row that opens the full
     // CoupledScreen. It is NOT in [defaultSelection], so a fresh install never shows it until the user adds
     // it via CUSTOMISE. Mirrors iOS DashboardCard.coupled (raw "coupled", byte-identical across OS).
-    COUPLED("coupled", "Coupled view", "Recovery, strain and sleep in one glance", "", Icons.Filled.Hexagon);
+    COUPLED("coupled", R.string.today_card_coupled, R.string.today_card_coupled_subtitle, "", Icons.Filled.Hexagon);
 
     companion object {
         fun fromRaw(raw: String?): DashboardCard? = entries.firstOrNull { it.raw == raw }

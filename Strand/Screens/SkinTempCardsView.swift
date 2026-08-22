@@ -108,7 +108,7 @@ struct CycleAwarenessCard: View {
                 Divider().overlay(StrandPalette.hairline)
 
                 // The standing awareness-only legal line (verbatim from the engine) + privacy promise.
-                Text(CyclePhaseEngine.awarenessLine)
+                Text(String(localized: "For awareness only. Not a medical device, not contraception, not a substitute for professional care."))
                     .font(StrandFont.footnote)
                     .foregroundStyle(StrandPalette.textTertiary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -208,7 +208,7 @@ struct CycleAwarenessCard: View {
         return lo == hi ? String(localized: "· ~day \(lo)") : String(localized: "· ~day \(lo)–\(hi)")
     }
 
-    private var statusLine: String { result.note }
+    private var statusLine: String { localizedCycleStatus(result) }
 
     private var confidenceLabel: LocalizedStringKey {
         switch result.confidence {
@@ -351,13 +351,17 @@ struct MenstrualCycleHomeCard: View {
                         }
 
                         HStack(spacing: NoopMetrics.space2) {
-                            Button(cycleEnabled ? "Open tracker" : "Set up cycle tracking") {
+                    Button(cycleEnabled
+                           ? String(localized: "Open tracker")
+                           : String(localized: "Set up cycle tracking")) {
                                 openTracker()
                             }
                             .buttonStyle(.noopSecondary)
 
                             if cycleEnabled {
-                                Button(starts.contains(Repository.localDayKey(Date())) ? "Logged today" : "Log today") {
+                                Button(starts.contains(Repository.localDayKey(Date()))
+                                       ? String(localized: "Logged today")
+                                       : String(localized: "Log today")) {
                                     logToday()
                                 }
                                 .buttonStyle(.noopGhost)
@@ -455,7 +459,7 @@ struct CycleTrackerView: View {
                     logCard
                     historyCard
                     VStack(alignment: .leading, spacing: NoopMetrics.gap) {
-                        Text(CyclePhaseEngine.awarenessLine)
+                        Text(String(localized: "For awareness only. Not a medical device, not contraception, not a substitute for professional care."))
                             .font(StrandFont.footnote)
                             .foregroundStyle(StrandPalette.textTertiary)
                         PrivacyNote()
@@ -516,7 +520,7 @@ struct CycleTrackerView: View {
                         .frame(height: NoopMetrics.space10)
                         .accessibilityHidden(true)
                 }
-                Text(result.note)
+                Text(localizedCycleStatus(result))
                     .font(StrandFont.subhead)
                     .foregroundStyle(StrandPalette.textSecondary)
                 if let window = result.nextPeriodWindow {
@@ -535,7 +539,9 @@ struct CycleTrackerView: View {
                 DatePicker("Period started on", selection: $selectedDate, in: ...Date(),
                            displayedComponents: .date)
                     .font(StrandFont.body)
-                Button(alreadyLogged ? "Already logged" : "Log period start") {
+                Button(alreadyLogged
+                       ? String(localized: "Already logged")
+                       : String(localized: "Log period start")) {
                     Task {
                         await repo.logPeriodStart(day: selectedDay)
                         await model.refreshV5Signals()
@@ -628,7 +634,7 @@ struct BodyClockCard: View {
 
                 offsetHeadline
 
-                Text(estimate.note)
+                Text(localizedBodyClockNote(estimate))
                     .font(StrandFont.subhead)
                     .foregroundStyle(StrandPalette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -651,7 +657,9 @@ struct BodyClockCard: View {
                 }
 
                 if let onOpenPlanner {
-                    Button(plan == nil ? "Plan a trip or shift" : "View the full plan", action: onOpenPlanner)
+                    Button(plan == nil
+                           ? String(localized: "Plan a trip or shift")
+                           : String(localized: "View the full plan"), action: onOpenPlanner)
                         .buttonStyle(.noopGhost)
                         .padding(.top, 2)
                 }
@@ -692,7 +700,7 @@ struct BodyClockCard: View {
                 .font(StrandFont.subhead)
                 .foregroundStyle(StrandPalette.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
-            Text(plan.note)
+            Text(localizedPlanNote(plan))
                 .font(StrandFont.footnote)
                 .foregroundStyle(StrandPalette.textTertiary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -732,14 +740,26 @@ struct BodyClockCard: View {
         }
     }
 
-    /// Render a fractional clock hour as "HH:MM" (locale-free, matching the engine's own helper).
+    /// Render a fractional clock hour using the app-selected locale's 12/24-hour convention.
     private func clockString(_ hour: Double) -> String {
         var h = hour.truncatingRemainder(dividingBy: 24)
         if h < 0 { h += 24 }
         var hh = Int(h)
         var mm = Int(((h - Double(hh)) * 60).rounded())
         if mm == 60 { mm = 0; hh = (hh + 1) % 24 }
-        return String(format: "%02d:%02d", hh, mm)
+        var components = DateComponents()
+        components.calendar = Calendar(identifier: .gregorian)
+        components.year = 2001
+        components.month = 1
+        components.day = 1
+        components.hour = hh
+        components.minute = mm
+        guard let date = components.date else { return "\(hh):\(String(format: "%02d", mm))" }
+        let formatter = DateFormatter()
+        formatter.locale = AppLanguage.activeLocale
+        formatter.dateStyle = .none
+        formatter.timeStyle = .short
+        return formatter.string(from: date)
     }
 }
 
@@ -770,7 +790,7 @@ struct HeadsUpCard: View {
                         Text(title)
                             .font(StrandFont.headline)
                             .foregroundStyle(StrandPalette.textPrimary)
-                        Text(result.copy)
+                        Text(localizedIllnessCopy(result))
                             .font(StrandFont.subhead)
                             .foregroundStyle(StrandPalette.textSecondary)
                             .fixedSize(horizontal: false, vertical: true)
@@ -784,7 +804,11 @@ struct HeadsUpCard: View {
                 }
                 // ...and what was ruled out (the differentiating part vs a black-box warning).
                 if !result.suppressedBy.isEmpty {
-                    whyRow(label: "Explained by", values: result.suppressedBy, tint: StrandPalette.textTertiary)
+                    let reasons = result.suppressionReasons.isEmpty
+                        ? result.suppressedBy.map(localizedConfounder)
+                        : result.suppressionReasons.map(localizedConfounder)
+                    whyRow(label: "Explained by", values: reasons,
+                           tint: StrandPalette.textTertiary)
                 }
                 // Optional confidence read from the parallel Mahalanobis distance, only when the level is
                 // raised. Subtle by design: it augments, never gates (the engine already decided to raise).
@@ -797,7 +821,7 @@ struct HeadsUpCard: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(title). \(result.copy)")
+        .accessibilityLabel("\(title). \(localizedIllnessCopy(result))")
     }
 
     private func whyRow(label: LocalizedStringKey, values: [String], tint: Color) -> some View {
@@ -866,7 +890,7 @@ enum IllnessConfidence {
         return String(localized: "slight")
     }
     static func formatted(_ distance: Double) -> String {
-        String(format: "%.1f", distance)
+        String(format: "%.1f", locale: AppLanguage.activeLocale, distance)
     }
 }
 
@@ -900,13 +924,118 @@ private struct FlowChips: View {
 
 /// "12 Jun" from a "yyyy-MM-dd" key (locale-aware for display only; the engine math stays UTC).
 private func prettyDay(_ key: String) -> String {
-    let parts = key.split(separator: "-")
-    guard parts.count == 3, let m = Int(parts[1]), let d = Int(parts[2]), (1...12).contains(m) else { return key }
-    let months = [String(localized: "Jan"), String(localized: "Feb"), String(localized: "Mar"),
-                  String(localized: "Apr"), String(localized: "May"), String(localized: "Jun"),
-                  String(localized: "Jul"), String(localized: "Aug"), String(localized: "Sep"),
-                  String(localized: "Oct"), String(localized: "Nov"), String(localized: "Dec")]
-    return "\(d) \(months[m - 1])"
+    let parser = DateFormatter()
+    parser.calendar = Calendar(identifier: .gregorian)
+    parser.locale = Locale(identifier: "en_US_POSIX")
+    parser.dateFormat = "yyyy-MM-dd"
+    guard let date = parser.date(from: key) else { return key }
+    return date.formatted(
+        .dateTime.day().month(.abbreviated).locale(AppLanguage.activeLocale)
+    )
+}
+
+/// The analytics engines stay locale-free for Swift/Kotlin parity. Translate their finite presentation
+/// states at the UI boundary so none of that engine copy leaks onto Home in English.
+private func localizedCycleStatus(_ result: CyclePhaseEngine.Result) -> String {
+    if result.note.contains("different time") {
+        return String(localized: "Your temperature shift came at a different time than your logged date – the logged start may be off.")
+    }
+    switch result.phase {
+    case .follicular:
+        return String(localized: "Follicular range – temperature is near your baseline.")
+    case .periOvulatory:
+        return String(localized: "Around your mid-cycle shift – temperature is changing.")
+    case .luteal:
+        return String(localized: "Luteal range – temperature is above your baseline.")
+    case .unknown:
+        return String(localized: "No clear temperature pattern yet. This can happen with irregular cycles, hormonal contraception or shift work.")
+    case .learning:
+        return String(localized: "Learning your pattern from your nightly temperature. Keep wearing your device overnight.")
+    }
+}
+
+private func localizedBodyClockNote(_ estimate: CircadianEngine.PhaseEstimate) -> String {
+    if estimate.confidence == .unreadable {
+        return String(localized: "Your rhythm is hard to read right now. Keep wearing your device for a clearer picture.")
+    }
+    if estimate.offsetVsScheduleMinutes > 20 {
+        return String(localized: "Your body clock looks later, with a night-owl tendency.")
+    }
+    if estimate.offsetVsScheduleMinutes < -20 {
+        return String(localized: "Your body clock looks earlier, with a morning tendency.")
+    }
+    return String(localized: "Your body clock looks aligned with your schedule.")
+}
+
+private func localizedPlanNote(_ plan: CircadianEngine.JetLagPlan) -> String {
+    let hours = String(format: "%.1f", locale: AppLanguage.activeLocale, plan.totalShiftHours)
+    switch plan.direction {
+    case .advance:
+        return String(localized: "Shifting your clock \(hours) h earlier, about an hour a day. Light and sleep timing only.")
+    case .delay:
+        return String(localized: "Shifting your clock \(hours) h later, about an hour a day. Light and sleep timing only.")
+    case .none:
+        return String(localized: "No meaningful body-clock shift is needed. You are about aligned.")
+    }
+}
+
+private func localizedIllnessCopy(_ result: IllnessSignalEngine.Result) -> String {
+    let signals = localizedList(result.firedSignals)
+    let reasons = localizedList(result.suppressedBy.map(localizedConfounder))
+    let message = result.message ?? fallbackIllnessMessage(result.level)
+    switch message {
+    case .raised:
+        return String(localized: "Your body looks strained. Signals up: \(signals). No alcohol or travel was logged, so consider taking it easy. On-device estimate, not a diagnosis.")
+    case .alreadyUnwellAgree:
+        return String(localized: "You logged feeling unwell, and your signals agree. Take it easy today. On-device estimate, not a diagnosis.")
+    case .alreadyUnwell:
+        return String(localized: "You logged feeling unwell. Take it easy today. On-device estimate, not a diagnosis.")
+    case .suppressed:
+        return String(localized: "Some signals are up, but you logged \(reasons). That is the more likely explanation. On-device estimate, not a diagnosis.")
+    case .mild:
+        return String(localized: "A few signals are mildly up: \(signals). Nothing alarming, but a calmer day may help. On-device estimate, not a diagnosis.")
+    case .learningBaseline:
+        return String(localized: "Still learning your baseline and keeping an eye on your signals.")
+    case .normal:
+        return String(localized: "Nothing notable. Your signals look like their normal range.")
+    }
+}
+
+private func fallbackIllnessMessage(_ level: IllnessSignalEngine.Level) -> IllnessSignalEngine.Message {
+    switch level {
+    case .raised: return .raised
+    case .alreadyUnwell: return .alreadyUnwell
+    case .suppressed: return .suppressed
+    case .mild: return .mild
+    case .quiet: return .normal
+    }
+}
+
+private func localizedConfounder(_ value: String) -> String {
+    switch value {
+    case "alcohol": return String(localized: "Alcohol").lowercased(with: AppLanguage.activeLocale)
+    case "stress": return String(localized: "Stress").lowercased(with: AppLanguage.activeLocale)
+    case "sauna": return String(localized: "Sauna")
+    case "hardOrLateWorkout", "a hard or late workout": return String(localized: "Hard or late workout")
+    case "travel": return String(localized: "Travel")
+    default: return value
+    }
+}
+
+private func localizedConfounder(_ reason: IllnessSignalEngine.SuppressionReason) -> String {
+    switch reason {
+    case .alcohol: return String(localized: "Alcohol").lowercased(with: AppLanguage.activeLocale)
+    case .stress: return String(localized: "Stress").lowercased(with: AppLanguage.activeLocale)
+    case .sauna: return String(localized: "Sauna")
+    case .hardOrLateWorkout: return String(localized: "Hard or late workout")
+    case .travel: return String(localized: "Travel")
+    }
+}
+
+private func localizedList(_ values: [String]) -> String {
+    let formatter = ListFormatter()
+    formatter.locale = AppLanguage.activeLocale
+    return formatter.string(from: values) ?? values.joined(separator: ", ")
 }
 
 #if DEBUG

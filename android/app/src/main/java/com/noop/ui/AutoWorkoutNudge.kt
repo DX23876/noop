@@ -28,6 +28,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
@@ -71,36 +72,22 @@ private const val AUTO_DETECT_SPORT = "Workout"
 /** Days of HR history the scan covers — matches the iOS `autoDetectCandidate(daysBack: 2)`. */
 private const val AUTO_DETECT_DAYS_BACK = 2L
 
-private val autoNudgeTimeFmt: DateTimeFormatter =
-    // HH:mm in the user's locale/timezone — mirrors the iOS card's short-time DateFormatter.
-    DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT)
-        .withLocale(Locale.getDefault()).withZone(ZoneId.systemDefault())
+private sealed interface AutoWorkoutDay {
+    data object Today : AutoWorkoutDay
+    data object Yesterday : AutoWorkoutDay
+    data class OnDate(val epochSec: Long) : AutoWorkoutDay
+}
 
-private val autoNudgeDateFmt: DateTimeFormatter =
-    // Localized MEDIUM date ("23 Jun 2026") for a bout older than yesterday. Mirrors the iOS card.
-    DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM)
-        .withLocale(Locale.getDefault()).withZone(ZoneId.systemDefault())
-
-private fun hhmm(epochSec: Long): String = autoNudgeTimeFmt.format(Instant.ofEpochSecond(epochSec))
-
-/** A relative LOCAL-day prefix for the prompt (#719): "" when the bout started today, "yesterday " when
- *  it was yesterday, else "on <date> ". The card showed HH:mm only, so a late-night bout could read as
- *  today; this anchors it to the local day instead of UTC. Mirrors iOS `AutoWorkoutCard.dayLabel`. */
-private fun dayLabel(epochSec: Long): String {
+private fun autoWorkoutDay(epochSec: Long): AutoWorkoutDay {
     val zone = ZoneId.systemDefault()
     val day = Instant.ofEpochSecond(epochSec).atZone(zone).toLocalDate()
     val today = LocalDate.now(zone)
     return when (day) {
-        today -> ""
-        today.minusDays(1) -> "yesterday "
-        else -> "on ${autoNudgeDateFmt.format(Instant.ofEpochSecond(epochSec))} "
+        today -> AutoWorkoutDay.Today
+        today.minusDays(1) -> AutoWorkoutDay.Yesterday
+        else -> AutoWorkoutDay.OnDate(epochSec)
     }
 }
-
-/** "Looks like a workout [yesterday ]around 14:05–14:32 (avg HR 148, 27 min). Save it?" Mirrors iOS. */
-private fun promptText(w: AutoWorkoutDetector.DetectedWorkout): String =
-    "Looks like a workout ${dayLabel(w.startSec)}around ${hhmm(w.startSec)} - ${hhmm(w.endSec)} " +
-        "(avg HR ${w.avgBpm}, ${w.durationMin} min). Save it?"
 
 @Composable
 fun AutoWorkoutNudgeCard(
@@ -108,6 +95,7 @@ fun AutoWorkoutNudgeCard(
     days: List<DailyMetric>,
 ) {
     val context = LocalContext.current
+    val locale = LocalConfiguration.current.locales[0]
     // Read once — SharedPreferences isn't reactive; when off, the whole feature is invisible + inert.
     val enabled = remember { NoopPrefs.autoDetectWorkouts(context) }
     if (!enabled) return
@@ -128,6 +116,24 @@ fun AutoWorkoutNudgeCard(
 
     val w = candidate
     if (handledThisSession || w == null) return
+    val timeFormatter = remember(locale) {
+        DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT).withLocale(locale).withZone(ZoneId.systemDefault())
+    }
+    val startTime = timeFormatter.format(Instant.ofEpochSecond(w.startSec))
+    val endTime = timeFormatter.format(Instant.ofEpochSecond(w.endSec))
+    val prompt = when (val day = autoWorkoutDay(w.startSec)) {
+        AutoWorkoutDay.Today -> uiString(R.string.today_auto_workout_prompt_today, startTime, endTime, w.avgBpm, w.durationMin)
+        AutoWorkoutDay.Yesterday -> uiString(R.string.today_auto_workout_prompt_yesterday, startTime, endTime, w.avgBpm, w.durationMin)
+        is AutoWorkoutDay.OnDate -> {
+            val dateFormatter = remember(locale) {
+                DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM).withLocale(locale).withZone(ZoneId.systemDefault())
+            }
+            uiString(
+                R.string.today_auto_workout_prompt_date,
+                dateFormatter.format(Instant.ofEpochSecond(day.epochSec)), startTime, endTime, w.avgBpm, w.durationMin,
+            )
+        }
+    }
 
     NoopCard(tint = Palette.accent) {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -163,7 +169,7 @@ fun AutoWorkoutNudgeCard(
                 }
             }
             Text(
-                promptText(w),
+                prompt,
                 style = NoopType.footnote,
                 color = Palette.textSecondary,
             )

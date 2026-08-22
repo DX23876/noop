@@ -311,9 +311,11 @@ private fun CurrentFitCard(profile: ProfileStore, matchedDays: Int) {
                 // #589: a concrete countdown instead of a vague "a few days". Headline comes straight from
                 // the engine's NeedsMoreDays state so the wording matches the Today steps tile + the Swift card.
                 Text(
-                    StepsEstimateEngine.CalibrationStatus
-                        .NeedsMoreDays(have = matchedDays, need = StepsEstimateEngine.MIN_CALIBRATION_DAYS)
-                        .headline,
+                    stepsCalibrationHeadline(
+                        StepsEstimateEngine.CalibrationStatus
+                            .NeedsMoreDays(have = matchedDays, need = StepsEstimateEngine.MIN_CALIBRATION_DAYS)
+                            .headline,
+                    ),
                     style = NoopType.bodyNumber,
                     color = Palette.accent,
                 )
@@ -325,6 +327,17 @@ private fun CurrentFitCard(profile: ProfileStore, matchedDays: Int) {
             }
         }
     }
+}
+
+@Composable
+private fun stepsCalibrationHeadline(headline: StepsEstimateEngine.CalibrationStatus.Headline): String = when (headline) {
+    StepsEstimateEngine.CalibrationStatus.Headline.Manual -> uiString(R.string.today_steps_headline_manual)
+    is StepsEstimateEngine.CalibrationStatus.Headline.Calibrated ->
+        uiString(R.string.today_steps_headline_calibrated, headline.sampleDays)
+    StepsEstimateEngine.CalibrationStatus.Headline.ConnectPhoneSteps ->
+        uiString(R.string.today_steps_headline_connect_phone)
+    is StepsEstimateEngine.CalibrationStatus.Headline.NeedMoreDays ->
+        uiString(R.string.today_steps_headline_more_days, headline.remaining)
 }
 
 /** The accuracy table: recent days with BOTH an estimate and a phone count, side by side, so the user

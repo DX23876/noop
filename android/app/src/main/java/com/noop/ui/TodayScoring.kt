@@ -1,5 +1,6 @@
 package com.noop.ui
 
+import com.noop.R
 import com.noop.analytics.BaselineState
 import com.noop.analytics.Baselines
 import com.noop.analytics.ChargeDriver
@@ -137,7 +138,7 @@ internal data class LastCharge(val value: Double, val caption: String)
  *  the key and falls back to the raw key so the caption is never empty. Mirrors iOS lastChargeDateFmt. */
 internal fun lastChargeDateLabel(dayKey: String): String =
     runCatching {
-        LocalDate.parse(dayKey).format(DateTimeFormatter.ofPattern("d MMM", Locale.US))
+        LocalDate.parse(dayKey).format(DateTimeFormatter.ofPattern("d MMM", Locale.getDefault()))
     }.getOrDefault(dayKey)
 
 /** Carry-over recency cap (#779): the "Last night" framing only holds when the carried scored day is
@@ -173,10 +174,12 @@ internal fun freshRestScore(
  *  freshness cap it reads "Last night · <date>"; once the carried day is older than the cap (#779) it reads
  *  "Latest sleep · <date>" so a weeks-old import is never surfaced as "Last night". Shared by every carried
  *  recovery read-out so the prior-day provenance reads identically. Mirrors iOS carriedCaption. */
-internal fun carriedCaption(priorDayKey: String, today: String = LocalDate.now().toString()): String {
-    val prefix = if (isCarryStale(priorDayKey, today)) "Latest sleep" else "Last night"
-    return "$prefix · ${lastChargeDateLabel(priorDayKey)}"
-}
+internal fun carriedCaption(priorDayKey: String, today: String = LocalDate.now().toString()): DisplayText =
+    DisplayText.Resource(
+        if (isCarryStale(priorDayKey, today)) R.string.score_state_title_latest_sleep
+        else R.string.score_state_title_last_night,
+        listOf(lastChargeDateLabel(priorDayKey)),
+    )
 
 // Explainability layer, COMPONENTS 2, 3, 4 (spec: 2026-06-20-sleep-guidance-explainability.md)
 //
@@ -210,13 +213,20 @@ sealed class ScoreState {
     /** No data for today at all, strap not worn / not connected / not synced. Shows NO number. */
     object NeedsStrap : ScoreState()
 
-    /** The status title shown in the tile's state slot. VERBATIM, mirror Swift exactly. */
-    val title: String
+    val titleRes: Int?
         get() = when (this) {
-            is Scored -> ""
-            is Calibrating -> "Calibrating"
-            is CarriedLastNight -> if (stale) "Latest sleep · $dateLabel" else "Last night · $dateLabel"
-            NeedsStrap -> "Needs the strap"
+            is Scored -> null
+            is Calibrating -> R.string.score_state_title_calibrating
+            is CarriedLastNight -> if (stale) R.string.score_state_title_latest_sleep else R.string.score_state_title_last_night
+            NeedsStrap -> R.string.score_state_title_needs_strap
+        }
+
+    val detailRes: Int?
+        get() = when (this) {
+            is Scored -> null
+            is Calibrating -> R.plurals.score_state_detail_calibrating
+            is CarriedLastNight -> if (stale) R.string.score_state_detail_carried_stale else R.string.score_state_detail_carried_fresh
+            NeedsStrap -> R.string.score_state_detail_needs_strap
         }
 
     /**
@@ -241,31 +251,13 @@ sealed class ScoreState {
             return Instant.ofEpochSecond(epochSeconds)
                 .atZone(ZoneId.systemDefault())
                 .toLocalDate()
-                .format(DateTimeFormatter.ofPattern("d MMM", Locale.US))
+                .format(DateTimeFormatter.ofPattern("d MMM", Locale.getDefault()))
         }
 
-        fun calibrationRestartCause(recalibratedOn: String?): String? {
-            if (recalibratedOn.isNullOrEmpty()) return null
-            return "Restarted when you recalibrated on $recalibratedOn — no need to tap it again."
-        }
+        internal fun calibrationRestartCause(recalibratedOn: String?): DisplayText? = recalibratedOn
+            ?.takeIf { it.isNotEmpty() }
+            ?.let { DisplayText.Resource(R.string.today_calibration_restart_cause, listOf(it)) }
     }
-
-    /** The one-line plain-English what-to-do. VERBATIM, mirror Swift exactly. The night(s) plural in
-     *  the calibrating copy follows [nightsRemaining]. */
-    val detail: String
-        get() = when (this) {
-            is Scored -> ""
-            is Calibrating -> {
-                val nights = if (nightsRemaining == 1) "night" else "nights"
-                "Building your baseline. About $nightsRemaining more $nights until your scores are personal."
-            }
-            is CarriedLastNight ->
-                // A fresh post-rollover carry tells you tonight's score is on its way; a stale carry (an
-                // older import, #779) instead explains the number is from that earlier session, not today.
-                if (stale) "This is your last scored session. Wear the strap overnight for a fresh score."
-                else "Tonight's lands after you sleep with the strap on."
-            NeedsStrap -> "No data for today. Was your strap worn and connected overnight?"
-        }
 }
 
 /**
@@ -321,24 +313,21 @@ sealed class RecordingState {
      *  the link genuinely IS up, so claiming "Strap not connected" would be false. */
     object ConnectedNoData : RecordingState()
 
-    /** The chip's status word. VERBATIM, mirror Swift exactly. */
-    val title: String
+    val titleRes: Int
         get() = when (this) {
-            Recording -> "Recording"
-            is LastSynced -> "Last synced ${minutesAgo}m ago"
-            NotRecording -> "Not recording"
-            HistoryExperimental -> "Connected"
-            ConnectedNoData -> "Connected"
+            Recording -> R.string.recording_chip_title_recording
+            is LastSynced -> R.string.recording_chip_title_last_synced
+            NotRecording -> R.string.recording_chip_title_not_recording
+            HistoryExperimental, ConnectedNoData -> R.string.recording_chip_title_connected
         }
 
-    /** The chip's one-line detail. VERBATIM, mirror Swift exactly. */
-    val detail: String
+    val detailRes: Int
         get() = when (this) {
-            Recording -> "Your strap is connected and saving data."
-            is LastSynced -> "Reconnect to pull the latest."
-            NotRecording -> "Strap not connected. Tap to connect."
-            HistoryExperimental -> "History sync is experimental on 5.0."
-            ConnectedNoData -> "No live heart rate or synced history yet this session."
+            Recording -> R.string.recording_chip_detail_recording
+            is LastSynced -> R.string.recording_chip_detail_last_synced
+            NotRecording -> R.string.recording_chip_detail_not_recording
+            HistoryExperimental -> R.string.recording_chip_detail_history_experimental
+            ConnectedNoData -> R.string.recording_chip_detail_connected_no_data
         }
 
     /** Chip hue: live recording reads positive (gold/green dot), a stale-but-recent sync reads neutral,
@@ -464,14 +453,14 @@ internal fun restStageLowConfidence(d: DailyMetric?): Boolean {
 }
 
 /** Short "it's coming, not broken" caption for an unscored tile on today only. */
-internal fun buildingHint(metric: KeyMetric, isToday: Boolean): String? {
+internal fun buildingHint(metric: KeyMetric, isToday: Boolean): Int? {
     if (!isToday) return null
     return when (metric) {
-        KeyMetric.REST -> "Building, wear it tonight"
-        KeyMetric.EFFORT -> "Building, moves as you do"
-        KeyMetric.CHARGE -> "Building, wear it tonight"
-        KeyMetric.BLOOD_OXYGEN -> "Building, wear it tonight"
-        KeyMetric.STEPS -> "Building, moves as you do"
+        KeyMetric.REST -> R.string.today_building_wear_tonight
+        KeyMetric.EFFORT -> R.string.today_building_moves_with_you
+        KeyMetric.CHARGE -> R.string.today_building_wear_tonight
+        KeyMetric.BLOOD_OXYGEN -> R.string.today_building_wear_tonight
+        KeyMetric.STEPS -> R.string.today_building_moves_with_you
         else -> null
     }
 }

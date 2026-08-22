@@ -242,6 +242,10 @@ extension RecoveryScorer {
 
     // MARK: - Plain-English verdicts (no fabricated numbers; direction only)
 
+    // Every returned literal is also a runtime localization key consumed by ChargeBreakdownFormat.
+    // When adding or rewording a verdict, add the identical key to Strand's Localizable.xcstrings;
+    // Tools/test_home_i18n.py enforces that complete engine-to-catalog contract.
+
     static func hrvVerdict(value: Double, baseline: Double, saturationDetected: Bool = false) -> String {
         if value > baseline { return "above baseline, supporting recovery" }
         if value < baseline {

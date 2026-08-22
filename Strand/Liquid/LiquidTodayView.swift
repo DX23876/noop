@@ -971,7 +971,10 @@ struct LiquidTodayView: View {
                             Text("SYNTHESIS").font(StrandFont.overline).tracking(1.6)
                                 .foregroundStyle(StrandPalette.textSecondary)
                             Spacer()
-                            Text(synthesisExpanded ? "hide" : "show").font(StrandFont.caption)
+                            Text(synthesisExpanded
+                                 ? String(localized: "hide")
+                                 : String(localized: "show"))
+                                .font(StrandFont.caption)
                                 .foregroundStyle(StrandPalette.textTertiary)
                         }
                         // While the baseline calibrates, the honest "N of 4 nights" progress replaces the
@@ -1137,7 +1140,7 @@ struct LiquidTodayView: View {
             ktile(String(localized: "Blood Oxygen"), icon: keyMetricIcon(metric), intText(spo2), "%", StrandPalette.metricCyan, fracOver(spo2, 100), key: "spo2")
         case .respiratory:
             let resp = displayDay?.respRateBpm ?? vitalsDay?.respRateBpm ?? respDay?.respRateBpm
-            ktile(String(localized: "Respiratory"), icon: keyMetricIcon(metric), resp.map { String(format: "%.1f", $0) } ?? "—", "rpm", StrandPalette.accent, fracOver(resp, 24), key: "resp_rate")
+            ktile(String(localized: "Respiratory"), icon: keyMetricIcon(metric), resp.map { String(format: "%.1f", locale: AppLanguage.activeLocale, $0) } ?? "—", "rpm", StrandPalette.accent, fracOver(resp, 24), key: "resp_rate")
         case .steps:
             ktile(String(localized: "Steps"), icon: keyMetricIcon(metric), stepsText, "", StrandPalette.chargeColor,
                   fracOver(stepCount, 10000), key: stepsDetailKey, detailMetric: stepsDetailMetric)
@@ -1168,6 +1171,7 @@ struct LiquidTodayView: View {
 
     private func ktile(_ label: String, icon: String, _ value: String, _ unit: String, _ tint: Color, _ frac: Double?,
                        key: String? = nil, detailMetric: MetricDescriptor? = nil) -> some View {
+        let displayValue = unit.isEmpty ? value : (unit == "%" ? value + unit : value + " " + unit)
         let tile = VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 6) {
                 Image(systemName: icon)
@@ -1181,9 +1185,8 @@ struct LiquidTodayView: View {
                     .lineLimit(1)
                     .minimumScaleFactor(0.82)
             }
-            (Text(value).font(StrandFont.number(24))
-                + Text(unit.isEmpty ? "" : (unit == "%" ? unit : " \(unit)"))
-                    .font(StrandFont.number(24)))
+            Text(verbatim: displayValue)
+                .font(StrandFont.number(24))
                 .foregroundStyle(StrandPalette.textPrimary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.75)
@@ -1614,11 +1617,11 @@ struct LiquidTodayView: View {
 
     private func unitText(_ v: Double?, _ unit: String, decimals: Int = 0) -> String {
         guard let v else { return "–" }
-        let n = decimals > 0 ? String(format: "%.\(decimals)f", v) : String(Int(v.rounded()))
+        let n = decimals > 0 ? String(format: "%.\(decimals)f", locale: AppLanguage.activeLocale, v) : String(Int(v.rounded()))
         return unit.isEmpty ? n : "\(n) \(unit)"
     }
 
-    private var stressText: String { stress.map { String(Int($0.rounded())) } ?? "Calibrating" }
+    private var stressText: String { stress.map { String(Int($0.rounded())) } ?? String(localized: "Calibrating") }
 
     private var sleepText: String {
         guard let m = displayDay?.totalSleepMin else { return "–" }
@@ -1648,7 +1651,7 @@ struct LiquidTodayView: View {
         var parts: [String] = []
         let secs = w.durationS ?? Double(max(w.endTs - w.startTs, 0))
         parts.append("\(Int(secs / 60)) min")
-        if let dm = w.distanceM, dm > 0 { parts.append(String(format: "%.1f km", dm / 1000)) }
+        if let dm = w.distanceM, dm > 0 { parts.append(String(format: "%.1f km", locale: AppLanguage.activeLocale, dm / 1000)) }
         if let k = w.energyKcal { parts.append("\(Int(k.rounded())) kcal") }
         return parts.joined(separator: " · ")
     }
@@ -1787,7 +1790,7 @@ private struct HeroScoreCell: View {
                 .foregroundStyle(StrandPalette.textSecondary)
             }
             .buttonStyle(.plain)
-            .accessibilityLabel(Text("\(label), \(score.map { decimals > 0 ? String(format: "%.\(decimals)f", $0) : String(Int($0.rounded())) } ?? String(localized: "no data yet")). See how it is scored."))
+            .accessibilityLabel(Text("\(label), \(score.map { decimals > 0 ? String(format: "%.\(decimals)f", locale: AppLanguage.activeLocale, $0) : String(Int($0.rounded())) } ?? String(localized: "no data yet")). See how it is scored."))
         }
         .frame(maxWidth: .infinity)
     }
@@ -2034,7 +2037,9 @@ private struct LiquidLiveHR: View {
                     stat(String(localized: "Max"), series.max())
                 }
             } else {
-                Text(live.connected ? "Waiting for a live heartbeat…" : "Connect your strap to see live heart rate")
+                Text(live.connected
+                     ? String(localized: "Waiting for a live heartbeat…")
+                     : String(localized: "Connect your strap to see live heart rate"))
                     .font(StrandFont.caption)
                     .foregroundStyle(StrandPalette.textTertiary)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -2468,7 +2473,7 @@ private struct LiquidStrapBatteryRow: View {
     /// Mac / Android pill and the classic Today badge.
     private func batteryText(pct: Double) -> String {
         let base = "\(Int(pct.rounded()))%"
-        if live.charging == true { return "\(base) · Charging" }
+        if live.charging == true { return "\(base) · \(String(localized: "Charging"))" }
         if let est = estimateText { return "\(base) · \(est)" }
         return base
     }

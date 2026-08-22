@@ -1,5 +1,6 @@
 package com.noop.ui
 
+import com.noop.R
 import com.noop.data.WhoopRepository
 import java.time.LocalDate
 import java.util.Locale
@@ -45,7 +46,14 @@ class VitalReadingsTableTest {
     @Test fun sourceLabelsResolvePerSample() {
         val rows = vitalReadingRows(spo2Readings, "%", strap, spo2Format)
         // Newest-first, so: Apple Health (03), Health Connect (02), Whoop strap (01).
-        assertEquals(listOf("Apple Health", "Health Connect", "Whoop"), rows.map { it.source })
+        assertEquals(
+            listOf(
+                DisplayText.Resource(R.string.today_source_apple_health),
+                DisplayText.Resource(R.string.today_source_health_connect),
+                DisplayText.Resource(R.string.today_source_whoop),
+            ),
+            rows.map { it.source },
+        )
     }
 
     @Test fun computedStrapSiblingReadsOnDevice() {
@@ -55,7 +63,7 @@ class VitalReadingsTableTest {
             strap,
             { it.roundToInt().toString() },
         )
-        assertEquals("On-device", rows.single().source)
+        assertEquals(DisplayText.Resource(R.string.today_source_on_device), rows.single().source)
     }
 
     @Test fun valueReusesModelFormatAndUnit() {

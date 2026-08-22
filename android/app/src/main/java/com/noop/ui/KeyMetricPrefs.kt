@@ -1,6 +1,8 @@
 package com.noop.ui
 
 import android.content.Context
+import androidx.annotation.StringRes
+import com.noop.R
 
 // MARK: - Editable Key-Metrics layout (#251)
 //
@@ -18,17 +20,17 @@ import android.content.Context
  * One of the Today screen's Key-Metric tiles. The [raw] is the stable persisted identifier — keep it
  * byte-identical to the macOS `KeyMetric` enum so a backup/restore reads the same layout on either OS.
  */
-enum class KeyMetric(val raw: String, val title: String) {
-    CHARGE("charge", "Charge"),
-    EFFORT("effort", "Effort"),
-    REST("rest", "Rest"),
-    HRV("hrv", "HRV"),
-    RESTING_HR("restingHr", "Resting HR"),
-    BLOOD_OXYGEN("bloodOxygen", "Blood Oxygen"),
-    RESPIRATORY("respiratory", "Respiratory"),
-    STEPS("steps", "Steps"),
-    WEIGHT("weight", "Weight"),
-    CALORIES("calories", "Calories");
+enum class KeyMetric(val raw: String, @StringRes val titleRes: Int) {
+    CHARGE("charge", R.string.today_metric_charge),
+    EFFORT("effort", R.string.today_metric_effort),
+    REST("rest", R.string.today_metric_rest),
+    HRV("hrv", R.string.today_metric_hrv),
+    RESTING_HR("restingHr", R.string.today_metric_resting_hr),
+    BLOOD_OXYGEN("bloodOxygen", R.string.today_metric_blood_oxygen),
+    RESPIRATORY("respiratory", R.string.today_metric_respiratory),
+    STEPS("steps", R.string.today_metric_steps),
+    WEIGHT("weight", R.string.today_metric_weight),
+    CALORIES("calories", R.string.today_metric_calories);
 
     companion object {
         fun fromRaw(raw: String?): KeyMetric? = entries.firstOrNull { it.raw == raw }

@@ -1,5 +1,6 @@
 package com.noop.ui
 
+import com.noop.R
 import com.noop.analytics.FusionSource
 import com.noop.data.DailyMetric
 import org.junit.Assert.assertEquals
@@ -21,6 +22,8 @@ import org.junit.Test
  */
 class TodayExplainabilityTest {
 
+    private fun res(id: Int) = DisplayText.Resource(id)
+
     private fun day(key: String, recovery: Double? = null, deviceId: String = "my-whoop") =
         DailyMetric(deviceId = deviceId, day = key, recovery = recovery)
 
@@ -38,11 +41,8 @@ class TodayExplainabilityTest {
         // 1 night banked, seed 4 → "about 3 more nights". No fabricated value.
         val state = scoreStateForToday(todayRecovery = null, calibratingNights = 1, carriedDay = null, seed = 4)
         assertEquals(ScoreState.Calibrating(3), state)
-        assertEquals("Calibrating", state.title)
-        assertEquals(
-            "Building your baseline. About 3 more nights until your scores are personal.",
-            state.detail,
-        )
+        assertEquals(R.string.score_state_title_calibrating, state.titleRes)
+        assertEquals(R.plurals.score_state_detail_calibrating, state.detailRes)
     }
 
     @Test
@@ -50,10 +50,7 @@ class TodayExplainabilityTest {
         // 3 of 4 banked → exactly one more night → singular "night".
         val state = scoreStateForToday(todayRecovery = null, calibratingNights = 3, carriedDay = null, seed = 4)
         assertEquals(ScoreState.Calibrating(1), state)
-        assertEquals(
-            "Building your baseline. About 1 more night until your scores are personal.",
-            state.detail,
-        )
+        assertEquals(R.plurals.score_state_detail_calibrating, state.detailRes)
     }
 
     @Test
@@ -71,8 +68,8 @@ class TodayExplainabilityTest {
         val state = scoreStateForToday(todayRecovery = null, calibratingNights = null, carriedDay = prior,
             today = "2026-01-15")
         assertEquals(ScoreState.CarriedLastNight("14 Jan", false), state)
-        assertEquals("Last night · 14 Jan", state.title)
-        assertEquals("Tonight's lands after you sleep with the strap on.", state.detail)
+        assertEquals(R.string.score_state_title_last_night, state.titleRes)
+        assertEquals(R.string.score_state_detail_carried_fresh, state.detailRes)
     }
 
     @Test
@@ -83,17 +80,17 @@ class TodayExplainabilityTest {
         val state = scoreStateForToday(todayRecovery = null, calibratingNights = null, carriedDay = prior,
             today = "2026-02-11")
         assertEquals(ScoreState.CarriedLastNight("14 Jan", true), state)
-        assertEquals("Latest sleep · 14 Jan", state.title)
-        assertEquals("This is your last scored session. Wear the strap overnight for a fresh score.", state.detail)
+        assertEquals(R.string.score_state_title_latest_sleep, state.titleRes)
+        assertEquals(R.string.score_state_detail_carried_stale, state.detailRes)
     }
 
     @Test
     fun carriedCaption_capsLastNightToTwoDays() {
         // Within the cap → "Last night"; older → "Latest sleep". The cap is inclusive at 2 days. (#779)
         assertEquals(false, isCarryStale("2026-01-13", "2026-01-15"))
-        assertEquals("Last night · 13 Jan", carriedCaption("2026-01-13", "2026-01-15"))
+        assertEquals(DisplayText.Resource(R.string.score_state_title_last_night, listOf("13 Jan")), carriedCaption("2026-01-13", "2026-01-15"))
         assertEquals(true, isCarryStale("2026-01-12", "2026-01-15"))
-        assertEquals("Latest sleep · 12 Jan", carriedCaption("2026-01-12", "2026-01-15"))
+        assertEquals(DisplayText.Resource(R.string.score_state_title_latest_sleep, listOf("12 Jan")), carriedCaption("2026-01-12", "2026-01-15"))
         // An unparseable key never reads stale (never over-claims).
         assertEquals(false, isCarryStale("not-a-date", "2026-01-15"))
     }
@@ -102,8 +99,8 @@ class TodayExplainabilityTest {
     fun scoreState_needsStrap_whenNothingToShow() {
         val state = scoreStateForToday(todayRecovery = null, calibratingNights = null, carriedDay = null)
         assertEquals(ScoreState.NeedsStrap, state)
-        assertEquals("Needs the strap", state.title)
-        assertEquals("No data for today. Was your strap worn and connected overnight?", state.detail)
+        assertEquals(R.string.score_state_title_needs_strap, state.titleRes)
+        assertEquals(R.string.score_state_detail_needs_strap, state.detailRes)
     }
 
     @Test
@@ -119,9 +116,8 @@ class TodayExplainabilityTest {
         // Honesty: the no-own-value states have an empty value slot — the copy carries no figure.
         val calibrating = scoreStateForToday(todayRecovery = null, calibratingNights = 0, carriedDay = null, seed = 4)
         val needsStrap = scoreStateForToday(todayRecovery = null, calibratingNights = null, carriedDay = null)
-        // No "%" or other number sneaks into the title.
-        assertTrue(!calibrating.title.contains("%"))
-        assertTrue(!needsStrap.title.contains("%"))
+        assertEquals(R.string.score_state_title_calibrating, calibrating.titleRes)
+        assertEquals(R.string.score_state_title_needs_strap, needsStrap.titleRes)
     }
 
     // ── COMPONENT 3 — recording state ────────────────────────────────────────────────────────────────
@@ -130,8 +126,8 @@ class TodayExplainabilityTest {
     fun recording_whenConnectedAndLiveHr() {
         val state = recordingStateFor(connected = true, liveHeartRate = 58, lastSyncAtSec = null, nowSec = 1_000_000)
         assertEquals(RecordingState.Recording, state)
-        assertEquals("Recording", state.title)
-        assertEquals("Your strap is connected and saving data.", state.detail)
+        assertEquals(R.string.recording_chip_title_recording, state.titleRes)
+        assertEquals(R.string.recording_chip_detail_recording, state.detailRes)
         assertEquals(StrandTone.Positive, state.tone)
     }
 
@@ -174,8 +170,8 @@ class TodayExplainabilityTest {
         val now = 1_000_000L
         val state = recordingStateFor(connected = false, liveHeartRate = null, lastSyncAtSec = now - 540, nowSec = now)
         assertEquals(RecordingState.LastSynced(9), state)
-        assertEquals("Last synced 9m ago", state.title)
-        assertEquals("Reconnect to pull the latest.", state.detail)
+        assertEquals(R.string.recording_chip_title_last_synced, state.titleRes)
+        assertEquals(R.string.recording_chip_detail_last_synced, state.detailRes)
         assertEquals(StrandTone.Neutral, state.tone)
     }
 
@@ -187,7 +183,7 @@ class TodayExplainabilityTest {
         val now = 1_000_000L
         val state = recordingStateFor(connected = false, liveHeartRate = null, lastSyncAtSec = now - 30, nowSec = now)
         assertEquals(RecordingState.LastSynced(1), state)
-        assertEquals("Last synced 1m ago", state.title)
+        assertEquals(R.string.recording_chip_title_last_synced, state.titleRes)
     }
 
     @Test
@@ -196,7 +192,7 @@ class TodayExplainabilityTest {
         val now = 1_000_000L
         val state = recordingStateFor(connected = false, liveHeartRate = null, lastSyncAtSec = now - 481, nowSec = now)
         assertEquals(RecordingState.LastSynced(9), state)
-        assertEquals("Last synced 9m ago", state.title)
+        assertEquals(R.string.recording_chip_title_last_synced, state.titleRes)
         // 1 second ago still rounds up to a whole minute.
         val oneSecond = recordingStateFor(connected = false, liveHeartRate = null, lastSyncAtSec = now - 1, nowSec = now)
         assertEquals(RecordingState.LastSynced(1), oneSecond)
@@ -208,7 +204,7 @@ class TodayExplainabilityTest {
         val now = 1_000_000L
         val state = recordingStateFor(connected = false, liveHeartRate = null, lastSyncAtSec = now, nowSec = now)
         assertEquals(RecordingState.LastSynced(0), state)
-        assertEquals("Last synced 0m ago", state.title)
+        assertEquals(R.string.recording_chip_title_last_synced, state.titleRes)
     }
 
     @Test
@@ -218,15 +214,15 @@ class TodayExplainabilityTest {
         val now = 1_000_000L
         val state = recordingStateFor(connected = false, liveHeartRate = null, lastSyncAtSec = now + 30, nowSec = now)
         assertEquals(RecordingState.LastSynced(0), state)
-        assertEquals("Last synced 0m ago", state.title)
+        assertEquals(R.string.recording_chip_title_last_synced, state.titleRes)
     }
 
     @Test
     fun notRecording_whenNoConnectionAndNoSync() {
         val state = recordingStateFor(connected = false, liveHeartRate = null, lastSyncAtSec = null, nowSec = 1_000_000)
         assertEquals(RecordingState.NotRecording, state)
-        assertEquals("Not recording", state.title)
-        assertEquals("Strap not connected. Tap to connect.", state.detail)
+        assertEquals(R.string.recording_chip_title_not_recording, state.titleRes)
+        assertEquals(R.string.recording_chip_detail_not_recording, state.detailRes)
         assertEquals(StrandTone.Critical, state.tone)
     }
 
@@ -235,19 +231,19 @@ class TodayExplainabilityTest {
     @Test
     fun dayOwner_noopComputedSibling_mapsToOnDevice() {
         assertEquals(FusionSource.NOOP_COMPUTED, dayOwnerSource("my-whoop-noop"))
-        assertEquals("On-device", provenanceBadgeLabel(dayOwnerSource("my-whoop-noop")))
+        assertEquals(res(R.string.today_source_on_device), provenanceBadgeLabel(dayOwnerSource("my-whoop-noop")))
     }
 
     @Test
     fun dayOwner_importedStrap_mapsToWhoop() {
         assertEquals(FusionSource.WHOOP_IMPORT, dayOwnerSource("my-whoop"))
-        assertEquals("Whoop", provenanceBadgeLabel(dayOwnerSource("my-whoop")))
+        assertEquals(res(R.string.today_source_whoop), provenanceBadgeLabel(dayOwnerSource("my-whoop")))
     }
 
     @Test
     fun dayOwner_appleAndHealthConnect_keptSeparate() {
-        assertEquals("Apple Health", provenanceBadgeLabel(dayOwnerSource("apple-health")))
-        assertEquals("Health Connect", provenanceBadgeLabel(dayOwnerSource("health-connect")))
+        assertEquals(res(R.string.today_source_apple_health), provenanceBadgeLabel(dayOwnerSource("apple-health")))
+        assertEquals(res(R.string.today_source_health_connect), provenanceBadgeLabel(dayOwnerSource("health-connect")))
     }
 
     @Test
@@ -259,8 +255,8 @@ class TodayExplainabilityTest {
     @Test
     fun provenanceLabel_isNeverBlanketOnDevice_forImports() {
         // Honesty: an imported source must NOT be relabelled "On-device".
-        assertEquals("Whoop", provenanceBadgeLabel(FusionSource.WHOOP_IMPORT))
-        assertEquals("Apple Health", provenanceBadgeLabel(FusionSource.APPLE_HEALTH))
+        assertEquals(res(R.string.today_source_whoop), provenanceBadgeLabel(FusionSource.WHOOP_IMPORT))
+        assertEquals(res(R.string.today_source_apple_health), provenanceBadgeLabel(FusionSource.APPLE_HEALTH))
     }
 
     // ── COMPONENT 4 — PER-METRIC provenance (provenanceDisplayLabel) ─────────────────────────────────────
@@ -275,13 +271,13 @@ class TodayExplainabilityTest {
     @Test
     fun perMetric_computedSibling_readsOnDevice() {
         // The "$deviceId-noop" sibling is a score NOOP computed on THIS device from the raw strap stream.
-        assertEquals("On-device", provenanceDisplayLabel("my-whoop-noop"))
+        assertEquals(res(R.string.today_source_on_device), provenanceDisplayLabel("my-whoop-noop"))
     }
 
     @Test
     fun perMetric_importedStrap_readsWhoop() {
         // The imported strap source (the deviceId itself, normally "my-whoop") is a real WHOOP export.
-        assertEquals("Whoop", provenanceDisplayLabel("my-whoop"))
+        assertEquals(res(R.string.today_source_whoop), provenanceDisplayLabel("my-whoop"))
     }
 
     @Test
@@ -290,35 +286,35 @@ class TodayExplainabilityTest {
         // day must read its REAL source, never a blanket "On-device". So when the resolver returns the
         // import source for, say, "recovery" while the day's other fields are computed, the Charge badge
         // reads "Whoop" — and an Apple-Health-won metric reads "Apple Health" — not the day's deviceId.
-        assertEquals("Whoop", provenanceDisplayLabel("my-whoop"))
-        assertEquals("Apple Health", provenanceDisplayLabel("apple-health"))
+        assertEquals(res(R.string.today_source_whoop), provenanceDisplayLabel("my-whoop"))
+        assertEquals(res(R.string.today_source_apple_health), provenanceDisplayLabel("apple-health"))
     }
 
     @Test
     fun perMetric_appleHealth_readsAppleHealth() {
-        assertEquals("Apple Health", provenanceDisplayLabel("apple-health"))
+        assertEquals(res(R.string.today_source_apple_health), provenanceDisplayLabel("apple-health"))
     }
 
     @Test
     fun perMetric_otherKnownSource_keepsFusionDisplayName() {
         // Any other real source keeps its FusionSource.displayName (the genuine winner), never blanketed.
-        assertEquals("Health Connect", provenanceDisplayLabel("health-connect"))
-        assertEquals("Mi Band", provenanceDisplayLabel("xiaomi-band"))
+        assertEquals(res(R.string.today_source_health_connect), provenanceDisplayLabel("health-connect"))
+        assertEquals(res(R.string.today_source_mi_band), provenanceDisplayLabel("xiaomi-band"))
     }
 
     @Test
     fun perMetric_unknownSource_fallsBackToRawId() {
         // An unrecognised raw id falls through to itself verbatim rather than guessing a label.
-        assertEquals("garmin-import", provenanceDisplayLabel("garmin-import"))
+        assertEquals(DisplayText.Dynamic("garmin-import"), provenanceDisplayLabel("garmin-import"))
     }
 
     @Test
     fun perMetric_honoursACustomStrapDeviceId() {
         // The deviceId is parameterised (mirrors Swift's repo.deviceId): a custom strap id and its "-noop"
         // sibling still resolve to "Whoop" / "On-device", and the FIXED "my-whoop" import still reads "Whoop".
-        assertEquals("On-device", provenanceDisplayLabel("strap-42-noop", deviceId = "strap-42"))
-        assertEquals("Whoop", provenanceDisplayLabel("strap-42", deviceId = "strap-42"))
-        assertEquals("Whoop", provenanceDisplayLabel("my-whoop", deviceId = "strap-42"))
+        assertEquals(res(R.string.today_source_on_device), provenanceDisplayLabel("strap-42-noop", deviceId = "strap-42"))
+        assertEquals(res(R.string.today_source_whoop), provenanceDisplayLabel("strap-42", deviceId = "strap-42"))
+        assertEquals(res(R.string.today_source_whoop), provenanceDisplayLabel("my-whoop", deviceId = "strap-42"))
     }
 
     @Test
@@ -326,34 +322,34 @@ class TodayExplainabilityTest {
         // A "-noop" sibling banked under a DIFFERENT strap id (the user re-paired straps) is still a
         // score NOOP computed on-device. The resolver matches the "-noop" suffix, not the exact
         // "$deviceId-noop" — otherwise these rows would fall through to the raw id verbatim.
-        assertEquals("On-device", provenanceDisplayLabel("whoop5-C0FF-noop", deviceId = "my-whoop"))
-        assertEquals("On-device", provenanceDisplayLabel("my-whoop-noop", deviceId = "strap-42"))
+        assertEquals(res(R.string.today_source_on_device), provenanceDisplayLabel("whoop5-C0FF-noop", deviceId = "my-whoop"))
+        assertEquals(res(R.string.today_source_on_device), provenanceDisplayLabel("my-whoop-noop", deviceId = "strap-42"))
     }
 
     @Test
     fun todayScoreProviderLabel_coversImportedAndRegisteredProviders() {
-        assertEquals("Whoop", todayScoreProviderLabel(ScoreInputProvider("my-whoop", "WHOOP")))
-        assertEquals("Apple Watch", todayScoreProviderLabel(ScoreInputProvider("apple-health")))
-        assertEquals("Health Connect", todayScoreProviderLabel(ScoreInputProvider("health-connect")))
-        assertEquals("Oura", todayScoreProviderLabel(ScoreInputProvider("oura-import")))
-        assertEquals("Fitbit", todayScoreProviderLabel(ScoreInputProvider("fitbit-import")))
-        assertEquals("Garmin", todayScoreProviderLabel(ScoreInputProvider("garmin-import")))
-        assertEquals("Mi Band", todayScoreProviderLabel(ScoreInputProvider("xiaomi-band")))
+        assertEquals(res(R.string.today_source_whoop), todayScoreProviderLabel(ScoreInputProvider("my-whoop", "WHOOP")))
+        assertEquals(res(R.string.today_source_apple_watch), todayScoreProviderLabel(ScoreInputProvider("apple-health")))
+        assertEquals(res(R.string.today_source_health_connect), todayScoreProviderLabel(ScoreInputProvider("health-connect")))
+        assertEquals(res(R.string.today_source_oura), todayScoreProviderLabel(ScoreInputProvider("oura-import")))
+        assertEquals(res(R.string.today_source_fitbit), todayScoreProviderLabel(ScoreInputProvider("fitbit-import")))
+        assertEquals(res(R.string.today_source_garmin), todayScoreProviderLabel(ScoreInputProvider("garmin-import")))
+        assertEquals(res(R.string.today_source_mi_band), todayScoreProviderLabel(ScoreInputProvider("xiaomi-band")))
         for (brand in com.noop.data.DeviceBrandCatalog.all.map { it.brand }) {
-            assertEquals(brand, todayScoreProviderLabel(ScoreInputProvider("device-$brand", brand)))
+            assertEquals(DisplayText.Dynamic(brand), todayScoreProviderLabel(ScoreInputProvider("device-$brand", brand)))
         }
     }
 
     @Test
     fun todayScoreProviderLabel_unknownSourceDoesNotPretendToBeWhoop() {
-        assertEquals("sensor-42", todayScoreProviderLabel(ScoreInputProvider("sensor-42")))
-        assertEquals("not-a-whoop", todayScoreProviderLabel(ScoreInputProvider("not-a-whoop")))
+        assertEquals(DisplayText.Dynamic("sensor-42"), todayScoreProviderLabel(ScoreInputProvider("sensor-42")))
+        assertEquals(DisplayText.Dynamic("not-a-whoop"), todayScoreProviderLabel(ScoreInputProvider("not-a-whoop")))
     }
 
     @Test
     fun liquidHeroSourceLabel_deduplicatesOneProvider() {
         assertEquals(
-            "Polar",
+            listOf(DisplayText.Dynamic("Polar")),
             heroSourceLabel(
                 listOf(
                     ScoreInputProvider("polar-1", "Polar"),
@@ -367,7 +363,7 @@ class TodayExplainabilityTest {
     @Test
     fun liquidHeroSourceLabel_capsMixedProvidersAtTwoInScoreOrder() {
         assertEquals(
-            "Whoop + Oura",
+            listOf(res(R.string.today_source_whoop), res(R.string.today_source_oura)),
             heroSourceLabel(
                 listOf(
                     ScoreInputProvider("my-whoop", "WHOOP"),
@@ -380,18 +376,18 @@ class TodayExplainabilityTest {
 
     @Test
     fun liquidHeroSourceLabel_usesAudienceFacingAppleWatchName() {
-        assertEquals("Apple Watch", heroSourceLabel(listOf(ScoreInputProvider("apple-health"))))
+        assertEquals(listOf(res(R.string.today_source_apple_watch)), heroSourceLabel(listOf(ScoreInputProvider("apple-health"))))
     }
 
     @Test
     fun liquidHeroSourceLabel_hidesWhenNoScoreHasAResolvedSource() {
-        assertNull(heroSourceLabel(emptyList()))
+        assertEquals(emptyList<DisplayText>(), heroSourceLabel(emptyList()))
     }
 
     @Test
     fun liquidHeroSourceLabel_usesCarriedChargeSourceWhenTodayRecoveryIsAbsent() {
         assertEquals(
-            "Whoop",
+            listOf(res(R.string.today_source_whoop)),
             scoreHeroSourceLabel(
                 providerByMetric = emptyMap(),
                 carriedRecoveryProvider = ScoreInputProvider("my-whoop", "WHOOP"),
@@ -403,7 +399,7 @@ class TodayExplainabilityTest {
     @Test
     fun liquidHeroSourceLabel_keepsCurrentDayRecoveryAheadOfCarriedFallback() {
         assertEquals(
-            "Oura",
+            listOf(res(R.string.today_source_oura)),
             scoreHeroSourceLabel(
                 providerByMetric = mapOf("recovery" to ScoreInputProvider("oura-import")),
                 carriedRecoveryProvider = ScoreInputProvider("my-whoop", "WHOOP"),
@@ -414,7 +410,8 @@ class TodayExplainabilityTest {
 
     @Test
     fun liquidHeroSourceLabel_ignoresCarriedSourceWhenChargeIsNotCarried() {
-        assertNull(
+        assertEquals(
+            emptyList<DisplayText>(),
             scoreHeroSourceLabel(
                 providerByMetric = emptyMap(),
                 carriedRecoveryProvider = ScoreInputProvider("my-whoop", "WHOOP"),

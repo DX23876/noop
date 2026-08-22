@@ -1,5 +1,6 @@
 package com.noop.ui
 
+import com.noop.R
 import com.noop.analytics.ReadinessEngine
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -15,10 +16,10 @@ class TodayChargeTapCollapseTest {
 
     @Test
     fun readinessWord_mapsEveryLevel() {
-        assertEquals("Push", readinessWord(ReadinessEngine.Level.PRIMED))
-        assertEquals("Maintain", readinessWord(ReadinessEngine.Level.BALANCED))
-        assertEquals("Rest", readinessWord(ReadinessEngine.Level.STRAINED))
-        assertEquals("Rest", readinessWord(ReadinessEngine.Level.RUNDOWN))
+        assertEquals(R.string.today_readiness_push, readinessWord(ReadinessEngine.Level.PRIMED))
+        assertEquals(R.string.today_readiness_maintain, readinessWord(ReadinessEngine.Level.BALANCED))
+        assertEquals(R.string.today_readiness_rest, readinessWord(ReadinessEngine.Level.STRAINED))
+        assertEquals(R.string.today_readiness_rest, readinessWord(ReadinessEngine.Level.RUNDOWN))
     }
 
     @Test
@@ -29,15 +30,15 @@ class TodayChargeTapCollapseTest {
     @Test
     fun syncedFromSummary_listsOnlySourcesWithData() {
         assertEquals(
-            "Synced from: WHOOP, Apple Watch",
+            listOf(DisplayText.Resource(R.string.today_source_whoop), DisplayText.Resource(R.string.today_source_apple_watch)),
             syncedFromSummary(hasWhoop = true, hasApple = true, hasXiaomi = false),
         )
         assertEquals(
-            "Synced from: WHOOP",
+            listOf(DisplayText.Resource(R.string.today_source_whoop)),
             syncedFromSummary(hasWhoop = true, hasApple = false, hasXiaomi = false),
         )
         assertEquals(
-            "Synced from: WHOOP, Apple Watch, Mi Band",
+            listOf(DisplayText.Resource(R.string.today_source_whoop), DisplayText.Resource(R.string.today_source_apple_watch), DisplayText.Resource(R.string.today_source_mi_band)),
             syncedFromSummary(hasWhoop = true, hasApple = true, hasXiaomi = true),
         )
     }
@@ -45,7 +46,7 @@ class TodayChargeTapCollapseTest {
     @Test
     fun syncedFromSummary_appleHealthReadsAsAppleWatch() {
         assertEquals(
-            "Synced from: Apple Watch",
+            listOf(DisplayText.Resource(R.string.today_source_apple_watch)),
             syncedFromSummary(hasWhoop = false, hasApple = true, hasXiaomi = false),
         )
     }
@@ -54,15 +55,15 @@ class TodayChargeTapCollapseTest {
     fun syncedFromSummary_healthConnectReadsAsHealthConnect() {
         // #176: a Health-Connect-only user must NOT see "Synced from: Apple Watch".
         assertEquals(
-            "Synced from: Health Connect",
+            listOf(DisplayText.Resource(R.string.today_source_health_connect)),
             syncedFromSummary(hasWhoop = false, hasApple = false, hasHealthConnect = true, hasXiaomi = false),
         )
         assertEquals(
-            "Synced from: WHOOP, Health Connect",
+            listOf(DisplayText.Resource(R.string.today_source_whoop), DisplayText.Resource(R.string.today_source_health_connect)),
             syncedFromSummary(hasWhoop = true, hasApple = false, hasHealthConnect = true, hasXiaomi = false),
         )
         assertEquals(
-            "Synced from: WHOOP, Apple Watch, Health Connect",
+            listOf(DisplayText.Resource(R.string.today_source_whoop), DisplayText.Resource(R.string.today_source_apple_watch), DisplayText.Resource(R.string.today_source_health_connect)),
             syncedFromSummary(hasWhoop = true, hasApple = true, hasHealthConnect = true, hasXiaomi = false),
         )
     }
@@ -70,7 +71,7 @@ class TodayChargeTapCollapseTest {
     @Test
     fun syncedFromSummary_noSourcesIsHonest() {
         assertEquals(
-            "No sources yet",
+            emptyList<DisplayText>(),
             syncedFromSummary(hasWhoop = false, hasApple = false, hasXiaomi = false),
         )
     }

@@ -129,7 +129,7 @@ class StepsEstimateEngineTest {
         assertEquals(2, status.have)
         assertEquals(3, status.need)
         assertTrue(!status.canEstimate)
-        assertEquals("Need 1 more day where your phone also counted steps", status.headline)
+        assertEquals(StepsEstimateEngine.CalibrationStatus.Headline.NeedMoreDays(1), status.headline)
     }
 
     @Test fun statusHeadlineNoPhoneSourceIsActionableNotAFrozenCountdown() {
@@ -141,7 +141,7 @@ class StepsEstimateEngineTest {
             val status = StepsEstimateEngine.status(pts)
             status as StepsEstimateEngine.CalibrationStatus.NeedsMoreDays
             assertEquals(0, status.have)
-            assertEquals("Connect your phone's step count to estimate steps", status.headline)
+            assertEquals(StepsEstimateEngine.CalibrationStatus.Headline.ConnectPhoneSteps, status.headline)
         }
     }
 
@@ -154,7 +154,7 @@ class StepsEstimateEngineTest {
         assertEquals(3, status.sampleDays)
         assertTrue(status.confidence > 0)
         assertTrue(status.canEstimate)
-        assertEquals("Estimated from 3 days your phone also counted", status.headline)
+        assertEquals(StepsEstimateEngine.CalibrationStatus.Headline.Calibrated(3), status.headline)
     }
 
     @Test fun statusManualOverrideWinsEvenWithNoDays() {
@@ -164,7 +164,7 @@ class StepsEstimateEngineTest {
         assertEquals(42.0, status.coefficient, 1e-9)
         assertEquals(0, status.sampleDays)
         assertTrue(status.canEstimate)
-        assertEquals("Calibrated by hand", status.headline)
+        assertEquals(StepsEstimateEngine.CalibrationStatus.Headline.Manual, status.headline)
     }
 
     // calibration STATUS surfaced on the tile (#760/#792 - k / days / confidence self-explain). Mirrors Swift.
@@ -184,24 +184,30 @@ class StepsEstimateEngineTest {
         )
         assertEquals(StepsEstimateEngine.ConfidenceTier.LOW, status.confidenceTier)
         assertEquals(12.34, status.coefficientOrNull, 1e-9)
-        assertEquals("k=12.3 from 6 days, low confidence", status.detail)
+        assertEquals(
+            StepsEstimateEngine.CalibrationStatus.Detail.Calibrated(12.34, 6, StepsEstimateEngine.ConfidenceTier.LOW),
+            status.detail,
+        )
         val one = StepsEstimateEngine.CalibrationStatus.Calibrated(
             coefficient = 5.0, sampleDays = 1, confidence = 0.8,
         )
         assertEquals(StepsEstimateEngine.ConfidenceTier.HIGH, one.confidenceTier)
-        assertEquals("k=5.0 from 1 day, high confidence", one.detail)
+        assertEquals(
+            StepsEstimateEngine.CalibrationStatus.Detail.Calibrated(5.0, 1, StepsEstimateEngine.ConfidenceTier.HIGH),
+            one.detail,
+        )
     }
 
     @Test fun statusDetailManualAndNeedsMoreDays() {
         val manual = StepsEstimateEngine.CalibrationStatus.Manual(coefficient = 9.5, sampleDays = 0)
         assertEquals(StepsEstimateEngine.ConfidenceTier.HIGH, manual.confidenceTier)
         assertEquals(9.5, manual.coefficientOrNull, 1e-9)
-        assertEquals("manual k=9.5", manual.detail)
+        assertEquals(StepsEstimateEngine.CalibrationStatus.Detail.Manual(9.5), manual.detail)
         val needs = StepsEstimateEngine.CalibrationStatus.NeedsMoreDays(have = 1, need = 3)
         assertEquals(StepsEstimateEngine.ConfidenceTier.LOW, needs.confidenceTier)
         assertNull(needs.coefficientOrNull)
-        assertEquals("calibrating: 1/3 days", needs.detail)
+        assertEquals(StepsEstimateEngine.CalibrationStatus.Detail.Calibrating(1, 3), needs.detail)
         val over = StepsEstimateEngine.CalibrationStatus.NeedsMoreDays(have = 9, need = 3)
-        assertEquals("calibrating: 3/3 days", over.detail)
+        assertEquals(StepsEstimateEngine.CalibrationStatus.Detail.Calibrating(3, 3), over.detail)
     }
 }

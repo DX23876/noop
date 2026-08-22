@@ -39,7 +39,10 @@ class RD1LogDomainTest {
         // (Baselines spine, reject off): the 8 recent 85 ms nights nudge it up from the 42 ms cluster
         // but Winsorization caps their pull, so it lands at 49 — still geometric, not the tail-inflated
         // arithmetic 54. Byte-identical to the Swift RD1LogDomainTests value.
-        assertEquals("50 vs 49 ms", hrv.evidence)
+        val evidence = hrv.evidence as ReadinessEngine.Evidence.MetricVsBaseline
+        assertEquals(50.0, evidence.value, 0.0)
+        assertEquals(49.0, evidence.baseline, 0.5)
+        assertEquals(ReadinessEngine.MetricUnit.MS, evidence.unit)
         // 50 sits at the typical night → neutral, read against a representative (not tail-inflated) baseline.
         assertEquals(ReadinessEngine.Flag.NEUTRAL, hrv.flag)
     }

@@ -5,7 +5,7 @@ import XCTest
 /// `VitalReadingsTableTest`. Pins the pure projection `vitalReadingRows` the MetricDetailView table
 /// renders: rows and the "N readings" caption derive from the SAME windowed list (so their counts can't
 /// disagree), rows are NEWEST-FIRST, each raw source id resolves through the shared
-/// `TodayView.provenanceDisplayLabel` (strap → "Whoop", Health Connect → "Health Connect", Apple Health →
+/// `TodayView.provenanceDisplayLabel` (strap → "WHOOP", Health Connect → "Health Connect", Apple Health →
 /// "Apple Health", the "-noop" sibling → "On-device"), and each value reuses the model's own formatter +
 /// unit. Blood Oxygen (SpO2) is the acceptance case.
 final class VitalReadingsTableTests: XCTestCase {
@@ -46,7 +46,7 @@ final class VitalReadingsTableTests: XCTestCase {
         let rows = vitalReadingRows(readings: spo2Readings(), unit: "%", strapDeviceId: strap,
                                     now: now, format: spo2Format)
         // Newest-first, so: Apple Health (03), Health Connect (02), Whoop strap (01).
-        XCTAssertEqual(rows.map(\.source), ["Apple Health", "Health Connect", "Whoop"])
+        XCTAssertEqual(rows.map(\.source), ["Apple Health", "Health Connect", "WHOOP"])
     }
 
     func testComputedStrapSiblingReadsOnDevice() {

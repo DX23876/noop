@@ -114,8 +114,12 @@ final class AppModel: ObservableObject {
         var avgHr: Int = 0
         var peakHr: Int = 0
     }
+    struct HealthAlert: Equatable {
+        let message: IllnessSignalEngine.Message
+        let firedSignals: [String]
+    }
     /// Illness/strain early-warning (recent RHR up + HRV down + skin-temp up vs baseline). nil = clear.
-    @Published var healthAlert: String?
+    @Published var healthAlert: HealthAlert?
 
     // MARK: - v5 pillar snapshot (engines run in the analytics pass; the views read these)
     //
@@ -1564,7 +1568,7 @@ final class AppModel: ObservableObject {
     }
 
     /// Run the `IllnessSignalEngine` from the day history + the journal-derived confounder context, then
-    /// publish the result + the legacy `healthAlert` banner string (kept for the existing banner surface).
+    /// publish the result + the semantic `healthAlert` banner payload.
     private func applyIllnessSignal(_ days: [DailyMetric], alcohol: Bool,
                                     hardOrLateWorkout: Bool, alreadyUnwell: Bool) {
         let previous = healthAlert
@@ -1625,25 +1629,38 @@ final class AppModel: ObservableObject {
         // Caller-rendered phrases for the signals that fire (the engine surfaces only the firing ones).
         var labels: [String: String] = [:]
         if let r = rm({ $0.restingHr.map(Double.init) }), let b = mean(base.compactMap { $0.restingHr.map(Double.init) }), r > b {
-            labels["restingHR"] = "RHR +\(Int((r - b).rounded()))"
+            let delta = Int((r - b).rounded())
+            labels["restingHR"] = String(localized: "RHR +\(delta)")
         }
         if let r = rm({ $0.avgHrv }), let b = mean(base.compactMap { $0.avgHrv }), b > 0, r < b {
-            labels["hrv"] = "HRV −\(Int(((1 - r / b) * 100).rounded()))%"
+            let percent = Int(((1 - r / b) * 100).rounded())
+            labels["hrv"] = String(localized: "HRV −\(percent)%")
         }
         if let r = rm({ $0.skinTempDevC }), r > 0 {
-            labels["skinTemp"] = "skin temp +\(String(format: "%.1f", r)) °C"
+            let temperature = String(format: "%.1f", locale: AppLanguage.activeLocale, r)
+            labels["skinTemp"] = String(localized: "Skin temperature +\(temperature) °C")
         }
         if let r = rm({ $0.respRateBpm }), let b = mean(base.compactMap { $0.respRateBpm }), r > b {
-            labels["respiration"] = "respiration up"
+            labels["respiration"] = String(localized: "Respiration up")
         }
 
         let result = IllnessSignalEngine.evaluate(inputs, context: context, firedLabels: labels)
         illnessSignal = result
-        // The amber banner string reflects the raised / already-unwell levels only (the calmer levels
+        // The amber banner payload reflects the raised / already-unwell levels only (the calmer levels
         // surface in the Health hub's Heads-Up card, never as a scary banner).
-        healthAlert = (result.level == .raised || result.level == .alreadyUnwell) ? result.copy : nil
-        if let alert = healthAlert, previous == nil {
-            IllnessNotifier.post(alert)
+        switch result.level {
+        case .raised:
+            healthAlert = HealthAlert(message: result.message ?? .raised,
+                                      firedSignals: result.firedSignals)
+        case .alreadyUnwell:
+            healthAlert = HealthAlert(message: result.message ?? .alreadyUnwell,
+                                      firedSignals: result.firedSignals)
+        case .quiet, .mild, .suppressed:
+            healthAlert = nil
+        }
+        if healthAlert != nil, previous == nil {
+            // Notifications retain their established copy contract; Home renders the semantic result.
+            IllnessNotifier.post(result.copy)
         }
     }
 

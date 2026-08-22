@@ -364,8 +364,12 @@ private fun HeroCard(
                 // prior score (#543/#779, the SAME caption Today uses), or the calibrating progress while
                 // the baseline seeds. Nothing when today's own score is showing.
                 if (isCarrying && carriedDay != null) {
+                    val caption = carriedCaption(carriedDay.day, today = todayKey)
                     Text(
-                        carriedCaption(carriedDay.day, today = todayKey),
+                        when (caption) {
+                            is DisplayText.Resource -> uiString(caption.id, *caption.args.toTypedArray())
+                            is DisplayText.Dynamic -> caption.value
+                        },
                         style = NoopType.footnote,
                         color = Palette.textTertiary,
                     )
@@ -406,8 +410,8 @@ private fun HeroCentre(recovery: Double?, readinessLevel: ReadinessEngine.Level)
             Text(COUPLED_NO_DATA, style = NoopType.headline, color = Palette.textSecondary)
         }
         Text(uiString(R.string.l10n_coupled_screen_recovery_b668d988), style = NoopType.overline, color = sampled)
-        val word = readinessWord(readinessLevel)
-        if (word != null) ReadinessPill(word = word, level = readinessLevel)
+        val wordRes = readinessWord(readinessLevel)
+        if (wordRes != null) ReadinessPill(word = uiString(wordRes), level = readinessLevel)
     }
 }
 
