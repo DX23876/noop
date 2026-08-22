@@ -318,6 +318,9 @@ data class DailyMetric(
     // (imports/cloud never carry them), so old rows + non-4.0 nights stay null.
     val spo2Red: Int? = null,           // mean raw red PPG ADC during detected sleep
     val spo2Ir: Int? = null,            // mean raw IR PPG ADC during detected sleep
+    // Five-minute SDNN index (ms), separate from avgHrv (RMSSD). Strap rows compute it from in-bed R-R;
+    // Apple Health rows mirror the source SDNN. Health Connect RMSSD does not populate this column.
+    val avgSdnn: Double? = null,
 )
 
 /**

@@ -52,10 +52,10 @@ class AppleStepHourMigrationTest {
         assertEquals(31, WhoopDatabase.MIGRATION_30_31.endVersion)
     }
 
-    /** The declared schema version must track the `@Database(version = …)` the migration lands on. */
+    /** A later schema bump must keep this migration connected to the next migration in the chain. */
     @Test
-    fun schemaVersionConstant_matchesMigrationTarget() {
-        assertEquals(WhoopDatabase.MIGRATION_30_31.endVersion, WhoopDatabase.SCHEMA_VERSION)
+    fun migrationTarget_matchesNextMigrationStart() {
+        assertEquals(WhoopDatabase.MIGRATION_30_31.endVersion, WhoopDatabase.MIGRATION_31_32.startVersion)
     }
 
     /**

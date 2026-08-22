@@ -119,6 +119,32 @@ object HrvAnalyzer {
         return sqrt(ss / (nn.size - 1).toDouble())
     }
 
+    /**
+     * Task Force SDNN index: mean sample-SDNN across consecutive [segmentSec]-second segments.
+     * Each segment uses the same range + Malik cleaning as [analyze]; segments with fewer than
+     * [MIN_BEATS] clean intervals are skipped. Timestamps are Unix seconds and segment boundaries are
+     * inclusive, matching the Swift `HRVAnalyzer.sdnnIndex` twin. This is deliberately distinct from
+     * whole-night SDNN, whose slow between-stage heart-rate drift can dominate the result.
+     */
+    fun sdnnIndex(rr: List<RrInterval>, segmentSec: Int = 300): Double? {
+        if (segmentSec <= 0 || rr.isEmpty()) return null
+        val first = rr.minOf { it.ts }
+        val segmentLength = segmentSec.toLong()
+
+        // Bucket in one pass while preserving input order within each segment. This is equivalent to the
+        // Swift twin's repeated inclusive window filters, without rescanning a whole night per segment.
+        val segments = LinkedHashMap<Long, MutableList<RrInterval>>()
+        for (sample in rr) {
+            val bucket = (sample.ts - first) / segmentLength
+            segments.getOrPut(bucket) { ArrayList() }.add(sample)
+        }
+        val values = segments.keys.sorted().mapNotNull { bucket ->
+            val start = first + bucket * segmentLength
+            analyze(segments.getValue(bucket), windowStart = start, windowEnd = start + segmentLength - 1).sdnn
+        }
+        return if (values.isEmpty()) null else values.sum() / values.size.toDouble()
+    }
+
     // ── Cleaning ─────────────────────────────────────────────────────────────
 
     /** Range filter: keep only intervals in [RR_MIN_MS, RR_MAX_MS], preserving order. */

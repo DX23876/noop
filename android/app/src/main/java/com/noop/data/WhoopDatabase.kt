@@ -53,7 +53,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         V18AuxSampleEntity::class,
         AppleStepHour::class,
     ],
-    version = 31,
+    version = 32,
     // #775: ON so Room's KSP processor writes the generated schema (every table's exact `CREATE TABLE`,
     // columns in declaration order with affinity/NOT NULL/default, PK and indices) as JSON. That export
     // is what lets a plain JVM test — no device, no Robolectric — read Android's REAL schema and compare
@@ -70,7 +70,7 @@ abstract class WhoopDatabase : RoomDatabase() {
         const val DB_NAME = "noop_whoop.db"
         /** Room schema version — MUST equal the `@Database(version = …)` above. Surfaced in the backup
          *  manifest (#1410) so an export states its schema. Bump both together on a migration. */
-        const val SCHEMA_VERSION = 31
+        const val SCHEMA_VERSION = 32
 
         @Volatile
         private var instance: WhoopDatabase? = null
@@ -874,6 +874,20 @@ abstract class WhoopDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * v31 -> v32: append the nullable five-minute SDNN-index column to `dailyMetric`. Existing rows
+         * remain null: avgHrv is RMSSD for native/Health Connect rows and must never be backfilled as SDNN.
+         */
+        internal val DAILY_SDNN_MIGRATION_SQL: List<String> = listOf(
+            "ALTER TABLE `dailyMetric` ADD COLUMN `avgSdnn` REAL",
+        )
+
+        internal val MIGRATION_31_32 = object : Migration(31, 32) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                for (stmt in DAILY_SDNN_MIGRATION_SQL) db.execSQL(stmt)
+            }
+        }
+
         private fun build(appContext: Context): WhoopDatabase =
             Room.databaseBuilder(appContext, WhoopDatabase::class.java, DB_NAME)
                 // #1014: replace ONLY the corruption handling of the default open-helper. The
@@ -892,7 +906,7 @@ abstract class WhoopDatabase : RoomDatabase() {
                     MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22,
                     MIGRATION_22_23, MIGRATION_23_24, MIGRATION_24_25, MIGRATION_25_26,
                     MIGRATION_26_27, MIGRATION_27_28, MIGRATION_28_29, MIGRATION_29_30,
-                    MIGRATION_30_31,
+                    MIGRATION_30_31, MIGRATION_31_32,
                 )
                 // #1037: a FRESH install builds the schema straight at the current version and runs NO
                 // migrations, so the MIGRATION_7_8 "my-whoop" registry seed never fires and the WHOOP,

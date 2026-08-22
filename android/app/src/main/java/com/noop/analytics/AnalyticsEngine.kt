@@ -550,6 +550,14 @@ object AnalyticsEngine {
             }
         }
 
+        // Five-minute SDNN index over R-R intervals inside the matched sleep sessions. This preserves the
+        // timestamps needed for segmentation and stays distinct from avgHrv (RMSSD). The half-open sleep
+        // bounds match every other in-bed aggregate; no qualifying 20-clean-beat segment means null.
+        val avgSDNNDaily = HrvAnalyzer.sdnnIndex(
+            rr.filter { sample -> matched.any { sample.ts >= it.start && sample.ts < it.end } },
+            segmentSec = 300,
+        )
+
         // ── HRV & Autonomic nightly trace (#141) ──────────────────────────────
         // Per-5-min-window RMSSD tagged by the sleep stage at its center, then a night summary comparing
         // NOOP's whole-night mean (what it reports) against a deep-only mean and a WHOOP-style
@@ -810,6 +818,7 @@ object AnalyticsEngine {
             activeKcalEst = activeKcalEst,
             spo2Red = nightlySpo2Raw?.first,
             spo2Ir = nightlySpo2Raw?.second,
+            avgSdnn = avgSDNNDaily,
         )
 
         // ── Per-score confidence tiers (mirror Swift ScoreConfidence.derive decisions) ──

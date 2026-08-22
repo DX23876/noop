@@ -2275,6 +2275,7 @@ class WhoopRepository(
                 // Independent columns: each stands alone, so a plain per-column fill is safe.
                 restingHr = winner.restingHr ?: filler.restingHr,
                 avgHrv = winner.avgHrv ?: filler.avgHrv,
+                avgSdnn = winner.avgSdnn ?: filler.avgSdnn,
                 recovery = winner.recovery ?: filler.recovery,
                 strain = winner.strain ?: filler.strain,
                 exerciseCount = winner.exerciseCount ?: filler.exerciseCount,
@@ -2376,6 +2377,7 @@ class WhoopRepository(
                     disturbances = d.disturbances ?: c.disturbances,
                     restingHr = d.restingHr ?: c.restingHr,
                     avgHrv = d.avgHrv ?: c.avgHrv,
+                    avgSdnn = d.avgSdnn ?: c.avgSdnn,
                     recovery = d.recovery ?: c.recovery,
                     strain = d.strain ?: c.strain,
                     exerciseCount = d.exerciseCount ?: c.exerciseCount,

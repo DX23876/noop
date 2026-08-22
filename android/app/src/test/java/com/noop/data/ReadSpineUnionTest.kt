@@ -108,7 +108,7 @@ class ReadSpineUnionTest {
         val other = DailyMetric(
             deviceId = "$canonical-noop", day = day,
             totalSleepMin = 435.0, efficiency = 91.0, deepMin = 96.0, remMin = 110.0, lightMin = 229.0,
-            recovery = 93.2, restingHr = 64, avgHrv = 37.06, strain = 8.4,
+            recovery = 93.2, restingHr = 64, avgHrv = 37.06, avgSdnn = 81.5, strain = 8.4,
         )
         val merged = WhoopRepository.unionByDay(listOf(listOf(active), listOf(other))).single()
         assertEquals("the winner's identity is kept", "$reAdded-noop", merged.deviceId)
@@ -118,6 +118,7 @@ class ReadSpineUnionTest {
         assertEquals(93.2, merged.recovery)
         assertEquals(64, merged.restingHr)
         assertEquals(37.06, merged.avgHrv)
+        assertEquals(81.5, merged.avgSdnn)
         assertEquals(8.4, merged.strain)
     }
 

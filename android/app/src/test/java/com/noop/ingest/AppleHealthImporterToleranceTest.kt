@@ -129,6 +129,20 @@ class AppleHealthImporterToleranceTest {
         assertEquals(61.0, probe.days.single().avgHr!!, 1e-9)
     }
 
+    @Test
+    fun appleSdnnPopulatesBothLegacyHrvAndExplicitSdnn() {
+        val xml = """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <HealthData>
+             <Record type="HKQuantityTypeIdentifierHeartRateVariabilitySDNN" sourceName="Watch" unit="ms" startDate="2024-01-02 02:00:00 +0000" endDate="2024-01-02 02:01:00 +0000" value="88.4"/>
+            </HealthData>
+        """.trimIndent().toByteArray(Charsets.UTF_8)
+
+        val row = AppleHealthImporter.parseStreamForTest(ByteArrayInputStream(xml)).dailyMetrics.single()
+        assertEquals(88.4, row.avgHrv!!, 1e-9)
+        assertEquals(88.4, row.avgSdnn!!, 1e-9)
+    }
+
     /**
      * TOLERANT PARSE: a hard, structural XML error (a broken tag the sanitizer can't fix) AFTER at
      * least one record keeps the partial result and reports the truncated tail as a skipped span.

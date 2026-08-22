@@ -73,6 +73,15 @@ class EditMergePrecedenceTest {
     }
 
     @Test
+    fun importedRowGapFillsComputedSdnnWithoutConflatingHrv() {
+        val imported = DailyMetric("apple-health", "2026-06-12", avgHrv = 44.0)
+        val computed = DailyMetric("my-whoop-noop", "2026-06-12", avgHrv = 55.0, avgSdnn = 88.0)
+        val merged = WhoopRepository.mergeDaily(listOf(imported), listOf(computed)).single()
+        assertEquals(44.0, merged.avgHrv!!, 0.0)
+        assertEquals(88.0, merged.avgSdnn!!, 0.0)
+    }
+
+    @Test
     fun userEditedDays_keyedByLocalWakeDay() {
         val endTs = 1_780_000_000L
         val edited = SleepSession(

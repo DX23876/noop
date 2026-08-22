@@ -405,22 +405,7 @@ object AppleHealthImporter {
                 d.respRate != null || d.asleepMin != null || d.deepMin != null || d.remMin != null ||
                 d.coreMin != null || d.steps != null
             if (hasDailyMetric) {
-                dailyMetricRows += DailyMetric(
-                    deviceId = deviceId,
-                    day = d.day,
-                    totalSleepMin = d.asleepMin,
-                    deepMin = d.deepMin,
-                    remMin = d.remMin,
-                    lightMin = d.coreMin, // Apple "core" sleep is the light-sleep stage
-                    restingHr = d.restingHr?.let { Math.round(it).toInt() },
-                    avgHrv = d.hrvSDNN,
-                    spo2Pct = d.spo2Pct,
-                    respRateBpm = d.respRate,
-                    // #89: Apple Health steps must land in DailyMetric.steps too — FusionDayAdapter reads the
-                    // daily step total via WhoopRepository.dailyColumn("steps") = d.steps, so leaving it null
-                    // (the pre-fix state) meant imported Apple steps never surfaced. `d.steps` is a Double.
-                    steps = d.steps?.let { Math.round(it).toInt() },
-                )
+                dailyMetricRows += dailyMetricRow(d, deviceId)
             }
 
             // Flattened metric points — mirrors AppleHealthAggregator.metricPoints key set.
@@ -508,6 +493,8 @@ object AppleHealthImporter {
     internal class ParseProbe(
         /** Finalized per-day aggregates, ascending by day. */
         val days: List<DailyAggView>,
+        /** DailyMetric rows produced by the same mapping production persists. */
+        val dailyMetrics: List<DailyMetric>,
         val workoutCount: Int,
         /** Finalized workout rows (exposes energy/distance/HR for the WorkoutStatistics tests). */
         val workouts: List<WorkoutRow>,
@@ -527,15 +514,41 @@ object AppleHealthImporter {
     internal fun parseStreamForTest(input: InputStream): ParseProbe {
         val agg = Aggregator()
         parseXml(input, agg)
-        val days = agg.finishDays().map { DailyAggView(it.day, it.avgHr, it.maxHr, it.steps) }
+        val finalized = agg.finishDays()
+        val days = finalized.map { DailyAggView(it.day, it.avgHr, it.maxHr, it.steps) }
+        val dailyMetrics = finalized.filter { d ->
+            d.restingHr != null || d.hrvSDNN != null || d.spo2Pct != null || d.respRate != null ||
+                d.asleepMin != null || d.deepMin != null || d.remMin != null || d.coreMin != null ||
+                d.steps != null
+        }.map { dailyMetricRow(it, DEFAULT_DEVICE_ID) }
         val workouts = agg.finishWorkouts(DEFAULT_DEVICE_ID)
         return ParseProbe(
             days = days,
+            dailyMetrics = dailyMetrics,
             workoutCount = workouts.size,
             workouts = workouts,
             skippedSpans = agg.skippedSpanCount(),
         )
     }
+
+    /** One canonical Apple aggregate -> DailyMetric mapping, shared by production persistence and tests. */
+    private fun dailyMetricRow(d: DailyAgg, deviceId: String): DailyMetric = DailyMetric(
+        deviceId = deviceId,
+        day = d.day,
+        totalSleepMin = d.asleepMin,
+        deepMin = d.deepMin,
+        remMin = d.remMin,
+        lightMin = d.coreMin,
+        restingHr = d.restingHr?.let { Math.round(it).toInt() },
+        // Apple Health's source metric is SDNN. Keep avgHrv populated for existing recovery behaviour,
+        // and also store it under the semantically correct independent field.
+        avgHrv = d.hrvSDNN,
+        avgSdnn = d.hrvSDNN,
+        spo2Pct = d.spo2Pct,
+        respRateBpm = d.respRate,
+        // #89: the daily total must also reach DailyMetric.steps for FusionDayAdapter.
+        steps = d.steps?.let { Math.round(it).toInt() },
+    )
 
     // ------------------------------------------------------------------------
     // Helpers — prefix stripping, dedupe key, sleep-stage mapping.

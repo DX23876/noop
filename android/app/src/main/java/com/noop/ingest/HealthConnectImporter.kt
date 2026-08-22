@@ -651,6 +651,8 @@ object HealthConnectImporter {
                             day = day,
                             totalSleepMin = sleep,
                             restingHr = rhr,
+                            // Health Connect exposes RMSSD, not SDNN: keep avgSdnn null rather than
+                            // relabelling a different statistic. Apple Health's SDNN importer fills both.
                             avgHrv = hrv,
                             spo2Pct = spo2,
                             respRateBpm = resp,

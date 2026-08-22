@@ -64,6 +64,7 @@ class AnalyticsEngineProvidedSleepTest {
         // HRV & resting HR re-derived from THIS day's rr/hr over the provided window (the ring row carried
         // neither) — the crux of #804 (avgHrv was nil despite 36 k rr present).
         assertNotNull("avgHrv must be derived from rr over the provided window", res.daily.avgHrv)
+        assertNotNull("avgSdnn must be derived from rr inside matched sleep", res.daily.avgSdnn)
         assertNotNull(res.daily.restingHr)
     }
 
@@ -77,6 +78,7 @@ class AnalyticsEngineProvidedSleepTest {
         // No gravity + no provided hypnogram = the pre-fix #804 state: the night does not score.
         assertNull(omitted.daily.totalSleepMin)
         assertNull(omitted.daily.avgHrv)
+        assertNull(omitted.daily.avgSdnn)
     }
 
     @Test
