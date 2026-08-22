@@ -1219,8 +1219,9 @@ private struct VitalsSection: View {
         return UnitPrefs.resolveTemperature(system: system, override: temperatureRaw)
     }
 
-    // #103: SpO₂ candidate @82 nightly means from metricSeries, loaded when the experimental toggle is ON.
-    // Empty when the toggle is OFF or no candidate data exists (WHOOP 4.0 has no v18 aux stream).
+    // #103/queue-11a: SpO₂ candidate nightly means from metricSeries — WHOOP `spo2_candidate_82`, or an
+    // Oura owner's ceiling@100 `0x6F` mean (device-conditional, see IntelligenceEngine) — loaded when
+    // the experimental toggle is ON. Empty when the toggle is OFF or no candidate data exists.
     @State private var spo2CandidateByDay: [String: Double] = [:]
     @State private var hrvOverCountByDay: [String: Double] = [:]   // #1118
 
@@ -1260,10 +1261,12 @@ private struct VitalsSection: View {
             // from the computed metricSeries. Absent/0 on a clean or imported night → no caveat.
             let ocPts = await repo.exploreSeries(key: "hrv_rr_overcount", source: "my-whoop", days: 14)
             hrvOverCountByDay = Dictionary(ocPts.map { ($0.day, $0.value) }, uniquingKeysWith: { a, _ in a })
-            // #103: load the SpO₂ candidate @82 nightly means from metricSeries when the toggle is ON.
-            // The engine writes "spo2_candidate" under the "-noop" computed device ID; `exploreSeries`
-            // with source "my-whoop" reads it from Layer 2 (computed metricSeries). Empty when the toggle
-            // is OFF (the engine writes nothing) or on a WHOOP 4.0 (no v18 aux stream).
+            // #103/queue-11a: load the SpO₂ candidate nightly means from metricSeries when the toggle is
+            // ON. The engine writes "spo2_candidate" under the "-noop" computed device ID; `exploreSeries`
+            // with source "my-whoop" reads it from Layer 2 (computed metricSeries) — "my-whoop" is the
+            // generic active-strap sentinel, resolved through `computedReadIds`, so this already covers
+            // an Oura ring's own computed id. Empty when the toggle is OFF (the engine writes nothing) or
+            // the owner has no in-band reading for its device.
             guard PuffinExperiment.spo2CandidateDisplayEnabled else {
                 spo2CandidateByDay = [:]
                 return

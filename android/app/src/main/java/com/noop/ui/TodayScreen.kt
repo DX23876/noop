@@ -3526,9 +3526,10 @@ private fun dashboardCardValue(
         DashboardCard.BLOOD_OXYGEN ->
             // PER-FIELD carry: the whole-row carries (vd) land on rows whose spo2Pct is null (the engine
             // writes spo2Pct = null on computed rows), so fall through to the last row that HAS one.
-            // #103: when no calibrated spo2Pct exists, fall back to the spo2_candidate_82 strap estimate
-            // (from metricSeries) when the experimental display toggle is ON. Labelled "estimate" in the
-            // Health vitals screen; here it just fills the card so it's not blank.
+            // #103/queue-11a: when no calibrated spo2Pct exists, fall back to the spo2_candidate strap
+            // estimate (WHOOP @82 or Oura ceiling@100, from metricSeries) when the experimental display
+            // toggle is ON. Labelled "estimate" in the Health vitals screen; here it just fills the card
+            // so it's not blank.
             (vd?.spo2Pct ?: spo2Day?.spo2Pct)?.let { String.format(Locale.getDefault(), "%.0f%%", it) }
                 ?: (vd?.day ?: day?.day)?.let { spo2CandidateByDay[it] }?.let { String.format(Locale.getDefault(), "%.0f%%", it) }
                 ?: NO_DATA

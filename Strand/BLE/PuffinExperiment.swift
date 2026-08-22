@@ -53,16 +53,24 @@ enum PuffinExperiment {
 
     static var ecgRawDataEnabled: Bool { UserDefaults.standard.bool(forKey: ecgRawDataKey) }
 
-    /// Opt-in "SpO₂ strap estimate" display (#103): surfaces the WHOOP 5/MG `spo2_candidate_82` nightly
-    /// mean in the Blood Oxygen tile/card, labelled "strap estimate (unverified)". The @82 byte is a
-    /// strap-computed SpO₂ % (70–100 range) that an 8-night independent validation tracked at corr +0.99
-    /// against the WHOOP app, but two nights on the original #103 device moved OPPOSITE — device/firmware
-    /// variance unresolved. Per the derived-biosignal rule (CLAUDE.md), an unvalidated signal ships behind
-    /// a default-off toggle, never as the default `spo2Pct` and never feeding a downstream gate.
+    /// Opt-in "SpO₂ strap estimate" display (#103, extended to Oura by queue 11a): surfaces a nightly
+    /// candidate SpO₂ mean in the Blood Oxygen tile/card, labelled "strap estimate (unverified)". The
+    /// transform is device-conditional (`IntelligenceEngine`):
+    ///  - **WHOOP 5/MG**: the `spo2_candidate_82` V18Aux byte (70–100 range). An 8-night independent
+    ///    validation tracked it at corr +0.99 against the WHOOP app, but two nights on the original #103
+    ///    device moved OPPOSITE — device/firmware variance unresolved.
+    ///  - **Oura**: `min(sample, 100)` applied per-sample to the ring's own decoded `0x6F` SpO2, then
+    ///    averaged (`AnalyticsEngine.nightlySpo2CeilingMean`) — the raw wire mean has a documented
+    ///    positive bias (OURA_PROTOCOL.md §6.5.0), so ceiling@100 is queue 11a's starting transform,
+    ///    round-matching the Oura app's own displayed SpO2 on 3/3 full-tier nights measured so far
+    ///    (2026-08-22).
+    /// Neither candidate is a validated calibration. Per the derived-biosignal rule (CLAUDE.md), both ship
+    /// behind this one default-off toggle, never as the default `spo2Pct` and never feeding a downstream
+    /// gate.
     ///
-    /// Display-only: writes nothing to the strap. The engine computes `nightlySpo2CandidateMean` and
-    /// writes it to metricSeries as "spo2_candidate" under the "-noop" computed device ID; the UI reads
-    /// it only while this toggle is ON. Mirrors the Android `NoopPrefs.KEY_SPO2_CANDIDATE_DISPLAY`.
+    /// Display-only: writes nothing to the strap. The engine writes the resolved mean to metricSeries as
+    /// "spo2_candidate" under the "-noop" computed device ID; the UI reads it only while this toggle is
+    /// ON. Mirrors the Android `NoopPrefs.KEY_SPO2_CANDIDATE_DISPLAY`.
     static let spo2CandidateDisplayKey = "noopSpo2CandidateDisplay"
 
     static var spo2CandidateDisplayEnabled: Bool { UserDefaults.standard.bool(forKey: spo2CandidateDisplayKey) }

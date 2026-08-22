@@ -1614,14 +1614,24 @@ final class Repository: ObservableObject {
         return min(600, max(120, span / 30))
     }
 
-    /// The plausible range for a SINGLE-CHANNEL SpO2 reading plotted as a percentage. Deliberately wider
-    /// than clinical SpO2, and NOT a cosmetic clamp — the ring's channel is uncalibrated, so readings
-    /// genuinely overshoot 100. On the reporting device's 5,562 in-range rows the split is 3,179 at
-    /// 90–100, **1,948 at 101–110**, 142 at 80–89 and 293 at 50–79: the >100 band is a sixth of the data
-    /// and tracks the rest of the series, so it is real overshoot, not error, and clamping at 100 would
-    /// silently flatten it. The bounds only need to exclude the mis-scaled `dc_raw` magnitudes (-1016 …
-    /// 11,709,098), which they do by three orders of magnitude.
-    nonisolated static let spo2SingleChannelPlausible = 50.0...110.0
+    /// The plausible range for a SINGLE-CHANNEL SpO2 reading plotted as a percentage. Its ONLY job is to
+    /// exclude the mis-scaled `dc_raw` magnitudes (-1016 … 11,709,098), which it does by three orders of
+    /// magnitude. It is deliberately NOT a clamp to 100.
+    ///
+    /// ⚠️ WHY THE UPPER BOUND IS 110, AND WHY THAT IS A KNOWN OPEN QUESTION, NOT A JUSTIFIED CHOICE: on a
+    /// real Gen 3 capture the `0x6F` channel spans 81–106 and **47 % of its 22,516 samples read above
+    /// 100** (peak at 103–104). Those are genuinely `0x6F` — the sidecar's `unit` tag proves it, and only
+    /// 208 `dc_raw` rows land in that band — so they are not contamination. But real SpO2 CANNOT exceed
+    /// 100 %, and open_oura's own pipeline clamps its computed SpO2 to [85, 100]
+    /// (`docs/spo2-calibration.md`, tag `0x8b` path). So a smooth distribution peaking at 103–104 points
+    /// at an un-modelled offset/transform in NOOP's `0x6F` decode, NOT at real overshoot. Clamping here
+    /// would HIDE that discrepancy behind a flat line at 100; keeping the bound at 110 leaves it visible
+    /// while still excluding the mis-scaled channel. Revisit once the `0x6F` scale is pinned — see
+    /// OURA_PROTOCOL.md §6.5.
+    ///
+    /// Derived from `AnalyticsEngine.spo2SingleChannelPlausible` (the canonical bounds, queue 11a)
+    /// rather than redefining them — same 50...110 range, kept in one place.
+    nonisolated static let spo2SingleChannelPlausible = Double(AnalyticsEngine.spo2SingleChannelPlausible.lowerBound)...Double(AnalyticsEngine.spo2SingleChannelPlausible.upperBound)
 
     /// One SpO2 sample → the value the Deep Timeline plots, or nil to skip the sample.
     ///

@@ -2,6 +2,7 @@ package com.noop.analytics
 
 import java.util.Locale
 import com.noop.data.DailyMetric
+import com.noop.data.DeviceBrandCatalog
 import com.noop.data.MetricSeriesRow
 import com.noop.data.OuraRespScale
 import com.noop.data.ScoreInputProvenanceRow
@@ -1186,17 +1187,28 @@ object IntelligenceEngine {
                     .map { it.bpm }
                 dayDiag(rhrFloorMeanLogLine(day, rhrFloor, inBedBpms))
             }
-            // #103: SpO₂ candidate @82 nightly mean. Only computed when the display toggle is ON.
-            // Reads the V18AuxSample stream for this night's owner and averages the in-band (70–100)
-            // @82 readings that fall inside a detected sleep session. null on a WHOOP 4.0 (no v18 aux
-            // stream), a night with no in-band readings, or when the toggle is OFF. Persisted to
-            // metricSeries as "spo2_candidate" in pass 2, never to `spo2Pct`.
+            // #103/queue-11a: SpO₂ candidate nightly mean. Only computed when the display toggle is ON,
+            // and the transform is device-conditional (com.noop.data.DeviceBrandCatalog.isOura, same
+            // idiom OuraRespScale.isRingRateStream uses): a WHOOP owner averages the in-band (70–100)
+            // `spo2_candidate_82` V18Aux byte; an Oura owner averages the ring's own `0x6F` SpO2 (`spo2`,
+            // already fetched above for `nightlySpo2RawMeans`) through the ceiling@100 transform — see
+            // `AnalyticsEngine.nightlySpo2CeilingMean`'s doc for why ceiling@100 is queue 11a's starting
+            // choice. null on a WHOOP 4.0 (no v18 aux stream) with no candidate decode, an Oura night with
+            // no in-window plausible sample, or when the toggle is OFF. Persisted to metricSeries as
+            // "spo2_candidate" in pass 2, never to `spo2Pct`.
             if (spo2CandidateDisplay) {
-                val auxSamples = repo.v18AuxSamples(owner, from, to, STREAM_LIMIT)
-                if (auxSamples.isNotEmpty()) {
-                    val cand = AnalyticsEngine.nightlySpo2CandidateMean(res.sleepSessions, auxSamples)
+                if (DeviceBrandCatalog.isOura(owner)) {
+                    val cand = AnalyticsEngine.nightlySpo2CeilingMean(res.sleepSessions, spo2)
                     if (cand != null) {
                         spo2CandidateByDay[res.daily.day] = cand.first
+                    }
+                } else {
+                    val auxSamples = repo.v18AuxSamples(owner, from, to, STREAM_LIMIT)
+                    if (auxSamples.isNotEmpty()) {
+                        val cand = AnalyticsEngine.nightlySpo2CandidateMean(res.sleepSessions, auxSamples)
+                        if (cand != null) {
+                            spo2CandidateByDay[res.daily.day] = cand.first
+                        }
                     }
                 }
             }

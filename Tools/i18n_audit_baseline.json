@@ -606,7 +606,7 @@
     ],
     [
       "android/app/src/main/java/com/noop/ui/SettingsScreen.kt",
-      "Surfaces the WHOOP 5/MG strap's nightly SpO₂ estimate (spo2_candidate_82) in the "
+      "Surfaces your strap's nightly SpO₂ estimate in the Blood Oxygen tile when no "
     ],
     [
       "android/app/src/main/java/com/noop/ui/SettingsScreen.kt",
@@ -1016,7 +1016,7 @@
     ],
     [
       "Strand/Screens/SettingsView.swift",
-      "Blood Oxygen: strap estimate (WHOOP 5/MG)"
+      "Blood Oxygen: strap estimate (WHOOP 5/MG, Oura)"
     ],
     [
       "Strand/Screens/SettingsView.swift",
@@ -1044,7 +1044,7 @@
     ],
     [
       "Strand/Screens/SettingsView.swift",
-      "Your WHOOP 5.0/MG sends a strap-computed SpO₂ percentage (the @82 candidate byte) every second. An 8-night independent validation tracked it at corr +0.99 against the WHOOP app, but two nights on the original test device moved the OPPOSITE direction — device/firmware variance is unresolved. Turning this on surfaces the nightly mean in the Blood Oxygen tile as \\\"strap estimate (unverified)\\\" when no calibrated import exists. It never feeds recovery or illness scoring. WHOOP 4.0 has no @82 stream, so this does nothing there."
+      "Your WHOOP 5.0/MG sends a strap-computed SpO₂ percentage (the @82 candidate byte) every second — an 8-night independent validation tracked it at corr +0.99 against the WHOOP app, but two nights on the original test device moved the OPPOSITE direction, so device/firmware variance is unresolved. An Oura ring's own SpO₂ reading runs high on the wire (over 100% on a fifth to a half of samples on a clean night); this instead surfaces the ring's mean with each sample capped at 100% first, which has matched the Oura app's own displayed value on every full night checked against it so far, though only a few nights. Turning this on surfaces whichever applies to your device as \\\"strap estimate (unverified)\\\" in the Blood Oxygen tile when no calibrated import exists. It never feeds recovery or illness scoring. WHOOP 4.0 has no @82 stream, so this does nothing there."
     ],
     [
       "Strand/Screens/SleepView.swift",
