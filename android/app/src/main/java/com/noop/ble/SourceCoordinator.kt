@@ -212,6 +212,23 @@ class SourceCoordinator(
             }
         }
 
+    /** Stamp the row belonging to the strap that just DISCONNECTED, resolved by the identity it adopted
+     *  rather than by whatever is active now. On a multi-WHOOP install those are not the same row: make
+     *  another strap active while this one is live, and stamping "the active row" would record a sighting of
+     *  a strap that was never connected — the same mis-mapping the peripheralId guard below exists to
+     *  prevent. An address no row has adopted stamps nothing.
+     *
+     *  Matched the way the connect path below matches — `ignoreCase` — and NOT through
+     *  [DeviceRegistry.deviceForPeripheralId], whose `WHERE peripheralId = ?` is case-SENSITIVE in SQLite.
+     *  A stored address differing only in case is the same strap to the guard below, so resolving it more
+     *  strictly here would adopt on connect and then silently stamp nothing on disconnect — the same
+     *  quiet staleness this whole change exists to remove. The Swift twin keeps its exact lookup because
+     *  its connect path compares exactly too; each side matches ITS OWN adopt rule. (#1527) */
+    private suspend fun touchLastSeenForStrap(address: String) {
+        val row = registry.all().firstOrNull { it.peripheralId.equals(address, ignoreCase = true) } ?: return
+        registry.touchLastSeen(row.id)
+    }
+
     /**
      * The BLE engine connected to a WHOOP strap at [address] (null on disconnect). Persist that stable
      * identity onto the CURRENTLY ACTIVE device when it's a WHOOP and hasn't adopted one yet — so the
@@ -230,8 +247,18 @@ class SourceCoordinator(
         // Track the live strap's address for the WHOOP->WHOOP adopt-in-place skip (#74). A null address is a
         // disconnect/never-connected republish: clear it so a later make-active can't wrongly match a stale
         // link, then fall through to the existing ignore.
+        val previouslyConnectedTo = connectedWhoopAddress
         connectedWhoopAddress = address
-        if (address == null) return
+        if (address == null) {
+            // Disconnect edge. The strap was in hand right up to this instant, so stamp it NOW rather than
+            // leaving the connect-time value: after a ten-hour overnight session that would have the card
+            // reading "Last seen 10 h ago" the moment the link dropped. Only when we were actually
+            // connected — a null republish with no prior link is not a sighting. (#1527)
+            if (previouslyConnectedTo != null) {
+                scope.launch { runCatching { touchLastSeenForStrap(previouslyConnectedTo) } }
+            }
+            return
+        }
         scope.launch {
             val activeId = registry.activeDeviceId() ?: return@launch
             val devices = registry.all()
@@ -240,11 +267,14 @@ class SourceCoordinator(
 
             val existing = row.peripheralId
             when {
-                existing == null ->
+                existing == null -> {
                     // First connect for this WHOOP row → adopt the strap's stable identity (its address).
                     registry.setPeripheralId(activeId, address)
+                    registry.touchLastSeen(activeId)
+                }
                 existing.equals(address, ignoreCase = true) -> {
-                    // Already adopted this exact strap → nothing to do.
+                    // Already adopted this exact strap → only the sighting is new. (#1527)
+                    registry.touchLastSeen(activeId)
                 }
                 else ->
                     // A DIFFERENT strap connected under this WHOOP row. Never silently overwrite — that would
