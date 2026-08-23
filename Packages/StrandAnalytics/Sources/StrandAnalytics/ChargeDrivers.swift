@@ -21,7 +21,7 @@ import Foundation
 //   - The score is logistic, so per-term deltas do NOT sum to the headline; they are each an
 //     honest "what this term was worth" marginal, ordered by magnitude (biggest mover first).
 //
-// Pure and side-effect-free: no clock, no I/O. The Kotlin twin is RecoveryScorer.chargeDrivers.
+// Pure and side-effect-free: no clock, no I/O. The Kotlin twin is RecoveryDrivers.chargeDrivers.
 // No em-dashes.
 
 /// One row of the Charge driver breakdown (SHARED CONTRACT shape).
@@ -118,7 +118,7 @@ extension RecoveryScorer {
     /// `recovery(...)`; `*ValueText` closures format each measured value for display so the
     /// engine stays unit-agnostic (the caller supplies "58 bpm" etc.).
     ///
-    /// The Kotlin twin is `RecoveryScorer.chargeDrivers`.
+    /// The Kotlin twin is `RecoveryDrivers.chargeDrivers`.
     public static func chargeDrivers(hrv: Double,
                                      rhr: Double,
                                      resp: Double?,

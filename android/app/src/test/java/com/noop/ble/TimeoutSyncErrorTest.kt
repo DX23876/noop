@@ -36,7 +36,8 @@ class TimeoutSyncErrorTest {
      * (three sessions in one field log ran 66–109s and took 42, 51 and 59 frames while banking zero rows).
      * No test over this function can catch that, because a frame count is not one of its inputs. The guard
      * is the signature plus named arguments at both call sites: `chunks`, `rows` and `deepPackets` make a
-     * frame count visibly wrong where it is passed, not here. Twin of the Swift `bankedIffSomeCounterMoved`.
+     * frame count visibly wrong where it is passed, not here. Twin of the Swift
+     * `TimeoutSyncErrorTests.testBankedIffSomeCounterMoved`.
      */
     @Test
     fun bankedIffSomeCounterMoved() {

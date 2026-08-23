@@ -19,7 +19,7 @@ extension HRVAnalyzer {
     ///
     /// The returned result IS `analyze(...)` verbatim, and every count is recomputed with the EXACT same
     /// filters (`rangeFilter` then `rejectEctopic`), so the trace and the headline can never diverge. The
-    /// Kotlin twin is HrvAnalyzer.analyzeTrace.
+    /// Kotlin twin is HrvAnalyzerTrace.analyzeTrace.
     ///
     /// - Parameter maxRejectedFraction: the SPOT-ONLY ceiling (#585). nil (the nightly/continuous default)
     ///   skips the rejected-fraction gate, exactly like `analyze(...)`.

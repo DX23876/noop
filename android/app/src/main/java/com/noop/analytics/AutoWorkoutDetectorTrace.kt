@@ -186,7 +186,7 @@ object WorkoutsTrace {
      * session (manual / imported), so the same bout is never counted twice. `verdict` is "persisted" /
      * "droppedOverlap" / "droppedShadow"; `durMin` is the whole-minute bout length; on a drop, `overlapSource`
      * names the real row it collided with. No PII (a source label + minutes + bpm only). Swift twin
-     * AutoWorkoutDetector.detectedBoutLine.
+     * WorkoutsTrace.detectedBoutLine.
      */
     fun detectedBoutLine(
         verdict: String,

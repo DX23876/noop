@@ -230,7 +230,8 @@ class OuraLiveSource(
      * connecting, so the fresh per-connection driver is built with `allowKeyInstall == true` and the
      * dangerous install can run for exactly that session. It takes effect on the next connect (the driver
      * is re-created per connection); a connection already mid-flight is not retro-granted. Default-false
-     * everywhere else keeps the dangerous opcode unreachable. Kotlin twin of Swift's `setAdoptIntent`.
+     * everywhere else keeps the dangerous opcode unreachable. On Swift, the architectural counterpart is
+     * the immutable `OuraLiveSource.adoptIntent` initializer input; there is no setter twin.
      */
     fun setAdoptIntent(intent: Boolean) {
         adoptIntent = intent

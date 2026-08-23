@@ -151,8 +151,9 @@ fun DataSourcesScreen(vm: AppViewModel) {
     suspend fun refreshCounts() {
         val nowS = System.currentTimeMillis() / 1000
         // #1304/#512: count across the active-strap UNION (active ∪ canonical), so a 2nd strap's data
-        // under "whoop-<uuid>" is included instead of silently under-reported. `daysMerged` is the exact
-        // twin of Swift's `repo.days` (mergeActivityFileSteps(mergeDaily(imported, computed))) — so this
+        // under "whoop-<uuid>" is included instead of silently under-reported. `daysMerged` is Android's
+        // merged-history counterpart to Swift `Repository.days`
+        // (mergeActivityFileSteps(mergeDaily(imported, computed))), so this
         // matches the iOS badge count, including a strap-only user's computed-only ("-noop") days that an
         // imported-only count would miss. workoutsUnion mirrors Swift's dataVolumeSnapshot workout union.
         whoopDays = vm.repo.daysMerged(vm.activeStrapId).size

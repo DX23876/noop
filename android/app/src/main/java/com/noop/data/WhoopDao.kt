@@ -969,7 +969,8 @@ interface WhoopDao : DeviceRegistryDao {
     // bad-clock strap's garbage-ts rows survived in them while every sibling stream above was cleaned.
     // They are keyed by the SAME `ts` from the SAME type-47 ingest path, so there is no reason to exempt
     // them. Legacy-rows only in practice (the #547 ingest gate now rejects an implausible ts before it is
-    // banked), which is why it went unnoticed. Swift twin: TimestampHeal.rawTables.
+    // banked), which is why it went unnoticed. Keep this list synchronized with the `rawTables` local in
+    // Swift `WhoopStore.healImplausibleTimestamps`.
     @Query("DELETE FROM sleepStateSample WHERE ts < :minTs OR ts > :maxTs")
     suspend fun pruneSleepStateByTs(minTs: Long, maxTs: Long): Int
 
