@@ -28,7 +28,10 @@ import kotlin.math.roundToLong
  *           (1..5 at 50/60/70/80/90 %HRR cut-offs) × duration.
  *        b. Banister exponential: sample contributes duration × x × 0.64 × e^(b·x).
  *   4. Logarithmic compression onto [0, 100]:
- *        effort = 100 × ln(TRIMP + 1) / ln(D),  D = STRAIN_DENOMINATOR.
+ *        effort = 100 × ln(TRIMP + 1) / ln(D)
+ *      D belongs to the METHOD, not to the scorer: Edwards uses [strainDenominator] (7201, from its
+ *      sex-independent 7200 ceiling), Banister its own sex-dependent ceiling + 1. See
+ *      [logMapDenominator] — reusing one for the other silently rescales the axis (#1545).
  *
  * References: Karvonen 1957 (%HRR); Edwards 1993 (5-zone TRIMP); Banister 1991
  * (exponential TRIMP, b = 1.92 men / 1.67 women); Tanaka 2001 (HRmax = 208 − 0.7×age).
@@ -69,6 +72,26 @@ object StrainScorer {
      * pure linear scaling of the whole curve).
      */
     const val strainDenominator: Double = 7201.0
+
+    /**
+     * Banister's daily ceiling: 24 h held at ΔHRR = 1.0. Unlike Edwards' 7200 this is SEX-DEPENDENT,
+     * because the exponent `b` differs — which is the whole reason [strainDenominator] cannot be reused
+     * for it. Feeding Banister TRIMP through the Edwards denominator would score every day against a
+     * ceiling ~14% (men) or ~32% (women) higher than Banister can actually reach, so nobody would ever
+     * see 100 and the two methods would not be on the same axis. (#1545)
+     */
+    fun banisterDailyCeiling(b: Double): Double = 24.0 * 60.0 * 1.0 * banisterScale * kotlin.math.exp(b)
+
+    /**
+     * The log-map denominator for a method, so a caller never has to know which constant belongs to
+     * which recipe. Ceiling + 1 in both cases, mirroring how [strainDenominator] was derived, so a
+     * theoretical maximum day maps to exactly [maxStrain] under either method.
+     */
+    fun logMapDenominator(method: Method, sex: String): Double = when (method) {
+        Method.EDWARDS -> strainDenominator
+        Method.BANISTER ->
+            banisterDailyCeiling(if (sex.lowercase().startsWith("f")) banisterBWomen else banisterBMen) + 1.0
+    }
     val lnStrainDenominator: Double get() = ln(strainDenominator)
 
     /** Fallback per-sample duration (minutes) — 1 s at 1 Hz. */
@@ -268,6 +291,10 @@ object StrainScorer {
     /**
      * Map accumulated TRIMP onto [0, 100] via 100 × ln(TRIMP+1) / ln(D), 2 dp.
      * TRIMP ≤ 0 → 0.
+     *
+     * The default D is **Edwards'**. A Banister TRIMP passed here without an explicit denominator is
+     * scored against the wrong ceiling and reads low — prefer [strain], which resolves the method's own
+     * denominator, or pass [logMapDenominator] yourself. (#1545)
      */
     fun trimpToStrain(trimp: Double, denominator: Double = strainDenominator): Double {
         if (trimp <= 0) return 0.0
@@ -319,8 +346,11 @@ object StrainScorer {
         restingHR: Double = defaultRestingHR,
         method: Method = Method.EDWARDS,
         sex: String = "male",
-        denominator: Double = strainDenominator,
+        // null (the default) resolves to the denominator that BELONGS to [method] — Edwards' 7201, or
+        // Banister's sex-dependent ceiling. Pass a value only to override.
+        denominator: Double? = null,
     ): Double? {
+        val resolvedDenominator = denominator ?: logMapDenominator(method, sex)
         val effMax = maxHR ?: defaultMaxHR().toDouble()
         // Enough data to trust the score: a dense stream (≥ minReadings) OR a sparse-but-sustained
         // one spanning ≥ minSpanSeconds with a sample floor (#482 — the 5/MG's ~30 s HR cadence).
@@ -346,6 +376,6 @@ object StrainScorer {
                 edwardsTRIMP(hr, restingHR, hrReserve, durations)
             }
         }
-        return trimpToStrain(trimp, denominator)
+        return trimpToStrain(trimp, resolvedDenominator)
     }
 }
