@@ -45,12 +45,12 @@ import kotlin.math.roundToInt
  * macOS SleepView.stageBreakdownRows. (PipBar)
  */
 @Composable
-internal fun StageBreakdownRows(s: Stages) {
+internal fun StageBreakdownRows(s: Stages, palette: SleepStagePalette = SleepStagePalette.NOOP) {
     Column(verticalArrangement = Arrangement.spacedBy(Metrics.space12)) {
-        StageBreakdownRow("REM", s.rem, s.total, Palette.sleepREM, stageSharePercent("REM", s))
-        StageBreakdownRow("Deep", s.deep, s.total, Palette.sleepDeep, stageSharePercent("Deep", s))
-        StageBreakdownRow("Light", s.light, s.total, Palette.sleepLight, stageSharePercent("Light", s))
-        StageBreakdownRow("Awake", s.awake, s.total, Palette.sleepAwake, stageSharePercent("Awake", s))
+        StageBreakdownRow("REM", s.rem, s.total, stageColorForRamp("REM", palette), stageSharePercent("REM", s))
+        StageBreakdownRow("Deep", s.deep, s.total, stageColorForRamp("Deep", palette), stageSharePercent("Deep", s))
+        StageBreakdownRow("Light", s.light, s.total, stageColorForRamp("Light", palette), stageSharePercent("Light", s))
+        StageBreakdownRow("Awake", s.awake, s.total, stageColorForRamp("Awake", palette), stageSharePercent("Awake", s))
     }
 }
 
@@ -325,7 +325,14 @@ internal fun FilledHypnogram(
 }
 
 /** A compact colour-coded key for the stepped hypnogram: one dot + label per stage in the chart's ramp, so
- *  the bands are decodable (esp. the Garmin ramp's two pinks, Awake vs REM). Twin of Swift SleepStageLegend. */
+ *  the bands are decodable (esp. the Garmin ramp's two pinks, Awake vs REM). Twin of Swift SleepStageLegend.
+ *
+ *  NOTHING RENDERS THIS (#1536). Its only call sites put it above [StageBreakdownRows], whose rows carry
+ *  their own text labels — so it decoded something already named, listed the stages in a different order
+ *  than the rows, and drew RAMP colours while those rows use fixed [Palette] tokens, which made its dots
+ *  disagree with the swatches beneath them on any non-NOOP ramp. Kept, not deleted: it is the only code
+ *  that knows how to build this key, and a genuinely unlabelled hypnogram is exactly what it is for. Wire
+ *  it to one of those, not to a labelled table. */
 @Composable
 internal fun SleepStageLegend(palette: SleepStagePalette) {
     Row(
