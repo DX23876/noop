@@ -107,6 +107,73 @@ object WorkoutDetector {
     }
 
     /**
+     * #1545: how much of [start]..[end] the HR sensor actually covered, as a percentage of
+     * [bucketSeconds]-wide buckets holding at least one reading.
+     *
+     * Bucketed rather than sample-counted on purpose. A WHOOP 5/MG sends live HR only about every 30 s, so
+     * counting samples against a 1 Hz expectation would report ~3% for a perfectly captured bout, which is
+     * worse than no number. A bucket is either seen or not, so a 30 s cadence reads as full coverage and a
+     * genuine dropout reads as the gap it is. Byte-parity twin of Swift `hrCoveragePct`.
+     */
+    fun hrCoveragePct(sampleTs: List<Long>, start: Long, end: Long, bucketSeconds: Long = 60L): Double? {
+        if (end <= start || bucketSeconds <= 0) return null
+        val buckets = maxOf(1L, ((end - start) + bucketSeconds - 1) / bucketSeconds)
+        val seen = HashSet<Long>()
+        for (ts in sampleTs) if (ts in start until end) seen.add((ts - start) / bucketSeconds)
+        return seen.size.toDouble() / buckets.toDouble() * 100.0
+    }
+
+    /**
+     * #1545: the always-on per-bout line naming what this workout's Effort was actually scored against.
+     *
+     * HRmax is the single biggest determinant of an Effort score -- it sets every zone boundary, so being
+     * wrong by a few bpm can move real work across the 50% floor and score it zero -- and until this line
+     * existed a user could not see which number had been used, or whether it came from their own setting
+     * or an age formula. Working that out previously meant reversing the arithmetic from the displayed
+     * score, which is what #1545 took to diagnose.
+     *
+     * No PII: a day key, a duration, bpm and percentages. Byte-identical string to the Swift twin.
+     */
+    fun boutCalibrationLine(
+        day: String, durMin: Int, hrmax: Double?, hrmaxSource: String,
+        avgHRRPct: Double?, hrCoveragePct: Double?, strain: Double?,
+    ): String =
+        "effort bout day=$day durMin=$durMin hrmax=${round0(hrmax)} src=$hrmaxSource " +
+            "avgHRR=${round0(avgHRRPct)} cover=${round0(hrCoveragePct)} effort=${round1(strain)}"
+
+    /**
+     * The two numeric formatters this line uses, written as integer arithmetic over the value's MAGNITUDE
+     * rather than %.0f / %.1f.
+     *
+     * Three things this shape avoids, all of which would break a line whose entire job is being comparable
+     * between two users' logs — and between an iOS log and an Android one:
+     *
+     * - The positive tie. C printf (Swift) breaks a rounding tie to even; Java's String.format
+     *   (Kotlin) breaks it up. A bout at exactly 52.5% HRR would print 52 on iOS and 53 on Android.
+     * - The negative tie. Swift's .rounded() is half-AWAY-from-zero and Java's Math.round is
+     *   half-UP, so they disagree on -4.5 (-5 vs -4). Rounding abs(v) and re-applying the sign makes the
+     *   two identical in both directions; it also keeps the minus sign, which integer / and % truncating
+     *   toward zero would otherwise drop (-0.4 printing as 0.4).
+     * - The trap. Swift's Int(_: Double) CRASHES on a finite value past Int.max while Kotlin's
+     *   Math.round silently saturates to Long.MAX_VALUE. Today's caller can't produce one (the detector
+     *   gates maxHR > restingHR before computing %HRR), but this is public API, and a diagnostic that kills
+     *   the process is the worst possible way for one to fail. Past the bound both platforms print nil,
+     *   which is also the more honest answer: such a value is not a heart rate, a percentage or an Effort.
+     */
+    internal const val PRINTABLE_MAGNITUDE_LIMIT = 1e15
+
+    internal fun round0(v: Double?): String {
+        if (v == null || !v.isFinite() || abs(v) >= PRINTABLE_MAGNITUDE_LIMIT) return "nil"
+        return (if (v < 0) "-" else "") + Math.round(abs(v)).toString()
+    }
+
+    internal fun round1(v: Double?): String {
+        if (v == null || !v.isFinite() || abs(v) >= PRINTABLE_MAGNITUDE_LIMIT) return "nil"
+        val t = Math.round(abs(v) * 10.0)
+        return "${if (v < 0) "-" else ""}${t / 10}.${t % 10}"
+    }
+
+    /**
      * Value whose ts is nearest to [ts] within [tol] seconds, else null. Ties go
      * to the later timestamp (matches the Python <= behaviour).
      */
@@ -397,6 +464,7 @@ object WorkoutDetector {
                     hrmaxSource = hrmaxSource,
                     caloriesKcal = kcal,
                     caloriesKJ = kj,
+                    hrCoveragePct = hrCoveragePct(window.map { it.ts }, effStart, end),
                 )
             )
         }

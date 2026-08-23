@@ -55,15 +55,23 @@ public struct ExerciseSession: Equatable, Sendable {
     public let hrmaxSource: String
     public let caloriesKcal: Double?
     public let caloriesKJ: Double?
+    /// #1545: how much of the bout the HR sensor actually saw, as a percentage of 60-second buckets that
+    /// contain at least one reading. nil when it was not measured. A WHOOP 4.0's optical sensor is weak
+    /// under gripping — which is exactly what lifting is — so a low Effort has two very different causes:
+    /// the metric genuinely not rating the work, or the strap not having seen it. Those deserve opposite
+    /// advice, and until now they were indistinguishable from the outside.
+    public let hrCoveragePct: Double?
 
     public init(start: Int, end: Int, avgHR: Double, peakHR: Int, strain: Double?,
                 durationS: Double, zoneTimePct: [Int: Double], avgHRRPct: Double?,
                 hrmax: Double?, hrmaxSource: String,
-                caloriesKcal: Double?, caloriesKJ: Double?) {
+                caloriesKcal: Double?, caloriesKJ: Double?,
+                hrCoveragePct: Double? = nil) {
         self.start = start; self.end = end; self.avgHR = avgHR; self.peakHR = peakHR
         self.strain = strain; self.durationS = durationS; self.zoneTimePct = zoneTimePct
         self.avgHRRPct = avgHRRPct; self.hrmax = hrmax; self.hrmaxSource = hrmaxSource
         self.caloriesKcal = caloriesKcal; self.caloriesKJ = caloriesKJ
+        self.hrCoveragePct = hrCoveragePct
     }
 }
 
@@ -132,6 +140,74 @@ public enum WorkoutDetector {
         precondition(!bpms.isEmpty, "deriveRestingHR called with empty segment")
         let rank = max(1, Int(ceil(restingPercentile / 100.0 * Double(bpms.count))))
         return bpms[rank - 1]
+    }
+
+    /// #1545: how much of `[start, end]` the HR sensor actually covered, as a percentage of
+    /// `bucketSeconds`-wide buckets holding at least one reading.
+    ///
+    /// Bucketed rather than sample-counted on purpose. A WHOOP 5/MG sends live HR only about every 30 s,
+    /// so counting samples against a 1 Hz expectation would report ~3% for a perfectly captured bout,
+    /// which is worse than no number. A bucket is either seen or not, so a 30 s cadence reads as full
+    /// coverage and a genuine dropout reads as the gap it is.
+    public static func hrCoveragePct(sampleTs: [Int], start: Int, end: Int,
+                                     bucketSeconds: Int = 60) -> Double? {
+        guard end > start, bucketSeconds > 0 else { return nil }
+        // Integer ceil, not `ceil(Double/Double)` — same expression as the Kotlin twin, with no float
+        // rounding to reason about at a bucket boundary. A partial trailing bucket counts as a whole one,
+        // so coverage can never exceed 100.
+        let buckets = max(1, ((end - start) + bucketSeconds - 1) / bucketSeconds)
+        var seen = Set<Int>()
+        for ts in sampleTs where ts >= start && ts < end {
+            seen.insert((ts - start) / bucketSeconds)
+        }
+        return Double(seen.count) / Double(buckets) * 100.0
+    }
+
+    /// #1545: the always-on per-bout line naming what this workout's Effort was actually scored against.
+    ///
+    /// HRmax is the single biggest determinant of an Effort score — it sets every zone boundary, so being
+    /// wrong by a few bpm can move real work across the 50% floor and score it zero — and until this line
+    /// existed a user could not see which number had been used, or whether it came from their own setting
+    /// or an age formula. Working that out previously meant reversing the arithmetic from the displayed
+    /// score, which is what #1545 took to diagnose.
+    ///
+    /// No PII: a day key, a duration, bpm and percentages.
+    public static func boutCalibrationLine(day: String, durMin: Int, hrmax: Double?, hrmaxSource: String,
+                                           avgHRRPct: Double?, hrCoveragePct: Double?,
+                                           strain: Double?) -> String {
+        return "effort bout day=\(day) durMin=\(durMin) hrmax=\(round0(hrmax)) src=\(hrmaxSource) "
+            + "avgHRR=\(round0(avgHRRPct)) cover=\(round0(hrCoveragePct)) effort=\(round1(strain))"
+    }
+
+    /// The two numeric formatters this line uses, written as integer arithmetic over the value's
+    /// MAGNITUDE rather than `%.0f` / `%.1f`.
+    ///
+    /// Three things this shape avoids, all of which would break a line whose entire job is being
+    /// comparable between two users' logs — and between an iOS log and an Android one:
+    ///
+    /// - **The positive tie.** C `printf` (Swift) breaks a rounding tie to even; Java's `String.format`
+    ///   (Kotlin) breaks it up. A bout at exactly 52.5% HRR would print `52` on iOS and `53` on Android.
+    /// - **The negative tie.** Swift's `.rounded()` is half-AWAY-from-zero and Java's `Math.round` is
+    ///   half-UP, so they disagree on -4.5 (-5 vs -4). Rounding `abs(v)` and re-applying the sign makes
+    ///   the two identical in both directions; it also keeps the minus sign, which integer `/` and `%`
+    ///   truncating toward zero would otherwise drop (-0.4 printing as `0.4`).
+    /// - **The trap.** Swift's `Int(_: Double)` CRASHES on a finite value past `Int.max` while Kotlin's
+    ///   `Math.round` silently saturates to `Long.MAX_VALUE`. Today's caller cannot produce one (the
+    ///   detector gates `maxHR > restingHR` before computing %HRR), but this is public API, and a
+    ///   diagnostic that kills the process is the worst possible way for one to fail. Past the bound both
+    ///   platforms print `nil`, which is also the more honest answer: such a value is not a heart rate, a
+    ///   percentage or an Effort.
+    static let printableMagnitudeLimit = 1e15
+
+    static func round0(_ v: Double?) -> String {
+        guard let v, v.isFinite, abs(v) < printableMagnitudeLimit else { return "nil" }
+        return (v < 0 ? "-" : "") + String(Int(abs(v).rounded()))
+    }
+
+    static func round1(_ v: Double?) -> String {
+        guard let v, v.isFinite, abs(v) < printableMagnitudeLimit else { return "nil" }
+        let t = Int((abs(v) * 10).rounded())
+        return "\(v < 0 ? "-" : "")\(t / 10).\(t % 10)"
     }
 
     /// Value whose ts is nearest to `ts` within `tol` seconds, else nil. Ties go
@@ -371,7 +447,9 @@ public enum WorkoutDetector {
             sessions.append(ExerciseSession(
                 start: effStart, end: end, avgHR: avg, peakHR: peak, strain: strain,
                 durationS: Double(end - effStart), zoneTimePct: zonePct, avgHRRPct: avgHRR,
-                hrmax: effMaxHR, hrmaxSource: hrmaxSource, caloriesKcal: kcal, caloriesKJ: kj))
+                hrmax: effMaxHR, hrmaxSource: hrmaxSource, caloriesKcal: kcal, caloriesKJ: kj,
+                hrCoveragePct: hrCoveragePct(sampleTs: hrSamples.map { $0.ts },
+                                             start: effStart, end: end)))
         }
         return sessions
     }
