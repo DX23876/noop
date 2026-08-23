@@ -134,11 +134,27 @@ object OuraCommands {
         OuraCommand("dhr_subscribe", intArrayOf(0x2F, 0x03, 0x26, featureDaytimeHR, 0x02))
 
     /**
-     * Disable live HR: `2f 03 22 02 01`. ACK: `2f 03 23 02 00`; stream stops on ACK.
-     * Per OURA_PROTOCOL.md s5.6.
+     * Disable live HR: `2f 03 22 02 00`. ACK: `2f 03 23 02 00`.
+     * Mode byte is **0x00** ("off" per OURA_PROTOCOL.md s7.2's APK-sourced table), not 0x01
+     * ("automatic") — an earlier build wrote 0x01 here on the mistaken belief it meant "off"; s7.4's
+     * own worked example shows mode=1 read back while daytime-HR is actively streaming, and two
+     * consecutive real-hardware nights (08-17/18, 08-18/19) falsified "stream stops on ACK" for that
+     * byte — green 0x80 kept arriving all night at reduced but non-zero volume, matching "automatic"
+     * mode's own adaptive/motion-triggered sampling rather than a true off. Per OURA_PROTOCOL.md s5.6.
      */
     fun liveHRDisable(): OuraCommand =
-        OuraCommand("dhr_disable", intArrayOf(0x2F, 0x03, 0x22, featureDaytimeHR, 0x01))
+        OuraCommand("dhr_disable", intArrayOf(0x2F, 0x03, 0x22, featureDaytimeHR, 0x00))
+
+    /**
+     * Unsubscribe from live-HR pushes: `2f 03 26 02 00`. ACK: `2f 03 27 02 00`.
+     * The enable triplet's step 3 (`liveHRSubscribe`) leaves the ring subscribed at "latest" (byte2 =
+     * 2); nothing ever wrote it back to "off" before this — `liveHRDisable` alone only touches the
+     * feature MODE byte, not the subscription. Send both together when suspending live HR so no
+     * notification channel is left standing open for the ring's own adaptive sampling to push through.
+     * Per OURA_PROTOCOL.md s5.6/7.2.
+     */
+    fun liveHRUnsubscribe(): OuraCommand =
+        OuraCommand("dhr_unsubscribe", intArrayOf(0x2F, 0x03, 0x26, featureDaytimeHR, 0x00))
 
     // Feature-status diagnostics (READ-ONLY; s5.6 / s7.1)
 

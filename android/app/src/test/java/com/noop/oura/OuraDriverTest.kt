@@ -219,6 +219,19 @@ class OuraDriverTest {
         )
     }
 
+    @Test
+    fun testLiveHRDisableWritesModeOffNotAutomatic() {
+        // 0x00 = "off" per OURA_PROTOCOL.md s7.2's APK-sourced feature-mode table; 0x01 is "automatic"
+        // and was falsified on two hardware nights (green 0x28 kept arriving after the old 0x01 write).
+        assertArrayEquals(intArrayOf(0x2F, 0x03, 0x22, 0x02, 0x00), OuraCommands.liveHRDisable().bytes)
+    }
+
+    @Test
+    fun testLiveHRUnsubscribeWritesSubscriptionOff() {
+        // Matching teardown for the enable triplet's step 3 (subscribe "latest" = 0x02).
+        assertArrayEquals(intArrayOf(0x2F, 0x03, 0x26, 0x02, 0x00), OuraCommands.liveHRUnsubscribe().bytes)
+    }
+
     // MARK: - Ring-time -> UTC anchor (s5.5)
 
     /**

@@ -382,7 +382,24 @@ Three writes to `…0002`, each gated on its ACK; daytime-HR feature id = `0x02`
 - **`bpm = round(60000 / ibi_ms)`** [relue]
 - Example `[08,09] = 01 04` → `ibi = 1025 ms` → ≈ 59 BPM. [relue]
 
-**Disable:** `2f 03 22 02 01` → ACK `2f 03 23 02 00`. Stream stops on ACK. [relue][open_oura-r3]
+**Disable:** `2f 03 22 02 00` → ACK `2f 03 23 02 00`.
+
+> **Correction (2026-08-19):** an earlier draft of this line, and NOOP's own `liveHRDisable()`, wrote
+> mode byte **0x01** here on the strength of [relue][open_oura-r3]'s "stream stops on ACK" report. But
+> §7.2's APK-sourced feature-mode table (the citation this doc itself treats as authoritative over
+> earlier drafts) defines `0x01` as **"automatic"**, not "off" — `0x00` is off. §7.4's own worked
+> example shows mode=1 read back *while daytime-HR is actively streaming*, which is hard to square with
+> "disable." Two consecutive real-hardware NOOP nights (08-17/18, 08-18/19) directly falsified "stream
+> stops on ACK" for the 0x01 write: green `0x28` pushes continued all night at reduced-but-non-zero
+> volume, including resumptions with no reconnect in between — the signature of the ring's own
+> adaptive/motion-triggered "automatic" sampling, not a keep-alive wearing off. Byte corrected to
+> `0x00` here and in `Commands.swift`/`Commands.kt`; unvalidated on hardware as of this edit — see the
+> worklog for the next capture's result. [relue][open_oura-r3]'s original report may reflect a
+> transient quiet window inside the ~20 s auto-revert (§5.7) rather than a genuine off state.
+
+Also send the matching unsubscribe when tearing down a live session: `2f 03 26 02 00` → ACK
+`2f 03 27 02 00`. Step 3 of the enable triplet above leaves the ring subscribed at "latest"
+(byte2 = 2); the mode-disable write alone never turns that subscription back off.
 
 > Behaviour caveat: [open_oura-r3] reports that on its Ring-3 unit, realtime `0x06`-based enabling ACK'd but emitted no stream within 60–90 s, whereas the `0x2F`/feature-`0x02` path above produced ~1 Hz IBI. **NOOP must use the feature-`0x02` (`0x2F`) path, not `0x06`,** and treat absence of `0x28` pushes within ~10 s as "not streaming → retry/reseat."
 
