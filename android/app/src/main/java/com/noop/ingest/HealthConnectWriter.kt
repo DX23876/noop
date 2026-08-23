@@ -12,6 +12,8 @@ import androidx.health.connect.client.records.Record
 import androidx.health.connect.client.records.RespiratoryRateRecord
 import androidx.health.connect.client.records.RestingHeartRateRecord
 import androidx.health.connect.client.records.SleepSessionRecord
+import androidx.health.connect.client.records.Vo2MaxRecord
+import com.noop.data.MetricSeriesRow
 import androidx.health.connect.client.records.metadata.Metadata
 import androidx.health.connect.client.units.Length
 import androidx.health.connect.client.units.Percentage
@@ -172,6 +174,11 @@ object HealthConnectWriter {
             .fold({ total += it }, { failures += it.writebackCategory() })
         runCatching { writeSleep(client, repo, deviceId) }
             .fold({ total += it }, { failures += it.writebackCategory() })
+        // #1525: separate attempt on purpose. The daily records above go in ONE insertRecords call, so a
+        // missing permission there loses resting HR, HRV, SpO2 and respiratory rate together. On its own,
+        // an ungranted VO2 max permission costs only VO2 max and is categorized like any other failure.
+        runCatching { writeVo2Max(client, repo, deviceId, version) }
+            .fold({ total += it }, { failures += it.writebackCategory() })
         val result = WritebackResult(total, failures.distinct())
         recordStatus(context, result)
         return result
@@ -297,7 +304,72 @@ object HealthConnectWriter {
         return insertChunked(client, records)
     }
 
+    /**
+     * VO2 max writeback (#1525). NOOP computes this weekly and persists it as the `vo2max_est` metric
+     * series, keyed to the week's Saturday — nothing exported it before, so a value the app already had
+     * never reached Health Connect.
+     *
+     * Read through [WhoopRepository.metricSeriesComputedUnion], which is what that series' own doc says
+     * the weekly computed scores MUST use: it merges the active strap's computed sibling with the
+     * canonical "my-whoop-noop", so a re-added strap does not silently export half its history.
+     *
+     * Declared as MEASUREMENT_METHOD_OTHER rather than HEART_RATE_RATIO. The stored value is whichever
+     * estimator ran — the Nes multivariable regression when a waist is set, the Uth HR-ratio formula
+     * otherwise (#1493) — and the row does not record which. HEART_RATE_RATIO would be true of only one
+     * of them, so the honest label is the general one.
+     *
+     * Timestamped at local noon on the series' day, matching the daily records above.
+     */
+    private suspend fun writeVo2Max(
+        client: HealthConnectClient,
+        repo: WhoopRepository,
+        deviceId: String,
+        version: Long,
+    ): Int {
+        val zone = ZoneId.systemDefault()
+        val cutoff = LocalDate.now().minusDays(WINDOW_DAYS).toString()
+        val today = LocalDate.now().toString()
+        val rows = repo.metricSeriesComputedUnion(deviceId, "vo2max_est", cutoff, today)
+        val records = buildVo2MaxRecords(rows, version, zone)
+        if (records.isEmpty()) return 0
+        return insertChunked(client, records)
+    }
+
+    /**
+     * Pure: map `vo2max_est` series rows to records, testable without a client — the same split
+     * [buildExerciseRecords] uses below.
+     *
+     * Skips a day whose key will not parse, and any value at or below zero: a stored 0 means the estimator
+     * declined that week, and exporting it would publish "VO2 max: 0" as a fitness reading rather than
+     * saying nothing. Timestamped at local noon on the series' own day, matching the daily records, and
+     * keyed by day in the clientRecordId so a re-export upserts instead of duplicating.
+     */
+    internal fun buildVo2MaxRecords(
+        rows: List<MetricSeriesRow>,
+        version: Long,
+        zone: ZoneId,
+    ): List<Record> = rows.mapNotNull { row ->
+        val date = runCatching { LocalDate.parse(row.day) }.getOrNull() ?: return@mapNotNull null
+        if (row.value <= 0.0) return@mapNotNull null
+        val time = date.atTime(LocalTime.NOON).atZone(zone)
+        Vo2MaxRecord(
+            time = time.toInstant(),
+            zoneOffset = time.offset,
+            vo2MillilitersPerMinuteKilogram = row.value,
+            measurementMethod = Vo2MaxRecord.MEASUREMENT_METHOD_OTHER,
+            metadata = meta("vo2max", row.day, version),
+        )
+    }
+
     // --- Workout (ExerciseSession) writeback (GPS workouts, v1.71) ---
+
+    /**
+     * Write permission for VO2 max (#1525). Deliberately NOT in [WRITE_RECORDS]: that set feeds both the
+     * daily batch and the UI's `containsAll` gate, so adding it there would re-prompt every existing user
+     * and block ALL writeback until they re-granted. Requested alongside the others, but its records are
+     * written in their own attempt, so a decline costs only VO2 max.
+     */
+    val VO2MAX_PERMISSIONS: Set<String> = setOf(HealthPermission.getWritePermission(Vo2MaxRecord::class))
 
     /** Write-permission strings for exercise sessions + distance; union into the writeback request. */
     val EXERCISE_PERMISSIONS: Set<String> = setOf(
