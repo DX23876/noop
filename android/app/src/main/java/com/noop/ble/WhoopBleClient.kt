@@ -24,6 +24,7 @@ import android.os.Looper
 import android.os.ParcelUuid
 import android.os.SystemClock
 import android.util.Log
+import com.noop.NoopApplication
 import com.noop.data.HrRow
 import com.noop.data.RrRow
 import com.noop.data.StreamBatch
@@ -63,6 +64,7 @@ import com.noop.analytics.IntelligenceEngine
 import com.noop.analytics.NapDetector
 import com.noop.analytics.NapPrefs
 import com.noop.analytics.NapVerdict
+import com.noop.analytics.RegistryDayOwnerSource
 import com.noop.analytics.SedentaryDetector
 import com.noop.analytics.StressOnsetDetector
 import com.noop.analytics.WorkoutDetector
@@ -2438,6 +2440,17 @@ class WhoopBleClient(
                         repo = repository,
                         profile = profile,
                         importedDeviceId = deviceId,
+                        // #1567: resolve the day's owner from the registry on THIS pass too. Until now the
+                        // post-backfill pass was the documented exception ("a null ownerSource ... skips
+                        // resolution entirely"), which was harmless while the parameter only chose a day's
+                        // owner — a single-WHOOP install resolves to importedDeviceId either way, byte for
+                        // byte. #938 then made the skin-temp raw->C SCALE read the same source, and that is
+                        // not byte-identical: with no owner source every day falls back to WHOOP5, so a
+                        // WHOOP 4.0's raw ADC (~772) is read as centidegrees (7.7 C), missing the 28-42 C
+                        // worn gate entirely. The sync pass would persist that, and the next UI pass would
+                        // silently correct it — so the stored value depended on which pass wrote last.
+                        ownerSource = (context.applicationContext as? NoopApplication)
+                            ?.deviceRegistry?.let { RegistryDayOwnerSource(it) },
                         maxHROverride = profileStore.hrMaxOverride.takeIf { it > 0 }?.toDouble(),
                         // Steps-estimate calibration: honor the user's manual override and persist the fit
                         // after a backfill too, so the Settings/Steps screen reflects the latest data.
