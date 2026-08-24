@@ -12,11 +12,15 @@ import android.provider.Settings
  * but aggressive OEM battery managers kill even those, so the reliable lever is a USER action:
  * whitelist NOOP from battery optimisation (and, on the worst vendors, enable auto-start). This
  * centralises the detection and the intents that fix it, so the Settings "Keep NOOP alive overnight"
- * toggle and the Test Centre diagnostics share ONE source of truth for the vendor set + exempt check.
+ * row and the Test Centre diagnostics share ONE source of truth for the vendor set + exempt check.
  *
  * POPUP DISCIPLINE: nothing here ever fires a system dialog on its own. [batteryExemptionIntent] and
  * [oemAutostartIntent] only build Intents — the caller starts one exactly when the user taps, and the
- * toggle reflects live [isBatteryExempt] state so an already-exempt user is never prompted again.
+ * row reflects live [isBatteryExempt] state so an already-exempt user is never prompted again.
+ *
+ * That row is a STATUS LINE PLUS ONE ACTION, deliberately not a switch: Android exposes no way to
+ * revoke an app's own exemption, so a bidirectional control could never honour half its input. It was
+ * a Switch once, and was reported as broken for exactly that reason. See [batteryRowAction].
  *
  * The whitelist adds NO battery cost of its own: it removes a premature kill, it does not add work.
  * The real cost is the existing "Keep connected in the background" / "Continuous HRV" / "Overnight only"
@@ -43,6 +47,31 @@ object BackgroundHealth {
     fun isBatteryExempt(context: Context): Boolean =
         (context.getSystemService(Context.POWER_SERVICE) as? PowerManager)
             ?.isIgnoringBatteryOptimizations(context.packageName) == true
+
+    /**
+     * What the "Keep NOOP alive overnight" row's action should DO, given whether the exemption is granted.
+     *
+     * This row is NOT a setting: [isBatteryExempt] is read nowhere but the Settings screen itself, and the
+     * thing that actually keeps NOOP alive overnight is the Background-connection preference above it. This
+     * row reports an Android permission and asks for it.
+     *
+     * It used to be rendered as a Switch, which was reported as broken — it could be turned on but not off.
+     * That was the correct read: Android has no API to revoke an app's own exemption
+     * ([Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS] can only ask), so the off direction did
+     * nothing and the switch sprang back. The answer is not a cleverer Switch; a bidirectional control was
+     * always the wrong shape for a one-way grant. It is now a status line plus a single action, and this is
+     * that action.
+     */
+    enum class BatteryRowAction {
+        /** Not yet exempt: the one-tap system grant dialog. */
+        RequestExemption,
+        /** Already exempt: NOOP's system settings page, where the user can revoke it. */
+        OpenAppSettings,
+    }
+
+    /** Pure; see [BatteryRowAction]. Total over the only input there is. */
+    fun batteryRowAction(isExempt: Boolean): BatteryRowAction =
+        if (isExempt) BatteryRowAction.OpenAppSettings else BatteryRowAction.RequestExemption
 
     /**
      * The one-tap system dialog to whitelist NOOP from battery optimisation. Sideload-only intent

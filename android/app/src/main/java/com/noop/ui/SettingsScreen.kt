@@ -113,6 +113,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.semantics.Role
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -1946,31 +1947,54 @@ fun SettingsScreen(
                                 )
                             }
                         }
-                        Switch(
-                            checked = batteryExempt,
-                            // A system grant can't be toggled OFF from here (that's a system action): a tap
-                            // only ever REQUESTS it, and when already exempt the switch is inert (no re-prompt).
-                            onCheckedChange = { wantOn ->
-                                if (wantOn && !batteryExempt) {
-                                    // The whole feature exists for ROMs that strip things — so the fallback
-                                    // is guarded too: if BOTH the exemption dialog and the app-settings page
-                                    // are missing, no-op rather than crash (the OEM link below is another path).
-                                    runCatching {
-                                        context.startActivity(com.noop.ble.BackgroundHealth.batteryExemptionIntent(context))
-                                    }.onFailure {
-                                        runCatching {
-                                            context.startActivity(com.noop.ble.BackgroundHealth.appBatterySettingsIntent(context))
-                                        }
+                        // #386 follow-up: an ACTION, not a Switch.
+                        //
+                        // This row reports an Android permission — `isBatteryExempt` is read nowhere outside
+                        // this screen, and the setting that actually keeps NOOP alive overnight is the
+                        // Background-connection toggle above. Rendering a permission grant as a Switch was
+                        // reported as broken ("I can enable it but can't disable it"), and that was right:
+                        // Android has no API to revoke an app's own exemption, so the off direction did
+                        // nothing and the switch sprang back. A bidirectional control was the wrong shape
+                        // for a one-way grant, so it is now a status line (above) plus one action.
+                        //
+                        // Granted -> "Manage" opens NOOP's system settings page, which is where a user CAN
+                        // revoke it. Not granted -> "Allow" fires the one-tap dialog. Either way the tap
+                        // does something, and the ON_RESUME observer re-reads the live state on return.
+                        Text(
+                            if (batteryExempt) {
+                                uiString(R.string.l10n_settings_screen_manage_bf58d17e)
+                            } else {
+                                uiString(R.string.l10n_settings_screen_allow_3ad0e369)
+                            },
+                            style = NoopType.subhead,
+                            color = Palette.accent,
+                            modifier = Modifier
+                                // This action REPLACED a Switch, which came with a comfortable touch
+                                // target for free. A bare Text is ~20dp — under the 48dp minimum, and
+                                // it is now the only way to act on this row, so it has to be padded
+                                // rather than merely present. `.clickable{}` BEFORE `.padding()`:
+                                // modifiers apply outside-in, so this puts the padding inside the
+                                // clickable node and grows the target; the reverse would not.
+                                .clickable(role = Role.Button) {
+                                    when (com.noop.ble.BackgroundHealth.batteryRowAction(batteryExempt)) {
+                                        // The whole feature exists for ROMs that strip things — so the fallback
+                                        // is guarded too: if BOTH the exemption dialog and the app-settings page
+                                        // are missing, no-op rather than crash (the OEM link above is another path).
+                                        com.noop.ble.BackgroundHealth.BatteryRowAction.RequestExemption ->
+                                            runCatching {
+                                                context.startActivity(com.noop.ble.BackgroundHealth.batteryExemptionIntent(context))
+                                            }.onFailure {
+                                                runCatching {
+                                                    context.startActivity(com.noop.ble.BackgroundHealth.appBatterySettingsIntent(context))
+                                                }
+                                            }
+                                        com.noop.ble.BackgroundHealth.BatteryRowAction.OpenAppSettings ->
+                                            runCatching {
+                                                context.startActivity(com.noop.ble.BackgroundHealth.appBatterySettingsIntent(context))
+                                            }
                                     }
                                 }
-                            },
-                            colors = SwitchDefaults.colors(
-                                checkedThumbColor = Palette.surfaceBase,
-                                checkedTrackColor = Palette.accent,
-                                uncheckedThumbColor = Palette.textSecondary,
-                                uncheckedTrackColor = Palette.surfaceInset,
-                                uncheckedBorderColor = Palette.hairline,
-                            ),
+                                .padding(vertical = 12.dp, horizontal = 8.dp),
                         )
                     }
                 }
