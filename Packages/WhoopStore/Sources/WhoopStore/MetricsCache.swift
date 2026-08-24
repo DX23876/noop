@@ -1,6 +1,10 @@
 import Foundation
 import GRDB
 
+private enum SleepGroupMutationError: Error {
+    case rowMissing
+}
+
 // MARK: - Offline cache of SERVER-computed metrics (Task 3.1 → M0.4)
 // This file is purely a local cache of values computed by the server — the phone does NO metric
 // computation here. DailyMetric and CachedSleepSession mirror the server's daily_metrics /
@@ -53,6 +57,35 @@ public struct CachedSleepSession: Equatable, Codable {
         CachedSleepSession(startTs: newStartTs, endTs: endTs, efficiency: efficiency, restingHr: restingHr,
                            avgHrv: avgHrv, stagesJSON: stagesJSON, userEdited: userEdited,
                            startTsAdjusted: startTsAdjusted, stagingSparse: stagingSparse)
+    }
+}
+
+/// One owner-resolved fragment update in an atomic bridged-night edit.
+public struct SleepSessionEditMutation {
+    public let deviceId: String
+    public let detectedStartTs: Int
+    public let newStartTs: Int
+    public let newEndTs: Int
+    public let stagesJSON: String?
+
+    public init(deviceId: String, detectedStartTs: Int, newStartTs: Int, newEndTs: Int,
+                stagesJSON: String?) {
+        self.deviceId = deviceId
+        self.detectedStartTs = detectedStartTs
+        self.newStartTs = newStartTs
+        self.newEndTs = newEndTs
+        self.stagesJSON = stagesJSON
+    }
+}
+
+/// One owner-resolved fragment removal in an atomic bridged-night edit.
+public struct SleepSessionDeleteMutation {
+    public let deviceId: String
+    public let detectedStartTs: Int
+
+    public init(deviceId: String, detectedStartTs: Int) {
+        self.deviceId = deviceId
+        self.detectedStartTs = detectedStartTs
     }
 }
 
@@ -225,6 +258,34 @@ extension WhoopStore {
                 WHERE deviceId = ? AND startTs = ?
                 """, arguments: [newStartTs, newEndTs, stagesJSON, deviceId, detectedStartTs])
             return db.changesCount
+        }
+    }
+
+    /// Apply every surviving edit and outside-window removal of one bridged night in a single database
+    /// transaction. The repository resolves namespaces and records deletion tombstones; this store seam
+    /// guarantees observers can never see a half-edited group between fragment writes.
+    public func applySleepGroupEdit(edits: [SleepSessionEditMutation],
+                                    drops: [SleepSessionDeleteMutation]) async throws -> (edited: Int, deleted: Int) {
+        try syncWrite { db in
+            var edited = 0
+            var deleted = 0
+            for edit in edits {
+                try db.execute(sql: """
+                    UPDATE sleepSession
+                    SET startTsAdjusted = ?, endTs = ?, stagesJSON = COALESCE(?, stagesJSON), userEdited = 1
+                    WHERE deviceId = ? AND startTs = ?
+                    """, arguments: [edit.newStartTs, edit.newEndTs, edit.stagesJSON,
+                                      edit.deviceId, edit.detectedStartTs])
+                guard db.changesCount == 1 else { throw SleepGroupMutationError.rowMissing }
+                edited += db.changesCount
+            }
+            for drop in drops {
+                try db.execute(sql: "DELETE FROM sleepSession WHERE deviceId = ? AND startTs = ?",
+                               arguments: [drop.deviceId, drop.detectedStartTs])
+                guard db.changesCount == 1 else { throw SleepGroupMutationError.rowMissing }
+                deleted += db.changesCount
+            }
+            return (edited, deleted)
         }
     }
 

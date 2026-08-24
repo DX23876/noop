@@ -126,6 +126,12 @@ struct SleepDeletionSnapshot: Equatable {
     var sleepState: [Int]?
 }
 
+/// Result of applying one correction to a displayed, potentially fragmented night. Only fragments
+/// retired because they fell outside the new window are returned; the UI offers those as one Undo.
+struct SleepGroupEditResult {
+    let retired: [SleepDeletionSnapshot]
+}
+
 /// Read model over the on-device WhoopStore. Opens its own handle (WAL + busy-timeout makes the
 /// two-handle BLEManager+Repository pattern safe) and publishes the dashboard caches the screens bind to.
 @MainActor
@@ -1397,6 +1403,81 @@ final class Repository: ObservableObject {
         await refresh()
     }
 
+    /// Hand-correct the whole bridged night shown by the Sleep hero. A split night is one product-level
+    /// object even though it remains several keyed rows in the store; applying the window to only one row
+    /// leaves the outer fragments defining the old visible times and lets analysis fold them straight back
+    /// in. One pure plan now drives every fragment, and one store transaction makes the change atomic.
+    func editSleepGroupTimes(_ group: [CachedSleepSession], newStartTs: Int,
+                             newEndTs: Int) async -> SleepGroupEditResult? {
+        guard let store = await ensureStore(),
+              let window = SleepEditGuard.clampedEditWindow(
+                start: newStartTs, end: newEndTs, now: Int(Date().timeIntervalSince1970))
+        else { return nil }
+        let plan = SleepGroupEdit.plan(group, newStartTs: window.start, newEndTs: window.end)
+        guard !plan.clipped.isEmpty else { return nil }
+
+        // Resolve every immutable key to the namespace that owns it before mutating anything. Dropped
+        // rows retain the full snapshot (including motion/band-state sidecars) for the grouped Undo.
+        var clippedOwners: [Int: String] = [:]
+        for fragment in plan.clipped {
+            guard let snapshot = await ownedSleepRowSnapshot(store: store,
+                                                              detectedStartTs: fragment.startTs) else { return nil }
+            clippedOwners[fragment.startTs] = snapshot.ownerDeviceId
+        }
+        var retired: [SleepDeletionSnapshot] = []
+        for fragment in plan.dropped {
+            guard let snapshot = await ownedSleepRowSnapshot(store: store,
+                                                              detectedStartTs: fragment.startTs) else { return nil }
+            retired.append(snapshot)
+        }
+
+        var edits: [SleepSessionEditMutation] = []
+        edits.reserveCapacity(plan.clipped.count)
+        for fragment in plan.clipped {
+            guard let owner = clippedOwners[fragment.startTs] else { return nil }
+            // Each fragment owns only its corrected slice. Re-staging the entire group into every row would
+            // duplicate stages when the hero merges them; fall back to the planner's per-row reclip when
+            // dense raw streams are unavailable (imports / pre-sync edits).
+            let stages = await restageFromRaw(start: fragment.effectiveStartTs, end: fragment.endTs)
+                ?? fragment.stagesJSON
+            edits.append(SleepSessionEditMutation(
+                deviceId: owner,
+                detectedStartTs: fragment.startTs,
+                newStartTs: fragment.effectiveStartTs,
+                newEndTs: fragment.endTs,
+                stagesJSON: stages
+            ))
+        }
+        let drops = retired.map {
+            SleepSessionDeleteMutation(deviceId: $0.ownerDeviceId,
+                                       detectedStartTs: $0.session.startTs)
+        }
+
+        // Arm suppression before yielding to the transaction so no concurrent analysis can re-create a
+        // retired detected edge. Restore the old token set if the transaction rolls back.
+        let priorTombstones = dismissedSleepSpans
+        var nextTombstones = priorTombstones
+        for snapshot in retired
+        where DismissedSleepSpans.writesTombstoneOnDelete(userEdited: snapshot.session.userEdited) {
+            nextTombstones = DismissedSleepSpans.adding(startTs: snapshot.session.startTs,
+                                                       endTs: snapshot.endTs,
+                                                       to: nextTombstones)
+        }
+        dismissedSleepSpans = nextTombstones
+        do {
+            let changed = try await store.applySleepGroupEdit(edits: edits, drops: drops)
+            guard changed.edited == edits.count, changed.deleted == drops.count else {
+                dismissedSleepSpans = priorTombstones
+                return nil
+            }
+        } catch {
+            dismissedSleepSpans = priorTombstones
+            return nil
+        }
+        await refresh()
+        return SleepGroupEditResult(retired: retired)
+    }
+
     /// Delete ONE sleep session: the `editSleepTimes` path minus the re-stage/re-insert, so the user can
     /// clear a misread or spurious night and the day recomputes as if it were never recorded (#68; Android
     /// parity `WhoopRepository.deleteSleepSession`). `detectedStartTs` is the immutable detected key
@@ -1447,22 +1528,32 @@ final class Repository: ObservableObject {
     /// screen's undo banner calls this within a few seconds. Idempotent: a snapshot with no tombstone
     /// (a `userEdited` delete) still restores the row.
     func undoDeleteSleepSession(_ snapshot: SleepDeletionSnapshot) async {
+        await undoDeleteSleepSessions([snapshot])
+    }
+
+    /// Restore all fragments retired by one grouped edit, then publish once. Grouping by owner preserves
+    /// their original namespaces while avoiding one full refresh per fragment.
+    func undoDeleteSleepSessions(_ snapshots: [SleepDeletionSnapshot]) async {
+        guard !snapshots.isEmpty else { return }
         guard let store = await ensureStore() else { return }
-        // Lift the tombstone so the restored night is not immediately re-suppressed on the next pass.
-        dismissedSleepSpans = DismissedSleepSpans.removing(startTs: snapshot.session.startTs,
-                                                           endTs: snapshot.endTs, from: dismissedSleepSpans)
-        // Restore into the SAME namespace that owned it. upsertSleepSessions preserves userEdited.
-        _ = try? await store.upsertSleepSessions([snapshot.session], deviceId: snapshot.ownerDeviceId)
-        // Re-persist the per-epoch motion + band-state series the delete dropped (they're not carried on
-        // CachedSleepSession). Must run AFTER the upsert (both are UPDATEs keyed on (deviceId, startTs)),
-        // so a userEdited night keeps its Deep Timeline motion + Band Sleep State tracks (Android parity).
-        // A nil series persists the empty array, which the store maps to NULL (absent stays absent).
-        _ = try? await store.persistSessionMotion(deviceId: snapshot.ownerDeviceId,
-                                                  sessionStart: snapshot.session.startTs,
-                                                  motionEpochs: snapshot.motion ?? [])
-        _ = try? await store.persistSessionSleepState(deviceId: snapshot.ownerDeviceId,
-                                                     sessionStart: snapshot.session.startTs,
-                                                     states: snapshot.sleepState ?? [])
+        var tombstones = dismissedSleepSpans
+        for snapshot in snapshots {
+            tombstones = DismissedSleepSpans.removing(startTs: snapshot.session.startTs,
+                                                      endTs: snapshot.endTs, from: tombstones)
+        }
+        dismissedSleepSpans = tombstones
+        for (owner, owned) in Dictionary(grouping: snapshots, by: \.ownerDeviceId) {
+            _ = try? await store.upsertSleepSessions(owned.map(\.session), deviceId: owner)
+        }
+        for snapshot in snapshots {
+            // Sidecars are not carried by CachedSleepSession, so restore them after the row upsert.
+            _ = try? await store.persistSessionMotion(deviceId: snapshot.ownerDeviceId,
+                                                      sessionStart: snapshot.session.startTs,
+                                                      motionEpochs: snapshot.motion ?? [])
+            _ = try? await store.persistSessionSleepState(deviceId: snapshot.ownerDeviceId,
+                                                         sessionStart: snapshot.session.startTs,
+                                                         states: snapshot.sleepState ?? [])
+        }
         await refresh()
     }
 

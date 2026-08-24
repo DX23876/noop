@@ -121,6 +121,58 @@ final class MetricsCacheTests: XCTestCase {
         XCTAssertEqual(changed, 0, "no matching session → no rows changed")
     }
 
+    func testSleepGroupEditUpdatesSurvivorsAndDropsOutsideFragmentAtomically() async throws {
+        let store = try await WhoopStore.inMemory()
+        let rows = [
+            CachedSleepSession(startTs: 1_000, endTs: 2_000, efficiency: nil,
+                               restingHr: nil, avgHrv: nil, stagesJSON: "[\"first\"]"),
+            CachedSleepSession(startTs: 3_000, endTs: 4_000, efficiency: nil,
+                               restingHr: nil, avgHrv: nil, stagesJSON: "[\"middle\"]"),
+            CachedSleepSession(startTs: 5_000, endTs: 6_000, efficiency: nil,
+                               restingHr: nil, avgHrv: nil, stagesJSON: "[\"tail\"]"),
+        ]
+        try await store.upsertSleepSessions(rows, deviceId: "devA")
+
+        let changed = try await store.applySleepGroupEdit(
+            edits: [
+                SleepSessionEditMutation(deviceId: "devA", detectedStartTs: 1_000,
+                                         newStartTs: 1_200, newEndTs: 2_000, stagesJSON: "[\"a\"]"),
+                SleepSessionEditMutation(deviceId: "devA", detectedStartTs: 3_000,
+                                         newStartTs: 3_000, newEndTs: 4_500, stagesJSON: "[\"b\"]"),
+            ],
+            drops: [SleepSessionDeleteMutation(deviceId: "devA", detectedStartTs: 5_000)])
+        XCTAssertEqual(changed.edited, 2)
+        XCTAssertEqual(changed.deleted, 1)
+
+        let stored = try await store.sleepSessions(deviceId: "devA", from: 0, to: 10_000, limit: 10)
+        XCTAssertEqual(stored.map(\.startTs), [1_000, 3_000])
+        XCTAssertEqual(stored[0].effectiveStartTs, 1_200)
+        XCTAssertEqual(stored[1].endTs, 4_500)
+        XCTAssertTrue(stored.allSatisfy(\.userEdited))
+    }
+
+    func testSleepGroupEditRollsBackEveryFragmentWhenAnyKeyIsMissing() async throws {
+        let store = try await WhoopStore.inMemory()
+        let original = CachedSleepSession(startTs: 1_000, endTs: 2_000, efficiency: nil,
+                                          restingHr: nil, avgHrv: nil, stagesJSON: "[\"original\"]")
+        try await store.upsertSleepSessions([original], deviceId: "devA")
+
+        do {
+            _ = try await store.applySleepGroupEdit(
+                edits: [
+                    SleepSessionEditMutation(deviceId: "devA", detectedStartTs: 1_000,
+                                             newStartTs: 1_200, newEndTs: 1_800,
+                                             stagesJSON: "[\"changed\"]"),
+                    SleepSessionEditMutation(deviceId: "devA", detectedStartTs: 9_999,
+                                             newStartTs: 9_999, newEndTs: 10_999, stagesJSON: nil),
+                ], drops: [])
+            XCTFail("a missing fragment must fail the transaction")
+        } catch { }
+
+        let stored = try await store.sleepSessions(deviceId: "devA", from: 0, to: 10_000, limit: 10)
+        XCTAssertEqual(stored, [original], "the first mutation must roll back with the missing second row")
+    }
+
     func testSetSleepWakeTimeReplacesStagesWhenProvidedAndKeepsThemWhenNil() async throws {
         let store = try await WhoopStore.inMemory()
         try await store.upsertSleepSessions(
