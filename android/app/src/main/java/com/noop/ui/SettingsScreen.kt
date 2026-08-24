@@ -485,6 +485,7 @@ fun SettingsScreen(
     vm: AppViewModel,
     onOpenTestCentre: () -> Unit = {},
     onOpenBackupSync: () -> Unit = {},
+    onOpenStepsCalibration: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -556,11 +557,6 @@ fun SettingsScreen(
     // that feeds Charge from tonight onward; the standing analyze loop picks it up on its next pass.
     // Fixes a baseline poisoned by a bad first week (worn sick, or early nights that anchored too high).
     var showRecalibrateConfirm by remember { mutableStateOf(false) }
-
-    // Steps-estimate calibration screen (WHOOP 4.0), reached from the Profile card's "Steps estimate"
-    // tap-through. Mirrors the macOS StepsCalibrationSheet: honest explainer + current fit + a recent
-    // estimated-vs-phone table + a manual coefficient override. Full-screen Dialog like the guide above.
-    var showStepsCalibration by remember { mutableStateOf(false) }
 
     // Whether the "Advanced" disclosure (experimental probes, diagnostics, raw-sensor export, Trends
     // report) is expanded. Default FALSE so a first-run user lands on the everyday sections instead of
@@ -1129,7 +1125,7 @@ fun SettingsScreen(
                         .clickable(
                             interactionSource = stepsRowInteraction,
                             indication = null,
-                        ) { showStepsCalibration = true }
+                        ) { onOpenStepsCalibration() }
                         .semantics {
                             contentDescription =
                                 uiString(R.string.l10n_settings_screen_steps_estimate_calibration_stepssummary_opens_the_d6fbf995, stepsSummary)
@@ -3612,26 +3608,6 @@ fun SettingsScreen(
             ) {
                 Surface(modifier = Modifier.fillMaxSize(), color = Palette.surfaceBase) {
                     WhoopModelComparisonScreen(onClose = { showModelComparison = false })
-                }
-            }
-        }
-
-
-        // Steps-estimate calibration, opened from the Profile card's "Steps estimate" row. Same
-        // full-screen Dialog idiom; a manual-coefficient write bumps `rev` so the Profile summary
-        // row reflects the new state on dismiss.
-        if (showStepsCalibration) {
-            Dialog(
-                onDismissRequest = { showStepsCalibration = false },
-                properties = DialogProperties(usePlatformDefaultWidth = false),
-            ) {
-                Surface(modifier = Modifier.fillMaxSize(), color = Palette.surfaceBase) {
-                    StepsCalibrationScreen(
-                        vm = vm,
-                        profile = profile,
-                        onProfileChanged = { rev++ },
-                        onClose = { showStepsCalibration = false },
-                    )
                 }
             }
         }

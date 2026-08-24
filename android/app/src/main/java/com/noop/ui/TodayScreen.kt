@@ -282,6 +282,9 @@ fun TodayScreen(
     // wrongly dumping into the Health monitor). Mirrors the iOS liquidCard `metricDetail(key)`. Takes the
     // vital_detail key; defaults to the Health screen so an unbound caller keeps the old behaviour.
     onOpenMetric: (String) -> Unit = { onOpenHealth() },
+    // A blank WHOOP 4.0 Steps tile can open calibration directly (#1515). AppRoot binds this to the same
+    // nested destination Settings uses; other Steps states continue through [onOpenMetric].
+    onOpenStepsCalibration: () -> Unit = {},
     onOpenSleep: () -> Unit = {},
     // Optional Coupled view card (task #43): a tap-through to the WHOOP-style day screen. Defaulted to a
     // no-op so the call site stays compiling; AppRoot binds it to nav.navigate(CoupledView).
@@ -1560,6 +1563,7 @@ fun TodayScreen(
                                     detailed = keyMetricsDetailed,
                                     windowDays = keyMetricsWindowDays,
                                     onOpenMetric = onOpenMetric,
+                                    onOpenStepsCalibration = onOpenStepsCalibration,
                                 )
                             }
                         }
@@ -4919,7 +4923,16 @@ private fun MetricGrid(
     // Tile drill-ins: every tile opens its focused trend timeline (vital_detail/<key>, the Sleep
     // night-detail pattern) via [onOpenMetric].
     onOpenMetric: (String) -> Unit = {},
+    // Exception for the actionable blank WHOOP 4.0 state: it opens the canonical calibration screen.
+    onOpenStepsCalibration: () -> Unit = {},
 ) {
+    val realStepsForDay = d?.steps ?: importedStepsForDay
+    val stepsOpenCalibration = stepsTileShouldOpenCalibration(
+        realSteps = realStepsForDay,
+        estimatedSteps = estimatedStepsForDay,
+        calibrationPrompt = stepsCalibrationPrompt,
+    )
+
     // FIX 3 (iOS `keyMetricsSection` parity): a 3-COLUMN grid of COMPACT liquid tiles, each an iOS `ktile`
     // — a 9sp/+1.2 overline label, a value + small unit, and a thin 8dp LiquidTube fill bar — REPLACING the
     // old 2-column large sparkline cards. One descriptor per KeyMetric, carrying the SAME value/tint reads
@@ -5006,8 +5019,7 @@ private fun MetricGrid(
         },
         KeyMetric.STEPS to run {
             // Steps precedence (unchanged): on-device count → imported → estimate. (#107/#150)
-            val realSteps = d?.steps ?: importedStepsForDay
-            val steps = realSteps ?: estimatedStepsForDay
+            val steps = realStepsForDay ?: estimatedStepsForDay
             KeyTileData(
                 label = uiString(R.string.l10n_today_screen_steps_cdde4f20),
                 value = steps?.let { intString(it.toDouble()) } ?: NO_DATA,
@@ -5018,7 +5030,7 @@ private fun MetricGrid(
                 // A measured count needs no explanation; an ESTIMATE says what it was fitted from
                 // (#760/#792); a BLANK tile on a strap that estimates says what would unblock it (#1491).
                 caption = when {
-                    realSteps != null -> null
+                    realStepsForDay != null -> null
                     estimatedStepsForDay != null -> stepsEstimateCaption
                     else -> stepsCalibrationPrompt
                 },
@@ -5065,7 +5077,7 @@ private fun MetricGrid(
         KeyMetric.RESTING_HR -> ({ onOpenMetric("rhr") })
         KeyMetric.BLOOD_OXYGEN -> ({ onOpenMetric("spo2") })
         KeyMetric.RESPIRATORY -> ({ onOpenMetric("resp") })
-        KeyMetric.STEPS -> ({ onOpenMetric("steps_est") })
+        KeyMetric.STEPS -> if (stepsOpenCalibration) onOpenStepsCalibration else ({ onOpenMetric("steps_est") })
         KeyMetric.CALORIES -> ({ onOpenMetric("active_kcal") })
         KeyMetric.WEIGHT -> null
     }
@@ -5122,6 +5134,15 @@ private fun MetricGrid(
         }
     }
 }
+
+/** True only for the actionable #1515 state: the tile has no measured/imported count, no estimate, and
+ *  carries the WHOOP 4.0 calibration prompt. Real or estimated Steps always retain their trend drill-in;
+ *  a blank 5/MG or already-calibrated quiet day has no prompt and retains it too. */
+internal fun stepsTileShouldOpenCalibration(
+    realSteps: Int?,
+    estimatedSteps: Int?,
+    calibrationPrompt: String?,
+): Boolean = realSteps == null && estimatedSteps == null && calibrationPrompt != null
 
 /** One compact Key-Metrics tile's data: iOS `ktile`(label, value, unit, tint, frac). [spark] is the
  *  trailing trend series (oldest→newest) the DETAILED tile style graphs, capped at render to the editor's
