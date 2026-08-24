@@ -85,6 +85,8 @@ struct LiquidTodayView: View {
     @State private var stepsEst: Double?           // steps_est, day-keyed to the selected day (fallback)
     @State private var importedStepsDay: Int?      // Apple Health steps for the selected day (middle tier)
     @State private var importedActiveKcalDay: Double?  // #616: Apple Health active energy for the day (calorie fallback)
+    /// Today's energy summary, or nil before loading / when the day has no usable inputs.
+    @State private var energySummary: DailyEnergySummary?
     /// The Weight tile's resolved value and which tier it came from, or nil before the first `load()`.
     /// Was a permanent hardcoded "—" placeholder before — `WeightSeries.displayWeight` gives the same
     /// trend → last measurement → profile fallback classic/Heute use.
@@ -477,6 +479,13 @@ struct LiquidTodayView: View {
                         case .goals:
                             if selectedDayOffset == 0 { GoalsTodaySection(showGoalJourney: $showGoalJourney) }
                         case .keyMetrics: keyMetricsSection
+                        case .energy:
+                            if selectedDayOffset == 0, let energySummary {
+                                NavigationLink(value: TabRoute.energy) {
+                                    EnergyCard(summary: energySummary)
+                                }
+                                .buttonStyle(.plain)
+                            }
                         case .workouts: lastWorkoutsSection
                         case .heartRate: heartRateSection
                         case .recoveryVitals: recoveryVitalsSection
@@ -2056,6 +2065,7 @@ struct LiquidTodayView: View {
         // point of the series fallback. `windowedSpark` trims it at render time like every other entry.
         async let weightSeriesA = repo.weightDailyValues(days: 91)
         async let weightSummaryA = repo.weightTrendSummary(days: 91)
+        async let energyA = repo.todayEnergy(profile: Repository.analyticsProfile(profile))
         // Ask the same cross-source resolver the Classic Today view uses which source actually won each
         // displayed score. Include the exact carried-Charge day; a fixed relative lookback can miss a
         // legitimately old carried score.
@@ -2107,6 +2117,7 @@ struct LiquidTodayView: View {
         let weightSeries = await weightSeriesA
         resolvedWeightKg = WeightSeries.displayWeight(summary: await weightSummaryA,
                                                       profileWeightKg: profile.weightKg)
+        energySummary = await energyA
         var winImportedKcal: [String: Double] = [:]
         for r in appleRowsForSpark where r.day >= sparkCutoff && r.day <= selectedDayKey {
             if let k = r.activeKcal { winImportedKcal[r.day] = max(winImportedKcal[r.day] ?? 0, k) }

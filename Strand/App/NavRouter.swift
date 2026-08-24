@@ -37,6 +37,8 @@ final class NavRouter: ObservableObject {
         /// looks truncated: the card offers "Fix it" and this is what takes the wearer to the editor
         /// rather than leaving them to find it.
         case sleep
+        /// Today's energy detail. Used by the dedicated iOS Home/Lock-Screen widget.
+        case energy
 
         var id: String { rawValue }
 
@@ -117,4 +119,6 @@ final class NavRouter: ObservableObject {
     func openDataSources() { requestedDestination = .dataSources }
     /// Open the Sleep screen, where last night's wake time can be corrected.
     func openSleep() { requestedDestination = .sleep }
+    /// Open the expenditure detail behind Today's Energy card.
+    func openEnergy() { requestedDestination = .energy }
 }

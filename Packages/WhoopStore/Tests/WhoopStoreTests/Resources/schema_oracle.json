@@ -44,11 +44,13 @@
     "v40-analysis-input-revision",
     "v41-apple-step-hour",
     "v42-ppg-burst-index",
-    "v43-body-weight"
+    "v43-body-weight",
+    "v44-energy-coverage"
   ],
   "divergenceReasons": {
     "android-orphan-synced-column": "REAL COLUMN DRIFT: `synced` exists on Android only. GRDB's v10 note is explicit that stepSample gets no `synced` column ('unused; see StreamStore'), and v12's ppgHrSample never had one either; the Room entities copied the flag from the older per-second entities. Nothing reads it on Android — the per-row upload flag belongs to an upload path that does not exist there — so it is dead width, not divergent data. Removing it needs a Room table rebuild.",
     "battery-alter-append-order": "REAL COLUMN-ORDER DRIFT (CLAUDE.md: 'column order in a Room CREATE TABLE must match the entity field order'). GRDB appended `synced` (v5) then `charging` (v6) with ALTER TABLE, which can only append; the Room entity declares `charging` before `synced`. Same columns, same types, different positions — so any positional copy (INSERT INTO battery SELECT * FROM …) swaps them. Fixing it means reordering the Room entity's fields, which changes Room's identity hash and therefore needs a version bump plus a no-op migration.",
+    "daily-energy-coverage-ios-only": "REAL COLUMN DRIFT, deliberate until Android ports the corrected energy summary: `dailyMetric.energyCoverageSeconds` stores the distinct HR seconds that fed iOS's whole-day calorie estimate. The Android tree is not present in this checkout and its calorie persistence has no matching denominator yet. Nullable iOS rows preserve old/imported data; closing the divergence requires adding the Room column and writing the same distinct-second count beside Android's estimate.",
     "grdb-boolean-affinity": "GRDB's .boolean column type is declared BOOLEAN, which SQLite gives NUMERIC affinity; Room maps Kotlin Boolean to INTEGER. For the 0/1 values both sides write, NUMERIC and INTEGER affinity store bit-identical INTEGERs, so a .noopbak round-trips. Closing it means a GRDB table rebuild.",
     "paired-device-alter-append-order": "REAL COLUMN-ORDER DRIFT, same shape as battery. GRDB's v16-paired-device-peripheral appended `peripheralId` at the end; the Room entity declares it fifth, between `nickname` and `sourceKind`.",
     "ppg-hr-bpm-integer-on-android": "AFFINITY DRIFT, and NOT a data consequence: ppgHrSample.bpm is declared REAL on iOS and INTEGER on Android — but only the SQLITE COLUMN differs. The ROW type is `Int` on both sides: Swift's `PpgHrSample.bpm` is `Int`, carrying the comment 'the same Int domain as the measured HRSample.bpm and the Android PpgHr.Estimate.bpm, so the stored value and type match across platforms (#219)'. Both platforms also round to whole bpm before that — Swift `(fsD * 60 / refinedLag).rounded()` then `Int(est.bpm)`, Kotlin `Math.round(fsD * 60 / refinedLag).toInt()` — and the read path (`CAST(ROUND(p.bpm) AS INTEGER)`) rounds again, a no-op on a whole number. There is one writer and one construction site on each side. So REAL holds the same whole numbers INTEGER does and NO value differs. Recorded because the DECLARED affinity genuinely diverges, and a bpm that ever became fractional would then diverge silently; closing it means a GRDB table rebuild. Deliberately NOT the decoder-oracle (#869) class — that caught a real value divergence.",
@@ -459,6 +461,14 @@
           "affinity": "REAL",
           "notNull": false,
           "default": null
+        },
+        {
+          "name": "energyCoverageSeconds",
+          "affinity": "INTEGER",
+          "notNull": false,
+          "default": null,
+          "androidAbsent": true,
+          "divergence": "daily-energy-coverage-ios-only"
         }
       ],
       "primaryKey": [

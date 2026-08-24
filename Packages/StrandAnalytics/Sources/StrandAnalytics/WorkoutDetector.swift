@@ -610,9 +610,37 @@ public enum Calories {
     }
 
     static func restingKcalPerS(_ c: Coeffs, weightKg: Double, heightCm: Double, age: Double) -> Double {
+        max(0.0, bmrKcalPerDay(c, weightKg: weightKg, heightCm: heightCm, age: age)) / 86_400.0
+    }
+
+    /// The revised Harris–Benedict basal metabolic rate for a WHOLE day (kcal/24 h).
+    ///
+    /// Split out of `restingKcalPerS`, which has always computed exactly this and then divided by
+    /// 86 400 — so this is not a new formula, it is the same one at its natural unit. That matters:
+    /// NOOP must have ONE basal rate. A second formula anywhere would let two screens disagree about
+    /// the same body.
+    ///
+    /// APPROXIMATE, like everything in this file: a population regression on age/sex/height/weight,
+    /// not a measurement of this person's metabolism.
+    static func bmrKcalPerDay(_ c: Coeffs, weightKg: Double, heightCm: Double, age: Double) -> Double {
         let heightM = heightCm / 100.0
-        let bmr = c.restingAlpha + c.restingWeight * weightKg + c.restingHeight * heightM - c.restingAge * age
-        return max(0.0, bmr) / 86_400.0
+        return c.restingAlpha + c.restingWeight * weightKg + c.restingHeight * heightM - c.restingAge * age
+    }
+
+    /// The whole-day BMR for a profile, with the same defaults `estimateDayCalories` applies to a
+    /// blank profile (70 kg / 170 cm / 30 y). Nil when the profile carries no usable body data at
+    /// all — an invented basal rate is worse than an absent one, because everything downstream
+    /// (total burn, maintenance, a calorie target) would inherit the invention silently.
+    ///
+    /// `public`: the EnergyEngine is the first caller outside this file, and it must not re-derive
+    /// the formula.
+    public static func bmrKcalPerDay(profile: UserProfile) -> Double? {
+        guard profile.weightKg > 0, profile.heightCm > 0, profile.age > 0 else { return nil }
+        let value = bmrKcalPerDay(resolveCoeffs(profile.sex),
+                                  weightKg: profile.weightKg,
+                                  heightCm: profile.heightCm,
+                                  age: profile.age)
+        return value > 0 ? value : nil
     }
 
     /// Uth–Sørensen VO2max estimate (ml·kg⁻¹·min⁻¹) ≈ 15.3 · HRmax / HRrest. Returns nil when no

@@ -35,6 +35,7 @@ TRANSLATIONS = ROOT / "Tools/translations"
 CATALOGS = [
     (ROOT / "Strand/Resources/Localizable.xcstrings", ""),
     (ROOT / "Packages/StrandDesign/Sources/StrandDesign/Resources/Localizable.xcstrings", "design-"),
+    (ROOT / "StrandiOSWidgets/Localizable.xcstrings", ""),
 ]
 
 LANGS = ["de", "es", "fr", "pt-PT", "pl", "it", "ru", "zh-Hans", "zh-Hant"]

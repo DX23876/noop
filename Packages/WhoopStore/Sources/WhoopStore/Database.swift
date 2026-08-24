@@ -999,6 +999,16 @@ extension WhoopStore {
             try db.create(index: "idx_bodyWeightEntry_device_takenAt",
                           on: "bodyWeightEntry", columns: ["deviceId", "takenAt"])
         }
+        // v44-energy-coverage: the on-device day-calorie estimate is a sum over observed HR seconds.
+        // Persist that denominator beside the value so consumers can distinguish a fully-covered day
+        // from a short, intense window without trying to reverse-engineer wear time from calories/BMR.
+        // Nullable keeps every imported and pre-v44 row honestly "unknown" and avoids a costly history
+        // scan during launch migration; normal day re-analysis fills recent/current rows organically.
+        migrator.registerMigration("v44-energy-coverage") { db in
+            try db.alter(table: "dailyMetric") { t in
+                t.add(column: "energyCoverageSeconds", .integer)
+            }
+        }
         return migrator
     }
 }

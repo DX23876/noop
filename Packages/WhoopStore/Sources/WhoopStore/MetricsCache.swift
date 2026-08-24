@@ -111,6 +111,11 @@ public struct DailyMetric: Equatable, Codable {
     // imported/cloud rows that never carry them stay nil and old call sites are unaffected.
     public let steps: Int?             // daily/file step total from the cumulative @57 counter or activity import
     public let activeKcalEst: Double?  // whole-day HR-only calorie estimate (kcal)
+    /// Distinct local-day seconds for which the on-device calorie estimate had a heart-rate sample.
+    /// Nil for imported/legacy rows. This is coverage, not a calorie value, and is what allows the
+    /// energy UI to top up only the genuinely unobserved basal seconds instead of guessing wear time
+    /// from `activeKcalEst` itself (activity makes that quotient meaningless).
+    public let energyCoverageSeconds: Int?
     // WHOOP 4.0 raw SpO2 PPG ADC means over detected sleep (v23 columns, #93). These are the RAW
     // red/IR optical channels banked on the v24 historical layout (spo2_red@68 / spo2_ir@70), NOT a
     // calibrated blood-oxygen % — that needs WHOOP's proprietary curve. Both nullable and on-device
@@ -131,7 +136,8 @@ public struct DailyMetric: Equatable, Codable {
                 avgHrv: Double?, recovery: Double?, strain: Double?, exerciseCount: Int?,
                 spo2Pct: Double? = nil, skinTempDevC: Double? = nil, respRateBpm: Double? = nil,
                 steps: Int? = nil, activeKcalEst: Double? = nil,
-                spo2Red: Int? = nil, spo2Ir: Int? = nil, avgSdnn: Double? = nil) {
+                spo2Red: Int? = nil, spo2Ir: Int? = nil, avgSdnn: Double? = nil,
+                energyCoverageSeconds: Int? = nil) {
         self.day = day; self.totalSleepMin = totalSleepMin; self.efficiency = efficiency
         self.deepMin = deepMin; self.remMin = remMin; self.lightMin = lightMin
         self.disturbances = disturbances; self.restingHr = restingHr; self.avgHrv = avgHrv
@@ -139,6 +145,7 @@ public struct DailyMetric: Equatable, Codable {
         self.spo2Pct = spo2Pct; self.skinTempDevC = skinTempDevC; self.respRateBpm = respRateBpm
         self.steps = steps; self.activeKcalEst = activeKcalEst
         self.spo2Red = spo2Red; self.spo2Ir = spo2Ir; self.avgSdnn = avgSdnn
+        self.energyCoverageSeconds = energyCoverageSeconds
     }
 
     /// The freshest STRICTLY-PRIOR day that carries at least one overnight vital (HRV / resting HR /
@@ -518,8 +525,8 @@ extension WhoopStore {
                     (deviceId, day, totalSleepMin, efficiency, deepMin, remMin, lightMin,
                      disturbances, restingHr, avgHrv, recovery, strain, exerciseCount,
                      spo2Pct, skinTempDevC, respRateBpm, steps, activeKcalEst,
-                     spo2Red, spo2Ir, avgSdnn)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                     spo2Red, spo2Ir, avgSdnn, energyCoverageSeconds)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(deviceId, day) DO UPDATE SET
                     totalSleepMin = excluded.totalSleepMin,
                     efficiency = excluded.efficiency,
@@ -539,13 +546,14 @@ extension WhoopStore {
                     activeKcalEst = excluded.activeKcalEst,
                     spo2Red = excluded.spo2Red,
                     spo2Ir = excluded.spo2Ir,
-                    avgSdnn = excluded.avgSdnn
+                    avgSdnn = excluded.avgSdnn,
+                    energyCoverageSeconds = excluded.energyCoverageSeconds
                 """, arguments: [deviceId, d.day, d.totalSleepMin, d.efficiency, d.deepMin,
                                  d.remMin, d.lightMin, d.disturbances, d.restingHr, d.avgHrv,
                                  d.recovery, d.strain, d.exerciseCount,
                                  d.spo2Pct, d.skinTempDevC, d.respRateBpm,
                                  d.steps, d.activeKcalEst,
-                                 d.spo2Red, d.spo2Ir, d.avgSdnn])
+                                 d.spo2Red, d.spo2Ir, d.avgSdnn, d.energyCoverageSeconds])
             n += db.changesCount
         }
         return n
@@ -615,7 +623,7 @@ extension WhoopStore {
                 SELECT day, totalSleepMin, efficiency, deepMin, remMin, lightMin, disturbances,
                        restingHr, avgHrv, recovery, strain, exerciseCount,
                        spo2Pct, skinTempDevC, respRateBpm, steps, activeKcalEst,
-                       spo2Red, spo2Ir, avgSdnn FROM dailyMetric
+                       spo2Red, spo2Ir, avgSdnn, energyCoverageSeconds FROM dailyMetric
                 WHERE deviceId = ? AND day >= ? AND day <= ?
                 ORDER BY day ASC
                 """, arguments: [deviceId, from, to])
@@ -629,7 +637,8 @@ extension WhoopStore {
                                 spo2Pct: $0["spo2Pct"], skinTempDevC: $0["skinTempDevC"],
                                 respRateBpm: $0["respRateBpm"],
                                 steps: $0["steps"], activeKcalEst: $0["activeKcalEst"],
-                                spo2Red: $0["spo2Red"], spo2Ir: $0["spo2Ir"], avgSdnn: $0["avgSdnn"])
+                                spo2Red: $0["spo2Red"], spo2Ir: $0["spo2Ir"], avgSdnn: $0["avgSdnn"],
+                                energyCoverageSeconds: $0["energyCoverageSeconds"])
                 }
         }
     }
@@ -644,7 +653,7 @@ extension WhoopStore {
                 SELECT day, totalSleepMin, efficiency, deepMin, remMin, lightMin, disturbances,
                        restingHr, avgHrv, recovery, strain, exerciseCount,
                        spo2Pct, skinTempDevC, respRateBpm, steps, activeKcalEst,
-                       spo2Red, spo2Ir, avgSdnn FROM dailyMetric
+                       spo2Red, spo2Ir, avgSdnn, energyCoverageSeconds FROM dailyMetric
                 WHERE deviceId = ? AND day < ?
                 ORDER BY day DESC LIMIT ?
                 """, arguments: [deviceId, day, max(0, limit)])
@@ -658,7 +667,8 @@ extension WhoopStore {
                                 spo2Pct: $0["spo2Pct"], skinTempDevC: $0["skinTempDevC"],
                                 respRateBpm: $0["respRateBpm"],
                                 steps: $0["steps"], activeKcalEst: $0["activeKcalEst"],
-                                spo2Red: $0["spo2Red"], spo2Ir: $0["spo2Ir"], avgSdnn: $0["avgSdnn"])
+                                spo2Red: $0["spo2Red"], spo2Ir: $0["spo2Ir"], avgSdnn: $0["avgSdnn"],
+                                energyCoverageSeconds: $0["energyCoverageSeconds"])
                 }
         }
     }

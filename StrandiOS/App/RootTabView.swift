@@ -246,6 +246,11 @@ struct RootTabView: View {
                 // wake time looks truncated, so the editor is one tap away rather than a hunt.
                 withAnimation(.timingCurve(0.22, 1, 0.36, 1, duration: 0.24)) { selectedTab = 2 }
                 router.requestedDestination = nil
+            case .energy:
+                // Widget deep link: land on Today and push the same detail route the in-app card uses.
+                withAnimation(.timingCurve(0.22, 1, 0.36, 1, duration: 0.24)) { selectedTab = 0 }
+                tabPaths[0] = NavigationPath([TabRoute.energy])
+                router.requestedDestination = nil
             case .activeWorkout:
                 // The Today active-workout indicator opens Live through the quick-action Live sheet; once
                 // it's up, LiveView consumes the one-shot `presentActiveWorkout` flag and presents the
@@ -376,6 +381,9 @@ struct RootTabView: View {
                 // .sleep switches to the Sleep tab (handled above); this keeps the switch exhaustive and
                 // falls back to the screen itself if it ever reaches the host.
                 case .sleep: SleepView()
+                // .energy is pushed onto Today's own stack (handled above); this fallback keeps the
+                // sheet host exhaustive if the destination is ever presented here directly.
+                case .energy: EnergyDetailView()
                 }
             }
             // The Trends/Today fallbacks above emit TabRoute value pushes (#198), which need a

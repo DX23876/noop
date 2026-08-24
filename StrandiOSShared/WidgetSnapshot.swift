@@ -1,5 +1,30 @@
 import Foundation
 
+/// Energy payload prepared by the app. Kept independent of StrandAnalytics so the widget extension
+/// remains a tiny App-Group reader and never opens the database or links the analytics package.
+public struct WidgetEnergySnapshot: Codable, Equatable {
+    public var day: String
+    public var totalKcal: Int?
+    public var activeKcal: Int?
+    public var basalKcal: Int?
+    public var projectedKcal: Int?
+    public var source: String
+    public var confidence: String
+    public var asOf: Date
+
+    public init(day: String, totalKcal: Int?, activeKcal: Int?, basalKcal: Int?,
+                projectedKcal: Int?, source: String, confidence: String, asOf: Date) {
+        self.day = day
+        self.totalKcal = totalKcal
+        self.activeKcal = activeKcal
+        self.basalKcal = basalKcal
+        self.projectedKcal = projectedKcal
+        self.source = source
+        self.confidence = confidence
+        self.asOf = asOf
+    }
+}
+
 /// Small, Codable glance snapshot shared between the iOS app and its widget/Live-Activity extension
 /// via an App Group. The app writes it; the widget reads it. Keeping it tiny avoids any cross-process
 /// database access — the widget never opens SQLite.
@@ -21,10 +46,13 @@ public struct WidgetSnapshot: Codable, Equatable {
     public var effortDisplay: String?
     /// True when `effortDisplay` is on WHOOP's 0–21 axis; false/nil means 0–100. Accessibility only.
     public var effortWhoop: Bool?
+    /// Today's energy expenditure. Optional so every snapshot written by an older app still decodes.
+    public var energy: WidgetEnergySnapshot?
 
     public init(recovery: Int?, bpm: Int?, batteryPct: Int?, bonded: Bool, updated: Date,
                 effort: Int? = nil, rest: Int? = nil, hrv: Int? = nil, restingHr: Int? = nil,
-                effortDisplay: String? = nil, effortWhoop: Bool? = nil) {
+                effortDisplay: String? = nil, effortWhoop: Bool? = nil,
+                energy: WidgetEnergySnapshot? = nil) {
         self.recovery = recovery
         self.bpm = bpm
         self.batteryPct = batteryPct
@@ -36,6 +64,7 @@ public struct WidgetSnapshot: Codable, Equatable {
         self.restingHr = restingHr
         self.effortDisplay = effortDisplay
         self.effortWhoop = effortWhoop
+        self.energy = energy
     }
 
     /// App Group suite the app and widget both use. Injected from the `APP_GROUP_ID` build setting
@@ -96,7 +125,11 @@ public struct WidgetSnapshot: Codable, Equatable {
         // three-ring Home Screen layouts (and the large grid) preview with filled arcs, not dashes.
         WidgetSnapshot(recovery: 72, bpm: 58, batteryPct: 84, bonded: true, updated: Date(),
                        effort: 38, rest: 81, hrv: 64, restingHr: 52,
-                       effortDisplay: "38", effortWhoop: false)
+                       effortDisplay: "38", effortWhoop: false,
+                       energy: WidgetEnergySnapshot(day: Self.localDayKey(Date()), totalKcal: 1_420,
+                                                    activeKcal: 430, basalKcal: 990,
+                                                    projectedKcal: 2_380, source: "appleSplit",
+                                                    confidence: "solid", asOf: Date()))
     }
 
     /// Honest runtime state when the app has not published a readable snapshot yet. Unlike
@@ -128,17 +161,45 @@ public struct WidgetSnapshot: Codable, Equatable {
     /// battery, or connection signal does not rewrite App-Group defaults and ask WidgetKit to rebuild an
     /// identical timeline. nil means the app has never published, so the first snapshot always writes.
     static func renderedContentChanged(from previous: WidgetSnapshot?, to next: WidgetSnapshot) -> Bool {
+        glanceContentChanged(from: previous, to: next)
+            || energyContentChanged(from: previous, to: next)
+    }
+
+    static func glanceContentChanged(from previous: WidgetSnapshot?, to next: WidgetSnapshot) -> Bool {
         guard let previous else { return true }
-        return previous.recovery != next.recovery
-            || previous.bpm != next.bpm
-            || previous.batteryPct != next.batteryPct
-            || previous.bonded != next.bonded
-            || previous.effort != next.effort
-            || previous.rest != next.rest
-            || previous.hrv != next.hrv
-            || previous.restingHr != next.restingHr
+        return previous.recovery != next.recovery || previous.bpm != next.bpm
+            || previous.batteryPct != next.batteryPct || previous.bonded != next.bonded
+            || previous.effort != next.effort || previous.rest != next.rest
+            || previous.hrv != next.hrv || previous.restingHr != next.restingHr
             || previous.effortDisplay != next.effortDisplay
             || previous.effortWhoop != next.effortWhoop
+    }
+
+    static func ringsContentChanged(from previous: WidgetSnapshot?, to next: WidgetSnapshot) -> Bool {
+        guard let previous else { return true }
+        return previous.recovery != next.recovery || previous.effort != next.effort
+            || previous.rest != next.rest || previous.effortDisplay != next.effortDisplay
+            || previous.effortWhoop != next.effortWhoop
+    }
+
+    static func energyContentChanged(from previous: WidgetSnapshot?, to next: WidgetSnapshot) -> Bool {
+        guard let previous else { return true }
+        switch (previous.energy, next.energy) {
+        case (nil, nil): return false
+        case (nil, _), (_, nil): return true
+        case let (a?, b?):
+            // `asOf` is freshness metadata, not a reason to rebuild an otherwise identical widget.
+            // It advances only when one of the values the Energy widget renders changes.
+            return a.day != b.day || a.totalKcal != b.totalKcal || a.activeKcal != b.activeKcal
+                || a.basalKcal != b.basalKcal || a.projectedKcal != b.projectedKcal
+                || a.source != b.source || a.confidence != b.confidence
+        }
+    }
+
+    /// Locale-safe yyyy-MM-dd key shared with the widget's midnight stale-data guard.
+    public static func localDayKey(_ date: Date, calendar: Calendar = .current) -> String {
+        let c = calendar.dateComponents([.year, .month, .day], from: date)
+        return String(format: "%04d-%02d-%02d", c.year ?? 0, c.month ?? 0, c.day ?? 0)
     }
 
     /// A live-only update may reuse score fields only within the same local calendar day. At rollover,

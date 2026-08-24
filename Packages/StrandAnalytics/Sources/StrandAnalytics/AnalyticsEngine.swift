@@ -875,9 +875,19 @@ public enum AnalyticsEngine {
         // night-window hr for pure-function callers that don't supply dayHr. Strain keeps the full
         // window (bounded log).
         let dayHrFiltered = (dayHr ?? hr).filter { tsInDay($0.ts) }
-        let activeKcalEst: Double? = dayHrFiltered.isEmpty ? nil : Calories.estimateDayCalories(
-            dayHrFiltered, profile: profile, hrmax: effMaxHR,
+        // The whole-day model assigns one second to each timestamp. Defensive de-duplication keeps
+        // both the calorie total and its persisted coverage denominator on that same exact basis if
+        // two source windows happen to carry the same second.
+        var energySeconds = Set<Int>()
+        let dayHrForEnergy = dayHrFiltered.filter { energySeconds.insert($0.ts).inserted }
+        let activeKcalEst: Double? = dayHrForEnergy.isEmpty ? nil : Calories.estimateDayCalories(
+            dayHrForEnergy, profile: profile, hrmax: effMaxHR,
             restingHR: restingHRDaily.map(Double.init))
+        // estimateDayCalories credits exactly one second per unique day-HR timestamp. Store the matching
+        // distinct-second denominator so downstream energy totals can fill only unobserved basal time.
+        let energyCoverageSeconds: Int? = dayHrForEnergy.isEmpty
+            ? nil
+            : energySeconds.count
 
         // ── Assemble DailyMetric ──────────────────────────────────────────────
         let daily = DailyMetric(
@@ -900,7 +910,8 @@ public enum AnalyticsEngine {
             activeKcalEst: activeKcalEst,
             spo2Red: nightlySpo2Raw?.red,
             spo2Ir: nightlySpo2Raw?.ir,
-            avgSdnn: avgSDNNDaily)
+            avgSdnn: avgSDNNDaily,
+            energyCoverageSeconds: energyCoverageSeconds)
         _ = sleepStart; _ = sleepEnd  // available for callers wiring sleep_start/end columns
 
         // ── Cache rows ────────────────────────────────────────────────────────

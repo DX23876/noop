@@ -175,4 +175,17 @@ final class DayCaloriesTests: XCTestCase {
             day: dayUtc, hr: window, dayHr: window, profile: UserProfile()).daily.activeKcalEst)
         XCTAssertEqual(fallback, explicit, accuracy: 1e-9)
     }
+
+    func testAnalyzeDayEnergyCoverageAndCaloriesUseUniqueSeconds() throws {
+        let unique = (0..<600).map { hr($0, 120) }
+        let duplicated = unique + unique
+        let baseline = AnalyticsEngine.analyzeDay(
+            day: dayUtc, hr: unique, dayHr: unique, profile: UserProfile()).daily
+        let result = AnalyticsEngine.analyzeDay(
+            day: dayUtc, hr: duplicated, dayHr: duplicated, profile: UserProfile()).daily
+
+        XCTAssertEqual(result.energyCoverageSeconds, 600)
+        XCTAssertEqual(result.activeKcalEst, baseline.activeKcalEst,
+                       "duplicate source rows must not add calories without adding time")
+    }
 }

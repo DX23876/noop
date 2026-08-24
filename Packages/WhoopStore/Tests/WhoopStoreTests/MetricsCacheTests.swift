@@ -415,7 +415,8 @@ final class MetricsCacheTests: XCTestCase {
         let store = try await WhoopStore.inMemory()
         let d = DailyMetric(day: "2026-05-23", totalSleepMin: 420.0, efficiency: 0.9,
                             deepMin: 90, remMin: 110, lightMin: 220, disturbances: 3,
-                            restingHr: 53, avgHrv: 60.0, recovery: 0.66, strain: 12.3, exerciseCount: 1)
+                            restingHr: 53, avgHrv: 60.0, recovery: 0.66, strain: 12.3, exerciseCount: 1,
+                            activeKcalEst: 1_234, energyCoverageSeconds: 43_210)
         try await store.upsertDailyMetrics([d], deviceId: "devA")
 
         var rows = try await store.dailyMetrics(deviceId: "devA", from: "2026-05-01", to: "2026-05-31")
@@ -425,7 +426,8 @@ final class MetricsCacheTests: XCTestCase {
         // Re-upsert same day with new values → no duplicate, value updated.
         let d2 = DailyMetric(day: "2026-05-23", totalSleepMin: 400.0, efficiency: 0.88,
                              deepMin: 80, remMin: 100, lightMin: 220, disturbances: 5,
-                             restingHr: 55, avgHrv: 58.0, recovery: 0.6, strain: 14.0, exerciseCount: 2)
+                             restingHr: 55, avgHrv: 58.0, recovery: 0.6, strain: 14.0, exerciseCount: 2,
+                             activeKcalEst: 1_456, energyCoverageSeconds: 54_321)
         try await store.upsertDailyMetrics([d2], deviceId: "devA")
         rows = try await store.dailyMetrics(deviceId: "devA", from: "2026-05-01", to: "2026-05-31")
         XCTAssertEqual(rows.count, 1, "same (deviceId,day) must not duplicate")
