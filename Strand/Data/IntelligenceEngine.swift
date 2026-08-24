@@ -605,7 +605,10 @@ final class IntelligenceEngine: ObservableObject {
                             workouts: [ExerciseSession], nightlySkin: Double?,
                             sessionMotion: [Int: [Double]],
                             sessionSleepState: [Int: [Int]],
-                            hrvDiag: String?)] = []   // #195: carried from loop 1, emitted in the main-actor loop
+                            hrvDiag: String?,
+                            // #1545: carried beside `workouts` because it explains the times that list is
+                            // EMPTY, and the emit happens in the main-actor loop below, not here.
+                            detectionFunnel: WorkoutDetector.DetectionFunnel?)] = []   // #195: carried from loop 1
         // Nightly values harvested in pass 1, keyed by day, to seed the pass-2 baseline.
         var nightlyHrvByDay: [String: Double?] = [:]
         var nightlyRhrByDay: [String: Double?] = [:]
@@ -1401,7 +1404,8 @@ final class IntelligenceEngine: ObservableObject {
                                  workouts: res.workouts, nightlySkin: res.nightlySkinTempC,
                                  sessionMotion: res.sessionMotionByStart,
                                  sessionSleepState: res.sessionSleepStateByStart,
-                                 hrvDiag: scan.hrvDiag))
+                                 hrvDiag: scan.hrvDiag,
+                                 detectionFunnel: res.detectionFunnel))
         }
 
         // ── Seed the baseline from the UNION of imported nightly history + the values just computed.
@@ -1689,6 +1693,13 @@ final class IntelligenceEngine: ObservableObject {
             // Persist the detected workouts the pipeline already computes (previously discarded).
             // Skip any bout overlapping a real imported/manual workout so import+wear users don't
             // double-count. sport = "detected"; energyKcal is the APPROXIMATE Keytel/BMR total.
+            // #1545: where the detector lost every candidate workout on this day, emitted BEFORE the
+            // per-bout loop so it is present even when that loop runs zero times — which is exactly the
+            // report it exists for. The `effort bout` line below explains a bout that exists; a strap log
+            // showing 37 days and no workouts at all previously carried nothing to explain the absence.
+            if let f = night.detectionFunnel {
+                diagnosticSink?(WorkoutDetector.detectionFunnelLine(day: daily.day, funnel: f), nil)
+            }
             for s in night.workouts {
                 let durMin = max(0, (s.end - s.start) / 60)
                 let avgBpm = Int(s.avgHR)
