@@ -251,13 +251,27 @@ interface WhoopDao : DeviceRegistryDao {
 
     @Query(
         "DELETE FROM scoreInputProvenance " +
-            "WHERE deviceId = :deviceId AND day >= :from AND day <= :to"
+            "WHERE deviceId = :deviceId AND day >= :from AND day <= :to " +
+            "AND `key` != 'vo2max_est'"
     )
     suspend fun deleteScoreInputProvenanceInRange(deviceId: String, from: String, to: String)
 
+    /** Persist a metric-series batch and its specialized provenance in one transaction. Used by weekly
+     *  VO₂max so a method label can never describe an older/newer value after a partial write. */
+    @Transaction
+    suspend fun upsertMetricSeriesWithProvenance(
+        rows: List<MetricSeriesRow>,
+        provenance: List<ScoreInputProvenanceRow>,
+    ) {
+        if (rows.isNotEmpty()) upsertMetricSeries(rows)
+        if (provenance.isNotEmpty()) upsertScoreInputProvenance(provenance)
+    }
+
     /**
      * Replace a computed scoring window atomically. If any score or provenance write fails, Room rolls
-     * the whole transaction back, so an old score can never be labelled with a newer provider.
+     * the whole transaction back, so an old score can never be labelled with a newer provider. VO₂max's
+     * weekly estimator provenance is owned by [upsertMetricSeriesWithProvenance] and survives this daily
+     * window replacement; otherwise a normal re-score would erase the prior two Saturdays' method tags.
      */
     @Transaction
     suspend fun replaceComputedScoreWindow(

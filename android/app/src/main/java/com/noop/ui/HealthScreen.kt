@@ -84,6 +84,7 @@ import com.noop.analytics.SkinTempDisplay
 import com.noop.analytics.VitalBands
 import com.noop.ble.LiveState
 import com.noop.data.DailyMetric
+import com.noop.data.Vo2MaxEstimator
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -660,6 +661,7 @@ private fun FitnessAgeSection(vm: AppViewModel, days: List<DailyMetric>, profile
     // re-read whenever the merged history changes — a fresh sync/import is what moves these).
     var fitnessAge by remember { mutableStateOf<Double?>(null) }
     var vo2max by remember { mutableStateOf<Double?>(null) }
+    var vo2maxEstimator by remember { mutableStateOf<Vo2MaxEstimator?>(null) }
     // Manual-refresh plumbing: the not-ready card's refresh button recomputes Fitness Age NOW and bumps
     // this tick, which re-keys the read below so a freshly written value shows without waiting for a sync.
     var refreshTick by remember { mutableStateOf(0) }
@@ -669,11 +671,19 @@ private fun FitnessAgeSection(vm: AppViewModel, days: List<DailyMetric>, profile
         val fa = runCatching {
             vm.repo.latestMetricComputedUnion(vm.activeStrapId, "fitness_age")?.value
         }.getOrNull()
-        val vo2 = runCatching {
-            vm.repo.latestMetricComputedUnion(vm.activeStrapId, "vo2max_est")?.value
+        val vo2Row = runCatching {
+            vm.repo.latestMetricComputedUnion(vm.activeStrapId, "vo2max_est")
         }.getOrNull()
+        val estimator = vo2Row?.let { row ->
+            runCatching {
+                Vo2MaxEstimator.fromProvenanceId(
+                    vm.repo.scoreInputSource(row.deviceId, row.day, row.key),
+                )
+            }.getOrNull()
+        }
         fitnessAge = fa
-        vo2max = vo2
+        vo2max = vo2Row?.value
+        vo2maxEstimator = estimator
     }
 
     // Readiness from what THIS screen can see: the last 7 merged daily rows. RHR coverage drives the
@@ -694,6 +704,7 @@ private fun FitnessAgeSection(vm: AppViewModel, days: List<DailyMetric>, profile
                 fitnessAge = value,
                 chronoAge = profile.age,
                 vo2max = vo2max,
+                vo2maxEstimator = vo2maxEstimator,
                 onHowAccurate = { showChecklist = !showChecklist },
                 checklistOpen = showChecklist,
             )
@@ -920,6 +931,7 @@ private fun FitnessAgeHero(
     fitnessAge: Double,
     chronoAge: Int,
     vo2max: Double?,
+    vo2maxEstimator: Vo2MaxEstimator?,
     onHowAccurate: () -> Unit,
     checklistOpen: Boolean,
 ) {
@@ -966,11 +978,18 @@ private fun FitnessAgeHero(
                     )
                 }
                 if (vo2max != null) {
-                    StatePill(
-                        title = uiString(R.string.l10n_health_screen_vo_max_vo2max_roundtoint_c32a04b3, vo2max.roundToInt()),
-                        tone = StrandTone.Accent,
-                        showsDot = false,
-                    )
+                    Column(horizontalAlignment = Alignment.End) {
+                        StatePill(
+                            title = uiString(R.string.l10n_health_screen_vo_max_vo2max_roundtoint_c32a04b3, vo2max.roundToInt()),
+                            tone = StrandTone.Accent,
+                            showsDot = false,
+                        )
+                        Text(
+                            text = uiString(vo2MaxAttributionLabelRes(vo2maxEstimator)),
+                            style = NoopType.footnote,
+                            color = Palette.textTertiary,
+                        )
+                    }
                 }
             }
 
@@ -1910,6 +1929,7 @@ fun VitalDetailScreen(vm: AppViewModel, key: String) {
                     color = detail.color,
                     fill = true,
                     selectionEnabled = true, // the Vital Signs detail chart is meant to be tappable
+                    segmentIds = if (key == "vo2max_est") vo2MaxTrendSegmentIds(filteredReadings) else null,
                 )
                 Box(
                     modifier = Modifier
@@ -2156,15 +2176,24 @@ private suspend fun buildSeriesVitalDetail(vm: AppViewModel, key: String): Vital
     // resolvedSeries the imported vitals use, which carries no vo2max_est. Without this case the tap-through
     // fell to the default and the trend chart was empty (the reported bug). Parity with iOS, which handles
     // `.vo2max` alongside `.fitnessAge` / `.vitality` and reads `exploreSeries("vo2max_est")`.
-    "vo2max_est" -> VitalDetailModel(
-        key = key,
-        title = uiString(R.string.l10n_health_screen_vo2max_21214fb6),
-        unit = "ml/kg",
-        color = Palette.chargeColor,
-        readings = vm.repo.metricSeriesComputedUnion(vm.activeStrapId, "vo2max_est", "0000-01-01", "9999-12-31")
-            .map { VitalReading(it.day, it.value, it.deviceId) },
-        format = { it.roundToInt().toString() },
-    )
+    "vo2max_est" -> {
+        val points = vm.repo.metricSeriesComputedUnion(
+            vm.activeStrapId, "vo2max_est", "0000-01-01", "9999-12-31",
+        )
+        VitalDetailModel(
+            key = key,
+            title = uiString(R.string.l10n_health_screen_vo2max_21214fb6),
+            unit = "ml/kg",
+            color = Palette.chargeColor,
+            readings = points.map { point ->
+                val estimator = Vo2MaxEstimator.fromProvenanceId(
+                    vm.repo.scoreInputSource(point.deviceId, point.day, point.key),
+                )
+                VitalReading(point.day, point.value, vo2MaxAttributionSource(estimator))
+            },
+            format = { it.roundToInt().toString() },
+        )
+    }
     "steps_est" -> {
         // #377: the Today Steps tile resolves a REAL step count FIRST — the WHOOP 5/MG on-device @57
         // counter (DailyMetric.steps) ?: imported Health Connect / Apple Health ?: the motion-model

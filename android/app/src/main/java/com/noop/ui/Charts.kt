@@ -198,6 +198,23 @@ fun Sparkline(
 
 // MARK: - LineChart
 
+/** Contiguous point-index ranges for a segmented line. A null/misaligned id list preserves the classic
+ *  single-line behavior. Equal ids that reappear later become a new range because only adjacency connects. */
+internal fun lineChartSegmentRanges(count: Int, segmentIds: List<String>?): List<IntRange> {
+    if (count <= 0) return emptyList()
+    if (segmentIds == null || segmentIds.size != count) return listOf(0 until count)
+    val ranges = ArrayList<IntRange>()
+    var start = 0
+    for (i in 1 until count) {
+        if (segmentIds[i] != segmentIds[i - 1]) {
+            ranges.add(start until i)
+            start = i
+        }
+    }
+    ranges.add(start until count)
+    return ranges
+}
+
 /**
  * Line chart with an optional soft vertical gradient fill under the curve. Height is
  * taken from [modifier] (e.g. `Modifier.height(Metrics.chartHeight)`). A faint
@@ -226,6 +243,9 @@ fun LineChart(
     // Optional per-point display labels, index-aligned with [values]. Daily charts use this for a
     // human-readable date prefix ("16 Jul · 87"); live charts keep using [timestamps].
     selectionLabels: List<String>? = null,
+    // Optional sequential line-segment ids, index-aligned with [values]. Adjacent unequal ids break the
+    // stroke/fill without dropping either reading; used by VO₂max when its estimator changes.
+    segmentIds: List<String>? = null,
 ) {
     val cleanValues = remember(values) { values.filter { it.isFinite() } }
     // Timestamps filtered by the SAME finiteness cut as cleanValues so indices stay aligned;
@@ -237,6 +257,10 @@ fun LineChart(
     val cleanSelectionLabels = remember(values, selectionLabels) {
         if (selectionLabels == null || selectionLabels.size != values.size) null
         else values.indices.filter { values[it].isFinite() }.map { selectionLabels[it] }
+    }
+    val cleanSegmentIds = remember(values, segmentIds) {
+        if (segmentIds == null || segmentIds.size != values.size) null
+        else values.indices.filter { values[it].isFinite() }.map { segmentIds[it] }
     }
     var selectedIndex by remember(cleanValues) { mutableIntStateOf(-1) }
     val interactiveModifier = if (selectionEnabled) {
@@ -329,17 +353,18 @@ fun LineChart(
                     if (pts.isEmpty()) {
                         onDrawBehind { drawBaseline() }
                     } else {
-                        val fillPath = if (fill) {
+                        val segments = lineChartSegmentRanges(pts.size, cleanSegmentIds)
+                        val fillPaths = if (fill) segments.map { range ->
                             Path().apply {
-                                moveTo(pts.first().x, size.height)
-                                lineTo(pts.first().x, pts.first().y)
-                                for (i in 1 until pts.size) lineTo(pts[i].x, pts[i].y)
-                                lineTo(pts.last().x, size.height)
+                                val first = pts[range.first]
+                                val last = pts[range.last]
+                                moveTo(first.x, size.height)
+                                lineTo(first.x, first.y)
+                                for (i in (range.first + 1)..range.last) lineTo(pts[i].x, pts[i].y)
+                                lineTo(last.x, size.height)
                                 close()
                             }
-                        } else {
-                            null
-                        }
+                        } else emptyList()
                         val fillBrush = if (fill) {
                             Brush.verticalGradient(
                                 colors = listOf(
@@ -353,18 +378,25 @@ fun LineChart(
                         } else {
                             null
                         }
-                        val linePath = Path().apply {
-                            moveTo(pts.first().x, pts.first().y)
-                            for (i in 1 until pts.size) lineTo(pts[i].x, pts[i].y)
+                        val linePaths = segments.map { range ->
+                            Path().apply {
+                                moveTo(pts[range.first].x, pts[range.first].y)
+                                for (i in (range.first + 1)..range.last) lineTo(pts[i].x, pts[i].y)
+                            }
                         }
                         val lineStroke = Stroke(width = strokePx, cap = StrokeCap.Round, join = StrokeJoin.Round)
                         onDrawBehind {
                             // Soft gradient fill under the curve.
-                            if (fillPath != null && fillBrush != null) {
-                                drawPath(path = fillPath, brush = fillBrush)
+                            if (fillBrush != null) {
+                                for (path in fillPaths) drawPath(path = path, brush = fillBrush)
                             }
                             // The line itself.
-                            drawPath(path = linePath, color = color, style = lineStroke)
+                            for (path in linePaths) drawPath(path = path, color = color, style = lineStroke)
+                            // A one-reading segment has no visible stroke. Method-segmented trends retain
+                            // a small point so neither side of a method transition disappears.
+                            if (cleanSegmentIds != null) {
+                                for (point in pts) drawCircle(color = color, radius = 2.5f, center = point)
+                            }
                         }
                     }
                 }

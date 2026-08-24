@@ -163,6 +163,34 @@ struct VitalReading: Equatable {
     let source: String
 }
 
+let vo2MaxAttributionPrefix = "vo2max-estimator:"
+
+/// A display-source token that keeps the existing readings-table plumbing while naming the estimator.
+/// `nil` is deliberately preserved as `unknown`; a legacy point must never inherit today's profile method.
+func vo2MaxAttributionSource(_ estimator: Vo2MaxEstimator?) -> String {
+    vo2MaxAttributionPrefix + (estimator?.rawValue ?? "unknown")
+}
+
+/// Sequential segment ids for the VO₂max trend. The counter matters when a user changes Nes → Uth → Nes:
+/// using the method name alone would reconnect the two non-adjacent Nes runs across the Uth interval.
+func vo2MaxTrendSegmentIds(days: [String], sourceByDay: [String: String]) -> [String] {
+    var previous: String?
+    var group = -1
+    return days.map { day in
+        let source = sourceByDay[day] ?? vo2MaxAttributionSource(nil)
+        if source != previous { group += 1; previous = source }
+        return "\(group):\(source)"
+    }
+}
+
+func vo2MaxEstimatorDisplayName(_ estimator: Vo2MaxEstimator?) -> String {
+    switch estimator {
+    case .nes: return "Nes 2011"
+    case .uth: return "Uth 2004"
+    case nil:  return String(localized: "Unknown")
+    }
+}
+
 /// One row of a vital detail's readings table: the reading's day (localized), its formatted value with
 /// unit, and a human source label. Plain strings so the view is a thin renderer and the projection stays
 /// unit-testable. Swift twin of Android's `VitalReadingRow`.
@@ -616,9 +644,12 @@ struct MetricDetailView: View {
     }
 
     private func trendPoints(_ windowed: [(day: String, value: Double)]) -> [TrendPoint] {
-        windowed.compactMap { row in
+        let segmentIds = metric.key == "vo2max_est"
+            ? vo2MaxTrendSegmentIds(days: windowed.map(\.day), sourceByDay: sourceByDay)
+            : Array(repeating: "default", count: windowed.count)
+        return windowed.enumerated().compactMap { index, row in
             guard let d = parseDay(row.day) else { return nil }
-            return TrendPoint(date: d, value: row.value)
+            return TrendPoint(date: d, value: row.value, segment: segmentIds[index])
         }
     }
 
@@ -754,8 +785,18 @@ struct MetricDetailView: View {
         // actually supplied each day (imported strap / on-device / Apple Health / Health Connect); the
         // chart still rides `series` above, so this only ADDS the source column, never moves the line.
         let resolution = await repo.resolvedSeries(key: metric.key, source: metric.source)
-        sourceByDay = Dictionary(resolution.points.map { ($0.day, $0.source) },
-                                 uniquingKeysWith: { first, _ in first })
+        if metric.key == "vo2max_est" {
+            var attributed: [String: String] = [:]
+            for point in resolution.points {
+                let tag = await repo.scoreProvenanceTag(
+                    resolvedSource: point.source, day: point.day, metricKey: metric.key)
+                attributed[point.day] = vo2MaxAttributionSource(tag.flatMap { Vo2MaxEstimator(rawValue: $0) })
+            }
+            sourceByDay = attributed
+        } else {
+            sourceByDay = Dictionary(resolution.points.map { ($0.day, $0.source) },
+                                     uniquingKeysWith: { first, _ in first })
+        }
         // #943 selection seam: a locked default (.month with under a week of history) no longer
         // OVERWRITES @State range - it renders through `coercedSelection` instead (non-destructive,
         // recomputed every body eval), so a shrinking history re-coerces and a growing one un-coerces

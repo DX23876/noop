@@ -362,6 +362,20 @@ final class IntelligenceEngine: ObservableObject {
         return rows
     }
 
+    /// Method metadata for a newly computed VO₂max point. Empty when `points` contains no VO₂max value.
+    /// Method selection is captured at compute time; UI readers must never reconstruct it from today's
+    /// profile because changing/removing a waist is a legitimate transition between estimators.
+    static func vo2MaxProvenance(
+        points: [MetricPoint], waistCm: Double
+    ) -> [ScoreInputProvenanceRow] {
+        guard let point = points.first(where: { $0.key == "vo2max_est" }) else { return [] }
+        return [ScoreInputProvenanceRow(
+            day: point.day,
+            key: point.key,
+            sourceId: Vo2MaxEstimator.forWaistCm(waistCm).rawValue
+        )]
+    }
+
     /// Manual "refresh Fitness Age" (the button on the not-ready card): recompute the weekly Fitness Age NOW
     /// from the PERSISTED merged daily history , NO raw-HR rescoring , and upsert it. Same gate
     /// (`fitnessAgeRows`) + date/window logic as the recompute pass, so it reads exactly what the readiness
@@ -381,7 +395,13 @@ final class IntelligenceEngine: ObservableObject {
             gateDays: gate7, age: profile.age, sex: profile.sex, waistCm: profile.waistCm,
             heightCm: profile.heightCm, weightKg: profile.weightKg, computedId: computedId,
             satKey: Self.saturdayKey(onOrBefore: newestDay))
-        if !rows.isEmpty { _ = try? await store.upsertMetricSeries(rows, deviceId: computedId) }
+        if !rows.isEmpty {
+            try? await store.persistMetricSeriesWithProvenance(
+                points: rows,
+                provenance: Self.vo2MaxProvenance(points: rows, waistCm: profile.waistCm),
+                deviceId: computedId
+            )
+        }
         return !rows.isEmpty
     }
 
@@ -1952,7 +1972,13 @@ final class IntelligenceEngine: ObservableObject {
             gateDays: faGate7, age: profile.age, sex: profile.sex, waistCm: profile.waistCm,
             heightCm: profile.heightCm, weightKg: profile.weightKg, computedId: computedId,
             satKey: IntelligenceEngine.saturdayKey(onOrBefore: newestDay))
-        if !faPts.isEmpty { _ = try? await store.upsertMetricSeries(faPts, deviceId: computedId) }
+        if !faPts.isEmpty {
+            try? await store.persistMetricSeriesWithProvenance(
+                points: faPts,
+                provenance: Self.vo2MaxProvenance(points: faPts, waistCm: profile.waistCm),
+                deviceId: computedId
+            )
+        }
 
         // ── Vitality / Body Age (Phase 7) , weekly, keyed to the week's Saturday ────────────────────
         // Roll the last 7 days' wearable signals into the mortality-hazard model and upsert a weekly

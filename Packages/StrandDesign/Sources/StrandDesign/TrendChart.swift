@@ -16,15 +16,19 @@ import Charts
 public struct TrendPoint: Identifiable, Sendable {
     public var date: Date
     public var value: Double
+    /// Sequential line-segment identity. Points with different ids are rendered as separate lines, so a
+    /// metric can retain history without drawing a false transition across incompatible methods.
+    public var segment: String
 
     /// Stable, content-derived identity (one point per date in a series). A random
     /// `UUID()` defeats Swift Charts' diffing — every render re-identifies all marks
     /// and replays the draw animation; keying on the date lets Charts diff by data.
     public var id: Date { date }
 
-    public init(date: Date, value: Double) {
+    public init(date: Date, value: Double, segment: String = "default") {
         self.date = date
         self.value = value
+        self.segment = segment
     }
 }
 
@@ -195,7 +199,8 @@ public struct TrendChart: View {
                     ForEach(displayPoints) { p in
                         AreaMark(
                             x: .value("Date", p.date),
-                            y: .value("Value", p.value)
+                            y: .value("Value", p.value),
+                            series: .value("Segment", p.segment)
                         )
                         .interpolationMethod(.catmullRom)
                         .foregroundStyle(
@@ -212,7 +217,8 @@ public struct TrendChart: View {
                 ForEach(displayPoints) { p in
                     LineMark(
                         x: .value("Date", p.date),
-                        y: .value("Value", p.value)
+                        y: .value("Value", p.value),
+                        series: .value("Segment", p.segment)
                     )
                     .interpolationMethod(.catmullRom)
                     .lineStyle(StrokeStyle(lineWidth: 2.5, lineCap: .round, lineJoin: .round))

@@ -7,6 +7,7 @@ import com.noop.analytics.FusionSource
 import com.noop.analytics.ReadinessEngine
 import com.noop.ble.WhoopBleClient
 import com.noop.data.WhoopRepository
+import com.noop.data.Vo2MaxEstimator
 
 /**
  * The Today provenance label for the day's REAL merge winner, extends the existing By-Day badge
@@ -57,6 +58,10 @@ internal fun provenanceDisplayLabel(
     rawSource: String,
     deviceId: String = WhoopRepository.WHOOP_SOURCE,
 ): DisplayText {
+    if (rawSource.startsWith(VO2_MAX_ATTRIBUTION_PREFIX)) {
+        val raw = rawSource.removePrefix(VO2_MAX_ATTRIBUTION_PREFIX)
+        return DisplayText.Resource(vo2MaxAttributionLabelRes(Vo2MaxEstimator.fromProvenanceId(raw)))
+    }
     if (rawSource.endsWith("-noop")) return DisplayText.Resource(R.string.today_source_on_device)
     if (rawSource == deviceId || rawSource == WhoopRepository.WHOOP_SOURCE) return DisplayText.Resource(R.string.today_source_whoop)
     if (rawSource == WhoopRepository.APPLE_HEALTH_SOURCE) return DisplayText.Resource(R.string.today_source_apple_health)
@@ -64,6 +69,13 @@ internal fun provenanceDisplayLabel(
     return FusionSource.entries.firstOrNull { it.id == rawSource }
         ?.let { source -> provenanceBadgeLabel(source) }
         ?: DisplayText.Dynamic(rawSource)
+}
+
+@StringRes
+internal fun vo2MaxAttributionLabelRes(estimator: Vo2MaxEstimator?): Int = when (estimator) {
+    Vo2MaxEstimator.NES -> R.string.vo2max_method_nes
+    Vo2MaxEstimator.UTH -> R.string.vo2max_method_uth
+    null -> R.string.vo2max_method_unknown
 }
 
 /** Today uses the audience-facing sensor name for Apple Health scores, matching the Swift Today lane. */

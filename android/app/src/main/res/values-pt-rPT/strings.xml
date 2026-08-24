@@ -2131,6 +2131,9 @@
     <string name="today_weight_latest">mais recente</string>
     <string name="today_weight_from_profile">do perfil</string>
     <string name="today_source_on_device">No dispositivo</string>
+    <string name="vo2max_method_nes">No dispositivo · Nes 2011</string>
+    <string name="vo2max_method_uth">No dispositivo · Uth 2004</string>
+    <string name="vo2max_method_unknown">No dispositivo · Método desconhecido</string>
     <string name="today_source_whoop">WHOOP</string>
     <string name="today_source_apple_health">Apple Health</string>
     <string name="today_source_health_connect">Google Health Connect</string>

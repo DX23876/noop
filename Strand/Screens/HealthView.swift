@@ -656,6 +656,9 @@ private struct FitnessAgeSection: View {
     /// Latest estimated VO₂max (ml/kg/min) from "vo2max_est" — present even without a waist (the Uth
     /// HR-ratio fallback, #1391); a waist upgrades it to the more accurate Nes waist-based estimate.
     @State private var vo2max: Double?
+    /// Estimator captured beside the latest value. nil is an honest legacy-unknown state, never inferred
+    /// from today's waist because the profile may have changed since the point was scored.
+    @State private var vo2maxEstimator: Vo2MaxEstimator?
     @State private var loaded = false
     /// True while a manual "refresh Fitness Age" recompute is running (spinner in the readiness card).
     @State private var refreshing = false
@@ -840,6 +843,9 @@ private struct FitnessAgeSection: View {
                             Text("ml/kg/min")
                                 .font(StrandFont.footnote)
                                 .foregroundStyle(StrandPalette.textTertiary)
+                            Text("\(String(localized: "On-device")) · \(vo2MaxEstimatorDisplayName(vo2maxEstimator))")
+                                .font(StrandFont.footnote)
+                                .foregroundStyle(StrandPalette.textTertiary)
                         }
                     }
                     Image(systemName: "chevron.right")
@@ -900,9 +906,17 @@ private struct FitnessAgeSection: View {
     /// freshest point — the weekly value is keyed to the week's Saturday and refines through the week.
     private func load() async {
         let faPts = await repo.exploreSeries(key: "fitness_age", source: "my-whoop")
-        let vo2Pts = await repo.exploreSeries(key: "vo2max_est", source: "my-whoop")
+        let vo2Resolution = await repo.resolvedSeries(key: "vo2max_est", source: "my-whoop")
         fitnessAge = faPts.last?.value
-        vo2max = vo2Pts.last?.value
+        if let latest = vo2Resolution.points.last {
+            vo2max = latest.value
+            let tag = await repo.scoreProvenanceTag(
+                resolvedSource: latest.source, day: latest.day, metricKey: "vo2max_est")
+            vo2maxEstimator = tag.flatMap { Vo2MaxEstimator(rawValue: $0) }
+        } else {
+            vo2max = nil
+            vo2maxEstimator = nil
+        }
         loaded = true
     }
 }

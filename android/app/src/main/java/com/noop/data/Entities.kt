@@ -417,8 +417,8 @@ data class MetricSeriesRow(
 )
 
 /**
- * Provider provenance for one NOOP-computed score. Separate from `dayOwnership`: ownership controls
- * raw-input resolution, while this records the source actually used for a persisted metric.
+ * Provenance for one NOOP-computed score. [sourceId] normally records the provider actually used, while
+ * `vo2max_est` records its estimator id. Separate from `dayOwnership`, which controls input resolution.
  */
 @Entity(
     tableName = "scoreInputProvenance",
@@ -431,6 +431,22 @@ data class ScoreInputProvenanceRow(
     @ColumnInfo(name = "key") val key: String,
     val sourceId: String,
 )
+
+/** Estimator identity persisted beside a `vo2max_est` point in [ScoreInputProvenanceRow.sourceId].
+ *  Existing points have no such row and therefore remain explicitly unknown; never infer their method
+ *  from the user's current profile because a waist measurement may have changed since they were scored. */
+enum class Vo2MaxEstimator(val provenanceId: String) {
+    NES("nes"),
+    UTH("uth");
+
+    companion object {
+        fun fromProvenanceId(value: String?): Vo2MaxEstimator? = entries.firstOrNull {
+            it.provenanceId == value
+        }
+
+        fun forWaistCm(waistCm: Double): Vo2MaxEstimator = if (waistCm > 0.0) NES else UTH
+    }
+}
 
 /**
  * Lab Book marker reading (Health Records pillar). Swift `labMarker` (Database.swift v17 /

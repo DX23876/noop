@@ -806,6 +806,11 @@ struct TodayView: View {
     /// Any other real source (Mi Band, Health Connect, nutrition) keeps its `FusionSource.displayName`
     ///, still the genuine merge winner, never a blanket claim. Mirror EXACTLY in Kotlin.
     static func provenanceDisplayLabel(rawSource: String, deviceId: String) -> String {
+        if rawSource.hasPrefix(vo2MaxAttributionPrefix) {
+            let raw = String(rawSource.dropFirst(vo2MaxAttributionPrefix.count))
+            let method = vo2MaxEstimatorDisplayName(Vo2MaxEstimator(rawValue: raw))
+            return "\(String(localized: "On-device")) · \(method)"
+        }
         if rawSource.hasSuffix("-noop") { return String(localized: "On-device") }
         if rawSource == deviceId || rawSource == Repository.whoopSource { return Self.whoopBrandName }
         if rawSource == Repository.appleHealthSource { return "Apple Health" }

@@ -1985,6 +1985,14 @@ final class Repository: ObservableObject {
         return ScoreInputProvider(sourceId: sourceId, brand: brand)
     }
 
+    /// Raw specialized provenance tag for a computed metric point. Unlike `scoreInputProvider`, this does
+    /// not interpret the value as a device id; `vo2max_est` uses it for its `nes` / `uth` estimator id.
+    /// Missing metadata is an honest legacy-unknown result, never reconstructed from the current profile.
+    func scoreProvenanceTag(resolvedSource: String, day: String, metricKey: String) async -> String? {
+        guard resolvedSource.hasSuffix("-noop"), let store = await ensureStore() else { return nil }
+        return try? await store.scoreInputSource(deviceId: resolvedSource, day: day, key: metricKey)
+    }
+
     /// Read one candidate's rows for the window: its metricSeries, plus the matching DailyMetric column
     /// for any day the metricSeries doesn't carry (a Bluetooth-only WHOOP 5 user has values in the daily
     /// columns but not the long-format series). Ascending by day.

@@ -69,7 +69,9 @@ class IntelligenceEngineJacocoBudgetTest {
         val orderedOperations = listOf(
             "fitnessAgeRows" to Regex("""\bfitnessAgeRows\s*\("""),
             "fitness diagnostic" to Regex("""\bdiag\s*\("""),
-            "Fitness upsert" to Regex("""\brepo\s*\.\s*upsertMetricSeries\s*\(\s*faPts\s*\)"""),
+            "Fitness upsert" to Regex(
+                """\brepo\s*\.\s*upsertMetricSeriesWithProvenance\s*\(\s*rows\s*=\s*faPts\b""",
+            ),
             "Vitality compute" to Regex("""\bVitalityEngine\s*\.\s*compute\s*\("""),
             "Vitality upsert" to Regex("""\brepo\s*\.\s*upsertMetricSeries\s*\(\s*listOf\s*\("""),
             "Apple Health read" to Regex("""\brepo\s*\.\s*appleDaily\s*\(\s*WhoopRepository\s*\.\s*APPLE_HEALTH_SOURCE\b"""),

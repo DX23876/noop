@@ -2164,6 +2164,9 @@
     <string name="today_weight_latest">latest</string>
     <string name="today_weight_from_profile">from profile</string>
     <string name="today_source_on_device">On-device</string>
+    <string name="vo2max_method_nes">On-device · Nes 2011</string>
+    <string name="vo2max_method_uth">On-device · Uth 2004</string>
+    <string name="vo2max_method_unknown">On-device · Unknown method</string>
     <string name="today_source_whoop">Whoop</string>
     <string name="today_source_apple_health">Apple Health</string>
     <string name="today_source_health_connect">Health Connect</string>

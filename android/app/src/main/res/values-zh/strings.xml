@@ -2066,6 +2066,9 @@
     <string name="today_weight_latest">最新</string>
     <string name="today_weight_from_profile">来自个人资料</string>
     <string name="today_source_on_device">设备端</string>
+    <string name="vo2max_method_nes">设备端 · Nes 2011</string>
+    <string name="vo2max_method_uth">设备端 · Uth 2004</string>
+    <string name="vo2max_method_unknown">设备端 · 方法未知</string>
     <string name="today_source_whoop">WHOOP</string>
     <string name="today_source_apple_health">Apple 健康</string>
     <string name="today_source_health_connect">Google 健康数据同步</string>

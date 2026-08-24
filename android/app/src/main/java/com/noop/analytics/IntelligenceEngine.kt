@@ -7,6 +7,7 @@ import com.noop.data.MetricSeriesRow
 import com.noop.data.OuraRespScale
 import com.noop.data.ScoreInputProvenanceRow
 import com.noop.data.SleepSession
+import com.noop.data.Vo2MaxEstimator
 import com.noop.data.WhoopRepository
 import com.noop.data.WorkoutRow
 import com.noop.protocol.DeviceFamily
@@ -1946,7 +1947,12 @@ object IntelligenceEngine {
         // Strap-log proof: the RHR-night count the engine sees for the gate , should equal the "N of last 7
         // nights" the readiness card shows; `computed` says whether the value was (re)written this pass.
         diag("fitnessAge gate day=$newestDay rhrNights=${faGate7.mapNotNull { it.restingHr }.size} activityDays=${faGate7.mapNotNull { it.strain }.size} computed=${faPts.isNotEmpty()}")
-        if (faPts.isNotEmpty()) repo.upsertMetricSeries(faPts)
+        if (faPts.isNotEmpty()) {
+            repo.upsertMetricSeriesWithProvenance(
+                rows = faPts,
+                provenance = vo2MaxProvenance(faPts, profile.waistCm, computedId),
+            )
+        }
 
         // ── Vitality / Body Age (Phase 7) , weekly, keyed to the week's Saturday ──
         // Roll the last 7 days' wearable signals into the mortality-hazard model; VitalityEngine gates on
@@ -2432,6 +2438,22 @@ object IntelligenceEngine {
         return rows
     }
 
+    /** Method metadata for a newly computed VO₂max point. Empty when [rows] contains no VO₂max value.
+     *  Method selection is captured at compute time; UI readers must never reconstruct it from today's
+     *  profile because changing/removing a waist is a legitimate transition between estimators. */
+    fun vo2MaxProvenance(
+        rows: List<MetricSeriesRow>, waistCm: Double, computedId: String,
+    ): List<ScoreInputProvenanceRow> = rows.firstOrNull { it.key == "vo2max_est" }?.let { point ->
+        listOf(
+            ScoreInputProvenanceRow(
+                deviceId = computedId,
+                day = point.day,
+                key = point.key,
+                sourceId = Vo2MaxEstimator.forWaistCm(waistCm).provenanceId,
+            ),
+        )
+    }.orEmpty()
+
     /** Manual "refresh Fitness Age" (the button on the not-ready card): recompute the weekly Fitness Age
      *  NOW from the PERSISTED merged daily history , NO raw-HR rescoring , and upsert it. Uses the same gate
      *  ([fitnessAgeRows]) and the same date/window logic as the recompute pass, so it reads exactly what the
@@ -2449,7 +2471,12 @@ object IntelligenceEngine {
         val gate7 = repo.daysMerged(importedDeviceId)
             .filter { it.day in oldestDay..newestDay }.sortedBy { it.day }.takeLast(7)
         val rows = fitnessAgeRows(gate7, profile, computedId, saturdayKeyOnOrBefore(newestDay))
-        if (rows.isNotEmpty()) repo.upsertMetricSeries(rows)
+        if (rows.isNotEmpty()) {
+            repo.upsertMetricSeriesWithProvenance(
+                rows = rows,
+                provenance = vo2MaxProvenance(rows, profile.waistCm, computedId),
+            )
+        }
         return rows.isNotEmpty()
     }
 

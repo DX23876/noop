@@ -1,6 +1,7 @@
 package com.noop.analytics
 
 import com.noop.data.DailyMetric
+import com.noop.data.Vo2MaxEstimator
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
@@ -42,5 +43,30 @@ class Vo2maxFallbackTest {
         assertEquals(FitnessAgeEngine.estimateVO2max(40.0, "male", 90.0, 60.0, paIndex), nes, 1e-6)
         // …and it is a different number from the Uth HR-ratio fallback.
         assertTrue("Nes (waist) and Uth (HR-ratio) estimates should differ", abs(nes - uth) > 0.01)
+    }
+
+    @Test
+    fun newlyComputedPoint_recordsTheEstimatorUsedAtComputeTime() {
+        val computedId = "my-whoop-noop"
+        val noWaist = UserProfile(age = 40.0, sex = "male", waistCm = 0.0)
+        val withWaist = UserProfile(age = 40.0, sex = "male", waistCm = 90.0)
+        val uthRows = IntelligenceEngine.fitnessAgeRows(gate(60), noWaist, computedId, "2026-08-15")
+        val nesRows = IntelligenceEngine.fitnessAgeRows(gate(60), withWaist, computedId, "2026-08-22")
+
+        val uth = IntelligenceEngine.vo2MaxProvenance(uthRows, noWaist.waistCm, computedId).single()
+        val nes = IntelligenceEngine.vo2MaxProvenance(nesRows, withWaist.waistCm, computedId).single()
+
+        assertEquals("uth", uth.sourceId)
+        assertEquals("2026-08-15", uth.day)
+        assertEquals("vo2max_est", uth.key)
+        assertEquals("nes", nes.sourceId)
+        assertEquals(Vo2MaxEstimator.UTH, Vo2MaxEstimator.fromProvenanceId(uth.sourceId))
+        assertEquals(Vo2MaxEstimator.NES, Vo2MaxEstimator.fromProvenanceId(nes.sourceId))
+    }
+
+    @Test
+    fun missingLegacyProvenance_remainsUnknown() {
+        assertEquals(null, Vo2MaxEstimator.fromProvenanceId(null))
+        assertEquals(null, Vo2MaxEstimator.fromProvenanceId("my-whoop"))
     }
 }
