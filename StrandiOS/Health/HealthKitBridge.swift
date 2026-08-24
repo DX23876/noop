@@ -33,6 +33,29 @@ final class HealthKitBridge: ObservableObject {
     /// Without this, a strap offload finishing during the foreground read/write pass was deferred until
     /// the next app open even though the newly-banked rows were already available locally.
     private var writeBackPending = false
+    /// How many days the last COMPLETED sync covered, so an observer wake can tell whether a sync that
+    /// just ran already read its window. Paired with `lastSync` (the time). Reset to 0 by a failed sync,
+    /// so a failure never lets a later wake be skipped on the strength of it.
+    private var lastSyncDays = 0
+    /// How long an observer wake will accept a just-completed sync instead of running its own.
+    ///
+    /// Six sample types carry `enableBackgroundDelivery(frequency: .hourly)`, and two of them —
+    /// `.heartRate` and `.activeEnergyBurned` — get new samples continuously on a worn Apple Watch, so in
+    /// practice several observers wake within moments of each other every hour. Each wake used to run a
+    /// FULL sync: ~15 HealthKit aggregate queries plus a write-back, no matter which type woke it.
+    ///
+    /// Scoping the queries to the woken type is NOT an option: the rows are upserted with
+    /// `ON CONFLICT DO UPDATE SET x = excluded.x` on every column, a full replace, so a sync that skipped
+    /// a query would write NULL over that day's stored value and wipe it. Coalescing is safe instead
+    /// because it changes nothing about what a sync reads — it only declines to repeat one.
+    ///
+    /// Skipping is lossless: `sync` re-reads AGGREGATES for a window, so a sync that already covered this
+    /// wake's days has ingested its samples. The anchor exists only to name the window (see
+    /// `fetchTouchedDayWindow`), which is why it is still advanced on a skip.
+    ///
+    /// The Android side has had this shape all along — `syncHealthConnectIfStale` gates its Health Connect
+    /// import on a staleness interval. This brings iOS in line.
+    private static let observerCoalesceWindow: TimeInterval = 15 * 60
     /// The most recent failure surfaced by `sync` / `writeBack`. Cleared on a successful run. UI binds
     /// here so an Apple Health auth revoke, quota hit, or invalid sample is visible instead of silent.
     @Published private(set) var lastError: String?
@@ -322,10 +345,14 @@ final class HealthKitBridge: ObservableObject {
     /// keeps every per-day average correct and idempotent — `sync` upserts are keyed by day.
     private func syncFromObserver(type: HKSampleType) async {
         guard auth == .authorized else { return }
+        // #1578: counted before any early return, so the ratio of wakes to syncs is honest. Coalescing
+        // cuts the work per wake, not the wakes — this is what shows whether the wake itself is the cost.
+        HealthSyncStats.recordWake()
         let (touched, newAnchor) = await fetchTouchedDayWindow(type: type)
         // No new samples since the last anchor (a spurious wake): nothing to ingest, so advancing the
         // anchor now loses nothing and skips a redundant re-query next wake.
         guard let touched else {
+            HealthSyncStats.recordEmptyWake()
             if let newAnchor { persistAnchor(newAnchor, for: type) }
             return
         }
@@ -334,6 +361,27 @@ final class HealthKitBridge: ObservableObject {
                                           to: cal.startOfDay(for: Date())).day ?? 0
         // Clamp to a sane window: at least today, and never re-walk more than a month from one wake.
         let window = max(1, min(31, daysBack + 1))
+        // A sync completed moments ago and covered at least this wake's window, so a second full pass
+        // would burn ~15 HealthKit aggregate queries and a write-back to re-derive rows that sync just
+        // wrote. Stand down. This is what collapses the hourly burst of six observers into one sync.
+        // FOREGROUND catch-up deliberately does not consult this: an explicit resume should always read.
+        // `age >= 0` is not defensive noise. This is WALL-CLOCK time, and it can move backwards — an NTP
+        // correction, or a user changing the date. A negative age satisfies `< window`, so every wake would
+        // skip; and because `lastSync` is only written by a sync that RAN, the skipping would keep it stale
+        // and background Health ingestion would stay dead until a foreground catch-up (which ignores this
+        // gate) broke the loop. Cheap to exclude, so exclude it.
+        let sinceLastSync = lastSync.map { Date().timeIntervalSince($0) }
+        if let age = sinceLastSync, age >= 0, age < Self.observerCoalesceWindow,
+           window <= lastSyncDays {
+            HealthSyncStats.recordCoalesced()
+            // Deliberately do NOT advance the anchor here. Samples that landed AFTER that sync's reads but
+            // before this wake are not in the store yet, and advancing past them would leave them to be
+            // picked up only incidentally — by whatever later sync happens to re-read the same day. Leaving
+            // the anchor put means the next wake sees the same window and syncs it for certain. The cost is
+            // one more delta query on that wake, which is the cheap half; the ~15 aggregate reads and the
+            // write-back are what this is avoiding.
+            return
+        }
         // Advance the anchor ONLY after the ingestion commits (@bhelm). If sync() bails (another sync holds
         // `syncing`, or the store is unavailable), the anchor stays put so the next wake re-fetches this
         // window and re-ingests — sync re-reads aggregates, so the replay is idempotent.
@@ -400,7 +448,14 @@ final class HealthKitBridge: ObservableObject {
             return false
         }
         syncing = true
-        defer { finishHealthPass() }
+        // #1578: time the whole pass — the ~15 aggregate reads, the upserts and the write-back. Recorded in
+        // `defer` so an early or thrown exit still contributes; a pass that cost time and then failed is
+        // exactly the one a drain report needs to show.
+        let passStart = Date()
+        defer {
+            HealthSyncStats.recordSync(millis: Int(Date().timeIntervalSince(passStart) * 1000))
+            finishHealthPass()
+        }
         // Before reading: pick up any read type this version added that the user was never asked about
         // (#949). No-op once the stored signature matches, which is every sync after the first.
         await requestNewReadTypesIfNeeded()
@@ -605,9 +660,15 @@ final class HealthKitBridge: ObservableObject {
             }
             try await writeBack(whoopStore: store)
             lastSync = Date()
+            // Record the window alongside the time: an observer wake may only stand down for a sync that
+            // actually covered ITS days (see `observerCoalesceWindow`). Set on the success path only.
+            lastSyncDays = days
             lastError = nil
             return true
         } catch {
+            // A failed sync must never let a later wake skip on the strength of it — the rows it would
+            // have written are not there. Clearing the window means `window <= lastSyncDays` cannot hold.
+            lastSyncDays = 0
             lastError = String(localized: "Apple Health sync failed: \(error.localizedDescription)")
             return false
         }
