@@ -43,7 +43,8 @@
     "v39-day-scan-traits",
     "v40-analysis-input-revision",
     "v41-apple-step-hour",
-    "v42-ppg-burst-index"
+    "v42-ppg-burst-index",
+    "v43-body-weight"
   ],
   "divergenceReasons": {
     "android-orphan-synced-column": "REAL COLUMN DRIFT: `synced` exists on Android only. GRDB's v10 note is explicit that stepSample gets no `synced` column ('unused; see StreamStore'), and v12's ppgHrSample never had one either; the Room entities copied the flag from the older per-second entities. Nothing reads it on Android — the per-row upload flag belongs to an upload path that does not exist there — so it is dead width, not divergent data. Removing it needs a Room table rebuild.",
@@ -237,6 +238,76 @@
       ],
       "androidColumnOrderDivergence": "battery-alter-append-order",
       "indices": []
+    },
+    "bodyWeightEntry": {
+      "platform": "ios_only",
+      "reason": "Body-weight measurements the user records in NOOP itself (GRDB v43), modelled on labMarker: several weigh-ins can share a day, each carries a precise takenAt and a source, and the daily latest-per-day projection into metricSeries (key \"weight\", source \"noop-weight\") is how the rest of the app reads them. This fork carries no Android app, so there is no Room twin to pin — an ios_only entry rather than silent drift.",
+      "columns": [
+        {
+          "name": "id",
+          "affinity": "TEXT",
+          "notNull": false,
+          "default": null
+        },
+        {
+          "name": "deviceId",
+          "affinity": "TEXT",
+          "notNull": true,
+          "default": null
+        },
+        {
+          "name": "day",
+          "affinity": "TEXT",
+          "notNull": true,
+          "default": null
+        },
+        {
+          "name": "takenAt",
+          "affinity": "INTEGER",
+          "notNull": true,
+          "default": null
+        },
+        {
+          "name": "weightKg",
+          "affinity": "REAL",
+          "notNull": true,
+          "default": null
+        },
+        {
+          "name": "source",
+          "affinity": "TEXT",
+          "notNull": true,
+          "default": null
+        },
+        {
+          "name": "note",
+          "affinity": "TEXT",
+          "notNull": false,
+          "default": null
+        }
+      ],
+      "primaryKey": [
+        "id"
+      ],
+      "indices": [
+        {
+          "name": "idx_bodyWeightEntry_device_takenAt",
+          "unique": false,
+          "columns": [
+            "deviceId",
+            "takenAt"
+          ]
+        },
+        {
+          "name": "idx_bodyWeightEntry_natural",
+          "unique": true,
+          "columns": [
+            "deviceId",
+            "takenAt",
+            "source"
+          ]
+        }
+      ]
     },
     "cursors": {
       "platform": "ios_only",

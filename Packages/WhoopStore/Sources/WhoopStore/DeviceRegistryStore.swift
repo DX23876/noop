@@ -150,6 +150,13 @@ public struct DeviceRegistryStore: Sendable {
         // so forgetting that source must clear them — otherwise an imported phone's hour-by-hour step
         // history survives the delete (the same privacy defect this list exists to close).
         "appleStepHour",
+        // v42-body-weight: weigh-ins the user typed into NOOP are deviceId-keyed like `labMarker`
+        // above, and are exactly the kind of personal record a "forget this source" must remove.
+        // They are stored under the FIXED `noop-weight` id (not a strap's) — they are the person's own
+        // records, not any device's recordings — which is also the id their daily `metricSeries`
+        // projection uses. So one `deleteAllData(deviceId: "noop-weight")` clears the book and its
+        // projection together, and forgetting a strap correctly leaves them alone.
+        "bodyWeightEntry",
     ]
 
     /// Permanently delete every recorded sample/derived row belonging to one device, across all

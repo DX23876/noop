@@ -24,6 +24,7 @@ struct MetricDescriptor: Identifiable, Hashable {
         case "xiaomi-band":  return "Mi Band"
         case "nutrition-csv": return String(localized: "Nutrition")
         case "noop-mood":    return String(localized: "Mood")
+        case "noop-weight":  return String(localized: "Logged in NOOP")
         default:             return "Whoop"   // "my-whoop" + on-device computed sources
         }
     }
@@ -174,9 +175,22 @@ enum MetricCatalog {
         d("hr_zones_all_min", String(localized: "HR Zones (All)"), "Effort", "min", "my-whoop", "heart.text.square", 0, nil),
         d("strength_min", String(localized: "Strength Activity Time"), "Effort", "min", "my-whoop", "dumbbell", 0, nil),
         d("active_kcal", String(localized: "Active Energy"), "Effort", "kcal", "apple-health", "flame.fill", 0, nil),
+        // Apple's BASAL energy. Both Apple paths (the iOS live sync and the macOS file import) have
+        // always written this key into `metricSeries`, but it had no catalog entry — so the resting
+        // half of the day's burn was stored and completely unfindable, in Explore, Compare, the
+        // correlation scan and the coach's data catalog alike. Declared beside `active_kcal` because
+        // the two are halves of one quantity: their SUM is the day's total expenditure.
+        d("basal_kcal", String(localized: "Basal Energy"), "Effort", "kcal", "apple-health", "flame", 0, nil),
 
         // ── Health / Body
         d("weight", String(localized: "Weight"), "Health", "kg", "apple-health", "scalemass", 1, nil),
+        // Weigh-ins the user logged in NOOP itself (v42 `bodyWeightEntry`, projected latest-of-day).
+        // Declared AFTER apple-health on purpose, exactly like the WHOOP `steps` entry above: the bare-key
+        // `first { key == "weight" }` resolvers keep their prior apple-health default, so this entry's
+        // position never changes where any of them tap through. It exists so a NOOP weigh-in is
+        // discoverable in Explore / Compare / the correlation scan and in the Coach's data catalog —
+        // the Today tile and goal tracking read the merged `Repository.weightSeries()` instead.
+        d("weight", String(localized: "Weight"), "Health", "kg", "noop-weight", "scalemass", 1, nil),
         d("body_fat", String(localized: "Body Fat"), "Health", "%", "apple-health", "percent", 1, false),
         d("lean_mass", String(localized: "Lean Body Mass"), "Health", "kg", "apple-health", "figure.arms.open", 1, true),
         d("bmi", "BMI", "Health", "", "apple-health", "figure", 1, nil),

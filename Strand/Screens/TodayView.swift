@@ -306,6 +306,8 @@ struct TodayView: View {
 
     // 14-day sparkline series, keyed by metric key. Loaded once in .task.
     @State private var sparks: [String: [Double]] = [:]
+    /// The smoothed weight summary behind the Weight tile's headline number, or nil before loading.
+    @State private var weightSummary: WeightTrendSummary?
     @State private var workouts: [WorkoutRow] = []
     @State private var appleDays: [AppleDaily] = []
     // Design Reset / #582, the pinned "Your cards" values (Stress / Fitness age / Vitality), surfaced
@@ -3647,7 +3649,7 @@ struct TodayView: View {
         case .bloodOxygen: return .metricSourced(key: "spo2", source: "my-whoop")
         case .respiratory: return .metricSourced(key: "resp_rate", source: "apple-health")
         case .steps:       return .metricSourced(key: "steps", source: "apple-health")
-        case .weight:      return .metricSourced(key: "weight", source: "apple-health")
+        case .weight:      return .weight
         case .calories:    return .metricSourced(key: "active_kcal", source: "apple-health")
         }
     }
@@ -3661,14 +3663,6 @@ struct TodayView: View {
         // AppleDaily row — the tail can be days stale, or from a day the user has since navigated away
         // from, and would otherwise show today's (or an old import's) calories on a past day.
         let aLatest = appleDays.last(where: { $0.day == selectedDayKey })
-        // Weight is logged sparsely, so the newest AppleDaily often carries none — the tile would then
-        // read blank even though a recent weigh-in exists. Pick the most recent day that actually has a
-        // weight (mirrors Android's latestWeightKg); weightTile falls back to the sparkline / profile
-        // weight when even this is nil.
-        let latestWeightKg = appleDays
-            .filter { $0.weightKg != nil }
-            .max(by: { $0.day < $1.day })?
-            .weightKg
         switch metric {
         case .charge:
             // Order of precedence: today's own scored recovery → mid-calibration "N of 4" → the last
@@ -3881,8 +3875,8 @@ struct TodayView: View {
         case .weight:
             StatTile(
                 label: "Weight",
-                value: weightTile(latestWeightKg).value,
-                caption: weightTile(latestWeightKg).caption,
+                value: weightTile().value,
+                caption: weightTile().caption,
                 accent: StrandPalette.accent,
                 sparkline: keyMetricsDetailed ? windowedSpark("weight") : nil,
                 sparkColor: StrandPalette.accent
@@ -4366,7 +4360,8 @@ struct TodayView: View {
         // trend. "my-whoop" covers imported WHOOP CSV (Layer 1) + computed DailyMetric (Layer 3).
         async let respRateSpark      = sparkValuesExplore("resp_rate", source: "my-whoop", window: 14)
         async let stepsAppleSpark    = sparkValues("steps", source: "apple-health", window: 14)
-        async let weightSpark        = sparkValues("weight", source: "apple-health", window: 90)
+        async let weightSpark        = weightSparkValues(window: 90)
+        async let weightSummaryA     = repo.weightTrendSummary(days: 91)
         async let activeKcalSpark    = sparkValues("active_kcal", source: "apple-health", window: 14)
 
         sparks["recovery"]        = await recoverySpark
@@ -4385,6 +4380,7 @@ struct TodayView: View {
         let strapSteps = repo.days.suffix(14).compactMap { $0.steps.map(Double.init) }
         if !strapSteps.isEmpty { sparks["steps"] = strapSteps }
         sparks["weight"]      = await weightSpark
+        weightSummary         = await weightSummaryA
         sparks["active_kcal"] = await activeKcalSpark
 
         // Steps ESTIMATE per day (WHOOP 4.0 motion → calibrated steps), the Mi-Band series, workout +
@@ -4766,6 +4762,13 @@ struct TodayView: View {
         return trailingWindow(all, days: window).map { $0.value }
     }
 
+    /// Weight has two canonical sources, so its sparkline cannot name one fixed source.
+    private func weightSparkValues(window: Int) async -> [Double] {
+        let all = await repo.weightDailyValues(days: window + 1)
+        guard !all.isEmpty else { return [] }
+        return trailingWindow(all, days: window).map { $0.value }
+    }
+
     /// The "Detailed tiles" trend-window picker (2 days / 1 week / 2 weeks) applied to an already-loaded
     /// 14-day superset, mirroring `LiquidTodayView.windowedSpark`. Unlike Liquid's `kSparks` (which keeps
     /// each point's day key so it can re-filter by calendar date), `sparks` here is already reduced to
@@ -4805,17 +4808,15 @@ struct TodayView: View {
         return unit.isEmpty ? n : "\(n) \(unit)"
     }
 
-    /// The Weight tile's display string + an honest caption ("from profile" only on the fallback).
-    /// Prefers a real Apple-Health reading (today's daily, else the "weight" series' newest point so a
-    /// sparse-but-recent value still renders); when neither carries a weight, falls back to the user's
-    /// self-reported profile weight instead of ", " (#204). Always formatted through the shared
-    /// `UnitFormatter` so the Imperial/Metric toggle reaches this tile. Mirrors Android's `weightTile`.
-    /// Updated to ignore unrealistic weight values (< 10 kg) and use profile weight instead.
-    private func weightTile(_ appleWeightKg: Double?) -> (value: String, caption: String) {
-        let resolved = Repository.resolveWeightKg(latestAppleWeightKg: appleWeightKg,
-                                                  seriesFallbackKg: sparks["weight"]?.last,
-                                                  profileWeightKg: profile.weightKg)
-        let caption = resolved.isFromProfile ? String(localized: "from profile") : String(localized: "latest")
+    /// The Weight tile shows the settled trend, then the latest measurement, then the profile fallback.
+    private func weightTile() -> (value: String, caption: String) {
+        let resolved = WeightSeries.displayWeight(summary: weightSummary, profileWeightKg: profile.weightKg)
+        let caption: String
+        switch resolved.tier {
+        case .trend: caption = String(localized: "trend")
+        case .measured: caption = String(localized: "latest")
+        case .profile: caption = String(localized: "from profile")
+        }
         return (UnitFormatter.massFromKilograms(resolved.kg, system: unitSystem), caption)
     }
 

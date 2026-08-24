@@ -145,13 +145,22 @@ struct StrandiOSApp: App {
                     if let kg { model.profile.applyHealthWeight(kg: kg) }
                 }
                 // The reverse direction: a genuine user edit to the profile weight writes back to Health.
-                // Ping-pong guard — skip when the new value is (near-)identical to what Health itself last
-                // reported, since that means this change is the "Health always wins" overwrite above
-                // echoing back through this same publisher, not a fresh user edit (a real edit almost
-                // never lands within 0.05 kg of the last Health-imported value by coincidence).
+                // Both ping-pong arms (the "Health always wins" echo above, and a weigh-in NOOP itself
+                // logged) live in `shouldWriteProfileWeight`, which the iOS test target pins.
                 .onReceive(model.profile.$weightKg.dropFirst()) { kg in
-                    guard abs(kg - (health.latestImportedWeightKg ?? -.greatestFiniteMagnitude)) > 0.05 else { return }
+                    guard HealthKitBridge.shouldWriteProfileWeight(
+                        kg,
+                        lastImported: health.latestImportedWeightKg,
+                        lastSelfWritten: health.lastSelfWrittenWeightKg) else { return }
                     Task { try? await health.writeWeight(kg: kg) }
+                }
+                // A weigh-in recorded anywhere in the app mirrors into Health under its own day.
+                // One observer rather than a call at each write
+                // site: `Repository` is shared and `HealthKitBridge` is iOS-only, so a per-call-site hook
+                // is exactly the wiring someone forgets on the next write path.
+                .onReceive(NotificationCenter.default.publisher(for: .noopWeightLogged)) { note in
+                    guard let logged = WeightLogNotification(note) else { return }
+                    Task { try? await health.writeWeight(kg: logged.kg, day: logged.day) }
                 }
                 .noopAccent(accentRaw, customHex: accentCustomHex)
                 // Dynamic Type now scales the prose/label roles (StrandFont). Cap the upper end so the

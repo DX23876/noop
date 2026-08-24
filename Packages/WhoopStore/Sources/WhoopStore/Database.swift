@@ -958,6 +958,47 @@ extension WhoopStore {
                 t.add(column: "burstIndex", .integer)
             }
         }
+        // v43-body-weight: body weight as a real MEASUREMENT SERIES, not a single profile field.
+        //
+        // Weight already reached the app as a daily `metricSeries` cell under `apple-health`
+        // (latest-of-day) plus `ProfileStore.weightKg`, a manually-set profile default. Neither is a
+        // history: there was nowhere to put a weigh-in the user types in NOOP, nothing to edit or
+        // delete by id, and no record of WHERE a value came from. Trend weight, weekly rate, goal
+        // course and (later) maintenance calibration all need individual dated measurements.
+        //
+        // Modelled on `labMarker` (v17), which solved the identical shape: several readings can share
+        // a day, each carries a precise `takenAt` instant and a `source`, `id` is a client-generated
+        // stable identifier so one reading can be edited/deleted and a backup round-trips, and `day`
+        // is the pre-derived yyyy-MM-dd key for the daily projection this store writes alongside
+        // (`metricSeries` key "weight" under the `noop-weight` source id).
+        //
+        // Apple Health weights are deliberately NOT copied in here. HealthKit samples are mutable and
+        // deletable after the fact, so a copy would need permanent reconciliation and would produce
+        // exactly the duplicates it was meant to prevent; `Repository.weightSeries()` unions the two
+        // per day instead — the same "one source wins a day, never a sum" model `sourceCandidates`
+        // already uses for every other metric.
+        //
+        // Additive only: a NEW table, no existing row touched, old readers unaffected.
+        migrator.registerMigration("v43-body-weight") { db in
+            try db.create(table: "bodyWeightEntry") { t in
+                t.column("id", .text).primaryKey()
+                t.column("deviceId", .text).notNull()
+                t.column("day", .text).notNull()          // yyyy-MM-dd (projection key)
+                t.column("takenAt", .integer).notNull()   // epoch seconds (precise instant)
+                t.column("weightKg", .double).notNull()
+                t.column("source", .text).notNull()       // manual | appleHealth | imported
+                t.column("note", .text)
+            }
+            // Idempotent re-import / re-log: one measurement per (deviceId, takenAt, source), so a
+            // caller minting a fresh id for the same instant updates rather than duplicates.
+            try db.create(index: "idx_bodyWeightEntry_natural",
+                          on: "bodyWeightEntry",
+                          columns: ["deviceId", "takenAt", "source"],
+                          unique: true)
+            // History reads scan (deviceId) then walk takenAt in order.
+            try db.create(index: "idx_bodyWeightEntry_device_takenAt",
+                          on: "bodyWeightEntry", columns: ["deviceId", "takenAt"])
+        }
         return migrator
     }
 }
