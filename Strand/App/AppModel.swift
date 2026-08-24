@@ -137,9 +137,22 @@ final class AppModel: ObservableObject {
         var avgHr: Int = 0
         var peakHr: Int = 0
         var targetZone: Int? = nil
+        var pausedAt: Date?
+        var pausedDuration: TimeInterval = 0
+
+        var isPaused: Bool { pausedAt != nil }
+
+        func elapsed(at now: Date = Date()) -> TimeInterval {
+            max(0, now.timeIntervalSince(start) - pausedDuration
+                - (pausedAt.map { now.timeIntervalSince($0) } ?? 0))
+        }
+    }
+    struct HealthAlert: Equatable {
+        let message: IllnessSignalEngine.Message
+        let firedSignals: [String]
     }
     /// Illness/strain early-warning (recent RHR up + HRV down + skin-temp up vs baseline). nil = clear.
-    @Published var healthAlert: String?
+    @Published var healthAlert: HealthAlert?
 
     // MARK: - v5 pillar snapshot (engines run in the analytics pass; the views read these)
     //
@@ -534,11 +547,17 @@ final class AppModel: ObservableObject {
                 // `force: false` skips the heavy 21-day rescore when the raw HR stream is unchanged since the
                 // last run, instead of re-reading ~21×54 h of HR every 15 min on a big-import library. A new
                 // sample (the heal above, or a sync) moves the fingerprint and the tick rescores as before.
-                // `allowDayReuse: true`: when the whole-history watermark HAS moved, this tick still only
+                // #1538: do not start a background backstop pass that cannot finish under suspension.
+                await RescoreBackgroundScheduler.run(owesOnDefer: false,
+                                                      log: { [live = self.live] line in
+                                                          live.append(log: line)
+                                                      }) {
+                    // `allowDayReuse: true`: when the whole-history watermark HAS moved, this tick still only
                 // needs to re-derive the days the new samples actually landed in — which is exactly what
                 // the per-day fingerprint resolves (#launch-rescore).
-                await self.intelligence.analyzeRecent(force: false, allowDayReuse: true,
-                                                      reason: .rawMutation)
+                    await self.intelligence.analyzeRecent(force: false, allowDayReuse: true,
+                                                          reason: .rawMutation)
+                }
                 if !effortMaintenanceStarted {
                     effortMaintenanceStarted = true
                     // Exact-day HR + strain only, newest first. Seven days per resumable generation and
@@ -721,6 +740,27 @@ final class AppModel: ObservableObject {
     var healthWriteBack: (() async -> Void)?
     #endif
 
+    /// Settle a re-score that is owed (#1538) — one an earlier attempt started and was killed partway
+    /// through, or one a background trigger deferred rather than start where it could not finish.
+    ///
+    /// Called from the iOS `BGProcessingTask` handler, which gets minutes rather than the seconds a
+    /// bluetooth-central background wake is worth, and from foreground entry, whichever comes first. A
+    /// no-op unless something is actually owed, so both callers are safe to invoke unconditionally.
+    ///
+    /// Forced rather than `skipIfUnchanged`: an interrupted pass never advanced the watermark — by design,
+    /// so that it cannot mark unscored data as scored — so gating on the fingerprint here would be asking
+    /// a question whose answer is already known to be "yes, there is work".
+    func runDeferredRescoreIfOwed() async {
+        guard RescoreBackgroundScheduler.isRescoreOwed else { return }
+        live.append(log: "re-score: resuming a pass an earlier attempt could not finish (#1538)")
+        await intelligence.analyzeRecent()
+        #if os(iOS)
+        // The deferred pass is the one that finally produces today's score, and it runs with no UI
+        // attached — so publish the snapshot here too, for the same reason the post-offload path does.
+        await WidgetSnapshot.publish(from: self)
+        #endif
+    }
+
     private func refreshAfterCompletedBackfill() async {
         live.append(log: "Backfill: refreshing dashboard cache from completed sync")
         await repo.refresh(days: 120)
@@ -732,13 +772,16 @@ final class AppModel: ObservableObject {
         // duplicate offload (nothing new banked, common on a flapping link) skips the whole-window rescore
         // instead of churning it, which was surfacing as a Trends/streak "0 days" flicker. Only this
         // post-offload caller opts in; every other analyzeRecent path still forces unconditionally.
-        // `allowDayReuse: true` — the single most valuable place for it. A completed offload is a PURE
+        // #1538: defer a background offload re-score when the current execution lease cannot finish it.
+        await RescoreBackgroundScheduler.run(log: { [live] line in live.append(log: line) }) {
+            // `allowDayReuse: true` — the single most valuable place for it. A completed offload is a PURE
         // raw-data change: new samples landed under a device id, in specific days. That is precisely what
         // the per-day fingerprint resolves, so this pass re-derives the nights the sync actually brought
         // and reuses the rest. Without it, every sync re-derived the full 21-day window from raw
         // (~950 k rows per day) — the dominant recurring cost on a real library (#launch-rescore).
-        await intelligence.analyzeRecent(skipIfUnchanged: true, allowDayReuse: true,
-                                         reason: .rawMutation)
+            await intelligence.analyzeRecent(skipIfUnchanged: true, allowDayReuse: true,
+                                             reason: .rawMutation)
+        }
         await PlanReconciliationCoordinator.reconcile(repo: repo)
         await GoalTrackingStore.shared.refresh(repo: repo)
         await refreshV5Signals()
@@ -883,7 +926,9 @@ final class AppModel: ObservableObject {
                 avgHr: w.avgHr,
                 peakHr: w.peakHr,
                 liveStrain: w.liveStrain,
-                targetZone: w.targetZone))
+                targetZone: w.targetZone,
+                pausedAtSec: w.pausedAt.map { Int($0.timeIntervalSince1970) },
+                pausedDurationSec: Int(w.pausedDuration)))
     }
 
     /// If a manual workout was in flight when iOS killed the app, rebuild `activeWorkout` from the durable
@@ -899,8 +944,51 @@ final class AppModel: ObservableObject {
         w.peakHr = snap.peakHr
         w.liveStrain = snap.liveStrain
         w.targetZone = snap.targetZone
+        w.pausedAt = snap.pausedAtSec.map { Date(timeIntervalSince1970: TimeInterval($0)) }
+        w.pausedDuration = TimeInterval(snap.pausedDurationSec ?? 0)
         activeWorkout = w
+
+        // Rebuild the transient GPS lifecycle flag as well as the durable workout value. Without this,
+        // a distance workout restored after an OS kill resumes as a non-GPS workout: Resume never
+        // restarts CoreLocation and End never asks the recorder for its route. Re-arm from the original
+        // start so newly captured fixes keep the workout's elapsed-time basis; leave a restored paused
+        // session paused until the user explicitly resumes it.
+        activeWorkoutIsGps = WorkoutCatalog.sport(named: snap.sport)?.isDistanceSport ?? false
+        if activeWorkoutIsGps {
+            gpsRecorder.restore(
+                startMs: Int64(snap.startSec) * 1000,
+                pausedAtMs: snap.pausedAtSec.map { Int64($0) * 1000 },
+                pausedDurationMs: Int64(snap.pausedDurationSec ?? 0) * 1000
+            )
+        }
         zoneTrainingTargetZone = snap.targetZone
+        zoneTrainingEngine.reset()
+        zoneTrainingState = nil
+    }
+
+    func toggleWorkoutPause() {
+        guard var w = activeWorkout else { return }
+        if let pausedAt = w.pausedAt {
+            w.pausedDuration += Date().timeIntervalSince(pausedAt)
+            w.pausedAt = nil
+            if activeWorkoutIsGps { gpsRecorder.resume() }
+        } else {
+            w.pausedAt = Date()
+            if activeWorkoutIsGps { gpsRecorder.pause() }
+        }
+        activeWorkout = w
+        persistActiveWorkout()
+    }
+
+    /// Abort the active session without saving a workout.
+    func discardWorkout() {
+        guard activeWorkout != nil else { return }
+        activeWorkout = nil
+        if activeWorkoutIsGps { gpsRecorder.stop() }
+        activeWorkoutIsGps = false
+        ActiveWorkoutPersistence.clear()
+        lastWorkout = nil
+        zoneTrainingTargetZone = nil
         zoneTrainingEngine.reset()
         zoneTrainingState = nil
     }
@@ -950,7 +1038,8 @@ final class AppModel: ObservableObject {
         let restingHR = repo.today?.restingHr.map(Double.init) ?? StrainScorer.defaultRestingHR
         let strain = samples.count >= 2
             ? StrainScorer.strain(samples, maxHR: Double(profile.hrMax),
-                                  restingHR: restingHR, sex: profile.sex) : nil
+                                  restingHR: restingHR,
+                                  method: PuffinExperiment.effortMethod, sex: profile.sex) : nil
         // Estimate calories from the captured HR window (same Keytel/Harris–Benedict model the
         // auto-detector uses) so a manual session shows energy too, not just duration/strain. (#117)
         let up = UserProfile(weightKg: profile.weightKg, heightCm: profile.heightCm,
@@ -966,7 +1055,7 @@ final class AppModel: ObservableObject {
         let startTs = Int(w.start.timeIntervalSince1970)
         let row = WorkoutRow(
             startTs: startTs, endTs: Int(end.timeIntervalSince1970),
-            sport: w.sport, source: "manual", durationS: end.timeIntervalSince(w.start),
+            sport: w.sport, source: "manual", durationS: w.elapsed(at: end),
             energyKcal: kcal > 0 ? kcal : nil, avgHr: avg, maxHr: peak, strain: strain,
             // GPS distance rides the shared row so the Workouts list / detail show it like any other
             // distance workout; the polyline itself is persisted alongside in RouteStore (the shared
@@ -982,7 +1071,7 @@ final class AppModel: ObservableObject {
         // (not reset by stop), 0 for a non-GPS session. Zero-cost when off.
         emitWorkoutsTrace(WorkoutsTrace.sessionLine(
             event: "end", sportKey: WorkoutSource.traceSportKey(w.sport), hrSamples: samples.count,
-            durationSec: Int(end.timeIntervalSince(w.start)),
+            durationSec: Int(w.elapsed(at: end)),
             gpsPoints: wasGps ? gpsRecorder.pointCount : nil))
         buzz(loops: 2, gate: HapticPrefs.workout)
         Task { [weak self] in
@@ -998,11 +1087,12 @@ final class AppModel: ObservableObject {
     /// from `ingestHR` on every fresh sample; a no-op when no workout is running. Recomputing strain
     /// over the growing window each sample is cheap at the ~1 Hz live-HR cadence.
     private func captureWorkoutSample() {
-        guard var w = activeWorkout, let hr = bpm else { return }
+        guard var w = activeWorkout, !w.isPaused, let hr = bpm else { return }
         w.samples.append(HRSample(ts: Int(Date().timeIntervalSince1970), bpm: hr))
         w.peakHr = max(w.peakHr, hr)
         w.avgHr = Int((Double(w.samples.map(\.bpm).reduce(0, +)) / Double(w.samples.count)).rounded())
-        w.liveStrain = StrainScorer.strain(w.samples, maxHR: Double(profile.hrMax), sex: profile.sex) ?? 0
+        w.liveStrain = StrainScorer.strain(w.samples, maxHR: Double(profile.hrMax),
+                                              method: PuffinExperiment.effortMethod, sex: profile.sex) ?? 0
         activeWorkout = w
         // Re-snapshot the durable session so a kill keeps the latest accumulated HR window (#529).
         persistActiveWorkout()
@@ -1871,7 +1961,7 @@ final class AppModel: ObservableObject {
     }
 
     /// Run the `IllnessSignalEngine` from the day history + the journal-derived confounder context, then
-    /// publish the result + the legacy `healthAlert` banner string (kept for the existing banner surface).
+    /// publish the result + the semantic `healthAlert` banner payload.
     private func applyIllnessSignal(_ days: [DailyMetric], alcohol: Bool,
                                     hardOrLateWorkout: Bool, alreadyUnwell: Bool) {
         let previous = healthAlert
@@ -1932,25 +2022,38 @@ final class AppModel: ObservableObject {
         // Caller-rendered phrases for the signals that fire (the engine surfaces only the firing ones).
         var labels: [String: String] = [:]
         if let r = rm({ $0.restingHr.map(Double.init) }), let b = mean(base.compactMap { $0.restingHr.map(Double.init) }), r > b {
-            labels["restingHR"] = "RHR +\(Int((r - b).rounded()))"
+            let delta = Int((r - b).rounded())
+            labels["restingHR"] = String(localized: "RHR +\(delta)")
         }
         if let r = rm({ $0.avgHrv }), let b = mean(base.compactMap { $0.avgHrv }), b > 0, r < b {
-            labels["hrv"] = "HRV −\(Int(((1 - r / b) * 100).rounded()))%"
+            let percent = Int(((1 - r / b) * 100).rounded())
+            labels["hrv"] = String(localized: "HRV −\(percent)%")
         }
         if let r = rm({ $0.skinTempDevC }), r > 0 {
-            labels["skinTemp"] = "skin temp +\(String(format: "%.1f", r)) °C"
+            let temperature = String(format: "%.1f", locale: AppLanguage.activeLocale, r)
+            labels["skinTemp"] = String(localized: "Skin temperature +\(temperature) °C")
         }
         if let r = rm({ $0.respRateBpm }), let b = mean(base.compactMap { $0.respRateBpm }), r > b {
-            labels["respiration"] = "respiration up"
+            labels["respiration"] = String(localized: "Respiration up")
         }
 
         let result = IllnessSignalEngine.evaluate(inputs, context: context, firedLabels: labels)
         illnessSignal = result
-        // The amber banner string reflects the raised / already-unwell levels only (the calmer levels
+        // The amber banner payload reflects the raised / already-unwell levels only (the calmer levels
         // surface in the Health hub's Heads-Up card, never as a scary banner).
-        healthAlert = (result.level == .raised || result.level == .alreadyUnwell) ? result.copy : nil
-        if let alert = healthAlert, previous == nil {
-            IllnessNotifier.post(alert)
+        switch result.level {
+        case .raised:
+            healthAlert = HealthAlert(message: result.message ?? .raised,
+                                      firedSignals: result.firedSignals)
+        case .alreadyUnwell:
+            healthAlert = HealthAlert(message: result.message ?? .alreadyUnwell,
+                                      firedSignals: result.firedSignals)
+        case .quiet, .mild, .suppressed:
+            healthAlert = nil
+        }
+        if healthAlert != nil, previous == nil {
+            // Notifications retain their established copy contract; Home renders the semantic result.
+            IllnessNotifier.post(result.copy)
         }
     }
 

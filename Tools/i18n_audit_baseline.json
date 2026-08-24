@@ -47,15 +47,7 @@
     ],
     [
       "Strand/Screens/SettingsView.swift",
-      "Blood Oxygen: strap estimate (WHOOP 5/MG)"
-    ],
-    [
-      "Strand/Screens/SettingsView.swift",
-      "Date of birth, age \\(profile.age) years"
-    ],
-    [
-      "Strand/Screens/SettingsView.swift",
-      "NOOP estimates your steps from your WHOOP's motion, calibrated to your phone's step count. It's an estimate, not a step counter — a WHOOP 5.0 / MG streams motion (not a step count) only with deep data on."
+      "Blood Oxygen: strap estimate (WHOOP 5/MG, Oura)"
     ],
     [
       "Strand/Screens/SettingsView.swift",
@@ -67,43 +59,7 @@
     ],
     [
       "Strand/Screens/SettingsView.swift",
-      "Trend chart style"
-    ],
-    [
-      "Strand/Screens/SettingsView.swift",
-      "WHOOP 5.0 / MG · motion → steps"
-    ],
-    [
-      "Strand/Screens/SettingsView.swift",
-      "Your WHOOP 5.0/MG sends a strap-computed SpO₂ percentage (the @82 candidate byte) every second. An 8-night independent validation tracked it at corr +0.99 against the WHOOP app, but two nights on the original test device moved the OPPOSITE direction — device/firmware variance is unresolved. Turning this on surfaces the nightly mean in the Blood Oxygen tile as \\\"strap estimate (unverified)\\\" when no calibrated import exists. It never feeds recovery or illness scoring. WHOOP 4.0 has no @82 stream, so this does nothing there."
-    ],
-    [
-      "Strand/Screens/SleepView.swift",
-      "Removes this recorded sleep and recomputes the day without it. NOOP won't re-detect sleep in this window. You can undo for a few seconds after."
-    ],
-    [
-      "Strand/Screens/SleepView.swift",
-      "Removes this sleep and recomputes the day without it. You can undo for a few seconds after."
-    ],
-    [
-      "Strand/Screens/SleepView.swift",
-      "Undo sleep deletion"
-    ],
-    [
-      "Strand/Screens/SmartAlarmView.swift",
-      "Notifications are off"
-    ],
-    [
-      "Strand/Screens/SmartAlarmView.swift",
-      "Open Settings"
-    ],
-    [
-      "Strand/Screens/StressView.swift",
-      "Stress \\(String(format: \"%.1f\", score)) of 3"
-    ],
-    [
-      "Strand/Screens/StressView.swift",
-      "Today's value is your recorded daily stress score (0-3)."
+      "Your WHOOP 5.0/MG sends a strap-computed SpO₂ percentage (the @82 candidate byte) every second — an 8-night independent validation tracked it at corr +0.99 against the WHOOP app, but two nights on the original test device moved the OPPOSITE direction, so device/firmware variance is unresolved. An Oura ring's own SpO₂ reading runs high on the wire (over 100% on a fifth to a half of samples on a clean night); this instead surfaces the ring's mean with each sample capped at 100% first, which has matched the Oura app's own displayed value on every full night checked against it so far, though only a few nights. Turning this on surfaces whichever applies to your device as \\\"strap estimate (unverified)\\\" in the Blood Oxygen tile when no calibrated import exists. It never feeds recovery or illness scoring. WHOOP 4.0 has no @82 stream, so this does nothing there."
     ],
     [
       "Strand/Screens/TestCentreView.swift",
@@ -120,70 +76,6 @@
     [
       "Strand/Screens/TestCentreView.swift",
       "\\(identity). Logs this to the strap log on each connect, so a Polar bug report shows the model NOOP resolved your strap to."
-    ],
-    [
-      "Strand/Screens/TodayView.swift",
-      "Acute (7-day) vs chronic (28-day) training load. 0.8-1.3 is the sweet spot."
-    ],
-    [
-      "Strand/Screens/TrendsView.swift",
-      "Opens the full Charge metric."
-    ],
-    [
-      "Strand/Screens/TrendsView.swift",
-      "Opens the full \\(accessibilityTitle) metric."
-    ],
-    [
-      "Strand/Screens/WorkoutDetailView.swift",
-      "Effort \\(UnitFormatter.effortDisplay(strain, scale: effortScale)) \\(effortScale == .whoop ? \"of 21\" : \"of 100\")"
-    ],
-    [
-      "Strand/Screens/WorkoutDetailView.swift",
-      "of 21"
-    ],
-    [
-      "Strand/Screens/WorkoutsView.swift",
-      "All sources"
-    ],
-    [
-      "Strand/Screens/WorkoutsView.swift",
-      "All sports"
-    ],
-    [
-      "Strand/Screens/WorkoutsView.swift",
-      "Clear filters"
-    ],
-    [
-      "Strand/Screens/WorkoutsView.swift",
-      "Delete (\\(chosen.count))"
-    ],
-    [
-      "Strand/Screens/WorkoutsView.swift",
-      "Finish selecting"
-    ],
-    [
-      "Strand/Screens/WorkoutsView.swift",
-      "Merge (\\(chosen.count))"
-    ],
-    [
-      "Strand/Screens/WorkoutsView.swift",
-      "Select"
-    ],
-    [
-      "Strand/Screens/WorkoutsView.swift",
-      "Select sessions to merge or delete"
-    ],
-    [
-      "Strand/Screens/WorkoutsView.swift",
-      "Typical effort \\(UnitFormatter.effortDisplay(avgStrain, scale: effortScale))"
-    ],
-    [
-      "Strand/Screens/WorkoutsView.swift",
-      "Typical effort, no data"
-    ],
-    [
-      "Strand/Screens/WorkoutsView.swift",
-      "of 21"
     ]
   ]
 }

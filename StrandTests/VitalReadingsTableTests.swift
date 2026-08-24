@@ -5,7 +5,7 @@ import XCTest
 /// `VitalReadingsTableTest`. Pins the pure projection `vitalReadingRows` the MetricDetailView table
 /// renders: rows and the "N readings" caption derive from the SAME windowed list (so their counts can't
 /// disagree), rows are NEWEST-FIRST, each raw source id resolves through the shared
-/// `TodayView.provenanceDisplayLabel` (strap → "Whoop", Health Connect → "Health Connect", Apple Health →
+/// `TodayView.provenanceDisplayLabel` (strap → "WHOOP", Health Connect → "Health Connect", Apple Health →
 /// "Apple Health", the "-noop" sibling → "On-device"), and each value reuses the model's own formatter +
 /// unit. Blood Oxygen (SpO2) is the acceptance case.
 final class VitalReadingsTableTests: XCTestCase {
@@ -46,7 +46,7 @@ final class VitalReadingsTableTests: XCTestCase {
         let rows = vitalReadingRows(readings: spo2Readings(), unit: "%", strapDeviceId: strap,
                                     now: now, format: spo2Format)
         // Newest-first, so: Apple Health (03), Health Connect (02), Whoop strap (01).
-        XCTAssertEqual(rows.map(\.source), ["Apple Health", "Health Connect", "Whoop"])
+        XCTAssertEqual(rows.map(\.source), ["Apple Health", "Health Connect", "WHOOP"])
     }
 
     func testComputedStrapSiblingReadsOnDevice() {
@@ -55,6 +55,18 @@ final class VitalReadingsTableTests: XCTestCase {
             unit: "yrs", strapDeviceId: strap, now: now, format: { String(format: "%.0f", $0) }
         )
         XCTAssertEqual(rows.first?.source, "On-device")
+    }
+
+    /// #103/queue-11a follow-up: a spo2 candidate-fallback row (see `spo2CandidateAttributionSource`)
+    /// must resolve to "strap estimate (unverified)" — the SAME caption every other candidate-fallback
+    /// surface uses — never a device name, which would misrepresent an unvalidated estimate as a
+    /// calibrated reading.
+    func testSpo2CandidateSourceReadsStrapEstimateUnverified() {
+        let rows = vitalReadingRows(
+            readings: [VitalReading(day: "2026-08-24", value: 97, source: spo2CandidateAttributionSource)],
+            unit: "%", strapDeviceId: strap, now: now, format: spo2Format
+        )
+        XCTAssertEqual(rows.first?.source, "strap estimate (unverified)")
     }
 
     func testValueReusesModelFormatAndUnit() {

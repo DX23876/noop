@@ -46,4 +46,21 @@ final class Vo2maxFallbackTests: XCTestCase {
         // …and it differs from the Uth HR-ratio fallback.
         XCTAssertGreaterThan(abs(nes - uth), 0.01)
     }
+
+    func testNewlyComputedPointRecordsTheEstimatorUsedAtComputeTime() {
+        let uthRows = IntelligenceEngine.fitnessAgeRows(
+            gateDays: gate(60), age: 40, sex: "male", waistCm: 0, heightCm: 175, weightKg: 80,
+            computedId: "my-whoop-noop", satKey: "2026-08-15")
+        let nesRows = IntelligenceEngine.fitnessAgeRows(
+            gateDays: gate(60), age: 40, sex: "male", waistCm: 90, heightCm: 175, weightKg: 80,
+            computedId: "my-whoop-noop", satKey: "2026-08-22")
+
+        let uth = IntelligenceEngine.vo2MaxProvenance(points: uthRows, waistCm: 0).first
+        let nes = IntelligenceEngine.vo2MaxProvenance(points: nesRows, waistCm: 90).first
+        XCTAssertEqual(uth?.sourceId, Vo2MaxEstimator.uth.rawValue)
+        XCTAssertEqual(uth?.day, "2026-08-15")
+        XCTAssertEqual(uth?.key, "vo2max_est")
+        XCTAssertEqual(nes?.sourceId, Vo2MaxEstimator.nes.rawValue)
+        XCTAssertNil(Vo2MaxEstimator(rawValue: "my-whoop"))
+    }
 }

@@ -11,7 +11,10 @@ import Foundation
 //
 // Pure + side-effect-free: no clock read of its own, no I/O. The caller (the export assembler) passes the
 // last strap-reported banked-record window and its own wall-now; this formats one line. No PII (ISO dates,
-// counts and a firmware version int only). No em-dashes. The Kotlin twin is UniversalTrace.kt.
+// counts and a firmware version int only). No em-dashes. Android's universal clock diagnostic is built by
+// `ConnectionTrace.clockDriftLine` and emitted by `WhoopBleClient`; its firmware-layout line is separate,
+// emitted by `Backfiller` only in Connection mode. Android has no single `UniversalTrace` declaration that
+// combines them.
 
 public enum UniversalTrace {
 

@@ -17,11 +17,14 @@ final class ActiveWorkoutPersistenceTests: XCTestCase {
         avgHr: Int = 133,
         peakHr: Int = 145,
         liveStrain: Double = 8.4,
-        targetZone: Int? = nil
+        targetZone: Int? = nil,
+        pausedAtSec: Int? = nil,
+        pausedDurationSec: Int? = nil
     ) -> ActiveWorkoutPersistence.Snapshot {
         ActiveWorkoutPersistence.Snapshot(startSec: startSec, sport: sport, samples: samples,
                                           avgHr: avgHr, peakHr: peakHr, liveStrain: liveStrain,
-                                          targetZone: targetZone)
+                                          targetZone: targetZone,
+                                          pausedAtSec: pausedAtSec, pausedDurationSec: pausedDurationSec)
     }
 
     /// A throwaway, isolated defaults suite so the test never touches the real store.
@@ -35,7 +38,7 @@ final class ActiveWorkoutPersistenceTests: XCTestCase {
     // MARK: - pure codec round-trip
 
     func testEncodeDecodeRoundTripsEveryField() {
-        let original = snapshot()
+        let original = snapshot(pausedAtSec: 1_700_000_120, pausedDurationSec: 45)
         let decoded = ActiveWorkoutPersistence.decode(ActiveWorkoutPersistence.encode(original))
         XCTAssertEqual(decoded, original)
     }
@@ -153,5 +156,17 @@ final class ActiveWorkoutPersistenceTests: XCTestCase {
         XCTAssertEqual(decoded!.avgHr, 0)
         XCTAssertEqual(decoded!.peakHr, 0)
         XCTAssertEqual(decoded!.liveStrain, 0, accuracy: 1e-9)
+    }
+
+    func testDecodePreservesAbsentPauseDurationAndClampsPresentNegative() {
+        let absent = snapshot()
+        XCTAssertNil(ActiveWorkoutPersistence.decode(ActiveWorkoutPersistence.encode(absent))?.pausedDurationSec)
+
+        var negative = snapshot()
+        negative.pausedDurationSec = -5
+        XCTAssertEqual(
+            ActiveWorkoutPersistence.decode(ActiveWorkoutPersistence.encode(negative))?.pausedDurationSec,
+            0
+        )
     }
 }

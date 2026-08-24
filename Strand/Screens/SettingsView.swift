@@ -109,6 +109,10 @@ struct SettingsView: View {
     /// single-subject so far. Display-only; never feeds recovery/illness. See
     /// [PuffinExperiment.stressPersonalBaselineKey].
     @AppStorage(PuffinExperiment.stressPersonalBaselineKey) private var stressPersonalBaselineEnabled = false
+    /// #1545 opt-in: score Effort with Banister's exponential TRIMP instead of Edwards' heart-rate zones.
+    /// Default OFF — it re-scores the whole window against a different recipe. See
+    /// [PuffinExperiment.banisterEffortKey].
+    @AppStorage(PuffinExperiment.banisterEffortKey) private var banisterEffortEnabled = false
 
     /// True when the connected strap has positively attested itself a WHOOP MG. The variant is published as
     /// its label string (`LiveState.whoop5Variant`); "MG" is `Whoop5Variant.mg.label`. nil / not-yet-
@@ -1121,6 +1125,34 @@ struct SettingsView: View {
                     .appleInspiredTint("settings.controls")
                     .accessibilityLabel("Effort scale")
                 }
+
+                // #1545: directly under the Effort SCALE row on purpose. It shipped in the experimental
+                // block beside the SpO2 and stress-baseline toggles, where the person who asked for it
+                // could not find it. The two are different concepts — that row is the display AXIS,
+                // this the computation RECIPE — but a user asking "how is my Effort worked out" reaches
+                // for the same place for both, and each row's caption separates them.
+                // MARK: #1545 Effort scale — Banister exponential TRIMP instead of Edwards zones.
+                Divider().overlay(StrandPalette.hairline)
+
+                Toggle(isOn: $banisterEffortEnabled) {
+                    Text("Effort: exponential intensity scale")
+                        .font(StrandFont.subhead)
+                        .foregroundStyle(StrandPalette.textPrimary)
+                }
+                .toggleStyle(.switch)
+                .tint(StrandPalette.accent)
+                .onChangeCompat(of: banisterEffortEnabled) { _ in
+                    // Re-score immediately on the flip. The recipe changes stored Effort for EVERY day in
+                    // the window, so without this the user waits up to 30 min for the next analyze loop
+                    // while the screen still shows scores from the recipe they just turned off — and the
+                    // toggle's own copy promises the history is re-scored. Same pattern as the SpO2
+                    // candidate and HRV-window toggles (analyzeRecent → refresh).
+                    Task { await model.intelligence.analyzeRecent(); await model.repo.refresh() }
+                }
+                Text("Scores Effort on an exponential intensity curve (Banister TRIMP) instead of the default heart-rate zones (Edwards). The default earns nothing below half of your heart-rate reserve, so an hour of lifting — where hard sets average out against the rests — can score close to zero. The exponential curve has no floor and weights short, hard efforts far more heavily. Re-scores your history, and both scales reach the same maximum. Off by default.")
+                    .font(StrandFont.caption)
+                    .foregroundStyle(StrandPalette.textTertiary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
     }
@@ -1877,6 +1909,10 @@ struct SettingsView: View {
     @ViewBuilder private var experimentalCard: some View {
         if shows(.liveSessions) { liveSessionsCard }
         if showFiveMGControls && shows(.experimentalWhoop5) { fiveMGCard }
+        if (showFiveMGControls || model.repo.activeDeviceIsOura)
+            && (!isSearching || shows(.experimentalWhoop5)) {
+            spo2CandidateCard
+        }
         if shows(.sleepStaging) { sleepStagingCard }
         if shows(.diagnostics) { rawSensorDiagnosticsCard }
     }
@@ -2181,28 +2217,6 @@ struct SettingsView: View {
                     .accessibilityElement(children: .combine)
                 }
 
-                // MARK: #103 SpO₂ strap estimate display — surface the @82 candidate as a fallback.
-                Divider().overlay(StrandPalette.hairline)
-
-                Toggle(isOn: $spo2CandidateDisplayEnabled) {
-                    Text("Blood Oxygen: strap estimate (WHOOP 5/MG)")
-                        .font(StrandFont.subhead)
-                        .foregroundStyle(StrandPalette.textPrimary)
-                }
-                .toggleStyle(.switch)
-                .tint(StrandPalette.accent)
-                .onChangeCompat(of: spo2CandidateDisplayEnabled) { _ in
-                    // Re-score immediately so the @82 candidate is computed and persisted on this
-                    // toggle flip — without this the user waits up to 15 min for the next analyze
-                    // loop, and the Blood Oxygen tile stays blank in the meantime. Same pattern as
-                    // the HRV window toggle above (analyzeRecent → refresh).
-                    Task { await model.intelligence.analyzeRecent(); await model.repo.refresh() }
-                }
-                Text("Your WHOOP 5.0/MG sends a strap-computed SpO₂ percentage (the @82 candidate byte) every second. An 8-night independent validation tracked it at corr +0.99 against the WHOOP app, but two nights on the original test device moved the OPPOSITE direction — device/firmware variance is unresolved. Turning this on surfaces the nightly mean in the Blood Oxygen tile as \"strap estimate (unverified)\" when no calibrated import exists. It never feeds recovery or illness scoring. WHOOP 4.0 has no @82 stream, so this does nothing there.")
-                    .font(StrandFont.caption)
-                    .foregroundStyle(StrandPalette.textTertiary)
-                    .fixedSize(horizontal: false, vertical: true)
-
                 // MARK: #463 Personal daytime-stress baseline — score today's timeline vs a personal
                 //       cross-day baseline instead of the day's own calm hours. Off by default.
                 Divider().overlay(StrandPalette.hairline)
@@ -2218,6 +2232,7 @@ struct SettingsView: View {
                     .font(StrandFont.caption)
                     .foregroundStyle(StrandPalette.textTertiary)
                     .fixedSize(horizontal: false, vertical: true)
+
 
                 // MARK: #891 ECG raw-data gate — the second device-config key this app may write, MG-only.
                 Divider().overlay(StrandPalette.hairline)
@@ -2383,6 +2398,43 @@ struct SettingsView: View {
                         .foregroundStyle(StrandPalette.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
+            }
+        }
+    }
+
+    /// SpO2 candidate display (#103/queue-11a) — split out of `fiveMGCard` (2026-08-23): the toggle's
+    /// own copy has covered Oura since `89c8533b` ("Blood Oxygen: strap estimate (WHOOP 5/MG, Oura)"),
+    /// but it stayed nested inside the WHOOP-5/MG-only card, gated by `showFiveMGControls` — so an
+    /// Oura-only install (no WHOOP 5/MG ever connected) could never reach it. `metricSeries` confirmed
+    /// zero `spo2_candidate` rows ever written on such an install despite pass-2 scoring running daily,
+    /// and a full screenshot sweep of Settings confirmed the section never renders. Same split as
+    /// `rawSensorDiagnosticsCard` just below (#22) — this card shows for a 5/MG OR an active Oura
+    /// device, not just a 5/MG.
+    private var spo2CandidateCard: some View {
+        SettingsSection(
+            icon: "lungs.fill",
+            title: "Experimental · Blood Oxygen",
+            blurb: "Surfaces a device-conditional, unverified SpO₂ estimate in the Blood Oxygen tile when no calibrated reading exists."
+        ) {
+            VStack(alignment: .leading, spacing: NoopMetrics.rowSpacing) {
+                Toggle(isOn: $spo2CandidateDisplayEnabled) {
+                    Text("Blood Oxygen: strap estimate (WHOOP 5/MG, Oura)")
+                        .font(StrandFont.subhead)
+                        .foregroundStyle(StrandPalette.textPrimary)
+                }
+                .toggleStyle(.switch)
+                .tint(StrandPalette.accent)
+                .onChangeCompat(of: spo2CandidateDisplayEnabled) { _ in
+                    // Re-score immediately so the candidate is computed and persisted on this
+                    // toggle flip — without this the user waits up to 15 min for the next analyze
+                    // loop, and the Blood Oxygen tile stays blank in the meantime. Same pattern as
+                    // the HRV window toggle above (analyzeRecent → refresh).
+                    Task { await model.intelligence.analyzeRecent(); await model.repo.refresh() }
+                }
+                Text("Your WHOOP 5.0/MG sends a strap-computed SpO₂ percentage (the @82 candidate byte) every second — an 8-night independent validation tracked it at corr +0.99 against the WHOOP app, but two nights on the original test device moved the OPPOSITE direction, so device/firmware variance is unresolved. An Oura ring's own SpO₂ reading runs high on the wire (over 100% on a fifth to a half of samples on a clean night); this instead surfaces the ring's mean with each sample capped at 100% first, which has matched the Oura app's own displayed value on every full night checked against it so far, though only a few nights. Turning this on surfaces whichever applies to your device as \"strap estimate (unverified)\" in the Blood Oxygen tile when no calibrated import exists. It never feeds recovery or illness scoring. WHOOP 4.0 has no @82 stream, so this does nothing there.")
+                    .font(StrandFont.caption)
+                    .foregroundStyle(StrandPalette.textTertiary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
     }
@@ -2973,6 +3025,10 @@ struct SettingsView: View {
                                         .foregroundStyle(StrandPalette.textSecondary)
                                         .frame(maxWidth: .infinity, alignment: .leading)
                                 }
+                                #if os(iOS)
+                                // #697/#horizontal-swipe parity, see ScreenScaffold.
+                                .scrollBounceBehavior(.basedOnSize, axes: .horizontal)
+                                #endif
                                 .frame(maxHeight: 150)
                             }
                         }
@@ -3340,6 +3396,10 @@ private struct DiagnosticsSheet: View {
                             in: RoundedRectangle(cornerRadius: 12, style: .continuous))
                 .padding(20)
             }
+            #if os(iOS)
+            // #697/#horizontal-swipe parity, see ScreenScaffold.
+            .scrollBounceBehavior(.basedOnSize, axes: .horizontal)
+            #endif
 
             Divider().overlay(StrandPalette.hairline)
 
@@ -3438,6 +3498,10 @@ struct StepsCalibrationSheet: View {
                 }
                 .padding(20)
             }
+            #if os(iOS)
+            // #697/#horizontal-swipe parity, see ScreenScaffold.
+            .scrollBounceBehavior(.basedOnSize, axes: .horizontal)
+            #endif
             Divider().overlay(StrandPalette.hairline)
             footerBar
         }

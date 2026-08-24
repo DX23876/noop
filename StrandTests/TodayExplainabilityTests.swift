@@ -34,7 +34,7 @@ private func rendered(_ key: LocalizedStringKey?) -> String? {
 /// rules can't silently regress and stay byte-for-byte in step with the Kotlin Today lane:
 ///   • Component 2 — explained score states (calibrating / carriedLastNight / needsStrap)
 ///   • Component 3 — recording status (recording / lastSynced Xm ago / notRecording)
-///   • Component 4 — provenance label (On-device / Whoop / Apple Health = the real per-day merge winner)
+///   • Component 4 — provenance label (On-device / WHOOP / Apple Health = the real per-day merge winner)
 final class TodayExplainabilityTests: XCTestCase {
 
     // MARK: - Component 2 — MetricTileState.resolve precedence
@@ -281,7 +281,7 @@ final class TodayExplainabilityTests: XCTestCase {
 
     func testProvenance_importedStrapSource_isWhoop() {
         XCTAssertEqual(TodayView.provenanceDisplayLabel(rawSource: "my-whoop", deviceId: "my-whoop"),
-                       "Whoop")
+                       "WHOOP")
     }
 
     func testProvenance_appleHealthSource_isAppleHealth() {
@@ -294,7 +294,7 @@ final class TodayExplainabilityTests: XCTestCase {
         XCTAssertEqual(TodayView.provenanceDisplayLabel(rawSource: "whoop5-AB12-noop", deviceId: "whoop5-AB12"),
                        "On-device")
         XCTAssertEqual(TodayView.provenanceDisplayLabel(rawSource: "whoop5-AB12", deviceId: "whoop5-AB12"),
-                       "Whoop")
+                       "WHOOP")
     }
 
     func testProvenance_crossStrapComputedSibling_stillOnDevice() {
@@ -339,7 +339,7 @@ final class TodayExplainabilityTests: XCTestCase {
         XCTAssertEqual(
             TodayView.todayProvenanceChipLabel(rawSource: "my-whoop", deviceId: "my-whoop",
                                                appleHealthSource: "apple-health"),
-            "Whoop")
+            "WHOOP")
         XCTAssertEqual(
             TodayView.todayProvenanceChipLabel(rawSource: "my-whoop-noop", deviceId: "my-whoop",
                                                appleHealthSource: "apple-health"),
@@ -351,7 +351,7 @@ final class TodayExplainabilityTests: XCTestCase {
     }
 
     func testTodayScoreProviderLabel_coversImportedAndRegisteredProviders() {
-        XCTAssertEqual(TodayView.todayScoreProviderLabel(sourceId: "my-whoop", brand: "WHOOP"), "Whoop")
+        XCTAssertEqual(TodayView.todayScoreProviderLabel(sourceId: "my-whoop", brand: "WHOOP"), "WHOOP")
         XCTAssertEqual(TodayView.todayScoreProviderLabel(sourceId: "apple-health", brand: nil), "Apple Watch")
         XCTAssertEqual(TodayView.todayScoreProviderLabel(sourceId: "health-connect", brand: nil), "Health Connect")
         XCTAssertEqual(TodayView.todayScoreProviderLabel(sourceId: "oura-import", brand: nil), "Oura")
@@ -387,7 +387,7 @@ final class TodayExplainabilityTests: XCTestCase {
                     .init(sourceId: "oura-import", brand: nil),
                     .init(sourceId: "apple-health", brand: nil),
                 ]),
-            "Whoop + Oura")
+            "WHOOP + Oura")
     }
 
     func testLiquidHeroSourceLabel_hidesWhenNoScoreHasAResolvedSource() {

@@ -100,6 +100,33 @@ final class ScoreInputProvenanceStoreTests: XCTestCase {
         XCTAssertEqual(source, "polar-1")                 // provenance not wiped
     }
 
+    func testVo2MaxValueAndEstimatorPersistTogetherAndSurviveDailyRescore() async throws {
+        let store = try await WhoopStore.inMemory()
+        let day = "2026-07-25"
+        try await store.persistMetricSeriesWithProvenance(
+            points: [MetricPoint(day: day, key: "vo2max_est", value: 48)],
+            provenance: [ScoreInputProvenanceRow(day: day, key: "vo2max_est", sourceId: "nes")],
+            deviceId: "my-whoop-noop"
+        )
+
+        // A normal daily-score replacement spans this Saturday but does not own weekly VO₂max metadata.
+        try await store.persistComputedScores(
+            dailyMetrics: [makeDaily(day: day, recovery: 71, strain: 42)],
+            metricPoints: [],
+            provenance: [.init(day: day, key: "recovery", sourceId: "my-whoop")],
+            deviceId: "my-whoop-noop",
+            from: day,
+            to: day
+        )
+
+        let points = try await store.metricSeries(
+            deviceId: "my-whoop-noop", key: "vo2max_est", from: day, to: day)
+        let estimator = try await store.scoreInputSource(
+            deviceId: "my-whoop-noop", day: day, key: "vo2max_est")
+        XCTAssertEqual(points.first?.value, 48)
+        XCTAssertEqual(estimator, Vo2MaxEstimator.nes.rawValue)
+    }
+
     private func makeDaily(day: String, recovery: Double?, strain: Double?) -> DailyMetric {
         DailyMetric(
             day: day,

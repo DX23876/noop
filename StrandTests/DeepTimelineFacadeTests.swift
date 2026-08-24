@@ -170,4 +170,42 @@ final class DeepTimelineFacadeTests: XCTestCase {
         XCTAssertGreaterThan(day.points.count, 0, "PPG-only day-scale read must not be empty")
         XCTAssertEqual(day.points.first?.value ?? 0, 55, accuracy: 0.001)
     }
+
+    // MARK: - SpO2: two-channel ratio vs single-channel reading
+
+    /// A WHOOP 4.0 v24 sample carries BOTH optical channels, so the plotted value stays the unitless
+    /// red/IR ratio proxy (#166 — there is no calibrated %). Unchanged behaviour; pinned so the
+    /// single-channel branch below can never silently alter it.
+    func testSpO2TwoChannelKeepsRatioProxy() {
+        XCTAssertEqual(Repository.spo2TimelineValue(red: 1000, ir: 500), 2.0)
+        XCTAssertEqual(Repository.spo2TimelineValue(red: 300, ir: 1200), 0.25)
+    }
+
+    /// An Oura ring reports ONE SpO2 channel: the value lands in `red` and `ir` stays 0 (an unread
+    /// channel, never a fabricated second reading). The old code computed a ratio and dropped every
+    /// `ir <= 0` row, discarding 100% of a ring's SpO2 and drawing an empty chart. A single-channel row
+    /// must plot its reading directly — a real capture shows the ring's channel clustering at 95–105,
+    /// i.e. already a genuine percentage.
+    func testSpO2SingleChannelPlotsTheReadingNotARatio() {
+        XCTAssertEqual(Repository.spo2TimelineValue(red: 96, ir: 0), 96)
+        XCTAssertEqual(Repository.spo2TimelineValue(red: 100, ir: 0), 100)
+        XCTAssertEqual(Repository.spo2TimelineValue(red: 81, ir: 0), 81)
+    }
+
+    /// The `unit` tag separating the ring's true-percentage channel from its different-scale perfusion
+    /// channel is NOT persisted (spo2Sample stores only red/ir), so rows banked before that split was
+    /// fixed are distinguishable only by magnitude — the reporting device holds values from -1016 to
+    /// 11,709,098 beside real ones. Those must be dropped so one legacy outlier can't flatten the y-axis.
+    func testSpO2SingleChannelDropsImplausibleLegacyRows() {
+        XCTAssertNil(Repository.spo2TimelineValue(red: 11_709_098, ir: 0))
+        XCTAssertNil(Repository.spo2TimelineValue(red: -1016, ir: 0))
+        XCTAssertNil(Repository.spo2TimelineValue(red: 0, ir: 0))
+    }
+
+    /// The gate is single-channel ONLY: a two-channel ratio has no comparable physiological range, so it
+    /// is never range-filtered. Pins that WHOOP output stays byte-identical even for extreme ratios.
+    func testSpO2RangeGateDoesNotApplyToTheTwoChannelRatio() {
+        XCTAssertEqual(Repository.spo2TimelineValue(red: 11_709_098, ir: 1), 11_709_098)
+        XCTAssertEqual(Repository.spo2TimelineValue(red: 1, ir: 1_000_000), 1e-6)
+    }
 }

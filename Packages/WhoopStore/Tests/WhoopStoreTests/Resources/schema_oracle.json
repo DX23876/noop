@@ -1,6 +1,6 @@
 {
   "_readme": "SHARED Room<->GRDB SCHEMA ORACLE (#775). Two byte-identical copies: Packages/WhoopStore/Tests/WhoopStoreTests/Resources/schema_oracle.json and android/app/src/test/resources/schema_oracle.json. SchemaOracleTests.swift compares GRDB's PRAGMA table_info/index_list against it; SchemaOracleTest.kt compares Room's exported schema JSON against it. `columns` is the iOS/GRDB shape in GRDB column order (macOS is the reference implementation); every way Android differs is spelled out in an `android` / `iosAbsent` / `androidColumnOrder` override naming a key in `divergenceReasons`. Adding a column, reordering one, or changing a type/nullability on one platform only fails both suites until it is either fixed or written down here.",
-  "roomVersion": 31,
+  "roomVersion": 33,
   "grdbMigrations": [
     "v1",
     "v2",
@@ -42,12 +42,12 @@
     "v38-day-scan-fingerprint",
     "v39-day-scan-traits",
     "v40-analysis-input-revision",
-    "v41-apple-step-hour"
+    "v41-apple-step-hour",
+    "v42-ppg-burst-index"
   ],
   "divergenceReasons": {
     "android-orphan-synced-column": "REAL COLUMN DRIFT: `synced` exists on Android only. GRDB's v10 note is explicit that stepSample gets no `synced` column ('unused; see StreamStore'), and v12's ppgHrSample never had one either; the Room entities copied the flag from the older per-second entities. Nothing reads it on Android — the per-row upload flag belongs to an upload path that does not exist there — so it is dead width, not divergent data. Removing it needs a Room table rebuild.",
     "battery-alter-append-order": "REAL COLUMN-ORDER DRIFT (CLAUDE.md: 'column order in a Room CREATE TABLE must match the entity field order'). GRDB appended `synced` (v5) then `charging` (v6) with ALTER TABLE, which can only append; the Room entity declares `charging` before `synced`. Same columns, same types, different positions — so any positional copy (INSERT INTO battery SELECT * FROM …) swaps them. Fixing it means reordering the Room entity's fields, which changes Room's identity hash and therefore needs a version bump plus a no-op migration.",
-    "daily-avg-sdnn-ios-only": "REAL COLUMN DRIFT, deliberate and one-directional: `dailyMetric.avgSdnn` (the 5-min SDNN index) is written by the Swift nightly analysis and has no Room twin, because the Android analytics reimplementation computes RMSSD only — there is no Kotlin `sdnnIndex` to persist. Adding the Room column without the computation would store NULL on every Android row, which is a fabricated parity, not a real one; the honest shape is an absent column until the Kotlin twin exists. Consequence: a .noopbak exported from iOS carries a column Android's `dailyMetric` cannot receive, in the same direction as `workout.routePolyline` but reversed. Closing it means porting `HRVAnalyzer.sdnnIndex` to Kotlin plus a Room version bump.",
     "grdb-boolean-affinity": "GRDB's .boolean column type is declared BOOLEAN, which SQLite gives NUMERIC affinity; Room maps Kotlin Boolean to INTEGER. For the 0/1 values both sides write, NUMERIC and INTEGER affinity store bit-identical INTEGERs, so a .noopbak round-trips. Closing it means a GRDB table rebuild.",
     "paired-device-alter-append-order": "REAL COLUMN-ORDER DRIFT, same shape as battery. GRDB's v16-paired-device-peripheral appended `peripheralId` at the end; the Room entity declares it fifth, between `nickname` and `sourceKind`.",
     "ppg-hr-bpm-integer-on-android": "AFFINITY DRIFT, and NOT a data consequence: ppgHrSample.bpm is declared REAL on iOS and INTEGER on Android — but only the SQLITE COLUMN differs. The ROW type is `Int` on both sides: Swift's `PpgHrSample.bpm` is `Int`, carrying the comment 'the same Int domain as the measured HRSample.bpm and the Android PpgHr.Estimate.bpm, so the stored value and type match across platforms (#219)'. Both platforms also round to whole bpm before that — Swift `(fsD * 60 / refinedLag).rounded()` then `Int(est.bpm)`, Kotlin `Math.round(fsD * 60 / refinedLag).toInt()` — and the read path (`CAST(ROUND(p.bpm) AS INTEGER)`) rounds again, a no-op on a whole number. There is one writer and one construction site on each side. So REAL holds the same whole numbers INTEGER does and NO value differs. Recorded because the DECLARED affinity genuinely diverges, and a bpm that ever became fractional would then diverge silently; closing it means a GRDB table rebuild. Deliberately NOT the decoder-oracle (#869) class — that caught a real value divergence.",
@@ -387,9 +387,7 @@
           "name": "avgSdnn",
           "affinity": "REAL",
           "notNull": false,
-          "default": null,
-          "androidAbsent": true,
-          "divergence": "daily-avg-sdnn-ios-only"
+          "default": null
         }
       ],
       "primaryKey": [
@@ -1276,6 +1274,12 @@
           "name": "samples",
           "affinity": "BLOB",
           "notNull": true,
+          "default": null
+        },
+        {
+          "name": "burstIndex",
+          "affinity": "INTEGER",
+          "notNull": false,
           "default": null
         }
       ],

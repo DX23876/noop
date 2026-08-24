@@ -696,6 +696,17 @@ final class OuraDriverTests: XCTestCase {
         XCTAssertEqual(OuraCommands.syncTime(unixSeconds: 0, tzHalfHours: -4).bytes.last, 0xFC)
     }
 
+    func testLiveHRDisableWritesModeOffNotAutomatic() {
+        // 0x00 = "off" per OURA_PROTOCOL.md s7.2's APK-sourced feature-mode table; 0x01 is "automatic"
+        // and was falsified on two hardware nights (green 0x28 kept arriving after the old 0x01 write).
+        XCTAssertEqual(OuraCommands.liveHRDisable().bytes, [0x2F, 0x03, 0x22, 0x02, 0x00])
+    }
+
+    func testLiveHRUnsubscribeWritesSubscriptionOff() {
+        // Matching teardown for the enable triplet's step 3 (subscribe "latest" = 0x02).
+        XCTAssertEqual(OuraCommands.liveHRUnsubscribe().bytes, [0x2F, 0x03, 0x26, 0x02, 0x00])
+    }
+
     // MARK: - Dangerous commands are isolated and labelled
 
     func testDangerousCommandsAreClearlyNamed() {
