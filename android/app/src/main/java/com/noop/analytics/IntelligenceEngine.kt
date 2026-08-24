@@ -188,6 +188,34 @@ object IntelligenceEngine {
     fun ownerSourceAbsentLine(importedDeviceId: String): String =
         "analyzeRecent ownerSource=absent owner->$importedDeviceId skinTempScale->whoop5"
 
+    /**
+     * The nightly SpO2 CANDIDATE for one scored day, or null when there is none.
+     *
+     * A WHOOP owner averages the in-band `spo2_candidate_82` V18Aux byte; an Oura owner averages the ring's
+     * own `0x6F` SpO2 through the ceiling@100 transform (see [AnalyticsEngine.nightlySpo2CeilingMean] for
+     * why that is queue 11a's starting choice). Null on a WHOOP 4.0 with no v18 aux stream, an Oura night
+     * with no in-window plausible sample, or when the caller's toggle is off — the caller gates that.
+     *
+     * Extracted from `analyzeRecentOnCpu` purely for bytecode headroom (#1524); behaviour is unchanged.
+     * Never written to `spo2Pct` and never scored — the caller persists it to the `spo2_candidate`
+     * metricSeries sidecar in pass 2.
+     */
+    private suspend fun spo2CandidateMean(
+        repo: WhoopRepository,
+        owner: String,
+        sessions: List<DetectedSleep>,
+        spo2: List<com.noop.data.Spo2Sample>,
+        from: Long,
+        to: Long,
+    ): Int? {
+        if (DeviceBrandCatalog.isOura(owner)) {
+            return AnalyticsEngine.nightlySpo2CeilingMean(sessions, spo2)?.first
+        }
+        val auxSamples = repo.v18AuxSamples(owner, from, to, STREAM_LIMIT)
+        if (auxSamples.isEmpty()) return null
+        return AnalyticsEngine.nightlySpo2CandidateMean(sessions, auxSamples)?.first
+    }
+
     /** #1575: one night's recorded trace lines, per channel. Immutable snapshot of [DayTraceRecorders]. */
     data class DayTraces(
         val sleep: List<String> = emptyList(),
@@ -1197,19 +1225,12 @@ object IntelligenceEngine {
             // no in-window plausible sample, or when the toggle is OFF. Persisted to metricSeries as
             // "spo2_candidate" in pass 2, never to `spo2Pct`.
             if (spo2CandidateDisplay) {
-                if (DeviceBrandCatalog.isOura(owner)) {
-                    val cand = AnalyticsEngine.nightlySpo2CeilingMean(res.sleepSessions, spo2)
-                    if (cand != null) {
-                        spo2CandidateByDay[res.daily.day] = cand.first
-                    }
-                } else {
-                    val auxSamples = repo.v18AuxSamples(owner, from, to, STREAM_LIMIT)
-                    if (auxSamples.isNotEmpty()) {
-                        val cand = AnalyticsEngine.nightlySpo2CandidateMean(res.sleepSessions, auxSamples)
-                        if (cand != null) {
-                            spo2CandidateByDay[res.daily.day] = cand.first
-                        }
-                    }
+                // Lifted into [spo2CandidateMean] rather than inlined: `analyzeRecentOnCpu` sits within ~100
+                // bytes of the JVM's 64 KB per-method ceiling, and this block plus the #1575 trace recorders
+                // put the JaCoCo-instrumented size 30 bytes OVER the budget #1524 guards. Neither change
+                // exceeded it alone — only together, which no single PR's CI could see.
+                spo2CandidateMean(repo, owner, res.sleepSessions, spo2, from, to)?.let {
+                    spo2CandidateByDay[res.daily.day] = it
                 }
             }
             // #1169 SHADOW METRIC (instrumentation only): the primary-session MEAN resting HR, recorded
