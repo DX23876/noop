@@ -1199,6 +1199,46 @@ public enum AnalyticsEngine {
         return (mean: sum / kept, samples: kept)
     }
 
+    /// The plausible range for a raw Oura `0x6F` SpO2 sample before the ceiling transform below.
+    /// Excludes the mis-scaled `dc_raw`/perfusion-channel contamination (-1016 … 11,709,098,
+    /// OURA_PROTOCOL.md §6.5.0.1) by three orders of magnitude, same bounds as
+    /// `Repository.spo2SingleChannelPlausible` (kept in sync manually — the app layer cannot be
+    /// imported here, so that display gate should read from this one instead of redefining it).
+    public static let spo2SingleChannelPlausible = 50...110
+
+    /// Nightly **ceiling@100** mean of the Oura ring's own decoded SpO2 (`spo2Sample.red`, `0x6F`)
+    /// over the detected in-bed `sessions`, with the sample count it rests on — or nil when no
+    /// plausible sample fell inside any span. Oura twin of `nightlySpo2CandidateMean` above; queue
+    /// 11a's starting transform.
+    ///
+    /// WHY CEILING@100, NOT RAW OR THE OFFSET+CLAMP FIT. `0x6F`'s raw wire mean carries a
+    /// consistent positive bias — 20-48% of samples on a contamination-clean night read above the
+    /// physical 100% ceiling (OURA_PROTOCOL.md §6.5.0.1) — so the raw mean is the ONE transform
+    /// that has missed the Oura app's own displayed value on every full-tier paired night measured
+    /// so far (1/3 as of 2026-08-22, see §6.5.0). `min(sample, 100)` applied PER-SAMPLE before
+    /// averaging (a clamp on the aggregate mean is a different, wrong number) has round-matched
+    /// the app's displayed value on all 3 of those nights — the best track record of the
+    /// candidates tried, edging out the offset−0.32+clamp[85,100] fit (2/3) on this same bar. Not a
+    /// validated calibration (n=3, only the rounded integer, not the app's internal precision) —
+    /// per the derived-biosignal rule (CLAUDE.md), it ships the same way `spo2_candidate_82` ships:
+    /// diagnostic-only, gated behind the display toggle, never written to `spo2Pct`, never scored.
+    ///
+    /// Gated to `spo2SingleChannelPlausible` (50...110) BEFORE the ceiling is applied, so a
+    /// contaminated row (down to -1016) cannot drag the mean down — the ceiling alone only guards
+    /// the top of the range. Byte-parity twin of the Kotlin `nightlySpo2CeilingMean`.
+    public static func nightlySpo2CeilingMean(_ sessions: [SleepSession],
+                                        spo2: [SpO2Sample]) -> (mean: Int, samples: Int)? {
+        guard !sessions.isEmpty, !spo2.isEmpty else { return nil }
+        var sum = 0, kept = 0
+        for s in spo2 {
+            guard spo2SingleChannelPlausible.contains(s.red) else { continue }
+            guard sessions.contains(where: { $0.start <= s.ts && s.ts <= $0.end }) else { continue }
+            sum += min(s.red, 100); kept += 1
+        }
+        guard kept > 0 else { return nil }
+        return (mean: sum / kept, samples: kept)
+    }
+
     /// #1169 SHADOW METRIC: the primary-session MEAN resting HR — window each detected sleep session's HR
     /// samples to `[start, end)` and delegate to the #1174-defined `PrimarySessionRestingHR.meanHR` (that
     /// definition is UNCHANGED). `IntelligenceEngine` stores the result beside the shipped nightly HR FLOOR

@@ -2687,11 +2687,16 @@ fun SettingsScreen(
                     color = Palette.textTertiary,
                 )
 
-                // --- #103: Blood Oxygen strap estimate (spo2_candidate_82) — OFF by default. ---
-                // The WHOOP 5/MG strap computes a nightly SpO₂ candidate at byte @82 of the V18Aux stream.
-                // Cross-device evidence is split (corr +0.99 on 8 nights, but 2 nights moved opposite), so
-                // it ships behind a default-off toggle and is labelled "estimate" in the UI. Display-only:
-                // never fed into a downstream gate (recovery, illness). Mirrors the iOS toggle.
+                // --- #103/queue-11a: Blood Oxygen strap estimate — OFF by default. ---
+                // Device-conditional (see IntelligenceEngine.nightlySpo2CeilingMean / .nightlySpo2CandidateMean):
+                // a WHOOP 5/MG strap computes a nightly SpO₂ candidate at byte @82 of the V18Aux stream
+                // (cross-device evidence split, corr +0.99 on 8 nights but 2 nights moved opposite); an
+                // Oura ring's own decoded 0x6F SpO2 runs high on the wire, so this instead surfaces the
+                // ceiling@100 mean (each sample capped at 100% before averaging), which has matched the
+                // Oura app's own displayed value on every full night checked so far (n=3, 2026-08-22).
+                // Neither is a validated calibration; both ship behind this one default-off toggle,
+                // labelled "estimate" in the UI, never fed into a downstream gate (recovery, illness).
+                // Mirrors the iOS toggle.
                 SettingsRowDivider()
                 var spo2CandidateDisplay by remember { mutableStateOf(NoopPrefs.spo2CandidateDisplay(context)) }
                 Row(
@@ -2721,11 +2726,14 @@ fun SettingsScreen(
                     )
                 }
                 Text(
-                    "Surfaces the WHOOP 5/MG strap's nightly SpO₂ estimate (spo2_candidate_82) in the " +
-                        "Blood Oxygen tile when no calibrated percentage is available. This is an " +
-                        "UNVERIFIED strap-computed value — it matched a reference device closely on most " +
-                        "nights but moved in the opposite direction on some. Shown as an 'estimate' and " +
-                        "never fed into recovery or illness scoring. Off by default.",
+                    "Surfaces your strap's nightly SpO₂ estimate in the Blood Oxygen tile when no " +
+                        "calibrated percentage is available: a WHOOP 5.0/MG's @82 candidate byte, or an " +
+                        "Oura ring's own reading with each sample capped at 100% first (the ring's raw " +
+                        "reading runs high otherwise). This is an UNVERIFIED strap-computed value — the " +
+                        "WHOOP candidate matched a reference device closely on most nights but moved " +
+                        "opposite on some; the Oura one has only been checked against a few nights so " +
+                        "far. Shown as an 'estimate' and never fed into recovery or illness scoring. Off " +
+                        "by default.",
                     style = NoopType.caption,
                     color = Palette.textTertiary,
                 )

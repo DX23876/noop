@@ -152,10 +152,13 @@ final class IntelligenceEngine: ObservableObject {
         /// where `rr` is in scope and replayed through `diagnosticSink` in pass 2 (which is main-actor
         /// isolated). nil when the night has no in-sleep R-R.
         let hrvDiag: String?
-        /// #103: the nightly `spo2_candidate_82` mean for this day, computed off the main actor from the
-        /// V18AuxSample stream when the SpO₂ candidate display toggle is ON. nil when the toggle is OFF,
-        /// the night has no in-band @82 readings, or the owner is a WHOOP 4.0 (no v18 aux stream).
-        /// Written to metricSeries as "spo2_candidate" under the "-noop" device ID in pass 2.
+        /// #103/queue-11a: the nightly SpO₂ candidate mean for this day, computed off the main actor when
+        /// the SpO₂ candidate display toggle is ON. A WHOOP owner gets the `spo2_candidate_82` V18Aux
+        /// byte mean (unchanged); an Oura owner gets the ring's ceiling@100 `0x6F` mean
+        /// (`AnalyticsEngine.nightlySpo2CeilingMean`, queue 11a). nil when the toggle is OFF or the
+        /// night has no in-band reading for its owner's device. Written to metricSeries as
+        /// "spo2_candidate" under the "-noop" device ID in pass 2 — same key for both devices, since the
+        /// series is always read scoped to one device's own computed ID.
         let spo2Candidate: Int?
         /// #1118: whether this night's in-sleep R-R is OVER-COUNTED (`crossSecondOverCount` /
         /// `sameSecondOverCount`) — the WHOOP-4.0 two-optical-channel artifact that inflates R-R and
@@ -702,11 +705,12 @@ final class IntelligenceEngine: ObservableObject {
         // the 5/MG cumulative @57 series + wrap-aware deltas + dropped deltas, replayed below tagged `.steps`.
         // The trace recomputes the SAME wrap-aware sum analyzeDay already did, so the steps total is unchanged.
         let stepsTraceActive = TestCentre.active(.steps)
-        // #103: read the SpO₂ candidate display toggle ONCE here (off the detached executor, matching the
-        // other toggle reads above). When ON, each night's `spo2_candidate_82` mean is computed from the
-        // V18AuxSample stream and written to metricSeries as "spo2_candidate" under the "-noop" device ID,
-        // so the Blood Oxygen tile can surface it as a "strap estimate (unverified)" fallback. Default OFF
-        // per the derived-biosignal rule (CLAUDE.md) — the @82 candidate has split cross-device evidence.
+        // #103/queue-11a: read the SpO₂ candidate display toggle ONCE here (off the detached executor,
+        // matching the other toggle reads above). When ON, each night's candidate mean (WHOOP:
+        // `spo2_candidate_82`; Oura: ceiling@100 `0x6F`, see the per-day block below) is written to
+        // metricSeries as "spo2_candidate" under the "-noop" device ID, so the Blood Oxygen tile can
+        // surface it as a "strap estimate (unverified)" fallback. Default OFF per the derived-biosignal
+        // rule (CLAUDE.md) — neither candidate is a validated calibration.
         let spo2CandidateDisplayOn = PuffinExperiment.spo2CandidateDisplayEnabled
         // #1545: the Effort TRIMP recipe, read ONCE per pass. Global (same for every day), so it folds
         // into the config signature below rather than the per-day key.
@@ -1285,19 +1289,31 @@ final class IntelligenceEngine: ObservableObject {
                 // #1331 respiratory diagnostic — a run of nil nights localises when it stopped. Same
                 // pure-compute-here / replay-on-main-actor path as rhrLine.
                 let respLine: String? = Self.respRateLogLine(day: res.daily.day, respRateBpm: res.daily.respRateBpm)
-                // #103: SpO₂ candidate @82 nightly mean. Only computed when the display toggle is ON.
-                // Reads the V18AuxSample stream for this night's owner and averages the in-band (70–100)
-                // @82 readings that fall inside a detected sleep session. nil on a WHOOP 4.0 (no v18 aux
-                // stream), a night with no in-band readings, or when the toggle is OFF. The mean is
-                // written to metricSeries as "spo2_candidate" in pass 2, never to `spo2Pct` — the guard
-                // test `testHistoricalV18OpticalFieldsAreNotNamedPhysiologically` enforces that boundary.
+                // #103/queue-11a: SpO₂ candidate nightly mean. Only computed when the display toggle is
+                // ON, and the transform is device-conditional (#1086-style brand lookup, matching
+                // `skinTempWornToleranceSec`'s idiom just above): a WHOOP owner averages the in-band
+                // (70–100) `spo2_candidate_82` V18Aux byte; an Oura owner averages the ring's own `0x6F`
+                // SpO2 (`spo2`, already fetched above for `nightlySpo2RawMeans`) through the ceiling@100
+                // transform — see `AnalyticsEngine.nightlySpo2CeilingMean`'s doc for why ceiling@100 is
+                // queue 11a's starting choice. nil on a WHOOP 4.0 (no v18 aux stream) with no candidate
+                // decode, an Oura night with no in-window plausible sample, or when the toggle is OFF.
+                // The mean is written to metricSeries as "spo2_candidate" in pass 2, never to `spo2Pct` —
+                // the guard test `testHistoricalV18OpticalFieldsAreNotNamedPhysiologically` enforces that
+                // boundary for the WHOOP path.
                 var spo2CandidateMean: Int? = nil
                 if spo2CandidateDisplayOn {
-                    let auxSamples = (try? await store.v18AuxSamples(
-                        deviceId: owner, from: from, to: to, limit: 200_000)) ?? []
-                    if !auxSamples.isEmpty {
-                        if let cand = AnalyticsEngine.nightlySpo2CandidateMean(res.sleepSessions, aux: auxSamples) {
+                    let ownerIsOura = regDevices.first(where: { $0.id == owner })?.brand == "Oura"
+                    if ownerIsOura {
+                        if let cand = AnalyticsEngine.nightlySpo2CeilingMean(res.sleepSessions, spo2: spo2) {
                             spo2CandidateMean = cand.mean
+                        }
+                    } else {
+                        let auxSamples = (try? await store.v18AuxSamples(
+                            deviceId: owner, from: from, to: to, limit: 200_000)) ?? []
+                        if !auxSamples.isEmpty {
+                            if let cand = AnalyticsEngine.nightlySpo2CandidateMean(res.sleepSessions, aux: auxSamples) {
+                                spo2CandidateMean = cand.mean
+                            }
                         }
                     }
                 }

@@ -111,11 +111,13 @@ internal enum class VitalCaptionMode {
 /** Build the vitals, banded against the user's OWN trailing baseline once 14 trusted
  *  nights exist (population ranges before that — VitalBands does the deciding).
  *
- * #103: [spo2CandidateByDay] carries the nightly `spo2_candidate_82` mean (70–100) per day, loaded
- * from the "spo2_candidate" metricSeries key when the experimental display toggle is ON. When the
- * selected day has no calibrated `spo2Pct` but DOES have a candidate, the Blood O₂ tile falls back to
- * the candidate with an "estimate" caption. [spo2ToggleOn] distinguishes "toggle ON, no @82 data"
- * from "toggle OFF" so the missingCaption can tell the user which — a silent blank reads as broken.
+ * #103/queue-11a: [spo2CandidateByDay] carries the nightly SpO₂ candidate mean per day — WHOOP's
+ * `spo2_candidate_82` (70–100), or an Oura owner's ceiling@100 `0x6F` mean (device-conditional, see
+ * IntelligenceEngine) — loaded from the "spo2_candidate" metricSeries key when the experimental
+ * display toggle is ON. When the selected day has no calibrated `spo2Pct` but DOES have a candidate,
+ * the Blood O₂ tile falls back to the candidate with an "estimate" caption. [spo2ToggleOn]
+ * distinguishes "toggle ON, no estimate yet" from "toggle OFF" so the missingCaption can tell the
+ * user which — a silent blank reads as broken.
  * Empty map = toggle off or no candidate data → the tile behaves exactly as before. Mirrors the iOS
  * `BodyVitalSigns.readings` candidate fallback. */
 internal fun vitalsFor(

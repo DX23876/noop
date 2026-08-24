@@ -1614,6 +1614,53 @@ final class Repository: ObservableObject {
         return min(600, max(120, span / 30))
     }
 
+    /// The plausible range for a SINGLE-CHANNEL SpO2 reading plotted as a percentage. Its ONLY job is to
+    /// exclude the mis-scaled `dc_raw` magnitudes (-1016 … 11,709,098), which it does by three orders of
+    /// magnitude. It is deliberately NOT a clamp to 100.
+    ///
+    /// ⚠️ WHY THE UPPER BOUND IS 110, AND WHY THAT IS A KNOWN OPEN QUESTION, NOT A JUSTIFIED CHOICE: on a
+    /// real Gen 3 capture the `0x6F` channel spans 81–106 and **47 % of its 22,516 samples read above
+    /// 100** (peak at 103–104). Those are genuinely `0x6F` — the sidecar's `unit` tag proves it, and only
+    /// 208 `dc_raw` rows land in that band — so they are not contamination. But real SpO2 CANNOT exceed
+    /// 100 %, and open_oura's own pipeline clamps its computed SpO2 to [85, 100]
+    /// (`docs/spo2-calibration.md`, tag `0x8b` path). So a smooth distribution peaking at 103–104 points
+    /// at an un-modelled offset/transform in NOOP's `0x6F` decode, NOT at real overshoot. Clamping here
+    /// would HIDE that discrepancy behind a flat line at 100; keeping the bound at 110 leaves it visible
+    /// while still excluding the mis-scaled channel. Revisit once the `0x6F` scale is pinned — see
+    /// OURA_PROTOCOL.md §6.5.
+    ///
+    /// Derived from `AnalyticsEngine.spo2SingleChannelPlausible` (the canonical bounds, queue 11a)
+    /// rather than redefining them — same 50...110 range, kept in one place.
+    nonisolated static let spo2SingleChannelPlausible = Double(AnalyticsEngine.spo2SingleChannelPlausible.lowerBound)...Double(AnalyticsEngine.spo2SingleChannelPlausible.upperBound)
+
+    /// One SpO2 sample → the value the Deep Timeline plots, or nil to skip the sample.
+    ///
+    /// TWO SOURCE SHAPES share this one table and metric:
+    /// - **Two-channel (WHOOP 4.0 v24)**: red AND IR optical ADCs. There is no calibrated % (#166), so the
+    ///   honest proxy is the unitless `red / ir` ratio — unchanged behaviour.
+    /// - **Single-channel (Oura ring)**: the ring reports ONE SpO2 channel, so `OuraStreamMapping` stores it
+    ///   in `red` and leaves `ir = 0` — an unread channel, never a fabricated second reading. The old code
+    ///   computed the ratio and dropped every `ir <= 0` row, which silently discarded **100 %** of an Oura
+    ///   ring's SpO2 (18,688 rows on the reporting device) and drew an empty chart with no explanation
+    ///   (the #623 "unsupported strap" notice only fires for the 5.0 family, so a ring got no notice either).
+    ///   For these the reading itself is the value: a real overnight capture (2026-08-01) shows the ring's
+    ///   `raw` channel clustering at 95–105, i.e. already a genuine %SpO2, not an ADC needing calibration.
+    ///
+    /// RANGE GATE, single-channel only: the `unit` tag that distinguishes the ring's true-percentage `raw`
+    /// channel from its wildly different-scale `dc_raw` perfusion channel is NOT persisted (`spo2Sample`
+    /// stores only red/ir), so rows banked before that split was fixed are indistinguishable except by
+    /// magnitude — the reporting device holds values from -1016 to 11,709,098 alongside real ones. Gating
+    /// to `spo2SingleChannelPlausible` keeps every genuine reading and drops the mis-scaled ones, so one
+    /// legacy outlier cannot flatten the whole chart's y-axis. This is a DISPLAY gate on a metric that is
+    /// never scored; it changes no stored row, and the same idiom already guards temp (20–45 °C) and HR
+    /// (0–300 bpm) at their decoders. The two-channel ratio path is deliberately NOT gated (a ratio has no
+    /// comparable physiological range), so WHOOP output is byte-identical.
+    nonisolated static func spo2TimelineValue(red: Int, ir: Int) -> Double? {
+        guard ir <= 0 else { return Double(red) / Double(ir) }   // two-channel: unchanged ratio proxy
+        let v = Double(red)
+        return spo2SingleChannelPlausible.contains(v) ? v : nil
+    }
+
     /// Deep-Timeline read facade. Returns ~`targetPoints` points for `metric` over `[from, to]` from
     /// `source` (defaults to the user's own strap), choosing raw seconds vs coarse buckets adaptively so
     /// the chart never draws ~86k points (the #575 day-scale risk). HR rides the existing COALESCE reads
@@ -1753,11 +1800,14 @@ final class Repository: ObservableObject {
                     .map { Self.timelinePoint($0.ts, $0.rmssd) }
             }.value
         case .spo2:
-            // The honest raw red/IR ratio proxy (#166: no calibrated %), shown as a unitless trend.
+            // Two-channel (WHOOP) → the honest raw red/IR ratio proxy; single-channel (Oura) → the reading
+            // itself. See `spo2TimelineValue(red:ir:)` for why, and for the range gate.
             let s = (try? await store.spo2Samples(deviceId: source, from: from, to: to, limit: 200_000)) ?? []
             // The up-to-200k-row conversion runs OFF the main actor; only the Sendable `s` rows cross in.
             return await Task.detached(priority: .utility) {
-                s.compactMap { $0.ir > 0 ? Self.timelinePoint($0.ts, Double($0.red) / Double($0.ir)) : nil }
+                s.compactMap { row in
+                    Self.spo2TimelineValue(red: row.red, ir: row.ir).map { Self.timelinePoint(row.ts, $0) }
+                }
             }.value
         case .skinTemp:
             let s = (try? await store.skinTempSamples(deviceId: source, from: from, to: to, limit: 200_000)) ?? []
