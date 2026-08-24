@@ -92,6 +92,12 @@ object IntelligenceEngine {
         val spo2Candidate: Int?,
         val hrvOverCount: Boolean?,
         val diagLines: List<String>,
+        /** #1575: the per-day trace lines for each channel, replayed on a hit so an active trace no
+         *  longer forces a full re-read + re-score of every night on every pass. Empty when those modes
+         *  are off, which is the default. One carrier rather than three fields so the cache-store site
+         *  inside `analyzeRecentOnCpu` stays one statement — that method is close to the JVM's 64 KB
+         *  bytecode ceiling (#1524). */
+        val traces: DayTraces = DayTraces(),
     )
 
     /**
@@ -180,6 +186,72 @@ object IntelligenceEngine {
      */
     fun ownerSourceAbsentLine(importedDeviceId: String): String =
         "analyzeRecent ownerSource=absent owner->$importedDeviceId skinTempScale->whoop5"
+
+    /** #1575: one night's recorded trace lines, per channel. Immutable snapshot of [DayTraceRecorders]. */
+    data class DayTraces(
+        val sleep: List<String> = emptyList(),
+        val hrv: List<String> = emptyList(),
+        val steps: List<String> = emptyList(),
+    )
+
+    /**
+     * #1575: per-day recorders for the three trace channels that a reused night has to replay.
+     *
+     * Each recorder appends the line AND forwards it, exactly like the [dayDiag] wrapper the always-on
+     * lines already use. A null sink (the mode is off, the default) leaves its recorder null, so the
+     * default path allocates nothing beyond three empty lists.
+     *
+     * A class rather than inline lambdas because `analyzeRecentOnCpu` is close to the JVM's 64 KB
+     * per-method bytecode limit; building them here keeps that method under the instrumentation budget
+     * #1524 guards. No Swift twin — `defer`-free and purely a bytecode-size concern.
+     */
+    private class DayTraceRecorders(
+        sleepSink: ((String) -> Unit)?, hrvSink: ((String) -> Unit)?, stepsSink: ((String) -> Unit)?,
+    ) {
+        val sleep = ArrayList<String>()
+        val hrv = ArrayList<String>()
+        val steps = ArrayList<String>()
+        // COLLECT ONLY — the lines are emitted once, grouped, by [replayDayTraces] after the day is
+        // scored. Forwarding live here instead would make a freshly-scored night interleave its sleep and
+        // HRV lines while a REUSED night emitted them grouped, so the same night would read differently
+        // depending on a cache hit — breaking the one thing the cache promises. It would also diverge from
+        // Swift, whose sink has always been collect-only (`traceSink = { sleepTrace.append($0) }`) with a
+        // grouped emit in its main-actor loop. One emit path now serves both hit and miss.
+        val sleepRec: ((String) -> Unit)? = if (sleepSink == null) null else { l -> sleep.add(l) }
+        val hrvRec: ((String) -> Unit)? = if (hrvSink == null) null else { l -> hrv.add(l) }
+        val stepsRec: ((String) -> Unit)? = if (stepsSink == null) null else { l -> steps.add(l) }
+        fun snapshot() = DayTraces(sleep.toList(), hrv.toList(), steps.toList())
+    }
+
+    /**
+     * The 5/MG raw-counter steps trace for one day, routed through [sink].
+     *
+     * Lifted out of `analyzeRecentOnCpu` unchanged: that method sits within ~100 bytes of the JaCoCo
+     * budget #1524 guards, so a block of this size has to live somewhere else for #1575's recorders to
+     * fit. Behaviour is identical — the same guard, the same lines, the same order.
+     */
+    private fun emitStepsRawTrace(
+        sink: ((String) -> Unit)?, daySteps: List<com.noop.data.StepSample>,
+        day: String, tzOffsetSeconds: Long, ticksPerStep: Double,
+    ) {
+        if (sink == null || daySteps.isEmpty()) return
+        for (line in StepsEstimateEngineTrace.rawCounterTrace(
+            daySteps = daySteps, dayKey = day, tzOffsetSeconds = tzOffsetSeconds,
+            ticksPerStep = ticksPerStep,
+        )) {
+            sink(line)
+        }
+    }
+
+    /** #1575: replay a reused night's recorded trace lines to their own channels, in emit order. */
+    private fun replayDayTraces(
+        traces: DayTraces,
+        sleepSink: ((String) -> Unit)?, hrvSink: ((String) -> Unit)?, stepsSink: ((String) -> Unit)?,
+    ) {
+        for (line in traces.sleep) sleepSink?.invoke(line)
+        for (line in traces.hrv) hrvSink?.invoke(line)
+        for (line in traces.steps) stepsSink?.invoke(line)
+    }
 
     /**
      * Compute on-device scores for each of the last [maxDays] that actually has raw HR
@@ -579,7 +651,12 @@ object IntelligenceEngine {
         // pass-2 (emitted for cached nights too), and universal's only pass-1 write (readOwnerByDay) is
         // repopulated on a hit below — so those DON'T disable caching. Matches the Swift `dayCacheEligible`
         // (sleep/hrv/steps), so cache activation is identical on both platforms. (#1005)
-        val dayCacheEligible = sleepTraceSink == null && hrvTraceSink == null && stepsTraceSink == null
+        // #1575: an active trace no longer disables reuse. The three per-day channels are recorded and
+        // replayed (see the recorders in the loop below), so a reused night emits the identical trace. The
+        // other sinks were never a reason to disable: recovery/workouts are pass-2 and already run for
+        // cached nights, and universal's single pass-1 write is repopulated on a hit. Kept as a named
+        // constant rather than deleted so the Swift twin and the tests have something to point at.
+        val dayCacheEligible = true
         // The pass config signature — every input that feeds `analyzeDay` but is NOT in the per-day key, so a
         // change to any of them must invalidate every cached night. Deterministic within-process strings
         // (compared only to itself in memory, so cross-platform identity isn't required); baselines1 is signed
@@ -691,7 +768,14 @@ object IntelligenceEngine {
                     skinAnchorResolvedOwners.add(owner)
                 }
                 val (fpCount, fpMaxTs) = repo.hrFingerprintWindow(owner, from, to)
-                val key = AnalyzeRecentDayCache.cacheKey(owner, fpCount, fpMaxTs, skinAnchorByOwner[owner])
+                val key = AnalyzeRecentDayCache.cacheKey(
+                    owner, fpCount, fpMaxTs, skinAnchorByOwner[owner],
+                    // #1575: `&& hrvTraceSink != null` matters. With the HRV trace OFF no detail line
+                    // is ever produced, so the flag describes nothing — but it would still flip at
+                    // midnight and invalidate yesterday, charging EVERY user an extra day's re-score to
+                    // protect lines they never see. Gating it keeps the default path exactly as it was and
+                    // makes the cost what this change claims: paid only while a trace is on.
+                    hrvWindowDetail = hrvTraceSink != null && dayStart == nowLocalMidnight)
                 dayCacheKey = key
                 val cached = dayScanCache[day]
                 if (cached != null && cached.key == key) {
@@ -713,6 +797,9 @@ object IntelligenceEngine {
                     scoredNights.add(cached.res)
                     resolvedScoreOwnerByDay[day] = cached.owner
                     for (line in cached.diagLines) diag(line)
+                    // #1575: replay this night's trace lines to their own channels, so a reused night is
+                    // indistinguishable from a freshly-scored one in the export as well as in the numbers.
+                    replayDayTraces(cached.traces, sleepTraceSink, hrvTraceSink, stepsTraceSink)
                     dayCacheReused++
                     continue
                 }
@@ -727,6 +814,18 @@ object IntelligenceEngine {
             // verbatim universal `dayOwner …` line per SCORED day (matching the iOS emit, which is in the
             // scored-days loop, NOT here). Only when the universal sink is on. A day skipped below for too
             // few rows is never scored, so it emits no line, byte-identical to the iOS behaviour.
+            // #1575: the same per-day collection shape for the three PER-DAY trace channels. Until now an
+            // active sleep/HRV/steps trace disabled the reuse cache outright, because a reused night would
+            // not re-emit those lines — so turning on a diagnostic cost a full 21-day re-read + re-score on
+            // every pass. Recording them per day makes a reused night replay its trace exactly like it
+            // already replays [dayDiagLines], and the diagnostic stops costing what it was measuring.
+            // Allocated AFTER the cache-hit `continue` above: a reused day replays from its cached
+            // snapshot and never needs recorders, so building them earlier was garbage on exactly the
+            // path this change exists to make cheap. Null when the mode is off. Built
+            // by a small class rather than inline: `analyzeRecentOnCpu` sits close to the JVM's 64 KB
+            // per-method bytecode ceiling, and inline lambdas here pushed the JaCoCo-instrumented size past
+            // the budget #1524 guards (see IntelligenceEngineJacocoBudgetTest).
+            val dayTrace = DayTraceRecorders(sleepTraceSink, hrvTraceSink, stepsTraceSink)
             if (universalSink != null) readOwnerByDay[day] = OwnerRead(owner, hr.size)
             if (hr.size < MIN_HR_SAMPLES) {
                 // This day still paid for its read; count it, or the tally under-reports exactly the
@@ -892,8 +991,8 @@ object IntelligenceEngine {
                 // default) keeps analyzeDay's byte-identical untraced path; when the caller passed a non-null
                 // sink (mode on), detectSleep's gate trace + the Rest sub-score line route to the .sleep-tagged
                 // strap log. The sink is already the routing closure, so there is no per-day collect/replay.
-                traceSink = sleepTraceSink,
-                hrvTraceSink = hrvTraceSink,
+                traceSink = dayTrace.sleepRec,
+                hrvTraceSink = dayTrace.hrvRec,
                 // Per-window HRV detail ONLY for the most-recent night (dayStart == today's local midnight),
                 // so the 5000-line ring buffer isn't flooded; every night still emits the 1-line summary.
                 hrvWindowDetail = dayStart == nowLocalMidnight,
@@ -1057,14 +1156,7 @@ object IntelligenceEngine {
             // motion-estimated, surfaced by the calibration/estimate trace below). Skipping the call here
             // stops the 4.0 export carrying a "counterSamples=0 ... need >=2" line that read as broken; a
             // 5/MG always banks counter rows so this never suppresses its real trace.
-            if (stepsTraceSink != null && daySteps.isNotEmpty()) {
-                for (line in StepsEstimateEngineTrace.rawCounterTrace(
-                    daySteps = daySteps, dayKey = day, tzOffsetSeconds = tzOffsetSeconds,
-                    ticksPerStep = profile.stepTicksPerStep,
-                )) {
-                    stepsTraceSink(line)
-                }
-            }
+            emitStepsRawTrace(dayTrace.stepsRec, daySteps, day, tzOffsetSeconds, profile.stepTicksPerStep)
 
             // Harvest the baseline-independent nightly aggregates (a day with no detected
             // sleep yields null → recorded as a missing night, i.e. skip-and-hold). The raw
@@ -1122,12 +1214,18 @@ object IntelligenceEngine {
             // this pass — a WHOOP 4.0 owner with no trace active — hence dayCacheKey != null). Reused days
             // continue'd above and never reach here, so the cache only ever holds fresh scans. Carries the
             // per-day maps' values (read back from the maps just written) + the diag lines to replay.
+            // #1575: emit this night's trace through the SAME function the cache-hit path uses, so a
+            // freshly-scored night and a reused one are byte-identical in the log as well as in the
+            // numbers. Runs whether or not the day is cacheable.
+            val dayTraces = dayTrace.snapshot()
+            replayDayTraces(dayTraces, sleepTraceSink, hrvTraceSink, stepsTraceSink)
             dayCacheKey?.let { key ->
                 dayScanCache[day] = CachedDayScan(
                     key = key, res = res, owner = owner, hrRows = hr.size,
                     primaryRhr = primaryRhr, primaryRhrCoverage = primaryRhrCoverage,
                     spo2Candidate = spo2CandidateByDay[day], hrvOverCount = hrvOverCountByDay[day],
                     diagLines = dayDiagLines.toList(),
+                    traces = dayTraces,
                 )
                 dayCacheCacheable++
             }
