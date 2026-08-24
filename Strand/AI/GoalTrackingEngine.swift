@@ -417,7 +417,8 @@ final class GoalTrackingStore: ObservableObject {
         // eligible workout (measured: 263 of 520 on a large library, on the launch path) for a value nothing
         // here reads. See `Repository.workoutRows(days:reconcileHrCap:)`.
         let workouts = await repo.workoutRows(days: 365, reconcileHrCap: 0)
-        let weights = await repo.series(key: "weight", source: "apple-health", days: 365)
+        // Use the canonical resolver so a NOOP weigh-in moves the goal exactly like an import.
+        let weights = await repo.weightDailyValues(days: 365)
         // The stored stress score, same key/source the Stress screen reads. Recovery needs no extra
         // read — it is a field on the daily rows already in `repo.days`.
         let stress = await repo.series(key: "stress", source: "my-whoop", days: 365)

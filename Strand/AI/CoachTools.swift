@@ -34,6 +34,10 @@ enum CoachTool: String, CaseIterable {
     case logJournal = "log_journal"
     /// Log a Lab Book health marker (e.g. a blood value or supplement dose).
     case logLabMarker = "log_lab_marker"
+    /// Log a body-weight measurement into the canonical weigh-in history.
+    case logWeight = "log_weight"
+    /// Today's energy expenditure with source coverage and estimation confidence.
+    case energyBalance = "get_energy_balance"
     /// Per-night sleep detail: stages, efficiency, and the rolling sleep-debt ledger.
     case sleepDetail = "get_sleep_detail"
     /// A multi-week range report: per-metric stats + headline changes over 7–365 days.
@@ -126,10 +130,24 @@ enum CoachTool: String, CaseIterable {
                 + "meditation (yes/no via answered_yes) or a numeric one like drinks count (via value). "
                 + "Use when the user reports something they did. Confirm what you logged."
         case .logLabMarker:
-            return "Log a Lab Book health marker the user reports — a lab/blood value, body metric or "
-                + "supplement dose (marker name + numeric value + unit). Call it when the user shares a "
-                + "number from a blood test, checkup or scale, or a supplement dose ('my fasting glucose "
-                + "was 92', 'weighed in at 82kg today', 'started 2000 IU vitamin D'). Confirm what you logged."
+            return "Log a Lab Book health marker the user reports — a lab/blood value or supplement "
+                + "dose (marker name + numeric value + unit). Call it when the user shares a number from "
+                + "a blood test or checkup, or a supplement dose ('my fasting glucose was 92', 'started "
+                + "2000 IU vitamin D'). Confirm what you logged. NOT for body weight — that has its own "
+                + "tool, `log_weight`, which feeds the weight trend and the weight goal."
+        case .energyBalance:
+            return "Get today's energy expenditure: estimated basal rate, basal and active energy so "
+                + "far, the day's total and where it is heading, plus HOW MUCH of the day was actually "
+                + "recorded. Use it for 'how many calories have I burned', 'what's my TDEE' or any "
+                + "energy question. The coverage and confidence fields are not decoration: on a day "
+                + "with low coverage most of the total is modelled from the user's profile, so say so "
+                + "rather than quoting the number as measured. NOOP holds no food data, so never turn "
+                + "this into a diet or intake recommendation."
+        case .logWeight:
+            return "Log a body-weight measurement the user reports ('weighed in at 82.4 today', 'I'm "
+                + "79.9 kg this morning'). It becomes a dated weigh-in in their weight history, so it "
+                + "feeds the smoothed weight trend, the weight goal and Apple Health. Use this rather "
+                + "than log_lab_marker for body weight. Confirm what you logged."
         case .sleepDetail:
             return "Get per-night sleep detail for recent nights: bed/wake times, efficiency, deep/REM/"
                 + "light minutes, disturbances, plus the rolling 14-night sleep-debt balance. Use for "
@@ -396,16 +414,33 @@ enum CoachTool: String, CaseIterable {
                 "properties": [
                     "marker": [
                         "type": "string",
-                        "description": "Marker name, e.g. \"Vitamin D\", \"Ferritin\", \"Weight\", \"Magnesium dose\"."
+                        "description": "Marker name, e.g. \"Vitamin D\", \"Ferritin\", \"Magnesium dose\"."
                     ],
                     "value": ["type": "number", "description": "The numeric value."],
-                    "unit": ["type": "string", "description": "Unit, e.g. \"ng/mL\", \"kg\", \"mg\". Empty if none."],
+                    "unit": ["type": "string", "description": "Unit, e.g. \"ng/mL\" or \"mg\". Empty if none."],
                     "day": [
                         "type": "string",
                         "description": "The day it applies to, yyyy-MM-dd. Defaults to today."
                     ]
                 ],
                 "required": ["marker", "value"]
+            ]
+        case .energyBalance:
+            return ["type": "object", "properties": [:]]
+        case .logWeight:
+            return [
+                "type": "object",
+                "properties": [
+                    "weight_kg": [
+                        "type": "number",
+                        "description": "Body weight in KILOGRAMS. Convert first if the user says pounds."
+                    ],
+                    "day": [
+                        "type": "string",
+                        "description": "The day it was measured, yyyy-MM-dd. Defaults to today."
+                    ]
+                ],
+                "required": ["weight_kg"]
             ]
         case .sleepDetail:
             return [
@@ -1050,6 +1085,11 @@ extension AICoachEngine {
                 unit: (input["unit"] as? String) ?? "",
                 day: input["day"] as? String
             )
+        case .energyBalance:
+            return await energyBalanceTool()
+        case .logWeight:
+            let kg = (input["weight_kg"] as? Double) ?? (input["weight_kg"] as? Int).map(Double.init)
+            return await logWeightTool(kg: kg, day: input["day"] as? String)
         case .sleepDetail:
             let nights = (input["nights"] as? Int) ?? Int(input["nights"] as? Double ?? 7)
             return await sleepDetailTool(nights: nights)

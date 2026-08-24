@@ -762,13 +762,13 @@ final class AICoachEngine: ObservableObject {
     /// `toolCallingActive` gate as `planToolClause`). It lands in the system block — cached by Anthropic
     /// after round 1 — rather than in a per-round user message, where its predecessor
     /// (`toolModeContextNote`) was re-paid uncached every round. Written as a four-VERB map, not a list
-    /// of 20 names: the model already has all 20 full tool definitions in the same request, so what it
+    /// of tool names: the model already has the full tool definitions in the same request, so what it
     /// needs is a sense of the families and the discipline to reach for them, not the names repeated.
     static let toolModeClause = """
     Nothing about this user is in front of you until you fetch it — reach for a tool before you answer, \
     not after guessing. What your tools do:
     • READ their data — get_biometric_summary, get_readiness, get_charge_drivers, get_sleep_detail, \
-    get_recent_workouts, get_stress_index, get_zone_minutes, get_range_report, get_plan_adherence, \
+    get_recent_workouts, get_stress_index, get_energy_balance, get_zone_minutes, get_range_report, get_plan_adherence, \
     get_my_logs (read back what they logged — caffeine, journal, lab, hydration, mood), plot_metric to \
     draw one, get_training_preferences before a plan when repeated declines may matter, and \
     get_personal_patterns when they've shared it. For a long-horizon or imported metric question, first \
@@ -780,7 +780,7 @@ final class AICoachEngine: ObservableObject {
     session is worth). Effort FOLLOWS from intensity and duration — it is not a number you may pick. \
     Never state an Effort figure for a session you are suggesting without estimate_session_effort, or \
     without letting propose_plan compute it from zone + duration_min.
-    • WRITE to the app — propose_plan, log_caffeine, log_journal, log_lab_marker; always say plainly \
+    • WRITE to the app — propose_plan, log_caffeine, log_journal, log_lab_marker, log_weight; always say plainly \
     what you wrote.
     • REMEMBER across chats — remember_fact, update_fact, forget_fact, and search_past_conversations \
     to pull earlier context back. An injury, goal or physiology fact only starts framing later replies \
@@ -1882,6 +1882,74 @@ final class AICoachEngine: ObservableObject {
         } catch {
             return "Couldn't save the marker: \(error.localizedDescription)"
         }
+    }
+
+    /// `get_energy_balance`: today's expenditure and how much of the elapsed day the sources covered.
+    /// NOOP has no food data, so the result explicitly prevents intake or diet inferences.
+    func energyBalanceTool() async -> String {
+        let profile = ProfileStore()
+        guard let summary = await repo.todayEnergy(profile: Repository.analyticsProfile(profile)) else {
+            return "No energy data for today yet. Don't estimate one — say there's nothing recorded."
+        }
+        func kcal(_ value: Double?) -> String { value.map { "\(Int($0.rounded())) kcal" } ?? "unknown" }
+
+        var lines = ["ENERGY (today, \(summary.day)):"]
+        lines.append("BMR_ESTIMATE_24H: \(kcal(summary.estimatedBMR24h)) (modelled from profile, whole day)")
+        lines.append("BASAL_SO_FAR: \(kcal(summary.basalBurnedSoFar))")
+        lines.append("ACTIVE_SO_FAR: \(kcal(summary.activeBurnedSoFar))")
+        lines.append("TOTAL_SO_FAR: \(kcal(summary.totalBurnedSoFar))")
+        if let projected = summary.projectedTotalBurn {
+            lines.append("PROJECTED_TOTAL_TODAY: \(kcal(projected)) (extrapolated, not measured)")
+        }
+        let source: String
+        switch summary.source {
+        case .appleSplit:    source = "Apple Health active + basal energy"
+        case .strapWornTime: source = "strap worn-time estimate"
+        case .mixed:         source = "several locally arbitrated sources"
+        case .stepsEstimate: source = "steps-based estimate"
+        case .profileOnly:   source = "profile-based basal estimate only"
+        }
+        lines.append("SOURCE: \(source)")
+        if let energy = summary.coverage.energy {
+            lines.append("ENERGY_COVERAGE: \(Int((energy * 100).rounded()))% of the elapsed day")
+        } else {
+            lines.append("ENERGY_COVERAGE: unavailable for this source")
+        }
+        if let movement = summary.coverage.movement {
+            lines.append("MOVEMENT_COVERAGE: \(Int((movement * 100).rounded()))% of hours")
+        } else {
+            lines.append("MOVEMENT_COVERAGE: unavailable")
+        }
+        lines.append("CONFIDENCE: \(summary.confidence.rawValue)")
+        switch summary.confidence {
+        case .solid:
+            break
+        case .building:
+            lines.append("NOTE: the day is only partly covered — part of this total is modelled, so present it as an estimate.")
+        case .calibrating:
+            lines.append("NOTE: very little of today was recorded — most of this total is the modelled basal rate. Do NOT present it as a measurement.")
+        }
+        lines.append("NOOP holds no food or intake data. Do not infer what the user should eat.")
+        return lines.joined(separator: "\n")
+    }
+
+    /// `log_weight`: persist a dated weigh-in through the same canonical path as the Weight screen.
+    func logWeightTool(kg: Double?, day rawDay: String?) async -> String {
+        guard let kg, kg.isFinite else {
+            return "Need a numeric body weight in kilograms — nothing was logged."
+        }
+        guard GoalMeasure.isPlausible(kg, cfg: GoalMeasure.weightTrend) else {
+            return "That doesn't look like a body weight in kilograms "
+                + "(\(Int(GoalMeasure.weightTrend.minVal))–\(Int(GoalMeasure.weightTrend.maxVal)) kg) "
+                + "— nothing was logged. If they gave pounds, convert first."
+        }
+        let day = Self.normalizedDay(rawDay)
+        let at = WeightSeries.date(forDay: day) ?? Date()
+        guard await repo.logWeight(kg: kg, at: at) != nil else {
+            return "Couldn't save that weigh-in to the local store."
+        }
+        return "Logged \(String(format: "%.1f", kg)) kg for \(day). It now counts toward the weight "
+            + "trend and any weight goal."
     }
 
     /// `get_my_logs`: read back what the user has LOGGED, by kind. Closes the write-without-read
@@ -3489,12 +3557,10 @@ final class AICoachEngine: ObservableObject {
         ReadinessEngine.evaluate(days: repo.days, today: Repository.logicalDayKey(Date()))
     }
 
-    /// The most recent Apple-Health-logged body weight (kg), or nil if none has ever synced. Kept
-    /// separate from `ProfileStore.weightKg`, which is a manually-set profile default, not a
-    /// measurement — callers should label which one they're showing rather than conflate them.
+    /// The most recent measured body weight (kg), resolving NOOP and Apple Health canonically. Kept
+    /// separate from `ProfileStore.weightKg`, which is a profile default, not a measurement.
     func latestLoggedWeightKg() async -> Double? {
-        let rows = await repo.series(key: "weight", source: "apple-health", days: 365)
-        return rows.sorted(by: { $0.day < $1.day }).last?.value
+        await repo.weightSeries(days: 365).last?.value
     }
 
     /// Mean Charge over a trailing window, counting ONLY days whose score the app itself trusts

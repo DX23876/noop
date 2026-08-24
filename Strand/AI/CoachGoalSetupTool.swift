@@ -213,9 +213,15 @@ extension AICoachEngine {
             return .init(value: values.reduce(0, +) / Double(values.count) / 60,
                          date: rows.last.flatMap { Self.parseSetupDay($0.day) }, source: "14-night sleep average")
         case .weight where toolConsent.enabled.contains(.coreBiometrics):
-            let weights = await repo.series(key: "weight", source: "apple-health", days: 365)
-            guard let latest = weights.sorted(by: { $0.day < $1.day }).last else { return nil }
-            return .init(value: latest.value, date: Self.parseSetupDay(latest.day), source: "Latest Apple Health weight")
+            let weights = await repo.weightSeries(days: 365)
+            // A manually logged weigh-in belongs to the Logs consent group. With only core biometric
+            // access, fall back to the newest Apple Health sample instead of leaking a private log.
+            guard let latest = weights.reversed().first(where: {
+                $0.source != .manual || toolConsent.enabled.contains(.logs)
+            }) else { return nil }
+            let label = latest.source == .manual
+                ? "Latest weigh-in logged in NOOP" : "Latest Apple Health weight"
+            return .init(value: latest.value, date: Self.parseSetupDay(latest.day), source: label)
         default:
             return nil
         }

@@ -1,7 +1,7 @@
 import Foundation
 
 /// A grouping of coach tools by what a user might want to grant or withhold, independent of any single
-/// tool. Coarser than per-tool (26 individual toggles would overwhelm Settings) but finer than the single
+/// tool. Coarser than per-tool (30 individual toggles would overwhelm Settings) but finer than the single
 /// `dataConsent` switch that, until now, was the only lever — all-or-nothing across every tool. Sits
 /// BELOW `dataConsent`, never instead of it: `dataConsent` remains the master switch for context
 /// building, the daily brief, proactive nudges and `MemoryMaintainer`; a `CoachPurpose` only narrows what
@@ -48,7 +48,7 @@ extension CoachTool {
     /// ship without being consent-gated.
     var purpose: CoachPurpose {
         switch self {
-        case .biometricSummary, .readiness, .chargeDrivers, .sleepDetail, .plotMetric:
+        case .biometricSummary, .readiness, .chargeDrivers, .sleepDetail, .plotMetric, .energyBalance:
             return .coreBiometrics
         case .dataCatalog, .metricHistory:
             return .longHistory
@@ -58,7 +58,7 @@ extension CoachTool {
             return .planning
         case .stressIndex:
             return .stress
-        case .myLogs, .logCaffeine, .logJournal, .logLabMarker:
+        case .myLogs, .logCaffeine, .logJournal, .logLabMarker, .logWeight:
             return .logs
         case .sensitiveLogs:
             return .sensitiveLogs
