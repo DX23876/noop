@@ -6,6 +6,28 @@ import XCTest
 /// contract (must not crash, must reject gracefully) and the security guards (XXE entity, bad coords).
 final class ActivityFileImporterTests: XCTestCase {
 
+    func testRouteDistanceOrderedThreePointsUsesCanonicalBitPattern() {
+        // Fork governance #99: exact twin parity matters even when the numerical delta is too small
+        // to survive UI formatting. Keep point order and assert the binary64 result, not a tolerance.
+        let route = [
+            RoutePoint(lat: 52.5, lon: 13.4),
+            RoutePoint(lat: 52.5001, lon: 13.4001),
+            RoutePoint(lat: 52.5002, lon: 13.4003),
+        ]
+
+        XCTAssertEqual(ActivityFileImporter.routeDistanceM(route).bitPattern, 0x403e89813f76c75c)
+    }
+
+    func testRouteDistanceOneSegmentKeepsAdjacentControlBitPattern() {
+        // Adjacent control: this first segment is already identical on both twins and must stay so.
+        let route = [
+            RoutePoint(lat: 52.5, lon: 13.4),
+            RoutePoint(lat: 52.5001, lon: 13.4001),
+        ]
+
+        XCTAssertEqual(ActivityFileImporter.routeDistanceM(route).bitPattern, 0x402a0921667f2bac)
+    }
+
     // MARK: - GPX
 
     func testGpxTrackWithHrExtension() {
@@ -109,6 +131,34 @@ final class ActivityFileImporterTests: XCTestCase {
         let a = try! XCTUnwrap(r.activity)
         XCTAssertEqual(a.gpsPointCount, 1)         // null island dropped
         XCTAssertEqual(r.skipped, 0)               // it still carried a time, so not "skipped"
+    }
+
+    func testUntimedGpxRequiresTwoPointsForDerivedDistance() {
+        // bhelm/noop#100: without a summary distance, one coordinate has no measurable segment.
+        // The untimed parser must preserve that absence as nil, matching the timestamped branch.
+        let onePoint = """
+        <gpx><trk><trkseg>
+          <trkpt lat="48.1" lon="11.5"></trkpt>
+        </trkseg></trk></gpx>
+        """
+        let single = try! XCTUnwrap(
+            ActivityFileImporter.parse(data: Data(onePoint.utf8), filename: "route.gpx").activity
+        )
+        XCTAssertEqual(single.gpsPointCount, 1)
+        XCTAssertNil(single.distanceM)
+
+        // Adjacent control: two untimed coordinates do define a segment and retain derived distance.
+        let twoPoints = """
+        <gpx><trk><trkseg>
+          <trkpt lat="48.1" lon="11.5"></trkpt>
+          <trkpt lat="48.1001" lon="11.5001"></trkpt>
+        </trkseg></trk></gpx>
+        """
+        let pair = try! XCTUnwrap(
+            ActivityFileImporter.parse(data: Data(twoPoints.utf8), filename: "route.gpx").activity
+        )
+        XCTAssertEqual(pair.gpsPointCount, 2)
+        XCTAssertGreaterThan(try! XCTUnwrap(pair.distanceM), 0)
     }
 
     // MARK: - TCX
@@ -273,6 +323,44 @@ final class ActivityFileImporterTests: XCTestCase {
         XCTAssertEqual(ActivityFileImporter.workoutSport(from: "kayaking"), "Kayaking")   // title-cased
     }
 
+    func testDetectFormatTreatsTrailingDotAsEmptyExtensionWithKotlinParity() {
+        let empty = Data()
+        let unknownXML = Data("<unknown/>".utf8)
+        let fitMagic = Data([0, 0, 0, 0, 0, 0, 0, 0, 46, 70, 73, 84])
+        let gpx = Data("<gpx></gpx>".utf8)
+        let tcx = Data("<TrainingCenterDatabase></TrainingCenterDatabase>".utf8)
+
+        XCTAssertEqual(
+            ActivityFileImporter.detectFormat(filename: "ride.fit.", data: empty), .unknown
+        )
+        XCTAssertEqual(
+            ActivityFileImporter.detectFormat(filename: "ride.fit..", data: empty), .unknown
+        )
+        XCTAssertEqual(
+            ActivityFileImporter.detectFormat(filename: "route.gpx.", data: unknownXML), .unknown
+        )
+        XCTAssertEqual(ActivityFileImporter.detectFormat(filename: "fit", data: empty), .unknown)
+
+        XCTAssertEqual(ActivityFileImporter.detectFormat(filename: "ride.fit", data: empty), .fit)
+        XCTAssertEqual(ActivityFileImporter.detectFormat(filename: "route.gpx", data: empty), .gpx)
+        XCTAssertEqual(ActivityFileImporter.detectFormat(filename: "route.GPX", data: empty), .gpx)
+        XCTAssertEqual(
+            ActivityFileImporter.detectFormat(filename: "ride.fit.", data: fitMagic), .fit
+        )
+        XCTAssertEqual(
+            ActivityFileImporter.detectFormat(filename: "ride.bin", data: fitMagic), .fit
+        )
+        XCTAssertEqual(
+            ActivityFileImporter.detectFormat(filename: "route.gpx.", data: gpx), .gpx
+        )
+        XCTAssertEqual(
+            ActivityFileImporter.detectFormat(filename: "route.bin", data: gpx), .gpx
+        )
+        XCTAssertEqual(
+            ActivityFileImporter.detectFormat(filename: "workout.tcx.", data: tcx), .tcx
+        )
+    }
+
     func testSummaryTextIncludesOnlyPositiveStepsWithKotlinParity() {
         func activity(steps: Int?) -> ActivityFile {
             ActivityFile(
@@ -292,6 +380,32 @@ final class ActivityFileImporterTests: XCTestCase {
             ActivityFileImporter.summaryText(activity(steps: 2_350)),
             base + " · 2350 steps"
         )
+    }
+
+    func testDistanceTextUsesExplicitHalfUpRoundingWithKotlinParity() {
+        func activity(_ distanceM: Double) -> ActivityFile {
+            ActivityFile(
+                kind: .gpx,
+                start: Date(timeIntervalSince1970: 1_000),
+                end: Date(timeIntervalSince1970: 1_060),
+                sport: "running",
+                distanceM: distanceM
+            )
+        }
+
+        let cases: [(metres: Double, distance: String)] = [
+            (9_500, "9.50 km"),
+            (10_500, "11 km"),
+            (11_500, "12 km"),
+        ]
+        for item in cases {
+            let value = activity(item.metres)
+            XCTAssertEqual(value.importNote(), "Imported GPX · \(item.distance)")
+            XCTAssertEqual(
+                ActivityFileImporter.summaryText(value),
+                "Imported a \(item.distance) Running activity"
+            )
+        }
     }
 }
 

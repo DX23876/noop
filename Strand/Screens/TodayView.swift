@@ -164,7 +164,9 @@ struct TodayView: View {
     private static let classicKeyMetricTileHeight: CGFloat = 116
     private static let classicHeaderControlSize: CGFloat = 34
     private static let classicHeaderHitSize: CGFloat = 36
-
+    /// Product mark, never natural-language copy. Keeping it out of localization also makes source
+    /// classification and tint selection stable when the app language changes.
+    private static let whoopBrandName = "WHOOP"
     @EnvironmentObject var repo: Repository
     // PERF (scroll stutter): TodayView deliberately does NOT observe `LiveState` directly. A connected
     // strap publishes `LiveState` ~1 Hz (heart rate + each R-R packet), and an `@EnvironmentObject live`
@@ -234,6 +236,13 @@ struct TodayView: View {
     @AppStorage(KeyMetricPrefs.layoutKey) private var keyMetricsRaw = ""
     /// "Detailed tiles" — same key Liquid Today reads, so the customization sheet's toggle applies here
     /// too. Off by default, matching Liquid.
+    // #1512: the strap family behind the steps-calibration prompt. Read through @AppStorage rather
+    // than `WhoopModel.persisted` because `stepsPipelineActive` is evaluated inside `keyMetricTile`, once
+    // per metric per body pass, and this body recomposes with live heart rate — that made it a
+    // UserDefaults lookup on a ~1 Hz path. Android memoises the analogous preference reads on this same
+    // body for the same reason. Also makes the value observed, so a strap-model change re-renders the
+    // tile rather than waiting on an unrelated recomposition.
+    @AppStorage("selectedWhoopModel") private var selectedWhoopModelRaw = ""
     @AppStorage("today.keyMetricsDetailed") private var keyMetricsDetailed = false
     /// The detailed graphs' trailing window — 2 days / 1 week / 2 weeks (shared key with Liquid/Android).
     /// `sparks` already banks a 14-day superset; `windowedSpark(_:)` filters it down at render, so a
@@ -820,21 +829,47 @@ struct TodayView: View {
     /// Any other real source (Mi Band, Health Connect, nutrition) keeps its `FusionSource.displayName`
     ///, still the genuine merge winner, never a blanket claim. Mirror EXACTLY in Kotlin.
     static func provenanceDisplayLabel(rawSource: String, deviceId: String) -> String {
-        if rawSource.hasSuffix("-noop") { return "On-device" }
-        if rawSource == deviceId || rawSource == Repository.whoopSource { return "Whoop" }
+        if rawSource.hasPrefix(vo2MaxAttributionPrefix) {
+            let raw = String(rawSource.dropFirst(vo2MaxAttributionPrefix.count))
+            let method = vo2MaxEstimatorDisplayName(Vo2MaxEstimator(rawValue: raw))
+            return "\(String(localized: "On-device")) · \(method)"
+        }
+        // #103/queue-11a follow-up: the Explorer's spo2 candidate-fallback rows (see
+        // `spo2CandidateAttributionSource`) must read "strap estimate (unverified)", the SAME copy every
+        // other candidate-fallback surface uses — never a device name, which would misrepresent an
+        // unvalidated estimate as a calibrated reading in this table's Source column.
+        if rawSource == spo2CandidateAttributionSource {
+            return String(localized: "strap estimate (unverified)")
+        }
+        if rawSource.hasSuffix("-noop") { return String(localized: "On-device") }
+        if rawSource == deviceId || rawSource == Repository.whoopSource { return Self.whoopBrandName }
         if rawSource == Repository.appleHealthSource { return "Apple Health" }
-        // Fall back to the FusionSource display name for any other known source; else the raw id.
-        return FusionSource(rawValue: rawSource)?.displayName ?? rawSource
+        // Localize the non-brand source names here rather than exposing the analytics layer's
+        // intentionally locale-free wire/display vocabulary on Home.
+        switch FusionSource(rawValue: rawSource) {
+        case .healthConnect: return "Health Connect"
+        case .xiaomiBand:    return "Mi Band"
+        case .nutritionCsv:  return String(localized: "Nutrition")
+        case .localCache:    return String(localized: "Cached")
+        case .whoopImport:   return Self.whoopBrandName
+        case .noopComputed:  return String(localized: "On-device")
+        case .appleHealth:   return "Apple Health"
+        case nil:            return rawSource
+        }
     }
 
     /// The tint for a provenance badge, gold for Whoop, cyan for Apple Health, the positive status hue
     /// for on-device, matching the Data Sources footer so the same source reads the same colour on Today.
     private func provenanceTint(_ metricKey: String) -> Color {
-        switch provenanceLabel(metricKey) {
-        case "Whoop":       return StrandPalette.accent
-        case "Apple Health": return StrandPalette.metricCyan
-        default:            return StrandPalette.statusPositive
+        guard let provider = providerByMetric[metricKey] else { return StrandPalette.statusPositive }
+        let source = provider.sourceId.lowercased()
+        if source.hasSuffix("-noop") { return StrandPalette.statusPositive }
+        if source == Repository.appleHealthSource { return StrandPalette.metricCyan }
+        if source == Repository.whoopSource
+            || provider.brand?.caseInsensitiveCompare("WHOOP") == .orderedSame {
+            return StrandPalette.accent
         }
+        return StrandPalette.statusPositive
     }
 
     // MARK: Apple Watch provenance (M1): "the watch is the sensor, NOOP is the brain"
@@ -875,15 +910,20 @@ struct TodayView: View {
         case "fitbit-import": return "Fitbit"
         case "garmin-import": return "Garmin"
         case "xiaomi-band": return "Mi Band"
-        case Repository.activityFileSource: return "Workout files"
+        case Repository.activityFileSource: return String(localized: "Workout files")
         default: break
         }
 
         if let brand = brand?.trimmingCharacters(in: .whitespacesAndNewlines), !brand.isEmpty {
-            return brand.caseInsensitiveCompare("WHOOP") == .orderedSame ? "Whoop" : brand
+            return brand.caseInsensitiveCompare("WHOOP") == .orderedSame ? Self.whoopBrandName : brand
         }
-        if source == Repository.whoopSource { return "Whoop" }
-        return FusionSource(rawValue: sourceId)?.displayName ?? sourceId
+        if source == Repository.whoopSource { return Self.whoopBrandName }
+        switch FusionSource(rawValue: sourceId) {
+        case .nutritionCsv: return String(localized: "Nutrition")
+        case .localCache: return String(localized: "Cached")
+        case let known?: return known.displayName
+        case nil: return sourceId
+        }
     }
 
     /// True for a watch-context user with no strap supplying scores (Apple-Health days present and no WHOOP
@@ -1059,13 +1099,12 @@ struct TodayView: View {
             // Anchor to the LOGICAL day, not raw Date(), so the a11y date label agrees with the visible
             // date and the picker highlight in the 00:00-04:00 window (a raw Date() reads a calendar day
             // ahead there, mismatching at offset >= 2) (#16).
-            return Self.navDayFmt.string(from: selectedLogicalDay)
+            return selectedLogicalDay.formatted(
+                .dateTime.weekday(.abbreviated).day().month(.abbreviated)
+                    .locale(AppLanguage.activeLocale)
+            )
         }
     }
-
-    private static let navDayFmt: DateFormatter = {
-        let f = DateFormatter(); f.dateFormat = "EEE d MMM"; f.locale = Locale(identifier: "en_US_POSIX"); return f
-    }()
 
     /// The selected day as a small locale-aware numeric date ("28/06/2026" or "6/28/2026" per region). The
     /// top bar shows just this now, no "Today" / "Yesterday" word and no prev/next arrows. Day-change is by
@@ -1085,7 +1124,9 @@ struct TodayView: View {
     /// Periodic one-word hint shown in place of the date for ~1.5s every ~10s (nil = show the date). With the
     /// arrows gone the day-nav affordances are otherwise invisible, so this teaches them in the accent colour.
     @State private var dayNavHint: String? = nil
-    private static let dayNavHints = ["Swipe", "Tap"]
+    private static var dayNavHints: [String] {
+        [String(localized: "Swipe"), String(localized: "Tap")]
+    }
     #endif
 
     /// The named coordinate space the day-swipe drag measures in, declared on the scaffold's content stack
@@ -1698,6 +1739,8 @@ struct TodayView: View {
     /// glanceable verdict. Hidden when there isn't enough history (the `.insufficient` level).
     @ViewBuilder
     private func readinessCard(_ r: ReadinessEngine.Readiness) -> some View {
+        let headline = readinessHeadlineText(r.level)
+        let summary = readinessSummaryText(r.level)
         VStack(alignment: .leading, spacing: NoopMetrics.gap) {
             // When Readiness is anchored on the carried last-scored day (#543), the overline stamps its
             // date so the prior read isn't passed off as today's; otherwise the usual prompt.
@@ -1708,15 +1751,15 @@ struct TodayView: View {
                         HStack(spacing: 10) {
                             Circle().fill(readinessColor(r.level)).frame(width: 10, height: 10)
                                 .accessibilityHidden(true)
-                            Text(LocalizedStringKey(r.headline)).font(StrandFont.headline)
+                            Text(headline).font(StrandFont.headline)
                                 .foregroundStyle(StrandPalette.textPrimary)
-                                .accessibilityLabel("Readiness: \(levelWord(r.level)). \(r.headline)")
+                                .accessibilityLabel("Readiness: \(levelWord(r.level)). \(headline)")
                             Spacer()
                             if let acwr = r.acwr {
-                                Text("load \(String(format: "%.2f", acwr))")
+                                Text("load \(String(format: "%.2f", locale: AppLanguage.activeLocale, acwr))")
                                     .font(StrandFont.captionNumber)
                                     .foregroundStyle(StrandPalette.textTertiary)
-                                    .help("Acute (7-day) vs chronic (28-day) training load. 0.8-1.3 is the sweet spot.")
+                                    .help("Acute (7-day) vs chronic (28-day) training load. 0.8–1.3 is the sweet spot.")
                             }
                         }
                         // #1405: mark this as a DIFFERENT axis from the home Synthesis word (the Charge-%
@@ -1726,12 +1769,14 @@ struct TodayView: View {
                             .font(StrandFont.footnote)
                             .foregroundStyle(StrandPalette.textTertiary)
                             .fixedSize(horizontal: false, vertical: true)
-                        Text(LocalizedStringKey(r.summary)).font(StrandFont.subhead)
+                        Text(summary).font(StrandFont.subhead)
                             .foregroundStyle(StrandPalette.textSecondary)
                             .fixedSize(horizontal: false, vertical: true)
                         if !r.signals.isEmpty {
                             Divider().overlay(StrandPalette.hairline)
                             ForEach(r.signals, id: \.key) { s in
+                                let label = readinessSignalLabel(s.key)
+                                let detail = readinessDetailText(s)
                                 HStack(alignment: .top, spacing: 8) {
                                     // Glyph + colour (not colour alone) so the flag reads
                                     // for colour-blind users; hidden from VoiceOver since the
@@ -1742,9 +1787,9 @@ struct TodayView: View {
                                         .padding(.top, 4)
                                         .accessibilityHidden(true)
                                     VStack(alignment: .leading, spacing: 2) {
-                                        Text(LocalizedStringKey(s.label)).font(StrandFont.caption)
+                                        Text(label).font(StrandFont.caption)
                                             .foregroundStyle(StrandPalette.textSecondary)
-                                        if let evidence = s.evidence {
+                                        if let evidence = readinessEvidenceText(s.evidenceData) {
                                             Text(evidence).font(StrandFont.captionNumber)
                                                 .foregroundStyle(StrandPalette.textTertiary)
                                                 .lineLimit(1)
@@ -1752,13 +1797,13 @@ struct TodayView: View {
                                         }
                                     }
                                         .frame(width: 104, alignment: .leading)
-                                    Text(LocalizedStringKey(s.detail)).font(StrandFont.caption)
+                                    Text(detail).font(StrandFont.caption)
                                         .foregroundStyle(StrandPalette.textTertiary)
                                         .fixedSize(horizontal: false, vertical: true)
                                     Spacer(minLength: 0)
                                 }
                                 .accessibilityElement(children: .ignore)
-                                .accessibilityLabel(Text("\(Text(LocalizedStringKey(s.label))), \(flagWord(s.flag)): \(Text(LocalizedStringKey(s.detail)))"))
+                                .accessibilityLabel("\(label), \(flagWord(s.flag)): \(detail)")
                             }
                         }
                     }
@@ -1769,6 +1814,92 @@ struct TodayView: View {
 
     // Word + glyph equivalents so the colour-coded severity isn't carried by hue
     // alone, read by VoiceOver and visible to colour-blind users.
+    private func readinessHeadlineText(_ level: ReadinessEngine.Level) -> String {
+        switch level {
+        case .primed: return String(localized: "Primed")
+        case .balanced: return String(localized: "Balanced")
+        case .strained: return String(localized: "Strained")
+        case .rundown: return String(localized: "Run down")
+        case .insufficient: return String(localized: "Readiness")
+        }
+    }
+
+    private func readinessSummaryText(_ level: ReadinessEngine.Level) -> String {
+        switch level {
+        case .primed:
+            return String(localized: "Your signals are aligned and your load is supported. A harder session is well backed today.")
+        case .balanced:
+            return String(localized: "Nothing's flagging. Train to feel - your body's holding steady.")
+        case .strained:
+            return String(localized: "One of your signals is flagging. You can train, but keep it controlled and bank the recovery.")
+        case .rundown:
+            return String(localized: "Several signals are down at once. Treat today as recovery - easy movement, real sleep tonight.")
+        case .insufficient:
+            return String(localized: "A few more nights of data and your readiness read will sharpen.")
+        }
+    }
+
+    private func readinessSignalLabel(_ key: String) -> String {
+        switch key {
+        case "hrv": return String(localized: "HRV")
+        case "rhr": return String(localized: "Resting HR")
+        case "respRate": return String(localized: "Respiratory rate")
+        case "acwr": return String(localized: "Training load")
+        case "monotony": return String(localized: "Training variety")
+        default: return key
+        }
+    }
+
+    private func readinessEvidenceText(_ evidence: ReadinessEngine.Evidence?) -> String? {
+        guard let evidence else { return nil }
+        switch evidence {
+        case .metric(let value, let baseline, let unit, let decimals):
+            let valueText = readinessNumber(value, decimals: decimals)
+            let baselineText = readinessNumber(baseline, decimals: decimals)
+            return String(localized: "\(valueText) vs \(baselineText) \(unit)")
+        case .trainingLoad(let acute, let chronic):
+            let acuteText = readinessNumber(acute, decimals: 1)
+            let chronicText = readinessNumber(chronic, decimals: 1)
+            return String(localized: "7d \(acuteText) / 28d \(chronicText)")
+        case .monotony(let value):
+            return String(localized: "monotony \(readinessNumber(value, decimals: 1))")
+        }
+    }
+
+    private func readinessDetailText(_ signal: ReadinessEngine.Signal) -> String {
+        if signal.key == "acwr", let evidence = signal.evidenceData,
+           case .trainingLoad(let acute, let chronic) = evidence {
+            let ratio = readinessNumber(chronic > 0 ? acute / chronic : 0, decimals: 2)
+            switch signal.flag {
+            case .good: return String(localized: "in the sweet spot (acute:chronic \(ratio))")
+            case .bad: return String(localized: "spiking (acute:chronic \(ratio)) - higher injury risk")
+            case .watch: return acute < chronic
+                ? String(localized: "ramping down (acute:chronic \(ratio)) - room to build")
+                : String(localized: "building fast (acute:chronic \(ratio)) - watch fatigue")
+            case .neutral: return String(localized: "in the sweet spot (acute:chronic \(ratio))")
+            }
+        }
+        switch (signal.key, signal.flag) {
+        case ("hrv", .good): return String(localized: "above your baseline - well recovered")
+        case ("hrv", .neutral), ("rhr", .neutral): return String(localized: "in your normal range")
+        case ("hrv", .watch): return String(localized: "a touch below baseline")
+        case ("hrv", .bad): return String(localized: "suppressed - a sign of autonomic fatigue")
+        case ("rhr", .good): return String(localized: "at or below baseline")
+        case ("rhr", .watch): return String(localized: "running a little high")
+        case ("rhr", .bad): return String(localized: "elevated - overtraining or illness can do this")
+        case ("respRate", .bad): return String(localized: "up vs baseline - sometimes an early sign of getting sick")
+        case ("respRate", .watch): return String(localized: "slightly raised vs baseline")
+        case ("monotony", _): return String(localized: "low - similar strain every day raises strain/illness risk")
+        default: return String(localized: "in your normal range")
+        }
+    }
+
+    private func readinessNumber(_ value: Double, decimals: Int) -> String {
+        decimals == 0
+            ? String(Int(value.rounded()))
+            : String(format: "%.\(decimals)f", locale: AppLanguage.activeLocale, value)
+    }
+
     private func levelWord(_ l: ReadinessEngine.Level) -> String {
         switch l {
         case .primed:       return String(localized: "Primed")
@@ -2107,6 +2238,10 @@ struct TodayView: View {
                 .padding(NoopMetrics.screenPadding)
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
+            #if os(iOS)
+            // #697/#horizontal-swipe parity, see ScreenScaffold.
+            .scrollBounceBehavior(.basedOnSize, axes: .horizontal)
+            #endif
             .background(StrandPalette.surfaceBase.ignoresSafeArea())
             .navigationTitle("What shaped your Charge")
             #if os(iOS)
@@ -2541,18 +2676,20 @@ struct TodayView: View {
             // bounded carry reads the same column, so anything the tail could still surface is by
             // definition older than the window deliberately excludes. A gap now reads "—", which is the
             // truthful answer when nobody measured.
-            return withUnit(d?.respRateBpm.map { String(format: "%.1f", $0) }
-                            ?? lastRespDay?.respRateBpm.map { String(format: "%.1f", $0) } ?? "—")
+            return withUnit(d?.respRateBpm.map { String(format: "%.1f", locale: AppLanguage.activeLocale, $0) }
+                            ?? lastRespDay?.respRateBpm.map { String(format: "%.1f", locale: AppLanguage.activeLocale, $0) } ?? "—")
         case .bloodOxygen:
             // PER-FIELD carry: today → whole-row vitals carry → the last row that actually HAS a reading
             // (computed "-noop" rows write spo2Pct = nil), so this card agrees with the Key Metrics tile
             // (`d?.spo2Pct ?? carriedVital(perField: lastSpo2Day)`). Mirrors the Android dashboardCardValue.
-            // #103: when no calibrated spo2Pct exists AND the experimental toggle is ON, fall back to the
-            // spo2_candidate @82 sparkline tail (strap estimate, unverified) so the card shows a number.
+            // #103/queue-11a: when no calibrated spo2Pct exists AND the experimental toggle is ON, fall
+            // back to the spo2_candidate sparkline tail (WHOOP `spo2_candidate_82` or Oura ceiling@100
+            // `0x6F`, device-conditional — see IntelligenceEngine) so the card shows a strap-estimate
+            // (unverified) number instead of "—".
             let calibrated = (d?.spo2Pct ?? lastVitalsDay?.spo2Pct ?? lastSpo2Day?.spo2Pct)
-            if let v = calibrated { return String(format: "%.0f%%", v) }
+            if let v = calibrated { return String(format: "%.0f%%", locale: AppLanguage.activeLocale, v) }
             if PuffinExperiment.spo2CandidateDisplayEnabled, let tail = sparks["spo2_candidate"]?.last {
-                return String(format: "%.0f%%", tail)
+                return String(format: "%.0f%%", locale: AppLanguage.activeLocale, tail)
             }
             return "—"
         case .skinTemp:
@@ -2782,7 +2919,7 @@ struct TodayView: View {
                 metricRow(icon: "lungs.fill", label: "Respiratory",
                           // Today's own respiratory, else the carried night's; a non-carrying today keeps the
                           // sparkline-tail fallback so a sparse-but-recent value still reads.
-                          value: resp.map { String(format: "%.1f", $0) }
+                          value: resp.map { String(format: "%.1f", locale: AppLanguage.activeLocale, $0) }
                               ?? (vd == nil ? latestString("resp_rate", decimals: 1) : "—"),
                           unit: "rpm",
                           tint: StrandPalette.accent)
@@ -3149,7 +3286,7 @@ struct TodayView: View {
     private func effortRing(d: DailyMetric?, diameter: CGFloat) -> some View {
         if effortStrain(d) != nil, let gv = effortGaugeValue(d) {
             GlowRing(fraction: gv / effortGaugeMax, value: gv,
-                     format: { effortScale == .whoop ? String(format: "%.1f", $0) : "\(Int($0.rounded()))" },
+                     format: { effortScale == .whoop ? String(format: "%.1f", locale: AppLanguage.activeLocale, $0) : "\(Int($0.rounded()))" },
                      color: StrandPalette.effortColor, diameter: diameter, lineWidth: diameter * 0.10)
         } else {
             emptyHeroRing(diameter: diameter) { ringNoData(diameter: diameter) }
@@ -3332,8 +3469,8 @@ struct TodayView: View {
                     tint: StrandPalette.metricRose
                 ) {
                     Text(selectedDayOffset == 0
-                        ? "Your curve fills in as the strap offloads its history."
-                        : "Step back to a day the strap was worn.")
+                        ? String(localized: "Your curve fills in as the strap offloads its history.")
+                        : String(localized: "Step back to a day the strap was worn."))
                         .font(StrandFont.footnote)
                         .foregroundStyle(StrandPalette.textTertiary)
                         .frame(maxWidth: .infinity, alignment: .center)
@@ -3427,7 +3564,9 @@ struct TodayView: View {
             withAnimation(StrandMotion.interactive) { metricsExpanded.toggle() }
         } label: {
             HStack(spacing: 6) {
-                Text(metricsExpanded ? "Show fewer" : "Show all metrics")
+                Text(metricsExpanded
+                     ? String(localized: "Show fewer")
+                     : String(localized: "Show all metrics"))
                     .font(StrandFont.footnote)
                 if !metricsExpanded {
                     Text("\(hidden)")
@@ -3443,7 +3582,9 @@ struct TodayView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(metricsExpanded ? "Show fewer metrics" : "Show all metrics, \(hidden) more")
+        .accessibilityLabel(metricsExpanded
+                            ? String(localized: "Show fewer metrics")
+                            : String(localized: "Show all metrics, \(hidden) more"))
     }
 
     /// A carried recovery-vital tile's (value, caption): today's own value wins (with the metric's
@@ -3626,25 +3767,29 @@ struct TodayView: View {
             // the last row that actually has a reading. Mirrors the Android Blood Oxygen tile's spo2CarryDay.
             let spo2 = carriedVital(unit: "SpO₂", today: d?.spo2Pct,
                                     prior: { $0.spo2Pct }, perField: lastSpo2Day,
-                                    format: { String(format: "%.0f%%", $0) })
-            // #103: SpO₂ candidate @82 fallback. When spo2Pct is nil (WHOOP 5/MG BLE-only, no import) AND
-            // the experimental toggle is ON, surface the strap's own @82 nightly mean as a "strap estimate
-            // (unverified)" so the tile shows a number instead of "—". The candidate has split cross-device
-            // evidence (corr +0.99 on 8 nights, but 2 nights moved opposite on the original device), so it
-            // ships behind a default-off toggle and is never written to `spo2Pct` (CLAUDE.md derived-
-            // biosignal rule). The sparkline switches to the candidate trend when the fallback is active.
-            // When the toggle is ON but NO candidate data exists (empty @82 stream, WHOOP 4.0, or the
-            // engine hasn't re-scored yet), show "toggle ON · no @82 data" so the user can tell the
-            // difference between "toggle off" and "toggle on but no data" — a silent blank reads as broken.
+                                    format: { String(format: "%.0f%%", locale: AppLanguage.activeLocale, $0) })
+            // #103/queue-11a: SpO₂ candidate fallback. When spo2Pct is nil AND the experimental toggle is
+            // ON, surface the device's own nightly candidate mean — WHOOP's `spo2_candidate_82` V18Aux
+            // byte, or an Oura ring's ceiling@100 `0x6F` mean (device-conditional, see
+            // IntelligenceEngine) — as a "strap estimate (unverified)" so the tile shows a number instead
+            // of "—". Neither candidate is a validated calibration (WHOOP: split cross-device evidence,
+            // corr +0.99 on 8 nights but 2 nights moved opposite on the original device; Oura: n=3
+            // full-tier same-night comparisons as of 2026-08-22, OURA_PROTOCOL.md §6.5.0), so both ship
+            // behind this one default-off toggle and neither is ever written to `spo2Pct` (CLAUDE.md
+            // derived-biosignal rule). The sparkline switches to the candidate trend when the fallback is
+            // active. When the toggle is ON but NO candidate data exists (no in-band reading for this
+            // owner's device, or the engine hasn't re-scored yet), show "toggle ON · no estimate yet" so
+            // the user can tell "toggle off" apart from "toggle on but no data" — a silent blank reads as
+            // broken.
             let spo2CandidateOn = PuffinExperiment.spo2CandidateDisplayEnabled
             let candidateTail = spo2CandidateOn ? sparks["spo2_candidate"]?.last : nil
             let spo2Value = spo2.value == "—" && candidateTail != nil
-                ? String(format: "%.0f%%", candidateTail!)
+                ? String(format: "%.0f%%", locale: AppLanguage.activeLocale, candidateTail!)
                 : spo2.value
             let spo2Caption: String = spo2.value == "—" && candidateTail != nil
                 ? String(localized: "strap estimate (unverified)")
                 : (spo2.value == "—" && spo2CandidateOn
-                   ? String(localized: "toggle ON · no @82 data")
+                   ? String(localized: "toggle ON · no estimate yet")
                    : (spo2.caption ?? ""))
             // SpO₂ is the label, "Blood Oxygen" the caption — not the other way round. The full name
             // runs 17-19 characters in es/it/pt-PT (and 14 in de) against a tile that fits ~16, so it
@@ -3669,7 +3814,7 @@ struct TodayView: View {
             // Respiratory keeps its sparkline-tail fallback for a NON-carrying today (a sparse-but-recent
             // value still reads); when carrying, the prior scored night's respiratory is shown + stamped.
             let respCarry = carriedVital(unit: "rpm", today: d?.respRateBpm,
-                                         prior: { $0.respRateBpm }, format: { String(format: "%.1f", $0) })
+                                         prior: { $0.respRateBpm }, format: { String(format: "%.1f", locale: AppLanguage.activeLocale, $0) })
             let respValue = respCarry.value == "—" && lastScoredRecoveryDay == nil
                 ? latestString("resp_rate", decimals: 1) : respCarry.value
             StatTile(
@@ -3699,10 +3844,13 @@ struct TodayView: View {
             // H6, only an ESTIMATED day (no real strap/phone count, so the on-device estimate filled in)
             // gets the calibration entry; a real measured count needs no calibration.
             let isEstimated = realSteps == nil && estSteps != nil
-            // #589, when the tile would be BLANK on a strap that estimates steps (WHOOP 4.0: the steps
-            // pipeline has run, so there's calibration state recorded) explain WHY rather than a bare ", ",
-            // and still expose the ⚙︎ so the user can reach the sheet to set a manual coefficient.
-            let needsCalibration = realSteps == nil && estSteps == nil && stepsPipelineActive
+            // #589, when the tile would be BLANK on a strap that estimates steps (a WHOOP 4.0 sends no
+            // step count) explain WHY rather than a bare "—", and still expose the ⚙︎ so the user can reach
+            // the sheet to set a manual coefficient. #1491: this used to require calibration state to
+            // already exist, which excluded every 4.0 owner who had not calibrated yet — see
+            // `stepsPipelineActive`.
+            let needsCalibration = realSteps == nil && estSteps == nil
+                && stepsPipelineActive(hasDayData: d != nil)
             StatTile(
                 label: "Steps",
                 value: realSteps ?? estSteps.map { intString(Double($0)) } ?? "—",
@@ -3812,17 +3960,19 @@ struct TodayView: View {
                         .accessibilityLabel("Hide data source detail")
                         Divider().overlay(StrandPalette.hairline)
                         sourceRow(
-                            badge: "Whoop",
+                            badge: Self.whoopBrandName,
                             tint: StrandPalette.accent,
                             present: !repo.days.isEmpty,
-                            detail: String(localized: "\(repo.days.count) days · \(repo.sleeps.count) sleeps")
+                            detail: localizedCountPair(localizedDayCount(repo.days.count),
+                                                       localizedSleepCount(repo.sleeps.count))
                         )
                         Divider().overlay(StrandPalette.hairline)
                         sourceRow(
                             badge: "Apple Health",
                             tint: StrandPalette.metricCyan,
                             present: !appleDays.isEmpty,
-                            detail: String(localized: "\(appleDays.count) days · \(workouts.filter { WorkoutSource.isAppleHealth($0.source) }.count) workouts")
+                            detail: localizedCountPair(localizedDayCount(appleDays.count),
+                                                       localizedWorkoutCount(workouts.filter { WorkoutSource.isAppleHealth($0.source) }.count))
                         )
                         if xiaomiDays > 0 {
                             Divider().overlay(StrandPalette.hairline)
@@ -3830,7 +3980,8 @@ struct TodayView: View {
                                 badge: "Mi Band",
                                 tint: StrandPalette.metricAmber,
                                 present: true,
-                                detail: String(localized: "\(xiaomiDays) days · \(xiaomiSleeps) sleeps")
+                                detail: localizedCountPair(localizedDayCount(xiaomiDays),
+                                                           localizedSleepCount(xiaomiSleeps))
                             )
                         }
                         strapBatteryRow
@@ -3842,6 +3993,22 @@ struct TodayView: View {
                 sourcesSummaryRow
             }
         }
+    }
+
+    private func localizedDayCount(_ count: Int) -> String {
+        String(localized: "\(count) days")
+    }
+
+    private func localizedSleepCount(_ count: Int) -> String {
+        String(localized: "\(count) sleeps")
+    }
+
+    private func localizedWorkoutCount(_ count: Int) -> String {
+        String(localized: "\(count) workouts")
+    }
+
+    private func localizedCountPair(_ first: String, _ second: String) -> String {
+        String(localized: "\(first) · \(second)")
     }
 
     /// S5: the collapsed Data Sources footer: a single "Synced from: WHOOP, Apple Watch >" line that taps
@@ -3965,21 +4132,92 @@ struct TodayView: View {
             .help(label)
     }
 
-    /// #589, true once the WHOOP-4.0 steps-ESTIMATE pipeline has run for this user, i.e. the
-    /// IntelligenceEngine has mirrored some calibration state into the profile (a fitted/manual
-    /// coefficient, OR a recorded count of overlapping phone-counted days while still gathering).
-    /// Gates the "needs calibration" affordance so a user whose strap reports real steps (5/MG) or who
-    /// has no strap at all never sees a steps-calibration prompt on a blank tile.
-    private var stepsPipelineActive: Bool {
-        profile.stepsCalibrationCoefficient > 0
-            || profile.stepsManualCoefficient > 0
-            || profile.stepsCalibrationSampleDays > 0
+    /// #589, true when the WHOOP-4.0 steps-ESTIMATE pipeline applies to this user. Gates the "needs
+    /// calibration" affordance so a user whose strap reports real steps (5/MG) or who has no strap at all
+    /// never sees a steps-calibration prompt on a blank tile.
+    ///
+    /// #1491: a fresh 4.0 owner has no calibration state yet, so the strap family itself must activate the
+    /// pipeline on a day with data. A fitted or manual coefficient remains a second path because calibration
+    /// is profile-global: someone who moved from a 4.0 to a 5.0 can keep using their working estimate.
+    ///
+    /// #1523: a partial sample-day count is not equivalent to a working calibration. WHOOP 5.0 records feed
+    /// the same motion-volume fitter, so a 5.0 can accumulate sample days before any coefficient exists.
+    /// Letting that counter activate the gate showed the 4.0-only calibration prompt on a strap that reports
+    /// steps natively. Only an actual coefficient is evidence that the profile should keep the estimate path.
+    ///
+    /// Read off the persisted selection rather than through `BLEManager.isWhoop4`: `TodayView` holds no
+    /// `AppModel`, and `BLEManager` writes this same key whenever the model changes
+    /// (`BLEManager.persistSelectedModel`), so the stored value is the same answer without the dependency.
+    ///
+    /// The family term requires the key to have actually been SET. It is written by
+    /// `BLEManager.persistSelectedModel` the moment a strap is identified, so every real 4.0 owner has one
+    /// and #1491's intent is untouched — what it excludes is the user who has never paired anything, whose
+    /// unset key used to read as a 4.0 through the default and earn them a prompt to calibrate a strap
+    /// nobody has seen. Android's twin has always required the key (`?: return null` in
+    /// `stepsCalibrationPrompt`); this is the Apple side matching it — the two halves of #1512 disagreed
+    /// about the unset case from the day it landed.
+    ///
+    /// [hasDayData] stays as the second guard: it is what keeps the prompt off a date with nothing scored
+    /// on it, which is a different question from whether a strap is known.
+    private func stepsPipelineActive(hasDayData: Bool) -> Bool {
+        Self.stepsPipelineActive(
+            selectedModelRaw: selectedWhoopModelRaw,
+            hasDayData: hasDayData,
+            calibrationCoefficient: profile.stepsCalibrationCoefficient,
+            manualCoefficient: profile.stepsManualCoefficient,
+            calibrationSampleDays: profile.stepsCalibrationSampleDays)
+    }
+
+    /// Pure gate used by the Steps tile and its state-matrix tests. `calibrationSampleDays` is accepted so
+    /// the regression is explicit: partial fitter progress alone must never activate a strap-family feature.
+    static func stepsPipelineActive(selectedModelRaw: String,
+                                    hasDayData: Bool,
+                                    calibrationCoefficient: Double,
+                                    manualCoefficient: Double,
+                                    calibrationSampleDays: Int) -> Bool {
+        // Optional-chained deliberately: an unset (or unparseable) key is NOT a 4.0. The key only ever
+        // holds a `WhoopModel` rawValue, so nil here means "no strap has been identified", not "4.0".
+        let family = WhoopModel(rawValue: selectedModelRaw)?.deviceFamily
+        // #1523 follow-up: a POSITIVELY identified 5/MG never sees this, whatever calibration state the
+        // profile carries from an earlier strap. #1579 stopped a partial sample-day count activating the
+        // affordance but left the coefficient paths able to, and those are profile-global — so a user who
+        // calibrated a 4.0 and then moved to a 5.0 still got the 4.0 prompt on any day the 5.0 logged no
+        // steps and no estimate existed. That is the same complaint #1523 opened, on a narrower trigger.
+        //
+        // The justification for the coefficient paths was preserving estimate behaviour across that
+        // migration, but this gate does not control the estimate: `estSteps` comes from `stepsEstByDay`
+        // and is computed independently. All this gate decides is whether a BLANK tile offers to
+        // calibrate — and a strap that reports steps natively has nothing to calibrate.
+        //
+        // Android has been immune by construction all along: `stepsCalibrationPrompt` returns early on
+        // `model != WhoopModel.WHOOP4.name` before reading any calibration state — and this is written the
+        // same way round, "positively identified and NOT a 4.0", rather than "is a 5". Those are the same
+        // set today because `WhoopModel` has exactly two cases, but they stop being the same the moment a
+        // third is added, and the version that would then be wrong is the one naming a specific family.
+        if let family, family != .whoop4 { return false }
+        // The coefficient paths stay for everything else, and are NOT redundant with the family check: a
+        // legacy 4.0 owner whose `selectedWhoopModel` was never written still has a coefficient, and
+        // dropping these would silently take the gear away from them.
+        return (family == .whoop4 && hasDayData)
+            || calibrationCoefficient > 0
+            || manualCoefficient > 0
     }
 
     /// #589, the honest one-liner for a blank, not-yet-calibrated Steps tile: how many more days the
     /// phone also has to count steps before an estimate appears. Built from the SAME engine descriptor
     /// Settings uses (`StepsEstimateEngine.CalibrationStatus`) so the wording matches across surfaces.
-    private var stepsCalibrationCaption: String {
+    /// nil once a coefficient exists, because the headline's countdown is `max(0, need - have)` and a
+    /// calibrated user is already past `need` — so this said "Need 0 more days where your phone also
+    /// counted steps" on any day the estimate came out blank. That is a quiet day below the engine's
+    /// motion floor, not a missing input: the fit exists, that day simply did not move enough to earn a
+    /// number, and there is nothing for the user to go and do. `StatTile.caption` is optional, so nil
+    /// renders NO caption rather than falling back to "today" — which would be its own small lie on a past
+    /// day being browsed.
+    /// Twin of the Kotlin `stepsCalibrationPrompt` guard (#1514).
+    private var stepsCalibrationCaption: String? {
+        guard profile.stepsCalibrationCoefficient <= 0, profile.stepsManualCoefficient <= 0 else {
+            return nil
+        }
         let status = StepsEstimateEngine.CalibrationStatus.needsMoreDays(
             have: profile.stepsCalibrationSampleDays,
             need: StepsEstimateEngine.minCalibrationDays)
@@ -4113,10 +4351,13 @@ struct TodayView: View {
         async let hrvSpark           = sparkValues("hrv", source: "my-whoop", window: 14)
         async let rhrSpark           = sparkValues("rhr", source: "my-whoop", window: 14)
         async let spo2Spark          = sparkValues("spo2", source: "my-whoop", window: 14)
-        // #103: SpO₂ candidate @82 nightly mean (WHOOP 5/MG only). Read via `exploreSeries` so the
-        // computed "-noop" metricSeries backs the trend. Empty when the toggle is OFF (the engine
-        // writes nothing) or on a WHOOP 4.0 (no v18 aux stream). Used as a fallback for the Blood
-        // Oxygen tile when `spo2Pct` is nil, labelled "strap estimate (unverified)".
+        // #103/queue-11a: SpO₂ candidate nightly mean — WHOOP `spo2_candidate_82`, or an Oura owner's
+        // ceiling@100 `0x6F` mean (device-conditional, see IntelligenceEngine). Read via `exploreSeries`
+        // so the computed "-noop" metricSeries backs the trend; "my-whoop" here is the generic "active
+        // strap" sentinel `exploreSeries` resolves through `computedReadIds`, not a WHOOP-only filter, so
+        // this already picks up an Oura ring's own computed id with no further change. Empty when the
+        // toggle is OFF (the engine writes nothing) or the owner has no in-band reading. Used as a
+        // fallback for the Blood Oxygen tile when `spo2Pct` is nil, labelled "strap estimate (unverified)".
         async let spo2CandidateSpark = sparkValuesExplore("spo2_candidate", source: "my-whoop", window: 14)
         // `resp_rate` via `exploreSeries` so a BLE-only WHOOP 5 user's on-device computed
         // `DailyMetric.respRateBpm` backs the trend (the engine writes the column, not a metricSeries
@@ -4422,7 +4663,8 @@ struct TodayView: View {
             let todayHr = await repo.hrSamples(from: windowStart, to: windowEnd)
             let maxHR = profile.age > 0 ? StrainScorer.tanakaHRmax(age: Double(profile.age)) : nil
             let restHR = displayDay?.restingHr.map(Double.init) ?? StrainScorer.defaultRestingHR
-            liveStrainLocal = StrainScorer.strain(todayHr, maxHR: maxHR, restingHR: restHR, sex: profile.sex)
+            liveStrainLocal = StrainScorer.strain(todayHr, maxHR: maxHR, restingHR: restHR,
+                                        method: PuffinExperiment.effortMethod, sex: profile.sex)
         } else {
             liveStrainLocal = nil
         }
@@ -4559,7 +4801,7 @@ struct TodayView: View {
     /// can't be read off `appleDailyRows` (e.g. respiratory from apple-health).
     private func latestString(_ key: String, decimals: Int, unit: String = "") -> String {
         guard let last = sparks[key]?.last else { return "—" }
-        let n = decimals == 0 ? intString(last) : String(format: "%.\(decimals)f", last)
+        let n = decimals == 0 ? intString(last) : String(format: "%.\(decimals)f", locale: AppLanguage.activeLocale, last)
         return unit.isEmpty ? n : "\(n) \(unit)"
     }
 
@@ -4593,20 +4835,16 @@ struct TodayView: View {
         }
     }
 
-    // #perf: fixed-locale (en_US_POSIX), hoisted to static so the ~1 Hz Today body doesn't allocate a
-    // DateFormatter every render. Behaviour-identical — the format + locale are pinned.
-    private static let dateLineFmt: DateFormatter = {
-        let f = DateFormatter()
-        f.locale = Locale(identifier: "en_US_POSIX")
-        f.dateFormat = "EEEE, d MMMM"
-        return f
-    }()
     private var dateLine: String {
         // The selected day's date when navigated; today's banked-row date (or today) at offset 0.
         if selectedDayOffset == 0, let day = repo.today?.day, let date = Self.dayParser.date(from: day) {
-            return Self.dateLineFmt.string(from: date)
+            return date.formatted(
+                .dateTime.weekday(.wide).day().month(.wide).locale(AppLanguage.activeLocale)
+            )
         }
-        return Self.dateLineFmt.string(from: selectedLogicalDay)
+        return selectedLogicalDay.formatted(
+            .dateTime.weekday(.wide).day().month(.wide).locale(AppLanguage.activeLocale)
+        )
     }
 
     /// Hero title that names the selected day, "Today's"/"Yesterday's"/"Day's" Synthesis.
@@ -4624,10 +4862,10 @@ struct TodayView: View {
         case 0:  return String(localized: "Today")
         case 1:  return String(localized: "Yesterday")
         default:
-            let f = DateFormatter()
-            f.locale = Locale(identifier: "en_US_POSIX")
-            f.dateFormat = "EEE d MMM"
-            return f.string(from: selectedLogicalDay)
+            return selectedLogicalDay.formatted(
+                .dateTime.weekday(.abbreviated).day().month(.abbreviated)
+                    .locale(AppLanguage.activeLocale)
+            )
         }
     }
 
@@ -4700,7 +4938,7 @@ struct TodayView: View {
     private func sleepSourceSubtitle(_ d: DailyMetric?) -> String? {
         guard let d, d.totalSleepMin != nil else { return nil }
         let source = repo.importedSleep[d.day] != nil
-            ? String(localized: "Whoop") : String(localized: "On-device")
+            ? Self.whoopBrandName : String(localized: "On-device")
         // At offset 0 the row IS last night; a navigated past day names its real date so the label never
         // over-claims "last night".
         let night = selectedDayOffset == 0
@@ -4714,7 +4952,7 @@ struct TodayView: View {
     /// duration is banked, and to nil so the tile shows no caption line at all when neither exists.
     private func restCaption(_ d: DailyMetric?) -> String? {
         if d?.totalSleepMin != nil { return sleepValue(d) }
-        return d?.efficiency.map { String(format: String(localized: "%.0f%% eff"), $0) }
+        return d?.efficiency.map { String(format: String(localized: "%.0f%% eff"), locale: AppLanguage.activeLocale, $0) }
     }
 
     /// Short "it's coming, not broken" caption for an unscored Effort/Rest tile on TODAY only. The

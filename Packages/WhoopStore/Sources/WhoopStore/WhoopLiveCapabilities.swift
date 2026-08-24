@@ -41,13 +41,13 @@ public enum WhoopLiveCapabilities {
         caps.subtracting([.spo2])
     }
 
-    /// SQL-safe rewrite of a comma-joined capabilities string: remove bare `spo2` tokens only.
+    /// SQL-safe rewrite of a comma-joined capabilities string: trim tokens and remove bare `spo2` only.
     /// Does not touch other metrics. Empty result is preserved as empty (caller should not write that).
     public static func stripSpo2Token(fromEncoded encoded: String) -> String {
         encoded
             .split(separator: ",", omittingEmptySubsequences: true)
-            .map(String.init)
-            .filter { $0 != Metric.spo2.rawValue }
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty && $0 != Metric.spo2.rawValue }
             .joined(separator: ",")
     }
 }

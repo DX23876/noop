@@ -1,10 +1,10 @@
 {
   "sourceLanguage": "en",
   "strings": {
-    "": {
+"": {
       "shouldTranslate": false
     },
-    "%@": {
+"%@": {
       "localizations": {
         "de": {
           "stringUnit": {
@@ -62,7 +62,7 @@
         }
       }
     },
-    "%@ · recovery %lld": {
+"%@ · recovery %lld": {
       "localizations": {
         "de": {
           "stringUnit": {
@@ -126,7 +126,7 @@
         }
       }
     },
-    "%lld": {
+"%lld": {
       "localizations": {
         "de": {
           "stringUnit": {
@@ -160,7 +160,7 @@
         }
       }
     },
-    "%lld days ago": {
+"%lld days ago": {
       "localizations": {
         "de": {
           "stringUnit": {
@@ -206,7 +206,7 @@
         }
       }
     },
-    "%lld hours": {
+"%lld hours": {
       "localizations": {
         "de": {
           "stringUnit": {
@@ -270,7 +270,7 @@
         }
       }
     },
-    "%lld minutes": {
+"%lld minutes": {
       "localizations": {
         "de": {
           "stringUnit": {
@@ -316,7 +316,7 @@
         }
       }
     },
-    "%lld points, mean %@, range %@ to %@": {
+"%lld points, mean %@, range %@ to %@": {
       "localizations": {
         "de": {
           "stringUnit": {
@@ -362,7 +362,7 @@
         }
       }
     },
-    "%lld readings": {
+"%lld readings": {
       "localizations": {
         "de": {
           "stringUnit": {
@@ -408,7 +408,7 @@
         }
       }
     },
-    "%lld workouts": {
+"%lld workouts": {
       "localizations": {
         "de": {
           "stringUnit": {
@@ -454,7 +454,7 @@
         }
       }
     },
-    "%lldd ago": {
+"%lldd ago": {
       "localizations": {
         "de": {
           "stringUnit": {
@@ -500,7 +500,7 @@
         }
       }
     },
-    "%lldh ago": {
+"%lldh ago": {
       "localizations": {
         "de": {
           "stringUnit": {
@@ -564,7 +564,7 @@
         }
       }
     },
-    "%lldm ago": {
+"%lldm ago": {
       "localizations": {
         "de": {
           "stringUnit": {
@@ -610,7 +610,7 @@
         }
       }
     },
-    "0xAA 41 00 1c crc32=f3a1  mono 13": {
+"0xAA 41 00 1c crc32=f3a1  mono 13": {
       "extractionState": "stale",
       "localizations": {
         "de": {
@@ -645,7 +645,7 @@
         }
       }
     },
-    "1 hour": {
+"1 hour": {
       "localizations": {
         "de": {
           "stringUnit": {
@@ -709,7 +709,7 @@
         }
       }
     },
-    "1 minute": {
+"1 minute": {
       "localizations": {
         "de": {
           "stringUnit": {
@@ -755,7 +755,7 @@
         }
       }
     },
-    "1 workout": {
+"1 workout": {
       "localizations": {
         "de": {
           "stringUnit": {
@@ -801,7 +801,7 @@
         }
       }
     },
-    "7h 42m asleep · 92% efficiency": {
+"7h 42m asleep · 92% efficiency": {
       "extractionState": "stale",
       "localizations": {
         "de": {
@@ -836,7 +836,7 @@
         }
       }
     },
-    "51 bpm": {
+"51 bpm": {
       "extractionState": "stale",
       "localizations": {
         "de": {
@@ -871,7 +871,7 @@
         }
       }
     },
-    "87% · streaming": {
+"87% · streaming": {
       "extractionState": "stale",
       "localizations": {
         "de": {
@@ -906,7 +906,7 @@
         }
       }
     },
-    "Add": {
+"Add": {
       "extractionState": "stale",
       "localizations": {
         "de": {
@@ -947,7 +947,7 @@
         }
       }
     },
-    "Adopted via NoopButtonStyle": {
+"Adopted via NoopButtonStyle": {
       "extractionState": "stale",
       "localizations": {
         "de": {
@@ -982,7 +982,7 @@
         }
       }
     },
-    "ALL-OUT": {
+"ALL-OUT": {
       "localizations": {
         "de": {
           "stringUnit": {
@@ -1028,7 +1028,7 @@
         }
       }
     },
-    "Apple Health": {
+"Apple Health": {
       "localizations": {
         "de": {
           "stringUnit": {
@@ -1086,7 +1086,7 @@
         }
       }
     },
-    "asleep %@": {
+"asleep %@": {
       "localizations": {
         "de": {
           "stringUnit": {
@@ -1132,7 +1132,7 @@
         }
       }
     },
-    "Aurora": {
+"Aurora": {
       "localizations": {
         "de": {
           "stringUnit": {
@@ -1190,7 +1190,7 @@
         }
       }
     },
-    "average %@ bpm": {
+"average %@ bpm": {
       "localizations": {
         "de": {
           "stringUnit": {
@@ -1236,7 +1236,7 @@
         }
       }
     },
-    "Awake": {
+"Awake": {
       "localizations": {
         "de": {
           "stringUnit": {
@@ -1300,7 +1300,7 @@
         }
       }
     },
-    "Bar only": {
+"Bar only": {
       "extractionState": "stale",
       "localizations": {
         "de": {
@@ -1335,7 +1335,7 @@
         }
       }
     },
-    "Body / Regular 15 — the thread of you, read in full.": {
+"Body / Regular 15 — the thread of you, read in full.": {
       "extractionState": "stale",
       "localizations": {
         "de": {
@@ -1370,7 +1370,7 @@
         }
       }
     },
-    "BPM": {
+"BPM": {
       "localizations": {
         "de": {
           "stringUnit": {
@@ -1428,7 +1428,7 @@
         }
       }
     },
-    "Building": {
+"Building": {
       "localizations": {
         "de": {
           "stringUnit": {
@@ -1486,7 +1486,7 @@
         }
       }
     },
-    "Calibrating": {
+"Calibrating": {
       "localizations": {
         "de": {
           "stringUnit": {
@@ -1544,7 +1544,7 @@
         }
       }
     },
-    "Calm night": {
+"Calm night": {
       "extractionState": "stale",
       "localizations": {
         "de": {
@@ -1579,7 +1579,7 @@
         }
       }
     },
-    "Caption 12": {
+"Caption 12": {
       "extractionState": "stale",
       "localizations": {
         "de": {
@@ -1614,7 +1614,7 @@
         }
       }
     },
-    "Card %lld": {
+"Card %lld": {
       "extractionState": "stale",
       "localizations": {
         "de": {
@@ -1649,7 +1649,7 @@
         }
       }
     },
-    "Classic": {
+"Classic": {
       "localizations": {
         "de": {
           "stringUnit": {
@@ -1695,7 +1695,7 @@
         }
       }
     },
-    "Clear search": {
+"Clear search": {
       "localizations": {
         "de": {
           "stringUnit": {
@@ -1759,7 +1759,7 @@
         }
       }
     },
-    "COUNT-UP SCORE": {
+"COUNT-UP SCORE": {
       "extractionState": "stale",
       "localizations": {
         "de": {
@@ -1794,7 +1794,7 @@
         }
       }
     },
-    "Custom": {
+"Custom": {
       "localizations": {
         "de": {
           "stringUnit": {
@@ -1852,7 +1852,7 @@
         }
       }
     },
-    "Dark": {
+"Dark": {
       "localizations": {
         "de": {
           "stringUnit": {
@@ -1904,7 +1904,7 @@
         }
       }
     },
-    "Date": {
+"Date": {
       "localizations": {
         "de": {
           "stringUnit": {
@@ -1962,7 +1962,7 @@
         }
       }
     },
-    "Deep": {
+"Deep": {
       "localizations": {
         "de": {
           "stringUnit": {
@@ -2026,7 +2026,7 @@
         }
       }
     },
-    "Default": {
+"Default": {
       "extractionState": "stale",
       "localizations": {
         "de": {
@@ -2091,7 +2091,7 @@
         }
       }
     },
-    "DEPLETED": {
+"DEPLETED": {
       "localizations": {
         "de": {
           "stringUnit": {
@@ -2137,7 +2137,7 @@
         }
       }
     },
-    "Done": {
+"Done": {
       "localizations": {
         "de": {
           "stringUnit": {
@@ -2177,7 +2177,7 @@
         }
       }
     },
-    "Effort": {
+"Effort": {
       "localizations": {
         "de": {
           "stringUnit": {
@@ -2235,7 +2235,7 @@
         }
       }
     },
-    "Fill": {
+"Fill": {
       "localizations": {
         "de": {
           "stringUnit": {
@@ -2299,7 +2299,7 @@
         }
       }
     },
-    "Filled": {
+"Filled": {
       "extractionState": "stale",
       "localizations": {
         "de": {
@@ -2364,7 +2364,7 @@
         }
       }
     },
-    "Fit": {
+"Fit": {
       "localizations": {
         "de": {
           "stringUnit": {
@@ -2422,7 +2422,7 @@
         }
       }
     },
-    "Footnote 11": {
+"Footnote 11": {
       "extractionState": "stale",
       "localizations": {
         "de": {
@@ -2457,7 +2457,7 @@
         }
       }
     },
-    "Forest": {
+"Forest": {
       "localizations": {
         "de": {
           "stringUnit": {
@@ -2515,7 +2515,7 @@
         }
       }
     },
-    "Frosted": {
+"Frosted": {
       "localizations": {
         "de": {
           "stringUnit": {
@@ -2573,7 +2573,7 @@
         }
       }
     },
-    "Garmin Fill": {
+"Garmin Fill": {
       "localizations": {
         "de": {
           "stringUnit": {
@@ -2637,7 +2637,7 @@
         }
       }
     },
-    "Headline / Semibold 17": {
+"Headline / Semibold 17": {
       "extractionState": "stale",
       "localizations": {
         "de": {
@@ -2672,7 +2672,7 @@
         }
       }
     },
-    "Heart rate, 24 hours": {
+"Heart rate, 24 hours": {
       "localizations": {
         "de": {
           "stringUnit": {
@@ -2706,7 +2706,7 @@
         }
       }
     },
-    "HIGH": {
+"HIGH": {
       "localizations": {
         "de": {
           "stringUnit": {
@@ -2770,7 +2770,7 @@
         }
       }
     },
-    "hour %lld": {
+"hour %lld": {
       "extractionState": "stale",
       "localizations": {
         "de": {
@@ -2805,7 +2805,7 @@
         }
       }
     },
-    "Hover a band: stage name, clock start–end and duration.": {
+"Hover a band: stage name, clock start–end and duration.": {
       "extractionState": "stale",
       "localizations": {
         "de": {
@@ -2840,7 +2840,7 @@
         }
       }
     },
-    "Hover a cell: ring + date, score and recovery-state tooltip.": {
+"Hover a cell: ring + date, score and recovery-state tooltip.": {
       "extractionState": "stale",
       "localizations": {
         "de": {
@@ -2875,7 +2875,7 @@
         }
       }
     },
-    "Hover a gauge for a strain + load-word tooltip.": {
+"Hover a gauge for a strain + load-word tooltip.": {
       "extractionState": "stale",
       "localizations": {
         "de": {
@@ -2910,7 +2910,7 @@
         }
       }
     },
-    "Hover a ring for a recovery + state-word tooltip.": {
+"Hover a ring for a recovery + state-word tooltip.": {
       "extractionState": "stale",
       "localizations": {
         "de": {
@@ -2945,7 +2945,7 @@
         }
       }
     },
-    "Hover any sparkline to read the exact sample under the cursor.": {
+"Hover any sparkline to read the exact sample under the cursor.": {
       "extractionState": "stale",
       "localizations": {
         "de": {
@@ -2980,7 +2980,7 @@
         }
       }
     },
-    "Hover the cards to see the lift.": {
+"Hover the cards to see the lift.": {
       "extractionState": "stale",
       "localizations": {
         "de": {
@@ -3015,7 +3015,7 @@
         }
       }
     },
-    "Hover the line: crosshair + dot + date/value tooltip.": {
+"Hover the line: crosshair + dot + date/value tooltip.": {
       "extractionState": "stale",
       "localizations": {
         "de": {
@@ -3050,7 +3050,7 @@
         }
       }
     },
-    "Hover to read each day's HRV in ms.": {
+"Hover to read each day's HRV in ms.": {
       "extractionState": "stale",
       "localizations": {
         "de": {
@@ -3085,7 +3085,7 @@
         }
       }
     },
-    "HRV (ms) — 30 days": {
+"HRV (ms) — 30 days": {
       "extractionState": "stale",
       "localizations": {
         "de": {
@@ -3120,7 +3120,7 @@
         }
       }
     },
-    "In a card": {
+"In a card": {
       "extractionState": "stale",
       "localizations": {
         "de": {
@@ -3155,7 +3155,7 @@
         }
       }
     },
-    "just now": {
+"just now": {
       "localizations": {
         "de": {
           "stringUnit": {
@@ -3219,7 +3219,7 @@
         }
       }
     },
-    "Last night": {
+"Last night": {
       "extractionState": "stale",
       "localizations": {
         "de": {
@@ -3254,7 +3254,7 @@
         }
       }
     },
-    "Light": {
+"Light": {
       "localizations": {
         "de": {
           "stringUnit": {
@@ -3318,7 +3318,7 @@
         }
       }
     },
-    "LIGHT": {
+"LIGHT": {
       "localizations": {
         "de": {
           "stringUnit": {
@@ -3364,7 +3364,7 @@
         }
       }
     },
-    "Live": {
+"Live": {
       "localizations": {
         "de": {
           "stringUnit": {
@@ -3422,7 +3422,7 @@
         }
       }
     },
-    "LOW": {
+"LOW": {
       "localizations": {
         "de": {
           "stringUnit": {
@@ -3486,7 +3486,7 @@
         }
       }
     },
-    "Midnight": {
+"Midnight": {
       "localizations": {
         "de": {
           "stringUnit": {
@@ -3544,7 +3544,7 @@
         }
       }
     },
-    "Mint": {
+"Mint": {
       "localizations": {
         "de": {
           "stringUnit": {
@@ -3602,7 +3602,7 @@
         }
       }
     },
-    "MODERATE": {
+"MODERATE": {
       "localizations": {
         "de": {
           "stringUnit": {
@@ -3648,7 +3648,7 @@
         }
       }
     },
-    "Movement during sleep": {
+"Movement during sleep": {
       "localizations": {
         "de": {
           "stringUnit": {
@@ -3682,7 +3682,7 @@
         }
       }
     },
-    "Next day": {
+"Next day": {
       "localizations": {
         "de": {
           "stringUnit": {
@@ -3740,7 +3740,7 @@
         }
       }
     },
-    "No data": {
+"No data": {
       "localizations": {
         "de": {
           "stringUnit": {
@@ -3804,7 +3804,7 @@
         }
       }
     },
-    "No heart-rate data": {
+"No heart-rate data": {
       "localizations": {
         "de": {
           "stringUnit": {
@@ -3850,7 +3850,7 @@
         }
       }
     },
-    "NOOP": {
+"NOOP": {
       "localizations": {
         "de": {
           "stringUnit": {
@@ -3908,7 +3908,7 @@
         }
       }
     },
-    "Ocean": {
+"Ocean": {
       "localizations": {
         "de": {
           "stringUnit": {
@@ -3966,7 +3966,7 @@
         }
       }
     },
-    "Overline": {
+"Overline": {
       "extractionState": "stale",
       "localizations": {
         "de": {
@@ -4001,7 +4001,7 @@
         }
       }
     },
-    "Overview HR": {
+"Overview HR": {
       "extractionState": "stale",
       "localizations": {
         "de": {
@@ -4036,7 +4036,7 @@
         }
       }
     },
-    "PEAK": {
+"PEAK": {
       "localizations": {
         "de": {
           "stringUnit": {
@@ -4100,7 +4100,7 @@
         }
       }
     },
-    "Pick a date": {
+"Pick a date": {
       "localizations": {
         "de": {
           "stringUnit": {
@@ -4158,7 +4158,7 @@
         }
       }
     },
-    "Previous day": {
+"Previous day": {
       "localizations": {
         "de": {
           "stringUnit": {
@@ -4216,7 +4216,7 @@
         }
       }
     },
-    "PRIMED": {
+"PRIMED": {
       "localizations": {
         "de": {
           "stringUnit": {
@@ -4262,7 +4262,7 @@
         }
       }
     },
-    "range %@ to %@": {
+"range %@ to %@": {
       "localizations": {
         "de": {
           "stringUnit": {
@@ -4308,7 +4308,7 @@
         }
       }
     },
-    "Recovery": {
+"Recovery": {
       "localizations": {
         "de": {
           "stringUnit": {
@@ -4366,7 +4366,7 @@
         }
       }
     },
-    "Recovery — 30 days": {
+"Recovery — 30 days": {
       "extractionState": "stale",
       "localizations": {
         "de": {
@@ -4401,7 +4401,7 @@
         }
       }
     },
-    "Recovery — past year": {
+"Recovery — past year": {
       "extractionState": "stale",
       "localizations": {
         "de": {
@@ -4436,7 +4436,7 @@
         }
       }
     },
-    "Recovery calendar, %lld days, average %lld, low %lld, high %lld": {
+"Recovery calendar, %lld days, average %lld, low %lld, high %lld": {
       "localizations": {
         "de": {
           "stringUnit": {
@@ -4482,7 +4482,7 @@
         }
       }
     },
-    "Recovery calendar, no data": {
+"Recovery calendar, no data": {
       "localizations": {
         "de": {
           "stringUnit": {
@@ -4528,7 +4528,7 @@
         }
       }
     },
-    "RECOVERY GRADIENT": {
+"RECOVERY GRADIENT": {
       "extractionState": "stale",
       "localizations": {
         "de": {
@@ -4563,7 +4563,7 @@
         }
       }
     },
-    "Reduce Motion renders static at the final frame.": {
+"Reduce Motion renders static at the final frame.": {
       "extractionState": "stale",
       "localizations": {
         "de": {
@@ -4598,7 +4598,7 @@
         }
       }
     },
-    "Remove": {
+"Remove": {
       "extractionState": "stale",
       "localizations": {
         "de": {
@@ -4639,7 +4639,7 @@
         }
       }
     },
-    "Replay reveal": {
+"Replay reveal": {
       "extractionState": "stale",
       "localizations": {
         "de": {
@@ -4674,7 +4674,7 @@
         }
       }
     },
-    "Resting HR": {
+"Resting HR": {
       "extractionState": "stale",
       "localizations": {
         "de": {
@@ -4715,7 +4715,7 @@
         }
       }
     },
-    "Restless night": {
+"Restless night": {
       "extractionState": "stale",
       "localizations": {
         "de": {
@@ -4750,7 +4750,7 @@
         }
       }
     },
-    "Ribbon": {
+"Ribbon": {
       "localizations": {
         "de": {
           "stringUnit": {
@@ -4814,7 +4814,7 @@
         }
       }
     },
-    "Roll the number": {
+"Roll the number": {
       "extractionState": "stale",
       "localizations": {
         "de": {
@@ -4849,7 +4849,7 @@
         }
       }
     },
-    "Save": {
+"Save": {
       "extractionState": "stale",
       "localizations": {
         "de": {
@@ -4890,7 +4890,7 @@
         }
       }
     },
-    "Segment counts & heights": {
+"Segment counts & heights": {
       "extractionState": "stale",
       "localizations": {
         "de": {
@@ -4925,7 +4925,7 @@
         }
       }
     },
-    "Signature": {
+"Signature": {
       "localizations": {
         "de": {
           "stringUnit": {
@@ -4983,7 +4983,7 @@
         }
       }
     },
-    "Sleep end": {
+"Sleep end": {
       "localizations": {
         "de": {
           "stringUnit": {
@@ -5041,7 +5041,7 @@
         }
       }
     },
-    "Sleep performance": {
+"Sleep performance": {
       "extractionState": "stale",
       "localizations": {
         "de": {
@@ -5076,7 +5076,7 @@
         }
       }
     },
-    "Sleep stages": {
+"Sleep stages": {
       "extractionState": "stale",
       "localizations": {
         "de": {
@@ -5111,7 +5111,7 @@
         }
       }
     },
-    "Sleep stages, %@": {
+"Sleep stages, %@": {
       "localizations": {
         "de": {
           "stringUnit": {
@@ -5157,7 +5157,7 @@
         }
       }
     },
-    "Sleep stages, no data": {
+"Sleep stages, no data": {
       "localizations": {
         "de": {
           "stringUnit": {
@@ -5203,7 +5203,7 @@
         }
       }
     },
-    "Sleep start": {
+"Sleep start": {
       "localizations": {
         "de": {
           "stringUnit": {
@@ -5261,7 +5261,7 @@
         }
       }
     },
-    "SOFT CARD TRANSITION": {
+"SOFT CARD TRANSITION": {
       "extractionState": "stale",
       "localizations": {
         "de": {
@@ -5296,7 +5296,7 @@
         }
       }
     },
-    "Solid": {
+"Solid": {
       "localizations": {
         "de": {
           "stringUnit": {
@@ -5354,7 +5354,7 @@
         }
       }
     },
-    "STAGGERED APPEAR": {
+"STAGGERED APPEAR": {
       "extractionState": "stale",
       "localizations": {
         "de": {
@@ -5389,7 +5389,7 @@
         }
       }
     },
-    "STRAIN RAMP": {
+"STRAIN RAMP": {
       "extractionState": "stale",
       "localizations": {
         "de": {
@@ -5424,7 +5424,7 @@
         }
       }
     },
-    "STRENUOUS": {
+"STRENUOUS": {
       "localizations": {
         "de": {
           "stringUnit": {
@@ -5470,7 +5470,7 @@
         }
       }
     },
-    "Stretch": {
+"Stretch": {
       "localizations": {
         "de": {
           "stringUnit": {
@@ -5528,7 +5528,7 @@
         }
       }
     },
-    "Subhead 13": {
+"Subhead 13": {
       "extractionState": "stale",
       "localizations": {
         "de": {
@@ -5563,7 +5563,7 @@
         }
       }
     },
-    "Sunset": {
+"Sunset": {
       "localizations": {
         "de": {
           "stringUnit": {
@@ -5621,7 +5621,7 @@
         }
       }
     },
-    "System": {
+"System": {
       "localizations": {
         "de": {
           "stringUnit": {
@@ -5667,7 +5667,7 @@
         }
       }
     },
-    "Tile": {
+"Tile": {
       "localizations": {
         "de": {
           "stringUnit": {
@@ -5725,7 +5725,7 @@
         }
       }
     },
-    "Time": {
+"Time": {
       "localizations": {
         "de": {
           "stringUnit": {
@@ -5783,7 +5783,7 @@
         }
       }
     },
-    "Titanium": {
+"Titanium": {
       "localizations": {
         "de": {
           "stringUnit": {
@@ -5841,7 +5841,7 @@
         }
       }
     },
-    "Title 1 / Bold 28": {
+"Title 1 / Bold 28": {
       "extractionState": "stale",
       "localizations": {
         "de": {
@@ -5876,7 +5876,7 @@
         }
       }
     },
-    "Title 2 / Semibold 22": {
+"Title 2 / Semibold 22": {
       "extractionState": "stale",
       "localizations": {
         "de": {
@@ -5911,7 +5911,7 @@
         }
       }
     },
-    "Today": {
+"Today": {
       "localizations": {
         "de": {
           "stringUnit": {
@@ -5975,7 +5975,7 @@
         }
       }
     },
-    "Toggle gentle spring": {
+"Toggle gentle spring": {
       "extractionState": "stale",
       "localizations": {
         "de": {
@@ -6010,7 +6010,7 @@
         }
       }
     },
-    "Trend": {
+"Trend": {
       "localizations": {
         "de": {
           "stringUnit": {
@@ -6074,7 +6074,7 @@
         }
       }
     },
-    "Trend, %lld points, latest %@, low %@, high %@": {
+"Trend, %lld points, latest %@, low %@, high %@": {
       "localizations": {
         "de": {
           "stringUnit": {
@@ -6120,7 +6120,7 @@
         }
       }
     },
-    "Value": {
+"Value": {
       "localizations": {
         "de": {
           "stringUnit": {
@@ -6178,7 +6178,7 @@
         }
       }
     },
-    "Values": {
+"Values": {
       "extractionState": "stale",
       "localizations": {
         "de": {
@@ -6213,7 +6213,7 @@
         }
       }
     },
-    "Wake": {
+"Wake": {
       "localizations": {
         "de": {
           "stringUnit": {
@@ -6271,7 +6271,7 @@
         }
       }
     },
-    "Whoop 4.0": {
+"Whoop 4.0": {
       "extractionState": "stale",
       "localizations": {
         "de": {
@@ -6306,7 +6306,7 @@
         }
       }
     },
-    "WHOOP Blue": {
+"WHOOP Blue": {
       "localizations": {
         "de": {
           "stringUnit": {
@@ -6364,7 +6364,7 @@
         }
       }
     },
-    "Yesterday": {
+"Yesterday": {
       "localizations": {
         "de": {
           "stringUnit": {
@@ -6428,7 +6428,7 @@
         }
       }
     },
-    "Sparkline": {
+"Sparkline": {
       "localizations": {
         "de": {
           "stringUnit": {
@@ -6492,7 +6492,7 @@
         }
       }
     },
-    "Sample": {
+"Sample": {
       "localizations": {
         "de": {
           "stringUnit": {
@@ -6556,7 +6556,7 @@
         }
       }
     },
-    "Sleep stage": {
+"Sleep stage": {
       "localizations": {
         "de": {
           "stringUnit": {
@@ -6620,7 +6620,7 @@
         }
       }
     },
-    "sample %lld": {
+"sample %lld": {
       "localizations": {
         "de": {
           "stringUnit": {
@@ -6684,7 +6684,7 @@
         }
       }
     },
-    "Syncing": {
+"Syncing": {
       "localizations": {
         "de": {
           "stringUnit": {
@@ -6748,6 +6748,6 @@
         }
       }
     }
-  },
+},
   "version": "1.0"
 }

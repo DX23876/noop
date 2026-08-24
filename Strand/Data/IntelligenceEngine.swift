@@ -172,10 +172,13 @@ final class IntelligenceEngine: ObservableObject {
         /// where `rr` is in scope and replayed through `diagnosticSink` in pass 2 (which is main-actor
         /// isolated). nil when the night has no in-sleep R-R.
         let hrvDiag: String?
-        /// #103: the nightly `spo2_candidate_82` mean for this day, computed off the main actor from the
-        /// V18AuxSample stream when the SpO₂ candidate display toggle is ON. nil when the toggle is OFF,
-        /// the night has no in-band @82 readings, or the owner is a WHOOP 4.0 (no v18 aux stream).
-        /// Written to metricSeries as "spo2_candidate" under the "-noop" device ID in pass 2.
+        /// #103/queue-11a: the nightly SpO₂ candidate mean for this day, computed off the main actor when
+        /// the SpO₂ candidate display toggle is ON. A WHOOP owner gets the `spo2_candidate_82` V18Aux
+        /// byte mean (unchanged); an Oura owner gets the ring's ceiling@100 `0x6F` mean
+        /// (`AnalyticsEngine.nightlySpo2CeilingMean`, queue 11a). nil when the toggle is OFF or the
+        /// night has no in-band reading for its owner's device. Written to metricSeries as
+        /// "spo2_candidate" under the "-noop" device ID in pass 2 — same key for both devices, since the
+        /// series is always read scoped to one device's own computed ID.
         let spo2Candidate: Int?
         /// #1118: whether this night's in-sleep R-R is OVER-COUNTED (`crossSecondOverCount` /
         /// `sameSecondOverCount`) — the WHOOP-4.0 two-optical-channel artifact that inflates R-R and
@@ -407,6 +410,18 @@ final class IntelligenceEngine: ObservableObject {
         return rows
     }
 
+    /// Estimator provenance captured with a newly computed VO₂max point.
+    static func vo2MaxProvenance(
+        points: [MetricPoint], waistCm: Double
+    ) -> [ScoreInputProvenanceRow] {
+        guard let point = points.first(where: { $0.key == "vo2max_est" }) else { return [] }
+        return [ScoreInputProvenanceRow(
+            day: point.day,
+            key: point.key,
+            sourceId: Vo2MaxEstimator.forWaistCm(waistCm).rawValue
+        )]
+    }
+
     /// Manual "refresh Fitness Age" (the button on the not-ready card): recompute the weekly Fitness Age NOW
     /// from the PERSISTED merged daily history , NO raw-HR rescoring , and upsert it. Same gate
     /// (`fitnessAgeRows`) + date/window logic as the recompute pass, so it reads exactly what the readiness
@@ -426,7 +441,13 @@ final class IntelligenceEngine: ObservableObject {
             gateDays: gate7, age: profile.age, sex: profile.sex, waistCm: profile.waistCm,
             heightCm: profile.heightCm, weightKg: profile.weightKg, computedId: computedId,
             satKey: Self.saturdayKey(onOrBefore: newestDay))
-        if !rows.isEmpty { _ = try? await store.upsertMetricSeries(rows, deviceId: computedId) }
+        if !rows.isEmpty {
+            try? await store.persistMetricSeriesWithProvenance(
+                points: rows,
+                provenance: Self.vo2MaxProvenance(points: rows, waistCm: profile.waistCm),
+                deviceId: computedId
+            )
+        }
         return !rows.isEmpty
     }
 
@@ -686,11 +707,12 @@ final class IntelligenceEngine: ObservableObject {
         // resync and go blind the way (1) did. See `WhoopStore.bumpSensorWriteSeq`.
         let diagFpStart = Date()
         let wmKey: String = (try? await store.sensorWriteSeq()).map(String.init) ?? ""
+        let storedWatermark = UserDefaults.standard.string(forKey: Self.analyzeWatermarkKey)
         NSLog("[FREEZE-DIAG] sensorWriteSeq took=\(String(format: "%.3f", Date().timeIntervalSince(diagFpStart)))s key=\(wmKey)")
         // (The hrSample partition census lives in `AppModel`'s launch sequence, not here: this function is
         // reached only after the launch waits, so a census here never appeared on a slow launch.)
         if !force, !wmKey.isEmpty,
-           UserDefaults.standard.string(forKey: Self.analyzeWatermarkKey) == wmKey {
+           storedWatermark == wmKey {
             NSLog("[FREEZE-DIAG] analyzeRecent SHORT-CIRCUIT (unchanged fingerprint) — no work done")
             return
         }
@@ -702,25 +724,35 @@ final class IntelligenceEngine: ObservableObject {
         // `skipIfUnchanged` to the post-offload caller (refreshAfterCompletedBackfill) ONLY, so an
         // import/edit/settings/recalibrate re-score — which changes scores WITHOUT changing the HR
         // fingerprint — always runs. Twin of the Android WhoopBleClient post-offload `newData` gate.
-        if force, skipIfUnchanged, !wmKey.isEmpty,
-           UserDefaults.standard.string(forKey: Self.analyzeWatermarkKey) == wmKey {
+        if force, skipIfUnchanged, !wmKey.isEmpty, storedWatermark == wmKey {
             diagnosticSink?("re-score: trigger=post-offload newData=no — skipped (nothing changed since last run)", nil)
             return
         }
-        // Attribute a FORCED re-score. A completed offload / edit / recalibrate always re-scores
-        // (force: true) past the gate above, so an empty/duplicate offload — nothing changed since the last
-        // run — still pays for a full maxDays pass over the whole raw store (#1146). `newData=no` means the
-        // fingerprint already equals the watermark the last run advanced: a re-score driven by the trigger,
-        // not by data (#1005 background battery). Diagnostic only; the pass still runs. Twin of the Android
-        // WhoopBleClient post-offload attribution.
-        if force {
-            let hadNew = wmKey.isEmpty || UserDefaults.standard.string(forKey: Self.analyzeWatermarkKey) != wmKey
-            diagnosticSink?("re-score: trigger=forced newData=\(hadNew ? "yes" : "no (nothing changed since last run)")", nil)
-        }
+        // Attribute the re-score that is ABOUT TO RUN. `trigger=post-offload` was previously logged only on
+        // the SKIP path above, so a post-offload pass that actually RAN was labelled `forced` — in the strap
+        // log it was indistinguishable from a settings edit or a recalibrate. #1538 lost three nights to
+        // that: every one of the reporter's stalled background passes read `trigger=forced`, which pointed
+        // the investigation at the wrong caller entirely. `skipIfUnchanged` is scoped to the post-offload
+        // caller ONLY (see the gate directly above), so it is an exact witness for that trigger.
+        //
+        // A non-forced pass is the AppModel idle tick, which previously emitted NO trigger line at all when
+        // it ran — a `re-score: done` with nothing before it. Every completed pass now carries one, so the
+        // log can be read by pairing trigger→done instead of by inference.
+        //
+        // A completed offload / edit / recalibrate always re-scores past the gate above, so an empty or
+        // duplicate offload still pays for a full maxDays pass over the whole raw store (#1146).
+        // `newData=no` means the fingerprint already equals the watermark the last run advanced: a re-score
+        // driven by the trigger, not by data (#1005 background battery). Diagnostic only; the pass runs
+        // either way. Twin of the Android WhoopBleClient / AppViewModel attribution.
+        let trigger = !force ? "idle" : (skipIfUnchanged ? "post-offload" : "forced")
+        let hadNew = wmKey.isEmpty || storedWatermark != wmKey
+        diagnosticSink?("re-score: trigger=\(trigger) "
+                        + "newData=\(hadNew ? "yes" : "no (nothing changed since last run)")", nil)
 
         // #1005: time the whole pass — the trigger line above records WHY; this records how many nights
         // and how long (the CPU cost per run), so a re-score STORM is visible in the strap log.
         let reScoreStart = Date()
+        RescoreBackgroundScheduler.markRescoreOwed()
 
         let up = UserProfile(weightKg: profile.weightKg, heightCm: profile.heightCm,
                              age: Double(profile.age), sex: profile.sex,
@@ -764,7 +796,10 @@ final class IntelligenceEngine: ObservableObject {
                             workouts: [ExerciseSession], nightlySkin: Double?,
                             sessionMotion: [Int: [Double]],
                             sessionSleepState: [Int: [Int]],
-                            hrvDiag: String?)] = []   // #195: carried from loop 1, emitted in the main-actor loop
+                            hrvDiag: String?,
+                            // #1545: carried beside `workouts` because it explains the times that list is
+                            // EMPTY, and the emit happens in the main-actor loop below, not here.
+                            detectionFunnel: WorkoutDetector.DetectionFunnel?)] = []   // #195: carried from loop 1
         // Nightly values harvested in pass 1, keyed by day, to seed the pass-2 baseline.
         var nightlyHrvByDay: [String: Double?] = [:]
         var nightlyRhrByDay: [String: Double?] = [:]
@@ -779,7 +814,20 @@ final class IntelligenceEngine: ObservableObject {
         // single-WHOOP install) the active strap is `deviceId`, so `resolveDayOwner` below returns
         // `deviceId` for every day and the per-day reads are byte-identical to the pre-I2 behaviour.
         let registry = DeviceRegistryStore(dbQueue: store.registryWriter)
-        let regDevices = (try? registry.all()) ?? []
+        // #1567: `try?` used to swallow this read, and an empty device list is NOT a neutral outcome —
+        // every day then resolves to `.whoop5` (see `skinTempFamily(forOwner:devices:)`), so a WHOOP 4.0's
+        // raw skin-temp ADC is read as centidegrees, misses the 28–42 °C worn gate, and the night yields
+        // nothing. `regDevices` also supplies the owner's model/brand below, so a failed read degrades more
+        // than skin temp alone. Still non-fatal — the pass proceeds on exactly the fallbacks it always did
+        // — but it no longer does so in silence. The Kotlin twin reaches this state by a different route (a
+        // caller omitting `ownerSource`), hence the different cause token; see `registryUnavailableLine`.
+        let regDevices: [PairedDevice]
+        do {
+            regDevices = try registry.all()
+        } catch {
+            regDevices = []
+            diagnosticSink?(AnalyticsEngine.registryUnavailableLine(importedDeviceId: deviceId), nil)
+        }
         let regActiveId = (try? registry.activeDeviceId()) ?? deviceId
 
         // Floor `now` to LOCAL midnight (#277) so each `dayStart` lands on a local-day boundary and the
@@ -845,12 +893,16 @@ final class IntelligenceEngine: ObservableObject {
         // the 5/MG cumulative @57 series + wrap-aware deltas + dropped deltas, replayed below tagged `.steps`.
         // The trace recomputes the SAME wrap-aware sum analyzeDay already did, so the steps total is unchanged.
         let stepsTraceActive = TestCentre.active(.steps)
-        // #103: read the SpO₂ candidate display toggle ONCE here (off the detached executor, matching the
-        // other toggle reads above). When ON, each night's `spo2_candidate_82` mean is computed from the
-        // V18AuxSample stream and written to metricSeries as "spo2_candidate" under the "-noop" device ID,
-        // so the Blood Oxygen tile can surface it as a "strap estimate (unverified)" fallback. Default OFF
-        // per the derived-biosignal rule (CLAUDE.md) — the @82 candidate has split cross-device evidence.
+        // #103/queue-11a: read the SpO₂ candidate display toggle ONCE here (off the detached executor,
+        // matching the other toggle reads above). When ON, each night's candidate mean (WHOOP:
+        // `spo2_candidate_82`; Oura: ceiling@100 `0x6F`, see the per-day block below) is written to
+        // metricSeries as "spo2_candidate" under the "-noop" device ID, so the Blood Oxygen tile can
+        // surface it as a "strap estimate (unverified)" fallback. Default OFF per the derived-biosignal
+        // rule (CLAUDE.md) — neither candidate is a validated calibration.
         let spo2CandidateDisplayOn = PuffinExperiment.spo2CandidateDisplayEnabled
+        // Read once per pass and include in the persisted semantic signature: changing the recipe must
+        // invalidate every reused day whose Effort was computed with the previous method.
+        let effortMethodGlobal = PuffinExperiment.effortMethod
         // Deliberate semantic invalidation seam. Bump only when unchanged inputs intentionally produce a
         // different score. Profile/toggle values are stored separately in a stable textual signature.
         let scoringVersion = 1
@@ -864,6 +916,7 @@ final class IntelligenceEngine: ObservableObject {
             "tz=\(tzOffset)",
             "deepHrv=\(deepHrvWindow ? 1 : 0)",
             "spo2Candidate=\(spo2CandidateDisplayOn ? 1 : 0)",
+            "effortMethod=\(String(describing: effortMethodGlobal))",
             "hrvEpoch=\(Baselines.hrvBaselineEpoch())",
             "recoveryEpoch=\(Baselines.recoveryBaselineEpoch())",
         ].joined(separator: "|")
@@ -1238,7 +1291,8 @@ final class IntelligenceEngine: ObservableObject {
                                                      // (dayStart == today's local midnight), so the 5000-line
                                                      // ring buffer isn't flooded; every night keeps the summary.
                                                      hrvWindowDetail: dayStart == nowLocalMidnight,
-                                                     deepHrvWindow: deepHrvWindow)
+                                                     deepHrvWindow: deepHrvWindow,
+                                                     effortMethod: effortMethodGlobal)
                 diagAnalyzeMs = Date().timeIntervalSince(diagAnalyzeStart) * 1000   // TEMP DIAGNOSTIC
                 // #195: whole-night HRV cleaning-pipeline summary for the always-on strap log, so a "reads ~2x
                 // too high" report is triageable without the HRV test mode: RMSSD vs SDNN (rmssd >> sdnn =
@@ -1323,16 +1377,28 @@ final class IntelligenceEngine: ObservableObject {
                     // over-count's MECHANISM is readable from the always-on log — clean nights stay quiet.
                     // srcChannel rides from the read model. Byte-identical to the Kotlin `hrv rrsample` line.
                     if verdict == .crossSecondOverCount || verdict == .sameSecondOverCount {
+                        // Built ONCE for all three diagnostics below. Each call materialised its own copy
+                        // of the night's ords — ~70k elements, on a path that runs ~21 times per
+                        // analyzeRecent, every 15 minutes — so two of the three were pure waste. (#1510)
+                        let rrOrds = sleepRrRows.map { $0.ord }
                         let sample = HRVAnalyzer.densestSecondWindowSample(
                             tsSec: ts, rrMs: sleepRr, srcCodes: sleepRrRows.map { $0.srcChannel?.rawValue },
-                            ords: sleepRrRows.map { $0.ord })
+                            ords: rrOrds)
                         if !sample.isEmpty { diagLine += "\nhrv rrsample day=\(res.daily.day) \(sample)" }
                         // #1331/#1008: the sample above shows ords for a handful of seconds; this counts
                         // them across the WHOLE night, which is what decides whether the fix belongs at
                         // ingest. Kotlin twin.
                         let deliveries = HRVAnalyzer.deliveryHistogram(
-                            tsSec: ts, rrMs: sleepRr, ords: sleepRrRows.map { $0.ord })
+                            tsSec: ts, rrMs: sleepRr, ords: rrOrds)
                         if !deliveries.isEmpty { diagLine += "\n\(deliveries) day=\(res.daily.day)" }
+                        // #1505: the histogram above counts deliveries per second but never compares what
+                        // they wrote. If the live and historical copies are the same beat in two units, a
+                        // duplicated second holds two values 1024/1000 apart; if they are different beats,
+                        // the ratios scatter. One pair cannot tell those apart — a night's worth can.
+                        // Measurement only, takes no view on the answer. Kotlin twin.
+                        let dupPairs = HRVAnalyzer.duplicatePairRatios(
+                            tsSec: ts, rrMs: sleepRr, ords: rrOrds)
+                        if !dupPairs.isEmpty { diagLine += "\n\(dupPairs) day=\(res.daily.day)" }
                         // #1331/#1008/#1118 SHADOW: log the DEDUPED stream's HRV + coverage + beat-accuracy
                         // beside the raw (above), so the candidate two-channel de-dup can be validated
                         // against WHOOP's own numbers and @artemc's Polar H10 BEFORE it becomes the read
@@ -1422,19 +1488,30 @@ final class IntelligenceEngine: ObservableObject {
                 // #1331 respiratory diagnostic — a run of nil nights localises when it stopped. Same
                 // pure-compute-here / replay-on-main-actor path as rhrLine.
                 let respLine: String? = Self.respRateLogLine(day: res.daily.day, respRateBpm: res.daily.respRateBpm)
-                // #103: SpO₂ candidate @82 nightly mean. Only computed when the display toggle is ON.
-                // Reads the V18AuxSample stream for this night's owner and averages the in-band (70–100)
-                // @82 readings that fall inside a detected sleep session. nil on a WHOOP 4.0 (no v18 aux
-                // stream), a night with no in-band readings, or when the toggle is OFF. The mean is
-                // written to metricSeries as "spo2_candidate" in pass 2, never to `spo2Pct` — the guard
-                // test `testHistoricalV18OpticalFieldsAreNotNamedPhysiologically` enforces that boundary.
+                // #103/queue-11a: SpO₂ candidate nightly mean. Only computed when the display toggle is
+                // ON, and the transform is device-conditional (#1086-style brand lookup, matching
+                // `skinTempWornToleranceSec`'s idiom just above): a WHOOP owner averages the in-band
+                // (70–100) `spo2_candidate_82` V18Aux byte; an Oura owner averages the ring's own `0x6F`
+                // SpO2 (`spo2`, already fetched above for `nightlySpo2RawMeans`) through the ceiling@100
+                // transform — see `AnalyticsEngine.nightlySpo2CeilingMean`'s doc for why ceiling@100 is
+                // queue 11a's starting choice. nil on a WHOOP 4.0 (no v18 aux stream) with no candidate
+                // decode, an Oura night with no in-window plausible sample, or when the toggle is OFF.
+                // The mean is written to metricSeries as "spo2_candidate" in pass 2, never to `spo2Pct` —
+                // the guard test `testHistoricalV18OpticalFieldsAreNotNamedPhysiologically` enforces that
+                // boundary for the WHOOP path.
                 var spo2CandidateMean: Int? = nil
                 if spo2CandidateDisplayOn {
-                    let auxSamples = (try? await store.v18AuxSamples(
-                        deviceId: owner, from: from, to: to, limit: Int.max)) ?? []
-                    if !auxSamples.isEmpty {
-                        if let cand = AnalyticsEngine.nightlySpo2CandidateMean(res.sleepSessions, aux: auxSamples) {
+                    if DeviceBrandCatalog.isOura(owner) {
+                        if let cand = AnalyticsEngine.nightlySpo2CeilingMean(res.sleepSessions, spo2: spo2) {
                             spo2CandidateMean = cand.mean
+                        }
+                    } else {
+                        let auxSamples = (try? await store.v18AuxSamples(
+                            deviceId: owner, from: from, to: to, limit: Int.max)) ?? []
+                        if !auxSamples.isEmpty {
+                            if let cand = AnalyticsEngine.nightlySpo2CandidateMean(res.sleepSessions, aux: auxSamples) {
+                                spo2CandidateMean = cand.mean
+                            }
                         }
                     }
                 }
@@ -1519,7 +1596,8 @@ final class IntelligenceEngine: ObservableObject {
                                  workouts: res.workouts, nightlySkin: res.nightlySkinTempC,
                                  sessionMotion: res.sessionMotionByStart,
                                  sessionSleepState: res.sessionSleepStateByStart,
-                                 hrvDiag: scan.hrvDiag))
+                                 hrvDiag: scan.hrvDiag,
+                                 detectionFunnel: res.detectionFunnel))
         }
 
         // ── Reused days (#launch-rescore) ────────────────────────────────────────────────────────────
@@ -1548,7 +1626,8 @@ final class IntelligenceEngine: ObservableObject {
             nightlySkinByDay[day] = fp?.nightlySkinC
             scoredNights.append((daily: row, strain: row.strain, cachedSleep: [],
                                  workouts: [], nightlySkin: fp?.nightlySkinC,
-                                 sessionMotion: [:], sessionSleepState: [:], hrvDiag: nil))
+                                 sessionMotion: [:], sessionSleepState: [:], hrvDiag: nil,
+                                 detectionFunnel: nil))
         }
         // The days this pass actually re-derived. Every window-wide cleanup below is scoped to these,
         // because each of them deletes-then-reinserts and a reused day has nothing to re-insert.
@@ -1865,9 +1944,26 @@ final class IntelligenceEngine: ObservableObject {
             // Persist the detected workouts the pipeline already computes (previously discarded).
             // Skip any bout overlapping a real imported/manual workout so import+wear users don't
             // double-count. sport = "detected"; energyKcal is the APPROXIMATE Keytel/BMR total.
+            // #1545: where the detector lost every candidate workout on this day, emitted BEFORE the
+            // per-bout loop so it is present even when that loop runs zero times — which is exactly the
+            // report it exists for. The `effort bout` line below explains a bout that exists; a strap log
+            // showing 37 days and no workouts at all previously carried nothing to explain the absence.
+            if let f = night.detectionFunnel {
+                diagnosticSink?(WorkoutDetector.detectionFunnelLine(day: daily.day, funnel: f), nil)
+            }
             for s in night.workouts {
                 let durMin = max(0, (s.end - s.start) / 60)
                 let avgBpm = Int(s.avgHR)
+                // #1545: always-on, one line per detected bout naming what this Effort was SCORED AGAINST.
+                // A user reporting "my hard session scored 1.7" cannot currently see the HRmax that set the
+                // zone boundaries, where it came from, or whether the strap even saw most of the bout — and
+                // those three answers separate the three different causes ("the floor is doing its job",
+                // "your HRmax is wrong", "the sensor dropped out"). Reversing the arithmetic out of the
+                // displayed score is what diagnosing #1545 actually took. Same privacy class as the sibling
+                // `sleep day=` line: a day key, a duration, bpm and percentages.
+                diagnosticSink?(WorkoutDetector.boutCalibrationLine(
+                    day: daily.day, durMin: durMin, hrmax: s.hrmax, hrmaxSource: s.hrmaxSource,
+                    avgHRRPct: s.avgHRRPct, hrCoveragePct: s.hrCoveragePct, strain: s.strain), nil)
                 // The overlap test is bare time overlap (any source), so a detected bout collapses against a
                 // manual session even though their SPORTS differ ("detected" vs the user's sport) , the
                 // #975 "two workouts, one vanished" seam. Find the collider so the trace can name its source.
@@ -2073,7 +2169,13 @@ final class IntelligenceEngine: ObservableObject {
             gateDays: faGate7, age: profile.age, sex: profile.sex, waistCm: profile.waistCm,
             heightCm: profile.heightCm, weightKg: profile.weightKg, computedId: computedId,
             satKey: IntelligenceEngine.saturdayKey(onOrBefore: newestDay))
-        if !faPts.isEmpty { _ = try? await store.upsertMetricSeries(faPts, deviceId: computedId) }
+        if !faPts.isEmpty {
+            try? await store.persistMetricSeriesWithProvenance(
+                points: faPts,
+                provenance: Self.vo2MaxProvenance(points: faPts, waistCm: profile.waistCm),
+                deviceId: computedId
+            )
+        }
 
         // ── Vitality / Body Age (Phase 7) , weekly, keyed to the week's Saturday ────────────────────
         // Roll the last 7 days' wearable signals into the mortality-hazard model and upsert a weekly
@@ -2392,7 +2494,8 @@ final class IntelligenceEngine: ObservableObject {
         // today and the tail is the oldest day in the window. Taking the last match would have scored
         // today's workout against a resting HR up to `maxDays` old.
         let measuredResting = out.first(where: { $0.rhr != nil })?.rhr.map(Double.init)
-        await rescoreManualWorkouts(store: store, profile: up, restingHR: measuredResting)
+        await rescoreManualWorkouts(store: store, profile: up, restingHR: measuredResting,
+                                    effortMethod: effortMethodGlobal)
 
         results = out
         note = out.isEmpty
@@ -2433,7 +2536,13 @@ final class IntelligenceEngine: ObservableObject {
         // short-circuit while it's unchanged. Written ONLY here at the end of a completed run (never on an
         // early guard-return), so an interrupted/failed run can't advance the watermark past unscored data.
         if !wmKey.isEmpty { UserDefaults.standard.set(wmKey, forKey: Self.analyzeWatermarkKey) }
-        diagnosticSink?("re-score: done — scored \(scoredNights.count) night(s) in \(Int(Date().timeIntervalSince(reScoreStart) * 1000)) ms (#1005)", nil)
+        // #1538: clear the started-mark and bank how long a COMPLETED pass costs on this install. The
+        // measurement is what lets `RescoreBackgroundPolicy` tell an install that finishes comfortably in a
+        // background wake from one that never could, instead of guessing from a constant — the cost varies
+        // by more than an order of magnitude with history size.
+        let elapsed = Date().timeIntervalSince(reScoreStart)
+        RescoreBackgroundScheduler.markRescoreCompleted(seconds: elapsed)
+        diagnosticSink?("re-score: done — scored \(scoredNights.count) night(s) in \(Int(elapsed * 1000)) ms (#1005)", nil)
     }
 
     /// UserDefaults key for the #836 idle-tick gate: the `(count:maxTs)` HR fingerprint the last completed
@@ -2547,7 +2656,13 @@ final class IntelligenceEngine: ObservableObject {
     /// (negligible calories), and only when the recompute is a genuine improvement , so a well-scored
     /// 4.0 workout is never touched and a still-sparse window is a no-op.
     private func rescoreManualWorkouts(store: WhoopStore, profile up: UserProfile,
-                                       restingHR: Double? = nil) async {
+                                       restingHR: Double? = nil,
+                                       // #1545: the recipe THIS PASS scored its days with, threaded in
+                                       // rather than re-read. Re-reading would let a toggle flipped
+                                       // mid-pass score a manual workout by one recipe and the day it
+                                       // sits in by the other — the exact day-vs-bout contradiction the
+                                       // threading exists to prevent. Twin of the Kotlin parameter.
+                                       effortMethod: StrainScorer.Method = .edwards) async {
         let now = Int(Date().timeIntervalSince1970)
         let since = now - 14 * 86_400
         guard let rows = try? await store.workouts(deviceId: deviceId, from: since, to: now, limit: 200)
@@ -2562,7 +2677,8 @@ final class IntelligenceEngine: ObservableObject {
             guard let samples = try? await store.hrSamples(deviceId: deviceId, from: row.startTs,
                                                            to: row.endTs, limit: 20_000),
                   let s = ManualWorkoutRescore.scored(windowSamples: samples, profile: up, hrMax: hrMax,
-                                                      restingHR: restingHR),
+                                                      restingHR: restingHR,
+                                                      effortMethod: effortMethod),
                   ManualWorkoutRescore.improves(s, over: row.energyKcal, currentStrain: row.strain,
                                                 allowStrainOnlyFill: true)
             else { continue }

@@ -27,6 +27,16 @@ import Foundation
 
 // MARK: - Normalized model
 
+/// Shared display formatter for imported-activity distance. Distances are nonnegative, so explicit
+/// ties-away-from-zero is the same half-up policy as Kotlin's `roundToInt()` (10.5 km → 11 km).
+/// Keep the sub-10 km two-decimal path unchanged; this formats text only and never mutates `distanceM`.
+private func activityDistanceText(_ distanceM: Double) -> String {
+    let km = distanceM / 1000.0
+    return km >= 10
+        ? String(format: "%.0f km", km.rounded(.toNearestOrAwayFromZero))
+        : String(format: "%.2f km", km)
+}
+
 /// One imported activity (the shape the app layer maps onto a `WorkoutRow`, plus optional
 /// activity-file daily metrics when present). Distances are metres, HR is bpm, energy is kcal.
 /// Times are UTC `Date`s. A field is `nil` when the file didn't carry it — never fabricated.
@@ -116,8 +126,7 @@ public struct ActivityFile: Sendable, Equatable {
     public func importNote() -> String {
         var parts: [String] = ["Imported \(kind.rawValue.uppercased())"]
         if let d = distanceM, d > 0 {
-            let km = d / 1000.0
-            parts.append(String(format: km >= 10 ? "%.0f km" : "%.2f km", km))
+            parts.append(activityDistanceText(d))
         }
         if gpsPointCount > 0 { parts.append("\(gpsPointCount) GPS points") }
         if hrSampleCount > 0 { parts.append("\(hrSampleCount) HR samples") }
@@ -195,7 +204,11 @@ public enum ActivityFileImporter {
     /// Detect the format from the filename extension first, then content magic bytes. FIT has a
     /// definitive ".FIT" signature at offset 8; GPX/TCX are sniffed from their root XML element.
     public static func detectFormat(filename: String?, data: Data) -> Format {
-        if let ext = filename?.split(separator: ".").last?.lowercased() {
+        // Match Kotlin substringAfterLast('.', "") exactly: only text after a literal final dot is
+        // an extension. A missing or trailing dot therefore has no usable extension and falls through
+        // to content detection instead of reusing an earlier non-empty token.
+        if let filename, let dot = filename.lastIndex(of: ".") {
+            let ext = filename[filename.index(after: dot)...].lowercased()
             switch ext {
             case "gpx": return .gpx
             case "tcx": return .tcx
@@ -276,7 +289,7 @@ public enum ActivityFileImporter {
             guard !route.isEmpty else {
                 return ActivityFileImportResult(activity: nil, kind: kind, skipped: skipped)
             }
-            let dist = summaryDistanceM ?? routeDistanceM(route)
+            let dist = summaryDistanceM ?? (route.count >= 2 ? routeDistanceM(route) : nil)
             let now = Date(timeIntervalSince1970: 0)
             let a = ActivityFile(
                 kind: kind, start: now, end: now, sport: sportHint,
@@ -440,8 +453,7 @@ public enum ActivityFileImporter {
     public static func summaryText(_ a: ActivityFile) -> String {
         var head = "Imported"
         if let d = a.distanceM, d > 0 {
-            let km = d / 1000.0
-            head += String(format: km >= 10 ? " a %.0f km" : " a %.2f km", km)
+            head += " a \(activityDistanceText(d))"
         } else {
             head += " an"
         }

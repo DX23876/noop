@@ -241,7 +241,8 @@ public enum LiftingImporter {
 
         var sessions: [LiftingSession] = []
         var skipped = 0
-        for case let record as [String: Any] in history {
+        for element in history {
+            guard let record = element as? [String: Any] else { skipped += 1; continue }
             if let s = liftosaurSession(record) { sessions.append(s) } else { skipped += 1 }
         }
         return finish(sessions, skipped: skipped)
@@ -429,7 +430,7 @@ public extension LiftingSession {
         parts.append("\(setCount) set\(setCount == 1 ? "" : "s")")
         if exerciseCount > 0 { parts.append("\(exerciseCount) exercise\(exerciseCount == 1 ? "" : "s")") }
         var note = "Strength · " + parts.joined(separator: " · ")
-        if includeTitle, let title, !title.isEmpty { note = "\(title) - " + note }
+        if includeTitle, let title, !title.isEmpty { note = "\(title): " + note }
         return note
     }
 }

@@ -36,15 +36,24 @@ public enum ReadinessEngine {
         case good, neutral, watch, bad
     }
 
+    /// Locale-free numeric evidence. Clients format and localize it at the display boundary.
+    public enum Evidence: Sendable, Equatable {
+        case metric(value: Double, baseline: Double, unit: String, decimals: Int)
+        case trainingLoad(acute: Double, chronic: Double)
+        case monotony(Double)
+    }
+
     public struct Signal: Sendable, Equatable {
         public let key: String      // "hrv" | "rhr" | "respRate" | "acwr" | "monotony"
         public let label: String    // short human label
         public let evidence: String?
+        public let evidenceData: Evidence?
         public let detail: String   // one-line plain-English read
         public let flag: Flag
-        public init(key: String, label: String, evidence: String? = nil, detail: String, flag: Flag) {
+        public init(key: String, label: String, evidence: String? = nil,
+                    evidenceData: Evidence? = nil, detail: String, flag: Flag) {
             self.key = key; self.label = label; self.evidence = evidence
-            self.detail = detail; self.flag = flag
+            self.evidenceData = evidenceData; self.detail = detail; self.flag = flag
         }
     }
 
@@ -180,10 +189,12 @@ public enum ReadinessEngine {
                 if z >= 2.0 {
                     signals.append(Signal(key: "respRate", label: "Respiratory rate",
                         evidence: evidence(value: rr, baseline: m, unit: "rpm", decimals: 1),
+                        evidenceData: .metric(value: rr, baseline: m, unit: "rpm", decimals: 1),
                         detail: "up vs baseline - sometimes an early sign of getting sick", flag: .bad))
                 } else if z >= 1.5 {
                     signals.append(Signal(key: "respRate", label: "Respiratory rate",
                         evidence: evidence(value: rr, baseline: m, unit: "rpm", decimals: 1),
+                        evidenceData: .metric(value: rr, baseline: m, unit: "rpm", decimals: 1),
                         detail: "slightly raised vs baseline", flag: .watch))
                 }
             }
@@ -209,6 +220,7 @@ public enum ReadinessEngine {
                 if mono >= 2.0 {
                     signals.append(Signal(key: "monotony", label: "Training variety",
                         evidence: "monotony \(String(format: "%.1f", mono))",
+                        evidenceData: .monotony(mono),
                         detail: "low - similar strain every day raises strain/illness risk", flag: .watch))
                 }
             }
@@ -271,6 +283,8 @@ public enum ReadinessEngine {
         return Signal(key: key, label: label,
                       evidence: evidence(value: v, baseline: logDomain ? exp(m) : m,
                                          unit: unit, decimals: decimals),
+                      evidenceData: .metric(value: v, baseline: logDomain ? exp(m) : m,
+                                            unit: unit, decimals: decimals),
                       detail: text, flag: flag)
     }
 
@@ -281,18 +295,22 @@ public enum ReadinessEngine {
         case ..<0.8:
             return Signal(key: "acwr", label: "Training load",
                 evidence: evidence,
+                evidenceData: .trainingLoad(acute: acute, chronic: chronic),
                 detail: "ramping down (acute:chronic \(pct)) - room to build", flag: .watch)
         case 0.8..<1.3:
             return Signal(key: "acwr", label: "Training load",
                 evidence: evidence,
+                evidenceData: .trainingLoad(acute: acute, chronic: chronic),
                 detail: "in the sweet spot (acute:chronic \(pct))", flag: .good)
         case 1.3..<1.5:
             return Signal(key: "acwr", label: "Training load",
                 evidence: evidence,
+                evidenceData: .trainingLoad(acute: acute, chronic: chronic),
                 detail: "building fast (acute:chronic \(pct)) - watch fatigue", flag: .watch)
         default:
             return Signal(key: "acwr", label: "Training load",
                 evidence: evidence,
+                evidenceData: .trainingLoad(acute: acute, chronic: chronic),
                 detail: "spiking (acute:chronic \(pct)) - higher injury risk", flag: .bad)
         }
     }

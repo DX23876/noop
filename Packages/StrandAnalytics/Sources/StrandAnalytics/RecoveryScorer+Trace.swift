@@ -20,7 +20,8 @@ extension RecoveryScorer {
     ///
     /// Every number is computed with the EXACT same expressions as `recovery(...)` (the same zScore call,
     /// the same skin-temp penalty, the same weights), and the returned score IS `recovery(...)` verbatim,
-    /// so the trace and the headline can never diverge. The Kotlin twin is RecoveryScorer.recoveryTrace.
+    /// so the trace and the headline can never diverge. The Kotlin twin is
+    /// RecoveryScorerTrace.recoveryTrace.
     ///
     /// - Parameters mirror `recovery(...)` exactly, taking BaselineState so the trace can read each
     ///   driver's nValid / status; the `usable` cold-start gate is enforced through `recovery(...)`.

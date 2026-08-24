@@ -382,7 +382,24 @@ Three writes to `…0002`, each gated on its ACK; daytime-HR feature id = `0x02`
 - **`bpm = round(60000 / ibi_ms)`** [relue]
 - Example `[08,09] = 01 04` → `ibi = 1025 ms` → ≈ 59 BPM. [relue]
 
-**Disable:** `2f 03 22 02 01` → ACK `2f 03 23 02 00`. Stream stops on ACK. [relue][open_oura-r3]
+**Disable:** `2f 03 22 02 00` → ACK `2f 03 23 02 00`.
+
+> **Correction (2026-08-19):** an earlier draft of this line, and NOOP's own `liveHRDisable()`, wrote
+> mode byte **0x01** here on the strength of [relue][open_oura-r3]'s "stream stops on ACK" report. But
+> §7.2's APK-sourced feature-mode table (the citation this doc itself treats as authoritative over
+> earlier drafts) defines `0x01` as **"automatic"**, not "off" — `0x00` is off. §7.4's own worked
+> example shows mode=1 read back *while daytime-HR is actively streaming*, which is hard to square with
+> "disable." Two consecutive real-hardware NOOP nights (08-17/18, 08-18/19) directly falsified "stream
+> stops on ACK" for the 0x01 write: green `0x28` pushes continued all night at reduced-but-non-zero
+> volume, including resumptions with no reconnect in between — the signature of the ring's own
+> adaptive/motion-triggered "automatic" sampling, not a keep-alive wearing off. Byte corrected to
+> `0x00` here and in `Commands.swift`/`Commands.kt`; unvalidated on hardware as of this edit — see the
+> worklog for the next capture's result. [relue][open_oura-r3]'s original report may reflect a
+> transient quiet window inside the ~20 s auto-revert (§5.7) rather than a genuine off state.
+
+Also send the matching unsubscribe when tearing down a live session: `2f 03 26 02 00` → ACK
+`2f 03 27 02 00`. Step 3 of the enable triplet above leaves the ring subscribed at "latest"
+(byte2 = 2); the mode-disable write alone never turns that subscription back off.
 
 > Behaviour caveat: [open_oura-r3] reports that on its Ring-3 unit, realtime `0x06`-based enabling ACK'd but emitted no stream within 60–90 s, whereas the `0x2F`/feature-`0x02` path above produced ~1 Hz IBI. **NOOP must use the feature-`0x02` (`0x2F`) path, not `0x06`,** and treat absence of `0x28` pushes within ~10 s as "not streaming → retry/reseat."
 
@@ -543,10 +560,34 @@ like its sibling banked streams (`.hrv`/`.temp`/`.spo2`/`.sleepPhase`) — the f
     **zero overlapping days**. The comparison above is therefore distribution-level across
     *non-overlapping* periods (per-sample values vs nightly averages, different nights), which is why it
     can bound the discrepancy but not decompose it.
-  - **Re-pairing to the Oura app afterwards does NOT work — already refuted in practice.** Whichever
+  - **⚠️ CORRECTION 2026-08-19 — "does NOT work" is refuted, not confirmed.** A user re-paired the ring
+    to the Oura app via an OS-level Bluetooth unpair/re-pair (not a ring-side reset — see §5.3's
+    correction for the exact procedure and its caveats) and the app successfully backfilled full sleep
+    summary data, including `0x6F`-relevant SpO2, for two nights NOOP had already drained
+    (2026-08-13/14, 08-18/19). The original claim below is kept for its citation history, but is now
+    known to be wrong for at least this reproduction path — **the same-night comparison this section
+    says is "structurally blocked" is not, for sleep-summary-level data.** A first paired comparison
+    ran on these two nights: Oura app displayed SpO2 98% both nights, which round-matches the
+    offset−0.32/clamp[85,100] correction from §6.5.0.1 (98.11%, 97.39%) and does **not** match the raw
+    wire mean (99.11%, which would round to 99%). n=2 rounded integers, so this corroborates rather than
+    replaces the n=3 WHOOP-referenced MAE analysis in §6.5.0.2 — it does not by itself resolve path (a)
+    below, but it is no longer true that no paired data exists at all.
+    Full writeup: `worklog/analysis/2026-08-19-1730-oura-app-groundtruth-first-paired-comparison.txt`.
+  - **⚠️ UPDATE 2026-08-22 — 3rd full-tier paired night, same read.** Oura app displayed SpO2 **98%**
+    for 08-21/22 (screenshot, not a live-glance). Raw wire mean **99.66%** (rounds to 100% — miss);
+    ceiling@100 **98.48%** (rounds to 98% — hit); offset−0.32+clamp[85,100] **98.31%** (rounds to
+    98% — hit). Running full-tier tally across 3 screenshot-backed nights: raw 1/3, ceiling@100
+    **3/3**, offset+clamp 2/3 — raw is now the transform with the weakest track record of the
+    three; ceiling@100 slightly edges out the offset+clamp fit on this specific (weak,
+    rounded-integer) bar, though §6.5.0.1's own MAE-based fit still argues the opposite ordering.
+    n=3 (4 counting a weaker 08-20/21 live-glance point that missed on all three transforms) does
+    not change the ship decision. Full writeup:
+    `worklog/analysis/2026-08-22-1046-spo2-oura-app-groundtruth-night3.txt`.
+  - ~~**Re-pairing to the Oura app afterwards does NOT work — already refuted in practice.** Whichever
     client drains a window CONSUMES it, so the app finds nothing left for the nights NOOP captured (and
     vice versa). See the warning in §5.3, which records that observation and flags NOOP's unconditional
-    `28 01 00` flush as a candidate cause.
+    `28 01 00` flush as a candidate cause.~~ *(superseded by the correction above, kept struck-through
+    for citation history rather than deleted.)*
   - **Paths that could still settle it**, in increasing cost: (a) **resolve the §5.3 flush question** — if
     suppressing `28 01 00` leaves the history readable by BOTH clients, this comparison becomes possible
     for free. (b) A **reference pulse oximeter worn during sleep** alongside the ring — definitive, but

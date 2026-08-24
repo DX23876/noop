@@ -949,6 +949,15 @@ extension WhoopStore {
                 t.primaryKey(["deviceId", "ts"])
             }
         }
+        // Fork v42 (upstream v39, #979): keep the v26 per-burst counter beside the waveform it segments.
+        // v39-v41 are already shipped fork migrations, so the upstream identifier must not be reused.
+        // Existing rows stay
+        // nil because the counter was discarded before this migration and cannot be reconstructed.
+        migrator.registerMigration("v42-ppg-burst-index") { db in
+            try db.alter(table: "ppgWaveformSample") { t in
+                t.add(column: "burstIndex", .integer)
+            }
+        }
         return migrator
     }
 }

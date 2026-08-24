@@ -110,6 +110,18 @@ public enum IllnessSignalEngine {
         case alreadyUnwell   // user logged feeling unwell — "rest up", not a scare
     }
 
+    /// Semantic presentation state. The UI localizes this enum; it never has to infer meaning from
+    /// the engine's English notification sentence.
+    public enum Message: String, Equatable, Sendable, Codable {
+        case learningBaseline, alreadyUnwellAgree, alreadyUnwell, normal, suppressed, mild, raised
+    }
+
+    /// Locale-free confounder identity for presentation. `suppressedBy` remains the compatible
+    /// human-readable payload used by existing callers; new UIs should localize these typed values.
+    public enum SuppressionReason: String, Equatable, Sendable, Codable {
+        case alcohol, stress, sauna, hardOrLateWorkout, travel
+    }
+
     public struct Result: Equatable, Sendable {
         /// 0–100 composite anomaly score (post-dampening for the suppressed level so the surface matches).
         public let score: Double
@@ -119,15 +131,20 @@ public enum IllnessSignalEngine {
         public let firedSignals: [String]
         /// Named confounders that were present and damped/explained the score, e.g. "alcohol", "travel".
         public let suppressedBy: [String]
+        public let suppressionReasons: [SuppressionReason]
         /// Count of signals over the firing threshold (corroboration), regardless of level.
         public let signalCount: Int
         /// One-line non-clinical copy, terminating in the shipped not-a-diagnosis framing where it raises.
         public let copy: String
+        public let message: Message?
 
         public init(score: Double, level: Level, firedSignals: [String], suppressedBy: [String],
-                    signalCount: Int, copy: String) {
+                    signalCount: Int, copy: String, message: Message? = nil,
+                    suppressionReasons: [SuppressionReason] = []) {
             self.score = score; self.level = level; self.firedSignals = firedSignals
             self.suppressedBy = suppressedBy; self.signalCount = signalCount; self.copy = copy
+            self.message = message
+            self.suppressionReasons = suppressionReasons
         }
     }
 
@@ -170,7 +187,8 @@ public enum IllnessSignalEngine {
         if !context.baselineTrusted {
             return Result(score: score, level: .quiet, firedSignals: firedSignals,
                           suppressedBy: [], signalCount: signalCount,
-                          copy: "Still learning your baseline - keeping an eye out.")
+                          copy: "Still learning your baseline - keeping an eye out.",
+                          message: .learningBaseline)
         }
 
         // Already-unwell path: the user told us. Switch from "early warning" to a gentle "rest up" and
@@ -181,24 +199,30 @@ public enum IllnessSignalEngine {
                 ? "Rest up - you logged feeling unwell, and your numbers agree. \(disclaimerTail)"
                 : "Rest up - you logged feeling unwell. Take it easy today. \(disclaimerTail)"
             return Result(score: score, level: .alreadyUnwell, firedSignals: firedSignals,
-                          suppressedBy: [], signalCount: signalCount, copy: copy)
+                          suppressedBy: [], signalCount: signalCount, copy: copy,
+                          message: agreeing ? .alreadyUnwellAgree : .alreadyUnwell)
         }
 
         // Corroboration + magnitude gate: need ≥ 2 firing signals and a mild-or-better composite, else quiet.
         guard signalCount >= minCorroboratingSignals, score >= mildThreshold else {
             return Result(score: score, level: .quiet, firedSignals: firedSignals,
                           suppressedBy: [], signalCount: signalCount,
-                          copy: "Nothing notable - your signals look like your normal range.")
+                          copy: "Nothing notable - your signals look like your normal range.",
+                          message: .normal)
         }
 
         // Confounder suppression — the differentiating part. Collect every present behaviour/travel tag
         // that offers a plainer explanation; if any are present, dampen the score and downgrade.
         var suppressedBy: [String] = []
-        if context.alcohol { suppressedBy.append("alcohol") }
-        if context.stress { suppressedBy.append("stress") }
-        if context.sauna { suppressedBy.append("sauna") }
-        if context.hardOrLateWorkout { suppressedBy.append("a hard or late workout") }
-        if context.travelPhaseJump { suppressedBy.append("travel") }
+        var suppressionReasons: [SuppressionReason] = []
+        if context.alcohol { suppressedBy.append("alcohol"); suppressionReasons.append(.alcohol) }
+        if context.stress { suppressedBy.append("stress"); suppressionReasons.append(.stress) }
+        if context.sauna { suppressedBy.append("sauna"); suppressionReasons.append(.sauna) }
+        if context.hardOrLateWorkout {
+            suppressedBy.append("a hard or late workout")
+            suppressionReasons.append(.hardOrLateWorkout)
+        }
+        if context.travelPhaseJump { suppressedBy.append("travel"); suppressionReasons.append(.travel) }
 
         let signalsPhrase = firedSignals.isEmpty ? "Some signals are up" : firedSignals.joined(separator: ", ")
 
@@ -208,7 +232,8 @@ public enum IllnessSignalEngine {
             let copy = "Some signals are up (\(signalsPhrase)), but you logged \(reason) - likely that, "
                 + "not illness. \(disclaimerTail)"
             return Result(score: dampened, level: .suppressed, firedSignals: firedSignals,
-                          suppressedBy: suppressedBy, signalCount: signalCount, copy: copy)
+                          suppressedBy: suppressedBy, signalCount: signalCount, copy: copy,
+                          message: .suppressed, suppressionReasons: suppressionReasons)
         }
 
         // No confounder. Mild stays in the detail view; a strong composite raises.
@@ -216,14 +241,14 @@ public enum IllnessSignalEngine {
             let copy = "A few signals are mildly up (\(signalsPhrase)). Nothing alarming - worth a calmer "
                 + "day. \(disclaimerTail)"
             return Result(score: score, level: .mild, firedSignals: firedSignals,
-                          suppressedBy: [], signalCount: signalCount, copy: copy)
+                          suppressedBy: [], signalCount: signalCount, copy: copy, message: .mild)
         }
 
         let ruledOut = "no alcohol or travel logged"
         let copy = "Heads-up - your body looks strained. \(signalsPhrase). With \(ruledOut), consider "
             + "taking it easy. \(disclaimerTail)"
         return Result(score: score, level: .raised, firedSignals: firedSignals,
-                      suppressedBy: [], signalCount: signalCount, copy: copy)
+                      suppressedBy: [], signalCount: signalCount, copy: copy, message: .raised)
     }
 
     // MARK: - Helpers

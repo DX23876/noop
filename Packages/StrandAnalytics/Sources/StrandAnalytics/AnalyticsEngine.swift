@@ -66,6 +66,10 @@ public enum AnalyticsEngine {
         public let cachedSleep: [CachedSleepSession]
         /// Detected workout/exercise sessions.
         public let workouts: [ExerciseSession]
+        /// #1545: where the detector lost every candidate workout on this day. nil only when detection did
+        /// not run. Always populated otherwise — including (especially) when `workouts` is empty, which is
+        /// the case the counts exist to explain.
+        public let detectionFunnel: WorkoutDetector.DetectionFunnel?
         /// Recovery / "Charge" score [0,100] or nil (cold-start / no HRV baseline).
         public let recovery: Double?
         /// Ordered Charge driver breakdown (one row per real term that fed the score, biggest
@@ -117,9 +121,11 @@ public enum AnalyticsEngine {
                     sessionMotionByStart: [Int: [Double]] = [:],
                     sessionSleepStateByStart: [Int: [Int]] = [:],
                     chargeDrivers: [ChargeDriver] = [],
-                    skinTempRelative: SkinTempRelative? = nil) {
+                    skinTempRelative: SkinTempRelative? = nil,
+                    detectionFunnel: WorkoutDetector.DetectionFunnel? = nil) {
             self.daily = daily; self.sleepSessions = sleepSessions
             self.cachedSleep = cachedSleep; self.workouts = workouts
+            self.detectionFunnel = detectionFunnel
             self.recovery = recovery; self.strain = strain
             self.chargeDrivers = chargeDrivers
             self.skinTempRelative = skinTempRelative
@@ -451,7 +457,15 @@ public enum AnalyticsEngine {
                                   // #141: when true, the nightly HRV is RMSSD over DEEP-sleep windows only
                                   // (WHOOP-style), instead of the whole-night mean. Threaded from the caller
                                   // (UnitPrefs.hrvWindowKey). Default false = byte-identical whole-night value.
-                                  deepHrvWindow: Bool = false) -> DayResult {
+                                  deepHrvWindow: Bool = false,
+                                  // #1545: which TRIMP recipe scores Effort. Edwards (the default) is
+                                  // time-in-zone and pays NOTHING below 50% HRR, so intermittent work —
+                                  // a lifting session, once the sets are averaged against the rests —
+                                  // can score near zero however long it lasts. Banister is exponential in
+                                  // %HRR with no floor. Threaded rather than read from a global so this
+                                  // stays a pure function, and defaulted so every existing caller and
+                                  // test is byte-identical.
+                                  effortMethod: StrainScorer.Method = .edwards) -> DayResult {
 
         // Precompute the day's UTC bounds ONCE (#996). `dayString(ts, offsetSec:)` formats the UTC
         // calendar day of (ts + offset) with a FIXED offset, so "== day" is exactly membership in
@@ -788,7 +802,7 @@ public enum AnalyticsEngine {
         let effMaxHR: Double? = maxHROverride ?? (profile.age > 0 ? StrainScorer.tanakaHRmax(age: profile.age) : nil)
         let restForStrain = restingHRDaily.map(Double.init) ?? StrainScorer.defaultRestingHR
         let strain = StrainScorer.strain(dayHr ?? hr, maxHR: effMaxHR, restingHR: restForStrain,
-                                         sex: profile.sex)
+                                         method: effortMethod, sex: profile.sex)
 
         // ── Workouts ──────────────────────────────────────────────────────────
         // Detect over the full CALENDAR day (dayHr/dayGravity) when the caller supplies it, so a
@@ -796,12 +810,31 @@ public enum AnalyticsEngine {
         // a later pass re-reads it through the next night window (which ends at ≈ noon). Falls back
         // to the night window for pure-function callers/tests. restingHR still comes from the night's
         // sleep sessions; nil → WorkoutDetector derives it from the day's own HR floor.
+        var detectionFunnel: WorkoutDetector.DetectionFunnel? = nil
         let workouts = WorkoutDetector.detect(
             hr: dayHr ?? hr, gravity: dayGravity ?? gravity,
             restingHR: restingHRDaily.map(Double.init),
-            maxHR: maxHROverride,
+            // #1545: the DAY's effective HRmax, not just the override. Passing `maxHROverride` meant an
+            // install with no override left the detector to fall back to `StrainScorer.estimateHRmax`,
+            // which returns max(observed p99.5, Tanaka) -- so every bout was measured against a HRmax at
+            // least as high as, and usually higher than, the one its own day used. A higher HRmax is a
+            // bigger reserve and therefore a SMALLER %HRR, so bouts were held to a stricter yardstick
+            // than the day containing them: for age 30 / RHR 60 with an observed 195, a 125 bpm minute is
+            // zone 1 for the day and zone 0 for the bout. That is the same
+            // day-disagrees-with-its-own-workouts failure #1562 fixed for the TRIMP method.
+            //
+            // This also feeds the z2+ qualification gate below, so it changes which bouts are DETECTED,
+            // not only how they score -- in the direction of no longer dropping a workout by a standard
+            // its own day never applied. Still nil for an age-less profile, where the detector's own
+            // estimate remains the only available fallback.
+            maxHR: effMaxHR,
             age: profile.age > 0 ? profile.age : nil,
-            profile: profile)
+            profile: profile,
+            // #1545: the bouts inside a day MUST be scored by the same recipe as the day itself.
+            // A day on Banister whose workouts were still on Edwards would show a session scoring
+            // less than the day it sits inside, which is a worse inconsistency than either method.
+            effortMethod: effortMethod,
+            funnel: { detectionFunnel = $0 })
 
         // ── Steps (APPROXIMATE) ───────────────────────────────────────────────
         // step_motion_counter@57 is a CUMULATIVE u16 running counter (it climbs while you move, holds
@@ -931,7 +964,8 @@ public enum AnalyticsEngine {
                          sessionMotionByStart: sessionMotionByStart,
                          sessionSleepStateByStart: sessionSleepStateByStart,
                          chargeDrivers: chargeDrivers,
-                         skinTempRelative: skinTempRelative)
+                         skinTempRelative: skinTempRelative,
+                         detectionFunnel: detectionFunnel)
     }
 
     // MARK: - Rest composite (Charge/Effort/Rest)
@@ -1160,6 +1194,46 @@ public enum AnalyticsEngine {
             guard let v = a.auxByte82, (70...100).contains(v) else { continue }
             guard sessions.contains(where: { $0.start <= a.ts && a.ts <= $0.end }) else { continue }
             sum += v; kept += 1
+        }
+        guard kept > 0 else { return nil }
+        return (mean: sum / kept, samples: kept)
+    }
+
+    /// The plausible range for a raw Oura `0x6F` SpO2 sample before the ceiling transform below.
+    /// Excludes the mis-scaled `dc_raw`/perfusion-channel contamination (-1016 … 11,709,098,
+    /// OURA_PROTOCOL.md §6.5.0.1) by three orders of magnitude, same bounds as
+    /// `Repository.spo2SingleChannelPlausible` (kept in sync manually — the app layer cannot be
+    /// imported here, so that display gate should read from this one instead of redefining it).
+    public static let spo2SingleChannelPlausible = 50...110
+
+    /// Nightly **ceiling@100** mean of the Oura ring's own decoded SpO2 (`spo2Sample.red`, `0x6F`)
+    /// over the detected in-bed `sessions`, with the sample count it rests on — or nil when no
+    /// plausible sample fell inside any span. Oura twin of `nightlySpo2CandidateMean` above; queue
+    /// 11a's starting transform.
+    ///
+    /// WHY CEILING@100, NOT RAW OR THE OFFSET+CLAMP FIT. `0x6F`'s raw wire mean carries a
+    /// consistent positive bias — 20-48% of samples on a contamination-clean night read above the
+    /// physical 100% ceiling (OURA_PROTOCOL.md §6.5.0.1) — so the raw mean is the ONE transform
+    /// that has missed the Oura app's own displayed value on every full-tier paired night measured
+    /// so far (1/3 as of 2026-08-22, see §6.5.0). `min(sample, 100)` applied PER-SAMPLE before
+    /// averaging (a clamp on the aggregate mean is a different, wrong number) has round-matched
+    /// the app's displayed value on all 3 of those nights — the best track record of the
+    /// candidates tried, edging out the offset−0.32+clamp[85,100] fit (2/3) on this same bar. Not a
+    /// validated calibration (n=3, only the rounded integer, not the app's internal precision) —
+    /// per the derived-biosignal rule (CLAUDE.md), it ships the same way `spo2_candidate_82` ships:
+    /// diagnostic-only, gated behind the display toggle, never written to `spo2Pct`, never scored.
+    ///
+    /// Gated to `spo2SingleChannelPlausible` (50...110) BEFORE the ceiling is applied, so a
+    /// contaminated row (down to -1016) cannot drag the mean down — the ceiling alone only guards
+    /// the top of the range. Byte-parity twin of the Kotlin `nightlySpo2CeilingMean`.
+    public static func nightlySpo2CeilingMean(_ sessions: [SleepSession],
+                                        spo2: [SpO2Sample]) -> (mean: Int, samples: Int)? {
+        guard !sessions.isEmpty, !spo2.isEmpty else { return nil }
+        var sum = 0, kept = 0
+        for s in spo2 {
+            guard spo2SingleChannelPlausible.contains(s.red) else { continue }
+            guard sessions.contains(where: { $0.start <= s.ts && s.ts <= $0.end }) else { continue }
+            sum += min(s.red, 100); kept += 1
         }
         guard kept > 0 else { return nil }
         return (mean: sum / kept, samples: kept)

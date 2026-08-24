@@ -667,6 +667,9 @@ private struct FitnessAgeSection: View {
     /// Latest estimated VO₂max (ml/kg/min) from "vo2max_est" — present even without a waist (the Uth
     /// HR-ratio fallback, #1391); a waist upgrades it to the more accurate Nes waist-based estimate.
     @State private var vo2max: Double?
+    /// Estimator captured beside the latest value. nil is an honest legacy-unknown state, never inferred
+    /// from today's waist because the profile may have changed since the point was scored.
+    @State private var vo2maxEstimator: Vo2MaxEstimator?
     @State private var loaded = false
     /// True while a manual "refresh Fitness Age" recompute is running (spinner in the readiness card).
     @State private var refreshing = false
@@ -851,6 +854,9 @@ private struct FitnessAgeSection: View {
                             Text("ml/kg/min")
                                 .font(StrandFont.footnote)
                                 .foregroundStyle(StrandPalette.textTertiary)
+                            Text("\(String(localized: "On-device")) · \(vo2MaxEstimatorDisplayName(vo2maxEstimator))")
+                                .font(StrandFont.footnote)
+                                .foregroundStyle(StrandPalette.textTertiary)
                         }
                     }
                     Image(systemName: "chevron.right")
@@ -911,9 +917,17 @@ private struct FitnessAgeSection: View {
     /// freshest point — the weekly value is keyed to the week's Saturday and refines through the week.
     private func load() async {
         let faPts = await repo.exploreSeries(key: "fitness_age", source: "my-whoop")
-        let vo2Pts = await repo.exploreSeries(key: "vo2max_est", source: "my-whoop")
+        let vo2Resolution = await repo.resolvedSeries(key: "vo2max_est", source: "my-whoop")
         fitnessAge = faPts.last?.value
-        vo2max = vo2Pts.last?.value
+        if let latest = vo2Resolution.points.last {
+            vo2max = latest.value
+            let tag = await repo.scoreProvenanceTag(
+                resolvedSource: latest.source, day: latest.day, metricKey: "vo2max_est")
+            vo2maxEstimator = tag.flatMap { Vo2MaxEstimator(rawValue: $0) }
+        } else {
+            vo2max = nil
+            vo2maxEstimator = nil
+        }
         loaded = true
     }
 }
@@ -1230,8 +1244,9 @@ private struct VitalsSection: View {
         return UnitPrefs.resolveTemperature(system: system, override: temperatureRaw)
     }
 
-    // #103: SpO₂ candidate @82 nightly means from metricSeries, loaded when the experimental toggle is ON.
-    // Empty when the toggle is OFF or no candidate data exists (WHOOP 4.0 has no v18 aux stream).
+    // #103/queue-11a: SpO₂ candidate nightly means from metricSeries — WHOOP `spo2_candidate_82`, or an
+    // Oura owner's ceiling@100 `0x6F` mean (device-conditional, see IntelligenceEngine) — loaded when
+    // the experimental toggle is ON. Empty when the toggle is OFF or no candidate data exists.
     @State private var spo2CandidateByDay: [String: Double] = [:]
     @State private var hrvOverCountByDay: [String: Double] = [:]   // #1118
 
@@ -1271,10 +1286,12 @@ private struct VitalsSection: View {
             // from the computed metricSeries. Absent/0 on a clean or imported night → no caveat.
             let ocPts = await repo.exploreSeries(key: "hrv_rr_overcount", source: "my-whoop", days: 14)
             hrvOverCountByDay = Dictionary(ocPts.map { ($0.day, $0.value) }, uniquingKeysWith: { a, _ in a })
-            // #103: load the SpO₂ candidate @82 nightly means from metricSeries when the toggle is ON.
-            // The engine writes "spo2_candidate" under the "-noop" computed device ID; `exploreSeries`
-            // with source "my-whoop" reads it from Layer 2 (computed metricSeries). Empty when the toggle
-            // is OFF (the engine writes nothing) or on a WHOOP 4.0 (no v18 aux stream).
+            // #103/queue-11a: load the SpO₂ candidate nightly means from metricSeries when the toggle is
+            // ON. The engine writes "spo2_candidate" under the "-noop" computed device ID; `exploreSeries`
+            // with source "my-whoop" reads it from Layer 2 (computed metricSeries) — "my-whoop" is the
+            // generic active-strap sentinel, resolved through `computedReadIds`, so this already covers
+            // an Oura ring's own computed id. Empty when the toggle is OFF (the engine writes nothing) or
+            // the owner has no in-band reading for its device.
             guard PuffinExperiment.spo2CandidateDisplayEnabled else {
                 spo2CandidateByDay = [:]
                 return

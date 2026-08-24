@@ -76,6 +76,12 @@ struct LiquidTodayView: View {
     @State private var fitnessAge: Double?         // exploreSeries("fitness_age").last
     @State private var vo2max: Double?             // exploreSeries("vo2max_est").last (#1391)
     @State private var vitality: Double?           // exploreSeries("vitality").last
+    // Queue 11a: day-keyed "spo2_candidate" metricSeries (WHOOP `spo2_candidate_82` or Oura
+    // ceiling@100 `0x6F`, device-conditional — see `IntelligenceEngine`). Empty when the
+    // experimental toggle is OFF (the engine writes nothing) or the owner has no in-band reading.
+    // Read unconditionally like the classic TodayView's `spo2CandidateSpark` — always empty when
+    // the toggle is off, so no separate gate is needed at fetch time.
+    @State private var spo2CandidateByDay: [String: Double] = [:]
     @State private var stepsEst: Double?           // steps_est, day-keyed to the selected day (fallback)
     @State private var importedStepsDay: Int?      // Apple Health steps for the selected day (middle tier)
     @State private var importedActiveKcalDay: Double?  // #616: Apple Health active energy for the day (calorie fallback)
@@ -518,6 +524,16 @@ struct LiquidTodayView: View {
             #endif
         }
         .coordinateSpace(name: Self.pullSpace)
+        #if os(iOS)
+        // #697 parity: ScreenScaffold already stops a vertical scroll from drifting/bouncing the
+        // screen left-right on every other tab. Liquid Today runs its own ScrollView (not
+        // ScreenScaffold) and never got the fix, so it was the one screen left with the spurious
+        // horizontal rubber-band/swipe. `.basedOnSize` only permits horizontal bounce when content
+        // genuinely overflows the width (it does not here, the column is width-capped), so this
+        // brings Today's scroll behaviour in line with the rest of the app without touching the
+        // vertical pull-to-refresh gesture above.
+        .scrollBounceBehavior(.basedOnSize, axes: .horizontal)
+        #endif
         .onPreferenceChange(PullOffsetKey.self) { handlePull($0) }
         // The sky is a FIXED full-bleed backdrop drawn behind the scroll content, edge-to-edge under the
         // status bar. A ScrollView background does not scroll with the content, so pulling down never
@@ -1729,11 +1745,20 @@ struct LiquidTodayView: View {
         case .restingHr:
             ktile(String(localized: "Rest HR"), icon: metric.customizationIcon, intText(rhr), "bpm", StrandPalette.metricRose, fracOver(rhr, 100), key: "rhr")
         case .bloodOxygen:
-            let spo2 = displayDay?.spo2Pct ?? vitalsDay?.spo2Pct
-            ktile("SpO₂", icon: metric.customizationIcon, intText(spo2), "%", StrandPalette.metricCyan, fracOver(spo2, 100), key: "spo2")
+            let spo2Real = displayDay?.spo2Pct ?? vitalsDay?.spo2Pct
+            let candidate = spo2Real == nil && PuffinExperiment.spo2CandidateDisplayEnabled
+                ? spo2CandidateByDay[cachedDisplayDay?.day ?? selectedDayKey]
+                : nil
+            let spo2 = spo2Real ?? candidate
+            ktile("SpO₂", icon: metric.customizationIcon, intText(spo2), "%",
+                  StrandPalette.metricCyan, fracOver(spo2, 100),
+                  key: candidate == nil ? "spo2" : "spo2_candidate",
+                  caption: candidate == nil ? nil : String(localized: "strap estimate (unverified)"))
         case .respiratory:
             let resp = displayDay?.respRateBpm ?? vitalsDay?.respRateBpm ?? respDay?.respRateBpm
-            ktile(String(localized: "Respiratory"), icon: metric.customizationIcon, resp.map { String(format: "%.1f", $0) } ?? "—", "rpm", StrandPalette.accent, fracOver(resp, 24), key: "resp_rate")
+            ktile(String(localized: "Respiratory"), icon: metric.customizationIcon,
+                  resp.map { String(format: "%.1f", locale: AppLanguage.activeLocale, $0) } ?? "—",
+                  "rpm", StrandPalette.accent, fracOver(resp, 24), key: "resp_rate")
         case .steps:
             ktile(String(localized: "Steps"), icon: metric.customizationIcon, stepsText, "", StrandPalette.chargeColor,
                   fracOver(stepCount, 10000), key: stepsDetailKey, detailMetric: stepsDetailMetric)
@@ -1749,7 +1774,8 @@ struct LiquidTodayView: View {
     }
 
     private func ktile(_ label: String, icon: String, _ value: String, _ unit: String, _ tint: Color, _ frac: Double?,
-                       key: String? = nil, detailMetric: MetricDescriptor? = nil) -> some View {
+                       key: String? = nil, detailMetric: MetricDescriptor? = nil,
+                       caption: String? = nil) -> some View {
         // Two columns means ~50pt more width per tile — spend it on legibility (a bigger number, a taller
         // trend) instead of leaving it as empty card.
         let wide = keyMetricsColumns <= 2
@@ -1776,6 +1802,13 @@ struct LiquidTodayView: View {
                 .foregroundStyle(StrandPalette.textPrimary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
+            if let caption {
+                Text(caption)
+                    .font(StrandFont.footnote)
+                    .foregroundStyle(StrandPalette.textTertiary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+            }
             // A tile with no meaningful 0–100 fill (Weight is the only one) keeps a clear placeholder
             // instead of a permanently empty tube beside filled ones — classic Today draws no bar there
             // at all. Same equal-height idiom as the missing-sparkline branch below.
@@ -2003,6 +2036,8 @@ struct LiquidTodayView: View {
         async let vo2A = repo.exploreSeries(key: "vo2max_est", source: "my-whoop")
         async let vitA = repo.exploreSeries(key: "vitality", source: "my-whoop")
         async let stepsA = repo.exploreSeries(key: "steps_est", source: "my-whoop")
+        // Queue 11a: SpO₂ candidate fallback (see `spo2CandidateByDay`'s declaration).
+        async let spo2CandA = repo.exploreSeries(key: "spo2_candidate", source: "my-whoop")
         async let appleA = repo.appleDailyRows()
         async let hrA = repo.hrBuckets(from: from, to: to, bucketSeconds: 300)
         // `reconcileHrCap: 8` — same shape as `TodayView`: this renders `workouts.prefix(6)` and otherwise
@@ -2056,6 +2091,11 @@ struct LiquidTodayView: View {
         // matching the imported-first VALUE. Union of imported days + strap-row days. Mirrors Android's
         // caloriesSpark (windowed caloriesByDay).
         let appleRowsForSpark = await appleA
+        let spo2CandSeries = await spo2CandA
+        spo2CandidateByDay = Dictionary(
+            spo2CandSeries.map { ($0.day, $0.value) },
+            uniquingKeysWith: { _, last in last }
+        )
         // Weight: same 3-tier resolution as classic/Heute (`Repository.resolveWeightKg`) — this tile was
         // permanently hardcoded to "—" before (never wired), unlike every other Key Metric here.
         let latestAppleWeightKg = appleRowsForSpark.filter { ($0.weightKg ?? 0) > 10 }.max { $0.day < $1.day }?.weightKg
@@ -2077,6 +2117,7 @@ struct LiquidTodayView: View {
             "hrv": sparkRows.compactMap { r in r.avgHrv.map { (r.day, $0) } },
             "rhr": sparkRows.compactMap { r in r.restingHr.map { (r.day, Double($0)) } },
             "spo2": sparkRows.compactMap { r in r.spo2Pct.map { (r.day, $0) } },
+            "spo2_candidate": spo2CandSeries.filter { $0.day >= sparkCutoff && $0.day <= selectedDayKey },
             "resp_rate": sparkRows.compactMap { r in r.respRateBpm.map { (r.day, $0) } },
             "steps": sparkRows.compactMap { r in r.steps.map { (r.day, Double($0)) } },
             // #616: the Calories tile drew no trend line — this dict had no matching entry, so windowedSpark
@@ -2281,11 +2322,11 @@ struct LiquidTodayView: View {
 
     private func unitText(_ v: Double?, _ unit: String, decimals: Int = 0) -> String {
         guard let v else { return "–" }
-        let n = decimals > 0 ? String(format: "%.\(decimals)f", v) : String(Int(v.rounded()))
+        let n = decimals > 0 ? String(format: "%.\(decimals)f", locale: AppLanguage.activeLocale, v) : String(Int(v.rounded()))
         return unit.isEmpty ? n : "\(n) \(unit)"
     }
 
-    private var stressText: String { stress.map { String(Int($0.rounded())) } ?? "Calibrating" }
+    private var stressText: String { stress.map { String(Int($0.rounded())) } ?? String(localized: "Calibrating") }
 
     private var sleepText: String {
         guard let m = displayDay?.totalSleepMin else { return "–" }
@@ -2476,7 +2517,7 @@ private struct HeroScoreCell: View {
                 }
                 .buttonStyle(.plain)
             }
-            .accessibilityLabel(Text("\(label), \(score.map { decimals > 0 ? String(format: "%.\(decimals)f", $0) : String(Int($0.rounded())) } ?? String(localized: "no data yet")). See how it is scored."))
+            .accessibilityLabel(Text("\(label), \(score.map { decimals > 0 ? String(format: "%.\(decimals)f", locale: AppLanguage.activeLocale, $0) : String(Int($0.rounded())) } ?? String(localized: "no data yet")). See how it is scored."))
         }
         .frame(maxWidth: .infinity)
     }
@@ -3084,7 +3125,7 @@ private struct LiquidStrapBatteryRow: View {
     /// Mac / Android pill and the classic Today badge.
     private func batteryText(pct: Double) -> String {
         let base = "\(Int(pct.rounded()))%"
-        if live.charging == true { return "\(base) · Charging" }
+        if live.charging == true { return "\(base) · \(String(localized: "Charging"))" }
         if let est = estimateText { return "\(base) · \(est)" }
         return base
     }

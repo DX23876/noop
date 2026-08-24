@@ -10,7 +10,7 @@ Packages/StrandDesign/Sources/StrandDesign/Resources/Localizable.xcstrings:zh-Ha
 NOOPWatchComplications/Localizable.xcstrings:it 25
 NOOPWatchComplications/Localizable.xcstrings:zh-Hans 25
 NOOPWatchComplications/Localizable.xcstrings:zh-Hant 25
-Strand/Resources/Localizable.xcstrings:it 168
-Strand/Resources/Localizable.xcstrings:ru 145
-Strand/Resources/Localizable.xcstrings:zh-Hans 118
-Strand/Resources/Localizable.xcstrings:zh-Hant 168
+Strand/Resources/Localizable.xcstrings:it 165
+Strand/Resources/Localizable.xcstrings:ru 142
+Strand/Resources/Localizable.xcstrings:zh-Hans 115
+Strand/Resources/Localizable.xcstrings:zh-Hant 165
