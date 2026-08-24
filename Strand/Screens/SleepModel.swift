@@ -54,7 +54,16 @@ struct Night {
     /// `applySleepEdit` matches. nil when there's no underlying block (a synthetic stub) — the edit
     /// affordance is then hidden. (#318, #518, #547)
     var editTarget: CachedSleepSession? {
-        SleepView.mainNightSession(sourceBlocks, habitualMidsleepSec: habitualMidsleepSec)
+        SleepView.mainNightSession(editGroup, habitualMidsleepSec: habitualMidsleepSec)
+    }
+
+    /// The exact stored fragments represented by the hero's visible bed/wake window. The main-night
+    /// selector first bridges the group; the onset-stub rule then removes any leading fragment the hero
+    /// deliberately does not show. Editing this group therefore changes the same object the user sees.
+    var editGroup: [CachedSleepSession] {
+        let full = SleepView.mainNightGroup(sourceBlocks, habitualMidsleepSec: habitualMidsleepSec)
+        let onset = SleepModel.nightOnsetTs(full)
+        return full.filter { $0.effectiveStartTs >= onset }
     }
 
     /// The `startTs` of every block in the day's bridged MAIN-night GROUP (the winning block plus the

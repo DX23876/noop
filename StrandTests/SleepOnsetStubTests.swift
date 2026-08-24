@@ -1,4 +1,5 @@
 import XCTest
+import WhoopStore
 @testable import Strand
 
 /// #736: the Sleep tab showed the WRONG bedtime (the earliest pre-sleep fragment, e.g. 21:41) while the
@@ -8,6 +9,35 @@ import XCTest
 /// sleepless). These golden tests pin that rule on the pure helpers so a regression can't slip past the
 /// view internals. The Android twin lives in SleepScreen's isPreOnsetAwakeStub.
 final class SleepOnsetStubTests: XCTestCase {
+
+    /// The editor must operate on the same visible fragment group as the hero. A leading awake stub is
+    /// intentionally hidden from the displayed bedtime, so it must also be excluded from the edit group;
+    /// otherwise saving the visible bounds can resurrect the hidden stub on the next analysis pass.
+    func testNightEditGroupMatchesVisibleWindowAfterLeadingStub() {
+        let stubStart = 100_000
+        let stub = CachedSleepSession(
+            startTs: stubStart,
+            endTs: stubStart + 15 * 60,
+            efficiency: nil,
+            restingHr: nil,
+            avgHrv: nil,
+            stagesJSON: #"{"awake":15,"light":0,"deep":0,"rem":0}"#)
+        let mainStart = stub.endTs + 60
+        let main = CachedSleepSession(
+            startTs: mainStart,
+            endTs: mainStart + 7 * 3_600,
+            efficiency: nil,
+            restingHr: nil,
+            avgHrv: nil,
+            stagesJSON: #"{"awake":20,"light":250,"deep":80,"rem":70}"#)
+        let night = Night(
+            session: main,
+            stages: Stages(awake: 20, light: 250, deep: 80, rem: 70),
+            sourceBlocks: [stub, main])
+
+        XCTAssertEqual(night.editGroup.map(\.startTs), [mainStart])
+        XCTAssertEqual(night.editTarget?.startTs, mainStart)
+    }
 
     // MARK: - isPreOnsetAwakeStub (the per-fragment rule)
 

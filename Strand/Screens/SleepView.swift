@@ -217,19 +217,19 @@ struct SleepView: View {
                 model = buildModel()
             }
             .sheet(item: $wakeEdit) { edit in
-                // The night's RECORDED coverage for the #940 guards: from the immutable detected
-                // onset (where the strap actually saw the night; an earlier hand-set onset widens
-                // it) through the current wake. A corrected window that abandons this range has no
-                // data to stage from, so the editor confirms the move instead of silently creating
-                // a phantom night.
-                let coverageLo = min(edit.detectedStartTs, edit.bedTs)
+                // Validate against the WHOLE bridged night, not just its selector-winning fragment.
+                // On a split night that one row often owns neither visible edge; fragment-scoped seed,
+                // gate and write were why a successful correction appeared to jump straight back.
+                let coverageLo = edit.group.map { min($0.startTs, $0.effectiveStartTs) }.min() ?? edit.bedTs
+                let coverageHi = edit.group.map(\.endTs).max() ?? edit.wakeTs
                 SleepTimeEditor(bedTs: edit.bedTs, wakeTs: edit.wakeTs,
-                                coverage: coverageLo...max(edit.wakeTs, coverageLo + 1),
+                                coverage: coverageLo...max(coverageHi, coverageLo + 1),
                                 suppressesReDetection: !edit.userEdited,
                                 onSave: { newBedTs, newWakeTs in
-                    await repo.editSleepTimes(detectedStartTs: edit.detectedStartTs, oldEndTs: edit.wakeTs,
-                                              storedStagesJSON: edit.stagesJSON,
-                                              newStartTs: newBedTs, newEndTs: newWakeTs)
+                    let result = await repo.editSleepGroupTimes(edit.group,
+                                                               newStartTs: newBedTs,
+                                                               newEndTs: newWakeTs)
+                    guard let result else { return }
                     // Re-score the day so the dashboard aggregates (Rest / recovery) honor the corrected
                     // sleep window, not just the Sleep tab's session view; then refresh the read cache.
                     await intelligence.analyzeRecent()
@@ -238,6 +238,10 @@ struct SleepView: View {
                     // night used to leave that wrong plan standing for the rest of the day — the exact
                     // complaint behind this change — because the day was already stamped.
                     CoachBriefStamp.invalidateAfterSleepCorrection(wakeTs: newWakeTs)
+                    if !result.retired.isEmpty {
+                        presentSleepUndo(result.retired, displayStart: newBedTs,
+                                         windowEnd: newWakeTs, fromEdit: true)
+                    }
                 }, onDelete: {
                     // Delete = the edit path minus the re-insert: drop this session so every metric
                     // recomputes immediately as if the night were never recorded, durably tombstoned so a
@@ -251,7 +255,10 @@ struct SleepView: View {
                     CoachBriefStamp.invalidateAfterSleepCorrection(wakeTs: edit.wakeTs)
                     // `edit.bedTs` is the effective (displayed) onset, so the banner shows the same clock
                     // time the user saw for this night.
-                    if let snapshot { presentSleepUndo(snapshot, displayStart: edit.bedTs, windowEnd: edit.wakeTs) }
+                    if let snapshot {
+                        presentSleepUndo([snapshot], displayStart: edit.bedTs,
+                                         windowEnd: edit.wakeTs, fromEdit: false)
+                    }
                 })
             }
             // Manually add a missed nap (#508): same picker, but the chosen window is staged from raw and
@@ -285,13 +292,16 @@ struct SleepView: View {
     /// Show the transient UNDO banner after a suppressing delete, and arm the 7-second auto-dismiss. A
     /// second delete replaces the banner (its old auto-dismiss task is cancelled first) so only the most
     /// recent delete is undoable. Single-level and transient, matching the WorkoutsView postLogNote idiom.
-    private func presentSleepUndo(_ snapshot: SleepDeletionSnapshot, displayStart: Int, windowEnd: Int) {
+    private func presentSleepUndo(_ snapshots: [SleepDeletionSnapshot], displayStart: Int,
+                                  windowEnd: Int, fromEdit: Bool) {
+        guard let first = snapshots.first else { return }
         sleepUndoTask?.cancel()
         withAnimation(.easeOut(duration: 0.2)) {
-            sleepUndo = SleepUndoBanner(snapshot: snapshot, identityStart: snapshot.session.startTs,
-                                        displayStart: displayStart, windowEnd: windowEnd)
+            sleepUndo = SleepUndoBanner(snapshots: snapshots, identityStart: first.session.startTs,
+                                        displayStart: displayStart, windowEnd: windowEnd,
+                                        fromEdit: fromEdit)
         }
-        let armed = snapshot.session.startTs
+        let armed = first.session.startTs
         sleepUndoTask = Task {
             try? await Task.sleep(nanoseconds: 7_000_000_000)
             guard !Task.isCancelled else { return }
@@ -308,7 +318,7 @@ struct SleepView: View {
     /// tombstone, re-score, then dismiss the banner.
     private func undoSleepDelete(_ banner: SleepUndoBanner) async {
         sleepUndoTask?.cancel()
-        await repo.undoDeleteSleepSession(banner.snapshot)
+        await repo.undoDeleteSleepSessions(banner.snapshots)
         await intelligence.analyzeRecent()
         await repo.refresh()
         await MainActor.run { withAnimation(.easeOut(duration: 0.2)) { sleepUndo = nil } }
@@ -327,9 +337,12 @@ struct SleepView: View {
         // Branch the copy on userEdited: a hand-edited/added night writes NO tombstone (it is never
         // re-detected), so the suppression promise would be false for it. Only a DETECTED delete writes a
         // tombstone, so only it gets the "won't detect ... again" wording. (#65 banner honesty.)
-        let message = banner.snapshot.session.userEdited
-            ? String(localized: "Sleep deleted.")
-            : String(localized: "Sleep deleted. NOOP won't detect sleep between \(clockTime(banner.displayStart)) and \(clockTime(banner.windowEnd)) again.")
+        let first = banner.snapshots[0]
+        let message = banner.fromEdit
+            ? String(localized: "Sleep outside the new times was removed.")
+            : (first.session.userEdited
+                ? String(localized: "Sleep deleted.")
+                : String(localized: "Sleep deleted. NOOP won't detect sleep between \(clockTime(banner.displayStart)) and \(clockTime(banner.windowEnd)) again."))
         HStack(alignment: .center, spacing: 10) {
             Image(systemName: "moon.zzz")
                 .font(.system(size: 14, weight: .semibold))
@@ -716,10 +729,9 @@ struct SleepView: View {
                 whyPopover(text: "", napSuffix: true)
             }
             Button {
-                wakeEdit = WakeEdit(detectedStartTs: nap.startTs,
+                wakeEdit = WakeEdit(group: [nap], detectedStartTs: nap.startTs,
                                     bedTs: nap.effectiveStartTs,
                                     wakeTs: nap.endTs,
-                                    stagesJSON: nap.stagesJSON,
                                     userEdited: true)   // a nap row is always manually added → no tombstone on delete
             } label: {
                 Image(systemName: isEdited ? "pencil.circle.fill" : "pencil.circle")
@@ -1128,13 +1140,15 @@ struct SleepView: View {
         // Resolve the real stored block by identity (the night's main block), never by re-scanning
         // `allSessions` for a wake-time match — that guess could pick the wrong source/night and, when
         // it missed, fall back to the synthetic effective onset (not a real key) so the edit no-oped.
-        if let target = night.editTarget {
-            let isEdited = target.userEdited
+        if let target = night.editTarget,
+           let window = SleepGroupEdit.groupWindow(night.editGroup) {
+            let group = night.editGroup
+            let isEdited = group.contains(where: \.userEdited)
             Button {
-                wakeEdit = WakeEdit(detectedStartTs: target.startTs,
-                                    bedTs: target.effectiveStartTs,
-                                    wakeTs: target.endTs,
-                                    stagesJSON: target.stagesJSON,
+                wakeEdit = WakeEdit(group: group,
+                                    detectedStartTs: target.startTs,
+                                    bedTs: window.start,
+                                    wakeTs: window.end,
                                     userEdited: isEdited)
             } label: {
                 Image(systemName: isEdited ? "pencil.circle.fill" : "pencil.circle")
@@ -2533,17 +2547,19 @@ private struct SleepInputKey: Equatable {
 /// detected key so a stale auto-dismiss task can tell whether it still owns the current banner;
 /// `displayStart` is the effective (shown) onset for the message clock.
 private struct SleepUndoBanner {
-    let snapshot: SleepDeletionSnapshot
+    let snapshots: [SleepDeletionSnapshot]
     let identityStart: Int
     let displayStart: Int
     let windowEnd: Int
+    let fromEdit: Bool
 }
 
 private struct WakeEdit: Identifiable {
+    /// The exact bridged fragments represented by the editor's visible window. A nap is a one-row group.
+    let group: [CachedSleepSession]
     let detectedStartTs: Int   // immutable detected key the edit writes against
     let bedTs: Int             // current effective onset (seeds the bed picker)
     let wakeTs: Int            // current wake (seeds the wake picker)
-    let stagesJSON: String?
     /// True for a hand-edited / manually-added (nap) night. Such a delete writes NO tombstone (it is
     /// never re-detected), so the editor's delete-confirm copy must NOT promise re-detection suppression
     /// for it. Mirrors the undo-banner branch (#65 banner/confirm honesty).

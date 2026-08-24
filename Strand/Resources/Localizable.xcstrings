@@ -214856,6 +214856,70 @@
         }
       }
     },
+"Sleep outside the new times was removed.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Schlaf außerhalb der neuen Zeiten wurde entfernt."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sleep outside the new times was removed."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Se eliminó el sueño fuera del nuevo horario."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le sommeil en dehors des nouveaux horaires a été supprimé."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Il sonno al di fuori dei nuovi orari è stato rimosso."
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O sono fora dos novos horários foi removido."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Сон за пределами нового времени был удалён."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已移除新时间范围之外的睡眠。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已移除新時間範圍之外的睡眠。"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Usunięto sen poza nowymi godzinami."
+          }
+        }
+      }
+    },
 "Sleep deleted. NOOP won't detect sleep between %@ and %@ again.": {
       "localizations": {
         "de": {
