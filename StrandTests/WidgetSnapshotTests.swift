@@ -87,6 +87,55 @@ final class WidgetSnapshotTests: XCTestCase {
         XCTAssertTrue(WidgetSnapshot.renderedContentChanged(from: previous, to: next))
     }
 
+    func testEnergyChangeReloadsOnlyEnergyContent() {
+        let previous = renderedSnapshot()
+        var next = previous
+        next.energy = WidgetEnergySnapshot(day: "2026-08-22", totalKcal: 1_234,
+                                           activeKcal: 345, basalKcal: 889,
+                                           projectedKcal: 2_300, source: "appleSplit",
+                                           confidence: "solid", asOf: Date())
+
+        XCTAssertTrue(WidgetSnapshot.energyContentChanged(from: previous, to: next))
+        XCTAssertFalse(WidgetSnapshot.glanceContentChanged(from: previous, to: next))
+        XCTAssertFalse(WidgetSnapshot.ringsContentChanged(from: previous, to: next))
+    }
+
+    func testEnergyTimestampAloneDoesNotSpendAReload() {
+        var previous = renderedSnapshot()
+        previous.energy = WidgetEnergySnapshot(day: "2026-08-22", totalKcal: 1_234,
+                                               activeKcal: 345, basalKcal: 889,
+                                               projectedKcal: 2_300, source: "appleSplit",
+                                               confidence: "solid", asOf: Date())
+        var next = previous
+        next.energy?.asOf = Date().addingTimeInterval(900)
+
+        XCTAssertFalse(WidgetSnapshot.energyContentChanged(from: previous, to: next))
+        XCTAssertFalse(WidgetSnapshot.renderedContentChanged(from: previous, to: next))
+    }
+
+    func testSnapshotWithoutEnergyKeyStillDecodes() throws {
+        struct Legacy: Codable {
+            let recovery: Int?
+            let bpm: Int?
+            let batteryPct: Int?
+            let bonded: Bool
+            let updated: Date
+            let effort: Int?
+            let rest: Int?
+            let hrv: Int?
+            let restingHr: Int?
+            let effortDisplay: String?
+            let effortWhoop: Bool?
+        }
+        let data = try JSONEncoder().encode(Legacy(
+            recovery: 70, bpm: 58, batteryPct: 80, bonded: true, updated: Date(),
+            effort: 40, rest: 82, hrv: 61, restingHr: 52,
+            effortDisplay: "40", effortWhoop: false))
+        let decoded = try JSONDecoder().decode(WidgetSnapshot.self, from: data)
+        XCTAssertNil(decoded.energy)
+        XCTAssertEqual(decoded.recovery, 70)
+    }
+
     func testLiveUpdateReusesSnapshotWithinSameLocalDay() {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(secondsFromGMT: 0)!

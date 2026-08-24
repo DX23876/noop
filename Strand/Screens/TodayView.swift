@@ -306,6 +306,8 @@ struct TodayView: View {
 
     // 14-day sparkline series, keyed by metric key. Loaded once in .task.
     @State private var sparks: [String: [Double]] = [:]
+    /// Today's source-aware energy summary, or nil before loading / without usable inputs.
+    @State private var energySummary: DailyEnergySummary?
     /// The smoothed weight summary behind the Weight tile's headline number, or nil before loading.
     @State private var weightSummary: WeightTrendSummary?
     @State private var workouts: [WorkoutRow] = []
@@ -1976,6 +1978,13 @@ struct TodayView: View {
             // #205) stays on the hero via the Synthesis section's pill row, so the home screen keeps a
             // glanceable verdict without the full card.
             metricsSection
+        case .energy:
+            if selectedDayOffset == 0, let energySummary {
+                NavigationLink(value: TabRoute.energy) {
+                    EnergyCard(summary: energySummary)
+                }
+                .buttonStyle(.plain)
+            }
         case .workouts:
             workoutsSection
         case .heartRate:
@@ -4362,6 +4371,7 @@ struct TodayView: View {
         async let stepsAppleSpark    = sparkValues("steps", source: "apple-health", window: 14)
         async let weightSpark        = weightSparkValues(window: 90)
         async let weightSummaryA     = repo.weightTrendSummary(days: 91)
+        async let energyA            = repo.todayEnergy(profile: Repository.analyticsProfile(profile))
         async let activeKcalSpark    = sparkValues("active_kcal", source: "apple-health", window: 14)
 
         sparks["recovery"]        = await recoverySpark
@@ -4381,6 +4391,7 @@ struct TodayView: View {
         if !strapSteps.isEmpty { sparks["steps"] = strapSteps }
         sparks["weight"]      = await weightSpark
         weightSummary         = await weightSummaryA
+        energySummary         = await energyA
         sparks["active_kcal"] = await activeKcalSpark
 
         // Steps ESTIMATE per day (WHOOP 4.0 motion → calibrated steps), the Mi-Band series, workout +

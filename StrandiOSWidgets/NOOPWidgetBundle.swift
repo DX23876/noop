@@ -8,6 +8,7 @@ struct NOOPWidgetBundle: WidgetBundle {
     var body: some Widget {
         NOOPWidget()
         NOOPRingsWidget()
+        NOOPEnergyWidget()
         NOOPLiveActivity()
     }
 }

@@ -59,6 +59,19 @@ extension WidgetSnapshot {
             }
             return "\(Int(stored.rounded()))"
         }
+        let energySummary = await model.repo.todayEnergy(
+            profile: Repository.analyticsProfile(model.profile))
+        let energy = energySummary.map { summary in
+            WidgetEnergySnapshot(
+                day: summary.day,
+                totalKcal: summary.totalBurnedSoFar.map { Int($0.rounded()) },
+                activeKcal: summary.activeBurnedSoFar.map { Int($0.rounded()) },
+                basalKcal: summary.basalBurnedSoFar.map { Int($0.rounded()) },
+                projectedKcal: summary.projectedTotalBurn.map { Int($0.rounded()) },
+                source: summary.source.rawValue,
+                confidence: summary.confidence.rawValue,
+                asOf: now)
+        }
         let snap = WidgetSnapshot(
             recovery: day?.recovery.map { Int($0.rounded()) },
             bpm: model.bpm ?? model.live.heartRate,
@@ -71,7 +84,8 @@ extension WidgetSnapshot {
             hrv: day?.avgHrv.map { Int($0.rounded()) },
             restingHr: day?.restingHr,
             effortDisplay: effortDisplay,
-            effortWhoop: effortScale == .whoop
+            effortWhoop: effortScale == .whoop,
+            energy: energy
         )
         saveAndReloadIfChanged(snap)
     }
@@ -109,9 +123,14 @@ extension WidgetSnapshot {
     @MainActor
     private static func saveAndReloadIfChanged(_ snap: WidgetSnapshot, previous: WidgetSnapshot? = nil) {
         let previous = previous ?? load()
-        if renderedContentChanged(from: previous, to: snap) {
+        let glanceChanged = glanceContentChanged(from: previous, to: snap)
+        let ringsChanged = ringsContentChanged(from: previous, to: snap)
+        let energyChanged = energyContentChanged(from: previous, to: snap)
+        if glanceChanged || ringsChanged || energyChanged {
             snap.save()
-            WidgetCenter.shared.reloadAllTimelines()
+            if glanceChanged { WidgetCenter.shared.reloadTimelines(ofKind: "NOOPWidget") }
+            if ringsChanged { WidgetCenter.shared.reloadTimelines(ofKind: "NOOPRingsWidget") }
+            if energyChanged { WidgetCenter.shared.reloadTimelines(ofKind: "NOOPEnergyWidget") }
         } else if liveUpdateRequiresFullBuild(previous: previous, now: snap.updated) {
             // The rollover's visible values can legitimately match yesterday's. Persist the fresh day
             // stamp once without spending a redundant WidgetKit reload, so later live ticks stay fast.

@@ -437,6 +437,9 @@ targets:
         PRODUCT_NAME: NOOPWidgets
         GENERATE_INFOPLIST_FILE: NO
         TARGETED_DEVICE_FAMILY: "1,2"
+        # Widget extensions ship their own bundle, so their strings must be extracted into the
+        # catalog under StrandiOSWidgets rather than relying on the phone app's catalog.
+        SWIFT_EMIT_LOC_STRINGS: YES
     dependencies:
       - package: StrandDesign
 

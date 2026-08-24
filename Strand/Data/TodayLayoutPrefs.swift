@@ -33,6 +33,9 @@ enum TodaySection: String, CaseIterable, Identifiable {
     /// other; the actions live back inside this section.
     case goals
     case keyMetrics
+    /// Today's energy: basal, active, total burn and where the day is heading — one card rather
+    /// than the six tiles the individual figures would otherwise need.
+    case energy
     case workouts
     case heartRate
     case recoveryVitals
@@ -56,6 +59,7 @@ enum TodaySection: String, CaseIterable, Identifiable {
         case .synthesis:      return String(localized: "Synthesis")
         case .goals:          return String(localized: "Goals")
         case .keyMetrics:     return String(localized: "Key Metrics")
+        case .energy:         return String(localized: "Energy")
         case .workouts:       return String(localized: "Workouts")
         case .heartRate:      return String(localized: "Heart Rate")
         case .recoveryVitals: return String(localized: "Recovery Vitals")
@@ -71,7 +75,7 @@ enum TodaySection: String, CaseIterable, Identifiable {
     /// widget (#656) sits above the data-sources card, which is last. Coach leads the list — the same spot
     /// its full-width banner has always held on classic Today, before the hero scores.
     static let defaultOrder: [TodaySection] = [
-        .coach, .hero, .liveSession, .synthesis, .goals, .keyMetrics, .workouts, .heartRate, .recoveryVitals,
+        .coach, .hero, .liveSession, .synthesis, .goals, .keyMetrics, .energy, .workouts, .heartRate, .recoveryVitals,
         .yourCards, .menstrualCycle, .journal, .dataSources, .addedCards,
     ]
 

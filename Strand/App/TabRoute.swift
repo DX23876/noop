@@ -44,6 +44,8 @@ enum TabRoute: Hashable {
     /// has no single source to name — `Repository.weightSeries()` unions NOOP's own weigh-ins over
     /// Apple Health — and because this screen also WRITES, which no `MetricDetailView` does.
     case weight
+    /// Today's energy detail, including source provenance and observed-day coverage.
+    case energy
 }
 
 extension View {
@@ -82,6 +84,7 @@ extension View {
             case .hydration: HydrationView()
             case .coupled: CoupledView()
             case .weight: WeightDetailView()
+            case .energy: EnergyDetailView()
             }
         }
     }

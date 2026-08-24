@@ -336,6 +336,8 @@ struct RootView: View {
             case .dataSources: selection = .dataSources
             // Raised by the morning card's "Fix it" when last night's wake time looks truncated.
             case .sleep: selection = .sleep
+            // The Energy widget is iOS-only. A forwarded URL on macOS still lands safely on Today.
+            case .energy: selection = .today
             case nil: break
             }
             if dest != nil { router.requestedDestination = nil }
