@@ -66,6 +66,17 @@ public struct TrendChart: View {
     /// so it needs no macOS14/iOS17 plot-dimension padding API — works on our macOS13/iOS16 floor.
     public var yDomain: ClosedRange<Double>?
 
+    /// A SECOND series drawn over the first as a plain line — a baseline, a smoothed trend, a target.
+    /// Empty (the default) draws nothing, so every existing caller is unchanged.
+    ///
+    /// It shares the primary series' axes and domain on purpose: an overlay on its own scale would
+    /// invite reading two unrelated shapes as one comparison. Excluded from the hover readout, the
+    /// axis domain and the accessibility summary, all of which describe the MEASURED series.
+    public var overlayPoints: [TrendPoint]
+    /// The overlay line's colour. Deliberately a flat colour rather than the value ramp: the ramp
+    /// encodes value, and two ramped lines in one plot encode nothing distinguishable.
+    public var overlayColor: Color
+
     /// Mean of all point values, computed once in `init` so the area fill's gradient
     /// stop doesn't run an O(n) reduce for every mark on every render.
     private let averageValue: Double
@@ -85,9 +96,13 @@ public struct TrendChart: View {
         dateFormat: @escaping (Date) -> String = { TrendChart.defaultDateString($0) },
         accessibilityLabel: String? = nil,
         nowCapColor: Color? = nil,
-        yDomain: ClosedRange<Double>? = nil
+        yDomain: ClosedRange<Double>? = nil,
+        overlayPoints: [TrendPoint] = [],
+        overlayColor: Color = StrandPalette.textSecondary
     ) {
         let sorted = points.sorted { $0.date < $1.date }
+        self.overlayPoints = overlayPoints.sorted { $0.date < $1.date }
+        self.overlayColor = overlayColor
         self.points = sorted
         self.gradient = gradient
         self.valueRange = valueRange
@@ -242,6 +257,20 @@ public struct TrendChart: View {
                     .interpolationMethod(.catmullRom)
                     .lineStyle(StrokeStyle(lineWidth: 2.5, lineCap: .round, lineJoin: .round))
                     .foregroundStyle(valueGradient)
+                }
+                // The overlay line. `series:` is LOAD-BEARING: Swift Charts groups marks by their
+                // series identity, and without a distinct one it would join the last primary point to
+                // the first overlay point and draw a single zig-zag through both. Dashed and flat-
+                // coloured so it reads as a derived line over the measurements, not a second metric.
+                ForEach(overlayPoints) { p in
+                    LineMark(
+                        x: .value("Date", p.date),
+                        y: .value("Value", p.value),
+                        series: .value("Series", "overlay")
+                    )
+                    .interpolationMethod(.catmullRom)
+                    .lineStyle(StrokeStyle(lineWidth: 1.5, lineCap: .round, dash: [4, 3]))
+                    .foregroundStyle(overlayColor)
                 }
                 // 18pt dots are invisible on dense series (e.g. a 365-day year) but still cost the
                 // GPU a mark each — hide them past a threshold; the line carries the data there. The gate

@@ -63,6 +63,12 @@ final class HealthKitBridge: ObservableObject {
     /// none. Published so the app can one-time seed an unset profile weight (see
     /// `ProfileStore.seedWeightFromHealthIfUnset`); the profile field itself stays the source of truth.
     @Published private(set) var latestImportedWeightKg: Double?
+    /// The body weight of the last sample NOOP itself wrote back to Health (see `writeWeight`). The
+    /// twin of `latestImportedWeightKg` for the outbound direction: `StrandiOSApp`'s profile-weight
+    /// publisher uses it to tell its own echo — a weigh-in logged in NOOP updating the profile — from
+    /// a genuine edit of the profile field, which is the only change that should write to Health here.
+    /// Not `@Published`: nothing renders it, it is only ever read at the moment the publisher fires.
+    private(set) var lastSelfWrittenWeightKg: Double?
     /// A user-requested historical import, deliberately separate from normal foreground/background
     /// synchronisation. The app stores daily aggregates, never raw HealthKit samples.
     @Published private(set) var fullHistoryImporting = false
@@ -1079,11 +1085,17 @@ final class HealthKitBridge: ObservableObject {
     /// `writeWorkouts` above. Triggered from `ProfileStore.weightKg` changing, wired in `StrandiOSApp.swift`.
     /// Same dedup model as `writeVitals`: one sample per day, keyed `noop:<noopDeviceId>:bodyMass:<day>`,
     /// delete-then-save so repeated edits the same day replace rather than duplicate.
+    ///
+    /// The value of the last sample THIS app wrote is stamped in `lastSelfWrittenWeightKg` before the
+    /// save, so the `profile.$weightKg` publisher in `StrandiOSApp` can tell its own echo from a fresh
+    /// user edit. Without it, a weigh-in logged in NOOP for a PAST day (v42) would write correctly for
+    /// that day and then, via the profile update, write a second sample dated today.
     func writeWeight(kg: Double, day: String = HealthKitBridge.dayString(Date())) async throws {
         guard kg > 10,
               let type = HKQuantityType.quantityType(forIdentifier: .bodyMass),
               store.authorizationStatus(for: type) == .sharingAuthorized,
               let date = HealthKitBridge.date(from: day) else { return }
+        lastSelfWrittenWeightKg = kg
         let cal = Calendar.current
         let at = cal.date(bySettingHour: 12, minute: 0, second: 0, of: date) ?? date
         let key = "noop:\(noopDeviceId):bodyMass:\(day)"
@@ -1810,6 +1822,37 @@ final class HealthKitBridge: ObservableObject {
     /// can prove that current-source, stable-origin and legacy UUID samples are rejected independently.
     nonisolated static func isNoopAuthored(currentSource: Bool, origin: String?, externalUUID: String?) -> Bool {
         currentSource || origin == originMetadataValue || externalUUID?.hasPrefix("noop:") == true
+    }
+
+    /// How close two weights have to be before one is treated as an ECHO of the other rather than a
+    /// fresh edit. A real edit almost never lands within 50 g of the value it is replacing by
+    /// coincidence; a round-trip through Health reproduces it exactly.
+    nonisolated static let weightEchoToleranceKg = 0.05
+
+    /// Whether a change to `ProfileStore.weightKg` is a genuine user edit that belongs in Apple Health.
+    ///
+    /// Two echoes have to be rejected, and they arrive from opposite directions:
+    ///
+    ///   • `lastImported` — the "Health always wins" overwrite (`applyHealthWeight`) sets the profile
+    ///     from the freshest Health reading, which fires the very publisher that would write it back.
+    ///   • `lastSelfWritten` — a weigh-in logged in NOOP writes itself to Health under ITS OWN day and
+    ///     then updates the profile, firing the same publisher. Without this arm that echo would write
+    ///     a SECOND sample dated TODAY, so entering last Tuesday's weigh-in would also plant today's
+    ///     weight in Health.
+    ///
+    /// A nil reference means "nothing recorded yet" (first install, nothing written), which cannot be
+    /// an echo of anything — so it never suppresses the write.
+    ///
+    /// Pure seam, like `isNoopAuthored` above, so the iOS test target can prove each arm independently
+    /// instead of the rule living as two inline `guard`s in `StrandiOSApp`'s view builder.
+    nonisolated static func shouldWriteProfileWeight(_ kg: Double,
+                                                     lastImported: Double?,
+                                                     lastSelfWritten: Double?) -> Bool {
+        func isEcho(of reference: Double?) -> Bool {
+            guard let reference else { return false }
+            return abs(kg - reference) <= weightEchoToleranceKg
+        }
+        return !isEcho(of: lastImported) && !isEcho(of: lastSelfWritten)
     }
 
     /// Returns TRUE when the query completed, FALSE when HealthKit handed back an error.

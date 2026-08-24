@@ -39,6 +39,11 @@ enum TabRoute: Hashable {
     case health
     case hydration
     case coupled
+    /// The weigh-in history behind the Weight tile: trend, 7/30-day change, weekly rate, chart and
+    /// the editable list. Its own route rather than `metricSourced(key: "weight", …)` because weight
+    /// has no single source to name — `Repository.weightSeries()` unions NOOP's own weigh-ins over
+    /// Apple Health — and because this screen also WRITES, which no `MetricDetailView` does.
+    case weight
 }
 
 extension View {
@@ -76,6 +81,7 @@ extension View {
             case .health: HealthView()
             case .hydration: HydrationView()
             case .coupled: CoupledView()
+            case .weight: WeightDetailView()
             }
         }
     }

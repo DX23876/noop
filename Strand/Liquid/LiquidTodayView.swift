@@ -85,9 +85,10 @@ struct LiquidTodayView: View {
     @State private var stepsEst: Double?           // steps_est, day-keyed to the selected day (fallback)
     @State private var importedStepsDay: Int?      // Apple Health steps for the selected day (middle tier)
     @State private var importedActiveKcalDay: Double?  // #616: Apple Health active energy for the day (calorie fallback)
-    /// The Weight tile's resolved value, or nil before the first `load()`. Was a permanent hardcoded "—"
-    /// placeholder before — `Repository.resolveWeightKg` gives the same 3-tier fallback classic/Heute use.
-    @State private var resolvedWeightKg: (kg: Double, isFromProfile: Bool)?
+    /// The Weight tile's resolved value and which tier it came from, or nil before the first `load()`.
+    /// Was a permanent hardcoded "—" placeholder before — `WeightSeries.displayWeight` gives the same
+    /// trend → last measurement → profile fallback classic/Heute use.
+    @State private var resolvedWeightKg: (kg: Double, tier: WeightDisplayTier)?
     @State private var hrValues: [Double] = []     // hrBuckets since midnight → 5-min means
     /// The bucket START time for each `hrValues` entry, index-aligned. Kept as its own array rather
     /// than derived (midnight + i·5min) because `hrBuckets` returns only buckets that HAVE data —
@@ -1851,7 +1852,12 @@ struct LiquidTodayView: View {
         // #430 parity: tap -> the metric's trend detail (the same Explore dossier its MetricRow pushes,
         // closure-based NavigationLink per #38). A metric with no catalog entry stays inert.
         return Group {
-            if let metric = detailMetric ?? key.flatMap({ key in
+            // Weight is the one Key Metric with a writable history behind it, so it opens its own
+            // screen rather than the read-only metric dossier.
+            if detailMetric == nil, key == "weight" {
+                NavigationLink { WeightDetailView() } label: { tile }
+                    .buttonStyle(.plain)
+            } else if let metric = detailMetric ?? key.flatMap({ key in
                 MetricCatalog.all.first(where: { $0.key == key })
             }) {
                 NavigationLink { MetricDetailView(metric: metric) } label: { tile }
@@ -2048,7 +2054,8 @@ struct LiquidTodayView: View {
         // Weight: a wider 91-day fetch (not the 14-day sparkCutoff window every sibling series uses below)
         // — weight is logged sparsely enough that a 14-day window would frequently be empty, defeating the
         // point of the series fallback. `windowedSpark` trims it at render time like every other entry.
-        async let weightSeriesA = repo.series(key: "weight", source: "apple-health", days: 91)
+        async let weightSeriesA = repo.weightDailyValues(days: 91)
+        async let weightSummaryA = repo.weightTrendSummary(days: 91)
         // Ask the same cross-source resolver the Classic Today view uses which source actually won each
         // displayed score. Include the exact carried-Charge day; a fixed relative lookback can miss a
         // legitimately old carried score.
@@ -2096,13 +2103,10 @@ struct LiquidTodayView: View {
             spo2CandSeries.map { ($0.day, $0.value) },
             uniquingKeysWith: { _, last in last }
         )
-        // Weight: same 3-tier resolution as classic/Heute (`Repository.resolveWeightKg`) — this tile was
-        // permanently hardcoded to "—" before (never wired), unlike every other Key Metric here.
-        let latestAppleWeightKg = appleRowsForSpark.filter { ($0.weightKg ?? 0) > 10 }.max { $0.day < $1.day }?.weightKg
+        // Weight comes from the canonical resolver, which unions NOOP weigh-ins over Apple Health per day.
         let weightSeries = await weightSeriesA
-        resolvedWeightKg = Repository.resolveWeightKg(latestAppleWeightKg: latestAppleWeightKg,
-                                                       seriesFallbackKg: weightSeries.last?.value,
-                                                       profileWeightKg: profile.weightKg)
+        resolvedWeightKg = WeightSeries.displayWeight(summary: await weightSummaryA,
+                                                      profileWeightKg: profile.weightKg)
         var winImportedKcal: [String: Double] = [:]
         for r in appleRowsForSpark where r.day >= sparkCutoff && r.day <= selectedDayKey {
             if let k = r.activeKcal { winImportedKcal[r.day] = max(winImportedKcal[r.day] ?? 0, k) }

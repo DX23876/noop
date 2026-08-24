@@ -24,7 +24,7 @@ import WhoopStore
 // NOT re-implemented here … so Liquid and Classic cannot drift." Heute now participates in that.
 struct HeuteRedesignView: View {
     @EnvironmentObject private var repo: Repository
-    /// Needed for the Weight tile's profile fallback (`Repository.resolveWeightKg`) — every other vital
+    /// Needed for the Weight tile's profile fallback (`WeightSeries.displayWeight`) — every other vital
     /// on this screen comes from `repo`, but weight is the one metric with a user-editable last resort.
     @EnvironmentObject private var profile: ProfileStore
 
@@ -308,15 +308,16 @@ struct HeuteRedesignView: View {
         let appleRows = await repo.appleDailyRows()
         let importedActiveKcalDay = appleRows.filter { $0.day == key }.compactMap { $0.activeKcal }.max()
 
-        // Weight: same 3-tier resolution as classic/Liquid Today (`Repository.resolveWeightKg`) — a real
-        // Apple Health reading (whole-history scan, weight is sparse, not day-scoped like calories/steps),
-        // else the newest point in a 90-day "weight" series, else the profile's self-reported value. Never
-        // carried per-day; weight doesn't have a "today's own value" concept the way strain/steps do.
-        let latestAppleWeightKg = appleRows.filter { ($0.weightKg ?? 0) > 10 }.max { $0.day < $1.day }?.weightKg
-        let weightSeries = await repo.series(key: "weight", source: "apple-health", days: 91)
-        let resolvedWeight = Repository.resolveWeightKg(latestAppleWeightKg: latestAppleWeightKg,
-                                                         seriesFallbackKg: weightSeries.last?.value,
-                                                         profileWeightKg: profile.weightKg)
+        // Weight: same resolution as classic/Liquid Today (`Repository.resolveWeightKg`) — the newest
+        // real measurement (weight is sparse and whole-history, not day-scoped like calories/steps),
+        // else the profile's self-reported value. Never carried per-day; weight doesn't have a "today's
+        // own value" concept the way strain/steps do. The series comes from the canonical resolver
+        // (`weightSeries`), which unions a weigh-in logged in NOOP over Apple Health per day.
+        let weightSeries = await repo.weightDailyValues(days: 91)
+        // Headline is the smoothed TREND (what the weight goal is measured on), falling back to the
+        // last real weigh-in while the fold is still cold-starting, then to the profile value.
+        let resolvedWeight = WeightSeries.displayWeight(summary: await repo.weightTrendSummary(days: 91),
+                                                        profileWeightKg: profile.weightKg)
         let weightSpark = weightSeries.map(\.value)
 
         // Hydration: the day's logged fluid total (ml), or nil when nothing was logged — a real `0` is
@@ -371,7 +372,7 @@ struct HeuteRedesignView: View {
                                stress: Double?, stressSpark: [Double],
                                importedActiveKcalDay: Double?,
                                hydrationMl: Double?, hydrationSpark: [Double],
-                               resolvedWeight: (kg: Double, isFromProfile: Bool),
+                               resolvedWeight: (kg: Double, tier: WeightDisplayTier),
                                weightSpark: [Double]) -> [String: HeuteVitalReading] {
         var out: [String: HeuteVitalReading] = [:]
         let vitalsDay = isToday ? Repository.lastVitalsDay(days: repo.days, todayKey: tkey) : nil
@@ -424,9 +425,15 @@ struct HeuteRedesignView: View {
         // before D-package 4a). `valueText` overrides the catalog's hardcoded "kg" unit formatting so the
         // Imperial/Metric setting reaches this tile, matching classic Today's `weightTile`. The "From
         // profile" caption on the fallback tier is an honest admission the value isn't a real reading.
+        let weightAsOf: String
+        switch resolvedWeight.tier {
+        case .trend:    weightAsOf = String(localized: "Trend")
+        case .measured: weightAsOf = asOfLabel(tkey)
+        case .profile:  weightAsOf = String(localized: "From profile")
+        }
         out["apple-health:weight"] = HeuteVitalReading(
             value: resolvedWeight.kg,
-            asOf: resolvedWeight.isFromProfile ? String(localized: "From profile") : asOfLabel(tkey),
+            asOf: weightAsOf,
             sparkline: weightSpark,
             valueText: UnitFormatter.massFromKilograms(resolvedWeight.kg, system: unitSystem))
         // Calories: imported-first (Apple Health active energy for the day) falling back to the on-device

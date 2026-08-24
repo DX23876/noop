@@ -329,6 +329,10 @@ struct HeuteVitalsGridView: View {
         case "heute:sleep":     return .sleep
         case "heute:hydration": return .hydration
         case "heute:coupled":   return .coupled
+        // Weight opens its own screen: it is the one vital with a writable history behind it (log a
+        // weigh-in, trend, 7/30-day change, editable list) and no single catalog source to route to,
+        // since `Repository.weightSeries()` unions NOOP's own weigh-ins over Apple Health.
+        case "apple-health:weight": return .weight
         default:                return .metricSourced(key: descriptor.key, source: descriptor.source)
         }
     }

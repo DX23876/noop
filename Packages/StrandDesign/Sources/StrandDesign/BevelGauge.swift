@@ -38,6 +38,14 @@ public struct BevelGauge: View {
     public var animatedFraction: Double
     /// Whether the bloom is at full (vs resting) intensity — caller drives the breathe pulse.
     public var bloomActive: Bool
+    /// Dash pattern for the full-span TRACK (not the progress arc). `nil` — the default — keeps the
+    /// solid "well" every existing caller renders today.
+    ///
+    /// It exists for one state: a gauge whose centre number is MODELLED rather than measured. The
+    /// Energy card shows an estimated basal rate on a day no device recorded, and a solid ring around
+    /// a modelled number reads as a measurement waiting to fill. A dashed track says "this is a frame,
+    /// not a reading" without a second component or a paragraph of explanation.
+    public var trackDash: [CGFloat]?
 
     public init(
         fraction: Double,
@@ -51,7 +59,8 @@ public struct BevelGauge: View {
         lineWidth: CGFloat = 16,
         showsLabel: Bool = true,
         animatedFraction: Double,
-        bloomActive: Bool = true
+        bloomActive: Bool = true,
+        trackDash: [CGFloat]? = nil
     ) {
         self.fraction = fraction
         self.stops = stops
@@ -65,6 +74,7 @@ public struct BevelGauge: View {
         self.showsLabel = showsLabel
         self.animatedFraction = animatedFraction
         self.bloomActive = bloomActive
+        self.trackDash = trackDash
     }
 
     private let arcSpanDegrees: Double = 240
@@ -95,10 +105,13 @@ public struct BevelGauge: View {
     private var staticBackdrop: some View {
         ZStack {
             innerDisc
-            // Faint full-span track — the inset "well" the score arc sits in.
+            // Faint full-span track — the inset "well" the score arc sits in. Dashed only when the
+            // caller asked for it (see `trackDash`); `dash: []` is StrokeStyle's own "solid", so the
+            // default path is byte-identical to before.
             arcShape(to: 1.0)
                 .stroke(StrandPalette.surfaceInset,
-                        style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
+                        style: StrokeStyle(lineWidth: lineWidth, lineCap: .round,
+                                           dash: trackDash ?? []))
         }
     }
 
