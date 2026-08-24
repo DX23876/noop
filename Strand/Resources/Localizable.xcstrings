@@ -727,6 +727,45 @@
         }
       }
     },
+    "A weigh-in you logged": {
+      "localizations": {
+        "de": { "stringUnit": { "state": "translated", "value": "Eine von dir erfasste Gewichtsmessung" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Un pesaje que registraste" } },
+        "fr": { "stringUnit": { "state": "translated", "value": "Une pesée que vous avez enregistrée" } },
+        "it": { "stringUnit": { "state": "translated", "value": "Una pesata che hai registrato" } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Zapisany przez Ciebie pomiar masy ciała" } },
+        "pt-PT": { "stringUnit": { "state": "translated", "value": "Uma pesagem que registou" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Записанное вами взвешивание" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "你记录的一次称重" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "你記錄的一次量體重" } }
+      }
+    },
+    "Today's energy burn and how much was measured": {
+      "localizations": {
+        "de": { "stringUnit": { "state": "translated", "value": "Heutiger Energieverbrauch und wie viel davon gemessen wurde" } },
+        "es": { "stringUnit": { "state": "translated", "value": "El gasto energético de hoy y cuánto se midió" } },
+        "fr": { "stringUnit": { "state": "translated", "value": "La dépense énergétique du jour et la part mesurée" } },
+        "it": { "stringUnit": { "state": "translated", "value": "Il consumo energetico di oggi e quanto è stato misurato" } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Dzisiejszy wydatek energetyczny i zmierzona część" } },
+        "pt-PT": { "stringUnit": { "state": "translated", "value": "O gasto energético de hoje e quanto foi medido" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Сегодняшний расход энергии и измеренная доля" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "今日能量消耗及实际测量的部分" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "今日能量消耗及實際測量的部分" } }
+      }
+    },
+    "Weigh-in": {
+      "localizations": {
+        "de": { "stringUnit": { "state": "translated", "value": "Gewichtsmessung" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Pesaje" } },
+        "fr": { "stringUnit": { "state": "translated", "value": "Pesée" } },
+        "it": { "stringUnit": { "state": "translated", "value": "Pesata" } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Pomiar masy ciała" } },
+        "pt-PT": { "stringUnit": { "state": "translated", "value": "Pesagem" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Взвешивание" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "称重" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "量體重" } }
+      }
+    },
     "Weigh-ins": {
       "localizations": {
         "de": {

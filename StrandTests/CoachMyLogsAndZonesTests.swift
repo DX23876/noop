@@ -1,11 +1,8 @@
 import XCTest
+import WhoopStore
 @testable import Strand
 
-/// Pins T5 of Etappe T: the two new tools. `get_my_logs` closes the write-without-read asymmetry (the
-/// coach could log a coffee but not recall it) with ONE tool across five kinds; `get_zone_minutes`
-/// closes the propose_plan Zone-2 loop. These cover the store-free contract edges — recoverable text on
-/// an unknown kind, the `lab` consent gate, an empty caffeine log, and the tool census — since the
-/// codebase has no headless store-seeding seam for the data-bearing paths.
+/// Pins the Coach's log, zone, weight and energy contracts: schemas, consent, dispatch and persistence.
 @MainActor
 final class CoachMyLogsAndZonesTests: XCTestCase {
 
@@ -69,14 +66,16 @@ final class CoachMyLogsAndZonesTests: XCTestCase {
         XCTAssertTrue(engine.coachTools.contains(.zoneMinutes))
         XCTAssertTrue(engine.coachTools.contains(.dataCatalog))
         XCTAssertTrue(engine.coachTools.contains(.metricHistory))
+        XCTAssertTrue(engine.coachTools.contains(.logWeight))
+        XCTAssertTrue(engine.coachTools.contains(.energyBalance))
         // 25 → 26: `estimate_session_effort` joined the wire. Reviewed and intended — the coach was
         // stating Effort figures its own arithmetic could not produce ("15 for a 20-minute Zone 2
         // ride"), and one small tool definition is a fair price for prescriptions that hold up.
-        XCTAssertEqual(engine.coachTools.count, 26,
+        XCTAssertEqual(engine.coachTools.count, 28,
                        "tool count changed — confirm the added per-round cost is intended")
 
         engine.toolConsent.enabled.insert(.patterns)
-        XCTAssertEqual(engine.coachTools.count, 28,
+        XCTAssertEqual(engine.coachTools.count, 30,
                        "the second opt-in adds personal patterns and training preferences")
     }
 
@@ -88,5 +87,69 @@ final class CoachMyLogsAndZonesTests: XCTestCase {
             XCTAssertEqual(tool.inputSchema["type"] as? String, "object",
                            "\(tool.rawValue) schema is not an object")
         }
+    }
+
+    // MARK: - Weight and energy contracts
+
+    func testLogWeightRejectsMissingAndImplausibleValues() async throws {
+        let store = try await WhoopStore.inMemory()
+        let repo = Repository(deviceId: "test-weight-invalid")
+        repo.setStoreForTesting(store)
+        let engine = AICoachEngine(repo: repo)
+
+        let missing = await engine.logWeightTool(kg: nil, day: nil)
+        let implausible = await engine.logWeightTool(kg: 1, day: nil)
+        XCTAssertTrue(missing.contains("nothing was logged"))
+        XCTAssertTrue(implausible.contains("nothing was logged"))
+        let rows = try await store.bodyWeights(deviceId: WhoopStore.noopWeightSourceId)
+        XCTAssertTrue(rows.isEmpty)
+    }
+
+    func testLogWeightPersistsOnRequestedDayAndFeedsCanonicalSeries() async throws {
+        let store = try await WhoopStore.inMemory()
+        let repo = Repository(deviceId: "test-weight-valid")
+        repo.setStoreForTesting(store)
+        let engine = AICoachEngine(repo: repo)
+        engine.dataConsent = true
+        engine.toolConsent = ToolConsent(enabled: [.logs])
+        let requestedDay = Repository.logicalDayKey(Date())
+
+        let result = await engine.runCoachTool(CoachTool.logWeight.rawValue,
+                                               input: ["weight_kg": 82.4, "day": requestedDay])
+        XCTAssertTrue(result.contains("Logged 82.4 kg for \(requestedDay)"))
+
+        let rows = try await store.bodyWeights(deviceId: WhoopStore.noopWeightSourceId)
+        XCTAssertEqual(rows.count, 1)
+        XCTAssertEqual(rows.first?.day, requestedDay)
+        XCTAssertEqual(rows.first?.weightKg, 82.4)
+        let canonical = await repo.weightSeries(days: 30)
+        XCTAssertEqual(canonical.last?.day, requestedDay)
+        XCTAssertEqual(canonical.last?.source, .manual)
+    }
+
+    func testCoachSourceLabelNamesNoopWeighIns() {
+        XCTAssertEqual(CoachLocalSourceLabel.label(WhoopStore.noopWeightSourceId),
+                       "Weigh-ins logged in NOOP")
+    }
+
+    func testEnergyAnswerAlwaysNamesSourceCoverageEstimateAndNoFoodInference() async throws {
+        let store = try await WhoopStore.inMemory()
+        let repo = Repository(deviceId: "test-energy-answer")
+        repo.setStoreForTesting(store)
+        let engine = AICoachEngine(repo: repo)
+        engine.dataConsent = true
+        engine.toolConsent = ToolConsent(enabled: [.coreBiometrics])
+        let result = await engine.runCoachTool(CoachTool.energyBalance.rawValue, input: [:])
+
+        XCTAssertTrue(result.contains("SOURCE:"))
+        XCTAssertTrue(result.contains("ENERGY_COVERAGE:"))
+        XCTAssertTrue(result.contains("CONFIDENCE:"))
+        XCTAssertTrue(result.localizedCaseInsensitiveContains("modelled"))
+        XCTAssertTrue(result.contains("Do not infer what the user should eat"))
+    }
+
+    func testNewToolsUseExpectedConsentPurposes() {
+        XCTAssertEqual(CoachTool.logWeight.purpose, .logs)
+        XCTAssertEqual(CoachTool.energyBalance.purpose, .coreBiometrics)
     }
 }

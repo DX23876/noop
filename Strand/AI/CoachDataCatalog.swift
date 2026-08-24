@@ -126,6 +126,7 @@ enum CoachLocalSourceLabel {
         case Repository.appleHealthSource: return "Apple Health"
         case Repository.healthConnectSource: return "Health Connect"
         case WhoopStore.labBookSourceId: return "Lab Book"
+        case WhoopStore.noopWeightSourceId: return "Weigh-ins logged in NOOP"
         case "oura-import", "oura-api": return "Oura import"
         case "garmin-import": return "Garmin import"
         case "fitbit-import": return "Fitbit import"

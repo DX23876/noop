@@ -19,7 +19,7 @@ Strand/AI/
 │                                presets or fully custom
 ├── CoachPersona.swift         Guardian / Friend / Commander — coaching STYLE only; the name lives
 │                                in CoachIdentity now
-├── CoachTools.swift           The 28 tools: schemas + dispatch
+├── CoachTools.swift           The 30 tools: schemas + dispatch
 ├── CoachDataCatalog.swift     Metadata-only local metric discovery + safe source labels
 ├── CoachLocalContextPlanner.swift  On-device, question-specific context-category selection for tool-less providers
 ├── CoachMetricHistory.swift   Bounded local long-range trend aggregation + source selection
@@ -122,7 +122,7 @@ Three deliberate choices in there:
 
 ---
 
-## 2. The 27 tools
+## 2. The 30 tools
 
 Declared in `CoachTools.swift` as `CoachTool`, offered to the model as JSON Schema, dispatched in
 `runCoachTool(_:input:)`. **All of them are gated behind `dataConsent`** — without it the dispatcher
@@ -158,6 +158,7 @@ breakpoint, and a per-request clock would invalidate the prefix cache every turn
 | `get_biometric_summary` | — | 14-day table + 30-day averages: charge, effort, rest, HRV, RHR, SpO₂, respiration, skin-temp deviation, steps, energy |
 | `get_recent_workouts` | `limit` 1–30 | Sport, duration, effort, avg HR, energy, distance |
 | `get_stress_index` | — | Today's Baevsky Stress Index over today's R-R |
+| `get_energy_balance` | — | Today's expenditure with source, coverage and confidence. It reports measured and modelled portions honestly, never sums overlapping sources, and never infers food intake or diet advice. |
 | `get_sleep_detail` | `nights` 1–14 | Bed/wake, efficiency, deep/REM/light minutes, disturbances + the rolling 14-night sleep-debt ledger |
 | `get_range_report` | `days` 7–365 | Per-metric averages, trends, headline changes |
 | `get_metric_history` | `metric`, `days` 7–3,650, optional named `source` | One compact long-range aggregate, directional trend and bounded monthly/quarterly timeline. Without a named source, the app builds a local per-day timeline: compatible Apple Health history fills the period before or between WHOOP data, while the metric-specific source priority resolves overlaps. The result names every contributing source and never exports readings. Numeric analysis and each timeline group need at least three observations; no min/max values leave the device. |
@@ -190,6 +191,7 @@ Real mutations to real app data — the same stores the UI writes.
 | `log_caffeine` | `mg`, `minutes_ago` | Entry in the Caffeine log |
 | `log_journal` | `behavior`, `answered_yes` \| `value`, `day` | Journal behaviour entry |
 | `log_lab_marker` | `marker`, `value`, `unit`, `day` | Lab Book marker |
+| `log_weight` | `weight_kg`, `day` | A dated entry in the canonical weigh-in history (v43 `bodyWeightEntry`), feeding the smoothed trend, weight goals and Apple Health write-back. |
 
 ### Memory
 
@@ -757,7 +759,7 @@ tools on Custom just to get streaming.
 
 **Gemini's schema is a subset.** `CoachTool.geminiSchema` strips every JSON-Schema keyword Gemini's
 own `Schema` type doesn't model (`minimum`/`maximum` appear in several of ours). This is not tidiness:
-an unsupported keyword rejects the **entire request**, so one stray bound costs all 27 tools at once
+an unsupported keyword rejects the **entire request**, so one stray bound costs all 30 tools at once
 rather than degrading one. A test reduces every real schema and asserts nothing unsupported survives.
 
 **Reasoning tokens are tracked, never rendered.** OpenRouter's `delta.reasoning` (and the
