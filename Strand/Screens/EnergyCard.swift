@@ -63,6 +63,16 @@ struct EnergyCard: View {
                     Text("projected today")
                         .font(StrandFont.caption)
                         .foregroundStyle(StrandPalette.textSecondary)
+                    // The interval says what the tilde only gestures at, and carries real information
+                    // the point estimate cannot: a well-covered afternoon reads tight, a thin morning
+                    // reads wide. `verbatim` because this is two formatted numbers and a dash — there
+                    // is nothing here to translate, so it adds no catalog key in any locale.
+                    if let range = summary.projectedRangeKcal {
+                        Text(verbatim: forecastRange(range))
+                            .font(StrandFont.caption)
+                            .foregroundStyle(StrandPalette.textTertiary)
+                            .monospacedDigit()
+                    }
                 }
             }
         }
@@ -172,6 +182,13 @@ struct EnergyCard: View {
     private func kcal(_ value: Double?) -> String? {
         value.map { "\(Int($0.rounded()).formatted(.number.grouping(.automatic))) kcal" }
     }
+
+    /// "2,400–2,900" — grouped per the reader's locale, joined with an en dash (the range dash).
+    private func forecastRange(_ range: ClosedRange<Double>) -> String {
+        let low = Int(range.lowerBound.rounded()).formatted(.number.grouping(.automatic))
+        let high = Int(range.upperBound.rounded()).formatted(.number.grouping(.automatic))
+        return "\(low)–\(high)"
+    }
 }
 // MARK: - Detail
 
@@ -241,6 +258,17 @@ struct EnergyDetailView: View {
             SectionHeader("Data quality", trailing: confidenceLabel(s.confidence))
             NoopCard {
                 VStack(alignment: .leading, spacing: 8) {
+                    // A terse "who / how much / how sure" lead-in above the row breakdown — only when
+                    // there's an ACTUAL coverage percentage to report. `coverage.energy` is set for
+                    // WHOOP and Apple only (see `EnergyEngine.coverage`); a steps/profile day has no
+                    // wear-duration signal to summarize here, so those rows below still carry it alone.
+                    if let compact = compactProvenanceLine(s) {
+                        Text(verbatim: compact)
+                            .font(StrandFont.subhead)
+                            .foregroundStyle(StrandPalette.textPrimary)
+                            .monospacedDigit()
+                        Divider().overlay(StrandPalette.hairline)
+                    }
                     row("Source", sourceLabel(s.source))
                     if let energy = s.coverage.energy {
                         row("Energy coverage", percent(energy))
@@ -342,6 +370,30 @@ struct EnergyDetailView: View {
         guard let lo = values.min(), let hi = values.max() else { return 0...3_000 }
         let pad = max(100.0, (hi - lo) * 0.2)
         return max(0, lo - pad)...(hi + pad)
+    }
+
+    /// "WHOOP · 87 % captured · ±8 %" — nil when there's no coverage percentage to summarize
+    /// (`coverage.energy` is only ever set for a WHOOP or Apple source; steps/profile days don't have
+    /// a wear-duration signal, so this line would either fabricate a "0%" or need its own qualifier —
+    /// the `row(...)` breakdown below already covers those honestly, unaided).
+    ///
+    /// "WHOOP" / "Apple Health" are brand names — `verbatim`, never translated, the same treatment the
+    /// "Model" row above already gives "WHOOP · N kcal". `uncertaintyFraction` is populated only for a
+    /// WHOOP day (`EnergyEngine.summarize`: `clean.strapTotalKcal == nil ? nil : ...`), so the ± term
+    /// appears there and there only — nothing here needs to special-case that.
+    private func compactProvenanceLine(_ s: DailyEnergySummary) -> String? {
+        guard let energy = s.coverage.energy else { return nil }
+        let source: String
+        switch s.source {
+        case .strapWornTime: source = "WHOOP"
+        case .appleSplit:    source = "Apple Health"
+        case .mixed, .stepsEstimate, .profileOnly: return nil
+        }
+        var line = "\(source) · \(percent(energy)) \(String(localized: "captured"))"
+        if let uncertainty = s.uncertaintyFraction {
+            line += " · ±\(Int((uncertainty * 100).rounded())) %"
+        }
+        return line
     }
 
     private func sourceLabel(_ source: EnergySource) -> String {
