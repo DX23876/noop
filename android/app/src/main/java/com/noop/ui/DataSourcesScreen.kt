@@ -1046,6 +1046,27 @@ internal fun emitImportTrace(
             com.noop.testcentre.TestDomain.IMPORT,
         )
     }
+    // #1617: which metric COLUMNS the file actually carried. rowsOut stays unverified here because Room
+    // reports no write count, but this is known at PARSE time and so is exact on both platforms — and it
+    // separates "the store never got it" from "the export never had it", which the stage lines alone
+    // cannot. Emitted only when the importer produced daily rows.
+    // Emitted generically here for any summary carrying coverage, while the Swift twin emits it inside
+    // WhoopImporter — so a NEW importer that starts filling columnCoverage would produce this line on
+    // Android and silently not on Swift. Give it the Swift twin at the same time.
+    if (summary.columnCoverage.isNotEmpty()) {
+        vm.ble.externalLog(
+            com.noop.analytics.ImportTrace.columnCoverageLine(
+                // The literal, not categoryWire: that function maps RAW TABLE KEYS to wire categories
+                // ("dailyMetric" -> "cycles"), so handing it a category already in wire form only works
+                // through its `else -> rawKey` fallthrough, and would break the day anyone adds a
+                // "cycles" branch. The Swift twin passes the same literal.
+                stage = "cycles",
+                rows = summary.columnCoverageRows,
+                counts = summary.columnCoverage,
+            ),
+            com.noop.testcentre.TestDomain.IMPORT,
+        )
+    }
     // The reject line mirrors AppleHealthImport.swift: the app map drops nothing further here, so
     // droppedRows = 0; skippedSpans carries the tolerant-import scrubbed-span count (0 on non-Apple).
     vm.ble.externalLog(
