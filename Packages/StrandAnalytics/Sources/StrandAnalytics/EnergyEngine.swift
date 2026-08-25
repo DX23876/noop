@@ -88,13 +88,17 @@ public struct DailyEnergySummary: Equatable, Sendable {
     /// Where the day is heading, for the CURRENT day only. Always nil for a past day: a forecast for
     /// yesterday is not a forecast.
     public let projectedTotalBurn: Double?
+    /// The bounded Apple Watch reference multiplier applied to the WHOOP total. Nil means the
+    /// calibration was disabled, unavailable or invalid. Apple remains a reference, not the source.
+    public let appliedCalibrationFactor: Double?
     public let source: EnergySource
     public let coverage: EnergyCoverage
     /// Reuses the app-wide ladder rather than inventing a fourth vocabulary for certainty.
     public let confidence: ScoreConfidence
 
     public init(day: String, estimatedBMR24h: Double?, basalBurnedSoFar: Double?, activeBurnedSoFar: Double?,
-                totalBurnedSoFar: Double?, projectedTotalBurn: Double?, source: EnergySource,
+                totalBurnedSoFar: Double?, projectedTotalBurn: Double?,
+                appliedCalibrationFactor: Double? = nil, source: EnergySource,
                 coverage: EnergyCoverage, confidence: ScoreConfidence) {
         self.day = day
         self.estimatedBMR24h = estimatedBMR24h
@@ -102,6 +106,7 @@ public struct DailyEnergySummary: Equatable, Sendable {
         self.activeBurnedSoFar = activeBurnedSoFar
         self.totalBurnedSoFar = totalBurnedSoFar
         self.projectedTotalBurn = projectedTotalBurn
+        self.appliedCalibrationFactor = appliedCalibrationFactor
         self.source = source
         self.coverage = coverage
         self.confidence = confidence
@@ -147,18 +152,23 @@ public enum EnergyEngine {
         public let strapTotalKcal: Double?
         /// Number of distinct HR seconds that contributed to `strapTotalKcal`.
         public let strapCoverageSeconds: Int?
+        /// Optional, user-enabled Apple Watch reference calibration. Values outside the deliberately
+        /// narrow 0.8...1.2 range are ignored, and the factor is never applied to Apple-only days.
+        public let strapCalibrationFactor: Double?
         public let steps: Int?
         /// Hours of the day carrying any step count, out of 24. Nil when hourly steps aren't stored.
         public let hoursWithSteps: Int?
 
         public init(day: String, appleActiveKcal: Double? = nil, appleBasalKcal: Double? = nil,
                     strapTotalKcal: Double? = nil, strapCoverageSeconds: Int? = nil,
+                    strapCalibrationFactor: Double? = nil,
                     steps: Int? = nil, hoursWithSteps: Int? = nil) {
             self.day = day
             self.appleActiveKcal = appleActiveKcal
             self.appleBasalKcal = appleBasalKcal
             self.strapTotalKcal = strapTotalKcal
             self.strapCoverageSeconds = strapCoverageSeconds
+            self.strapCalibrationFactor = strapCalibrationFactor
             self.steps = steps
             self.hoursWithSteps = hoursWithSteps
         }
@@ -201,6 +211,7 @@ public enum EnergyEngine {
             activeBurnedSoFar: result.active,
             totalBurnedSoFar: result.total,
             projectedTotalBurn: projected,
+            appliedCalibrationFactor: result.appliedCalibrationFactor,
             source: result.source,
             coverage: coverage,
             confidence: confidence(source: result.source, coverage: coverage)
@@ -219,6 +230,16 @@ public enum EnergyEngine {
         let active: Double?
         let total: Double?
         let source: EnergySource
+        let appliedCalibrationFactor: Double?
+
+        init(basal: Double?, active: Double?, total: Double?, source: EnergySource,
+             appliedCalibrationFactor: Double? = nil) {
+            self.basal = basal
+            self.active = active
+            self.total = total
+            self.source = source
+            self.appliedCalibrationFactor = appliedCalibrationFactor
+        }
     }
 
     private static func burn(_ inputs: DayInputs, bmr24h: Double?,
@@ -234,19 +255,23 @@ public enum EnergyEngine {
         //    Adding the FULL day's BMR here would double-count every worn second, which is exactly
         //    the trap in this file's header.
         if let strap = inputs.strapTotalKcal, strap > 0 {
+            let factor = inputs.strapCalibrationFactor
+            let calibratedStrap = strap * (factor ?? 1)
             guard let bmr24h,
                   let covered = inputs.strapCoverageSeconds else {
                 // A legacy total has no trustworthy denominator. Preserve the observation but do not
                 // invent a basal top-up or active/basal split from its magnitude.
-                return BurnResult(basal: nil, active: nil, total: strap, source: .strapWornTime)
+                return BurnResult(basal: nil, active: nil, total: calibratedStrap,
+                                  source: .strapWornTime, appliedCalibrationFactor: factor)
             }
             let observedSeconds = min(context.elapsedSeconds, max(0, Double(covered)))
             let basalRate = bmr24h / context.dayDurationSeconds
             let observedBasal = basalRate * observedSeconds
-            let active = max(0, strap - observedBasal)
+            let active = max(0, calibratedStrap - observedBasal)
             let missingBasal = basalRate * max(0, context.elapsedSeconds - observedSeconds)
             return BurnResult(basal: basalElapsed, active: active,
-                              total: strap + missingBasal, source: .strapWornTime)
+                              total: calibratedStrap + missingBasal, source: .strapWornTime,
+                              appliedCalibrationFactor: factor)
         }
 
         // 2. Apple-only day. Both halves measured, nothing modelled. This path remains available for
@@ -315,11 +340,15 @@ public enum EnergyEngine {
         let steps = inputs.steps.flatMap { (0...200_000).contains($0) ? $0 : nil }
         let covered = inputs.strapCoverageSeconds.flatMap { (0...100_000).contains($0) ? $0 : nil }
         let hours = inputs.hoursWithSteps.flatMap { (0...25).contains($0) ? $0 : nil }
+        let factor = inputs.strapCalibrationFactor.flatMap {
+            $0.isFinite && EnergyCalibrationEngine.factorRange.contains($0) ? $0 : nil
+        }
         return DayInputs(day: inputs.day,
                          appleActiveKcal: kcal(inputs.appleActiveKcal),
                          appleBasalKcal: kcal(inputs.appleBasalKcal),
                          strapTotalKcal: kcal(inputs.strapTotalKcal),
                          strapCoverageSeconds: covered,
+                         strapCalibrationFactor: factor,
                          steps: steps,
                          hoursWithSteps: hours)
     }

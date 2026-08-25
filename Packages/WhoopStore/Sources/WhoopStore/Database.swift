@@ -1078,6 +1078,22 @@ extension WhoopStore {
             try db.create(index: "idx_whoopDailyEnergy_device_day",
                           on: "whoopDailyEnergy", columns: ["deviceId", "day"])
         }
+        // v47-energy-calibration-model: opt-in, per-WHOOP calibration state. Absence means disabled;
+        // the explicit enabled flag lets a user pause without discarding a hard-won fit. Binding the
+        // reference device prevents a replacement watch from inheriting another sensor's scale.
+        migrator.registerMigration("v47-energy-calibration-model") { db in
+            try db.create(table: "energyCalibrationModel") { t in
+                t.column("deviceId", .text).notNull().primaryKey()
+                t.column("referenceDeviceId", .text).notNull()
+                t.column("enabled", .boolean).notNull().defaults(to: false)
+                t.column("factor", .double).notNull()
+                t.column("sampleDays", .integer).notNull()
+                t.column("sampleBuckets", .integer).notNull()
+                t.column("coefficientOfVariation", .double).notNull()
+                t.column("fittedAt", .integer).notNull()
+                t.column("modelVersion", .text).notNull()
+            }
+        }
         return migrator
     }
 }
