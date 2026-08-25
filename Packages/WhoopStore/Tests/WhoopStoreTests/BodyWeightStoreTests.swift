@@ -46,6 +46,69 @@ final class BodyWeightStoreTests: XCTestCase {
         }
     }
 
+    /// Internal builds briefly used v42 for weight and v43 for energy coverage before upstream took
+    /// v42 and forced both identifiers forward by one. Opening one of those databases with the final
+    /// migrator must adopt the identical schema, preserve its rows, and record the released markers.
+    func testPrototypeMigrationIdentifiersUpgradeWithoutDataLoss() throws {
+        let dbQueue = try DatabaseQueue()
+        let migrator = WhoopStore.makeMigrator()
+        try migrator.migrate(dbQueue, upTo: "v42-ppg-burst-index")
+
+        try dbQueue.write { db in
+            try db.create(table: "bodyWeightEntry") { t in
+                t.column("id", .text).primaryKey()
+                t.column("deviceId", .text).notNull()
+                t.column("day", .text).notNull()
+                t.column("takenAt", .integer).notNull()
+                t.column("weightKg", .double).notNull()
+                t.column("source", .text).notNull()
+                t.column("note", .text)
+            }
+            try db.create(index: "idx_bodyWeightEntry_natural", on: "bodyWeightEntry",
+                          columns: ["deviceId", "takenAt", "source"], unique: true)
+            try db.create(index: "idx_bodyWeightEntry_device_takenAt", on: "bodyWeightEntry",
+                          columns: ["deviceId", "takenAt"])
+            try db.alter(table: "dailyMetric") { t in
+                t.add(column: "energyCoverageSeconds", .integer)
+            }
+            try db.execute(sql: """
+                INSERT INTO grdb_migrations (identifier)
+                VALUES ('v42-body-weight'), ('v43-energy-coverage')
+                """)
+            try db.execute(sql: """
+                INSERT INTO bodyWeightEntry
+                    (id, deviceId, day, takenAt, weightKg, source, note)
+                VALUES ('legacy-weight', 'noop-weight', '2026-08-24', 1770000000, 81.7, 'manual', 'keep me')
+                """)
+            try db.execute(sql: """
+                INSERT INTO dailyMetric (deviceId, day, energyCoverageSeconds)
+                VALUES ('my-whoop', '2026-08-24', 43200)
+                """)
+        }
+
+        XCTAssertNoThrow(try migrator.migrate(dbQueue))
+
+        try dbQueue.read { db in
+            XCTAssertEqual(try Double.fetchOne(db, sql: """
+                SELECT weightKg FROM bodyWeightEntry WHERE id = 'legacy-weight'
+                """), 81.7)
+            XCTAssertEqual(try String.fetchOne(db, sql: """
+                SELECT note FROM bodyWeightEntry WHERE id = 'legacy-weight'
+                """), "keep me")
+            XCTAssertEqual(try Int.fetchOne(db, sql: """
+                SELECT energyCoverageSeconds FROM dailyMetric
+                WHERE deviceId = 'my-whoop' AND day = '2026-08-24'
+                """), 43_200)
+            let applied = try Set(String.fetchAll(db, sql: """
+                SELECT identifier FROM grdb_migrations
+                WHERE identifier IN ('v42-body-weight', 'v43-body-weight',
+                                     'v43-energy-coverage', 'v44-energy-coverage')
+                """))
+            XCTAssertEqual(applied, ["v42-body-weight", "v43-body-weight",
+                                     "v43-energy-coverage", "v44-energy-coverage"])
+        }
+    }
+
     // MARK: - Write + read back
 
     func testUpsertStoresAndReadsBack() async throws {

@@ -980,7 +980,19 @@ extension WhoopStore {
         //
         // Additive only: a NEW table, no existing row touched, old readers unaffected.
         migrator.registerMigration("v43-body-weight") { db in
-            try db.create(table: "bodyWeightEntry") { t in
+            // Compatibility for local/internal builds made from the pre-merge feature snapshot. That
+            // snapshot briefly shipped this exact schema under `v42-body-weight`; upstream then occupied
+            // v42, so the final migration had to move to v43. Such a database has the table but not this
+            // marker, and an unconditional CREATE traps every subsequent store open in the same failure.
+            // Keep the leniency marker-gated: an unrelated database that happens to contain a table with
+            // this name must still fail loudly rather than being mistaken for our schema.
+            let hasPrototypeMigration = try Bool.fetchOne(db, sql: """
+                SELECT EXISTS(
+                    SELECT 1 FROM grdb_migrations WHERE identifier = 'v42-body-weight'
+                )
+                """) ?? false
+            try db.create(table: "bodyWeightEntry",
+                          options: hasPrototypeMigration ? [.ifNotExists] : []) { t in
                 t.column("id", .text).primaryKey()
                 t.column("deviceId", .text).notNull()
                 t.column("day", .text).notNull()          // yyyy-MM-dd (projection key)
@@ -994,10 +1006,11 @@ extension WhoopStore {
             try db.create(index: "idx_bodyWeightEntry_natural",
                           on: "bodyWeightEntry",
                           columns: ["deviceId", "takenAt", "source"],
-                          unique: true)
+                          options: hasPrototypeMigration ? [.unique, .ifNotExists] : [.unique])
             // History reads scan (deviceId) then walk takenAt in order.
             try db.create(index: "idx_bodyWeightEntry_device_takenAt",
-                          on: "bodyWeightEntry", columns: ["deviceId", "takenAt"])
+                          on: "bodyWeightEntry", columns: ["deviceId", "takenAt"],
+                          options: hasPrototypeMigration ? [.ifNotExists] : [])
         }
         // v44-energy-coverage: the on-device day-calorie estimate is a sum over observed HR seconds.
         // Persist that denominator beside the value so consumers can distinguish a fully-covered day
@@ -1005,8 +1018,19 @@ extension WhoopStore {
         // Nullable keeps every imported and pre-v44 row honestly "unknown" and avoids a costly history
         // scan during launch migration; normal day re-analysis fills recent/current rows organically.
         migrator.registerMigration("v44-energy-coverage") { db in
-            try db.alter(table: "dailyMetric") { t in
-                t.add(column: "energyCoverageSeconds", .integer)
+            // The same pre-merge snapshot called this `v43-energy-coverage`. Only trust an already-present
+            // column when that exact prototype marker exists; otherwise a duplicate remains a real schema
+            // error. GRDB/SQLite has no portable ADD COLUMN IF NOT EXISTS for this deployment range.
+            let hasPrototypeMigration = try Bool.fetchOne(db, sql: """
+                SELECT EXISTS(
+                    SELECT 1 FROM grdb_migrations WHERE identifier = 'v43-energy-coverage'
+                )
+                """) ?? false
+            let hasColumn = try db.columns(in: "dailyMetric").contains { $0.name == "energyCoverageSeconds" }
+            if !hasPrototypeMigration || !hasColumn {
+                try db.alter(table: "dailyMetric") { t in
+                    t.add(column: "energyCoverageSeconds", .integer)
+                }
             }
         }
         return migrator
