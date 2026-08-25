@@ -13,10 +13,13 @@ final class EnergyEngineTests: XCTestCase {
     private func inputs(appleActive: Double? = nil, appleBasal: Double? = nil,
                         strap: Double? = nil, coverage: Int? = nil,
                         calibration: Double? = nil,
+                        uncertainty: Double? = nil,
+                        calibrationStatus: EnergyCalibrationStatus = .off,
                         steps: Int? = nil, hoursWithSteps: Int? = nil) -> EnergyEngine.DayInputs {
         .init(day: "2026-08-21", appleActiveKcal: appleActive,
               appleBasalKcal: appleBasal, strapTotalKcal: strap,
               strapCoverageSeconds: coverage, strapCalibrationFactor: calibration,
+              strapUncertaintyFraction: uncertainty, calibrationStatus: calibrationStatus,
               steps: steps, hoursWithSteps: hoursWithSteps)
     }
 
@@ -54,10 +57,14 @@ final class EnergyEngineTests: XCTestCase {
     func testOptInCalibrationAppliesOnlyToWhoopAndIsDisclosed() {
         let strap = EnergyEngine.summarize(
             inputs(appleActive: 900, appleBasal: 1_800, strap: 2_000,
-                   coverage: 86_400, calibration: 1.1), profile: profile)
+                   coverage: 86_400, calibration: 1.1, uncertainty: 0.12,
+                   calibrationStatus: .active), profile: profile)
         XCTAssertEqual(strap.totalBurnedSoFar ?? 0, 2_200, accuracy: 0.001)
         XCTAssertEqual(strap.appliedCalibrationFactor, 1.1)
         XCTAssertEqual(strap.source, .strapWornTime)
+        XCTAssertEqual(strap.rawWhoopTotalKcal, 2_000)
+        XCTAssertEqual(strap.uncertaintyFraction, 0.12)
+        XCTAssertEqual(strap.calibrationStatus, .active)
 
         let appleOnly = EnergyEngine.summarize(
             inputs(appleActive: 600, appleBasal: 1_800, calibration: 1.1), profile: profile)

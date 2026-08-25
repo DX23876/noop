@@ -1898,6 +1898,9 @@ final class AICoachEngine: ObservableObject {
         lines.append("BASAL_SO_FAR: \(kcal(summary.basalBurnedSoFar))")
         lines.append("ACTIVE_SO_FAR: \(kcal(summary.activeBurnedSoFar))")
         lines.append("TOTAL_SO_FAR: \(kcal(summary.totalBurnedSoFar))")
+        if let raw = summary.rawWhoopTotalKcal {
+            lines.append("RAW_WHOOP_MODEL: \(kcal(raw)) before calibration and missing-basal top-up")
+        }
         if let projected = summary.projectedTotalBurn {
             lines.append("PROJECTED_TOTAL_TODAY: \(kcal(projected)) (extrapolated, not measured)")
         }
@@ -1910,6 +1913,13 @@ final class AICoachEngine: ObservableObject {
         case .profileOnly:   source = "profile-based basal estimate only"
         }
         lines.append("SOURCE: \(source)")
+        lines.append("CALIBRATION: \(summary.calibrationStatus.rawValue)")
+        if let factor = summary.appliedCalibrationFactor {
+            lines.append(String(format: "WATCH_REFERENCE_FACTOR: ×%.3f (Apple Watch reference; WHOOP remains the source)", factor))
+        }
+        if let uncertainty = summary.uncertaintyFraction {
+            lines.append("MODEL_UNCERTAINTY: approximately ±\(Int((uncertainty * 100).rounded()))%")
+        }
         if let energy = summary.coverage.energy {
             lines.append("ENERGY_COVERAGE: \(Int((energy * 100).rounded()))% of the elapsed day")
         } else {

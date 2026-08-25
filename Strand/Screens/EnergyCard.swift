@@ -183,6 +183,8 @@ struct EnergyDetailView: View {
 
     @State private var summaries: [DailyEnergySummary] = []
     @State private var loaded = false
+    @State private var calibration = EnergyCalibrationViewState.off
+    @State private var updatingCalibration = false
 
     private var today: DailyEnergySummary? {
         let key = Repository.localDayKey(Date())
@@ -196,6 +198,7 @@ struct EnergyDetailView: View {
                 if let today {
                     EnergyCard(summary: today)
                     provenance(today)
+                    calibrationControls
                 } else {
                     Text("Nothing recorded yet today.")
                         .font(StrandFont.caption)
@@ -226,8 +229,52 @@ struct EnergyDetailView: View {
                     if let bmr = s.estimatedBMR24h {
                         row("Estimated basal rate", "\(Int(bmr.rounded())) kcal/day")
                     }
+                    if let raw = s.rawWhoopTotalKcal {
+                        row("Model", "WHOOP · \(Int(raw.rounded())) kcal")
+                    }
+                    if let uncertainty = s.uncertaintyFraction {
+                        row("Confidence", "±\(Int((uncertainty * 100).rounded())) %")
+                    }
+                    row("Calibration", calibrationLabel(s.calibrationStatus))
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+    }
+
+    private var calibrationControls: some View {
+        NoopCard {
+            VStack(alignment: .leading, spacing: 10) {
+                Toggle("Calibration", isOn: Binding(
+                    get: { calibration.status == .active || calibration.status == .learning },
+                    set: { enabled in Task { await setCalibration(enabled) } }))
+                    .disabled(updatingCalibration)
+                HStack {
+                    Text(calibrationLabel(calibration.status))
+                        .font(StrandFont.caption)
+                        .foregroundStyle(StrandPalette.textSecondary)
+                    Spacer()
+                    if let factor = calibration.factor {
+                        Text(verbatim: formattedCalibrationFactor(factor))
+                            .font(StrandFont.caption)
+                            .foregroundStyle(StrandPalette.textPrimary)
+                    }
+                }
+                if calibration.sampleDays > 0 {
+                    row("Days", "\(calibration.sampleDays) · \(calibration.sampleBuckets) samples")
+                }
+                if calibration.status == .active || calibration.status == .paused {
+                    Button("Reset", role: .destructive) {
+                        Task {
+                            updatingCalibration = true
+                            calibration = await repo.resetEnergyCalibration()
+                            summaries = await repo.energySummaries(
+                                days: 30, profile: Repository.analyticsProfile(profile))
+                            updatingCalibration = false
+                        }
+                    }
+                    .disabled(updatingCalibration)
+                }
             }
         }
     }
@@ -293,14 +340,40 @@ struct EnergyDetailView: View {
         }
     }
 
+    private func calibrationLabel(_ status: EnergyCalibrationStatus) -> String {
+        switch status {
+        case .off:      return String(localized: "Off")
+        case .learning: return String(localized: "Learning")
+        case .active:   return String(localized: "Active")
+        case .paused:   return String(localized: "Paused")
+        }
+    }
+
     private func percent(_ fraction: Double) -> String {
         "\(Int((fraction * 100).rounded())) %"
+    }
+
+    private func formattedCalibrationFactor(_ factor: Double) -> String {
+        "×" + factor.formatted(.number.precision(.fractionLength(3)))
     }
 
     private func loadIfNeeded() async {
         guard !loaded else { return }
         loaded = true
+        await repo.refreshWhoopEnergyModel(
+            days: 30, profile: Repository.analyticsProfile(profile))
+        calibration = await repo.energyCalibrationState()
         summaries = await repo.energySummaries(days: 30,
                                                profile: Repository.analyticsProfile(profile))
+    }
+
+    private func setCalibration(_ enabled: Bool) async {
+        guard !updatingCalibration else { return }
+        updatingCalibration = true
+        calibration = await repo.setEnergyCalibrationEnabled(
+            enabled, profile: Repository.analyticsProfile(profile))
+        summaries = await repo.energySummaries(days: 30,
+                                               profile: Repository.analyticsProfile(profile))
+        updatingCalibration = false
     }
 }

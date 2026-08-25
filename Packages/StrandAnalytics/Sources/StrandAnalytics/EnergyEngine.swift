@@ -38,6 +38,13 @@ public enum EnergySource: String, Equatable, Sendable, Codable {
     /// Nothing but the profile. `totalBurned` is nil here; only `estimatedBMR24h` is meaningful.
     case profileOnly
 }
+
+public enum EnergyCalibrationStatus: String, Equatable, Sendable, Codable {
+    case off
+    case learning
+    case active
+    case paused
+}
 /// How much of a day the available sources actually covered.
 ///
 /// The strap path persists the number of distinct HR seconds used by the calorie estimate. Each
@@ -88,25 +95,35 @@ public struct DailyEnergySummary: Equatable, Sendable {
     /// Where the day is heading, for the CURRENT day only. Always nil for a past day: a forecast for
     /// yesterday is not a forecast.
     public let projectedTotalBurn: Double?
+    /// The WHOOP model output before an optional Apple Watch reference multiplier and basal top-up.
+    public let rawWhoopTotalKcal: Double?
+    /// Approximate symmetric model uncertainty. Nil for sources that do not publish one.
+    public let uncertaintyFraction: Double?
     /// The bounded Apple Watch reference multiplier applied to the WHOOP total. Nil means the
     /// calibration was disabled, unavailable or invalid. Apple remains a reference, not the source.
     public let appliedCalibrationFactor: Double?
+    public let calibrationStatus: EnergyCalibrationStatus
     public let source: EnergySource
     public let coverage: EnergyCoverage
     /// Reuses the app-wide ladder rather than inventing a fourth vocabulary for certainty.
     public let confidence: ScoreConfidence
 
     public init(day: String, estimatedBMR24h: Double?, basalBurnedSoFar: Double?, activeBurnedSoFar: Double?,
-                totalBurnedSoFar: Double?, projectedTotalBurn: Double?,
+                totalBurnedSoFar: Double?, projectedTotalBurn: Double?, rawWhoopTotalKcal: Double? = nil,
+                uncertaintyFraction: Double? = nil,
                 appliedCalibrationFactor: Double? = nil, source: EnergySource,
-                coverage: EnergyCoverage, confidence: ScoreConfidence) {
+                coverage: EnergyCoverage, confidence: ScoreConfidence,
+                calibrationStatus: EnergyCalibrationStatus = .off) {
         self.day = day
         self.estimatedBMR24h = estimatedBMR24h
         self.basalBurnedSoFar = basalBurnedSoFar
         self.activeBurnedSoFar = activeBurnedSoFar
         self.totalBurnedSoFar = totalBurnedSoFar
         self.projectedTotalBurn = projectedTotalBurn
+        self.rawWhoopTotalKcal = rawWhoopTotalKcal
+        self.uncertaintyFraction = uncertaintyFraction
         self.appliedCalibrationFactor = appliedCalibrationFactor
+        self.calibrationStatus = calibrationStatus
         self.source = source
         self.coverage = coverage
         self.confidence = confidence
@@ -155,6 +172,8 @@ public enum EnergyEngine {
         /// Optional, user-enabled Apple Watch reference calibration. Values outside the deliberately
         /// narrow 0.8...1.2 range are ignored, and the factor is never applied to Apple-only days.
         public let strapCalibrationFactor: Double?
+        public let strapUncertaintyFraction: Double?
+        public let calibrationStatus: EnergyCalibrationStatus
         public let steps: Int?
         /// Hours of the day carrying any step count, out of 24. Nil when hourly steps aren't stored.
         public let hoursWithSteps: Int?
@@ -162,6 +181,8 @@ public enum EnergyEngine {
         public init(day: String, appleActiveKcal: Double? = nil, appleBasalKcal: Double? = nil,
                     strapTotalKcal: Double? = nil, strapCoverageSeconds: Int? = nil,
                     strapCalibrationFactor: Double? = nil,
+                    strapUncertaintyFraction: Double? = nil,
+                    calibrationStatus: EnergyCalibrationStatus = .off,
                     steps: Int? = nil, hoursWithSteps: Int? = nil) {
             self.day = day
             self.appleActiveKcal = appleActiveKcal
@@ -169,6 +190,8 @@ public enum EnergyEngine {
             self.strapTotalKcal = strapTotalKcal
             self.strapCoverageSeconds = strapCoverageSeconds
             self.strapCalibrationFactor = strapCalibrationFactor
+            self.strapUncertaintyFraction = strapUncertaintyFraction
+            self.calibrationStatus = calibrationStatus
             self.steps = steps
             self.hoursWithSteps = hoursWithSteps
         }
@@ -211,10 +234,13 @@ public enum EnergyEngine {
             activeBurnedSoFar: result.active,
             totalBurnedSoFar: result.total,
             projectedTotalBurn: projected,
+            rawWhoopTotalKcal: result.rawWhoopTotalKcal,
+            uncertaintyFraction: clean.strapTotalKcal == nil ? nil : clean.strapUncertaintyFraction,
             appliedCalibrationFactor: result.appliedCalibrationFactor,
             source: result.source,
             coverage: coverage,
-            confidence: confidence(source: result.source, coverage: coverage)
+            confidence: confidence(source: result.source, coverage: coverage),
+            calibrationStatus: clean.calibrationStatus
         )
     }
 
@@ -231,14 +257,16 @@ public enum EnergyEngine {
         let total: Double?
         let source: EnergySource
         let appliedCalibrationFactor: Double?
+        let rawWhoopTotalKcal: Double?
 
         init(basal: Double?, active: Double?, total: Double?, source: EnergySource,
-             appliedCalibrationFactor: Double? = nil) {
+             appliedCalibrationFactor: Double? = nil, rawWhoopTotalKcal: Double? = nil) {
             self.basal = basal
             self.active = active
             self.total = total
             self.source = source
             self.appliedCalibrationFactor = appliedCalibrationFactor
+            self.rawWhoopTotalKcal = rawWhoopTotalKcal
         }
     }
 
@@ -262,7 +290,8 @@ public enum EnergyEngine {
                 // A legacy total has no trustworthy denominator. Preserve the observation but do not
                 // invent a basal top-up or active/basal split from its magnitude.
                 return BurnResult(basal: nil, active: nil, total: calibratedStrap,
-                                  source: .strapWornTime, appliedCalibrationFactor: factor)
+                                  source: .strapWornTime, appliedCalibrationFactor: factor,
+                                  rawWhoopTotalKcal: strap)
             }
             let observedSeconds = min(context.elapsedSeconds, max(0, Double(covered)))
             let basalRate = bmr24h / context.dayDurationSeconds
@@ -271,7 +300,7 @@ public enum EnergyEngine {
             let missingBasal = basalRate * max(0, context.elapsedSeconds - observedSeconds)
             return BurnResult(basal: basalElapsed, active: active,
                               total: calibratedStrap + missingBasal, source: .strapWornTime,
-                              appliedCalibrationFactor: factor)
+                              appliedCalibrationFactor: factor, rawWhoopTotalKcal: strap)
         }
 
         // 2. Apple-only day. Both halves measured, nothing modelled. This path remains available for
@@ -343,12 +372,19 @@ public enum EnergyEngine {
         let factor = inputs.strapCalibrationFactor.flatMap {
             $0.isFinite && EnergyCalibrationEngine.factorRange.contains($0) ? $0 : nil
         }
+        let uncertainty = inputs.strapUncertaintyFraction.flatMap {
+            $0.isFinite && (0...1).contains($0) ? $0 : nil
+        }
+        let calibrationStatus: EnergyCalibrationStatus =
+            inputs.calibrationStatus == .active && factor == nil ? .learning : inputs.calibrationStatus
         return DayInputs(day: inputs.day,
                          appleActiveKcal: kcal(inputs.appleActiveKcal),
                          appleBasalKcal: kcal(inputs.appleBasalKcal),
                          strapTotalKcal: kcal(inputs.strapTotalKcal),
                          strapCoverageSeconds: covered,
                          strapCalibrationFactor: factor,
+                         strapUncertaintyFraction: uncertainty,
+                         calibrationStatus: calibrationStatus,
                          steps: steps,
                          hoursWithSteps: hours)
     }

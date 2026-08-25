@@ -785,6 +785,10 @@ final class AppModel: ObservableObject {
         await PlanReconciliationCoordinator.reconcile(repo: repo)
         await GoalTrackingStore.shared.refresh(repo: repo)
         await refreshV5Signals()
+        // Keep the WHOOP-first expenditure row in step with each completed strap offload. Apple
+        // reference fitting still remains opt-in inside the repository method.
+        await repo.refreshWhoopEnergyModel(
+            days: 30, profile: Repository.analyticsProfile(profile))
         #if os(iOS)
         // #980: a strap backfill routinely completes while the app is BACKGROUNDED (it runs as a
         // bluetooth-central, so it stays alive to receive the offload). The only other widget-publish

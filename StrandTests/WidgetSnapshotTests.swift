@@ -136,6 +136,26 @@ final class WidgetSnapshotTests: XCTestCase {
         XCTAssertEqual(decoded.recovery, 70)
     }
 
+    func testLegacyEnergyPayloadWithoutProvenanceStillDecodes() throws {
+        let json = #"{"day":"2026-08-25","totalKcal":2100,"activeKcal":500,"basalKcal":1600,"projectedKcal":2300,"source":"strapWornTime","confidence":"solid","asOf":0}"#
+        let decoded = try JSONDecoder().decode(WidgetEnergySnapshot.self, from: Data(json.utf8))
+        XCTAssertEqual(decoded.totalKcal, 2_100)
+        XCTAssertNil(decoded.rawWhoopKcal)
+        XCTAssertNil(decoded.uncertaintyPercent)
+        XCTAssertNil(decoded.calibrationFactorPermille)
+    }
+
+    func testCalibrationProvenanceChangeReloadsEnergyWidget() {
+        var previous = renderedSnapshot()
+        previous.energy = WidgetEnergySnapshot(
+            day: "2026-08-25", totalKcal: 2_100, activeKcal: 500, basalKcal: 1_600,
+            projectedKcal: 2_300, source: "strapWornTime", confidence: "solid",
+            rawWhoopKcal: 2_000, uncertaintyPercent: 12, asOf: Date())
+        var next = previous
+        next.energy?.calibrationFactorPermille = 1_050
+        XCTAssertTrue(WidgetSnapshot.energyContentChanged(from: previous, to: next))
+    }
+
     func testLiveUpdateReusesSnapshotWithinSameLocalDay() {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(secondsFromGMT: 0)!

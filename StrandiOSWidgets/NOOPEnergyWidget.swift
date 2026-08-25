@@ -73,6 +73,7 @@ struct NOOPEnergyWidgetView: View {
                     .foregroundStyle(StrandPalette.effortColor)
             }
             quality
+            calibration
         }
         .padding(12)
     }
@@ -90,6 +91,7 @@ struct NOOPEnergyWidgetView: View {
                     .font(.caption)
                     .foregroundStyle(StrandPalette.textSecondary)
                 quality
+                calibration
             }
             .frame(maxWidth: .infinity, alignment: .leading)
 
@@ -108,6 +110,27 @@ struct NOOPEnergyWidgetView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding(14)
+    }
+
+    @ViewBuilder private var calibration: some View {
+        if let factor = energy?.calibrationFactorPermille {
+            Text(verbatim: calibrationText(factor: factor))
+                .font(.caption2)
+                .foregroundStyle(StrandPalette.textSecondary)
+        } else if let uncertainty = energy?.uncertaintyPercent {
+            Text(verbatim: uncertaintyText(uncertainty))
+                .font(.caption2)
+                .foregroundStyle(StrandPalette.textSecondary)
+        }
+    }
+
+    private func calibrationText(factor: Int) -> String {
+        "WHOOP · ×" + (Double(factor) / 1_000)
+            .formatted(.number.precision(.fractionLength(3)))
+    }
+
+    private func uncertaintyText(_ percent: Int) -> String {
+        "WHOOP · ±\(percent) %"
     }
 
     private var header: some View {

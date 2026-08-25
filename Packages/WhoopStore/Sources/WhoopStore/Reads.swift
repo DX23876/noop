@@ -14,7 +14,15 @@ public struct HRBucket: Sendable, Equatable {
     /// to 1.0 so existing constructors/tests are unchanged. (adopted from ryanAtriumAi #988 —
     /// purely additive surfacing; the acceptance floor itself is unchanged.)
     public let conf: Double
-    public init(ts: Int, bpm: Double, conf: Double = 1.0) { self.ts = ts; self.bpm = bpm; self.conf = conf }
+    /// Number of distinct HR seconds represented by the mean. This prevents one sample in a
+    /// five-minute bucket from masquerading as five minutes of WHOOP coverage.
+    public let sampleSeconds: Int
+    public init(ts: Int, bpm: Double, conf: Double = 1.0, sampleSeconds: Int = 0) {
+        self.ts = ts
+        self.bpm = bpm
+        self.conf = conf
+        self.sampleSeconds = sampleSeconds
+    }
 }
 
 /// Aggregate HR over a time window: sample count + mean/peak bpm. Result of [WhoopStore.hrWindowStats],
@@ -229,7 +237,8 @@ extension WhoopStore {
             // (conservative), and a purely-measured bucket stays 1.0. Purely additive projection:
             // the bpm aggregate and the anti-join semantics are byte-identical. (ryanAtriumAi #988)
             try Row.fetchAll(db, sql: """
-                SELECT (ts / ?) * ? AS bucket, AVG(bpm) AS avgBpm, MIN(conf) AS minConf FROM (
+                SELECT (ts / ?) * ? AS bucket, AVG(bpm) AS avgBpm, MIN(conf) AS minConf,
+                       COUNT(DISTINCT ts) AS sampleSeconds FROM (
                     SELECT ts, bpm, 1.0 AS conf FROM hrSample
                     WHERE deviceId = ? AND ts >= ? AND ts <= ?
                     UNION ALL
@@ -245,7 +254,9 @@ extension WhoopStore {
                                  deviceId, from, to,
                                  deviceId, from, to,
                                  bucket])
-                .map { HRBucket(ts: $0["bucket"], bpm: $0["avgBpm"], conf: $0["minConf"] ?? 1.0) }
+                .map { HRBucket(ts: $0["bucket"], bpm: $0["avgBpm"],
+                                conf: $0["minConf"] ?? 1.0,
+                                sampleSeconds: $0["sampleSeconds"] ?? 0) }
         }
     }
 

@@ -70,6 +70,11 @@ extension WidgetSnapshot {
                 projectedKcal: summary.projectedTotalBurn.map { Int($0.rounded()) },
                 source: summary.source.rawValue,
                 confidence: summary.confidence.rawValue,
+                rawWhoopKcal: summary.rawWhoopTotalKcal.map { Int($0.rounded()) },
+                uncertaintyPercent: summary.uncertaintyFraction.map { Int(($0 * 100).rounded()) },
+                calibrationFactorPermille: summary.appliedCalibrationFactor.map {
+                    Int(($0 * 1_000).rounded())
+                },
                 asOf: now)
         }
         let snap = WidgetSnapshot(

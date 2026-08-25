@@ -2,6 +2,25 @@ import Foundation
 import StrandAnalytics
 import WhoopStore
 
+struct EnergyCalibrationViewState: Equatable {
+    let status: EnergyCalibrationStatus
+    let factor: Double?
+    let sampleDays: Int
+    let sampleBuckets: Int
+    let referenceDeviceId: String?
+
+    static let off = EnergyCalibrationViewState(
+        status: .off, factor: nil, sampleDays: 0, sampleBuckets: 0, referenceDeviceId: nil)
+}
+
+enum EnergyCalibrationPreferences {
+    static let enabledKey = "energy.watchCalibration.enabled"
+    static var enabled: Bool {
+        get { UserDefaults.standard.bool(forKey: enabledKey) }
+        set { UserDefaults.standard.set(newValue, forKey: enabledKey) }
+    }
+}
+
 // EnergySeries.swift — the single place the app asks "how much did I burn?".
 //
 // The same shape as `WeightSeries.swift`, for the same reason: energy arrives from several stores
@@ -49,22 +68,34 @@ extension Repository {
         let cutoff = Self.dayString(cutoffDate)
         let strapDays = self.days.filter { $0.day >= cutoff }
         let strapByDay = Dictionary(strapDays.map { ($0.day, $0) }, uniquingKeysWith: { _, b in b })
+        let store = await storeHandle()
+        let derivedRows = (try? await store?.whoopDailyEnergy(
+            deviceId: deviceId, from: cutoff, to: todayKey)) ?? []
+        let derivedByDay = Dictionary(derivedRows.map { ($0.day, $0) },
+                                      uniquingKeysWith: { _, b in b })
+        let calibration = await energyCalibrationState(store: store)
+        let calibrationFactor = calibration.status == .active ? calibration.factor : nil
 
         // TODAY is always included, even with no inputs at all. Without this the engine's
         // `.profileOnly` branch is unreachable in practice: a day with no Apple row and no strap row
         // produced no summary, so the card that exists to say "nothing recorded yet, here is your
         // estimated basal rate" simply never appeared. Past days stay data-driven — an empty card for
         // every unworn day last month would be noise, not honesty.
-        let allDays = Set(appleByDay.keys).union(strapByDay.keys).union([todayKey]).sorted()
+        let allDays = Set(appleByDay.keys).union(strapByDay.keys)
+            .union(derivedByDay.keys).union([todayKey]).sorted()
         return allDays.map { day in
             let apple = appleByDay[day]
             let strap = strapByDay[day]
+            let derived = derivedByDay[day]
             let inputs = EnergyEngine.DayInputs(
                 day: day,
                 appleActiveKcal: apple?.activeKcal,
                 appleBasalKcal: apple?.basalKcal,
-                strapTotalKcal: strap?.activeKcalEst,
-                strapCoverageSeconds: strap?.energyCoverageSeconds,
+                strapTotalKcal: derived?.rawTotalKcal ?? strap?.activeKcalEst,
+                strapCoverageSeconds: strap?.energyCoverageSeconds ?? derived?.observedSeconds,
+                strapCalibrationFactor: calibrationFactor,
+                strapUncertaintyFraction: derived?.uncertaintyFraction,
+                calibrationStatus: calibration.status,
                 // Apple's own step total first (a phone counts all day), else the strap's.
                 steps: apple?.steps ?? strap?.steps,
                 hoursWithSteps: stepHoursByDay[day])
@@ -86,6 +117,142 @@ extension Repository {
     func todayEnergy(profile: UserProfile) async -> DailyEnergySummary? {
         let todayKey = Self.localDayKey(Date())
         return await energySummaries(days: 2, profile: profile).last { $0.day == todayKey }
+    }
+
+    func energyCalibrationState() async -> EnergyCalibrationViewState {
+        await energyCalibrationState(store: await storeHandle())
+    }
+
+    private func energyCalibrationState(store: WhoopStore?) async -> EnergyCalibrationViewState {
+        guard let store,
+              let row = try? await store.energyCalibrationModel(deviceId: deviceId) else {
+            return EnergyCalibrationPreferences.enabled
+                ? .init(status: .learning, factor: nil, sampleDays: 0, sampleBuckets: 0,
+                        referenceDeviceId: nil)
+                : .off
+        }
+        let optedIn = EnergyCalibrationPreferences.enabled
+        let active = optedIn && row.enabled && row.modelVersion == EnergyCalibrationFit.modelVersion
+        return .init(status: active ? .active : (optedIn ? .learning : .paused),
+                     factor: active ? row.factor : nil, sampleDays: row.sampleDays,
+                     sampleBuckets: row.sampleBuckets, referenceDeviceId: row.referenceDeviceId)
+    }
+
+    @discardableResult
+    func setEnergyCalibrationEnabled(_ enabled: Bool, profile: UserProfile) async
+        -> EnergyCalibrationViewState {
+        EnergyCalibrationPreferences.enabled = enabled
+        if let store = await storeHandle() {
+            _ = try? await store.setEnergyCalibrationEnabled(deviceId: deviceId, enabled: enabled)
+        }
+        if enabled { await refreshWhoopEnergyModel(days: 30, profile: profile) }
+        return await energyCalibrationState()
+    }
+
+    @discardableResult
+    func resetEnergyCalibration() async -> EnergyCalibrationViewState {
+        EnergyCalibrationPreferences.enabled = false
+        if let store = await storeHandle() {
+            _ = try? await store.resetEnergyCalibration(deviceId: deviceId)
+        }
+        return .off
+    }
+
+    /// Rebuilds the auditable WHOOP bucket output and, only after explicit opt-in, learns a bounded
+    /// Apple Watch reference factor from time-aligned high-quality buckets. Sources remain separate:
+    /// each point compares one WHOOP estimate with one selected Watch source and never adds devices.
+    func refreshWhoopEnergyModel(days: Int = 30, profile: UserProfile) async {
+        guard let store = await storeHandle() else { return }
+        let now = Date()
+        let calendar = Calendar.current
+        let fromDate = calendar.date(byAdding: .day, value: -max(7, days), to: now) ?? now
+        let from = Int(fromDate.timeIntervalSince1970)
+        let to = Int(now.timeIntervalSince1970) + 1
+        let hr = await hrBuckets(from: from, to: to, bucketSeconds: 300)
+            .filter { $0.bpm.isFinite && $0.conf >= 0.5 }
+        guard !hr.isEmpty else { return }
+
+        let observations = await weightSeries(days: max(days + 100, 100)).compactMap { point in
+            WeightSeries.date(forDay: point.day).map {
+                CausalWeightObservation(timestamp: Int($0.timeIntervalSince1970),
+                                        weightKg: point.value,
+                                        source: point.source == .manual ? .manual : .health)
+            }
+        }
+        let resting = self.days.compactMap(\.restingHr).suffix(14).map(Double.init).sorted()
+        let restingHR = resting.isEmpty ? nil : resting[resting.count / 2]
+        let maximumHR = profile.age > 0 ? StrainScorer.tanakaHRmax(age: profile.age) : nil
+        var bucketResults: [Int: WhoopEnergyBucketResult] = [:]
+        for (day, rows) in Dictionary(grouping: hr, by: { Self.localDayKey(
+            Date(timeIntervalSince1970: TimeInterval($0.ts))) }) {
+            var dayProfile = profile
+            let noon = WeightSeries.date(forDay: day)
+                .map { Int($0.timeIntervalSince1970 + 43_200) } ?? (rows.first.map(\.ts) ?? from)
+            var weightSource = WhoopDailyEnergyRow.WeightSource.profile
+            if let historical = CausalWeightResolver.weight(
+                at: noon, observations: observations, calendar: calendar) {
+                dayProfile.weightKg = historical
+                weightSource = .history
+            }
+            let inputs = rows.map {
+                WhoopEnergyBucket(start: $0.ts,
+                                  durationSeconds: min(300, max(1, $0.sampleSeconds)),
+                                  averageHR: $0.bpm)
+            }
+            guard let estimate = WhoopEnergyModel.estimate(
+                buckets: inputs, profile: dayProfile, restingHR: restingHR,
+                maxHR: maximumHR) else { continue }
+            for bucket in estimate.buckets { bucketResults[bucket.start] = bucket }
+            let row = WhoopDailyEnergyRow(
+                day: day, rawTotalKcal: estimate.totalKcal,
+                modelVersion: WhoopDailyEnergyEstimate.modelVersion,
+                observedSeconds: estimate.observedSeconds,
+                inferredSeconds: estimate.inferredSeconds,
+                modeledSeconds: estimate.modeledSeconds,
+                uncertaintyFraction: estimate.uncertaintyFraction,
+                weightKg: dayProfile.weightKg, weightSource: weightSource)
+            _ = try? await store.upsertWhoopDailyEnergy([row], deviceId: deviceId)
+        }
+
+        guard EnergyCalibrationPreferences.enabled else { return }
+        let referenceRows = (try? await store.healthEnergyBuckets(
+            deviceId: Self.appleHealthSource, from: from, to: to, eligibleOnly: true)) ?? []
+        let candidates = referenceRows.filter {
+            (($0.activeKcal ?? 0) + ($0.basalKcal ?? 0)) > 0 && $0.coverageSeconds > 0
+        }
+        // Keep this deliberately simple for Swift 5's type checker. The nested generic
+        // Dictionary(grouping:) -> tuple map -> ternary sort expression timed out in the
+        // universal macOS CI build even though newer local compilers accepted it.
+        var sourceCounts: [String: Int] = [:]
+        for row in candidates { sourceCounts[row.sourceId, default: 0] += 1 }
+        let rankedSources = sourceCounts.keys.sorted { lhs, rhs in
+            let lhsCount = sourceCounts[lhs] ?? 0
+            let rhsCount = sourceCounts[rhs] ?? 0
+            if lhsCount != rhsCount { return lhsCount > rhsCount }
+            return lhs < rhs
+        }
+        let chosenSource = rankedSources.first
+        guard let chosenSource else { return }
+        let hrByStart = Dictionary(hr.map { ($0.ts, $0) }, uniquingKeysWith: { a, _ in a })
+        let points = candidates.compactMap { row -> EnergyCalibrationPoint? in
+            guard row.sourceId == chosenSource, let whoop = bucketResults[row.bucketStart],
+                  let hrBucket = hrByStart[row.bucketStart] else { return nil }
+            let apple = ((row.activeKcal ?? 0) + (row.basalKcal ?? 0))
+                / Double(row.coverageSeconds) * 300
+            let normalizedWhoop = whoop.kcal / Double(max(1, hrBucket.sampleSeconds)) * 300
+            let coverage = Double(row.coverageSeconds) / Double(HealthEnergyBucketRow.durationSeconds)
+            let whoopCoverage = Double(hrBucket.sampleSeconds) / 300
+            let quality = min(min(row.quality ?? coverage, coverage), min(hrBucket.conf, whoopCoverage))
+            return .init(timestamp: row.bucketStart, whoopKcal: normalizedWhoop,
+                         appleWatchKcal: apple, overlapQuality: quality)
+        }
+        guard let fit = EnergyCalibrationEngine.fit(points: points, calendar: calendar) else { return }
+        let model = EnergyCalibrationModelRow(
+            deviceId: deviceId, referenceDeviceId: chosenSource, enabled: true,
+            factor: fit.factor, sampleDays: fit.sampleDays, sampleBuckets: fit.sampleBuckets,
+            coefficientOfVariation: fit.coefficientOfVariation,
+            fittedAt: Int(now.timeIntervalSince1970), modelVersion: EnergyCalibrationFit.modelVersion)
+        _ = try? await store.saveEnergyCalibrationModel(model)
     }
 
     /// How many distinct hours of each day carry a step count — the movement-coverage signal.
