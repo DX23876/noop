@@ -98,6 +98,43 @@ extension WhoopStore {
         }
     }
 
+    /// Replace one day's hourly ACTIVE-energy profile (`v48`). A whole-day replace rather than a
+    /// per-hour upsert: a recomputed day must not leave an old hour behind, which is exactly what a
+    /// merge would do when the new pass produces fewer hours than the previous one.
+    @discardableResult
+    public func replaceWhoopEnergyHours(day: String, deviceId: String,
+                                        activeKcalByHour: [Int: Double]) async throws -> Int {
+        guard day.count == 10, !deviceId.isEmpty else { return 0 }
+        return try syncWrite { db in
+            try db.execute(sql: "DELETE FROM whoopEnergyHourly WHERE deviceId = ? AND day = ?",
+                           arguments: [deviceId, day])
+            var written = 0
+            for (hour, kcal) in activeKcalByHour.sorted(by: { $0.key < $1.key })
+            where (0...23).contains(hour) && kcal.isFinite && kcal >= 0 && kcal <= 5_000 {
+                try db.execute(sql: """
+                    INSERT INTO whoopEnergyHourly (deviceId, day, hour, activeKcal)
+                    VALUES (?, ?, ?, ?)
+                    """, arguments: [deviceId, day, hour, kcal])
+                written += 1
+            }
+            return written
+        }
+    }
+
+    /// One row per (day, hour) that carried active energy, oldest first. Hours with no row are absent
+    /// rather than zero; the caller fills a 24-slot vector so a quiet hour reads as a real zero.
+    public nonisolated func whoopEnergyHours(deviceId: String, from: String,
+                                             to: String) async throws -> [(day: String, hour: Int, activeKcal: Double)] {
+        try await asyncRead { db in
+            try Row.fetchAll(db, sql: """
+                SELECT day, hour, activeKcal FROM whoopEnergyHourly
+                WHERE deviceId = ? AND day >= ? AND day <= ?
+                ORDER BY day ASC, hour ASC
+                """, arguments: [deviceId, from, to])
+                .map { (day: $0["day"], hour: $0["hour"], activeKcal: $0["activeKcal"]) }
+        }
+    }
+
     private static func valid(_ row: WhoopDailyEnergyRow) -> Bool {
         row.day.count == 10 && row.rawTotalKcal.isFinite && row.rawTotalKcal >= 0
             && !row.modelVersion.isEmpty && row.observedSeconds >= 0 && row.inferredSeconds >= 0

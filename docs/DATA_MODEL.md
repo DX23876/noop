@@ -60,11 +60,11 @@ single `DatabaseQueue` and applies these PRAGMAs before any query runs:
 | `busyMode` | `.timeout(5)` | 5-second busy timeout under write contention. |
 
 `WhoopStore` is an `actor`: all GRDB calls run on the actor's serial executor (off the main
-thread) through the `syncRead` / `syncWrite` helpers. `WhoopStoreInfo.schemaVersion` is a
-separate, manually-maintained constant (currently `18`) that has lagged the real migration
+thread) through the `syncRead` / `syncWrite` helpers. `WhoopStore.schemaVersion` is a
+separate, manually-maintained constant (currently `21`) that has lagged the real migration
 history and must not be read as the schema's true version. The migrator itself (`makeMigrator()`,
 below) is the source of truth for what tables/columns exist and currently runs through
-**`v40-analysis-input-revision`**.
+**`v48-whoop-energy-hourly`**.
 
 ---
 
@@ -76,10 +76,11 @@ The schema falls into the groups below. The migration table is intentionally a s
 | Group | Tables | Origin |
 | --- | --- | --- |
 | **Device registry** | `device` | BLE pairing |
-| **Decoded streams** (durable) | `hrSample`, `rrInterval`, `event`, `battery`, `spo2Sample`, `skinTempSample`, `respSample`, `gravitySample` | Decoded from strap frames on-device |
+| **Decoded streams** (durable) | `hrSample`, `rrInterval`, `event`, `battery`, `spo2Sample`, `skinTempSample`, `respSample`, `gravitySample`, `ppgWaveformSample` (v27, unconsumed instrumentation) | Decoded from strap frames on-device |
 | **Raw outbox** (transient) | `rawBatch` | Compressed raw BLE frames, prunable |
 | **Bookkeeping** | `cursors`, `analysisInputRevision`, `analysisDeviceRevision`, `dayScanFingerprint` | Highwater marks and exact analysis-cache invalidation |
-| **Metric caches** | `sleepSession`, `dailyMetric`, `journal`, `workout`, `appleDaily`, `metricSeries`, `scoreInputProvenance` | Derived metrics + their input-provider provenance + CSV / Apple-Health imports |
+| **Metric caches** | `sleepSession`, `dailyMetric`, `journal`, `workout`, `appleDaily`, `appleStepHour` (v41), `bodyWeightEntry` (v43), `metricSeries`, `scoreInputProvenance` | Derived metrics + their input-provider provenance + CSV / Apple-Health imports |
+| **Energy model** (v45–v48) | `healthEnergyBucket`, `whoopDailyEnergy`, `whoopEnergyHourly`, `energyCalibrationModel` | WHOOP-first daily energy, its evidence mix, the hourly profile behind the personal day curve, and an opt-in Apple Watch reference calibration — see below |
 | **Oura raw archive** (durable, v25) | `ouraRaw` | Verbatim Oura API payloads behind the opt-in cloud import — see below |
 
 All timestamp columns named `ts`, `startTs`, `endTs`, `capturedAt`, etc. are **unix seconds**
@@ -110,6 +111,14 @@ Migrations are registered in `Packages/WhoopStore/Sources/WhoopStore/Database.sw
 | **v38-day-scan-fingerprint** | Adds per-local-day analysis fingerprints so unchanged raw windows can reuse their persisted computed rows. |
 | **v39-day-scan-traits** | Adds nullable learned-trait carry values to the fingerprint. Missing values deliberately make a legacy fingerprint stale. |
 | **v40-analysis-input-revision** | Adds UTC-day input revisions, per-device revisions, and nullable scoring/semantic fingerprint fields. All additions are backward-compatible; derived output writes do not advance the input revision. |
+| **v41-apple-step-hour** | Adds `appleStepHour` — hour-bucketed imported step counts, the movement-coverage signal behind the Energy card's "hours with movement" figure. Renumbered from upstream's `v38-apple-step-hour`; created `ifNotExists` so a fork database that already has the table under either identifier converges cleanly. |
+| **v42-ppg-burst-index** | Adds nullable `ppgWaveformSample.burstIndex`, the per-burst counter beside the raw PPG waveform (#979). Existing rows keep it `NULL` — the counter predates this column and can't be reconstructed. |
+| **v43-body-weight** | Adds `bodyWeightEntry` — dated, sourced (`manual` / `appleHealth` / `imported`) weight measurements, editable/deletable by a client-generated `id`. Feeds `CausalWeightResolver` (per-day body weight for the energy model), trend weight, and goal tracking. Apple Health weights are read live, not copied in — `Repository.weightSeries()` unions the two per day. A prototype-marker check (`v42-body-weight`) lets a pre-merge internal build converge without a duplicate-table failure. |
+| **v44-energy-coverage** | Adds nullable `dailyMetric.energyCoverageSeconds` — the number of distinct HR seconds behind the strap's whole-day calorie estimate, so `EnergyEngine` can tell a fully-covered day from a short intense one instead of guessing from the kcal figure alone. Nullable so imported/pre-v44 rows stay honestly "unknown." Same prototype-marker leniency as v43 (`v43-energy-coverage`). |
+| **v45-health-energy-buckets** | Adds `healthEnergyBucket` — a separate, five-minute Apple Health **reference** stream used only to calibrate the WHOOP energy model (see below). Never folded into `dailyMetric`; importing it cannot by itself change the daily total. |
+| **v46-whoop-daily-energy** | Adds `whoopDailyEnergy` — the derived WHOOP-first daily estimate with its evidence mix (observed/inferred/modeled seconds) and model version, kept separate from the imported `dailyMetric` contract. |
+| **v47-energy-calibration-model** | Adds `energyCalibrationModel` — the opt-in, per-device Apple Watch calibration fit (bounded factor, sample size, fit quality). Row absence means disabled; an explicit `enabled` flag lets a user pause without discarding a hard-won fit. |
+| **v48-whoop-energy-hourly** | Adds `whoopEnergyHourly` — one day's ACTIVE energy at hourly resolution, written by the same bucket pass as `whoopDailyEnergy`. The substrate for the personal time-of-day activity curve that replaced the linear day forecast. Additive, no existing row touched. |
 
 > This table is a selection, not the full list — it covers the migrations the tables above refer to.
 > The registered set is the authority. Migrations are keyed by their **identifier string**, not by
@@ -296,6 +305,23 @@ inserts, identical range-read shape).
 
 **Primary key:** `(deviceId, ts)`.
 
+### `ppgWaveformSample` *(v27, +`burstIndex` v42)* — raw PPG waveform, deliberately unconsumed
+
+| Column | Type | Notes |
+| --- | --- | --- |
+| `deviceId` | TEXT NOT NULL | Part of PK. |
+| `ts` | INTEGER NOT NULL | Unix seconds. Part of PK. |
+| `samples` | BLOB NOT NULL | The raw optical waveform for this second. |
+| `burstIndex` | INTEGER | *(v42)* Per-burst counter beside the waveform it segments (#979). Nullable — pre-v42 rows can't be reconstructed. |
+
+**Primary key:** `(deviceId, ts)`. **Deliberately has zero production readers** — the writer is
+live (offload + archive replay + the Android capture importer), but nothing derives a score, UI
+value, or export from it. This is intentional, not dead code: `CLAUDE.md`'s rule is that unvalidated
+sensor work lands as *instrumentation* (decode + store the original samples, never a score) so a
+later, properly-validated estimator or waveform viewer has real data to run over — see the withdrawn
+PPG→HR estimate (#194) for why. The derived, actually-consumed value is the separate `ppgHrSample`
+(v12) per-second HR estimate, computed in memory and never read back from this table.
+
 ---
 
 ## Raw outbox (transient, prunable)
@@ -409,6 +435,7 @@ per-day rollup behind the dashboard. **Natural key `(deviceId, day)`** where `da
 | `spo2Pct` | DOUBLE | v7 | Mean SpO2 (%) during sleep. |
 | `skinTempDevC` | DOUBLE | v7 | Skin-temperature deviation (°C) from baseline. |
 | `respRateBpm` | DOUBLE | v7 | Mean respiration rate (breaths/min) during sleep. |
+| `energyCoverageSeconds` | INTEGER | v44 | Distinct HR seconds behind `activeKcalEst` — lets `EnergyEngine` tell a fully-covered day from a short intense one. |
 
 **Primary key:** `(deviceId, day)`. Read by lexicographic `day` range, oldest first. The
 `DailyMetric` struct's `init` defaults the three v7 fields to `nil` so older callers stay
@@ -471,6 +498,52 @@ imported from an Apple Health `export.xml`. All metric columns nullable.
 
 **Primary key:** `(deviceId, day)`. Read by lexicographic `day` range, oldest first.
 
+`activeKcal`/`basalKcal` are arbitrated **per source, never summed**: an iPhone and an Apple Watch
+both writing "active energy" for the same day are measuring the same overlapping activity, so
+`AppleHealthAggregator.preferredEnergyTotal` sums *within* a source and then takes the Watch's
+total when present, else the single largest source — the same de-overlap Apple's own Health app
+applies, and the rule steps import uses for `steps` on this table.
+
+### `appleStepHour` *(v41)*
+
+Hour-bucketed imported step counts — the movement-coverage signal behind the Energy card's "hours
+with movement" figure (`docs/ANALYTICS.md` §Daily energy) and finer-grained than `appleDaily.steps`.
+
+| Column | Type | Notes |
+| --- | --- | --- |
+| `deviceId` | TEXT NOT NULL | Part of PK. `"apple-health"` in practice. |
+| `ts` | INTEGER NOT NULL | Hour-start, unix seconds, local-hour aligned by HealthKit. Part of PK. |
+| `steps` | INTEGER NOT NULL | Steps in that hour. |
+
+**Primary key:** `(deviceId, ts)`. Created `ifNotExists`, renumbered from upstream's
+`v38-apple-step-hour` since this fork's v38–v40 already occupy those identifiers — a fork database
+that already carries the table under either identifier converges cleanly.
+
+### `bodyWeightEntry` *(v43)*
+
+Body weight as a real **measurement series**, not a single profile field — dated, sourced,
+editable/deletable readings (`struct BodyWeightEntry`), modelled on `labMarker` (v17). Feeds trend
+weight, weekly rate, goal tracking (`docs/fork/COACH.md` §4), and `CausalWeightResolver` (the
+per-day body weight the WHOOP energy model resolves — `docs/ANALYTICS.md` §Daily energy). Apple
+Health weights are deliberately **not** copied in here — HealthKit samples are mutable/deletable
+after the fact, so `Repository.weightSeries()` unions this table with Apple Health per day instead,
+the same "one source wins a day, never a sum" rule `sourceCandidates` uses for every other metric.
+
+| Column | Type | Notes |
+| --- | --- | --- |
+| `id` | TEXT | **Primary key.** Client-generated stable id, so one reading can be edited/deleted by id and a backup round-trips. |
+| `deviceId` | TEXT NOT NULL | |
+| `day` | TEXT NOT NULL | `YYYY-MM-DD`, the pre-derived projection key (`metricSeries` key `"weight"` under the `noop-weight` source id). |
+| `takenAt` | INTEGER NOT NULL | Precise instant, unix seconds. |
+| `weightKg` | DOUBLE NOT NULL | |
+| `source` | TEXT NOT NULL | `manual` / `appleHealth` / `imported`. |
+| `note` | TEXT | Nullable free-text note. |
+
+**Indexes:** `idx_bodyWeightEntry_natural` **unique** on `(deviceId, takenAt, source)` — one
+measurement per instant-per-source, so re-importing/re-logging the same reading updates rather than
+duplicates; `idx_bodyWeightEntry_device_takenAt` on `(deviceId, takenAt)` for ordered history reads.
+Additive only — a new table, no existing row touched.
+
 ### `metricSeries` *(v9)*
 
 A generic **long-format / EAV** metric store (`MetricSeriesStore.swift`, `struct MetricPoint`).
@@ -511,6 +584,113 @@ legacy scores without a row have unknown provenance and the UI omits their provi
 
 **Primary key:** `(deviceId, day, key)`. **Index:** `idx_scoreInputProvenance_source` on
 `sourceId`, used when a provider's data is deleted.
+
+---
+
+## Energy model tables
+
+The Energy card (`Strand/Screens/EnergyCard.swift`) and `EnergyEngine` (`docs/ANALYTICS.md` §Daily
+energy) read `dailyMetric`/`appleDaily` above plus these three tables. All three are additive and
+keep WHOOP-derived and Apple-Health-derived energy data in separate rows — none of them is ever
+folded into `dailyMetric`, so importing or recomputing one cannot silently change another.
+
+### `healthEnergyBucket` *(v45)*
+
+A bounded, five-minute **Apple Health reference stream**, used only to calibrate the WHOOP energy
+model (`EnergyCalibrationModelStore.swift`/`EnergyCalibrationStore.swift`, `struct
+HealthEnergyBucketRow`). Deliberately contains no raw HealthKit identifiers or per-second samples —
+just per-source, per-bucket aggregates. `sourceKind` is coarse provenance (`appleWatch`, `iPhone`,
+`noop`, `thirdParty`, `unknown`); only `appleWatch` rows are eligible to teach a calibration fit.
+
+| Column | Type | Notes |
+| --- | --- | --- |
+| `deviceId` | TEXT NOT NULL | Part of PK. `"apple-health"` in practice. |
+| `sourceId` | TEXT NOT NULL | Normalized per-app/device source id (bundle + product + name). Part of PK. |
+| `sourceKind` | TEXT NOT NULL | `appleWatch` / `iPhone` / `noop` / `thirdParty` / `unknown`. |
+| `bucketStart` | INTEGER NOT NULL | Unix seconds, floored to the 300 s bucket. Part of PK. |
+| `activeKcal` | DOUBLE | Nullable. Sanitized to `0...2,000`. |
+| `basalKcal` | DOUBLE | Nullable. Sanitized to `0...1,000`. |
+| `averageHr` | DOUBLE | Nullable. Sanitized to `20...260`. |
+| `steps` | INTEGER | Nullable. Sanitized to `0...5,000`. |
+| `distanceM` | DOUBLE | Nullable. Sanitized to `0...10,000`. |
+| `strideM` | DOUBLE | Nullable. Sanitized to `0.2...3.0`. |
+| `workout` | BOOLEAN NOT NULL | Default `false`. |
+| `coverageSeconds` | INTEGER NOT NULL | Default `0`, clamped `0...300` — how much of the bucket the source's samples actually covered. |
+| `sampleCount` | INTEGER NOT NULL | Default `0`. |
+| `quality` | DOUBLE | Nullable, clamped `0...1`. |
+
+**Primary key:** `(deviceId, sourceId, bucketStart)`. **Index:**
+`idx_healthEnergyBucket_device_time` on `(deviceId, bucketStart)`. Upserts (`ON CONFLICT DO
+UPDATE`) are idempotent per source/bucket; `deleteHealthEnergyBuckets(deviceId:from:to:)` replaces
+a bounded window wholesale so a Health edit/deletion converges instead of leaving stale buckets.
+
+### `whoopDailyEnergy` *(v46)*
+
+The derived WHOOP-first daily estimate (`WhoopDailyEnergyStore.swift`, `struct
+WhoopDailyEnergyRow`) — `WhoopEnergyModel`'s output with its evidence mix, kept out of the imported
+`dailyMetric` contract so a model-version bump can invalidate old rows explicitly.
+
+| Column | Type | Notes |
+| --- | --- | --- |
+| `deviceId` | TEXT NOT NULL | Part of PK. |
+| `day` | TEXT NOT NULL | `YYYY-MM-DD`. Part of PK. |
+| `rawTotalKcal` | DOUBLE NOT NULL | Model output **before** Watch calibration/basal top-up. |
+| `modelVersion` | TEXT NOT NULL | Currently `"whoop-bucket-v3"` (`WhoopDailyEnergyEstimate.modelVersion`). Reads filter on it, so a superseded row is ignored rather than mixed into a trend. |
+| `observedSeconds` | INTEGER NOT NULL | Seconds backed by a valid HR sample. |
+| `inferredSeconds` | INTEGER NOT NULL | Seconds backed by movement without HR. |
+| `modeledSeconds` | INTEGER NOT NULL | Seconds that are pure basal fill (off-wrist/sleep/no signal). |
+| `uncertaintyFraction` | DOUBLE NOT NULL | `0...1`, weighted by the evidence mix. |
+| `weightKg` | DOUBLE NOT NULL | Body weight used for this day's estimate. |
+| `weightSource` | TEXT NOT NULL | `history` (resolved via `CausalWeightResolver`) or `profile` (fallback). |
+
+**Primary key:** `(deviceId, day)`. **Index:** `idx_whoopDailyEnergy_device_day` on
+`(deviceId, day)`. Upserts are conditional (`WHERE ... IS NOT excluded....`) so a re-run that
+produces identical numbers doesn't spuriously bump `changesCount`.
+
+### `whoopEnergyHourly` *(v48)*
+
+One day's **active** energy at hourly resolution — the substrate for the personal time-of-day
+activity profile (`ActivityShapeEngine`, see `docs/ANALYTICS.md`). Written by the same bucket pass
+that produces `whoopDailyEnergy`, so it costs no extra stream reads.
+
+| Column | Type | Notes |
+| --- | --- | --- |
+| `deviceId` | TEXT NOT NULL | Part of PK. |
+| `day` | TEXT NOT NULL | `YYYY-MM-DD`, **local** day. Part of PK. |
+| `hour` | INTEGER NOT NULL | `0…23`, local hour. Part of PK. |
+| `activeKcal` | DOUBLE NOT NULL | Active energy only — basal is excluded because it is flat by construction and would flatten the shape this table exists to measure. |
+
+**Primary key:** `(deviceId, day, hour)`. **Index:** `idx_whoopEnergyHourly_device_day` on
+`(deviceId, day)`, which is how the 42-day fit window is read.
+
+A separate table rather than a packed column on `whoopDailyEnergy`: the fit reads a 42-day window
+hour by hour, and a JSON/BLOB column would have to be decoded 42 times to answer it. Writes go
+through `replaceWhoopEnergyHours`, which **replaces a whole day** rather than upserting per hour — a
+recomputed day must not leave a stale hour behind, which is exactly what a merge would do when the
+new pass produces fewer hours than the previous one. Hours with no activity are simply absent; the
+reader fills a 24-slot vector so a quiet hour reads as a real zero.
+
+### `energyCalibrationModel` *(v47)*
+
+Opt-in, per-device Apple Watch calibration state (`EnergyCalibrationModelStore.swift`, `struct
+EnergyCalibrationModelRow`). Row **absence** means disabled — the store never writes a
+default-factor-of-1 row, which would misleadingly look calibrated.
+
+| Column | Type | Notes |
+| --- | --- | --- |
+| `deviceId` | TEXT NOT NULL | **Primary key.** The WHOOP being calibrated. |
+| `referenceDeviceId` | TEXT NOT NULL | The single Apple Watch source id the fit was learned from. |
+| `enabled` | BOOLEAN NOT NULL | Default `false`. Lets a user pause without discarding a hard-won fit. |
+| `factor` | DOUBLE NOT NULL | The bounded multiplier, `0.80...1.20`. |
+| `sampleDays` | INTEGER NOT NULL | Distinct days behind the fit (`≥7`). |
+| `sampleBuckets` | INTEGER NOT NULL | Buckets behind the fit after trimming (`≥84`). |
+| `coefficientOfVariation` | DOUBLE NOT NULL | Trimmed-sample CV, `0...0.20`. |
+| `fittedAt` | INTEGER NOT NULL | Unix seconds. |
+| `modelVersion` | TEXT NOT NULL | e.g. `"watch-reference-v1"` (`EnergyCalibrationFit.modelVersion`). |
+
+**Primary key:** `deviceId`. `saveEnergyCalibrationModel` rejects an out-of-bounds row before it
+ever reaches SQL (`validEnergyCalibration`); `resetEnergyCalibration` deletes the row outright
+(a user-facing reset), while `setEnergyCalibrationEnabled` only flips `enabled` on an existing fit.
 
 ---
 

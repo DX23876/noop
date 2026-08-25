@@ -289,7 +289,7 @@ shell doesn't re-render on every beat.
 
 ## 7. Storage model (WhoopStore / SQLite)
 
-GRDB drives a migrator (`WhoopStoreInfo.schemaVersion`, currently `11`). The schema groups into four
+GRDB drives a migrator (`WhoopStore.schemaVersion`, currently `21`). The schema groups into five
 concerns:
 
 **Durable decoded streams** — natural key `(deviceId, ts)`, one row per sample:
@@ -312,6 +312,13 @@ the Metric Explorer and correlations), indexed by `(deviceId, key, day)`.
 captured only when the research toggle is on. Decoded data is always committed *before* raw is queued,
 so pruning raw (`PrunePolicy`: 24h window / 50MB cap) can never lose a metric. `cursors` holds durable
 watermarks such as `strap_trim`.
+
+**Energy model** (v45–v47) — `healthEnergyBucket` (a bounded five-minute Apple Health reference
+stream, Apple Watch buckets only eligible), `whoopDailyEnergy` (the derived WHOOP-first daily total
+and its evidence mix), `energyCalibrationModel` (the opt-in, bounded Apple-Watch-reference
+calibration fit). Kept deliberately separate from `dailyMetric`/`appleDaily` so no import or refit
+can silently change another table's number — see `docs/DATA_MODEL.md` §Energy model tables and
+`docs/ANALYTICS.md` §Daily energy.
 
 `deviceId` is the per-source partition key. The app uses `"my-whoop"` for the strap and
 `"apple-health"` for imported Apple Health, so per-source pages and cross-source "consensus" views
@@ -352,6 +359,11 @@ reader so multi-hundred-MB files don't blow up memory.
 - **`WorkoutDetector`** segments exercise bouts from HR + motion.
 - **`Baselines`**, **`HRZones`**, **`CorrelationEngine`**, **`ComparisonEngine`**, and
   **`BehaviorInsights`** supply rolling baselines, zone math, and cross-metric/behaviour insights.
+- **`EnergyEngine`**, **`WhoopEnergyModel`**, **`EnergyCalibrationEngine`**, and
+  **`AdaptiveExpenditureEngine`** compute the day's energy expenditure: a single non-summed source
+  per day, a WHOOP-first five-minute bucket model with an explicit evidence mix, an opt-in bounded
+  Apple Watch reference calibration, and a separate retrospective TDEE from imported intake + weight
+  trend. Detail: `docs/ANALYTICS.md` §Daily energy.
 
 Because the engine never touches the database, the same code runs over live-collected streams,
 backfilled streams, or imported data interchangeably. **All derived values are approximate.**
@@ -363,8 +375,20 @@ backfilled streams, or imported data interchangeably. **All derived values are a
 `StrandApp` (`@main`) builds a single `AppModel`, injects it plus `LiveState`, `Repository`,
 `ProfileStore`, and `BehaviorStore` into the environment, and presents a `WindowGroup` (dark, hidden
 title bar) alongside a glanceable `MenuBarExtra`. `RootView` is a `NavigationSplitView` whose sidebar
-is the `NavItem` enum (Today, Live, Breathe, Intervals, Explore, Compare, Insights, Sleep, Trends,
-Workouts, Health, Stress, Apple Health, Data Sources, Notifications, Automations, Settings, Support).
+is the `NavItem` enum (`Strand/App/RootView.swift`), organized into five collapsible `NavGroup`s
+rather than one flat list:
+
+| Group | Items |
+| --- | --- |
+| **Today** | Today |
+| **Sleep** | Sleep |
+| **Body** | Workouts, Live, Health, Stress, Intervals, Breathe |
+| **Insights** | Intelligence, What Moves You (`insightsHub`), Coach, Goal & Journey, Explore, Compare, Insights, Lab Book, Rhythm, Trends |
+| **Data & App** | Devices, NOOP Limitations, Data Sources, Apple Health, Mi Band, Backup & Sync, Your Data, Fused (`fusedRecord`), Notifications, Automations, Smart Alarm, Power saving, Settings, Test Centre |
+
+`NavGroup.group(containing:)` auto-expands the group that owns the current destination on launch/
+routing. See `docs/FEATURES.md` for what each destination does; several (Coach, Goal & Journey) are
+fork-only and documented in full in `docs/fork/COACH.md` rather than duplicated there.
 
 Screens bind to `Repository`'s published `days`/`sleeps` caches (refreshed on data change, not on the
 ~1 Hz stream) and render with `StrandDesign` components — `RecoveryRing`, `StrainGauge`, `Hypnogram`,

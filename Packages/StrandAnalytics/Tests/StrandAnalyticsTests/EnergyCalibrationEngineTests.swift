@@ -51,4 +51,12 @@ final class EnergyCalibrationEngineTests: XCTestCase {
         }
         XCTAssertEqual(EnergyCalibrationEngine.fit(points: stable, calendar: utc)?.factor, 1.2)
     }
+
+    /// Guards the invalidation contract, not a magic string: `Repository.energyCalibrationState`
+    /// treats a stored fit as `.active` only when its `modelVersion` matches exactly, so a v1
+    /// (total-based) fit reads as absent rather than being applied as if it had been fitted on
+    /// active-only energy. A silent revert of the version bump would resurrect that diluted factor.
+    func testModelVersionIsTheActiveOnlyGeneration() {
+        XCTAssertEqual(EnergyCalibrationFit.modelVersion, "watch-reference-v2")
+    }
 }

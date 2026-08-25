@@ -18,7 +18,12 @@ public struct EnergyCalibrationPoint: Equatable, Sendable {
 }
 
 public struct EnergyCalibrationFit: Equatable, Sendable {
-    public static let modelVersion = "watch-reference-v1"
+    /// v2 (2026-08-25): the fit compares ACTIVE-only energy on both sides — previously it compared
+    /// Apple's active+basal total against WHOOP's, which baked resting metabolism into the ratio and
+    /// diluted it (`EnergyEngine.burn` applies the factor to active energy alone). Bumped rather than
+    /// edited in place so a stored v1 fit is treated as absent — a state that reads `.learning` again,
+    /// not one masquerading as `.active` on a factor it was never fitted for.
+    public static let modelVersion = "watch-reference-v2"
     public let factor: Double
     public let sampleDays: Int
     public let sampleBuckets: Int

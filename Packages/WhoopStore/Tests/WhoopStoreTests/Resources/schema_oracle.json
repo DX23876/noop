@@ -48,7 +48,8 @@
     "v44-energy-coverage",
     "v45-health-energy-buckets",
     "v46-whoop-daily-energy",
-    "v47-energy-calibration-model"
+    "v47-energy-calibration-model",
+    "v48-whoop-energy-hourly"
   ],
   "divergenceReasons": {
     "android-orphan-synced-column": "REAL COLUMN DRIFT: `synced` exists on Android only. GRDB's v10 note is explicit that stepSample gets no `synced` column ('unused; see StreamStore'), and v12's ppgHrSample never had one either; the Room entities copied the flag from the older per-second entities. Nothing reads it on Android — the per-row upload flag belongs to an upload path that does not exist there — so it is dead width, not divergent data. Removing it needs a Room table rebuild.",
@@ -378,6 +379,20 @@
       "primaryKey": ["deviceId", "day"],
       "indices": [
         { "name": "idx_whoopDailyEnergy_device_day", "unique": false, "columns": ["deviceId", "day"] }
+      ]
+    },
+    "whoopEnergyHourly": {
+      "platform": "ios_only",
+      "reason": "Hourly ACTIVE-energy profile behind the personal time-of-day activity shape (ActivityShapeEngine, GRDB v48). Written by the same bucket pass as whoopDailyEnergy and derived from the same iOS-only model, so this fork's removed Android tree has no twin to pin — an ios_only entry rather than silent drift.",
+      "columns": [
+        { "name": "deviceId", "affinity": "TEXT", "notNull": true, "default": null },
+        { "name": "day", "affinity": "TEXT", "notNull": true, "default": null },
+        { "name": "hour", "affinity": "INTEGER", "notNull": true, "default": null },
+        { "name": "activeKcal", "affinity": "REAL", "notNull": true, "default": null }
+      ],
+      "primaryKey": ["deviceId", "day", "hour"],
+      "indices": [
+        { "name": "idx_whoopEnergyHourly_device_day", "unique": false, "columns": ["deviceId", "day"] }
       ]
     },
     "energyCalibrationModel": {
