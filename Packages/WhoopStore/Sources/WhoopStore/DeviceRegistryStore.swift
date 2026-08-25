@@ -157,6 +157,9 @@ public struct DeviceRegistryStore: Sendable {
         // projection uses. So one `deleteAllData(deviceId: "noop-weight")` clears the book and its
         // projection together, and forgetting a strap correctly leaves them alone.
         "bodyWeightEntry",
+        // v45: locally aggregated Apple Health calibration evidence must disappear when the Apple
+        // Health source is forgotten; otherwise a later reconnect could train on supposedly deleted data.
+        "healthEnergyBucket",
     ]
 
     /// Permanently delete every recorded sample/derived row belonging to one device, across all

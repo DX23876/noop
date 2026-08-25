@@ -1033,6 +1033,31 @@ extension WhoopStore {
                 }
             }
         }
+        // v45-health-energy-buckets: a deliberately separate Apple Health reference stream for
+        // personalising WHOOP energy.  These rows are never folded into dailyMetric and therefore
+        // cannot silently replace or add to the strap estimate.  Five-minute buckets retain enough
+        // overlap shape for calibration without storing HealthKit's raw per-second samples.
+        migrator.registerMigration("v45-health-energy-buckets") { db in
+            try db.create(table: "healthEnergyBucket") { t in
+                t.column("deviceId", .text).notNull()
+                t.column("sourceId", .text).notNull()
+                t.column("sourceKind", .text).notNull()
+                t.column("bucketStart", .integer).notNull()
+                t.column("activeKcal", .double)
+                t.column("basalKcal", .double)
+                t.column("averageHr", .double)
+                t.column("steps", .integer)
+                t.column("distanceM", .double)
+                t.column("strideM", .double)
+                t.column("workout", .boolean).notNull().defaults(to: false)
+                t.column("coverageSeconds", .integer).notNull().defaults(to: 0)
+                t.column("sampleCount", .integer).notNull().defaults(to: 0)
+                t.column("quality", .double)
+                t.primaryKey(["deviceId", "sourceId", "bucketStart"])
+            }
+            try db.create(index: "idx_healthEnergyBucket_device_time",
+                          on: "healthEnergyBucket", columns: ["deviceId", "bucketStart"])
+        }
         return migrator
     }
 }

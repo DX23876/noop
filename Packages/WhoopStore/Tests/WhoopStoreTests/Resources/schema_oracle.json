@@ -45,7 +45,8 @@
     "v41-apple-step-hour",
     "v42-ppg-burst-index",
     "v43-body-weight",
-    "v44-energy-coverage"
+    "v44-energy-coverage",
+    "v45-health-energy-buckets"
   ],
   "divergenceReasons": {
     "android-orphan-synced-column": "REAL COLUMN DRIFT: `synced` exists on Android only. GRDB's v10 note is explicit that stepSample gets no `synced` column ('unused; see StreamStore'), and v12's ppgHrSample never had one either; the Room entities copied the flag from the older per-second entities. Nothing reads it on Android — the per-row upload flag belongs to an upload path that does not exist there — so it is dead width, not divergent data. Removing it needs a Room table rebuild.",
@@ -332,6 +333,30 @@
         "name"
       ],
       "indices": []
+    },
+    "healthEnergyBucket": {
+      "platform": "ios_only",
+      "reason": "Local five-minute Apple Health reference aggregates used only to calibrate the iOS WHOOP energy model; no raw samples and no Android implementation in this checkout.",
+      "columns": [
+        { "name": "deviceId", "affinity": "TEXT", "notNull": true, "default": null },
+        { "name": "sourceId", "affinity": "TEXT", "notNull": true, "default": null },
+        { "name": "sourceKind", "affinity": "TEXT", "notNull": true, "default": null },
+        { "name": "bucketStart", "affinity": "INTEGER", "notNull": true, "default": null },
+        { "name": "activeKcal", "affinity": "REAL", "notNull": false, "default": null },
+        { "name": "basalKcal", "affinity": "REAL", "notNull": false, "default": null },
+        { "name": "averageHr", "affinity": "REAL", "notNull": false, "default": null },
+        { "name": "steps", "affinity": "INTEGER", "notNull": false, "default": null },
+        { "name": "distanceM", "affinity": "REAL", "notNull": false, "default": null },
+        { "name": "strideM", "affinity": "REAL", "notNull": false, "default": null },
+        { "name": "workout", "affinity": "NUMERIC", "notNull": true, "default": "0" },
+        { "name": "coverageSeconds", "affinity": "INTEGER", "notNull": true, "default": "0" },
+        { "name": "sampleCount", "affinity": "INTEGER", "notNull": true, "default": "0" },
+        { "name": "quality", "affinity": "REAL", "notNull": false, "default": null }
+      ],
+      "primaryKey": ["deviceId", "sourceId", "bucketStart"],
+      "indices": [
+        { "name": "idx_healthEnergyBucket_device_time", "unique": false, "columns": ["deviceId", "bucketStart"] }
+      ]
     },
     "dailyMetric": {
       "platform": "both",
