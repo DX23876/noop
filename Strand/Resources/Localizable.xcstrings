@@ -1,6 +1,30 @@
 {
   "sourceLanguage": "en",
   "strings": {
+    "Adaptive expenditure": { "localizations": {
+      "de": { "stringUnit": { "state": "translated", "value": "Adaptiver Energieverbrauch" } },
+      "en": { "stringUnit": { "state": "translated", "value": "Adaptive expenditure" } },
+      "es": { "stringUnit": { "state": "translated", "value": "Gasto energético adaptativo" } },
+      "fr": { "stringUnit": { "state": "translated", "value": "Dépense énergétique adaptative" } },
+      "it": { "stringUnit": { "state": "translated", "value": "Dispendio energetico adattivo" } },
+      "pl": { "stringUnit": { "state": "translated", "value": "Adaptacyjny wydatek energetyczny" } },
+      "pt-PT": { "stringUnit": { "state": "translated", "value": "Gasto energético adaptativo" } },
+      "ru": { "stringUnit": { "state": "translated", "value": "Адаптивный расход энергии" } },
+      "zh-Hans": { "stringUnit": { "state": "translated", "value": "自适应能量消耗" } },
+      "zh-Hant": { "stringUnit": { "state": "translated", "value": "自適應能量消耗" } }
+    } },
+    "Calculated retrospectively from imported calories-in and your weight trend. It is a separate estimate and does not replace or calibrate today's WHOOP burn.": { "localizations": {
+      "de": { "stringUnit": { "state": "translated", "value": "Rückblickend aus importierter Kalorienaufnahme und deinem Gewichtsverlauf berechnet. Dies ist eine separate Schätzung und ersetzt oder kalibriert nicht den heutigen WHOOP-Verbrauch." } },
+      "en": { "stringUnit": { "state": "translated", "value": "Calculated retrospectively from imported calories-in and your weight trend. It is a separate estimate and does not replace or calibrate today's WHOOP burn." } },
+      "es": { "stringUnit": { "state": "translated", "value": "Calculado retrospectivamente a partir de las calorías ingeridas importadas y tu tendencia de peso. Es una estimación independiente y no sustituye ni calibra el gasto de WHOOP de hoy." } },
+      "fr": { "stringUnit": { "state": "translated", "value": "Calculé rétrospectivement à partir des calories ingérées importées et de votre tendance de poids. Il s’agit d’une estimation distincte qui ne remplace ni ne calibre la dépense WHOOP du jour." } },
+      "it": { "stringUnit": { "state": "translated", "value": "Calcolato retrospettivamente dalle calorie assunte importate e dall’andamento del peso. È una stima separata e non sostituisce né calibra il consumo WHOOP di oggi." } },
+      "pl": { "stringUnit": { "state": "translated", "value": "Obliczone retrospektywnie na podstawie zaimportowanych kalorii i trendu masy ciała. To osobne oszacowanie, które nie zastępuje ani nie kalibruje dzisiejszego wydatku WHOOP." } },
+      "pt-PT": { "stringUnit": { "state": "translated", "value": "Calculado retrospetivamente a partir das calorias ingeridas importadas e da tendência do peso. É uma estimativa separada e não substitui nem calibra o gasto WHOOP de hoje." } },
+      "ru": { "stringUnit": { "state": "translated", "value": "Ретроспективный расчёт по импортированным данным о потреблённых калориях и динамике веса. Это отдельная оценка, которая не заменяет и не калибрует сегодняшний расход WHOOP." } },
+      "zh-Hans": { "stringUnit": { "state": "translated", "value": "根据导入的热量摄入和体重趋势进行回顾性计算。这是一项独立估算，不会替代或校准今天的 WHOOP 消耗。" } },
+      "zh-Hant": { "stringUnit": { "state": "translated", "value": "根據匯入的熱量攝取和體重趨勢進行回顧性計算。這是一項獨立估算，不會取代或校準今天的 WHOOP 消耗。" } }
+    } },
     "ENERGY": {
       "localizations": {
         "de": {
