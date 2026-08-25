@@ -220,10 +220,18 @@ extension Repository {
         let candidates = referenceRows.filter {
             (($0.activeKcal ?? 0) + ($0.basalKcal ?? 0)) > 0 && $0.coverageSeconds > 0
         }
-        let chosenSource = Dictionary(grouping: candidates, by: \.sourceId)
-            .map { (id: $0.key, count: $0.value.count) }
-            .sorted { $0.count == $1.count ? $0.id < $1.id : $0.count > $1.count }
-            .first?.id
+        // Keep this deliberately simple for Swift 5's type checker. The nested generic
+        // Dictionary(grouping:) -> tuple map -> ternary sort expression timed out in the
+        // universal macOS CI build even though newer local compilers accepted it.
+        var sourceCounts: [String: Int] = [:]
+        for row in candidates { sourceCounts[row.sourceId, default: 0] += 1 }
+        let rankedSources = sourceCounts.keys.sorted { lhs, rhs in
+            let lhsCount = sourceCounts[lhs] ?? 0
+            let rhsCount = sourceCounts[rhs] ?? 0
+            if lhsCount != rhsCount { return lhsCount > rhsCount }
+            return lhs < rhs
+        }
+        let chosenSource = rankedSources.first
         guard let chosenSource else { return }
         let hrByStart = Dictionary(hr.map { ($0.ts, $0) }, uniquingKeysWith: { a, _ in a })
         let points = candidates.compactMap { row -> EnergyCalibrationPoint? in
