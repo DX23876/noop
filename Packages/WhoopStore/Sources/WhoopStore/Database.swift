@@ -1058,6 +1058,26 @@ extension WhoopStore {
             try db.create(index: "idx_healthEnergyBucket_device_time",
                           on: "healthEnergyBucket", columns: ["deviceId", "bucketStart"])
         }
+        // v46-whoop-daily-energy: derived WHOOP output with its evidence mix. Keeping provenance in
+        // a separate row avoids widening the imported dailyMetric contract and makes model-version
+        // invalidation explicit. Apple reference values never enter this table.
+        migrator.registerMigration("v46-whoop-daily-energy") { db in
+            try db.create(table: "whoopDailyEnergy") { t in
+                t.column("deviceId", .text).notNull()
+                t.column("day", .text).notNull()
+                t.column("rawTotalKcal", .double).notNull()
+                t.column("modelVersion", .text).notNull()
+                t.column("observedSeconds", .integer).notNull()
+                t.column("inferredSeconds", .integer).notNull()
+                t.column("modeledSeconds", .integer).notNull()
+                t.column("uncertaintyFraction", .double).notNull()
+                t.column("weightKg", .double).notNull()
+                t.column("weightSource", .text).notNull()
+                t.primaryKey(["deviceId", "day"])
+            }
+            try db.create(index: "idx_whoopDailyEnergy_device_day",
+                          on: "whoopDailyEnergy", columns: ["deviceId", "day"])
+        }
         return migrator
     }
 }

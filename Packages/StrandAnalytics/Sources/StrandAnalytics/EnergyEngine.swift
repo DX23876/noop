@@ -227,12 +227,10 @@ public enum EnergyEngine {
         let elapsed = context.elapsedFraction
         let basalElapsed = bmr24h.map { $0 * elapsed }
 
-        // 1. Apple's own split. Both halves measured, nothing modelled.
-        if let active = inputs.appleActiveKcal, let basal = inputs.appleBasalKcal, basal > 0 {
-            return BurnResult(basal: basal, active: active, total: active + basal, source: .appleSplit)
-        }
-
-        // 2. The strap's worn-time total, plus the modelled basal rate for the time it was NOT worn.
+        // 1. WHOOP is the canonical source whenever it produced a value. Apple can calibrate that
+        //    value in a separate, opt-in model, but two devices measuring the same body are never
+        //    arbitrated by silently replacing the always-worn strap with the occasional watch.
+        //    The strap's worn-time total is topped up only with modelled basal for NOT-worn time.
         //    Adding the FULL day's BMR here would double-count every worn second, which is exactly
         //    the trap in this file's header.
         if let strap = inputs.strapTotalKcal, strap > 0 {
@@ -249,6 +247,12 @@ public enum EnergyEngine {
             let missingBasal = basalRate * max(0, context.elapsedSeconds - observedSeconds)
             return BurnResult(basal: basalElapsed, active: active,
                               total: strap + missingBasal, source: .strapWornTime)
+        }
+
+        // 2. Apple-only day. Both halves measured, nothing modelled. This path remains available for
+        //    users/days without a WHOOP estimate, but never overrides an existing strap result.
+        if let active = inputs.appleActiveKcal, let basal = inputs.appleBasalKcal, basal > 0 {
+            return BurnResult(basal: basal, active: active, total: active + basal, source: .appleSplit)
         }
 
         // 3. Apple gave active energy but no basal figure — model the basal half.

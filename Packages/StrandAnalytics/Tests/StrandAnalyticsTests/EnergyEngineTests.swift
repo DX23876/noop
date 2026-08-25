@@ -33,15 +33,20 @@ final class EnergyEngineTests: XCTestCase {
         XCTAssertNil(summary.totalBurnedSoFar)
     }
 
-    func testAppleSplitWinsWithoutAddingStrapAgain() {
+    func testStrapWinsWhenAppleReferenceAlsoExistsWithoutAddingEitherSource() {
         let summary = EnergyEngine.summarize(
             inputs(appleActive: 600, appleBasal: 1_800, strap: 2_300, coverage: 86_400),
             profile: profile)
-        XCTAssertEqual(summary.source, .appleSplit)
-        XCTAssertEqual(summary.activeBurnedSoFar, 600)
-        XCTAssertEqual(summary.basalBurnedSoFar, 1_800)
-        XCTAssertEqual(summary.totalBurnedSoFar, 2_400)
+        XCTAssertEqual(summary.source, .strapWornTime)
+        XCTAssertEqual(summary.totalBurnedSoFar, 2_300)
         XCTAssertEqual(summary.confidence, .solid)
+    }
+
+    func testAppleSplitRemainsCanonicalWithoutStrapEstimate() {
+        let summary = EnergyEngine.summarize(
+            inputs(appleActive: 600, appleBasal: 1_800), profile: profile)
+        XCTAssertEqual(summary.source, .appleSplit)
+        XCTAssertEqual(summary.totalBurnedSoFar, 2_400)
     }
 
     func testStrapTopUpUsesObservedSecondsNotCaloriesDividedByBmr() {
