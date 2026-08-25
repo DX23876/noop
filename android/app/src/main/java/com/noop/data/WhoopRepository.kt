@@ -439,6 +439,14 @@ class WhoopRepository(
     /** #716: read all paired devices (thin pass-through for the BLE scan fix). */
     suspend fun pairedDevices(): List<PairedDeviceRow> = dao.pairedDevices()
 
+    /** Raw biometric sample counts per device id in a window - see [WhoopDao.rawSampleCountsByDevice]. */
+    suspend fun rawSampleCountsByDevice(from: Long, to: Long): List<Pair<String, Int>> =
+        dao.rawSampleCountsByDevice(from, to).map { it.deviceId to it.total }
+            // isNotEmpty, NOT isNotBlank: the Swift twin filters on `!isEmpty`, so a whitespace-only id
+            // would be dropped here and kept there. Neither can occur today - the point is that the two
+            // predicates stay the same one.
+            .filter { it.first.isNotEmpty() && it.second > 0 }
+
     // MARK: - Insert decoded streams (idempotent by natural key)
 
     /**
