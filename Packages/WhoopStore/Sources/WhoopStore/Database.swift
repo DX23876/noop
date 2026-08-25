@@ -1094,6 +1094,25 @@ extension WhoopStore {
                 t.column("modelVersion", .text).notNull()
             }
         }
+        // v48-whoop-energy-hourly: the same bucket pass that writes `whoopDailyEnergy`, kept at hourly
+        // resolution so a personal time-of-day activity profile can be fitted without re-walking the
+        // raw ~1 Hz streams (see `ActivityShapeEngine`). ACTIVE energy only: basal is flat by
+        // construction and would flatten the very shape this exists to measure.
+        //
+        // A separate table rather than a JSON column on `whoopDailyEnergy`, because the fit reads a
+        // 42-day window hour by hour and a packed blob would have to be decoded 42 times to answer it.
+        // Additive: a new table, no existing row touched.
+        migrator.registerMigration("v48-whoop-energy-hourly") { db in
+            try db.create(table: "whoopEnergyHourly") { t in
+                t.column("deviceId", .text).notNull()
+                t.column("day", .text).notNull()          // yyyy-MM-dd, LOCAL day
+                t.column("hour", .integer).notNull()      // 0...23, local hour
+                t.column("activeKcal", .double).notNull()
+                t.primaryKey(["deviceId", "day", "hour"])
+            }
+            try db.create(index: "idx_whoopEnergyHourly_device_day",
+                          on: "whoopEnergyHourly", columns: ["deviceId", "day"])
+        }
         return migrator
     }
 }
