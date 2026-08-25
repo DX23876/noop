@@ -34,6 +34,15 @@ extension Repository {
         let appleRows = await appleDailyRows(days: days)
         let appleByDay = Dictionary(appleRows.map { ($0.day, $0) }, uniquingKeysWith: { _, b in b })
         let stepHoursByDay = await hoursWithStepsByDay(days: days)
+        // Resolve body mass separately for every day. Using today's profile weight for history leaks
+        // future information backwards and can rewrite old calorie totals after a new weigh-in.
+        let weightObservations = await weightSeries(days: max(days + 100, 100)).compactMap { point in
+            WeightSeries.date(forDay: point.day).map {
+                CausalWeightObservation(
+                    timestamp: Int($0.timeIntervalSince1970), weightKg: point.value,
+                    source: point.source == .manual ? .manual : .health)
+            }
+        }
 
         let calendar = Calendar.current
         let cutoffDate = calendar.date(byAdding: .day, value: -max(0, days), to: now) ?? now
@@ -59,9 +68,16 @@ extension Repository {
                 // Apple's own step total first (a phone counts all day), else the strap's.
                 steps: apple?.steps ?? strap?.steps,
                 hoursWithSteps: stepHoursByDay[day])
+            var dayProfile = profile
+            if let date = WeightSeries.date(forDay: day),
+               let historicalWeight = CausalWeightResolver.weight(
+                   at: Int(date.timeIntervalSince1970 + 43_200), observations: weightObservations,
+                   calendar: calendar) {
+                dayProfile.weightKg = historicalWeight
+            }
             return EnergyEngine.summarize(
                 inputs,
-                profile: profile,
+                profile: dayProfile,
                 context: Self.energyDayContext(day: day, now: now, calendar: calendar))
         }
     }

@@ -46,7 +46,8 @@
     "v42-ppg-burst-index",
     "v43-body-weight",
     "v44-energy-coverage",
-    "v45-health-energy-buckets"
+    "v45-health-energy-buckets",
+    "v46-whoop-daily-energy"
   ],
   "divergenceReasons": {
     "android-orphan-synced-column": "REAL COLUMN DRIFT: `synced` exists on Android only. GRDB's v10 note is explicit that stepSample gets no `synced` column ('unused; see StreamStore'), and v12's ppgHrSample never had one either; the Room entities copied the flag from the older per-second entities. Nothing reads it on Android — the per-row upload flag belongs to an upload path that does not exist there — so it is dead width, not divergent data. Removing it needs a Room table rebuild.",
@@ -356,6 +357,26 @@
       "primaryKey": ["deviceId", "sourceId", "bucketStart"],
       "indices": [
         { "name": "idx_healthEnergyBucket_device_time", "unique": false, "columns": ["deviceId", "bucketStart"] }
+      ]
+    },
+    "whoopDailyEnergy": {
+      "platform": "ios_only",
+      "reason": "Derived WHOOP-first daily energy and its evidence mix. Android has no matching bucket model in this checkout; Apple reference energy is intentionally stored separately.",
+      "columns": [
+        { "name": "deviceId", "affinity": "TEXT", "notNull": true, "default": null },
+        { "name": "day", "affinity": "TEXT", "notNull": true, "default": null },
+        { "name": "rawTotalKcal", "affinity": "REAL", "notNull": true, "default": null },
+        { "name": "modelVersion", "affinity": "TEXT", "notNull": true, "default": null },
+        { "name": "observedSeconds", "affinity": "INTEGER", "notNull": true, "default": null },
+        { "name": "inferredSeconds", "affinity": "INTEGER", "notNull": true, "default": null },
+        { "name": "modeledSeconds", "affinity": "INTEGER", "notNull": true, "default": null },
+        { "name": "uncertaintyFraction", "affinity": "REAL", "notNull": true, "default": null },
+        { "name": "weightKg", "affinity": "REAL", "notNull": true, "default": null },
+        { "name": "weightSource", "affinity": "TEXT", "notNull": true, "default": null }
+      ],
+      "primaryKey": ["deviceId", "day"],
+      "indices": [
+        { "name": "idx_whoopDailyEnergy_device_day", "unique": false, "columns": ["deviceId", "day"] }
       ]
     },
     "dailyMetric": {
