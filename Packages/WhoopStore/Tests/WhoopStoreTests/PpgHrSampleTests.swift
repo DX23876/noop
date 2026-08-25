@@ -50,6 +50,7 @@ final class PpgHrSampleTests: XCTestCase {
         let buckets = try await store.hrBuckets(deviceId: dev, from: base, to: base + 10, bucketSeconds: 60)
         XCTAssertEqual(buckets.count, 1)
         XCTAssertEqual(buckets[0].bpm, 80.0, accuracy: 0.001)
+        XCTAssertEqual(buckets[0].sampleSeconds, 2)
     }
 
     /// hrSamples COALESCEs the same way: a measured second wins, a PPG-only second fills the gap,
@@ -99,5 +100,6 @@ final class PpgHrSampleTests: XCTestCase {
         let buckets = try await store.hrBuckets(deviceId: dev, from: base, to: base + 10, bucketSeconds: 60)
         XCTAssertEqual(buckets.count, 1)
         XCTAssertEqual(buckets[0].bpm, 105.0, accuracy: 0.001)
+        XCTAssertEqual(buckets[0].sampleSeconds, 2)
     }
 }

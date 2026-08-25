@@ -144,6 +144,15 @@ struct StrandiOSApp: App {
                 .onReceive(health.$latestImportedWeightKg) { kg in
                     if let kg { model.profile.applyHealthWeight(kg: kg) }
                 }
+                .onReceive(health.$lastSync.compactMap { $0 }) { _ in
+                    // Health sync has just refreshed the time-aligned Watch reference buckets. Refit
+                    // only when the user opted in; the repository always refreshes WHOOP's own row.
+                    Task {
+                        await model.repo.refreshWhoopEnergyModel(
+                            days: 30, profile: Repository.analyticsProfile(model.profile))
+                        await WidgetSnapshot.publish(from: model)
+                    }
+                }
                 // The reverse direction: a genuine user edit to the profile weight writes back to Health.
                 // Both ping-pong arms (the "Health always wins" echo above, and a weigh-in NOOP itself
                 // logged) live in `shouldWriteProfileWeight`, which the iOS test target pins.
