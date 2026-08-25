@@ -47,7 +47,8 @@
     "v43-body-weight",
     "v44-energy-coverage",
     "v45-health-energy-buckets",
-    "v46-whoop-daily-energy"
+    "v46-whoop-daily-energy",
+    "v47-energy-calibration-model"
   ],
   "divergenceReasons": {
     "android-orphan-synced-column": "REAL COLUMN DRIFT: `synced` exists on Android only. GRDB's v10 note is explicit that stepSample gets no `synced` column ('unused; see StreamStore'), and v12's ppgHrSample never had one either; the Room entities copied the flag from the older per-second entities. Nothing reads it on Android — the per-row upload flag belongs to an upload path that does not exist there — so it is dead width, not divergent data. Removing it needs a Room table rebuild.",
@@ -378,6 +379,23 @@
       "indices": [
         { "name": "idx_whoopDailyEnergy_device_day", "unique": false, "columns": ["deviceId", "day"] }
       ]
+    },
+    "energyCalibrationModel": {
+      "platform": "ios_only",
+      "reason": "Optional per-WHOOP Apple Watch reference calibration state. It stores only a bounded fit and provenance; Android has no matching calibration model in this checkout.",
+      "columns": [
+        { "name": "deviceId", "affinity": "TEXT", "notNull": true, "default": null },
+        { "name": "referenceDeviceId", "affinity": "TEXT", "notNull": true, "default": null },
+        { "name": "enabled", "affinity": "NUMERIC", "notNull": true, "default": "0" },
+        { "name": "factor", "affinity": "REAL", "notNull": true, "default": null },
+        { "name": "sampleDays", "affinity": "INTEGER", "notNull": true, "default": null },
+        { "name": "sampleBuckets", "affinity": "INTEGER", "notNull": true, "default": null },
+        { "name": "coefficientOfVariation", "affinity": "REAL", "notNull": true, "default": null },
+        { "name": "fittedAt", "affinity": "INTEGER", "notNull": true, "default": null },
+        { "name": "modelVersion", "affinity": "TEXT", "notNull": true, "default": null }
+      ],
+      "primaryKey": ["deviceId"],
+      "indices": []
     },
     "dailyMetric": {
       "platform": "both",

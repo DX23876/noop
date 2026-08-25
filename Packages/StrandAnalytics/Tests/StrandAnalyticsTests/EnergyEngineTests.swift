@@ -12,10 +12,12 @@ final class EnergyEngineTests: XCTestCase {
 
     private func inputs(appleActive: Double? = nil, appleBasal: Double? = nil,
                         strap: Double? = nil, coverage: Int? = nil,
+                        calibration: Double? = nil,
                         steps: Int? = nil, hoursWithSteps: Int? = nil) -> EnergyEngine.DayInputs {
         .init(day: "2026-08-21", appleActiveKcal: appleActive,
               appleBasalKcal: appleBasal, strapTotalKcal: strap,
-              strapCoverageSeconds: coverage, steps: steps, hoursWithSteps: hoursWithSteps)
+              strapCoverageSeconds: coverage, strapCalibrationFactor: calibration,
+              steps: steps, hoursWithSteps: hoursWithSteps)
     }
 
     func testNoDataKeepsTotalUnknownButExposesBmrReference() {
@@ -47,6 +49,29 @@ final class EnergyEngineTests: XCTestCase {
             inputs(appleActive: 600, appleBasal: 1_800), profile: profile)
         XCTAssertEqual(summary.source, .appleSplit)
         XCTAssertEqual(summary.totalBurnedSoFar, 2_400)
+    }
+
+    func testOptInCalibrationAppliesOnlyToWhoopAndIsDisclosed() {
+        let strap = EnergyEngine.summarize(
+            inputs(appleActive: 900, appleBasal: 1_800, strap: 2_000,
+                   coverage: 86_400, calibration: 1.1), profile: profile)
+        XCTAssertEqual(strap.totalBurnedSoFar ?? 0, 2_200, accuracy: 0.001)
+        XCTAssertEqual(strap.appliedCalibrationFactor, 1.1)
+        XCTAssertEqual(strap.source, .strapWornTime)
+
+        let appleOnly = EnergyEngine.summarize(
+            inputs(appleActive: 600, appleBasal: 1_800, calibration: 1.1), profile: profile)
+        XCTAssertEqual(appleOnly.totalBurnedSoFar, 2_400)
+        XCTAssertNil(appleOnly.appliedCalibrationFactor)
+    }
+
+    func testInvalidCalibrationFactorIsIgnored() {
+        for factor in [0.79, 1.21, .infinity, .nan] {
+            let summary = EnergyEngine.summarize(
+                inputs(strap: 2_000, coverage: 86_400, calibration: factor), profile: profile)
+            XCTAssertEqual(summary.totalBurnedSoFar, 2_000)
+            XCTAssertNil(summary.appliedCalibrationFactor)
+        }
     }
 
     func testStrapTopUpUsesObservedSecondsNotCaloriesDividedByBmr() {
