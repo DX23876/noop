@@ -26,7 +26,7 @@ final class SleepMotionStateTests: XCTestCase {
     }
 
     func testSchemaVersionBumpedTo18() {
-        XCTAssertEqual(WhoopStoreInfo.schemaVersion, 18)
+        XCTAssertEqual(WhoopStoreInfo.schemaVersion, 19)
     }
 
     // MARK: motionJSON

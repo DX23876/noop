@@ -2,6 +2,17 @@ import XCTest
 @testable import StrandImport
 
 final class AppleHealthAggregatorTests: XCTestCase {
+    func testEnergyChoosesAppleWatchWithoutCrossSourceDoubleCounting() {
+        XCTAssertEqual(AppleHealthAggregator.preferredEnergyTotal([
+            "Jane’s Apple Watch": 540,
+            "Jane’s iPhone": 430,
+            "NOOP": 600,
+        ]), 540)
+        XCTAssertEqual(AppleHealthAggregator.preferredEnergyTotal([
+            "Phone": 400, "Other tracker": 350,
+        ]), 400)
+        XCTAssertNil(AppleHealthAggregator.preferredEnergyTotal(["NOOP": 500]))
+    }
 
     // MARK: - Helpers
 

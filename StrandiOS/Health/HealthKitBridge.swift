@@ -180,7 +180,7 @@ final class HealthKitBridge: ObservableObject {
     private static let quantityReadIds: [HKQuantityTypeIdentifier] = [
         .heartRate, .restingHeartRate, .heartRateVariabilitySDNN, .oxygenSaturation,
         .respiratoryRate, .bodyTemperature, .stepCount, .activeEnergyBurned,
-        .basalEnergyBurned, .vo2Max,
+        .basalEnergyBurned, .distanceWalkingRunning, .walkingStepLength, .vo2Max,
         // Body composition — READ-ONLY (#20) for body-fat/lean-mass/BMI (no reliable NOOP-computed
         // source for them). Weight is the one exception: see `bodyMassWriteIds`/`writeWeight` below —
         // a later, user-requested reversal of this file's original "never write these back" stance,
@@ -612,10 +612,10 @@ final class HealthKitBridge: ObservableObject {
         await collect(.stepCount, unit: .count(), start: start, end: end, op: .cumulativeSum) { day, v in
             var a = agg(day); a.steps = v; byDay[day] = a
         }
-        await collect(.activeEnergyBurned, unit: .kilocalorie(), start: start, end: end, op: .cumulativeSum) { day, v in
+        await collectPreferredCumulative(.activeEnergyBurned, unit: .kilocalorie(), start: start, end: end) { day, v in
             var a = agg(day); a.activeKcal = v; byDay[day] = a
         }
-        await collect(.basalEnergyBurned, unit: .kilocalorie(), start: start, end: end, op: .cumulativeSum) { day, v in
+        await collectPreferredCumulative(.basalEnergyBurned, unit: .kilocalorie(), start: start, end: end) { day, v in
             var a = agg(day); a.basalKcal = v; byDay[day] = a
         }
         await collect(.vo2Max, unit: HKUnit(from: "ml/kg*min"), start: start, end: end, op: .discreteAverage) { day, v in
@@ -642,6 +642,11 @@ final class HealthKitBridge: ObservableObject {
         }
         progress(0.60)
         guard !Task.isCancelled else { return false }
+
+        // Keep Apple Watch calibration evidence in a separate five-minute store. It is never projected
+        // into dailyMetric, so importing it cannot change the WHOOP number by itself. Replacing the
+        // bounded window makes Health edits/deletions converge instead of leaving stale buckets.
+        let energyReferenceRows = await collectEnergyReferenceBuckets(start: start, end: end)
 
         // Water logged in other apps (#949). A cumulative day SUM, like steps — HealthKit re-adds every
         // sample in the day on each sync, so the figure this produces is a full replacement rather than a
@@ -729,6 +734,10 @@ final class HealthKitBridge: ObservableObject {
             try await store.upsertAppleDaily(appleRows, deviceId: appleDeviceId)
             try await store.upsertDailyMetrics(dmRows, deviceId: appleDeviceId)
             try await store.upsertMetricSeries(points, deviceId: appleDeviceId)
+            try await store.deleteHealthEnergyBuckets(
+                deviceId: appleDeviceId, from: Int(start.timeIntervalSince1970),
+                to: Int(end.timeIntervalSince1970) + HealthEnergyBucketRow.durationSeconds)
+            try await store.upsertHealthEnergyBuckets(energyReferenceRows)
             if !workoutRows.isEmpty { try await store.upsertWorkouts(workoutRows, deviceId: appleDeviceId) }
             // Imported water (#949) goes to the hydration source, not apple-health, because the hydration
             // screen is what reads it. Every day in the window is written — including the ones with no
@@ -1941,6 +1950,186 @@ final class HealthKitBridge: ObservableObject {
             }
             store.execute(q)
         }
+    }
+
+    /// Daily cumulative collector that keeps Health sources separate. Apple Watch wins when present;
+    /// otherwise the largest single source wins. This avoids adding an iPhone/app echo to a watch total.
+    @discardableResult
+    private func collectPreferredCumulative(_ id: HKQuantityTypeIdentifier, unit: HKUnit,
+                                            start: Date, end: Date,
+                                            sink: @escaping (String, Double) -> Void) async -> Bool {
+        guard let type = HKQuantityType.quantityType(forIdentifier: id) else { return false }
+        let predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [
+            HKQuery.predicateForSamples(withStart: start, end: end, options: .strictStartDate),
+            Self.notNoopAuthored,
+        ])
+        return await withCheckedContinuation { (cont: CheckedContinuation<Bool, Never>) in
+            let query = HKStatisticsCollectionQuery(
+                quantityType: type, quantitySamplePredicate: predicate,
+                options: [.cumulativeSum, .separateBySource],
+                anchorDate: Calendar.current.startOfDay(for: start),
+                intervalComponents: DateComponents(day: 1))
+            query.initialResultsHandler = { _, results, error in
+                guard error == nil, let results else { cont.resume(returning: false); return }
+                results.enumerateStatistics(from: start, to: end) { stats, _ in
+                    let values = stats.sources?.compactMap { source -> (HealthEnergySourceKind, Double)? in
+                        guard let quantity = stats.sumQuantity(for: source) else { return nil }
+                        let kind = Self.energySourceKind(
+                            sourceName: source.name, bundleIdentifier: source.bundleIdentifier,
+                            productType: nil, isCurrentApp: source == HKSource.default())
+                        guard kind != .noop else { return nil }
+                        return (kind, quantity.doubleValue(for: unit))
+                    } ?? []
+                    let preferred = values.filter { $0.0 == .appleWatch }.map(\.1).max()
+                        ?? values.map(\.1).max()
+                    if let preferred {
+                        sink(Self.dayString(stats.startDate), preferred)
+                    }
+                }
+                cont.resume(returning: true)
+            }
+            store.execute(query)
+        }
+    }
+
+    /// Pure source classifier used by both daily arbitration and bucket import.
+    nonisolated static func energySourceKind(sourceName: String?, bundleIdentifier: String?,
+                                             productType: String?, isCurrentApp: Bool) -> HealthEnergySourceKind {
+        if isCurrentApp { return .noop }
+        let joined = [sourceName, bundleIdentifier, productType]
+            .compactMap { $0?.lowercased() }.joined(separator: " ")
+        if joined.contains("noop") { return .noop }
+        if joined.contains("watch") { return .appleWatch }
+        if joined.contains("iphone") || joined.contains("phone") { return .iPhone }
+        return joined.isEmpty ? .unknown : .thirdParty
+    }
+
+    nonisolated private static func normalizedEnergySourceId(name: String, bundle: String,
+                                                              product: String?) -> String {
+        let raw = [bundle, product ?? "", name].joined(separator: ":").lowercased()
+        let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: ".-_"))
+        let cleaned = raw.unicodeScalars.map { allowed.contains($0) ? Character(String($0)) : "-" }
+        return String(cleaned).replacingOccurrences(of: "--", with: "-")
+    }
+
+    /// Reads only the small set of signals useful for calibrating a WHOOP estimate, then collapses
+    /// them to five-minute source-aware aggregates. Raw HealthKit samples are never persisted.
+    private func collectEnergyReferenceBuckets(start: Date, end: Date) async -> [HealthEnergyBucketRow] {
+        struct Key: Hashable { let sourceId: String; let start: Int }
+        struct Acc {
+            var kind: HealthEnergySourceKind
+            var active = 0.0; var hasActive = false
+            var basal = 0.0; var hasBasal = false
+            var hrSum = 0.0; var hrCount = 0
+            var steps = 0; var hasSteps = false
+            var distance = 0.0; var hasDistance = false
+            var strideSum = 0.0; var strideCount = 0
+            var workout = false; var coverage = 0; var samples = 0
+        }
+        var buckets: [Key: Acc] = [:]
+
+        func quantitySamples(_ id: HKQuantityTypeIdentifier) async -> [HKQuantitySample] {
+            guard let type = HKQuantityType.quantityType(forIdentifier: id) else { return [] }
+            let predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [
+                HKQuery.predicateForSamples(withStart: start, end: end, options: .strictStartDate),
+                Self.notNoopAuthored,
+            ])
+            return await withCheckedContinuation { continuation in
+                let query = HKSampleQuery(sampleType: type, predicate: predicate, limit: HKObjectQueryNoLimit,
+                                          sortDescriptors: nil) { _, samples, _ in
+                    continuation.resume(returning: (samples as? [HKQuantitySample]) ?? [])
+                }
+                store.execute(query)
+            }
+        }
+
+        let specs: [(HKQuantityTypeIdentifier, HKUnit)] = [
+            (.activeEnergyBurned, .kilocalorie()), (.basalEnergyBurned, .kilocalorie()),
+            (.heartRate, HKUnit.count().unitDivided(by: .minute())), (.stepCount, .count()),
+            (.distanceWalkingRunning, .meter()), (.walkingStepLength, .meter()),
+        ]
+        for (identifier, unit) in specs {
+            for sample in await quantitySamples(identifier) where !Self.isNoopAuthored(sample) {
+                let revision = sample.sourceRevision
+                let source = revision.source
+                let kind = Self.energySourceKind(
+                    sourceName: source.name, bundleIdentifier: source.bundleIdentifier,
+                    productType: revision.productType, isCurrentApp: source == HKSource.default())
+                guard kind != .noop else { continue }
+                let sourceId = Self.normalizedEnergySourceId(
+                    name: source.name, bundle: source.bundleIdentifier, product: revision.productType)
+                let epoch = Int(sample.startDate.timeIntervalSince1970)
+                let key = Key(sourceId: sourceId,
+                              start: (epoch / HealthEnergyBucketRow.durationSeconds)
+                                * HealthEnergyBucketRow.durationSeconds)
+                var acc = buckets[key] ?? Acc(kind: kind)
+                let value = sample.quantity.doubleValue(for: unit)
+                guard value.isFinite, value >= 0 else { continue }
+                switch identifier {
+                case .activeEnergyBurned: acc.active += value; acc.hasActive = true
+                case .basalEnergyBurned: acc.basal += value; acc.hasBasal = true
+                case .heartRate: acc.hrSum += value; acc.hrCount += 1
+                case .stepCount: acc.steps += Int(value.rounded()); acc.hasSteps = true
+                case .distanceWalkingRunning: acc.distance += value; acc.hasDistance = true
+                case .walkingStepLength: acc.strideSum += value; acc.strideCount += 1
+                default: break
+                }
+                let duration = max(1, Int(sample.endDate.timeIntervalSince(sample.startDate).rounded()))
+                acc.coverage = min(HealthEnergyBucketRow.durationSeconds, acc.coverage + duration)
+                acc.samples += 1
+                buckets[key] = acc
+            }
+        }
+
+        let workoutPredicate = NSCompoundPredicate(andPredicateWithSubpredicates: [
+            HKQuery.predicateForSamples(withStart: start, end: end, options: []), Self.notNoopAuthored,
+        ])
+        let workouts: [HKWorkout] = await withCheckedContinuation { continuation in
+            let query = HKSampleQuery(sampleType: .workoutType(), predicate: workoutPredicate,
+                                      limit: HKObjectQueryNoLimit, sortDescriptors: nil) { _, samples, _ in
+                continuation.resume(returning: (samples as? [HKWorkout]) ?? [])
+            }
+            store.execute(query)
+        }
+        for workout in workouts where !Self.isNoopAuthored(workout) {
+            let revision = workout.sourceRevision; let source = revision.source
+            let kind = Self.energySourceKind(sourceName: source.name,
+                                             bundleIdentifier: source.bundleIdentifier,
+                                             productType: revision.productType,
+                                             isCurrentApp: source == HKSource.default())
+            guard kind != .noop else { continue }
+            let sourceId = Self.normalizedEnergySourceId(
+                name: source.name, bundle: source.bundleIdentifier, product: revision.productType)
+            var cursor = Int(workout.startDate.timeIntervalSince1970)
+            let finish = Int(workout.endDate.timeIntervalSince1970)
+            while cursor < finish {
+                let bucketStart = (cursor / HealthEnergyBucketRow.durationSeconds)
+                    * HealthEnergyBucketRow.durationSeconds
+                let key = Key(sourceId: sourceId, start: bucketStart)
+                var acc = buckets[key] ?? Acc(kind: kind)
+                acc.workout = true
+                acc.coverage = min(HealthEnergyBucketRow.durationSeconds,
+                                   max(acc.coverage, min(finish, bucketStart + 300) - max(cursor, bucketStart)))
+                buckets[key] = acc
+                cursor = bucketStart + HealthEnergyBucketRow.durationSeconds
+            }
+        }
+
+        return buckets.map { key, a in
+            let evidence = [a.hasActive, a.hrCount > 0, a.hasSteps || a.hasDistance, a.workout]
+                .filter { $0 }.count
+            let quality = min(1, 0.6 * Double(a.coverage) / 300 + 0.1 * Double(evidence))
+            return HealthEnergyBucketRow(
+                deviceId: appleDeviceId, sourceId: key.sourceId, sourceKind: a.kind,
+                bucketStart: key.start, activeKcal: a.hasActive ? a.active : nil,
+                basalKcal: a.hasBasal ? a.basal : nil,
+                averageHr: a.hrCount > 0 ? a.hrSum / Double(a.hrCount) : nil,
+                steps: a.hasSteps ? a.steps : nil, distanceM: a.hasDistance ? a.distance : nil,
+                strideM: a.strideCount > 0 ? a.strideSum / Double(a.strideCount) : nil,
+                workout: a.workout, coverageSeconds: a.coverage, sampleCount: a.samples,
+                quality: quality)
+        }.sorted { $0.bucketStart == $1.bucketStart ? $0.sourceId < $1.sourceId
+                                                    : $0.bucketStart < $1.bucketStart }
     }
 
     private func collectSleep(start: Date, end: Date,

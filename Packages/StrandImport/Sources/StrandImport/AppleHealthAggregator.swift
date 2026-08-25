@@ -142,6 +142,14 @@ public enum AppleHealthAggregator {
         return u == "lb" || u == "lbs" || u.contains("pound")
     }
 
+    /// Apple exports overlapping cumulative energy from multiple producers. Prefer the Watch source
+    /// and otherwise take one source's total; adding sources measures the same activity twice.
+    static func preferredEnergyTotal(_ values: [String: Double]) -> Double? {
+        let usable = values.filter { !$0.key.lowercased().contains("noop") }
+        let watch = usable.filter { $0.key.lowercased().contains("watch") }.map(\.value).max()
+        return watch ?? usable.values.max()
+    }
+
     // MARK: Day bucketing
 
     /// `yyyy-MM-dd` for a UTC `Date` shifted into its own local offset.
@@ -341,8 +349,8 @@ public struct AppleDailySampleAccumulator {
         // (~2x). We sum WITHIN a source but take the MAX source per day at finish() — the de-overlap
         // Apple's own Health app shows instead of a raw sum.
         var stepsBySource: [String: Double] = [:]
-        var active = 0.0; var hasActive = false
-        var basal = 0.0;  var hasBasal = false
+        var activeBySource: [String: Double] = [:]
+        var basalBySource: [String: Double] = [:]
         // Latest-by-end values.
         var vo2: Double?;     var vo2At: Date?
         var weight: Double?;  var weightAt: Date?
@@ -395,9 +403,9 @@ public struct AppleDailySampleAccumulator {
             // Sum WITHIN a source, never across sources (iPhone + Watch overlap → double-count). (#589)
             if let v = s.value { byDay[day]!.stepsBySource[s.sourceName ?? "", default: 0] += v }
         case AppleHealthAggregator.activeEnergy:
-            if let v = s.value { byDay[day]!.active += v; byDay[day]!.hasActive = true }
+            if let v = s.value { byDay[day]!.activeBySource[s.sourceName ?? "", default: 0] += v }
         case AppleHealthAggregator.basalEnergy:
-            if let v = s.value { byDay[day]!.basal += v; byDay[day]!.hasBasal = true }
+            if let v = s.value { byDay[day]!.basalBySource[s.sourceName ?? "", default: 0] += v }
         case AppleHealthAggregator.vo2max:
             if let v = s.value {
                 let acc = byDay[day]!
@@ -468,8 +476,8 @@ public struct AppleDailySampleAccumulator {
                 maxHr: a.hrMax,
                 walkingHr: mean(a.walkingSum, a.walkingN),
                 steps: a.stepsBySource.isEmpty ? nil : a.stepsBySource.values.max(),   // #589 max source, not cross-source sum
-                activeKcal: a.hasActive ? a.active : nil,
-                basalKcal: a.hasBasal ? a.basal : nil,
+                activeKcal: AppleHealthAggregator.preferredEnergyTotal(a.activeBySource),
+                basalKcal: AppleHealthAggregator.preferredEnergyTotal(a.basalBySource),
                 vo2max: a.vo2,
                 weightKg: a.weight,
                 bodyFatPct: a.bodyFat,
