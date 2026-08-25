@@ -1884,8 +1884,8 @@ final class AICoachEngine: ObservableObject {
         }
     }
 
-    /// `get_energy_balance`: today's expenditure and how much of the elapsed day the sources covered.
-    /// NOOP has no food data, so the result explicitly prevents intake or diet inferences.
+    /// `get_energy_balance`: today's wearable expenditure plus an optional, clearly separate
+    /// retrospective energy-balance estimate when imported nutrition and weight history support it.
     func energyBalanceTool() async -> String {
         let profile = ProfileStore()
         guard let summary = await repo.todayEnergy(profile: Repository.analyticsProfile(profile)) else {
@@ -1939,7 +1939,16 @@ final class AICoachEngine: ObservableObject {
         case .calibrating:
             lines.append("NOTE: very little of today was recorded — most of this total is the modelled basal rate. Do NOT present it as a measurement.")
         }
-        lines.append("NOOP holds no food or intake data. Do not infer what the user should eat.")
+        if let adaptive = await repo.adaptiveExpenditureEstimate() {
+            lines.append("ADAPTIVE_EXPENDITURE_COMPARISON: ~\(Int(adaptive.estimatedDailyKcal.rounded())) kcal/day "
+                + "(range \(Int(adaptive.lowerBoundKcal.rounded()))–\(Int(adaptive.upperBoundKcal.rounded())); "
+                + "\(adaptive.windowDays)-day retrospective model; confidence \(adaptive.confidence.rawValue))")
+            lines.append("ADAPTIVE_MODEL_NOTE: derived from imported calories-in and weight trend. "
+                + "It is not today's measurement and does not calibrate or replace WHOOP.")
+        } else {
+            lines.append("ADAPTIVE_EXPENDITURE_COMPARISON: unavailable — insufficient complete intake and weight history.")
+        }
+        lines.append("Do not infer what the user should eat or turn either expenditure estimate into a diet recommendation.")
         return lines.joined(separator: "\n")
     }
 

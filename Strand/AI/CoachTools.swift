@@ -141,8 +141,9 @@ enum CoachTool: String, CaseIterable {
                 + "recorded. Use it for 'how many calories have I burned', 'what's my TDEE' or any "
                 + "energy question. The coverage and confidence fields are not decoration: on a day "
                 + "with low coverage most of the total is modelled from the user's profile, so say so "
-                + "rather than quoting the number as measured. NOOP holds no food data, so never turn "
-                + "this into a diet or intake recommendation."
+                + "rather than quoting the number as measured. When enough imported intake and weight "
+                + "history exists, it also returns a separate retrospective expenditure range; never "
+                + "present that as today's measurement or turn it into a diet/intake recommendation."
         case .logWeight:
             return "Log a body-weight measurement the user reports ('weighed in at 82.4 today', 'I'm "
                 + "79.9 kg this morning'). It becomes a dated weigh-in in their weight history, so it "

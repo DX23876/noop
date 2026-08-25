@@ -185,6 +185,7 @@ struct EnergyDetailView: View {
     @State private var loaded = false
     @State private var calibration = EnergyCalibrationViewState.off
     @State private var updatingCalibration = false
+    @State private var adaptiveEstimate: AdaptiveExpenditureEstimate?
 
     private var today: DailyEnergySummary? {
         let key = Repository.localDayKey(Date())
@@ -198,6 +199,7 @@ struct EnergyDetailView: View {
                 if let today {
                     EnergyCard(summary: today)
                     provenance(today)
+                    if let adaptiveEstimate { adaptiveComparison(adaptiveEstimate) }
                     calibrationControls
                 } else {
                     Text("Nothing recorded yet today.")
@@ -210,6 +212,26 @@ struct EnergyDetailView: View {
         }
         .navigationTitle(Text("Energy"))
         .task { await loadIfNeeded() }
+    }
+
+    /// A long-horizon comparison, never a replacement for today's WHOOP estimate. It appears only
+    /// after enough complete nutrition and weight history exists; absence is quieter and more honest
+    /// than a permanently "learning" card for users who do not track food.
+    private func adaptiveComparison(_ estimate: AdaptiveExpenditureEstimate) -> some View {
+        VStack(alignment: .leading, spacing: NoopMetrics.gap) {
+            SectionHeader("Adaptive expenditure", trailing: adaptiveConfidence(estimate.confidence))
+            NoopCard {
+                VStack(alignment: .leading, spacing: 8) {
+                    row("Estimated daily average", formattedRange(estimate))
+                    row("Observation window", "\(estimate.windowDays) days")
+                    row("Logged intake coverage", percent(estimate.intakeCoverage))
+                    Text("Calculated retrospectively from imported calories-in and your weight trend. It is a separate estimate and does not replace or calibrate today's WHOOP burn.")
+                        .font(StrandFont.caption)
+                        .foregroundStyle(StrandPalette.textSecondary)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
     }
 
     /// Which sources produced today's number and how much of the day they saw. The point of the
@@ -357,6 +379,21 @@ struct EnergyDetailView: View {
         "×" + factor.formatted(.number.precision(.fractionLength(3)))
     }
 
+    private func formattedRange(_ estimate: AdaptiveExpenditureEstimate) -> String {
+        let centre = Int(estimate.estimatedDailyKcal.rounded())
+        let lower = Int(estimate.lowerBoundKcal.rounded())
+        let upper = Int(estimate.upperBoundKcal.rounded())
+        return "~\(centre) kcal/day · \(lower)–\(upper)"
+    }
+
+    private func adaptiveConfidence(_ confidence: AdaptiveExpenditureConfidence) -> String {
+        switch confidence {
+        case .building: return String(localized: "Building")
+        case .moderate: return String(localized: "Moderate")
+        case .high:     return String(localized: "High")
+        }
+    }
+
     private func loadIfNeeded() async {
         guard !loaded else { return }
         loaded = true
@@ -365,6 +402,7 @@ struct EnergyDetailView: View {
         calibration = await repo.energyCalibrationState()
         summaries = await repo.energySummaries(days: 30,
                                                profile: Repository.analyticsProfile(profile))
+        adaptiveEstimate = await repo.adaptiveExpenditureEstimate()
     }
 
     private func setCalibration(_ enabled: Bool) async {
