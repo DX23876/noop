@@ -3259,6 +3259,9 @@ class WhoopBleClient(
      */
     fun releaseStrap() {
         noteLocalTeardown("releaseStrap")   // #1020
+        // #1635: a forgotten strap re-added later deserves a fresh tree dump — its firmware may have
+        // changed in between, and that is exactly when a new characteristic would appear.
+        gattTreeDumpedFor = null
         handler.post {
             intentionalDisconnect = true     // defuse the disconnect→3s-reconnect loop's guard
             handler.removeCallbacks(scanTimeoutRunnable)
@@ -4733,6 +4736,13 @@ class WhoopBleClient(
      *  against the teardown it is about to perform. None of the five is on a per-record path. */
     private fun noteLocalTeardown(origin: String) { lastLocalTeardown = origin }
 
+    /** Address of the strap whose GATT tree has already been dumped, so the ~30-line enumeration is
+     *  emitted once per device rather than once per connect (#1635). Not persisted: a fresh process is
+     *  exactly when the tree is worth seeing again, and a strap that changed firmware between runs may
+     *  legitimately expose something new. */
+    @Volatile
+    private var gattTreeDumpedFor: String? = null
+
     /** True once `createBond()` has been asked for on THIS link (#1635 explicit-bond experiment). One
      *  attempt per connection: re-issuing while a pairing is in flight gives a system dialog per retry, and
      *  the retry cadence here is seconds. Cleared with the rest of the per-link state on teardown. */
@@ -5457,6 +5467,29 @@ class WhoopBleClient(
                         "sleep) for 5/MG are still being figured out. WHOOP 4.0 is fully supported today.",
                 ) }
                 cmdCharacteristic = whoop5.getCharacteristic(WHOOP5_CMD_WRITE_CHAR)
+                // #1635: dump what the strap actually OFFERS, once per strap. Every characteristic in this
+                // file is looked up by a hardcoded UUID, so anything the 5/MG exposes that nobody guessed
+                // has never been visible. Reads the already-discovered tree — no GATT operation, no
+                // traffic, and nothing that can provoke the teardown a write to an encrypted
+                // characteristic provokes, which is why it works on a strap that never bonds.
+                //
+                // ONCE PER STRAP, not once per connect. The tree is static for a given device, and this is
+                // ~30 lines — on a strap in a reconnect loop, re-emitting it every few seconds would evict
+                // the connect/drop/bond evidence from a fixed-size rolling buffer with a verbatim repeat of
+                // something that has not changed. Keyed on the address so switching straps still dumps.
+                if (testCentre.active(com.noop.testcentre.TestDomain.CONNECTION) &&
+                    gattTreeDumpedFor != g.device.address
+                ) {
+                    gattTreeDumpedFor = g.device.address
+                    val tree = runCatching {
+                        g.services.map { svc ->
+                            svc.uuid.toString() to svc.characteristics.map { it.uuid.toString() to it.properties }
+                        }
+                    }.getOrDefault(emptyList())
+                    for (line in gattTreeLines(tree)) {
+                        log(line, com.noop.testcentre.TestDomain.CONNECTION)
+                    }
+                }
                 // #1635: print what fd4b0002 actually declares. Android exposes no link-encryption state,
                 // so the property bitmask and the OS bond state are the only proxies available — and the
                 // CLIENT_HELLO has been written WITH RESPONSE since June without anyone checking whether
