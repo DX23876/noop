@@ -53,4 +53,13 @@ class HelloSuppressionTest {
         assertFalse(epitaph.contains("held by", ignoreCase = true))
         assertTrue(epitaph.contains("abcd1234"))
     }
+
+    @Test
+    fun `an existing OS pairing does NOT permanently bypass the latch`() {
+        // Tempting, and wrong: "a pairing exists" never goes away, so re-arming on it would rewrite the
+        // hello on every connect for good - drop at ~4.8s, reconnect, forever - with the give-up powerless.
+        // That is the unbounded loop suppression exists to end. The experiment clears the latch ONCE when
+        // it asks for a pairing instead, which is self-limiting.
+        assertFalse(shouldSendClientHello(suppressedForDevice = true, userInitiated = false))
+    }
 }

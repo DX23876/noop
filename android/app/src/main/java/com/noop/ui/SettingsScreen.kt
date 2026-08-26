@@ -501,7 +501,8 @@ fun SettingsScreen(
     // 5/MG-only probes. Without this the toggles below would keep showing their old state until you
     // navigated away and back, because an unkeyed remember{} reads once per composition. macOS gets
     // this free — @AppStorage republishes on any UserDefaults write — and Compose needs it spelled
-    // out. Bumping `rev` is the whole mechanism; the four reads are keyed on it.
+    // out. Bumping `rev` is the whole mechanism; every experiment read below is keyed on it. Deliberately
+    // not stated as a count — it was already wrong before the #1635 toggle was added to the list.
     DisposableEffect(Unit) {
         val expPrefs = context.getSharedPreferences(PuffinExperiment.PREFS, Context.MODE_PRIVATE)
         // Strong local for the effect's lifetime: Android holds these listeners WEAKLY, so one that is
@@ -585,6 +586,7 @@ fun SettingsScreen(
     // the card cannot drift from it again — it said "15" for the whole life of the 16-flag sequence.
     val r22FlagCount = Whoop5Config.enableR22Sequence.size
     var broadcastHr by remember(rev) { mutableStateOf(puffinExperiment.broadcastHr) }
+    var explicitBond by remember(rev) { mutableStateOf(puffinExperiment.explicitBond) }
     // ECG raw-data gate (#891): the opt-in, the write result, and the attested-MG gate the buttons need.
     var ecgRawData by remember(rev) { mutableStateOf(puffinExperiment.ecgRawData) }
     val ecgGateReport by vm.ble.ecgRawDataGate.collectAsStateWithLifecycle()
@@ -2303,6 +2305,42 @@ fun SettingsScreen(
                 }
                 Text(
                     uiString(R.string.l10n_settings_screen_makes_your_whoop_5_0_mg_b26b94c7),
+                    style = NoopType.caption,
+                    color = Palette.textTertiary,
+                )
+
+                // --- Ask Android to pair — the explicit createBond() experiment. (#1635) ---
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    Text(
+                        uiString(R.string.l10n_settings_screen_ask_android_to_pair_experimental_250a81e9),
+                        style = NoopType.subhead,
+                        color = Palette.textPrimary,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Switch(
+                        checked = explicitBond,
+                        onCheckedChange = {
+                            explicitBond = it
+                            puffinExperiment.explicitBond = it
+                        },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = Palette.surfaceBase,
+                            checkedTrackColor = Palette.accent,
+                            uncheckedThumbColor = Palette.textSecondary,
+                            uncheckedTrackColor = Palette.surfaceInset,
+                            uncheckedBorderColor = Palette.hairline,
+                        ),
+                        modifier = Modifier.semantics {
+                            contentDescription = uiString(R.string.l10n_settings_screen_ask_android_to_pair_323fccbe)
+                        },
+                    )
+                }
+                Text(
+                    uiString(R.string.l10n_settings_screen_noop_has_always_hoped_that_writing_19967036),
                     style = NoopType.caption,
                     color = Palette.textTertiary,
                 )

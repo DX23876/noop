@@ -19,6 +19,14 @@ package com.noop.ble
  * [userInitiated] always re-attempts: suppression is a fallback for automatic reconnects, never a
  * permanent verdict. Someone who puts the strap in pairing mode and presses Connect must get a fresh try,
  * and that is also how the suppression is cleared.
+ *
+ * Deliberately NOT re-armed by "an OS pairing exists". That looks right — a pairing is new evidence the
+ * handshake might work — but the condition never goes away, so a strap that pairs and STILL will not
+ * answer would have the latch bypassed on every connect for good: hello, drop at ~4.8s, reconnect,
+ * forever, with the give-up powerless to stop it. That is the unbounded loop this suppression exists to
+ * end, reintroduced through the back door. The explicit-bond experiment instead clears the latch ONCE at
+ * the moment it asks for a pairing, which is self-limiting: the next failure re-latches and the condition
+ * to clear it again does not recur.
  */
 internal fun shouldSendClientHello(
     suppressedForDevice: Boolean,

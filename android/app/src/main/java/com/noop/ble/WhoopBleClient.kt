@@ -2211,9 +2211,17 @@ class WhoopBleClient(
     /** #1635: record an OS bond-state transition in the strap log. The OS pairing flow has never been
      *  observed, which is what leaves the 5/MG bond failure undecided - see [bondStateTraceLine]. */
     fun onBondStateChanged(previous: Int, current: Int, address: String?) {
-        val since = msSinceClientHello
+        // Time against whichever request is actually outstanding. The hello takes precedence when both
+        // are, but the explicit-pairing experiment deliberately sends no hello, so without the second
+        // marker every transition it causes would print untimed — and how long a pairing took is most of
+        // what makes it diagnosable (#1635).
+        val helloMs = msSinceClientHello
+        val bondMs = explicitBondRequestedAtMs
+            .takeIf { it > 0L }?.let { System.currentTimeMillis() - it }
+        val since = helloMs ?: bondMs
+        val label = if (helloMs != null) "CLIENT_HELLO" else "the pairing request"
         if (!shouldTraceBondState(address, lastDeviceAddress, since != null)) return
-        log(bondStateTraceLine(previous, current, address, since))
+        log(bondStateTraceLine(previous, current, address, since, label))
     }
 
     @Volatile private var familyEstablished = false
@@ -4633,6 +4641,18 @@ class WhoopBleClient(
      *  against the teardown it is about to perform. None of the five is on a per-record path. */
     private fun noteLocalTeardown(origin: String) { lastLocalTeardown = origin }
 
+    /** True once `createBond()` has been asked for on THIS link (#1635 explicit-bond experiment). One
+     *  attempt per connection: re-issuing while a pairing is in flight gives a system dialog per retry, and
+     *  the retry cadence here is seconds. Cleared with the rest of the per-link state on teardown. */
+    @Volatile
+    private var explicitBondRequestedThisLink = false
+
+    /** When `createBond()` was asked for, so the bond-state trace can time the pairing (#1635). The trace
+     *  otherwise measures only from the CLIENT_HELLO, which this experiment deliberately does not send —
+     *  leaving every pairing transition untimed, so a 200ms pairing and an 8s one read identically. */
+    @Volatile
+    private var explicitBondRequestedAtMs = 0L
+
     /** Set by an explicit user Connect so the NEXT 5/MG session re-attempts a suppressed CLIENT_HELLO
      *  (#1635). Consumed on use, so it grants exactly one retry: someone who put the strap in pairing mode
      *  gets a fresh attempt, and a strap that still will not answer latches straight back off instead of
@@ -5340,6 +5360,23 @@ class WhoopBleClient(
                         "sleep) for 5/MG are still being figured out. WHOOP 4.0 is fully supported today.",
                 ) }
                 cmdCharacteristic = whoop5.getCharacteristic(WHOOP5_CMD_WRITE_CHAR)
+                // #1635: print what fd4b0002 actually declares. Android exposes no link-encryption state,
+                // so the property bitmask and the OS bond state are the only proxies available — and the
+                // CLIENT_HELLO has been written WITH RESPONSE since June without anyone checking whether
+                // this characteristic supports that. One capture settles it.
+                // Descriptive only. Whether we will actually write with response is not known here — the
+                // #1635 suppression decision happens later in startSession — so asserting it would be a
+                // confidently wrong line on exactly the straps this is about. The verdict is emitted at
+                // the write itself, where the write type is a fact rather than an assumption.
+                if (testCentre.active(com.noop.testcentre.TestDomain.CONNECTION)) {
+                    cmdCharacteristic?.let {
+                        log(characteristicCapabilityLine(
+                            uuid = it.uuid.toString(),
+                            properties = it.properties,
+                            writingWithResponse = false,
+                        ), com.noop.testcentre.TestDomain.CONNECTION)
+                    }
+                }
             } else {
                 log("Custom WHOOP service not found on this peripheral")
             }
@@ -7231,6 +7268,12 @@ class WhoopBleClient(
         // stream HR (even over the standard 0x2A37 profile) on an UNauthenticated link, so the old
         // unacknowledged write left it bond-less and silent — CLIENT_HELLO written, then nothing (#17).
         // Hold the slot until the ACK; the opt-in puffin probe now fires post-bond (onCharacteristicWrite).
+        // UNgated, unlike the descriptive line at discovery: this fires only when the characteristic does
+        // not declare Write, which is a decisive, actionable, once-per-link finding — and the one most
+        // likely to be missing from a report by someone who never turned Test Centre on.
+        if (ch.properties and BluetoothGattCharacteristic.PROPERTY_WRITE == 0) {
+            log(characteristicCapabilityLine(ch.uuid.toString(), ch.properties, writingWithResponse = true))
+        }
         log("WHOOP 5/MG: writing CLIENT_HELLO to fd4b0002 with response (to trigger bonding, experimental).")
         writeInFlight = true
         clientHelloWriteAtMs = System.currentTimeMillis()
@@ -7269,6 +7312,65 @@ class WhoopBleClient(
                 // Consumed unconditionally, so the single retry an explicit Connect grants belongs to THIS
                 // session. Leaving it set would hand a stale retry to some later automatic reconnect and
                 // restart the loop the suppression exists to end.
+                // #1635 experiment: ask Android to pair, instead of hoping the encrypted write provokes
+                // it — which the bond-state trace showed never happens. Runs BEFORE the hello decision
+                // because the two must not overlap: writing while a pairing is in flight is the behaviour
+                // that has been dropping the link, so doing both would test nothing.
+                val osBonded = g.device.bondState == BluetoothDevice.BOND_BONDED
+                // Once per link, before any decision: a hello that fails on an unencrypted link and one
+                // that fails on an ENCRYPTED link are completely different findings, and they have been
+                // printing identically (#1635).
+                //
+                // Gated, unlike the bond-state TRANSITION lines. This one fires on every connect, so on a
+                // strap in a reconnect loop it is a line every few seconds into a fixed-size rolling
+                // buffer for someone who is not debugging. A transition line fires only when the OS bond
+                // actually changes — zero times on the straps this is about — so it costs nothing to leave
+                // always-on and is the evidence most likely to be missing when someone reports a problem.
+                if (testCentre.active(com.noop.testcentre.TestDomain.CONNECTION)) {
+                    log(bondStateAtConnectLine(g.device.bondState, g.device.address),
+                        com.noop.testcentre.TestDomain.CONNECTION)
+                }
+                if (shouldRequestExplicitBond(
+                        optedIn = puffinExperiment.explicitBond,
+                        isWhoop5 = true,
+                        alreadyBondedAtOsLevel = osBonded,
+                        appLevelBonded = didBond,
+                        alreadyRequestedThisLink = explicitBondRequestedThisLink,
+                    )
+                ) {
+                    explicitBondRequestedThisLink = true
+                    explicitBondRequestedAtMs = System.currentTimeMillis()
+                    val where = bondStateName(g.device.bondState)
+                    // A THROW is not a refusal. createBond needs BLUETOOTH_CONNECT, and swallowing a
+                    // SecurityException into `false` would print a confident claim about the strap for a
+                    // problem that is entirely local.
+                    runCatching { g.device.createBond() }.fold(
+                        onSuccess = { initiated ->
+                            log(explicitBondRequestLine(initiated, where))
+                            // Asking for a pairing voids the previous verdict: suppression latched because
+                            // the write never completed on an UNENCRYPTED link, and that premise is exactly
+                            // what this is trying to change. Cleared ONCE, here, rather than re-armed by
+                            // "an OS pairing exists" — that condition never goes away, so it would bypass
+                            // the latch on every connect and restore the unbounded loop for good.
+                            if (initiated) {
+                                runCatching {
+                                    com.noop.ui.NoopPrefs.setHelloSuppressed(context, g.device.address, false)
+                                }
+                            }
+                        },
+                        onFailure = { log(explicitBondThrewLine(it.javaClass.simpleName, where)) },
+                    )
+                }
+                if (explicitBondDefersHello(explicitBondRequestedThisLink)) {
+                    // Same trap as the suppression path below, and worse here. The watchdog was armed at
+                    // discovery and bounces the link whenever didBond is false — which deferring the hello
+                    // guarantees. Tearing the link down while an OS pairing is in flight is the single
+                    // thing most likely to abort the pairing we just asked for, so the experiment would
+                    // sabotage itself ~7s in and report a refusal that never happened.
+                    cancelBondWatchdog()
+                    return
+                }
+
                 val userAsked = helloRetryRequested
                 helloRetryRequested = false
                 val suppressed = runCatching {
@@ -8480,6 +8582,12 @@ class WhoopBleClient(
     /** Clear per-connection state. Port of the flag resets in didConnect / didDisconnectPeripheral. */
     private fun reset() {
         didBond = false
+        explicitBondRequestedThisLink = false   // #1635: one createBond attempt per link
+        // explicitBondRequestedAtMs is deliberately NOT cleared here. An OS pairing routinely completes
+        // AFTER the GATT link that asked for it has dropped, so clearing on teardown would leave the
+        // BOND_BONDED transition — the one that matters most — arriving with no timing at all, which is
+        // exactly the gap this stopwatch was added to close. It is overwritten by the next request, and a
+        // stale value can only ever produce a large elapsed against a label that names what it measures.
         connectHandshakeDone = false
         familyEstablished = false   // the next link re-establishes it at service discovery
         loggedFirmwareGate = null
