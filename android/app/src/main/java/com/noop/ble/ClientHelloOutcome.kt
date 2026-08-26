@@ -75,3 +75,65 @@ internal fun gattWriteStatusLabel(status: Int?): String = when (status) {
     else -> "status=$status"
 }
 
+/**
+ * Is this write completion genuinely the CLIENT_HELLO's ack, and therefore proof of an encrypted bond?
+ *
+ * The bond branch used to match on family alone: on a 5/MG link, ANY with-response completion that
+ * arrived while `didBond` was false was taken as the ack and set `encryptedBond`. A characteristic check
+ * on its own does not fix that, because the puffin command characteristic (fd4b0002) carries BOTH the
+ * CLIENT_HELLO and every ordinary command - DISABLE_ALARM is written there on the same connect - so the
+ * hello and an unrelated command are indistinguishable by uuid.
+ *
+ * What separates them is whether a hello is actually OUTSTANDING. The hello is written straight past the
+ * command queue while sharing its in-flight slot, so when a queued command is already in flight the write
+ * is rejected by the stack and no callback is owed (the caller zeroes its stopwatch to say so). That is
+ * exactly the case seen in the field: the hello was rejected, DISABLE_ALARM's completion landed a moment
+ * later, and the link was declared bonded on the strength of it (#1635).
+ *
+ * Both conditions are required, and neither is redundant:
+ *  - [isHelloChar] alone admits DISABLE_ALARM and every other puffin command.
+ *  - [helloOutstanding] alone admits a completion from a different characteristic that happens to land
+ *    inside the hello's window.
+ *
+ * Declining does not claim the strap refused anything - it says only that THIS completion is not evidence
+ * of a bond. A real ack still arrives on its own callback and still bonds.
+ *
+ * Pure, so the rule is tested without a radio. Swift twin: `ClientHelloOutcome.isAck`.
+ */
+internal fun completionIsClientHelloAck(
+    isHelloChar: Boolean,
+    helloOutstanding: Boolean,
+    alreadyBonded: Boolean,
+    isWhoop5: Boolean,
+): Boolean {
+    if (alreadyBonded) return false
+    if (!isWhoop5) return false
+    return isHelloChar && helloOutstanding
+}
+
+/**
+ * A pre-bond write completion on a 5/MG link that arrived with NO CLIENT_HELLO outstanding.
+ *
+ * [completionIsClientHelloAck] declines these, and without a line it declines in SILENCE — which is worse
+ * for a capture than the wrong answer it replaces. The field log for #1635 said "CLIENT_HELLO acked —
+ * link established" here; the honest replacement is not nothing, it is "a completion arrived and it was
+ * not the hello's". Without it the reader cannot tell a completion arrived at all, and the evidence that
+ * identified this bug in the first place would not appear in the next capture.
+ *
+ * Names the characteristic because the whole point is that fd4b0002 carries traffic other than the hello,
+ * and the reader needs to see WHICH command completed to match it against the `→ CMD` line above it.
+ *
+ * Bounded: this branch is 5/MG-only and runs only while unbonded, and the field capture shows about one
+ * such completion per connect attempt.
+ *
+ * Pure. Swift twin: `ClientHelloOutcome.declinedLine`.
+ */
+internal fun clientHelloDeclinedLine(charUuid: String?, status: String?): String {
+    // trim(), not just isNotBlank(): the Swift twin trims, and an untrimmed uuid would render with its
+    // padding intact — a byte-level parity break the oracle test below catches.
+    val where = charUuid?.trim()?.takeIf { it.isNotEmpty() } ?: "unknown"
+    val st = status?.trim()?.takeIf { it.isNotEmpty() }?.let { " $it" } ?: ""
+    return "CLIENT_HELLO outcome: completion from $where$st with NO hello outstanding — not a bond," +
+        " so the link stays unbonded (#1635)"
+}
+
