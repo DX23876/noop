@@ -5981,14 +5981,25 @@ class WhoopBleClient(
                         // samples (100 Hz 6-axis) into the rawImuSample table when raw capture is on.
                         storeWhoop5RawImuIfBuffer(frame)
                     }
+                    // Opt-in raw capture: record EVERY frame of the session (offload AND live flood —
+                    // the offload flag lets analysis filter), BEFORE routing so frames are retained
+                    // before the trim ack deletes the strap's copy. No-op (single null check) when the
+                    // toggle is off. (#78 fork)
+                    //
+                    // Deliberately OUTSIDE the `backfilling` gate, where it used to sit. The comment
+                    // already claimed "every frame of the session" and the gate made that false: live and
+                    // event frames arriving between syncs were never recorded at all.
+                    //
+                    // This does NOT rescue a strap that never bonds, and it is worth saying so here so the
+                    // next reader does not assume it did. The frames that reach this path are the puffin
+                    // notify characteristics, and those are subscribed only in the CLIENT_HELLO-ack
+                    // branch — so an unbonded 5/MG still produces an empty capture. Making that case
+                    // yield anything means capturing the standard-profile notifications instead, which is
+                    // a different feature and mostly already-decoded data (#1635).
+                    if (connectedFamily == DeviceFamily.WHOOP5 && captureWriter != null) {
+                        writeWhoop5BackfillCapture(uuid.toString(), frame)
+                    }
                     if (backfilling) {
-                        // Opt-in raw capture: record EVERY frame of the session (offload AND live
-                        // flood — the offload flag lets analysis filter), BEFORE routing so frames
-                        // are retained before the trim ack deletes the strap's copy. No-op (single
-                        // null check) when the toggle is off. (#78 fork)
-                        if (connectedFamily == DeviceFamily.WHOOP5 && captureWriter != null) {
-                            writeWhoop5BackfillCapture(uuid.toString(), frame)
-                        }
                         // Historical offload: route ONLY genuine offload frames (47/48/49/50) through
                         // the serial drain (preserves chunk order) + re-arm the idle watchdog on them.
                         // The live type-40/43 flood is dropped here (extractHistoricalStreams ignores
@@ -7418,12 +7429,13 @@ class WhoopBleClient(
         when (connectedFamily) {
             DeviceFamily.WHOOP4 -> writeBondFrame(g, cmd)
             DeviceFamily.WHOOP5 -> {
-                // #1635: the hello is what ends the link on a strap that never answers it. Once the
-                // give-up has latched, skip it and let the standard-profile HR stream keep running.
-                //
-                // Consumed unconditionally, so the single retry an explicit Connect grants belongs to THIS
-                // session. Leaving it set would hand a stale retry to some later automatic reconnect and
-                // restart the loop the suppression exists to end.
+                // #1635: open the raw capture HERE, not only on entering backfill, so frames arriving
+                // outside a sync window are recorded. Idempotent, so the existing call in
+                // enterBackfilling still covers a capture switched on mid-session. Opening appends (never
+                // truncates — see startWhoop5BackfillCapture), so doing it per connect cannot lose a
+                // previous session's material.
+                if (PuffinExperiment.from(context).isCaptureEnabled) startWhoop5BackfillCapture()
+
                 // #1635 experiment: ask Android to pair, instead of hoping the encrypted write provokes
                 // it — which the bond-state trace showed never happens. Runs BEFORE the hello decision
                 // because the two must not overlap: writing while a pairing is in flight is the behaviour
@@ -7494,6 +7506,12 @@ class WhoopBleClient(
                     return
                 }
 
+                // #1635: the hello is what ends the link on a strap that never answers it. Once the
+                // give-up has latched, skip it and let the standard-profile HR stream keep running.
+                //
+                // Consumed unconditionally, so the single retry an explicit Connect grants belongs to THIS
+                // session. Leaving it set would hand a stale retry to some later automatic reconnect and
+                // restart the loop the suppression exists to end.
                 val userAsked = helloRetryRequested
                 helloRetryRequested = false
                 val suppressed = runCatching {
@@ -7750,8 +7768,16 @@ class WhoopBleClient(
         refreshConnectionPriority()   // #477: escalate to HIGH for the offload burst (faster sync). No-op unless enabled.
         applyPreferredPhy()           // #533: prefer LE 2M for the burst (halves air-time). No-op unless enabled.
         // Opt-in raw capture (research aid): pref read fresh per session, like the probes gate.
+        // Normally already open from the connect hook; this covers a capture switched on mid-session.
         if (connectedFamily == DeviceFamily.WHOOP5 && PuffinExperiment.from(context).isCaptureEnabled) {
             startWhoop5BackfillCapture()
+            // Give the offload a FULL line budget. Since the capture was hoisted out of the `backfilling`
+            // gate it also records the live flood, and on a link that stays up overnight that flood can
+            // exhaust the 40k cap before the morning sync — pausing capture at exactly the moment the
+            // offload arrives, and losing the material this feature exists to collect. The line cap is a
+            // runaway guard, not a quota the live stream is entitled to spend, so the offload gets it
+            // back. The BYTE cap still bounds the file and is untouched.
+            captureLines = 0
         }
         if (connectedFamily == DeviceFamily.WHOOP5) {
             // Re-apply the Broadcast-HR device-config flag if the user opted in (#181).
@@ -8880,13 +8906,27 @@ class WhoopBleClient(
                     hex = frame.toHex(),
                 ),
             )
+            var checkBytes = false
             synchronized(w) {
                 w.write(line)
                 w.newLine()
-                if (++captureLines % 100 == 0) w.flush()
+                if (++captureLines % 100 == 0) { w.flush(); checkBytes = true }
             }
             if (captureLines >= WHOOP5_CAPTURE_MAX_LINES) {
                 log("Capture: line cap reached — capture paused until next session")
+                closeWhoop5BackfillCapture(flushSummary = false)
+                return@runCatching
+            }
+            // The byte cap used to be enforced only when the file was OPENED, which was sufficient while
+            // the line cap was a hard per-session bound. It no longer is: entering backfill hands the line
+            // budget back (so the live flood cannot starve the offload), and a session that auto-continues
+            // several offloads resets it several times. Without a check here the file could grow well past
+            // the cap inside one long-lived connection and never rotate. Only on the flush boundary, so
+            // this is one stat per 100 frames, not per frame.
+            if (checkBytes &&
+                java.io.File(context.filesDir, WHOOP5_CAPTURE_FILE).length() > WHOOP5_CAPTURE_MAX_BYTES
+            ) {
+                log("Capture: byte cap reached — capture paused until next session (it rotates on reopen)")
                 closeWhoop5BackfillCapture(flushSummary = false)
             }
         }.onFailure {
