@@ -2189,6 +2189,10 @@ class WhoopBleClient(
      *  hello. Cleared in [reset] with the rest of the per-connection state. */
     @Volatile private var loggedFirmwareGate: String? = null
 
+    /** #1635: when the 5/MG CLIENT_HELLO write was issued, so its completion - or the absence of one -
+     *  can be reported with an elapsed time. 0 means none is outstanding. Cleared in [reset]. */
+    @Volatile private var clientHelloWriteAtMs: Long = 0L
+
     @Volatile private var familyEstablished = false
 
     /// The family actually discovered on the connected peripheral. Drives family-aware frame
@@ -5334,6 +5338,19 @@ class WhoopBleClient(
                     )
                 }
             } else if (!didBond && connectedFamily == DeviceFamily.WHOOP5) {
+                // #1635: report WHICH characteristic completed. This branch matches on family alone, so a
+                // completion from any other characteristic is currently taken as the CLIENT_HELLO ack - the
+                // line says so rather than the behaviour changing here, so a capture can size how often it
+                // happens before the guard is tightened.
+                if (clientHelloWriteAtMs > 0L) {
+                    log(clientHelloOutcomeLine(
+                        isHelloChar = characteristic.uuid == WHOOP5_CMD_WRITE_CHAR,
+                        charUuid = characteristic.uuid.toString(),
+                        elapsedMs = System.currentTimeMillis() - clientHelloWriteAtMs,
+                        status = gattWriteStatusLabel(status),
+                    ))
+                    clientHelloWriteAtMs = 0L
+                }
                 // EXPERIMENTAL (issue #17): the CLIENT_HELLO is now a confirmed write, so this ACK means
                 // just-works bonding completed. Now subscribe the puffin notify chars (realtime HR rides
                 // these as REALTIME_DATA — the strap rejected them on the unauthenticated link), then arm
@@ -7099,12 +7116,14 @@ class WhoopBleClient(
         // Hold the slot until the ACK; the opt-in puffin probe now fires post-bond (onCharacteristicWrite).
         log("WHOOP 5/MG: writing CLIENT_HELLO to fd4b0002 with response (to trigger bonding, experimental).")
         writeInFlight = true
+        clientHelloWriteAtMs = System.currentTimeMillis()
         val ok = safeGatt("writeClientHello") {
             ops.writeCharacteristicCompat(ch, hello, BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT)
         }
         if (!ok) {
             writeInFlight = false
             log("CLIENT_HELLO write rejected by stack")
+            clientHelloWriteAtMs = 0L   // never went out; no callback is owed
         }
     }
 
@@ -8013,6 +8032,13 @@ class WhoopBleClient(
 
     @SuppressLint("MissingPermission")
     private fun handleDisconnect(status: Int) {
+        // #1635: a CLIENT_HELLO that was accepted by the stack and never completed leaves no trace at
+        // all - the dominant shape in the field capture (14 of 16). Say so before the state is reset.
+        if (clientHelloWriteAtMs > 0L) {
+            log(clientHelloOutcomeLine(false, null, System.currentTimeMillis() - clientHelloWriteAtMs, null))
+            clientHelloWriteAtMs = 0L
+        }
+
         // #1151: flush any pending frame-timing window so the frames right before this drop are recorded
         // (not stranded), and the next connection starts a fresh window rather than spanning the gap. No-op
         // when capture is off. Do it BEFORE the connect-down line so the summary reads before the drop.
@@ -8305,6 +8331,7 @@ class WhoopBleClient(
         connectHandshakeDone = false
         familyEstablished = false   // the next link re-establishes it at service discovery
         loggedFirmwareGate = null
+        clientHelloWriteAtMs = 0L
         seq.set(0)
         writeQueue.clear()
         cccdQueue.clear()
