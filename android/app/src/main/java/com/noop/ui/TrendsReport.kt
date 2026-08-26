@@ -30,6 +30,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.noop.analytics.MetricRangeStat
 import com.noop.analytics.RangeReport
 import com.noop.analytics.RangeReportEngine
+import com.noop.analytics.ReportDisplayUnits
 import com.noop.analytics.ReportMetric
 import com.noop.analytics.ReportTrend
 import com.noop.data.DailyMetric
@@ -134,9 +135,10 @@ object TrendsReportData {
         days: List<DailyMetric>,
         today: String,
         stressByDay: Map<String, Double> = emptyMap(),
+        units: ReportDisplayUnits = ReportDisplayUnits.STORED,
     ): RangeReport {
         val (start, end) = window(range, days, today)
-        return RangeReportEngine.build(metricMaps(days, stressByDay), start, end)
+        return RangeReportEngine.build(metricMaps(days, stressByDay), start, end, units)
     }
 
     /** The in-range sparkline series (chronological values) for one metric. */
@@ -164,6 +166,65 @@ private fun ReportMetric.accentArgb(): Int = when (this) {
     ReportMetric.RESTING_HR -> 0xFFE0662F.toInt()     // burnt-orange risk hue
     ReportMetric.RESP_RATE -> 0xFF3FA9C9.toInt()      // breath / air — teal (metricCyan)
     ReportMetric.SKIN_TEMP_DEV -> 0xFFE0662F.toInt()  // temperature — warm (shares RHR's hue)
+}
+
+// MARK: - Formatting (mirror the Swift page)
+
+/**
+ * The report's pure value formatting, deliberately OUTSIDE [TrendsReportRenderer].
+ *
+ * That object builds `Typeface`s at class-init, so touching it from a JVM unit test throws
+ * `ExceptionInInitializerError` — which left the metric-card row, the exact string #1637 was filed
+ * about, impossible to assert. The formatting has no Android dependency, so it lives here and the
+ * renderer delegates. Swift keeps these on `TrendsReportPage`, where a SwiftUI struct is already
+ * constructible in a test; the STRINGS are what parity pins, not where the helper sits.
+ */
+internal object TrendsReportFormat {
+
+    /**
+     * One row's value + unit, exactly as the PDF prints it.
+     *
+     * One decimal for sleep hours, respiratory rate, skin-temp Δ and the 0–3 stress score
+     * ([ReportMetric.usesOneDecimal]); whole numbers for the scores + bpm + ms + workout count.
+     * Skin temp is a signed deviation, so a positive reading gets an explicit "+" to keep it from
+     * reading as an absolute temperature.
+     *
+     * Both the value and its unit go through [RangeReportEngine] (#1637) — the same conversion the
+     * headline sentences use — so the exported page cannot print a unit the app disagrees with.
+     * Effort gains a decimal once rescaled to the 0–21 axis, where a whole number would throw away
+     * most of the resolution the 0–100 value carried.
+     */
+    fun valueText(v: Double, metric: ReportMetric, units: ReportDisplayUnits): String {
+        val unit = RangeReportEngine.displayUnit(metric, units)
+        val shown = RangeReportEngine.displayValue(v, metric, units)
+        val oneDecimal = metric.usesOneDecimal ||
+            (metric == ReportMetric.STRAIN && units.effortFactor != 1.0)
+        // The whole-number branch keeps `roundToInt` (ties toward +∞) where Swift rounds away from
+        // zero. The two agree for every NON-NEGATIVE input, and this branch only ever serves
+        // Recovery / HRV / Resting HR / Effort — all non-negative by construction — so it cannot
+        // diverge today. A signed whole-number metric would break that: give it one decimal, or
+        // round it away from zero the way [round1] does.
+        var num = if (oneDecimal) round1(shown) else "${shown.roundToInt()}"
+        if (metric == ReportMetric.SKIN_TEMP_DEV && shown > 0) num = "+$num"
+        return if (unit.isEmpty()) num else "$num $unit"
+    }
+
+    /** The card's headline read-out: the range mean through [valueText]. */
+    fun meanText(stat: MetricRangeStat, units: ReportDisplayUnits): String =
+        valueText(stat.mean, stat.metric, units)
+
+    /**
+     * One decimal, rounded the SAME way the engine and the Swift page round.
+     *
+     * This used `roundToInt`, which breaks ties toward positive infinity, while Swift's `round1Text`
+     * uses `.rounded()` — half away from zero. Positive values agree; every negative tie did not, so
+     * a stored −0.25 Δ°C printed −0.3 on iOS and −0.2 on Android, and −0.05 printed −0.1 against a
+     * sign-losing 0.0. Skin temp is the report's only signed metric, so it was the only row that
+     * could reach it. [RangeReportEngine.round1] already implements away-from-zero for exactly this
+     * reason; delegating leaves ONE rounding rule per platform instead of a second one to drift.
+     */
+    fun round1(x: Double): String =
+        String.format(Locale.US, "%.1f", RangeReportEngine.round1(x))
 }
 
 // MARK: - PDF renderer (deterministic native Canvas → PdfDocument)
@@ -203,6 +264,7 @@ object TrendsReportRenderer {
         range: ReportRange,
         series: Map<ReportMetric, List<Double>>,
         generatedOn: String,
+        units: ReportDisplayUnits = ReportDisplayUnits.STORED,
     ): File? = runCatching {
         val doc = PdfDocument()
         val pageInfo = PdfDocument.PageInfo.Builder(PAGE_W, PAGE_H, 1).create()
@@ -218,7 +280,7 @@ object TrendsReportRenderer {
         } else {
             y = drawHeadlines(canvas, report, y)
             y += 18f
-            drawMetrics(canvas, report, series, y)
+            drawMetrics(canvas, report, series, y, units)
         }
         drawFooter(canvas, generatedOn)
 
@@ -284,6 +346,7 @@ object TrendsReportRenderer {
         report: RangeReport,
         series: Map<ReportMetric, List<Double>>,
         top: Float,
+        units: ReportDisplayUnits,
     ): Float {
         var y = top
         text(canvas, "BY THE NUMBERS", MARGIN, y + 4f, 10f, sansBold, TEXT_TERTIARY, letterSpacing = 0.1f)
@@ -292,13 +355,19 @@ object TrendsReportRenderer {
         y += 26f
 
         for (stat in report.metrics) {
-            y = drawMetricCard(canvas, stat, series[stat.metric] ?: emptyList(), y)
+            y = drawMetricCard(canvas, stat, series[stat.metric] ?: emptyList(), y, units)
             y += 10f
         }
         return y
     }
 
-    private fun drawMetricCard(canvas: Canvas, stat: MetricRangeStat, spark: List<Double>, top: Float): Float {
+    private fun drawMetricCard(
+        canvas: Canvas,
+        stat: MetricRangeStat,
+        spark: List<Double>,
+        top: Float,
+        units: ReportDisplayUnits,
+    ): Float {
         val cardH = 96f
         val accent = stat.metric.accentArgb()
         drawCard(canvas, MARGIN, top, PAGE_W - MARGIN, top + cardH, accent)
@@ -309,7 +378,7 @@ object TrendsReportRenderer {
 
         // Title + mean + trend chip.
         text(canvas, stat.metric.label.uppercase(), left, ty, 11f, sansBold, accent, letterSpacing = 0.08f)
-        val meanStr = meanText(stat)
+        val meanStr = TrendsReportFormat.meanText(stat, units)
         textRight(canvas, meanStr, right, ty, 14f, sansMedium, TEXT_PRIMARY)
 
         // Sparkline (decorative) below the title row.
@@ -326,9 +395,9 @@ object TrendsReportRenderer {
 
         // Footer stats: Avg / Min(day) / Max(day) / Days, evenly spaced.
         val cols = listOf(
-            "AVG" to valueText(stat.mean, stat.metric),
-            "MIN" to "${valueText(stat.min.value, stat.metric)} · ${prettyDate(stat.min.day)}",
-            "MAX" to "${valueText(stat.max.value, stat.metric)} · ${prettyDate(stat.max.day)}",
+            "AVG" to TrendsReportFormat.valueText(stat.mean, stat.metric, units),
+            "MIN" to "${TrendsReportFormat.valueText(stat.min.value, stat.metric, units)} · ${prettyDate(stat.min.day)}",
+            "MAX" to "${TrendsReportFormat.valueText(stat.max.value, stat.metric, units)} · ${prettyDate(stat.max.day)}",
             "DAYS" to "${stat.n}",
         )
         val colW = (right - left) / cols.size
@@ -339,12 +408,29 @@ object TrendsReportRenderer {
         }
 
         // Trend chip drawn last so it sits above the divider, right-aligned under the mean.
-        drawTrendChip(canvas, stat, right, top + 58f)
+        drawTrendChip(canvas, stat, right, top + 58f, units)
 
         return top + cardH
     }
 
-    private fun drawTrendChip(canvas: Canvas, stat: MetricRangeStat, right: Float, baselineY: Float) {
+    /**
+     * The trend pill beside the mean read-out.
+     *
+     * Its magnitude must be on the SAME axis as the numbers around it (#1637) — a °C delta next to
+     * °F values reads as a contradiction. Both conversions are pure multiplications, so
+     * [RangeReportEngine.displayValue] is correct for a delta as well as a level (a °F offset would
+     * NOT be, which is why this metric never adds one).
+     *
+     * The steady/moving decision and the good/bad colour stay on the STORED delta, matching the
+     * trend verdict itself — a cosmetic toggle must not turn a "steady" chip into a moving one.
+     */
+    private fun drawTrendChip(
+        canvas: Canvas,
+        stat: MetricRangeStat,
+        right: Float,
+        baselineY: Float,
+        units: ReportDisplayUnits,
+    ) {
         val d = stat.halfDelta
         val (label, color) = if (stat.trend == ReportTrend.FLAT || abs(d) < 0.05) {
             "steady" to TEXT_TERTIARY
@@ -357,7 +443,8 @@ object TrendsReportRenderer {
             } else {
                 TEXT_TERTIARY
             }
-            "$sign${round1(abs(d))}" to c
+            val shown = abs(RangeReportEngine.displayValue(d, stat.metric, units))
+            "$sign${TrendsReportFormat.round1(shown)}" to c
         }
         // A small tinted pill.
         val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -527,22 +614,7 @@ object TrendsReportRenderer {
         return (a shl 24) or (color and 0x00FFFFFF)
     }
 
-    // --- Formatting (mirror the Swift page) ---
-
-    private fun valueText(v: Double, metric: ReportMetric): String {
-        // One decimal for sleep hours, respiratory rate, skin-temp Δ and the 0–3 stress score
-        // (metric.usesOneDecimal); whole numbers for the scores + bpm + ms + workout count.
-        // Skin-temp is a signed deviation, so a positive reading gets an explicit "+" to keep
-        // it from reading as an absolute temperature.
-        val unit = metric.unit
-        var num = if (metric.usesOneDecimal) round1(v) else "${v.roundToInt()}"
-        if (metric == ReportMetric.SKIN_TEMP_DEV && v > 0) num = "+$num"
-        return if (unit.isEmpty()) num else "$num $unit"
-    }
-
-    private fun meanText(stat: MetricRangeStat): String = valueText(stat.mean, stat.metric)
-
-    private fun round1(x: Double): String = String.format(Locale.US, "%.1f", (x * 10).roundToInt() / 10.0)
+    // --- Formatting: see TrendsReportFormat (kept out of this object so it is unit-testable) ---
 
     /** "Jun 15" from "2026-06-15" via the engine's pure parse (no Calendar/locale). */
     private fun prettyDate(ymd: String): String {
@@ -570,12 +642,22 @@ object TrendsReportShare {
     ) {
         runCatching {
             val today = LocalDate.now().toString()
-            val report = TrendsReportData.report(range, days, today, stressByDay)
+            // The user's display settings, resolved once for BOTH the headline sentences (built
+            // inside the engine) and the metric cards (drawn by the renderer). Handing the two
+            // surfaces different values is how the document would contradict itself (#1637).
+            val scale = UnitPrefs.effortScale(context)
+            val units = ReportDisplayUnits(
+                fahrenheit = UnitPrefs.temperature(context) == TemperatureUnit.FAHRENHEIT,
+                // Name the canonical constant rather than deriving it from `effortValue(1.0, )`:
+                // the report MULTIPLIES by this, which only agrees while the mapping stays linear.
+                effortFactor = if (scale == EffortScale.WHOOP) UnitFormatter.EFFORT_SCALE_FACTOR else 1.0,
+            )
+            val report = TrendsReportData.report(range, days, today, stressByDay, units)
             val series = ReportMetric.allCases.associateWith {
                 TrendsReportData.series(it, days, report.start, report.end, stressByDay)
             }
             val generatedOn = LocalDate.now().format(DateTimeFormatter.ofPattern("MMM d, yyyy", Locale.US))
-            val file = TrendsReportRenderer.renderPdf(context, report, range, series, generatedOn)
+            val file = TrendsReportRenderer.renderPdf(context, report, range, series, generatedOn, units)
                 ?: run {
                     Toast.makeText(context, "Couldn't build the report.", Toast.LENGTH_LONG).show()
                     return
