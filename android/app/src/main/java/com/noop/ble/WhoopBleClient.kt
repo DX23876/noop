@@ -2185,6 +2185,10 @@ class WhoopBleClient(
     /// `batterySource(familyEstablished, connectedFamily)` is the correct order): seeing this true then
     /// establishes happens-before for the [connectedFamily] write that precedes it at discovery. Swapping
     /// the two parameters would silently drop that guarantee.
+    /** #1634: last firmware-gate line logged, so a stable per-connection value is not repeated on every
+     *  hello. Cleared in [reset] with the rest of the per-connection state. */
+    @Volatile private var loggedFirmwareGate: String? = null
+
     @Volatile private var familyEstablished = false
 
     /// The family actually discovered on the connected peripheral. Drives family-aware frame
@@ -5842,7 +5846,21 @@ class WhoopBleClient(
                     if (_state.value.strapFirmware != fw) {
                         _state.update { it.copy(strapFirmware = fw) }
                         // Persist so the debug export can name the firmware offline (state clears on disconnect).
-                        runCatching { NoopPrefs.setLastFirmware(context, fw) }
+                        // Keyed by the address THIS connection used, not globally: a second strap would otherwise
+                        // overwrite the first's value and both would report whichever connected last - a 5/MG showing
+                        // a 4.0's 41.17.6.0.
+                        runCatching { NoopPrefs.setFirmwareFor(context, lastDeviceAddress, fw) }
+                    }
+
+                    }
+
+                    // #1634: the 5/MG hello decoded no firmware. The guards fail closed by design, so this is the
+                    // only place that can say WHY - a different generation byte vs a MOVED offset. Logged once per
+                    // connection (the value is stable), so a capture from an undecoded strap carries the evidence.
+                    (parsed.parsed["fw_gate"] as? String)?.let { gate ->
+                    if (loggedFirmwareGate != gate) {
+                    loggedFirmwareGate = gate
+                    log(gate)
                     }
                 }
                 val respCmd = parsed.parsed["resp_cmd"] as? String
@@ -8286,6 +8304,7 @@ class WhoopBleClient(
         didBond = false
         connectHandshakeDone = false
         familyEstablished = false   // the next link re-establishes it at service discovery
+        loggedFirmwareGate = null
         seq.set(0)
         writeQueue.clear()
         cccdQueue.clear()
