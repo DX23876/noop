@@ -132,11 +132,12 @@ fun StepsCalibrationScreen(
         )
         val rows = ArrayList<StepsComparisonRow>()
         val motions = ArrayList<Double>()
+        val activeStrapId = vm.activeStrapId
         for ((day, phone) in phoneDays.take(10)) {           // scan extra to fill 7 after motion gaps
             val mid = runCatching {
                 LocalDate.parse(day).atStartOfDay(ZoneId.systemDefault()).toEpochSecond()
             }.getOrNull() ?: continue
-            val grav = vm.repo.gravitySamples("my-whoop", mid, mid + 86_400 - 1)
+            val grav = vm.repo.gravitySamplesUnion(activeStrapId, mid, mid + 86_400 - 1)
             val motion = StepsEstimateEngine.dayMotionIntensity(grav)
             val est = StepsEstimateEngine.estimate(motion, cal) ?: continue
             motions.add(motion)
