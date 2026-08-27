@@ -125,4 +125,121 @@ class HelloSuppressionTest {
                        sent != effectivelySuppressed(latched, ov))
         }
     }
+
+    // #1635: the override must bound itself — the shared give-up cannot
+
+    /**
+     * The field failure this exists for. With the override on, the hello fails with ATT
+     * `Insufficient Authentication`, the local stack tears the ACL down, and the disconnect arrives as
+     * GATT_CONN_TERMINATE_LOCAL_HOST (22) — which `shouldCountNeverBondedSelfDrop` excludes, because that
+     * status normally means WE hung up. So nothing counted, nothing paused, and a real strap ran 57
+     * reconnect cycles in an hour. The cap does not consult the status at all.
+     */
+    @Test
+    fun `the override stops itself after the cap`() {
+        assertTrue(overrideHelloStillAllowed(0))
+        assertTrue(overrideHelloStillAllowed(HELLO_OVERRIDE_MAX_ATTEMPTS - 1))
+        assertFalse(overrideHelloStillAllowed(HELLO_OVERRIDE_MAX_ATTEMPTS))
+        assertFalse(overrideHelloStillAllowed(57))   // the observed field value
+    }
+
+    @Test
+    fun `the cap is small enough to bound the loop and large enough to be a fair test`() {
+        // ~4.8s per cycle, so the whole experiment costs well under a minute of churn.
+        assertTrue("a cap of 1 would not survive a single flaky link", HELLO_OVERRIDE_MAX_ATTEMPTS >= 3)
+        assertTrue("more than ~10 is a loop, not an experiment", HELLO_OVERRIDE_MAX_ATTEMPTS <= 10)
+    }
+
+    /** The give-up line must name the cause and the remedy, not merely announce that it stopped. */
+    @Test
+    fun `the exhausted line says why and what to do`() {
+        val line = helloOverrideExhaustedLine(HELLO_OVERRIDE_MAX_ATTEMPTS)
+        assertTrue(line.contains("unanswered hellos"))
+        assertTrue(line.contains("Insufficient Authentication"))
+        assertTrue(line.contains("refuses SMP pairing"))
+        assertTrue("must tell the user how to get back to a working strap",
+                   line.contains("Turn the switch off"))
+    }
+
+    /**
+     * The budget must only be charged for hellos the override CAUSED.
+     *
+     * `shouldSendClientHello` also returns true for a strap that is neither suppressed nor deferring a
+     * bond — that hello goes out regardless of the switch. Charging those would retire the experiment
+     * after six ordinary connects without it ever having done anything, and then report "6 unanswered
+     * hellos" about writes it never caused.
+     */
+    @Test
+    fun `the budget is charged only when the override is load-bearing`() {
+        fun charges(suppressed: Boolean, bondDeferred: Boolean, override: Boolean, userAsked: Boolean) =
+            shouldSendClientHello(suppressed, userAsked, override) &&
+                override && !userAsked && (suppressed || bondDeferred)
+
+        // Load-bearing: the hello would NOT have gone out without the override.
+        assertTrue(charges(suppressed = true, bondDeferred = false, override = true, userAsked = false))
+        assertTrue(charges(suppressed = false, bondDeferred = true, override = true, userAsked = false))
+        // Not load-bearing: nothing was standing in the hello's way.
+        assertFalse(charges(suppressed = false, bondDeferred = false, override = true, userAsked = false))
+        // A user-initiated Connect already overrides the latch on its own.
+        assertFalse(charges(suppressed = true, bondDeferred = false, override = true, userAsked = true))
+        // Switch off: never charged.
+        assertFalse(charges(suppressed = true, bondDeferred = true, override = false, userAsked = false))
+    }
+
+    /**
+     * The give-up line must still fire if the counter steps PAST the cap. `++` on a @Volatile Int is not
+     * atomic, so two overlapping connects can skip the exact boundary; an `== cap` guard would then leave
+     * the override inert with nothing in the log to explain it.
+     */
+    @Test
+    fun `the give-up condition holds past the cap, not only at it`() {
+        assertFalse(overrideHelloStillAllowed(HELLO_OVERRIDE_MAX_ATTEMPTS))
+        assertFalse(overrideHelloStillAllowed(HELLO_OVERRIDE_MAX_ATTEMPTS + 1))
+        assertFalse(overrideHelloStillAllowed(HELLO_OVERRIDE_MAX_ATTEMPTS + 7))
+        // And the line reports whatever count it actually reached, not a hardcoded cap.
+        assertTrue(helloOverrideExhaustedLine(9).contains("9 unanswered hellos"))
+    }
+
+    /**
+     * A spent override is not "on". Every reader must agree on that, because they act in opposite
+     * directions: the connect path stops writing hellos, and the never-bonded detector must go back to
+     * counting self-drops. Reading the raw pref made the detector believe hellos were still on the wire
+     * after they had stopped.
+     */
+    @Test
+    fun `the override is only in force while opted in AND under the cap`() {
+        assertTrue(helloOverrideActive(optedIn = true, attemptsSoFar = 0))
+        assertTrue(helloOverrideActive(optedIn = true, attemptsSoFar = HELLO_OVERRIDE_MAX_ATTEMPTS - 1))
+        assertFalse(helloOverrideActive(optedIn = true, attemptsSoFar = HELLO_OVERRIDE_MAX_ATTEMPTS))
+        assertFalse(helloOverrideActive(optedIn = true, attemptsSoFar = HELLO_OVERRIDE_MAX_ATTEMPTS + 3))
+        assertFalse(helloOverrideActive(optedIn = false, attemptsSoFar = 0))
+    }
+
+    /**
+     * The never-bonded detector's input, spelled out end to end: `latch && !active`. A spent override
+     * must report the hello as withheld, or the detector keeps counting drops the hello no longer causes
+     * and eventually pauses auto-reconnect over a cause that never happened.
+     */
+    @Test
+    fun `a spent override reports the hello as withheld again`() {
+        fun withheld(latched: Boolean, optedIn: Boolean, attempts: Int) =
+            latched && !helloOverrideActive(optedIn, attempts)
+
+        assertTrue(withheld(latched = true, optedIn = false, attempts = 0))
+        // In force: the hello IS on the wire, so the detector must stay armed.
+        assertFalse(withheld(latched = true, optedIn = true, attempts = 0))
+        // Spent: the hello has genuinely stopped, so we are back to the suppressed live-HR state.
+        assertTrue(withheld(latched = true, optedIn = true, attempts = HELLO_OVERRIDE_MAX_ATTEMPTS))
+        // No latch, nothing withheld, whatever the switch says.
+        assertFalse(withheld(latched = false, optedIn = true, attempts = HELLO_OVERRIDE_MAX_ATTEMPTS))
+    }
+
+    /** Only the off->on edge re-arms, so a spent override does not silently resurrect on every connect. */
+    @Test
+    fun `flipping the switch back on re-arms the budget, staying on does not`() {
+        assertTrue(helloOverrideBudgetRearms(optedInNow = true, optedInLastSeen = false))
+        assertFalse(helloOverrideBudgetRearms(optedInNow = true, optedInLastSeen = true))
+        assertFalse(helloOverrideBudgetRearms(optedInNow = false, optedInLastSeen = true))
+        assertFalse(helloOverrideBudgetRearms(optedInNow = false, optedInLastSeen = false))
+    }
 }
