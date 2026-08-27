@@ -11,9 +11,15 @@ import org.junit.Test
  * Queue 11c follow-up (2026-08-24): Skin Temp was already a "Your Cards" (`DashboardCard.SKIN_TEMP`)
  * option, but was never offered as a Key Metrics tile — not a bug, just never added. Pins the two
  * contract points that matter for a NEW persisted enum case: the raw token round-trips
- * ("skinTemp", byte-identical to the Swift `KeyMetric.skinTemp` rawValue so a backup/restore reads the
- * same layout on either OS), and it does NOT join `defaultOrder` — an existing user's saved layout, and
- * a fresh install's default, must stay byte-identical to before this case existed.
+ * ("skinTemp", byte-identical to the Swift `KeyMetric.skinTemp` rawValue — the token IS the persisted
+ * form, and two independent implementations must not drift on how they spell one), and it does NOT
+ * join `defaultOrder` — an existing user's saved layout, and a fresh install's default, must stay
+ * byte-identical to before this case existed.
+ *
+ * NOT a backup/restore contract, despite how it reads: the layout pref `today.keyMetrics` is not in
+ * the `.noopbak` whitelist at all — `today.hostedCards` is the one layout pref carried across — so a
+ * restore on the other OS reads that platform's own saved layout, never this token. The parity is
+ * worth pinning anyway, and would become load-bearing the day the pref IS whitelisted.
  */
 class KeyMetricSkinTempTest {
 
