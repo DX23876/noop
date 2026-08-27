@@ -797,6 +797,72 @@ class Backfiller(
                 "right day. Fully charge the strap to 100% and reconnect so it re-syncs its clock; if it " +
                 "persists, forget and re-pair the strap."
         }
+
+        /**
+         * #1683: how far BEHIND the wall clock the strap's newest stored record may sit before a sync that
+         * banked nothing is worth explaining. Two days, not one: a strap left off-wrist overnight is
+         * ordinary, and this line only ever accompanies a completed offload that banked nothing anyway.
+         */
+        const val STALE_RECORD_TOLERANCE_SECONDS = 2 * 86_400L
+
+        /** Is the strap's newest stored record far enough in the past to be worth naming? A null or
+         *  non-positive value is not a date and never qualifies. */
+        fun isStaleNewestRecord(newestUnix: Long?, wallNowUnix: Long): Boolean =
+            newestUnix != null && newestUnix > 0L &&
+                newestUnix <= wallNowUnix - STALE_RECORD_TOLERANCE_SECONDS
+
+        /**
+         * #1683: the counterpart [futureRtcLine] never had. A strap that stopped banking weeks ago and a
+         * strap that is simply caught up produce the SAME "banked no sensor history" line today, so
+         * neither the user nor anyone reading their log can tell them apart. #1541 stayed open and vague
+         * for exactly that reason.
+         *
+         * Deliberately states the FACT and lets the condition carry the interpretation. A newest record
+         * two weeks old means the strap stopped recording IF it was being worn; if it sat in a drawer, the
+         * same number is unremarkable. Asserting a corrupt RTC here would be claiming more than the data
+         * supports, which is how this area has misled people before.
+         *
+         * It also says the part the existing advice omits: NOOP re-sends SET_CLOCK on every connect, so
+         * "charge it" alone has already been retried every session. The escalation and the
+         * compare-with-the-official-app test are what actually move a stuck case forward.
+         *
+         * Byte-identical to the Swift twin. No em-dash (project rule).
+         */
+        fun staleRecordLine(newestUnix: Long, wallNowUnix: Long): String {
+            val ageDays = maxOf(0L, wallNowUnix - newestUnix) / 86_400L
+            return "Backfill: this sync banked nothing and the strap's newest stored record is about " +
+                "$ageDays day(s) old. If you have worn it since then, it has stopped saving history to " +
+                "its flash. NOOP already re-sends the clock on every connect, so charging alone may not " +
+                "be enough: charge to 100% and reconnect, then use Restart strap in Devices, and if that " +
+                "does not help forget and re-pair. If the official WHOOP app is also missing these days, " +
+                "the strap is the cause and not NOOP."
+        }
+
+        /**
+         * #1683: the same honesty as [staleRecordLine], for the message the user actually READS.
+         *
+         * The standing banner says "fully charge it to 100%, then reconnect, and it should start banking
+         * again". It omits the one fact that makes the situation legible - how long the strap has been
+         * silent - and it PROMISES a recovery that has already failed every session for weeks, because
+         * NOOP re-sends SET_CLOCK on every connect and the charge advice has therefore been retried all
+         * along. A banner that keeps promising something that keeps not happening teaches people to
+         * distrust the app rather than their strap.
+         *
+         * Shorter than the log line: a banner is glanced at, not read. Same discipline though - state the
+         * age, condition the diagnosis on having worn it, and name the check that says whether NOOP is
+         * even involved.
+         *
+         * Byte-identical to the Swift twin. Not localized, matching the sibling `lastSyncError` copy on
+         * both platforms; localizing that surface is its own change. No em-dash (project rule).
+         */
+        fun staleRecordBanner(newestUnix: Long, wallNowUnix: Long): String {
+            val ageDays = maxOf(0L, wallNowUnix - newestUnix) / 86_400L
+            return "Synced, but your strap handed over no stored history, and its newest saved record is " +
+                "about $ageDays day(s) old. If you have been wearing it since then, it has stopped saving " +
+                "to flash. Charge it to 100% and reconnect; NOOP already re-sets its clock every connect, " +
+                "so if that does not help, try Restart strap in Devices, then forget and re-pair. If the " +
+                "official WHOOP app is missing these days too, the strap is the cause and not NOOP."
+        }
     }
 }
 
