@@ -7636,7 +7636,12 @@ class WhoopBleClient(
                         onFailure = { log(explicitBondThrewLine(it.javaClass.simpleName, where)) },
                     )
                 }
-                if (explicitBondDefersHello(explicitBondRequestedThisLink)) {
+                // #1635: read once, before the deferral gate — the override has to reach BOTH, or a
+                // deferred hello returns early and the switch below is never evaluated at all.
+                val helloOverride = runCatching {
+                    PuffinExperiment.from(context).helloDespiteBondRefusal
+                }.getOrDefault(false)
+                if (explicitBondDefersHello(explicitBondRequestedThisLink, helloOverride = helloOverride)) {
                     // Same trap as the suppression path below, and worse here. The watchdog was armed at
                     // discovery and bounces the link whenever didBond is false — which deferring the hello
                     // guarantees. Tearing the link down while an OS pairing is in flight is the single
@@ -7661,7 +7666,15 @@ class WhoopBleClient(
                 val suppressed = runCatching {
                     com.noop.ui.NoopPrefs.helloSuppressed(context, g.device.address)
                 }.getOrDefault(false)
-                if (shouldSendClientHello(suppressed, userInitiated = userAsked)) {
+                if (shouldSendClientHello(suppressed, userInitiated = userAsked, overrideSuppression = helloOverride)) {
+                    if (suppressed && helloOverride && !userAsked) {
+                        // Say WHY a suppressed strap is getting a hello anyway, or the next reader sees the
+                        // latch set and a hello on the wire and has to guess which of them is broken.
+                        log("WHOOP 5/MG: CLIENT_HELLO sent DESPITE the suppression latch — \"send hello" +
+                            " despite bond refusal\" is on. The strap refuses SMP pairing (Pairing Not" +
+                            " Supported), so this is the only handshake left to try; expect the ~4.8s drop" +
+                            " loop to return if it still goes unanswered (#1635, experimental).")
+                    }
                     writeClientHello(g, cmd)
                 } else {
                     // The watchdog was armed at discovery, before this decision could be made, and it
@@ -8688,8 +8701,14 @@ class WhoopBleClient(
                 staleDirectBond = staleDirectBond,
                 status = status,
                 alreadyPausedForBondLoop = autoReconnectPausedForBondLoop,
+                // The question is whether the hello was ACTUALLY withheld on this link, not whether the
+                // latch is set. With the #1635 override on, the latch stays set while we send the hello
+                // anyway — and reading the raw pref here would disable the give-up for exactly the case
+                // that needs it, leaving an unbounded hello-drop-reconnect loop with nothing to stop it.
+                // Mirrors the `suppressed && !override` decision that chose to send.
                 helloSuppressed = runCatching {
-                    com.noop.ui.NoopPrefs.helloSuppressed(context, lastDeviceAddress)
+                    com.noop.ui.NoopPrefs.helloSuppressed(context, lastDeviceAddress) &&
+                        !PuffinExperiment.from(context).helloDespiteBondRefusal
                 }.getOrDefault(false),
             ) && bondWatchdogBackoff.recordBounce()
         ) {
