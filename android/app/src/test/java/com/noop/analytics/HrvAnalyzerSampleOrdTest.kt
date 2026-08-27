@@ -102,4 +102,20 @@ class HrvAnalyzerSampleOrdTest {
         assertEquals(38, HrvAnalyzer.pct(3, 8))
         assertEquals(0, HrvAnalyzer.pct(0, 0))
     }
+
+    /**
+     * `deliveryHistogram` feeds `pct` a whole night's BEAT-TIME IN MILLISECONDS, not a row count, and
+     * `part * 200` needs more than 32 bits past 10,737,418 ms. The numbers below are one real MG night
+     * (34,002 beats, meanNN 1044 ms, multiSec 23%): before the widening `part * 200` wrapped and this
+     * returned -16, a percentage of a positive subset of a positive total that cannot be negative.
+     *
+     * The existing cases above cannot reach it - the largest `rrMs` anywhere in this file is 1309.0 - so
+     * the overflow sat behind a green suite on Android while the 64-bit Swift twin read correctly.
+     */
+    @Test fun pctSurvivesAWholeNightOfBeatTime() {
+        assertEquals(43, HrvAnalyzer.pct(15_264_177, 35_498_088))
+        // The widest multi-delivery share in the same capture: 91% of a 39.9 M ms night (42,981 beats,
+        // meanNN 928 ms). Also wrapped to -16, which is what the log reported for that night.
+        assertEquals(91, HrvAnalyzer.pct(36_296_594, 39_886_368))
+    }
 }

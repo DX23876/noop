@@ -808,8 +808,15 @@ public enum HRVAnalyzer {
     static func msToInt(_ ms: Double) -> Int { ms > 0 ? Int(ms + 0.5) : 0 }
 
     /// Whole-percent, integer half-up, so both platforms round a tie the same way. 0 when `total` is 0.
+    ///
+    /// The arithmetic is widened to `Int64` because `deliveryHistogram` passes BEAT-TIME IN
+    /// MILLISECONDS summed over a whole night, not a row count. `part * 200` needs more than 32 bits
+    /// above 10,737,418 ms (2.98 h of beat-time on multi-delivery seconds) and a real over-count night
+    /// carries 3-4x that. `Int` is 64-bit on iOS/macOS so this platform read correctly while the Kotlin
+    /// twin wrapped to a negative percentage; it is 32-bit on `arm64_32`, and StrandAnalytics already
+    /// builds for watchOS, so the width is stated rather than inherited. Twin of Kotlin `pct`.
     static func pct(_ part: Int, _ total: Int) -> Int {
-        total > 0 ? (part * 200 + total) / (total * 2) : 0
+        total > 0 ? Int((Int64(part) * 200 + Int64(total)) / (Int64(total) * 2)) : 0
     }
 
     /// #1008: a compact, deterministic RAW-ROW sample of the beats around the DENSEST second, for the

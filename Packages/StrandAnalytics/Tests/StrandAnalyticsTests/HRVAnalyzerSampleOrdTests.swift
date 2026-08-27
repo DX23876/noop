@@ -82,4 +82,13 @@ final class HRVAnalyzerSampleOrdTests: XCTestCase {
         XCTAssertEqual(HRVAnalyzer.pct(3, 8), 38)    // 37.5 -> 38
         XCTAssertEqual(HRVAnalyzer.pct(0, 0), 0)
     }
+
+    /// Twin of Kotlin `pctSurvivesAWholeNightOfBeatTime`. `deliveryHistogram` passes a whole night's
+    /// beat-time in milliseconds, so `part * 200` needs more than 32 bits. `Int` is 64-bit here, so this
+    /// passed before the widening as well - it is a parity pin and a guard for `arm64_32`, where
+    /// StrandAnalytics also builds and where the Kotlin failure would reproduce exactly.
+    func testPctSurvivesAWholeNightOfBeatTime() {
+        XCTAssertEqual(HRVAnalyzer.pct(15_264_177, 35_498_088), 43)
+        XCTAssertEqual(HRVAnalyzer.pct(36_296_594, 39_886_368), 91)
+    }
 }

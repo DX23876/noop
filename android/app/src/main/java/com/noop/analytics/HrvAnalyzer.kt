@@ -772,9 +772,17 @@ object HrvAnalyzer {
      */
     internal fun msToInt(ms: Double): Int = if (ms > 0) (ms + 0.5).toInt() else 0
 
-    /** Whole-percent, integer half-up, so both platforms round a tie the same way. 0 when [total] is 0. */
+    /** Whole-percent, integer half-up, so both platforms round a tie the same way. 0 when [total] is 0.
+     *
+     *  The arithmetic is widened to `Long` because [deliveryHistogram] passes BEAT-TIME IN MILLISECONDS
+     *  summed over a whole night, not a row count. `part * 200` overflows a 32-bit `Int` above
+     *  2147483647 / 200 = 10,737,418 ms, i.e. 2.98 h of beat-time on multi-delivery seconds, and a real
+     *  over-count night carries 3-4x that. Kotlin's `Int` wraps silently, so `multiMs` was reported
+     *  NEGATIVE on every such night while the Swift twin (64-bit `Int`) reported the right value from the
+     *  same source - the parity these two are supposed to hold. Widening the operation rather than the
+     *  signature keeps every caller and the half-up tie behaviour untouched. */
     internal fun pct(part: Int, total: Int): Int =
-        if (total > 0) (part * 200 + total) / (total * 2) else 0
+        if (total > 0) ((part.toLong() * 200 + total) / (total.toLong() * 2)).toInt() else 0
 
     /**
      * #1008: a compact, deterministic RAW-ROW sample of the beats around the DENSEST second, for the
