@@ -1397,8 +1397,10 @@ public final class OuraLiveSource: NSObject, ObservableObject {
                 fetchHistoryIfIdle()   // pull last night's banked temp/SpO2/HRV/sleep-phase right away
                 write([OuraCommands.getBattery()])   // ask once HR streams; the 0x0D reply routes to onBattery
                 // Read-only diagnostic: ask the ring its SpO2 / real-steps feature status once, so a capture
-                // confirms (from the ring itself) that these server-flag features are subscription-gated OFF
-                // for an offline ring. NEVER an enable/set-mode write - purely the 0x20 read verb.
+                // sees the ring's own gate state. NOT reliably "off" for an offline ring — on-device
+                // 2026-08-25 real_steps read back status=1 (enabled) here, matching the real Oura app's read
+                // of the same ring byte-for-byte (worklog analysis/2026-08-25-noop-ring-hci-realsteps-
+                // confirmation.txt). NEVER an enable/set-mode write - purely the 0x20 read verb.
                 write([OuraCommands.spo2ReadStatus(), OuraCommands.realStepsReadStatus()])
                 // Read-only capture (#771/#772): the ring's GetProductInfo serial + hardware pages are
                 // pre-auth readable. The SERIAL is a STABLE per-ring identity — unlike the CoreBluetooth UUID,
