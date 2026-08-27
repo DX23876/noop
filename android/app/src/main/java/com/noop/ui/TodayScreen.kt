@@ -53,6 +53,7 @@ import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.MonitorHeart
 import androidx.compose.material.icons.filled.MonitorWeight
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.Thermostat
 import androidx.compose.material.icons.filled.Timeline
 import androidx.compose.material.icons.filled.TrackChanges
 import androidx.compose.material.icons.filled.WaterDrop
@@ -1547,6 +1548,7 @@ fun TodayScreen(
                                     spo2CarryDay = lastSpo2Day,
                                     respCarryDay = lastRespDay,
                                     spo2CandidateByDay = spo2CandidateByDay,
+                                    skinTempCarryDay = lastSkinTempDay,
                                     unitSystem = unitSystem,
                                     effortScale = effortScale,
                                     effortForDay = effortForDay,   // #1001: same figure as the hero ring
@@ -4863,6 +4865,18 @@ private fun RecordingStatusChip(state: RecordingState, onConnect: () -> Unit) {
 // `provenanceBadgeLabel` By-Day mappers are kept (Intelligence/Trends + tests still use that vocabulary).
 
 /**
+ * The Key Metrics Skin Temp tile's 3-way fallback: today's row, then the whole-row recovery carry,
+ * then the per-field skin-temp carry (mirrors spo2CarryDay/respCarryDay's reasoning — carriedDay can
+ * land on a row with null skinTempDevC even when a genuine reading exists further back). Extracted so
+ * the carry regression ryanbr's PR #1589 review flagged is testable without Compose/Robolectric.
+ */
+internal fun resolveSkinTempDevC(
+    d: DailyMetric?,
+    carriedDay: DailyMetric?,
+    skinTempCarryDay: DailyMetric?,
+): Double? = d?.skinTempDevC ?: carriedDay?.skinTempDevC ?: skinTempCarryDay?.skinTempDevC
+
+/**
  * The full 14-day metric grid, mirroring the macOS LazyVGrid order:
  * Charge, Effort, Rest, HRV, Resting HR, Blood Oxygen, Respiratory,
  * Steps, Weight, Calories. Each tile is a fixed-height [SparkStatTile] so the
@@ -4888,6 +4902,12 @@ private fun MetricGrid(
     // outside the window and the line cannot — but neither can now show data the other has no access to,
     // which is what made this tile render a number above a blank panel.
     spo2CandidateByDay: Map<String, Double> = emptyMap(),
+    // PER-FIELD skin-temp carry (ryanbr review, PR #1589): same reason as spo2CarryDay/respCarryDay —
+    // carriedDay (lastScoredRecoveryDay) is a whole-row carry that lands on rows with null
+    // skinTempDevC, so the Key Metrics tile falls through to the last row that actually has a
+    // reading. Mirrors the "Your Cards" DashboardCard.SKIN_TEMP path's skinTempDay fallback and iOS
+    // TodayView's lastSkinTempDay chain.
+    skinTempCarryDay: DailyMetric? = null,
     unitSystem: UnitSystem = UnitSystem.METRIC,
     effortScale: EffortScale = EffortScale.HUNDRED,
     // #1001: the day's resolved Effort (live-preferring for today, floored at the stored row). Threaded
@@ -5085,6 +5105,25 @@ private fun MetricGrid(
                 spark = caloriesSpark,   // #616: imported-first trend (was missing → no trend line)
             )
         },
+        KeyMetric.SKIN_TEMP to run {
+            // Added 2026-08-24 (queue 11c follow-up): first Key Metrics appearance for Skin Temp — was
+            // already a "Your Cards" tile (DashboardCard.SKIN_TEMP), never a Key Metrics one. Same
+            // `d ?: carriedDay` idiom every other simple tile above uses (HRV/RESTING_HR), and the SAME
+            // `SkinTempDisplay` formatter the DashboardCard.SKIN_TEMP branch uses so a deviation reads
+            // "+0.1 Δ°C" identically on both surfaces (#622: bimodal absolute-vs-deviation field).
+            val v = resolveSkinTempDevC(d, carriedDay, skinTempCarryDay)
+            val fahrenheit = UnitPrefs.temperature(LocalContext.current) == TemperatureUnit.FAHRENHEIT
+            KeyTileData(
+                label = uiString(R.string.today_card_skin_temp),
+                // The value carries its own "°C"/"Δ°F" (SkinTempDisplay.format), so unit stays empty —
+                // same as the DashboardCard.SKIN_TEMP card and the classic TodayView Skin Temp tile.
+                value = v?.let { com.noop.analytics.SkinTempDisplay.format(it, fahrenheit = fahrenheit) } ?: NO_DATA,
+                unit = "",
+                tint = Palette.metricAmber,
+                frac = null,
+                spark = w.skinTemp,
+            )
+        },
     )
 
     // Resolve the enabled tiles to their descriptors (keeping the metric for the tap mapping), dropping
@@ -5106,6 +5145,10 @@ private fun MetricGrid(
         KeyMetric.STEPS -> if (stepsOpenCalibration) onOpenStepsCalibration else ({ onOpenMetric("steps_est") })
         KeyMetric.CALORIES -> ({ onOpenMetric("active_kcal") })
         KeyMetric.WEIGHT -> null
+        // Same "skin" vital_detail key `dashboardCardMetricKey(DashboardCard.SKIN_TEMP)` already routes
+        // to — confirmed a working destination there, so this tile opens the SAME screen "Your Cards"
+        // already does, not a new/unverified route.
+        KeyMetric.SKIN_TEMP -> ({ onOpenMetric("skin") })
     }
     // S5: slice from the FRONT of the saved order so a pinned/selected tile is never dropped or reordered
     // (#251); only the tail folds behind the expander. Mirrors the iOS visibleKeyMetrics prefix(cap).
@@ -5201,6 +5244,8 @@ private fun keyMetricIcon(metric: KeyMetric): ImageVector = when (metric) {
     KeyMetric.STEPS -> Icons.AutoMirrored.Filled.DirectionsWalk
     KeyMetric.WEIGHT -> Icons.Filled.MonitorWeight
     KeyMetric.CALORIES -> Icons.Filled.LocalFireDepartment
+    // Same glyph the sibling "Your Cards" tile (DashboardCard.SKIN_TEMP) already uses.
+    KeyMetric.SKIN_TEMP -> Icons.Filled.Thermostat
 }
 
 /**
@@ -6698,6 +6743,9 @@ private data class Window(
     // (on-device-first), matching iOS kSparks "steps". (Calories is imported-first, so its spark is threaded
     // separately as caloriesSpark, not read off a DailyMetric column here.)
     val steps: List<Double>,
+    // Added 2026-08-24 (queue 11c follow-up) for the new Skin Temp Key Metrics tile — matches the iOS
+    // `sparks["skin_temp"]` sparkline added at the same time.
+    val skinTemp: List<Double>,
 )
 
 /**
@@ -6737,6 +6785,7 @@ private fun rememberTrendWindow(
             spo2Candidate = recent.mapNotNull { spo2Candidate[it.day] },
             resp = series { it.respRateBpm },
             steps = series { it.steps?.toDouble() },   // #616
+            skinTemp = series { it.skinTempDevC },
         )
     }
 
