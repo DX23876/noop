@@ -2,6 +2,7 @@ package com.noop.analytics
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Assert.assertFalse
 import org.junit.Test
 
 /**
@@ -122,6 +123,12 @@ class RrEmissionStatsTest {
         val line = RrEmissionStats.logLine("historical", 3, 2, r)
         assertTrue(line, line.startsWith("rr emit path=historical offered=3 inserted=2 secs=2 "))
         assertTrue(line, line.contains("perSec[1/2/3/4+]=1/1/0/0"))
+
+        // A LIVE path censuses before the insert and cannot know what the conflict key kept, so it
+        // passes null and the line must say "n/a". Echoing `offered` there would read as "the primary
+        // key absorbed nothing" — a claim neither live path is in a position to make.
+        val live = RrEmissionStats.logLine("live-standard", 3, null, r)
+        assertTrue(live, live.startsWith("rr emit path=live-standard offered=3 inserted=n/a secs=2 "))
     }
 
     /**
@@ -139,5 +146,29 @@ class RrEmissionStatsTest {
         assertTrue("span ratio is diluted by the gap, as documented", r.ratio < 0.01)
         val line = RrEmissionStats.logLine("historical", 4, 4, r)
         assertTrue(line, line.contains("ratio=0.00 ratioRep=1.60"))
+    }
+
+    /**
+     * The LIVE census rate-limit. Twin of Swift `testShouldEmitLiveCensus` — same table, same answers,
+     * oracle-checked against a standalone Swift build of the helper.
+     *
+     * The `lastEmit=0` rows are the ones that matter. The sentinel is checked explicitly, not left to
+     * the gap arithmetic: with a real unix `nowSec` (~1.8e9) the subtraction clears any gap by accident
+     * of magnitude, so the "first flush always reports" contract held in production while being false
+     * for small timestamps — which is exactly what a unit test uses.
+     */
+    @Test fun shouldEmitLiveCensusRateLimits() {
+        // never emitted -> always report, whatever the clock reads
+        assertTrue(RrEmissionStats.shouldEmitLiveCensus(0, 0))
+        assertTrue(RrEmissionStats.shouldEmitLiveCensus(0, 1))
+        assertTrue(RrEmissionStats.shouldEmitLiveCensus(0, 1_700_000_000))
+        // inside the window -> stay quiet
+        assertFalse(RrEmissionStats.shouldEmitLiveCensus(1_700_000_000, 1_700_000_000))
+        assertFalse(RrEmissionStats.shouldEmitLiveCensus(1_700_000_000, 1_700_000_899))
+        // at and past the window -> report
+        assertTrue(RrEmissionStats.shouldEmitLiveCensus(1_700_000_000, 1_700_000_900))
+        assertTrue(RrEmissionStats.shouldEmitLiveCensus(1_700_000_000, 1_700_000_901))
+        // clock moved BACKWARDS -> report rather than wedge the instrument shut until time catches up
+        assertTrue(RrEmissionStats.shouldEmitLiveCensus(1_700_000_900, 1_700_000_000))
     }
 }
