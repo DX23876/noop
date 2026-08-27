@@ -50704,6 +50704,326 @@
         }
       }
     },
+    "Check automatically": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automatisch prüfen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Check automatically"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Comprobar automáticamente"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vérifier automatiquement"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Controlla automaticamente"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sprawdzaj automatycznie"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verificar automaticamente"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Проверять автоматически"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自动检查"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自動檢查"
+          }
+        }
+      }
+    },
+    "Once a day, NOOP asks GitHub for the latest version number and puts a note in Updates if there's a newer one. Nothing about you is sent, and it never installs anything.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Einmal täglich fragt NOOP bei GitHub die neueste Versionsnummer ab und legt einen Hinweis in Updates ab, wenn es eine neuere gibt. Es werden keine Daten über dich gesendet, und es wird nie etwas installiert."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Once a day, NOOP asks GitHub for the latest version number and puts a note in Updates if there's a newer one. Nothing about you is sent, and it never installs anything."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Una vez al día, NOOP consulta a GitHub el número de la última versión y deja un aviso en Novedades si hay una más reciente. No se envía nada sobre ti y nunca instala nada."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Une fois par jour, NOOP demande à GitHub le numéro de la dernière version et dépose une note dans Mises à jour s'il en existe une plus récente. Aucune donnée vous concernant n'est envoyée, et rien n'est jamais installé."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Una volta al giorno, NOOP chiede a GitHub il numero dell'ultima versione e lascia una nota in Aggiornamenti se ne esiste una più recente. Non viene inviato nulla su di te e non installa mai nulla."
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Raz dziennie NOOP pyta GitHub o numer najnowszej wersji i dodaje notatkę w Aktualizacjach, jeśli jest nowsza. Nic o tobie nie jest wysyłane i nic nigdy nie jest instalowane."
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Uma vez por dia, o NOOP pergunta ao GitHub o número da versão mais recente e deixa uma nota em Atualizações se existir uma mais recente. Não é enviado nada sobre si e nunca instala nada."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Раз в день NOOP запрашивает у GitHub номер последней версии и оставляет заметку в «Обновлениях», если появилась более новая. Ничего о вас не отправляется, и ничего никогда не устанавливается."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "NOOP 每天向 GitHub 查询一次最新版本号，如果有更新版本，就在「更新」中留下提示。不会发送任何与你有关的信息，也绝不会安装任何东西。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "NOOP 每天向 GitHub 查詢一次最新版本號，如果有更新版本，就在「更新」中留下提示。不會傳送任何與你有關的資訊，也絕不會安裝任何東西。"
+          }
+        }
+      }
+    },
+    "NOOP %@ is available": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "NOOP %@ ist verfügbar"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "NOOP %@ is available"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "NOOP %@ ya está disponible"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "NOOP %@ est disponible"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "NOOP %@ è disponibile"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "NOOP %@ jest dostępny"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O NOOP %@ está disponível"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Доступна версия NOOP %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "NOOP %@ 可用"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "NOOP %@ 可用"
+          }
+        }
+      }
+    },
+    "You're on %@. Open Settings and use Check for updates to see what's new and download %@.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Du nutzt %@. Öffne die Einstellungen und tippe auf „Nach Updates suchen“, um die Neuerungen zu sehen und %@ herunterzuladen."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You're on %@. Open Settings and use Check for updates to see what's new and download %@."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tienes la %@. Abre Ajustes y usa Buscar actualizaciones para ver las novedades y descargar la %@."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vous utilisez la version %@. Ouvrez les Réglages et utilisez Rechercher des mises à jour pour voir les nouveautés et télécharger la %@."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stai usando la %@. Apri Impostazioni e usa Cerca aggiornamenti per vedere le novità e scaricare la %@."
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Masz wersję %@. Otwórz Ustawienia i użyj opcji Sprawdź aktualizacje, aby zobaczyć nowości i pobrać %@."
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tem a versão %@. Abra as Definições e use Procurar atualizações para ver as novidades e transferir a %@."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "У вас версия %@. Откройте «Настройки» и нажмите «Проверить обновления», чтобы посмотреть, что нового, и загрузить %@."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "你当前使用 %@。打开「设置」并使用「检查更新」查看新增内容并下载 %@。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "你目前使用 %@。開啟「設定」並使用「檢查更新」查看新增內容並下載 %@。"
+          }
+        }
+      }
+    },
+    "AltStore or SideStore can install it for you automatically if you added NOOP's source; a direct .ipa still has to be signed on your device.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AltStore oder SideStore installieren es automatisch für dich, wenn du NOOPs Quelle hinzugefügt hast; eine direkte .ipa muss weiterhin auf deinem Gerät signiert werden."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AltStore or SideStore can install it for you automatically if you added NOOP's source; a direct .ipa still has to be signed on your device."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AltStore o SideStore pueden instalarla automáticamente si añadiste la fuente de NOOP; un .ipa directo aún debe firmarse en tu dispositivo."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AltStore ou SideStore peuvent l'installer automatiquement si vous avez ajouté la source de NOOP ; un .ipa direct doit toujours être signé sur votre appareil."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AltStore o SideStore possono installarla automaticamente se hai aggiunto la sorgente di NOOP; un .ipa diretto deve comunque essere firmato sul tuo dispositivo."
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AltStore lub SideStore zainstalują ją automatycznie, jeśli dodano źródło NOOP; bezpośredni plik .ipa nadal trzeba podpisać na urządzeniu."
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O AltStore ou o SideStore podem instalá-la automaticamente se adicionou a fonte do NOOP; um .ipa direto continua a ter de ser assinado no seu dispositivo."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AltStore или SideStore установят её автоматически, если вы добавили источник NOOP; прямой .ipa всё равно нужно подписать на устройстве."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "如果你添加了 NOOP 的源，AltStore 或 SideStore 可以自动为你安装；直接下载的 .ipa 仍需在设备上签名。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "如果你加入了 NOOP 的來源，AltStore 或 SideStore 可以自動為你安裝；直接下載的 .ipa 仍需在裝置上簽名。"
+          }
+        }
+      }
+    },
     "Connected. Finishing the secure pairing handshake…": {
       "localizations": {
         "de": {
