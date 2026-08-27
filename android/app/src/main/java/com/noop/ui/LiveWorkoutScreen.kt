@@ -108,8 +108,10 @@ fun LiveWorkoutScreen(vm: AppViewModel, onClose: () -> Unit) {
     LaunchedEffect(w.startMs) {
         while (true) { nowMs = System.currentTimeMillis(); delay(1000) }
     }
-    val currentPauseMs = w.pausedAtMs?.let { nowMs - it } ?: 0L
-    val elapsedS = ((nowMs - w.startMs - w.pausedDurationMs - currentPauseMs) / 1000).coerceAtLeast(0)
+    val elapsedS = ActiveWorkoutClock.activeElapsedSeconds(
+        startMs = w.startMs, pausedAtMs = w.pausedAtMs,
+        pausedDurationMs = w.pausedDurationMs, nowMs = nowMs,
+    )
 
     // A scenic Effort-tinted backdrop behind the whole in-exercise screen — the live workout reads as
     // an Effort-world hero, not a flat panel.
@@ -163,7 +165,10 @@ fun LiveWorkoutScreen(vm: AppViewModel, onClose: () -> Unit) {
             ) {
                 Overline("Time", color = Palette.textSecondary)
                 Text(
-                    String.format("%d:%02d", elapsedS / 60, elapsedS % 60),
+                    // elapsedClock, not a local %d:%02d — that one had no hour roll-over, so this hero
+                    // read "90:00" for a 90-minute session while every card that opens this screen read
+                    // "1:30:00". The iOS twin had the identical local formatter and is fixed alongside.
+                    elapsedClock(elapsedS),
                     style = NoopType.number(56f), color = Palette.textPrimary,
                 )
             }
