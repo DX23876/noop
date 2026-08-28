@@ -10,7 +10,15 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -18,6 +26,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
@@ -25,7 +37,9 @@ import androidx.core.view.WindowCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.noop.BuildConfig
+import com.noop.CrashCapture
 import com.noop.NoopApplication
+import com.noop.R
 import com.noop.ble.WhoopModel
 import com.noop.data.DemoSeeder
 import com.noop.data.WhoopRepository
@@ -57,6 +71,20 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         WindowCompat.setDecorFitsSystemWindows(window, false)
+        CrashCapture.pendingCrash(this)?.let { crash ->
+            setContent {
+                NoopTheme {
+                    CrashRecoveryScreen(
+                        crash = crash,
+                        onContinue = {
+                            CrashCapture.acknowledge(this, crash)
+                            recreate()
+                        },
+                    )
+                }
+            }
+            return
+        }
         // Load the saved "Card transparency" so every frosted card renders at the chosen opacity from launch.
         CardAppearance.init(this)
 
@@ -139,6 +167,29 @@ class MainActivity : ComponentActivity() {
         }.toTypedArray()
 
         if (needed.isNotEmpty()) permissionLauncher.launch(needed)
+    }
+}
+
+@Composable
+private fun CrashRecoveryScreen(crash: String, onContinue: () -> Unit) {
+    val clipboard = LocalClipboardManager.current
+    Surface(Modifier.fillMaxSize(), color = Palette.surfaceBase) {
+        Column(
+            Modifier.padding(horizontal = 20.dp, vertical = 32.dp).verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            Text(stringResource(R.string.crash_recovery_title), style = NoopType.title1, color = Palette.textPrimary)
+            Text(stringResource(R.string.crash_recovery_body), style = NoopType.body, color = Palette.textSecondary)
+            Button(onClick = { clipboard.setText(AnnotatedString(crash)) }) {
+                Text(stringResource(R.string.crash_recovery_copy))
+            }
+            Button(onClick = onContinue) {
+                Text(stringResource(R.string.crash_recovery_continue))
+            }
+            SelectionContainer {
+                Text(crash, style = NoopType.caption, color = Palette.textSecondary)
+            }
+        }
     }
 }
 

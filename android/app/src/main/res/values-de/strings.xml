@@ -2558,4 +2558,8 @@
     <string name="l10n_settings_screen_once_a_day_noop_asks_github_5683aad3">Einmal täglich fragt NOOP bei GitHub die neueste Versionsnummer ab und legt einen Hinweis in Updates ab, wenn es eine neuere gibt. Es werden keine Daten über dich gesendet, und es wird nie etwas installiert.</string>
     <string name="l10n_updates_noop_1s_is_available_05d8ef55">NOOP %1$s ist verfügbar</string>
     <string name="l10n_updates_youre_on_1s_open_settings_and_35b9e135">Du nutzt %1$s. Öffne die Einstellungen und tippe auf „Nach Updates suchen“, um die Neuerungen zu sehen und %2$s herunterzuladen.</string>
+    <string name="crash_recovery_title">NOOP wurde unerwartet beendet</string>
+    <string name="crash_recovery_body">Der letzte Absturz wird unten angezeigt. Du kannst ihn für einen Fehlerbericht kopieren und danach erneut versuchen, die App zu öffnen.</string>
+    <string name="crash_recovery_copy">Fehler kopieren</string>
+    <string name="crash_recovery_continue">NOOP erneut öffnen</string>
 </resources>
