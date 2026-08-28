@@ -130,7 +130,11 @@ def main() -> int:
             scanned += 1
             found = findings(path)
             if found:
-                rel = str(path.relative_to(ROOT))
+                # as_posix(), not str(): the baseline is written with forward slashes, so on Windows
+                # str() yields "android\app\..." and every baseline lookup misses. That made the gate fail
+                # on a clean tree there (every grandfathered site read as a regression, and every
+                # baselined file as IMPROVED -> 0), so a Windows contributor could not run it locally.
+                rel = path.relative_to(ROOT).as_posix()
                 by_file[rel] = [f"{rel}:{ln}  {why}" for ln, why in found]
 
     regressions = [h for f, hs in sorted(by_file.items())
