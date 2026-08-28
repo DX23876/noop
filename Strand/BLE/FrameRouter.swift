@@ -484,10 +484,12 @@ public final class FrameRouter {
     }
 
     /// Extract the armed-alarm epoch from a GET_ALARM_TIME (cmd 67) COMMAND_RESPONSE, defensively.
-    /// The WHOOP 4.0 response layout is UNDOCUMENTED, so this tries the two shapes the firmware could
-    /// plausibly answer with - the SET_ALARM_TIME mirror (`[form 0x01][u32 LE epoch]…`, matching the
-    /// 9-byte payload we arm with) first, then a bare leading u32 LE - and accepts a candidate only when
-    /// it passes `isPlausibleAlarmEpoch`. Anything else returns nil and the caller logs raw hex instead.
+    /// The WHOOP 4.0 response layout is UNDOCUMENTED, so this tries the shapes the firmware has been
+    /// seen to answer with - the 11-byte GET readback captured on fw 41.17.6.0
+    /// (`[form 0x01][stored flag][u32 LE epoch][00 00][04 00 20]`, epoch at offset 2) first, then the
+    /// SET_ALARM_TIME mirror (`[form 0x01][u32 LE epoch]…`, matching the 9-byte payload we arm with),
+    /// then a bare leading u32 LE - and accepts a candidate only when it passes
+    /// `isPlausibleAlarmEpoch`. Anything else returns nil and the caller logs raw hex instead.
     /// Pure and CoreBluetooth-free so golden tests pin it (AlarmReadbackDecodeTests).
     nonisolated static func armedAlarmEpoch(in frame: [UInt8]) -> UInt32? {
         guard let payload = commandResponsePayload(in: frame) else { return nil }
@@ -498,14 +500,29 @@ public final class FrameRouter {
                 | (UInt32(payload[i + 2]) << 16)
                 | (UInt32(payload[i + 3]) << 24)
         }
+        // The GET readback (fw 41.17.6.0, three arm/readback captures 2026-08-26..28, #34/#1706): the
+        // epoch sits ONE byte further than in the SET mirror, because the readback carries a stored
+        // flag (0x00 = nothing stored, 0x01 = stored) the arm payload does not. The mirror-offset read
+        // of this shape returns the epoch's LOW THREE bytes shifted up a byte, plus the flag — wrong
+        // by roughly 256x and free to land anywhere in u32 range. In all three captures it landed on
+        // a 2045 date INSIDE the 2017..2100 plausibility window (an arm for 2026-08-26 read back as
+        // 2045-09-24), so the gate did not catch it and a MISMATCH was counted against a strap whose
+        // register is fine. So on this shape the mirror offsets are known-wrong and must NOT be tried:
+        // offset 2 decodes, or the payload falls to the raw-hex line.
+        if payload.count == 11, payload.first == 0x01 {
+            if let e = u32le(at: 2), isPlausibleAlarmEpoch(e) { return e }
+            return nil
+        }
         if payload.first == 0x01, let e = u32le(at: 1), isPlausibleAlarmEpoch(e) { return e }
         if let e = u32le(at: 0), isPlausibleAlarmEpoch(e) { return e }
         return nil
     }
 
     /// True when a GET_ALARM_TIME readback explicitly reports NO alarm stored — the epoch field decodes
-    /// to 0 in the same shapes `armedAlarmEpoch` reads (SET-mirror `[0x01][u32=0]` first, then a bare
-    /// leading `u32=0`). This is the strap's "nothing armed" sentinel, distinct from a genuinely
+    /// to 0 in the same shapes `armedAlarmEpoch` reads (the 11-byte GET readback `[0x01][flag][u32=0]…`
+    /// first — the #34 field-report payload `01 00 00 00 00 00 00 00 04 00 20` is exactly this shape
+    /// with the stored flag 0x00 — then the SET-mirror `[0x01][u32=0]`, then a bare leading `u32=0`).
+    /// This is the strap's "nothing armed" sentinel, distinct from a genuinely
     /// unparseable payload: an arm the strap silently dropped reads back as epoch 0, so labelling it
     /// "unrecognised" hid the real signal (#34). Only consulted AFTER `armedAlarmEpoch` returns nil, so a
     /// plausible armed epoch never reaches here. Pure/CoreBluetooth-free so AlarmReadbackDecodeTests pin it.
@@ -518,6 +535,7 @@ public final class FrameRouter {
                 | (UInt32(payload[i + 2]) << 16)
                 | (UInt32(payload[i + 3]) << 24)
         }
+        if payload.count == 11, payload.first == 0x01, let e = u32le(at: 2) { return e == 0 }
         if payload.first == 0x01, let e = u32le(at: 1) { return e == 0 }
         if let e = u32le(at: 0) { return e == 0 }
         return false
