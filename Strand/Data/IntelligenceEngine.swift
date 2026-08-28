@@ -880,6 +880,25 @@ final class IntelligenceEngine: ObservableObject {
             // Together with `dayCacheReused` this is the honest denominator for the reuse ratio — see the
             // diagnostic at the end of the loop.
             var dayCacheCacheable = 0
+            // #1538: backward sliding read buffers for the two heavy streams. Pass 1 walks backwards over
+            // 54-hour windows on a 24-hour stride, so consecutive days overlap by 30 hours and every row
+            // was being materialised ~2.25x per pass. These read the missing stride only; every case the
+            // planner cannot prove safe falls back to exactly the read that shipped before them. HR and
+            // R-R only: the other eight streams are thousands of rows against these two's tens of
+            // thousands, so this is nearly all of the win for two call sites of blast radius.
+            // ONE binding, used as both the read cap and the window's truncation threshold. They must be
+            // the same number: the window declines to slice a read that came back at the cap, because
+            // `ORDER BY ts ASC LIMIT` drops the NEWEST rows. Were the two to drift apart, a truncated read
+            // would stop being recognised and the buffer would be sliced while missing its tail — wrong
+            // scoring inputs, silently. The Kotlin twin cannot drift because it uses `STREAM_LIMIT` for
+            // both; this is the same guarantee spelled locally.
+            let streamLimit = 200_000
+            let hrWindow = SlidingStreamWindow<HRSample>(tsOf: { $0.ts }, limit: streamLimit) { o, f, t in
+                try? await store.hrSamples(deviceId: o, from: f, to: t, limit: streamLimit)
+            }
+            let rrWindow = SlidingStreamWindow<RRInterval>(tsOf: { $0.ts }, limit: streamLimit) { o, f, t in
+                try? await store.rrIntervals(deviceId: o, from: f, to: t, limit: streamLimit)
+            }
             for offset in 0..<maxDays {
                 let dayStart = nowLocalMidnight - offset * 86_400
                 let day = AnalyticsEngine.dayString(dayStart, offsetSec: tzOffset)
@@ -955,7 +974,7 @@ final class IntelligenceEngine: ObservableObject {
                 // what decides whether narrowing the read windows is worth building at all. Measured, not
                 // guessed, for the same reason the day-cache duration is.
                 let tPrep0 = Date()
-                let hr = (try? await store.hrSamples(deviceId: owner, from: from, to: to, limit: 200_000)) ?? []
+                let hr = await hrWindow.rows(owner: owner, from: from, to: to)
                 guard hr.count >= IntelligenceEngine.minHrSamples else {
                     // This day still paid for its read; count it, or the tally under-reports exactly the
                     // sparse-history installs where reads dominate most.
@@ -963,7 +982,7 @@ final class IntelligenceEngine: ObservableObject {
                     skippedSleepDays.append((day: day, hrSamples: hr.count))
                     continue
                 }
-                let rr = (try? await store.rrIntervals(deviceId: owner, from: from, to: to, limit: 200_000)) ?? []
+                let rr = await rrWindow.rows(owner: owner, from: from, to: to)
                 // `forScoring` drops an Oura ring's respiration rows: those are the ring's OWN per-window
                 // RATE (0x6A, milli-bpm, ~1 row per 5 min), stored as instrumentation, while the stager
                 // reads this stream as a ~1 Hz raw ADC waveform. Refusing by provenance keeps the
@@ -1458,6 +1477,13 @@ final class IntelligenceEngine: ObservableObject {
             // narrowing; `analyzeDay` dominating means it is not, whatever the row counts look like.
             skippedDayLines.append("analyzeRecent cost prep=\(Int(dayPrepSeconds * 1000))ms "
                                    + "score=\(Int(dayScoreSeconds * 1000))ms")
+            // #1538: what the sliding windows saved, beside the line the decision to build them was made
+            // from. A pass where `served` is ~0 means they are declining (truncation, an owner flip, or a
+            // gap left by a dayCache hit) and the reads are back to what they were — the honest outcome
+            // rather than a silent one. Byte-identical to the Kotlin `analyzeWindowsLogLine`.
+            skippedDayLines.append(WindowedStreamPlan.logLine(
+                hrRead: hrWindow.rowsRead, hrServed: hrWindow.rowsServed,
+                rrRead: rrWindow.rowsRead, rrServed: rrWindow.rowsServed))
             return (out, skippedDayLines, dayScanCacheLocal)
         }.value
         // #1005: write the loop's updated reuse cache back to the (main-actor) stored property. The pass ran
