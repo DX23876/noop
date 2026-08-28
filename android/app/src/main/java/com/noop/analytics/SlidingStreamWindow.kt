@@ -58,6 +58,19 @@ class SlidingStreamWindow<T>(
         private set
 
     /**
+     * Reads whose RESULT came back at the store's cap, so the newest rows were dropped and the day was
+     * scored on an incomplete window. Diagnostic only, but unlike its siblings this one is a correctness
+     * signal rather than a savings one: a non-zero count means a number may be wrong, not merely slow.
+     *
+     * Counted per WINDOW that lost rows, not per pass: once a read is truncated the planner refuses to
+     * splice at all, so each later window is a fresh full read and is judged on its own. The truncated-
+     * EXTENSION branch below cannot add a second count for one window either, since it only ever re-reads
+     * a SUPERSET of what already overran the cap. Pinned by `eachTruncatedWindowCountsSeparately`.
+     */
+    var truncatedReads = 0L
+        private set
+
+    /**
      * The rows for `[from, to]` under [owner], reading as little as the plan allows.
      *
      * The result is byte-for-byte what a direct `read(owner, from, to)` would have returned — that is the
@@ -107,6 +120,7 @@ class SlidingStreamWindow<T>(
         this.from = from
         this.to = to
         this.truncated = nowTruncated
+        if (nowTruncated) truncatedReads++
         this.rows = result
         return result
     }

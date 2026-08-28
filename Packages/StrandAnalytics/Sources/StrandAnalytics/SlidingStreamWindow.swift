@@ -43,6 +43,15 @@ public final class SlidingStreamWindow<T> {
     public private(set) var rowsServed = 0
     /// Rows this window read from the store. Diagnostic only. Same width note as `rowsServed`.
     public private(set) var rowsRead = 0
+    /// Reads whose RESULT came back at the store's cap, so the newest rows were dropped and the day was
+    /// scored on an incomplete window. Diagnostic only, but unlike its siblings this one is a correctness
+    /// signal rather than a savings one: a non-zero count means a number may be wrong, not merely slow.
+    ///
+    /// Counted per WINDOW that lost rows, not per pass: once a read is truncated the planner refuses to
+    /// splice at all, so each later window is a fresh full read and is judged on its own. The truncated-
+    /// EXTENSION branch below cannot add a second count for one window either, since it only ever re-reads
+    /// a SUPERSET of what already overran the cap. Pinned by `eachTruncatedWindowCountsSeparately`.
+    public private(set) var truncatedReads = 0
 
     public init(tsOf: @escaping (T) -> Int, limit: Int, read: @escaping (String, Int, Int) async -> [T]?) {
         self.tsOf = tsOf
@@ -97,6 +106,7 @@ public final class SlidingStreamWindow<T> {
         self.from = from
         self.to = to
         self.truncated = nowTruncated
+        if nowTruncated { truncatedReads += 1 }
         self.rows = result
         return result
     }
