@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import com.noop.push.PushDao
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
@@ -65,6 +66,9 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 )
 abstract class WhoopDatabase : RoomDatabase() {
     abstract fun whoopDao(): WhoopDao
+
+    /** Read-only, schema-neutral snapshots for the opt-in self-hosted push worker. */
+    fun pushDao(): PushDao = PushDao(this)
 
     companion object {
         const val DB_NAME = "noop_whoop.db"

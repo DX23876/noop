@@ -3,7 +3,9 @@
 An **offline WHOOP companion** for Android. NOOP connects directly to a WHOOP 4.0
 (and WHOOP 5.0) strap over Bluetooth Low Energy, reads heart rate, R-R intervals,
 battery, and sensor data, and stores everything **locally** on the device. There is
-no account, no server, and no `INTERNET` permission — nothing leaves the phone.
+no NOOP account, hosted server, or telemetry. Network access exists only for explicit,
+default-off features such as the AI Coach and Experimental one-way push to an endpoint
+the user owns.
 
 This is an independent Kotlin / Jetpack Compose reimplementation of the macOS/iOS
 reference app (`Strand/`, Swift). The protocol, framing, and BLE handshake are
@@ -189,7 +191,12 @@ install side-by-side.
 
 ## Permissions & why
 
-NOOP requests only what BLE needs, and deliberately omits `INTERNET`:
+NOOP requests the platform permissions its local features need. `INTERNET` supports only
+explicit, default-off network features (the AI Coach and Experimental self-hosted push):
+
+- **`INTERNET`** — lets those opt-in clients reach the endpoint the user selected. It is an
+  install-time capability, not evidence of background telemetry; neither feature runs until
+  configured.
 
 - **`BLUETOOTH_SCAN`** (`neverForLocation`) + **`BLUETOOTH_CONNECT`** — Android 12+ (API 31+)
   runtime permissions. `neverForLocation` lets us skip the location grant on modern Android
@@ -257,8 +264,8 @@ phone **and** a WHOOP strap.
 
 **Privacy sanity check:**
 
-- [ ] Confirm the merged manifest contains **no `INTERNET` permission**
-      (`app/build/intermediates/merged_manifests/…`) — the app must stay fully offline.
+- [ ] With AI Coach and self-hosted push unconfigured, confirm no HTTP request is made during
+      launch, BLE collection, offload, analytics, or normal navigation.
 
 ---
 

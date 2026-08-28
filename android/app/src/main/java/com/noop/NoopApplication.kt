@@ -13,13 +13,15 @@ import com.noop.data.WhoopDatabase
 import com.noop.data.WhoopRepository
 import com.noop.ui.NoopPrefs
 import com.noop.ui.AppLanguagePrefs
+import com.noop.push.SelfHostedPushScheduler
 import kotlinx.coroutines.runBlocking
 
 /**
  * Application entry point.
  *
  * NOOP is a fully on-device WHOOP companion: it connects to the strap over BLE and persists
- * everything locally via Room. There is no network layer (the opt-in AI Coach aside).
+ * everything locally via Room. Network access is opt-in: the AI Coach and the experimental,
+ * one-way self-hosted push are both disabled by default.
  *
  * The data layer ([WhoopRepository]) and the BLE client ([WhoopBleClient]) are owned **here**, at the
  * process level, rather than by the Activity-scoped AppViewModel. That is what lets a connection keep
@@ -71,7 +73,14 @@ class NoopApplication : Application() {
 
     /** Process-wide BLE client. Owns the GATT connection and outlives any single Activity/ViewModel. */
     val ble: WhoopBleClient by lazy {
-        WhoopBleClient(applicationContext, repository = repository, deviceId = activeDeviceId).apply {
+        WhoopBleClient(
+            applicationContext,
+            repository = repository,
+            deviceId = activeDeviceId,
+            successfulOffloadSink = {
+                SelfHostedPushScheduler.enqueueAfterSuccessfulOffload(applicationContext)
+            },
+        ).apply {
             // Apply the persisted "Debug logging" preference at the composition root so the low-level
             // client never has to read the UI/prefs layer. Default OFF — see WhoopBleClient.debugLogcat.
             debugLogcat = NoopPrefs.debugLogging(applicationContext)

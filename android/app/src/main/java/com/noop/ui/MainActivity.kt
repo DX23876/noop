@@ -29,6 +29,7 @@ import com.noop.NoopApplication
 import com.noop.ble.WhoopModel
 import com.noop.data.DemoSeeder
 import com.noop.data.WhoopRepository
+import com.noop.push.SelfHostedPushScheduler
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.channels.awaitClose
@@ -93,6 +94,12 @@ class MainActivity : ComponentActivity() {
         runCatching { BackupSync.reschedule(applicationContext) }
         lifecycleScope.launch(Dispatchers.IO) {
             runCatching { BackupSync.catchUpIfDue(applicationContext) }
+        }
+
+        // Experimental self-hosted push: launch only queues a catch-up when fully configured and
+        // enabled. The Activity never reads health rows, credentials, or performs network I/O.
+        lifecycleScope.launch(Dispatchers.IO) {
+            runCatching { SelfHostedPushScheduler.enqueueLaunchCatchUp(applicationContext) }
         }
 
         // Load the Light/Dark/System + chart-colour preferences before first composition so the theme

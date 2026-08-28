@@ -10,10 +10,11 @@ import java.util.concurrent.ConcurrentHashMap
  * The one place an encrypted `SharedPreferences` file is opened.
  *
  * Two credential stores needed this and each grew its own copy: `AiKeyStore` (the AI provider API key)
- * and `OuraInstallKeyStore` (per-ring install keys). The bodies were byte-identical apart from the file
+ * and `OuraInstallKeyStore` (per-ring install keys); the self-hosted push bearer token also uses this
+ * single audited helper. The bodies were byte-identical apart from the file
  * name, which is the shape that lets a hardening change, a key-scheme migration or a fallback fix land
- * on one store and silently miss the other. They are the app's only two encrypted files, so one helper
- * covers all of it.
+ * on one store and silently miss the other. One helper now covers every encrypted preference file,
+ * including the default-off self-hosted push bearer token.
  *
  * **Cached, which is the part that matters at runtime.** `EncryptedSharedPreferences.create` is not a
  * cheap accessor: it builds a [MasterKey] — an Android Keystore round trip — and sets up Tink AEAD
@@ -45,8 +46,8 @@ object SecurePrefs {
      *
      * Caveat worth knowing: `ConcurrentHashMap` documents that the mapping function should be "short
      * and simple", and this one is neither — a Keystore round trip plus Tink setup, with the bin
-     * locked throughout. It is acceptable here because there are exactly two files, each built once
-     * per process, and the function never re-enters the map, so the worst case is one thread briefly
+     * locked throughout. It is acceptable here because there are only a few fixed file names, each built
+     * once per process, and the function never re-enters the map, so the worst case is one thread briefly
      * serialising behind another. It would not be acceptable if this map grew keys at runtime.
      */
     fun of(ctx: Context, fileName: String): SharedPreferences =
