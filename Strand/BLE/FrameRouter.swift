@@ -10,6 +10,13 @@ public final class FrameRouter {
     /// Called when the strap pushes an EVENT packet (WHOOP's strap-as-clock catch-up signal). The
     /// BLEManager wires this to a rate-limited requestSync(.strap). nil in pure/unit contexts.
     var onSyncTrigger: (() -> Void)?
+    /// #1706: which strap this connection is talking to, so an alarm readback can be attributed to a
+    /// device. Set per connection by BLEManager immediately AFTER `family`, whose didSet clears this —
+    /// a path that sets the family and forgets the id then attributes nothing rather than carrying the
+    /// previous connection's strap forward, which is the very mistake this attribution exists to stop.
+    /// nil in pure/unit contexts, which the verdict treats as unattributed rather than guessing.
+    var deviceId: String?
+
     /// Which family's framing to decode with. Set per connection by BLEManager. WHOOP 5.0/MG frames
     /// use the CRC16/offset-8 envelope; the biometric field decode for puffin is still a stub, so
     /// WHOOP 5 custom frames currently surface only their envelope (live HR/battery come from the
@@ -18,7 +25,7 @@ public final class FrameRouter {
         // #900: a fresh connection is a fresh capture session — re-arm the per-command raw-frame dump so
         // each connect can re-capture the disputed COMMAND_RESPONSE prefix once. `family` is set fresh per
         // connection by BLEManager (connectCore), so this is the per-session reset hook.
-        didSet { rawDumpedRespCmds.removeAll(); loggedFirmwareGate = nil }
+        didSet { rawDumpedRespCmds.removeAll(); loggedFirmwareGate = nil; deviceId = nil }
     }
 
     /// #900: resp command names (e.g. "GET_BATTERY_LEVEL(26)") whose raw COMMAND_RESPONSE frame has already
@@ -175,15 +182,41 @@ public final class FrameRouter {
                         // #34: persist what the strap reports so the debug export can show sent-vs-reported.
                         let d = UserDefaults.standard
                         d.set(Int(epoch), forKey: "alarm.lastReportedEpoch")
+                        // #1706: the strap this readback came from, and the bytes it came in. The raw
+                        // frame is what separates a genuinely-stored stale alarm from a misdecode of a
+                        // fixed response field, and the live log rolls long before a debug export is
+                        // taken — a 2045 readback went unexplained for exactly that reason.
+                        d.set(deviceId, forKey: "alarm.lastReportedDeviceId")
+                        d.set(raw, forKey: "alarm.lastReportedRaw")
                         d.set(Date().timeIntervalSince1970, forKey: "alarm.lastReportedAt")
                         // #34: count CONSECUTIVE rejections (reported ≠ what we last sent) — the signature of
                         // a corrupted strap alarm register. A matching readback resets it, so a transient
                         // (first read stale, then correct) never trips the warning; only a persistent refusal
                         // climbs. SmartAlarmView surfaces the warning at ≥2; the debug export shows the count.
                         // Observability only — never gates the BLE arm.
+                        // #1706: the streak raises a UI warning at two, so it must only COUNT a
+                        // disagreement PROVEN to be the same strap. A cross-strap reading is evidence of
+                        // nothing and leaves the streak alone — advancing would warn about a strap that
+                        // was never asked, clearing would hide a real refusal. An unattributed one is a
+                        // different case, handled below.
                         if let sent = d.object(forKey: "alarm.lastArmSentEpoch") as? Int {
-                            d.set(abs(Int(epoch) - sent) > 120 ? d.integer(forKey: "alarm.rejectStreak") + 1 : 0,
-                                  forKey: "alarm.rejectStreak")
+                            let verdict = AlarmReadback.verdict(
+                                sentEpoch: sent,
+                                reportedEpoch: Int(epoch),
+                                sentDeviceId: d.string(forKey: "alarm.lastArmDeviceId"),
+                                reportedDeviceId: deviceId)   // the local, not a re-read of what we just wrote
+                            if AlarmReadback.countsAsRejection(verdict) {
+                                d.set(d.integer(forKey: "alarm.rejectStreak") + 1, forKey: "alarm.rejectStreak")
+                            } else if AlarmReadback.clearsRejectionStreak(verdict) {
+                                d.set(0, forKey: "alarm.rejectStreak")
+                            } else if verdict == .unattributed {
+                                // Any streak standing here was built by the cross-strap comparison this
+                                // replaces, so it cannot be trusted — and since only a proven match clears
+                                // the streak now, leaving it would hold SmartAlarmView's warning up forever
+                                // on an install that upgraded mid-streak. Discard once; the next attributed
+                                // readback rebuilds it honestly.
+                                d.set(0, forKey: "alarm.rejectStreak")
+                            }
                         }
                     } else if Self.readbackReportsNoAlarm(in: frame) {
                         // #34 (issue comment 2026-07-12): the strap's "nothing armed" sentinel — the epoch
