@@ -39,6 +39,31 @@ class Whoop5HistoricalDecodeTest {
         assertEquals(2, p["rr_count"])
         assertEquals(listOf(602, 613), p["rr_intervals"])
 
+        // Physiological cross-check: 60000 / mean(R-R) ≈ heart_rate, from the PARSE rather than literals.
+        // Twin of the Swift `testHistoricalV18HeartRateRRAndGravity` check, which this side never had.
+        //
+        // The pins above already fix both values, so this catches nothing a wrong offset would not
+        // already trip. What it guards is the PINS: a decoder change "fixed" by regenerating the
+        // expected values until they pass has to produce numbers that are still physiologically
+        // coherent. See the Swift twin for the fuller note.
+        //
+        // It does NOT discriminate UNITS and tightening it will not make it: milliseconds and 1/1024-s
+        // ticks differ by 2.4% (~2.5 bpm here), less than a two-beat sample varies against a heart_rate
+        // averaged over the record. See the Swift twin for why, and where the units question was settled.
+        @Suppress("UNCHECKED_CAST")
+        val rr = p["rr_intervals"] as List<Int>
+        assertTrue("no R-R decoded — the cross-check below would be vacuous", rr.isNotEmpty())
+        val meanRr = rr.sum().toDouble() / rr.size
+        // Delta 4.0, bounded from both sides rather than picked: it must exceed this record's real
+        // 3.2 bpm error under the shipped reading (a two-beat sample against an averaged heart_rate
+        // differs by that much, so anything tighter fails on CORRECT data), and stay well below the
+        // ~96 bpm a misread offset produces. Do not tighten it to look stricter.
+        // Fitted to THIS record, not a general invariant. `secondDeviceHR63` below (hr 63, a single
+        // interval of 1020) computes 58.8 bpm, an error of 4.18 — so copying this assertion onto that
+        // frame fails at this tolerance. A single interval against an averaged rate is simply noisier;
+        // widen it there with its own reason rather than loosening this one.
+        assertEquals((p["heart_rate"] as Int).toDouble(), 60_000.0 / meanRr, 4.0)
+
         val gx = p["gravity_x"] as Double
         val gy = p["gravity_y"] as Double
         val gz = p["gravity_z"] as Double
