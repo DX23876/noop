@@ -400,9 +400,8 @@ final class Whoop5EcgTests: XCTestCase {
         XCTAssertEqual(Whoop5Ecg.selectWristPayload(.left), [0x01, 0x01])
         XCTAssertEqual(Whoop5Ecg.togglePayload(on: true), [0x01, 0x01])
         XCTAssertEqual(Whoop5Ecg.togglePayload(on: false), [0x01, 0x00])
-        XCTAssertEqual(Whoop5Ecg.controlPayload(.stop), [0x01, 0x00])
-        XCTAssertEqual(Whoop5Ecg.controlPayload(.start), [0x01, 0x01])
-        XCTAssertEqual(Whoop5Ecg.controlPayload(.restart), [0x01, 0x02])
+        XCTAssertEqual(Whoop5Ecg.controlPayload(.stop), [0x01, 0x01])
+        XCTAssertEqual(Whoop5Ecg.controlPayload(.start), [0x01, 0x02])
     }
 
     func testCommandFramesAreExactlyWhatTheSendPathBuilds() {
@@ -415,7 +414,11 @@ final class Whoop5EcgTests: XCTestCase {
                        puffinCommandFrame(cmd: 0x8B, seq: seq, payload: [0x01, 0x01]))
         XCTAssertEqual(Whoop5Ecg.toggleSaveRawEcgFrame(on: false, seq: seq),
                        puffinCommandFrame(cmd: 0x7D, seq: seq, payload: [0x01, 0x00]))
+        // LITERAL wire bytes, not `ControlSignal.start.rawValue`. Asserting through the symbol is what
+        // let the previous mapping stay green through a renumber: the test moved with the enum.
         XCTAssertEqual(Whoop5Ecg.mainControlEcgDataGenerationFrame(.start, seq: seq),
+                       puffinCommandFrame(cmd: 0x7C, seq: seq, payload: [0x01, 0x02]))
+        XCTAssertEqual(Whoop5Ecg.mainControlEcgDataGenerationFrame(.stop, seq: seq),
                        puffinCommandFrame(cmd: 0x7C, seq: seq, payload: [0x01, 0x01]))
     }
 
@@ -442,8 +445,11 @@ final class Whoop5EcgTests: XCTestCase {
     }
 
     func testOffPathIsTheExactInverseOfTheOnPath() {
-        // The UI promises an explicit OFF path; these are the bytes it sends.
-        XCTAssertEqual(Whoop5Ecg.mainControlEcgDataGenerationFrame(.stop, seq: 1)[12], 0)
+        // The UI promises an explicit OFF path; these are the bytes it sends. The two toggles turn off
+        // with arg 0, but the generation stop is arg 1 — on hardware 0 is REFUSED (FAILURE(0)), and 1 is
+        // the verb that halts the stream. See the ControlSignal doc block. The old uniform-zero
+        // expectation here was written from the enum-order mapping this file no longer carries.
+        XCTAssertEqual(Whoop5Ecg.mainControlEcgDataGenerationFrame(.stop, seq: 1)[12], 1)
         XCTAssertEqual(Whoop5Ecg.toggleRealtimeFilteredEcgFrame(on: false, seq: 1)[12], 0)
         XCTAssertEqual(Whoop5Ecg.toggleSaveRawEcgFrame(on: false, seq: 1)[12], 0)
     }
@@ -495,10 +501,14 @@ final class Whoop5EcgTests: XCTestCase {
         XCTAssertFalse(Whoop5Ecg.requestsRealtimeData(cmd: Whoop5Ecg.toggleRealtimeFilteredEcgCmd, arg: 0))
         XCTAssertTrue(Whoop5Ecg.requestsRealtimeData(cmd: Whoop5Ecg.mainControlEcgDataGenerationCmd,
                                                      arg: Whoop5Ecg.ControlSignal.start.rawValue))
-        XCTAssertTrue(Whoop5Ecg.requestsRealtimeData(cmd: Whoop5Ecg.mainControlEcgDataGenerationCmd,
-                                                     arg: Whoop5Ecg.ControlSignal.restart.rawValue))
         XCTAssertFalse(Whoop5Ecg.requestsRealtimeData(cmd: Whoop5Ecg.mainControlEcgDataGenerationCmd,
                                                       arg: Whoop5Ecg.ControlSignal.stop.rawValue))
+        // The same assertions again on LITERAL arguments. Through the symbol alone, a renumber moves
+        // the test with the enum and the predicate stays green whatever it now means on the wire —
+        // which is how `124 = 1` was scored as "asked for data" while it stopped generation.
+        XCTAssertTrue(Whoop5Ecg.requestsRealtimeData(cmd: 124, arg: 2))
+        XCTAssertFalse(Whoop5Ecg.requestsRealtimeData(cmd: 124, arg: 1))
+        XCTAssertFalse(Whoop5Ecg.requestsRealtimeData(cmd: 124, arg: 0))
         // SELECT_WRIST configures which wrist; it starts nothing, on EITHER argument. This is the
         // opcode whose silence was being reported as a firmware block.
         for wrist in Whoop5Ecg.WristSelection.allCases {
@@ -515,21 +525,22 @@ final class Whoop5EcgTests: XCTestCase {
         // The packet count comes from a HEURISTIC that ordinary traffic can trip; the result codes are
         // attested wire semantics. So a firmware FAILURE must not be overridden by candidate frames —
         // the old precedence turned one loose match into an unhedged "not blocked".
-        let failed = [sent(124, arg: 1, .failure)]
+        // arg 2, not 1: on hardware `124 = 2` is the one that asks for generation.
+        let failed = [sent(124, arg: 2, .failure)]
         XCTAssertEqual(Whoop5EcgProbe.verdict(steps: failed, ecgPacketsSeen: 12, windowSeconds: 30),
                        .dataRequestRefused(commands: ["TOGGLE_LABRADOR_DATA_GENERATION(124)"]))
         let unsupported = [sent(139, arg: 1, .unsupported)]
         XCTAssertEqual(Whoop5EcgProbe.verdict(steps: unsupported, ecgPacketsSeen: 12, windowSeconds: 30),
                        .opcodeUnsupported(commands: ["TOGGLE_LABRADOR_FILTERED(139)"]))
         // With no contrary result code, candidates are the verdict — as candidates, not as proof.
-        let ok = [sent(124, arg: 1, .success)]
+        let ok = [sent(124, arg: 2, .success)]
         XCTAssertEqual(Whoop5EcgProbe.verdict(steps: ok, ecgPacketsSeen: 12, windowSeconds: 30),
                        .ecgCandidatesArrived(packets: 12))
     }
 
     func testCandidateVerdictIsHedgedNotAssertedAsProof() {
         let text = Whoop5EcgProbe.report(
-            steps: [sent(124, arg: 1, .success)],
+            steps: [sent(124, arg: 2, .success)],
             ecgPacketsSeen: 3, candidateFrames: ["type=0x28 len=220"], windowSeconds: 30)
         XCTAssertTrue(text.contains("CANDIDATE, not proof"))
         // The old wording asserted the conclusion outright; it must not come back.

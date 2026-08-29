@@ -285,16 +285,31 @@ public enum Whoop5Ecg {
     }
 
     /// The `mainControlECGDataGeneration` argument.
+    ///
+    /// ⚠️ These raw values are ATTESTED ON ONE DEVICE, and they are NOT the vendor client's declaration
+    /// order. The previous `stop = 0 / start = 1 / restart = 2` was read off that order and shipped
+    /// unverified (#896). On a WHOOP MG (`WS50_r00`, fw `50.39.1.0`) each argument was sent on its own
+    /// while watching the type-43 stream rather than the ack:
+    ///
+    ///   - `0` is REFUSED — the strap answers `FAILURE(0)` and generation is unchanged, so there is no
+    ///     case for it here and nothing can send it.
+    ///   - `1` STOPS generation.
+    ///   - `2` STARTS it. The type-43 stream only follows once `TOGGLE_LABRADOR_FILTERED (139)` is on, so
+    ///     the working turn-on order is `139 = 1` then `124 = 2`. 139 gates the STREAM rather than the
+    ///     front end: with 139 closed, `124 = 2` still made the strap's own console log
+    ///     `MAX86176: Set ECG ON` while no packets arrived (8 sends, 8 console lines, #891).
+    ///
+    /// One device, one firmware. #1100 ran `WS50_r03` / `50.40.1.0` and nothing here says the two agree.
+    /// Whether `2` is a plain start or a stop-then-start is NOT distinguishable from a stream that was
+    /// already off, so the case is named for what it achieves rather than for the client's third name.
     public enum ControlSignal: UInt8, Equatable, Sendable, CaseIterable {
-        case stop = 0
-        case start = 1
-        case restart = 2
+        case stop = 1
+        case start = 2
 
         public var token: String {
             switch self {
             case .stop: return "stop"
             case .start: return "start"
-            case .restart: return "restart"
             }
         }
     }
@@ -367,7 +382,9 @@ public enum Whoop5Ecg {
         case toggleRealtimeFilteredEcgCmd:
             return arg != 0
         case mainControlEcgDataGenerationCmd:
-            return arg == ControlSignal.start.rawValue || arg == ControlSignal.restart.rawValue
+            // Only the START value. `ControlSignal.stop` (1) halts generation, so a run whose last act
+            // was that one asked for nothing and its silence is the expected outcome, not a finding.
+            return arg == ControlSignal.start.rawValue
         default:
             return false
         }

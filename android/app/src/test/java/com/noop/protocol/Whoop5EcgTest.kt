@@ -405,9 +405,10 @@ class Whoop5EcgTest {
         assertEquals(listOf(0x01, 0x01), Whoop5Ecg.selectWristPayload(Whoop5Ecg.WristSelection.LEFT))
         assertEquals(listOf(0x01, 0x01), Whoop5Ecg.togglePayload(on = true))
         assertEquals(listOf(0x01, 0x00), Whoop5Ecg.togglePayload(on = false))
-        assertEquals(listOf(0x01, 0x00), Whoop5Ecg.controlPayload(Whoop5Ecg.ControlSignal.STOP))
-        assertEquals(listOf(0x01, 0x01), Whoop5Ecg.controlPayload(Whoop5Ecg.ControlSignal.START))
-        assertEquals(listOf(0x01, 0x02), Whoop5Ecg.controlPayload(Whoop5Ecg.ControlSignal.RESTART))
+        // LITERAL wire bytes, not `ControlSignal.X.raw`. Asserting through the symbol is what let the
+        // previous mapping stay green through a renumber: the test moved with the enum.
+        assertEquals(listOf(0x01, 0x01), Whoop5Ecg.controlPayload(Whoop5Ecg.ControlSignal.STOP))
+        assertEquals(listOf(0x01, 0x02), Whoop5Ecg.controlPayload(Whoop5Ecg.ControlSignal.START))
     }
 
     @Test
@@ -432,8 +433,8 @@ class Whoop5EcgTest {
         val cases = listOf(
             Whoop5Ecg.toggleRealtimeFilteredEcgFrame(on = true, seq = 9) to (0x8B to 1),
             Whoop5Ecg.toggleSaveRawEcgFrame(on = false, seq = 9) to (0x7D to 0),
-            Whoop5Ecg.mainControlEcgDataGenerationFrame(Whoop5Ecg.ControlSignal.START, seq = 9) to (0x7C to 1),
-            Whoop5Ecg.mainControlEcgDataGenerationFrame(Whoop5Ecg.ControlSignal.STOP, seq = 9) to (0x7C to 0),
+            Whoop5Ecg.mainControlEcgDataGenerationFrame(Whoop5Ecg.ControlSignal.START, seq = 9) to (0x7C to 2),
+            Whoop5Ecg.mainControlEcgDataGenerationFrame(Whoop5Ecg.ControlSignal.STOP, seq = 9) to (0x7C to 1),
             Whoop5Ecg.selectWristFrame(Whoop5Ecg.WristSelection.RIGHT, seq = 9) to (0x7B to 0),
         )
         for ((frame, expected) in cases) {

@@ -76,18 +76,18 @@ class Whoop5EcgProbeTest {
                 Whoop5Ecg.ControlSignal.START.raw,
             ),
         )
-        assertTrue(
-            Whoop5Ecg.requestsRealtimeData(
-                Whoop5Ecg.MAIN_CONTROL_ECG_DATA_GENERATION_CMD,
-                Whoop5Ecg.ControlSignal.RESTART.raw,
-            ),
-        )
         assertFalse(
             Whoop5Ecg.requestsRealtimeData(
                 Whoop5Ecg.MAIN_CONTROL_ECG_DATA_GENERATION_CMD,
                 Whoop5Ecg.ControlSignal.STOP.raw,
             ),
         )
+        // The same three assertions again on LITERAL arguments. Through the symbol alone, a renumber
+        // moves the test with the enum and the predicate stays green whatever it now means on the wire —
+        // which is how `124 = 1` was scored as "asked for data" while it stopped generation.
+        assertTrue(Whoop5Ecg.requestsRealtimeData(124, 2))
+        assertFalse(Whoop5Ecg.requestsRealtimeData(124, 1))
+        assertFalse(Whoop5Ecg.requestsRealtimeData(124, 0))
         // SELECT_WRIST configures which wrist; it starts nothing, on EITHER argument. This is the opcode
         // whose silence was being reported as a firmware block.
         for (wrist in Whoop5Ecg.WristSelection.entries) {
@@ -102,9 +102,11 @@ class Whoop5EcgProbeTest {
 
     @Test
     fun attestedResultCodesOutrankTheShapeHeuristic() {
+        // arg 2, not 1: on hardware `124 = 2` is the one that asks for generation. Written literally
+        // rather than through `ControlSignal.START.raw` so the fixture states the wire byte it means.
         assertEquals(
             Whoop5EcgProbe.Verdict.DataRequestRefused(listOf("TOGGLE_LABRADOR_DATA_GENERATION(124)")),
-            Whoop5EcgProbe.verdict(listOf(sent(124, 1, Whoop5EcgProbe.CommandOutcome.Failure)), 12, 30),
+            Whoop5EcgProbe.verdict(listOf(sent(124, 2, Whoop5EcgProbe.CommandOutcome.Failure)), 12, 30),
         )
         assertEquals(
             Whoop5EcgProbe.Verdict.OpcodeUnsupported(listOf("TOGGLE_LABRADOR_FILTERED(139)")),
@@ -112,7 +114,7 @@ class Whoop5EcgProbeTest {
         )
         assertEquals(
             Whoop5EcgProbe.Verdict.EcgCandidatesArrived(12),
-            Whoop5EcgProbe.verdict(listOf(sent(124, 1, Whoop5EcgProbe.CommandOutcome.Success)), 12, 30),
+            Whoop5EcgProbe.verdict(listOf(sent(124, 2, Whoop5EcgProbe.CommandOutcome.Success)), 12, 30),
         )
     }
 
