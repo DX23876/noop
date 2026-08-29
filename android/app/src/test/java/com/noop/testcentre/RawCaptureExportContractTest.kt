@@ -59,6 +59,21 @@ class RawCaptureExportContractTest {
         assertTrue(collector.contains("if (eventFile(sessionId).exists() && !eventFile(sessionId).delete()) return false"))
     }
 
+    // Android-only, so it cannot live in the raw_data_collector_parity oracle: macOS exports through
+    // NSSavePanel to a destination the user picks and keeps no app-side copy, while Android must
+    // materialise the archive under cacheDir for FileProvider and therefore has to clean it up. The
+    // writer and the deleter build that path from separate expressions, so pin both - moving one
+    // without the other orphans every exported ZIP silently.
+    @Test fun exportArchiveIsDeletedFromThePathTheExportWroteIt() {
+        val collector = source("GroundTruthCollector.kt")
+        assertTrue(collector.contains("val outDir = File(context.cacheDir, \"logs\").apply { mkdirs() }"))
+        assertTrue(collector.contains("val zip = File(outDir, \"noop-5mg-raw-\$id.zip\")"))
+        assertTrue(collector.contains(
+            "val payloadFiles = listOf(File(context.cacheDir, \"logs/noop-5mg-raw-\$sessionId.zip\"))"))
+        assertTrue(collector.contains(
+            "if (!payloadFiles.all { file -> !file.exists() || file.delete() }) return false"))
+    }
+
     @Test fun rawCollectorHasNoStepAlgorithmExport() {
         val collector = source("GroundTruthCollector.kt")
         assertFalse(collector.contains("algorithm-signals.csv"))
