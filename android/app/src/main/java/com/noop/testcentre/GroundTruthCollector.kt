@@ -151,8 +151,10 @@ class GroundTruthCollector private constructor(private val context: Context) {
         if (sessions().none { it.id == sessionId }) return false
 
         val payloadFiles = listOf(File(context.cacheDir, "logs/noop-5mg-raw-$sessionId.zip"))
-        // Evaluate every deletion even if one fails, so a stale export ZIP never survives merely
-        // because an earlier file could not be removed.
+        // Each step aborts on the first failure, so a delete is all-or-nothing from the user's side:
+        // whatever survives is still owned by a session that is still listed, never orphaned. That
+        // relies on deleteFiles() being idempotent - a missing directory reads as success - so the
+        // retry re-runs the earlier steps cleanly.
         val imuStore = ImuSessionFileStore(context)
         if (!imuStore.deleteFiles(sessionId)) return false
         if (!payloadFiles.all { file -> !file.exists() || file.delete() }) return false
