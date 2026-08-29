@@ -1,13 +1,11 @@
 package com.noop.data
 
 import com.noop.protocol.Whoop5RawImu
-import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import java.lang.reflect.Proxy
 
 /**
  * Guards the additive v20 -> v21 Room migration (the `rawImuSample` table, #423), the Android twin of the
@@ -54,6 +52,11 @@ class RawImuMigrationTest {
         assertEquals(21, WhoopDatabase.MIGRATION_20_21.endVersion)
     }
 
+    @Test fun obsoleteBoundedCache_isDroppedAt35() {
+        assertEquals(34, WhoopDatabase.MIGRATION_34_35.startVersion)
+        assertEquals(35, WhoopDatabase.MIGRATION_34_35.endVersion)
+    }
+
     // MARK: - Packed-BLOB encoding (byte-identical i16 LE)
 
     @Test
@@ -98,45 +101,6 @@ class RawImuMigrationTest {
         val f = validImuBuffer()
         putI16(f, 24, 99)                            // countA != 100
         assertNull("wrong sample count", Whoop5RawImu.rawColumns(f))
-    }
-
-    // MARK: - Store-write plumbing (repository inserts + rolling prune through the DAO)
-
-    @Test
-    fun repositoryInsertRawImu_insertsThenPrunes() = runBlocking {
-        var inserted: List<RawImuSampleEntity>? = null
-        var prunedDevice: String? = null
-        var prunedKeep = -1
-        val dao = Proxy.newProxyInstance(
-            WhoopDao::class.java.classLoader,
-            arrayOf(WhoopDao::class.java),
-        ) { _, method, args ->
-            when (method.name) {
-                "insertRawImu" -> {
-                    @Suppress("UNCHECKED_CAST")
-                    inserted = args[0] as List<RawImuSampleEntity>
-                    listOf(1L)
-                }
-                "pruneRawImu" -> { prunedDevice = args[0] as String; prunedKeep = args[1] as Int; Unit }
-                else -> throw UnsupportedOperationException("raw-imu insert must not call ${method.name}")
-            }
-        } as WhoopDao
-
-        val row = RawImuSampleEntity("my-whoop", 1_780_917_232L, StreamPersistence.packImuColumns(shortArrayOf(1, -1, 100)))
-        WhoopRepository(dao).insertRawImu("my-whoop", listOf(row))
-
-        assertEquals(listOf(row), inserted)
-        assertEquals("my-whoop", prunedDevice)
-        assertEquals(WhoopRepository.RAW_IMU_RETENTION_ROWS, prunedKeep)
-    }
-
-    @Test
-    fun repositoryInsertRawImu_emptyIsNoOp() = runBlocking {
-        val dao = Proxy.newProxyInstance(
-            WhoopDao::class.java.classLoader,
-            arrayOf(WhoopDao::class.java),
-        ) { _, method, _ -> throw AssertionError("empty insert must not touch the DAO (${method.name})") } as WhoopDao
-        WhoopRepository(dao).insertRawImu("my-whoop", emptyList())
     }
 
     private fun validImuBuffer(): ByteArray {

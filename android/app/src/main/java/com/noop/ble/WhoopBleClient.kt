@@ -28,9 +28,9 @@ import com.noop.NoopApplication
 import com.noop.data.HrRow
 import com.noop.data.RrRow
 import com.noop.data.StreamBatch
-import com.noop.data.RawImuSampleEntity
 import com.noop.data.StreamPersistence
 import com.noop.protocol.Whoop5RawImu
+import com.noop.testcentre.ImuSessionFileStore
 import com.noop.data.WhoopRepository
 import com.noop.protocol.AlarmPayload
 import com.noop.protocol.DYN_ACCEL_STILL_THRESHOLD_G
@@ -90,6 +90,10 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.util.UUID
+import java.io.BufferedOutputStream
+import java.io.DataOutputStream
+import java.io.File
+import java.io.FileOutputStream
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -392,6 +396,16 @@ class RealGattOps(private val gatt: BluetoothGatt) : GattOps {
         gatt.setPreferredPhy(txPhy, rxPhy, phyOptions)
 }
 
+/** Foreground ground-truth diagnostics. Kept separate from [LiveState] so production UI/state stays clean. */
+data class GroundTruthImuStatus(
+    val sessionId: String? = null,
+    val requested: Boolean = false,
+    val packets: Long = 0,
+    val bytes: Long = 0,
+    val lastPacketAtMs: Long? = null,
+    val note: String = "Not started",
+)
+
 class WhoopBleClient(
     private val context: Context,
     /**
@@ -631,6 +645,11 @@ class WhoopBleClient(
             idleThrottleEnabled -> BluetoothGatt.CONNECTION_PRIORITY_LOW_POWER
             else -> BluetoothGatt.CONNECTION_PRIORITY_BALANCED
         }
+
+        /** Bounded 100 Hz work gets HIGH independently of the global experiment. A completed capture
+         * only holds it while an offload is actively repairing missing seconds. */
+        fun rawCaptureHighPriority(captureActive: Boolean, backfilling: Boolean, needsRepair: Boolean): Boolean =
+            captureActive || (backfilling && needsRepair)
 
         /**
          * The throughput summary for one offload burst (#1007), pure so it is testable without a BLE stack.
@@ -1767,6 +1786,9 @@ class WhoopBleClient(
     )
     val state: StateFlow<LiveState> = _state.asStateFlow()
 
+    private val _groundTruthImuStatus = MutableStateFlow(GroundTruthImuStatus())
+    val groundTruthImuStatus: StateFlow<GroundTruthImuStatus> = _groundTruthImuStatus.asStateFlow()
+
     /** Monotonic event for the in-memory/exportable strap log. Test Centre panels collect it only while
      * active and coalesce bursts, so a new tagged line refreshes its readout without mutating LiveState. */
     private val _logRevision = MutableStateFlow(0L)
@@ -1941,6 +1963,9 @@ class WhoopBleClient(
      *  the drop-risk is confined to when the user actually wants power saving. Set on the main looper via
      *  [setConnectionPriorityManagement]. */
     @Volatile private var connectionPriorityEnabled: Boolean = false
+    /** Android-only transport lease for bounded 100 Hz capture and delayed history repair. CoreBluetooth
+     * chooses connection parameters itself and exposes no equivalent app-side request. */
+    @Volatile private var rawCapturePriorityApplied: Boolean = false
     /** Battery-% at/below which the LOW_POWER idle throttle engages while the STRAP is discharging;
      *  0 = never (safe half only).
      *
@@ -2138,7 +2163,13 @@ class WhoopBleClient(
     /** (Re)apply the GATT connection priority for the current link state (#477). Idempotent + cheap: OFF
      *  or disconnected -> no BLE op. Called on connect-established and whenever offload / live-HR toggles. */
     private fun refreshConnectionPriority() {
-        if (!connectionPriorityEnabled) return
+        val rawCaptureHigh = connectedFamily == DeviceFamily.WHOOP5 && rawCaptureHighPriority(
+            captureActive = groundTruthImuSessionId != null,
+            backfilling = backfilling,
+            needsRepair = ImuSessionFileStore(context).needsHighThroughput(deviceId),
+        )
+        // Preserve the zero-op default path, but release a completed capture's HIGH lease once.
+        if (!connectionPriorityEnabled && !rawCaptureHigh && !rawCapturePriorityApplied) return
         val ops = gattOps ?: return
         // Only read the battery when the RISKY idle throttle is actually armed (threshold > 0); the SAFE
         // HIGH-escalation half doesn't need it, so safe-half-only mode issues no battery read.
@@ -2149,7 +2180,7 @@ class WhoopBleClient(
         // Read the authoritative INTERNAL flags (both set synchronously on this looper), not the
         // published LiveState mirror, which `exitBackfilling` may update a beat later.
         val priority = connectionPriorityFor(
-            offloadActive = backfilling,
+            offloadActive = rawCaptureHigh || (connectionPriorityEnabled && backfilling),
             // #533: gated — the live stream does NOT escalate by default. See [escalateForLiveHr]: the
             // overnight continuous-HRV window keeps this armed for hours, and a 1 Hz stream gains nothing
             // from HIGH. The offload burst below is the case that actually wants the shorter interval.
@@ -2161,6 +2192,7 @@ class WhoopBleClient(
         // binder is handled by the next real op, and skipping a priority request costs nothing. Swallow.
         try {
             ops.requestConnectionPriorityCompat(priority)
+            rawCapturePriorityApplied = rawCaptureHigh
         } catch (t: Throwable) {
             log("connection-priority request failed (${t.javaClass.simpleName}); skipped")
         }
@@ -2168,6 +2200,117 @@ class WhoopBleClient(
     /** @Volatile: set on the GATT binder thread at service discovery, but read in send() on the main
      *  thread (user actions) - the barrier makes a main-thread send see the current characteristic. */
     @Volatile private var cmdCharacteristic: BluetoothGattCharacteristic? = null
+
+    @Volatile private var groundTruthImuCommandAllowed = false
+    private var groundTruthImuSessionId: String? = null
+    private var groundTruthImuStoppedAtMs = 0L
+    private var unexpectedImuStopAtMs = 0L
+
+    /** Start the hardware-confirmed WHOOP 5 realtime IMU mode for an explicit ground-truth session. */
+    @Synchronized
+    fun startGroundTruthImuCapture(sessionId: String): Boolean {
+        if (gatt == null || cmdCharacteristic == null) {
+            _groundTruthImuStatus.value = GroundTruthImuStatus(
+                sessionId = sessionId,
+                note = "Band not connected / command channel not ready",
+            )
+            return false
+        }
+        if (connectedFamily != DeviceFamily.WHOOP5) {
+            _groundTruthImuStatus.value = GroundTruthImuStatus(
+                sessionId = sessionId,
+                note = "Realtime IMU unsupported for connected family: $connectedFamily",
+            )
+            return false
+        }
+        groundTruthImuSessionId = sessionId
+        groundTruthImuStoppedAtMs = 0L
+        groundTruthImuCommandAllowed = true
+        refreshConnectionPriority()
+        try {
+            // The verified bounded raw-capture sequence is START_RAW_DATA followed by the
+            // realtime IMU selector. Opcode 106 alone ACKs but does not start the producer.
+            send(CommandNumber.START_RAW_DATA, byteArrayOf(1), withResponse = true)
+            send(CommandNumber.TOGGLE_IMU_MODE, byteArrayOf(1, 1), withResponse = true)
+        } finally {
+            groundTruthImuCommandAllowed = false
+        }
+        log("Ground-truth realtime IMU requested ON (session=$sessionId)")
+        _groundTruthImuStatus.update { it.copy(requested = true, note = "IMU requested; waiting for packets") }
+        return true
+    }
+
+    /** Stop the realtime IMU before closing its lossless length-prefixed frame file. */
+    @Synchronized
+    fun stopGroundTruthImuCapture() {
+        if (connectedFamily == DeviceFamily.WHOOP5 && gatt != null && cmdCharacteristic != null) {
+            groundTruthImuCommandAllowed = true
+            try {
+                send(CommandNumber.STOP_RAW_DATA, byteArrayOf(1), withResponse = true)
+                send(CommandNumber.TOGGLE_IMU_MODE, byteArrayOf(1, 0), withResponse = true)
+            } finally {
+                groundTruthImuCommandAllowed = false
+            }
+        }
+        log("Ground-truth realtime IMU requested OFF (session=${groundTruthImuSessionId ?: "none"})")
+        groundTruthImuSessionId = null
+        groundTruthImuStoppedAtMs = System.currentTimeMillis()
+        _groundTruthImuStatus.update { it.copy(requested = false, note = "Stopped; accepting history repair") }
+        // The collector closes its window before this call. A running history repair keeps HIGH;
+        // otherwise release now and let the next offload acquire a fresh bounded lease.
+        refreshConnectionPriority()
+    }
+
+    @Synchronized
+    fun finishGroundTruthImuCapture(sessionId: String) {
+        if (groundTruthImuSessionId == sessionId) groundTruthImuSessionId = null
+    }
+
+    @Synchronized
+    private fun recordGroundTruthImuFrame(frame: ByteArray) {
+        if (frame.size <= 8) return
+        val packetType = frame[8].toInt() and 0xFF
+        // Decode, not the transport packet type, is authoritative: history replay can wrap the same
+        // 100 Hz payload differently from realtime delivery.
+        runCatching {
+            val routed = ImuSessionFileStore(context).append(deviceId, frame)
+            if (routed > 0) {
+                val now = System.currentTimeMillis()
+                _groundTruthImuStatus.update {
+                    it.copy(
+                        packets = it.packets + 1,
+                        bytes = it.bytes + frame.size,
+                        lastPacketAtMs = now,
+                        note = "Receiving IMU packet type $packetType",
+                    )
+                }
+            }
+        }.onFailure {
+            log("Ground-truth IMU append failed (${it.javaClass.simpleName})")
+            _groundTruthImuStatus.update { status -> status.copy(note = "Write failed: ${it.javaClass.simpleName}") }
+        }
+    }
+
+    /** Fail-safe for a producer left armed by a crash, another client, or a lost stop write. */
+    @Synchronized
+    private fun stopUnexpectedRealtimeImu(frame: ByteArray, replayedOffload: Boolean) {
+        if (connectedFamily != DeviceFamily.WHOOP5 || replayedOffload || frame.size <= 8) return
+        val type = frame[8].toInt() and 0xFF
+        if (type != 43 && type != 51) return
+        if (groundTruthImuSessionId != null || PuffinExperiment.from(context).isCaptureEnabled) return
+        val now = System.currentTimeMillis()
+        if (now - groundTruthImuStoppedAtMs < 3_000L || now - unexpectedImuStopAtMs < 30_000L) return
+        if (gatt == null || cmdCharacteristic == null) return
+        unexpectedImuStopAtMs = now
+        groundTruthImuCommandAllowed = true
+        try {
+            send(CommandNumber.STOP_RAW_DATA, byteArrayOf(1), withResponse = true)
+            send(CommandNumber.TOGGLE_IMU_MODE, byteArrayOf(1, 0), withResponse = true)
+        } finally {
+            groundTruthImuCommandAllowed = false
+        }
+        log("Raw IMU fail-safe: unexpected realtime packet type $type while capture was off; stop requested")
+    }
 
     /** Frame reassembler for the fragmented custom notify chars (port of Reassembler). Reassigned per
      *  connection with the detected family — WHOOP5/MG frames use a different length encoding. */
@@ -3459,7 +3602,13 @@ class WhoopBleClient(
             // 5/MG allow-list: live HR, buzz, and the historical-offload pair (trigger + ack). The
             // offload commands ride the SAME proven puffin COMMAND frame as the Swift path
             // (whoop5HistoricalAckFrame = puffinCommandFrame(23, [0x01]+endData)). (#78)
-            if (cmd != CommandNumber.TOGGLE_REALTIME_HR && cmd != CommandNumber.RUN_HAPTICS_PATTERN &&
+            if (cmd != CommandNumber.TOGGLE_REALTIME_HR &&
+                !(cmd in setOf(
+                    CommandNumber.START_RAW_DATA,
+                    CommandNumber.STOP_RAW_DATA,
+                    CommandNumber.TOGGLE_IMU_MODE,
+                ) && groundTruthImuCommandAllowed) &&
+                cmd != CommandNumber.RUN_HAPTICS_PATTERN &&
                 cmd != CommandNumber.SEND_HISTORICAL_DATA && cmd != CommandNumber.HISTORICAL_DATA_RESULT &&
                 // ABORT_HISTORICAL_TRANSMITS (20) over puffin: stop an offload already in flight. Allowed
                 // ONLY while one actually is, so a default install can never form these bytes on a 5/MG —
@@ -5977,12 +6126,14 @@ class WhoopBleClient(
                     // handleFrame's replayedOffload gate, so evaluating it twice bounds-checked + indexed
                     // every offloaded frame for nothing. (The Swift 5/MG inbound loop already hoists this.)
                     val offloadFrame = backfilling && isOffloadFrame(frame, connectedFamily)
+                    stopUnexpectedRealtimeImu(frame, offloadFrame)
                     noteWhoop5R22Telemetry(frame, offloadFrame)  // #174
                     // #47: decode this frame ONCE and thread it to both consumers (the router below and the
                     // live collector) instead of each re-parsing it — steady-state drops 2→1 parse per live
                     // frame. Family-aware, so it's correct for WHOOP4 and 5/MG alike.
                     val parsed = Framing.parseFrame(frame, connectedFamily)
                     // A frame replayed as part of the historical offload (type 47/48/… during a backfill)
+                    recordGroundTruthImuFrame(frame)
                     // must not drive LIVE-only state (the charging pill). (PR #568 reimpl)
                     //
                     // NOT the same shape as iOS, despite what this said before. THIS side calls the handler
@@ -6166,7 +6317,6 @@ class WhoopBleClient(
                         // BEFORE the offload branch so it catches the burst; no-op unless capture is on.
                         writeWhoop5DeepBufferIfBig(uuid.toString(), frame, isOffloadFrame(frame, connectedFamily))
                         // #423: the queryable twin of that diagnostics line — persist the decoded IMU
-                        // samples (100 Hz 6-axis) into the rawImuSample table when raw capture is on.
                         storeWhoop5RawImuIfBuffer(frame)
                     }
                     // Opt-in raw capture: record EVERY frame of the session (offload AND live flood —
@@ -9320,27 +9470,19 @@ class WhoopBleClient(
      * one previous generation. Cheap for every other frame: a length + single-byte compare BEFORE the
      * pref read; no-op unless the capture toggle is on.
      */
-    /** #423: persist the WHOOP 5/MG raw-IMU offload buffer NOOP already decodes for the deep-buffer log —
-     *  the queryable twin of that (table-less) diagnostics line. Same `isCaptureEnabled` gate; only the
-     *  1244-B 6-axis buffer decodes (rawColumns null otherwise). IO-dispatched so it never blocks the GATT
-     *  thread; bounded by a rolling retention prune. Raw i16, no downstream consumer yet (instrument-first). */
+    /** Debug heartbeat for valid WHOOP 5/MG raw-IMU buffers. Session persistence is file-only. */
     private fun storeWhoop5RawImuIfBuffer(frame: ByteArray) {
+        // This compatibility cache keeps its original opt-in gate. Bounded sessions are file-backed.
         if (!PuffinExperiment.from(context).isCaptureEnabled) return
         val cols = Whoop5RawImu.rawColumns(frame) ?: return
         val baseTs = PuffinDeepBufferLog.strapTs(frame)?.toLong() ?: return
-        val dev = deviceId
         // #423 debug heartbeat: confirm the offload IMU is arriving + decoding on-device without pulling the
         // JSONL. Throttled (first buffer, then every 500) so a large offload can't flood the strap log; the
         // count is a per-connection running total. Off unless raw capture is enabled (gated above).
         rawImuDecodedCount++
         if (rawImuDecodedCount == 1 || rawImuDecodedCount % 500 == 0) {
             log("RAW IMU capture: $rawImuDecodedCount buffer(s) decoded, latest ts=$baseTs " +
-                "(${cols.size / 6} samples/axis) — storing (retain ${WhoopRepository.RAW_IMU_RETENTION_ROWS})")
-        }
-        val row = RawImuSampleEntity(dev, baseTs, StreamPersistence.packImuColumns(cols))
-        ioScope.launch {
-            runCatching { repository.insertRawImu(dev, listOf(row)) }
-                .onFailure { log("RAW IMU capture: store failed (${it.message})") }
+                "(${cols.size / 6} samples/axis) — routed to matching file sessions")
         }
     }
 

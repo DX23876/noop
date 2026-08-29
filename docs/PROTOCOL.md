@@ -424,6 +424,12 @@ public func frame(seq: UInt8, payload: [UInt8] = [0x00]) -> [UInt8] {
 | 122 | `STOP_HAPTICS` | `[0x00]` | stop an in-progress haptic |
 | 123 | `SELECT_WRIST` | — | set strap wrist |
 
+**5/MG raw-IMU sequence (hardware-verified):** command 106 accepting a write does not mean that the
+producer started. A bounded capture first sends `START_RAW_DATA` (81) `[0x01]`, then command 106 with
+the two-byte selector `[0x01, 0x01]`. Stop uses `STOP_RAW_DATA` (82) `[0x01]`, then command 106
+`[0x01, 0x00]`. The one-byte payload in the table remains the WHOOP 4 form. See
+[5/MG raw data capture](RAW_DATA_CAPTURE.md) for storage, history repair, and export semantics.
+
 **Payload builders** in `WhoopCommand`:
 
 - `setAlarmPayload(epochSec:)` → `[0x01] + epoch u32 LE + [0x00, 0x00]` (7 bytes).

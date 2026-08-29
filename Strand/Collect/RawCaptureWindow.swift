@@ -5,7 +5,9 @@ import Foundation
 /// auto-expires the window so a missed stop callback can't leak raw forever.
 struct RawCaptureWindow {
     static let minSeconds: TimeInterval = 1
-    static let maxSeconds: TimeInterval = 300
+    // A manually stopped research session may legitimately last for hours. It is still bounded so an
+    // interrupted UI/process cannot accidentally turn the opt-in capture into permanent 24/7 logging.
+    static let maxSeconds: TimeInterval = 24 * 60 * 60
     static func clamp(_ s: TimeInterval) -> TimeInterval { min(max(s, minSeconds), maxSeconds) }
 
     private var deadline: TimeInterval?       // monotonic deadline; nil = inactive

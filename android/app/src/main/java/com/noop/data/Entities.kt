@@ -3,6 +3,7 @@ package com.noop.data
 import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.Index
+import androidx.room.PrimaryKey
 
 /*
  * Room entities mirroring the verified GRDB schema in
@@ -658,42 +659,6 @@ data class PpgWaveformSampleEntity(
         result = 31 * result + ts.hashCode()
         result = 31 * result + samples.contentHashCode()
         result = 31 * result + (burstIndex ?: 0)
-        return result
-    }
-}
-
-/**
- * One 1-second WHOOP 5/MG raw-IMU offload buffer (#423): 100 Hz 6-axis inertial data. [samples] is a
- * packed little-endian i16 BLOB of the six columns in wire order — ax×100, ay×100, az×100, gx×100, gy×100,
- * gz×100 (1200 bytes) — decoded by [com.noop.protocol.Whoop5RawImu] (scales 1/4096 g/LSB, 2000/32768 dps/
- * LSB). The strap already delivers this in the connect-time offload burst; capturing it needs NO arming.
- * Instrument-first + bounded: written only when raw capture is enabled, and pruned to a rolling recent
- * window ([WhoopRepository.RAW_IMU_RETENTION_ROWS]). Twin of the GRDB `rawImuSample` table. Natural key
- * (deviceId, ts) = one row per strap-second.
- *
- * CONSUMER STATUS (#978): deliberately none yet — instrument-first, the same stance as `v18AuxSample`. The
- * writer runs only with raw capture enabled + a 5/MG deep-data unlock; nothing scores, gates or shows a row.
- * The [WhoopRepository.rawImuSamples] / [WhoopDao.rawImuSamples] reader is intentionally dormant (zero
- * callers) — the eventual cross-check seam, NOT dead code, so do not delete it. The GRDB twin has no reader
- * yet by the same rule: one lands WITH a validated consumer, not before.
- */
-@Entity(tableName = "rawImuSample", primaryKeys = ["deviceId", "ts"])
-data class RawImuSampleEntity(
-    val deviceId: String,
-    val ts: Long,
-    val samples: ByteArray,
-) {
-    // ByteArray needs structural equals/hashCode (the generated identity ones break round-trip asserts).
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (other !is RawImuSampleEntity) return false
-        return deviceId == other.deviceId && ts == other.ts && samples.contentEquals(other.samples)
-    }
-
-    override fun hashCode(): Int {
-        var result = deviceId.hashCode()
-        result = 31 * result + ts.hashCode()
-        result = 31 * result + samples.contentHashCode()
         return result
     }
 }

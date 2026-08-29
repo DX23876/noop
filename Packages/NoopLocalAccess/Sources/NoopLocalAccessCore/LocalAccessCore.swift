@@ -332,7 +332,7 @@ public final class ReadonlyNoopStore {
             let decodedTables = [
                 "hrSample", "rrInterval", "event", "battery", "spo2Sample",
                 "skinTempSample", "respSample", "gravitySample", "ppgHrSample", "stepSample",
-                "sleepStateSample", "ppgWaveformSample", "rawImuSample", "v18AuxSample",
+                "sleepStateSample", "ppgWaveformSample", "v18AuxSample",
             ]
             var decodedRows = 0
             for table in decodedTables where tableNames.contains(table) {

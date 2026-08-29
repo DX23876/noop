@@ -847,6 +847,8 @@ public final class BLEManager: NSObject, ObservableObject {
     /// Re-entrancy guard for captureRawAccel: true while a bounded on-demand window is running.
     /// A second tap is a no-op until the active capture's asyncAfter block fires and clears this.
     private var rawCaptureInFlight = false
+    private var rawCaptureStoppedAt = Date.distantPast
+    private var unexpectedImuStopAt = Date.distantPast
     /// Ordered queue of frames awaiting drain through the serial Backfiller task.
     private var backfillFrameQueue: [[UInt8]] = []
     /// True while the drain task is running (prevents a second drain task from launching).
@@ -1840,8 +1842,14 @@ public final class BLEManager: NSObject, ObservableObject {
         rawCaptureInFlight = true
         let secs = RawCaptureWindow.clamp(seconds)
         collector?.beginRawCapture(seconds: secs)
-        send(.startRawData, payload: [0x01])
-        send(.toggleIMUMode, payload: [0x01])
+        // Hardware-verified on WHOOP 5/MG: opcode 106 alone acknowledges but does not start the
+        // producer. START_RAW_DATA must precede the two-byte realtime IMU selector.
+        send(.startRawData, payload: [0x01], writeType: .withResponse)
+        if selectedModel.deviceFamily == .whoop5 {
+            send(.toggleIMUMode, payload: [0x01, 0x01], writeType: .withResponse)
+        } else {
+            send(.toggleIMUMode, payload: [0x01], writeType: .withResponse)
+        }
         log("Raw-accel capture: started for \(secs)s")
         DispatchQueue.main.asyncAfter(deadline: .now() + secs) { [weak self] in
             guard let self else { return }
@@ -1849,7 +1857,10 @@ public final class BLEManager: NSObject, ObservableObject {
             // continuous stream must keep running — we just flush/upload the bounded window we
             // captured without halting the wider session.
             if !UserDefaults.standard.bool(forKey: "enableRawCapture") {
-                self.send(.stopRawData, payload: [0x01])
+                self.send(.stopRawData, payload: [0x01], writeType: .withResponse)
+                if self.selectedModel.deviceFamily == .whoop5 {
+                    self.send(.toggleIMUMode, payload: [0x01, 0x00], writeType: .withResponse)
+                }
             }
             self.rawCaptureInFlight = false
             Task { @MainActor in
@@ -1857,6 +1868,50 @@ public final class BLEManager: NSObject, ObservableObject {
             }
             self.log("Raw-accel capture: stopped + flushed")
         }
+    }
+
+    /// Start a manually stopped 5/MG raw-data session. Returns false when another capture is active.
+    @discardableResult
+    public func startGroundTruthRawCapture(sessionId: String) -> Bool {
+        guard !rawCaptureInFlight else { return false }
+        rawCaptureInFlight = true
+        send(.startRawData, payload: [0x01], writeType: .withResponse)
+        send(.toggleIMUMode,
+             payload: selectedModel.deviceFamily == .whoop5 ? [0x01, 0x01] : [0x01],
+             writeType: .withResponse)
+        log("Raw-data session: started")
+        return true
+    }
+
+    /// Stop and flush the current manually controlled raw-data session.
+    public func stopGroundTruthRawCapture() async {
+        if rawCaptureInFlight && !UserDefaults.standard.bool(forKey: "enableRawCapture") {
+            send(.stopRawData, payload: [0x01], writeType: .withResponse)
+            if selectedModel.deviceFamily == .whoop5 {
+                send(.toggleIMUMode, payload: [0x01, 0x00], writeType: .withResponse)
+            }
+        }
+        rawCaptureInFlight = false
+        rawCaptureStoppedAt = Date()
+        log("Raw-data session: stopped + flushed")
+    }
+
+    /// Stop a realtime IMU producer left armed after a crash, lost stop write, or another client.
+    private func stopUnexpectedRealtimeImu(_ frame: [UInt8], isOffload: Bool, now: Date = Date()) {
+        guard selectedModel.deviceFamily == .whoop5, !isOffload, frame.count > 8,
+              frame[8] == 43 || frame[8] == 51,
+              !rawCaptureInFlight, !UserDefaults.standard.bool(forKey: "enableRawCapture"),
+              now.timeIntervalSince(rawCaptureStoppedAt) >= 3,
+              now.timeIntervalSince(unexpectedImuStopAt) >= 30 else { return }
+        unexpectedImuStopAt = now
+        send(.stopRawData, payload: [0x01], writeType: .withResponse)
+        send(.toggleIMUMode, payload: [0x01, 0x00], writeType: .withResponse)
+        log("Raw IMU fail-safe: unexpected realtime packet type \(frame[8]) while capture was off; stop requested")
+    }
+
+    public func groundTruthHistoryCSV(from: Int, to: Int) async -> Data {
+        await collector?.historySensorsCSV(from: from, to: to)
+            ?? Data("stream,unix_s,v1,v2,v3,v4\n".utf8)
     }
 
     /// Send a command to the WHOOP strap.
@@ -1941,6 +1996,10 @@ public final class BLEManager: NSObject, ObservableObject {
                 || (DeviceConfigReadProbe.isReadOnlyOpcode(command.rawValue) && deviceConfigReport != nil)
                 || command == .sendHistoricalData || command == .historicalDataResult
                 || command == .setClock || command == .getClock
+                // Bounded Raw Data Collector only. These writes remain impossible unless the explicit
+                // user-started capture window is in flight; normal sync never enables this gate.
+                || (rawCaptureInFlight && (command == .startRawData
+                    || command == .stopRawData || command == .toggleIMUMode))
                 // SET_CONFIG / SET_FF_VALUE (120), ENABLE direction — the R22 deep-stream unlock. Allowed
                 // only while the deep-data experiment is opted in, and only for a KEY and a VALUE the gate
                 // recognises: one of the sixteen R22 flags carrying that key's own enable value. The clause
@@ -5275,6 +5334,9 @@ extension BLEManager: @preconcurrency CBCentralManagerDelegate {
         didBond = false
         clientHelloWriteAt = nil   // #1635: no hello survives the link that carried it
         whoop5RealtimeArmed = false
+        // A user capture remains represented by RawDataSessionStore, but its transport must be re-armed
+        // on the next connection. Keeping this true would make that reconnect attempt a silent no-op.
+        rawCaptureInFlight = false
         // The strap forgets the realtime-HR toggle across a disconnect; the post-bond branch re-arms it
         // from `wantsRealtime`. Clear only the "what we last sent" flag — `screenWantsRealtime` /
         // `keepRealtimeForData` (and thus `wantsRealtime`) are intent and must survive a reconnect so the
@@ -6274,9 +6336,8 @@ extension BLEManager: @preconcurrency CBPeripheralDelegate {
                     // reverse-engineering — its own file the bulk-capture eviction never churns.
                     // BEFORE the offload branch so it catches the burst; no-op unless capture is on.
                     puffinDeepBufferLog.appendIfDeepBuffer(frame: frame, char: characteristic.uuid, isOffload: isOffload)
+                    stopUnexpectedRealtimeImu(frame, isOffload: isOffload)
                     // #423: the queryable twin of that diagnostics line — persist the decoded 100 Hz 6-axis
-                    // IMU samples into the rawImuSample table when raw capture is on (same gate, gated inside).
-                    collector?.storeRawImu(frame: frame)
                     if isOffload {
                         // Same policy as WHOOP4: historical offload frames are bulk sync traffic.
                         // Keep them out of the live UI parser during backfill and let Backfiller

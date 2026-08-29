@@ -397,7 +397,7 @@ extension WhoopStore {
             let rawTables = ["hrSample", "rrInterval", "event", "battery",
                              "spo2Sample", "skinTempSample", "respSample", "gravitySample",
                              "stepSample", "ppgHrSample", "sleepStateSample", "ppgWaveformSample",
-                             "rawImuSample", "v18AuxSample"]
+                             "v18AuxSample"]
             var decoded = 0
             for t in rawTables {
                 decoded += try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM \(t)") ?? 0

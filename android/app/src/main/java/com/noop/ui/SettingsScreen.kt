@@ -529,8 +529,6 @@ fun SettingsScreen(
     // callee's error handling - a throw would strand the button disabled behind a spinner that never
     // stops, with no way back short of leaving the screen.
     var strapLogBusy by remember { mutableStateOf(false) }
-    var whoop5CaptureBusy by remember { mutableStateOf(false) }
-    var rawAndLogBusy by remember { mutableStateOf(false) }
 
     // Re-scan must request the runtime Bluetooth permission before scanning — without this the
     // button calls connect() directly and silently no-ops on Android 12+ when the permission was
@@ -573,7 +571,6 @@ fun SettingsScreen(
     // SharedPreferences isn't reactive, so the Switch drives a local mutableState that the store reads.
     val puffinExperiment = remember { PuffinExperiment.from(context) }
     var puffinExperiments by remember(rev) { mutableStateOf(puffinExperiment.isEnabled) }
-    var puffinCapture by remember(rev) { mutableStateOf(puffinExperiment.isCaptureEnabled) }
     var deepData by remember(rev) { mutableStateOf(puffinExperiment.isDeepDataEnabled) }
 
     // #174: set when the deep-data switch is turned OFF, so the app can OFFER to clear the flags on the
@@ -2245,11 +2242,13 @@ fun SettingsScreen(
             )
         }
         // --- Experimental · WHOOP 5 / MG --- (hidden when the user is confidently on a 4.0, #22)
-        if (showFiveMGControls) {
+        // Developer-only 5/MG controls now live in Test Centre. Keep the implementation below during
+        // the compatibility transition, but never render a second copy in everyday Settings.
+        if (false && showFiveMGControls) {
         SettingsCard(
             icon = Icons.Filled.Science,
             title = uiString(R.string.l10n_settings_screen_experimental_whoop_5_mg_41ef7041),
-            blurb = "Live heart rate already works on a WHOOP 5/MG strap. These probes go further and try to coax more out of it. They are guesses, off by default, and only ever touch a 5/MG strap. WHOOP 4.0 is never affected.",
+            blurb = "Normal WHOOP 5/MG recording and history sync are supported. These remaining controls are developer experiments for unmapped protocol features; they are not required for everyday use.",
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Row(
@@ -2596,86 +2595,11 @@ fun SettingsScreen(
                     }
                 }
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
-                ) {
-                    Text(
-                        uiString(R.string.l10n_settings_screen_record_5_mg_raw_capture_research_1d966bbf),
-                        style = NoopType.subhead,
-                        color = Palette.textPrimary,
-                        modifier = Modifier.weight(1f),
-                    )
-                    Switch(
-                        checked = puffinCapture,
-                        onCheckedChange = {
-                            puffinCapture = it
-                            puffinExperiment.isCaptureEnabled = it
-                        },
-                        colors = SwitchDefaults.colors(
-                            checkedThumbColor = Palette.surfaceBase,
-                            checkedTrackColor = Palette.accent,
-                            uncheckedThumbColor = Palette.textSecondary,
-                            uncheckedTrackColor = Palette.surfaceInset,
-                            uncheckedBorderColor = Palette.hairline,
-                        ),
-                        modifier = Modifier.semantics {
-                            contentDescription = uiString(R.string.l10n_settings_screen_record_5_mg_raw_capture_9354fe89)
-                        },
-                    )
-                }
                 Text(
-                    uiString(R.string.l10n_settings_screen_records_the_raw_frames_of_each_98a284df),
+                    uiString(R.string.raw_diag_moved),
                     style = NoopType.caption,
                     color = Palette.textTertiary,
                 )
-                NoopButton(
-                    text = uiString(R.string.l10n_settings_screen_share_5_mg_capture_for_the_e41ac6bd),
-                    leadingIcon = Icons.Filled.Upload,
-                    kind = NoopButtonKind.Secondary,
-                    fullWidth = true,
-                    enabled = !whoop5CaptureBusy,
-                    onClick = {
-                        whoop5CaptureBusy = true
-                        scope.launch {
-                            // try/finally: the flag must clear on any exit, not just the happy path (#961 follow-up).
-                            try {
-                                LogExport.shareWhoop5Capture(context, live.whoop5Detected, live.encryptedBond)
-                            } finally {
-                                whoop5CaptureBusy = false
-                            }
-                        }
-                    },
-                )
-                if (whoop5CaptureBusy) {
-                    NoopBusyRow()
-                }
-
-                // One-tap "matched pair" export (#510): hands a reporter BOTH the raw capture file and
-                // the strap log together (timestamped, same minute) so a protocol-mapping issue arrives
-                // with the frames AND the context that produced them.
-                NoopButton(
-                    text = uiString(R.string.l10n_settings_screen_export_raw_log_matched_pair_d65390bf),
-                    leadingIcon = Icons.Filled.IosShare,
-                    kind = NoopButtonKind.Secondary,
-                    fullWidth = true,
-                    enabled = !rawAndLogBusy,
-                    onClick = {
-                        rawAndLogBusy = true
-                        scope.launch {
-                            // try/finally: the flag must clear on any exit, not just the happy path (#961 follow-up).
-                            try {
-                                LogExport.shareRawAndLog(context, vm.ble.exportLogText(), live.whoop5Detected, live.encryptedBond)
-                            } finally {
-                                rawAndLogBusy = false
-                            }
-                        }
-                    },
-                )
-                if (rawAndLogBusy) {
-                    NoopBusyRow()
-                }
             }
         }
         } // end if (showFiveMGControls)

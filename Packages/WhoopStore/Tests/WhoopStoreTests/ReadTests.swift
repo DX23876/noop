@@ -275,9 +275,6 @@ final class ReadTests: XCTestCase {
                     ppgWaveform: [PpgWaveformSample(ts: 400, samples: [1, 2, 3])],
                     v18Aux: [V18AuxSample(ts: 400, slotValues: [1, 2])]),
             deviceId: "dev1")
-        _ = try await store.insertRawImu(deviceId: "dev1",
-                                         rows: [(ts: 400, cols: [Int16(1), Int16(2)])],
-                                         retentionRows: 1000)
         try await store.enqueueRawBatch(
             RawBatchMeta(batchId: "b1", deviceId: "dev1",
                          clockRef: ClockRef(device: 0, wall: 0), capturedAt: 1,
@@ -285,9 +282,9 @@ final class ReadTests: XCTestCase {
             frames: [[0xAA, 0x00, 0x01, 0x02]])
         let stats = try await store.storageStats()
         // dev1: 3 hr + 2 rr + 1 event + 1 battery + 1 spo2 + 1 skinTemp + 1 resp + 1 gravity
-        //       + 1 step + 1 sleepState + 1 ppgHr + 1 ppgWaveform + 1 v18Aux + 1 rawImu = 17
-        // other: 1 hr = 1 → 18 decoded rows across all 14 raw tables.
-        XCTAssertEqual(stats.decodedRows, 18)
+        //       + 1 step + 1 sleepState + 1 ppgHr + 1 ppgWaveform + 1 v18Aux = 16
+        // other: 1 hr = 1 → 17 decoded rows.
+        XCTAssertEqual(stats.decodedRows, 17)
         XCTAssertEqual(stats.rawBatches, 1)
         XCTAssertEqual(stats.rawBytes, 4)
     }

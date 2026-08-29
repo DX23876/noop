@@ -77,4 +77,5 @@ final class PruneTests: XCTestCase {
                                               maxUnsyncedBytes: 1_000_000)
         XCTAssertEqual(pruned, 0)
     }
+
 }

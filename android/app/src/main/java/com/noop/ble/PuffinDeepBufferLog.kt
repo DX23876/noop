@@ -11,8 +11,8 @@ import com.noop.protocol.Whoop5RawImu
  * `PuffinDeepBufferLog` (its pure, unit-testable core); the file I/O + capture-toggle gating live in
  * [WhoopBleClient.writeWhoop5DeepBufferIfBig], mirroring the existing `whoop5-events.jsonl` writer.
  *
- * On-strap probing (#423) established that the 5/MG has no live raw-IMU stream, but it DOES bank
- * high-rate motion and ships it inside big type-0x2F buffers during the connect-time offload burst —
+ * On-strap probing (#423) established that the 5/MG banks high-rate motion and can stream it live
+ * during an explicitly armed raw-data session; history also ships it in big type-0x2F offload buffers —
  * 124 B (~1 Hz record), 1244 B and 2140 B (~32 and ~59 sub-records per timestamped second). NOOP's
  * historical decoder pulls the 1 Hz gravity vector out and DISCARDS the high-rate remainder. Keeping the
  * big (>= [minBufferBytes]) type-0x2F buffers raw, in their own file, lets a byte-perfect decoder be

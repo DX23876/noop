@@ -700,7 +700,7 @@ private fun ouraHeaderSubtitle(step: OuraStep, advanced: Boolean): String? = whe
 @Composable
 private fun TypeStep(onPick: (DeviceType) -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        TypeRow(Icons.Filled.Watch, DeviceType.Whoop5MG.title, "Newer WHOOP band. Experimental in NOOP") {
+        TypeRow(Icons.Filled.Watch, DeviceType.Whoop5MG.title, "Newer WHOOP band with live data and history sync") {
             onPick(DeviceType.Whoop5MG)
         }
         TypeRow(Icons.Filled.Watch, DeviceType.Whoop4.title, "NOOP's primary, fully-supported band") {

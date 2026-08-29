@@ -561,9 +561,8 @@ class WhoopRepository(
             }
             if (rows.isNotEmpty()) {
                 dao.insertV18Aux(rows)
-                // Rolling retention (the insertRawImu shape, #423) but AMORTISED. The delete finds the
-                // Nth-newest row by rank, so it walks up to [V18_AUX_RETENTION_ROWS] index entries;
-                // insertRawImu keeps 3,600 so that is free, this keeps 604,800 and an offload inserts once
+                // Rolling retention is amortised. The delete finds the Nth-newest row by rank, so it walks up
+                // to [V18_AUX_RETENTION_ROWS] index entries; this keeps 604,800 and an offload inserts once
                 // per chunk. Swept once per [V18_AUX_PRUNE_EVERY_ROWS] rows instead, which keeps
                 // newest-N-rows exactly (a time window would not — a sporadically-worn strap's rows span
                 // far more than a week, and the census wants that). Counter is per device because the
@@ -795,7 +794,6 @@ class WhoopRepository(
         // The instrumentation streams, missing from this list since they landed (see the DAO note).
         deleted += dao.pruneSleepStateByTs(minTs, maxTs)
         deleted += dao.prunePpgWaveformByTs(minTs, maxTs)
-        deleted += dao.pruneRawImuByTs(minTs, maxTs)
         deleted += dao.pruneV18AuxByTs(minTs, maxTs)
         deleted += dao.pruneEventByTs(minTs, maxTs)
         deleted += dao.pruneBatteryByTs(minTs, maxTs)
@@ -1015,22 +1013,6 @@ class WhoopRepository(
         dao.v18AuxSamples(deviceId, from, to, limit)
             .map { V18AuxCodec.unpack(it.fields, it.ts) }
 
-    /** #423: persist a batch of decoded 5/MG raw-IMU offload buffers (one row per strap-second, packed i16
-     *  BLOB), then bound the table to the newest [RAW_IMU_RETENTION_ROWS] for the device. Comes from the
-     *  deep-buffer capture seam, not the normal stream path, so it inserts directly (idempotent by ts). */
-    suspend fun insertRawImu(deviceId: String, rows: List<RawImuSampleEntity>) {
-        if (rows.isEmpty()) return
-        dao.insertRawImu(rows)
-        dao.pruneRawImu(deviceId, RAW_IMU_RETENTION_ROWS)
-    }
-
-    /** #423: raw 5/MG IMU buffers in [from, to] as the decoded i16 columns [ax…az,gx…gz] (100/axis).
-     *  Intentionally dormant — zero callers, retained for the eventual cross-check (see [RawImuSampleEntity]
-     *  CONSUMER STATUS, #978). Not dead code; do not delete. */
-    suspend fun rawImuSamples(deviceId: String, from: Long, to: Long, limit: Int = DEFAULT_LIMIT):
-        List<Pair<Long, ShortArray>> =
-        dao.rawImuSamples(deviceId, from, to, limit)
-            .map { it.ts to StreamPersistence.unpackImuColumns(it.samples) }
 
     /** Downsampled HR (mean bpm per [bucketSeconds]) for the strap, for the Today 24h trend chart. */
     suspend fun hrBucketsForDevice(deviceId: String, from: Long, to: Long, bucketSeconds: Long = 300L) =
@@ -1618,9 +1600,9 @@ class WhoopRepository(
             "resp" to dao.countResp(), "gravity" to dao.countGravity(),
             // The rest of the accumulating decoded raw streams, so the Test-Centre footprint counts ALL of
             // them (keep in sync with Swift storageStats / TimestampHeal's raw-table list). ppgHr/ppgWaveform
-            // /rawImu can each be large.
+            // /v18Aux can each be large.
             "ppgHr" to dao.countPpgHr(), "sleepState" to dao.countSleepState(),
-            "ppgWaveform" to dao.countPpgWaveform(), "rawImu" to dao.countRawImu(),
+            "ppgWaveform" to dao.countPpgWaveform(),
             "v18Aux" to dao.countV18Aux(),
         )
     }.getOrDefault(emptyMap())
@@ -2029,16 +2011,10 @@ class WhoopRepository(
         /** Default row cap on range reads. Matches the Swift call sites' bounded scans. */
         const val DEFAULT_LIMIT = 100_000
 
-        /** #423: rolling retention for the raw-IMU capture table (1 row/strap-second, ~1.2 KB each). One
-         *  hour ≈ 3600 rows ≈ 4 MB caps the table hard, so an enabled capture can never balloon the DB
-         *  during a multi-day offload replay. Instrument-first bounded window; nothing consumes it yet. */
-        const val RAW_IMU_RETENTION_ROWS = 3600
-
         /**
          * v31: rolling retention for the v18 aux-slot table (Swift twin `WhoopStore.v18AuxRetentionRows`).
          *
-         * [RAW_IMU_RETENTION_ROWS] is the closest precedent — raw instrumentation banked as a blob, capped
-         * rather than unbounded — and the same reasoning applies: nothing reads these rows yet, so a cap
+         * Raw instrumentation is capped rather than unbounded. Nothing reads these rows yet, so a cap
          * is far cheaper to RELAX later than to impose once users have a year of history. Unbounded, this
          * table is the one genuinely new source of row growth in v31; the four named columns only WIDEN
          * rows that were already being written (~14 B on a gravity/skinTemp/sleepState row that exists

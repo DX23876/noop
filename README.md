@@ -30,6 +30,7 @@
   <a href="https://www.reddit.com/r/NoopBand/">👽&nbsp;Reddit</a> ·
   <a href="#features">Features</a> ·
   <a href="docs/PROTOCOL.md">Protocol</a> ·
+  <a href="docs/RAW_DATA_CAPTURE.md">Raw data capture</a> ·
 </p>
 
 <p align="center">

@@ -18,6 +18,7 @@ import androidx.compose.material.icons.filled.Autorenew
 import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.automirrored.filled.DirectionsWalk
 import androidx.compose.material.icons.filled.Science
 import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material3.AlertDialog
@@ -80,7 +81,7 @@ import kotlin.math.roundToInt
  * scheduled-export / experimental controls on the same bindings the Settings cards use. No em-dash.
  */
 @Composable
-fun TestCentreScreen(vm: AppViewModel) {
+fun TestCentreScreen(vm: AppViewModel, onOpenGroundTruthCollector: () -> Unit = {}) {
     val context = LocalContext.current
     val testCentre = remember { TestCentre.from(context) }
     // CAPTURE-D: a UI scope to emit the data-volume line off the toggle-on path (a store read, so it can't
@@ -97,6 +98,18 @@ fun TestCentreScreen(vm: AppViewModel) {
     // Match the Settings `showFiveMGControls` gate exactly: pref OR a live-detected 5/MG this session, so a
     // 5/MG connected before its pref is written still sees the experimental block. (SettingsScreen.kt:346.)
     val is5MG = selectedModelName == WhoopModel.WHOOP5_MG.name || live.whoop5Detected
+    val puffinExperiment = remember { PuffinExperiment.from(context) }
+    var protocolProbes by remember { mutableStateOf(puffinExperiment.isEnabled) }
+    var passiveRawCapture by remember { mutableStateOf(puffinExperiment.isCaptureEnabled) }
+    var deepData by remember { mutableStateOf(puffinExperiment.isDeepDataEnabled) }
+    var broadcastHr by remember { mutableStateOf(puffinExperiment.broadcastHr) }
+    var explicitBond by remember { mutableStateOf(puffinExperiment.explicitBond) }
+    var ecgRawData by remember { mutableStateOf(puffinExperiment.ecgRawData) }
+    val r22DisableReport by vm.ble.r22DisableReport.collectAsStateWithLifecycle()
+    val ecgGateReport by vm.ble.ecgRawDataGate.collectAsStateWithLifecycle()
+    val ecgVariant by vm.ble.whoop5VariantFlow.collectAsStateWithLifecycle()
+    var rawCaptureBusy by remember { mutableStateOf(false) }
+    var rawAndLogBusy by remember { mutableStateOf(false) }
 
     // A report awaiting the mandatory review-before-share gate (spec section 12). Non-null shows the
     // review dialog; confirming runs TestReportFlow.run.
@@ -182,6 +195,159 @@ fun TestCentreScreen(vm: AppViewModel) {
         // --- Section 2: Diagnostic tools ---
         DiagnosticToolsCard(vm)
 
+        SettingsSectionTC(
+            icon = Icons.AutoMirrored.Filled.DirectionsWalk,
+            title = stringResource(R.string.ground_truth_title),
+            blurb = stringResource(R.string.ground_truth_test_centre_desc),
+        ) {
+            NoopButton(
+                text = stringResource(R.string.ground_truth_open),
+                kind = NoopButtonKind.Secondary,
+                fullWidth = true,
+                onClick = onOpenGroundTruthCollector,
+            )
+        }
+
+        if (is5MG) {
+            SettingsSectionTC(
+                icon = Icons.Filled.Science,
+                title = stringResource(R.string.raw_diag_title),
+                blurb = "Developer tools for protocol research. These are separate from the bounded Raw Data Collector above.",
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    DeveloperToggleRow(
+                        title = stringResource(R.string.raw_diag_protocol_probes),
+                        detail = "Sends experimental protocol queries. It is not needed for normal WHOOP 5/MG sync, sleep, recovery, or steps.",
+                        checked = protocolProbes,
+                        onCheckedChange = {
+                            protocolProbes = it
+                            puffinExperiment.isEnabled = it
+                        },
+                    )
+                    DeveloperToggleRow(
+                        title = stringResource(R.string.raw_diag_broadcast_hr),
+                        detail = "Writes the reversible WHOOP 5/MG advertising flag for Garmin, Zwift, and gym equipment.",
+                        checked = broadcastHr,
+                        onCheckedChange = {
+                            broadcastHr = it
+                            puffinExperiment.broadcastHr = it
+                            vm.ble.setBroadcastHr(it)
+                        },
+                    )
+                    DeveloperToggleRow(
+                        title = stringResource(R.string.raw_diag_pair),
+                        detail = "Experimental explicit Android bonding. Normal 5/MG support does not require this switch.",
+                        checked = explicitBond,
+                        onCheckedChange = {
+                            explicitBond = it
+                            puffinExperiment.explicitBond = it
+                        },
+                    )
+                    DeveloperToggleRow(
+                        title = stringResource(R.string.raw_diag_r22),
+                        detail = "Accepted writes have not been shown to enable a separate live stream. Not required for normal sync or raw capture.",
+                        checked = deepData,
+                        onCheckedChange = {
+                            deepData = it
+                            puffinExperiment.isDeepDataEnabled = it
+                        },
+                    )
+                    if (deepData) {
+                        NoopButton(
+                            text = stringResource(R.string.raw_diag_r22_enable),
+                            kind = NoopButtonKind.Secondary,
+                            fullWidth = true,
+                            enabled = live.encryptedBond && live.worn,
+                            onClick = { vm.ble.enableWhoop5DeepData() },
+                        )
+                    }
+                    NoopButton(
+                        text = stringResource(R.string.raw_diag_r22_clear),
+                        kind = NoopButtonKind.Secondary,
+                        fullWidth = true,
+                        enabled = live.encryptedBond && r22DisableReport != WhoopBleClient.WAITING_DEVICE_CONFIG_PROBE,
+                        onClick = { vm.ble.disableWhoop5DeepData() },
+                    )
+                    r22DisableReport?.let {
+                        Text(it, style = NoopType.caption, color = Palette.textSecondary)
+                    }
+                    DeveloperToggleRow(
+                        title = stringResource(R.string.raw_diag_ecg),
+                        detail = "MG-only protocol research. This is instrumentation, not a medical ECG feature.",
+                        checked = ecgRawData,
+                        onCheckedChange = {
+                            ecgRawData = it
+                            puffinExperiment.ecgRawData = it
+                        },
+                    )
+                    if (ecgRawData) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            NoopButton(
+                                text = stringResource(R.string.raw_diag_ecg_on),
+                                kind = NoopButtonKind.Secondary,
+                                enabled = live.bonded && ecgVariant.isMG,
+                                onClick = { vm.ble.setEcgRawDataGate(true) },
+                            )
+                            NoopButton(
+                                text = stringResource(R.string.raw_diag_ecg_off),
+                                kind = NoopButtonKind.Secondary,
+                                enabled = live.bonded && ecgVariant.isMG,
+                                onClick = { vm.ble.setEcgRawDataGate(false) },
+                            )
+                        }
+                        ecgGateReport?.let {
+                            Text(it.summary, style = NoopType.caption, color = Palette.textSecondary)
+                        }
+                    }
+                    DeveloperToggleRow(
+                        title = stringResource(R.string.raw_diag_passive),
+                        detail = "Records frames that already arrive during history sync. It does not start IMU or any other sensor and may create large files.",
+                        checked = passiveRawCapture,
+                        onCheckedChange = {
+                            passiveRawCapture = it
+                            puffinExperiment.isCaptureEnabled = it
+                        },
+                    )
+                    NoopButton(
+                        text = stringResource(R.string.raw_diag_share),
+                        leadingIcon = Icons.Filled.Upload,
+                        kind = NoopButtonKind.Secondary,
+                        fullWidth = true,
+                        enabled = !rawCaptureBusy,
+                        onClick = {
+                            rawCaptureBusy = true
+                            scope.launch {
+                                try {
+                                    LogExport.shareWhoop5Capture(context, live.whoop5Detected, live.encryptedBond)
+                                } finally {
+                                    rawCaptureBusy = false
+                                }
+                            }
+                        },
+                    )
+                    NoopButton(
+                        text = stringResource(R.string.raw_diag_export_log),
+                        leadingIcon = Icons.Filled.Upload,
+                        kind = NoopButtonKind.Secondary,
+                        fullWidth = true,
+                        enabled = !rawAndLogBusy,
+                        onClick = {
+                            rawAndLogBusy = true
+                            scope.launch {
+                                try {
+                                    LogExport.shareRawAndLog(
+                                        context, vm.ble.exportLogText(), live.whoop5Detected, live.encryptedBond,
+                                    )
+                                } finally {
+                                    rawAndLogBusy = false
+                                }
+                            }
+                        },
+                    )
+                }
+            }
+        }
+
         // --- Section 3: Export and auto-export ---
         ExportCard(
             vm = vm,
@@ -227,6 +393,26 @@ fun TestCentreScreen(vm: AppViewModel) {
                 }
             },
         )
+    }
+}
+
+@Composable
+private fun DeveloperToggleRow(
+    title: String,
+    detail: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+            Text(title, style = NoopType.subhead, color = Palette.textPrimary)
+            Text(detail, style = NoopType.caption, color = Palette.textSecondary)
+        }
+        Switch(checked = checked, onCheckedChange = onCheckedChange)
     }
 }
 

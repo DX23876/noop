@@ -98,7 +98,6 @@ class DeviceRegistry(
             dao.reKeySteps(activeId, serialId); dao.deleteStepsFor(activeId)
             dao.reKeyPpgHr(activeId, serialId); dao.deletePpgHrFor(activeId)
             dao.reKeyPpgWaveform(activeId, serialId); dao.deletePpgWaveformFor(activeId)
-            dao.reKeyRawImu(activeId, serialId); dao.deleteRawImuFor(activeId)
             dao.reKeyV18Aux(activeId, serialId); dao.deleteV18AuxFor(activeId)
             dao.reKeyEvents(activeId, serialId); dao.deleteEventsFor(activeId)
             dao.reKeyBattery(activeId, serialId); dao.deleteBatteryFor(activeId)
@@ -188,7 +187,6 @@ class DeviceRegistry(
             dao.deleteStepsFor(id)
             dao.deletePpgHrFor(id)
             dao.deletePpgWaveformFor(id)
-            dao.deleteRawImuFor(id)   // #423
             dao.deleteV18AuxFor(id)
             dao.deleteEventsFor(id)
             dao.deleteBatteryFor(id)

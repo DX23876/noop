@@ -572,16 +572,8 @@ extension WhoopStore {
         // the six wire columns (ax…az,gx…gz). Twin of the Android `rawImuSample` table (MIGRATION_20_21);
         // same column order + PK so a `.noopbak` round-trips byte-for-byte.
         //
-        // CONSUMER STATUS — deliberately none on this platform, in the same shape as the `ppgWaveformSample`
-        // (v27) and `v18AuxSample` (v31) notes. The writer (`Collector.storeRawImu`) is instrument-first: it
-        // fires only with raw capture enabled AND a 5/MG deep-data unlock, and is bounded to
-        // `WhoopStore.rawImuRetentionRows` (3600 one-second buffers, a rolling window — not a corpus). No
-        // analytic, score, gate, UI or export reads a row: the only SQL is the retention DELETE (`StreamStore`)
-        // plus a COUNT in the storage-stats readout (`LocalAccessCore`); `ImuFeatureExtractor` takes the
-        // protocol struct, never this table, so it is not a consumer either. Swift has NO reader yet, on
-        // purpose — a reader lands WITH a validated consumer, not before ("artifact, not one match", CLAUDE.md).
-        // Android keeps a dormant `rawImuSamples` reader (zero callers) for the eventual cross-check; do NOT
-        // "clean up" either side as dead code — the retained rows are the deliverable. Audit: #978.
+        // Historical rolling cache. Its opt-in writer retained at most 3,600 one-second rows, but no analytics,
+        // UI or export consumed them. v41 retires those legacy rows after file-backed capture replaces the cache.
         migrator.registerMigration("v28-raw-imu") { db in
             try db.create(table: "rawImuSample") { t in
                 t.column("deviceId", .text).notNull()
@@ -886,6 +878,10 @@ extension WhoopStore {
             try db.alter(table: "dailyMetric") { t in
                 t.add(column: "skinTempC", .double)
             }
+        }
+        // Retire the bounded, write-only legacy cache. Session-owned IMU now lives in the file-backed store.
+        migrator.registerMigration("v41-drop-raw-imu-sample") { db in
+            try db.drop(table: "rawImuSample")
         }
         return migrator
     }

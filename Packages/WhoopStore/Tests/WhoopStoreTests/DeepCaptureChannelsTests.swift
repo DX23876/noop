@@ -347,7 +347,6 @@ final class DeepCaptureChannelsTests: XCTestCase {
     /// The shipped cap is a real bound, and documented in row terms.
     func testShippedRetentionConstant() {
         XCTAssertEqual(WhoopStore.v18AuxRetentionRows, 604_800)   // 7 x 86_400 strap-seconds
-        XCTAssertGreaterThan(WhoopStore.v18AuxRetentionRows, WhoopStore.rawImuRetentionRows)
     }
 
     /// Deleting a device's data must clear the aux rows too — the same privacy rule every other

@@ -1734,7 +1734,8 @@ struct SettingsView: View {
     @ViewBuilder private var experimentalCard: some View {
         liquidTodayCard
         liveSessionsCard
-        if showFiveMGControls { fiveMGCard }
+        // WHOOP 5/MG protocol research now lives in Test Centre. Everyday Settings no longer carries
+        // a second copy; the persisted keys and reversible disable actions remain unchanged there.
         if showFiveMGControls || model.repo.activeDeviceIsOura { spo2CandidateCard }
         sleepStagingCard
         rawSensorDiagnosticsCard
@@ -1891,7 +1892,7 @@ struct SettingsView: View {
         SettingsSection(
             icon: "flask.fill",
             title: "Experimental · WHOOP 5 / MG",
-            blurb: "Live heart rate already works on a WHOOP 5/MG strap. These probes go further and try to coax more out of it. They are guesses, off by default, and only ever touch a 5/MG strap. WHOOP 4.0 is never affected."
+            blurb: "Normal WHOOP 5/MG recording and history sync are supported. These remaining controls are developer experiments for unmapped protocol features and now live in Test Centre."
         ) {
             VStack(alignment: .leading, spacing: NoopMetrics.rowSpacing) {
                 Toggle(isOn: $puffinExperiments) {
@@ -1920,7 +1921,7 @@ struct SettingsView: View {
                 // strap kept every flag the enable sequence set while the UI implied it had been undone.
                 // Now it offers the real undo. Turning it ON still writes nothing until the button is tapped.
                 .onChangeCompat(of: deepDataEnabled) { on in if !on { confirmingDeepDataDisable = true } }
-                Text("WHOOP 5/MG straps hand a fresh app only live heart rate. The official app switches on the deeper streams (high-rate HR + motion + history) by writing a set of feature flags, a sequence two independent projects have documented. With this on, the button below sends that exact sequence to your strap. Unlike everything else here it does write to the strap — and it is reversible: \u{201C}Turn deep data back off\u{201D} writes the off value to the same flags and then reads every one of them back, so you see what the strap actually stores rather than just that it acked. Experimental: it may do nothing on your firmware. iPhone/Android only. A Mac can't write to a 5/MG.")
+                Text("Legacy R22 feature-flag experiment. The strap accepts these writes, but NOOP has not observed them enabling a separate live stream. This is not required for normal WHOOP 5/MG support or for the Raw Data Collector. It writes persistent strap settings and may do nothing on your firmware.")
                     .font(StrandFont.caption)
                     .foregroundStyle(StrandPalette.textTertiary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -3383,7 +3384,7 @@ struct StepsCalibrationSheet: View {
                     .font(StrandFont.headline)
                     .foregroundStyle(StrandPalette.textPrimary)
                 Text(is5MG
-                     ? String(localized: "NOOP estimates your steps from your WHOOP's motion, calibrated to your phone's step count. It's an estimate, not a step counter — a WHOOP 5.0 / MG streams motion (not a step count) only with deep data on.")
+                     ? String(localized: "NOOP estimates your steps from your WHOOP's stored motion, calibrated to your phone's step count. It's an estimate, not a hardware step counter; normal WHOOP 5/MG history sync supplies the motion data.")
                      : String(localized: "NOOP estimates your steps from your WHOOP's motion, calibrated to your phone's step count. It's an estimate, not a step counter. A WHOOP 4.0 doesn't transmit steps."))
                     .font(StrandFont.subhead)
                     .foregroundStyle(StrandPalette.textSecondary)
@@ -3424,7 +3425,7 @@ struct StepsCalibrationSheet: View {
     /// The "why it's empty" line — a 5/MG needs the deep-data unlock before it streams motion at all.
     private var noMotionLead: String {
         if is5MG {
-            return String(localized: "We're not seeing any motion from your WHOOP 5.0 / MG yet. Unlike a 4.0, a 5/MG only streams motion (and history) once the experimental deep-data unlock is on — so until then there's nothing to estimate steps from. Importing history from WHOOP or Apple Health doesn't provide the strap motion this needs.")
+            return String(localized: "We're not seeing motion from your WHOOP 5.0 / MG yet. Keep NOOP connected and let strap history finish syncing; the experimental R22 flags are not required. Account or Apple Health imports do not contain the raw strap motion this estimate needs.")
         }
         return String(localized: "We're not seeing any motion from your strap yet. Steps are estimated from your WHOOP's banked motion history, so your strap needs to sync that history before NOOP has anything to count.")
     }
@@ -3432,7 +3433,7 @@ struct StepsCalibrationSheet: View {
     /// The "what to do" line — 5/MG points at the deep-data toggle (unless it's already on, then just sync).
     private var noMotionAction: String {
         if is5MG && !deepDataEnabled {
-            return String(localized: "Turn on Settings → \u{201C}Unlock WHOOP 5/MG deep data (R22)\u{201D}, reconnect your strap, then open NOOP near it and let a day or two of motion sync. Your step estimate and the calibration below fill in once motion lands.")
+            return String(localized: "Open NOOP near the strap and let WHOOP 5/MG history finish syncing. The step estimate and calibration fill in once enough stored motion has arrived; the legacy R22 experiment is not required.")
         }
         if is5MG {
             return String(localized: "Deep data is on — open NOOP near your strap and let it sync its motion history (a full first-run sync can take a while). Once a day or two of motion lands, your step estimate and the calibration below fill in.")

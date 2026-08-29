@@ -220,6 +220,5 @@ class DeepCaptureMigrationTest {
     @Test
     fun shippedRetentionConstant() {
         assertEquals(604_800, WhoopRepository.V18_AUX_RETENTION_ROWS)   // 7 x 86_400 strap-seconds
-        assertTrue(WhoopRepository.V18_AUX_RETENTION_ROWS > WhoopRepository.RAW_IMU_RETENTION_ROWS)
     }
 }

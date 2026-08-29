@@ -297,6 +297,11 @@ inserts, identical range-read shape).
 
 **Primary key:** `(deviceId, ts)`.
 
+This is the low-rate decoded vector used by normal analytics, not the 100 Hz six-axis capture.
+High-rate IMU deliberately remains outside SQLite. Capture sessions own canonical, decoded `.imus`
+files split into fixed 30-minute UTC segments with independently compressed 30-second blocks. See
+[5/MG raw data capture](RAW_DATA_CAPTURE.md#storage-design).
+
 ---
 
 ## Raw outbox (transient, prunable)

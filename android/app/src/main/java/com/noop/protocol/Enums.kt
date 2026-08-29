@@ -215,6 +215,10 @@ enum class CommandNumber(val rawValue: Int) {
     SET_DEVICE_CONFIG(119),
     START_RAW_DATA(81),
     STOP_RAW_DATA(82),
+    // WHOOP 5/MG realtime 6-axis IMU. The production WHOOP app sends revision 1 plus an enabled
+    // byte while a Strength Builder workout is active (hardware-captured on a normal WHOOP 5).
+    // NOOP exposes this only through the explicitly user-started Ground Truth collector.
+    TOGGLE_IMU_MODE(106),
     // GET_EXTENDED_BATTERY_INFO (98) — read-only extended battery read (mV etc.). The NUMBER is disputed
     // (#592): an independent APK decompile reads this family 11 lower (87), while whoomp's table says 98 —
     // partially supported by a real WHOOP 5 (fw 50.38.1.0) ANSWERING 98, though with a short stub that

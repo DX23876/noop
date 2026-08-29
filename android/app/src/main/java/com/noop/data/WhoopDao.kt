@@ -124,10 +124,6 @@ interface WhoopDao : DeviceRegistryDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertPpgWaveform(rows: List<PpgWaveformSampleEntity>): List<Long>
 
-    /** RAW 5/MG IMU offload buffers (packed i16 BLOB). Idempotent by (deviceId, ts). (#423) */
-    @Insert(onConflict = OnConflictStrategy.IGNORE)
-    suspend fun insertRawImu(rows: List<RawImuSampleEntity>): List<Long>
-
     /**
      * The remaining 5/MG v18 per-second fields, one compact blob per strap-second. Idempotent by
      * (deviceId, ts) — IGNORE keeps the FIRST-seen row, matching every other per-second stream, so a
@@ -146,22 +142,6 @@ interface WhoopDao : DeviceRegistryDao {
             "(SELECT MIN(ts) FROM (SELECT ts FROM v18AuxSample WHERE deviceId = :deviceId ORDER BY ts DESC LIMIT :keep))"
     )
     suspend fun pruneV18Aux(deviceId: String, keep: Int)
-
-    /** Bound the raw-IMU table to the newest [keep] rows for [deviceId] (rolling retention, #423). */
-    @Query(
-        "DELETE FROM rawImuSample WHERE deviceId = :deviceId AND ts < " +
-            "(SELECT MIN(ts) FROM (SELECT ts FROM rawImuSample WHERE deviceId = :deviceId ORDER BY ts DESC LIMIT :keep))"
-    )
-    suspend fun pruneRawImu(deviceId: String, keep: Int)
-
-    /** RAW 5/MG IMU buffers in [from, to] (ascending), packed i16 BLOB. (#423)
-     *  Intentionally dormant — zero callers, retained for the eventual cross-check (see [RawImuSampleEntity]
-     *  CONSUMER STATUS, #978). Not dead code; do not delete. */
-    @Query(
-        "SELECT * FROM rawImuSample WHERE deviceId = :deviceId AND ts >= :from AND ts <= :to " +
-            "ORDER BY ts ASC LIMIT :limit"
-    )
-    suspend fun rawImuSamples(deviceId: String, from: Long, to: Long, limit: Int): List<RawImuSampleEntity>
 
     // MARK: - Server-derived caches (latest value wins)
 
@@ -960,7 +940,6 @@ interface WhoopDao : DeviceRegistryDao {
     @Query("SELECT COUNT(*) FROM ppgHrSample") suspend fun countPpgHr(): Int
     @Query("SELECT COUNT(*) FROM sleepStateSample") suspend fun countSleepState(): Int
     @Query("SELECT COUNT(*) FROM ppgWaveformSample") suspend fun countPpgWaveform(): Int
-    @Query("SELECT COUNT(*) FROM rawImuSample") suspend fun countRawImu(): Int
     @Query("SELECT COUNT(*) FROM v18AuxSample") suspend fun countV18Aux(): Int
     @Query("SELECT COUNT(*) FROM respSample") suspend fun countResp(): Int
     @Query("SELECT COUNT(*) FROM gravitySample") suspend fun countGravity(): Int
@@ -1023,8 +1002,6 @@ interface WhoopDao : DeviceRegistryDao {
     @Query("DELETE FROM ppgWaveformSample WHERE ts < :minTs OR ts > :maxTs")
     suspend fun prunePpgWaveformByTs(minTs: Long, maxTs: Long): Int
 
-    @Query("DELETE FROM rawImuSample WHERE ts < :minTs OR ts > :maxTs")
-    suspend fun pruneRawImuByTs(minTs: Long, maxTs: Long): Int
 
     @Query("DELETE FROM v18AuxSample WHERE ts < :minTs OR ts > :maxTs")
     suspend fun pruneV18AuxByTs(minTs: Long, maxTs: Long): Int

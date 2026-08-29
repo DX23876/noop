@@ -312,9 +312,17 @@ stream off, NOOP's primary metric source becomes the **historical offload** (nex
 ### On-demand raw capture
 
 For research, raw IMU can be captured for a bounded window with `captureRawAccel(seconds:)`, which
-sends `START_RAW_DATA` (81) + `TOGGLE_IMU_MODE` (106), records for the window, then re-issues
-`STOP_RAW_DATA` and disables the stream again. This is opt-in only; the global research toggle
-(`enableRawCapture`) defaults **off** and the app is decoded-only otherwise.
+sends `START_RAW_DATA` (81) followed by `TOGGLE_IMU_MODE` (106), records for the window, then
+re-issues `STOP_RAW_DATA` and disables the stream again. This ordering is hardware-verified on a
+WHOOP 5/MG: opcode 106 alone returns an acknowledgement but does **not** start the producer. The 5/MG
+selector is two bytes (`[0x01, 0x01]` on, `[0x01, 0x00]` off); retaining the older one-byte form here
+was why an apparently successful capture contained no realtime IMU packets.
+
+The manually stopped Raw Data Collector uses the same sequence and accepts delayed historical IMU
+buffers into the session by strap timestamp, so a later offload can repair a Bluetooth gap. This is
+opt-in and bounded; the global research toggle (`enableRawCapture`) defaults **off** and the app is
+decoded-only otherwise. Storage/export details and consumer ordering rules are in
+[5/MG raw data capture](RAW_DATA_CAPTURE.md).
 
 ---
 
@@ -930,9 +938,11 @@ anything, it plausibly gates *those streams* rather than the offload.
 Our exposure to that is limited but not zero, and worth stating precisely. NOOP takes live HR from the
 standard `0x2A37` profile and disables the R10/R11 flood on connect (§4), and it never sends
 `TOGGLE_OPTICAL_MODE` (108) at all. But `captureRawAccel` **does** send `START_RAW_DATA` (81) +
-`TOGGLE_IMU_MODE` (106) — on demand, for a bounded window, never continuously. So the one place this
-could bite is an on-demand raw-accel capture on a 5/MG. Whether that path yields IMU frames today is
-the observation that would settle the narrow claim, and it is not recorded anywhere here.
+`TOGGLE_IMU_MODE` (106) — on demand, for a bounded window, never continuously. That path is now
+hardware-verified to yield decoded 100 Hz six-axis IMU after the two-byte 5/MG selector is used.
+It works without implementing a `LINK_VALID` response, so the proposed handshake is not required for
+this raw-IMU producer on the tested strap/firmware. This does not prove that every firmware treats
+`LINK_VALID` identically or that ignoring it can never affect link stability.
 
 **Two questions are genuinely open**, and a capture answers both without implementing anything:
 

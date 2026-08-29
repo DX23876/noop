@@ -16,6 +16,13 @@ import org.junit.Test
  */
 class ConnectionPriorityTest {
 
+    @Test fun rawCapturePriorityIsBoundedToCaptureAndRepairTraffic() {
+        assertTrue(WhoopBleClient.rawCaptureHighPriority(captureActive = true, backfilling = false, needsRepair = false))
+        assertTrue(WhoopBleClient.rawCaptureHighPriority(captureActive = false, backfilling = true, needsRepair = true))
+        assertFalse(WhoopBleClient.rawCaptureHighPriority(captureActive = false, backfilling = false, needsRepair = true))
+        assertFalse(WhoopBleClient.rawCaptureHighPriority(captureActive = false, backfilling = true, needsRepair = false))
+    }
+
     @Test fun activeWorkIsAlwaysHigh() {
         // offload OR live-HR → HIGH, and the idle throttle can't override active work
         assertEquals(

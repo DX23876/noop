@@ -13,12 +13,6 @@ protocol StoreWriting: AnyObject {
         -> (hr: Int, rr: Int, events: Int, battery: Int,
             spo2: Int, skinTemp: Int, resp: Int, gravity: Int)
     func enqueueRawBatch(_ meta: RawBatchMeta, frames: [[UInt8]]) async throws
-    func insertRawImu(deviceId: String, rows: [(ts: Int, cols: [Int16])], retentionRows: Int) async throws
-}
-extension StoreWriting {
-    /// #423: default no-op so a test SpyStore needn't implement the raw-IMU capture path. WhoopStore's
-    /// real impl (StreamStore.swift) satisfies the requirement and is used in production.
-    func insertRawImu(deviceId: String, rows: [(ts: Int, cols: [Int16])], retentionRows: Int) async throws {}
 }
 extension WhoopStore: StoreWriting {}
 
@@ -118,6 +112,28 @@ final class Collector {
         return try? await s.storageStats()
     }
 
+    /// Decoded history rows in a stable long-form CSV for arbitrary user-selected export windows.
+    func historySensorsCSV(from: Int, to: Int) async -> Data {
+        guard let store = concreteStore, from <= to else { return Data("stream,unix_s,v1,v2,v3,v4\n".utf8) }
+        let limit = min(max(to - from + 1, 1) * 4, 1_000_000)
+        async let hr = try? store.hrSamples(deviceId: deviceId, from: from, to: to, limit: limit)
+        async let battery = try? store.batterySamples(deviceId: deviceId, from: from, to: to, limit: limit)
+        async let spo2 = try? store.spo2Samples(deviceId: deviceId, from: from, to: to, limit: limit)
+        async let temp = try? store.skinTempSamples(deviceId: deviceId, from: from, to: to, limit: limit)
+        async let steps = try? store.stepSamples(deviceId: deviceId, from: from, to: to, limit: limit)
+        async let resp = try? store.respSamples(deviceId: deviceId, from: from, to: to, limit: limit)
+        async let gravity = try? store.gravitySamples(deviceId: deviceId, from: from, to: to, limit: limit)
+        var lines = ["stream,unix_s,v1,v2,v3,v4"]
+        lines += await (hr ?? []).map { "heart_rate,\($0.ts),\($0.bpm),,," }
+        lines += await (battery ?? []).map { "battery,\($0.ts),\($0.soc.map { String($0) } ?? ""),\($0.mv.map { String($0) } ?? ""),," }
+        lines += await (spo2 ?? []).map { "spo2_raw,\($0.ts),\($0.red),\($0.ir),," }
+        lines += await (temp ?? []).map { "skin_temp_raw,\($0.ts),\($0.raw),\($0.aux1Raw.map { String($0) } ?? ""),\($0.aux2Raw.map { String($0) } ?? "")," }
+        lines += await (steps ?? []).map { "steps,\($0.ts),\($0.counter),\($0.activityClass.map { String($0) } ?? ""),," }
+        lines += await (resp ?? []).map { "resp_raw,\($0.ts),\($0.raw),,," }
+        lines += await (gravity ?? []).map { "gravity,\($0.ts),\($0.x),\($0.y),\($0.z),\($0.dynAccel.map { String($0) } ?? "")" }
+        return Data((lines.joined(separator: "\n") + "\n").utf8)
+    }
+
     /// Max persisted HR sample ts (the biometric "data frontier" for the stuck-strap watchdog).
     /// nil if there's no concrete store or nothing persisted yet. Mirrors storageStats().
     func latestHRSampleTs() async -> Int? {
@@ -149,21 +165,6 @@ final class Collector {
         ingest(frame: frame, parsed: parseFrame(frame, family: family))
     }
 
-    /// #423: persist the WHOOP 5/MG raw-IMU offload buffer NOOP already decodes for the deep-buffer log —
-    /// the queryable twin of that (table-less) diagnostics line. Same `noopPuffinCapture` gate; only the
-    /// 1244-B 6-axis buffer decodes (rawColumns nil otherwise). Fire-and-forget into the store, bounded by
-    /// a rolling retention prune. Raw i16, no downstream consumer yet. Twin of Android
-    /// `WhoopBleClient.storeWhoop5RawImuIfBuffer`.
-    func storeRawImu(frame: [UInt8]) {
-        guard UserDefaults.standard.bool(forKey: PuffinFrameRecorder.enabledKey) else { return }
-        guard let cols = Whoop5RawImu.rawColumns(frame), let baseTs = Whoop5RawImu.baseTs(frame) else { return }
-        let dev = deviceId
-        Task { [store] in
-            try? await store.insertRawImu(
-                deviceId: dev, rows: [(ts: baseTs, cols: cols)], retentionRows: WhoopStore.rawImuRetentionRows)
-        }
-    }
-
     /// Buffer one complete frame + its pre-parsed decode (synchronous: preserves delegate arrival order).
     /// Auto-flushes via a detached Task when the cadence threshold is hit (flush is async). (#47)
     func ingest(frame: [UInt8], parsed: ParsedFrame) {
@@ -171,6 +172,7 @@ final class Collector {
         assert(parsed == parseFrame(frame, family: family),
                "Collector.ingest: threaded ParsedFrame != fresh parse (#47 parse-once invariant)")
         #endif
+        recordGroundTruthImu(frame)
         buffer.append((frame, parsed))
         // Pre-clock only: bound memory if GET_CLOCK never lands while data keeps flowing.
         // Drop OLDEST beyond the cap (keep most recent). Post-clock this branch is skipped —
@@ -183,6 +185,7 @@ final class Collector {
             Task { @MainActor in await self.flush() }
         }
     }
+
 
     /// Persist + queue everything buffered. No-op when empty or before a clock ref exists.
     /// Buffer is snapshotted and cleared SYNCHRONOUSLY before the first await so that any
@@ -280,6 +283,11 @@ final class Collector {
     /// research toggle off. Auto-expires at the (clamped) monotonic deadline.
     func beginRawCapture(seconds: TimeInterval) {
         rawCapture.open(at: monotonic(), duration: seconds)
+    }
+
+    private func recordGroundTruthImu(_ frame: [UInt8]) {
+        _ = ImuSessionFileStore.shared.append(deviceId: deviceId, frame: frame,
+            receivedAtMs: Int64(Date().timeIntervalSince1970 * 1_000))
     }
 
     /// Flush WHILE the window is still active so the just-captured frames get persisted as raw,
