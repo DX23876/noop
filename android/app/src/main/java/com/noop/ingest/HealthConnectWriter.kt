@@ -228,14 +228,14 @@ object HealthConnectWriter {
         val floor = now - WINDOW_DAYS * 86_400
         val frontier = maxOf(NoopPrefs.hcHrFrontier(context), floor)
 
-        val samples = repo.hrSamples(deviceId, from = frontier + 1, to = now, limit = 200_000)
+        val samples = repo.hrSamplesForDevice(deviceId, from = frontier + 1, to = now, limit = 200_000)
             .map { HealthExportPlan.HrPoint(it.ts, it.bpm) }
         if (samples.isEmpty()) return 0
 
         // Workout + sleep windows where the full-resolution series matters; everything else decimates.
         val windows = buildList {
             repo.workouts(deviceId, frontier, now).forEach { add(HealthExportPlan.Window(it.startTs, it.endTs)) }
-            repo.sleepSessions(deviceId, frontier, now).forEach { add(HealthExportPlan.Window(it.startTs, it.endTs)) }
+            repo.sleepSessionsForDevice(deviceId, frontier, now).forEach { add(HealthExportPlan.Window(it.startTs, it.endTs)) }
         }
 
         val plan = HealthExportPlan.heartRate(samples, windows, frontier)

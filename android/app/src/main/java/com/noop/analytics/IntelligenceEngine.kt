@@ -895,7 +895,7 @@ object IntelligenceEngine {
             val respRows = repo.respSamples(owner, from, to, STREAM_LIMIT)
             val resp = OuraRespScale.forScoring(respRows, owner)
             val vendorResp = OuraRespScale.forVendorRate(respRows, owner)
-            val grav = repo.gravitySamples(owner, from, to, STREAM_LIMIT)
+            val grav = repo.gravitySamplesForDevice(owner, from, to, STREAM_LIMIT)
             val steps = repo.stepSamples(owner, from, to, STREAM_LIMIT)
             val skinReads = readDaySkinAndWristOff(
                 repo, owner, from, to, ownerSource, skinFamilyByOwner, skinWornToleranceByOwner,
@@ -926,7 +926,7 @@ object IntelligenceEngine {
             // TODAY (dayEnd past the 18 h cap) and a limit-truncated night read DECLINE (null) → direct
             // read, so the shortcut only ever skips work, never changes data. Twin of Swift's #997.
             val dayHr = AnalyticsEngine.daySliceFromNight(hr, from, to, dayMidnight, dayEnd) { it.ts.toLong() }
-                ?: repo.hrSamples(owner, dayMidnight, dayEnd, STREAM_LIMIT)
+                ?: repo.hrSamplesForDevice(owner, dayMidnight, dayEnd, STREAM_LIMIT)
             val daySteps = AnalyticsEngine.daySliceFromNight(steps, from, to, dayMidnight, dayEnd) { it.ts }
                 ?: repo.stepSamples(owner, dayMidnight, dayEnd, STREAM_LIMIT)
             // Full calendar-day gravity for WORKOUT detection. For a PAST day the night window runs to the
@@ -934,7 +934,7 @@ object IntelligenceEngine {
             // directly, which the slice's `dayHi > nightHi` guard handles — a 5 pm run still shows up the
             // same day.
             val dayGrav = AnalyticsEngine.daySliceFromNight(grav, from, to, dayMidnight, dayEnd) { it.ts }
-                ?: repo.gravitySamples(owner, dayMidnight, dayEnd, STREAM_LIMIT)
+                ?: repo.gravitySamplesForDevice(owner, dayMidnight, dayEnd, STREAM_LIMIT)
 
             // CONSUME (#531 / #175): the strap's OWN band sleep_state for the night window as (ts, state)
             // samples, so the H7 morning-stillness guard can confirm a borderline re-onset against the strap's
@@ -958,7 +958,7 @@ object IntelligenceEngine {
             // import namespace are untouched; analyzeDay still lets a DETECTED session win where they overlap.
             val providedSleep: List<DetectedSleep> =
                 if (owner != importedDeviceId && grav.size < 2) {
-                    repo.sleepSessions(owner, from, to, 4000)
+                    repo.sleepSessionsForDevice(owner, from, to, 4000)
                         .mapNotNull { AnalyticsEngine.sleepSessionFromProvided(it) }
                 } else {
                     emptyList()
@@ -1862,7 +1862,7 @@ object IntelligenceEngine {
         }
         val healDropped = ArrayList<SleepSession>()
         for (healId in healDeviceIds) {
-            val storedSessions = repo.sleepSessions(healId, windowStart, nowSeconds, 4000)
+            val storedSessions = repo.sleepSessionsForDevice(healId, windowStart, nowSeconds, 4000)
             val healable = storedSessions.filter {
                 AnalyticsEngine.dayString(it.endTs, tzOffsetSeconds) in oldestDay..newestDay
             }
@@ -2016,7 +2016,7 @@ object IntelligenceEngine {
             val dayEnd = dayMid + SECONDS_PER_DAY - 1
             val dayKey = AnalyticsEngine.dayString(dayMid, tzOffsetSeconds)
             val owner = resolveDayOwner(repo, ownerSource, candidatePriorities, dayKey, dayMid, dayEnd, importedDeviceId)
-            val grav = repo.gravitySamples(owner, dayMid, dayEnd, STREAM_LIMIT)
+            val grav = repo.gravitySamplesForDevice(owner, dayMid, dayEnd, STREAM_LIMIT)
             val m = StepsEstimateEngine.dayMotionIntensity(grav)
             if (m > 0) motionByDay[dayKey] = m
         }
@@ -2125,7 +2125,7 @@ object IntelligenceEngine {
             // merged-workout case, where kcal is the SUM of inputs so it never looks under-scored yet
             // Effort stays blank forever). improves() then accepts a strain-only gain for the latter.
             if (!ManualWorkoutRescore.looksUnderScored(row.energyKcal) && row.strain != null) continue
-            val samples = runCatching { repo.hrSamples(deviceId, row.startTs, row.endTs, 20_000) }
+            val samples = runCatching { repo.hrSamplesForDevice(deviceId, row.startTs, row.endTs, 20_000) }
                 .getOrNull() ?: continue
             val s = ManualWorkoutRescore.scored(
                 samples, profile, hrMax, restingHR, effortMethod) ?: continue
@@ -2291,7 +2291,7 @@ object IntelligenceEngine {
         // re-banked copy of the night would otherwise feed "asleep" epochs at the OLD times into the H7
         // re-onset guard, letting the stale block keep confirming itself. Read-side only (no bank-recency
         // witness here); the store itself is healed post-upsert in analyzeRecentOnCpu. Mirrors Swift.
-        val sessions = SleepSessionDedup.dedupe(repo.sleepSessions(computedId, from, to, 4000)).kept
+        val sessions = SleepSessionDedup.dedupe(repo.sleepSessionsForDevice(computedId, from, to, 4000)).kept
         val samples = ArrayList<Pair<Long, Int>>()
         for (s in sessions) {
             val states = repo.sessionSleepState(computedId, s.startTs) ?: continue
@@ -2319,8 +2319,8 @@ object IntelligenceEngine {
         windowEnd: Long,
         offsetSec: Long,
     ): Pair<Long?, List<Double>> {
-        val imported = repo.sleepSessions(importedId, windowStart, windowEnd, 4000)
-        val computed = repo.sleepSessions(computedId, windowStart, windowEnd, 4000)
+        val imported = repo.sleepSessionsForDevice(importedId, windowStart, windowEnd, 4000)
+        val computed = repo.sleepSessionsForDevice(computedId, windowStart, windowEnd, 4000)
         // #899: collapse overlapping timebase-shifted duplicates BEFORE the learner sees the history.
         // A stale re-banked copy of a night lands on a DIFFERENT day key, so the per-day longest-block
         // de-dup below never caught it and the learned midsleep drifted toward the stale timing, which
@@ -2599,7 +2599,7 @@ object IntelligenceEngine {
         val candidates = candidatePriorities.map { (id, priority) ->
             // Cheap presence check: a single HR row for this device in the night window marks it a
             // candidate. (LIMIT 1 , not the full pull the caller does once an owner is chosen.)
-            val hasData = repo.hrSamples(id, from, to, 1).isNotEmpty()
+            val hasData = repo.hrSamplesForDevice(id, from, to, 1).isNotEmpty()
             DayOwnerResolver.Candidate(deviceId = id, priority = priority, hasData = hasData)
         }
         return DayOwnerResolver.resolve(day, lockedOwner = null, candidates = candidates) ?: importedDeviceId
@@ -2657,13 +2657,13 @@ object IntelligenceEngine {
      *  extraction next door exists to protect. */
     private fun hrReadWindow(repo: com.noop.data.WhoopRepository) =
         SlidingStreamWindow<com.noop.data.HrSample>({ it.ts }, STREAM_LIMIT) { o, f, t ->
-            repo.hrSamples(o, f, t, STREAM_LIMIT)
+            repo.hrSamplesForDevice(o, f, t, STREAM_LIMIT)
         }
 
     /** The pass-1 R-R sliding read window. Same reason as [hrReadWindow] for living out here. */
     private fun rrReadWindow(repo: com.noop.data.WhoopRepository) =
         SlidingStreamWindow<com.noop.data.RrInterval>({ it.ts }, STREAM_LIMIT) { o, f, t ->
-            repo.rrIntervals(o, f, t, STREAM_LIMIT)
+            repo.rrIntervalsForDevice(o, f, t, STREAM_LIMIT)
         }
 
 

@@ -124,7 +124,7 @@ fun StressScreen(vm: AppViewModel, onBreathe: () -> Unit = {}) {
     // span/beat gate is not met. Faithful twin of the iOS StressView readouts.
     var stressIndex by remember { mutableStateOf<StressIndex.Components?>(null) }
     var freqHrv by remember { mutableStateOf<HrvFreqDomain.Bands?>(null) }
-    androidx.compose.runtime.LaunchedEffect(Unit) {
+    androidx.compose.runtime.LaunchedEffect(vm.activeStrapId) {
         val read = runCatching { loadDaytimeStress(vm, NoopPrefs.stressPersonalBaseline(context)) }
             .getOrDefault(DaytimeReadout(DaytimeStress.Result.EMPTY, null, null))
         daytime = read.daytime
@@ -181,15 +181,15 @@ private suspend fun loadDaytimeStress(vm: AppViewModel, personalBaseline: Boolea
     val todayWindow = stressLocalDayWindowContaining(nowSeconds, zone)
     val from = todayWindow.fromEpochSecond
     val tzOffsetSeconds = zone.rules.getOffset(Instant.ofEpochSecond(nowSeconds)).totalSeconds.toLong()
-    val hr = vm.repo.hrSamples("my-whoop", from, nowSeconds, limit = 200_000)
+    val hr = vm.repo.hrSamplesUnion(vm.activeStrapId, from, nowSeconds, limit = 200_000)
     if (hr.size < DaytimeStress.minHourHrSamples) {
         return DaytimeReadout(DaytimeStress.Result.EMPTY, null, null)
     }
-    val rr = vm.repo.rrIntervals("my-whoop", from, nowSeconds, limit = 200_000)
+    val rr = vm.repo.rrIntervalsUnion(vm.activeStrapId, from, nowSeconds, limit = 200_000)
     // Wrist accelerometer for the motion gate: an ambulatory hour is EXERTION, not stress, so it is
     // masked rather than scored (DaytimeStress). Same repo read as R-R; empty on hardware or imports
     // with no gravity, which is exactly the "no masking, prior behaviour" degradation.
-    val gravity = vm.repo.gravitySamples("my-whoop", from, nowSeconds, limit = 200_000)
+    val gravity = vm.repo.gravitySamplesUnion(vm.activeStrapId, from, nowSeconds, limit = 200_000)
     // Score against the PERSONAL cross-day baseline only when the user opted in (#463) AND enough worn
     // history exists (DaytimeBaselines.scoringMode is the degradation gate); else the day's own calm
     // hours (DayRelative, the default). The trailing-history reads happen only past the HR-count guard
@@ -227,15 +227,15 @@ private suspend fun daytimeScoringMode(
     // Oldest → newest so the EWMA fold replays the history in order.
     for (back in baselineHistoryDays downTo 1) {
         val window = stressLocalDayWindow(todayLocalDay.minusDays(back.toLong()), zone)
-        val dayHr = vm.repo.hrSamples(
-            "my-whoop",
+        val dayHr = vm.repo.hrSamplesUnion(
+            vm.activeStrapId,
             window.fromEpochSecond,
             window.toEpochSecondInclusive,
             limit = 200_000,
         )
         if (dayHr.isEmpty()) continue   // unworn day — no floor to learn, skip the R-R read
-        val dayRr = vm.repo.rrIntervals(
-            "my-whoop",
+        val dayRr = vm.repo.rrIntervalsUnion(
+            vm.activeStrapId,
             window.fromEpochSecond,
             window.toEpochSecondInclusive,
             limit = 200_000,

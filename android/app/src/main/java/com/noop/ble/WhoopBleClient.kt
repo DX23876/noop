@@ -3687,7 +3687,7 @@ class WhoopBleClient(
             try {
                 val nowSec = System.currentTimeMillis() / 1000L
                 val from = nowSec - INACTIVITY_LOOKBACK_S
-                val grav = repository.gravitySamples(deviceId, from, nowSec)
+                val grav = repository.gravitySamplesForDevice(deviceId, from, nowSec)
                 if (grav.isEmpty()) return@launch
 
                 val decision = SedentaryDetector.evaluate(
@@ -3738,7 +3738,7 @@ class WhoopBleClient(
                 // gravity window, the same primitive SedentaryDetector reuses. Null when there's no
                 // recent gravity — the engine then leans on the resting-HR band gate (spec Q3).
                 val from = nowSec - INACTIVITY_LOOKBACK_S
-                val grav = runCatching { repository.gravitySamples(deviceId, from, nowSec) }.getOrDefault(emptyList())
+                val grav = runCatching { repository.gravitySamplesForDevice(deviceId, from, nowSec) }.getOrDefault(emptyList())
                 val recentMotionG = WorkoutDetector.activitySeries(grav).lastOrNull()?.intensity
 
                 val live = _state.value
@@ -3792,9 +3792,9 @@ class WhoopBleClient(
                 // Look back over the freshly-offloaded daytime window (the same lookback the inactivity /
                 // stress hooks read), so a brief afternoon nap that just landed gets judged.
                 val from = nowSec - INACTIVITY_LOOKBACK_S
-                val grav = runCatching { repository.gravitySamples(deviceId, from, nowSec) }.getOrDefault(emptyList())
+                val grav = runCatching { repository.gravitySamplesForDevice(deviceId, from, nowSec) }.getOrDefault(emptyList())
                 if (grav.isEmpty()) return@launch
-                val hr = runCatching { repository.hrSamples(deviceId, from, nowSec) }.getOrDefault(emptyList())
+                val hr = runCatching { repository.hrSamplesForDevice(deviceId, from, nowSec) }.getOrDefault(emptyList())
                 // Honest resting band: the newest daily metric's resting HR, or null (the engine then
                 // leans on motion alone at lower confidence — it never fabricates a band).
                 val restingHr = runCatching {

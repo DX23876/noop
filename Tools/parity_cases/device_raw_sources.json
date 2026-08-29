@@ -1,0 +1,79 @@
+{
+  "sourceCases": [
+    {
+      "name": "active wins then paired and archived registered straps keep registry order before canonical",
+      "activeDeviceId": "whoop-new",
+      "registeredWhoopIds": ["whoop-archived", "my-whoop", "whoop-paired", "whoop-new"],
+      "imported": ["whoop-new", "whoop-archived", "whoop-paired", "my-whoop"],
+      "computed": ["whoop-new-noop", "whoop-archived-noop", "whoop-paired-noop", "my-whoop-noop"]
+    },
+    {
+      "name": "legacy source collapses without duplicate reads",
+      "activeDeviceId": "my-whoop",
+      "registeredWhoopIds": ["my-whoop"],
+      "imported": ["my-whoop"],
+      "computed": ["my-whoop-noop"]
+    },
+    {
+      "name": "explicit non-WHOOP active stays first before archived and paired WHOOP history",
+      "activeDeviceId": "polar-h10-live",
+      "registeredWhoopIds": ["whoop-archived", "my-whoop", "whoop-paired", "my-whoop"],
+      "imported": ["polar-h10-live", "whoop-archived", "whoop-paired", "my-whoop"],
+      "computed": ["polar-h10-live-noop", "whoop-archived-noop", "whoop-paired-noop", "my-whoop-noop"]
+    }
+  ],
+  "rrCases": [
+    {
+      "name": "exact identity tie keeps active while same timestamp distinct beats survive",
+      "sources": [
+        {
+          "id": "whoop-new",
+          "beats": [
+            {"ts": 102, "rrMs": 810, "seq": 0},
+            {"ts": 100, "rrMs": 800, "seq": 0, "ord": 10},
+            {"ts": 100, "rrMs": 810, "seq": 1}
+          ]
+        },
+        {
+          "id": "my-whoop",
+          "beats": [
+            {"ts": 99, "rrMs": 790, "seq": 0},
+            {"ts": 100, "rrMs": 800, "seq": 0, "ord": 20},
+            {"ts": 101, "rrMs": 805, "seq": 0}
+          ]
+        }
+      ],
+      "expected": [
+        {"source": "my-whoop", "ts": 99, "rrMs": 790, "seq": 0},
+        {"source": "whoop-new", "ts": 100, "rrMs": 800, "seq": 0, "ord": 10},
+        {"source": "whoop-new", "ts": 100, "rrMs": 810, "seq": 1},
+        {"source": "my-whoop", "ts": 101, "rrMs": 805, "seq": 0},
+        {"source": "whoop-new", "ts": 102, "rrMs": 810, "seq": 0}
+      ]
+    },
+    {
+      "name": "same timestamp orders by seq then rrMs before conflicting and nil ord",
+      "sources": [
+        {
+          "id": "whoop-new",
+          "beats": [
+            {"ts": 200, "rrMs": 700, "seq": 1},
+            {"ts": 200, "rrMs": 900, "seq": 0, "ord": 1},
+            {"ts": 200, "rrMs": 850, "seq": 0, "ord": 99},
+            {"ts": 200, "rrMs": 600, "seq": 2, "ord": 0}
+          ]
+        },
+        {
+          "id": "my-whoop",
+          "beats": []
+        }
+      ],
+      "expected": [
+        {"source": "whoop-new", "ts": 200, "rrMs": 850, "seq": 0, "ord": 99},
+        {"source": "whoop-new", "ts": 200, "rrMs": 900, "seq": 0, "ord": 1},
+        {"source": "whoop-new", "ts": 200, "rrMs": 700, "seq": 1},
+        {"source": "whoop-new", "ts": 200, "rrMs": 600, "seq": 2, "ord": 0}
+      ]
+    }
+  ]
+}

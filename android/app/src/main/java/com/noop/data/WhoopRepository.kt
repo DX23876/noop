@@ -886,19 +886,31 @@ class WhoopRepository(
     suspend fun sessionMotion(deviceId: String, sessionStart: Long): List<Double>? =
         dao.sessionMotionJson(deviceId, sessionStart)?.let { decodeDoubleArray(it) }
 
-    /** Per-epoch MOTION series for each of [starts] (detected session start keys), keyed by start (#407).
-     *  Motion is written ONLY under the computed ("-noop") source by the engine, so we read there; an
-     *  imported-only night (no computed twin) has no motion (absent stays absent , an honest empty state,
-     *  never a fabricated zero array). Does NOT resolve the night: the caller has already chosen the
-     *  main-night GROUP and passes those blocks' starts. A start with no stored series is omitted. Mirrors
-     *  iOS Repository.sessionMotions. */
-    suspend fun sessionMotions(strapDeviceId: String, starts: List<Long>): Map<Long, List<Double>> {
-        if (starts.isEmpty()) return emptyMap()
-        val computedId = computedDeviceId(strapDeviceId)
+    /** Per-epoch motion for the already-resolved [sessions], keyed by detected start (#407).
+     *
+     * The engine writes motion under a computed ("-noop") namespace. A selected session can belong to
+     * an older strap, however, while [activeStrapId] names the strap worn now. Resolve each start from its
+     * owning computed namespace first, then every registered WHOOP's computed namespace (active first,
+     * canonical last). This keeps old nights attached to their source across repeated strap switches and
+     * still finds a computed twin for an imported canonical session. A missing series remains absent.
+     */
+    suspend fun sessionMotions(
+        activeStrapId: String,
+        sessions: List<SleepSession>,
+    ): Map<Long, List<Double>> {
+        if (sessions.isEmpty()) return emptyMap()
+        val fallbackIds = rawWhoopSourceIds(activeStrapId).map { "$it-noop" }
         val out = HashMap<Long, List<Double>>()
-        for (start in starts) {
-            val m = dao.sessionMotionJson(computedId, start)?.let { decodeDoubleArray(it) }
-            if (!m.isNullOrEmpty()) out[start] = m
+        for (session in sessions) {
+            if (out.containsKey(session.startTs)) continue
+            val ownerComputed = if (session.deviceId.endsWith("-noop")) session.deviceId else "${session.deviceId}-noop"
+            for (sourceId in (listOf(ownerComputed) + fallbackIds).distinct()) {
+                val motion = dao.sessionMotionJson(sourceId, session.startTs)?.let { decodeDoubleArray(it) }
+                if (!motion.isNullOrEmpty()) {
+                    out[session.startTs] = motion
+                    break
+                }
+            }
         }
         return out
     }
@@ -947,7 +959,7 @@ class WhoopRepository(
 
     // MARK: - Reads
 
-    suspend fun hrSamples(deviceId: String, from: Long, to: Long, limit: Int = DEFAULT_LIMIT) =
+    suspend fun hrSamplesForDevice(deviceId: String, from: Long, to: Long, limit: Int = DEFAULT_LIMIT) =
         dao.hrSamples(deviceId, from, to, limit)
 
     /** #856: HR samples over an EXPLICIT id list, deduped by ts with earlier ids winning — the sample
@@ -959,9 +971,8 @@ class WhoopRepository(
         else mergeHrByTs(deviceIds.map { dao.hrSamples(it, from, to, limit) })
 
     /**
-     * HR samples over the read-side UNION of the active strap id AND the canonical "my-whoop" (SPINE /
-     * #814 + HIGH-2), deduped by ts with the active strap winning. This is the Kotlin twin of the Swift
-     * [com.noop] Repository.hrSamples(from:to:) union overload.
+     * HR samples over every registered WHOOP plus canonical "my-whoop", deduped by timestamp with the
+     * active strap winning and archived straps retained for historical windows.
      *
      * #908: a strap re-added through the in-app device manager banks its LIVE raw under its OWN fresh id
      * (e.g. "whoop-<uuid>"), NOT "my-whoop". A Today-curve / live-Effort read pinned to the hardcoded
@@ -970,7 +981,7 @@ class WhoopRepository(
      * A single-WHOOP install resolves [activeDeviceId] to "my-whoop" ⇒ ONE id ⇒ byte-identical read.
      */
     suspend fun hrSamplesUnion(activeDeviceId: String, from: Long, to: Long, limit: Int = DEFAULT_LIMIT):
-        List<HrSample> = mergeHrByTs(importedSourceIds(activeDeviceId).map { dao.hrSamples(it, from, to, limit) })
+        List<HrSample> = mergeHrByTs(rawWhoopSourceIds(activeDeviceId).map { dao.hrSamples(it, from, to, limit) })
 
     /** Raw measured HR only (no v26 PPG-derived union) for the raw-sensor diagnostic export. */
     suspend fun rawHrSamples(deviceId: String, from: Long, to: Long, limit: Int = DEFAULT_LIMIT) =
@@ -1022,7 +1033,7 @@ class WhoopRepository(
             .map { it.ts to StreamPersistence.unpackImuColumns(it.samples) }
 
     /** Downsampled HR (mean bpm per [bucketSeconds]) for the strap, for the Today 24h trend chart. */
-    suspend fun hrBuckets(deviceId: String, from: Long, to: Long, bucketSeconds: Long = 300L) =
+    suspend fun hrBucketsForDevice(deviceId: String, from: Long, to: Long, bucketSeconds: Long = 300L) =
         dao.hrBuckets(deviceId, from, to, bucketSeconds)
 
     /** #856: the same dedup over an EXPLICIT id list, so a workout can read its OWN recording strap
@@ -1034,15 +1045,13 @@ class WhoopRepository(
         else mergeHrBucketsByStart(deviceIds.map { dao.hrBuckets(it, from, to, bucketSeconds) })
 
     /**
-     * Downsampled HR buckets over the read-side UNION of the active strap id AND the canonical "my-whoop"
-     * (SPINE / #814 + HIGH-2), deduped by bucket start with the active strap winning. Kotlin twin of the
-     * Swift Repository.hrBuckets(from:to:bucketSeconds:) union overload. #908: keeps the Today HR curve
-     * pointed at whichever id the re-added strap actually banks under. Single-WHOOP install ⇒ one id ⇒
-     * byte-identical read.
+     * Downsampled HR buckets over every registered WHOOP (active first, archived included, canonical
+     * last), deduped by bucket start with the active source winning. Kotlin twin of the raw-sample union.
+     * A legacy canonical-only install remains a single byte-identical DAO read.
      */
     suspend fun hrBucketsUnion(activeDeviceId: String, from: Long, to: Long, bucketSeconds: Long = 300L):
         List<HrBucket> = mergeHrBucketsByStart(
-            importedSourceIds(activeDeviceId).map { dao.hrBuckets(it, from, to, bucketSeconds) },
+            rawWhoopSourceIds(activeDeviceId).map { dao.hrBuckets(it, from, to, bucketSeconds) },
         )
 
     /**
@@ -1147,8 +1156,19 @@ class WhoopRepository(
         }
     }
 
-    suspend fun rrIntervals(deviceId: String, from: Long, to: Long, limit: Int = DEFAULT_LIMIT) =
+    suspend fun rrIntervalsForDevice(deviceId: String, from: Long, to: Long, limit: Int = DEFAULT_LIMIT) =
         dao.rrIntervals(deviceId, from, to, limit)
+
+    /** R-R beats over active strap + canonical history. Exact duplicate beats are removed with the
+     * active source winning; distinct beats sharing a timestamp remain intact. */
+    suspend fun rrIntervalsUnion(
+        activeDeviceId: String,
+        from: Long,
+        to: Long,
+        limit: Int = DEFAULT_LIMIT,
+    ): List<RrInterval> = mergeRrByIdentity(
+        rawWhoopSourceIds(activeDeviceId).map { dao.rrIntervals(it, from, to, limit) },
+    )
 
     suspend fun events(deviceId: String, from: Long, to: Long, limit: Int = DEFAULT_LIMIT) =
         dao.events(deviceId, from, to, limit)
@@ -1327,7 +1347,7 @@ class WhoopRepository(
     suspend fun respSamples(deviceId: String, from: Long, to: Long, limit: Int = DEFAULT_LIMIT) =
         dao.respSamples(deviceId, from, to, limit)
 
-    suspend fun gravitySamples(deviceId: String, from: Long, to: Long, limit: Int = DEFAULT_LIMIT) =
+    suspend fun gravitySamplesForDevice(deviceId: String, from: Long, to: Long, limit: Int = DEFAULT_LIMIT) =
         dao.gravitySamples(deviceId, from, to, limit)
 
     /**
@@ -1343,10 +1363,20 @@ class WhoopRepository(
         to: Long,
         limit: Int = DEFAULT_LIMIT,
     ): List<GravitySample> = mergeGravityByTs(
-        importedSourceIds(activeDeviceId).map { dao.gravitySamples(it, from, to, limit) },
+        rawWhoopSourceIds(activeDeviceId).map { dao.gravitySamples(it, from, to, limit) },
     )
 
-    suspend fun sleepSessions(deviceId: String, from: Long, to: Long, limit: Int = DEFAULT_LIMIT) =
+    /** Resolve raw WHOOP telemetry across every registered WHOOP, including archived straps. Registry
+     * order is stable (addedAt ASC); the currently worn strap wins overlaps and canonical imports lose
+     * overlaps. The explicitly active source is preserved even for another brand; unrelated registered
+     * devices from other brands are deliberately excluded from WHOOP-specific fallback reads. */
+    private suspend fun rawWhoopSourceIds(activeDeviceId: String): List<String> =
+        rawWhoopSourceIdsFor(
+            activeDeviceId,
+            dao.pairedDevices().filter { it.brand.equals("WHOOP", ignoreCase = true) }.map { it.id },
+        )
+
+    suspend fun sleepSessionsForDevice(deviceId: String, from: Long, to: Long, limit: Int = DEFAULT_LIMIT) =
         dao.sleepSessions(deviceId, from, to, limit)
 
     /**
@@ -1365,13 +1395,15 @@ class WhoopRepository(
         val now = System.currentTimeMillis() / 1000L
         val lo = now - days * 86_400L
         val hi = now + 86_400L
-        // UNION active strap + canonical "my-whoop" (imported) and their computed siblings (#814/#1008),
+        // UNION every registered WHOOP (active first, including archived, canonical last) and their
+        // computed siblings,
         // de-duplicating identical (startTs, endTs) blocks recorded under both ids so a night present in
         // both namespaces doesn't double-weight the learner. Reading one id narrowed the night set vs iOS
         // after a strap re-add (the learner could cold-start to null where iOS returned a learned value).
         // Mirrors Swift Repository.habitualMidsleepSec (importedReadIds/computedReadIds + dedupBlocks).
-        val imported = dedupSleepBlocks(importedSourceIds(deviceId).flatMap { dao.sleepSessions(it, lo, hi, 4000) })
-        val computed = dedupSleepBlocks(computedSourceIds(deviceId).flatMap { dao.sleepSessions(it, lo, hi, 4000) })
+        val rawIds = rawWhoopSourceIds(deviceId)
+        val imported = dedupSleepBlocks(rawIds.flatMap { dao.sleepSessions(it, lo, hi, 4000) })
+        val computed = dedupSleepBlocks(rawIds.map { "$it-noop" }.flatMap { dao.sleepSessions(it, lo, hi, 4000) })
         val offsetSec = (java.util.TimeZone.getDefault().getOffset(System.currentTimeMillis()) / 1000).toLong()
         val blocks = (imported + computed).mapNotNull { s ->
             val start = s.effectiveStartTs
@@ -1716,7 +1748,8 @@ class WhoopRepository(
         computed = computedSourceIds(deviceId).reversed().flatMap { dao.sleepSessions(it, from, to, limit) },
     )
 
-    /** ALL imported sleep BLOCKS across the active∪canonical union (#814/#1008), keeping every session
+    /** ALL imported sleep BLOCKS across every registered WHOOP (active first, archived included,
+     *  canonical last), keeping every session
      *  per day (a nap + a main night both survive) and dropping only EXACT-duplicate (startTs, endTs)
      *  blocks recorded under both union ids , active strap FIRST so it keeps the surviving copy. The
      *  Sleep tab's chevron walk reads this instead of the single canonical id, so a night recorded under
@@ -1724,14 +1757,16 @@ class WhoopRepository(
      *  caller's, exactly as before). Mirrors Swift Repository.unionSleepSessions. */
     suspend fun sleepSessionsUnion(deviceId: String, from: Long, to: Long, limit: Int = DEFAULT_LIMIT):
         List<SleepSession> =
-        dedupSleepBlocks(importedSourceIds(deviceId).flatMap { dao.sleepSessions(it, from, to, limit) })
+        dedupSleepBlocks(rawWhoopSourceIds(deviceId).flatMap { dao.sleepSessions(it, from, to, limit) })
 
     /** The COMPUTED ("-noop") twin of [sleepSessionsUnion]: all computed sleep blocks across the computed
      *  union ids, exact-duplicate blocks dropped (active's computed sibling first). Mirrors Swift
      *  Repository.unionComputedSleepSessions. */
     suspend fun computedSleepSessionsUnion(deviceId: String, from: Long, to: Long, limit: Int = DEFAULT_LIMIT):
-        List<SleepSession> =
-        dedupSleepBlocks(computedSourceIds(deviceId).flatMap { dao.sleepSessions(it, from, to, limit) })
+        List<SleepSession> {
+        val ids = rawWhoopSourceIds(deviceId).map { "$it-noop" }
+        return dedupSleepBlocks(ids.flatMap { dao.sleepSessions(it, from, to, limit) })
+    }
 
     /** Workouts over the read-side UNION of the active strap id AND the canonical "my-whoop" (#814 twin of
      *  [hrSamplesUnion] / [sleepSessionsUnion]): a re-added / newly-paired strap owns "whoop-<uuid>" while
@@ -2038,10 +2073,10 @@ class WhoopRepository(
          * The IMPORTED daily-source ids to read for an [activeDeviceId]: the UNION of the active strap id
          * AND the canonical legacy "my-whoop", active FIRST (so a per-day pick takes the active/live row).
          * SPINE / #814 + HIGH-2. A re-added strap writes live data under its fresh id while the WHOOP-export
-         * import path ([com.noop.ingest.WhoopCsvImporter]) keeps writing under the canonical "my-whoop"
-         * (never drifting), so reading only the active id orphans the import. A single-WHOOP install resolves
-         * to "my-whoop" only ⇒ one id, byte-identical reads. Companion form so [com.noop.ui.FusionDayAdapter]
-         * (an object) and the instance reads share ONE definition.
+     * import path ([com.noop.ingest.WhoopCsvImporter]) keeps writing under the canonical "my-whoop"
+     * (never drifting), so reading only the active id orphans the import. A single-WHOOP install resolves
+     * to "my-whoop" only ⇒ one id, byte-identical reads. Companion form so [com.noop.ui.FusionDayAdapter]
+     * (an object) and the instance reads share ONE definition.
          */
         fun importedSourceIdsFor(activeDeviceId: String): List<String> =
             if (activeDeviceId == WHOOP_SOURCE) listOf(WHOOP_SOURCE)
@@ -2051,6 +2086,19 @@ class WhoopRepository(
          *  scores under "<importedDeviceId>-noop"). */
         fun computedSourceIdsFor(activeDeviceId: String): List<String> =
             importedSourceIdsFor(activeDeviceId).map { "$it-noop" }
+
+        /** Pure ordering contract shared with Swift through Tools/parity_cases/device_raw_sources.json. */
+        fun rawWhoopSourceIdsFor(activeDeviceId: String, registeredWhoopIds: List<String>): List<String> =
+            (listOf(activeDeviceId) +
+                registeredWhoopIds.filter { it != activeDeviceId && it != WHOOP_SOURCE } +
+                WHOOP_SOURCE).distinct()
+
+        /** Computed namespaces to probe for a session's motion, owner first and then the current
+         * active + canonical union. [sessionOwnerId] may already be a computed id. */
+        fun motionSourceIdsFor(activeDeviceId: String, sessionOwnerId: String): List<String> {
+            val ownerComputed = if (sessionOwnerId.endsWith("-noop")) sessionOwnerId else "$sessionOwnerId-noop"
+            return (listOf(ownerComputed) + computedSourceIdsFor(activeDeviceId)).distinct()
+        }
 
         /** Pick the winner among per-source LATEST rows ([computedSourceIdsFor] order, active-strap
          *  first): the strictly newest day wins; a shared newest day keeps the FIRST seen (the active
@@ -2370,6 +2418,24 @@ class WhoopRepository(
             val byTs = LinkedHashMap<Long, HrSample>()
             for (list in lists) for (s in list) byTs.putIfAbsent(s.ts, s)
             return byTs.values.sortedBy { it.ts }
+        }
+
+        /** Merge R-R lists with source priority matching [mergeHrByTs]. R-R has multiple legitimate
+         * beats at one timestamp, so its identity is the storage key excluding deviceId, not timestamp
+         * alone. The first (active) list wins only an exact duplicate. */
+        internal fun mergeRrByIdentity(lists: List<List<RrInterval>>): List<RrInterval> {
+            if (lists.size == 1) return lists[0]
+            data class BeatKey(val ts: Long, val rrMs: Int, val seq: Int)
+            val byBeat = LinkedHashMap<BeatKey, RrInterval>()
+            for (list in lists) for (beat in list) {
+                byBeat.putIfAbsent(BeatKey(beat.ts, beat.rrMs, beat.seq), beat)
+            }
+            return byBeat.values.sortedWith(
+                compareBy<RrInterval> { it.ts }
+                    .thenBy { it.seq }
+                    .thenBy { it.rrMs }
+                    .thenBy { it.ord },
+            )
         }
 
         /**

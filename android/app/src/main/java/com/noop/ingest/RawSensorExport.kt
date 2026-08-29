@@ -75,11 +75,11 @@ object RawSensorExport {
         counts["hr"] = hr.size
         for (s in hr) rows += LineRow(s.ts, line("hr", s.ts, 0 to n(s.bpm)))
 
-        val rr = repo.rrIntervals(deviceId, from, to, limit)
+        val rr = repo.rrIntervalsForDevice(deviceId, from, to, limit)
         counts["rr"] = rr.size
         for (s in rr) rows += LineRow(s.ts, line("rr", s.ts, 1 to n(s.rrMs)))
 
-        val grav = repo.gravitySamples(deviceId, from, to, limit)
+        val grav = repo.gravitySamplesForDevice(deviceId, from, to, limit)
         counts["gravity"] = grav.size
         for (s in grav) rows += LineRow(s.ts, line("gravity", s.ts, 2 to n(s.x), 3 to n(s.y), 4 to n(s.z)))
 

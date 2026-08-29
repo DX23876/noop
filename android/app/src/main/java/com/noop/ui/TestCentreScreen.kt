@@ -407,10 +407,10 @@ private fun TestCentreLiveReadoutPanel(
         val now = System.currentTimeMillis() / 1_000
         val from = now - 60 * 60
         hrSamples = runCatching {
-            vm.repo.hrSamples(activeStrapId, from, now, limit = 10_000)
+            vm.repo.hrSamplesForDevice(activeStrapId, from, now, limit = 10_000)
         }.getOrDefault(emptyList())
         gravitySamples = runCatching {
-            vm.repo.gravitySamples(activeStrapId, from, now, limit = 10_000)
+            vm.repo.gravitySamplesForDevice(activeStrapId, from, now, limit = 10_000)
         }.getOrDefault(emptyList())
     }
 

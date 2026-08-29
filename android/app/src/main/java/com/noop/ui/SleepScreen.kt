@@ -230,9 +230,9 @@ fun SleepScreen(
     // and lays them along the hypnogram's timeline. A block with no stored series stays absent (honest empty
     // state for older rows whose motionJSON is NULL). Mirrors iOS SleepView.motionByStart.
     var motionByStart by remember { mutableStateOf<Map<Long, List<Double>>>(emptyMap()) }
-    LaunchedEffect(sleeps) {
+    LaunchedEffect(sleeps, vm.activeStrapId) {
         motionByStart = runCatching {
-            vm.repo.sessionMotions("my-whoop", sleeps.map { it.startTs })
+            vm.repo.sessionMotions(vm.activeStrapId, sleeps)
         }.getOrDefault(emptyMap())
     }
 
@@ -1987,5 +1987,4 @@ private fun MotionStrip(epochs: List<Double>) {
 // MARK: - Sleep window and night navigation UI lives in SleepNightNavUi.kt
 // MARK: - Sleep metric cards, debt ledger, stages, trends + chart helpers live in SleepMetricCardsUi.kt
 // MARK: - Sleep metric detail sheet UI lives in SleepMetricDetailSheet.kt
-
 

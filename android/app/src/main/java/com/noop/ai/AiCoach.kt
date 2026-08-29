@@ -151,15 +151,16 @@ class AiCoach(
 
     /**
      * Today's derived stress line for the consent-gated coach context. Reads R-R for the local day
-     * via [WhoopRepository.rrIntervals] (the SAME path StressScreen uses) and summarises it with the
-     * pure [stressIndexLine]. Returns null when there aren't enough clean beats. Summary number only,      * the raw R-R never leaves the device.
+     * via [WhoopRepository.rrIntervalsUnion] (the SAME path StressScreen uses) and summarises it with the
+     * pure [stressIndexLine]. Returns null when there aren't enough clean beats. Summary number only;
+     * the raw R-R never leaves the device.
      */
     private suspend fun stressLineToday(): String? {
         val nowSeconds = System.currentTimeMillis() / 1000L
         val tzOffset = java.util.TimeZone.getDefault().getOffset(nowSeconds * 1_000L) / 1_000L
         val localNow = nowSeconds + tzOffset
         val from = (localNow - Math.floorMod(localNow, 86_400L)) - tzOffset
-        val rr = repo.rrIntervals(activeStrapId(), from, nowSeconds, limit = 200_000)
+        val rr = repo.rrIntervalsUnion(activeStrapId(), from, nowSeconds, limit = 200_000)
         return stressIndexLine(rr)
     }
 

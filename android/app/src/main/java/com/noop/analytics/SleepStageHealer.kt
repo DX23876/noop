@@ -69,11 +69,11 @@ object SleepStageHealer {
     ): String? {
         val lo = start - 3_600L
         val hi = end + 3_600L
-        val grav = repo.gravitySamples(deviceId, lo, hi, IntelligenceEngine.STREAM_LIMIT)
+        val grav = repo.gravitySamplesForDevice(deviceId, lo, hi, IntelligenceEngine.STREAM_LIMIT)
         // Cheap density gate FIRST (count only) so a sparse imported night skips the three further reads.
         if (!isDense(grav, start, end)) return null
-        val hr = repo.hrSamples(deviceId, lo, hi, IntelligenceEngine.STREAM_LIMIT)
-        val rr = repo.rrIntervals(deviceId, lo, hi, IntelligenceEngine.STREAM_LIMIT)
+        val hr = repo.hrSamplesForDevice(deviceId, lo, hi, IntelligenceEngine.STREAM_LIMIT)
+        val rr = repo.rrIntervalsForDevice(deviceId, lo, hi, IntelligenceEngine.STREAM_LIMIT)
         // Same provenance refusal as the nightly scan: an Oura ring's respiration rows are its own
         // per-window RATE stored as instrumentation, not the ~1 Hz raw ADC waveform this stager reads,
         // so they never reach a re-stage either. See `OuraRespScale.forScoring`. Mirrors Swift.
@@ -161,7 +161,7 @@ object SleepStageHealer {
         useMotionAwareWake: Boolean = false,
     ): List<SleepSession> {
         suspend fun editedRows(): List<SleepSession> =
-            repo.sleepSessions(computedDeviceId, windowStart, windowEnd).filter { it.userEdited }
+            repo.sleepSessionsForDevice(computedDeviceId, windowStart, windowEnd).filter { it.userEdited }
 
         val edited = editedRows()
         if (edited.isEmpty()) return emptyList()

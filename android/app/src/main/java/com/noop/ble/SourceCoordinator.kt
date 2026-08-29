@@ -531,7 +531,7 @@ class SourceCoordinator(
                         runCatching {
                             val from = s.startTs - 16 * 3600 - 3600
                             val to = s.endTs + 3600
-                            repo.sleepSessions(deviceId, from, to, 64)
+                            repo.sleepSessionsForDevice(deviceId, from, to, 64)
                                 .filter { it.startTs != s.startTs && com.noop.analytics.SleepSessionDedup.isDuplicate(session, it) }
                                 .forEach { e ->
                                     straplog("Oura: dup-gen(#1284) persist ${dupGenShape(s.startTs, s.endTs, s.stagesJson)} duplicates stored ${dupGenShape(e.startTs, e.endTs, e.stagesJSON)} startDelta=${s.startTs - e.startTs}s (end-anchor drift) - cross-connection DB read")
@@ -544,7 +544,7 @@ class SourceCoordinator(
                             // candidate (safe default). Mirrors the Swift twin's structure + FAILED log.
                             val from = s.startTs - 16 * 3600 - 3600
                             val to = s.endTs + 3600
-                            val nearby = runCatching { repo.sleepSessions(deviceId, from, to, 64) }.getOrDefault(emptyList())
+                            val nearby = runCatching { repo.sleepSessionsForDevice(deviceId, from, to, 64) }.getOrDefault(emptyList())
                             val plan = com.noop.analytics.SleepSessionDedup.planBank(session, nearby)
                             if (plan.bank) {
                                 // Bank the survivor FIRST, retire what it supersedes only after it lands — so a

@@ -113,13 +113,11 @@ struct StressView: View {
             freqHRV = nil
             return
         }
-        let rr = (try? await repo.storeHandle()?.rrIntervals(
-            deviceId: repo.deviceId, from: from, to: to, limit: 200_000)) ?? []
+        let rr = await repo.rrIntervals(from: from, to: to, limit: 200_000)
         // Wrist accelerometer for the motion gate: an ambulatory hour is EXERTION, not stress, so it
         // is masked rather than scored (DaytimeStress). Same store read as R-R; empty on hardware or
         // imports with no gravity, which is exactly the "no masking, prior behaviour" degradation.
-        let gravity = (try? await repo.storeHandle()?.gravitySamples(
-            deviceId: repo.deviceId, from: from, to: to, limit: 200_000)) ?? []
+        let gravity = await repo.gravitySamplesUnion(from: from, to: to, limit: 200_000)
 
         // Score today's hours against the PERSONAL cross-day daytime baseline ONLY when the user has
         // opted in (Settings → Experimental) AND enough worn history exists (Oura-style
@@ -173,8 +171,7 @@ struct StressView: View {
             let dayTz = TimeZone.current.secondsFromGMT(for: dayStart)
             let dayHR = await repo.hrSamples(from: from, to: to, limit: 200_000)
             guard !dayHR.isEmpty else { continue }   // unworn day — no floor to learn, skip the R-R read
-            let dayRR = (try? await repo.storeHandle()?.rrIntervals(
-                deviceId: repo.deviceId, from: from, to: to, limit: 200_000)) ?? []
+            let dayRR = await repo.rrIntervals(from: from, to: to, limit: 200_000)
             days.append(.init(hr: dayHR, rr: dayRR, tzOffsetSeconds: dayTz))
         }
         return DaytimeStress.scoringMode(history: days)

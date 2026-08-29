@@ -57,8 +57,30 @@ public struct RRInterval: Equatable, Codable {
     /// that second, so the over-count is accumulation across offloads. WHOOP's wire format has no
     /// channel field, so `srcChannel` can never answer this for a strap — `ord` is what is left.
     public let ord: Int?
-    public init(ts: Int, rrMs: Int, srcChannel: RRSourceChannel? = nil, ord: Int? = nil) {
-        self.ts = ts; self.rrMs = rrMs; self.srcChannel = srcChannel; self.ord = ord
+    /// Storage identity for equal beats in the same second. Defaults to zero so wire decoders and
+    /// callers that predate the widened database key remain source- and behaviour-compatible.
+    public let seq: Int
+    public init(ts: Int, rrMs: Int, srcChannel: RRSourceChannel? = nil, ord: Int? = nil, seq: Int = 0) {
+        self.ts = ts; self.rrMs = rrMs; self.srcChannel = srcChannel; self.ord = ord; self.seq = seq
+    }
+
+    private enum CodingKeys: String, CodingKey { case ts, rrMs, srcChannel, ord, seq }
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        ts = try c.decode(Int.self, forKey: .ts)
+        rrMs = try c.decode(Int.self, forKey: .rrMs)
+        srcChannel = try c.decodeIfPresent(RRSourceChannel.self, forKey: .srcChannel)
+        ord = try c.decodeIfPresent(Int.self, forKey: .ord)
+        seq = try c.decodeIfPresent(Int.self, forKey: .seq) ?? 0
+    }
+    public func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(ts, forKey: .ts)
+        try c.encode(rrMs, forKey: .rrMs)
+        try c.encodeIfPresent(srcChannel, forKey: .srcChannel)
+        try c.encodeIfPresent(ord, forKey: .ord)
+        // Preserve the legacy encoded shape for the overwhelmingly common seq=0 row.
+        if seq != 0 { try c.encode(seq, forKey: .seq) }
     }
 }
 

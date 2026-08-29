@@ -178,9 +178,9 @@ object AndroidDiagnostics {
                     if (sk.isNotEmpty()) { session = s; skin = sk; break }
                 }
             }
-            val grav = repo.gravitySamples(id, session.startTs, session.endTs, Int.MAX_VALUE)
-            val hr = repo.hrSamples(id, session.startTs, session.endTs, Int.MAX_VALUE)
-            val rr = repo.rrIntervals(id, session.startTs, session.endTs, Int.MAX_VALUE)
+            val grav = repo.gravitySamplesForDevice(id, session.startTs, session.endTs, Int.MAX_VALUE)
+            val hr = repo.hrSamplesForDevice(id, session.startTs, session.endTs, Int.MAX_VALUE)
+            val rr = repo.rrIntervalsForDevice(id, session.startTs, session.endTs, Int.MAX_VALUE)
             val resp = repo.respSamples(id, session.startTs, session.endTs, Int.MAX_VALUE)
             add("Night ${dayStamp(session.startTs)}: grav=${grav.size} hr=${hr.size} rr=${rr.size} resp=${resp.size} skin=${skin.size}")
             if (grav.isEmpty() && hr.isEmpty()) {

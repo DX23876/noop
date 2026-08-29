@@ -1593,7 +1593,7 @@ struct LiquidTodayView: View {
         if HostedCardPrefs.decodeEnabled(hostedCardsRaw).contains(where: { $0.origin == sleepOrigin }) {
             let hostedSessions = await repo.allSleepSessions()
             let hostedHabitual = await repo.habitualMidsleepSec()
-            let hostedMotion = await repo.sessionMotions(starts: hostedSessions.map { $0.startTs })
+            let hostedMotion = await repo.sessionMotions(sessions: hostedSessions)
             hostedSleepModel = SleepModel.build(SleepModelInputs(
                 days: repo.days,
                 sleeps: repo.sleeps,

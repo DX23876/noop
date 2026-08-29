@@ -78,23 +78,15 @@ struct RhythmHost: View {
     /// Read the most recent banked sleep session, pull its R-R + gravity, split into ~5-minute windows,
     /// gate each on stillness + resting rate, and screen it. Descriptive stats only — never a verdict.
     private func load() async {
-        guard let store = await repo.storeHandle(),
-              let lastSleep = (await repo.allSleepSessions(days: 14)).last else { return }
+        guard let lastSleep = (await repo.allSleepSessions(days: 14)).last else { return }
         let lo = lastSleep.effectiveStartTs
         let hi = lastSleep.endTs
         guard hi > lo else { return }
-        let rr = (try? await store.rrIntervals(deviceId: repo.deviceId, from: lo, to: hi, limit: 200_000)) ?? []
-        // BLE-only users have their night under the computed source; fall back to it when the imported
-        // device yields nothing. Gravity MUST be read from the SAME source id as the R-R (#1360): otherwise
-        // a fall-back night reads its stillness from the wrong device and every window fails the motion
-        // gate, which the empty-state diagnosis below would then misread as "no stillness signal at all".
-        let usedFallback = rr.isEmpty
-        let sourceId = usedFallback ? repo.deviceId + "-noop" : repo.deviceId
-        let rrRows = usedFallback
-            ? ((try? await store.rrIntervals(deviceId: sourceId, from: lo, to: hi, limit: 200_000)) ?? [])
-            : rr
+        // The selected night can belong to a previous/archived strap. Resolve the same all-WHOOP worn
+        // timeline used by Sleep rather than pinning its raw physiology to whichever strap is active now.
+        let rrRows = await repo.rrIntervals(from: lo, to: hi, limit: 200_000)
         guard !rrRows.isEmpty else { return }
-        let grav = (try? await store.gravitySamples(deviceId: sourceId, from: lo, to: hi, limit: 200_000)) ?? []
+        let grav = await repo.gravitySamplesUnion(from: lo, to: hi, limit: 200_000)
 
         // Window the night into 5-minute slices; a slice is "still" when its gravity variance is small.
         let windowSec = 5 * 60

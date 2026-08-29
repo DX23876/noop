@@ -392,7 +392,9 @@ private suspend fun readTimeline(
             // the chart at day scale (the #575 point-count risk downsampleTimeline handles for the others).
             // #1036 (ryanbr): stepSec closes this Android-only day-scale flood gap.
             val hrvWindow = HrvAnalyzer.DEFAULT_ROLLING_WINDOW_SEC
-            return@withContext runCatching { repo.rrIntervals(deviceId, from, to, 200_000) }.getOrDefault(emptyList())
+            return@withContext runCatching {
+                repo.rrIntervalsUnion(deviceId, from, to, 200_000)
+            }.getOrDefault(emptyList())
                 .let { HrvAnalyzer.rollingRmssd(it, windowSec = hrvWindow, stepSec = maxOf(1, hrvWindow / 8)) }
                 .map { (ts, v) -> TimelinePoint(ts, v) }
         }
@@ -419,7 +421,7 @@ private suspend fun readTimeline(
             runCatching { repo.respSamples(deviceId, from, to, 200_000) }.getOrDefault(emptyList())
                 .map { TimelinePoint(it.ts, OuraRespScale.displayValue(it.raw, deviceId)) }
         TimelineMetric.Motion ->
-            runCatching { repo.gravitySamples(deviceId, from, to, 200_000) }.getOrDefault(emptyList())
+            runCatching { repo.gravitySamplesUnion(deviceId, from, to, 200_000) }.getOrDefault(emptyList())
                 .map { TimelinePoint(it.ts, kotlin.math.sqrt(it.x * it.x + it.y * it.y + it.z * it.z)) }
         TimelineMetric.BandSleepState ->
             // #175: the strap's OWN band sleep_state (0 wake/1 still/2 asleep/3 up) as a stepped track. Read

@@ -89,7 +89,7 @@ class IntelligenceEngineJacocoBudgetTest {
             "Vitality upsert" to Regex("""\brepo\s*\.\s*upsertMetricSeries\s*\(\s*listOf\s*\("""),
             "Apple Health read" to Regex("""\brepo\s*\.\s*appleDaily\s*\(\s*WhoopRepository\s*\.\s*APPLE_HEALTH_SOURCE\b"""),
             "Health Connect read" to Regex("""\brepo\s*\.\s*appleDaily\s*\(\s*WhoopRepository\s*\.\s*HEALTH_CONNECT_SOURCE\b"""),
-            "gravity samples" to Regex("""\brepo\s*\.\s*gravitySamples\s*\("""),
+            "gravity samples" to Regex("""\brepo\s*\.\s*gravitySamplesForDevice\s*\("""),
             "calibration" to Regex("""\bStepsEstimateEngine\s*\.\s*calibrate\s*\("""),
             "step upsert" to Regex("""\brepo\s*\.\s*upsertMetricSeries\s*\(\s*estRows\s*\)"""),
             "calibration persistence" to Regex("""\bpersistStepsCalibration\s*\("""),
