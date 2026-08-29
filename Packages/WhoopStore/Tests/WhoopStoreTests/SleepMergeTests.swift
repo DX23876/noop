@@ -10,7 +10,14 @@ final class SleepMergeTests: XCTestCase {
         CachedSleepSession(startTs: start, endTs: end, efficiency: nil,
                            restingHr: nil, avgHrv: nil, stagesJSON: stages)
     }
+    /// One hour of segments. Against the 8-hour spans these tests use this is a HOLED timeline — which
+    /// is deliberate for the presence-rule cases below (rank 1 behaves exactly as the old "has stages"
+    /// did against a stage-less day) and is the fixture the coverage cases contrast with `tiling`.
     private let someStages = #"[{"start":0,"end":3600,"stage":"deep"}]"#
+    /// A single segment that covers `[start, end)` exactly — a night that accounts for its own span.
+    private func tiling(_ start: Int, _ end: Int) -> String {
+        #"[{"start":\#(start),"end":\#(end),"stage":"deep"}]"#
+    }
     // Deterministic "local day" keyer for the tests (real callers pass their tz-aware keyer).
     private let dayKey: (CachedSleepSession) -> String = { String($0.endTs / 86_400) }
 
@@ -76,6 +83,54 @@ final class SleepMergeTests: XCTestCase {
         let merged = SleepMerge.merge(imported: [impEmpty, impBlank],
                                       computed: [comp, compDay1], endDay: dayKey)
         XCTAssertEqual(merged.map(\.startTs), [0, 86_400], #""[]" and blank JSON are not stages"#)
+    }
+
+    // Coverage rank: a stage timeline that covers only part of the span it claims (a device hypnogram
+    // assembled from records that arrived incomplete) outranks nothing, but not a whole night.
+
+    /// The case the presence-only rule could not express, and the reason this change exists: a HOLED
+    /// import used to win purely by being an import, blanking a computed night that covers itself.
+    func testHoledImportYieldsToFullyCoveredComputedNight() {
+        let comp = session(start: 0, end: 8 * 3600, stages: tiling(0, 8 * 3600))
+        let imp  = session(start: 0, end: 8 * 3600, stages: someStages)   // 1 h of segments over 8 h
+        let merged = SleepMerge.merge(imported: [imp], computed: [comp], endDay: dayKey)
+        XCTAssertEqual(merged.map(\.startTs), [0])
+        XCTAssertEqual(merged.first?.stagesJSON, tiling(0, 8 * 3600),
+                       "the night that covers its own span wins over a holed import")
+    }
+
+    /// …but partial data still beats none. A holed import must not lose to a stage-less computed day.
+    func testHoledImportStillBeatsStagelessComputed() {
+        let comp = session(start: 0, end: 8 * 3600)                        // no stages
+        let imp  = session(start: 3600, end: 8 * 3600 + 1800, stages: someStages)
+        let merged = SleepMerge.merge(imported: [imp], computed: [comp], endDay: dayKey)
+        XCTAssertEqual(merged.map(\.startTs), [3600], "some stages beat none, holed or not")
+    }
+
+    /// Equal rank keeps the imported-over-computed default — the rule only fires on a strict out-rank.
+    func testEquallyHoledSidesKeepImportedWins() {
+        let comp = session(start: 0, end: 8 * 3600, stages: someStages)
+        let imp  = session(start: 3600, end: 8 * 3600 + 1800, stages: someStages)
+        let merged = SleepMerge.merge(imported: [imp], computed: [comp], endDay: dayKey)
+        XCTAssertEqual(merged.map(\.startTs), [3600])
+    }
+
+    /// A fully-covered import is untouched by any of this.
+    func testFullyCoveredImportStillWins() {
+        let comp = session(start: 0, end: 8 * 3600, stages: tiling(0, 8 * 3600))
+        let imp  = session(start: 3600, end: 3600 + 8 * 3600, stages: tiling(3600, 3600 + 8 * 3600))
+        let merged = SleepMerge.merge(imported: [imp], computed: [comp], endDay: dayKey)
+        XCTAssertEqual(merged.map(\.startTs), [3600])
+    }
+
+    /// The imported minute-dict shape carries no timestamps, so it can never be judged holed — every
+    /// WHOOP/Apple/Health-Connect import keeps its existing precedence.
+    func testImportedMinuteDictIsNeverHoled() {
+        let comp = session(start: 0, end: 8 * 3600, stages: tiling(0, 8 * 3600))
+        let imp  = session(start: 3600, end: 8 * 3600 + 1800,
+                           stages: #"{"light":300,"deep":100,"rem":80,"awake":40}"#)
+        let merged = SleepMerge.merge(imported: [imp], computed: [comp], endDay: dayKey)
+        XCTAssertEqual(merged.map(\.startTs), [3600], "a dict-shaped import is not measurable, so it wins as before")
     }
 
     func testRichnessExceptionKeepsEverySessionOfWinningDay() {

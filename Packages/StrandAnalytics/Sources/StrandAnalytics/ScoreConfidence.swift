@@ -1,4 +1,5 @@
 import Foundation
+import WhoopStore
 
 // ScoreConfidence.swift — per-score certainty tier for Charge / Effort / Rest.
 //
@@ -78,25 +79,39 @@ public enum ScoreConfidence: String, Equatable, Sendable, Codable {
     /// suspicious case — high efficiency (lots of measured sleep) but implausibly little restorative.
     public static let highEfficiencyThreshold: Double = 0.85
 
-    /// Rest confidence WITH the H9 stage-quality check AND the sparse-motion guard. Starts from
-    /// `rest(hasSession:hasStagedSleep:)`, then DOWNGRADES a `.solid` tier to `.building` (low-confidence)
-    /// when EITHER:
+    /// Rest confidence WITH the H9 stage-quality check, the sparse-motion guard AND the hypnogram-coverage
+    /// guard. Starts from `rest(hasSession:hasStagedSleep:)`, then DOWNGRADES a `.solid` tier to `.building`
+    /// (low-confidence) when ANY of:
     ///  - the night was staged on SPARSE gravity (`gravitySparse`) — a WHOOP 4.0 synced/offload night banks
     ///    motion coarsely, too sparse to reliably stage sleep (#345), so a confident 85–100 Rest is unearned
     ///    however the engine filled the stages. This catches the case H9 MISSES: a sparse night whose staging
     ///    manufactures HIGH efficiency AND HIGH restorative reads SOLID under H9 alone (the #319 signature),
     ///    yet the underlying data can't support it; OR
     ///  - the night is high-efficiency yet its restorative (deep+REM) share is below
-    ///    `restorativeLowConfidenceShare` — a likely staging miss (#H9).
+    ///    `restorativeLowConfidenceShare` — a likely staging miss (#H9); OR
+    ///  - `stageCoverage` says the stage timeline accounts for less than `HypnogramCoverage.minCoverage` of
+    ///    the span it claims. This is the case the other two structurally cannot see: a device-PROVIDED
+    ///    hypnogram assembled from records that arrived incomplete has real stages over the part that DID
+    ///    arrive, so its restorative share is ordinary and H9 stays quiet, while `gravitySparse` describes
+    ///    the on-device motion stager and is false for a provided hypnogram (and inert for Oura outright,
+    ///    which banks no gravity at all). Measured: a ring night covering 23% of its 601-minute span was
+    ///    stored as 70 minutes of sleep and reported SOLID.
     /// `asleepSeconds`/`restorativeSeconds` are the night's totals; efficiency is asleep/in-bed in [0,1].
+    /// `stageCoverage` is nil when coverage is unknown or not applicable — the guard fails OPEN there, so
+    /// an unmeasurable payload keeps its previous tier rather than being downgraded on no evidence.
     /// `.calibrating`/`.building` from the base call are returned unchanged. Confidence-only — never changes
-    /// the Rest score or invents stages. Engine output only; the UI surfaces the tier later. (#H9, #345)
+    /// the Rest score, invents stages, or claims the uncovered time was awake. Engine output only; the UI
+    /// surfaces the tier later. (#H9, #345)
     public static func rest(hasSession: Bool, hasStagedSleep: Bool,
                             asleepSeconds: Double, restorativeSeconds: Double,
-                            efficiency: Double, gravitySparse: Bool = false) -> ScoreConfidence {
+                            efficiency: Double, gravitySparse: Bool = false,
+                            stageCoverage: Double? = nil) -> ScoreConfidence {
         let base = rest(hasSession: hasSession, hasStagedSleep: hasStagedSleep)
         if base != .solid { return base }
         if gravitySparse { return .building }   // #345: sparse-motion staging can't earn a SOLID Rest
+        if let c = stageCoverage, c < HypnogramCoverage.minCoverage {
+            return .building   // the timeline covers only part of the night it claims
+        }
         if asleepSeconds <= 0 { return base }
         let restorativeShare = restorativeSeconds / asleepSeconds
         if efficiency >= highEfficiencyThreshold && restorativeShare < restorativeLowConfidenceShare {

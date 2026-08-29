@@ -127,6 +127,70 @@ class MergeSleepLocalDayTest {
         assertEquals("\"[]\" and blank JSON are not stages", listOf(comp0.startTs, comp1.startTs), merged.map { it.startTs })
     }
 
+    // Coverage rank (twins of the Swift SleepMergeTests coverage cases): a stage timeline that covers
+    // only part of the span it claims — a device hypnogram assembled from records that arrived
+    // incomplete — outranks nothing, but not a whole night.
+
+    /** A single segment covering `[start, end)` exactly: a night that accounts for its own span. */
+    private fun tiling(start: Long, end: Long) = """[{"start":$start,"end":$end,"stage":"deep"}]"""
+
+    /**
+     * The case the presence-only rule could not express, and the reason this change exists: a HOLED
+     * import used to win purely by being an import, blanking a computed night that covers itself.
+     */
+    @Test
+    fun mergeSleep_holedImportYieldsToFullyCoveredComputedNight() {
+        val start = wake - 8 * 3600L
+        val comp = session(start, wake, tiling(start, wake))
+        val imp = session(start, wake, someStages) // 1 h of segments over an 8 h span
+        val merged = WhoopRepository.mergeSleep(imported = listOf(imp), computed = listOf(comp))
+        assertEquals("the night that covers its own span wins over a holed import",
+            listOf(comp.stagesJSON), merged.map { it.stagesJSON })
+    }
+
+    /** …but partial data still beats none: a holed import must not lose to a stage-less computed day. */
+    @Test
+    fun mergeSleep_holedImportStillBeatsStagelessComputed() {
+        val comp = session(wake - 8 * 3600L, wake, null)
+        val imp = session(wake - 6 * 3600L, wake, someStages)
+        val merged = WhoopRepository.mergeSleep(imported = listOf(imp), computed = listOf(comp))
+        assertEquals("some stages beat none, holed or not", listOf(imp.startTs), merged.map { it.startTs })
+    }
+
+    /** Equal rank keeps the imported-over-computed default — the rule only fires on a strict out-rank. */
+    @Test
+    fun mergeSleep_equallyHoledSidesKeepImportedWins() {
+        val comp = session(wake - 8 * 3600L, wake, someStages)
+        val imp = session(wake - 6 * 3600L, wake, someStages)
+        val merged = WhoopRepository.mergeSleep(imported = listOf(imp), computed = listOf(comp))
+        assertEquals(listOf(imp.startTs), merged.map { it.startTs })
+    }
+
+    /** A fully-covered import is untouched by any of this. */
+    @Test
+    fun mergeSleep_fullyCoveredImportStillWins() {
+        val cs = wake - 8 * 3600L
+        val ist = wake - 6 * 3600L
+        val comp = session(cs, wake, tiling(cs, wake))
+        val imp = session(ist, wake, tiling(ist, wake))
+        val merged = WhoopRepository.mergeSleep(imported = listOf(imp), computed = listOf(comp))
+        assertEquals(listOf(imp.startTs), merged.map { it.startTs })
+    }
+
+    /**
+     * The imported minute-dict shape carries no timestamps, so it can never be judged holed — every
+     * WHOOP/Apple/Health-Connect import keeps its existing precedence.
+     */
+    @Test
+    fun mergeSleep_importedMinuteDictIsNeverHoled() {
+        val cs = wake - 8 * 3600L
+        val comp = session(cs, wake, tiling(cs, wake))
+        val imp = session(wake - 6 * 3600L, wake, """{"light":300,"deep":100,"rem":80,"awake":40}""")
+        val merged = WhoopRepository.mergeSleep(imported = listOf(imp), computed = listOf(comp))
+        assertEquals("a dict-shaped import is not measurable, so it wins as before",
+            listOf(imp.startTs), merged.map { it.startTs })
+    }
+
     @Test
     fun mergeSleep_richnessExceptionKeepsEverySessionOfWinningDay() {
         // computed main night (with stages) + computed nap (no stages); import is stage-less.

@@ -340,6 +340,77 @@ class ChargeEffortRestScoringTest {
         )
     }
 
+    // Hypnogram coverage: a stage timeline that accounts for only part of the span it claims cannot earn
+    // a SOLID Rest. The case the other two guards structurally cannot see. Mirrors Swift.
+    @Test
+    fun confidence_restCoverageDowngradesHoledHypnogram() {
+        val asleep = 8.0 * 3600.0
+        assertEquals(
+            ScoreConfidence.BUILDING,
+            ScoreConfidence.forRest(
+                hasSession = true, hasStagedSleep = true,
+                asleepSeconds = asleep, restorativeSeconds = asleep * 0.45, efficiency = 0.80,
+                stageCoverage = 0.23,
+            ),
+        )
+    }
+
+    @Test
+    fun confidence_restCoverageKeepsSolidWhenTimelineCoversItsSpan() {
+        val asleep = 8.0 * 3600.0
+        assertEquals(
+            ScoreConfidence.SOLID,
+            ScoreConfidence.forRest(
+                hasSession = true, hasStagedSleep = true,
+                asleepSeconds = asleep, restorativeSeconds = asleep * 0.45, efficiency = 0.80,
+                stageCoverage = 1.0,
+            ),
+        )
+    }
+
+    /** Unknown coverage must fail OPEN — null is "not measured", never "measured badly". */
+    @Test
+    fun confidence_restCoverageUnknownDoesNotDowngrade() {
+        val asleep = 8.0 * 3600.0
+        assertEquals(
+            ScoreConfidence.SOLID,
+            ScoreConfidence.forRest(
+                hasSession = true, hasStagedSleep = true,
+                asleepSeconds = asleep, restorativeSeconds = asleep * 0.45, efficiency = 0.80,
+                stageCoverage = null,
+            ),
+        )
+    }
+
+    /**
+     * The measured night this guard exists for (2026-08-18, Oura ring vs a paired WHOOP strap): the
+     * hypnogram covered 140 of 601 minutes, so NOOP stored 70 minutes of sleep where the strap recorded
+     * 494. It read SOLID because NEITHER existing guard applies — gravitySparse is false (Oura banks no
+     * gravity at all) and H9 needs efficiency >= 0.85 against this night's 0.50. Mirrors Swift.
+     */
+    @Test
+    fun confidence_restCoverageCatchesTheNightH9AndGravityMiss() {
+        val asleep = 70.0 * 60.0
+        val restorative = asleep * 0.45
+        assertEquals(
+            "precondition: without coverage this night reads SOLID — that is the bug",
+            ScoreConfidence.SOLID,
+            ScoreConfidence.forRest(
+                hasSession = true, hasStagedSleep = true,
+                asleepSeconds = asleep, restorativeSeconds = restorative, efficiency = 0.50,
+                gravitySparse = false,
+            ),
+        )
+        assertEquals(
+            ScoreConfidence.BUILDING,
+            ScoreConfidence.forRest(
+                hasSession = true, hasStagedSleep = true,
+                asleepSeconds = asleep, restorativeSeconds = restorative, efficiency = 0.50,
+                gravitySparse = false, stageCoverage = 140.0 / 601.0,
+            ),
+        )
+    }
+
     @Test
     fun confidence_restH9KeepsSolidWhenRestorativeHealthy() {
         val asleep = 8.0 * 3600.0

@@ -2587,7 +2587,15 @@ class WhoopRepository(
          *  (ryanbr/noop#241): a sparse import (no stage data on ANY of its sessions that day) must NOT clobber
          *  a computed day that HAS stage data — otherwise a stage-less WHOOP/Apple/HC re-import blanks the
          *  stage breakdown for a night the strap fully staged. Days where the import carries stages, or where
-         *  neither side does, keep the imported-wins rule. Mirrors WhoopStore.SleepMerge (SleepMergeTests). */
+         *  neither side does, keep the imported-wins rule. Mirrors WhoopStore.SleepMerge (SleepMergeTests).
+         *
+         *  Richness is a RANK, not a yes/no ([richness]): 2 = stages covering the span they claim, 1 =
+         *  stages present but HOLED, 0 = none — and the computed day wins only when it OUT-RANKS the
+         *  import. Collapsing 1 and 0 gives back the original presence rule exactly, so this is a strict
+         *  generalisation: every case #241 decided it still decides the same way. What changes is the pair
+         *  the old rule could not express — a holed import (a device hypnogram assembled from records that
+         *  arrived incomplete: many segments, a fraction of the span) against a COMPLETE computed night,
+         *  which used to go to the import and now goes to the night that actually covers itself. */
         internal fun mergeSleepRichness(
             imported: List<SleepSession>,
             computed: List<SleepSession>,
@@ -2598,8 +2606,8 @@ class WhoopRepository(
             val out = ArrayList<SleepSession>(imported.size + computed.size)
             for ((day, imp) in importedByDay) {
                 val comp = computedByDay[day]
-                if (comp != null && imp.none { hasStages(it) } && comp.any { hasStages(it) }) {
-                    out.addAll(comp)   // richer computed day survives a stage-less import
+                if (comp != null && dayRichness(comp) > dayRichness(imp)) {
+                    out.addAll(comp)   // richer computed day survives a poorer import
                 } else {
                     out.addAll(imp)    // imported wins its day (unchanged rule)
                 }
@@ -2614,6 +2622,23 @@ class WhoopRepository(
             val json = s.stagesJSON?.trim() ?: return false
             return json.isNotEmpty() && json != "[]"
         }
+
+        /** How much of a night this session's stages actually describe: 2 = covers its span, 1 = present
+         *  but HOLED, 0 = none. A timeline whose coverage cannot be measured (the imported minute-dict
+         *  shape, which has no timestamps) is never holed, so it ranks 2 — imports keep being judged on
+         *  presence exactly as they always were, and this gate cannot reach them.
+         *  Twin of WhoopStore.SleepMerge.richness. */
+        private fun richness(s: SleepSession): Int {
+            if (!hasStages(s)) return 0
+            val span = (s.endTs - s.startTs).toDouble()
+            return if (com.noop.analytics.HypnogramCoverage.isHoled(s.stagesJSON, span)) 1 else 2
+        }
+
+        /** A day's richness is that of its BEST session — a day with a fully-staged main night plus an
+         *  unstaged nap is a staged day (#715 keeps every session of the winning day either way).
+         *  Twin of WhoopStore.SleepMerge.dayRichness. */
+        private fun dayRichness(sessions: List<SleepSession>): Int =
+            sessions.fold(0) { acc, s -> maxOf(acc, richness(s)) }
     }
 }
 

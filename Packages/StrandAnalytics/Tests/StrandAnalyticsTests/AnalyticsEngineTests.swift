@@ -474,6 +474,61 @@ final class AnalyticsEngineTests: XCTestCase {
             .building, "high-efficiency night with near-zero deep+REM is low-confidence staging")
     }
 
+    // Hypnogram coverage: a stage timeline that accounts for only part of the span it claims cannot earn
+    // a SOLID Rest. This is the case the other two guards structurally cannot see — see the real night
+    // reproduced in `testRestConfidenceCoverageCatchesTheNightH9AndGravityMiss`.
+    func testRestConfidenceCoverageDowngradesHoledHypnogram() {
+        let asleep = 8.0 * 3600.0
+        XCTAssertEqual(
+            ScoreConfidence.rest(hasSession: true, hasStagedSleep: true,
+                                 asleepSeconds: asleep, restorativeSeconds: asleep * 0.45,
+                                 efficiency: 0.80, stageCoverage: 0.23),
+            .building, "a timeline covering 23% of its span cannot earn a SOLID Rest")
+    }
+
+    func testRestConfidenceCoverageKeepsSolidWhenTimelineCoversItsSpan() {
+        let asleep = 8.0 * 3600.0
+        XCTAssertEqual(
+            ScoreConfidence.rest(hasSession: true, hasStagedSleep: true,
+                                 asleepSeconds: asleep, restorativeSeconds: asleep * 0.45,
+                                 efficiency: 0.80, stageCoverage: 1.0),
+            .solid)
+    }
+
+    /// Unknown coverage must fail OPEN — nil is "not measured", never "measured badly". Omitting the
+    /// argument entirely (every pre-existing caller) must behave identically.
+    func testRestConfidenceCoverageUnknownDoesNotDowngrade() {
+        let asleep = 8.0 * 3600.0
+        for coverage in [nil, Optional(1.0)] {
+            XCTAssertEqual(
+                ScoreConfidence.rest(hasSession: true, hasStagedSleep: true,
+                                     asleepSeconds: asleep, restorativeSeconds: asleep * 0.45,
+                                     efficiency: 0.80, stageCoverage: coverage),
+                .solid, "coverage \(String(describing: coverage)) must not downgrade")
+        }
+    }
+
+    /// The measured night this guard exists for (2026-08-18, Oura ring vs a paired WHOOP strap): the
+    /// hypnogram covered 140 of 601 minutes, so NOOP stored 70 minutes of sleep where the strap recorded
+    /// 494. It read SOLID because NEITHER existing guard applies — `gravitySparse` is false (Oura banks
+    /// no gravity at all, so `isGravitySparse` returns false for every ring night) and H9 needs
+    /// efficiency ≥ 0.85 against this night's 0.50. Pinned so a future refactor cannot quietly lose it.
+    func testRestConfidenceCoverageCatchesTheNightH9AndGravityMiss() {
+        let asleep = 70.0 * 60.0
+        let restorative = asleep * 0.45          // ordinary share over the part that DID arrive
+        XCTAssertEqual(
+            ScoreConfidence.rest(hasSession: true, hasStagedSleep: true,
+                                 asleepSeconds: asleep, restorativeSeconds: restorative,
+                                 efficiency: 0.50, gravitySparse: false),
+            .solid, "precondition: without coverage this night reads SOLID — that is the bug")
+        XCTAssertEqual(
+            ScoreConfidence.rest(hasSession: true, hasStagedSleep: true,
+                                 asleepSeconds: asleep, restorativeSeconds: restorative,
+                                 efficiency: 0.50, gravitySparse: false,
+                                 stageCoverage: 140.0 / 601.0),
+            .building, "with coverage it is correctly low-confidence")
+    }
+
     func testRestConfidenceH9KeepsSolidWhenRestorativeHealthy() {
         // Same high-efficiency night but a healthy ~45% restorative share → stays solid.
         let asleep = 8.0 * 3600.0

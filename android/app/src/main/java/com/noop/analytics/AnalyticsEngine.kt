@@ -495,11 +495,22 @@ object AnalyticsEngine {
         var inBedS = 0.0
         var effWeighted = 0.0
         var disturbances = 0
+        // Hypnogram COVERAGE across the group: how much of the fragments' own spans the stage segments
+        // actually account for. Accumulated separately from `inBedS` because that one later absorbs the
+        // inter-fragment gap (#777/#705), which is a different quantity — a bridged out-of-bed gap is
+        // known-awake time between two fragments, whereas a hole INSIDE a fragment is time we never
+        // observed at all. Summed straight off `s.stages` (no JSON re-parse: the segments are already
+        // decoded here), then handed to HypnogramCoverage so the ratio/clamp/null rules have ONE
+        // definition shared with the merge-side guard. Mirrors Swift.
+        var coveredS = 0.0
+        var spanS = 0.0
         for (s in mainGroup) {
             val m = SleepStager.hypnogramMetrics(s)
             val inBed = (s.end - s.start).toDouble()
             inBedS += inBed                       // each fragment's own in-bed span (the gap is added below)
             effWeighted += s.efficiency * inBed   // in-bed-weighted efficiency across the group
+            spanS += inBed
+            for (seg in s.stages) if (seg.end > seg.start) coveredS += (seg.end - seg.start).toDouble()
             deepS += m.deepMin * 60.0
             remS += m.remMin * 60.0
             lightS += m.lightMin * 60.0
@@ -856,8 +867,11 @@ object AnalyticsEngine {
         // Rest confidence with H9 + the #345 sparse-motion guard: downgrade to low-confidence a night whose
         // deep+REM share is implausibly low on a high-efficiency night (H9 staging miss) OR that was staged
         // on sparse gravity (WHOOP 4.0 coarse-banked motion can't reliably stage sleep — a confident 85–100
-        // Rest is unearned however the engine filled it). Confidence-only, no faked stages. tstS/efficiency
-        // are the main-group totals above; restorative = deepS + remS. Mirrors Swift.
+        // Rest is unearned however the engine filled it). `stageCoverage` adds the third guard: a night
+        // whose stage timeline covers only part of its own span (an incompletely-received device
+        // hypnogram) cannot earn a SOLID Rest either, and neither of the other two can see it.
+        // Confidence-only, no faked stages. tstS/efficiency are the main-group totals above;
+        // restorative = deepS + remS. Mirrors Swift.
         val restConfidence = ScoreConfidence.forRest(
             hasSession = matched.isNotEmpty(),
             hasStagedSleep = (deepS + remS) > 0,
@@ -865,6 +879,7 @@ object AnalyticsEngine {
             restorativeSeconds = deepS + remS,
             efficiency = efficiency,
             gravitySparse = gravitySparse,
+            stageCoverage = HypnogramCoverage.fraction(coveredS, spanS),
         )
 
         // ── Per-session per-epoch motion (H8) ─────────────────────────────────
