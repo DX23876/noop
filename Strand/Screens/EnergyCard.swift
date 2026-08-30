@@ -1,4 +1,5 @@
 import SwiftUI
+import Charts
 import StrandAnalytics
 import StrandDesign
 
@@ -16,150 +17,119 @@ import StrandDesign
 struct EnergyCard: View {
     let summary: DailyEnergySummary
 
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
     var body: some View {
-        NoopCard {
-            VStack(alignment: .leading, spacing: 12) {
-                // Inline overline rather than a `SectionHeader` above the card: the card is dropped
-                // into a section list beside Synthese and Ziele, which both label themselves from
-                // inside their own surface.
-                Text("ENERGY").strandOverline()
-                header
+        NoopCard(tint: StrandPalette.energyResting) {
+            VStack(alignment: .leading, spacing: 16) {
+                HStack(spacing: 8) {
+                    Label("Energy", systemImage: "flame.fill")
+                        .strandOverlineLabel(color: StrandPalette.energyHighlight)
+                    Spacer(minLength: 8)
+                    confidencePill
+                }
+
+                if dynamicTypeSize.isAccessibilitySize {
+                    VStack(alignment: .leading, spacing: 16) { energyMark; headline }
+                } else {
+                    HStack(spacing: 18) { energyMark; headline }
+                }
+
                 Divider().overlay(StrandPalette.hairline)
-                splitRows
+                statStrip
+
                 if let note = qualityNote {
-                    Text(note)
+                    Label(note, systemImage: "info.circle")
                         .font(StrandFont.caption)
                         .foregroundStyle(StrandPalette.textSecondary)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(accessibilitySummary)
     }
 
-    // MARK: - Header
-    //
-    // A flat headline rather than a ring. The card's own strongest state is the one with no data at
-    // all — most days start there — and a 240° gauge with nothing to fill spends twice the height on
-    // one estimated number. The composition below carries the visual weight instead.
+    private var energyMark: some View {
+        EnergyCompositionMark(restingKcal: summary.basalBurnedSoFar,
+                              activeKcal: summary.activeBurnedSoFar,
+                              hasTotal: summary.totalBurnedSoFar != nil)
+            .frame(width: 104, height: 104)
+            .accessibilityHidden(true)
+    }
 
-    private var header: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 16) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(headlineTotal)
-                    .font(StrandFont.title1)
-                    .foregroundStyle(StrandPalette.textPrimary)
-                Text("total burned so far")
+    private var headline: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(headlineTotal)
+                .font(StrandFont.title1)
+                .foregroundStyle(StrandPalette.textPrimary)
+                .monospacedDigit()
+                .minimumScaleFactor(0.72)
+            Text("total burned so far")
+                .font(StrandFont.caption)
+                .foregroundStyle(StrandPalette.textSecondary)
+            if let range = summary.projectedRangeKcal {
+                Text("Forecast range: \(forecastRange(range)) kcal")
                     .font(StrandFont.caption)
-                    .foregroundStyle(StrandPalette.textSecondary)
-            }
-            Spacer()
-            if let projected = summary.projectedTotalBurn {
-                VStack(alignment: .trailing, spacing: 2) {
-                    // "~" is load-bearing: this is an extrapolation of the day's rate so far, not a
-                    // measurement, and the tilde is the cheapest way to keep saying so.
-                    Text("~" + (kcal(projected) ?? "—"))
-                        .font(StrandFont.title2)
-                        .foregroundStyle(StrandPalette.textPrimary)
-                    Text("projected today")
-                        .font(StrandFont.caption)
-                        .foregroundStyle(StrandPalette.textSecondary)
-                    // The interval says what the tilde only gestures at, and carries real information
-                    // the point estimate cannot: a well-covered afternoon reads tight, a thin morning
-                    // reads wide. `verbatim` because this is two formatted numbers and a dash — there
-                    // is nothing here to translate, so it adds no catalog key in any locale.
-                    if let range = summary.projectedRangeKcal {
-                        Text(verbatim: forecastRange(range))
-                            .font(StrandFont.caption)
-                            .foregroundStyle(StrandPalette.textTertiary)
-                            .monospacedDigit()
-                    }
-                }
+                    .foregroundStyle(StrandPalette.textTertiary)
+                    .monospacedDigit()
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
-
-    /// True when nothing measured the day and the only figure is the modelled basal rate.
-    private var isEstimateOnly: Bool { summary.source == .profileOnly }
 
     private var headlineTotal: String {
         guard let value = kcal(summary.totalBurnedSoFar) else { return "—" }
         return summary.source == .appleSplit ? value : "~" + value
     }
 
-    // MARK: - Split
-
-    /// Basal and active as SHARES of the day, not two numbers side by side. The point it makes: basal
-    /// is typically three quarters of the total, which two adjacent figures never showed.
-    @ViewBuilder
-    private var splitRows: some View {
-        // Nothing measured ⇒ no BARS. A bar at zero beside a number reads as a broken widget rather
-        // than as "there is nothing to divide up yet", so the estimate falls back to plain figures.
-        if isEstimateOnly || summary.totalBurnedSoFar == nil {
-            plainFigures
-        } else {
-            VStack(alignment: .leading, spacing: 8) {
-                if let basal = summary.basalBurnedSoFar {
-                    TypicalRangeRow(label: summary.source == .appleSplit
-                                        ? String(localized: "Basal")
-                                        : String(localized: "Basal (estimated)"),
-                                    valueText: share(basal),
-                                    trailingText: kcal(basal),
-                                    value: fraction(basal),
-                                    color: StrandPalette.metricAmber)
-                } else if let bmr = summary.estimatedBMR24h {
-                    TypicalRangeRow(label: String(localized: "Basal (estimated)"),
-                                    valueText: share(bmr),
-                                    trailingText: kcal(bmr),
-                                    value: fraction(bmr),
-                                    color: StrandPalette.metricAmber)
-                }
-                if let active = summary.activeBurnedSoFar {
-                    TypicalRangeRow(label: String(localized: "Active"),
-                                    valueText: share(active),
-                                    trailingText: kcal(active),
-                                    value: fraction(active),
-                                    color: StrandPalette.effortColor)
-                }
-            }
+    private var statStrip: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .top, spacing: 10) { statItems }
+            VStack(alignment: .leading, spacing: 10) { statItems }
         }
     }
 
-    /// The no-composition fallback: the same two labelled figures the card carried before the bars,
-    /// which is all there is to say when nothing measured the day. Keeps the estimated basal rate
-    /// visible rather than hiding it because it has no share to draw.
-    private var plainFigures: some View {
-        HStack(alignment: .top, spacing: 0) {
-            if let basal = summary.basalBurnedSoFar {
-                figure(label: summary.source == .appleSplit ? "Basal" : "Basal (estimated)",
-                       value: kcal(basal))
-            } else {
-                figure(label: "Basal (estimated)", value: kcal(summary.estimatedBMR24h))
-            }
-            figure(label: "Active", value: kcal(summary.activeBurnedSoFar))
+    @ViewBuilder private var statItems: some View {
+        EnergyStat(label: restingLabel, value: kcal(summary.basalBurnedSoFar ?? summary.estimatedBMR24h),
+                   symbol: "bed.double.fill", color: StrandPalette.energyResting,
+                   approximate: summary.basalBurnedSoFar == nil)
+        EnergyStat(label: "Active", value: kcal(summary.activeBurnedSoFar),
+                   symbol: "figure.run", color: StrandPalette.energyActive)
+        EnergyStat(label: "Projected", value: kcal(summary.projectedTotalBurn),
+                   symbol: "sun.max.fill", color: StrandPalette.energyHighlight, approximate: true)
+    }
+
+    private var restingLabel: LocalizedStringKey {
+        summary.basalBurnedSoFar == nil ? "Basal / day" : "Resting"
+    }
+
+    @ViewBuilder private var confidencePill: some View {
+        HStack(spacing: 5) {
+            Circle().fill(confidenceColor).frame(width: 6, height: 6)
+            Text(confidenceLabel)
+        }
+        .font(StrandFont.footnote)
+        .foregroundStyle(StrandPalette.textSecondary)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 5)
+        .background(StrandPalette.surfaceInset, in: Capsule())
+    }
+
+    private var confidenceLabel: LocalizedStringKey {
+        switch summary.confidence {
+        case .solid: return "Measured"
+        case .building: return "Partly estimated"
+        case .calibrating: return "Estimated"
         }
     }
 
-    private func figure(label: LocalizedStringKey, value: String?) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(value ?? "—")
-                .font(StrandFont.bodyNumber)
-                .foregroundStyle(value == nil ? StrandPalette.textSecondary : StrandPalette.textPrimary)
-            Text(label).font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
+    private var confidenceColor: Color {
+        switch summary.confidence {
+        case .solid: return StrandPalette.statusPositive
+        case .building: return StrandPalette.statusWarning
+        case .calibrating: return StrandPalette.textTertiary
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    /// A component's share of the day's total, 0…1. Nil total ⇒ 0: an empty bar rather than a full
-    /// one, because "unknown" must never render as "all of it".
-    private func fraction(_ value: Double) -> Double {
-        guard let total = summary.totalBurnedSoFar, total > 0 else { return 0 }
-        return min(1.0, max(0.0, value / total))
-    }
-
-    private func share(_ value: Double) -> String? {
-        guard let total = summary.totalBurnedSoFar, total > 0 else { return nil }
-        let pct = min(100, max(0, Int((value / total * 100).rounded())))
-        return "\(pct) %"
     }
 
     /// What the card says about its own reliability. `nil` on a solidly measured day — a caption that
@@ -189,6 +159,104 @@ struct EnergyCard: View {
         let high = Int(range.upperBound.rounded()).formatted(.number.grouping(.automatic))
         return "\(low)–\(high)"
     }
+
+    private var accessibilitySummary: String {
+        var parts = [String(localized: "Energy"), headlineTotal, String(localized: "total burned so far")]
+        if let active = kcal(summary.activeBurnedSoFar) {
+            parts.append("\(String(localized: "Active")): \(active)")
+        }
+        if let resting = kcal(summary.basalBurnedSoFar ?? summary.estimatedBMR24h) {
+            parts.append("\(String(localized: "Resting")): \(resting)")
+        }
+        return parts.joined(separator: ", ")
+    }
+}
+
+struct EnergyCompositionMark: View {
+    let restingKcal: Double?
+    let activeKcal: Double?
+    let hasTotal: Bool
+
+    static func fractions(resting: Double?, active: Double?) -> (resting: Double, active: Double)? {
+        let resting = max(0, resting ?? 0)
+        let active = max(0, active ?? 0)
+        let total = resting + active
+        guard total > 0 else { return nil }
+        return (resting / total, active / total)
+    }
+
+    private var fractions: (resting: Double, active: Double)? {
+        Self.fractions(resting: restingKcal, active: activeKcal)
+    }
+
+    var body: some View {
+        ZStack {
+            Circle().stroke(StrandPalette.energyTrack, style: .init(lineWidth: 10, lineCap: .round))
+            if hasTotal, let fractions {
+                Circle()
+                    .trim(from: 0, to: fractions.resting)
+                    .stroke(StrandPalette.energyResting,
+                            style: .init(lineWidth: 10, lineCap: .butt))
+                    .rotationEffect(.degrees(-90))
+                if fractions.active > 0 {
+                    Circle()
+                        .trim(from: fractions.resting, to: 1)
+                        .stroke(StrandPalette.energyActive,
+                                style: .init(lineWidth: 10, lineCap: .round))
+                        .rotationEffect(.degrees(-90))
+                }
+            }
+            Circle()
+                .fill(StrandPalette.energyHighlight.opacity(0.12))
+                .frame(width: 62, height: 62)
+            Image(systemName: "flame.fill")
+                .font(.system(size: 28, weight: .semibold))
+                .foregroundStyle(LinearGradient(gradient: StrandPalette.energyGradient,
+                                                startPoint: .top, endPoint: .bottom))
+        }
+    }
+}
+
+private struct EnergyStat: View {
+    let label: LocalizedStringKey
+    let value: String?
+    let symbol: String
+    let color: Color
+    var approximate = false
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 8) {
+            Image(systemName: symbol)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(color)
+                .frame(width: 28, height: 28)
+                .background(color.opacity(0.12), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+            VStack(alignment: .leading, spacing: 1) {
+                Text(label).font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
+                Text(displayValue)
+                    .font(StrandFont.captionNumber)
+                    .foregroundStyle(value == nil ? StrandPalette.textTertiary : StrandPalette.textPrimary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.72)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var displayValue: String {
+        guard let value else { return "—" }
+        return approximate ? "~\(value)" : value
+    }
+}
+
+private extension Label where Title == Text, Icon == Image {
+    func strandOverlineLabel(color: Color) -> some View {
+        self
+            .font(StrandFont.overline)
+            .tracking(StrandFont.overlineTracking)
+            .textCase(.uppercase)
+            .foregroundStyle(color)
+    }
 }
 // MARK: - Detail
 
@@ -200,9 +268,13 @@ struct EnergyDetailView: View {
 
     @State private var summaries: [DailyEnergySummary] = []
     @State private var loaded = false
+    @State private var loading = false
+    @State private var refreshingToday = false
     @State private var calibration = EnergyCalibrationViewState.off
     @State private var updatingCalibration = false
     @State private var adaptiveEstimate: AdaptiveExpenditureEstimate?
+    @State private var timeline: [EnergyTimelinePoint] = []
+    @State private var technicalDetailsExpanded = false
 
     private var today: DailyEnergySummary? {
         let key = Repository.localDayKey(Date())
@@ -213,22 +285,99 @@ struct EnergyDetailView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: NoopMetrics.sectionGap) {
                 SectionHeader("Energy", overline: "Today")
-                if let today {
+                if !loaded {
+                    HStack(spacing: 10) {
+                        ProgressView()
+                        Text("Loading energy…")
+                            .font(StrandFont.caption)
+                            .foregroundStyle(StrandPalette.textSecondary)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                } else if let today {
                     EnergyCard(summary: today)
-                    provenance(today)
-                    if let adaptiveEstimate { adaptiveComparison(adaptiveEstimate) }
-                    calibrationControls
+                    if refreshingToday {
+                        HStack(spacing: 8) {
+                            ProgressView().controlSize(.small)
+                            Text("Updating today's energy…")
+                                .font(StrandFont.caption)
+                                .foregroundStyle(StrandPalette.textSecondary)
+                        }
+                    }
+                    if !timeline.isEmpty { todayTimeline(summary: today) }
                 } else {
-                    Text("Nothing recorded yet today.")
-                        .font(StrandFont.caption)
-                        .foregroundStyle(StrandPalette.textSecondary)
+                    emptyState
                 }
                 if !history.isEmpty { chart }
+                if loaded, let adaptiveEstimate { adaptiveComparison(adaptiveEstimate) }
+                if loaded, let today { technicalDetails(today) }
             }
             .padding(NoopMetrics.screenPadding)
         }
         .navigationTitle(Text("Energy"))
         .task { await loadIfNeeded() }
+    }
+
+    private func todayTimeline(summary: DailyEnergySummary) -> some View {
+        VStack(alignment: .leading, spacing: NoopMetrics.gap) {
+            SectionHeader("Energy through today", trailing: String(localized: "cumulative"))
+            NoopCard {
+                Chart {
+                    ForEach(timeline) { point in
+                        AreaMark(x: .value("Time", point.timestamp),
+                                 yStart: .value("Resting start", 0),
+                                 yEnd: .value("Resting", point.basalKcal))
+                            .foregroundStyle(StrandPalette.energyResting.opacity(0.16))
+                        AreaMark(x: .value("Time", point.timestamp),
+                                 yStart: .value("Active start", point.basalKcal),
+                                 yEnd: .value("Total", point.totalKcal))
+                            .foregroundStyle(StrandPalette.energyActive.opacity(0.22))
+                        LineMark(x: .value("Time", point.timestamp),
+                                 y: .value("Burned", point.totalKcal))
+                            .foregroundStyle(StrandPalette.energyHighlight)
+                            .lineStyle(.init(lineWidth: 3, lineCap: .round, lineJoin: .round))
+                    }
+                    if let last = timeline.last, let projected = summary.projectedTotalBurn,
+                       let midnight = Calendar.current.date(byAdding: .day, value: 1,
+                                                            to: Calendar.current.startOfDay(for: last.timestamp)) {
+                        LineMark(x: .value("Forecast time", last.timestamp),
+                                 y: .value("Forecast", last.totalKcal), series: .value("Series", "forecast"))
+                            .foregroundStyle(StrandPalette.textTertiary)
+                            .lineStyle(.init(lineWidth: 2, dash: [6, 5]))
+                        LineMark(x: .value("Forecast time", midnight),
+                                 y: .value("Forecast", projected), series: .value("Series", "forecast"))
+                            .foregroundStyle(StrandPalette.textTertiary)
+                            .lineStyle(.init(lineWidth: 2, dash: [6, 5]))
+                    }
+                }
+                .chartXAxis { AxisMarks(values: .stride(by: .hour, count: 4)) }
+                .frame(height: 190)
+                if summary.forecastStatus == .learning {
+                    Text("Forecast is learning from complete days. Only energy already burned is shown.")
+                        .font(StrandFont.caption)
+                        .foregroundStyle(StrandPalette.textSecondary)
+                }
+            }
+        }
+    }
+
+    private var emptyState: some View {
+        NoopCard(tint: StrandPalette.energyResting) {
+            HStack(spacing: 14) {
+                Image(systemName: "flame.fill")
+                    .font(.system(size: 24, weight: .semibold))
+                    .foregroundStyle(StrandPalette.energyHighlight)
+                    .frame(width: 48, height: 48)
+                    .background(StrandPalette.energyHighlight.opacity(0.12), in: Circle())
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Nothing recorded yet today.")
+                        .font(StrandFont.headline)
+                        .foregroundStyle(StrandPalette.textPrimary)
+                    Text("Energy appears as soon as a connected source records today's activity.")
+                        .font(StrandFont.caption)
+                        .foregroundStyle(StrandPalette.textSecondary)
+                }
+            }
+        }
     }
 
     /// A long-horizon comparison, never a replacement for today's WHOOP estimate. It appears only
@@ -251,80 +400,95 @@ struct EnergyDetailView: View {
         }
     }
 
-    /// Which sources produced today's number and how much of the day they saw. The point of the
-    /// screen: a total is only worth as much as its coverage, and that has to be inspectable.
-    private func provenance(_ s: DailyEnergySummary) -> some View {
+    /// Technical provenance remains fully inspectable, but no longer competes with the useful daily
+    /// summary and charts on first paint.
+    private func technicalDetails(_ s: DailyEnergySummary) -> some View {
         VStack(alignment: .leading, spacing: NoopMetrics.gap) {
-            SectionHeader("Data quality", trailing: confidenceLabel(s.confidence))
-            NoopCard {
-                VStack(alignment: .leading, spacing: 8) {
-                    // A terse "who / how much / how sure" lead-in above the row breakdown — only when
-                    // there's an ACTUAL coverage percentage to report. `coverage.energy` is set for
-                    // WHOOP and Apple only (see `EnergyEngine.coverage`); a steps/profile day has no
-                    // wear-duration signal to summarize here, so those rows below still carry it alone.
-                    if let compact = compactProvenanceLine(s) {
-                        Text(verbatim: compact)
-                            .font(StrandFont.subhead)
-                            .foregroundStyle(StrandPalette.textPrimary)
-                            .monospacedDigit()
+            SectionHeader("Data quality & calculation", trailing: confidenceLabel(s.confidence))
+            NoopCard(tint: StrandPalette.energyResting) {
+                DisclosureGroup(isExpanded: $technicalDetailsExpanded) {
+                    VStack(alignment: .leading, spacing: 10) {
                         Divider().overlay(StrandPalette.hairline)
+                        provenanceRows(s)
+                        Divider().overlay(StrandPalette.hairline)
+                        calibrationContent
                     }
-                    row("Source", sourceLabel(s.source))
-                    if let energy = s.coverage.energy {
-                        row("Energy coverage", percent(energy))
+                    .padding(.top, 8)
+                } label: {
+                    HStack(spacing: 10) {
+                        Image(systemName: "checkmark.shield.fill")
+                            .foregroundStyle(confidenceColor(s.confidence))
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("How today's number was calculated")
+                                .font(StrandFont.headline)
+                                .foregroundStyle(StrandPalette.textPrimary)
+                            Text(compactProvenanceLine(s) ?? sourceLabel(s.source))
+                                .font(StrandFont.caption)
+                                .foregroundStyle(StrandPalette.textSecondary)
+                        }
                     }
-                    if let movement = s.coverage.movement {
-                        row("Hours with movement", percent(movement))
-                    }
-                    if let bmr = s.estimatedBMR24h {
-                        row("Estimated basal rate", "\(Int(bmr.rounded())) kcal/day")
-                    }
-                    if let raw = s.rawWhoopTotalKcal {
-                        row("Model", "WHOOP · \(Int(raw.rounded())) kcal")
-                    }
-                    if let uncertainty = s.uncertaintyFraction {
-                        row("Confidence", "±\(Int((uncertainty * 100).rounded())) %")
-                    }
-                    row("Calibration", calibrationLabel(s.calibrationStatus))
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .tint(StrandPalette.energyHighlight)
             }
         }
     }
 
-    private var calibrationControls: some View {
-        NoopCard {
-            VStack(alignment: .leading, spacing: 10) {
-                Toggle("Calibration", isOn: Binding(
-                    get: { calibration.status == .active || calibration.status == .learning },
-                    set: { enabled in Task { await setCalibration(enabled) } }))
-                    .disabled(updatingCalibration)
-                HStack {
-                    Text(calibrationLabel(calibration.status))
+    @ViewBuilder private func provenanceRows(_ s: DailyEnergySummary) -> some View {
+        row("Source", sourceLabel(s.source))
+        if let energy = s.coverage.energy { row("Energy coverage", percent(energy)) }
+        if let movement = s.coverage.movement { row("Hours with movement", percent(movement)) }
+        if let bmr = s.estimatedBMR24h {
+            row("Estimated basal rate per 24 h", "\(Int(bmr.rounded())) kcal/day")
+        }
+        if let weight = s.modelWeightKg {
+            let source = s.modelWeightSource == "history"
+                ? String(localized: "weight history") : String(localized: "profile")
+            row("Body weight used", "\(weight.formatted(.number.precision(.fractionLength(1)))) kg · \(source)")
+        }
+        if let raw = s.rawWhoopTotalKcal { row("Model", "WHOOP v5 · \(Int(raw.rounded())) kcal") }
+        if let uncertainty = s.uncertaintyFraction {
+            row("Confidence", "±\(Int((uncertainty * 100).rounded())) %")
+        }
+        if s.unresolvedElevatedHRSeconds > 0 {
+            let minutes = Int((Double(s.unresolvedElevatedHRSeconds) / 60).rounded())
+            row("Unexplained elevated heart rate", "\(minutes) min")
+            Text("This time had elevated heart rate without confirmed movement or a workout. NOOP does not count it as activity and widens the uncertainty range.")
+                .font(StrandFont.caption)
+                .foregroundStyle(StrandPalette.textSecondary)
+        }
+    }
+
+    private var calibrationContent: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Toggle("Calibration", isOn: Binding(
+                get: { calibration.status == .active || calibration.status == .learning },
+                set: { enabled in Task { await setCalibration(enabled) } }))
+                .disabled(updatingCalibration)
+            HStack {
+                Text(calibrationLabel(calibration.status))
+                    .font(StrandFont.caption)
+                    .foregroundStyle(StrandPalette.textSecondary)
+                Spacer()
+                if let factor = calibration.factor {
+                    Text(verbatim: formattedCalibrationFactor(factor))
                         .font(StrandFont.caption)
-                        .foregroundStyle(StrandPalette.textSecondary)
-                    Spacer()
-                    if let factor = calibration.factor {
-                        Text(verbatim: formattedCalibrationFactor(factor))
-                            .font(StrandFont.caption)
-                            .foregroundStyle(StrandPalette.textPrimary)
+                        .foregroundStyle(StrandPalette.textPrimary)
+                }
+            }
+            if calibration.sampleDays > 0 {
+                row("Days", "\(calibration.sampleDays) · \(calibration.sampleBuckets) samples")
+            }
+            if calibration.status == .active || calibration.status == .paused {
+                Button("Reset", role: .destructive) {
+                    Task {
+                        updatingCalibration = true
+                        calibration = await repo.resetEnergyCalibration()
+                        summaries = await repo.energySummaries(
+                            days: 30, profile: Repository.analyticsProfile(profile))
+                        updatingCalibration = false
                     }
                 }
-                if calibration.sampleDays > 0 {
-                    row("Days", "\(calibration.sampleDays) · \(calibration.sampleBuckets) samples")
-                }
-                if calibration.status == .active || calibration.status == .paused {
-                    Button("Reset", role: .destructive) {
-                        Task {
-                            updatingCalibration = true
-                            calibration = await repo.resetEnergyCalibration()
-                            summaries = await repo.energySummaries(
-                                days: 30, profile: Repository.analyticsProfile(profile))
-                            updatingCalibration = false
-                        }
-                    }
-                    .disabled(updatingCalibration)
-                }
+                .disabled(updatingCalibration)
             }
         }
     }
@@ -352,8 +516,7 @@ struct EnergyDetailView: View {
             SectionHeader("Daily burn", trailing: String(localized: "last 30 days"))
             NoopCard {
                 TrendChart(points: history,
-                           gradient: Gradient(colors: [StrandPalette.metricAmber.opacity(0.35),
-                                                       StrandPalette.metricAmber]),
+                           gradient: StrandPalette.energyGradient,
                            valueRange: chartRange,
                            height: 180,
                            valueFormat: { "\(Int($0.rounded())) kcal" },
@@ -414,6 +577,14 @@ struct EnergyDetailView: View {
         }
     }
 
+    private func confidenceColor(_ confidence: ScoreConfidence) -> Color {
+        switch confidence {
+        case .solid: return StrandPalette.statusPositive
+        case .building: return StrandPalette.statusWarning
+        case .calibrating: return StrandPalette.textTertiary
+        }
+    }
+
     private func calibrationLabel(_ status: EnergyCalibrationStatus) -> String {
         switch status {
         case .off:      return String(localized: "Off")
@@ -447,14 +618,29 @@ struct EnergyDetailView: View {
     }
 
     private func loadIfNeeded() async {
-        guard !loaded else { return }
-        loaded = true
-        await repo.refreshWhoopEnergyModel(
-            days: 30, profile: Repository.analyticsProfile(profile))
+        guard !loaded, !loading else { return }
+        loading = true
+        let analyticsProfile = Repository.analyticsProfile(profile)
+
+        // Paint from the store first. A model-version migration must never hold the entire detail
+        // screen hostage while it walks months of raw one-second movement rows.
         calibration = await repo.energyCalibrationState()
         summaries = await repo.energySummaries(days: 30,
-                                               profile: Repository.analyticsProfile(profile))
+                                               profile: analyticsProfile)
+        timeline = await repo.todayEnergyTimeline(profile: analyticsProfile)
         adaptiveEstimate = await repo.adaptiveExpenditureEstimate()
+        loaded = true
+        loading = false
+
+        // Rebuild only the live day on entry, then repaint. The normal completed-offload path owns
+        // the 120-day backfill; doing that synchronously here made a 2.4 GB library look like an empty
+        // card for minutes.
+        refreshingToday = true
+        await repo.refreshWhoopEnergyModel(days: 1, profile: analyticsProfile)
+        summaries = await repo.energySummaries(days: 30, profile: analyticsProfile)
+        timeline = await repo.todayEnergyTimeline(profile: analyticsProfile)
+        calibration = await repo.energyCalibrationState()
+        refreshingToday = false
     }
 
     private func setCalibration(_ enabled: Bool) async {

@@ -536,6 +536,19 @@ public enum StrandPalette {
         }
     }
 
+    // MARK: - Energy
+
+    /// A small, fixed colour world for expenditure. These colours intentionally do not follow the
+    /// selected score-chart style: calories should keep the same meaning beside Charge, Effort and Rest.
+    /// Resting burn is the quieter gold foundation; active burn is the hotter coral layer.
+    public static let energyResting = Color(light: "#B7791F", dark: "#F2B84B")
+    public static let energyActive = Color(light: "#D94F2B", dark: "#FF7452")
+    public static let energyHighlight = Color(light: "#D98A20", dark: "#FFB347")
+    public static var energyTrack: Color { textTertiary.opacity(0.16) }
+    public static var energyGradient: Gradient {
+        Gradient(colors: [energyResting, energyHighlight, energyActive])
+    }
+
     // MARK: - Titanium & Gold domain "colour worlds" (NEW)
     //
     // Each daily score owns a two-stop accent gradient (deep → bright) plus a glow.

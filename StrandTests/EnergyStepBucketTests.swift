@@ -85,3 +85,25 @@ final class EnergyStepBucketTests: XCTestCase {
         XCTAssertTrue(Repository.bucketStepMovement([sample(0, 1_000)], ticksPerStep: 1.0).isEmpty)
     }
 }
+
+/// Pins the composition semantics of the Today energy mark. The ring is a breakdown of the energy
+/// already shown, never progress toward an invented calorie goal.
+final class EnergyCompositionMarkTests: XCTestCase {
+
+    func testRestingAndActiveAreNormalizedIntoOneComposition() throws {
+        let fractions = try XCTUnwrap(EnergyCompositionMark.fractions(resting: 750, active: 250))
+        XCTAssertEqual(fractions.resting, 0.75, accuracy: 0.0001)
+        XCTAssertEqual(fractions.active, 0.25, accuracy: 0.0001)
+    }
+
+    func testMissingComponentDoesNotInventEnergy() throws {
+        let restingOnly = try XCTUnwrap(EnergyCompositionMark.fractions(resting: 500, active: nil))
+        XCTAssertEqual(restingOnly.resting, 1, accuracy: 0.0001)
+        XCTAssertEqual(restingOnly.active, 0, accuracy: 0.0001)
+    }
+
+    func testMissingOrNonPositiveValuesProduceNoComposition() {
+        XCTAssertNil(EnergyCompositionMark.fractions(resting: nil, active: nil))
+        XCTAssertNil(EnergyCompositionMark.fractions(resting: -100, active: 0))
+    }
+}
