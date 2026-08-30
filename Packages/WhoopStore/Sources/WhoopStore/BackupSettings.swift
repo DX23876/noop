@@ -177,6 +177,11 @@ public enum BackupSettings {
     }
 
     private static func isBoolean(_ n: NSNumber) -> Bool {
+#if canImport(Darwin)
         CFGetTypeID(n) == CFBooleanGetTypeID()
+#else
+        // corelibs Foundation boxes JSON booleans with the Objective-C `c` type encoding.
+        String(cString: n.objCType) == "c"
+#endif
     }
 }

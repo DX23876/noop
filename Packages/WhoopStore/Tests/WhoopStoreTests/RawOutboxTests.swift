@@ -1,3 +1,4 @@
+#if canImport(Compression)
 import XCTest
 import WhoopProtocol
 @testable import WhoopStore
@@ -85,3 +86,4 @@ final class RawOutboxTests: XCTestCase {
         XCTAssertEqual(gotZeros, zeros)
     }
 }
+#endif

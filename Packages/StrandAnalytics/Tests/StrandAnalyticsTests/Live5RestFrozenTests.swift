@@ -88,12 +88,16 @@ final class Live5RestFrozenTests: XCTestCase {
     ///
     /// This intentionally FAILS against today's code (Rest.composite(daily:) returns nil for such a
     /// day). Delete the XCTExpectFailure wrapper when the fix lands.
-    func testChargeableDayShouldYieldAdvancingRestSignal_FIX() {
+    func testChargeableDayShouldYieldAdvancingRestSignal_FIX() throws {
+#if canImport(Darwin)
         XCTExpectFailure("#977 not yet fixed: a chargeable-but-unslept live-5.0 day yields a nil Rest signal") {
             let daily = chargeableButUnsleptDaily(day: "2026-07-02")
             XCTAssertNotNil(AnalyticsEngine.Rest.composite(daily: daily),
                             "A day that can score Charge must also surface SOME Rest signal, not freeze")
         }
+#else
+        throw XCTSkip("XCTExpectFailure is unavailable in corelibs XCTest")
+#endif
     }
 
     func testTodayRestFreezesOnTailFallbackWhenNoNewPointWritten() {

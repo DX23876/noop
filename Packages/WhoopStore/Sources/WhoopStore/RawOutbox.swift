@@ -1,3 +1,4 @@
+#if canImport(Compression)
 import Foundation
 import Compression
 import GRDB
@@ -252,3 +253,4 @@ extension WhoopStore {
         }
     }
 }
+#endif
