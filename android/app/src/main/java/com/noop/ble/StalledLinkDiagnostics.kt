@@ -42,10 +42,14 @@ internal fun helloDeferredByExplicitBondLine(
     full: Boolean = true,
     cap: Int = HELLO_OVERRIDE_MAX_ATTEMPTS,
 ): String {
+    // Both switches named explicitly. The first cut printed a bare "(override off)" one clause after the
+    // words "the pairing experiment", and a reader reasonably took it to mean the EXPERIMENT was off -
+    // costing a real debugging session, because the experiment was on the whole time. A parenthetical
+    // reporting one setting's state while the sentence names a different setting has to say which is which.
     val override = when {
-        !overrideOptedIn -> "override off"
-        overrideHelloStillAllowed(overrideAttempts, cap) -> "override on ($overrideAttempts/$cap used)"
-        else -> "override SPENT ($overrideAttempts/$cap)"
+        !overrideOptedIn -> "experiment ON, hello override off"
+        overrideHelloStillAllowed(overrideAttempts, cap) -> "experiment ON, hello override on ($overrideAttempts/$cap used)"
+        else -> "experiment ON, hello override SPENT ($overrideAttempts/$cap)"
     }
     val tail = if (consecutive >= 2 && !full) {
         // The guidance is a paragraph and this fires once per CONNECT, on a path documented to loop —

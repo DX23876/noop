@@ -68,11 +68,25 @@ internal fun shouldRequestExplicitBond(
  * who has explicitly opted into "send hello despite bond refusal" is asking for exactly this write, and
  * silently swallowing it because a doomed pairing was requested first would make that switch a no-op for
  * everyone running the pairing experiment — which is precisely who would turn it on.
+ *
+ * [priorDeferrals] ends the cycle for everyone else, and is why the override is no longer the only way
+ * out. Deferring ONCE is the honest form of the original reasoning: give the pairing the one connect it
+ * asked for. Deferring again is not caution, it is repeating an experiment whose answer is already in —
+ * this link has now seen a bond requested and not achieved, so the next connect writes the hello.
+ *
+ * The cost of being wrong in each direction is what settles the threshold. Deferring one connect too many
+ * costs a user their entire history sync, silently and permanently: no hello means no bond, no bond means
+ * no SET_CLOCK, and an un-clocked 5/MG does not bank to flash at all, so there is nothing to offload even
+ * once the link is healthy. Writing one hello too early costs, at worst, the link dropping and
+ * reconnecting — the failure this deferral was added to avoid, which the bond watchdog already handles.
+ * Field-confirmed on a 5/MG: four days without a sync, thirteen backfill deferrals in one session, and
+ * not a single hello written since the experiment was enabled.
  */
 internal fun explicitBondDefersHello(
     requestedThisLink: Boolean,
     helloOverride: Boolean = false,
-): Boolean = requestedThisLink && !helloOverride
+    priorDeferrals: Int = 0,
+): Boolean = requestedThisLink && !helloOverride && priorDeferrals < 1
 
 /**
  * The outcome line when `createBond()` THREW rather than returning.

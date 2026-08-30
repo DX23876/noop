@@ -236,7 +236,9 @@ fun TestCentreScreen(vm: AppViewModel, onOpenGroundTruthCollector: () -> Unit = 
                     )
                     DeveloperToggleRow(
                         title = stringResource(R.string.raw_diag_pair),
-                        detail = "Experimental explicit Android bonding. Normal 5/MG support does not require this switch.",
+                        detail = "Experimental explicit Android bonding. Normal 5/MG support does not " +
+                            "require this switch. A strap that refuses pairing defers its handshake for one " +
+                            "connect while this is on, so leave it off unless you are testing #1635.",
                         checked = explicitBond,
                         onCheckedChange = {
                             explicitBond = it

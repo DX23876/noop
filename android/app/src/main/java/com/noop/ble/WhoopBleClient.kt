@@ -7965,7 +7965,11 @@ class WhoopBleClient(
                     helloOverrideExhaustedLogged = true
                     log(helloOverrideExhaustedLine(helloOverrideAttempts))
                 }
-                if (explicitBondDefersHello(explicitBondRequestedThisLink, helloOverride = helloOverride)) {
+                // priorDeferrals ends the permanent cycle: the pairing got its one connect and did not
+                // bond, so this one writes the hello rather than deferring to a "next connect" that never
+                // resolves on a strap answering SMP 0x05.
+                if (explicitBondDefersHello(explicitBondRequestedThisLink, helloOverride = helloOverride,
+                                            priorDeferrals = helloDeferredRun())) {
                     // This branch used to return without a word, so the hello's absence was visible only
                     // as a line that never appeared — and the deferral reads identically on the first
                     // connect and the fiftieth. The count is what separates them.

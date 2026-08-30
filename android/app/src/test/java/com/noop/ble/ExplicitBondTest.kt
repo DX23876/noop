@@ -105,4 +105,38 @@ class ExplicitBondTest {
         assertFalse(explicitBondDefersHello(requestedThisLink = false))
         assertFalse(explicitBondDefersHello(requestedThisLink = false, helloOverride = true))
     }
+
+    /**
+     * The regression this exists to end. Before [priorDeferrals], a strap that refuses SMP deferred the
+     * hello on EVERY connect: no hello, no bond, no SET_CLOCK, and an un-clocked 5/MG banks nothing to
+     * flash, so history sync stopped entirely and silently. Field-confirmed - four days without a sync and
+     * not one hello written after the experiment was enabled.
+     */
+    @Test fun stopsDeferringOnceThePairingHasHadItsConnect() {
+        // First connect after the bond request: defer, exactly as before.
+        assertTrue(explicitBondDefersHello(requestedThisLink = true, priorDeferrals = 0))
+        // Every connect after that: the answer is already in, so write the hello.
+        assertFalse(explicitBondDefersHello(requestedThisLink = true, priorDeferrals = 1))
+        assertFalse(explicitBondDefersHello(requestedThisLink = true, priorDeferrals = 13))
+    }
+
+    /** No bond requested on this link means there was never anything to defer around. */
+    @Test fun neverDefersWhenNoBondWasRequested() {
+        assertFalse(explicitBondDefersHello(requestedThisLink = false, priorDeferrals = 0))
+        assertFalse(explicitBondDefersHello(requestedThisLink = false, priorDeferrals = 5))
+    }
+
+    /** The override still short-circuits the very first deferral, which is the whole point of that switch. */
+    @Test fun theOverrideStillWinsOnTheFirstConnect() {
+        assertFalse(explicitBondDefersHello(requestedThisLink = true, helloOverride = true, priorDeferrals = 0))
+    }
+
+    /**
+     * The default keeps every existing caller honest: omitting priorDeferrals must behave like a FIRST
+     * connect (defer), not like a strap that has already exhausted its chance. A default of 1 would have
+     * silently disabled the deferral everywhere.
+     */
+    @Test fun theDefaultBehavesLikeAFirstConnect() {
+        assertTrue(explicitBondDefersHello(requestedThisLink = true))
+    }
 }

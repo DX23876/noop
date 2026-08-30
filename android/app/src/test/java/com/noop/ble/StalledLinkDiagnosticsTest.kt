@@ -82,10 +82,14 @@ class StalledLinkDiagnosticsTest {
         val off = helloDeferredByExplicitBondLine(3, overrideOptedIn = false, overrideAttempts = 0)
         val on = helloDeferredByExplicitBondLine(3, overrideOptedIn = true, overrideAttempts = 2)
         val spent = helloDeferredByExplicitBondLine(3, overrideOptedIn = true, overrideAttempts = 6)
-        assertTrue(off.contains("override off"))
-        assertTrue(on.contains("override on (2/6 used)"))
-        assertTrue(spent.contains("override SPENT (6/6)"))
+        assertTrue(off.contains("experiment ON, hello override off"))
+        assertTrue(on.contains("experiment ON, hello override on (2/6 used)"))
+        assertTrue(spent.contains("experiment ON, hello override SPENT (6/6)"))
         assertFalse("a spent override must not read as active", spent.contains("override on ("))
+        // The sentence names the EXPERIMENT; the parenthetical must not report only the OTHER switch.
+        for (line in listOf(off, on, spent)) {
+            assertTrue("both switches must be named: $line", line.contains("experiment ON"))
+        }
     }
 
     /** The boundary is the cap itself: the attempt that spends the budget is the last permitted one. */
