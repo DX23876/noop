@@ -278,7 +278,9 @@ private fun SyncStatusSection(vm: AppViewModel, onSyncNow: () -> Unit) {
     // leaf re-runs per tick. Appearance + behaviour identical.
     val live by vm.live.collectAsStateWithLifecycle()
     // The strap link is usable for a manual offload kick (matches WhoopBleClient.syncNow's own gate).
-    val canSync = live.connected && live.bonded && !live.backfilling
+    // historyReady, not `bonded`: on a 5/MG the live-HR path sets `bonded` for a strap that has never
+    // completed a handshake, so this button enabled itself and beginBackfill then declined it silently.
+    val canSync = live.connected && live.bonded && live.historyReady && !live.backfilling
     Column(verticalArrangement = Arrangement.spacedBy(Metrics.gap)) {
         SectionHeader(
             "Sync",
@@ -309,10 +311,14 @@ private fun SyncStatusSection(vm: AppViewModel, onSyncNow: () -> Unit) {
                         )
                     }
                     else -> StatePill(
-                        title = if (live.bonded) "Ready to sync" else "Pairing…",
+                        // Same condition as the button below it. Keyed on `bonded` this said "Ready to
+                        // sync", not pulsing, directly above a DISABLED Sync now — on exactly the strap
+                        // that cannot sync. Before the button was gated the two agreed (both wrong);
+                        // gating one without the other is what made them contradict.
+                        title = if (live.historyReady) "Ready to sync" else "Pairing…",
                         tone = StrandTone.Accent,
                         showsDot = true,
-                        pulsing = !live.bonded,
+                        pulsing = !live.historyReady,
                     )
                 }
 
@@ -357,7 +363,12 @@ private fun syncHelperText(live: LiveState): String = when {
         "now continues automatically across passes instead of waiting between syncs."
     !live.connected -> "Connect your strap to sync its stored history. Until then, only imported data " +
         "shows here."
-    !live.bonded -> "Finishing the pairing handshake. Sync now becomes available once the strap is paired."
+    // historyReady, not `bonded`. This branch already said the right thing and simply never fired on the
+    // strap that needed it: `bonded` is set by the live-HR path, so a 5/MG that never completed a
+    // handshake fell through to the "syncs right away" line, directly under a Sync-now button that had
+    // just been disabled. Same condition as the button and the card title, so all three agree.
+    !live.historyReady ->
+        "Finishing the pairing handshake. Sync now becomes available once the strap is paired."
     else -> "Syncs your strap's stored history right away, instead of waiting for the next automatic sync."
 }
 
