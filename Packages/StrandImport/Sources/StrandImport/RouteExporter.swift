@@ -39,8 +39,7 @@ public enum RouteExporter {
     ) -> Data {
         switch format {
         case .gpx:
-            return Data(buildGpx(route: route, startTs: startTs, endTs: endTs, sport: sport,
-                                 distanceM: distanceM).utf8)
+            return Data(buildGpx(route: route, startTs: startTs, endTs: endTs, sport: sport).utf8)
         case .fit:
             return buildFit(route: route, startTs: startTs, endTs: endTs, sport: sport,
                             distanceM: distanceM, energyKcal: energyKcal, avgHr: avgHr, maxHr: maxHr)
@@ -48,12 +47,13 @@ public enum RouteExporter {
     }
 
     /// GPX 1.1 track. Each `trkpt` carries lat/lon + an interpolated `time`; no `ele`/HR (none stored).
+    /// Takes no distance: GPX 1.1 has no track-level distance element, so a reader derives it from the
+    /// trackpoints. FIT does carry one, which is why ``buildFit`` still takes it. Kotlin twin matches.
     public static func buildGpx(
         route: [RoutePoint],
         startTs: Int,
         endTs: Int,
-        sport: String?,
-        distanceM: Double? = nil
+        sport: String?
     ) -> String {
         let canon = canonicalSport(sport)
         let times = interpolatedTimes(route.count, startTs, endTs)
