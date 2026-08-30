@@ -85,6 +85,18 @@ final class Collector {
     private var lastStdRrCensusSec: Int = 0
     private var lastRealtimeRrCensusSec: Int = 0
 
+    /// Consecutive live-persist failures per transport, and when each last reported.
+    ///
+    /// Kept PER TRANSPORT because the standard 0x2A37 path and the puffin REALTIME_DATA path (#1118) fail
+    /// independently — a shared counter would let one path's success reset the other's run and report a
+    /// persistent failure as a string of first-failures. @MainActor isolation makes these safe without a
+    /// lock; the Kotlin twin uses AtomicInteger because its two flushes can run concurrently on the io
+    /// scope, and there the count is the load-bearing distinction between a transient and a run.
+    private var stdInsertFailures = 0
+    private var realtimeInsertFailures = 0
+    private var lastStdInsertFailureLogMs: Int64 = 0
+    private var lastRealtimeInsertFailureLogMs: Int64 = 0
+
     /// Standard 0x2A37 HR/RR buffer — the reliable, always-on stream, recorded continuously
     /// (independent of the custom realtime stream or which screen is open).
     private var stdHR: [HRSample] = []
@@ -215,9 +227,22 @@ final class Collector {
         }
         do {
             try await store.insert(streams, deviceId: deviceId)   // DECODED FIRST (durable)
+            realtimeInsertFailures = 0
         } catch {
             // Re-buffer at the front so these frames (and their parses) are retried on the next cadence.
             buffer.insert(contentsOf: batch, at: 0)
+            // Swallowing this made the census above read like success: a store rejecting everything still
+            // reported what was OFFERED, with nothing to say none of it landed.
+            realtimeInsertFailures += 1
+            let nowMs = Int64(Date().timeIntervalSince1970 * 1000)
+            if LivePersistTrace.shouldEmitLiveInsertFailure(lastEmitMs: lastRealtimeInsertFailureLogMs,
+                                                            nowMs: nowMs) {
+                lastRealtimeInsertFailureLogMs = nowMs
+                log?(LivePersistTrace.liveInsertFailedLine(
+                    transport: "live-realtime", errorName: String(describing: type(of: error)),
+                    message: error.localizedDescription, hrFrames: streams.hr.count,
+                    rrFrames: streams.rr.count, consecutiveFailures: realtimeInsertFailures))
+            }
             return
         }
         // Reset only after a successful insert so the interval trigger keeps firing if
@@ -271,9 +296,20 @@ final class Collector {
         }
         do {
             try await store.insert(Streams(hr: hr, rr: rr), deviceId: deviceId)
+            stdInsertFailures = 0
         } catch {
             stdHR.insert(contentsOf: hr, at: 0)
             stdRR.insert(contentsOf: rr, at: 0)
+            stdInsertFailures += 1
+            let nowMs = Int64(Date().timeIntervalSince1970 * 1000)
+            if LivePersistTrace.shouldEmitLiveInsertFailure(lastEmitMs: lastStdInsertFailureLogMs,
+                                                            nowMs: nowMs) {
+                lastStdInsertFailureLogMs = nowMs
+                log?(LivePersistTrace.liveInsertFailedLine(
+                    transport: "live-standard", errorName: String(describing: type(of: error)),
+                    message: error.localizedDescription, hrFrames: hr.count, rrFrames: rr.count,
+                    consecutiveFailures: stdInsertFailures))
+            }
         }
     }
 

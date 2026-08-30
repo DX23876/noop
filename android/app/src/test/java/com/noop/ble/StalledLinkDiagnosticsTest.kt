@@ -174,6 +174,29 @@ class StalledLinkDiagnosticsTest {
         assertTrue(many.contains("not recovering them"))
     }
 
+    /**
+     * Whole-line equality against the SAME literal the Swift `LivePersistTraceTests` pins, not `contains`.
+     * The two platforms emit this line into logs meant to be read beside each other, and every
+     * `contains` check above would still pass with a stray space or a moved clause. This is the
+     * assertion that actually holds them together.
+     */
+    @Test
+    fun `the whole line matches the Swift rendering byte for byte`() {
+        assertEquals(
+            "Live persist FAILED on live-standard — SQLiteFullException: database or disk is full" +
+                " (hr=12 rr=13). 9 consecutive failures — these rows are not landing and the re-buffer" +
+                " is not recovering them.",
+            liveInsertFailedLine("live-standard", "SQLiteFullException", "database or disk is full",
+                                 hrFrames = 12, rrFrames = 13, consecutiveFailures = 9),
+        )
+        assertEquals(
+            "Live persist FAILED on live-realtime — IllegalStateException (hr=0 rr=4)." +
+                " Re-buffered for the next cadence.",
+            liveInsertFailedLine("live-realtime", "IllegalStateException", null,
+                                 hrFrames = 0, rrFrames = 4, consecutiveFailures = 1),
+        )
+    }
+
     /** The message distinguishes the useful cases; the class alone rarely does. */
     @Test
     fun `the throwable message survives and is bounded`() {
