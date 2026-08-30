@@ -104,6 +104,20 @@ object AndroidDiagnostics {
                     "(if you restored a backup, fully restart the app — #57)")
             }
             if (restoreAt > 0L) add("Last restore: ${relTime(now - restoreAt * 1000L)}")
+            // #1735: row COUNTS alone cannot separate "Health Connect never brought the ride in" from
+            // "it did, but nothing has re-scored since". Both halves of that need a WHEN, and neither had
+            // one: the importer recorded no run time at all, and the engine's "re-score: done" goes only to
+            // the live log, so an export written hours later has already rolled it away.
+            val hcAt = p.getLong("hc.lastImportOkAt", 0L)
+            add(
+                hcImportLine(
+                    ago = if (hcAt > 0L) relTime(now - hcAt * 1000L) else null,
+                    rows = p.getInt("hc.lastImportRows", 0),
+                    throughDay = p.getString("hc.lastImportThroughDay", null),
+                ),
+            )
+            val scoredAt = p.getLong("score.lastPassAt", 0L)
+            add(scoringPassLine(ago = if (scoredAt > 0L) relTime(now - scoredAt * 1000L) else null))
             add("Timezone:    ${tzLine()}")
             val repo = com.noop.data.WhoopRepository.from(context)
             val days = repo.days("my-whoop")
@@ -284,6 +298,29 @@ object AndroidDiagnostics {
             add("Stored: " + perSource.joinToString("  ") { "${it.first}=${it.second.size}" })
             val latest = perSource.flatMap { it.second }.maxByOrNull { it.startTs }
             add(if (latest != null) "Latest: ${dayStamp(latest.startTs)} · ${latest.sport} (${latest.source})" else "Latest: none")
+            // #1735: "auto-detect is off but workouts keep appearing" is answerable only if the log says
+            // which of the TWO detectors is meant. The Settings toggle governs the opt-in suggestion card
+            // ONLY; the engine derives durable sport="detected" rows on every pass regardless, and all the
+            // per-bout tracing for that sits behind the Test Centre WORKOUTS domain, which a reporter
+            // filing a non-test-mode bug will not have on. Counts read from the store, so this states what
+            // IS, not what the code intends.
+            // Guarded SEPARATELY from the section: this file's contract is that every probe is guarded,
+            // and a throw in here would otherwise be caught by the outer handler and reported as
+            // "(workout sources unavailable)" - blaming the store for a failure in the auto-detect probe,
+            // with the sources sitting right above it having plainly worked.
+            runCatching {
+                autoDetectStateLine(
+                    suggestionCardEnabled = com.noop.ui.NoopPrefs.autoDetectWorkouts(context),
+                    storedDetectedRows = perSource.flatMap { it.second }.count { it.sport == "detected" },
+                    // Summed over the SAME strap ids whose rows were counted above. A two-strap install
+                    // banks detected rows under both "<active>-noop" and "my-whoop-noop", so reading
+                    // dismissals for the active strap alone could print "detected=52 dismissed=0" while
+                    // the dismissals sat under the other id, sending a reader after the #107 mechanism.
+                    dismissedMarkers = runCatching {
+                        listOf(active, "my-whoop").distinct().sumOf { repo.dismissedDetected(it).size }
+                    }.getOrNull(),
+                )
+            }.onSuccess { add(it) }.onFailure { add("(auto-detect state unavailable: ${it.message})") }
         }.onFailure { add("(workout sources unavailable: ${it.message})") }
     }
 
@@ -572,6 +609,74 @@ object AndroidDiagnostics {
             null -> "unknown"
         }
     }.getOrDefault("unknown")
+
+    /**
+     * When Health Connect last completed an import, and what it brought.
+     *
+     * The export already listed per-source row counts, which answer "is there data" but never "is it
+     * MOVING". #1735 turns on exactly that difference: a ride that has not appeared is either one Health
+     * Connect never imported or one it imported and nothing re-scored, and a static count cannot tell
+     * those apart. [rows] of 0 with a recent [ago] is a real and useful state - the import ran and found
+     * nothing - which is why the empty path is stamped too.
+     *
+     * A null [ago] means no import has ever completed on this install. Stated plainly rather than dressed
+     * up as a fault: plenty of installs never connect Health Connect at all.
+     */
+    internal fun hcImportLine(ago: String?, rows: Int, throughDay: String?): String {
+        if (ago == null) return "HC import:   never completed on this install"
+        val through = throughDay?.let { " · through $it" } ?: ""
+        return "HC import:   $rows row(s) $ago$through"
+    }
+
+    /**
+     * When the scoring engine last completed a pass.
+     *
+     * The analyze watermark records WHAT was scored (an HR fingerprint) and never WHEN, and the engine's
+     * own "re-score: done" line is live-log only, so an export written hours after the pass has already
+     * rolled it away. Without this, "I synced and nothing appeared" cannot distinguish a pass that ran and
+     * found nothing new from one that never ran - and those need opposite next steps.
+     *
+     * Stamped at BOTH completion sites (the idle pass and the post-sync pass), so the freshest of the two
+     * is what shows.
+     */
+    internal fun scoringPassLine(ago: String?): String =
+        if (ago == null) "Scoring:     no pass has completed on this install"
+        else "Scoring:     last pass $ago"
+
+    /**
+     * Which workout detector produced what, and whether the Settings toggle has anything to do with it.
+     *
+     * NOOP has TWO detectors and they are deliberately separate (see AutoWorkoutDetector's header). The
+     * Settings toggle governs the opt-in SUGGESTION card, which only ever offers a workout and saves
+     * nothing until the user taps Save. The IntelligenceEngine separately derives durable sport="detected"
+     * rows from the 1 Hz store on every scoring pass, and that has never been gated by the toggle.
+     *
+     * Both are called "detect" in the UI, so #1735 read the second one's rows as the first one ignoring
+     * its own switch, which is an entirely reasonable reading. Every per-bout line that would have shown
+     * the difference sits behind the Test Centre WORKOUTS domain, and that report was filed as "not a
+     * test-mode bug" with the domain off, so the log carried nothing about it at all.
+     *
+     * Reads COUNTS from the store rather than describing intent: it states what is on disk, not what the
+     * code believes it does. The reassurance clause is emitted only for the combination that actually
+     * misleads (card off, rows present) so it never claims to explain a state it is not looking at.
+     * [dismissedMarkers] is null when the query failed, and renders "n/a" rather than a wrong zero, which
+     * would read as "your dismissals are not sticking".
+     */
+    internal fun autoDetectStateLine(
+        suggestionCardEnabled: Boolean,
+        storedDetectedRows: Int,
+        dismissedMarkers: Int?,
+    ): String {
+        val card = if (suggestionCardEnabled) "on" else "off"
+        val dismissed = dismissedMarkers?.toString() ?: "n/a"
+        val note = if (!suggestionCardEnabled && storedDetectedRows > 0) {
+            " (rows with the card off are EXPECTED: a different detector makes them)"
+        } else {
+            ""
+        }
+        return "Auto-detect: suggestion card=$card · engine \"Activity\" rows=always on, not gated by " +
+            "that toggle · stored detected=$storedDetectedRows · dismissed markers=$dismissed$note"
+    }
 
     /** A coarse OEM-kill heuristic by manufacturer (the aggressive-background-kill vendors). Pure and
      *  internal so it unit-tests without a Context (the suite stays Robolectric-free). */
