@@ -269,11 +269,33 @@ class StalledLinkDiagnosticsTest {
             .substringBefore("\n    }")
         val call = fn.indexOf("val ok = safeGatt(\"writeClientHello\")")
         val claim = fn.indexOf("helloWrittenThisLink = true")
-        val run = fn.indexOf("helloDeferredConsecutive = 0")
+        val run = fn.indexOf("setHelloDeferredRun(0)")
         assertTrue("writeClientHello must call safeGatt", call >= 0)
         assertTrue("the write must be claimed, somewhere", claim >= 0)
         assertTrue("helloWrittenThisLink must be set AFTER the stack accepts", claim > call)
         assertTrue("the deferral run must only be cleared AFTER the stack accepts", run > call)
+    }
+
+    /**
+     * The deferral run must SURVIVE a process restart, which is the only reason it is in
+     * SharedPreferences rather than a field. A field log is usually exported well after the restart that
+     * would have reset it, and a run of 1 prints "expected on the connect that asks" - the opposite of
+     * the truth for a strap that has never once completed a handshake. Field-backed, that read is exactly
+     * what the first version of this got wrong.
+     */
+    @Test
+    fun `the deferral run is persisted rather than held in memory`() {
+        val src = clientSource()
+        assertTrue("the run must be READ from prefs at the deferral site",
+                   src.contains("val deferralRun = helloDeferredRun() + 1"))
+        assertTrue("and written straight back", src.contains("setHelloDeferredRun(deferralRun)"))
+        assertTrue("the line must report the persisted value", src.contains("consecutive = deferralRun,"))
+        // Cleared exactly where the run genuinely ends: a hello that went out, and a genuine bond.
+        assertTrue(src.contains("setHelloDeferredRun(0)        // the handshake works on this strap"))
+        // ...and NOT in reset(), which runs on every disconnect and would defeat the whole point.
+        val resetBody = src.substringAfter("private fun reset() {").substringBefore("\n    }")
+        assertFalse("reset() must not clear the cross-connection run",
+                    resetBody.contains("setHelloDeferredRun"))
     }
 
     @Test

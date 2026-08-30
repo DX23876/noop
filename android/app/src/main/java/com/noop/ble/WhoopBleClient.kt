@@ -2383,16 +2383,28 @@ class WhoopBleClient(
      *  backfill deferral can say whether the handshake was ever reachable. Cleared in [reset]. */
     @Volatile private var helloWrittenThisLink = false
 
-    /** Consecutive connects that deferred the hello to the pairing experiment without writing one.
-     *  Deliberately NOT cleared in [reset] — the whole point is that it survives the connection, since
-     *  one deferral is the experiment working and a run of them is the permanent SMP-0x05 state. Reset
-     *  when a hello is written or a genuine bond is reached. Per app process, like the override budget. */
-    @Volatile private var helloDeferredConsecutive = 0
+    /** Key for the persisted deferral run. In SharedPreferences rather than memory because the run is the
+     *  whole point: one deferral is the experiment working, a long run is the permanent SMP-0x05 state,
+     *  and a process restart used to reset the count to 1 and print "expected on the connect that asks"
+     *  over a strap that had never once completed a handshake. A field log is usually taken well after
+     *  the restart that hid it. */
+    private val helloDeferredKey = "ble.helloDeferredConsecutive"
+
+    /** The run so far. Guarded: a prefs failure must never break a connect, and 0 reads as "no run", which
+     *  is the safe direction - it under-states rather than inventing a history. */
+    private fun helloDeferredRun(): Int =
+        runCatching { NoopPrefs.of(context).getInt(helloDeferredKey, 0) }.getOrDefault(0)
+
+    private fun setHelloDeferredRun(value: Int) {
+        runCatching { NoopPrefs.of(context).edit().putInt(helloDeferredKey, value).apply() }
+    }
 
     /** Whether the deferral's full guidance paragraph has been printed for the CURRENT run. The deferral
      *  fires once per connect on a path documented to loop (57 cycles in an hour, see [HelloSuppression]),
      *  so the paragraph is one-shot per run and later connects log a terse countable line instead. Same
-     *  latch idiom as [helloOverrideExhaustedLogged]. Cleared wherever [helloDeferredConsecutive] is. */
+     *  latch idiom as [helloOverrideExhaustedLogged]. Deliberately NOT persisted alongside the run: a new
+     *  process should state the guidance once more, because whoever restarted the app is the reader most
+     *  likely to need it. */
     @Volatile private var helloDeferredGuidanceLogged = false
 
     /** How many times [beginBackfill] has declined on this link, so repeats carry a count instead of
@@ -5986,7 +5998,7 @@ class WhoopBleClient(
                     // these as REALTIME_DATA — the strap rejected them on the unauthenticated link), then arm
                     // realtime HR with puffin framing. Mirrors the macOS post-bond flow.
                     didBond = true
-                    helloDeferredConsecutive = 0  // the handshake works on this strap; the run is over
+                    setHelloDeferredRun(0)        // the handshake works on this strap; the run is over
                     helloDeferredGuidanceLogged = false
                     helloOverrideAttempts = 0     // #1635: the strap answered — the override's budget resets
                     helloOverrideExhaustedLogged = false
@@ -7827,7 +7839,7 @@ class WhoopBleClient(
             // where a concurrent reader saw a hello that had not gone out, and cleared the deferral run
             // on an attempt that failed — under-reporting the very run the count exists to measure.
             helloWrittenThisLink = true
-            helloDeferredConsecutive = 0
+            setHelloDeferredRun(0)
             helloDeferredGuidanceLogged = false
         } else {
             writeInFlight = false
@@ -7942,11 +7954,12 @@ class WhoopBleClient(
                     // This branch used to return without a word, so the hello's absence was visible only
                     // as a line that never appeared — and the deferral reads identically on the first
                     // connect and the fiftieth. The count is what separates them.
-                    helloDeferredConsecutive += 1
+                    val deferralRun = helloDeferredRun() + 1
+                    setHelloDeferredRun(deferralRun)
                     val fullGuidance = !helloDeferredGuidanceLogged
-                    if (helloDeferredConsecutive >= 2) helloDeferredGuidanceLogged = true
+                    if (deferralRun >= 2) helloDeferredGuidanceLogged = true
                     log(helloDeferredByExplicitBondLine(
-                        consecutive = helloDeferredConsecutive,
+                        consecutive = deferralRun,
                         overrideOptedIn = overrideOptedIn,
                         overrideAttempts = helloOverrideAttempts,
                         full = fullGuidance,
@@ -9359,8 +9372,9 @@ class WhoopBleClient(
         connectHandshakeDone = false
         helloWrittenThisLink = false
         backfillDeferralsThisLink = 0
-        // helloDeferredConsecutive is deliberately NOT cleared: it counts ACROSS connections, which is
-        // the only way a permanent deferral is distinguishable from a pending one.
+        // The deferral run is deliberately NOT cleared: it counts ACROSS connections AND across process
+        // restarts (it lives in SharedPreferences), which is the only way a permanent deferral is
+        // distinguishable from a pending one.
         familyEstablished = false   // the next link re-establishes it at service discovery
         loggedFirmwareGate = null
         clientHelloWriteAtMs = 0L
