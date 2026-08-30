@@ -776,6 +776,20 @@ public final class LiveState: ObservableObject {
         out = out.replacingOccurrences(
             of: "(?![0-9A-Fa-f]{8}-(?:0000-1000-8000-00805f9b34fb|8d6d-82b8-614a-1c8cb0f8dcc6))[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}",
             with: "<device>", options: [.regularExpression, .caseInsensitive])
+        // #1303: an ADOPTED device id (`whoop-<SERIAL>`) is a device identifier in every line that prints
+        // an id. Neither rule above catches it — the MAC rule wants MAC shape and the serial rule wants the
+        // literal "WHOOP " then a DIGIT, while an adopted id is `whoop-` + a serial commonly starting with
+        // a letter. Keeps three characters, matching `WhoopSerialIdentity.logSafe`, so two straps stay
+        // distinguishable; PRESERVES the `-noop` computed-sibling suffix, which is not identifying and is
+        // what lets a reader tell derived rows from measured ones. Six-character minimum matches
+        // `minSerialLength`, so `my-whoop` and `my-whoop-noop` are untouched. Kotlin twin in
+        // `redactStrapLogPii`.
+        out = out.replacingOccurrences(
+            of: "whoop-([A-Za-z0-9]{3})[A-Za-z0-9-]{3,}(-noop)",
+            with: "whoop-$1…$2", options: .regularExpression)
+        out = out.replacingOccurrences(
+            of: "whoop-([A-Za-z0-9]{3})[A-Za-z0-9-]{3,}",
+            with: "whoop-$1…", options: .regularExpression)
         return out
     }
 

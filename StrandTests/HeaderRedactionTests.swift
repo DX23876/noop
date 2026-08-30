@@ -29,6 +29,27 @@ final class HeaderRedactionTests: XCTestCase {
         XCTAssertFalse(containsRawMac(LiveState.redactPii(line)))
     }
 
+    /// #1303: once a strap ADOPTS its serial the device id IS the serial, and this header enumerates every
+    /// paired device. Neither older rule covers that shape — the MAC rule wants MAC form, the serial rule
+    /// wants the literal "WHOOP " then a digit — so before this the header leaked it verbatim.
+    func testAnAdoptedSerialIdIsMasked() {
+        let line = "  device id=whoop-MGB1234567 status=ACTIVE brand=WHOOP model=5.0 MG lastSeen=1h ago"
+        let safe = LiveState.redactPii(line)
+        XCTAssertFalse(safe.contains("1234567"), "serial survived: \(safe)")
+        XCTAssertTrue(safe.contains("whoop-MGB…"), "three-character prefix should remain: \(safe)")
+    }
+
+    /// The `-noop` suffix is not identifying and is what separates derived rows from measured ones in the
+    /// per-source counts, so it must survive the mask that hides the serial in front of it.
+    func testTheComputedSiblingMarkerSurvives() {
+        XCTAssertEqual(LiveState.redactPii("Days: whoop-MGB1234567-noop=25"), "Days: whoop-MGB…-noop=25")
+    }
+
+    /// Anything too short to be accepted as a serial upstream must not be masked as one here either.
+    func testAnIdTooShortToBeASerialIsUntouched() {
+        XCTAssertEqual(LiveState.redactPii("id=whoop-ABCDE"), "id=whoop-ABCDE")
+    }
+
     func testAnIdWithNoAddressIsUntouched() {
         let line = "  device id=my-whoop status=ACTIVE brand=WHOOP model=WHOOP 4.0 lastSeen=3h 10m ago"
         XCTAssertEqual(LiveState.redactPii(line), line)

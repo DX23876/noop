@@ -222,6 +222,52 @@ final class DeviceRegistryStoreTests: XCTestCase {
         XCTAssertEqual(row?.model, "Oura Ring 3")
     }
 
+    /// The computed sibling must travel with the pairing.
+    ///
+    /// Every strap owns a second id, `<deviceId>-noop`, holding the days/workouts/series the engine
+    /// DERIVES. It never equals `activeId`, so an exact-match re-key left it behind while the next scoring
+    /// pass wrote under `<serialId>-noop` — stranding the computed history under an id nothing reads
+    /// again, which is the orphaned-history failure adoption exists to prevent. A ring has no computed
+    /// sibling, so the shipped Oura path could never surface this.
+    func testAdoptSerialCarriesTheComputedSibling() throws {
+        let dbq = try makeDB(); let store = DeviceRegistryStore(dbQueue: dbq)
+        let cbuuid = "whoop-4DD70E24", serial = "whoop-MGB1234567"
+        try addOura(store, cbuuid, peripheralId: "4DD70E24", status: .paired, addedAt: 100)
+        try store.setActive(cbuuid)
+        try dbq.write { db in
+            try db.execute(sql: "INSERT INTO hrSample (deviceId, ts, bpm) VALUES ('whoop-4DD70E24', 10, 55)")
+            // the DERIVED half, under the computed sibling
+            try db.execute(sql: "INSERT INTO hrSample (deviceId, ts, bpm) VALUES ('whoop-4DD70E24-noop', 11, 56)")
+        }
+
+        XCTAssertTrue(try store.adoptSerialIdentity(from: cbuuid, to: serial))
+
+        XCTAssertEqual(try hrCount(dbq, serial), 1)
+        XCTAssertEqual(try hrCount(dbq, cbuuid), 0)
+        XCTAssertEqual(try hrCount(dbq, serial + "-noop"), 1, "computed rows must follow the pairing")
+        XCTAssertEqual(try hrCount(dbq, cbuuid + "-noop"), 0, "and must not be left behind")
+    }
+
+    /// A PK clash on the COMPUTED side resolves the same way as on the real id: canonical wins, source is
+    /// cleared, nothing is duplicated. Worth pinning separately because the clash is reachable only after
+    /// a re-pair that already scored days under the serial's own computed sibling.
+    func testAdoptSerialMergesComputedSiblingsOnClash() throws {
+        let dbq = try makeDB(); let store = DeviceRegistryStore(dbQueue: dbq)
+        let cbuuid = "whoop-0102A826", serial = "whoop-MGB7654321"
+        try addOura(store, serial, peripheralId: "OLDPID", status: .paired, addedAt: 100)
+        try addOura(store, cbuuid, peripheralId: "0102A826", status: .paired, addedAt: 200)
+        try store.setActive(cbuuid)
+        try dbq.write { db in
+            try db.execute(sql: "INSERT INTO hrSample (deviceId, ts, bpm) VALUES ('whoop-MGB7654321-noop', 10, 50)")
+            try db.execute(sql: "INSERT INTO hrSample (deviceId, ts, bpm) VALUES ('whoop-0102A826-noop', 20, 60)")
+        }
+
+        try store.adoptSerialIdentity(from: cbuuid, to: serial)
+
+        XCTAssertEqual(try hrCount(dbq, serial + "-noop"), 2)
+        XCTAssertEqual(try hrCount(dbq, cbuuid + "-noop"), 0)
+    }
+
     func testAdoptSerialMergesWhenSerialAlreadyExists() throws {
         let dbq = try makeDB(); let store = DeviceRegistryStore(dbQueue: dbq)
         let serial = "oura-2H3B2405003655", cbuuid2 = "oura-0102A826"

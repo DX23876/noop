@@ -89,31 +89,15 @@ class DeviceRegistry(
             } else {
                 dao.upsertPairedDevice(active.copy(id = serialId))
             }
-            dao.reKeyHr(activeId, serialId); dao.deleteHrFor(activeId)
-            dao.reKeyRr(activeId, serialId); dao.deleteRrFor(activeId)
-            dao.reKeySpo2(activeId, serialId); dao.deleteSpo2For(activeId)
-            dao.reKeySkinTemp(activeId, serialId); dao.deleteSkinTempFor(activeId)
-            dao.reKeyResp(activeId, serialId); dao.deleteRespFor(activeId)
-            dao.reKeyGravity(activeId, serialId); dao.deleteGravityFor(activeId)
-            dao.reKeySteps(activeId, serialId); dao.deleteStepsFor(activeId)
-            dao.reKeyPpgHr(activeId, serialId); dao.deletePpgHrFor(activeId)
-            dao.reKeyPpgWaveform(activeId, serialId); dao.deletePpgWaveformFor(activeId)
-            dao.reKeyV18Aux(activeId, serialId); dao.deleteV18AuxFor(activeId)
-            dao.reKeyEvents(activeId, serialId); dao.deleteEventsFor(activeId)
-            dao.reKeyBattery(activeId, serialId); dao.deleteBatteryFor(activeId)
-            dao.reKeyDailyMetrics(activeId, serialId); dao.deleteDailyMetricsFor(activeId)
-            dao.reKeySleepSessions(activeId, serialId); dao.deleteSleepSessionsFor(activeId)
-            dao.reKeyJournal(activeId, serialId); dao.deleteJournalFor(activeId)
-            dao.reKeyWorkouts(activeId, serialId); dao.deleteWorkoutsFor(activeId)
-            dao.reKeyAppleDaily(activeId, serialId); dao.deleteAppleDailyFor(activeId)
-            dao.reKeyAppleStepHour(activeId, serialId); dao.deleteAppleStepHoursFor(activeId)
-            dao.reKeyMetricSeries(activeId, serialId); dao.deleteMetricSeriesFor(activeId)
-            dao.reKeyDayOwnership(activeId, serialId); dao.deleteDayOwnershipFor(activeId)
-            dao.reKeySleepStates(activeId, serialId); dao.deleteSleepStatesFor(activeId)
-            dao.reKeyLabMarkers(activeId, serialId); dao.deleteLabMarkersFor(activeId)
-            dao.reKeyLiveSessions(activeId, serialId); dao.deleteLiveSessionsFor(activeId)
-            dao.reKeyDismissedWorkouts(activeId, serialId); dao.deleteDismissedWorkoutsFor(activeId)
-            dao.reKeyDismissedSleeps(activeId, serialId); dao.deleteDismissedSleepsFor(activeId)
+            // BOTH id shapes. Every strap also owns a COMPUTED sibling keyed `<deviceId>-noop` (see
+            // WhoopRepository.computedDeviceId) holding the scored days, detected workouts and metric
+            // series the engine derives. That id never equals activeId, so re-keying only the pairing's
+            // own id left the computed history stranded under an id nothing reads again while the next
+            // scoring pass wrote under `<serialId>-noop` — the orphaned history this adoption exists to
+            // prevent, displaced onto the computed half. A ring has no computed sibling, which is why the
+            // shipped Oura path never surfaced it.
+            reKeyDeviceScopedRows(activeId, serialId)
+            reKeyDeviceScopedRows(activeId + COMPUTED_SUFFIX, serialId + COMPUTED_SUFFIX)
             dao.deletePairedDeviceRow(activeId)
             dao.deleteDeviceRow(activeId)
             true
@@ -124,6 +108,41 @@ class DeviceRegistry(
      *  would be a write per second for no more truth. Twin of Swift `DeviceRegistry.touchLastSeen`. (#1527) */
     suspend fun touchLastSeen(id: String, now: Long = System.currentTimeMillis() / 1000) =
         dao.touchLastSeen(id, now)
+
+    /** Suffix of the COMPUTED sibling every device id owns; twin of `WhoopRepository.computedDeviceId`
+     *  and the Swift `DeviceRegistryStore.computedSuffix`. */
+    private val COMPUTED_SUFFIX = "-noop"
+
+    /** Move every device-scoped row from [from] onto [to], canonical winning a PK clash, then clear the
+     *  source. Registry rows are deliberately NOT touched here: a computed sibling has none, so the
+     *  pairedDevice/device deletions stay with the caller and run once, for the real pairing only. */
+    private suspend fun reKeyDeviceScopedRows(from: String, to: String) {
+        dao.reKeyHr(from, to); dao.deleteHrFor(from)
+        dao.reKeyRr(from, to); dao.deleteRrFor(from)
+        dao.reKeySpo2(from, to); dao.deleteSpo2For(from)
+        dao.reKeySkinTemp(from, to); dao.deleteSkinTempFor(from)
+        dao.reKeyResp(from, to); dao.deleteRespFor(from)
+        dao.reKeyGravity(from, to); dao.deleteGravityFor(from)
+        dao.reKeySteps(from, to); dao.deleteStepsFor(from)
+        dao.reKeyPpgHr(from, to); dao.deletePpgHrFor(from)
+        dao.reKeyPpgWaveform(from, to); dao.deletePpgWaveformFor(from)
+        dao.reKeyV18Aux(from, to); dao.deleteV18AuxFor(from)
+        dao.reKeyEvents(from, to); dao.deleteEventsFor(from)
+        dao.reKeyBattery(from, to); dao.deleteBatteryFor(from)
+        dao.reKeyDailyMetrics(from, to); dao.deleteDailyMetricsFor(from)
+        dao.reKeySleepSessions(from, to); dao.deleteSleepSessionsFor(from)
+        dao.reKeyJournal(from, to); dao.deleteJournalFor(from)
+        dao.reKeyWorkouts(from, to); dao.deleteWorkoutsFor(from)
+        dao.reKeyAppleDaily(from, to); dao.deleteAppleDailyFor(from)
+        dao.reKeyAppleStepHour(from, to); dao.deleteAppleStepHoursFor(from)
+        dao.reKeyMetricSeries(from, to); dao.deleteMetricSeriesFor(from)
+        dao.reKeyDayOwnership(from, to); dao.deleteDayOwnershipFor(from)
+        dao.reKeySleepStates(from, to); dao.deleteSleepStatesFor(from)
+        dao.reKeyLabMarkers(from, to); dao.deleteLabMarkersFor(from)
+        dao.reKeyLiveSessions(from, to); dao.deleteLiveSessionsFor(from)
+        dao.reKeyDismissedWorkouts(from, to); dao.deleteDismissedWorkoutsFor(from)
+        dao.reKeyDismissedSleeps(from, to); dao.deleteDismissedSleepsFor(from)
+    }
 
     /** Archive a device — keeps its row and samples (invariant I4). */
     suspend fun archive(id: String) = dao.archiveDevice(id)

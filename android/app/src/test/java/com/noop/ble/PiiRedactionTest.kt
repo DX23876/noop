@@ -35,6 +35,48 @@ class PiiRedactionTest {
             redactStrapLogPii("Discovered WHOOP 4C1594026 (rssi -63)"))
     }
 
+    /**
+     * #1303: once a strap ADOPTS its serial, its device id IS the serial, and the strap log prints device
+     * ids in the Devices list, every `dayOwner` line and the per-source counts. Before adoption existed no
+     * id could contain a serial, so neither older rule covers this shape.
+     */
+    @Test fun masksAnAdoptedSerialDeviceId() {
+        val out = redactStrapLogPii("device id=whoop-MGB1234567 status=ACTIVE brand=WHOOP")
+        assertEquals("device id=whoop-MGB… status=ACTIVE brand=WHOOP", out)
+        assertFalse("the serial must not survive anywhere", out.contains("1234567"))
+    }
+
+    /**
+     * The `-noop` suffix is NOT identifying and is load-bearing for reading a log: it is what separates
+     * derived rows from measured ones in the "Days:"/"Stored:" lines. Masking it away would take a
+     * diagnostic with it.
+     */
+    @Test fun keepsTheComputedSiblingMarker() {
+        assertEquals("Days: whoop-MGB…-noop=25",
+                     redactStrapLogPii("Days: whoop-MGB1234567-noop=25"))
+    }
+
+    /**
+     * The forms that must survive untouched: the legacy seed and its computed sibling are not serials, and
+     * the provisional MAC id is already masked by the MAC rule before this one sees it.
+     */
+    @Test fun leavesTheLegacySeedAndMaskedMacFormAlone() {
+        assertEquals("readId=my-whoop writeActiveId=my-whoop-noop",
+                     redactStrapLogPii("readId=my-whoop writeActiveId=my-whoop-noop"))
+        // A raw MAC id goes through the MAC rule first and must not then be re-mangled.
+        assertEquals("device id=whoop-FD:••:••:••:••:4A",
+                     redactStrapLogPii("device id=whoop-FD:A1:B2:C3:D4:4A"))
+    }
+
+    /**
+     * Six characters is the floor, matching WhoopSerialIdentity.minSerialLength: anything shorter is
+     * refused as a serial upstream, so it must not be mistaken for one here either.
+     */
+    @Test fun ignoresIdsTooShortToBeASerial() {
+        assertEquals("id=whoop-ABCDE", redactStrapLogPii("id=whoop-ABCDE"))
+        assertEquals("id=whoop-ABC…", redactStrapLogPii("id=whoop-ABCDEF"))
+    }
+
     @Test fun leavesModelNamesAndPlainTextAlone() {
         // "WHOOP 4.0" is a dotted model name, not a serial — must not be scrubbed.
         assertEquals("Auto-reconnecting to your saved WHOOP 4.0…",

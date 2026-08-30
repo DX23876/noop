@@ -3007,6 +3007,17 @@ class WhoopBleClient(
     // #520 DIS identity — read ONCE per connection, post-handshake, 5/MG only. Serial and hardware
     // revision are immutable, so they are never re-polled (unlike the battery). Reset on disconnect.
     private var disRead = false
+    /**
+     * #1303: the strap's DIS serial, once read (5.0/MG only — a 4.0 does not expose one).
+     *
+     * KNOWN ASYMMETRY with the Swift twin, which adopts inline in BLEManager and uses its closure only
+     * to notify. Here the adoption itself lives in the observer (AppViewModel owns the registry handle
+     * and a scope; SourceCoordinator is inert on the WHOOP path by design), so a connect that completes
+     * before any observer is wired emits into a null callback and does not adopt. It is deferred, not
+     * lost: DIS is read on every connect, so the next one with an observer alive adopts. Worth knowing
+     * when reading a capture where iOS shows the adoption line and Android does not.
+     */
+    var onSerial: ((String) -> Unit)? = null
     private var disSerial: String? = null
     private var disHwRev: String? = null
     /** DIS 0x2A24, the strap's own model number — the authoritative variant signal (#520). */
@@ -4675,6 +4686,10 @@ class WhoopBleClient(
         val prefix = disSerial?.trim()?.uppercase()?.take(3) ?: "?"
         log("DIS: serialPrefix=$prefix hwRev=${disHwRev ?: "?"} -> variant=${variant.label}")
         reconcileModelFromAttestation(variant)
+        // #1303: hand the strap's OWN serial up so the coordinator can re-point this pairing onto a stable
+        // `whoop-<serial>` id. Emitted, not acted on here, mirroring how the Oura source reports its serial:
+        // adoption re-points the ACTIVE device and tears down the very connection this callback runs inside.
+        disSerial?.let { onSerial?.invoke(it) }
     }
 
     /** The strap's own DIS attestation is ground truth (a WHOOP 4.0 never attests a 5AM/5AG serial). When
@@ -9684,6 +9699,13 @@ class WhoopBleClient(
         }
     }
 
+    /**
+     * #1303: let the identity owner write one line into the SAME strap log the connection uses, so an
+     * adoption is visible in the capture beside the DIS line that triggered it. Deliberately narrow —
+     * the general [log] stays private. Callers must pass a serial PREFIX, never a full serial.
+     */
+    fun logIdentity(line: String) = log(line)
+
     private fun log(s: String, domain: com.noop.testcentre.TestDomain? = null) {
         // A diagnostic log line must NEVER be able to crash the app. log() runs on the GATT binder
         // thread and from the background reconnect service, so an uncaught throw here takes the WHOLE
@@ -9944,6 +9966,25 @@ private val PII_MAC_RE = Regex("([0-9A-Fa-f]{2}):[0-9A-Fa-f]{2}:[0-9A-Fa-f]{2}:[
 private val PII_WHOOP_SERIAL_RE = Regex("WHOOP (\\d[0-9A-Za-z]{5,})")
 
 /**
+ * #1303: a device id that has ADOPTED its strap serial (`whoop-<SERIAL>`) is a device identifier in every
+ * line that prints an id — the Devices list, each `dayOwner`, the per-source counts. Neither existing rule
+ * catches it: [PII_MAC_RE] wants MAC shape, and [PII_WHOOP_SERIAL_RE] wants the literal word "WHOOP "
+ * followed by a DIGIT, while an adopted id is `whoop-` + a serial that commonly starts with a letter.
+ * Before adoption existed no device id could contain a serial, so this was not a gap; it is one now.
+ *
+ * Keeps the leading three characters, the same rule `WhoopSerialIdentity.logSafe` already applies to the
+ * adoption line, so two straps stay distinguishable in a log. The `-noop` computed-sibling suffix is
+ * PRESERVED: it is not identifying, and it is what lets a reader tell derived rows from measured ones —
+ * the distinction the "Days:"/"Stored:" lines are read for.
+ *
+ * The six-character minimum is not arbitrary: it matches `WhoopSerialIdentity.minSerialLength`, so
+ * anything short enough to be refused as a serial is also too short to be mistaken for one here. That
+ * also leaves `my-whoop`, `my-whoop-noop` and the MAC form (already masked to `whoop-FD:••…`) untouched.
+ */
+private val PII_ADOPTED_ID_NOOP_RE = Regex("whoop-([A-Za-z0-9]{3})[A-Za-z0-9-]{3,}(-noop)")
+private val PII_ADOPTED_ID_RE = Regex("whoop-([A-Za-z0-9]{3})[A-Za-z0-9-]{3,}")
+
+/**
  * Builds the 9-byte WHOOP 4.0 SET_ALARM_TIME (cmd 66) payload.
  * Layout: `[0x01] + u32 LE epoch + [0x00, 0x00]` subseconds + `[0x00, 0x00]` haptic-mode field.
  *
@@ -10088,6 +10129,10 @@ internal fun alarmReadbackLocalTime(epochSec: Long): String =
 internal fun redactStrapLogPii(s: String): String = try {
     s.replace(PII_MAC_RE, "$1:••:••:••:••:$2")
         .replace(PII_WHOOP_SERIAL_RE, "WHOOP <serial>")
+        // MAC first, deliberately: `whoop-<MAC>` is already `whoop-FD:••…` by now and cannot be mistaken
+        // for an adopted id. The -noop form runs before the general one so the sibling suffix survives.
+        .replace(PII_ADOPTED_ID_NOOP_RE, "whoop-$1…$2")
+        .replace(PII_ADOPTED_ID_RE, "whoop-$1…")
 } catch (t: Throwable) {
     "[redaction error - line withheld]"
 }
