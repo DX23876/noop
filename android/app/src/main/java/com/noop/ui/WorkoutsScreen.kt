@@ -24,9 +24,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Accessible
 import android.app.DatePickerDialog
 import android.app.TimePickerDialog
-import androidx.compose.material.icons.filled.Accessible
 import androidx.compose.material.icons.filled.Hiking
 import androidx.compose.material.icons.filled.IceSkating
 import androidx.compose.material.icons.filled.Kayaking
@@ -2570,7 +2570,7 @@ internal fun sportIcon(sport: String): ImageVector = when (sport.lowercase().tri
     "volleyball", "sand volleyball", "spikeball" -> Icons.Filled.SportsVolleyball
     "golf" -> Icons.Filled.SportsGolf
     "climbing" -> Icons.Filled.Terrain
-    "wheelchair" -> Icons.Filled.Accessible
+    "wheelchair" -> Icons.AutoMirrored.Filled.Accessible
     "gaming" -> Icons.Filled.SportsEsports
     "motor racing" -> Icons.Filled.SportsMotorsports
     else -> sportIconFuzzy(sport)
@@ -2610,7 +2610,7 @@ private fun sportIconFuzzy(sport: String): ImageVector {
         s.contains("basketball") || s.contains("netball") -> Icons.Filled.SportsBasketball
         s.contains("gaming") || s.contains("esport") -> Icons.Filled.SportsEsports
         s.contains("motor") || s.contains("racing") -> Icons.Filled.SportsMotorsports
-        s.contains("wheelchair") -> Icons.Filled.Accessible
+        s.contains("wheelchair") -> Icons.AutoMirrored.Filled.Accessible
         else -> Icons.Filled.FitnessCenter
     }
 }

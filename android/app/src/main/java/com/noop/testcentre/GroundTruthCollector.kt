@@ -296,7 +296,7 @@ class GroundTruthCollector private constructor(private val context: Context) {
         val outDir = File(context.cacheDir, "logs").apply { mkdirs() }
         val zip = File(outDir, "noop-5mg-raw-$id.zip")
         ZipOutputStream(zip.outputStream().buffered()).use { out ->
-            var v18Count = 0
+            var v18Count: Int
             out.putNextEntry(ZipEntry("v18-aux.csv"))
             out.bufferedWriterNoClose().use { writer ->
                 v18Count = writeV18AuxCsv(writer, repo, deviceId.orEmpty(), sensorFrom, sensorTo)
@@ -304,7 +304,7 @@ class GroundTruthCollector private constructor(private val context: Context) {
             }
             out.closeEntry()
 
-            var rawCounts: Map<String, Int> = emptyMap()
+            var rawCounts: Map<String, Int>
             out.putNextEntry(ZipEntry("raw-sensors.csv"))
             out.bufferedWriterNoClose().use { writer ->
                 rawCounts = RawSensorExport.writeCsv(writer, repo, deviceId.orEmpty(), sensorFrom, sensorTo)

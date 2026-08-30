@@ -156,7 +156,7 @@ private fun currentStages(pace: PaceSelection, lockedBpm: Double?): List<BreathS
     is PaceSelection.Catalog -> selectedProtocol(pace)?.stages?.filter { it.durationMs > 0 }.orEmpty()
 }
 
-private fun paceSelectionLabel(pace: PaceSelection, lockedBpm: Double?): String = when (pace) {
+private fun paceSelectionLabel(pace: PaceSelection): String = when (pace) {
     is PaceSelection.Catalog -> localizedBreathTitle(pace.id)
     PaceSelection.Resonance -> uiString(R.string.l10n_breathe_screen_resonance_k1l2m3n4)
 }
@@ -446,7 +446,6 @@ fun BreatheScreen(viewModel: AppViewModel) {
     if (showEdu) {
         ProtocolEduDialog(
             pace = pace,
-            lockedBpm = lockedBpm,
             onDismiss = { showEdu = false },
         )
     }
@@ -553,7 +552,7 @@ fun BreatheScreen(viewModel: AppViewModel) {
                 verticalArrangement = Arrangement.spacedBy(18.dp),
             ) {
                 Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Overline(paceSelectionLabel(pace, lockedBpm))
+                    Overline(paceSelectionLabel(pace))
                     Spacer(Modifier.weight(1f))
                     IconButton(
                         onClick = { showEdu = true },
@@ -629,7 +628,7 @@ fun BreatheScreen(viewModel: AppViewModel) {
                     SegmentedPillControl(
                         items = availablePaces,
                         selection = pace,
-                        label = { paceSelectionLabel(it, lockedBpm) },
+                        label = { paceSelectionLabel(it) },
                         onSelect = { newPace ->
                             if (running) stopSession()
                             pace = newPace
@@ -945,7 +944,6 @@ private fun phaseWord(phase: UiPhase, label: String?): String {
 @Composable
 private fun ProtocolEduDialog(
     pace: PaceSelection,
-    lockedBpm: Double?,
     onDismiss: () -> Unit,
 ) {
     val proto = selectedProtocol(pace)

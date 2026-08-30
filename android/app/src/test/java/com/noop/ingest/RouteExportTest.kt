@@ -37,7 +37,7 @@ class RouteExportTest {
     private val endTs = 1_723_001_800L // +30 min
 
     @Test fun gpxRoundTripsThroughTheImporter() {
-        val bytes = RouteExport.buildGpx(route, startTs, endTs, "running", distanceM = 1234.5)
+        val bytes = RouteExport.buildGpx(route, startTs, endTs, "running")
             .toByteArray(Charsets.UTF_8)
         assertEquals(ActivityFileImporter.Format.GPX, ActivityFileImporter.detectFormat(bytes))
         val a = ActivityFileImporter.parse(bytes, "route.gpx").activity

@@ -165,10 +165,8 @@ fun BodyClockDialCard(
                 // does not survive the card being translucent over a custom background image — the
                 // reference arc washed out to near-invisible on a real device, which loses the comparison
                 // the card exists for. A dash also reads without relying on colour at all.
-                if (ideal != null) {
-                    arc(outer, ideal.bedHour, ideal.wakeHour,
-                        hue.copy(alpha = 0.55f), 7.dp.toPx(), dashed = true)
-                }
+                arc(outer, ideal.bedHour, ideal.wakeHour,
+                    hue.copy(alpha = 0.55f), 7.dp.toPx(), dashed = true)
                 arc(inner, actualBedHour, actualWakeHour, hue, 9.dp.toPx(), dashed = false)
 
                 // A marker at sleep ONSET. Without it the night arc has two indistinguishable ends and

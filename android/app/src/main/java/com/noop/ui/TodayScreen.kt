@@ -6868,7 +6868,7 @@ private fun synthesisDetail(d: DailyMetric?): String {
         rec < 70 && d.totalSleepMin!! / 60.0 >= 7 -> R.string.today_synthesis_charge_steady_sleep_consistent
         rec < 70 -> R.string.today_synthesis_charge_steady_sleep_short
         d.totalSleepMin == null -> R.string.today_synthesis_charge_strong
-        d.totalSleepMin!! / 60.0 >= 7 -> R.string.today_synthesis_charge_strong_sleep_consistent
+        d.totalSleepMin / 60.0 >= 7 -> R.string.today_synthesis_charge_strong_sleep_consistent
         else -> R.string.today_synthesis_charge_strong_sleep_short
     }
     return uiString(res)

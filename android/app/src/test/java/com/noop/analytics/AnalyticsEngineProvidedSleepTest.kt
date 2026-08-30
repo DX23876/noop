@@ -118,7 +118,6 @@ class AnalyticsEngineProvidedSleepTest {
             tzOffsetSeconds = 0,
             wristOff = emptyList(),
             sleepNeedHours = RestScorer.defaultSleepNeedHours,
-            sleepNeedNights = 0,
             sleepConsistency = null,
             habitualMidsleepSec = null,
             bandSleepState = emptyList(),

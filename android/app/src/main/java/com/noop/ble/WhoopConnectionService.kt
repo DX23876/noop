@@ -223,7 +223,13 @@ class WhoopConnectionService : Service() {
     private val bondStateReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action != BluetoothDevice.ACTION_BOND_STATE_CHANGED) return
-            val dev: BluetoothDevice? = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)
+            val dev: BluetoothDevice? =
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE, BluetoothDevice::class.java)
+                } else {
+                    @Suppress("DEPRECATION")
+                    intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)
+                }
             val cur = intent.getIntExtra(BluetoothDevice.EXTRA_BOND_STATE, BluetoothDevice.ERROR)
             val prev = intent.getIntExtra(BluetoothDevice.EXTRA_PREVIOUS_BOND_STATE, BluetoothDevice.ERROR)
             runCatching { ble.onBondStateChanged(prev, cur, dev?.address) }

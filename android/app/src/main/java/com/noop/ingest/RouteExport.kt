@@ -47,17 +47,18 @@ object RouteExport {
         avgHr: Int? = null,
         maxHr: Int? = null,
     ): ByteArray = when (format) {
-        Format.GPX -> buildGpx(points, startTs, endTs, sport, distanceM).toByteArray(Charsets.UTF_8)
+        Format.GPX -> buildGpx(points, startTs, endTs, sport).toByteArray(Charsets.UTF_8)
         Format.FIT -> buildFit(points, startTs, endTs, sport, distanceM, energyKcal, avgHr, maxHr)
     }
 
-    /** GPX 1.1 track. Each `trkpt` carries lat/lon + an interpolated `time`; no `ele`/HR (none stored). */
+    /** GPX 1.1 track. Each `trkpt` carries lat/lon + an interpolated `time`; no `ele`/HR (none stored).
+     *  Takes no distance: GPX 1.1 has no track-level distance element, so a reader derives it from the
+     *  trackpoints. FIT does carry one, which is why [buildFit] still takes it. */
     fun buildGpx(
         points: List<Point>,
         startTs: Long,
         endTs: Long,
         sport: String?,
-        distanceM: Double? = null,
     ): String {
         val canon = canonicalSport(sport)
         val times = interpolatedTimes(points.size, startTs, endTs)

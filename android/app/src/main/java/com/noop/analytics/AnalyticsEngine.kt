@@ -225,19 +225,6 @@ object AnalyticsEngine {
     }
 
     /**
-     * Analyze one day's streams into a [DayResult].
-     *
-     * @param day the calendar day (UTC) this metric is for; a sleep session is
-     *   attributed to the day its `end` falls on (a night ending that morning).
-     * @param hr/rr/resp/gravity the day's raw streams (the wider window around the
-     *   night may be passed; sleep detection finds the in-bed span itself).
-     * @param profile user profile (age/sex/weight/height) for HRmax + calories.
-     * @param baselines personal baselines for recovery normalization.
-     * @param maxHROverride explicit HRmax (bpm) to use for strain/zones; null →
-     *   Tanaka from profile.age.
-     */
-    @Suppress("UNUSED_PARAMETER") // sleepNeedNights kept for signature stability (unused in the current body)
-    /**
      * Minimum span (seconds) a night's vendor respiration rows must cover before their median is taken
      * as the night's rate. One hour: enough that the value describes the night rather than a fragment,
      * and low enough to keep a partially-drained night. Twin of the Swift constant.
@@ -272,6 +259,18 @@ object AnalyticsEngine {
         return if (median in SleepStager.respPlausibleRangeBpm) median else null
     }
 
+    /**
+     * Analyze one day's streams into a [DayResult].
+     *
+     * @param day the calendar day (UTC) this metric is for; a sleep session is
+     *   attributed to the day its `end` falls on (a night ending that morning).
+     * @param hr/rr/resp/gravity the day's raw streams (the wider window around the
+     *   night may be passed; sleep detection finds the in-bed span itself).
+     * @param profile user profile (age/sex/weight/height) for HRmax + calories.
+     * @param baselines personal baselines for recovery normalization.
+     * @param maxHROverride explicit HRmax (bpm) to use for strain/zones; null →
+     *   Tanaka from profile.age.
+     */
     fun analyzeDay(
         day: String,
         hr: List<HrSample> = emptyList(),
@@ -341,9 +340,6 @@ object AnalyticsEngine {
         // Personal sleep need (hours) for the Rest "duration vs need" component. null → 8 h default.
         // IntelligenceEngine refines it from the user's recent average asleep hours. (Charge/Effort/Rest)
         sleepNeedHours: Double? = null,
-        // How many recent nights informed [sleepNeedHours] (0 = still on the 8 h default). Drives the
-        // Rest confidence tier ONLY; does not affect the score. (Charge/Effort/Rest)
-        sleepNeedNights: Int = 0,
         // Sleep/wake regularity in [0,1] (1 = perfectly regular) for the Rest "consistency" component.
         // null (single-day / pure callers with no history) → the term drops and its weight
         // renormalizes, exactly like the recovery driver-drop discipline. (Charge/Effort/Rest)
@@ -1483,13 +1479,6 @@ object RestScorer {
     }
 
     /**
-     * Sleep & Rest test-mode (E11) diagnostic line for the Rest composite. Recomputes the four weighted
-     * sub-scores from the SAME inputs `rest()` reads (on the 0..1 scale, byte-aligned with the Swift
-     * `Rest.subScoreLine`), and reuses `rest()` for the final `composite=` value so the trace can never
-     * disagree with the score. `groupFragments` / `groupInBedSeconds` describe the main-night GROUP
-     * composition (#525/#561). Pure, side-effect-free, no em-dashes. Mirrors Swift exactly.
-     */
-    /**
      * #319 diagnostic (Sleep & Rest test mode): the motion-coverage + staging context behind the Rest
      * number, so a high score on a poor night can be explained straight from an export. `grav`/`hr` are the
      * night-window sample counts; `sparse` is the gravity-sparse gate (WHOOP 4.0 banks motion coarsely, so
@@ -1533,6 +1522,13 @@ object RestScorer {
         return "sleep-onset onsetTs=$onsetTs hrAtOnset=$hrAtOnsetBpm baselineHr=$baselineHrBpm hrRatio=$r2"
     }
 
+    /**
+     * Sleep & Rest test-mode (E11) diagnostic line for the Rest composite. Recomputes the four weighted
+     * sub-scores from the SAME inputs `rest()` reads (on the 0..1 scale, byte-aligned with the Swift
+     * `Rest.subScoreLine`), and reuses `rest()` for the final `composite=` value so the trace can never
+     * disagree with the score. `groupFragments` / `groupInBedSeconds` describe the main-night GROUP
+     * composition (#525/#561). Pure, side-effect-free, no em-dashes. Mirrors Swift exactly.
+     */
     @Suppress("UNUSED_PARAMETER") // inBedSeconds mirrors the Swift subScoreLine signature (parity)
     fun subScoreLine(
         tstSeconds: Double, inBedSeconds: Double, efficiency: Double, restorativeSeconds: Double,
