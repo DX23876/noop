@@ -4,6 +4,8 @@ import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Test
 import java.lang.reflect.Proxy
+import java.sql.Connection
+import java.sql.DriverManager
 
 /**
  * #836 — [WhoopRepository.hrFingerprint] is the cheap whole-history raw-HR change-detector the 15-min idle
@@ -43,4 +45,37 @@ class HrFingerprintTest {
         assertEquals("10:1000", before)
         assertEquals("11:1060", after)
     }
+
+    @Test fun analysisFingerprintSqlRunsAndMovesForGravityOnlyCommit() {
+        DriverManager.getConnection("jdbc:sqlite::memory:").use { db ->
+            createFingerprintTables(db)
+            assertEquals("v2|h0:0|p0|r0|x0|g0|s0|e0|o0|t0|z0", fingerprint(db))
+
+            db.createStatement().use { sql ->
+                sql.executeUpdate("INSERT INTO hrSample(ts) VALUES (1000)")
+                sql.executeUpdate("INSERT INTO rrInterval DEFAULT VALUES")
+                sql.executeUpdate("INSERT INTO rrInterval DEFAULT VALUES")
+                sql.executeUpdate("INSERT INTO gravitySample DEFAULT VALUES")
+            }
+            assertEquals("v2|h1:1000|p0|r2|x0|g1|s0|e0|o0|t0|z0", fingerprint(db))
+        }
+    }
+
+    private fun createFingerprintTables(db: Connection) {
+        db.createStatement().use { sql ->
+            sql.execute("CREATE TABLE hrSample(ts INTEGER NOT NULL)")
+            listOf(
+                "ppgHrSample", "rrInterval", "respSample", "gravitySample", "sleepStateSample",
+                "event", "spo2Sample", "skinTempSample", "stepSample",
+            ).forEach { table -> sql.execute("CREATE TABLE $table(value INTEGER)") }
+        }
+    }
+
+    private fun fingerprint(db: Connection): String =
+        db.createStatement().use { sql ->
+            sql.executeQuery(ANALYSIS_FINGERPRINT_SQL).use { rows ->
+                rows.next()
+                rows.getString(1)
+            }
+        }
 }
