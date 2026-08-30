@@ -182,6 +182,18 @@ func vo2MaxAttributionSource(_ estimator: Vo2MaxEstimator?) -> String {
     vo2MaxAttributionPrefix + (estimator?.rawValue ?? "unknown")
 }
 
+/// Will the chart show a visible break in this VO₂max trend?
+///
+/// Derived from `vo2MaxTrendSegmentIds` rather than recomputed, so the caption and the segmentation can
+/// never disagree. A GAP IN DAYS under one estimator is still a single segment and draws no break, so it
+/// correctly gets no caption: a break means the readings were not produced alike, not that the data
+/// paused. Named for the BREAK: an untagged legacy reading resolves to "...estimator:unknown", so an
+/// unknown -> Nes transition splits the line while the method itself may never have changed.
+/// Kotlin twin `vo2MaxTrendHasBreak`.
+func vo2MaxTrendHasBreak(days: [String], sourceByDay: [String: String]) -> Bool {
+    Set(vo2MaxTrendSegmentIds(days: days, sourceByDay: sourceByDay)).count > 1
+}
+
 /// Sequential segment ids for the VO₂max trend. The counter matters when a user changes Nes → Uth → Nes:
 /// using the method name alone would reconnect the two non-adjacent Nes runs across the Uth interval.
 func vo2MaxTrendSegmentIds(days: [String], sourceByDay: [String: String]) -> [String] {
@@ -1074,11 +1086,31 @@ struct MetricDetailView: View {
                 valueFormat: { fmt($0) }
             )
         } footer: {
-            ChartFooter([
-                ("Window", effectiveRange.label),
-                ("Points", "\(windowed.count)"),
-                ("Latest", heroValue),
-            ])
+            // #1662: the VO₂max line is SPLIT on purpose wherever the estimator changes, so two
+            // non-adjacent Nes runs are never joined across an incompatible Uth stretch. Nothing said so,
+            // and a silent gap in a trend is indistinguishable from a rendering fault — it was reported
+            // as "something weird with a broken line". Shown only when a break actually exists, so it
+            // explains the chart in front of the reader rather than a behaviour they cannot see.
+            //
+            // In the FOOTER, not beside the chart: `ChartCard` applies `chart().frame(height:)` to that
+            // whole closure, so a caption in there would be squeezed into the chart's fixed height and
+            // steal space from the line it is explaining. The footer is the only full-height slot under
+            // the chart. Android places it directly under the plot because its card has no such frame -
+            // feature parity, not pixel parity.
+            VStack(alignment: .leading, spacing: 8) {
+                if metric.key == "vo2max_est",
+                   vo2MaxTrendHasBreak(days: windowed.map(\.day), sourceByDay: sourceByDay) {
+                    Text("The line breaks where the estimation method changed or was not recorded.")
+                        .font(StrandFont.footnote)
+                        .foregroundStyle(StrandPalette.textTertiary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                ChartFooter([
+                    ("Window", effectiveRange.label),
+                    ("Points", "\(windowed.count)"),
+                    ("Latest", heroValue),
+                ])
+            }
         }
     }
 
