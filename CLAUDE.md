@@ -136,10 +136,15 @@ properties are initialized`) will pass every green check and still be broken. If
 Swift, you MUST build the app yourself: `xcodebuild … build` locally, or run `app-build.yml` on demand.
 
 ### Local walls (things that will *not* build where you expect)
-- **On Linux:** only `WhoopProtocol` / `OuraProtocol` (pure) build & test. Every GRDB-linked package —
-  `WhoopStore`, `StrandImport`, `StrandAnalytics` (via `WhoopStore`), and `NoopLocalAccess` — fails with
-  `sqlite3.h not found` (GRDB's CSQLite), and `StrandDesign` needs SwiftUI — all need **macOS**. Android
-  JVM unit tests **do** run on Linux.
+- **On Linux:** `WhoopProtocol` / `OuraProtocol` (pure) build & test with a bare toolchain. The
+  GRDB-linked packages need the snapshot-enabled SQLite build in [`docs/BUILD.md`](docs/BUILD.md) — with
+  it, `StrandAnalytics` (1523 tests), `StrandImport` (249) and `NoopLocalAccess` build AND test;
+  `WhoopStore` builds but its TEST target does not compile (`ReadTests` reaches for `ClockRef`, which is
+  declared inside the `#if canImport(Compression)` block in `RawOutbox.swift` and so does not exist off
+  Darwin). Without those flags all four fail with `sqlite3.h not found` (GRDB's CSQLite). `StrandDesign`
+  needs SwiftUI and is macOS-only. Android JVM unit tests **do** run on Linux.
+  **None of this is CI-enforced** — `swift-packages.yml` is macOS-only, so Linux support is honour-system
+  and a change can break it silently.
 - **App targets** (`Strand`, `NOOPiOS`) need **Xcode on macOS**; `StrandTests` runs only under
   `xcodebuild … test` on macOS — locally, or via `app-build.yml`, which does run it on the `Strand` leg.
   Since that workflow is **disabled by default**, app-target tests are only as validated as your last

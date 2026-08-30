@@ -86,7 +86,7 @@ brew install xcodegen
 The packages themselves only need a Swift toolchain — they build and test with plain `swift build`
 / `swift test`, no Xcode project required.
 
-### StrandAnalytics tests on Linux
+### Swift package tests on Linux
 
 Install Swift 6 or newer plus a C compiler, `curl`, and `unzip`. GRDB uses SQLite's snapshot API,
 which distribution builds commonly omit, so build a private snapshot-enabled library:
@@ -105,8 +105,20 @@ LD_LIBRARY_PATH="$SQLITE_SNAPSHOT_DIR${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" \
 ```
 
 This currently runs 1,523 platform-neutral package tests with one intentional skip. It does not run
-iOS simulator/UI tests, Darwin's Compression-backed raw outbox, or the standalone `WhoopStore`
-test target. The existing package CI remains macOS-only.
+iOS simulator/UI tests or Darwin's Compression-backed raw outbox. The existing package CI remains
+macOS-only.
+
+The same two flags work for the other GRDB-linked packages — swap the `cd` and repeat:
+
+| Package | Linux status |
+|---|---|
+| `StrandAnalytics` | builds + tests (1,523, one skip) |
+| `StrandImport` | builds + tests (249, one skip) |
+| `NoopLocalAccess` | builds + tests |
+| `WhoopStore` | **builds**, but its test target does not compile: `ReadTests` uses `ClockRef`, declared inside the `#if canImport(Compression)` block in `RawOutbox.swift`, so it is absent off Darwin |
+| `StrandDesign` | macOS only (SwiftUI) |
+
+Because none of this runs in CI, treat a green Linux run as a convenience rather than a guarantee.
 
 ---
 
