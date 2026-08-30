@@ -289,17 +289,23 @@ final class ReadTests: XCTestCase {
                     ppgWaveform: [PpgWaveformSample(ts: 400, samples: [1, 2, 3])],
                     v18Aux: [V18AuxSample(ts: 400, slotValues: [1, 2])]),
             deviceId: "dev1")
+        // The raw outbox is Compression-backed and absent off Darwin; the DECODED half of this count is
+        // platform-neutral and still worth asserting there, so only the raw seeding is gated.
+#if canImport(Compression)
         try await store.enqueueRawBatch(
             RawBatchMeta(batchId: "b1", deviceId: "dev1",
                          clockRef: ClockRef(device: 0, wall: 0), capturedAt: 1,
                          startTs: 0, endTs: 0, frameCount: 1, byteSize: 4),
             frames: [[0xAA, 0x00, 0x01, 0x02]])
+#endif
         let stats = try await store.storageStats()
         // dev1: 3 hr + 2 rr + 1 event + 1 battery + 1 spo2 + 1 skinTemp + 1 resp + 1 gravity
         //       + 1 step + 1 sleepState + 1 ppgHr + 1 ppgWaveform + 1 v18Aux = 16
         // other: 1 hr = 1 → 17 decoded rows.
         XCTAssertEqual(stats.decodedRows, 17)
+#if canImport(Compression)
         XCTAssertEqual(stats.rawBatches, 1)
         XCTAssertEqual(stats.rawBytes, 4)
+#endif
     }
 }

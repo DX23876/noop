@@ -113,10 +113,14 @@ The same two flags work for the other GRDB-linked packages — swap the `cd` and
 | Package | Linux status |
 |---|---|
 | `StrandAnalytics` | builds + tests (1,523, one skip) |
+| `WhoopStore` | builds + tests (439) |
 | `StrandImport` | builds + tests (249, one skip) |
-| `NoopLocalAccess` | builds + tests |
-| `WhoopStore` | **builds**, but its test target does not compile: `ReadTests` uses `ClockRef`, declared inside the `#if canImport(Compression)` block in `RawOutbox.swift`, so it is absent off Darwin |
+| `NoopLocalAccess` | builds + tests (9) |
 | `StrandDesign` | macOS only (SwiftUI) |
+
+The Compression-backed raw outbox is Darwin-only, so the tests that drive it (`RawOutboxTests`,
+`PruneTests`, and the raw half of `ReadTests.testStorageStats`) compile out off Darwin. Everything they
+cover still runs in the macOS CI job.
 
 Because none of this runs in CI, treat a green Linux run as a convenience rather than a guarantee.
 
