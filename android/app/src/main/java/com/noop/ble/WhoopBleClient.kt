@@ -7850,12 +7850,17 @@ class WhoopBleClient(
             ops.writeCharacteristicCompat(ch, hello, BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT)
         }
         if (ok) {
-            // Claimed only once the stack ACCEPTED the write. Setting these before the call left a window
-            // where a concurrent reader saw a hello that had not gone out, and cleared the deferral run
-            // on an attempt that failed — under-reporting the very run the count exists to measure.
+            // Claimed only once the stack ACCEPTED the write: setting it before the call left a window
+            // where a concurrent reader saw a hello that had not gone out.
+            //
+            // The deferral run is deliberately NOT cleared here. A written hello is not a working
+            // handshake - on a strap answering SMP 0x05 the write is never acked and the bond watchdog
+            // bounces the link seconds later. Clearing on the WRITE reset the run on every bounce, so the
+            // next connect deferred again and the strap alternated defer/write/bounce forever, which is
+            // exactly the loop #1642 removed. The run records ATTEMPTS and only a genuine bond ends it;
+            // the #1635 suppression latch is what bounds the attempts and settles the link into the
+            // "Live HR, not fully paired" state the app already models.
             helloWrittenThisLink = true
-            setHelloDeferredRun(0)
-            helloDeferredGuidanceLogged = false
         } else {
             writeInFlight = false
             log("CLIENT_HELLO write rejected by stack")

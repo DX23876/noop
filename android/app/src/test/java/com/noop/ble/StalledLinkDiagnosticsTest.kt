@@ -296,11 +296,15 @@ class StalledLinkDiagnosticsTest {
             .substringBefore("\n    }")
         val call = fn.indexOf("val ok = safeGatt(\"writeClientHello\")")
         val claim = fn.indexOf("helloWrittenThisLink = true")
-        val run = fn.indexOf("setHelloDeferredRun(0)")
+        val run = fn.indexOf("setHelloDeferredRun(0)")   // -1 once the write no longer clears it
         assertTrue("writeClientHello must call safeGatt", call >= 0)
         assertTrue("the write must be claimed, somewhere", claim >= 0)
         assertTrue("helloWrittenThisLink must be set AFTER the stack accepts", claim > call)
-        assertTrue("the deferral run must only be cleared AFTER the stack accepts", run > call)
+        // The run must NOT be cleared here at all any more. A written-but-unacked hello is not a working
+        // handshake, and clearing on the write reset the count on every watchdog bounce - so the strap
+        // alternated defer/write/bounce indefinitely instead of letting the #1635 suppression latch bound
+        // the attempts. Only a genuine bond ends the run.
+        assertEquals("writeClientHello must not clear the deferral run", -1, run)
     }
 
     /**
