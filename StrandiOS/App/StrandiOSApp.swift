@@ -1,7 +1,6 @@
 #if os(iOS)
 import SwiftUI
 import StrandDesign
-import StrandAnalytics
 import UserNotifications
 
 /// iOS entry point. Unlike the macOS app (which adds a `MenuBarExtra` scene), iOS uses a single
@@ -104,6 +103,45 @@ struct StrandiOSApp: App {
         // lifetime; the bridge no-ops unless Health was authorized.
         model.healthWriteBack = { [weak bridge] in
             _ = await bridge?.writeBackAfterNewData()
+        }
+    }
+
+    /// The Shortcut-import alert's presentation binding, hoisted OUT of the `.alert` chain.
+    ///
+    /// An inline `Binding(get:set:)` is two untyped closures the solver must infer in place, on a
+    /// modifier chain that had already blown the type-check budget. Declaring it as a `Binding<Bool>`
+    /// property replaces all of that with one known type. Hoisting the message alone was not enough —
+    /// the build failed again at the same modifier, which is why this one is here too.
+    private var healthImportAlertPresented: Binding<Bool> {
+        Binding(
+            get: { model.pendingShortcutHealthImport != nil },
+            set: { showing in
+                if !showing { model.cancelPendingHealthImport() }
+            }
+        )
+    }
+
+    /// The Shortcut-import alert's buttons, hoisted for the same reason as the binding above.
+    @ViewBuilder
+    private var healthImportAlertButtons: some View {
+        Button("Import") { model.confirmPendingHealthImport() }
+        Button("Cancel", role: .cancel) { model.cancelPendingHealthImport() }
+    }
+
+    /// The Shortcut-import alert's message, hoisted OUT of the `.alert` chain.
+    ///
+    /// Not a style preference. This closure — an `if let` around two interpolated `Text`s — sits on a
+    /// modifier chain that grew past the Swift type-checker's budget, and the build failed with
+    /// "unable to type-check this expression in reasonable time" pointing at `} message: {`. The
+    /// expression did not change; the chain around it did. Hoisting a sub-expression into its own
+    /// declaration gives the solver a fixed type to work from instead of one more unknown in a chain
+    /// it is already struggling with.
+    @ViewBuilder
+    private var healthImportAlertMessage: some View {
+        if let pending = model.pendingShortcutHealthImport {
+            Text("A Shortcut wants to add \(pending.daysCount) days and \(pending.workoutsCount) workouts to the Apple Health import source.")
+        } else {
+            Text("A Shortcut wants to add data to the Apple Health import source.")
         }
     }
 
@@ -227,20 +265,10 @@ struct StrandiOSApp: App {
                         model.handleHealthImportURL(url)
                     }
                 }
-                .alert("Import Apple Health data?", isPresented: Binding(
-                    get: { model.pendingShortcutHealthImport != nil },
-                    set: { showing in
-                        if !showing { model.cancelPendingHealthImport() }
-                    }
-                )) {
-                    Button("Import") { model.confirmPendingHealthImport() }
-                    Button("Cancel", role: .cancel) { model.cancelPendingHealthImport() }
+                .alert("Import Apple Health data?", isPresented: healthImportAlertPresented) {
+                    healthImportAlertButtons
                 } message: {
-                    if let pending = model.pendingShortcutHealthImport {
-                        Text("A Shortcut wants to add \(pending.daysCount) days and \(pending.workoutsCount) workouts to the Apple Health import source.")
-                    } else {
-                        Text("A Shortcut wants to add data to the Apple Health import source.")
-                    }
+                    healthImportAlertMessage
                 }
                 // Bring the watch link up once at launch (WCSession ignores a redundant activate), then
                 // push the first snapshot so a watch that's already on-wrist gets current scores without
@@ -298,14 +326,6 @@ struct StrandiOSApp: App {
                     await watch.pushLatest(from: model)
                 }
             } else if phase == .background {
-                // A connected strap does not emit a disconnect edge when iOS suspends the app. Route the
-                // lifecycle edge through the same tested seam as termination so a sub-cadence 0x2A37 batch
-                // gets a real store attempt and an accepted/rejected + inserted-count outcome before sleep.
-                Task {
-                    await StandardHRLifecycleFlush.run(event: .background) { reason in
-                        await model.ble.flushStandardHRForLifecycle(reason: reason)
-                    }
-                }
                 // Re-submit on every transition because iOS may discard an old best-effort request.
                 HealthWritebackBackgroundScheduler.updateSchedule(
                     isAuthorized: health.auth == .authorized)
@@ -324,15 +344,6 @@ struct StrandiOSApp: App {
                 // into Apple Health. Gated inside writeIfEnabled on the opt-in default (OFF) — a
                 // no-op until the user turns on Shortcuts Export.
                 Task { await ShortcutHealthExport.writeIfEnabled(repo: model.repo) }
-            }
-        }
-        .onReceive(NotificationCenter.default.publisher(for: UIApplication.willTerminateNotification)) { _ in
-            // Usually background already drained this buffer. This is the final retry edge for a foreground
-            // termination or a failed background attempt; an empty Collector is a cheap no-op.
-            Task {
-                await StandardHRLifecycleFlush.run(event: .termination) { reason in
-                    await model.ble.flushStandardHRForLifecycle(reason: reason)
-                }
             }
         }
     }
