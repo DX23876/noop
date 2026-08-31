@@ -353,4 +353,52 @@ class UnbondedOffloadProbeTest {
         )
         for (line in lines) assertTrue(line, line.contains("#1635"))
     }
+
+    /**
+     * #1635, from the field. The probe used to start on a fixed 6-second delay, chosen on the reasoning
+     * that the DIS chain (scheduled at 3s) would be done by then. A capture caught the chain still
+     * running at 7s: every CCCD write returned busy, all four were abandoned after the shared 8-retry
+     * budget, and the link produced no answer at all. Reasoning about a delay lost to measuring one.
+     */
+    @Test
+    fun `the waiting line says why the probe is late, and names the shared queue`() {
+        val line = unbondedProbeWaitingForDisLine()
+        assertTrue(line.contains("DIS read chain"))
+        assertTrue(line.contains("one GATT queue"))
+        assertTrue(line.contains("busy"))
+        assertTrue(line.contains("#1635"))
+    }
+
+    /**
+     * The wait must end. The DIS chain has exits that never reach its terminal — a refused read, or a
+     * strap that stops answering part-way — so a probe that waited on the flag would never run at all.
+     * The line has to distinguish "started cleanly" from "gave up waiting", because a busy queue after
+     * the full budget is a different capture from a busy queue at second one.
+     */
+    @Test
+    fun `giving up waiting is reported as a choice, not a failure`() {
+        val line = unbondedProbeStoppedWaitingLine(8)
+        assertTrue(line.contains("after 8 checks"))
+        assertTrue(line.contains("starting anyway"))
+        assertTrue(line.contains("not the strap"))
+        assertTrue(line.contains("#1635"))
+    }
+
+    /**
+     * The decision itself, not just the line that describes it. It was briefly inline in the client,
+     * argued for in a comment and asserted nowhere — which is exactly how #1755 shipped a bound that
+     * every unit test agreed with and the real pipeline rejected.
+     */
+    @Test
+    fun `the probe waits only while the DIS chain is actually running, and only so long`() {
+        assertTrue(unbondedProbeShouldWaitForDis(disChainInFlight = true, deferralsSoFar = 0))
+        assertTrue(unbondedProbeShouldWaitForDis(true, UNBONDED_PROBE_MAX_DEFERRALS - 1))
+        // The cap must end the wait: the chain has exits that never reach its terminal, so a probe
+        // waiting on a flag nobody clears would never run at all.
+        assertFalse(unbondedProbeShouldWaitForDis(true, UNBONDED_PROBE_MAX_DEFERRALS))
+        assertFalse(unbondedProbeShouldWaitForDis(true, UNBONDED_PROBE_MAX_DEFERRALS + 5))
+        // And no chain means no waiting — the whole point of readDisIdentity reporting whether it
+        // actually issued a read rather than being assumed to have.
+        assertFalse(unbondedProbeShouldWaitForDis(disChainInFlight = false, deferralsSoFar = 0))
+    }
 }

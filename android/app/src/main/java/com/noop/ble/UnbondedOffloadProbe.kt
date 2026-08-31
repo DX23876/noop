@@ -270,6 +270,52 @@ internal fun unbondedProbeLinkLostAskingLine(uptimeMs: Long, waitedMs: Long): St
         " inside its window to answer — this link settles nothing either way (#1635)."
 
 /**
+ * How many times the probe may stand aside for the DIS chain before going anyway.
+ *
+ * A cap rather than an open wait, because the chain has exits that never reach its terminal — a refused
+ * read, or a strap that stops answering part-way — and a probe waiting on a flag nobody will clear would
+ * simply never run. Eight checks at a second each, then it takes its chances and the trace says which
+ * happened.
+ */
+internal const val UNBONDED_PROBE_MAX_DEFERRALS = 8
+
+/**
+ * Should the probe wait rather than start?
+ *
+ * Pure so the decision is testable without a GATT stack, like every other judgement in this file. It was
+ * briefly inline in the client, which is how the same class of gap reached #1755: the behaviour was
+ * argued for in a comment and asserted nowhere.
+ */
+internal fun unbondedProbeShouldWaitForDis(
+    disChainInFlight: Boolean,
+    deferralsSoFar: Int,
+    cap: Int = UNBONDED_PROBE_MAX_DEFERRALS,
+): Boolean = disChainInFlight && deferralsSoFar < cap
+
+/**
+ * The probe is holding off because the unbonded DIS chain still has the GATT queue.
+ *
+ * Logged once per link rather than per deferral: the useful fact is that it waited at all, and a line a
+ * second for eight seconds would bury it. Without this the probe simply appears late in a capture with
+ * no reason given, which is the shape of problem this whole area keeps producing.
+ */
+internal fun unbondedProbeWaitingForDisLine(): String =
+    "Unbonded offload probe: waiting for the DIS read chain to finish — they share one GATT queue, and" +
+        " starting on top of it makes every CCCD write come back busy (#1635)."
+
+/**
+ * The wait ran out and the probe went anyway.
+ *
+ * Not a failure. The DIS chain has exits that never reach its terminal — a refused read, or a strap that
+ * stops answering part-way — so a probe that waited on the flag forever would never run at all. Saying
+ * which of the two happened is the point: a probe that waited the full budget and then found a busy queue
+ * is a different capture from one that started cleanly.
+ */
+internal fun unbondedProbeStoppedWaitingLine(deferrals: Int): String =
+    "Unbonded offload probe: the DIS chain has not finished after $deferrals checks — starting anyway." +
+        " If the subscribes come back busy, that queue is why, not the strap (#1635)."
+
+/**
  * Stage 2's question, logged so the wait that follows is attributable to it.
  *
  * Carries the CONFIRMED count, not the attempted one. A CCCD write can also end by being abandoned after
