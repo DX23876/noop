@@ -44,6 +44,55 @@ class HelloSuppressionTest {
     }
 
     @Test
+    fun `a Connect keeps a live bonded link it already holds`() {
+        assertTrue(connectKeepsExistingLink(genuinelyBonded = true, connected = true, sameDevice = true,
+                                            silentMs = 5_000, stallFuseMs = 600_000))
+    }
+
+    @Test
+    fun `a Connect rebuilds when a reconnect could still achieve something`() {
+        // Suppressed / never bonded: the tap IS the handshake retry, and that needs a new link.
+        assertFalse(connectKeepsExistingLink(genuinelyBonded = false, connected = true, sameDevice = true,
+                                             silentMs = 5_000, stallFuseMs = 600_000))
+        // A tap aimed at a different strap must not be swallowed by the one in hand.
+        assertFalse(connectKeepsExistingLink(genuinelyBonded = true, connected = true, sameDevice = false,
+                                             silentMs = 5_000, stallFuseMs = 600_000))
+        assertFalse(connectKeepsExistingLink(genuinelyBonded = true, connected = false, sameDevice = true,
+                                             silentMs = 5_000, stallFuseMs = 600_000))
+    }
+
+    @Test
+    fun `a silently dead link does NOT keep the button inert`() {
+        // The regression this clause exists for: GATT still says connected, nothing has arrived, and the
+        // watchdog is about to bounce it. That is exactly when Connect is tapped, so it must act.
+        assertFalse(connectKeepsExistingLink(genuinelyBonded = true, connected = true, sameDevice = true,
+                                             silentMs = 600_000, stallFuseMs = 600_000))
+        assertFalse(connectKeepsExistingLink(genuinelyBonded = true, connected = true, sameDevice = true,
+                                             silentMs = 900_000, stallFuseMs = 600_000))
+    }
+
+    @Test
+    fun `an unanswered handshake gives up sooner than an auth refusal`() {
+        // The auth refusal keeps the full patience: the hint asks the user to act, and 5 is the time
+        // to act in. An unanswered handshake asks nothing of them, so waiting only buys link drops.
+        assertEquals(5, giveUpThresholdFor(authRefusal = true, pauseThreshold = 5))
+        assertEquals(3, giveUpThresholdFor(authRefusal = false, pauseThreshold = 5))
+        // Above the hint threshold, so a latched PERSISTED verdict still needs a cycle of margin.
+        assertTrue(UNANSWERED_GIVE_UP_THRESHOLD > 2)
+    }
+
+    @Test
+    fun `the threshold and the treatment read the same refusal`() {
+        // These two decide patience and outcome for one refusal. Keyed apart they could disagree -
+        // pausing on a branch that waited the suppression count, or vice versa.
+        for (auth in listOf(true, false)) {
+            val suppresses = giveUpSuppressesHello(authRefusal = auth)
+            val threshold = giveUpThresholdFor(authRefusal = auth, pauseThreshold = 5)
+            assertEquals(suppresses, threshold == UNANSWERED_GIVE_UP_THRESHOLD)
+        }
+    }
+
+    @Test
     fun `only an unanswered handshake suppresses - an auth refusal still pauses`() {
         // An auth refusal is evidence the strap actively declined and reconnecting cannot help, so the
         // existing pause is right. An unanswered write is not that, and pausing would throw away live HR.
