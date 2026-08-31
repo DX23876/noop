@@ -8549,6 +8549,22 @@ class WhoopBleClient(
                     log("WHOOP 5/MG: CLIENT_HELLO suppressed for this strap — it was never acknowledged and" +
                         " the write is what drops the link. Staying on live HR (not fully paired); press" +
                         " Connect to try the handshake again (#1635).")
+                    // #221: republish the pairing hint, which the Devices card's "Connected · not paired"
+                    // pill reads. It is otherwise written only where a refusal FRESHLY crosses the give-up,
+                    // and the latch that records the give-up outlives the process while the hint did not —
+                    // so every launch after the one that gave up showed a green "Active · Live" beside a
+                    // feature list naming Sleep, Strain and HRV, on a strap that has never banked a row.
+                    // Placed HERE, next to the line reporting the same fact, because Swift already does
+                    // exactly this (BLEManager.swift, the matching suppression branch): the gap was
+                    // one-sided, and this closes it rather than inventing a second placement.
+                    //
+                    // Assigned, not seeded. A first attempt kept any hint already published, on the
+                    // reasoning that a live observation beats a remembered one — but the only hint that can
+                    // be present here came from a PREVIOUS link, since refusals are detected on teardown
+                    // and this runs during setup. A stale hint about a condition that may no longer hold
+                    // is not the fresher fact; the state of the link in hand is. Swift assigns for the
+                    // same reason, and mirrored code diverging quietly is worse than either choice.
+                    _state.update { it.copy(pairingHint = BondRefusalGiveUp.helloSuppressedHint()) }
                     // The unbonded DIS attempt rides HERE, on the suppressed link, and nowhere else. This
                     // is the only 5/MG state known to be stable: the handshake is off, the watchdog is
                     // cancelled, and the link holds. During the reconnect loop it would have ~4.8s and

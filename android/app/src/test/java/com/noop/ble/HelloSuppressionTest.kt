@@ -1,6 +1,8 @@
 package com.noop.ble
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -39,6 +41,17 @@ class HelloSuppressionTest {
         assertEquals(helloSuppressionPrefKey("fd:d4:f7:24:53:4a"), helloSuppressionPrefKey("  FD:D4:F7:24:53:4A  "))
         assertEquals(null, helloSuppressionPrefKey("   "))
         assertEquals(null, helloSuppressionPrefKey(null))
+    }
+
+    /**
+     * The Devices card's "Connected · not paired" pill keys on `pairingHint != null`, and the suppressed
+     * connect publishes exactly this hint (WhoopBleClient's suppression branch, mirroring Swift's). A hint
+     * that ever came back blank would take the card silently back to a green "Active · Live" on a strap
+     * that has never banked a row - which is the state this whole path exists to stop misreporting.
+     */
+    @Test
+    fun `the suppression hint is non-blank, because a card pill depends on it`() {
+        assertTrue(BondRefusalGiveUp.helloSuppressedHint().isNotBlank())
     }
 
     @Test
