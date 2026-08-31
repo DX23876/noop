@@ -450,6 +450,13 @@ fun SleepScreen(
         )
     }
 
+    // Debt credit is the canonical main-night DailyMetric total PLUS actual asleep minutes from blocks
+    // outside that main-night group. Keep the nap sum separate: Rest, the hero and daily total deliberately
+    // remain main-night-only. Stage-less naps add no guessed in-bed time. Mirrors Swift SleepView. (#525)
+    val napSleepMinByDay = remember(sleeps, habitualMidsleep) {
+        napSleepMinutesByDay(sleeps, habitualMidsleep)
+    }
+
     // Tapping a metric tile opens a full-history detail sheet for that one metric. (PR #260)
     val metricSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var detailMetricKey by remember { mutableStateOf<String?>(null) }
@@ -461,7 +468,12 @@ fun SleepScreen(
             containerColor = Palette.surfaceRaised,
             contentColor = Palette.textPrimary,
         ) {
-            SleepMetricDetailSheetContent(vm = vm, key = currentDetailKey)
+            SleepMetricDetailSheetContent(
+                vm = vm,
+                key = currentDetailKey,
+                imported = imported,
+                napSleepMinByDay = napSleepMinByDay,
+            )
         }
     }
 
@@ -474,13 +486,6 @@ fun SleepScreen(
         sleeps.groupBy { localDayString(it.endTs) }
             .toSortedMap(reverseOrder())                       // newest day first
             .map { (_, blocks) -> blocks.sortedBy { it.effectiveStartTs } }
-    }
-
-    // Debt credit is the canonical main-night DailyMetric total PLUS actual asleep minutes from blocks
-    // outside that main-night group. Keep the nap sum separate: Rest, the hero and daily total deliberately
-    // remain main-night-only. Stage-less naps add no guessed in-bed time. Mirrors Swift SleepView. (#525)
-    val napSleepMinByDay = remember(sleeps, habitualMidsleep) {
-        napSleepMinutesByDay(sleeps, habitualMidsleep)
     }
 
     // The navigated night, decoded once per (offset, data) change — chevron taps re-pick

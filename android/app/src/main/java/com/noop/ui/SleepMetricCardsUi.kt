@@ -157,13 +157,12 @@ private fun MetricGrid(m: SleepModel, onMetricClick: (String) -> Unit = {}) {
     }
 }
 
-// MARK: - 2b. Sleep-debt ledger (rolling 14-night running balance)
+// MARK: - 2b. Sleep-debt ledger (actionable next-night target)
 
 /**
- * A running balance of (slept − personal need) across the recent fortnight, surfaced as one
- * card: the net debt/surplus headline, a plain-English read, and a diverging bar of each
- * night's delta (surplus above the centre line, deficit below). Honest: a simple accumulator
- * — a surplus night offsets a deficit one — capped at 14 nights, no-data nights skipped.
+ * A recency-weighted estimate of unmet current need, surfaced with the raw per-night deltas.
+ * Meeting base need plus displayed debt clears it; extra sleep does not create a positive bank.
+ * History stays capped at 14 counted nights and no-data nights remain skipped.
  * Mirrors the macOS SleepDebtLedgerCard section-for-section. `internal` and keyed on the shared
  * [SleepModel] so the Today host (TodayScreen) can render the SAME view the Sleep tab does (a mirror,
  * not a copy); the nap-credited ledger is read from `m.sleepDebtLedger`, never recomputed here. Twin of
@@ -173,7 +172,7 @@ private fun MetricGrid(m: SleepModel, onMetricClick: (String) -> Unit = {}) {
 internal fun SleepDebtLedgerHostCard(m: SleepModel) {
     val ledger = m.sleepDebtLedger
     Column(verticalArrangement = Arrangement.spacedBy(Metrics.gap)) {
-        SectionHeader("Sleep-debt ledger", overline = "Last 14 nights", trailing = "running balance")
+        SectionHeader("Sleep-debt ledger", overline = "Last 14 nights", trailing = "tonight's target")
         NoopCard(padding = Metrics.cardPadding, tint = Palette.restColor) {
             if (ledger.nightCount == 0) {
                 Text(
@@ -183,7 +182,7 @@ internal fun SleepDebtLedgerHostCard(m: SleepModel) {
                 )
             } else {
                 Column(verticalArrangement = Arrangement.spacedBy(Metrics.space14)) {
-                    // Headline: net balance + the short tag (sleep debt / surplus / balanced).
+                    // Headline: current debt or balanced.
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
                             debtHeadline(ledger),
@@ -1130,4 +1129,3 @@ internal fun SleepConsistencyCard(
         }
     }
 }
-

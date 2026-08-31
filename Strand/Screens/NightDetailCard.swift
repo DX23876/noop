@@ -1,4 +1,5 @@
 import SwiftUI
+import StrandAnalytics
 import StrandDesign
 import WhoopStore
 
@@ -40,8 +41,8 @@ struct NightDetailCard: View {
             StatTile(
                 label: "Sleep Debt",
                 value: debt.latest.map { durationText($0) } ?? "—",
-                caption: debtCaption(debt.latest),
-                accent: debtColor(debt.latest),
+                caption: nightDetailDebtCaption(debt.latest),
+                accent: nightDetailDebtColor(debt.latest),
                 sparkline: spark(debt.series),
                 sparkColor: StrandPalette.metricRose)
                 .frame(maxWidth: .infinity)
@@ -103,8 +104,8 @@ struct NightDetailCard: View {
                 StatTile(
                     label: "Sleep Debt",
                     value: debt.latest.map { durationText($0) } ?? "—",
-                    caption: debtCaption(debt.latest),
-                    accent: debtColor(debt.latest),
+                    caption: nightDetailDebtCaption(debt.latest),
+                    accent: nightDetailDebtColor(debt.latest),
                     sparkline: spark(debt.series),
                     sparkColor: StrandPalette.metricRose)
                 #endif
@@ -132,20 +133,6 @@ struct NightDetailCard: View {
         return String(localized: "\(sign)\(num)\(suffix) vs typical")
     }
 
-    private func debtCaption(_ debt: Double?) -> String {
-        guard let debt else { return String(localized: "vs need") }
-        return debt < 15 ? String(localized: "On target") : String(localized: "Below need")
-    }
-
-    private func debtColor(_ debt: Double?) -> Color {
-        guard let debt else { return StrandPalette.textPrimary }
-        switch debt {
-        case ..<15:  return StrandPalette.statusPositive
-        case ..<60:  return StrandPalette.statusWarning
-        default:     return StrandPalette.statusCritical
-        }
-    }
-
     /// A sparkline needs at least two points; otherwise return nil so the tile stays clean.
     private func spark(_ series: [Double]) -> [Double]? {
         let tail = Array(series.suffix(30))
@@ -158,5 +145,19 @@ struct NightDetailCard: View {
         let m = Swift.max(0, Int(minutes.rounded()))
         if m < 60 { return String(localized: "\(m)m") }
         return String(localized: "\(m / 60)h \(m % 60)m")
+    }
+}
+
+func nightDetailDebtCaption(_ debt: Double?) -> String {
+    guard let debt else { return String(localized: "vs need") }
+    return debt < SleepDebt.onTargetBandMin ? String(localized: "On target") : String(localized: "Below need")
+}
+
+func nightDetailDebtColor(_ debt: Double?) -> Color {
+    guard let debt else { return StrandPalette.textPrimary }
+    switch debt {
+    case ..<SleepDebt.onTargetBandMin: return StrandPalette.statusPositive
+    case ..<60: return StrandPalette.statusWarning
+    default: return StrandPalette.statusCritical
     }
 }

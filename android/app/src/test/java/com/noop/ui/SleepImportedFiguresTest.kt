@@ -139,10 +139,11 @@ class SleepImportedFiguresTest {
         assertEquals(410.0 / 450.0 * 100.0, m.hoursVsNeeded.latest!!, 1e-9)
         // Debt tile reads ASLEEP too, but against the NORMATIVE need now (#242): only 2 nights < the
         // 7-night minimum, so personalizedNeedHours cold-starts to the 8 h population target = 480, and
-        // debt = max(0, 480 − 410) = 70, never max(0, 480 − 600) = 0.
-        assertEquals(70.0, m.sleepDebt.latest!!, 1e-9)
-        // The debt TILE and the LEDGER agree (both asleep over the full history) — the #5 symptom.
-        assertEquals(m.sleepDebt.latest, -m.sleepDebtLedger.nights.last().deltaMin, 1e-9)
+        // The carried target is 0.55 × (480 + 33 − 410) = 56.65, surfaced at the shared
+        // one-decimal ledger precision as 56.7, never 0 from in-bed time.
+        assertEquals(56.7, m.sleepDebt.latest!!, 1e-9)
+        // The debt TILE and the LEDGER use the same recurrence.
+        assertEquals(56.7, -m.sleepDebtLedger.balanceMin, 1e-9)
     }
 
     /** A passed session must give the SAME tiles/ledger as no session — there is no display-time
@@ -181,15 +182,15 @@ class SleepImportedFiguresTest {
         assertEquals(48.0, napCredit["2026-06-02"]!!, 1e-9)
 
         // Mean main-night sleep is exactly 480 min, so personal need is 480. The latest day is
-        // 392 main + 48 nap = 440 credited: 40 min debt rather than the old 88 min.
+        // 392 main + 48 nap = 440 credited: 22 min carried debt rather than the old 88 min.
         val m = buildSleepModel(
             days = listOf(day("2026-06-01", 568.0), day("2026-06-02", 392.0)),
             session = night,
             napSleepMinByDay = napCredit,
             todayKey = pinnedToday,
         )!!
-        assertEquals(40.0, m.sleepDebt.latest!!, 1e-9)
-        assertEquals(40.0 / 60.0, m.trendDebtHours.last(), 1e-9)
+        assertEquals(22.0, m.sleepDebt.latest!!, 1e-9)
+        assertEquals(22.0 / 60.0, m.trendDebtHours.last(), 1e-9)
         assertEquals(440.0, m.sleepDebtLedger.nights.last().sleptMin, 1e-9)
         assertEquals(-40.0, m.sleepDebtLedger.nights.last().deltaMin, 1e-9)
         assertEquals(392.0 / 480.0 * 100.0, m.hoursVsNeeded.latest!!, 1e-9)

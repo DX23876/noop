@@ -2,6 +2,7 @@ package com.noop.ui
 
 import androidx.compose.ui.graphics.Color
 import com.noop.analytics.RestScorer
+import com.noop.analytics.SleepDebt
 import com.noop.data.DailyMetric
 import java.time.LocalDate
 import java.util.Locale
@@ -31,8 +32,28 @@ internal fun sleepMetricSpec(key: String): SleepMetricSpec = when (key) {
     else              -> SleepMetricSpec(key, "", Palette.accent) { "${it.roundToInt()}" }
 }
 
-internal fun buildSleepMetricPoints(days: List<DailyMetric>, key: String): List<Pair<String, Double>> {
+internal fun buildSleepMetricPoints(
+    days: List<DailyMetric>,
+    key: String,
+    imported: ImportedSleepSeries = ImportedSleepSeries(),
+    napSleepMinByDay: Map<String, Double> = emptyMap(),
+): List<Pair<String, Double>> {
     val needMin = max(450.0, days.mapNotNull { it.totalSleepMin?.takeIf { m -> m > 0.0 } }.average().let { if (it.isNaN()) 480.0 else it })
+    if (key == "sleep_debt") {
+        val debtNeedMin = RestScorer.personalizedNeedHours(
+            days.mapNotNull { it.totalSleepMin?.let { minutes -> minutes / 60.0 } }, null,
+        ) * 60.0
+        return SleepDebt.debtSeries(
+            series = days.map { day ->
+                day.day to SleepDebt.creditedSleepMin(
+                    day.totalSleepMin,
+                    napSleepMinByDay[day.day] ?: 0.0,
+                )
+            },
+            needHours = debtNeedMin / 60.0,
+            importedDebtMin = imported.debtMin,
+        )
+    }
     return days.mapNotNull { d ->
         val v: Double? = when (key) {
             // The Rest detail graph reads the REAL resolved Rest composite per day — the same single
@@ -59,7 +80,6 @@ internal fun buildSleepMetricPoints(days: List<DailyMetric>, key: String): List<
                 if (sl > 0.0) (dp + rm) / sl * 100.0 else null
             }
             "respiratory" -> d.respRateBpm
-            "sleep_debt"  -> d.totalSleepMin?.let { max(0.0, needMin - it) }   // #691: minutes (spec unit "min")
             else          -> null
         }
         v?.takeIf { it.isFinite() }?.let { d.day to it }

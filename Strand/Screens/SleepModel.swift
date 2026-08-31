@@ -169,8 +169,8 @@ struct SleepModel {
 
     let trendPoints: [TrendPoint]
 
-    /// Rolling 14-night sleep-debt ledger: Σ(slept − personal need) across the recent
-    /// fortnight, with the per-night deltas behind it. Computed once per data change.
+    /// Recency-weighted sleep-debt estimate across the latest 14 usable nights, with
+    /// raw per-night deltas for context. Computed once per data change.
     let sleepDebtLedger: SleepDebtLedger
 }
 
@@ -443,19 +443,22 @@ extension SleepModel {
         metric(days: days) { $0.respRateBpm }
     }
 
-    /// Sleep debt (minutes): the imported sleep_debt_min when the export carried it; else the
-    /// APPROXIMATE per-night need − (main sleep + nap sleep), floored at 0.
+    /// Sleep debt (minutes): imported `sleep_debt_min` remains export-verbatim. Otherwise use
+    /// the same recency-weighted ledger as the card, including nap credit and its 14-night window.
     static func sleepDebtSeries(days: [DailyMetric], importedSleep: [String: ImportedSleepFigures],
                                 napSleepMinByDay: [String: Double]) -> Metric {
-        let imported = importedSleep
         let need = debtNeedMin(days: days)   // #242: normative need, not the self-referential mean
-        let series = days.compactMap { d -> Double? in
-            if let debt = imported[d.day]?.debtMin { return debt }   // minutes, export-verbatim
-            guard let asleep = SleepDebt.creditedSleepMin(
+        let credited = days.map { d in
+            (day: d.day, totalSleepMin: SleepDebt.creditedSleepMin(
                 mainSleepMin: d.totalSleepMin,
-                napSleepMin: napSleepMinByDay[d.day] ?? 0), need > 0 else { return nil }
-            return Swift.max(0, need - asleep)   // APPROXIMATE fallback
+                napSleepMin: napSleepMinByDay[d.day] ?? 0))
         }
+        let importedDebt = importedSleep.compactMapValues(\.debtMin)
+        let series = SleepDebt.debtSeries(
+            series: credited,
+            needHours: need / 60.0,
+            importedDebtMin: importedDebt
+        ).map(\.value)
         return (series.last, mean(series), series)
     }
 
@@ -469,10 +472,9 @@ extension SleepModel {
 
     // MARK: Sleep-debt ledger
 
-    /// The rolling 14-night sleep-debt ledger from the cached daily metrics. Measures against the
-    /// normative `debtNeedMin` (the engine's `personalizedNeedHours`) — the SAME need the per-night
-    /// "Sleep Debt" tile uses, so the running-balance card and the tile agree — over each main night's
-    /// `totalSleepMin` plus actual asleep minutes from separately-recorded naps. (#242)
+    /// The 14-night recency-weighted estimate from cached daily metrics. It measures against the
+    /// normative `debtNeedMin` (the engine's `personalizedNeedHours`) — the SAME need and recurrence
+    /// the local "Sleep Debt" tile uses — and credits actual asleep minutes from separate naps. (#242)
     static func debtLedger(days: [DailyMetric], napSleepMinByDay: [String: Double]) -> SleepDebtLedger {
         SleepDebt.ledger(
             series: days.map { day in

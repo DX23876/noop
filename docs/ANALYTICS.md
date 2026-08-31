@@ -236,6 +236,49 @@ Given `(TRIMP, reference_strain)` pairs, fits `D` via a through-origin least-squ
 
 ---
 
+## `SleepDebt` — actionable next-night sleep target
+
+The displayed debt is a planning estimate, not an hour-for-hour bank of every
+minute missed over the last fortnight. For each usable night, NOOP carries 55%
+of the complete unmet need into the following night's target:
+
+```text
+currentNeed = personalizedBaseNeed + currentDebt
+nextDebt    = 0.55 × max(0, currentNeed − creditedSleep)
+```
+
+`creditedSleep` is the main night's asleep time plus separately recorded nap
+sleep. A calculated debt below 10 minutes is treated as balanced; exactly 10
+minutes remains debt. Meeting the complete current need clears the displayed
+debt, and extra sleep never creates a positive bank. The chart bars remain the
+raw nightly difference from base need so the underlying nights stay visible.
+
+The coefficient is an interoperability approximation, not a physiological
+constant. It was selected against one contributor's 853 consecutive exported
+WHOOP nights: the 0.55 recurrence was within 15 minutes of WHOOP's following-day
+debt on 93.0% of pairs and within 20 minutes on 94.5%. That contributor also used
+WHOOP's sleep-debt target for daily sleep planning for approximately 800 days.
+This is useful longitudinal field evidence, but it is single-user validation,
+not a population study or clinical claim.
+
+A bounded, recency-weighted planning estimate is also more honest than treating
+sleep loss as interchangeable hours. Controlled restriction studies find that
+sleep physiology, subjective sleepiness, and cognitive performance accumulate
+and recover on different timescales; recovery depends on sleep dose and intensity,
+and some performance effects can remain after extended recovery sleep:
+
+- Van Dongen et al. (2003), chronic restriction dose-response:
+  <https://pubmed.ncbi.nlm.nih.gov/12683469/>
+- Banks et al. (2010), recovery-sleep dose response:
+  <https://pmc.ncbi.nlm.nih.gov/articles/PMC2910531/>
+- Doty et al. (2020), differential recovery across neurobehavioral measures:
+  <https://pubmed.ncbi.nlm.nih.gov/33274389/>
+
+The estimate therefore answers the narrow product question “how much should I
+add to tonight's base sleep target?”, not “have all physiological and cognitive
+effects of prior sleep restriction disappeared?”. Swift and Kotlin implement the
+same constants, recurrence, deadband, nap credit, and 14-usable-night bound.
+
 ## `SleepStager` — sleep/wake detection + approximate 4-class staging (feeds **Rest**)
 
 Source: `SleepStager.swift`. Detects in-bed sessions from gravity/HR/RR/respiration and produces a 30-second hypnogram of `{wake, light, deep, rem}`. These stages and the AASM roll-up below are the raw material the **Rest** score composite consumes (see *The Rest score composite* immediately after this section).

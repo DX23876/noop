@@ -7,14 +7,14 @@ import WhoopStore
 //
 // The Sleep tab's "Sleep-debt ledger" card, extracted into a standalone view so it can ALSO be hosted in
 // the Today tab. Both the Sleep tab and the Today host render THIS view from the SAME `SleepModel`, so the
-// rolling 14-night running balance can never diverge between the two surfaces (the parity contract). The
+// recency-weighted estimate can never diverge between the two surfaces (the parity contract). The
 // card body + its `debtDeltaBars` strip and the debt-only formatting helpers (`debtHeadline` /
 // `debtTag` / `debtRead` / `debtBalanceColor` / `debtSigned`) are a verbatim lift of the former
 // `SleepView.sleepDebtLedger` (and the helpers only it used); the nap-credited ledger is computed once in
 // `SleepModel.build` (the shared builder) and read here — it is NOT recomputed.
 
-/// The "Sleep-debt ledger" card. A running balance of (slept − personal need) across the recent
-/// fortnight — the net debt/surplus headline, a plain-English read, and a diverging per-night delta bar —
+/// The "Sleep-debt ledger" card. A recency-weighted estimate across the recent fortnight — the
+/// current debt headline, a plain-English read, and a diverging raw per-night delta bar —
 /// rendered from the shared [SleepModel]'s `sleepDebtLedger`. (#242)
 struct SleepDebtLedgerCard: View {
     let model: SleepModel
@@ -52,7 +52,8 @@ struct SleepDebtLedgerCard: View {
                             .font(StrandFont.subhead)
                             .foregroundStyle(StrandPalette.textSecondary)
                             .fixedSize(horizontal: false, vertical: true)
-                        // Per-night diverging delta bars (surplus up, deficit down).
+                        // Raw per-night delta bars (above/below base need), intentionally separate
+                        // from the recurrence's current debt estimate.
                         debtDeltaBars(ledger)
                         Divider().overlay(StrandPalette.hairline)
                         ChartFooter([
@@ -112,30 +113,30 @@ struct SleepDebtLedgerCard: View {
         return "≈\(durationText(m))"
     }
 
-    /// Short tag under/beside the headline: DEBT / SURPLUS / ON TARGET.
+    /// Short tag under/beside the headline: DEBT / ON TARGET.
     private func debtTag(_ ledger: SleepDebtLedger) -> String {
         if ledger.magnitudeMin < SleepDebt.onTargetBandMin { return String(localized: "balanced") }
-        return ledger.isDebt ? String(localized: "sleep debt") : String(localized: "surplus")
+        return ledger.isDebt ? String(localized: "sleep debt") : String(localized: "balanced")
     }
 
-    /// Plain-English read of the running balance over the window.
+    /// Plain-English read of the current actionable estimate.
     private func debtRead(_ ledger: SleepDebtLedger) -> String {
         let nights = ledger.nightCount
         let span = nights == 1
             ? String(localized: "the last night")
             : String(localized: "the last \(nights) nights")
         if ledger.magnitudeMin < SleepDebt.onTargetBandMin {
-            return String(localized: "You're roughly on top of your sleep across \(span). Slept minutes balance out against your need.")
+            return String(localized: "You've effectively met your current sleep need across \(span).")
         }
         let mag = durationText(ledger.magnitudeMin)
         if ledger.isDebt {
-            return String(localized: "You've banked about \(mag) of sleep debt over \(span). Surplus nights count back against it. An earlier night or two would clear it.")
+            return String(localized: "Add about \(mag) to your base sleep target tonight. Meeting that complete sleep need clears the displayed debt; recent shortfalls carry forward at a reduced weight.")
         }
-        return String(localized: "You're carrying about \(mag) of surplus over \(span). You've slept past your need on balance. Nicely ahead.")
+        return String(localized: "You've effectively met your current sleep need across \(span).")
     }
 
-    /// Color the balance by sign + size: surplus/within-band → positive green, modest
-    /// debt → warning, heavier debt → critical.
+    /// Color the balance by size: balanced → positive green, modest debt → warning,
+    /// heavier debt → critical.
     private func debtBalanceColor(_ ledger: SleepDebtLedger) -> Color {
         if ledger.magnitudeMin < SleepDebt.onTargetBandMin || !ledger.isDebt {
             return StrandPalette.statusPositive

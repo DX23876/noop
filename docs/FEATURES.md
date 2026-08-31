@@ -267,7 +267,9 @@ just the most recent (step through earlier nights to compare):
   each as "Xh Ym · NN%", with time-in-bed, efficiency, and onset–wake times.
 - **Night detail** — a uniform tile grid, each with a sparkline and a "vs typical" caption: Sleep
   Performance, Efficiency, Consistency, Hours vs Needed, Restorative (deep + REM share),
-  Respiratory, and Sleep Debt (vs your personal sleep need, floored at 7.5 h).
+  Respiratory, and Sleep Debt. Debt is 55% of the current unmet personalized need, carried into the
+  next night's target; values below 10 minutes read as balanced instead of stacking into an
+  unrepayable 14-night hours bank.
 - **Stages vs typical** — Deep / REM / Light as horizontal bars, last-night minutes with a marker
   at your personal mean, so highs and lows pop.
 - **Asleep duration** — a trailing-30-night hours trend with avg / min / max.

@@ -5,21 +5,20 @@ import kotlin.math.ceil
 import kotlin.math.floor
 
 /*
- * SleepDebt.kt — a rolling sleep-debt ledger over the last N nights.
+ * SleepDebt.kt — an actionable next-night sleep-debt estimate over the last N nights.
  *
  * Faithful Kotlin mirror of StrandAnalytics/SleepDebt.swift. Keep the window cap,
- * the skip-no-data rule, and the Σ(slept − need) accumulation byte-identical to
+ * the skip-no-data rule, and the debt recurrence byte-identical to
  * Swift — the two clients must report the same balance for the same nights.
  *
  * Pure, deterministic, DB-free. Given a chronological series of per-night total
  * sleep (minutes) and a personal sleep need (hours), it accumulates a running
- * balance of (actual − need) per night across a capped trailing window (14 nights
- * by default) and reports the net balance plus the per-night deltas behind it.
+ * debt from unmet current need across a capped trailing window (14 nights by
+ * default) and reports that debt plus the raw per-night deltas behind it.
  *
  * HONEST by construction:
- *   - A plain debt accumulator — sum of nightly (slept − need) — NOT a physiological
- *     model. A surplus night genuinely offsets a deficit one, like a balance nets
- *     credits and debits.
+ *   - Debt is 55% of the current unmet need. Meeting need (including carried debt)
+ *     clears it; extra sleep never creates a positive bank.
  *   - The window is capped (default 14) so debt never compounds across months of
  *     history — only the recent fortnight is in scope.
  *   - Nights with no usable sleep total are SKIPPED (no zero-fill), so a gap in wear
@@ -48,7 +47,7 @@ data class SleepDebtNight(
  * `SleepDebtLedger`.
  */
 data class SleepDebtLedger(
-    /** Net running balance (minutes): Σ(slept − need). Negative = net DEBT, positive = net SURPLUS. */
+    /** Current debt as a negative balance in minutes; never positive. */
     val balanceMin: Double,
     /** Per-night contributions, oldest → newest (skipped nights absent); the per-night bar/spark. */
     val nights: List<SleepDebtNight>,
@@ -74,10 +73,12 @@ object SleepDebt {
     const val DEFAULT_WINDOW_NIGHTS: Int = 14
 
     /**
-     * "On target" deadband (minutes): a |balance| under this reads as balanced rather than
-     * a debt/surplus, so a few stray minutes don't flip the headline.
+     * Calculated debts below this threshold are treated as balanced. Exactly ten minutes remains debt.
      */
-    const val ON_TARGET_BAND_MIN: Double = 30.0
+    const val ON_TARGET_BAND_MIN: Double = 10.0
+
+    /** Fraction of current unmet need carried into the next night's target. */
+    const val DEBT_CARRY: Double = 0.55
 
     /**
      * Sleep credited toward debt for one day. [mainSleepMin] remains the canonical
@@ -95,6 +96,34 @@ object SleepDebt {
     }
 
     /**
+     * Debt values oldest → newest for local fallback surfaces. An imported value wins verbatim
+     * for its day's output, while the independent local recurrence continues from credited sleep.
+     */
+    fun debtSeries(
+        series: List<Pair<String, Double?>>,
+        needHours: Double = RestScorer.defaultSleepNeedHours,
+        importedDebtMin: Map<String, Double> = emptyMap(),
+        window: Int = DEFAULT_WINDOW_NIGHTS,
+    ): List<Pair<String, Double>> {
+        val cap = window.coerceAtLeast(1)
+        val usableHistory = ArrayList<Pair<String, Double?>>(cap)
+        val result = ArrayList<Pair<String, Double>>(series.size)
+        for ((day, slept) in series) {
+            val imported = importedDebtMin[day]
+            val sleptMin = slept?.takeIf { it > 0.0 }
+            if (sleptMin != null) {
+                usableHistory.add(day to sleptMin)
+                if (usableHistory.size > cap) usableHistory.removeAt(0)
+            }
+            if (imported != null) result.add(day to imported)
+            else if (sleptMin != null) {
+                result.add(day to ledger(usableHistory, needHours = needHours, window = cap).magnitudeMin)
+            }
+        }
+        return result
+    }
+
+    /**
      * Build the ledger from a chronological `List<Pair<day, totalSleepMin?>>` series.
      *
      * @param series per-night `(day, totalSleepMin)` rows in CHRONOLOGICAL order
@@ -105,8 +134,8 @@ object SleepDebt {
      * @param window how many of the most-recent COUNTED nights to include. Defaults to
      *   [DEFAULT_WINDOW_NIGHTS] (14). Clamped to ≥ 1.
      *
-     * The balance is Σ over the window of (sleptMin − needMin): a surplus night offsets a
-     * deficit one. Returns an empty ledger (balance 0, no nights) when no night has data.
+     * Each night applies `nextDebt = 0.55 * max(0, need + currentDebt - slept)`.
+     * Calculated debt below ten minutes is cleared. Returns an empty ledger when no night has data.
      */
     fun ledger(
         series: List<Pair<String, Double?>>,
@@ -122,14 +151,19 @@ object SleepDebt {
         val windowed = usable.takeLast(cap)
 
         val nights = ArrayList<SleepDebtNight>(windowed.size)
-        var balance = 0.0
+        var debt = 0.0
         for ((day, slept) in windowed) {
             val sleptMin = slept ?: 0.0
             val delta = sleptMin - needMin
-            balance += delta
+            debt = nextDebt(needMin, debt, sleptMin)
             nights.add(SleepDebtNight(day = day, sleptMin = sleptMin, deltaMin = delta))
         }
-        return SleepDebtLedger(balanceMin = round1(balance), nights = nights, needMin = needMin)
+        return SleepDebtLedger(balanceMin = -round1(debt), nights = nights, needMin = needMin)
+    }
+
+    private fun nextDebt(needMin: Double, currentDebt: Double, sleptMin: Double): Double {
+        val calculatedDebt = DEBT_CARRY * (needMin + currentDebt - sleptMin).coerceAtLeast(0.0)
+        return if (calculatedDebt < ON_TARGET_BAND_MIN) 0.0 else calculatedDebt
     }
 
     /**

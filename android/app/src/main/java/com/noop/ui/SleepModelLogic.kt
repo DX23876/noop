@@ -227,13 +227,15 @@ internal fun buildSleepModel(
         if (dp != null && rm != null && sl != null && sl > 0.0) (dp + rm) / sl * 100.0 else null
     }
     val respiratory = metric(days, todayKey) { it.respRateBpm }
+    val localDebtByDay = SleepDebt.debtSeries(
+        series = days.map { d ->
+            d.day to SleepDebt.creditedSleepMin(d.totalSleepMin, napSleepMinByDay[d.day] ?: 0.0)
+        },
+        needHours = debtNeedMin / 60.0,
+        importedDebtMin = imported.debtMin, // export-verbatim for that day; never seeds local state
+    ).toMap()
     val sleepDebt = run {
-        val series = days.mapNotNull { d ->
-            imported.debtMin[d.day]   // minutes, export-verbatim
-                ?: SleepDebt.creditedSleepMin(d.totalSleepMin, napSleepMinByDay[d.day] ?: 0.0)
-                    ?.takeIf { debtNeedMin > 0.0 }
-                    ?.let { max(0.0, debtNeedMin - it) }   // #242: normative need, not the self-referential mean
-        }
+        val series = days.mapNotNull { localDebtByDay[it.day] }
         Metric(series.lastOrNull(), mean(series), series)
     }
 
@@ -243,9 +245,7 @@ internal fun buildSleepModel(
     val trendHours = trendRows.mapNotNull { it.totalSleepMin?.let { minutes -> minutes / 60.0 } }
     val trendNeedHours = trendRows.map { row -> ((imported.needMin[row.day] ?: debtNeedMin) / 60.0) }
     val trendDebtHours = trendRows.map { row ->
-        val sleptMin = SleepDebt.creditedSleepMin(row.totalSleepMin, napSleepMinByDay[row.day] ?: 0.0) ?: 0.0
-        val neededMin = imported.needMin[row.day] ?: debtNeedMin   // #242: normative need, not the mean
-        ((imported.debtMin[row.day] ?: max(0.0, neededMin - sleptMin)) / 60.0)
+        (localDebtByDay[row.day] ?: 0.0) / 60.0
     }
     val trendDates = trendRows.map { it.day }
 
