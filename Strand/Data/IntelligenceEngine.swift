@@ -324,11 +324,30 @@ final class IntelligenceEngine: ObservableObject {
 
     /// Counts + a window length only — same privacy class as the sibling `sleep day=` line, no PII. Pure so
     /// it's unit-tested directly; byte-identical to the Android `sleepDetectNoNightLogLine`.
+/// Fold the per-day diagnostic lines onto the one channel that already replays them.
+    ///
+    /// `hrvDiag` is not really "the HRV line" any more — it is the loop-1 diagnostic channel, replayed
+    /// on the main actor by splitting on newlines. The Effort funnel rides it for the same reason the
+    /// NO-NIGHT line does: built where the inputs are in scope, emitted where the sink is safe to touch.
+    nonisolated static func mergedDayDiag(_ hrvDiag: String?, _ extra: [String]) -> String? {
+        var parts: [String] = []
+        if let hrvDiag, !hrvDiag.isEmpty { parts.append(hrvDiag) }
+        parts.append(contentsOf: extra)
+        return parts.isEmpty ? nil : parts.joined(separator: "\n")
+    }
+
     nonisolated static func sleepDetectNoNightLogLine(day: String, hrCount: Int, rrCount: Int,
                                                       respCount: Int, gravCount: Int, stepCount: Int,
                                                       providedCount: Int, windowHours: Int) -> String {
+        // `reason` names WHICH absence this is, because grav=0 is printed but its consequence is not.
+        // With no motion the stager has no HR-only fallback, so no quantity of HR can stage a night — a
+        // strap capability limit, not a coverage gap, and the two want completely different follow-ups.
+        // With motion present the inputs were there and staging still produced nothing, which is the case
+        // actually worth investigating.
+        let reason = gravCount == 0 ? "no-motion" : "staged-none"
         return "sleep-detect day=\(day) NO-NIGHT hr=\(hrCount) rr=\(rrCount) resp=\(respCount) "
-            + "grav=\(gravCount) steps=\(stepCount) provided=\(providedCount) window=\(windowHours)h"
+            + "grav=\(gravCount) steps=\(stepCount) provided=\(providedCount) window=\(windowHours)h "
+            + "reason=\(reason)"
     }
 
     /// #674/#1244: the "sleep total with no matched session" divergence line. A COMPUTED day whose fresh
@@ -1156,7 +1175,14 @@ final class IntelligenceEngine: ObservableObject {
                 }
                 let tScore0 = Date()
                 dayPrepSeconds += tScore0.timeIntervalSince(tPrep0)
-                let res = AnalyticsEngine.analyzeDay(day: day, hr: hr, rr: rr, resp: resp,
+                // #1770 follow-up: the Effort ring's funnel. Collected here rather than sent straight
+                // to `diagnosticSink`, because that sink is main-actor isolated and this loop is not —
+                // the same reason `hrvDiag` is carried on the scan and replayed below. A local buffer
+                // crosses no actor.
+                var strainDiagLines: [String] = []
+                let res = AnalyticsEngine.analyzeDay(day: day,
+                                                     strainDiag: { strainDiagLines.append($0) },
+                                                     hr: hr, rr: rr, resp: resp,
                                                      vendorResp: vendorResp, gravity: grav,
                                                      steps: steps, dayHr: dayHr, daySteps: daySteps,
                                                      dayGravity: dayGrav,
@@ -1438,7 +1464,8 @@ final class IntelligenceEngine: ObservableObject {
                 let scan = DayScan(result: res, rhrLine: rhrLine, respLine: respLine,
                                    readOwner: owner, hrRows: hr.count,
                                    sleepTrace: sleepTrace, stepsTrace: stepsTrace, hrvTrace: hrvTrace,
-                                   hrvDiag: hrvDiag, spo2Candidate: spo2CandidateMean,
+                                   hrvDiag: Self.mergedDayDiag(hrvDiag, strainDiagLines),
+                                   spo2Candidate: spo2CandidateMean,
                                    hrvOverCounted: hrvOverCounted,
                                    primarySessionRHR: primarySessionRHR,
                                    primarySessionRHRCoverage: primarySessionRHRCoverage)

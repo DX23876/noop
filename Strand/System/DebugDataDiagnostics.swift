@@ -22,6 +22,30 @@ enum DebugDataDiagnostics {
 
     /// Strap identity + timezone from persisted defaults (sync, offline-safe). Mirrors the prefs-backed
     /// portion of the Android strap-state block; keys match the iOS @AppStorage / persisted values.
+
+    /// What the active strap actually delivered over the window — the line that says which scores can
+    /// exist at all.
+    ///
+    /// A 5/MG that never completes its handshake streams live HR and R-R over the standard characteristic
+    /// and nothing else: motion and steps arrive only with the proprietary offload. Without motion the
+    /// sleep stager has no HR-only fallback and the workout detector returns before it looks at heart
+    /// rate, so Rest reads "No data" and no bout is ever found — and until now a report showed those
+    /// absences with nothing connecting them to their single cause.
+    ///
+    /// The window is IN the label. Without it "Provides: motion NO" reads as a capability claim, and a
+    /// strap simply not worn for two days would be reported as incapable of motion — the opposite kind of
+    /// wrong from the one this line exists to prevent. Over a window of actual wear, delivered and capable
+    /// are the same thing; the label keeps that assumption visible instead of implied.
+    /// The label is padded to 13 like every other in this block ("Model:", "Data write:"), and the window
+    /// rides the VALUE. "Provides(48h):" is 15 and overhung the column in a report that is aligned by hand
+    /// and read by eye.
+    /// Byte-identical to the Kotlin `AndroidDiagnostics.strapProvidesLine`.
+    static func strapProvidesLine(hr: Bool, rr: Bool, motion: Bool, steps: Bool) -> String {
+        func mark(_ b: Bool) -> String { b ? "yes" : "NO" }
+        return "Provides:    HR \(mark(hr)) · R-R \(mark(rr)) · motion \(mark(motion)) · steps \(mark(steps))"
+            + " (last 48h)"
+    }
+
     static func strapStateLines() -> [String] {
         var lines: [String] = []
         lines.append(String(repeating: "─", count: 40))
@@ -54,6 +78,7 @@ enum DebugDataDiagnostics {
         let syncSec = d.double(forKey: "lastSyncedAt")
         lines.append("Last sync:   \(syncSec > 0 ? relTime(Date().timeIntervalSince1970 - syncSec) : "never")")
         // #57: write-health. "Last sync" fires even on an empty/failed offload, so distinguish "rows
+
         // actually landed" from "an offload STALLED on a persist failure" (history won't persist — usually a
         // backup restored without an app restart, the closed-store class).
         let now = Date().timeIntervalSince1970
@@ -102,6 +127,24 @@ enum DebugDataDiagnostics {
     /// recomputed for the most recent night. Async — it reads the on-device store. Never throws.
     @MainActor static func dynamicLines(repo: Repository) async -> [String] {
         var lines = strapStateLines()
+
+        // #1770 follow-up: which streams the ACTIVE strap actually delivered over the last 48 h. Four
+        // EXISTS seeks, not counts — see WhoopStore.streamPresence for why that distinction matters on a
+        // table holding ~190k motion rows a night.
+        //
+        // HERE and not in strapStateLines() beside `Data write:`, where it belongs by subject: that
+        // function is synchronous and holds neither `repo` nor a store handle. The first attempt put it
+        // there and would not have compiled — in a file the comment below already notes needs macOS to
+        // build, which is exactly why it went unnoticed locally. Appended first so the output order is
+        // still the one the reader wants.
+        if let presenceStore = await repo.storeHandle(),
+           let present = try? await presenceStore.streamPresence(
+               deviceId: repo.deviceId,
+               from: Int(Date().timeIntervalSince1970) - 48 * 3600,
+               to: Int(Date().timeIntervalSince1970)) {
+            lines.append(strapProvidesLine(hr: present.hr, rr: present.rr,
+                                           motion: present.gravity, steps: present.steps))
+        }
 
         // Data state from the preloaded day spine.
         let days = repo.days
