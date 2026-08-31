@@ -2,6 +2,8 @@ package com.noop.ble
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -77,9 +79,14 @@ class UnbondedOffloadProbeTest {
     }
 
     /**
-     * Silence is not latched per device, so once-per-link does NOT bound it — the probe re-runs on every
-     * reconnect, and a strap that reconnects often would re-ask a question already answered the same way.
-     * That is the unbounded retry this whole area keeps producing, so silence spends a per-process budget.
+     * Silence does not latch the way a refusal does, so once-per-link cannot bound it — the probe re-runs
+     * on every reconnect, and a strap that reconnects often would re-ask a question already answered the
+     * same way. Silence therefore spends a budget.
+     *
+     * That budget is PERSISTED, which is the whole of the 31 Aug loop: 18 probe starts across 24 connects.
+     * It bounded the retry within a process; nothing bounded the processes, the foreground service
+     * restarts, and every restart re-armed three more links — each torn down ~4.8s after the subscriptions
+     * reach the air, which the user sees as an endless "Reconnecting to your WHOOP".
      */
     @Test
     fun `repeated silence retires the probe`() {
@@ -156,8 +163,70 @@ class UnbondedOffloadProbeTest {
     fun `the give-up line says why it stopped, not merely that it did`() {
         // The CLIENT_HELLO's suppression stopped silently and cost eleven weeks of unreadable captures.
         val line = unbondedProbeGaveUpLine(3)
-        assertTrue(line.contains("serves those characteristics unbonded"))
-        assertTrue(line.contains("does not act on commands"))
+        // Both ways the budget can be spent are named...
+        assertTrue(line.contains("does not act on puffin commands"))
+        assertTrue(line.contains("does not hold the link up"))
+        // ...and neither is asserted as established. This line USED to claim the strap "serves those
+        // characteristics unbonded", which only ever held for links that subscribed and then stayed
+        // quiet. Since a link lost mid-probe charges the same budget, a budget spent entirely by lost
+        // links — every charge in the 31 Aug capture — confirms no subscribes at all, and the retirement
+        // line would have recorded the opposite of what that strap demonstrated.
+        assertFalse(line.contains("serves those characteristics"))
+        // And it no longer promises only a session: the retirement is persisted, and the line has to say
+        // the one thing that undoes it, or the switch looks broken to whoever turns it back on.
+        assertFalse(line.contains("this session"))
+        assertTrue(line.contains("off and on"))
+    }
+
+    /**
+     * The budget outlives the process, so the sweep that hands it back has to find it.
+     *
+     * [PuffinExperiment.unbondedOffload]'s setter clears the budgets by PREFIX, having no device in hand.
+     * If the key the probe writes and the prefix that setter sweeps ever drift apart, the sweep matches
+     * nothing, re-enabling the switch does nothing, and it does it silently — the give-up line having
+     * already latched. That is the same shape as every other dead gate in this file's history, so it is
+     * pinned rather than left to inspection.
+     */
+    @Test
+    fun `the key the probe writes is the key opting back in sweeps`() {
+        val key = unbondedProbeSilentLinksPrefKey("AA:BB:CC:DD:EE:FF")
+        assertNotNull(key)
+        assertTrue(key!!.startsWith(UNBONDED_PROBE_SILENT_LINKS_KEY_PREFIX))
+    }
+
+    @Test
+    fun `only the off-to-on edge hands the budget back`() {
+        assertTrue(unbondedProbeBudgetRearms(optedInNow = true, optedInBefore = false))
+        // Rewriting "on" while already on is not the user asking for anything. If this cleared, any
+        // caller that re-set the current value would re-arm three more link-killing attempts — the loop
+        // the budget exists to end, restored by the mechanism meant to bound it.
+        assertFalse(unbondedProbeBudgetRearms(optedInNow = true, optedInBefore = true))
+        assertFalse(unbondedProbeBudgetRearms(optedInNow = false, optedInBefore = true))
+        assertFalse(unbondedProbeBudgetRearms(optedInNow = false, optedInBefore = false))
+    }
+
+    @Test
+    fun `the silence budget is not the refusal latch`() {
+        // Both stop the probe; only one is the strap's answer. One key for the two would have the log
+        // report a refusal that never happened.
+        assertNotEquals(
+            unbondedProbeSilentLinksPrefKey("AA:BB:CC:DD:EE:FF"),
+            unbondedOffloadRefusedPrefKey("AA:BB:CC:DD:EE:FF"),
+        )
+    }
+
+    @Test
+    fun `the budget key is per device and case-insensitive, like the refusal key`() {
+        assertEquals(
+            unbondedProbeSilentLinksPrefKey("AA:BB:CC:DD:EE:FF"),
+            unbondedProbeSilentLinksPrefKey(" aa:bb:cc:dd:ee:ff "),
+        )
+        assertNotEquals(
+            unbondedProbeSilentLinksPrefKey("AA:BB:CC:DD:EE:FF"),
+            unbondedProbeSilentLinksPrefKey("11:22:33:44:55:66"),
+        )
+        assertNull(unbondedProbeSilentLinksPrefKey(null))
+        assertNull(unbondedProbeSilentLinksPrefKey("   "))
     }
 
     @Test

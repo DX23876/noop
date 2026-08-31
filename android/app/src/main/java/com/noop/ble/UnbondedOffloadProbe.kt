@@ -50,7 +50,7 @@ internal fun shouldProbeUnbondedOffload(
     helloWrittenThisLink: Boolean,
     alreadyProbedThisLink: Boolean,
     previouslyRefused: Boolean,
-    silentLinksSoFar: Int = 0,
+    silentLinksSoFar: Int,
 ): Boolean {
     if (!isWhoop5) return false
     if (!optedIn) return false
@@ -69,31 +69,49 @@ internal fun shouldProbeUnbondedOffload(
 /**
  * How many links may end in SILENCE before the probe retires itself.
  *
- * A refusal latches per device; silence deliberately does not, because the subscriptions were accepted and
- * one quiet link is not the strap's verdict. But "not latched" cannot mean "forever": the probe re-runs on
- * every reconnect, and a strap that reconnects often would re-ask a question already answered the same way
- * three times, which is the exact shape of the unbounded retry this whole area keeps producing.
+ * A refusal is the strap's verdict and latches outright; silence is weaker evidence — the subscriptions
+ * were accepted, and one quiet link says little — so it spends a budget instead. But weaker evidence
+ * cannot mean unbounded: the probe re-runs on every reconnect, and a strap that reconnects often would
+ * re-ask a question already answered the same way three times, which is the exact shape of the retry this
+ * whole area keeps producing.
  *
- * Counted per app process, like [HELLO_OVERRIDE_MAX_ATTEMPTS], and reset by a genuine answer. A process
- * restart resets it too — the honest limit of an in-memory bound, and the loop it exists to stop runs
- * within one process.
+ * Counted PER DEVICE and persisted ([unbondedProbeSilentLinksPrefKey]), not per process. It was per
+ * process, and that was wrong in the field: the foreground service restarts often, every restart re-armed
+ * three more links, and each of those links is torn down ~4.8s after the subscriptions reach the air. One
+ * capture caught 18 probe starts across 24 connects — the unbounded retry this budget exists to prevent,
+ * surviving it by outliving the only thing that bounded it. Bounded within a process and endless across
+ * them is not bounded.
+ *
+ * Cleared by a genuine answer, and by turning the experiment off and on — see [PuffinExperiment].
  */
 internal const val UNBONDED_PROBE_MAX_SILENT_LINKS = 3
 
-/** Has the probe any budget left after [silentLinksSoFar] links that subscribed but drew no reply? */
+/** Has the probe any budget left after [silentLinksSoFar] links that ended without an answer — whether
+ *  they subscribed and stayed quiet, or were torn down while being asked? */
 internal fun unbondedProbeStillWorthAsking(
     silentLinksSoFar: Int,
     cap: Int = UNBONDED_PROBE_MAX_SILENT_LINKS,
 ): Boolean = silentLinksSoFar < cap
 
 /**
- * The line printed when the probe retires on repeated silence, so the log says why it stopped rather than
- * leaving a reader to notice its absence — the same failure the CLIENT_HELLO's silent suppression caused.
+ * The line printed when the probe retires, so the log says why it stopped rather than leaving a reader to
+ * notice its absence — the same failure the CLIENT_HELLO's silent suppression caused.
+ *
+ * It must NOT claim the strap served the subscriptions. It said so, and that was only ever true of the
+ * links that subscribed and then stayed quiet. Since #1749 a link LOST mid-probe charges the same budget,
+ * and those links confirm no subscribes at all — so on the 31 Aug capture, where every charge was a lost
+ * link, this line would have recorded "serves those characteristics unbonded" about a strap that had
+ * demonstrated the opposite. Overclaiming from the weaker evidence is the mistake this file is built to
+ * avoid, and the retirement line is exactly where a future reader goes looking. The per-link lines
+ * ([unbondedProbeLinkLostLine], [unbondedProbeSilentLine]) already say which happened each time; this one
+ * states only what holds either way.
  */
 internal fun unbondedProbeGaveUpLine(silentLinks: Int): String =
-    "Unbonded offload probe: $silentLinks links have subscribed the puffin chars and drawn no" +
-        " COMMAND_RESPONSE — this strap serves those characteristics unbonded but does not act on commands" +
-        " written to them. Not asking again this session. History offload is unavailable until the strap" +
+    "Unbonded offload probe: $silentLinks links have ended with no COMMAND_RESPONSE — this strap either" +
+        " does not act on puffin commands written over an unencrypted link, or does not hold the link up" +
+        " long enough to answer one; the per-link lines above say which happened each time." +
+        " Not asking this strap again — turn the experiment off and on to retry." +
+        " History offload is unavailable until the strap" +
         " completes a handshake (#1635)."
 
 /**
@@ -149,6 +167,35 @@ internal fun unbondedProbeSupersedesLine(explicitBondOptedIn: Boolean): String =
  *  for the same reason [firmwarePrefKey] is. */
 internal fun unbondedOffloadRefusedPrefKey(peripheralId: String?): String? =
     peripheralId?.trim()?.takeIf { it.isNotEmpty() }?.let { "noop.unbondedOffloadRefused.${it.lowercase()}" }
+
+/**
+ * Does writing [PuffinExperiment.unbondedOffload] hand every strap's silence budget back?
+ *
+ * The off->ON EDGE, and not merely "on". A setter that cleared on every true would return the budget to
+ * any caller that rewrites the current value, and the budget's whole job is to stop a retry that takes the
+ * link down with it. Only the two switches write it today; making this the setter's property rather than
+ * its callers' is what keeps that true.
+ */
+internal fun unbondedProbeBudgetRearms(optedInNow: Boolean, optedInBefore: Boolean): Boolean =
+    optedInNow && !optedInBefore
+
+/** Prefix of every persisted silence budget, so opting back in can clear them all without knowing which
+ *  straps have one. Sole reason it is a constant rather than an inlined string. */
+internal const val UNBONDED_PROBE_SILENT_LINKS_KEY_PREFIX = "noop.unbondedOffloadSilentLinks."
+
+/**
+ * Persisted key for "how many links on this strap subscribed the puffin characteristics and drew no
+ * answer" — the silence budget of [UNBONDED_PROBE_MAX_SILENT_LINKS], per device and lowercased for the
+ * same reason [firmwarePrefKey] is.
+ *
+ * Deliberately NOT [unbondedOffloadRefusedPrefKey], though a spent budget stops the probe just as a
+ * refusal does. A refusal is the strap's answer and is final; a spent budget is ours — we stopped asking —
+ * and the user can hand it back. Sharing one key would have the log report a refusal that never happened,
+ * which is precisely the conflation [UnbondedProbeEvidence] exists to prevent.
+ */
+internal fun unbondedProbeSilentLinksPrefKey(peripheralId: String?): String? =
+    peripheralId?.trim()?.takeIf { it.isNotEmpty() }
+        ?.let { UNBONDED_PROBE_SILENT_LINKS_KEY_PREFIX + it.lowercase() }
 
 /**
  * What a frame arriving on a puffin notify characteristic proves about an unbonded link.
