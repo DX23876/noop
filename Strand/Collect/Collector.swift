@@ -266,19 +266,28 @@ final class Collector {
     /// Buffer one standard Heart-Rate-Measurement reading. No clock correlation needed —
     /// these carry a wall-clock `ts` directly. Auto-flushes ~every 30 readings (~30s).
     func ingestStandardHR(hr: Int, rr: [Int], at ts: Int) {
-        if hr >= 30, hr <= 220 { stdHR.append(HRSample(ts: ts, bpm: hr)) }
-        for r in rr where r >= 250 && r <= 3000 { stdRR.append(RRInterval(ts: ts, rrMs: r)) }
+        let acceptedHR = (30...220).contains(hr) ? 1 : 0
+        let acceptedRR = rr.filter { (250...3000).contains($0) }
+        if acceptedHR == 1 { stdHR.append(HRSample(ts: ts, bpm: hr)) }
+        stdRR.append(contentsOf: acceptedRR.map { RRInterval(ts: ts, rrMs: $0) })
+        log?(LivePersistTrace.standardHRHostReceivedLine(
+            hostUnixSeconds: ts,
+            acceptedHRRows: acceptedHR, acceptedRRRows: acceptedRR.count,
+            rejectedHRRows: 1 - acceptedHR, rejectedRRRows: rr.count - acceptedRR.count,
+            pendingHRRows: stdHR.count, pendingRRRows: stdRR.count))
         if stdHR.count + stdRR.count >= 30 {
-            Task { @MainActor in await self.flushStandardHR() }
+            Task { @MainActor in await self.flushStandardHR(reason: .cadence) }
         }
     }
 
     /// Persist the buffered standard HR/RR. Re-buffers on failure so nothing is lost.
-    func flushStandardHR() async {
+    func flushStandardHR(reason: LivePersistTrace.StandardHRFlushReason = .explicit) async {
         guard !stdHR.isEmpty || !stdRR.isEmpty else { return }
         let hr = stdHR, rr = stdRR
         stdHR.removeAll(keepingCapacity: true)
         stdRR.removeAll(keepingCapacity: true)
+        log?(LivePersistTrace.standardHRFlushAttemptLine(
+            reason: reason, offeredHRRows: hr.count, offeredRRRows: rr.count))
         // #1118: census this batch BEFORE it is stored, exactly as the historical path does, so a strap
         // log carries one `ratioRep` per transport. If each transport reports ~1.0 while the stored night
         // reads 2.77, the over-count is the UNION of the transports and no single decoder is at fault —
@@ -295,12 +304,19 @@ final class Collector {
             }
         }
         do {
-            try await store.insert(Streams(hr: hr, rr: rr), deviceId: deviceId)
+            let inserted = try await store.insert(Streams(hr: hr, rr: rr), deviceId: deviceId)
             stdInsertFailures = 0
+            log?(LivePersistTrace.standardHRFlushSucceededLine(
+                reason: reason, offeredHRRows: hr.count, offeredRRRows: rr.count,
+                insertedHRRows: inserted.hr, insertedRRRows: inserted.rr))
         } catch {
             stdHR.insert(contentsOf: hr, at: 0)
             stdRR.insert(contentsOf: rr, at: 0)
             stdInsertFailures += 1
+            log?(LivePersistTrace.standardHRRebufferedForRetryLine(
+                reason: reason, attemptedHRRows: hr.count, attemptedRRRows: rr.count,
+                pendingHRRows: stdHR.count, pendingRRRows: stdRR.count,
+                consecutiveFailures: stdInsertFailures))
             let nowMs = Int64(Date().timeIntervalSince1970 * 1000)
             if LivePersistTrace.shouldEmitLiveInsertFailure(lastEmitMs: lastStdInsertFailureLogMs,
                                                             nowMs: nowMs) {

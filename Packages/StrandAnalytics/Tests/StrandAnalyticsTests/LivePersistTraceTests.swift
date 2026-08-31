@@ -5,6 +5,57 @@ import XCTest
 /// ones `StalledLinkDiagnosticsTest` pins on the Android side, so a one-sided wording change fails here
 /// rather than drifting apart in the two field logs these are meant to be read beside each other.
 final class LivePersistTraceTests: XCTestCase {
+    func testStandardHRHostReceiptSeparatesAcceptedAndRejectedRows() {
+        XCTAssertEqual(
+            LivePersistTrace.standardHRHostReceivedLine(
+                hostUnixSeconds: 1_750_000_000,
+                acceptedHRRows: 1, acceptedRRRows: 2,
+                rejectedHRRows: 0, rejectedRRRows: 1,
+                pendingHRRows: 4, pendingRRRows: 5
+            ),
+            "standard-hr transport host-received hostUnixSec=1750000000"
+                + " acceptedHRRows=1 acceptedRRRows=2 rejectedHRRows=0 rejectedRRRows=1"
+                + " pendingHRRows=4 pendingRRRows=5"
+        )
+    }
+
+    func testStandardHRFlushSuccessSeparatesOfferedFromActuallyInsertedRows() {
+        XCTAssertEqual(
+            LivePersistTrace.standardHRFlushAttemptLine(
+                reason: .cadence, offeredHRRows: 4, offeredRRRows: 5
+            ),
+            "standard-hr transport flush-attempt reason=cadence offeredHRRows=4 offeredRRRows=5"
+        )
+        XCTAssertEqual(
+            LivePersistTrace.standardHRFlushSucceededLine(
+                reason: .cadence, offeredHRRows: 4, offeredRRRows: 5,
+                insertedHRRows: 1, insertedRRRows: 2
+            ),
+            "standard-hr transport flush-succeeded reason=cadence offeredHRRows=4 offeredRRRows=5"
+                + " insertedHRRows=1 insertedRRRows=2"
+        )
+    }
+
+    func testStandardHRRetryNamesLifecycleReasonAndTotalPendingRows() {
+        XCTAssertEqual(
+            LivePersistTrace.standardHRRebufferedForRetryLine(
+                reason: .disconnect, attemptedHRRows: 1, attemptedRRRows: 2,
+                pendingHRRows: 3, pendingRRRows: 4, consecutiveFailures: 1
+            ),
+            "standard-hr transport rebuffered-for-retry reason=disconnect"
+                + " attemptedHRRows=1 attemptedRRRows=2 pendingHRRows=3 pendingRRRows=4"
+                + " consecutiveFailures=1"
+        )
+    }
+
+    func testStandardHRLifecycleRouteFlushesBackgroundAndTermination() async {
+        var reasons: [LivePersistTrace.StandardHRFlushReason] = []
+
+        await StandardHRLifecycleFlush.run(event: .background) { reasons.append($0) }
+        await StandardHRLifecycleFlush.run(event: .termination) { reasons.append($0) }
+
+        XCTAssertEqual(reasons.map(\.rawValue), ["background", "termination"])
+    }
 
     /// Two live transports fail independently (#1118), so the line must say which.
     func testNamesTheFailingTransport() {

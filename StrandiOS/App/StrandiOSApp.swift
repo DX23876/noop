@@ -1,6 +1,7 @@
 #if os(iOS)
 import SwiftUI
 import StrandDesign
+import StrandAnalytics
 import UserNotifications
 
 /// iOS entry point. Unlike the macOS app (which adds a `MenuBarExtra` scene), iOS uses a single
@@ -297,6 +298,14 @@ struct StrandiOSApp: App {
                     await watch.pushLatest(from: model)
                 }
             } else if phase == .background {
+                // A connected strap does not emit a disconnect edge when iOS suspends the app. Route the
+                // lifecycle edge through the same tested seam as termination so a sub-cadence 0x2A37 batch
+                // gets a real store attempt and an accepted/rejected + inserted-count outcome before sleep.
+                Task {
+                    await StandardHRLifecycleFlush.run(event: .background) { reason in
+                        await model.ble.flushStandardHRForLifecycle(reason: reason)
+                    }
+                }
                 // Re-submit on every transition because iOS may discard an old best-effort request.
                 HealthWritebackBackgroundScheduler.updateSchedule(
                     isAuthorized: health.auth == .authorized)
@@ -315,6 +324,15 @@ struct StrandiOSApp: App {
                 // into Apple Health. Gated inside writeIfEnabled on the opt-in default (OFF) — a
                 // no-op until the user turns on Shortcuts Export.
                 Task { await ShortcutHealthExport.writeIfEnabled(repo: model.repo) }
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.willTerminateNotification)) { _ in
+            // Usually background already drained this buffer. This is the final retry edge for a foreground
+            // termination or a failed background attempt; an empty Collector is a cheap no-op.
+            Task {
+                await StandardHRLifecycleFlush.run(event: .termination) { reason in
+                    await model.ble.flushStandardHRForLifecycle(reason: reason)
+                }
             }
         }
     }

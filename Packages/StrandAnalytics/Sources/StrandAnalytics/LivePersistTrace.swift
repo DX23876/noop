@@ -1,5 +1,26 @@
 import Foundation
 
+/// Maps the app's persistence-relevant lifecycle edges onto the reason carried through Collector logs.
+/// The app and tests call this same seam, so lifecycle routing is exercised without UIKit on Linux.
+public enum StandardHRLifecycleFlush {
+    public enum Event {
+        case background
+        case termination
+    }
+
+    public static func run(
+        event: Event,
+        flush: (LivePersistTrace.StandardHRFlushReason) async -> Void
+    ) async {
+        switch event {
+        case .background:
+            await flush(.background)
+        case .termination:
+            await flush(.termination)
+        }
+    }
+}
+
 /// A live HR/R-R batch failed to persist and was re-buffered.
 ///
 /// `Collector` re-queues the frames and swallows the error, so a store rejecting every insert produces a
@@ -12,6 +33,55 @@ import Foundation
 /// CI, and the package is where the other emitted-line builders (`Spo2ReTrace`, `SleepStager+Trace`,
 /// `ConnectionReadout`) already sit and get tested.
 public enum LivePersistTrace {
+
+    public enum StandardHRFlushReason: String {
+        case cadence
+        case disconnect
+        case background
+        case termination
+        case explicit
+    }
+
+    /// Bounded standard-HR transport-state diagnostics. These lines describe host observation and
+    /// buffer/persistence state only; they carry no physiological measurements and make no claim
+    /// about sensor-origin time or unobserved loss.
+    public static func standardHRHostReceivedLine(
+        hostUnixSeconds: Int,
+        acceptedHRRows: Int, acceptedRRRows: Int,
+        rejectedHRRows: Int, rejectedRRRows: Int,
+        pendingHRRows: Int, pendingRRRows: Int
+    ) -> String {
+        "standard-hr transport host-received hostUnixSec=\(hostUnixSeconds)"
+            + " acceptedHRRows=\(acceptedHRRows) acceptedRRRows=\(acceptedRRRows)"
+            + " rejectedHRRows=\(rejectedHRRows) rejectedRRRows=\(rejectedRRRows)"
+            + " pendingHRRows=\(pendingHRRows) pendingRRRows=\(pendingRRRows)"
+    }
+
+    public static func standardHRFlushAttemptLine(
+        reason: StandardHRFlushReason, offeredHRRows: Int, offeredRRRows: Int
+    ) -> String {
+        "standard-hr transport flush-attempt reason=\(reason.rawValue)"
+            + " offeredHRRows=\(offeredHRRows) offeredRRRows=\(offeredRRRows)"
+    }
+
+    public static func standardHRFlushSucceededLine(
+        reason: StandardHRFlushReason, offeredHRRows: Int, offeredRRRows: Int,
+        insertedHRRows: Int, insertedRRRows: Int
+    ) -> String {
+        "standard-hr transport flush-succeeded reason=\(reason.rawValue)"
+            + " offeredHRRows=\(offeredHRRows) offeredRRRows=\(offeredRRRows)"
+            + " insertedHRRows=\(insertedHRRows) insertedRRRows=\(insertedRRRows)"
+    }
+
+    public static func standardHRRebufferedForRetryLine(
+        reason: StandardHRFlushReason, attemptedHRRows: Int, attemptedRRRows: Int,
+        pendingHRRows: Int, pendingRRRows: Int, consecutiveFailures: Int
+    ) -> String {
+        "standard-hr transport rebuffered-for-retry reason=\(reason.rawValue)"
+            + " attemptedHRRows=\(attemptedHRRows) attemptedRRRows=\(attemptedRRRows)"
+            + " pendingHRRows=\(pendingHRRows) pendingRRRows=\(pendingRRRows)"
+            + " consecutiveFailures=\(consecutiveFailures)"
+    }
 
     /// - Parameters:
     ///   - transport: which live path failed. There are TWO — the standard 0x2A37 reading and the puffin
