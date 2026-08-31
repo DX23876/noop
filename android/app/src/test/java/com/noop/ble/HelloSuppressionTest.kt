@@ -58,9 +58,34 @@ class HelloSuppressionTest {
     fun `an existing OS pairing does NOT permanently bypass the latch`() {
         // Tempting, and wrong: "a pairing exists" never goes away, so re-arming on it would rewrite the
         // hello on every connect for good - drop at ~4.8s, reconnect, forever - with the give-up powerless.
-        // That is the unbounded loop suppression exists to end. The experiment clears the latch ONCE when
-        // it asks for a pairing instead, which is self-limiting.
+        // That is the unbounded loop suppression exists to end.
+        //
+        // Asking for a pairing was treated as the self-limiting alternative, and it is not: the REQUEST
+        // recurs on every link too (see ExplicitBondTest), so clearing the latch there produced the very
+        // loop described above. Nothing clears the latch on a recurring event now. Three things clear it,
+        // all of them events rather than intentions: an explicit Connect, forgetting the device, and a
+        // genuine bond - and be exact about that last one, because it is the easy overclaim here. It is
+        // reached through the hello WRITE-COMPLETION callback, so a suppressed hello cannot reach it. The
+        // live route out of suppression is the Connect tap the epitaph names.
         assertFalse(shouldSendClientHello(suppressedForDevice = true, userInitiated = false))
+    }
+
+    /**
+     * Why no recurring event may clear the latch: it is written exactly once.
+     *
+     * recordRefusal() reports the crossing on the refusal that reaches the threshold and then stays
+     * gaveUp until reset(), so the suppression is latched once per session. A clear that fires repeatedly
+     * therefore does not cost one link and self-correct - it costs the latch permanently, and the give-up
+     * has no second chance to re-arm it. That is what the 31 Aug capture shows: one latch, zero skips, 13
+     * further hellos.
+     */
+    @Test
+    fun `the give-up reports its crossing once, so the latch is written once`() {
+        val g = BondRefusalGiveUp(giveUpThreshold = 5)
+        assertEquals(1, (1..12).count { g.recordRefusal() })
+        // And only an explicit reset - a genuine bond, or the user tapping Connect - earns another.
+        g.reset()
+        assertEquals(1, (1..12).count { g.recordRefusal() })
     }
 
     // #1635: the opt-in override, after the HCI capture changed the premise
