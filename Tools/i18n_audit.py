@@ -435,7 +435,7 @@ def scan_android() -> list[tuple[str, int, str]]:
                         continue
                     seen.add(offset)
                     line_no = text.count("\n", 0, offset) + 1
-                    findings.append((str(path.relative_to(ROOT)), line_no, literal))
+                    findings.append((path.relative_to(ROOT).as_posix(), line_no, literal))
 
             # The call's own first (content) argument only — catches
             # `Text(if (x) "a" else "b")` — never the whole call span, which
@@ -856,7 +856,7 @@ def scan_ios() -> tuple[list[tuple[str, int, str]], dict[str, list[str]]]:
                         continue
                     entry = swift_catalog_lookup(cat, literal)
                     line_no = text.count("\n", 0, offset) + 1
-                    rel = str(path.relative_to(ROOT))
+                    rel = path.relative_to(ROOT).as_posix()
                     if entry is None:
                         hardcoded.append((rel, line_no, literal))
                         continue
@@ -864,7 +864,7 @@ def scan_ios() -> tuple[list[tuple[str, int, str]], dict[str, list[str]]]:
                         continue
                     for lang in LANGS:
                         if not _is_translated(entry, lang):
-                            lang_gaps[lang].append(f"{catalog_path.relative_to(ROOT)} :: {literal!r}")
+                            lang_gaps[lang].append(f"{catalog_path.relative_to(ROOT).as_posix()} :: {literal!r}")
     for lang in lang_gaps:
         lang_gaps[lang] = sorted(set(lang_gaps[lang]))
     return hardcoded, lang_gaps
@@ -948,7 +948,7 @@ def _ios_echoed_counts() -> dict[str, int]:
             cat = json.loads(catalog_path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError):
             continue
-        rel = str(catalog_path.relative_to(ROOT))
+        rel = catalog_path.relative_to(ROOT).as_posix()
         for key, entry in (cat.get("strings") or {}).items():
             if not _has_translatable_words(key):
                 continue
@@ -984,7 +984,7 @@ def _android_echoed_counts() -> dict[str, int]:
             loc = {n.attrib["name"]: (n.text or "") for n in ET.parse(path).getroot().findall("string")}
         except ET.ParseError:
             continue
-        rel = str(path.relative_to(ROOT))
+        rel = path.relative_to(ROOT).as_posix()
         n = sum(1 for k, base_val in translatable.items() if loc.get(k) == base_val)
         if n:
             counts[f"{rel} {lang}"] = n
@@ -1126,7 +1126,7 @@ def ci_check(base_ref: str) -> int:
         # and gate them below. Reloading each catalog for a second pass wasted a full re-parse of a
         # 3255-string file.
         for extra in sorted(shipped_apple_langs(cat) - set(LANGS)):
-            extra_apple_gaps[f"{catalog_path.relative_to(ROOT)}:{extra}"] = sum(
+            extra_apple_gaps[f"{catalog_path.relative_to(ROOT).as_posix()}:{extra}"] = sum(
                 1 for v in cat.get("strings", {}).values()
                 if v.get("shouldTranslate") is not False and not _is_translated(v, extra)
             )
