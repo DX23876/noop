@@ -17,11 +17,10 @@ public struct RPCRequest: Decodable, Equatable {
 }
 
 public final class NoopMCPServer {
-    private let configuration: LocalAccessConfiguration
-    private var dataAccess: NoopDataAccess?
+    private let dispatcher: NoopToolDispatcher
 
     public init(configuration: LocalAccessConfiguration = .environment()) {
-        self.configuration = configuration
+        dispatcher = NoopToolDispatcher(configuration: configuration)
     }
 
     public func handleLine(_ line: String) -> JSONValue {
@@ -113,19 +112,6 @@ public final class NoopMCPServer {
     NOOP local access is read-only and returns personal health context from the user's on-device SQLite store. Use bounded tools, check data_freshness before stale-data claims, separate facts from inference, and do not diagnose medical conditions. No tool writes data or calls a network service.
     """
 
-    private func data() throws -> NoopDataAccess {
-        if let dataAccess { return dataAccess }
-        do {
-            let access = try NoopDataAccess.open(configuration: configuration)
-            dataAccess = access
-            return access
-        } catch let error as LocalAccessError {
-            throw error
-        } catch {
-            throw LocalAccessError.databaseUnavailable("NOOP database is not available: \(error)")
-        }
-    }
-
     private func callTool(params: JSONValue?) throws -> JSONValue {
         guard let object = params?.objectValue,
               let name = object["name"]?.stringValue
@@ -133,51 +119,14 @@ public final class NoopMCPServer {
             throw LocalAccessError.invalidParams("tools/call requires a tool name")
         }
         let arguments = object["arguments"]?.objectValue ?? [:]
-        let payload: JSONValue
-        switch name {
-        case "health_snapshot":
-            payload = try data().healthSnapshot(days: boundedDays(arguments["days"], default: 14, max: 120))
-        case "metric_series":
-            guard let key = arguments["key"]?.stringValue else {
-                throw LocalAccessError.invalidParams("metric_series requires key")
-            }
-            payload = try data().metricSeries(
-                key: key,
-                source: arguments["source"]?.stringValue ?? "my-whoop",
-                days: boundedDays(arguments["days"], default: 90, max: 4000),
-                fromDay: arguments["from_day"]?.stringValue,
-                toDay: arguments["to_day"]?.stringValue,
-                limit: boundedLimit(arguments["limit"], default: 500, max: 2000)
-            )
-        case "data_freshness":
-            payload = try data().freshness()
-        case "sleep_summary":
-            payload = try data().sleepSummary(days: boundedDays(arguments["days"], default: 30, max: 4000))
-        case "workout_summary":
-            payload = try data().workoutSummary(days: boundedDays(arguments["days"], default: 90, max: 4000))
-        default:
-            throw LocalAccessError.toolNotFound(name)
-        }
-        return toolResult(payload)
+        return toolResult(try dispatcher.dispatch(name: name, arguments: arguments))
     }
 
     private func readResource(params: JSONValue?) throws -> JSONValue {
         guard let uri = params?.objectValue?["uri"]?.stringValue else {
             throw LocalAccessError.invalidParams("resources/read requires uri")
         }
-        let payload: JSONValue
-        switch uri {
-        case "noop://health/snapshot":
-            payload = try data().healthSnapshot(days: 14)
-        case "noop://data/freshness":
-            payload = try data().freshness()
-        case "noop://metrics/catalog":
-            payload = NoopDataAccess.metricCatalog()
-        case "noop://sources":
-            payload = NoopDataAccess.sources()
-        default:
-            throw LocalAccessError.resourceNotFound(uri)
-        }
+        let payload = try dispatcher.resourcePayload(uri: uri)
         return .object([
             "contents": .array([
                 .object([
