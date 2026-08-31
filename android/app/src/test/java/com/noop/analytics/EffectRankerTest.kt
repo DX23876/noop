@@ -1,6 +1,7 @@
 package com.noop.analytics
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -23,9 +24,19 @@ class EffectRankerTest {
      *  with/without groups carry real spread (a constant group yields pooled SD 0 / d 0). */
     private fun jitter(dayOfMonth: Int): Double = ((dayOfMonth * 7) % 5 - 2).toDouble()
 
+    /** Every outcome day the behaviour was not logged on. These fixtures predate the Yes/No split and
+     *  test the LAG math, so they keep their original partition by declaring the complement explicitly —
+     *  the engine no longer assumes it, and a test that quietly lost its control group would still pass
+     *  by returning nothing. */
+    private fun controlsFor(outcome: Map<String, Double>, behaviorDays: Set<String>): Set<String> =
+        outcome.keys - behaviorDays
+
     /** Test-only: the BehaviorEffect at a specific lag, via the engine's own shift alignment. */
     private fun effectAtLag(behaviorDays: Set<String>, outcome: Map<String, Double>, lag: Int) =
-        EffectRanker.effect(behaviorDays, EffectRanker.shiftedOutcome(outcome, lag), "Alcohol", "Charge")
+        EffectRanker.effect(
+            behaviorDays, controlsFor(outcome, behaviorDays),
+            EffectRanker.shiftedOutcome(outcome, lag), "Alcohol", "Charge",
+        )
 
     // Planted lag-1 effect is found at L=1 and beats L=0/L=2
 
@@ -43,7 +54,10 @@ class EffectRankerTest {
             outcome[ymd(2026, 6, dip)] = 50.0 + jitter(dip)
         }
 
-        val out = EffectRanker.rank(mapOf("Alcohol" to behaviorDays), outcome, "Charge")
+        val out = EffectRanker.rank(
+            mapOf("Alcohol" to behaviorDays), mapOf("Alcohol" to controlsFor(outcome, behaviorDays)),
+            outcome, "Charge",
+        )
         val r = row(out, "Alcohol")
         assertNotNull(r)
         assertEquals(1, r!!.lag)
@@ -74,7 +88,9 @@ class EffectRankerTest {
         }
         for (d in 1..8) outcome[ymd(2026, 7, d)] = 70.0 + jitter(d)
 
-        val out = EffectRanker.rank(mapOf("Sparse" to thin), outcome, "Charge")
+        val out = EffectRanker.rank(
+            mapOf("Sparse" to thin), mapOf("Sparse" to controlsFor(outcome, thin)), outcome, "Charge",
+        )
         assertTrue(out.isEmpty())
     }
 
@@ -97,7 +113,11 @@ class EffectRankerTest {
         }
         for (d in 10..20) outcome[ymd(2026, 5, d)] = 70.0 + jitter(d)
 
-        val out = EffectRanker.rank(mapOf("Big" to big, "Small" to small), outcome, "Charge")
+        val out = EffectRanker.rank(
+            mapOf("Big" to big, "Small" to small),
+            mapOf("Big" to controlsFor(outcome, big), "Small" to controlsFor(outcome, small)),
+            outcome, "Charge",
+        )
         assertEquals(listOf("Big", "Small"), out.map { it.behavior })
         assertEquals(0, row(out, "Big")!!.lag)
         assertEquals(0, row(out, "Small")!!.lag)
@@ -138,4 +158,132 @@ class EffectRankerTest {
         val r = RankedEffect("Alcohol", "Charge", 1, e, ScoreConfidence.BUILDING)
         assertTrue(r.sentence().endsWith("(next morning)."))
     }
+    // The Reddit report: unlogged days are not answers.
+
+    /**
+     * "If I didn't track something for 100 days, NOOP takes that as a NO for 100 days, whereas it simply
+     * was not logged at all." Reported by a user on Reddit, and it was exactly what the split did.
+     *
+     * The fixture is that report: 8 days logged Yes with a real dip, 6 days logged No, and 60 days with
+     * an outcome and no journal row at all. Those 60 must not reach the control group, because nothing
+     * about them says the user did not do the thing.
+     */
+    @Test
+    fun daysWithNoJournalRowAreNotControls() {
+        val outcome = HashMap<String, Double>()
+        val yes = HashSet<String>()
+        val no = HashSet<String>()
+        for (d in 1..8) { yes.add(ymd(2026, 6, d)); outcome[ymd(2026, 6, d)] = 50.0 + jitter(d) }
+        for (d in 9..14) { no.add(ymd(2026, 6, d)); outcome[ymd(2026, 6, d)] = 70.0 + jitter(d) }
+        // Never opened the journal on these, and their values sit far from BOTH answered groups.
+        for (d in 15..30) outcome[ymd(2026, 6, d)] = 20.0 + jitter(d)
+        for (d in 1..31) outcome[ymd(2026, 7, d)] = 20.0 + jitter(d)
+        for (d in 1..13) outcome[ymd(2026, 8, d)] = 20.0 + jitter(d)
+
+        val e = EffectRanker.effect(yes, no, outcome, "Alcohol", "Charge")
+        assertNotNull(e)
+        // Controls are the six NO days only. If the 60 unlogged days leaked in, nWithout would be 66 and
+        // meanWithout would be dragged towards 20.
+        assertEquals(6, e!!.nWithout)
+        assertEquals(8, e.nWith)
+        assertTrue("controls must average near the NO days, not the unlogged ones", e.meanWithout > 60.0)
+    }
+
+    /**
+     * A behaviour the user only ever ticks Yes has no control group, so there is no comparison to make
+     * and the honest answer is none. Previously it got one, built from every day the journal was never
+     * opened - the most confident-looking findings in the app came from the least evidence.
+     */
+    @Test
+    fun aBehaviourNeverLoggedNoYieldsNothing() {
+        val outcome = HashMap<String, Double>()
+        val yes = HashSet<String>()
+        for (d in 1..20) { yes.add(ymd(2026, 6, d)); outcome[ymd(2026, 6, d)] = 50.0 + jitter(d) }
+        for (d in 21..30) outcome[ymd(2026, 6, d)] = 80.0 + jitter(d)
+
+        assertNull(EffectRanker.effect(yes, emptySet(), outcome, "Alcohol", "Charge"))
+        assertTrue(
+            EffectRanker.rank(mapOf("Alcohol" to yes), emptyMap(), outcome, "Charge").isEmpty(),
+        )
+    }
+
+    /**
+     * rank() fails CLOSED on a caller that forgets the controls: no insight, rather than a wrong one
+     * measured against every day the user never opened the journal. There are two production callers and
+     * this is what stops a third from reintroducing the bug silently.
+     */
+    @Test
+    fun rankWithoutControlsProducesNothingRatherThanGuessing() {
+        val outcome = HashMap<String, Double>()
+        val yes = HashSet<String>()
+        for (d in 1..10) { yes.add(ymd(2026, 6, d)); outcome[ymd(2026, 6, d)] = 50.0 + jitter(d) }
+        for (d in 11..30) outcome[ymd(2026, 6, d)] = 75.0 + jitter(d)
+        assertTrue(EffectRanker.rank(mapOf("Alcohol" to yes), emptyMap(), outcome, "Charge").isEmpty())
+    }
+
+    // rankNoLag: the Kotlin twin of Swift BehaviorInsights.rank, which the Insights screen now uses.
+
+    /**
+     * Twin of Swift `testRankOrdersByEffectSizeSignificantFirst`, same fixture and same expectations.
+     *
+     * The Insights screen used to rank with its own copy of this — a "crude significance" of |d| >= 0.5
+     * with >= 3 a side, where iOS ran a Welch p on the same screen. Identical journals could flag
+     * different behaviours per platform. Pinning the ordering here is what stops that reopening.
+     */
+    @Test
+    fun rankNoLagOrdersByEffectSizeSignificantFirst() {
+        val outcome = mapOf(
+            "d1" to 50.0, "d2" to 52.0, "d3" to 48.0, "d4" to 51.0, "d5" to 49.0, "d6" to 53.0,
+            "d7" to 70.0, "d8" to 72.0, "d9" to 68.0, "d10" to 71.0, "d11" to 69.0, "d12" to 73.0,
+        )
+        val strong = setOf("d1", "d2", "d3", "d4", "d5", "d6")
+        val weak = setOf("d1", "d7", "d2")
+        val tiny = setOf("d3", "d9")
+        val all = outcome.keys
+        val ranked = EffectRanker.rankNoLag(
+            mapOf("Strong" to strong, "Weak" to weak, "Tiny" to tiny),
+            mapOf("Strong" to (all - strong), "Weak" to (all - weak), "Tiny" to (all - tiny)),
+            outcome, "Recovery",
+        )
+        assertEquals(3, ranked.size)
+        assertEquals("Strong", ranked.first().behavior)
+        assertTrue(ranked.first().significant)
+        assertFalse(ranked[1].significant)
+        assertFalse(ranked[2].significant)
+        assertTrue(abs(ranked[1].cohensD) >= abs(ranked[2].cohensD))
+    }
+
+    /**
+     * rankNoLag fails CLOSED too, not only rank().
+     *
+     * It is a second public entry point into the same split, and this PR exists because that split had
+     * four separate homes. A new door into it gets the same lock: no controls means no comparison, so a
+     * caller that forgets loses the insight rather than getting one measured against unlogged days.
+     */
+    @Test
+    fun rankNoLagWithoutControlsProducesNothing() {
+        val outcome = HashMap<String, Double>()
+        val yes = HashSet<String>()
+        for (d in 1..10) { yes.add(ymd(2026, 6, d)); outcome[ymd(2026, 6, d)] = 50.0 + jitter(d) }
+        for (d in 11..30) outcome[ymd(2026, 6, d)] = 75.0 + jitter(d)
+        assertTrue(EffectRanker.rankNoLag(mapOf("Alcohol" to yes), emptyMap(), outcome, "Charge").isEmpty())
+    }
+
+    /** Twin of Swift `testRankDropsUncomputableBehaviors`: a behaviour covering every day has no
+     *  without-group and is dropped rather than ranked at zero. */
+    @Test
+    fun rankNoLagDropsUncomputableBehaviours() {
+        val outcome = mapOf("a" to 60.0, "b" to 62.0, "c" to 70.0, "d" to 72.0)
+        val allDays = setOf("a", "b", "c", "d")
+        val half = setOf("a", "b")
+        val all = outcome.keys
+        val ranked = EffectRanker.rankNoLag(
+            mapOf("AllDays" to allDays, "Half" to half),
+            mapOf("AllDays" to (all - allDays), "Half" to (all - half)),
+            outcome, "Recovery",
+        )
+        assertEquals(1, ranked.size)
+        assertEquals("Half", ranked.first().behavior)
+    }
+
 }

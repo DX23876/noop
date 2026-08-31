@@ -113,27 +113,65 @@ object EffectRanker {
      * Rank every behaviour against one outcome across the lag set, keeping each behaviour's
      * best lag. Mirrors Swift's ordering on the surviving rows.
      *
-     * @param behaviors per behaviour name, the SET of "yyyy-MM-dd" days it was logged (dose ≥ 1).
+     * @param behaviors per behaviour name, the SET of "yyyy-MM-dd" days it was logged YES (dose ≥ 1).
+     * @param controls per behaviour name, the days it was logged NO. Required, and separate from
+     *   [behaviors] on purpose: a behaviour missing from this map has no controls and yields nothing,
+     *   which fails CLOSED. A caller that forgets it loses the insight rather than getting a wrong one
+     *   measured against every day the user never opened the journal.
      * @param outcomeByDay the daily outcome series keyed "yyyy-MM-dd".
      * @param outcome the outcome label carried onto each RankedEffect.
      */
     fun rank(
         behaviors: Map<String, Set<String>>,
+        controls: Map<String, Set<String>>,
         outcomeByDay: Map<String, Double>,
         outcome: String,
     ): List<RankedEffect> {
         val rows = ArrayList<RankedEffect>()
         for (name in behaviors.keys.sorted()) {
             val days = behaviors.getValue(name)
-            val r = bestLag(days, outcomeByDay, name, outcome)
+            val r = bestLag(days, controls[name].orEmpty(), outcomeByDay, name, outcome)
             if (r != null) rows.add(r)
         }
         return sorted(rows)
     }
 
+    /**
+     * Rank every behaviour against one outcome at lag 0 only — the Kotlin twin of Swift's
+     * `BehaviorInsights.rank`, ordering included.
+     *
+     * Exists because the Insights screen ranks at lag 0 while the Insights Hub searches the lag set, and
+     * Android had been doing the lag-0 version with its OWN copy of the math: a "crude significance"
+     * (|d| ≥ 0.5 with ≥ 3 a side, self-described as a stand-in for a t-test) against iOS's Welch p on the
+     * same screen. Two platforms flagged different behaviours as significant from identical journals.
+     * Routing it here retires that copy; the parity contract wants one implementation, not two that agree
+     * on a good day.
+     *
+     * Sort mirrors Swift exactly: significant first, then larger |Cohen's d|, then behaviour name — the
+     * last one so a dictionary-ordered walk still produces a stable list.
+     */
+    fun rankNoLag(
+        behaviors: Map<String, Set<String>>,
+        controls: Map<String, Set<String>>,
+        outcomeByDay: Map<String, Double>,
+        outcome: String,
+    ): List<BehaviorEffect> {
+        val effects = ArrayList<BehaviorEffect>()
+        for ((name, days) in behaviors) {
+            val e = effect(days, controls[name].orEmpty(), outcomeByDay, name, outcome)
+            if (e != null) effects.add(e)
+        }
+        return effects.sortedWith(
+            compareByDescending<BehaviorEffect> { it.significant }
+                .thenByDescending { abs(it.cohensD) }
+                .thenBy { it.behavior },
+        )
+    }
+
     /** Find the best-lag RankedEffect for ONE behaviour against ONE outcome, or null. */
     fun bestLag(
         behaviorDays: Set<String>,
+        controlDays: Set<String>,
         outcomeByDay: Map<String, Double>,
         behavior: String,
         outcome: String,
@@ -142,7 +180,7 @@ object EffectRanker {
         var bestEffect: BehaviorEffect? = null
         for (lag in lagSet) {
             val shifted = shiftedOutcome(outcomeByDay, lag)
-            val e = effect(behaviorDays, shifted, behavior, outcome) ?: continue
+            val e = effect(behaviorDays, controlDays, shifted, behavior, outcome) ?: continue
             if (minOf(e.nWith, e.nWithout) < minGroupForSignificance) continue
 
             val cur = bestEffect
@@ -182,12 +220,28 @@ object EffectRanker {
     // Effect (byte-identical port of Swift BehaviorInsights.effect + helpers).
 
     /**
-     * Compute the effect of [behavior] on [outcome]. Days are partitioned into "with"
-     * (day ∈ behaviorDays) and "without", restricted to days with an outcome value. Returns
-     * null unless both groups are non-empty AND there are ≥ 3 points total.
+     * Compute the effect of [behavior] on [outcome]. "With" is day ∈ [behaviorDays]; "without" is
+     * day ∈ [controlDays]. Days in NEITHER are dropped, and that is the point of the second set.
+     *
+     * The split used to be `if (behaviorDays.contains(day)) with else without`, which made every day
+     * carrying an outcome a control — so a behaviour logged Yes on 20 days and never logged at all on
+     * the other 100 was measured against those 100 as though the user had answered No. Reported by a
+     * user on Reddit, in those terms: "if I didn't track something for 100 days, NOOP takes that as a
+     * NO for 100 days, whereas it simply was not logged at all."
+     *
+     * The journal already distinguishes the three states — a No writes a row with answeredYes = false,
+     * and only Clear deletes the row — so nothing but this split was conflating them.
+     *
+     * Expect FEWER findings, not better-looking ones. Unlogged days inflated nWithout, which shrinks the
+     * Welch p and helps clear the min(nWith, nWithout) gate; dropping them removes confidence that was
+     * never earned. A behaviour with no No days now yields nothing, which is the honest answer: with no
+     * controls there is no comparison to make.
+     *
+     * Returns null unless both groups are non-empty AND there are ≥ 3 points total.
      */
     internal fun effect(
         behaviorDays: Set<String>,
+        controlDays: Set<String>,
         outcomeByDay: Map<String, Double>,
         behavior: String,
         outcome: String,
@@ -195,7 +249,13 @@ object EffectRanker {
         val withVals = ArrayList<Double>()
         val withoutVals = ArrayList<Double>()
         for ((day, value) in outcomeByDay) {
-            if (behaviorDays.contains(day)) withVals.add(value) else withoutVals.add(value)
+            when {
+                behaviorDays.contains(day) -> withVals.add(value)
+                controlDays.contains(day) -> withoutVals.add(value)
+                // Neither: the behaviour was not logged that day. Not a control — no information.
+                // A day in BOTH would count as "with"; callers merge imported ∪ native before building
+                // these, so one question cannot hold two answers for one day.
+            }
         }
 
         val n1 = withVals.size
