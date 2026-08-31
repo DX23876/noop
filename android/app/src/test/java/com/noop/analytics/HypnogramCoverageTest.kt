@@ -174,4 +174,134 @@ class HypnogramCoverageTest {
         assertEquals(0.8, HypnogramCoverage.fraction(8 * 3600.0, 10 * 3600.0)!!, 1e-12)
         assertTrue(0.8 < HypnogramCoverage.minCoverage)
     }
+
+    // ── the GROUP accumulation (what a night is actually judged on) ──────────────────────────────
+    //
+    // A night is not one row: the engine bridges the day's main-sleep fragments and accumulates over
+    // ALL of them before testing the gate, and the Sleep screen's "Partly recorded" note asks the same
+    // question of the same group. Pinned by oracle for the same reason as the per-payload rules above —
+    // the accumulation has its own ways to drift (which fragments reach the denominator, whether an
+    // unmeasurable payload contributes span, whether a partial sum survives a bail) and none of them
+    // are visible by reading the two loops side by side.
+
+    /**
+     * VERBATIM stdout of the SHIPPED Swift `HypnogramCoverage` (linked as a package dependency and run,
+     * not retyped), over the group cases below.
+     * Format: label|groupFraction (17 significant digits, or "null")|isHoledGroup|floored percentage.
+     *
+     * `two-bridged-90-100` is the knife-edge row: 1900/2000 prints as 0.94999999999999996, the SAME
+     * double the threshold literal denotes, so `< minCoverage` is false and the night is NOT flagged —
+     * the group twin of the `gate-exact` row above, and the one a reimplementation is most likely to
+     * get wrong in the other direction.
+     */
+    private val swiftGroupOracle = """
+        single-full|1|false|100
+        single-holed|0.25|true|25
+        two-bridged-90-100|0.94999999999999996|false|95
+        gap-excluded|1|false|100
+        mixed-source|0.80000000000000004|true|80
+        all-minute-dict|null|false|-
+        health-connect|null|false|-
+        non-object-bails|null|false|-
+        non-object-in-group|0.5|true|50
+        interior-hole|0.40000000000000002|true|40
+        overlap-clamped|1|false|100
+        empty-group|null|false|-
+        zero-span|null|false|-
+        night-20260828|0.93517534537725822|true|93
+        boundary-0952|0.95199999999999996|false|95
+        boundary-0948|0.94799999999999995|true|94
+    """.trimIndent()
+
+    private fun frag(json: String?, span: Double) = HypnogramCoverage.Fragment(json, span)
+
+    @Test fun groupFractionMatchesTheSwiftOracle() {
+        val minuteDict = """{"light":60,"deep":30,"rem":20,"awake":10}"""
+        val hcArray = """[{"stage":"light","min":300},{"stage":"deep","min":100}]"""
+        val nonObject = """[{"start":0,"end":100,"stage":"deep"},5]"""
+
+        val cases: List<Pair<String, List<HypnogramCoverage.Fragment>>> = listOf(
+            "single-full" to listOf(frag(seg(0 to 1000), 1000.0)),
+            "single-holed" to listOf(frag(seg(0 to 300), 1200.0)),
+            "two-bridged-90-100" to listOf(frag(seg(0 to 900), 1000.0), frag(seg(1200 to 2200), 1000.0)),
+            "gap-excluded" to listOf(frag(seg(0 to 1000), 1000.0), frag(seg(5000 to 6000), 1000.0)),
+            "mixed-source" to listOf(frag(seg(0 to 28800), 28800.0), frag(minuteDict, 7200.0)),
+            "all-minute-dict" to listOf(frag(minuteDict, 14400.0), frag(null, 14400.0)),
+            "health-connect" to listOf(frag(hcArray, 28800.0)),
+            "non-object-bails" to listOf(frag(nonObject, 1000.0)),
+            "non-object-in-group" to listOf(frag(seg(0 to 1000), 1000.0), frag(nonObject, 1000.0)),
+            "interior-hole" to listOf(frag(seg(0 to 200, 800 to 1000), 1000.0)),
+            "overlap-clamped" to listOf(frag(seg(0 to 1000, 0 to 1000), 1000.0)),
+            "empty-group" to emptyList(),
+            "zero-span" to listOf(frag(seg(0 to 100), 0.0)),
+            "night-20260828" to listOf(frag(seg(0 to 26400), 28230.0)),   // 440.0 min of 470.5 min
+            "boundary-0952" to listOf(frag(seg(0 to 95200), 100000.0)),
+            "boundary-0948" to listOf(frag(seg(0 to 94800), 100000.0)),
+        )
+
+        val expected = swiftGroupOracle.lines().map { it.trim() }.filter { it.isNotEmpty() }
+        assertEquals("oracle row count must match the case list", cases.size, expected.size)
+        for ((i, c) in cases.withIndex()) {
+            val (label, frags) = c
+            val parts = expected[i].split("|")
+            assertEquals("oracle row $i is for a different case", label, parts[0])
+
+            val f = HypnogramCoverage.groupFraction(frags)
+            if (parts[1] == "null") {
+                assertNull("$label: expected unmeasurable", f)
+            } else {
+                assertEquals("$label", parts[1].toDouble(), f!!, 0.0)  // EXACT: same double, not close
+            }
+            assertEquals("$label: isHoledGroup", parts[2].toBoolean(), HypnogramCoverage.isHoledGroup(frags))
+            // The percentage the "Partly recorded" note prints. FLOORED, never rounded: 94.8% must not
+            // print as "95%" beside a badge raised because coverage fell below 95%.
+            val pct = f?.let { kotlin.math.floor(it * 100.0).toInt().toString() } ?: "-"
+            assertEquals("$label: printed percentage", parts[3], pct)
+        }
+    }
+
+    /**
+     * [HypnogramCoverage.coveredSeconds] is the summable half — 0, not null, for every payload the
+     * ratio calls unmeasurable, so fragments add cleanly and the "is this even measurable" decision
+     * stays in [HypnogramCoverage.fraction]. Verbatim Swift stdout.
+     */
+    @Test fun coveredSecondsMatchesTheSwiftOracle() {
+        val oracle = """
+            full|1000.0
+            minuteDict|0.0
+            hc|0.0
+            nonObject|0.0
+            empty|0.0
+            blank|0.0
+            nil|0.0
+        """.trimIndent()
+        val inputs = listOf(
+            "full" to seg(0 to 1000),
+            "minuteDict" to """{"light":60,"deep":30,"rem":20,"awake":10}""",
+            "hc" to """[{"stage":"light","min":300},{"stage":"deep","min":100}]""",
+            "nonObject" to """[{"start":0,"end":100,"stage":"deep"},5]""",
+            "empty" to "[]",
+            "blank" to "   ",
+            "nil" to null,
+        )
+        val expected = oracle.lines().map { it.trim() }.filter { it.isNotEmpty() }
+        assertEquals(inputs.size, expected.size)
+        for ((i, p) in inputs.withIndex()) {
+            val parts = expected[i].split("|")
+            assertEquals("oracle row $i is for a different case", p.first, parts[0])
+            assertEquals(p.first, parts[1].toDouble(), HypnogramCoverage.coveredSeconds(p.second), 0.0)
+        }
+    }
+
+    /**
+     * The inter-fragment GAP is not in the denominator. It belongs to no fragment's `[startTs, endTs)`,
+     * and it is known-awake out-of-bed time (#777/#705) rather than time we failed to observe — folding
+     * it in would report a correctly-recorded biphasic night as partly missing. Stated as its own test
+     * because it is a claim about what the CALLER must pass, which an oracle over fragments cannot pin.
+     */
+    @Test fun groupDenominatorIsFragmentSpansNotTheWholeWindow() {
+        val frags = listOf(frag(seg(0 to 1000), 1000.0), frag(seg(5000 to 6000), 1000.0))
+        assertEquals(1.0, HypnogramCoverage.groupFraction(frags)!!, 0.0)
+        assertFalse(HypnogramCoverage.isHoledGroup(frags))
+    }
 }

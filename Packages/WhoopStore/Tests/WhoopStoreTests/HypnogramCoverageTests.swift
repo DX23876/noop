@@ -176,4 +176,78 @@ final class HypnogramCoverageTests: XCTestCase {
         XCTAssertNil(HypnogramCoverage.fraction(stagesJSON: #"[{"start":null,"end":100,"stage":"deep"}]"#,
                                                 spanSeconds: 1000))
     }
+
+    // MARK: - the GROUP accumulation (what a night is actually judged on)
+
+    private func sess(_ start: Int, _ end: Int, _ stagesJSON: String?) -> CachedSleepSession {
+        CachedSleepSession(startTs: start, endTs: end, efficiency: nil, restingHr: nil,
+                           avgHrv: nil, stagesJSON: stagesJSON)
+    }
+
+    /// A night is not one row. Two bridged fragments that are individually 90% and 100% covered are ONE
+    /// night at neither figure, and the group answer is what the engine gates on — so the per-row reading
+    /// is the wrong question for anything presenting a night.
+    func testGroupFractionSumsAcrossBridgedFragments() {
+        let a = sess(0, 1000, segs([(0, 900, "light")]))          // 90% of its own span
+        let b = sess(1200, 2200, segs([(1200, 2200, "deep")]))    // 100% of its own span
+        XCTAssertEqual(HypnogramCoverage.groupFraction([a, b])!, 1900.0 / 2000.0, accuracy: 1e-12)
+        XCTAssertEqual(HypnogramCoverage.fraction(stagesJSON: a.stagesJSON, spanSeconds: 1000)!,
+                       0.9, accuracy: 1e-12)
+        XCTAssertFalse(HypnogramCoverage.isHoledGroup([a, b]))
+        XCTAssertTrue(HypnogramCoverage.isHoled(a))               // and the fragment alone still is
+    }
+
+    /// The inter-fragment GAP is not in the denominator. It belongs to no fragment's `[startTs, endTs)`,
+    /// and it is known-awake out-of-bed time (#777/#705) rather than time we failed to observe — folding
+    /// it in would report a correctly-recorded biphasic night as partly missing.
+    func testGroupFractionExcludesTheInterFragmentGap() {
+        let a = sess(0, 1000, segs([(0, 1000, "light")]))
+        let b = sess(5000, 6000, segs([(5000, 6000, "deep")]))    // 4000 s gap between them
+        XCTAssertEqual(HypnogramCoverage.groupFraction([a, b])!, 1.0, accuracy: 1e-12)
+    }
+
+    /// `testMixedSourceGroupReadsAsHoled`'s arithmetic, now asserted through the accumulation itself
+    /// rather than restated as two literals: a timestamp-free fragment contributes span and no cover.
+    func testGroupFractionMixedSourceReadsAsHoled() {
+        let staged = sess(0, 8 * 3600, segs([(0, 8 * 3600, "light")]))
+        let minuteDict = sess(8 * 3600, 10 * 3600, #"{"light":60,"deep":30,"rem":20,"awake":10}"#)
+        XCTAssertEqual(HypnogramCoverage.groupFraction([staged, minuteDict])!, 0.8, accuracy: 1e-12)
+        XCTAssertTrue(HypnogramCoverage.isHoledGroup([staged, minuteDict]))
+    }
+
+    /// All-timestamp-free: zero cover over a real span is UNKNOWN, not bad. This is what keeps the gate
+    /// off the WHOOP CSV / Apple / Health Connect imports at the group level too.
+    func testGroupFractionAllTimestampFreeIsUnmeasurable() {
+        let a = sess(0, 4 * 3600, #"{"light":60,"deep":30,"rem":20,"awake":10}"#)
+        let b = sess(4 * 3600, 8 * 3600, nil)
+        XCTAssertNil(HypnogramCoverage.groupFraction([a, b]))
+        XCTAssertFalse(HypnogramCoverage.isHoledGroup([a, b]))
+        XCTAssertFalse(HypnogramCoverage.isHoledGroup([]))
+    }
+
+    /// The REAL night this guard's UI was built against — 2026-08-28/29 on an Oura ring: a 470.5-minute
+    /// window whose 96 stage segments account for 440.0 minutes. It renders as a complete night and is
+    /// not; at 93.5% it is the case the Sleep tab's "Partly recorded" note exists to state. Pinned with
+    /// the boundary night from the same 31-night run (08-26, 95.2%) so the gate is shown to separate
+    /// them rather than to flag everything nearby.
+    func testGroupFractionMatchesTheObservedHoledNight() {
+        let holed = sess(0, Int(470.5 * 60), segs([(0, Int(440.0 * 60), "light")]))
+        let f = HypnogramCoverage.groupFraction([holed])!
+        XCTAssertEqual(f, 440.0 / 470.5, accuracy: 1e-12)
+        XCTAssertEqual(Int((f * 100).rounded(.down)), 93)   // the percentage the note prints
+        XCTAssertTrue(HypnogramCoverage.isHoledGroup([holed]))
+
+        let boundary = sess(0, 100_000, segs([(0, 95_200, "light")]))
+        XCTAssertFalse(HypnogramCoverage.isHoledGroup([boundary]))
+    }
+
+    /// The note floors its percentage rather than rounding it: 94.8% must never print as "95%" beside a
+    /// badge raised because coverage fell BELOW 95%. Pinned here because the rule is a property of the
+    /// gate, not of one screen, and both hosts that print it must agree.
+    func testPrintedPercentageNeverContradictsTheGate() {
+        let s = sess(0, 100_000, segs([(0, 94_800, "light")]))
+        let f = HypnogramCoverage.groupFraction([s])!
+        XCTAssertTrue(f < HypnogramCoverage.minCoverage)
+        XCTAssertEqual(Int((f * 100).rounded(.down)), 94)
+    }
 }

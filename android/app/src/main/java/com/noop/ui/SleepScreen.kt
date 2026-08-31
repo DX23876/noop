@@ -72,6 +72,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.noop.analytics.AnalyticsEngine
 import com.noop.analytics.CircadianEngine
+import com.noop.analytics.HypnogramCoverage
 import com.noop.analytics.SleepEditGuard
 import com.noop.analytics.SleepGroupEdit
 import com.noop.analytics.SleepStageTotals
@@ -87,6 +88,7 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
+import kotlin.math.floor
 import kotlin.math.max
 import kotlin.math.roundToInt
 import androidx.compose.runtime.getValue
@@ -1445,6 +1447,21 @@ private fun Hero(
             // anchor), so it carries the flag; nil (imported / pre-migration) is never flagged. Mirrors iOS
             // SleepView.stageIncompleteNote.
             if (session?.stagingSparse == true) SleepIncompleteNote()
+            // #1716 — a device-provided hypnogram assembled from records that never all arrived leaves a
+            // HOLE in the timeline while the session still spans the whole night, so a night we saw a
+            // fraction of renders as a complete one. Asked of the bridged main-night GROUP (the quantity
+            // analyzeDay gates on), never of one fragment. This is the only place the coverage guard
+            // becomes visible: the engine's matching Rest downgrade lands in a transient DayResult field
+            // no screen reads. Mirrors iOS SleepView.stagePartialNote.
+            val coverageGroup = heroGroup.ifEmpty { listOfNotNull(session) }
+            val stageCoverage = HypnogramCoverage.groupFraction(
+                coverageGroup.map {
+                    HypnogramCoverage.Fragment(it.stagesJSON, (it.endTs - it.startTs).toDouble())
+                }
+            )
+            if (stageCoverage != null && stageCoverage < HypnogramCoverage.minCoverage) {
+                SleepPartialNote(stageCoverage)
+            }
         }
         // Naps card (#508/#518): the day's blocks OTHER than the main night, each editable / deletable
         // with the SAME mechanism main sleep uses, plus a Main / Nap(s) / Total split so what drives the
@@ -1571,6 +1588,37 @@ private fun SleepIncompleteNote() {
         SourceBadge(text = uiString(R.string.l10n_sleep_screen_may_be_incomplete_7230dc27), tint = Palette.statusWarning)
         Text(
             uiString(R.string.l10n_sleep_screen_little_motion_was_recorded_over_f061b7e4),
+            style = NoopType.caption,
+            color = Palette.textTertiary,
+        )
+    }
+}
+
+/**
+ * The PARTIAL-TIMELINE caveat (#1716): this night's stage segments account for less than
+ * [HypnogramCoverage.minCoverage] of the window the session claims, so the stage totals describe only the
+ * part of the night the timeline accounts for. Distinct from BOTH notes above — #H9 doubts the deep/REM SPLIT
+ * of a fully-described night, #345 doubts a night staged on thin motion, and this one says plainly that
+ * some of the night is MISSING rather than doubted.
+ *
+ * HONEST-DATA: reports only what was observed and changes no number. The percentage is FLOORED, never
+ * rounded — 94.8% must not print as "95%" beside a badge raised because coverage fell below 95% — which is
+ * why this takes the fraction and floors it here rather than accepting a pre-rounded Int from the caller.
+ * The copy names NO cause and offers NO remedy: the captures behind this note show the missing codes DID
+ * reach the phone (the ring reported them unwritten, 0xFF) and that re-persisting the night does not fill
+ * the hole. Mirrors iOS SleepView.stagePartialNote.
+ */
+@Composable
+private fun SleepPartialNote(coverage: Double) {
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.Top,
+        modifier = Modifier.padding(horizontal = 2.dp),
+    ) {
+        SourceBadge(text = uiString(R.string.l10n_sleep_screen_partly_recorded_f43509ab), tint = Palette.statusWarning)
+        Text(
+            uiString(R.string.l10n_sleep_screen_only_of_this_night_s_window_9660332a,
+                     floor(coverage * 100.0).toInt()),
             style = NoopType.caption,
             color = Palette.textTertiary,
         )

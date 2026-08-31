@@ -67,18 +67,74 @@ public enum HypnogramCoverage {
     /// that importer, unvalidated against a Xiaomi export, and it is pinned by test rather than left to
     /// be discovered.
     public static func fraction(stagesJSON: String?, spanSeconds: Double) -> Double? {
+        fraction(coveredSeconds: coveredSeconds(stagesJSON: stagesJSON), spanSeconds: spanSeconds)
+    }
+
+    /// Seconds of `stagesJSON` accounted for by timestamped segments, or 0 when the payload carries no
+    /// measurable ones.
+    ///
+    /// Zero, not nil, because this is a SUMMABLE quantity: a caller accumulating several fragments needs
+    /// "this one contributed nothing" to add cleanly, and the "is coverage even a meaningful question"
+    /// decision belongs to `fraction`, which turns a zero total back into nil. Callers that want the
+    /// unknown/known distinction for a SINGLE session must therefore keep using `fraction`, not this.
+    ///
+    /// Returns 0 for every shape `fraction(stagesJSON:spanSeconds:)` documents as unmeasurable — a
+    /// nil/blank/`"[]"` payload, the imported minute-dict `{light,deep,rem,awake}`, Health Connect's
+    /// `{stage,min}` array, and an array holding any non-object element (the whole payload bails rather
+    /// than measuring the remainder). Splitting it out is behaviour-preserving for that function: a 0
+    /// total fails `fraction`'s `coveredSeconds > 0` guard and still yields nil.
+    public static func coveredSeconds(stagesJSON: String?) -> Double {
         guard let json = stagesJSON?.trimmingCharacters(in: .whitespacesAndNewlines),
               !json.isEmpty, json != "[]",
               let data = json.data(using: .utf8),
               let segs = (try? JSONSerialization.jsonObject(with: data)) as? [[String: Any]]
-        else { return nil }
+        else { return 0 }
         var covered = 0.0
         for seg in segs {
             guard let s = (seg["start"] as? NSNumber)?.doubleValue,
                   let e = (seg["end"] as? NSNumber)?.doubleValue, e > s else { continue }
             covered += e - s
         }
-        return fraction(coveredSeconds: covered, spanSeconds: spanSeconds)
+        return covered
+    }
+
+    /// Coverage summed across a bridged main-night GROUP — the quantity a night is actually judged on.
+    ///
+    /// A night is not one row. `AnalyticsEngine.analyzeDay` bridges the day's main-sleep fragments into a
+    /// group (#561) and accumulates coverage over ALL of them before testing the gate, so a per-row answer
+    /// is the wrong question for anything presenting a night: two fragments that are individually 90% and
+    /// 99% covered are one night at neither figure. This exists so a UI can ask the same question the
+    /// engine asked without restating the accumulation, which is where a twin rule would drift.
+    ///
+    /// PARITY WITH THE ENGINE, exactly. Every fragment contributes its full `[startTs, endTs)` to the
+    /// denominator whether or not its payload is measurable, and contributes cover only from timestamped
+    /// segments — which reproduces `analyzeDay`'s decoded-segment accumulation term for term, including
+    /// the mixed-source case it calls out (a timestamp-free fragment adds span and no cover, so a group
+    /// mixing one with a timestamped fragment reads as holed). A group whose fragments are ALL
+    /// timestamp-free totals 0 covered seconds and comes back nil — unknown, not holed.
+    /// The accumulation itself, over `(payload, span)` fragments. This is the shape the Kotlin twin
+    /// implements — entity-free, because `HypnogramCoverage` sits in `com.noop.analytics` over there and
+    /// must not reach into `com.noop.data` for a row type. The session overload below is a thin adapter,
+    /// so both platforms run the identical arithmetic and only the packaging differs.
+    public static func groupFraction(_ fragments: [(stagesJSON: String?, spanSeconds: Double)]) -> Double? {
+        var covered = 0.0, span = 0.0
+        for f in fragments {
+            span += f.spanSeconds
+            covered += coveredSeconds(stagesJSON: f.stagesJSON)
+        }
+        return fraction(coveredSeconds: covered, spanSeconds: span)
+    }
+
+    public static func groupFraction(_ sessions: [CachedSleepSession]) -> Double? {
+        groupFraction(sessions.map { (stagesJSON: $0.stagesJSON,
+                                      spanSeconds: Double($0.endTs - $0.startTs)) })
+    }
+
+    /// `isHoled` for a bridged main-night GROUP. Unknown coverage (nil) is NOT holed — same fail-open
+    /// contract as every other guard here.
+    public static func isHoledGroup(_ sessions: [CachedSleepSession]) -> Bool {
+        guard let f = groupFraction(sessions) else { return false }
+        return f < minCoverage
     }
 
     /// True when the timeline is known to cover less than `minCoverage` of its span — i.e. the session

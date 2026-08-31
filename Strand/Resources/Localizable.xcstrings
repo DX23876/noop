@@ -195837,6 +195837,122 @@
         }
       }
     },
+    "Only %lld%% of this night's window has stage data. The stage totals cover only that part of the night.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nur %lld%% des Zeitfensters dieser Nacht enthält Schlafphasendaten. Die Phasenwerte decken nur diesen Teil der Nacht ab."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Solo el %lld%% de la ventana de esta noche tiene datos de fases. Los totales de fases cubren solo esa parte de la noche."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Seuls %lld%% de la fenêtre de cette nuit comportent des données de phases. Les totaux de phases ne couvrent que cette partie de la nuit."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Solo il %lld%% della finestra di questa notte ha dati sulle fasi. I totali delle fasi coprono solo quella parte della notte."
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apenas %lld%% da janela desta noite tem dados de fases. Os totais de fases cobrem apenas essa parte da noite."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Только %lld%% окна этой ночи содержит данные о фазах. Итоги по фазам охватывают только эту часть ночи."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "这一夜的时间窗口中只有 %lld%% 有睡眠阶段数据。阶段合计仅涵盖该部分时间。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "這一夜的時間視窗中只有 %lld%% 有睡眠階段資料。階段合計僅涵蓋該部分時間。"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tylko %lld%% okna tej nocy ma dane o fazach. Sumy faz obejmują tylko tę część nocy."
+          }
+        }
+      }
+    },
+    "Partly recorded": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Teilweise aufgezeichnet"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Registro parcial"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enregistrement partiel"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Registrazione parziale"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Registo parcial"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Записано частично"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "部分记录"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "部分記錄"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Częściowo zarejestrowane"
+          }
+        }
+      }
+    },
     "Customize": {
       "localizations": {
         "de": {

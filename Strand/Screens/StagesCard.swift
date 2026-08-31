@@ -123,6 +123,12 @@ struct StageDetailView: View {
             if stageStagingIsSparse(night) {
                 stageIncompleteNote
             }
+            // #1716 — a device-provided hypnogram whose records never all arrived leaves a HOLE in the
+            // timeline while the session still spans the whole night, so a night we saw a fraction of
+            // renders as a complete one. Say which fraction, exactly as the Sleep tab does.
+            if let coverage = stageCoverage(night), coverage < HypnogramCoverage.minCoverage {
+                stagePartialNote(coverage)
+            }
             // For an Oura-provided night, say plainly that this split is the ring's RAW on-device
             // classification — so the larger Awake / smaller Deep+REM here isn't misread as the polished
             // numbers the Oura app shows for the same night (the app post-processes the same stream).
@@ -246,6 +252,16 @@ struct StageDetailView: View {
         night.sourceBlocks.contains { $0.stagingSparse == true }
     }
 
+    /// How much of this night's window its stage timeline actually accounts for, or nil when coverage is not
+    /// a measurable question for the payloads it was built from (#1716). Same shared group accumulation as
+    /// `SleepView.stageCoverage(_:)` — this host renders the same night and must not reach a different
+    /// verdict about it. Mirror in Kotlin.
+    private func stageCoverage(_ night: Night) -> Double? {
+        let group = SleepView.mainNightGroup(night.sourceBlocks,
+                                             habitualMidsleepSec: night.habitualMidsleepSec)
+        return HypnogramCoverage.groupFraction(group.isEmpty ? night.sourceBlocks : group)
+    }
+
     /// The H9 low-confidence note shown beneath the stage breakdown — a warning-tinted badge plus a
     /// one-line honest explanation. No faked stages, no tanked score; just a clear "treat this split with
     /// care" so a user doesn't read a likely staging miss as a real deep/REM drought. (#H9)
@@ -275,6 +291,22 @@ struct StageDetailView: View {
         }
         .padding(.horizontal, 2)
         // `.combine` builds the a11y label from the badge + body Text (no separate localized string).
+        .accessibilityElement(children: .combine)
+    }
+
+    /// The PARTIAL-TIMELINE caveat (#1716) — twin of `SleepView.stagePartialNote(_:)`, same copy and same
+    /// floored percentage. Says that part of the night is MISSING, which is a different claim from the two
+    /// notes above (a doubted split, and a night staged on thin motion). Changes no number.
+    private func stagePartialNote(_ coverage: Double) -> some View {
+        let pct = Int((coverage * 100).rounded(.down))
+        return HStack(alignment: .top, spacing: 8) {
+            SourceBadge("Partly recorded", tint: StrandPalette.statusWarning)
+            Text("Only \(pct)% of this night's window has stage data. The stage totals cover only that part of the night.")
+                .font(StrandFont.footnote)
+                .foregroundStyle(StrandPalette.textTertiary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(.horizontal, 2)
         .accessibilityElement(children: .combine)
     }
 
