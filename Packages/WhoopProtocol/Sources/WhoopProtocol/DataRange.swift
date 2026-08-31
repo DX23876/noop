@@ -87,4 +87,19 @@ public enum DataRange {
         guard behind >= 0, behind <= t else { return nil }
         return behind
     }
+
+    /// True when a GET_DATA_RANGE COMMAND_RESPONSE is the `PENDING(2)` acknowledgement rather than the
+    /// answer. The strap replies twice: a short PENDING ack, then the payload with `SUCCESS(1)`. Framing's
+    /// own result-code table already states it — "2=PENDING precedes SUCCESS on GET_DATA_RANGE
+    /// (hardware-confirmed, #78 fork)" — but `pagesBehind` had no way to tell the two apart, so the ack
+    /// (which carries no ring pointers by construction) decoded to nil and logged as a decode FAILURE once
+    /// per sync.
+    ///
+    /// The result byte sits at `cmdOff + 2`, after the echoed opcode and the origin sequence. A frame too
+    /// short to hold one is not a PENDING ack, so it stays false and the caller keeps its existing
+    /// too-short handling.
+    public static func isPendingResponse(_ frame: [UInt8], cmdOff: Int) -> Bool {
+        guard cmdOff >= 0, cmdOff + 2 < frame.count else { return false }
+        return frame[cmdOff + 2] == 2
+    }
 }

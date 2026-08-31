@@ -6236,11 +6236,19 @@ extension BLEManager: @preconcurrency CBPeripheralDelegate {
         // log was indistinguishable from one where the strap never answered, which is why a broken decode
         // survived unnoticed. The raw-frame dump above is unconditional for the same reason. If a firmware
         // revision ever shifts these fields again, the rejection must be visible rather than silent.
-        if let pages = DataRange.pagesBehind(from: frame, cmdOff: cmdOff) {
-            log("Strap backlog pages behind: \(pages) (#689 — GET_DATA_RANGE ring backlog, diagnostic only)")
-        } else {
-            log("Strap backlog pages behind: not decodable from this frame (#689 — offsets may have moved; "
-                + "the raw frame above is the input). Diagnostic only, sync is unaffected.")
+        // ...but NOT on the PENDING(2) ack. GET_DATA_RANGE answers twice — a short ack, then the payload —
+        // which Framing's result-code table already records ("2=PENDING precedes SUCCESS on
+        // GET_DATA_RANGE"). The ack carries no ring pointers at all, so decoding it failed every time and
+        // reported a decode problem that did not exist: one "offsets may have moved" per sync, on healthy
+        // hardware, pointing the reader at an alignment bug rather than at the ack. Skip it here; the
+        // SUCCESS frame still logs its failure loudly, which is the case the paragraph above protects.
+        if !DataRange.isPendingResponse(frame, cmdOff: cmdOff) {
+            if let pages = DataRange.pagesBehind(from: frame, cmdOff: cmdOff) {
+                log("Strap backlog pages behind: \(pages) (#689 — GET_DATA_RANGE ring backlog, diagnostic only)")
+            } else {
+                log("Strap backlog pages behind: not decodable from this frame (#689 — offsets may have moved; "
+                    + "the raw frame above is the input). Diagnostic only, sync is unaffected.")
+            }
         }
         if let newest = BLEManager.dataRangeNewestUnix(from: frame) {
             // #695: the sync-affecting side-effects (strapNewestTs, backfill window, LiveState range) only

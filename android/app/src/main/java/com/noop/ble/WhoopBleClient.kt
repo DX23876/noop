@@ -6688,14 +6688,23 @@ class WhoopBleClient(
                         // logged NOTHING — a strap log was indistinguishable from one where the strap never
                         // answered, which is why a broken decode survived unnoticed. The raw-frame dump above
                         // is unconditional for the same reason. Twin of the Swift branch.
-                        val pagesBehind = com.noop.protocol.DataRange.pagesBehind(frame, cmdOff)
-                        if (pagesBehind != null) {
-                            log("Strap backlog pages behind: $pagesBehind (#689 — GET_DATA_RANGE ring backlog, diagnostic only)")
-                        } else {
-                            log(
-                                "Strap backlog pages behind: not decodable from this frame (#689 — offsets may " +
-                                    "have moved; the raw frame above is the input). Diagnostic only, sync is unaffected.",
-                            )
+                        // ...but NOT on the PENDING(2) ack. GET_DATA_RANGE answers twice — a short ack, then
+                        // the payload — which Framing's result-code table already records ("2=PENDING
+                        // precedes SUCCESS on GET_DATA_RANGE"). The ack carries no ring pointers at all, so
+                        // decoding it failed every time and reported a decode problem that did not exist:
+                        // one "offsets may have moved" per sync on healthy hardware, pointing the reader at
+                        // an alignment bug rather than at the ack. Skip it here; a SUCCESS frame that will
+                        // not decode still logs loudly, which is the case the paragraph above protects.
+                        if (!com.noop.protocol.DataRange.isPendingResponse(frame, cmdOff)) {
+                            val pagesBehind = com.noop.protocol.DataRange.pagesBehind(frame, cmdOff)
+                            if (pagesBehind != null) {
+                                log("Strap backlog pages behind: $pagesBehind (#689 — GET_DATA_RANGE ring backlog, diagnostic only)")
+                            } else {
+                                log(
+                                    "Strap backlog pages behind: not decodable from this frame (#689 — offsets may " +
+                                        "have moved; the raw frame above is the input). Diagnostic only, sync is unaffected.",
+                                )
+                            }
                         }
                         dataRangeNewestUnix(frame)?.let {
                             strapNewestTs = it

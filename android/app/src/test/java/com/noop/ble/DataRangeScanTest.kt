@@ -2,7 +2,9 @@ package com.noop.ble
 
 import com.noop.protocol.DataRange
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
@@ -156,4 +158,42 @@ class DataRangeScanTest {
             )
         }
     }
+
+    // #689 PENDING ack: GET_DATA_RANGE answers twice and only the second carries the ring pointers.
+    // Byte-parity twin of the Swift DataRangeTests cases. Both frames are real, captured on a WHOOP MG
+    // (WS50_r00, fw 50.39.1.0) on 2026-08-28; the pair below is one request's two replies.
+
+    /** The PENDING(2) ack: 20 bytes, result byte at cmdOff+2 is 0x02, no ring pointers in it at all. */
+    @Test fun `isPendingResponse true for the PENDING ack`() =
+        assertTrue(DataRange.isPendingResponse(hex("aa010c000100271124e8220402000000c391bc3d"), 10))
+
+    /** The SUCCESS(1) answer to that same request. Must NOT be skipped. */
+    @Test fun `isPendingResponse false for the SUCCESS answer`() =
+        assertFalse(
+            DataRange.isPendingResponse(
+                hex(
+                    "aa014c00010032d124e92204010100bf0000b4be0000c1be0000b4be00000c00000000" +
+                        "0002008f00",
+                ),
+                10,
+            ),
+        )
+
+    /**
+     * The reason this pair matters: the ack decodes to null, so before the guard it logged as a decode
+     * failure once per sync while the real answer decoded fine two lines later.
+     */
+    @Test fun `the PENDING ack is exactly the frame pagesBehind cannot decode`() {
+        val pending = hex("aa010c000100271124e8220402000000c391bc3d")
+        assertNull(DataRange.pagesBehind(pending, 10))
+        assertTrue(DataRange.isPendingResponse(pending, 10))
+    }
+
+    /** A frame too short to hold a result byte is not a PENDING ack; the caller keeps its own handling. */
+    @Test fun `isPendingResponse false when too short for a result byte`() =
+        assertFalse(DataRange.isPendingResponse(ByteArray(11), 10))
+
+    /** A negative cmdOff is rejected rather than indexing backwards. */
+    @Test fun `isPendingResponse false for a negative cmdOff`() =
+        assertFalse(DataRange.isPendingResponse(ByteArray(40), -1))
 }

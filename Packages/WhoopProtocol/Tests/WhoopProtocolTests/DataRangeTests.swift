@@ -126,4 +126,39 @@ final class DataRangeTests: XCTestCase {
                            "pagesBehind for \(h) at cmdOff \(cmdOff) should be \(expected)")
         }
     }
+
+    // MARK: - #689 PENDING ack. Byte-parity twin of the Kotlin DataRangeScanTest cases.
+    //
+    // GET_DATA_RANGE answers twice and only the second carries the ring pointers. Both frames below are
+    // real, captured on a WHOOP MG (WS50_r00, fw 50.39.1.0) on 2026-08-28, and they are one request's
+    // two replies.
+
+    /// The PENDING(2) ack: 20 bytes, result byte at cmdOff+2 is 0x02, no ring pointers in it at all.
+    func testIsPendingResponse_trueForPendingAck() {
+        XCTAssertTrue(DataRange.isPendingResponse(hex("aa010c000100271124e8220402000000c391bc3d"), cmdOff: 10))
+    }
+
+    /// The SUCCESS(1) answer to that same request. Must NOT be skipped.
+    func testIsPendingResponse_falseForSuccessAnswer() {
+        let h = "aa014c00010032d124e92204010100bf0000b4be0000c1be0000b4be00000c000000000002008f00"
+        XCTAssertFalse(DataRange.isPendingResponse(hex(h), cmdOff: 10))
+    }
+
+    /// The reason this pair matters: the ack decodes to nil, so before the guard it logged as a decode
+    /// failure once per sync while the real answer decoded fine two lines later.
+    func testPendingAckIsExactlyTheFramePagesBehindCannotDecode() {
+        let pending = hex("aa010c000100271124e8220402000000c391bc3d")
+        XCTAssertNil(DataRange.pagesBehind(from: pending, cmdOff: 10))
+        XCTAssertTrue(DataRange.isPendingResponse(pending, cmdOff: 10))
+    }
+
+    /// A frame too short to hold a result byte is not a PENDING ack; the caller keeps its own handling.
+    func testIsPendingResponse_falseWhenTooShortForResultByte() {
+        XCTAssertFalse(DataRange.isPendingResponse([UInt8](repeating: 0, count: 11), cmdOff: 10))
+    }
+
+    /// A negative cmdOff is rejected rather than indexing backwards.
+    func testIsPendingResponse_falseForNegativeCmdOff() {
+        XCTAssertFalse(DataRange.isPendingResponse([UInt8](repeating: 0, count: 40), cmdOff: -1))
+    }
 }
