@@ -170,7 +170,8 @@ class StandardHrSource(
     private data class Sample(
         val hr: Int,
         val rr: List<Int>,
-        val contact: StandardHrContact,
+        /** Non-null ONLY when this reading changed the contact state — see [StandardHrMapping.shouldRecordContact]. */
+        val contact: StandardHrContact?,
         val ts: Long,
     )
     private val bufferLock = Any()
@@ -274,9 +275,15 @@ class StandardHrSource(
 
     // MARK: - Buffer / persistence
 
+    /** Last contact state put in the buffer. Advanced at ENQUEUE, which is safe because the change point
+     *  travels in the buffer until it persists: a failed flush re-buffers the sample carrying it. */
+    private var lastEnqueuedContact: StandardHrContact? = null
+
     private fun enqueue(hr: Int, rr: List<Int>, contact: StandardHrContact) {
         val shouldFlush = synchronized(bufferLock) {
-            buffer.add(Sample(hr, rr, contact, System.currentTimeMillis() / 1000L))
+            val record = StandardHrMapping.shouldRecordContact(lastEnqueuedContact, contact)
+            if (record) lastEnqueuedContact = contact
+            buffer.add(Sample(hr, rr, if (record) contact else null, System.currentTimeMillis() / 1000L))
             buffer.size >= flushCount ||
                 System.currentTimeMillis() - lastFlushMs >= flushIntervalMs
         }
@@ -308,7 +315,9 @@ class StandardHrSource(
             val s = ArrayList(buffer); buffer.clear(); s
         }
         val (hrRows, rrRows) = rowsOf(snapshot)
-        val contactEvents = snapshot.map { StandardHrMapping.contactEvent(it.ts, it.contact) }
+        val contactEvents = snapshot.mapNotNull { s ->
+            s.contact?.let { StandardHrMapping.contactEvent(s.ts, it) }
+        }
         if (hrRows.isEmpty() && rrRows.isEmpty() && contactEvents.isEmpty()) return
         log(standardHrFlushAttemptLine(reason.raw, hrRows.size, rrRows.size))
         persist(StreamBatch(hr = hrRows, rr = rrRows, events = contactEvents), deviceId) { result ->

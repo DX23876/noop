@@ -81,4 +81,34 @@ final class StandardHRMappingTests: XCTestCase {
         XCTAssertThrowsError(try StandardHRMapping.contactSample(ts: 101, payloadJSON: "not-json"))
         XCTAssertThrowsError(try StandardHRMapping.contactSample(ts: 102, payloadJSON: "{}"))
     }
+
+    /// Contact is a state, not a measurement. A ~1 Hz stream that recorded every reading wrote ~86,400
+    /// rows a day per device to say the same thing, for a read side that only ever needed the changes.
+    ///
+    /// Asserted over a SEQUENCE rather than on the predicate alone: the number that matters is how many
+    /// rows a run of readings produces, and a predicate test would pass just as happily if the caller
+    /// stopped consulting it. Kotlin twin: "a run of identical readings records one row, and each change
+    /// records one more".
+    func testARunOfIdenticalReadingsRecordsOneRowAndEachChangeRecordsOneMore() {
+        let readings = Array(repeating: StandardHRContact.supportedDetected, count: 600)
+            + Array(repeating: StandardHRContact.supportedNotDetected, count: 300)
+            + Array(repeating: StandardHRContact.supportedDetected, count: 600)
+
+        var previous: StandardHRContact?
+        var recorded = 0
+        for c in readings where StandardHRMapping.shouldRecordContact(previous: previous, current: c) {
+            recorded += 1
+            previous = c
+        }
+        // 1500 readings — a full session — become three rows: the opening state and two transitions.
+        XCTAssertEqual(recorded, 3)
+    }
+
+    /// The first reading always records, so a session never opens with an assumed state.
+    func testTheFirstReadingAlwaysRecords() {
+        XCTAssertTrue(StandardHRMapping.shouldRecordContact(previous: nil, current: .unsupported))
+        XCTAssertTrue(StandardHRMapping.shouldRecordContact(previous: nil, current: .supportedDetected))
+        XCTAssertFalse(StandardHRMapping.shouldRecordContact(previous: .supportedDetected,
+                                                             current: .supportedDetected))
+    }
 }

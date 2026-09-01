@@ -102,6 +102,8 @@ final class Collector {
     private var stdHR: [HRSample] = []
     private var stdRR: [RRInterval] = []
     private var stdContact: [WhoopEvent] = []
+    /// Last contact state buffered, so only transitions are recorded. See `shouldRecordContact`.
+    private var lastStdContact: StandardHRContact?
     private var batchStartedAt: TimeInterval
     var bufferedCount: Int { buffer.count }
 
@@ -271,9 +273,14 @@ final class Collector {
         let acceptedRR = rr.filter { (250...3000).contains($0) }
         if acceptedHR == 1 { stdHR.append(HRSample(ts: ts, bpm: hr)) }
         stdRR.append(contentsOf: acceptedRR.map { RRInterval(ts: ts, rrMs: $0) })
-        stdContact.append(contentsOf: StandardHRMapping.samples(
-            fromHR: hr, rr: [], contact: contact, at: ts
-        ).events)
+        // Only the CHANGES. Advanced here rather than at flush because the event travels in the buffer
+        // until it persists: a failed insert re-inserts it at the front, so nothing has to be unwound.
+        if let contact, StandardHRMapping.shouldRecordContact(previous: lastStdContact, current: contact) {
+            lastStdContact = contact
+            stdContact.append(contentsOf: StandardHRMapping.samples(
+                fromHR: hr, rr: [], contact: contact, at: ts
+            ).events)
+        }
         log?(LivePersistTrace.standardHRHostReceivedLine(
             hostUnixSeconds: ts,
             acceptedHRRows: acceptedHR, acceptedRRRows: acceptedRR.count,

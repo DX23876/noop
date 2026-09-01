@@ -15,6 +15,21 @@ public enum StandardHRMapping {
     /// established durable stream for additive decoded signals, so this needs no schema migration.
     public static let contactEventKind = "STANDARD_HR_CONTACT"
 
+    /// Should this reading record a contact event, given the last one recorded?
+    ///
+    /// Contact is a STATE, not a measurement: it changes when the strap goes on or comes off, a handful
+    /// of times a day, while the standard 0x2A37 stream arrives at ~1 Hz. Writing one row per reading
+    /// stored ~86,400 rows a day per device to say the same thing 86,390 times, into a local-first
+    /// database, for a read side that reconstructs "the value at or before ts" and therefore only ever
+    /// needed the changes.
+    ///
+    /// `previous == nil` records, so every session opens with its starting state and a reader never has
+    /// to assume one. Twin of Kotlin `StandardHrMapping.shouldRecordContact`.
+    public static func shouldRecordContact(previous: StandardHRContact?,
+                                           current: StandardHRContact) -> Bool {
+        previous != current
+    }
+
     /// Build a `Streams` carrying one HR sample and zero-or-more R-R intervals, all stamped at the
     /// same wall-clock `ts` (unix seconds). Pure → unit-testable.
     public static func samples(fromHR hr: Int, rr: [Int], contact: StandardHRContact? = nil,
