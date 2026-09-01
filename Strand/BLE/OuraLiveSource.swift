@@ -2201,8 +2201,13 @@ extension OuraLiveSource: @preconcurrency CBCentralManagerDelegate {
                                rssi RSSI: NSNumber) {
         let advName = advertisementData[CBAdvertisementDataLocalNameKey] as? String
         let name = advName ?? peripheral.name ?? ""
-        // The scan already filters on the Oura service, but re-check the name through the gen recogniser
-        // so a coincidental service match without an Oura-shaped name is dropped (best-effort).
+        // Best-effort generation guess from the advertised name — a LABEL only (the wizard falls back to
+        // .gen3 when it is nil). Nothing is dropped here: the scan's service filter is the only gate, so a
+        // ring is listed even when it advertises no local name at all. That is deliberate — a BONDED ring
+        // often stops advertising one, and treating the empty name as a miss is the bug the Android twin
+        // carried (`ExperimentalBrand.recognise(name) != OURA` in `ble/OuraLiveSource.kt`, where
+        // `recognise("")` is nil) until it was brought in line with this side. Do not "restore" a
+        // name-based drop on either platform.
         let detectedGen = OuraRingGen.recognise(advertisedName: name)
         let id = peripheral.identifier
         let firstSight = seenPeripherals[id] == nil

@@ -870,8 +870,9 @@ class OuraLiveSource(
             log("Oura: Bluetooth adapter is off - cannot scan")
             return
         }
-        // Filter by the ring's base service so a broad scan does not surface unrelated peripherals; the
-        // callback further confirms the advertised name reads as an Oura ring.
+        // Filter by the ring's base service so a broad scan does not surface unrelated peripherals. This
+        // ScanFilter is the ONLY discovery gate — the callback does not re-filter on the advertised name,
+        // because a bonded ring often advertises none; see the note in `scanCallback`.
         val filter = ScanFilter.Builder()
             .setServiceUuid(ParcelUuid(SERVICE_UUID))
             .build()
@@ -1099,12 +1100,17 @@ class OuraLiveSource(
             val device = result.device ?: return
             val address = device.address ?: return
             val name = result.scanRecord?.deviceName ?: runCatching { device.name }.getOrNull() ?: ""
-            // Confirm the advertised name reads as an Oura ring (the service filter is the primary gate;
-            // this rejects anything that slipped through advertising the same base service).
-            if (ExperimentalBrand.recognise(name) != ExperimentalBrand.OURA) return
             val firstSight = seen.put(address, device) == null   // null → not seen before this scan
-            if (firstSight) log("Oura: found $name ($address) rssi ${result.rssi}")
-            // Best-effort generation guess from the advertised name (confirmed by the model the user picks).
+            if (firstSight) log("Oura: found ${name.ifBlank { "Oura ring" }} ($address) rssi ${result.rssi}")
+            // Best-effort generation guess from the advertised name — a LABEL only (the wizard falls back
+            // to GEN3 when it is null). Nothing is dropped here: startScan's ScanFilter pins SERVICE_UUID in
+            // the BT stack, so that is the gate, and a ring is listed even when it advertises no local name
+            // at all. This callback USED TO drop a nameless device (`ExperimentalBrand.recognise(name) !=
+            // OURA`, and `recognise("")` is null because no brand token is a substring of ""), so a BONDED
+            // ring — which often stops advertising a local name, and whose Android `device.name` bond-cache
+            // fallback is empty when the bond lives elsewhere — was the one ring the wizard could not show.
+            // Twin of the Apple side (Strand/BLE/OuraLiveSource.swift), which has always listed on the
+            // service filter alone. Do not re-add a name-based drop here.
             val detectedGen = OuraRingGen.recognise(name)
             val ring = DiscoveredRing(
                 address = address,
