@@ -26,7 +26,7 @@ object AppChangelog {
      * Bump this when you add a release below. The "What's New" sheet shows automatically when the
      * stored last-seen version is behind this. (Decoupled from the bundle version on purpose.)
      */
-    const val CURRENT_VERSION = "10.6.0"
+    const val CURRENT_VERSION = "11.0.0"
 
     data class Release(
         val version: String,
@@ -37,6 +37,19 @@ object AppChangelog {
 
     /** Newest first. */
     val releases: List<Release> = listOf(
+        Release(
+            version = "11.0.0",
+            title = uiString(R.string.l10n_app_changelog_a_whoop_5_that_stays_connected_7b490eee),
+            date = "September 2026",
+            items = listOf(
+                "**The WHOOP 5.0 and MG stop dropping every few seconds (#1635, thanks @Zebsi235).** A handshake the strap never answers was knocking a perfectly good link down about every five seconds, all day. NOOP now recognises a strap that will not complete that handshake, stops attempting it, and holds the link instead — live heart rate keeps streaming rather than restarting forever. Tapping Connect costs one reconnect now, not five.",
+                "**Your body clock, on the Sleep screen (#1722, #1723, #1729, #1733).** A 24-hour dial showing when your body actually wants to sleep, and a chronotype read from your own nights rather than a questionnaire. It says what it used and refuses to guess when it cannot see enough.",
+                "**Nights read straighter (#1717, #1734, #1741, #1755, #1782).** A night that only partly downloaded is no longer scored as if it were whole. Sleep that arrives in fragments is stitched back together when your heart rate says you stayed asleep through the gap. And sleep debt is now a number you can act on tonight.",
+                "**A day you never logged is not a day you answered No (#322).** Journal insights compared days you ticked against every other day — including the ones you simply did not open the app. They now compare Yes days against No days only, so an untracked week stops quietly counting against you.",
+                "**NOOP tells you when there is a new version (#1674, #1675).** Both platforms now notice a release and say so, on by default, checked directly against the release feed with nothing else sent.",
+                "**Health Connect asks for one category at a time (#1509, thanks @kavemang).** Recovery, Activity and Body composition are chosen before Android's prompt appears, so you grant what you meant to. Existing installs keep exactly what they already had.",
+            ),
+        ),
         Release(
             version = "10.6.0",
             title = uiString(R.string.l10n_app_changelog_an_effort_scale_you_choose_a_a7c2478d),
