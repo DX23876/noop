@@ -10,6 +10,30 @@ public struct HRSample: Equatable, Codable {
     public init(ts: Int, bpm: Int) { self.ts = ts; self.bpm = bpm }
 }
 
+/// Sensor-contact state carried by the standard BLE Heart Rate Measurement flags.
+///
+/// This is deliberately a tri-state rather than a Bool: a peripheral that does not support contact
+/// detection has not said that contact is absent. `unsupported` is also the only valid result whenever
+/// flag bit 2 is clear, irrespective of the value in detected bit 1.
+public enum StandardHRContact: String, Equatable, Codable, Sendable {
+    case unsupported
+    case supportedNotDetected = "supported_not_detected"
+    case supportedDetected = "supported_detected"
+
+    /// Decode the BLE Heart Rate Measurement flags: bit 2 = supported, bit 1 = detected.
+    /// `unsupported` wins whenever bit 2 is clear, irrespective of detected bit 1.
+    /// Twin of Kotlin `StandardHrContact.fromMeasurementFlags`.
+    public static func fromMeasurementFlags(_ flags: UInt8) -> StandardHRContact {
+        if flags & 0x04 == 0 {
+            return .unsupported
+        } else if flags & 0x02 == 0 {
+            return .supportedNotDetected
+        } else {
+            return .supportedDetected
+        }
+    }
+}
+
 /// WHICH sensor channel produced an R-R interval (#1071).
 ///
 /// A WHOOP strap has ONE beat source, so its rows carry no channel (nil) and nothing here changes for

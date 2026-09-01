@@ -97,10 +97,11 @@ final class Collector {
     private var lastStdInsertFailureLogMs: Int64 = 0
     private var lastRealtimeInsertFailureLogMs: Int64 = 0
 
-    /// Standard 0x2A37 HR/RR buffer — the reliable, always-on stream, recorded continuously
+    /// Standard 0x2A37 HR/RR/contact buffer — the reliable, always-on stream, recorded continuously
     /// (independent of the custom realtime stream or which screen is open).
     private var stdHR: [HRSample] = []
     private var stdRR: [RRInterval] = []
+    private var stdContact: [WhoopEvent] = []
     private var batchStartedAt: TimeInterval
     var bufferedCount: Int { buffer.count }
 
@@ -265,27 +266,31 @@ final class Collector {
 
     /// Buffer one standard Heart-Rate-Measurement reading. No clock correlation needed —
     /// these carry a wall-clock `ts` directly. Auto-flushes ~every 30 readings (~30s).
-    func ingestStandardHR(hr: Int, rr: [Int], at ts: Int) {
+    func ingestStandardHR(hr: Int, rr: [Int], contact: StandardHRContact? = nil, at ts: Int) {
         let acceptedHR = (30...220).contains(hr) ? 1 : 0
         let acceptedRR = rr.filter { (250...3000).contains($0) }
         if acceptedHR == 1 { stdHR.append(HRSample(ts: ts, bpm: hr)) }
         stdRR.append(contentsOf: acceptedRR.map { RRInterval(ts: ts, rrMs: $0) })
+        stdContact.append(contentsOf: StandardHRMapping.samples(
+            fromHR: hr, rr: [], contact: contact, at: ts
+        ).events)
         log?(LivePersistTrace.standardHRHostReceivedLine(
             hostUnixSeconds: ts,
             acceptedHRRows: acceptedHR, acceptedRRRows: acceptedRR.count,
             rejectedHRRows: 1 - acceptedHR, rejectedRRRows: rr.count - acceptedRR.count,
             pendingHRRows: stdHR.count, pendingRRRows: stdRR.count))
-        if stdHR.count + stdRR.count >= 30 {
+        if stdHR.count + stdRR.count + stdContact.count >= 30 {
             Task { @MainActor in await self.flushStandardHR(reason: .cadence) }
         }
     }
 
-    /// Persist the buffered standard HR/RR. Re-buffers on failure so nothing is lost.
+    /// Persist the buffered standard HR/RR/contact. Re-buffers on failure so nothing is lost.
     func flushStandardHR(reason: LivePersistTrace.StandardHRFlushReason = .explicit) async {
-        guard !stdHR.isEmpty || !stdRR.isEmpty else { return }
-        let hr = stdHR, rr = stdRR
+        guard !stdHR.isEmpty || !stdRR.isEmpty || !stdContact.isEmpty else { return }
+        let hr = stdHR, rr = stdRR, contact = stdContact
         stdHR.removeAll(keepingCapacity: true)
         stdRR.removeAll(keepingCapacity: true)
+        stdContact.removeAll(keepingCapacity: true)
         log?(LivePersistTrace.standardHRFlushAttemptLine(
             reason: reason, offeredHRRows: hr.count, offeredRRRows: rr.count))
         // #1118: census this batch BEFORE it is stored, exactly as the historical path does, so a strap
@@ -304,7 +309,7 @@ final class Collector {
             }
         }
         do {
-            let inserted = try await store.insert(Streams(hr: hr, rr: rr), deviceId: deviceId)
+            let inserted = try await store.insert(Streams(hr: hr, rr: rr, events: contact), deviceId: deviceId)
             stdInsertFailures = 0
             log?(LivePersistTrace.standardHRFlushSucceededLine(
                 reason: reason, offeredHRRows: hr.count, offeredRRRows: rr.count,
@@ -312,6 +317,7 @@ final class Collector {
         } catch {
             stdHR.insert(contentsOf: hr, at: 0)
             stdRR.insert(contentsOf: rr, at: 0)
+            stdContact.insert(contentsOf: contact, at: 0)
             stdInsertFailures += 1
             log?(LivePersistTrace.standardHRRebufferedForRetryLine(
                 reason: reason, attemptedHRRows: hr.count, attemptedRRRows: rr.count,

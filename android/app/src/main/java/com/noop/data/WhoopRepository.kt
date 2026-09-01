@@ -1159,6 +1159,16 @@ class WhoopRepository(
     suspend fun events(deviceId: String, from: Long, to: Long, limit: Int = DEFAULT_LIMIT) =
         dao.events(deviceId, from, to, limit)
 
+    /** Standard-BLE contact readings only; legacy HR rows have no companion event and stay absent. */
+    suspend fun standardHrContacts(
+        deviceId: String,
+        from: Long,
+        to: Long,
+        limit: Int = DEFAULT_LIMIT,
+    ): List<StandardHrContactSample> = dao.eventsByKind(
+        deviceId, StandardHrMapping.CONTACT_EVENT_KIND, from, to, limit,
+    ).map(StandardHrMapping::contactSample)
+
     suspend fun batterySamples(deviceId: String, from: Long, to: Long, limit: Int = DEFAULT_LIMIT) =
         dao.batterySamples(deviceId, from, to, limit)
 

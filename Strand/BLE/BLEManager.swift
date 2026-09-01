@@ -5028,7 +5028,8 @@ public final class BLEManager: NSObject, ObservableObject {
         // change so a steady resting HR doesn't re-render the whole Live console every second.
         if m.hr >= 30 && m.hr <= 220, state.heartRate != m.hr { state.heartRate = m.hr }
         // Record it continuously — independent of the realtime stream or the open screen.
-        collector?.ingestStandardHR(hr: m.hr, rr: m.rr, at: Int(Date().timeIntervalSince1970))
+        collector?.ingestStandardHR(hr: m.hr, rr: m.rr, contact: m.contact,
+                                    at: Int(Date().timeIntervalSince1970))
     }
 }
 

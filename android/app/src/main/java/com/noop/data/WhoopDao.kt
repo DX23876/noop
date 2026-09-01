@@ -458,6 +458,18 @@ interface WhoopDao : DeviceRegistryDao {
     suspend fun events(deviceId: String, from: Long, to: Long, limit: Int): List<EventRow>
 
     @Query(
+        "SELECT * FROM event WHERE deviceId = :deviceId AND kind = :kind " +
+            "AND ts >= :from AND ts <= :to ORDER BY ts ASC LIMIT :limit"
+    )
+    suspend fun eventsByKind(
+        deviceId: String,
+        kind: String,
+        from: Long,
+        to: Long,
+        limit: Int,
+    ): List<EventRow>
+
+    @Query(
         "SELECT * FROM battery WHERE deviceId = :deviceId AND ts >= :from AND ts <= :to " +
             "ORDER BY ts ASC LIMIT :limit"
     )

@@ -1,5 +1,26 @@
 package com.noop.protocol
 
+/** Sensor-contact state carried by the standard BLE Heart Rate Measurement flags. */
+enum class StandardHrContact(val storageValue: String) {
+    UNSUPPORTED("unsupported"),
+    SUPPORTED_NOT_DETECTED("supported_not_detected"),
+    SUPPORTED_DETECTED("supported_detected"),
+
+    ;
+
+    companion object {
+        fun fromMeasurementFlags(flags: Int): StandardHrContact = when {
+            flags and 0x04 == 0 -> UNSUPPORTED
+            flags and 0x02 == 0 -> SUPPORTED_NOT_DETECTED
+            else -> SUPPORTED_DETECTED
+        }
+
+        fun fromStorageValue(value: String): StandardHrContact? = entries.firstOrNull {
+            it.storageValue == value
+        }
+    }
+}
+
 /**
  * Decoded stream rows — the durable, compact local record produced from parsed frames.
  *

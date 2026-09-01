@@ -60,6 +60,23 @@ extension WhoopStore {
         }
     }
 
+    /// Standard-BLE sensor-contact readings recorded alongside generic HR samples. Rows before this
+    /// feature have no contact event, so this intentionally returns no invented legacy values.
+    public func standardHRContacts(deviceId: String, from: Int, to: Int,
+                                   limit: Int) async throws -> [StandardHRContactSample] {
+        try syncRead { db in
+            try Row.fetchAll(db, sql: """
+                SELECT ts, payloadJSON FROM event
+                WHERE deviceId = ? AND kind = ? AND ts >= ? AND ts <= ?
+                ORDER BY ts ASC LIMIT ?
+                """, arguments: [deviceId, StandardHRMapping.contactEventKind, from, to, limit])
+                .map { row in
+                    let json: String = row["payloadJSON"]
+                    return try StandardHRMapping.contactSample(ts: row["ts"], payloadJSON: json)
+                }
+        }
+    }
+
     /// Cheap change-detector for the raw HR stream: `(count, maxTs)` over `[from, to]`, computed in
     /// SQLite over the `(deviceId, ts)` index WITHOUT materializing any rows (#836). Lets a caller decide
     /// "nothing was inserted since last time, skip the expensive re-read" for pennies, `COUNT(*)` moves on

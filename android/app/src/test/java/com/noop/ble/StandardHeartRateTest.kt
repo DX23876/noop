@@ -1,5 +1,6 @@
 package com.noop.ble
 
+import com.noop.protocol.StandardHrContact
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -15,6 +16,30 @@ import org.junit.Test
 class StandardHeartRateTest {
 
     private fun bytes(vararg v: Int): ByteArray = ByteArray(v.size) { v[it].toByte() }
+
+    @Test
+    fun contactOnlyBufferReachesFlushThreshold() {
+        assertTrue(standardHrBufferReachedFlushThreshold(
+            hrCount = 0,
+            rrCount = 0,
+            contactCount = 30,
+        ))
+    }
+
+    @Test
+    fun contactFlagsCoverAllCombinations() {
+        val cases = listOf(
+            0x00 to StandardHrContact.UNSUPPORTED,
+            0x02 to StandardHrContact.UNSUPPORTED,
+            0x04 to StandardHrContact.SUPPORTED_NOT_DETECTED,
+            0x06 to StandardHrContact.SUPPORTED_DETECTED,
+        )
+
+        for ((flags, expected) in cases) {
+            assertEquals("flags 0x${flags.toString(16)}", expected,
+                StandardHeartRate.parse(bytes(flags, 72))!!.contact)
+        }
+    }
 
     @Test
     fun eightBitHrNoRr() {

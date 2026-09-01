@@ -27,6 +27,8 @@ import android.util.Log
 import com.noop.NoopApplication
 import com.noop.data.HrRow
 import com.noop.data.RrRow
+import com.noop.data.EventEntry
+import com.noop.data.StandardHrMapping
 import com.noop.data.StreamBatch
 import com.noop.data.StreamPersistence
 import com.noop.protocol.Whoop5RawImu
@@ -54,6 +56,7 @@ import com.noop.protocol.Reassembler
 import com.noop.protocol.Whoop5Variant
 import com.noop.protocol.RebootProbeVariant
 import com.noop.protocol.Streams
+import com.noop.protocol.StandardHrContact
 import com.noop.protocol.Whoop5Config
 import com.noop.protocol.extractStreams
 import com.noop.protocol.WhoopGattServiceFamily
@@ -416,6 +419,12 @@ data class GroundTruthImuStatus(
     val lastPacketAtMs: Long? = null,
     val note: String = "Not started",
 )
+
+internal fun standardHrBufferReachedFlushThreshold(
+    hrCount: Int,
+    rrCount: Int,
+    contactCount: Int,
+): Boolean = hrCount + rrCount + contactCount >= 30
 
 class WhoopBleClient(
     private val context: Context,
@@ -3214,9 +3223,10 @@ class WhoopBleClient(
     private val liveBuffer = ArrayList<Pair<ByteArray, com.noop.protocol.ParsedFrame>>()
     private var batchStartedAtMs = System.currentTimeMillis()
 
-    /** Standard 0x2A37 HR/RR buffer — the reliable, always-on stream (port of Collector.stdHR/stdRR). */
+    /** Standard 0x2A37 HR/RR/contact buffer — the reliable, always-on stream. */
     private val stdHr = ArrayList<HrRow>()
     private val stdRr = ArrayList<RrRow>()
+    private val stdContact = ArrayList<EventEntry>()
 
     // --- Offload frame drain (preserves START/data/END arrival order; port of routeBackfillFrame) ---
 
@@ -7407,6 +7417,7 @@ class WhoopBleClient(
         val flags = data[0].toInt() and 0xFF
         val hr16 = (flags and 0x01) != 0
         val rrPresent = (flags and 0x10) != 0
+        val contact = StandardHrContact.fromMeasurementFlags(flags)
 
         var idx = 1
         val hr: Int
@@ -7460,7 +7471,7 @@ class WhoopBleClient(
 
         // Record it continuously — independent of the realtime stream or which screen is open.
         // Port of BLEManager.parseStandardHR -> collector.ingestStandardHR(hr:rr:at:).
-        ingestStandardHr(hr, rr, (System.currentTimeMillis() / 1000L))
+        ingestStandardHr(hr, rr, contact, (System.currentTimeMillis() / 1000L))
     }
 
     /** The Test Centre gate, bound once to the app's single "noop_testcentre" prefs file. Lazily built so
@@ -8889,22 +8900,24 @@ class WhoopBleClient(
      * Buffer one standard 0x2A37 reading (carries a wall-clock ts directly, no clock ref needed).
      * Auto-flushes ~every 30 readings. Port of `Collector.ingestStandardHR`.
      */
-    private fun ingestStandardHr(hr: Int, rr: List<Int>, ts: Long) {
+    private fun ingestStandardHr(hr: Int, rr: List<Int>, contact: StandardHrContact, ts: Long) {
         val shouldFlush = synchronized(collectorLock) {
             if (hr in 30..220) stdHr.add(HrRow(ts, hr))
             for (r in rr) if (r in 250..3000) stdRr.add(RrRow(ts, r))
-            stdHr.size + stdRr.size >= 30
+            stdContact.add(StandardHrMapping.contactEvent(ts, contact))
+            standardHrBufferReachedFlushThreshold(stdHr.size, stdRr.size, stdContact.size)
         }
         if (shouldFlush) ioScope.launch { flushStandardHr() }
     }
 
     /** Persist the buffered standard HR/RR. Re-buffers on failure. Port of `Collector.flushStandardHR`. */
     private suspend fun flushStandardHr() {
-        val (hr, rr) = synchronized(collectorLock) {
-            if (stdHr.isEmpty() && stdRr.isEmpty()) return
+        val (hr, rr, contact) = synchronized(collectorLock) {
+            if (stdHr.isEmpty() && stdRr.isEmpty() && stdContact.isEmpty()) return
             val h = ArrayList(stdHr); val r = ArrayList(stdRr)
-            stdHr.clear(); stdRr.clear()
-            h to r
+            val c = ArrayList(stdContact)
+            stdHr.clear(); stdRr.clear(); stdContact.clear()
+            Triple(h, r, c)
         }
         // #1118: census this batch BEFORE it is stored, exactly as the historical path does, so a
         // strap log carries one `ratioRep` per transport. If each transport reports ~1.0 while the
@@ -8921,10 +8934,12 @@ class WhoopBleClient(
             }
         }
         try {
-            repository.insert(StreamBatch(hr = hr, rr = rr), deviceId)
+            repository.insert(StreamBatch(hr = hr, rr = rr, events = contact), deviceId)
             liveInsertFailuresStd.set(0)
         } catch (t: Throwable) {
-            synchronized(collectorLock) { stdHr.addAll(0, hr); stdRr.addAll(0, rr) }
+            synchronized(collectorLock) {
+                stdHr.addAll(0, hr); stdRr.addAll(0, rr); stdContact.addAll(0, contact)
+            }
             // Swallowing this made the instrumentation above read like success: a store failing every
             // insert produced a log full of `rr emit ... offered=N` and no sign that none of it landed.
             val runLength = liveInsertFailuresStd.incrementAndGet()

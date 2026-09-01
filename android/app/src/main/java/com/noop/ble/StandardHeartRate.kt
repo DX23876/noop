@@ -1,5 +1,7 @@
 package com.noop.ble
 
+import com.noop.protocol.StandardHrContact
+
 /**
  * Pure parser for the standard BLE Heart Rate Measurement characteristic (0x2A37).
  *
@@ -20,7 +22,7 @@ package com.noop.ble
 object StandardHeartRate {
 
     /** The parsed reading: heart rate (bpm) and the R-R intervals (ms), in arrival order. */
-    data class Reading(val hr: Int, val rr: List<Int>)
+    data class Reading(val hr: Int, val rr: List<Int>, val contact: StandardHrContact)
 
     /**
      * Parse one 0x2A37 notification payload. Returns null on an empty or truncated packet (a packet
@@ -29,6 +31,7 @@ object StandardHeartRate {
     fun parse(data: ByteArray): Reading? {
         if (data.isEmpty()) return null
         val flags = data[0].toInt() and 0xFF
+        val contact = StandardHrContact.fromMeasurementFlags(flags)
         var idx = 1
 
         val hr: Int
@@ -52,6 +55,6 @@ object StandardHeartRate {
                 idx += 2
             }
         }
-        return Reading(hr, rr)
+        return Reading(hr, rr, contact)
     }
 }
