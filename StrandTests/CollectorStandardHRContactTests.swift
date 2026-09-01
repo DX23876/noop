@@ -27,14 +27,18 @@ final class CollectorStandardHRContactTests: XCTestCase {
         func enqueueRawBatch(_ meta: RawBatchMeta, frames: [[UInt8]]) async throws {}
     }
 
+    /// Repinned for change-only contact recording: only TRANSITIONS record, so thirty identical
+    /// readings now produce one event rather than thirty. The invariant is unchanged — contact events
+    /// alone can drive the auto-flush threshold, without a single HR or R-R row — but it has to be
+    /// measured with readings that actually change, which is what a strap going on and off produces.
     func testContactOnlyBatchAutoFlushesAtThreshold() async {
         let store = CaptureStore()
         let collector = Collector(store: store, deviceId: "whoop-5")
 
+        var contact = StandardHRContact.supportedNotDetected
         for ts in 1_750_000_000..<1_750_000_030 {
-            collector.ingestStandardHR(
-                hr: 0, rr: [], contact: .supportedNotDetected, at: ts
-            )
+            collector.ingestStandardHR(hr: 0, rr: [], contact: contact, at: ts)
+            contact = contact == .supportedNotDetected ? .supportedDetected : .supportedNotDetected
         }
         for _ in 0..<10 where store.inserted.isEmpty { await Task.yield() }
 
@@ -43,6 +47,25 @@ final class CollectorStandardHRContactTests: XCTestCase {
         XCTAssertTrue(inserted.hr.isEmpty)
         XCTAssertTrue(inserted.rr.isEmpty)
         XCTAssertEqual(inserted.events.count, 30)
+    }
+
+    /// The other half of the same rule, and the one that made the repin necessary: a run of identical
+    /// readings records ONCE. At the ~1 Hz the standard profile actually arrives at, the old
+    /// per-reading write was ~86,400 rows a day per device saying the same thing.
+    func testARunOfIdenticalReadingsRecordsOnlyTheFirst() async {
+        let store = CaptureStore()
+        let collector = Collector(store: store, deviceId: "whoop-5")
+
+        for ts in 1_750_000_000..<1_750_000_030 {
+            collector.ingestStandardHR(hr: 0, rr: [], contact: .supportedNotDetected, at: ts)
+        }
+        // One event never reaches the 30-item auto-flush threshold, so nothing has been written yet.
+        XCTAssertTrue(store.inserted.isEmpty)
+
+        await collector.flushStandardHR()
+        XCTAssertEqual(store.inserted.count, 1)
+        XCTAssertEqual(store.inserted.first?.events.count, 1)
+        XCTAssertEqual(store.inserted.first?.events.first?.ts, 1_750_000_000)
     }
 
     func testWhoopStandardHRCollectorPersistsParsedContact() async {
