@@ -738,6 +738,20 @@ like its sibling banked streams (`.hrv`/`.temp`/`.spo2`/`.sleepPhase`) — the f
   | 7 | `sleep_state` | u8 | — | source's parser THROWS if ∉ {0,1,2} |
   | 8–9 | `cv` | u16 LE | / 65536 | ⇒ [0,1) |
 
+  ⚠️ **The `motion_count` guard differs by ONE between the two independent re-derivations of the same
+  native function, and our corpus cannot settle it.** NOOP (the table above and both platform decoders)
+  rejects a body with `motion_count ≥ 121`; [open_oura]'s `decode_sleep_period_info` (PR #15, merged
+  2026-08-31) rejects `≥ 120`. Both cite the same `RepNumericRangeError` throw in
+  `parse_api_sleep_period_info`, so one of the two readings is off by one — settling it needs the binary,
+  not more nights. **Measured impact: none.** Across **8 075** distinct `0x6A` records in NOOP's capture
+  corpus (every `oura-resp.jsonl` held under `worklog/artifacts/Sleep Nights/`, de-duplicated by `ringTs`)
+  `motion_count` maxes at **55** — modal value 0, *nothing* ≥ 100, and **no record at 120** — while
+  `sleep_state` is only ever 0 or 1. Neither guard has ever fired on real data and no record has ever
+  landed in the disputed slot. ⇒ **Leave NOOP's `< 121` as it stands: this is a documented open
+  discrepancy, not a bug to "fix" into agreement with upstream.** (Weak physical argument for `< 121`, not
+  evidence: at a ~296 s cadence a bounded per-window tally with an *inclusive* upper bound throws at
+  ≥ 121, not ≥ 120.)
+
   **CORRECTION to this line's previous revision**, which read *"bytes6–9 four int8 metrics; bytes10–11
   `uint8/8.0`; byte12 motion-seconds; byte13 sleep-state int8; bytes14–15 uint16 LE/65536"* [ringverse]:
   the OFFSETS were right and the `/8.0` was right, but there were **no names** — so the tag looked like
