@@ -54,4 +54,61 @@ class EffectiveEffortTest {
     @Test fun equalSourcesResolveToThatValue() {
         assertEquals(7.25, StrainScorer.effectiveEffort(live = 7.25, stored = 7.25)!!, 1e-9)
     }
+
+    /** #37: when both sources are zero, every sign pairing has the canonical positive-zero bits. */
+    @Test fun bothPresentZerosCanonicalizePositiveZero() {
+        val cases = listOf(
+            Triple("positive/positive", 0.0, 0.0),
+            Triple("positive/negative", 0.0, -0.0),
+            Triple("negative/positive", -0.0, 0.0),
+            Triple("negative/negative", -0.0, -0.0),
+        )
+
+        for ((label, live, stored) in cases) {
+            val result = StrainScorer.effectiveEffort(live = live, stored = stored)!!
+            assertEquals(label, 0.0.toRawBits(), result.toRawBits())
+        }
+    }
+
+    /** A missing source is passthrough, including its exact signed-zero and NaN representation. */
+    @Test fun singleSourcePassesThroughBitForBit() {
+        val values = listOf(
+            0.0,
+            -0.0,
+            7.25,
+            -7.25,
+            Double.POSITIVE_INFINITY,
+            Double.NEGATIVE_INFINITY,
+            Double.fromBits(0x7ff8_0000_0000_0042L),
+        )
+
+        for (value in values) {
+            assertEquals(value.toRawBits(),
+                StrainScorer.effectiveEffort(live = value, stored = null)!!.toRawBits())
+            assertEquals(value.toRawBits(),
+                StrainScorer.effectiveEffort(live = null, stored = value)!!.toRawBits())
+        }
+    }
+
+    /** The zero canonicalization must not broaden into a replacement for Kotlin's MAX semantics. */
+    @Test fun bothPresentNonzeroAndNaNBehaviorIsUnchanged() {
+        val nanA = Double.fromBits(0x7ff8_0000_0000_0042L)
+        val nanB = Double.fromBits(0x7ff8_0000_0000_0024L)
+        val cases = listOf(
+            Triple(2.3, 0.5, 2.3),
+            Triple(7.25, 7.25, 7.25),
+            Triple(Double.POSITIVE_INFINITY, 12.0, Double.POSITIVE_INFINITY),
+            Triple(12.0, Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY),
+            Triple(Double.NEGATIVE_INFINITY, Double.NEGATIVE_INFINITY, Double.NEGATIVE_INFINITY),
+            Triple(nanA, 1.0, nanA),
+            Triple(1.0, nanA, nanA),
+            Triple(nanA, nanB, nanA),
+            Triple(nanB, nanA, nanB),
+        )
+
+        for ((live, stored, expected) in cases) {
+            val result = StrainScorer.effectiveEffort(live = live, stored = stored)!!
+            assertEquals(expected.toRawBits(), result.toRawBits())
+        }
+    }
 }

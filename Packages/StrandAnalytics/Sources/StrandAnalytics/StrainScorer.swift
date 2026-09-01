@@ -212,6 +212,7 @@ public enum StrainScorer {
     public static func effectiveEffort(live: Double?, stored: Double?) -> Double? {
         guard let live else { return stored }
         guard let stored else { return live }
+        if live == 0.0 && stored == 0.0 { return 0.0 }
         return Swift.max(live, stored)
     }
 

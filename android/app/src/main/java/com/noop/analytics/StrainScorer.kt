@@ -250,6 +250,7 @@ object StrainScorer {
     fun effectiveEffort(live: Double?, stored: Double?): Double? {
         if (live == null) return stored
         if (stored == null) return live
+        if (live == 0.0 && stored == 0.0) return 0.0
         return kotlin.math.max(live, stored)
     }
 
