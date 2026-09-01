@@ -778,6 +778,9 @@ private fun ImportStep(viewModel: AppViewModel) {
     // so a persisted busy=true would strand the buttons disabled with nothing running.
     var busy by remember { mutableStateOf(false) }
     var status by rememberSaveable { mutableStateOf<String?>(null) }
+    var hcReadCategories by remember {
+        mutableStateOf(HealthConnectImporter.selectedCategories(context))
+    }
     val importingText = uiString(R.string.onboarding_importing)
     val importLabel = uiString(R.string.onboarding_import_label)
     val importFailed = uiString(R.string.onboarding_failed)
@@ -810,7 +813,8 @@ private fun ImportStep(viewModel: AppViewModel) {
     val hcPermissionLauncher = rememberLauncherForActivityResult(
         PermissionController.createRequestPermissionResultContract(),
     ) { granted ->
-        if (granted.any { it in HealthConnectImporter.PERMISSIONS }) {
+        val selectedPermissions = HealthConnectImporter.permissionsFor(hcReadCategories)
+        if (granted.any { it in selectedPermissions }) {
             runImport { HealthConnectImporter.import(context, viewModel.repo, ProfileStore.from(context).heightCm) }
         } else {
             val message = healthConnectDenied
@@ -828,15 +832,21 @@ private fun ImportStep(viewModel: AppViewModel) {
             val granted = runCatching {
                 HealthConnectImporter.client(context).permissionController.getGrantedPermissions()
             }.getOrDefault(emptySet())
-            if (granted.any { it in HealthConnectImporter.PERMISSIONS } &&
-                !HealthConnectImporter.hasUnaskedPermissions(context)
+            // #645: a user who predates the selector has nothing stored. Recover their real scope from
+            // what Android already grants BEFORE the checkboxes are read back, or a first visit would
+            // show Recovery-only and saving it would lock in the narrowing.
+            HealthConnectImporter.migrateSelectionFromGrants(context, granted)
+            hcReadCategories = HealthConnectImporter.selectedCategories(context)
+            val selectedPermissions = HealthConnectImporter.permissionsFor(hcReadCategories)
+            if (granted.any { it in selectedPermissions } &&
+                !HealthConnectImporter.hasUnaskedPermissions(context, hcReadCategories)
             ) {
                 runImport { HealthConnectImporter.import(context, viewModel.repo, ProfileStore.from(context).heightCm) }
             } else {
                 // Marked before launching so the request is made ONCE per permission set: a user who
                 // declines is not asked again on every visit (#949).
-                HealthConnectImporter.markPermissionsAsked(context)
-                hcPermissionLauncher.launch(HealthConnectImporter.PERMISSIONS)
+                HealthConnectImporter.markPermissionsAsked(context, hcReadCategories)
+                hcPermissionLauncher.launch(selectedPermissions)
             }
         }
     }
@@ -870,6 +880,15 @@ private fun ImportStep(viewModel: AppViewModel) {
                         icon = Icons.Filled.MonitorHeart,
                         enabled = !busy && healthConnectAvailable,
                     ) { startHealthConnect() }
+                    if (healthConnectAvailable) {
+                        HealthConnectCategorySelector(
+                            selected = hcReadCategories,
+                            onSelectionChange = { categories ->
+                                hcReadCategories = categories
+                                HealthConnectImporter.setSelectedCategories(context, categories)
+                            },
+                        )
+                    }
                     OnboardingActionButton(
                         label = uiString(R.string.l10n_onboarding_screen_import_apple_health_export_077b5624),
                         icon = Icons.Filled.FavoriteBorder,

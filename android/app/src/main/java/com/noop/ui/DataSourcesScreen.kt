@@ -118,6 +118,9 @@ fun DataSourcesScreen(vm: AppViewModel) {
     val hcLastSync by vm.hcLastSync.collectAsStateWithLifecycle()
     val hcWriteback by vm.hcWriteback.collectAsStateWithLifecycle()
     val hcWbStatus by vm.hcWritebackStatus.collectAsStateWithLifecycle()
+    var hcReadCategories by remember {
+        mutableStateOf(HealthConnectImporter.selectedCategories(context))
+    }
     // A background (BLE-path) writeback updates prefs, not the VM's flow — re-read on entry so the
     // status line reflects the latest attempt whenever this screen is opened (#660).
     LaunchedEffect(Unit) { vm.refreshHcWritebackStatus() }
@@ -285,7 +288,8 @@ fun DataSourcesScreen(vm: AppViewModel) {
     val hcPermissionLauncher = rememberLauncherForActivityResult(
         PermissionController.createRequestPermissionResultContract(),
     ) { granted ->
-        if (granted.any { it in HealthConnectImporter.PERMISSIONS }) {
+        val selectedPermissions = HealthConnectImporter.permissionsFor(hcReadCategories)
+        if (granted.any { it in selectedPermissions }) {
             runImport { HealthConnectImporter.import(context, vm.repo, ProfileStore.from(context).heightCm) }
         } else {
             Toast.makeText(context, "Health Connect access not granted.", Toast.LENGTH_LONG).show()
@@ -307,16 +311,22 @@ fun DataSourcesScreen(vm: AppViewModel) {
             val granted = runCatching {
                 HealthConnectImporter.client(context).permissionController.getGrantedPermissions()
             }.getOrDefault(emptySet())
+            // #645: a user who predates the selector has nothing stored. Recover their real scope from
+            // what Android already grants BEFORE the checkboxes are read back, or a first visit would
+            // show Recovery-only and saving it would lock in the narrowing.
+            HealthConnectImporter.migrateSelectionFromGrants(context, granted)
+            hcReadCategories = HealthConnectImporter.selectedCategories(context)
+            val selectedPermissions = HealthConnectImporter.permissionsFor(hcReadCategories)
             // `any` (not `all`) is deliberate — partial grants are supported (#150). But that alone
             // would never ASK about a permission added in an update, so a newly-read type would come
             // back empty forever (#949). Route through the request once when the set has grown.
-            if (granted.any { it in HealthConnectImporter.PERMISSIONS } &&
-                !HealthConnectImporter.hasUnaskedPermissions(context)
+            if (granted.any { it in selectedPermissions } &&
+                !HealthConnectImporter.hasUnaskedPermissions(context, hcReadCategories)
             ) {
                 runImport { HealthConnectImporter.import(context, vm.repo, ProfileStore.from(context).heightCm) }
             } else {
-                HealthConnectImporter.markPermissionsAsked(context)
-                hcPermissionLauncher.launch(HealthConnectImporter.PERMISSIONS)
+                HealthConnectImporter.markPermissionsAsked(context, hcReadCategories)
+                hcPermissionLauncher.launch(selectedPermissions)
             }
         }
     }
@@ -483,6 +493,13 @@ fun DataSourcesScreen(vm: AppViewModel) {
                 )
             }
             if (healthConnectAvailable) {
+                HealthConnectCategorySelector(
+                    selected = hcReadCategories,
+                    onSelectionChange = { categories ->
+                        hcReadCategories = categories
+                        HealthConnectImporter.setSelectedCategories(context, categories)
+                    },
+                )
                 BackupButton(
                     label = uiString(R.string.l10n_data_sources_screen_import_from_health_connect_35d55e21),
                     icon = Icons.Filled.FileUpload,

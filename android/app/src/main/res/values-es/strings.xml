@@ -208,6 +208,14 @@
     <string name="l10n_data_sources_screen_data_sources_5e43d6bb">Fuentes de datos</string>
     <string name="l10n_data_sources_screen_every_3560d90b">Cada uno</string>
     <string name="l10n_data_sources_screen_health_connect_be6bca3e">Health Connect</string>
+    <string name="health_connect_categories_title">Elige qué puede leer NOOP</string>
+    <string name="health_connect_categories_detail">Selecciona las categorías de Health Connect que quieres importar. Puedes cambiarlo más tarde.</string>
+    <string name="health_connect_category_recovery">Recuperación y bienestar</string>
+    <string name="health_connect_category_recovery_detail">Frecuencia cardíaca, VFC, sueño, SpO₂, respiración e hidratación</string>
+    <string name="health_connect_category_activity">Actividad</string>
+    <string name="health_connect_category_activity_detail">Pasos, calorías, entrenamientos, distancia y VO₂ máx.</string>
+    <string name="health_connect_category_body_composition">Composición corporal</string>
+    <string name="health_connect_category_body_composition_detail">Peso, grasa corporal y masa magra</string>
     <string name="l10n_data_sources_screen_import_apple_health_export_533fca27">Importar la exportación de Apple Health...</string>
     <string name="l10n_data_sources_screen_import_from_health_connect_35d55e21">Importación de Health Connect</string>
     <string name="l10n_data_sources_screen_import_lifting_log_8fac7b68">Registro de elevación de importación...</string>

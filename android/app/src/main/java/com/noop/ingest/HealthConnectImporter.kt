@@ -42,7 +42,7 @@ import kotlin.reflect.KClass
 /**
  * Native Android Health Connect importer.
  *
- * Reads a fixed set of record types out of the on-device Health Connect store via
+ * Reads a user-selected subset of supported record types out of the on-device Health Connect store via
  * `androidx.health.connect:connect-client`, aggregates them **per LOCAL calendar day**
  * (the device's default zone), and upserts them into the same Room store the WHOOP/Apple
  * importers write to (see [WhoopRepository]). All timestamps written are wall-clock UNIX
@@ -59,9 +59,10 @@ import kotlin.reflect.KClass
  *     user has NO raw "my-whoop" rows, so the computed source is what marks their days as owned.
  *   - Exercise sessions -> [WorkoutRow] with source "health-connect".
  *
- * Permissions are assumed to have been granted by the UI (via the Health Connect permission
- * flow) BEFORE [import] is called. If Health Connect is unavailable, or the required
- * read permissions are not in fact granted, [import] returns [ImportSummary.failure].
+ * The UI requests only the selected categories before [import] is called. Partial grants are valid:
+ * the importer reads granted types inside those categories and skips everything else. If Health
+ * Connect is unavailable or none of the selected permissions is granted, it returns
+ * [ImportSummary.failure].
  */
 object HealthConnectImporter {
 
@@ -92,25 +93,67 @@ object HealthConnectImporter {
      *  clipping keeps a neighbouring activity inside this window from over-counting. */
     private const val DISTANCE_MATCH_BUFFER_S = 300L
 
-    /** The record types this importer reads, in one place so PERMISSIONS stays in sync. */
-    private val READ_RECORDS: List<KClass<out Record>> = listOf(
-        StepsRecord::class,
-        TotalCaloriesBurnedRecord::class,
-        ActiveCaloriesBurnedRecord::class,
-        HeartRateRecord::class,
-        RestingHeartRateRecord::class,
-        HeartRateVariabilityRmssdRecord::class,
-        SleepSessionRecord::class,
-        OxygenSaturationRecord::class,
-        RespiratoryRateRecord::class,
-        Vo2MaxRecord::class,
-        WeightRecord::class,
-        BodyFatRecord::class,
-        LeanBodyMassRecord::class,
-        ExerciseSessionRecord::class,
-        DistanceRecord::class,
-        HydrationRecord::class,
-    )
+    /**
+     * User-selectable Health Connect read scopes (#645). Each record type belongs to exactly one
+     * category so the permission prompt can explain what the user is granting and the importer can
+     * skip a deselected category even when Android still holds an older grant for it.
+     */
+    enum class ImportCategory(
+        val storageKey: String,
+        internal val recordTypes: Set<KClass<out Record>>,
+    ) {
+        RECOVERY(
+            "recovery",
+            setOf(
+                HeartRateRecord::class,
+                RestingHeartRateRecord::class,
+                HeartRateVariabilityRmssdRecord::class,
+                SleepSessionRecord::class,
+                OxygenSaturationRecord::class,
+                RespiratoryRateRecord::class,
+                HydrationRecord::class,
+            ),
+        ),
+        ACTIVITY(
+            "activity",
+            setOf(
+                StepsRecord::class,
+                TotalCaloriesBurnedRecord::class,
+                ActiveCaloriesBurnedRecord::class,
+                Vo2MaxRecord::class,
+                ExerciseSessionRecord::class,
+                DistanceRecord::class,
+            ),
+        ),
+        BODY_COMPOSITION(
+            "body-composition",
+            setOf(
+                WeightRecord::class,
+                BodyFatRecord::class,
+                LeanBodyMassRecord::class,
+            ),
+        ),
+    }
+
+    internal val ALL_CATEGORIES: Set<ImportCategory> = ImportCategory.entries.toSet()
+    internal val DEFAULT_CATEGORIES: Set<ImportCategory> = setOf(ImportCategory.RECOVERY)
+
+    /** Every supported read permission. Kept as the compatibility/all-capabilities view. */
+    val PERMISSIONS: Set<String> = permissionsFor(ALL_CATEGORIES)
+
+    /** The permissions represented by exactly [categories], with no implicit broadening. */
+    fun permissionsFor(categories: Set<ImportCategory>): Set<String> =
+        recordTypesFor(categories).mapTo(linkedSetOf()) { HealthPermission.getReadPermission(it) }
+
+    internal fun recordTypesFor(categories: Set<ImportCategory>): Set<KClass<out Record>> =
+        categories.flatMapTo(linkedSetOf()) { it.recordTypes }
+
+    internal fun readableRecordTypes(
+        categories: Set<ImportCategory>,
+        grantedPermissions: Set<String>,
+    ): Set<KClass<out Record>> = recordTypesFor(categories).filterTo(linkedSetOf()) {
+        HealthPermission.getReadPermission(it) in grantedPermissions
+    }
 
     /**
      * Hydration import window, in days (#949) — deliberately much shorter than [WINDOW_YEARS].
@@ -124,36 +167,101 @@ object HealthConnectImporter {
     private const val HYDRATION_WINDOW_DAYS = 30L
 
     /**
-     * The set of Health Connect read-permission strings the UI must request before calling
-     * [import]. One `READ_*` permission per record type in [READ_RECORDS].
+     * The selected categories. New installs start with the narrow recovery/wellness group; an
+     * existing install that was already prompted under the old all-at-once flow keeps all categories
+     * enabled so an update never silently stops importing data it imported before (#645).
      */
-    val PERMISSIONS: Set<String> =
-        READ_RECORDS.map { HealthPermission.getReadPermission(it) }.toSet()
-
-    /**
-     * Whether the user has been asked about the CURRENT permission set (#949).
-     *
-     * The import gate is `granted.any { ... }` by design (#150): partial grants are legitimate, so
-     * having any one permission is enough to import. But that also means a permission ADDED in an
-     * update is never requested — an existing user goes straight to importing and the new type reads
-     * as empty forever, indistinguishable from "you have no water logged". Water would have done
-     * nothing at all for every existing Android user.
-     *
-     * Comparing a stored fingerprint of [PERMISSIONS] catches that: when the set grows, the caller
-     * launches the request once so the user is asked about the new type, then marks it asked. It is
-     * asked ONCE — declining is remembered, so this never becomes a nag.
-     */
-    fun hasUnaskedPermissions(context: Context): Boolean =
-        prefs(context).getString(PERMISSION_SIGNATURE_KEY, null) != permissionSignature
-
-    /** Record that the user has now been asked about the current [PERMISSIONS] set. */
-    fun markPermissionsAsked(context: Context) {
-        prefs(context).edit().putString(PERMISSION_SIGNATURE_KEY, permissionSignature).apply()
+    fun selectedCategories(context: Context): Set<ImportCategory> {
+        val preferences = prefs(context)
+        return categoriesFromStoredKeys(
+            preferences.getStringSet(CATEGORY_SELECTION_KEY, null)?.toSet(),
+            preferences.contains(PERMISSION_SIGNATURE_KEY),
+        )
     }
 
-    private const val PERMISSION_SIGNATURE_KEY = "noop.hc.permissionSignature"
+    fun setSelectedCategories(context: Context, categories: Set<ImportCategory>) {
+        require(categories.isNotEmpty()) { "At least one Health Connect category must be selected" }
+        prefs(context).edit()
+            .putStringSet(CATEGORY_SELECTION_KEY, categories.mapTo(linkedSetOf()) { it.storageKey })
+            .apply()
+    }
 
-    private val permissionSignature: String get() = PERMISSIONS.sorted().joinToString(",")
+    /**
+     * The categories implied by grants Android already holds.
+     *
+     * A user who granted Health Connect before #645 existed has no stored selection, and — if they
+     * onboarded before #949 added it — no permission signature either. The importer has shipped since
+     * 2026-06-07 and that key only since 2026-07-30, so there is a real cohort with neither. Falling back
+     * to [DEFAULT_CATEGORIES] for them would silently stop importing Activity and Body composition while
+     * Android still shows those permissions as granted: nothing on screen would say why steps stopped.
+     *
+     * Their grants are the honest record of what they agreed to, so read the scope back off those.
+     */
+    internal fun categoriesFromGrantedPermissions(granted: Set<String>): Set<ImportCategory> =
+        ImportCategory.entries.filterTo(linkedSetOf()) { category ->
+            permissionsFor(setOf(category)).any { it in granted }
+        }
+
+    /**
+     * One-time backfill of the selection for a user who predates it, from what Android has granted.
+     *
+     * Only ever writes when NOTHING is stored, so a user who deliberately narrows to Recovery is never
+     * re-broadened, and it is safe to call from every entry point that can be the first one reached.
+     */
+    fun migrateSelectionFromGrants(context: Context, granted: Set<String>) {
+        if (prefs(context).getStringSet(CATEGORY_SELECTION_KEY, null) != null) return
+        val inferred = categoriesFromGrantedPermissions(granted)
+        if (inferred.isNotEmpty()) setSelectedCategories(context, inferred)
+    }
+
+    internal fun categoriesFromStoredKeys(
+        storedKeys: Set<String>?,
+        hadLegacyPermissionSignature: Boolean,
+    ): Set<ImportCategory> {
+        if (storedKeys != null) {
+            val restored = ImportCategory.entries.filterTo(linkedSetOf()) { it.storageKey in storedKeys }
+            if (restored.isNotEmpty()) return restored
+        }
+        return if (hadLegacyPermissionSignature) ALL_CATEGORIES else DEFAULT_CATEGORIES
+    }
+
+    /**
+     * Whether the user has been asked about every permission in the selected categories (#949/#645).
+     *
+     * The stored value is the union of permissions previously presented, not just the last selected
+     * set. Narrowing a selection therefore never causes another prompt; adding a category or adding a
+     * record type to an enabled category prompts once. Declining is still remembered.
+     *
+     * The old implementation stored all permissions as the same comma-separated signature. Parsing
+     * it as an asked set makes this migration backward-compatible without a preference rewrite.
+     */
+    fun hasUnaskedPermissions(
+        context: Context,
+        categories: Set<ImportCategory> = selectedCategories(context),
+    ): Boolean = unaskedPermissions(askedPermissions(context), categories).isNotEmpty()
+
+    /** Record that the user has now been asked about the selected categories' permissions. */
+    fun markPermissionsAsked(
+        context: Context,
+        categories: Set<ImportCategory> = selectedCategories(context),
+    ) {
+        val asked = askedPermissions(context) + permissionsFor(categories)
+        prefs(context).edit().putString(PERMISSION_SIGNATURE_KEY, asked.sorted().joinToString(",")).apply()
+    }
+
+    internal fun unaskedPermissions(
+        asked: Set<String>,
+        categories: Set<ImportCategory>,
+    ): Set<String> = permissionsFor(categories) - asked
+
+    private fun askedPermissions(context: Context): Set<String> =
+        prefs(context).getString(PERMISSION_SIGNATURE_KEY, null)
+            ?.split(',')
+            ?.filterTo(linkedSetOf()) { it.isNotBlank() }
+            .orEmpty()
+
+    private const val PERMISSION_SIGNATURE_KEY = "noop.hc.permissionSignature"
+    private const val CATEGORY_SELECTION_KEY = "noop.hc.importCategories"
 
     private fun prefs(context: Context) =
         context.getSharedPreferences(NoopPrefs.NAME, Context.MODE_PRIVATE)
@@ -192,7 +300,14 @@ object HealthConnectImporter {
      * [heightCm] is the user's profile height, used ONLY to derive BMI on days that carry a weight
      * (Health Connect has no BMI record, unlike Apple Health). Pass 0.0 to skip BMI derivation.
      */
-    suspend fun import(context: Context, repo: WhoopRepository, heightCm: Double = 0.0): ImportSummary {
+    suspend fun import(
+        context: Context,
+        repo: WhoopRepository,
+        heightCm: Double = 0.0,
+        // Null means "whatever the user has selected", resolved AFTER the grant-based migration below. A
+        // non-lazy default is evaluated at CALL time, before the migration could widen it.
+        categories: Set<ImportCategory>? = null,
+    ): ImportSummary {
         if (sdkStatus(context) != HealthConnectClient.SDK_AVAILABLE) {
             return ImportSummary.failure(SOURCE, "Health Connect is not available on this device.")
         }
@@ -215,15 +330,22 @@ object HealthConnectImporter {
         } catch (e: Exception) {
             return ImportSummary.failure(SOURCE, "Could not read Health Connect permissions: ${e.message}")
         }
+        // #645 follow-up: a user who predates the category selector has nothing stored — recover their
+        // real scope from the grants before deciding what to read, or the first import after the update
+        // would quietly narrow them to Recovery.
+        migrateSelectionFromGrants(context, granted)
+        val effectiveCategories = categories ?: selectedCategories(context)
+
         // Partial permissions are fine (#150): import the record types the user DID grant and skip the
         // rest, instead of refusing the whole import when any single type is missing. Each per-type read
         // below is already independently fault-tolerant — a type whose read permission was revoked throws
         // and is caught/skipped in [readAll] (same path as #34) — so we only need to bail when NOTHING is
         // granted. The user choosing exactly what NOOP can see is the intended behaviour.
-        if (granted.none { it in PERMISSIONS }) {
+        val selectedPermissions = permissionsFor(effectiveCategories)
+        if (granted.none { it in selectedPermissions }) {
             return ImportSummary.failure(
                 SOURCE,
-                "No Health Connect data types are granted. Allow at least one type for NOOP in Health Connect, then import.",
+                "No selected Health Connect data types are granted. Allow at least one selected type, then import.",
             )
         }
 
@@ -233,6 +355,19 @@ object HealthConnectImporter {
         val filter = TimeRangeFilter.between(start, end)
         // #528: skip our own writes on import (see readAll / isSelfWritten).
         val selfPackage = context.packageName
+        val selectedRecordTypes = readableRecordTypes(effectiveCategories, granted)
+
+        // A granted permission can outlive the category selection that originally requested it. Gate
+        // on BOTH here so switching a category off stops its reads immediately without requiring the
+        // user to visit Android's Health Connect settings and revoke the old grant manually (#645).
+        suspend fun <T : Record> readSelected(
+            type: KClass<T>,
+            range: TimeRangeFilter = filter,
+            onRecord: (T) -> Unit,
+        ): Boolean {
+            if (type !in selectedRecordTypes) return false
+            return readAll(client, type, range, selfPackage, onRecord)
+        }
 
         // Per-day accumulators. Keyed by "YYYY-MM-DD" (local).
         val acc = HashMap<String, DayAcc>()
@@ -274,14 +409,14 @@ object HealthConnectImporter {
             // walk, so summing across sources double-counts (~2x). Sum WITHIN a source (keyed by the record's
             // dataOrigin package), then take the MAX source per day at write-out, mirroring the de-overlap
             // already shipped on iOS/macOS and the Android XML importer.
-            readAll(client, StepsRecord::class, filter, selfPackage) { r ->
+            readSelected(StepsRecord::class) { r ->
                 val b = bucket(dayOf(r.startTime, r.startZoneOffset))
                 val src = r.metadata.dataOrigin.packageName
                 b.stepsBySource[src] = (b.stepsBySource[src] ?: 0L) + r.count
             }
             // --- Total calories burned (basal + active) ---
             // #589: per-SOURCE sums, max-across-sources at write-out (same overlap reasoning as steps).
-            readAll(client, TotalCaloriesBurnedRecord::class, filter, selfPackage) { r ->
+            readSelected(TotalCaloriesBurnedRecord::class) { r ->
                 val b = bucket(dayOf(r.startTime, r.startZoneOffset))
                 val src = r.metadata.dataOrigin.packageName
                 b.totalKcalBySource[src] = (b.totalKcalBySource[src] ?: 0.0) + r.energy.inKilocalories
@@ -293,7 +428,7 @@ object HealthConnectImporter {
             // per-record window list below gets EVERY record, tagged with its source: the per-workout credit
             // de-overlaps by source ITSELF (#835 — it used to cross-source SUM, roughly doubling a ride that
             // two apps both logged), so the per-source map here only governs the day total.
-            readAll(client, ActiveCaloriesBurnedRecord::class, filter, selfPackage) { r ->
+            readSelected(ActiveCaloriesBurnedRecord::class) { r ->
                 val b = bucket(dayOf(r.startTime, r.startZoneOffset))
                 val src = r.metadata.dataOrigin.packageName
                 b.activeKcalBySource[src] = (b.activeKcalBySource[src] ?: 0.0) + r.energy.inKilocalories
@@ -301,7 +436,7 @@ object HealthConnectImporter {
                 KcalRecord(r.startTime.epochSecond, r.endTime.epochSecond, r.energy.inKilocalories, src))
             }
             // --- Heart rate (instantaneous samples) -> per-day average ---
-            readAll(client, HeartRateRecord::class, filter, selfPackage) { r ->
+            readSelected(HeartRateRecord::class) { r ->
                 for (s in r.samples) {
                     val b = bucket(dayOf(s.time, r.startZoneOffset))
                     b.hrSum += s.beatsPerMinute
@@ -309,19 +444,19 @@ object HealthConnectImporter {
                 }
             }
             // --- Resting heart rate -> per-day average (rounded to Int) ---
-            readAll(client, RestingHeartRateRecord::class, filter, selfPackage) { r ->
+            readSelected(RestingHeartRateRecord::class) { r ->
                 val b = bucket(dayOf(r.time, r.zoneOffset))
                 b.rhrSum += r.beatsPerMinute
                 b.rhrCount += 1
             }
             // --- HRV (RMSSD, ms) -> per-day average ---
-            readAll(client, HeartRateVariabilityRmssdRecord::class, filter, selfPackage) { r ->
+            readSelected(HeartRateVariabilityRmssdRecord::class) { r ->
                 val b = bucket(dayOf(r.time, r.zoneOffset))
                 b.hrvSum += r.heartRateVariabilityMillis
                 b.hrvCount += 1
             }
             // --- Sleep sessions -> per-day total sleep minutes, assigned to the WAKE day ---
-            readAll(client, SleepSessionRecord::class, filter, selfPackage) { r ->
+            readSelected(SleepSessionRecord::class) { r ->
                 // Wake-day keyed, so the END offset is the right one — but a writer that sets only the
                 // start offset is common, and the start is far better evidence of the sleeper's zone than
                 // the phone's zone at import time. Fall through start before giving up.
@@ -345,19 +480,19 @@ object HealthConnectImporter {
                 ))
             }
             // --- SpO2 (%) -> per-day average ---
-            readAll(client, OxygenSaturationRecord::class, filter, selfPackage) { r ->
+            readSelected(OxygenSaturationRecord::class) { r ->
                 val b = bucket(dayOf(r.time, r.zoneOffset))
                 b.spo2Sum += r.percentage.value
                 b.spo2Count += 1
             }
             // --- Respiratory rate (breaths/min) -> per-day average ---
-            readAll(client, RespiratoryRateRecord::class, filter, selfPackage) { r ->
+            readSelected(RespiratoryRateRecord::class) { r ->
                 val b = bucket(dayOf(r.time, r.zoneOffset))
                 b.respSum += r.rate
                 b.respCount += 1
             }
             // --- VO2 max (ml/kg/min) -> latest value of the day wins ---
-            readAll(client, Vo2MaxRecord::class, filter, selfPackage) { r ->
+            readSelected(Vo2MaxRecord::class) { r ->
                 val b = bucket(dayOf(r.time, r.zoneOffset))
                 if (r.time.epochSecond >= b.vo2maxTs) {
                     b.vo2max = r.vo2MillilitersPerMinuteKilogram
@@ -365,7 +500,7 @@ object HealthConnectImporter {
                 }
             }
             // --- Weight (kg) -> latest value of the day wins ---
-            readAll(client, WeightRecord::class, filter, selfPackage) { r ->
+            readSelected(WeightRecord::class) { r ->
                 val b = bucket(dayOf(r.time, r.zoneOffset))
                 if (r.time.epochSecond >= b.weightTs) {
                     b.weightKg = r.weight.inKilograms
@@ -375,7 +510,7 @@ object HealthConnectImporter {
             // --- Body fat (%) -> latest value of the day wins. Health Connect's Percentage.value is
             // already 0-100 (unlike Apple's 0..1 fraction), so it stores as-is and matches the iOS
             // "body_fat" key. ---
-            readAll(client, BodyFatRecord::class, filter, selfPackage) { r ->
+            readSelected(BodyFatRecord::class) { r ->
                 val b = bucket(dayOf(r.time, r.zoneOffset))
                 if (r.time.epochSecond >= b.bodyFatTs) {
                     b.bodyFatPct = r.percentage.value
@@ -383,7 +518,7 @@ object HealthConnectImporter {
                 }
             }
             // --- Lean body mass (kg) -> latest value of the day wins (iOS "lean_mass" twin). ---
-            readAll(client, LeanBodyMassRecord::class, filter, selfPackage) { r ->
+            readSelected(LeanBodyMassRecord::class) { r ->
                 val b = bucket(dayOf(r.time, r.zoneOffset))
                 if (r.time.epochSecond >= b.leanMassTs) {
                     b.leanMassKg = r.mass.inKilograms
@@ -391,7 +526,7 @@ object HealthConnectImporter {
                 }
             }
             // --- Exercise sessions -> WorkoutRow(source="health-connect") ---
-            readAll(client, ExerciseSessionRecord::class, filter, selfPackage) { r ->
+            readSelected(ExerciseSessionRecord::class) { r ->
                 val startS = r.startTime.epochSecond
                 val endS = r.endTime.epochSecond
                 workouts.add(
@@ -460,12 +595,11 @@ object HealthConnectImporter {
                 var sum = 0L
                 var n = 0L
                 var max = 0L
-                readAll(
-                    client, HeartRateRecord::class,
+                readSelected(
+                    HeartRateRecord::class,
                     TimeRangeFilter.between(
                         Instant.ofEpochSecond(w.startTs), Instant.ofEpochSecond(w.endTs)
                     ),
-                    selfPackage,
                 ) { hr ->
                     for (s in hr.samples) {
                         sum += s.beatsPerMinute
@@ -499,13 +633,12 @@ object HealthConnectImporter {
                 // so a neighbouring activity's record inside the buffer can't over-count.
                 val ws = w.startTs
                 val we = w.endTs
-                readAll(
-                    client, DistanceRecord::class,
+                readSelected(
+                    DistanceRecord::class,
                     TimeRangeFilter.between(
                         Instant.ofEpochSecond(ws - DISTANCE_MATCH_BUFFER_S),
                         Instant.ofEpochSecond(we + DISTANCE_MATCH_BUFFER_S),
                     ),
-                    selfPackage,
                 ) { d ->
                     val rs = d.startTime.epochSecond
                     val re = d.endTime.epochSecond
@@ -531,8 +664,8 @@ object HealthConnectImporter {
             // twice. Taking the max here would silently drop whichever app logged less.
             val hydrationStart = LocalDate.now(zone).minusDays(HYDRATION_WINDOW_DAYS - 1)
                 .atStartOfDay(zone).toInstant()
-            hydrationReadOk = readAll(
-                client, HydrationRecord::class, TimeRangeFilter.between(hydrationStart, end), selfPackage,
+            hydrationReadOk = readSelected(
+                HydrationRecord::class, TimeRangeFilter.between(hydrationStart, end),
             ) { r ->
                 // #1002: hydration deliberately keeps the PHONE's zone, unlike every other record here.
                 // Its write is a windowed REPLACE: `windowDays` below is built from LocalDate.now(zone),
@@ -755,6 +888,7 @@ object HealthConnectImporter {
      */
     suspend fun refreshTodaySteps(context: Context, repo: WhoopRepository): Int? {
         if (sdkStatus(context) != HealthConnectClient.SDK_AVAILABLE) return null
+        if (ImportCategory.ACTIVITY !in selectedCategories(context)) return null
         val client = client(context)
         val granted = try {
             client.permissionController.getGrantedPermissions()

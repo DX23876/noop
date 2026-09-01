@@ -370,6 +370,14 @@
     <string name="l10n_data_sources_screen_data_sources_5e43d6bb">数据源</string>
     <string name="l10n_data_sources_screen_every_3560d90b">每隔</string>
     <string name="l10n_data_sources_screen_health_connect_be6bca3e">Health Connect</string>
+    <string name="health_connect_categories_title">选择 NOOP 可读取的内容</string>
+    <string name="health_connect_categories_detail">选择要导入的 Health Connect 类别。稍后可随时更改。</string>
+    <string name="health_connect_category_recovery">恢复与健康</string>
+    <string name="health_connect_category_recovery_detail">心率、HRV、睡眠、SpO₂、呼吸和饮水</string>
+    <string name="health_connect_category_activity">活动</string>
+    <string name="health_connect_category_activity_detail">步数、卡路里、锻炼、距离和最大摄氧量</string>
+    <string name="health_connect_category_body_composition">身体成分</string>
+    <string name="health_connect_category_body_composition_detail">体重、体脂和瘦体重</string>
     <string name="l10n_data_sources_screen_import_apple_health_export_533fca27">导入 Apple Health 数据包…</string>
     <string name="l10n_data_sources_screen_import_from_health_connect_35d55e21">从 Health Connect 导入</string>
     <string name="l10n_data_sources_screen_import_lifting_log_8fac7b68">导入举重记录…</string>
