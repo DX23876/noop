@@ -66,9 +66,12 @@ import java.util.concurrent.ConcurrentHashMap
  * advertising `" "` listed as "Oura" here and blank there - the exact silent Kotlin/Swift divergence the
  * parity contract calls out. Both sides now treat whitespace as absent and return the name UNTRIMMED
  * when it is present, and `OuraNamelessRingDiscoveryTest` pins this function against the Swift twin's
- * own output. The two agree over ASCII whitespace and ordinary names; they part only on exotic Unicode
- * spaces (Java's `Character.isWhitespace` excludes U+00A0, Swift's `.whitespacesAndNewlines` includes
- * it), which no BLE local name carries - stated rather than silently overclaimed.
+ * own output. The two agree over ASCII whitespace, ordinary names, and U+00A0. `ifBlank` does NOT test
+ * `Character.isWhitespace`, which would indeed exclude U+00A0; it tests Kotlin's `Char.isWhitespace`,
+ * defined as `Character.isWhitespace(c) || Character.isSpaceChar(c)`, and the second disjunct restores
+ * every non-breaking space the first drops. The pair parts only on U+0085 (blank on Apple, not here)
+ * and U+001C-U+001F (blank here, not on Apple), which no BLE local name carries - stated rather than
+ * silently overclaimed.
  */
 internal fun ouraAdvertisedLabel(advertisedName: String, fallback: String): String =
     advertisedName.ifBlank { fallback }

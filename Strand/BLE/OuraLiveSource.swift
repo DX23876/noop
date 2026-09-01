@@ -27,9 +27,12 @@ import AppKit
 /// `" "` would have listed blank here and as "Oura" there — the exact silent Swift/Kotlin divergence the
 /// parity contract calls out. Both sides now treat whitespace as absent and return the name UNTRIMMED
 /// when it is present. Pinned by the Kotlin `OuraNamelessRingDiscoveryTest` against this function's own
-/// output. The two agree over ASCII whitespace and ordinary names; they part only on exotic Unicode
-/// spaces (`.whitespacesAndNewlines` includes U+00A0, Java's `Character.isWhitespace` does not), which
-/// no BLE local name carries — stated rather than silently overclaimed.
+/// output. The two agree over ASCII whitespace, ordinary names, and U+00A0. `ifBlank` does NOT test
+/// `Character.isWhitespace`, which would indeed exclude U+00A0; it tests Kotlin's `Char.isWhitespace`,
+/// defined as `Character.isWhitespace(c) || Character.isSpaceChar(c)`, and the second disjunct restores
+/// every non-breaking space the first drops. The pair parts only on U+0085 (blank here, not in Kotlin)
+/// and U+001C–U+001F (blank in Kotlin, not here), which no BLE local name carries — stated rather than
+/// silently overclaimed.
 func ouraAdvertisedLabel(_ advertisedName: String, fallback: String) -> String {
     advertisedName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? fallback : advertisedName
 }
