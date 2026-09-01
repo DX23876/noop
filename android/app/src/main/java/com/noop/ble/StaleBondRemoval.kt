@@ -17,6 +17,28 @@ package com.noop.ble
  * Independently arrived at by OpenStrap/edge, whose gen5 bootstrap removes the platform bond once after
  * five consecutive exchange failures and clears the counter only when a connect reaches READY. The
  * threshold and the once-only shape are taken from that behaviour as a fact; none of its code is.
+ *
+ * PARITY: Android-only, and the reason is IDENTITY rather than a missing API — worth stating precisely,
+ * because "CoreBluetooth has no bond-removal call" is true but is not the whole blocker and invites
+ * someone to go looking for a way round it.
+ *
+ * Apple DETECTS the same condition and gives the same advice: `BLEManager`'s `didFailToConnect` handles
+ * `CBError.peerRemovedPairingInformation` and publishes a forget-and-re-pair guide naming the strap. It
+ * simply cannot perform the step.
+ *
+ *  - iOS: the same identity problem, with nothing else to reach for. The app's own guide already tells
+ *    the user to do it in Settings, which is the honest answer rather than a claim about Apple's intent.
+ *  - macOS ships `IOBluetooth`, a separate classic-Bluetooth framework. Whether its device removal
+ *    works on a BLE pairing is a question that never arises: it addresses devices by MAC, and Apple's
+ *    side never has one — `BLEManager.epitaphLine`'s doc already states it, the peripheral UUID being
+ *    "per-install, not the hardware address". The only bridge left is matching
+ *    `IOBluetoothDevice.pairedDevices()` by NAME, and deleting a pairing on a name match is precisely the
+ *    mistake this file's guards exist to prevent: two straps, or a renamed device, and it removes the
+ *    wrong one.
+ *
+ * So the gap is real and stays: both platforms detect and ask, only this one can act. If CoreBluetooth
+ * ever exposes the hardware address, or grows a removal call of its own, revisit it — do not close it
+ * with a name match.
  */
 
 /**
