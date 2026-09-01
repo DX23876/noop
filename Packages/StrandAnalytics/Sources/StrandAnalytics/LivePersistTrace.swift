@@ -27,11 +27,13 @@ public enum StandardHRLifecycleFlush {
 /// log full of `rr emit … offered=N` and no indication that none of it landed. That is the worst shape a
 /// diagnostic gap can take: the instrumentation that exists reads like success.
 ///
-/// Byte-identical twin of the Kotlin `liveInsertFailedLine` in `com.noop.ble.StalledLinkDiagnostics`, so
-/// an Android and an Apple log of the same failure compare directly. The Kotlin side lives beside its
-/// caller in the BLE package; this one lives here because `Collector` is app-target Swift with no default
-/// CI, and the package is where the other emitted-line builders (`Spo2ReTrace`, `SleepStager+Trace`,
-/// `ConnectionReadout`) already sit and get tested.
+/// Twin of the Kotlin `liveInsertFailedLine` in `com.noop.ble.StalledLinkDiagnostics`, so an Android and
+/// an Apple log of the same failure compare directly. Rendered strings match for ASCII (store errors).
+/// The 200-character bound is not a Unicode-identical truncation: Kotlin `take(200)` counts UTF-16 code
+/// units and Swift `prefix(200)` counts grapheme clusters. Store error descriptions are ASCII, which is
+/// the load-bearing case. The Kotlin side lives beside its caller in the BLE package; this one lives here
+/// because `Collector` is app-target Swift with no default CI, and the package is where the other
+/// emitted-line builders (`Spo2ReTrace`, `SleepStager+Trace`, `ConnectionReadout`) already sit and get tested.
 public enum LivePersistTrace {
 
     public enum StandardHRFlushReason: String {
@@ -103,6 +105,7 @@ public enum LivePersistTrace {
     ) -> String {
         // Bounded like the Kotlin `take(200)`: a full error description can be enormous, and the useful
         // cases (a full disk, a corrupted database, a schema mismatch) are distinguished well inside it.
+        // ASCII-only twin: `take` is UTF-16 code units, `prefix` is grapheme clusters.
         let detail = message.flatMap { m -> String? in
             let trimmed = m.trimmingCharacters(in: .whitespacesAndNewlines)
             return trimmed.isEmpty ? nil : ": " + String(m.prefix(200))

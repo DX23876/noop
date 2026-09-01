@@ -280,13 +280,29 @@ class StandardHrSource(
     private var lastEnqueuedContact: StandardHrContact? = null
 
     private fun enqueue(hr: Int, rr: List<Int>, contact: StandardHrContact) {
-        val shouldFlush = synchronized(bufferLock) {
+        val ts = System.currentTimeMillis() / 1000L
+        val shouldFlush: Boolean
+        val hostLine: String
+        synchronized(bufferLock) {
             val record = StandardHrMapping.shouldRecordContact(lastEnqueuedContact, contact)
             if (record) lastEnqueuedContact = contact
-            buffer.add(Sample(hr, rr, if (record) contact else null, System.currentTimeMillis() / 1000L))
-            buffer.size >= flushCount ||
+            buffer.add(Sample(hr, rr, if (record) contact else null, ts))
+            // Twin of Collector.ingestStandardHR's host-received line. Gates on THIS sample match
+            // rowsOf / Swift ingest; pending is the gated contents of the raw buffer. Cadence still
+            // trips on buffer.size so we do not move the filter (#1770).
+            val acceptedHr = if (hr in 30..220) 1 else 0
+            val acceptedRr = rr.count { it in 250..3000 }
+            val (pendingHr, pendingRr) = rowsOf(buffer)
+            hostLine = standardHrHostReceivedLine(
+                hostUnixSeconds = ts.toInt(),
+                acceptedHrRows = acceptedHr, acceptedRrRows = acceptedRr,
+                rejectedHrRows = 1 - acceptedHr, rejectedRrRows = rr.size - acceptedRr,
+                pendingHrRows = pendingHr.size, pendingRrRows = pendingRr.size,
+            )
+            shouldFlush = buffer.size >= flushCount ||
                 System.currentTimeMillis() - lastFlushMs >= flushIntervalMs
         }
+        log(hostLine)
         if (shouldFlush) flush()
     }
 
