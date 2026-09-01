@@ -52,6 +52,29 @@ import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 
 /**
+ * The label a discovered ring is listed under: its advertised local name, or [fallback] when it did not
+ * advertise one.
+ *
+ * A BONDED ring routinely stops advertising a local name, so the blank case is the NORMAL case for the
+ * ring a user most wants to reconnect to (#1776), not an error path - the scan's ScanFilter is the only
+ * gate and the name is a label. Callers therefore never see a blank `DiscoveredRing.name`, which is why
+ * the wizard renders it unguarded on both platforms (#1783 reads that as a missing guard; the guard is
+ * here, at the single construction site).
+ *
+ * BLANK, not empty. `isBlank` treats an all-whitespace name as absent; the Swift twin
+ * `ouraAdvertisedLabel` in `Strand/BLE/OuraLiveSource.swift` used `isEmpty`, which does not, so a ring
+ * advertising `" "` listed as "Oura" here and blank there - the exact silent Kotlin/Swift divergence the
+ * parity contract calls out. Both sides now treat whitespace as absent and return the name UNTRIMMED
+ * when it is present, and `OuraNamelessRingDiscoveryTest` pins this function against the Swift twin's
+ * own output. The two agree over ASCII whitespace and ordinary names; they part only on exotic Unicode
+ * spaces (Java's `Character.isWhitespace` excludes U+00A0, Swift's `.whitespacesAndNewlines` includes
+ * it), which no BLE local name carries - stated rather than silently overclaimed.
+ */
+internal fun ouraAdvertisedLabel(advertisedName: String, fallback: String): String =
+    advertisedName.ifBlank { fallback }
+
+
+/**
  * EXPERIMENTAL, ISOLATED live-BLE source for the Oura ring (gen3 / gen4 / gen5).
  *
  * Faithful Kotlin twin of Strand/BLE/OuraLiveSource.swift. This replaced an earlier honest dead-end
@@ -1101,7 +1124,7 @@ class OuraLiveSource(
             val address = device.address ?: return
             val name = result.scanRecord?.deviceName ?: runCatching { device.name }.getOrNull() ?: ""
             val firstSight = seen.put(address, device) == null   // null → not seen before this scan
-            if (firstSight) log("Oura: found ${name.ifBlank { "Oura ring" }} ($address) rssi ${result.rssi}")
+            if (firstSight) log("Oura: found ${ouraAdvertisedLabel(name, "Oura ring")} ($address) rssi ${result.rssi}")
             // Best-effort generation guess from the advertised name — a LABEL only (the wizard falls back
             // to GEN3 when it is null). Nothing is dropped here: startScan's ScanFilter pins SERVICE_UUID in
             // the BT stack, so that is the gate, and a ring is listed even when it advertises no local name
@@ -1114,7 +1137,7 @@ class OuraLiveSource(
             val detectedGen = OuraRingGen.recognise(name)
             val ring = DiscoveredRing(
                 address = address,
-                name = name.ifBlank { "Oura" },
+                name = ouraAdvertisedLabel(name, "Oura"),
                 rssi = result.rssi,
                 detectedGen = detectedGen,
             )

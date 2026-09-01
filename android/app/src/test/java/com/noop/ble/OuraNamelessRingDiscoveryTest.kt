@@ -20,6 +20,11 @@ import org.junit.Test
  * (no name gate in the callback; the ScanFilter is the only gate) is a live BLE discovery behaviour and
  * cannot be asserted here — it is validated on hardware. Apple has always behaved this way
  * (Strand/BLE/OuraLiveSource.swift), so this also closes a cross-platform divergence.
+ *
+ * What CAN be asserted headlessly is how the nameless ring is then LABELLED, which is the last test here.
+ * #1783 reports that label arriving blank in the wizard on both platforms; it does not, because
+ * `ouraAdvertisedLabel` substitutes a fallback at the single `DiscoveredRing` construction site on each
+ * platform. That test pins the rule so the guard cannot be dropped as redundant later.
  */
 class OuraNamelessRingDiscoveryTest {
 
@@ -35,6 +40,37 @@ class OuraNamelessRingDiscoveryTest {
     fun `a named ring recognises fine, so the bug was specific to the nameless case`() {
         assertEquals(ExperimentalBrand.OURA, ExperimentalBrand.recognise("Oura Ring 4"))
         assertEquals(ExperimentalBrand.OURA, ExperimentalBrand.recognise("oura 2h3b2405003655"))
+    }
+
+    /**
+     * The label rule itself, pinned against the Swift twin's OWN output.
+     *
+     * Every expected value below is stdout from `ouraAdvertisedLabel` in
+     * `Strand/BLE/OuraLiveSource.swift`, compiled standalone (`swiftc -O twin.swift main.swift`) over this
+     * exact case list and pasted verbatim - not read off the Kotlin implementation, and not eyeballed.
+     * That is what caught the divergence this test exists for: the first draft of the Kotlin helper was
+     * `advertisedName.trim().ifEmpty { fallback }`, which returns the TRIMMED name, while Swift returns
+     * the original. The `" Oura Ring 4 "` case is the one that separates them.
+     *
+     * Whitespace, not emptiness, is the boundary - a ring advertising `" "` used to list as "Oura" here
+     * and blank on Apple. This guards only the ASCII whitespace a BLE local name can realistically carry;
+     * the two stdlib definitions part on exotic Unicode spaces (U+00A0), which is documented at the
+     * helper rather than asserted here.
+     */
+    @Test
+    fun `the label rule matches the Swift twin byte for byte`() {
+        assertEquals("Oura", ouraAdvertisedLabel("", "Oura"))
+        assertEquals("Oura ring", ouraAdvertisedLabel("", "Oura ring"))
+        assertEquals("Oura", ouraAdvertisedLabel(" ", "Oura"))
+        assertEquals("Oura", ouraAdvertisedLabel("   ", "Oura"))
+        assertEquals("Oura", ouraAdvertisedLabel("\t", "Oura"))
+        assertEquals("Oura", ouraAdvertisedLabel("\n", "Oura"))
+        assertEquals("Oura", ouraAdvertisedLabel(" \t\n ", "Oura"))
+        assertEquals("Oura Ring 4", ouraAdvertisedLabel("Oura Ring 4", "Oura"))
+        assertEquals("oura 2h3b2405003655", ouraAdvertisedLabel("oura 2h3b2405003655", "Oura"))
+        assertEquals(" Oura Ring 4 ", ouraAdvertisedLabel(" Oura Ring 4 ", "Oura"))
+        assertEquals("O", ouraAdvertisedLabel("O", "Oura"))
+        assertEquals("Oura ring", ouraAdvertisedLabel("Oura ring", "Oura"))
     }
 
     @Test

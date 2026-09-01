@@ -1338,7 +1338,10 @@ private fun OuraPickStep(
                     DiscoveredRow(
                         name = ring.name,
                         // Subtitle = the detected generation (best-effort); "Oura ring" when undetected.
-                        subtitle = ring.detectedGen?.displayName ?: "Oura ring",
+                        // Localised: a ring that advertises no local name has no detectable generation
+                        // either, so this fallback is exactly what the #1776 bonded-ring case renders.
+                        subtitle = ring.detectedGen?.displayName
+                            ?: uiString(R.string.l10n_add_device_wizard_oura_ring_e3431536),
                         rssi = ring.rssi,
                         onTap = { onPick(ring) },
                     )
