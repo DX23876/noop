@@ -2641,6 +2641,7 @@
     <string name="raw_diag_broadcast_hr">Broadcast heart rate from the strap</string>
     <string name="raw_diag_pair">Ask Android to pair</string>
     <string name="raw_diag_unbonded_offload">Try history sync without pairing</string>
+    <string name="raw_diag_clear_stale_bond">Clear a stale phone pairing</string>
     <string name="raw_diag_r22">Legacy R22 feature-flag experiment</string>
     <string name="raw_diag_r22_enable">Send legacy R22 enable sequence</string>
     <string name="raw_diag_r22_clear">Clear legacy R22 flags on strap</string>

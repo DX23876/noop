@@ -2628,6 +2628,7 @@
     <string name="raw_diag_broadcast_hr">Herzfrequenz vom Band übertragen</string>
     <string name="raw_diag_pair">Android um Kopplung bitten</string>
     <string name="raw_diag_unbonded_offload">Verlaufssynchronisierung ohne Kopplung versuchen</string>
+    <string name="raw_diag_clear_stale_bond">Veraltete Kopplung entfernen</string>
     <string name="raw_diag_r22">Altes R22-Feature-Flag-Experiment</string>
     <string name="raw_diag_r22_enable">Alte R22-Aktivierungssequenz senden</string>
     <string name="raw_diag_r22_clear">R22-Flags auf dem Band löschen</string>

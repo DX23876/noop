@@ -2605,6 +2605,7 @@
     <string name="raw_diag_broadcast_hr">Transmitir frequência cardíaca da bracelete</string>
     <string name="raw_diag_pair">Pedir ao Android para emparelhar</string>
     <string name="raw_diag_unbonded_offload">Tentar sincronizar o histórico sem emparelhamento</string>
+    <string name="raw_diag_clear_stale_bond">Limpar emparelhamento obsoleto</string>
     <string name="raw_diag_r22">Experiência antiga de indicadores R22</string>
     <string name="raw_diag_r22_enable">Enviar sequência antiga de ativação R22</string>
     <string name="raw_diag_r22_clear">Limpar indicadores R22 da bracelete</string>

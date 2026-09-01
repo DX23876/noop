@@ -2613,6 +2613,7 @@
     <string name="raw_diag_broadcast_hr">Transmitir frecuencia cardíaca desde la pulsera</string>
     <string name="raw_diag_pair">Pedir a Android que vincule</string>
     <string name="raw_diag_unbonded_offload">Probar la sincronización del historial sin vinculación</string>
+    <string name="raw_diag_clear_stale_bond">Borrar vinculación obsoleta</string>
     <string name="raw_diag_r22">Experimento antiguo de indicadores R22</string>
     <string name="raw_diag_r22_enable">Enviar secuencia de activación R22 antigua</string>
     <string name="raw_diag_r22_clear">Borrar indicadores R22 de la pulsera</string>

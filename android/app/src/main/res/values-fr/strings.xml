@@ -2612,6 +2612,7 @@
     <string name="raw_diag_broadcast_hr">Diffuser la fréquence cardiaque du bracelet</string>
     <string name="raw_diag_pair">Demander l’appairage à Android</string>
     <string name="raw_diag_unbonded_offload">Essayer la synchronisation de l\'historique sans appairage</string>
+    <string name="raw_diag_clear_stale_bond">Supprimer un appairage obsolète</string>
     <string name="raw_diag_r22">Ancienne expérience d’indicateurs R22</string>
     <string name="raw_diag_r22_enable">Envoyer l’ancienne séquence d’activation R22</string>
     <string name="raw_diag_r22_clear">Effacer les indicateurs R22 du bracelet</string>

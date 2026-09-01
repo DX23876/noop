@@ -2526,6 +2526,7 @@
     <string name="raw_diag_broadcast_hr">从手环广播心率</string>
     <string name="raw_diag_pair">请求 Android 配对</string>
     <string name="raw_diag_unbonded_offload">尝试在未配对状态下同步历史数据</string>
+    <string name="raw_diag_clear_stale_bond">清除过期配对</string>
     <string name="raw_diag_r22">旧版 R22 功能标志实验</string>
     <string name="raw_diag_r22_enable">发送旧版 R22 启用序列</string>
     <string name="raw_diag_r22_clear">清除手环上的 R22 标志</string>

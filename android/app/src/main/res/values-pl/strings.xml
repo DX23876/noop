@@ -2617,6 +2617,7 @@
     <string name="raw_diag_broadcast_hr">Transmituj tętno z opaski</string>
     <string name="raw_diag_pair">Poproś Androida o sparowanie</string>
     <string name="raw_diag_unbonded_offload">Spróbuj synchronizacji historii bez parowania</string>
+    <string name="raw_diag_clear_stale_bond">Usuń nieaktualne parowanie</string>
     <string name="raw_diag_r22">Starszy eksperyment flag R22</string>
     <string name="raw_diag_r22_enable">Wyślij starszą sekwencję włączenia R22</string>
     <string name="raw_diag_r22_clear">Wyczyść flagi R22 na opasce</string>
