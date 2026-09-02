@@ -17,7 +17,11 @@ struct OverviewDashboardView: View {
     @EnvironmentObject private var coach: AICoachEngine
     @EnvironmentObject private var router: NavRouter
     @EnvironmentObject private var model: AppModel
-    @EnvironmentObject private var live: LiveState
+    // Deliberately NO `@EnvironmentObject live: LiveState` here — see the leaf-isolation note in
+    // TodayView: a connected strap publishes `LiveState` ~1 Hz, and observing it at this level would
+    // re-evaluate the WHOLE dashboard body on every heart-rate tick. The one thing on this screen that
+    // shows live values, `DashboardBatteryButton`, owns its own `LiveState` and re-renders alone.
+    @Environment(\.scrollToTopSignal) private var scrollToTopSignal
     @ObservedObject private var goalTracking = GoalTrackingStore.shared
     @AppStorage("momentum.stepGoal") private var stepGoal = 0
 
@@ -58,6 +62,11 @@ struct OverviewDashboardView: View {
     @State private var selectedDayOffset = 0
     @State private var showDayPicker = false
     @State private var showStepGoalSetting = false
+    @State private var showPlan = false
+    @State private var showLiveSession = false
+
+    /// Scroll-to-top target for an at-root Today re-tap, the same zero-height anchor Liquid Today uses.
+    private static let topAnchorID = "overviewDashboardTop"
 
     private var healthCards: [DashboardCard] { OverviewHealthCardsPrefs.decode(healthCardsRaw) }
     private var focusItems: [OverviewFocusItem] {
@@ -79,10 +88,28 @@ struct OverviewDashboardView: View {
             // back a SMALLER fixed inset (rather than the device's full notch/Dynamic-Island height)
             // gets the ~25–30pt reduction the reference wants without drawing under the status bar.
             let topInset = max(NoopMetrics.screenPadding, proxy.safeAreaInsets.top + 16)
+            ScrollViewReader { scrollProxy in
             ScrollView {
                 VStack(alignment: .leading, spacing: Self.sectionSpacing) {
+                    Color.clear.frame(height: 0).id(Self.topAnchorID)
                     header
+                    // Pinned ABOVE the reorderable block, exactly where Classic and Liquid Today pin
+                    // them: a raised health alert or a running workout must not be reorderable below the
+                    // fold. Every card here renders NOTHING when it has nothing to report, so the
+                    // reference layout this screen matches is unchanged on an ordinary day.
+                    HealthAlertBanner()
+                    // #105-class regression: the workout-in-progress card was dropped by the liquid
+                    // rewrite and restored; these two dashboards then shipped without it. Same shared
+                    // leaf, so all four Today screens cannot drift apart.
+                    ActiveWorkoutIndicatorSection()
+                    MorningSuggestionCard(showPlan: $showPlan)
                     ForEach(layoutSections) { section in dashboardSection(section) }
+                    // Below the metric sections on purpose: once accepted, the committed session is an
+                    // ambient reminder rather than a demand for the top of the screen.
+                    PlanTodayCard(showPlan: $showPlan)
+                    // Self-gates on the auto-detect toggle AND on an unsaved, un-dismissed window, so it
+                    // renders nothing by default.
+                    AutoWorkoutCard()
                 }
                 .padding(.horizontal, NoopMetrics.screenPadding)
                 .padding(.top, topInset)
@@ -90,12 +117,35 @@ struct OverviewDashboardView: View {
                 // Without this tail, the bar covers the last card and leaves what looks like a gap.
                 .padding(.bottom, 104)
             }
+            // Parity with every other scrollable root (ScreenScaffold's `onRefresh`, Liquid's own pull):
+            // this screen was one of two Today styles with no way to pull for fresh data.
+            .refreshable { await repo.refresh() }
+            #if os(iOS)
+            // Scroll-to-top on an at-root Today re-tap; iOS-only — the tab shell is the only driver.
+            .onChange(of: scrollToTopSignal) { _, _ in
+                withAnimation(.easeOut(duration: 0.35)) { scrollProxy.scrollTo(Self.topAnchorID, anchor: .top) }
+            }
+            #endif
             .ignoresSafeArea(edges: .top)
+            }
         }
         .background(StrandPalette.surfaceBase.ignoresSafeArea())
         .simultaneousGesture(daySwipeGesture)
-        .task(id: "\(repo.refreshSeq)-\(selectedDayOffset)") { await load() }
+        // The visible-section set joins the id because `load()` now skips the reads that only feed a
+        // hidden section: showing one has to re-run the load that fills it, or it would render empty
+        // until the next refresh.
+        .task(id: "\(repo.refreshSeq)-\(selectedDayOffset)-\(layoutSectionsKey)") { await load() }
         .coachCover(isPresented: $showCoach, coach: coach)
+        // Honour a one-shot "open Live Session" request (the coach chat's action chip, or a deep link).
+        // Fires on the flag itself, not on appear, so it still works when Today is already the active
+        // tab — the same contract `LiquidTodayView.consumeLiveSessionRequest()` implements.
+        .onChangeCompat(of: router.presentLiveSession) { present in
+            guard present else { return }
+            router.presentLiveSession = false
+            showLiveSession = true
+        }
+        .liveSessionCover(isPresented: $showLiveSession)
+        .sheet(isPresented: $showPlan) { CoachPlanView().environmentObject(coach) }
         .sheet(isPresented: $showUpdatesInbox) { UpdatesInboxView(onClose: { showUpdatesInbox = false }) }
         .sheet(isPresented: $showExtraSections) {
             DashboardExtraSectionsSheet(dashboard: "overview", title: String(localized: "Dashboard sections"))
@@ -108,6 +158,12 @@ struct OverviewDashboardView: View {
         let order = DashboardLayoutPrefs.order(layoutOrderRaw, dashboard: "overview")
         let hidden = DashboardLayoutPrefs.hidden(layoutHiddenRaw, dashboard: "overview")
         return order.filter { !hidden.contains($0) }
+    }
+
+    /// Stable identity of the VISIBLE section set, for the load `.task` id. Reordering alone must not
+    /// re-run the load (nothing about the data changes), so this is sorted rather than positional.
+    private var layoutSectionsKey: String {
+        layoutSections.map(\.rawValue).sorted().joined(separator: ",")
     }
 
     @ViewBuilder private func dashboardSection(_ section: DashboardLayoutSection) -> some View {
@@ -124,7 +180,8 @@ struct OverviewDashboardView: View {
         default:
             DashboardSupplementSections(dashboard: "overview", compact: true, day: displayDay,
                                         appleDay: appleDays.last(where: { $0.day == selectedDayKey }),
-                                        dayKey: selectedDayKey, isToday: selectedDayOffset == 0, only: section)
+                                        dayKey: selectedDayKey, isToday: selectedDayOffset == 0, only: section,
+                                        resolvedValue: healthValueText)
         }
     }
 
@@ -136,44 +193,67 @@ struct OverviewDashboardView: View {
         displayDay = selectedDayOffset == 0
             ? (repo.today ?? allDays.last(where: { $0.day == selectedDayKey }))
             : allDays.last(where: { $0.day == selectedDayKey })
-        recentDays = Array(allDays.filter { $0.day <= selectedDayKey }.suffix(90))
-        appleDays = await repo.appleDailyRows(days: max(30, selectedDayOffset + 7))
-        let restSeries = await repo.exploreSeries(key: "sleep_performance", source: Repository.whoopSource)
+        // One pass over the day list, not two: `recentDays` is the tail of the same scoped slice the
+        // stress model reads below.
+        let scopedDays = allDays.filter { $0.day <= selectedDayKey }
+        recentDays = Array(scopedDays.suffix(90))
+
+        // Rest is read over a BOUNDED window rather than `exploreSeries`' 4000-day default. The tail is
+        // only ever used as the today-carry, which `freshRestScore` discards once it is older than
+        // `TodayView.carryFreshnessDays` (2) — so beyond a few days a full-history read cannot change
+        // the answer, it can only cost a scan. The window keeps a wide margin over that cap.
+        async let appleDaysA = repo.appleDailyRows(days: max(30, selectedDayOffset + 7))
+        async let restSeriesA = repo.exploreSeries(key: "sleep_performance", source: Repository.whoopSource,
+                                                   days: max(30, selectedDayOffset + 30))
+        // Cheap, direct Repository reads (same source TodayView's own dashboard cards use) — not the
+        // full Fitness-Age/Energy engines, which need per-view calibration state this screen doesn't
+        // carry. Real numbers, not fabricated: a gap still reads "—" in the list below.
+        async let fitnessAgeSeriesA = repo.exploreSeries(key: "fitness_age", source: Repository.whoopSource, days: 120)
+        async let vo2maxSeriesA = repo.exploreSeries(key: "vo2max_est", source: Repository.whoopSource, days: 120)
+        async let vitalitySeriesA = repo.exploreSeries(key: "vitality", source: Repository.whoopSource, days: 120)
+        async let stressStoredA = repo.series(key: "stress", source: Repository.whoopSource, days: 120)
+        async let hydrationA = repo.hydrationTotal(day: selectedDayKey)
+        async let energySummariesA = repo.energySummaries(days: 30, profile: Repository.analyticsProfile(profile))
+        async let weightSummaryA = repo.weightTrendSummary(days: 91)
+
+        appleDays = await appleDaysA
+        let restSeries = await restSeriesA
         let restByDay = Dictionary(restSeries.map { ($0.day, $0.value) }, uniquingKeysWith: { _, last in last })
         restScore = TodayView.freshRestScore(
             todayValue: displayDay.flatMap { restByDay[$0.day] },
             lastDay: restSeries.last?.day, lastValue: restSeries.last?.value,
             isTodaySelected: selectedDayOffset == 0, todayKey: todayKey)
-
-        // Cheap, direct Repository reads (same source TodayView's own dashboard cards use) — not the
-        // full Fitness-Age/Energy engines, which need per-view calibration state this screen doesn't
-        // carry. Real numbers, not fabricated: a gap still reads "—" in the list below.
-        async let fitnessAgeSeriesA = repo.exploreSeries(key: "fitness_age", source: "my-whoop", days: 120)
-        async let vo2maxSeriesA = repo.exploreSeries(key: "vo2max_est", source: "my-whoop", days: 120)
-        async let vitalitySeriesA = repo.exploreSeries(key: "vitality", source: "my-whoop", days: 120)
-        async let stressStoredA = repo.series(key: "stress", source: "my-whoop", days: 120)
-        async let hydrationA = repo.hydrationTotal(day: selectedDayKey)
-        async let energySummariesA = repo.energySummaries(days: 30, profile: Repository.analyticsProfile(profile))
-        async let weightSummaryA = repo.weightTrendSummary(days: 91)
         fitnessAgeToday = (await fitnessAgeSeriesA).last(where: { $0.day == selectedDayKey })?.value
         vo2maxToday = (await vo2maxSeriesA).last(where: { $0.day == selectedDayKey })?.value
         vitalityToday = (await vitalitySeriesA).last(where: { $0.day == selectedDayKey })?.value
-        let scopedDays = allDays.filter { $0.day <= selectedDayKey }
         stressToday = StressModel(days: scopedDays, stored: await stressStoredA)?.score
         hydrationTotalML = await hydrationA
         todayEnergySummary = (await energySummariesA).last(where: { $0.day == selectedDayKey })
         resolvedWeightKg = WeightSeries.displayWeight(summary: await weightSummaryA,
                                                        profileWeightKg: profile.weightKg).kg
 
-        // Cheap, only meaningfully used when their extra section is toggled on — loaded unconditionally
-        // so flipping a toggle doesn't need its own reload path.
-        let allWorkouts = (await repo.workoutRows(days: max(14, selectedDayOffset + 2), reconcileHrCap: 0))
-            .sorted { $0.startTs > $1.startTs }
-        recentWorkouts = (selectedDayOffset == 0 ? allWorkouts : allWorkouts.filter {
-            Repository.localDayKey(Date(timeIntervalSince1970: TimeInterval($0.startTs))) == selectedDayKey
-        }).prefix(3).map { $0 }
-        let journalKeys = Self.journalDayKeys(anchor: selectedLogicalDay)
-        journalLoggedDays = await repo.nativeJournalDays(from: journalKeys.first ?? "", to: journalKeys.last ?? "")
+        // These two feed OPTIONAL sections that are hidden by default, so they are read only when their
+        // section is actually shown. They used to run on every load "so flipping a toggle doesn't need
+        // its own reload path" — but `workoutRows` is not cheap on a large library (748 ms of pure read
+        // for a 45-day window in a field log), and every user who never enables the section paid it on
+        // every refresh and every day swipe. The toggle still works instantly: the visible-section set is
+        // part of this view's `.task` id, so showing a section re-runs the load that fills it.
+        let sections = layoutSections
+        if sections.contains(.workoutsList) {
+            let allWorkouts = (await repo.workoutRows(days: max(14, selectedDayOffset + 2), reconcileHrCap: 0))
+                .sorted { $0.startTs > $1.startTs }
+            recentWorkouts = (selectedDayOffset == 0 ? allWorkouts : allWorkouts.filter {
+                Repository.localDayKey(Date(timeIntervalSince1970: TimeInterval($0.startTs))) == selectedDayKey
+            }).prefix(3).map { $0 }
+        } else {
+            recentWorkouts = []
+        }
+        if sections.contains(.journal) {
+            let journalKeys = Self.journalDayKeys(anchor: selectedLogicalDay)
+            journalLoggedDays = await repo.nativeJournalDays(from: journalKeys.first ?? "", to: journalKeys.last ?? "")
+        } else {
+            journalLoggedDays = nil
+        }
     }
 
     private var daySwipeGesture: some Gesture {
@@ -251,12 +331,19 @@ struct OverviewDashboardView: View {
             guard let kg = resolvedWeightKg else { return "—" }
             return UnitFormatter.massFromKilograms(kg, system: unitSystem)
         default:
-            return TrendsMetricStrip.valueText(card, day: displayDay, appleDay: appleDays.last(where: { $0.day == displayDay?.day }))
+            // Key the Apple row off the SELECTED day, not off `displayDay?.day`: a day with no
+            // `DailyMetric` row leaves `displayDay` nil, which matched no Apple row and printed "—" for
+            // steps/calories that Apple Health had all along. Every sibling call site already uses
+            // `selectedDayKey`.
+            return TrendsMetricStrip.valueText(card, day: displayDay,
+                                               appleDay: appleDays.last(where: { $0.day == selectedDayKey }))
         }
     }
 
     private var todaySteps: Int? {
-        displayDay?.steps ?? appleDays.last(where: { $0.day == displayDay?.day })?.steps
+        // Same reason as `healthValueText`: fall back on the SELECTED day's Apple row, which survives a
+        // day that has no strap-scored `DailyMetric` at all.
+        displayDay?.steps ?? appleDays.last(where: { $0.day == selectedDayKey })?.steps
     }
 
     // MARK: - Header
@@ -306,17 +393,6 @@ struct OverviewDashboardView: View {
         formatter.setLocalizedDateFormatFromTemplate("EEEEdMMM")
         return formatter
     }()
-
-    private var batteryIcon: String {
-        guard let value = live.batteryPct else { return "battery.0" }
-        switch Int(value.rounded()) {
-        case 76...: return (live.charging ?? false) ? "battery.100percent.bolt" : "battery.100percent"
-        case 51...: return "battery.75percent"
-        case 26...: return "battery.50percent"
-        case 11...: return "battery.25percent"
-        default: return "battery.0"
-        }
-    }
 
     private func headerIconButton(systemName: String, tint: Color, badge: Int = 0,
                                   action: @escaping () -> Void) -> some View {

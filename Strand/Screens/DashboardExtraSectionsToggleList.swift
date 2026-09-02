@@ -200,21 +200,28 @@ struct DashboardSupplementSections: View {
     let dayKey: String
     let isToday: Bool
     let only: DashboardLayoutSection?
+    /// The host dashboard's already-resolved read-out for a card.
+    ///
+    /// This used to re-query all seven of the expensive derived series (fitness age, VO2 max, vitality,
+    /// stress, hydration, energy, weight) for itself — the exact set the host dashboard's own `load()`
+    /// had just finished resolving. Worse, the host renders ONE of these per visible section (`only:`),
+    /// so enabling "Your cards", "More metrics" and "Recovery vitals" together ran that whole set three
+    /// more times per load. Threading the host's resolver in removes every one of those repeats and
+    /// guarantees the two surfaces cannot print different numbers for the same card and day.
+    let resolvedValue: (DashboardCard) -> String
 
     @EnvironmentObject private var repo: Repository
-    @EnvironmentObject private var profile: ProfileStore
     @EnvironmentObject private var router: NavRouter
     @ObservedObject private var momentum = MomentumStore.shared
     @AppStorage(DashboardCardPrefs.selectionKey) private var dashboardCardsRaw = ""
     @AppStorage(HostedCardPrefs.selectionKey) private var hostedCardsRaw = ""
-    @AppStorage(UnitPrefs.systemKey) private var unitSystemRaw = UnitSystem.metric.rawValue
     @State private var showLiveSession = false
     @State private var showMomentumSheet = false
     @State private var dayHr: [Double] = []
-    @State private var resolvedValues: [DashboardCard: String] = [:]
 
     init(dashboard: String, compact: Bool, day: DailyMetric?, appleDay: AppleDaily?,
-         dayKey: String, isToday: Bool, only: DashboardLayoutSection? = nil) {
+         dayKey: String, isToday: Bool, only: DashboardLayoutSection? = nil,
+         resolvedValue: @escaping (DashboardCard) -> String) {
         self.dashboard = dashboard
         self.compact = compact
         self.day = day
@@ -222,6 +229,7 @@ struct DashboardSupplementSections: View {
         self.dayKey = dayKey
         self.isToday = isToday
         self.only = only
+        self.resolvedValue = resolvedValue
     }
 
     var body: some View {
@@ -235,10 +243,7 @@ struct DashboardSupplementSections: View {
             if includes(.dataSources) { sourcesSection }
             if includes(.addedCards) { hostedCardsSection }
         }
-        .task(id: "\(dayKey)-\(only?.rawValue ?? "all")") {
-            await loadHeartRate()
-            await loadResolvedValues()
-        }
+        .task(id: "\(dayKey)-\(only?.rawValue ?? "all")") { await loadHeartRate() }
         .liveSessionCover(isPresented: $showLiveSession)
         .sheet(isPresented: $showMomentumSheet) { NavigationStack { MomentumScreen() } }
     }
@@ -328,8 +333,7 @@ struct DashboardSupplementSections: View {
                     .foregroundStyle(TrendsMetricStrip.tint(card)).frame(width: 20)
                 Text(card.title).font(StrandFont.footnote).foregroundStyle(StrandPalette.textPrimary)
                 Spacer()
-                Text(resolvedValues[card]
-                     ?? TrendsMetricStrip.valueText(card, day: day, appleDay: appleDay))
+                Text(resolvedValue(card))
                     .font(StrandFont.footnote.weight(.semibold)).foregroundStyle(StrandPalette.textPrimary)
                 if !card.unit.isEmpty { Text(card.unit).font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary) }
                 Image(systemName: "chevron.right").font(.system(size: 9, weight: .semibold)).foregroundStyle(StrandPalette.textTertiary)
@@ -406,42 +410,6 @@ struct DashboardSupplementSections: View {
         let start = Int(Calendar.current.startOfDay(for: date).timeIntervalSince1970)
         let end = isToday ? Int(Date().timeIntervalSince1970) : start + 86_400
         dayHr = await repo.hrSamples(from: start, to: end, limit: 160).map { Double($0.bpm) }
-    }
-
-    private func loadResolvedValues() async {
-        guard includes(.yourCards) || includes(.keyMetrics) || includes(.recoveryVitals) else {
-            resolvedValues = [:]
-            return
-        }
-        async let fitnessA = repo.exploreSeries(key: "fitness_age", source: Repository.whoopSource, days: 120)
-        async let vo2A = repo.exploreSeries(key: "vo2max_est", source: Repository.whoopSource, days: 120)
-        async let vitalityA = repo.exploreSeries(key: "vitality", source: Repository.whoopSource, days: 120)
-        async let stressA = repo.series(key: "stress", source: Repository.whoopSource, days: 120)
-        async let hydrationA = repo.hydrationTotal(day: dayKey)
-        async let energyA = repo.energySummaries(days: 120, profile: Repository.analyticsProfile(profile))
-        async let weightA = repo.weightTrendSummary(days: 91)
-
-        var values: [DashboardCard: String] = [:]
-        if let value = (await fitnessA).last(where: { $0.day == dayKey })?.value {
-            values[.fitnessAge] = "\(Int(value.rounded()))"
-        }
-        if let value = (await vo2A).last(where: { $0.day == dayKey })?.value {
-            values[.vo2max] = String(format: "%.1f", locale: AppLanguage.activeLocale, value)
-        }
-        if let value = (await vitalityA).last(where: { $0.day == dayKey })?.value {
-            values[.vitality] = "\(Int(value.rounded()))"
-        }
-        if let value = StressModel(days: repo.days.filter { $0.day <= dayKey }, stored: await stressA)?.score {
-            values[.stress] = String(format: "%.1f", locale: AppLanguage.activeLocale, value)
-        }
-        values[.hydration] = HydrationGoal.cardValueString(
-            totalML: await hydrationA,
-            goalML: repo.hydrationGoalML(profileSex: profile.sex))
-        values[.calories] = EnergyDisplay.totalText((await energyA).last(where: { $0.day == dayKey }))
-        let kg = WeightSeries.displayWeight(summary: await weightA, profileWeightKg: profile.weightKg).kg
-        let system = UnitSystem(rawValue: unitSystemRaw) ?? .metric
-        values[.weight] = UnitFormatter.massFromKilograms(kg, system: system)
-        resolvedValues = values
     }
 }
 

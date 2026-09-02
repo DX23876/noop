@@ -19,7 +19,11 @@ struct TrendsDashboardView: View {
     @EnvironmentObject private var coach: AICoachEngine
     @EnvironmentObject private var router: NavRouter
     @EnvironmentObject private var model: AppModel
-    @EnvironmentObject private var live: LiveState
+    // Deliberately NO `@EnvironmentObject live: LiveState` here — see the leaf-isolation note in
+    // TodayView: a connected strap publishes `LiveState` ~1 Hz, and observing it at this level would
+    // re-evaluate the WHOLE dashboard body on every heart-rate tick. The one thing on this screen that
+    // shows live values, `DashboardBatteryButton`, owns its own `LiveState` and re-renders alone.
+    @Environment(\.scrollToTopSignal) private var scrollToTopSignal
     @ObservedObject private var identityStore = CoachIdentityStore.shared
     @ObservedObject private var goalStore = CoachGoalStore.shared
     @ObservedObject private var goalTracking = GoalTrackingStore.shared
@@ -61,13 +65,36 @@ struct TrendsDashboardView: View {
     @State private var showUpdatesInbox = false
     @State private var showSettings = false
     @State private var showExtraSections = false
+    @State private var showPlan = false
+    @State private var showLiveSession = false
     @State private var selectedDayOffset = 0
 
+    /// Scroll-to-top target for an at-root Today re-tap, the same zero-height anchor Liquid Today uses.
+    private static let topAnchorID = "trendsDashboardTop"
+
     var body: some View {
+        ScrollViewReader { proxy in
         ScrollView {
             VStack(alignment: .leading, spacing: NoopMetrics.sectionSpacing) {
+                Color.clear.frame(height: 0).id(Self.topAnchorID)
                 header
+                // Pinned ABOVE the reorderable block, exactly where Classic and Liquid Today pin them:
+                // a raised health alert or a running workout must not be reorderable below the fold.
+                // Every card here renders NOTHING when it has nothing to report, so the reference
+                // layout this screen matches is unchanged on an ordinary day.
+                HealthAlertBanner()
+                // #105-class regression: the workout-in-progress card was dropped by the liquid rewrite
+                // and restored; these two dashboards then shipped without it. Same shared leaf, so all
+                // four Today screens (and Android's WorkoutInProgressCard) cannot drift apart.
+                ActiveWorkoutIndicatorSection()
+                MorningSuggestionCard(showPlan: $showPlan)
                 ForEach(layoutSections) { section in dashboardSection(section) }
+                // Below the metric sections on purpose: once accepted, the committed session is an
+                // ambient reminder rather than a demand for the top of the screen (Liquid's rationale).
+                PlanTodayCard(showPlan: $showPlan)
+                // Self-gates on the auto-detect toggle AND on an unsaved, un-dismissed window, so it
+                // renders nothing by default. Without it the setting can be on and never show anything.
+                AutoWorkoutCard()
             }
             .padding(.horizontal, NoopMetrics.screenPadding)
             .padding(.top, NoopMetrics.screenPadding)
@@ -76,10 +103,32 @@ struct TrendsDashboardView: View {
             // above it instead of looking like a large, clipped/empty block.
             .padding(.bottom, 104)
         }
+        // Parity with every other scrollable root (ScreenScaffold's `onRefresh`, Liquid's own pull):
+        // this screen was the one Today style with no way to pull for fresh data.
+        .refreshable { await repo.refresh() }
+        #if os(iOS)
+        // Scroll-to-top on an at-root Today re-tap; iOS-only — the tab shell is the only driver.
+        .onChange(of: scrollToTopSignal) { _, _ in
+            withAnimation(.easeOut(duration: 0.35)) { proxy.scrollTo(Self.topAnchorID, anchor: .top) }
+        }
+        #endif
         .background(StrandPalette.surfaceBase.ignoresSafeArea())
         .simultaneousGesture(daySwipeGesture)
-        .task(id: "\(repo.refreshSeq)-\(selectedDayOffset)") { await load() }
+        // The visible-section set joins the id because `load()` now skips the reads that only feed a
+        // hidden section: showing one has to re-run the load that fills it, or it would render empty
+        // until the next refresh.
+        .task(id: "\(repo.refreshSeq)-\(selectedDayOffset)-\(layoutSectionsKey)") { await load() }
         .coachCover(isPresented: $showCoach, coach: coach)
+        // Honour a one-shot "open Live Session" request (the coach chat's action chip, or a deep link).
+        // Fires on the flag itself, not on appear, so it still works when Today is already the active
+        // tab — the same contract `LiquidTodayView.consumeLiveSessionRequest()` implements.
+        .onChangeCompat(of: router.presentLiveSession) { present in
+            guard present else { return }
+            router.presentLiveSession = false
+            showLiveSession = true
+        }
+        .liveSessionCover(isPresented: $showLiveSession)
+        .sheet(isPresented: $showPlan) { CoachPlanView().environmentObject(coach) }
         .sheet(isPresented: $showUpdatesInbox) { UpdatesInboxView(onClose: { showUpdatesInbox = false }) }
         .sheet(isPresented: $showExtraSections) {
             DashboardExtraSectionsSheet(dashboard: "trends", title: String(localized: "Dashboard sections"))
@@ -104,12 +153,19 @@ struct TrendsDashboardView: View {
                     }
             }
         }
+        }
     }
 
     private var layoutSections: [DashboardLayoutSection] {
         let order = DashboardLayoutPrefs.order(layoutOrderRaw, dashboard: "trends")
         let hidden = DashboardLayoutPrefs.hidden(layoutHiddenRaw, dashboard: "trends")
         return order.filter { !hidden.contains($0) }
+    }
+
+    /// Stable identity of the VISIBLE section set, for the load `.task` id. Reordering alone must not
+    /// re-run the load (nothing about the data changes), so this is sorted rather than positional.
+    private var layoutSectionsKey: String {
+        layoutSections.map(\.rawValue).sorted().joined(separator: ",")
     }
 
     @ViewBuilder private func dashboardSection(_ section: DashboardLayoutSection) -> some View {
@@ -127,10 +183,14 @@ struct TrendsDashboardView: View {
         case .journal: if selectedDayOffset == 0 { journalSection }
         case .menstrualCycle: if selectedDayOffset == 0 { menstrualCycleSection }
         case .workoutsList:
-            if recentWorkouts.count > 1 {
+            // "More workouts" means more than the one `.activity` already shows — but only when
+            // `.activity` is actually visible. With it hidden, dropping the first row silently lost the
+            // MOST RECENT workout, the one row the section exists to surface.
+            let extras = Self.moreWorkouts(recentWorkouts, activityVisible: layoutSections.contains(.activity))
+            if !extras.isEmpty {
                 VStack(alignment: .leading, spacing: NoopMetrics.gap) {
                     Text("More workouts").font(StrandFont.headline).foregroundStyle(StrandPalette.textPrimary)
-                    ForEach(Array(recentWorkouts.dropFirst().enumerated()), id: \.offset) { _, workout in
+                    ForEach(Array(extras.enumerated()), id: \.offset) { _, workout in
                         workoutRow(workout, hr: [])
                     }
                 }
@@ -139,7 +199,8 @@ struct TrendsDashboardView: View {
         default:
             DashboardSupplementSections(dashboard: "trends", compact: false, day: displayDay,
                                         appleDay: appleDays.last(where: { $0.day == selectedDayKey }),
-                                        dayKey: selectedDayKey, isToday: selectedDayOffset == 0, only: section)
+                                        dayKey: selectedDayKey, isToday: selectedDayOffset == 0, only: section,
+                                        resolvedValue: trendMetricValueText)
         }
     }
 
@@ -147,37 +208,26 @@ struct TrendsDashboardView: View {
 
     private func load() async {
         let allDays = repo.days
-        recentDays = Array(allDays.filter { $0.day <= selectedDayKey }.suffix(120))
+        // One pass over the day list, not two: `recentDays` is the tail of the same scoped slice the
+        // stress model reads below.
+        let scopedDays = allDays.filter { $0.day <= selectedDayKey }
+        recentDays = Array(scopedDays.suffix(120))
         displayDay = selectedDayOffset == 0
             ? (repo.today ?? allDays.last(where: { $0.day == selectedDayKey }))
             : allDays.last(where: { $0.day == selectedDayKey })
-        appleDays = await repo.appleDailyRows(days: max(30, selectedDayOffset + 7))
+        let sections = layoutSections
 
         // Rest is its own scored series ("sleep_performance"), not derived from raw sleep minutes — the
         // SAME accessor and fallback rule (`TodayView.freshRestScore`) Today's own Rest ring uses, so
         // this screen can never disagree with Today about what Rest is for the same night.
-        let restSeries = await repo.exploreSeries(key: "sleep_performance", source: Repository.whoopSource)
-        restByDay = Dictionary(restSeries.map { ($0.day, $0.value) }, uniquingKeysWith: { _, last in last })
-        restSeriesTail = restSeries.last
-
-        let allWorkouts = (await repo.workoutRows(days: max(14, selectedDayOffset + 2), reconcileHrCap: 0))
-            .sorted { $0.startTs > $1.startTs }
-        // "Recent activity" on Today means recent, not "only if one happened after midnight".
-        // Historical pages remain strictly scoped to their selected calendar day.
-        let workouts = selectedDayOffset == 0 ? allWorkouts : allWorkouts.filter {
-            Repository.localDayKey(Date(timeIntervalSince1970: TimeInterval($0.startTs))) == selectedDayKey
-        }
-        latestWorkout = workouts.first
-        recentWorkouts = Array(workouts.prefix(5))
-        if let w = workouts.first {
-            let hr = await repo.hrSamples(from: w.startTs, to: w.endTs, limit: 400)
-            latestWorkoutHR = hr.map { Double($0.bpm) }
-        } else {
-            latestWorkoutHR = []
-        }
-
-        // Cheap, only meaningfully used when their extra section is toggled on — but loaded
-        // unconditionally so flipping the toggle doesn't need a separate reload path.
+        //
+        // Read over a BOUNDED window rather than `exploreSeries`' 4000-day default: the chart needs 14
+        // days back from the selected one, and the tail is only ever the today-carry, which
+        // `freshRestScore` discards once it is older than `TodayView.carryFreshnessDays` (2). Beyond
+        // this window a full-history read cannot change what is drawn — only what it costs to draw.
+        async let appleDaysA = repo.appleDailyRows(days: max(30, selectedDayOffset + 7))
+        async let restSeriesA = repo.exploreSeries(key: "sleep_performance", source: Repository.whoopSource,
+                                                   days: max(30, selectedDayOffset + 30))
         async let energySummariesA = repo.energySummaries(days: max(30, selectedDayOffset + 2), profile: Repository.analyticsProfile(profile))
         async let fitnessAgeSeriesA = repo.exploreSeries(key: "fitness_age", source: Repository.whoopSource, days: 120)
         async let vo2maxSeriesA = repo.exploreSeries(key: "vo2max_est", source: Repository.whoopSource, days: 120)
@@ -185,17 +235,52 @@ struct TrendsDashboardView: View {
         async let stressStoredA = repo.series(key: "stress", source: Repository.whoopSource, days: 120)
         async let hydrationA = repo.hydrationTotal(day: selectedDayKey)
         async let weightSummaryA = repo.weightTrendSummary(days: 91)
+
+        appleDays = await appleDaysA
+        let restSeries = await restSeriesA
+        restByDay = Dictionary(restSeries.map { ($0.day, $0.value) }, uniquingKeysWith: { _, last in last })
+        restSeriesTail = restSeries.last
         todayEnergySummary = (await energySummariesA).last(where: { $0.day == selectedDayKey })
         fitnessAgeToday = (await fitnessAgeSeriesA).last(where: { $0.day == selectedDayKey })?.value
         vo2maxToday = (await vo2maxSeriesA).last(where: { $0.day == selectedDayKey })?.value
         vitalityToday = (await vitalitySeriesA).last(where: { $0.day == selectedDayKey })?.value
-        stressToday = StressModel(days: allDays.filter { $0.day <= selectedDayKey },
-                                  stored: await stressStoredA)?.score
+        stressToday = StressModel(days: scopedDays, stored: await stressStoredA)?.score
         hydrationTotalML = await hydrationA
         resolvedWeightKg = WeightSeries.displayWeight(summary: await weightSummaryA,
                                                        profileWeightKg: profile.weightKg).kg
-        let journalKeys = Self.journalDayKeys(anchor: selectedLogicalDay)
-        journalLoggedDays = await repo.nativeJournalDays(from: journalKeys.first ?? "", to: journalKeys.last ?? "")
+
+        // Workouts feed `.activity` (shown by default) and the optional `.workoutsList`; skip the read
+        // entirely when neither is visible. The per-workout HR fetch behind the sparkline is narrower
+        // still — only `.activity` draws one, so hiding it drops a 400-sample query per load.
+        if sections.contains(.activity) || sections.contains(.workoutsList) {
+            let allWorkouts = (await repo.workoutRows(days: max(14, selectedDayOffset + 2), reconcileHrCap: 0))
+                .sorted { $0.startTs > $1.startTs }
+            // "Recent activity" on Today means recent, not "only if one happened after midnight".
+            // Historical pages remain strictly scoped to their selected calendar day.
+            let workouts = selectedDayOffset == 0 ? allWorkouts : allWorkouts.filter {
+                Repository.localDayKey(Date(timeIntervalSince1970: TimeInterval($0.startTs))) == selectedDayKey
+            }
+            latestWorkout = workouts.first
+            recentWorkouts = Array(workouts.prefix(5))
+            if sections.contains(.activity), let w = workouts.first {
+                let hr = await repo.hrSamples(from: w.startTs, to: w.endTs, limit: 400)
+                latestWorkoutHR = hr.map { Double($0.bpm) }
+            } else {
+                latestWorkoutHR = []
+            }
+        } else {
+            latestWorkout = nil
+            recentWorkouts = []
+            latestWorkoutHR = []
+        }
+
+        // Hidden by default — see the Overview twin's note on why this is gated rather than always read.
+        if sections.contains(.journal) {
+            let journalKeys = Self.journalDayKeys(anchor: selectedLogicalDay)
+            journalLoggedDays = await repo.nativeJournalDays(from: journalKeys.first ?? "", to: journalKeys.last ?? "")
+        } else {
+            journalLoggedDays = nil
+        }
     }
 
     private static func journalDayKeys(days: Int = 7, anchor: Date = Date()) -> [String] {
@@ -277,17 +362,6 @@ struct TrendsDashboardView: View {
             Text(Self.dateFormatter.string(from: selectedLogicalDay))
                 .font(StrandFont.subhead)
                 .foregroundStyle(StrandPalette.textSecondary)
-        }
-    }
-
-    private var batteryIcon: String {
-        guard let value = live.batteryPct else { return "battery.0" }
-        switch Int(value.rounded()) {
-        case 76...: return (live.charging ?? false) ? "battery.100percent.bolt" : "battery.100percent"
-        case 51...: return "battery.75percent"
-        case 26...: return "battery.50percent"
-        case 11...: return "battery.25percent"
-        default: return "battery.0"
         }
     }
 
@@ -548,6 +622,14 @@ struct TrendsDashboardView: View {
                     .foregroundStyle(StrandPalette.textSecondary)
             }
         }
+    }
+
+    /// The rows "More workouts" should render, given whether `.activity` (which already shows the most
+    /// recent one) is visible. Pure and non-private so the hidden-`.activity` case is pinned by a test
+    /// rather than re-derived by eye: this section used to `dropFirst()` unconditionally, which made the
+    /// newest workout vanish entirely for anyone who hid `.activity` and showed this instead.
+    static func moreWorkouts(_ workouts: [WorkoutRow], activityVisible: Bool) -> [WorkoutRow] {
+        activityVisible ? Array(workouts.dropFirst()) : workouts
     }
 
     /// One workout row — factored out of `activitySection` so the "just the latest" default and the
