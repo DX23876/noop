@@ -23,12 +23,17 @@ final class DashboardLayoutSectionsTests: XCTestCase {
         XCTAssertEqual(Array(DashboardLayoutSection.defaultOrder(for: "overview").prefix(4)),
                        [.coach, .overview, .focus, .health])
 
-        // Every non-reference section is an extra, on both dashboards, and every case is placed.
+        // Every optional section is PLACED on both dashboards, and none is placed twice. Placement is
+        // checked by identity rather than by counting `isExtra`: Momentum is still a
+        // `DashboardExtraSection` case but is no longer flagged extra, because it now starts visible.
         for dashboard in ["trends", "overview"] {
             let order = DashboardLayoutSection.defaultOrder(for: dashboard)
             XCTAssertEqual(Set(order).count, order.count, "\(dashboard) repeats a section")
-            XCTAssertEqual(order.filter(\.isExtra).count, DashboardExtraSection.allCases.count,
-                           "\(dashboard) does not place every optional section")
+            for extra in DashboardExtraSection.allCases {
+                let section = DashboardLayoutSection(rawValue: extra.rawValue)
+                XCTAssertNotNil(section, "\(extra.rawValue) has no layout section")
+                XCTAssertTrue(order.contains(section!), "\(dashboard) does not place \(extra.rawValue)")
+            }
         }
     }
 
@@ -75,13 +80,16 @@ final class DashboardLayoutSectionsTests: XCTestCase {
         XCTAssertEqual(Set(order), Set(DashboardLayoutSection.defaultOrder(for: "trends")))
     }
 
-    /// Coach is a reference block, not an optional extra, so an untouched dashboard actually shows it.
-    /// Declaring it an extra would have hidden it by default and reproduced the very gap it closes.
-    func testCoachIsVisibleByDefaultOnBothDashboards() {
+    /// Coach and Momentum are reference blocks, not optional extras, so an untouched dashboard actually
+    /// shows them. Leaving either flagged `isExtra` would hide it by default and reproduce the very gap
+    /// each one closes — for Momentum that was half the reason it never appeared here at all.
+    func testCoachAndMomentumAreVisibleByDefaultOnBothDashboards() {
         XCTAssertFalse(DashboardLayoutSection.coach.isExtra)
+        XCTAssertFalse(DashboardLayoutSection.momentum.isExtra)
         for dashboard in ["trends", "overview"] {
             let hidden = DashboardLayoutPrefs.hidden("", dashboard: dashboard)
             XCTAssertFalse(hidden.contains(.coach), "\(dashboard): Coach must not start hidden")
+            XCTAssertFalse(hidden.contains(.momentum), "\(dashboard): Momentum must not start hidden")
         }
     }
 

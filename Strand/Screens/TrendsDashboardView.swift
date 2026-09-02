@@ -68,6 +68,12 @@ struct TrendsDashboardView: View {
     @State private var showLiveSession = false
     @AppStorage(DashboardArrangeHint.seenKey("trends")) private var arrangeHintSeen = false
     @State private var showArrangeHint = false
+    // The SAME dwell/snooze bookkeeping both Today screens use — one wearer, one card, so switching
+    // styles must not restart the dwell or resurrect a message hidden an hour ago.
+    @AppStorage(DashboardMomentum.Keys.lastKind) private var momentumLastKind = ""
+    @AppStorage(DashboardMomentum.Keys.lastAt) private var momentumLastAt: Double = 0
+    @AppStorage(DashboardMomentum.Keys.snoozed) private var momentumSnoozedRaw = ""
+    @AppStorage(DashboardMomentum.Keys.stepGoal) private var momentumStepGoal = 0
     @State private var selectedDayOffset = 0
 
     /// Scroll-to-top target for an at-root Today re-tap, the same zero-height anchor Liquid Today uses.
@@ -290,6 +296,21 @@ struct TrendsDashboardView: View {
         } else {
             journalLoggedDays = nil
         }
+
+        // Publish the Momentum feed. Until now nothing on this screen did, so a wearer whose Today is a
+        // dashboard had an empty MomentumStore forever — the section rendered its "open Momentum"
+        // fallback and never a message. Done at the end of load(), after the values it reads are set.
+        let steps = DailyStepsReading.resolve(
+            strapSteps: displayDay?.steps,
+            appleSteps: appleDays.last(where: { $0.day == selectedDayKey })?.steps,
+            estimatedSteps: nil)
+        DashboardMomentum.publish(
+            context: DashboardMomentum.context(displayDay: displayDay, allDays: allDays,
+                                               dayKey: selectedDayKey, isToday: selectedDayOffset == 0,
+                                               steps: steps, stepGoal: momentumStepGoal),
+            allDays: allDays,
+            snoozedRaw: momentumSnoozedRaw, lastKind: momentumLastKind, lastAt: momentumLastAt,
+            retrospective: selectedDayOffset != 0)
     }
 
     private static func journalDayKeys(days: Int = 7, anchor: Date = Date()) -> [String] {

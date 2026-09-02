@@ -72,9 +72,12 @@ enum DashboardLayoutSection: String, CaseIterable, Identifiable {
     case liveSession, momentum, goals, keyMetrics, energyDetail, workoutsList, heartRate, recoveryVitals, yourCards, menstrualCycle, journal, dataSources, addedCards
 
     var id: String { rawValue }
+    /// An "extra" starts hidden (see `DashboardLayoutPrefs.hidden`). Momentum is deliberately NOT one:
+    /// it is the app's "what matters right now" surface, and an unset dashboard that hides it reproduces
+    /// exactly the gap this closes.
     var isExtra: Bool {
         switch self {
-        case .coach, .hero, .trendsChart, .metricStrip, .activity, .overview, .focus, .health: false
+        case .coach, .hero, .trendsChart, .metricStrip, .activity, .overview, .focus, .health, .momentum: false
         default: true
         }
     }
@@ -114,13 +117,15 @@ enum DashboardLayoutSection: String, CaseIterable, Identifiable {
         }
     }
     static func defaultOrder(for dashboard: String) -> [Self] {
-        let extras: [Self] = [.liveSession, .momentum, .goals, .keyMetrics, .energyDetail, .workoutsList, .heartRate, .recoveryVitals, .yourCards, .menstrualCycle, .journal, .dataSources, .addedCards]
+        let extras: [Self] = [.liveSession, .goals, .keyMetrics, .energyDetail, .workoutsList, .heartRate, .recoveryVitals, .yourCards, .menstrualCycle, .journal, .dataSources, .addedCards]
         // Overview leads with the Coach card too: it had no Coach surface at all beyond the header icon,
-        // while Trends has carried one since it shipped. Both are reorderable and hideable like any other
-        // non-extra block, so anyone who does not want it can move it away.
+        // while Trends has carried one since it shipped. Momentum sits directly under each dashboard's
+        // own blocks: it is the app's "what matters right now" surface, and leaving it an opt-in extra
+        // was half of why it never appeared here (the other half was that nothing published a feed).
+        // All of these are reorderable and hideable like any other non-extra block.
         return dashboard == "trends"
-            ? [.coach, .hero, .trendsChart, .metricStrip, .activity] + extras
-            : [.coach, .overview, .focus, .health] + extras
+            ? [.coach, .hero, .trendsChart, .metricStrip, .activity, .momentum] + extras
+            : [.coach, .overview, .focus, .health, .momentum] + extras
     }
 }
 
