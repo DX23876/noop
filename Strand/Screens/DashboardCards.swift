@@ -1,5 +1,7 @@
 import Foundation
 import SwiftUI
+import StrandDesign
+import WhoopStore
 
 // MARK: - "Your cards" customisable dashboard (WHOOP "My Dashboard")
 //
@@ -36,6 +38,11 @@ enum DashboardCard: String, CaseIterable, Identifiable {
     /// CoupledView screen. It is NOT in `defaultSelection`, so a fresh install never shows it until the user
     /// adds it via CUSTOMISE, matching the manual-first / default-OFF posture.
     case coupled
+    /// Current body weight — trend-smoothed when reliable, else the latest measurement, else the
+    /// profile fallback (the same three-tier resolution `WeightSeries.displayWeight` already gives the
+    /// classic Weight tile). Added for the Overview dashboard's "Deine Gesundheit" list, which names
+    /// weight explicitly; not in `defaultSelection`, so nothing existing changes.
+    case weight
 
     var id: String { rawValue }
 
@@ -58,6 +65,7 @@ enum DashboardCard: String, CaseIterable, Identifiable {
         case .calories:    return String(localized: "Calories")
         case .hydration:   return String(localized: "Hydration")
         case .coupled:     return String(localized: "Coupled view")
+        case .weight:      return String(localized: "Weight")
         }
     }
 
@@ -76,9 +84,10 @@ enum DashboardCard: String, CaseIterable, Identifiable {
         case .bloodOxygen: return String(localized: "Blood oxygen")
         case .skinTemp:    return String(localized: "Skin temperature")
         case .sleep:       return String(localized: "Last night")
-        case .calories:    return String(localized: "Active energy")
+        case .calories:    return String(localized: "Total burned so far")
         case .hydration:   return String(localized: "Today's fluid")
         case .coupled:     return String(localized: "Recovery, strain and sleep in one glance")
+        case .weight:      return String(localized: "Current weight")
         }
     }
 
@@ -99,6 +108,7 @@ enum DashboardCard: String, CaseIterable, Identifiable {
         case .calories:    return "flame.fill"
         case .hydration:   return "waterbottle.fill"
         case .coupled:     return "circle.hexagongrid.fill"
+        case .weight:      return "scalemass.fill"
         }
     }
 
@@ -107,10 +117,12 @@ enum DashboardCard: String, CaseIterable, Identifiable {
         switch self {
         case .hrv:         return "ms"
         case .restingHr:   return "bpm"
-        case .respiratory: return "rpm"
+        // Respiratory rate is breaths per minute. `rpm` is commonly read as revolutions per minute
+        // and was therefore ambiguous on the dashboard.
+        case .respiratory: return String(localized: "/min")
         case .steps:       return ""
         case .stress:      return ""
-        case .fitnessAge:  return "yrs"
+        case .fitnessAge:  return String(localized: "yrs")
         case .vo2max:      return ""    // the estimated VO₂max number alone; ml/kg/min is too long for a tile
         case .vitality:    return ""
         case .bloodOxygen: return ""    // value carries the % itself
@@ -119,6 +131,7 @@ enum DashboardCard: String, CaseIterable, Identifiable {
         case .calories:    return "kcal"
         case .hydration:   return ""    // value bakes in "<total> / <goal> L" itself
         case .coupled:     return ""    // a tap-through row, no value, so no unit
+        case .weight:      return ""    // UnitFormatter.massFromKilograms bakes the unit in
         }
     }
 
@@ -131,6 +144,49 @@ enum DashboardCard: String, CaseIterable, Identifiable {
 
     /// Canonical order used to list the disabled remainder in the editor.
     static let canonicalOrder: [DashboardCard] = allCases
+
+    /// Canonical first-hop destination. Several persisted card identifiers deliberately differ from
+    /// MetricCatalog keys, so constructing a route from `rawValue` silently opens the wrong screen.
+    var detailRoute: TabRoute {
+        switch self {
+        case .hrv:         return .metricSourced(key: "hrv", source: Repository.whoopSource)
+        case .restingHr:   return .metricSourced(key: "rhr", source: Repository.whoopSource)
+        case .respiratory: return .metricSourced(key: "resp_rate", source: "apple-health")
+        case .steps:       return .metricSourced(key: "steps", source: "apple-health")
+        case .bloodOxygen: return .metricSourced(key: "spo2", source: Repository.whoopSource)
+        case .skinTemp:    return .metricSourced(key: "skin_temp", source: Repository.whoopSource)
+        case .fitnessAge:  return .metricSourced(key: "fitness_age", source: Repository.whoopSource)
+        case .vo2max:      return .metricSourced(key: "vo2max_est", source: Repository.whoopSource)
+        case .vitality:    return .metricSourced(key: "vitality", source: Repository.whoopSource)
+        case .sleep:       return .sleep
+        case .calories:    return .energy
+        case .stress:      return .stress
+        case .hydration:   return .hydration
+        case .coupled:     return .coupled
+        case .weight:      return .weight
+        }
+    }
+
+    /// Route to the provider that supplied the value this lightweight dashboard actually rendered.
+    /// The static route remains the persistence/catalog default; this resolver handles the explicit
+    /// Apple fallback used by dashboard rows.
+    func detailRoute(day: DailyMetric?, appleDay: AppleDaily?) -> TabRoute {
+        switch self {
+        case .steps:
+            return day?.steps != nil
+                ? .metricSourced(key: "steps", source: Repository.whoopSource)
+                : .metricSourced(key: "steps", source: "apple-health")
+        case .respiratory:
+            return day?.respRateBpm != nil
+                ? .metricSourced(key: "resp_rate", source: Repository.whoopSource)
+                : .metricSourced(key: "resp_rate", source: "apple-health")
+        case .bloodOxygen:
+            return day?.spo2Pct != nil
+                ? .metricSourced(key: "spo2", source: Repository.whoopSource)
+                : .metricSourced(key: "spo2", source: "apple-health")
+        default: return detailRoute
+        }
+    }
 }
 
 /// Display-only persistence for the "Your cards" dashboard selection. Holds an ORDERED list of the enabled
@@ -175,4 +231,33 @@ enum DashboardCardPrefs {
         // An all-unknown / empty decode shouldn't blank the dashboard, fall back to the default set.
         return result.isEmpty ? DashboardCard.defaultSelection : result
     }
+}
+
+/// Overview owns its health-list selection independently from Today’s "Your cards" preference.
+enum OverviewHealthCardsPrefs {
+    static let selectionKey = "overview.healthCards"
+    static let defaultSelection: [DashboardCard] = [.restingHr, .hrv, .respiratory, .fitnessAge, .calories, .weight]
+    static let available = DashboardCard.canonicalOrder.filter { $0 != .coupled }
+    static func decode(_ raw: String) -> [DashboardCard] {
+        let ids = (try? JSONDecoder().decode([String].self, from: Data(raw.utf8))) ?? raw.split(separator: ",").map(String.init)
+        let cards = ids.compactMap(DashboardCard.init(rawValue:)).filter { available.contains($0) }
+        var seen = Set<DashboardCard>()
+        let unique = cards.filter { seen.insert($0).inserted }
+        return unique.isEmpty ? defaultSelection : unique
+    }
+    static func encode(_ cards: [DashboardCard]) -> String { DashboardCardPrefs.encode(cards) }
+}
+
+/// Exactly three compact Overview focus cards. Coach stays available without being a default.
+enum OverviewFocusItem: String, CaseIterable, Identifiable {
+    case hrv, restingHr, steps, sleep, bloodOxygen, respiratory, stress, calories, hydration, fitnessAge, vo2max, coach
+    var id: String { rawValue }
+    var title: String { rawValue == "restingHr" ? String(localized: "Resting HR") : rawValue == "bloodOxygen" ? String(localized: "Blood Oxygen") : rawValue == "vo2max" ? String(localized: "VO₂ Max") : rawValue == "coach" ? String(localized: "Coach") : (DashboardCard(rawValue: rawValue)?.title ?? rawValue) }
+    var icon: String { rawValue == "coach" ? "person.fill" : (DashboardCard(rawValue: rawValue)?.icon ?? "square.grid.2x2") }
+    var tint: Color { rawValue == "coach" ? StrandPalette.accent : TrendsMetricStrip.tint(DashboardCard(rawValue: rawValue) ?? .hrv) }
+}
+
+enum OverviewFocusPrefs {
+    static let slotKeys = ["overview.focus.slot1", "overview.focus.slot2", "overview.focus.slot3"]
+    static let defaults: [OverviewFocusItem] = [.hrv, .restingHr, .steps]
 }

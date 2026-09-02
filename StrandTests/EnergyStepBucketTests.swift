@@ -1,5 +1,6 @@
 import XCTest
 import WhoopProtocol
+import StrandAnalytics
 @testable import Strand
 
 /// `Repository.bucketStepMovement` — the pure half of the per-5-minute movement channel that feeds
@@ -105,5 +106,37 @@ final class EnergyCompositionMarkTests: XCTestCase {
     func testMissingOrNonPositiveValuesProduceNoComposition() {
         XCTAssertNil(EnergyCompositionMark.fractions(resting: nil, active: nil))
         XCTAssertNil(EnergyCompositionMark.fractions(resting: -100, active: 0))
+    }
+}
+
+final class EnergyDisplayTests: XCTestCase {
+
+    private func summary(total: Double?, source: EnergySource) -> DailyEnergySummary {
+        DailyEnergySummary(
+            day: "2026-08-30", estimatedBMR24h: 1_800, basalBurnedSoFar: 1_200,
+            activeBurnedSoFar: 2_000, totalBurnedSoFar: total, projectedTotalBurn: nil,
+            source: source,
+            coverage: .init(energy: 1, movement: nil, hasStrapEstimate: source == .strapWornTime),
+            confidence: .solid)
+    }
+
+    func testStrapTotalUsesTheSameApproximationMarkerOnEveryTodaySurface() {
+        let value = Int(3_199.6.rounded()).formatted(.number.grouping(.automatic))
+        let result = summary(total: 3_199.6, source: .strapWornTime)
+        XCTAssertEqual(EnergyDisplay.totalText(result), "~\(value)")
+        XCTAssertEqual(EnergyDisplay.totalText(result, includesUnit: true), "~\(value) kcal")
+    }
+
+    func testAppleSplitTotalIsNotMarkedApproximate() {
+        let value = Int(2_700.0).formatted(.number.grouping(.automatic))
+        XCTAssertEqual(EnergyDisplay.totalText(summary(total: 2_700, source: .appleSplit)), value)
+    }
+
+    func testMissingTotalNeverFallsBackToAnotherCalorieSignal() {
+        XCTAssertEqual(EnergyDisplay.totalText(summary(total: nil, source: .profileOnly)), "—")
+    }
+
+    func testCaloriesTileRoutesToTheCanonicalEnergyDetail() {
+        XCTAssertEqual(TodayView.keyMetricRoute(.calories), .energy)
     }
 }

@@ -79,8 +79,7 @@ struct EnergyCard: View {
     }
 
     private var headlineTotal: String {
-        guard let value = kcal(summary.totalBurnedSoFar) else { return "—" }
-        return summary.source == .appleSplit ? value : "~" + value
+        EnergyDisplay.totalText(summary, includesUnit: true)
     }
 
     private var statStrip: some View {
@@ -169,6 +168,19 @@ struct EnergyCard: View {
             parts.append("\(String(localized: "Resting")): \(resting)")
         }
         return parts.joined(separator: ", ")
+    }
+}
+
+/// Shared presentation contract for every Today surface that shows the canonical daily total.
+/// Keeping the approximation marker and rounding here prevents the compact Calories tile from
+/// drifting back to Apple active energy or the legacy `activeKcalEst` value.
+enum EnergyDisplay {
+    static func totalText(_ summary: DailyEnergySummary?, includesUnit: Bool = false) -> String {
+        guard let summary, let total = summary.totalBurnedSoFar,
+              total.isFinite, total >= 0 else { return "—" }
+        let number = Int(total.rounded()).formatted(.number.grouping(.automatic))
+        let approximate = summary.source == .appleSplit ? number : "~\(number)"
+        return includesUnit ? "\(approximate) kcal" : approximate
     }
 }
 

@@ -45,14 +45,21 @@ public enum EnergyCalibrationStatus: String, Equatable, Sendable, Codable {
     case active
     case paused
 }
+
+public enum EnergyForecastStatus: String, Equatable, Sendable, Codable {
+    case unavailable
+    case learning
+    case available
+}
 /// How much of a day the available sources actually covered.
 ///
-/// The strap path persists the number of distinct HR seconds used by the calorie estimate. Each
-/// coverage figure is optional on purpose: a missing signal means *unknown*, not zero and not full.
+/// The current strap path persists the wall-clock seconds whose basal share is already represented by
+/// the bucket estimate. Legacy rows used distinct HR seconds. Each coverage figure is optional on
+/// purpose: a missing signal means *unknown*, not zero and not full.
 /// Treating "no Apple data" as "0% covered" would label a perfectly good strap-only day as unreliable.
 public struct EnergyCoverage: Equatable, Sendable {
-    /// Fraction of the elapsed day the day's ACTUAL source actually reported for: real HR seconds for
-    /// the strap, or `healthEnergyBucket.coverageSeconds` for Apple (iOS only, where that reference
+    /// Fraction of the elapsed day the day's ACTUAL source actually represented: context-modelled
+    /// bucket seconds for WHOOP v4, or `healthEnergyBucket.coverageSeconds` for Apple (iOS only, where that reference
     /// stream exists — an `appleSplit` day on macOS, or any platform before the stream existed, leaves
     /// this nil rather than being marked down for a platform gap it didn't create).
     public let energy: Double?
@@ -99,10 +106,15 @@ public struct DailyEnergySummary: Equatable, Sendable {
     /// The forecast's honest width. Present whenever `projectedTotalBurn` is — a point estimate with
     /// no interval overstates what the model knows, and the interval is the more useful half.
     public let projectedRangeKcal: ClosedRange<Double>?
+    public let forecastStatus: EnergyForecastStatus
     /// The WHOOP model output before an optional Apple Watch reference multiplier and basal top-up.
     public let rawWhoopTotalKcal: Double?
     /// Approximate symmetric model uncertainty. Nil for sources that do not publish one.
     public let uncertaintyFraction: Double?
+    public let modelWeightKg: Double?
+    public let modelWeightSource: String?
+    /// Time whose elevated HR could not be attributed to movement or a trusted workout.
+    public let unresolvedElevatedHRSeconds: Int
     /// The bounded Apple Watch reference multiplier applied to the WHOOP total. Nil means the
     /// calibration was disabled, unavailable or invalid. Apple remains a reference, not the source.
     public let appliedCalibrationFactor: Double?
@@ -116,9 +128,12 @@ public struct DailyEnergySummary: Equatable, Sendable {
                 totalBurnedSoFar: Double?, projectedTotalBurn: Double?,
                 projectedRangeKcal: ClosedRange<Double>? = nil, rawWhoopTotalKcal: Double? = nil,
                 uncertaintyFraction: Double? = nil,
+                unresolvedElevatedHRSeconds: Int = 0,
+                modelWeightKg: Double? = nil, modelWeightSource: String? = nil,
                 appliedCalibrationFactor: Double? = nil, source: EnergySource,
                 coverage: EnergyCoverage, confidence: ScoreConfidence,
-                calibrationStatus: EnergyCalibrationStatus = .off) {
+                calibrationStatus: EnergyCalibrationStatus = .off,
+                forecastStatus: EnergyForecastStatus = .unavailable) {
         self.day = day
         self.estimatedBMR24h = estimatedBMR24h
         self.basalBurnedSoFar = basalBurnedSoFar
@@ -126,8 +141,12 @@ public struct DailyEnergySummary: Equatable, Sendable {
         self.totalBurnedSoFar = totalBurnedSoFar
         self.projectedTotalBurn = projectedTotalBurn
         self.projectedRangeKcal = projectedRangeKcal
+        self.forecastStatus = forecastStatus
         self.rawWhoopTotalKcal = rawWhoopTotalKcal
         self.uncertaintyFraction = uncertaintyFraction
+        self.modelWeightKg = modelWeightKg
+        self.modelWeightSource = modelWeightSource
+        self.unresolvedElevatedHRSeconds = unresolvedElevatedHRSeconds
         self.appliedCalibrationFactor = appliedCalibrationFactor
         self.calibrationStatus = calibrationStatus
         self.source = source
@@ -180,7 +199,8 @@ public enum EnergyEngine {
         /// The strap's whole-day HR estimate (`DailyMetric.activeKcalEst`). A TOTAL for worn time —
         /// see this file's header before doing anything arithmetic with it.
         public let strapTotalKcal: Double?
-        /// Number of distinct HR seconds that contributed to `strapTotalKcal`.
+        /// Wall-clock seconds whose basal share is already included in `strapTotalKcal`. Legacy rows
+        /// may contain distinct HR seconds instead; model-version filtering prevents crossing them.
         public let strapCoverageSeconds: Int?
         /// Optional, user-enabled Apple Watch reference calibration. Values outside the deliberately
         /// narrow 0.8...1.2 range are ignored, and the factor is never applied to Apple-only days.
@@ -190,6 +210,8 @@ public enum EnergyEngine {
         public let steps: Int?
         /// Hours of the day carrying any step count, out of 24. Nil when hourly steps aren't stored.
         public let hoursWithSteps: Int?
+        public let unresolvedElevatedHRSeconds: Int
+        public let modelWeightSource: String?
 
         public init(day: String, appleActiveKcal: Double? = nil, appleBasalKcal: Double? = nil,
                     appleCoverageSeconds: Int? = nil,
@@ -197,7 +219,9 @@ public enum EnergyEngine {
                     strapCalibrationFactor: Double? = nil,
                     strapUncertaintyFraction: Double? = nil,
                     calibrationStatus: EnergyCalibrationStatus = .off,
-                    steps: Int? = nil, hoursWithSteps: Int? = nil) {
+                    steps: Int? = nil, hoursWithSteps: Int? = nil,
+                    unresolvedElevatedHRSeconds: Int = 0,
+                    modelWeightSource: String? = nil) {
             self.day = day
             self.appleActiveKcal = appleActiveKcal
             self.appleBasalKcal = appleBasalKcal
@@ -209,6 +233,8 @@ public enum EnergyEngine {
             self.calibrationStatus = calibrationStatus
             self.steps = steps
             self.hoursWithSteps = hoursWithSteps
+            self.unresolvedElevatedHRSeconds = unresolvedElevatedHRSeconds
+            self.modelWeightSource = modelWeightSource
         }
     }
 
@@ -225,20 +251,6 @@ public enum EnergyEngine {
     public static let solidCoverage = 0.80
     /// Below this the day is mostly modelled and the UI must say so.
     public static let buildingCoverage = 0.40
-
-    /// Ceiling on `(1 − f)/f`, the multiplier applied to activity already banked. At f = 1/7 the day
-    /// still has six times what it has done ahead of it; beyond that a projection is arithmetic, not
-    /// a forecast.
-    public static let maxRemainingActivityMultiplier = 6.0
-    /// Guards the division only. Deliberately tiny: a curve reading near zero is the MOST informative
-    /// case, not the least — "this person has normally done nothing by now" is exactly what rescues an
-    /// evening routine from being forecast as a quiet day. `maxRemainingActivityMultiplier` bounds the
-    /// magnitude, so this floor does not need to, and a larger one would throw that signal away.
-    public static let minimumShapeFraction = 0.01
-    /// Coverage at which the sensor projection carries its full weight against the long-horizon prior.
-    public static let priorFullTrustCoverage = 0.90
-    /// The sensor's floor share of the blend. The prior informs a thin day; it never takes it over.
-    public static let minimumSensorWeight = 0.50
 
     // MARK: - One day
 
@@ -261,10 +273,11 @@ public enum EnergyEngine {
         let coverage = self.coverage(clean, context: context)
 
         let result = burn(clean, bmr24h: bmr24h, context: context, profile: profile)
-        let sensorProjection = projectedBurn(result: result, bmr24h: bmr24h,
-                                             context: context, shape: shape)
-        let projected = blendedProjection(sensor: sensorProjection, prior: adaptivePriorKcal,
-                                          coverage: coverage)
+        // The adaptive food/weight estimate remains a separate retrospective comparison. It must not
+        // silently rewrite today's wearable forecast.
+        _ = adaptivePriorKcal
+        let projected = projectedBurn(result: result, bmr24h: bmr24h,
+                                      context: context, shape: shape)
         let uncertainty = clean.strapTotalKcal == nil ? nil : clean.strapUncertaintyFraction
 
         return DailyEnergySummary(
@@ -278,11 +291,15 @@ public enum EnergyEngine {
                                                coverage: coverage, context: context),
             rawWhoopTotalKcal: result.rawWhoopTotalKcal,
             uncertaintyFraction: uncertainty,
+            unresolvedElevatedHRSeconds: clean.unresolvedElevatedHRSeconds,
+            modelWeightKg: profile.weightKg > 0 ? profile.weightKg : nil,
+            modelWeightSource: clean.modelWeightSource,
             appliedCalibrationFactor: result.appliedCalibrationFactor,
             source: result.source,
             coverage: coverage,
             confidence: confidence(source: result.source, coverage: coverage),
-            calibrationStatus: clean.calibrationStatus
+            calibrationStatus: clean.calibrationStatus,
+            forecastStatus: context.isToday ? (shape == nil ? .learning : .available) : .unavailable
         )
     }
 
@@ -379,16 +396,11 @@ public enum EnergyEngine {
     ///
     ///     projected = spent so far + basal for the hours left + the activity still expected
     ///
-    /// The last term is the whole point. It used to be `active / elapsedFraction` — a straight linear
-    /// extrapolation that assumes activity arrives at a constant rate. It does not: an 08:00 workout
-    /// made the forecast shoot far too high, and a quiet morning before an evening session made it
-    /// read far too low. With a personal `ActivityShape` the divisor becomes the fraction of a typical
-    /// day's activity this person has normally banked by NOW, so the remainder is scaled by their own
-    /// routine instead of by the clock.
-    ///
-    /// With `shape == nil` the expected fraction IS `elapsedFraction`, and the formula collapses to
-    /// exactly the previous arithmetic — algebraically identical, not merely close. That is deliberate:
-    /// a user without enough history keeps the old behaviour rather than a worse curve.
+    /// The last term is the whole point. It used to extrapolate today's active kcal linearly or divide
+    /// by a tiny personal-shape fraction. A morning workout could therefore be multiplied across the
+    /// whole day. The current model adds the historical median activity still expected in the remaining
+    /// hours, with only a bounded 0.5...1.5 same-day adjustment once enough of the routine has elapsed.
+    /// Without at least seven complete personal days there is no forecast.
     ///
     /// Nil when nothing has been measured or the day has barely started (before ~10% elapsed the rate
     /// is too noisy to extrapolate from, and a wild morning figure reads as a malfunction).
@@ -400,56 +412,16 @@ public enum EnergyEngine {
         guard elapsed < 1.0 else { return total }
         guard let bmr24h, let active = result.active else { return nil }
 
-        let expected = expectedActivityFraction(shape: shape, context: context, elapsed: elapsed)
-        // (1 − f)/f is the multiplier on what has already been banked. Clamped because the curve is
-        // near zero overnight and a shape fitted from few days can put a very small number here; an
-        // unbounded ratio turns 20 kcal at dawn into a five-figure day.
-        let remainingMultiplier = min(maxRemainingActivityMultiplier, (1 - expected) / expected)
-        return total + bmr24h * (1 - elapsed) + active * remainingMultiplier
-    }
-
-    /// The fraction of today's activity expected to be done by now.
-    ///
-    /// Only a MISSING (or non-finite) shape falls back to wall-clock elapsed time — which is what the
-    /// linear model always assumed. A shape that legitimately reads zero is not missing information,
-    /// it is the strongest information the curve ever carries: "this person has normally done nothing
-    /// by now", which is precisely what stops an evening routine being forecast as a quiet day. So a
-    /// zero is clamped UP to the floor rather than discarded, and the multiplier ceiling — not this
-    /// floor — decides how much of the day is still credited ahead.
-    private static func expectedActivityFraction(shape: ActivityShape?, context: DayContext,
-                                                 elapsed: Double) -> Double {
-        guard let shape else { return elapsed }
-        let value = shape.expectedFraction(elapsedSeconds: context.elapsedSeconds,
-                                           dayDurationSeconds: context.dayDurationSeconds)
-        guard value.isFinite else { return elapsed }
-        return max(minimumShapeFraction, min(1, value))
-    }
-
-    /// Pull a thinly-covered forecast toward the long-horizon TDEE.
-    ///
-    /// The case this exists for: an 11:00 workout on a day the strap has barely seen can project 3,700
-    /// kcal for someone whose measured maintenance over six weeks is 2,750. The sensors are not wrong
-    /// about the workout — they are wrong about the other thirteen hours they did not observe, and the
-    /// prior is the only thing in the app that knows what those hours usually cost.
-    ///
-    /// The sensor keeps at least `minimumSensorWeight`, so this can temper a forecast but never
-    /// replace it with the average of a person's past. At full coverage the prior drops out entirely.
-    /// Applies ONLY to the projection: `totalBurnedSoFar` stays a measurement.
-    private static func blendedProjection(sensor: Double?, prior: Double?,
-                                          coverage: EnergyCoverage) -> Double? {
-        guard let sensor else { return nil }
-        guard let prior, prior.isFinite, prior > 0 else { return sensor }
-        // An ABSENT coverage signal is not a THIN one, and this has to read that nil exactly the way
-        // `confidence(...)` does. That ladder calls an unknown-coverage day `.solid` — a macOS import
-        // has no `healthEnergyBucket` stream and did not create that platform gap — so shrinking the
-        // same day's forecast halfway toward a long-horizon average would put two contradictory
-        // readings of one nil in one file: "High" on the badge, "half-trusted" in the number under it.
-        // Only a MEASURED thin day, which is the case this shrinkage exists for, is tempered.
-        guard let observed = coverage.overall else { return sensor }
-        let weight = max(minimumSensorWeight,
-                         min(1, minimumSensorWeight
-                                + (1 - minimumSensorWeight) * (observed / priorFullTrustCoverage)))
-        return weight * sensor + (1 - weight) * prior
+        guard let shape,
+              let expected = shape.expectedActivity(elapsedSeconds: context.elapsedSeconds,
+                                                    dayDurationSeconds: context.dayDurationSeconds)
+        else { return nil }
+        let expectedDaily = expected.toNow + expected.remaining
+        var adjustment = 1.0
+        if elapsed >= 0.25, expectedDaily > 0, expected.toNow >= expectedDaily * 0.20 {
+            adjustment = min(1.5, max(0.5, active / max(1, expected.toNow)))
+        }
+        return total + bmr24h * (1 - elapsed) + expected.remaining * adjustment
     }
 
     /// The forecast as an interval rather than a point.
@@ -514,6 +486,7 @@ public enum EnergyEngine {
         let covered = inputs.strapCoverageSeconds.flatMap { (0...100_000).contains($0) ? $0 : nil }
         let appleCovered = inputs.appleCoverageSeconds.flatMap { (0...100_000).contains($0) ? $0 : nil }
         let hours = inputs.hoursWithSteps.flatMap { (0...25).contains($0) ? $0 : nil }
+        let unresolved = min(100_000, max(0, inputs.unresolvedElevatedHRSeconds))
         let factor = inputs.strapCalibrationFactor.flatMap {
             $0.isFinite && EnergyCalibrationEngine.factorRange.contains($0) ? $0 : nil
         }
@@ -532,7 +505,9 @@ public enum EnergyEngine {
                          strapUncertaintyFraction: uncertainty,
                          calibrationStatus: calibrationStatus,
                          steps: steps,
-                         hoursWithSteps: hours)
+                         hoursWithSteps: hours,
+                         unresolvedElevatedHRSeconds: unresolved,
+                         modelWeightSource: inputs.modelWeightSource)
     }
 
     /// How much to trust the day's total.

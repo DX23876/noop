@@ -86,19 +86,6 @@ struct SleepView: View {
     /// which marks the session `userEdited` so a later strap sync can't revert the correction. (#318)
     @State private var wakeEdit: WakeEdit?
 
-    /// Non-nil while the "Add nap" picker sheet is open (#508). Carries a seed bed/wake for the picker;
-    /// saving routes through `repo.addManualNap`, which stages the chosen window from raw and writes it as
-    /// its OWN separate session row (`userEdited = 1`) — never folded into the night's main sleep.
-    @State private var addNap: AddNapSeed?
-
-    /// True while the hero's "why this is your main sleep" popover is open. The reason text comes
-    /// straight from the foundation `MainNightReason` for the displayed night's blocks — never
-    /// re-derived here — so the explainer says exactly what the selector decided. (spec 2026-06-20 C1)
-    @State private var showMainSleepWhy = false
-    /// The stable detected key of the nap whose "why this is a nap" popover is open, or nil. Keyed by
-    /// the nap's own `startTs` so one popover shows at a time even with several nap rows. (C1)
-    @State private var napWhyStartTs: Int?
-
     /// WHOOP-style stage highlight: tapping a stage row under the timeline lights that stage up on the
     /// chart and recedes the rest (tap again to clear). Display-only selection state. (ryanAtriumAi #988)
     @State private var selectedStage: SleepStage? = nil
@@ -114,17 +101,6 @@ struct SleepView: View {
     /// The pending auto-dismiss task for `sleepUndo`, cancelled when a new delete replaces the banner or
     /// the user hits Undo, so a stale timer can't clear a fresh banner.
     @State private var sleepUndoTask: Task<Void, Never>?
-
-    // #sleep-layout: the arrangeable analytical-card order + explicit hidden set, byte-identical to the
-    // Android SleepLayoutPrefs keys. Reordered via the Arrange sheet; display-only, no metric changes.
-    @AppStorage(SleepLayoutPrefs.orderKey) private var sleepSectionOrderRaw = ""
-    @AppStorage(SleepLayoutPrefs.hiddenKey) private var sleepHiddenSectionsRaw = ""
-    @State private var showSleepCustomize = false
-
-    /// The analytical cards to render, in saved order minus the hidden set.
-    private var sleepVisibleSections: [SleepSection] {
-        SleepLayoutPrefs.visibleOrder(orderRaw: sleepSectionOrderRaw, hiddenRaw: sleepHiddenSectionsRaw)
-    }
 
     var body: some View {
         // Resolve the memoized model for THIS render. `dataKey` is O(1)-ish (counts + last-row
@@ -163,11 +139,11 @@ struct SleepView: View {
                         // styled as a card on the normal gutters, so negative padding would push it
                         // under the scaffold's chrome.
                         restHero(resolved).staggeredAppear(index: 0)
-                        // #sleep-layout: the analytical cards render in the user's saved order minus the
-                        // hidden set, below the pinned Rest hero. Reordered via the Arrange sheet.
-                        ForEach(Array(sleepVisibleSections.enumerated()), id: \.element) { idx, section in
-                            sleepSectionView(section, resolved).staggeredAppear(index: idx + 1)
-                        }
+                        hero(resolved).staggeredAppear(index: 1)
+                        NightDetailCard(model: resolved).staggeredAppear(index: 2)
+                        SleepDebtLedgerCard(model: resolved).staggeredAppear(index: 3)
+                        StagesVsTypicalCard(model: resolved).staggeredAppear(index: 4)
+                        durationTrend(resolved).staggeredAppear(index: 5)
                     }
                 } else {
                     emptyState
@@ -225,22 +201,23 @@ struct SleepView: View {
                 SleepTimeEditor(bedTs: edit.bedTs, wakeTs: edit.wakeTs,
                                 coverage: coverageLo...max(coverageHi, coverageLo + 1),
                                 suppressesReDetection: !edit.userEdited,
-                                onSave: { newBedTs, newWakeTs in
-                    let result = await repo.editSleepGroupTimes(edit.group,
-                                                               newStartTs: newBedTs,
-                                                               newEndTs: newWakeTs)
-                    guard let result else { return }
-                    // Re-score the day so the dashboard aggregates (Rest / recovery) honor the corrected
-                    // sleep window, not just the Sleep tab's session view; then refresh the read cache.
-                    await intelligence.analyzeRecent()
-                    await repo.refresh()
-                    // The coach's morning brief was written against the OLD wake time. Correcting the
-                    // night used to leave that wrong plan standing for the rest of the day — the exact
-                    // complaint behind this change — because the day was already stamped.
-                    CoachBriefStamp.invalidateAfterSleepCorrection(wakeTs: newWakeTs)
-                    if !result.retired.isEmpty {
-                        presentSleepUndo(result.retired, displayStart: newBedTs,
-                                         windowEnd: newWakeTs, fromEdit: true)
+                                onSave: { newBedTs, newWakeTs, relocating in
+                    let outcome = await repo.editSleepGroupTimes(edit.group,
+                                                                newStartTs: newBedTs,
+                                                                newEndTs: newWakeTs,
+                                                                allowRelocation: relocating)
+                    switch outcome {
+                    case .failure(let failure):
+                        return .failure(sleepEditFailureMessage(failure))
+                    case .success(let result):
+                        CoachBriefStamp.invalidateAfterSleepCorrection(wakeTs: newWakeTs)
+                        if !result.retired.isEmpty {
+                            presentSleepUndo(result.retired, displayStart: newBedTs,
+                                             windowEnd: newWakeTs, fromEdit: true)
+                        }
+                        scheduleBackgroundRescore(wakeDays: result.affectedWakeDays,
+                                                  required: result.requiresLocalRescore)
+                        return .success
                     }
                 }, onDelete: {
                     // Delete = the edit path minus the re-insert: drop this session so every metric
@@ -248,39 +225,21 @@ struct SleepView: View {
                     // re-detect doesn't bring it back, then re-score + refresh exactly like an edit. (#68)
                     // #65: the returned snapshot lets the user UNDO within a few seconds. It restores the
                     // deleted row into its ORIGINAL namespace and lifts the tombstone.
-                    let snapshot = await repo.deleteSleepSession(detectedStartTs: edit.detectedStartTs,
-                                                                 endTs: edit.wakeTs)
-                    await intelligence.analyzeRecent()
-                    await repo.refresh()
+                    guard let snapshot = await repo.deleteSleepSession(
+                        detectedStartTs: edit.detectedStartTs, endTs: edit.wakeTs) else {
+                        return .failure(String(localized: "Deleting this sleep failed. Nothing was changed."))
+                    }
                     CoachBriefStamp.invalidateAfterSleepCorrection(wakeTs: edit.wakeTs)
                     // `edit.bedTs` is the effective (displayed) onset, so the banner shows the same clock
                     // time the user saw for this night.
-                    if let snapshot {
-                        presentSleepUndo([snapshot], displayStart: edit.bedTs,
-                                         windowEnd: edit.wakeTs, fromEdit: false)
-                    }
+                    presentSleepUndo([snapshot], displayStart: edit.bedTs,
+                                     windowEnd: edit.wakeTs, fromEdit: false)
+                    scheduleBackgroundRescore(
+                        wakeDays: [snapshot.suppressedWakeDay
+                            ?? Repository.sleepEndDayKey(snapshot.endTs)],
+                        required: snapshot.ownerDeviceId.hasSuffix("-noop"))
+                    return .success
                 })
-            }
-            // Manually add a missed nap (#508): same picker, but the chosen window is staged from raw and
-            // stored as its OWN separate session — never folded into main sleep (which would mislabel the
-            // awake daytime gap as light sleep).
-            .sheet(isPresented: $showSleepCustomize) {
-                SleepCustomizationSheet(
-                    sectionOrderRaw: $sleepSectionOrderRaw,
-                    hiddenSectionsRaw: $sleepHiddenSectionsRaw
-                )
-            }
-            .sheet(item: $addNap) { seed in
-                SleepTimeEditor(bedTs: seed.bedTs, wakeTs: seed.wakeTs,
-                                title: "Add a nap",
-                                blurb: "Pick when the nap started and ended. NOOP stages it from your data as its own session, separate from the night's sleep.",
-                                bedLabel: "Nap started", wakeLabel: "Nap ended") { startTs, endTs in
-                    await repo.addManualNap(startTs: startTs, endTs: endTs)
-                    // Re-score so the day's aggregates pick up the new session, exactly like an edit.
-                    await intelligence.analyzeRecent()
-                    await repo.refresh()
-                    CoachBriefStamp.invalidateAfterSleepCorrection(wakeTs: endTs)
-                }
             }
         }
     }
@@ -314,14 +273,39 @@ struct SleepView: View {
         }
     }
 
-    /// Undo the most recent suppressing delete: restore the row into its ORIGINAL namespace, lift the
-    /// tombstone, re-score, then dismiss the banner.
+    /// Undo the most recent suppressing delete: restore and publish immediately, then repair any local
+    /// derived score in the same targeted background path as save/delete.
     private func undoSleepDelete(_ banner: SleepUndoBanner) async {
         sleepUndoTask?.cancel()
         await repo.undoDeleteSleepSessions(banner.snapshots)
-        await intelligence.analyzeRecent()
-        await repo.refresh()
+        let localSnapshots = banner.snapshots.filter { $0.ownerDeviceId.hasSuffix("-noop") }
+        scheduleBackgroundRescore(
+            wakeDays: Set(localSnapshots.map { Repository.sleepEndDayKey($0.endTs) }),
+            required: !localSnapshots.isEmpty)
         await MainActor.run { withAnimation(.easeOut(duration: 0.2)) { sleepUndo = nil } }
+    }
+
+    /// A changed revision makes only the affected wake-days miss their persisted fingerprints. The pass
+    /// still spans back to the oldest edited day, but `allowDayReuse` lets every unchanged day return in
+    /// the cheap probe path. It never delays sheet dismissal.
+    private func scheduleBackgroundRescore(wakeDays: Set<String>, required: Bool) {
+        guard required, !wakeDays.isEmpty else { return }
+        let today = Calendar.current.startOfDay(for: Date())
+        let oldestDistance = wakeDays.compactMap(Self.dateFromDayKey).map {
+            max(0, Calendar.current.dateComponents([.day], from: $0, to: today).day ?? 0)
+        }.max() ?? 0
+        let maxDays = max(1, oldestDistance + 2)
+        Task(priority: .utility) {
+            await intelligence.analyzeRecent(maxDays: maxDays, force: true,
+                                             allowDayReuse: true, reason: .semanticChange)
+            await repo.refresh()
+        }
+    }
+
+    private static func dateFromDayKey(_ day: String) -> Date? {
+        let parts = day.split(separator: "-").compactMap { Int($0) }
+        guard parts.count == 3 else { return nil }
+        return Calendar.current.date(from: DateComponents(year: parts[0], month: parts[1], day: parts[2]))
     }
 
     /// Locale-formatted clock time (no date) for the banner's window range.
@@ -372,6 +356,23 @@ struct SleepView: View {
         .accessibilityLabel(message)
     }
 
+    /// One honest sentence per `SleepEditFailure`, so a correction that did not reach the database says
+    /// so instead of closing the sheet as if it had worked.
+    private func sleepEditFailureMessage(_ failure: SleepEditFailure) -> String {
+        switch failure {
+        case .storeUnavailable:
+            return String(localized: "Couldn't open the database, so the sleep times weren't changed.")
+        case .invalidWindow:
+            return String(localized: "Those times aren't a valid sleep window, so nothing was changed.")
+        case .noOverlap:
+            return String(localized: "Those times don't overlap this night's recorded data, so nothing was changed.")
+        case .ownerUnresolved:
+            return String(localized: "This night's stored record couldn't be found, so the times weren't changed.")
+        case .writeFailed:
+            return String(localized: "Saving the new sleep times failed. Nothing was changed.")
+        }
+    }
+
     /// A short night-relative label ("Last night" / "1 night ago" / "N nights ago") for the
     /// ◀/▶-navigated night. Shared by the Rest hero overline and the hypnogram nav header so both
     /// name the SAME night the hero's score is now resolved for.
@@ -416,36 +417,6 @@ struct SleepView: View {
         if let p = repo.importedSleep[wakeDay]?.performancePct { return p }
         guard let daily = repo.days.last(where: { $0.day == wakeDay }) else { return nil }
         return AnalyticsEngine.Rest.composite(daily: daily)
-    }
-
-    /// Dispatch a reorderable Sleep section to its card. Naps rides with `.stages` (drawn inside the stages
-    /// hero); the Rest hero is pinned outside this list. Mirrors the Android SleepScreen `when(section)`.
-    @ViewBuilder
-    private func sleepSectionView(_ section: SleepSection, _ model: SleepModel) -> some View {
-        switch section {
-        case .sleepMarks:      SleepMarkCard()
-        case .stages:          hero(model)
-        case .nightDetail:     NightDetailCard(model: model)
-        case .sleepDebt:       SleepDebtLedgerCard(model: model)
-        case .stagesVsTypical: StagesVsTypicalCard(model: model)
-        case .asleepDuration:  durationTrend(model)
-        }
-    }
-
-    /// The compact "Customize" affordance above the arrangeable cards — opens the Arrange sheet. Mirrors
-    /// the Today tab's arrange entry and the Android Sleep affordance.
-    private var sleepArrangeAffordance: some View {
-        HStack(spacing: 0) {
-            Spacer()
-            Button {
-                showSleepCustomize = true
-            } label: {
-                Label("Customize", systemImage: "slider.horizontal.3")
-                    .font(StrandFont.footnote)
-                    .foregroundStyle(StrandPalette.textTertiary)
-            }
-            .buttonStyle(.plain)
-        }
     }
 
     /// Immersive Rest-world hero: compact Bevel-like hierarchy — centered "Sleep", muted circular
@@ -504,10 +475,6 @@ struct SleepView: View {
                     .accessibilityElement(children: .combine)
                 }
                 SourceBadge(score != nil ? heroSource(for: night) : (repo.activeDeviceIsOura ? "Oura" : "On-device"), tint: StrandPalette.restColor)
-                // Subtle Customize at the hero foot — opens the Arrange sheet for the reorderable
-                // cards below (#1112). Functional, not competing with the gauge.
-                sleepArrangeAffordance
-                    .padding(.top, NoopMetrics.space1)
             }
             .padding(NoopMetrics.cardInnerPadding + NoopMetrics.space1)
             .frame(maxWidth: .infinity)
@@ -618,10 +585,8 @@ struct SleepView: View {
         .onChange(of: nightOffset) { _ in selectedStage = nil }
     }
 
-    /// Naps card (#508): each of the day's sleep blocks OTHER than the night's main block, individually
-    /// editable + deletable with the SAME durable mechanism main sleep uses, plus an "Add nap" affordance.
-    /// A nap is always its own session row (never folded into main sleep), so editing or adding one here
-    /// never touches the night's main hypnogram and the awake daytime is never mislabelled as light sleep.
+    /// Existing naps remain a compact, read-only part of the day's sleep accounting. Creation and editing
+    /// are intentionally no longer exposed from the Sleep tab.
     @ViewBuilder
     private func napSection(_ night: Night) -> some View {
         // The day's main sleep is the bridged main-night GROUP (#561): a briefly-interrupted / biphasic
@@ -635,30 +600,12 @@ struct SleepView: View {
             .sorted { $0.effectiveStartTs < $1.effectiveStartTs }
         let mainMin = night.stages.total
         let napMin = naps.reduce(0.0) { $0 + Double($1.endTs - $1.effectiveStartTs) / 60.0 }
-        NoopCard(padding: NoopMetrics.cardInnerPadding, tint: StrandPalette.restColor) {
-            VStack(alignment: .leading, spacing: NoopMetrics.cardInnerSpacing) {
-                HStack {
+        if !naps.isEmpty {
+            NoopCard(padding: NoopMetrics.cardInnerPadding, tint: StrandPalette.restColor) {
+                VStack(alignment: .leading, spacing: NoopMetrics.cardInnerSpacing) {
                     SectionHeader("Naps", overline: "Daytime sleep", trailing: nil)
-                    Spacer(minLength: 8)
-                    Button { addNap = AddNapSeed(forNight: night) } label: {
-                        Label("Add nap", systemImage: "plus.circle.fill")
-                            .font(StrandFont.subhead)
-                            .foregroundStyle(StrandPalette.restColor)
-                    }
-                    .buttonStyle(LiquidPressStyle())
-                    .accessibilityLabel("Add a nap")
-                }
-                // Daily split (#518): only meaningful once the day has a nap; a single-night day reads
-                // exactly as before. Total = main + naps, the time that drives the day's Rest.
-                if !naps.isEmpty {
                     napSummaryRow(mainMin: mainMin, napMin: napMin)
                     Divider().overlay(StrandPalette.hairline)
-                }
-                if naps.isEmpty {
-                    Text("No naps recorded for this day.")
-                        .font(StrandFont.footnote)
-                        .foregroundStyle(StrandPalette.textTertiary)
-                } else {
                     ForEach(naps, id: \.startTs) { nap in
                         napRow(nap)
                         if nap.startTs != naps.last?.startTs {
@@ -692,13 +639,9 @@ struct SleepView: View {
         }
     }
 
-    /// One nap row: its clock window + an edit affordance opening the SAME `SleepTimeEditor` main sleep
-    /// uses. Editing a nap re-stages it from raw over the corrected window and sticks (`userEdited`), and
-    /// can never spawn a duplicate (the detected `startTs` PK is immutable) — exactly the #318/#395 path,
-    /// here keyed on the nap's own row. (#508)
+    /// One read-only nap row: clock window and duration, with no edit, delete or explanation action.
     @ViewBuilder
     private func napRow(_ nap: CachedSleepSession) -> some View {
-        let isEdited = nap.userEdited
         HStack(spacing: 10) {
             Image(systemName: "powersleep")
                 .font(StrandFont.headline)
@@ -710,40 +653,8 @@ struct SleepView: View {
                     .strandOverline()
             }
             Spacer(minLength: 8)
-            // C1 — "why this is a nap" explainer: the nap-row nudge that everything other than the chosen
-            // main block is logged as a nap, with the Edit next-step. Keyed by the nap's stable startTs so
-            // one popover shows at a time across several nap rows. (spec 2026-06-20)
-            Button { napWhyStartTs = (napWhyStartTs == nap.startTs) ? nil : nap.startTs } label: {
-                Image(systemName: "info.circle")
-                    .font(StrandFont.headline)
-                    .foregroundStyle(StrandPalette.restColor)
-                    .frame(minWidth: 44, minHeight: 44)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(LiquidPressStyle())
-            .help("Why this is logged as a nap")
-            .accessibilityLabel("Why this is logged as a nap")
-            .popover(isPresented: Binding(
-                get: { napWhyStartTs == nap.startTs },
-                set: { if !$0 { napWhyStartTs = nil } }), arrowEdge: .bottom) {
-                whyPopover(text: "", napSuffix: true)
-            }
-            Button {
-                wakeEdit = WakeEdit(group: [nap], detectedStartTs: nap.startTs,
-                                    bedTs: nap.effectiveStartTs,
-                                    wakeTs: nap.endTs,
-                                    userEdited: true)   // a nap row is always manually added → no tombstone on delete
-            } label: {
-                Image(systemName: isEdited ? "pencil.circle.fill" : "pencil.circle")
-                    .font(StrandFont.headline)
-                    .foregroundStyle(StrandPalette.restColor)
-                    .frame(minWidth: 44, minHeight: 44)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(LiquidPressStyle())
-            .help("Edit nap times")
-            .accessibilityLabel(isEdited ? "Edit nap times (edited)" : "Edit nap times")
         }
+        .accessibilityElement(children: .combine)
     }
 
     /// "HH:mm–HH:mm" clock window for a nap row (device 12-/24-h setting via the shared Night formatter).
@@ -1038,17 +949,14 @@ struct SleepView: View {
                     wakeEditButton(night)
                 }
                 .frame(maxWidth: .infinity)
-                // Provenance (C4) + the "why this is your main sleep" explainer (C1). The badge names the
-                // REAL per-day merge winner; the info button reveals the foundation reason for the pick.
+                // Provenance remains visible, without an additional explanation action.
                 Divider().overlay(StrandPalette.hairline)
                 mainSleepFooter(night)
             }
         }
     }
 
-    /// The hero's footer: the night's provenance badge (the real merge winner) next to a tappable "why
-    /// this is your main sleep" affordance. Tapping reveals the foundation `MainNightReason` copy in a
-    /// popover, so the pick is explainable on the spot without leaving the hero. (spec 2026-06-20 C1/C4)
+    /// The hero's compact provenance footer.
     @ViewBuilder
     private func mainSleepFooter(_ night: Night) -> some View {
         HStack(spacing: 10) {
@@ -1056,61 +964,7 @@ struct SleepView: View {
             // String vs LocalizedStringKey SwiftUI footgun) to show it verbatim, not as a lookup key.
             SourceBadge("\(nightSource(night))", tint: StrandPalette.restColor)
             Spacer(minLength: 8)
-            if mainSleepReasonText(night) != nil {
-                Button { showMainSleepWhy.toggle() } label: {
-                    HStack(spacing: 5) {
-                        Image(systemName: "info.circle")
-                        Text("Why this sleep?")
-                    }
-                    .font(StrandFont.footnote)
-                    .foregroundStyle(StrandPalette.restColor)
-                    // This is a compact metadata footer inside an already surfaced card. A forced
-                    // 44-point label made the WHOOP / Why row look vertically padded despite having
-                    // only one line of content.
-                    .frame(minHeight: NoopMetrics.compactMetadataMinHeight)
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(LiquidPressStyle())
-                .help("Why this is your main sleep")
-                .accessibilityLabel("Why this is your main sleep")
-                .popover(isPresented: $showMainSleepWhy, arrowEdge: .bottom) {
-                    whyPopover(text: mainSleepReasonText(night) ?? "", napSuffix: false)
-                }
-            }
         }
-    }
-
-    /// A compact explainer popover: the verbatim foundation reason text, with the nap suffix appended for a
-    /// nap row. Plain English, no jargon, no em-dashes (the words come straight from `mainSleepReasonText`
-    /// and the spec's nap-row suffix). Sized for both macOS and iOS. (spec 2026-06-20 C1)
-    @ViewBuilder
-    private func whyPopover(text: String, napSuffix: Bool) -> some View {
-        VStack(alignment: .leading, spacing: NoopMetrics.space2) {
-            HStack(spacing: NoopMetrics.space2) {
-                Image(systemName: "moon.stars.fill")
-                    .foregroundStyle(StrandPalette.restColor)
-                    .accessibilityHidden(true)
-                Text(napSuffix ? "About this nap" : "About your main sleep")
-                    .font(StrandFont.subhead.weight(.semibold))
-                    .foregroundStyle(StrandPalette.textPrimary)
-            }
-            if !text.isEmpty {
-                Text(text)
-                    .font(StrandFont.footnote)
-                    .foregroundStyle(StrandPalette.textSecondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            if napSuffix {
-                Text("Logged as a nap. Wrong? Tap Edit to adjust your sleep and wake times.")
-                    .font(StrandFont.footnote)
-                    .foregroundStyle(StrandPalette.textTertiary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-        }
-        .padding(NoopMetrics.cardInnerPadding)
-        .frame(width: 260)
-        .background(NoopPanelSurface(cornerRadius: NoopVisualStyle.compactRadius, elevated: true))
-        .accessibilityElement(children: .combine)
     }
 
     private func sleepTime(icon: String, label: LocalizedStringKey, value: String) -> some View {
@@ -1802,30 +1656,6 @@ struct SleepView: View {
     static func isNap(_ s: CachedSleepSession, main: CachedSleepSession?) -> Bool {
         guard let main else { return false }
         return s.startTs != main.startTs
-    }
-
-    // MARK: - Why-this-is-your-main-sleep explainer (COMPONENT 1, spec 2026-06-20)
-
-    /// The verbatim reason copy for the displayed night, with {DUR} filled as "Xh Ym" from the chosen
-    /// block's asleep duration — driven entirely by the foundation `MainNightReason`, so the explainer
-    /// states exactly what the selector decided (never a re-derived guess). Resolved over the day's blocks
-    /// via the same `mainNightSelection` API the analytics pick uses, with the SAME learned habitual the
-    /// hero used, so the words match the block the hero shows. nil only when the day has no blocks. (C1)
-    private func mainSleepReasonText(_ night: Night) -> String? {
-        guard let sel = SleepStageTotals.mainNightSelection(
-            night.sourceBlocks.map { SleepStageTotals.NightBlock(start: $0.effectiveStartTs, end: $0.endTs) },
-            offsetSec: SleepView.tzOffsetSec, habitualMidsleepSec: habitualMidsleepSec) else { return nil }
-        let dur = durationText(sel.asleepMinutes)
-        switch sel.reason {
-        case .onlyBlock:
-            return String(localized: "This is your only sleep block today.")
-        case .longest:
-            return String(localized: "Picked as your main sleep because it was your longest block (\(dur)).")
-        case .longestNearUsual:
-            return String(localized: "Picked as your main sleep because it was your longest block (\(dur)), near your usual bedtime.")
-        case .alignedToUsual:
-            return String(localized: "Picked as your main sleep because it started near your usual sleep time.")
-        }
     }
 
     // `mergeDay` / `nightOnsetTs` / the fragment-level `isPreOnsetAwakeStub(_:)` moved to
@@ -2567,30 +2397,33 @@ private struct WakeEdit: Identifiable {
     var id: Int { detectedStartTs }
 }
 
-/// Seeds the "Add nap" picker (#508). A nap is short, so seed a 30-minute window anchored to the night's
-/// wake (a natural place to look for a missed afternoon nap), clamped to never start before the night's
-/// onset. The identity is the seed start so `.sheet(item:)` presents once per request.
-private struct AddNapSeed: Identifiable {
-    let bedTs: Int
-    let wakeTs: Int
-    var id: Int { bedTs }
-    init(forNight night: Night) {
-        // Anchor an hour after the night's wake; a 30-min default window the user adjusts.
-        let anchor = night.session.endTs + 3_600
-        self.bedTs = anchor
-        self.wakeTs = anchor + 30 * 60
-    }
-}
-
 /// A small sheet to hand-correct a night's bed (onset) and wake (end) instants. Seeds both pickers with
 /// the current values, including each calendar date. Hands the chosen unix-second (bed, wake) back via
 /// `onSave`. Pure presentation + a single async save — persistence lives in the repo.
+enum SleepEditorActionOutcome: Equatable {
+    case success
+    case failure(String)
+
+    var shouldDismiss: Bool {
+        if case .success = self { return true }
+        return false
+    }
+
+    var errorMessage: String? {
+        if case .failure(let message) = self { return message }
+        return nil
+    }
+}
+
 private struct SleepTimeEditor: View {
-    let onSave: (Int, Int) async -> Void
+    /// `(bedTs, wakeTs, relocating)`. `relocating` is the user's explicit "Move anyway" consent for a
+    /// window that touches none of the night's recorded data — without it the repository refuses such a
+    /// window, which is why confirming the move used to do nothing at all.
+    let onSave: (Int, Int, Bool) async -> SleepEditorActionOutcome
     /// Optional destructive delete (#68). Non-nil for an existing main-sleep / nap edit (the editor then
     /// shows a "Delete this sleep" button gated behind a confirmation); nil for the "Add a nap" sheet,
     /// which has nothing to delete yet.
-    let onDelete: (() async -> Void)?
+    let onDelete: (() async -> SleepEditorActionOutcome)?
     private let title: LocalizedStringKey
     private let blurb: LocalizedStringKey
     private let bedLabel: LocalizedStringKey
@@ -2612,6 +2445,7 @@ private struct SleepTimeEditor: View {
     @State private var wake: Date
     @State private var saving = false
     @State private var confirmingDelete = false
+    @State private var saveError: String?
     /// The bed value BEFORE the in-flight picker change, so the #940 auto-correct can tell a
     /// time-only roll (same calendar day: rescue it) from a deliberate date change (respect it).
     @State private var previousBed: Date
@@ -2630,8 +2464,8 @@ private struct SleepTimeEditor: View {
          deleteLabel: LocalizedStringKey = "Delete this sleep",
          coverage: ClosedRange<Int>? = nil,
          suppressesReDetection: Bool = true,
-         onSave: @escaping (Int, Int) async -> Void,
-         onDelete: (() async -> Void)? = nil) {
+         onSave: @escaping (Int, Int, Bool) async -> SleepEditorActionOutcome,
+         onDelete: (() async -> SleepEditorActionOutcome)? = nil) {
         self.onSave = onSave
         self.onDelete = onDelete
         self.title = title; self.blurb = blurb
@@ -2655,12 +2489,33 @@ private struct SleepTimeEditor: View {
             now: Int(Date().timeIntervalSince1970))
     }
 
+    /// Why the current picker values cannot be saved, or nil when they can. `clampedEditWindow` returns
+    /// a bare nil, so a rejected window left the Save button greyed out with NO explanation — the shape
+    /// behind "I corrected the time and nothing happened". Mirrors the guard's three refusals.
+    private var invalidReason: LocalizedStringKey? {
+        guard validatedWindow == nil else { return nil }
+        let start = Int(bed.timeIntervalSince1970)
+        let end = Int(wake.timeIntervalSince1970)
+        if end <= start { return "Wake time must come after the bed time. Check the date on both." }
+        if end - start > SleepEditGuard.maxEditWindowSec {
+            return "These times span more than 24 hours. Check the date on both — a night that crosses midnight ends on the NEXT day."
+        }
+        return "A sleep can't end in the future."
+    }
+
     /// The single save funnel: both the direct Save and the #940 disjoint confirm land here.
-    private func commit(start: Int, end: Int) {
+    /// `relocating` carries the "Move anyway" consent through to the repository.
+    private func commit(start: Int, end: Int, relocating: Bool = false) {
         saving = true
+        saveError = nil
         Task {
-            await onSave(start, end)
-            dismiss()
+            let outcome = await onSave(start, end, relocating)
+            if outcome.shouldDismiss {
+                dismiss()
+            } else {
+                saving = false
+                saveError = outcome.errorMessage
+            }
         }
     }
 
@@ -2708,6 +2563,21 @@ private struct SleepTimeEditor: View {
                 .accessibilityLabel(deleteLabel)
             }
 
+            if let invalidReason {
+                Text(invalidReason)
+                    .font(StrandFont.footnote)
+                    .foregroundStyle(StrandPalette.statusCritical)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityAddTraits(.isStaticText)
+            }
+            if let saveError {
+                Text(saveError)
+                    .font(StrandFont.footnote)
+                    .foregroundStyle(StrandPalette.statusCritical)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityAddTraits(.isStaticText)
+            }
+
             HStack(spacing: NoopMetrics.gap) {
                 Button("Cancel") { dismiss() }
                     .buttonStyle(.noopGhost)
@@ -2742,7 +2612,12 @@ private struct SleepTimeEditor: View {
             let corrected = SleepEditGuard.autoCorrectedBed(
                 previousBed: previousBed, candidateBed: newBed,
                 originalWake: coverage.map { Date(timeIntervalSince1970: TimeInterval($0.upperBound)) },
-                now: Date())
+                now: Date(),
+                // The wake the picker is showing RIGHT NOW, so rule 1b can tell a bed rolled across
+                // midnight (23:34 -> 00:30, date left on the previous evening) from a genuinely long
+                // night. `coverage` is the RECORDED span and would not move with the user's own wake
+                // correction. nil for "Add a nap", whose window sits outside the night by design.
+                currentWake: coverage == nil ? nil : wake)
             previousBed = corrected
             if corrected != newBed { bed = corrected }
         }
@@ -2754,7 +2629,7 @@ private struct SleepTimeEditor: View {
                     start: Int(bed.timeIntervalSince1970),
                     end: Int(wake.timeIntervalSince1970),
                     now: Int(Date().timeIntervalSince1970)) else { return }
-                commit(start: window.start, end: window.end)
+                commit(start: window.start, end: window.end, relocating: true)
             }
         } message: {
             Text("This moves the night to a time with no recorded data. Stages can't be derived there, so it may show as empty until data covers it.")
@@ -2765,9 +2640,19 @@ private struct SleepTimeEditor: View {
             Button("Cancel", role: .cancel) { }
             Button("Delete", role: .destructive) {
                 saving = true
+                saveError = nil
                 Task {
-                    await onDelete?()
-                    dismiss()
+                    guard let onDelete else {
+                        saving = false
+                        return
+                    }
+                    let outcome = await onDelete()
+                    if outcome.shouldDismiss {
+                        dismiss()
+                    } else {
+                        saving = false
+                        saveError = outcome.errorMessage
+                    }
                 }
             }
         } message: {

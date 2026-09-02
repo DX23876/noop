@@ -7,20 +7,21 @@ import SwiftUI
 // bindings, while cards, gauges, typography, and chrome share one maintainable source of truth.
 
 public enum NoopVisualStyle {
-    // Neutral, low-chroma surfaces sampled from the supplied dark-mode reference.
-    public static let canvas = Color(light: "#F3F4F6", dark: "#1D1E23")
-    public static let surface = Color(light: "#FFFFFF", dark: "#2A2C34")
-    public static let surfaceTop = Color(light: "#FFFFFF", dark: "#30323B")
-    public static let surfaceBottom = Color(light: "#F4F5F7", dark: "#282A31")
-    public static let inset = Color(light: "#E8E9ED", dark: "#23252C")
+    // Apple grouped-background hierarchy. These values mirror the public iOS system colours while
+    // remaining explicit dynamic tokens, so macOS, widgets, and watchOS resolve the same design language.
+    public static let canvas = Color(light: "#F2F2F7", dark: "#000000")
+    public static let surface = Color(light: "#FFFFFF", dark: "#1C1C1E")
+    public static let surfaceTop = Color(light: "#FFFFFF", dark: "#1C1C1E")
+    public static let surfaceBottom = Color(light: "#FFFFFF", dark: "#1C1C1E")
+    public static let inset = Color(light: "#F2F2F7", dark: "#2C2C2E")
 
-    public static let border = Color(light: "#D8DAE0", dark: "#373A44")
-    public static let borderHighlight = Color(light: "#FFFFFF", dark: "#4B4E59")
-    public static let divider = Color(light: "#E4E5E9", dark: "#383A43")
+    public static let border = Color(light: "#C6C6C8", dark: "#38383A")
+    public static let borderHighlight = Color(light: "#FFFFFF", dark: "#48484A")
+    public static let divider = Color(light: "#C6C6C8", dark: "#38383A")
 
-    public static let primaryText = Color(light: "#17181C", dark: "#F7F7FA")
-    public static let secondaryText = Color(light: "#555861", dark: "#C3C4CA")
-    public static let tertiaryText = Color(light: "#7D808A", dark: "#7D7F88")
+    public static let primaryText = Color(light: "#000000", dark: "#FFFFFF")
+    public static let secondaryText = Color(light: "#3C3C4399", dark: "#EBEBF599")
+    public static let tertiaryText = Color(light: "#3C3C434D", dark: "#EBEBF54D")
 
     public static let mint = Color(light: "#149A78", dark: "#69DDB8")
     public static let mintDeep = Color(light: "#0D765C", dark: "#13A982")

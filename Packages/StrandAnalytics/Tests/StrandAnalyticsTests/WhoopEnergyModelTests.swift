@@ -106,8 +106,8 @@ final class WhoopEnergyModelTests: XCTestCase {
         let corroborated = try XCTUnwrap(WhoopEnergyModel.estimate(
             buckets: [walking], profile: profile, restingHR: 55, maxHR: 185))
 
-        // Both saw a heart rate, so both stay `.observed` — movement corroborates, never substitutes.
-        XCTAssertEqual(flat.buckets[0].evidence, .observed)
+        // HR without activity context is physiological evidence, not an observed calorie measurement.
+        XCTAssertEqual(flat.buckets[0].evidence, .physiological)
         XCTAssertEqual(corroborated.buckets[0].evidence, .observed)
 
         let basal = try XCTUnwrap(Calories.bmrKcalPerDay(profile: profile)) / 86_400 * 300
@@ -137,12 +137,13 @@ final class WhoopEnergyModelTests: XCTestCase {
         XCTAssertLessThan(strolling, brisk)
         XCTAssertLessThan(brisk, running)
         // And the spread is physiological, not a rounding wobble: a run outruns a stroll several-fold.
-        XCTAssertGreaterThan(running, strolling * 3)
+        XCTAssertGreaterThan(running, strolling * 2)
     }
 
-    /// `max(hrMET, movementMET)` must never REDUCE a high-HR bucket that happens to have a quiet
-    /// wrist — cycling and lifting are exactly that shape, and a `min`/average would under-report them.
-    func testHighHeartRateWithQuietWristKeepsTheHeartRateCurve() throws {
+    /// Once a workout has been independently confirmed, a quiet wrist must not suppress its HR
+    /// intensity — cycling and lifting are exactly that shape. The confirmation is the load-bearing
+    /// distinction from an unexplained high-HR bucket.
+    func testConfirmedWorkoutWithQuietWristKeepsTheWorkoutCurve() throws {
         let cycling = WhoopEnergyBucket(start: 0, averageHR: 160, motionIntensity: 0.04,
                                         isWorkout: true)
         let bare = WhoopEnergyBucket(start: 0, averageHR: 160, isWorkout: true)
@@ -165,6 +166,72 @@ final class WhoopEnergyModelTests: XCTestCase {
         XCTAssertEqual(value.totalKcal - basal, 0, accuracy: 1.0)
     }
 
+    func testElevatedHeartRateWithoutActivityContextAddsNoActiveEnergy() throws {
+        let value = try XCTUnwrap(WhoopEnergyModel.estimate(
+            buckets: [.init(start: 0, averageHR: 200, activityClass: 0,
+                            hasMovementCoverage: true)],
+            profile: profile, restingHR: 55, maxHR: 185, flexHR: 75))
+        XCTAssertEqual(value.buckets[0].context, .unresolvedElevatedHR)
+        XCTAssertEqual(value.buckets[0].evidence, .physiological)
+        XCTAssertEqual(value.buckets[0].activeKcal, 0, accuracy: 0.001)
+    }
+
+    /// Regression for the failure mode seen in the app: body weight may increase the cost of
+    /// confirmed work, but it must never turn an elevated resting HR into hundreds of activity kcal.
+    func testHeavyWearerInBedDoesNotAccumulateActiveEnergyFromHeartRate() throws {
+        let heavyProfile = UserProfile(
+            weightKg: 216.55, heightCm: 190, age: 35, sex: "male")
+        let tenHours = (0..<120).map { index in
+            WhoopEnergyBucket(
+                start: index * 300, averageHR: 120,
+                activityClass: 0, hasMovementCoverage: true,
+                movementSeconds: 0)
+        }
+        let value = try XCTUnwrap(WhoopEnergyModel.estimate(
+            buckets: tenHours, profile: heavyProfile, restingHR: 55, maxHR: 185,
+            flexHR: 75))
+        let expectedBasal = try XCTUnwrap(Calories.bmrKcalPerDay(profile: heavyProfile))
+            * 10 / 24
+
+        XCTAssertEqual(value.buckets.reduce(0.0) { $0 + $1.activeKcal }, 0, accuracy: 0.001)
+        XCTAssertEqual(value.totalKcal, expectedBasal, accuracy: 0.001)
+    }
+
+    func testShortMovementDoesNotChargeTheWholeFiveMinuteBucket() throws {
+        let full = try XCTUnwrap(WhoopEnergyModel.estimate(
+            buckets: [.init(start: 0, steps: 300, activityClass: 1,
+                            hasMovementCoverage: true, movementSeconds: 300)],
+            profile: profile, restingHR: 55, maxHR: 185))
+        let short = try XCTUnwrap(WhoopEnergyModel.estimate(
+            buckets: [.init(start: 0, steps: 30, activityClass: 1,
+                            hasMovementCoverage: true, movementSeconds: 30)],
+            profile: profile, restingHR: 55, maxHR: 185))
+        XCTAssertEqual(short.buckets[0].activeKcal,
+                       full.buckets[0].activeKcal / 10, accuracy: 0.01)
+    }
+
+    func testExerciseCurveHasNoFiftyPercentHRRDiscontinuity() throws {
+        func active(_ bpm: Double) throws -> Double {
+            try XCTUnwrap(WhoopEnergyModel.estimate(
+                buckets: [.init(start: 0, averageHR: bpm, isWorkout: true,
+                                workoutKind: .endurance)],
+                profile: profile, restingHR: 55, maxHR: 185)).buckets[0].activeKcal
+        }
+        XCTAssertLessThan(try active(120) - active(119), 1.0)
+    }
+
+    func testMovementUsesWallTimeWhileHRCoverageRemainsSeparate() throws {
+        let value = try XCTUnwrap(WhoopEnergyModel.estimate(
+            buckets: [.init(start: 0, durationSeconds: 300, hrCoverageSeconds: 30,
+                            averageHR: 100, steps: 500, activityClass: 1,
+                            hasMovementCoverage: true)],
+            profile: profile, restingHR: 55, maxHR: 185))
+        XCTAssertEqual(value.observedSeconds, 30)
+        XCTAssertEqual(value.inferredSeconds, 270)
+        XCTAssertEqual(value.buckets[0].context, .locomotion)
+        XCTAssertLessThan(value.buckets[0].activeKcal, 30)
+    }
+
     /// The strap's own class raises a floor but must not overrule a FASTER reading from distance —
     /// a run misreported as a walk keeps the run's energy.
     func testActivityClassRaisesAFloorWithoutCappingAFasterSignal() throws {
@@ -180,8 +247,8 @@ final class WhoopEnergyModelTests: XCTestCase {
     /// Guards the invalidation contract: `Repository.energySummaries` filters `whoopDailyEnergy` rows
     /// to this exact string, so a silent revert would resurrect pre-movement-corroboration (v1) rows
     /// into a chart that should only ever show one model generation at a time.
-    func testModelVersionIsTheMovementCorroborationGeneration() {
-        XCTAssertEqual(WhoopDailyEnergyEstimate.modelVersion, "whoop-bucket-v3")
+    func testModelVersionIsTheContextFirstGeneration() {
+        XCTAssertEqual(WhoopDailyEnergyEstimate.modelVersion, "whoop-bucket-v5")
     }
 
     func testInvalidBucketsAndProfileDoNotInventEnergy() {

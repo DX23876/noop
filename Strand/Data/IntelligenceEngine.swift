@@ -11,6 +11,36 @@ import StrandAnalytics
 /// itself rather than relying on the values WHOOP computed in the imported CSV.
 @MainActor
 final class IntelligenceEngine: ObservableObject {
+    /// Version of the *meaning* of persisted derived scores. App marketing/build versions are
+    /// deliberately unrelated: bump this only when an analytics change makes existing scores stale.
+    static let currentAnalysisRecipeVersion = 1
+    static let analysisRecipeCursor = "analysis:recipeVersion"
+    static let analysisLastRunKey = "noop.analysisMaintenance.lastRun"
+
+    enum AnalysisMaintenancePhase: Equatable {
+        case idle
+        case checking
+        case migrating(from: Int, to: Int)
+        case manualRecent
+        case refreshingToday
+        case completed(Date)
+        case failed(String)
+    }
+
+    enum AnalysisRecipeDecision: Equatable {
+        /// Existing installs predate the cursor. Trust their current rows and establish the baseline
+        /// without turning an ordinary reinstall into a historical reanalysis.
+        case anchorCurrent
+        case upToDate
+        case migrate(from: Int, to: Int)
+    }
+
+    static func analysisRecipeDecision(storedVersion: Int?) -> AnalysisRecipeDecision {
+        guard let storedVersion else { return .anchorCurrent }
+        guard storedVersion < currentAnalysisRecipeVersion else { return .upToDate }
+        return .migrate(from: storedVersion, to: currentAnalysisRecipeVersion)
+    }
+
     private let repo: Repository
     private let profile: ProfileStore
     /// The CANONICAL id under whose `-noop` sibling this engine WRITES the computed daily rows, and from
@@ -26,6 +56,8 @@ final class IntelligenceEngine: ObservableObject {
     @Published var results: [Computed] = []      // newest first
     @Published var computing = false
     @Published var note: String?
+    @Published private(set) var analysisRecipeVersion = 0
+    @Published private(set) var analysisMaintenancePhase: AnalysisMaintenancePhase = .idle
 
     enum AnalysisReason: Int, Sendable {
         case rawMutation = 0
@@ -65,6 +97,11 @@ final class IntelligenceEngine: ObservableObject {
 
     private var pendingAnalysis: PendingAnalysis?
     private var analysisRunnerActive = false
+    /// Coalesce foreground, backfill, and workout-finish requests onto one small current-day read.
+    /// These signals often arrive together; letting each one scan the same day independently would
+    /// recreate the contention this fast path is intended to avoid.
+    private var currentDayActivityRefreshTask: Task<Bool, Never>?
+    private var analysisMaintenanceTask: Task<Bool, Never>?
     /// #899 heal bound: true while the last heal already re-armed a rescore, so a heal firing again on
     /// the very next pass cannot re-arm a second time (the Android twin is hard-bounded to exactly one
     /// re-pass; this mirrors it). Reset by any pass whose heal finds nothing, restoring the budget.
@@ -456,6 +493,188 @@ final class IntelligenceEngine: ObservableObject {
     static let effortRescoreFlagKey = "intelligence.effortRescore.v313.done"
     static let effortRescoreCursorKey = "intelligence.effortRescore.v313.cursor"
 
+    /// Anchor or migrate the persisted analytics recipe. A database with no cursor predates this
+    /// coordinator; its existing scores are accepted as the baseline so shipping the coordinator itself
+    /// does not create the very launch-time 21-day pass it is designed to remove.
+    @discardableResult
+    func prepareAnalysisRecipe() async -> Bool {
+        guard let store = await repo.storeHandle() else { return false }
+        analysisMaintenancePhase = .checking
+        do {
+            let stored = try await store.cursor(Self.analysisRecipeCursor)
+            switch Self.analysisRecipeDecision(storedVersion: stored) {
+            case .anchorCurrent:
+                try await store.setCursor(Self.analysisRecipeCursor, Self.currentAnalysisRecipeVersion)
+                analysisRecipeVersion = Self.currentAnalysisRecipeVersion
+                analysisMaintenancePhase = .idle
+                return true
+            case .upToDate:
+                analysisRecipeVersion = stored ?? Self.currentAnalysisRecipeVersion
+                analysisMaintenancePhase = .idle
+                return true
+            case .migrate(let from, let to):
+                analysisRecipeVersion = from
+                return await runAnalysisMaintenance(
+                    phase: .migrating(from: from, to: to),
+                    markRecipeOnSuccess: true)
+            }
+        } catch {
+            analysisMaintenancePhase = .failed(error.localizedDescription)
+            return false
+        }
+    }
+
+    /// Explicit user action from Settings. It recomputes derived rows only; raw samples and user edits
+    /// remain authoritative inputs. It intentionally does not advance the recipe cursor unless a pending
+    /// migration is being fulfilled by the same run.
+    @discardableResult
+    func manuallyReanalyzeRecent() async -> Bool {
+        guard let store = await repo.storeHandle() else { return false }
+        let stored = (try? await store.cursor(Self.analysisRecipeCursor))
+            ?? Self.currentAnalysisRecipeVersion
+        let owesMigration = stored < Self.currentAnalysisRecipeVersion
+        let phase: AnalysisMaintenancePhase = owesMigration
+            ? .migrating(from: stored, to: Self.currentAnalysisRecipeVersion)
+            : .manualRecent
+        return await runAnalysisMaintenance(phase: phase, markRecipeOnSuccess: owesMigration)
+    }
+
+    @discardableResult
+    func manuallyRefreshCurrentDayActivity() async -> Bool {
+        guard analysisMaintenanceTask == nil else { return false }
+        analysisMaintenancePhase = .refreshingToday
+        let ok = await refreshCurrentDayActivity()
+        let finished = Date()
+        if ok {
+            UserDefaults.standard.set(finished.timeIntervalSince1970, forKey: Self.analysisLastRunKey)
+            analysisMaintenancePhase = .completed(finished)
+        } else {
+            analysisMaintenancePhase = .failed(String(localized: "No current-day activity data was available."))
+        }
+        return ok
+    }
+
+    private func runAnalysisMaintenance(phase: AnalysisMaintenancePhase,
+                                        markRecipeOnSuccess: Bool) async -> Bool {
+        if let analysisMaintenanceTask { return await analysisMaintenanceTask.value }
+        analysisMaintenancePhase = phase
+        let task = Task { @MainActor [weak self] in
+            guard let self, let store = await self.repo.storeHandle() else { return false }
+            await self.analyzeRecent(maxDays: 21, force: true, allowDayReuse: false,
+                                     reason: .semanticChange)
+            guard !Task.isCancelled else { return false }
+            if markRecipeOnSuccess {
+                do {
+                    try await store.setCursor(Self.analysisRecipeCursor,
+                                              Self.currentAnalysisRecipeVersion)
+                    self.analysisRecipeVersion = Self.currentAnalysisRecipeVersion
+                } catch {
+                    self.analysisMaintenancePhase = .failed(error.localizedDescription)
+                    return false
+                }
+            }
+            await self.repo.refresh(days: 120)
+            let finished = Date()
+            UserDefaults.standard.set(finished.timeIntervalSince1970,
+                                      forKey: Self.analysisLastRunKey)
+            self.analysisMaintenancePhase = .completed(finished)
+            return true
+        }
+        analysisMaintenanceTask = task
+        let ok = await task.value
+        analysisMaintenanceTask = nil
+        if !ok, case .failed = analysisMaintenancePhase { return false }
+        if !ok { analysisMaintenancePhase = .failed(String(localized: "The reanalysis did not finish.")) }
+        return ok
+    }
+
+    /// Refresh only today's Effort and strap-step estimate from today's raw streams.
+    ///
+    /// The complete `analyzeRecent` pipeline remains authoritative for sleep, Charge, Rest, workouts,
+    /// energy, and history. This deliberately narrow companion exists so a completed offload or workout
+    /// can update the two activity values immediately instead of waiting behind a multi-day sleep pass.
+    /// The store write is field-scoped, therefore an edited night's repaired sleep fields cannot be
+    /// overwritten by this refresh.
+    @discardableResult
+    func refreshCurrentDayActivity(now: Date = Date()) async -> Bool {
+        if let currentDayActivityRefreshTask {
+            return await currentDayActivityRefreshTask.value
+        }
+        let task = Task { @MainActor [weak self] in
+            guard let self else { return false }
+            return await self.performCurrentDayActivityRefresh(now: now)
+        }
+        currentDayActivityRefreshTask = task
+        let updated = await task.value
+        currentDayActivityRefreshTask = nil
+        return updated
+    }
+
+    private func performCurrentDayActivityRefresh(now: Date) async -> Bool {
+        guard let store = await repo.storeHandle() else { return false }
+
+        let nowTs = Int(now.timeIntervalSince1970)
+        let offset = TimeZone.current.secondsFromGMT(for: now)
+        let dayStart = Self.midnightLocal(nowTs, offsetSec: offset)
+        let dayEnd = min(nowTs, dayStart + 86_400 - 1)
+        guard dayEnd >= dayStart else { return false }
+        let day = AnalyticsEngine.dayString(nowTs, offsetSec: offset)
+        let computedId = deviceId + "-noop"
+
+        let registry = DeviceRegistryStore(dbQueue: store.registryWriter)
+        let devices = (try? registry.all()) ?? []
+        let activeId = (try? registry.activeDeviceId()) ?? deviceId
+        let owner = await Self.resolveDayOwner(
+            day: day, from: dayStart, to: dayEnd, store: store, devices: devices,
+            activeId: activeId, registry: registry, fallbackDeviceId: deviceId)
+
+        async let hrRead = try? store.hrSamples(
+            deviceId: owner, from: dayStart, to: dayEnd, limit: Int.max)
+        async let stepRead = try? store.stepSamples(
+            deviceId: owner, from: dayStart, to: dayEnd, limit: Int.max)
+        async let existingRead = try? store.dailyMetrics(
+            deviceId: computedId, from: day, to: day)
+        let (hrOptional, stepOptional, existingOptional) = await (hrRead, stepRead, existingRead)
+        let hr = hrOptional ?? []
+        let stepSamples = stepOptional ?? []
+        let existing = existingOptional?.first
+
+        let maxHR = profile.hrMaxOverride > 0
+            ? Double(profile.hrMaxOverride)
+            : (profile.age > 0 ? StrainScorer.tanakaHRmax(age: Double(profile.age)) : nil)
+        let restingHR = existing?.restingHr.map(Double.init) ?? StrainScorer.defaultRestingHR
+        let effortMethod = PuffinExperiment.effortMethod
+        let sex = profile.sex
+        let ticksPerStep = profile.stepTicksPerStep
+
+        let activity = await Task.detached(priority: .userInitiated) {
+            let strain = StrainScorer.strain(
+                hr, maxHR: maxHR, restingHR: restingHR, method: effortMethod, sex: sex)
+            let steps: Int? = {
+                guard let ticks = StepsCounter.stepsInWindow(stepSamples) else { return nil }
+                let value = Int((Double(ticks) / max(ticksPerStep, 0.5)).rounded())
+                return value > 0 ? value : nil
+            }()
+            return (strain: strain, steps: steps)
+        }.value
+
+        do {
+            _ = try await store.upsertDailyActivity(
+                day: day, strain: activity.strain, steps: activity.steps, deviceId: computedId)
+            await repo.refresh()
+            let strainLog = activity.strain.map { String(format: "%.1f", $0) } ?? "nil"
+            let stepsLog = activity.steps.map(String.init) ?? "nil"
+            diagnosticSink?(
+                "activity refresh day=\(day) owner=\(owner) hr=\(hr.count) stepsRaw=\(stepSamples.count) "
+                    + "effort=\(strainLog) steps=\(stepsLog)",
+                nil)
+            return activity.strain != nil || activity.steps != nil
+        } catch {
+            diagnosticSink?("activity refresh failed day=\(day): \(error.localizedDescription)", nil)
+            return false
+        }
+    }
+
     /// Resumable, on-upgrade Effort-only rescore (#313 PART B). The Effort hero gauge + numbers
     /// moved from the old 0–21 axis to NOOP's own 0–100 axis. On-device computed rows since v2.6.1
     /// already store 0–100, but rows the engine computed on an OLDER build (capped at `maxDays` per run,
@@ -635,7 +854,13 @@ final class IntelligenceEngine: ObservableObject {
             await performAnalyzeRecent(maxDays: request.maxDays, force: request.force,
                                        skipIfUnchanged: request.skipIfUnchanged,
                                        allowDayReuse: request.allowDayReuse,
-                                       reason: request.reason)
+                                       reason: request.reason,
+                                       affectedUTCInterval: {
+                                           guard let lower = request.affectedLower,
+                                                 let upper = request.affectedUpper,
+                                                 lower < upper else { return nil }
+                                           return lower..<upper
+                                       }())
             computing = false
             request.waiters.forEach { $0.resume() }
         }
@@ -658,7 +883,8 @@ final class IntelligenceEngine: ObservableObject {
     }
 
     private func performAnalyzeRecent(maxDays: Int, force: Bool, skipIfUnchanged: Bool,
-                                      allowDayReuse: Bool, reason: AnalysisReason) async {
+                                      allowDayReuse: Bool, reason: AnalysisReason,
+                                      affectedUTCInterval: Range<Int>?) async {
         // TEMP DIAGNOSTIC (#freeze-investigation) — remove once the Goal & Journey freeze is understood.
         // Logs WHO calls this, with WHAT window, and how long the pass takes, so a UI freeze can be tied
         // to a concrete caller + workload instead of guessed at from a paused stack.
@@ -989,6 +1215,16 @@ final class IntelligenceEngine: ObservableObject {
                 let to = Self.sleepReadWindowEnd(dayStart: dayStart,
                                                  nowLocalMidnight: nowLocalMidnight,
                                                  now: now)
+
+                // A repair/import caller may know the exact UTC span it changed. Preserve all existing
+                // reconciliation semantics while avoiding raw-stream reads for days whose read window
+                // cannot intersect that span. A missing persisted row still falls through and scans.
+                if let affectedUTCInterval,
+                   (to < affectedUTCInterval.lowerBound || from >= affectedUTCInterval.upperBound),
+                   persistedRowsByDay[day] != nil {
+                    reusedDays.append(day)
+                    continue
+                }
 
                 // I2: pick the single device that owns this day, and read ITS streams below. With one device
                 // this resolves to `deviceId` (active strap, has data → priority 0), so nothing changes; with

@@ -7,7 +7,9 @@ import Foundation
 /// macOS/iOS (SleepTimeEditor) and Android (com.noop.analytics.SleepEditGuard, byte-for-byte twin),
 /// all pure and unit-tested:
 ///   1. `autoCorrectedBed`: a time-only roll that lands the bed in the future, or at/after the
-///      night's wake, almost always means the PREVIOUS evening; auto-decrement the date.
+///      night's wake, almost always means the PREVIOUS evening; auto-decrement the date. The mirror
+///      roll — a late-night bed corrected ACROSS midnight into the small hours (23:34 -> 00:30) —
+///      keeps the date on the previous evening and needs the opposite nudge; see rule 1b.
 ///   2. `isDisjoint`: a corrected window with no overlap of the night's recorded coverage needs an
 ///      explicit confirm ("this moves the night to a time with no recorded data"), never silent
 ///      acceptance.
@@ -33,19 +35,41 @@ public enum SleepEditGuard {
     ///     the decremented bed lands before the wake and within `maxAutoCorrectNightSec` of it. This
     ///     guards a legitimate MOVE-LATER edit (past bed rolled to just after its own wake on the same
     ///     day) from being silently shoved back a full day into a ~23h wrong-day window.
+    /// Rule 1b (`currentWake`): the MIRROR roll. A night that began before midnight (bed 23:34 Mon,
+    /// wake 10:15 Tue) seeds the picker on Monday; rolling the bed TIME forward across midnight to
+    /// 00:30 keeps Monday, so the window becomes ~34 h — impossible, and `clampedEditWindow` then
+    /// refuses it, which reads to the user as "Save does nothing". When the candidate sits further
+    /// before the CURRENTLY PICKED wake than any plausible night, and adding one day forms a
+    /// plausible night that is still in the past, the user meant the following morning.
+    ///
+    /// `currentWake` is the wake the picker is showing RIGHT NOW (not `originalWake`, the night's
+    /// recorded coverage end), because this rule judges the window the user is actually building. It
+    /// is nil for the "Add a nap" sheet, whose seed window is deliberately outside the night — the
+    /// nap path keeps exactly its previous behaviour.
     public static func autoCorrectedBed(previousBed: Date, candidateBed: Date, originalWake: Date?,
-                                        now: Date, calendar: Calendar = .current) -> Date {
+                                        now: Date, currentWake: Date? = nil,
+                                        calendar: Calendar = .current) -> Date {
         guard calendar.isDate(candidateBed, inSameDayAs: previousBed) else { return candidateBed }
-        guard let decremented = calendar.date(byAdding: .day, value: -1, to: candidateBed),
-              decremented <= now else { return candidateBed }
-        let futureViolation = candidateBed > now
-        let wakeViolation: Bool = {
-            guard let wake = originalWake, candidateBed >= wake else { return false }
-            // Only correct when the decremented bed forms a possible night for THIS wake.
-            return decremented < wake && wake.timeIntervalSince(decremented) <= maxAutoCorrectNightSec
-        }()
-        guard futureViolation || wakeViolation else { return candidateBed }
-        return decremented
+        // Rule 1a: the candidate is impossible as a bed time -> it meant the previous evening.
+        if let decremented = calendar.date(byAdding: .day, value: -1, to: candidateBed),
+           decremented <= now {
+            let futureViolation = candidateBed > now
+            let wakeViolation: Bool = {
+                guard let wake = originalWake, candidateBed >= wake else { return false }
+                // Only correct when the decremented bed forms a possible night for THIS wake.
+                return decremented < wake && wake.timeIntervalSince(decremented) <= maxAutoCorrectNightSec
+            }()
+            if futureViolation || wakeViolation { return decremented }
+        }
+        // Rule 1b: the candidate is too far BEFORE the picked wake to be that night's bed -> it meant
+        // the following morning. Both the implausibility test and the rescue use the same span bound,
+        // so a genuinely long night (still within it) is never nudged.
+        guard let wake = currentWake, candidateBed < wake,
+              wake.timeIntervalSince(candidateBed) > maxAutoCorrectNightSec,
+              let incremented = calendar.date(byAdding: .day, value: 1, to: candidateBed),
+              incremented <= now, incremented < wake,
+              wake.timeIntervalSince(incremented) <= maxAutoCorrectNightSec else { return candidateBed }
+        return incremented
     }
 
     /// Rule 2: true when the corrected window `[newStart, newEnd)` shares NOTHING with the night's

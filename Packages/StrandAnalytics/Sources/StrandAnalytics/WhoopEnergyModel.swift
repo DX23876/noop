@@ -5,7 +5,28 @@ import Foundation
 public enum EnergyEvidence: String, Codable, Equatable, Sendable {
     case observed
     case inferred
+    /// Heart rate was observed, but the energy above basal is a deliberately bounded physiological
+    /// estimate rather than evidence of activity.
+    case physiological
     case modeled
+}
+
+/// The context selected before any calorie equation runs. Heart rate is an intensity input inside a
+/// context; it is never, by itself, proof that the wearer was active.
+public enum EnergyContext: String, Codable, CaseIterable, Equatable, Sendable {
+    case offWrist
+    case sleep
+    case confirmedWorkout
+    case locomotion
+    case sedentary
+    case unresolvedElevatedHR
+    case unknown
+}
+
+public enum EnergyWorkoutKind: String, Codable, Equatable, Sendable {
+    case endurance
+    case resistance
+    case other
 }
 
 /// One fixed-width WHOOP energy input window. Callers normally use five-minute buckets; duration is
@@ -13,6 +34,9 @@ public enum EnergyEvidence: String, Codable, Equatable, Sendable {
 public struct WhoopEnergyBucket: Equatable, Sendable {
     public let start: Int
     public let durationSeconds: Int
+    /// Seconds inside the wall-clock bucket backed by HR. Movement can cover the full bucket even when
+    /// optical samples are sparse; keeping these durations separate prevents cadence inflation.
+    public let hrCoverageSeconds: Int
     public let averageHR: Double?
     public let motionIntensity: Double?
     public let steps: Int?
@@ -22,23 +46,38 @@ public struct WhoopEnergyBucket: Equatable, Sendable {
     /// rather than something inferred from cadence, so it sets a floor the weaker signals cannot pull
     /// below. WHOOP 5/MG only: a 4.0 record carries no such field and leaves this nil.
     public let activityClass: Int?
+    /// Seconds in this bucket for which movement was independently observed. A few steps near a
+    /// five-minute boundary must not turn the entire bucket into five minutes of walking.
+    public let movementSeconds: Int
+    /// True when a dense movement stream covered this window. This distinguishes a real still reading
+    /// (`activityClass == 0`, no counter delta) from a WHOOP 4 / data-gap bucket with no motion evidence.
+    public let hasMovementCoverage: Bool
     public let isWorkout: Bool
+    public let workoutKind: EnergyWorkoutKind
     public let isSleep: Bool
     public let isOffWrist: Bool
 
-    public init(start: Int, durationSeconds: Int = 300, averageHR: Double? = nil,
+    public init(start: Int, durationSeconds: Int = 300, hrCoverageSeconds: Int? = nil,
+                averageHR: Double? = nil,
                 motionIntensity: Double? = nil, steps: Int? = nil, distanceM: Double? = nil,
                 strideM: Double? = nil, activityClass: Int? = nil, isWorkout: Bool = false,
-                isSleep: Bool = false, isOffWrist: Bool = false) {
+                workoutKind: EnergyWorkoutKind = .other, isSleep: Bool = false,
+                isOffWrist: Bool = false, hasMovementCoverage: Bool = false,
+                movementSeconds: Int? = nil) {
         self.start = start
         self.durationSeconds = durationSeconds
+        self.hrCoverageSeconds = min(durationSeconds, max(0, hrCoverageSeconds
+            ?? (averageHR == nil ? 0 : durationSeconds)))
         self.averageHR = averageHR
         self.motionIntensity = motionIntensity
         self.steps = steps
         self.distanceM = distanceM
         self.strideM = strideM
         self.activityClass = activityClass
+        self.movementSeconds = min(durationSeconds, max(0, movementSeconds ?? durationSeconds))
+        self.hasMovementCoverage = hasMovementCoverage
         self.isWorkout = isWorkout
+        self.workoutKind = workoutKind
         self.isSleep = isSleep
         self.isOffWrist = isOffWrist
     }
@@ -47,29 +86,38 @@ public struct WhoopEnergyBucket: Equatable, Sendable {
 public struct WhoopEnergyBucketResult: Equatable, Sendable {
     public let start: Int
     public let kcal: Double
+    public let activeKcal: Double
     public let evidence: EnergyEvidence
+    public let context: EnergyContext
+    public let uncertaintyFraction: Double
 }
 
 public struct WhoopDailyEnergyEstimate: Equatable, Sendable {
-    /// v2 (2026-08-25): movement corroborates the HR curve, and the strap's `activity_class` sets a
-    /// MET floor. v3 (2026-08-26): the cadence and distance branches of `movementMET` now share one
-    /// Compendium-referenced speed→MET curve instead of two independently-tuned tables that could
-    /// disagree by up to 2.7 MET at the same real speed. Bumped rather than edited in place so every
-    /// older row is recomputed on the next refresh instead of two model generations being averaged
-    /// into one trend.
-    public static let modelVersion = "whoop-bucket-v3"
+    /// v5 (2026-08-29): heart rate without independently confirmed movement or a workout contributes
+    /// no active energy. Locomotion is charged only for its observed movement seconds rather than the
+    /// entire five-minute bucket. Bumped so every v4 physiological allowance is recomputed away.
+    public static let modelVersion = "whoop-bucket-v5"
 
     public let totalKcal: Double
     public let observedSeconds: Int
     public let inferredSeconds: Int
     public let modeledSeconds: Int
+    public let physiologicalSeconds: Int
+    public let contextSeconds: [EnergyContext: Int]
     /// Symmetric approximate uncertainty, expressed as a fraction of total energy.
     public let uncertaintyFraction: Double
     public let buckets: [WhoopEnergyBucketResult]
 
+    /// Wall-clock seconds whose basal share is already present in `totalKcal`. This is the denominator
+    /// `EnergyEngine` must use when topping up the unmodelled remainder of a day; using HR coverage here
+    /// would add basal twice for movement-backed or otherwise modelled seconds without optical samples.
+    public var representedSeconds: Int {
+        observedSeconds + inferredSeconds + physiologicalSeconds + modeledSeconds
+    }
+
     public var coverageFraction: Double {
-        let total = observedSeconds + inferredSeconds + modeledSeconds
-        return total > 0 ? Double(observedSeconds) / Double(total) : 0
+        let total = representedSeconds
+        return total > 0 ? Double(observedSeconds + physiologicalSeconds) / Double(total) : 0
     }
 }
 
@@ -79,7 +127,8 @@ public enum WhoopEnergyModel {
     public static let defaultBucketSeconds = 300
 
     public static func estimate(buckets: [WhoopEnergyBucket], profile: UserProfile,
-                                restingHR: Double?, maxHR: Double?) -> WhoopDailyEnergyEstimate? {
+                                restingHR: Double?, maxHR: Double?, flexHR: Double? = nil)
+        -> WhoopDailyEnergyEstimate? {
         guard let bmr = Calories.bmrKcalPerDay(profile: profile), profile.weightKg > 0 else { return nil }
         let valid = buckets
             .filter { $0.durationSeconds > 0 && $0.durationSeconds <= 900 }
@@ -90,60 +139,101 @@ public enum WhoopEnergyModel {
         var results: [WhoopEnergyBucketResult] = []
         var observed = 0
         var inferred = 0
+        var physiological = 0
         var modeled = 0
+        var contextSeconds: [EnergyContext: Int] = [:]
 
         for bucket in valid {
             let seconds = bucket.durationSeconds
+            let hrSeconds = min(seconds, max(0, bucket.hrCoverageSeconds))
             let basal = basalPerSecond * Double(seconds)
             let result: WhoopEnergyBucketResult
+            let hr = finite(bucket.averageHR).flatMap { (30...240).contains($0) ? $0 : nil }
+            let resting = min(100, max(35, restingHR ?? 60))
+            let maximum = max(resting + 20, maxHR ?? 190)
+            let flex = min(maximum, max(resting, flexHR ?? resting + 20))
 
-            if bucket.isOffWrist || bucket.isSleep {
-                result = .init(start: bucket.start, kcal: basal, evidence: .modeled)
+            if bucket.isOffWrist {
+                result = bucketResult(bucket, basal: basal, active: 0, evidence: .modeled,
+                                      context: .offWrist, uncertainty: 0.30)
                 modeled += seconds
-            } else if let hr = finite(bucket.averageHR), hr >= 30, hr <= 240 {
-                // Heart rate alone CANNOT see a walk. At ~37% HR reserve the conservative
-                // low-intensity curve below returns ~1.9 MET where a brisk walk really costs 3.0-4.3,
-                // and the day path it replaced was worse still: `Calories.estimateDayCalories` gates
-                // the Keytel rate at 50% HRR and credits every second below it the bare resting rate,
-                // so a whole 30-minute walk contributed EXACTLY zero active energy (the resting rate
-                // and `EnergyEngine`'s basal top-up are the same number, so they cancel).
-                //
-                // So when the strap ALSO reports movement for this same bucket, take whichever model
-                // reads higher. `max` is what keeps this honest in both directions: movement can only
-                // ever RAISE the estimate, only when a real steps / distance / motion / activity-class
-                // signal corroborates it, and a high-HR low-motion bucket (cycling, lifting) keeps the
-                // HR curve untouched. Evidence stays `.observed` — HR was measured here; the movement
-                // channel corroborates that measurement rather than standing in for it.
-                let met = max(hrMET(hr: hr, restingHR: restingHR, maxHR: maxHR,
-                                    workout: bucket.isWorkout),
-                              hasMovement(bucket) ? movementMET(bucket) : 0)
-                result = .init(start: bucket.start,
-                               kcal: basal + activeKcal(met: met, seconds: seconds,
-                                                        weightKg: profile.weightKg),
-                               evidence: .observed)
-                observed += seconds
+            } else if bucket.isSleep {
+                result = bucketResult(bucket, basal: basal, active: 0, evidence: .modeled,
+                                      context: .sleep, uncertainty: 0.20)
+                modeled += seconds
+            } else if bucket.isWorkout, let hr {
+                let met = workoutMET(hr: hr, resting: resting, maximum: maximum,
+                                     kind: bucket.workoutKind)
+                let active = activeKcal(met: met, seconds: seconds, weightKg: profile.weightKg)
+                result = bucketResult(bucket, basal: basal, active: active, evidence: .observed,
+                                      context: .confirmedWorkout, uncertainty: 0.18)
+                observed += hrSeconds
+                inferred += seconds - hrSeconds
             } else if hasMovement(bucket) {
-                let met = movementMET(bucket)
-                result = .init(start: bucket.start,
-                               kcal: basal + activeKcal(met: met, seconds: seconds,
-                                                        weightKg: profile.weightKg),
-                               evidence: .inferred)
-                inferred += seconds
+                let movementSeconds = min(seconds, max(0, bucket.movementSeconds))
+                let movement = movementMET(bucket)
+                // Locomotion is anchored to speed/cadence. HR can make a bounded secondary correction,
+                // but cannot turn an ordinary walk into a maximal-effort bucket.
+                let met: Double
+                if let hr {
+                    let exercise = workoutMET(hr: hr, resting: resting, maximum: maximum,
+                                              kind: .endurance)
+                    met = min(14.5, movement + min(1.5, max(0, exercise - movement) * 0.25))
+                } else {
+                    met = movement
+                }
+                let active = activeKcal(met: met, seconds: movementSeconds,
+                                        weightKg: profile.weightKg)
+                result = bucketResult(bucket, basal: basal, active: active,
+                                      evidence: hr == nil ? .inferred : .observed,
+                                      context: .locomotion, uncertainty: hr == nil ? 0.28 : 0.20)
+                if hr == nil {
+                    inferred += seconds
+                } else {
+                    observed += hrSeconds
+                    inferred += seconds - hrSeconds
+                }
+            } else if let hr {
+                let context: EnergyContext
+                if bucket.hasMovementCoverage {
+                    context = hr > flex ? .unresolvedElevatedHR : .sedentary
+                } else {
+                    context = .unknown
+                }
+                result = bucketResult(bucket, basal: basal, active: 0,
+                                      evidence: .physiological, context: context,
+                                      uncertainty: context == .unknown ? 0.40 : 0.35)
+                physiological += hrSeconds
+                modeled += seconds - hrSeconds
+            } else if bucket.hasMovementCoverage {
+                result = bucketResult(bucket, basal: basal, active: 0, evidence: .modeled,
+                                      context: .sedentary, uncertainty: 0.30)
+                modeled += seconds
             } else {
-                result = .init(start: bucket.start, kcal: basal, evidence: .modeled)
+                result = bucketResult(bucket, basal: basal, active: 0, evidence: .modeled,
+                                      context: .unknown, uncertainty: 0.45)
                 modeled += seconds
             }
+            contextSeconds[result.context, default: 0] += seconds
             results.append(result)
         }
 
         let total = results.reduce(0) { $0 + $1.kcal }
-        let duration = max(1, observed + inferred + modeled)
-        // Measurement < movement inference < basal fill. This is intentionally conservative and
-        // auditable; calibration later may scale the value but not erase this evidence mix.
-        let uncertainty = min(0.50, (0.10 * Double(observed) + 0.22 * Double(inferred)
-                                    + 0.35 * Double(modeled)) / Double(duration))
+        let duration = max(1, observed + inferred + physiological + modeled)
+        let uncertaintyNumerator = zip(results, valid).reduce(0.0) { partial, pair in
+            partial + pair.0.uncertaintyFraction * Double(pair.1.durationSeconds)
+        }
+        let uncertainty = min(0.60, uncertaintyNumerator / Double(duration))
         return .init(totalKcal: total, observedSeconds: observed, inferredSeconds: inferred,
-                     modeledSeconds: modeled, uncertaintyFraction: uncertainty, buckets: results)
+                     modeledSeconds: modeled, physiologicalSeconds: physiological,
+                     contextSeconds: contextSeconds, uncertaintyFraction: uncertainty, buckets: results)
+    }
+
+    private static func bucketResult(_ bucket: WhoopEnergyBucket, basal: Double, active: Double,
+                                     evidence: EnergyEvidence, context: EnergyContext,
+                                     uncertainty: Double) -> WhoopEnergyBucketResult {
+        .init(start: bucket.start, kcal: basal + active, activeKcal: active, evidence: evidence,
+              context: context, uncertaintyFraction: uncertainty)
     }
 
     private static func finite(_ value: Double?) -> Double? {
@@ -187,7 +277,7 @@ public enum WhoopEnergyModel {
     }
 
     private static func movementMET(_ bucket: WhoopEnergyBucket) -> Double {
-        let minutes = max(1.0 / 60, Double(bucket.durationSeconds) / 60)
+        let minutes = max(1.0 / 60, Double(bucket.movementSeconds) / 60)
         var met: Double
         if let distance = finite(bucket.distanceM), distance > 0 {
             let speedKmh = distance / 1_000 / (minutes / 60)
@@ -226,19 +316,20 @@ public enum WhoopEnergyModel {
         max(0, met - 1) * 3.5 * weightKg / 200 * (Double(seconds) / 60)
     }
 
-    /// The heart-rate model's own MET, before any movement corroboration.
-    private static func hrMET(hr: Double, restingHR: Double?, maxHR: Double?,
-                              workout: Bool) -> Double {
-        let resting = min(100, max(35, restingHR ?? 60))
-        let maximum = max(resting + 20, maxHR ?? 190)
+    /// Continuous exercise curve. Context selection happens before this function, so there is no
+    /// 50%-HRR branch and therefore no one-bpm discontinuity.
+    private static func workoutMET(hr: Double, resting: Double, maximum: Double,
+                                   kind: EnergyWorkoutKind) -> Double {
         let reserve = min(1, max(0, (hr - resting) / (maximum - resting)))
-        // HR alone is noisy at low intensity. Only genuine workout/high-HRR buckets receive the
-        // steep exercise curve; other HR buckets remain a conservative low-intensity estimate.
-        if workout || reserve >= 0.50 {
-            return min(14, 1 + 11 * reserve * reserve)
+        let coefficient: Double
+        switch kind {
+        case .endurance: coefficient = 11
+        case .resistance: coefficient = 8
+        case .other: coefficient = 9.5
         }
-        return 1 + 2.5 * reserve
+        return min(14.5, 1 + coefficient * reserve * reserve)
     }
+
 }
 
 public struct CausalWeightObservation: Equatable, Sendable {

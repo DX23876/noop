@@ -64,4 +64,11 @@ final class LiquidBatteryDisplayTests: XCTestCase {
         XCTAssertEqual(Display.resolve(connected: true, batteryPct: 50, charging: nil),
                        .charge(pct: 50, charging: false))
     }
+
+    func testImpossiblePercentagesAreClampedForEveryDashboardHeader() {
+        XCTAssertEqual(Display.resolve(connected: true, batteryPct: -8, charging: false),
+                       .charge(pct: 0, charging: false))
+        XCTAssertEqual(Display.resolve(connected: true, batteryPct: 140, charging: false),
+                       .charge(pct: 100, charging: false))
+    }
 }

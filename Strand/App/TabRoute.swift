@@ -18,6 +18,8 @@ import SwiftUI
 enum TabRoute: Hashable {
     /// The whole-day, full-resolution HR timeline (Liquid Today's live-HR card tap, #979).
     case fullDayChart
+    /// Live strap-battery truth, refresh and runtime estimate.
+    case battery
     /// One metric's detail page by `MetricCatalog` key — the same tap-through Today's cards and
     /// Trends' small-multiples share. Each card opens ITS metric (2026-07-02: not the shared
     /// Health screen).
@@ -56,6 +58,7 @@ extension View {
         navigationDestination(for: TabRoute.self) { route in
             switch route {
             case .fullDayChart: FullDayChartView()
+            case .battery: BatteryDetailView()
             case .metric(let key):
                 // Every caller passes a catalog key, so the fallback is theoretical; Health is the
                 // catch-all vitals surface. (Pre-#198 Trends fell back to the Explorer instead —

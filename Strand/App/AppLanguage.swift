@@ -15,7 +15,11 @@ enum AppLanguage: String, CaseIterable, Identifiable {
     case french = "fr"
     case portuguese = "pt-PT"
     case polish = "pl"
+    case italian = "it"
+    case russian = "ru"
+    /// Generic Chinese is retained for existing installs and resolves to the Simplified catalog.
     case chinese = "zh"
+    case traditionalChinese = "zh-Hant"
 
     static let storageKey = "noop.appLanguage"
 
@@ -32,7 +36,10 @@ enum AppLanguage: String, CaseIterable, Identifiable {
         case .french:     return "Français"
         case .portuguese: return "Português"
         case .polish:     return "Polski"
-        case .chinese:    return "中文"
+        case .italian:    return "Italiano"
+        case .russian:    return "Русский"
+        case .chinese:    return "简体中文"
+        case .traditionalChinese: return "繁體中文"
         }
     }
 

@@ -259,12 +259,26 @@ extension WhoopStore {
     public func applySleepEdit(deviceId: String, detectedStartTs: Int, newStartTs: Int, newEndTs: Int,
                                stagesJSON: String? = nil) async throws -> Int {
         try syncWrite { db in
+            let prior: Row? = try Row.fetchOne(db, sql: """
+                SELECT startTs, endTs, startTsAdjusted FROM sleepSession
+                WHERE deviceId = ? AND startTs = ?
+                """, arguments: [deviceId, detectedStartTs])
             try db.execute(sql: """
                 UPDATE sleepSession
                 SET startTsAdjusted = ?, endTs = ?, stagesJSON = COALESCE(?, stagesJSON), userEdited = 1
                 WHERE deviceId = ? AND startTs = ?
                 """, arguments: [newStartTs, newEndTs, stagesJSON, deviceId, detectedStartTs])
-            return db.changesCount
+            let changed = db.changesCount
+            if changed > 0, let prior {
+                let oldStart: Int = prior["startTsAdjusted"] ?? prior["startTs"]
+                let oldEnd: Int = prior["endTs"]
+                try Self.markAnalysisInputsChanged(
+                    db,
+                    deviceId: deviceId,
+                    timestamps: [oldStart, oldEnd, newStartTs, newEndTs]
+                )
+            }
+            return changed
         }
     }
 
@@ -276,7 +290,16 @@ extension WhoopStore {
         try syncWrite { db in
             var edited = 0
             var deleted = 0
+            var changedInputTimestamps: [String: Set<Int>] = [:]
             for edit in edits {
+                guard let prior = try Row.fetchOne(db, sql: """
+                    SELECT startTs, endTs, startTsAdjusted FROM sleepSession
+                    WHERE deviceId = ? AND startTs = ?
+                    """, arguments: [edit.deviceId, edit.detectedStartTs]) else {
+                    throw SleepGroupMutationError.rowMissing
+                }
+                let oldStart: Int = prior["startTsAdjusted"] ?? prior["startTs"]
+                let oldEnd: Int = prior["endTs"]
                 try db.execute(sql: """
                     UPDATE sleepSession
                     SET startTsAdjusted = ?, endTs = ?, stagesJSON = COALESCE(?, stagesJSON), userEdited = 1
@@ -285,12 +308,27 @@ extension WhoopStore {
                                       edit.deviceId, edit.detectedStartTs])
                 guard db.changesCount == 1 else { throw SleepGroupMutationError.rowMissing }
                 edited += db.changesCount
+                changedInputTimestamps[edit.deviceId, default: []].formUnion([
+                    oldStart, oldEnd, edit.newStartTs, edit.newEndTs,
+                ])
             }
             for drop in drops {
+                guard let prior = try Row.fetchOne(db, sql: """
+                    SELECT startTs, endTs, startTsAdjusted FROM sleepSession
+                    WHERE deviceId = ? AND startTs = ?
+                    """, arguments: [drop.deviceId, drop.detectedStartTs]) else {
+                    throw SleepGroupMutationError.rowMissing
+                }
+                let oldStart: Int = prior["startTsAdjusted"] ?? prior["startTs"]
+                let oldEnd: Int = prior["endTs"]
                 try db.execute(sql: "DELETE FROM sleepSession WHERE deviceId = ? AND startTs = ?",
                                arguments: [drop.deviceId, drop.detectedStartTs])
                 guard db.changesCount == 1 else { throw SleepGroupMutationError.rowMissing }
                 deleted += db.changesCount
+                changedInputTimestamps[drop.deviceId, default: []].formUnion([oldStart, oldEnd])
+            }
+            for (deviceId, timestamps) in changedInputTimestamps {
+                try Self.markAnalysisInputsChanged(db, deviceId: deviceId, timestamps: timestamps)
             }
             return (edited, deleted)
         }
@@ -592,6 +630,30 @@ extension WhoopStore {
                 changed += db.changesCount
             }
             return changed
+        }
+    }
+
+    /// Atomically refresh the two current-day activity fields without touching sleep, recovery,
+    /// energy, or any other derived value on the row. This is the lightweight foreground/backfill
+    /// path: a full analytics pass may still replace the complete row later, but fresh step/HR input
+    /// does not have to wait for that comparatively expensive pass before Today can update.
+    ///
+    /// A nil input means "not available from this refresh" and therefore preserves the stored value.
+    /// This matters while a stream is temporarily absent (for example during a reconnect): a partial
+    /// read must never erase the last valid current-day value.
+    @discardableResult
+    public func upsertDailyActivity(day: String, strain: Double?, steps: Int?,
+                                    deviceId: String) async throws -> Int {
+        guard strain != nil || steps != nil else { return 0 }
+        return try syncWrite { db in
+            try db.execute(sql: """
+                INSERT INTO dailyMetric (deviceId, day, strain, steps)
+                VALUES (?, ?, ?, ?)
+                ON CONFLICT(deviceId, day) DO UPDATE SET
+                    strain = COALESCE(excluded.strain, dailyMetric.strain),
+                    steps = COALESCE(excluded.steps, dailyMetric.steps)
+                """, arguments: [deviceId, day, strain, steps])
+            return db.changesCount
         }
     }
 

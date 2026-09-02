@@ -10,6 +10,10 @@ struct StrandApp: App {
         // that has them. Must run before any Today/RootTabView reads its @AppStorage default.
         CoachEntryPrefs.migrateIfNeeded()
 
+        // One-time migration of the retired Liquid-on/off bool onto the four-way dashboard style
+        // (Classic/Liquid/Trends/Overview). Must run before any Today host reads its @AppStorage.
+        TodayDashboardStyle.migrateLegacyBoolIfNeeded()
+
         // #1008: pin the pre-change Overnight-only default for existing installs before
         // anything reads it. Idempotent; a no-op on fresh installs and after the first launch.
         PuffinExperiment.migrateContinuousHrvOvernightDefault()
@@ -41,10 +45,10 @@ struct StrandApp: App {
     @Environment(\.scenePhase) private var scenePhase
     /// Appearance preference (System/Light/Dark). Default follows the OS; the Settings picker writes it.
     @AppStorage(AppearanceMode.storageKey) private var appearanceRaw = AppearanceMode.system.rawValue
-    /// Chart data-colour style (Titanium / Classic throwback). Re-colours gauges + charts.
+    /// Chart data-colour style (Apple Health by default). Re-colours gauges and charts.
     @AppStorage(ChartStyle.storageKey) private var chartStyleRaw = ChartStyle.health.rawValue
-    /// Chrome accent colour (mint / WHOOP blue / custom). Chrome only — never the data colour worlds.
-    @AppStorage(AccentColor.storageKey) private var accentRaw = AccentColor.mint.rawValue
+    /// Chrome accent colour (system blue / mint / WHOOP blue / custom). Chrome only — never data colours.
+    @AppStorage(AccentColor.storageKey) private var accentRaw = AccentColor.systemBlue.rawValue
     @AppStorage(AccentColor.customHexKey) private var accentCustomHex = AccentColor.defaultCustomHex
 
     var body: some Scene {

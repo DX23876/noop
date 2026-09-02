@@ -70,4 +70,52 @@ public enum SleepGroupEdit {
         }
         return Plan(clipped: clipped, dropped: dropped)
     }
+
+    /// MOVE the night to `[newStartTs, newEndTs)` when the corrected window overlaps none of it.
+    ///
+    /// `plan` deliberately refuses a disjoint window: for an ordinary time correction, "no overlap"
+    /// means the user mis-set a date, and silently discarding the night would be the worst possible
+    /// answer. But the editor also offers an explicit "Move anyway" confirm for the case where the
+    /// window really is meant to land elsewhere, and that consent had nowhere to go — `plan` returned
+    /// an empty plan and the whole edit became a silent no-op. This is the consented path: one carrier
+    /// fragment takes the new window outright, every other fragment is retired.
+    ///
+    /// The carrier is the LONGEST fragment (earliest onset breaks an exact tie) — the row carrying the
+    /// night's substance. It deliberately does NOT use `SleepStageTotals.mainNightIndex`: that selector
+    /// scores time-of-day alignment against the wearer's habitual midsleep, which is meaningless once
+    /// the user has told us the night belongs somewhere else, and it would drag a timezone offset into
+    /// this otherwise pure planner.
+    public static func relocationPlan(_ group: [CachedSleepSession], newStartTs: Int,
+                                      newEndTs: Int) -> Plan {
+        guard newEndTs > newStartTs else { return Plan(clipped: [], dropped: []) }
+        let ordered = group.sorted { $0.effectiveStartTs < $1.effectiveStartTs }
+        func span(_ s: CachedSleepSession) -> Int { s.endTs - s.effectiveStartTs }
+        guard let carrier = ordered.max(by: { a, b in
+            span(a) == span(b) ? a.effectiveStartTs > b.effectiveStartTs : span(a) < span(b)
+        }) else { return Plan(clipped: [], dropped: []) }
+
+        // Reshape whatever the carrier stored onto the new window. A segment-array (computed) night
+        // has no segment inside a disjoint window, so `reclip` yields a single `wake` block covering
+        // it — exactly the "may show as empty until data covers it" the confirm promises. The
+        // repository still prefers a real re-stage from raw when the target window happens to have it.
+        let stages = SleepWindowReclip.reclip(
+            stagesJSON: carrier.stagesJSON,
+            sessionStart: carrier.effectiveStartTs,
+            oldEnd: carrier.endTs,
+            newStart: newStartTs,
+            newEnd: newEndTs
+        ) ?? carrier.stagesJSON
+        let moved = CachedSleepSession(
+            startTs: carrier.startTs,
+            endTs: newEndTs,
+            efficiency: carrier.efficiency,
+            restingHr: carrier.restingHr,
+            avgHrv: carrier.avgHrv,
+            stagesJSON: stages,
+            userEdited: true,
+            startTsAdjusted: newStartTs,
+            stagingSparse: carrier.stagingSparse
+        )
+        return Plan(clipped: [moved], dropped: ordered.filter { $0.startTs != carrier.startTs })
+    }
 }

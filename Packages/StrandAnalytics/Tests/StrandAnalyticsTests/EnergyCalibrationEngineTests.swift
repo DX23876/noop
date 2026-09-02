@@ -57,6 +57,20 @@ final class EnergyCalibrationEngineTests: XCTestCase {
     /// (total-based) fit reads as absent rather than being applied as if it had been fitted on
     /// active-only energy. A silent revert of the version bump would resurrect that diluted factor.
     func testModelVersionIsTheActiveOnlyGeneration() {
-        XCTAssertEqual(EnergyCalibrationFit.modelVersion, "watch-reference-v2")
+        XCTAssertEqual(EnergyCalibrationFit.modelVersion, "watch-reference-v3")
+    }
+
+    func testZeroAppleActivityBucketsAreNotDiscarded() {
+        var points: [EnergyCalibrationPoint] = []
+        for day in 0..<7 {
+            for bucket in 0..<12 {
+                points.append(.init(timestamp: 1_700_000_000 + day * 86_400 + bucket * 300,
+                                    whoopKcal: 10, appleWatchKcal: 0,
+                                    overlapQuality: 0.9, context: .locomotion))
+            }
+        }
+        // A systematic WHOOP false positive must make the fit unstable/invalid rather than being
+        // silently removed by an appleKcal > 0 candidate gate.
+        XCTAssertNil(EnergyCalibrationEngine.fit(points: points, calendar: utc))
     }
 }

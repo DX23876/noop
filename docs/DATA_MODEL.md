@@ -64,7 +64,7 @@ thread) through the `syncRead` / `syncWrite` helpers. `WhoopStore.schemaVersion`
 separate, manually-maintained constant (currently `21`) that has lagged the real migration
 history and must not be read as the schema's true version. The migrator itself (`makeMigrator()`,
 below) is the source of truth for what tables/columns exist and currently runs through
-**`v48-whoop-energy-hourly`**.
+**`v49-whoop-energy-context`**.
 
 ---
 
@@ -80,7 +80,7 @@ The schema falls into the groups below. The migration table is intentionally a s
 | **Raw outbox** (transient) | `rawBatch` | Compressed raw BLE frames, prunable |
 | **Bookkeeping** | `cursors`, `analysisInputRevision`, `analysisDeviceRevision`, `dayScanFingerprint` | Highwater marks and exact analysis-cache invalidation |
 | **Metric caches** | `sleepSession`, `dailyMetric`, `journal`, `workout`, `appleDaily`, `appleStepHour` (v41), `bodyWeightEntry` (v43), `metricSeries`, `scoreInputProvenance` | Derived metrics + their input-provider provenance + CSV / Apple-Health imports |
-| **Energy model** (v45–v48) | `healthEnergyBucket`, `whoopDailyEnergy`, `whoopEnergyHourly`, `energyCalibrationModel` | WHOOP-first daily energy, its evidence mix, the hourly profile behind the personal day curve, and an opt-in Apple Watch reference calibration — see below |
+| **Energy model** (v45–v49) | `healthEnergyBucket`, `whoopDailyEnergy`, `whoopEnergyHourly`, `energyCalibrationModel` | WHOOP-first daily energy, its evidence/context mix, the hourly profile behind the personal day curve, and an opt-in Apple Watch reference calibration — see below |
 | **Oura raw archive** (durable, v25) | `ouraRaw` | Verbatim Oura API payloads behind the opt-in cloud import — see below |
 
 All timestamp columns named `ts`, `startTs`, `endTs`, `capturedAt`, etc. are **unix seconds**
@@ -119,6 +119,7 @@ Migrations are registered in `Packages/WhoopStore/Sources/WhoopStore/Database.sw
 | **v46-whoop-daily-energy** | Adds `whoopDailyEnergy` — the derived WHOOP-first daily estimate with its evidence mix (observed/inferred/modeled seconds) and model version, kept separate from the imported `dailyMetric` contract. |
 | **v47-energy-calibration-model** | Adds `energyCalibrationModel` — the opt-in, per-device Apple Watch calibration fit (bounded factor, sample size, fit quality). Row absence means disabled; an explicit `enabled` flag lets a user pause without discarding a hard-won fit. |
 | **v48-whoop-energy-hourly** | Adds `whoopEnergyHourly` — one day's ACTIVE energy at hourly resolution, written by the same bucket pass as `whoopDailyEnergy`. The substrate for the personal time-of-day activity curve that replaced the linear day forecast. Additive, no existing row touched. |
+| **v49-whoop-energy-context** | Adds `representedSeconds`, `physiologicalSeconds`, and `contextJSON` to `whoopDailyEnergy`. v4 can keep HR evidence distinct from quiet-HR physiology while giving `EnergyEngine` the exact wall-time denominator whose basal share is already inside the total. Defaults preserve old rows, which version filtering ignores until the atomic 120-day recompute replaces them. |
 
 > This table is a selection, not the full list — it covers the migrations the tables above refer to.
 > The registered set is the authority. Migrations are keyed by their **identifier string**, not by
@@ -590,7 +591,7 @@ legacy scores without a row have unknown provenance and the UI omits their provi
 ## Energy model tables
 
 The Energy card (`Strand/Screens/EnergyCard.swift`) and `EnergyEngine` (`docs/ANALYTICS.md` §Daily
-energy) read `dailyMetric`/`appleDaily` above plus these three tables. All three are additive and
+energy) read `dailyMetric`/`appleDaily` above plus these four tables. All four are additive and
 keep WHOOP-derived and Apple-Health-derived energy data in separate rows — none of them is ever
 folded into `dailyMetric`, so importing or recomputing one cannot silently change another.
 
@@ -635,17 +636,22 @@ WhoopDailyEnergyRow`) — `WhoopEnergyModel`'s output with its evidence mix, kep
 | `deviceId` | TEXT NOT NULL | Part of PK. |
 | `day` | TEXT NOT NULL | `YYYY-MM-DD`. Part of PK. |
 | `rawTotalKcal` | DOUBLE NOT NULL | Model output **before** Watch calibration/basal top-up. |
-| `modelVersion` | TEXT NOT NULL | Currently `"whoop-bucket-v3"` (`WhoopDailyEnergyEstimate.modelVersion`). Reads filter on it, so a superseded row is ignored rather than mixed into a trend. |
+| `modelVersion` | TEXT NOT NULL | Currently `"whoop-bucket-v5"` (`WhoopDailyEnergyEstimate.modelVersion`). Reads filter on it, so a superseded row is ignored rather than mixed into a trend. |
 | `observedSeconds` | INTEGER NOT NULL | Seconds backed by a valid HR sample. |
 | `inferredSeconds` | INTEGER NOT NULL | Seconds backed by movement without HR. |
 | `modeledSeconds` | INTEGER NOT NULL | Seconds that are pure basal fill (off-wrist/sleep/no signal). |
 | `uncertaintyFraction` | DOUBLE NOT NULL | `0...1`, weighted by the evidence mix. |
 | `weightKg` | DOUBLE NOT NULL | Body weight used for this day's estimate. |
 | `weightSource` | TEXT NOT NULL | `history` (resolved via `CausalWeightResolver`) or `profile` (fallback). |
+| `representedSeconds` | INTEGER NOT NULL | Added v49, default `0`. Wall-clock seconds whose basal share is already inside `rawTotalKcal`; this, not HR coverage, is the denominator for the unrepresented-day basal top-up. |
+| `physiologicalSeconds` | INTEGER NOT NULL | Added v49, default `0`. HR-backed seconds whose above-basal energy was bounded because no independent activity context existed. |
+| `contextJSON` | TEXT NOT NULL | Added v49, default `{}`. Stable object keyed by `EnergyContext` raw values with per-context seconds; keeps WhoopStore independent of StrandAnalytics enums. |
 
 **Primary key:** `(deviceId, day)`. **Index:** `idx_whoopDailyEnergy_device_day` on
 `(deviceId, day)`. Upserts are conditional (`WHERE ... IS NOT excluded....`) so a re-run that
-produces identical numbers doesn't spuriously bump `changesCount`.
+produces identical numbers doesn't spuriously bump `changesCount`. `replaceWhoopEnergyWindow`
+publishes all recomputed daily and hourly rows in one transaction; one write failure rolls back the
+whole model window.
 
 ### `whoopEnergyHourly` *(v48)*
 
@@ -665,10 +671,18 @@ that produces `whoopDailyEnergy`, so it costs no extra stream reads.
 
 A separate table rather than a packed column on `whoopDailyEnergy`: the fit reads a 42-day window
 hour by hour, and a JSON/BLOB column would have to be decoded 42 times to answer it. Writes go
-through `replaceWhoopEnergyHours`, which **replaces a whole day** rather than upserting per hour — a
+through `replaceWhoopEnergyWindow` (or the lower-level `replaceWhoopEnergyHours`), which **replaces a whole day** rather than upserting per hour — a
 recomputed day must not leave a stale hour behind, which is exactly what a merge would do when the
 new pass produces fewer hours than the previous one. Hours with no activity are simply absent; the
 reader fills a 24-slot vector so a quiet hour reads as a real zero.
+
+### `whoopEnergyBucket` *(v50)*
+
+Auditable five-minute output for the current-day cumulative energy chart. Each row stores its basal
+and active components, context, evidence and uncertainty. The primary key is
+`(deviceId, bucketStart)` and `idx_whoopEnergyBucket_device_day` supports one-day reads. Rows are
+replaced in the same `replaceWhoopEnergyWindow` transaction as the daily and hourly views, so a
+recompute cannot leave stale timeline points behind.
 
 ### `energyCalibrationModel` *(v47)*
 
@@ -686,7 +700,7 @@ default-factor-of-1 row, which would misleadingly look calibrated.
 | `sampleBuckets` | INTEGER NOT NULL | Buckets behind the fit after trimming (`≥84`). |
 | `coefficientOfVariation` | DOUBLE NOT NULL | Trimmed-sample CV, `0...0.20`. |
 | `fittedAt` | INTEGER NOT NULL | Unix seconds. |
-| `modelVersion` | TEXT NOT NULL | e.g. `"watch-reference-v1"` (`EnergyCalibrationFit.modelVersion`). |
+| `modelVersion` | TEXT NOT NULL | Currently `"watch-reference-v3"` (`EnergyCalibrationFit.modelVersion`). |
 
 **Primary key:** `deviceId`. `saveEnergyCalibrationModel` rejects an out-of-bounds row before it
 ever reaches SQL (`validEnergyCalibration`); `resetEnergyCalibration` deletes the row outright

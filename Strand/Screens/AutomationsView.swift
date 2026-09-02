@@ -650,7 +650,7 @@ private struct Section2<Content: View>: View {
                     }
                     HStack(spacing: 10) {
                         Image(systemName: icon)
-                            .appleInspiredForeground("automations")
+                            .appleInspiredMenuIcon("automations")
                             .accessibilityHidden(true)
                         Text(title).font(StrandFont.title2).foregroundStyle(StrandPalette.textPrimary)
                     }

@@ -23,7 +23,7 @@ struct SiriShortcutsSettingsView: View {
             VStack(alignment: .leading, spacing: 12) {
                 HStack(spacing: 10) {
                     Image(systemName: "mic.fill")
-                        .appleInspiredForeground("siriShortcuts")
+                        .appleInspiredMenuIcon("siriShortcuts")
                         .accessibilityHidden(true)
                     Text("Ready-made actions")
                         .font(StrandFont.headline)
@@ -46,7 +46,7 @@ struct SiriShortcutsSettingsView: View {
             VStack(alignment: .leading, spacing: 10) {
                 HStack(spacing: 10) {
                     Image(systemName: "square.stack.3d.up.fill")
-                        .appleInspiredForeground("siriShortcuts")
+                        .appleInspiredMenuIcon("siriShortcuts")
                         .accessibilityHidden(true)
                     Text("Build your own")
                         .font(StrandFont.headline)

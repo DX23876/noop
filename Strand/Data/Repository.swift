@@ -13,6 +13,9 @@ struct ImportedSleepFigures: Equatable {
     var consistencyPct: Double?   // "sleep_consistency", 0–100
     var needMin: Double?          // "sleep_need_min", minutes
     var debtMin: Double?          // "sleep_debt_min", minutes
+    /// Sleep duration carried by the import before a local time correction. It remains the anchor for
+    /// adjusting imported debt without replacing WHOOP's imported performance score.
+    var originalSleepMin: Double?
 }
 
 // MARK: - Cross-source resolver model (PR#196 , fresher live charts/metrics)
@@ -124,12 +127,33 @@ struct SleepDeletionSnapshot: Equatable {
     /// The per-epoch banked band sleep-state series (`sleepStateJSON`), captured at delete time. Same
     /// reason as `motion`: undo re-persists it so a `userEdited` night keeps its Band Sleep State track.
     var sleepState: [Int]?
+    /// Set only for an explicit user deletion. Group-edit retirements use the same snapshot type for Undo
+    /// but must not suppress an entire wake-day.
+    var suppressedWakeDay: String? = nil
 }
 
 /// Result of applying one correction to a displayed, potentially fragmented night. Only fragments
 /// retired because they fell outside the new window are returned; the UI offers those as one Undo.
 struct SleepGroupEditResult {
     let retired: [SleepDeletionSnapshot]
+    let affectedWakeDays: Set<String>
+    let requiresLocalRescore: Bool
+}
+
+/// Why a sleep-time correction did not reach the database. Every abort in `editSleepGroupTimes` used to
+/// be an indistinguishable `nil`, so a failed save looked exactly like a successful one that changed
+/// nothing — the "the edit is not applied" report. The UI turns these into one honest sentence.
+enum SleepEditFailure: Error, Equatable {
+    /// The store handle could not be opened.
+    case storeUnavailable
+    /// `SleepEditGuard.clampedEditWindow` refused the window (inverted, > 24 h, or wholly future).
+    case invalidWindow
+    /// The corrected window overlaps no fragment of the night and the caller did not consent to a move.
+    case noOverlap
+    /// A displayed fragment has no row in any namespace this install can write (`sleepOwnerIds`).
+    case ownerUnresolved
+    /// The store transaction failed or matched a different number of rows than planned; nothing was written.
+    case writeFailed
 }
 
 /// Read model over the on-device WhoopStore. Opens its own handle (WAL + busy-timeout makes the
@@ -861,6 +885,9 @@ final class Repository: ObservableObject {
         let cons = await unionMetricSeries(store: store, key: "sleep_consistency", from: fromDay, to: toDay)
         let need = await unionMetricSeries(store: store, key: "sleep_need_min", from: fromDay, to: toDay)
         let debt = await unionMetricSeries(store: store, key: "sleep_debt_min", from: fromDay, to: toDay)
+        // UserDefaults is main-actor state. Capture it before the detached pure merge so an explicit
+        // deletion remains hidden even if a later import writes the source row back into the database.
+        let suppressedWakeDays = suppressedSleepWakeDays
 
         // Merge + sort OFF the main actor (FIX 3): the figures build, the two O(n log n) daily/sleep merges,
         // the source-row sort, and the freshness counts are all pure over the rows just read, so they run in
@@ -871,17 +898,28 @@ final class Repository: ObservableObject {
             for p in cons { fig[p.day, default: ImportedSleepFigures()].consistencyPct = p.value }
             for p in need { fig[p.day, default: ImportedSleepFigures()].needMin = p.value }
             for p in debt { fig[p.day, default: ImportedSleepFigures()].debtMin = p.value }
+            for daily in imported where daily.totalSleepMin != nil {
+                fig[daily.day, default: ImportedSleepFigures()].originalSleepMin = daily.totalSleepMin
+            }
             // A user correction can live in either the computed or imported namespace. Merge the displayed
             // sessions first, then use their corrected stages to overlay the affected daily sleep fields.
             // This keeps the Sleep tab, its debt ledger, and the dashboard on the same edited night even when
             // no raw data exists to produce a computed daily row (for example a historical WHOOP import).
-            let mergedSleeps = Self.mergeSleep(imported: impSleep, computed: compSleep)
+            let allMergedSleeps = Self.mergeSleep(imported: impSleep, computed: compSleep)
+            let mergedSleeps = allMergedSleeps.filter {
+                !suppressedWakeDays.contains(Self.sleepEndDayKey($0.endTs))
+            }
             let editedDays = Self.userEditedDays(mergedSleeps)
             let mergedDays = Self.mergeDaily(imported: imported, computed: computed, userEditedDays: editedDays)
+            let editedMergedDays = Self.applyingEditedSleepSessions(mergedSleeps, to: mergedDays)
+            fig = Self.applyingEditedImportedSleepFigures(fig, sessions: mergedSleeps,
+                                                          days: editedMergedDays)
+            for day in suppressedWakeDays { fig.removeValue(forKey: day) }
             return MergedCaches(
                 importedSleep: fig,
                 days: Self.mergeActivityFileSteps(
-                    into: Self.applyingEditedSleepSessions(mergedSleeps, to: mergedDays),
+                    into: Self.suppressingSleepWakeDays(suppressedWakeDays,
+                                                        from: editedMergedDays),
                     activityFile
                 ),
                 sleeps: mergedSleeps,
@@ -1017,10 +1055,17 @@ final class Repository: ObservableObject {
     nonisolated static func userEditedDays(_ sessions: [CachedSleepSession]) -> Set<String> {
         var days = Set<String>()
         for s in sessions where s.userEdited {
-            let offsetSec = TimeZone.current.secondsFromGMT(for: Date(timeIntervalSince1970: TimeInterval(s.endTs)))
-            days.insert(AnalyticsEngine.dayString(s.endTs, offsetSec: offsetSec))
+            days.insert(sleepEndDayKey(s.endTs))
         }
         return days
+    }
+
+    /// Local wake-day key for a sleep endpoint. Resolve the GMT offset at the endpoint itself so an edit
+    /// across a daylight-saving boundary is filed under the same day as the session and daily metric.
+    nonisolated static func sleepEndDayKey(_ endTs: Int) -> String {
+        let date = Date(timeIntervalSince1970: TimeInterval(endTs))
+        let offsetSec = TimeZone.current.secondsFromGMT(for: date)
+        return AnalyticsEngine.dayString(endTs, offsetSec: offsetSec)
     }
 
     /// Rebuild the sleep-only fields for days with a manually corrected session. Historical imports have no
@@ -1029,20 +1074,23 @@ final class Repository: ObservableObject {
     nonisolated static func applyingEditedSleepSessions(_ sessions: [CachedSleepSession],
                                                         to days: [DailyMetric]) -> [DailyMetric] {
         guard sessions.contains(where: \.userEdited) else { return days }
-        let offsetSec = TimeZone.current.secondsFromGMT()
         let habitualBlocks = sessions.compactMap { session -> SleepStageTotals.HistoryBlock? in
             let start = session.effectiveStartTs, end = session.endTs
             guard end > start else { return nil }
             let midpoint = start + (end - start) / 2
+            let offsetSec = TimeZone.current.secondsFromGMT(
+                for: Date(timeIntervalSince1970: TimeInterval(midpoint)))
             return SleepStageTotals.HistoryBlock(
                 start: start,
                 end: end,
                 dayKey: AnalyticsEngine.dayString(midpoint, offsetSec: offsetSec)
             )
         }
-        let habitualMidsleepSec = SleepStageTotals.habitualMidsleepSec(habitualBlocks, offsetSec: offsetSec)
+        let currentOffsetSec = TimeZone.current.secondsFromGMT()
+        let habitualMidsleepSec = SleepStageTotals.habitualMidsleepSec(
+            habitualBlocks, offsetSec: currentOffsetSec)
         let sessionsByDay = Dictionary(grouping: sessions) { session in
-            AnalyticsEngine.dayString(session.endTs, offsetSec: offsetSec)
+            sleepEndDayKey(session.endTs)
         }
 
         return days.map { daily in
@@ -1061,13 +1109,46 @@ final class Repository: ObservableObject {
                 detected: daySessions.map { (startTs: $0.startTs, stagesJSON: $0.stagesJSON) },
                 edited: editedStages,
                 onsetByStart: onsets,
-                offsetSec: offsetSec,
+                offsetSec: TimeZone.current.secondsFromGMT(
+                    for: Date(timeIntervalSince1970: TimeInterval(daySessions[0].endTs))),
                 habitualMidsleepSec: habitualMidsleepSec
             ), aggregate.editApplied else {
                 return daily
             }
             return daily.takingEditedSleepFields(from: aggregate.sleep)
         }
+    }
+
+    /// Keep imported Rest/performance verbatim after a manual time correction, while rebasing the
+    /// import's sleep debt by the exact duration delta. This is the remaining PR #838 behavior:
+    /// imported debt + original imported sleep - corrected stored sleep.
+    nonisolated static func applyingEditedImportedSleepFigures(
+        _ figures: [String: ImportedSleepFigures],
+        sessions: [CachedSleepSession],
+        days: [DailyMetric]
+    ) -> [String: ImportedSleepFigures] {
+        let editedDays = userEditedDays(sessions)
+        guard !editedDays.isEmpty else { return figures }
+        let dailyByDay = Dictionary(uniqueKeysWithValues: days.map { ($0.day, $0) })
+        var adjusted = figures
+        for day in editedDays {
+            guard var imported = adjusted[day],
+                  let actualSleepMin = dailyByDay[day]?.totalSleepMin else { continue }
+            if let importedDebt = imported.debtMin, let originalSleepMin = imported.originalSleepMin {
+                imported.debtMin = max(0, importedDebt + originalSleepMin - actualSleepMin)
+            } else if let needMin = imported.needMin {
+                imported.debtMin = max(0, needMin - actualSleepMin)
+            }
+            adjusted[day] = imported
+        }
+        return adjusted
+    }
+
+    /// Pure wake-day suppression used by refresh and tests. Non-sleep outcomes remain available.
+    nonisolated static func suppressingSleepWakeDays(_ suppressed: Set<String>,
+                                                     from days: [DailyMetric]) -> [DailyMetric] {
+        guard !suppressed.isEmpty else { return days }
+        return days.map { suppressed.contains($0.day) ? $0.clearingSleepFields() : $0 }
     }
 
     /// Daily rows tagged with the source that supplied them, for the source-aware vital-sign cards.
@@ -1286,8 +1367,13 @@ final class Repository: ObservableObject {
         // UNION the active strap + canonical (imported) and their computed siblings, keeping ALL blocks (not
         // one per day, this view expands split sleeps), but dropping any block that appears under BOTH union
         // ids (same start+end key) so a day present in both namespaces isn't double-listed.
-        let imported = Self.dedupBlocks(await unionRawSleepBlocks(store: store, ids: importedReadIds, from: lo, to: hi))
-        let computed = Self.dedupBlocks(await unionRawSleepBlocks(store: store, ids: computedReadIds, from: lo, to: hi))
+        let suppressed = suppressedSleepWakeDays
+        let imported = Self.dedupBlocks(await unionRawSleepBlocks(
+            store: store, ids: importedReadIds, from: lo, to: hi))
+            .filter { !suppressed.contains(Self.sleepEndDayKey($0.endTs)) }
+        let computed = Self.dedupBlocks(await unionRawSleepBlocks(
+            store: store, ids: computedReadIds, from: lo, to: hi))
+            .filter { !suppressed.contains(Self.sleepEndDayKey($0.endTs)) }
         let cal = Calendar.current
         func endDay(_ s: CachedSleepSession) -> Date {
             cal.startOfDay(for: Date(timeIntervalSince1970: TimeInterval(s.endTs)))
@@ -1407,39 +1493,49 @@ final class Repository: ObservableObject {
     /// object even though it remains several keyed rows in the store; applying the window to only one row
     /// leaves the outer fragments defining the old visible times and lets analysis fold them straight back
     /// in. One pure plan now drives every fragment, and one store transaction makes the change atomic.
-    func editSleepGroupTimes(_ group: [CachedSleepSession], newStartTs: Int,
-                             newEndTs: Int) async -> SleepGroupEditResult? {
-        guard let store = await ensureStore(),
-              let window = SleepEditGuard.clampedEditWindow(
-                start: newStartTs, end: newEndTs, now: Int(Date().timeIntervalSince1970))
-        else { return nil }
-        let plan = SleepGroupEdit.plan(group, newStartTs: window.start, newEndTs: window.end)
-        guard !plan.clipped.isEmpty else { return nil }
+    ///
+    /// `allowRelocation` carries the user's explicit consent from the editor's "Move anyway" confirm.
+    /// Without it a window overlapping no fragment is refused, exactly as `SleepGroupEdit.plan` insists
+    /// (changing times must never silently mean deleting a night). With it the night is MOVED to the
+    /// chosen window via `SleepGroupEdit.relocationPlan` — previously that confirmed move reached a
+    /// planner that could only return an empty plan, so consenting did nothing at all.
+    func editSleepGroupTimes(_ group: [CachedSleepSession], newStartTs: Int, newEndTs: Int,
+                             allowRelocation: Bool = false) async -> Result<SleepGroupEditResult, SleepEditFailure> {
+        guard let store = await ensureStore() else { return .failure(.storeUnavailable) }
+        guard let window = SleepEditGuard.clampedEditWindow(
+            start: newStartTs, end: newEndTs, now: Int(Date().timeIntervalSince1970))
+        else { return .failure(.invalidWindow) }
+        var plan = SleepGroupEdit.plan(group, newStartTs: window.start, newEndTs: window.end)
+        if plan.clipped.isEmpty, allowRelocation {
+            plan = SleepGroupEdit.relocationPlan(group, newStartTs: window.start, newEndTs: window.end)
+        }
+        guard !plan.clipped.isEmpty else { return .failure(.noOverlap) }
 
         // Resolve every immutable key to the namespace that owns it before mutating anything. Dropped
         // rows retain the full snapshot (including motion/band-state sidecars) for the grouped Undo.
         var clippedOwners: [Int: String] = [:]
         for fragment in plan.clipped {
             guard let snapshot = await ownedSleepRowSnapshot(store: store,
-                                                              detectedStartTs: fragment.startTs) else { return nil }
+                                                              detectedStartTs: fragment.startTs)
+            else { return .failure(.ownerUnresolved) }
             clippedOwners[fragment.startTs] = snapshot.ownerDeviceId
         }
         var retired: [SleepDeletionSnapshot] = []
         for fragment in plan.dropped {
             guard let snapshot = await ownedSleepRowSnapshot(store: store,
-                                                              detectedStartTs: fragment.startTs) else { return nil }
+                                                              detectedStartTs: fragment.startTs)
+            else { return .failure(.ownerUnresolved) }
             retired.append(snapshot)
         }
 
         var edits: [SleepSessionEditMutation] = []
         edits.reserveCapacity(plan.clipped.count)
         for fragment in plan.clipped {
-            guard let owner = clippedOwners[fragment.startTs] else { return nil }
-            // Each fragment owns only its corrected slice. Re-staging the entire group into every row would
-            // duplicate stages when the hero merges them; fall back to the planner's per-row reclip when
-            // dense raw streams are unavailable (imports / pre-sync edits).
-            let stages = await restageFromRaw(start: fragment.effectiveStartTs, end: fragment.endTs)
-                ?? fragment.stagesJSON
+            guard let owner = clippedOwners[fragment.startTs] else { return .failure(.ownerUnresolved) }
+            // The pure planner has already re-clipped this fragment's existing stage breakdown. Keep the
+            // user-visible transaction cheap; dense raw re-staging belongs to the targeted background
+            // analysis after the sheet has closed.
+            let stages = fragment.stagesJSON
             edits.append(SleepSessionEditMutation(
                 deviceId: owner,
                 detectedStartTs: fragment.startTs,
@@ -1468,14 +1564,22 @@ final class Repository: ObservableObject {
             let changed = try await store.applySleepGroupEdit(edits: edits, drops: drops)
             guard changed.edited == edits.count, changed.deleted == drops.count else {
                 dismissedSleepSpans = priorTombstones
-                return nil
+                return .failure(.writeFailed)
             }
         } catch {
             dismissedSleepSpans = priorTombstones
-            return nil
+            return .failure(.writeFailed)
         }
         await refresh()
-        return SleepGroupEditResult(retired: retired)
+        let affectedWakeDays = Set(group.map { Self.sleepEndDayKey($0.endTs) }
+            + plan.clipped.map { Self.sleepEndDayKey($0.endTs) })
+        let requiresLocalRescore = (edits.map(\.deviceId) + drops.map(\.deviceId))
+            .contains(where: { $0.hasSuffix("-noop") })
+        return .success(SleepGroupEditResult(
+            retired: retired,
+            affectedWakeDays: affectedWakeDays,
+            requiresLocalRescore: requiresLocalRescore
+        ))
     }
 
     /// Delete ONE sleep session: the `editSleepTimes` path minus the re-stage/re-insert, so the user can
@@ -1504,20 +1608,30 @@ final class Repository: ObservableObject {
         // Snapshot the owning row BEFORE deleting, resolving the owner exactly as the delete does below:
         // computed source first, imported deviceId as the fallback. A one-second-wide window around the
         // immutable detected key uniquely identifies the row (the key never moves).
-        let snapshot = await ownedSleepRowSnapshot(store: store, detectedStartTs: detectedStartTs)
+        guard var snapshot = await ownedSleepRowSnapshot(store: store,
+                                                         detectedStartTs: detectedStartTs) else { return nil }
         // Record the durable tombstone ONLY for a DETECTED night. A `userEdited` row (a hand-corrected
         // night or a manually-added nap) is never re-detected, so suppressing its window would needlessly
         // block a real future night that happens to overlap it.
-        if DismissedSleepSpans.writesTombstoneOnDelete(userEdited: snapshot?.session.userEdited ?? false) {
+        let priorTombstones = dismissedSleepSpans
+        if DismissedSleepSpans.writesTombstoneOnDelete(userEdited: snapshot.session.userEdited) {
             dismissedSleepSpans = DismissedSleepSpans.adding(startTs: detectedStartTs, endTs: endTs,
                                                              to: dismissedSleepSpans)
         }
         // Delete from the same union of possible owners that the Sleep tab reads from.
+        var didDelete = false
         for ownerDeviceId in sleepOwnerIds {
             let deleted = (try? await store.deleteSleepSession(
                 deviceId: ownerDeviceId, startTs: detectedStartTs)) ?? 0
-            if deleted > 0 { break }
+            if deleted > 0 { didDelete = true; break }
         }
+        guard didDelete else {
+            dismissedSleepSpans = priorTombstones
+            return nil
+        }
+        let wakeDay = Self.sleepEndDayKey(endTs)
+        suppressedSleepWakeDays.insert(wakeDay)
+        snapshot.suppressedWakeDay = wakeDay
         await refresh()
         return snapshot
     }
@@ -1542,6 +1656,11 @@ final class Repository: ObservableObject {
                                                       endTs: snapshot.endTs, from: tombstones)
         }
         dismissedSleepSpans = tombstones
+        var suppressedDays = suppressedSleepWakeDays
+        for snapshot in snapshots {
+            if let day = snapshot.suppressedWakeDay { suppressedDays.remove(day) }
+        }
+        suppressedSleepWakeDays = suppressedDays
         for (owner, owned) in Dictionary(grouping: snapshots, by: \.ownerDeviceId) {
             _ = try? await store.upsertSleepSessions(owned.map(\.session), deviceId: owner)
         }
@@ -1602,6 +1721,22 @@ final class Repository: ObservableObject {
     /// UserDefaults key holding the dismissed-sleep spans (see `dismissedSleepSpans`).
     static let dismissedSleepDefaultsKey = "sleep.dismissedSessions"
 
+    /// Explicit deletion hides all sleep-facing values for the local wake-day. This is deliberately
+    /// separate from the detector tombstone: imported rows may be re-imported and have no raw detector,
+    /// but the user's delete must still remain effective without modifying the source export.
+    private var suppressedSleepWakeDays: Set<String> {
+        get {
+            Set(UserDefaults.standard.stringArray(
+                forKey: Repository.suppressedSleepWakeDaysDefaultsKey) ?? [])
+        }
+        set {
+            UserDefaults.standard.set(newValue.sorted(),
+                                      forKey: Repository.suppressedSleepWakeDaysDefaultsKey)
+        }
+    }
+
+    static let suppressedSleepWakeDaysDefaultsKey = "sleep.suppressedWakeDays"
+
     /// Parsed dismissed-sleep windows for the engine's re-detection guard. Malformed / non-positive-width
     /// entries are dropped so a corrupt value can never hide everything (mirrors `WorkoutSource`'s parser).
     func dismissedSleepWindows() -> [(start: Int, end: Int)] {
@@ -1621,6 +1756,8 @@ final class Repository: ObservableObject {
     func allowSleepReDetection(startTs: Int, endTs: Int) async {
         dismissedSleepSpans = DismissedSleepSpans.removing(startTs: startTs, endTs: endTs,
                                                            from: dismissedSleepSpans)
+        suppressedSleepWakeDays.remove(Self.sleepEndDayKey(endTs))
+        await refresh()
     }
 
     /// Manually ADD a missed sleep session , typically a daytime NAP the detector didn't pick up (#508).
@@ -1770,7 +1907,8 @@ final class Repository: ObservableObject {
         } else {
             pts = (try? await store.metricSeries(deviceId: source, key: key, from: from, to: to)) ?? []
         }
-        return pts.map { ($0.day, $0.value) }
+        let suppressed = Self.isSleepDayMetricKey(key) ? suppressedSleepWakeDays : Set<String>()
+        return pts.filter { !suppressed.contains($0.day) }.map { ($0.day, $0.value) }
     }
 
     // MARK: - Deep Timeline (full-day full-resolution viewer , #575/#574/#582)
@@ -2192,7 +2330,8 @@ final class Repository: ObservableObject {
                                                      source: candidate.source, sourceKey: candidate.key)
             }
         }
-        let points = byDay.values.sorted { $0.day < $1.day }
+        let suppressed = Self.isSleepDayMetricKey(key) ? suppressedSleepWakeDays : Set<String>()
+        let points = byDay.values.filter { !suppressed.contains($0.day) }.sorted { $0.day < $1.day }
         return MetricSeriesResolution(requestedSource: preferredSource, candidates: candidates, points: points)
     }
 
@@ -2322,6 +2461,16 @@ final class Repository: ObservableObject {
         }
     }
 
+    /// Daily values hidden by an explicit sleep deletion. Recovery/HRV and other non-sleep outcomes remain
+    /// available; only the deleted day's sleep duration, stages, need/debt and Rest score disappear.
+    nonisolated static func isSleepDayMetricKey(_ key: String) -> Bool {
+        if key.hasPrefix("sleep_") { return true }
+        switch key {
+        case "asleep_min", "in_bed_min", "deep_min", "rem_min", "core_min": return true
+        default: return false
+        }
+    }
+
     /// Whether the NOOP-computed strap source may fill an Apple-preferred metric. Only the two daily
     /// totals the strap genuinely estimates (steps, calories) , never a derived WHOOP score.
     private static func noopComputedCanFillAppleMetric(_ key: String) -> Bool {
@@ -2374,7 +2523,10 @@ final class Repository: ObservableObject {
             for p in (try? await store.metricSeries(deviceId: id, key: key, from: from, to: to)) ?? [] { byDay[p.day] = p.value }
         }
 
-        return byDay.sorted { $0.key < $1.key }.map { (day: $0.key, value: $0.value) }
+        let suppressed = Self.isSleepDayMetricKey(key) ? suppressedSleepWakeDays : Set<String>()
+        return byDay.filter { !suppressed.contains($0.key) }
+            .sorted { $0.key < $1.key }
+            .map { (day: $0.key, value: $0.value) }
     }
 
     /// Every catalog metric's Explore series at once, memoized — the cross-catalog scan behind the
@@ -3487,7 +3639,8 @@ private extension DailyMetric {
             // backfilled from the computed fallback — otherwise the nightly means would be lost. (#93)
             spo2Red: spo2Red ?? fallback.spo2Red,
             spo2Ir: spo2Ir ?? fallback.spo2Ir,
-            avgSdnn: avgSdnn ?? fallback.avgSdnn
+            avgSdnn: avgSdnn ?? fallback.avgSdnn,
+            energyCoverageSeconds: energyCoverageSeconds ?? fallback.energyCoverageSeconds
         )
     }
 
@@ -3516,7 +3669,8 @@ private extension DailyMetric {
             activeKcalEst: activeKcalEst,
             spo2Red: spo2Red,   // non-sleep field: preserved as-is (#93)
             spo2Ir: spo2Ir,
-            avgSdnn: avgSdnn    // non-sleep (HRV) field: preserved as-is
+            avgSdnn: avgSdnn,   // non-sleep (HRV) field: preserved as-is
+            energyCoverageSeconds: energyCoverageSeconds
         )
     }
 
@@ -3542,7 +3696,37 @@ private extension DailyMetric {
             steps: steps,
             activeKcalEst: activeKcalEst,
             spo2Red: spo2Red,
-            spo2Ir: spo2Ir
+            spo2Ir: spo2Ir,
+            avgSdnn: avgSdnn,
+            energyCoverageSeconds: energyCoverageSeconds
+        )
+    }
+
+    /// Preserve non-sleep outcomes while making an explicitly deleted wake-day absent from sleep-facing
+    /// cards and series.
+    func clearingSleepFields() -> DailyMetric {
+        DailyMetric(
+            day: day,
+            totalSleepMin: nil,
+            efficiency: nil,
+            deepMin: nil,
+            remMin: nil,
+            lightMin: nil,
+            disturbances: nil,
+            restingHr: restingHr,
+            avgHrv: avgHrv,
+            recovery: recovery,
+            strain: strain,
+            exerciseCount: exerciseCount,
+            spo2Pct: spo2Pct,
+            skinTempDevC: skinTempDevC,
+            respRateBpm: respRateBpm,
+            steps: steps,
+            activeKcalEst: activeKcalEst,
+            spo2Red: spo2Red,
+            spo2Ir: spo2Ir,
+            avgSdnn: avgSdnn,
+            energyCoverageSeconds: energyCoverageSeconds
         )
     }
 }

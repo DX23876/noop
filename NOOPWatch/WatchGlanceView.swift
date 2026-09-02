@@ -45,9 +45,12 @@ struct WatchGlanceView: View {
             HStack(spacing: 8) {
                 // The labels ride a plain String property into ScoreRing, so they must be wrapped HERE;
                 // a bare literal would bypass the string catalog entirely.
+                // Value-sampled through the one shared Charge colour, so the glance agrees with the
+                // complication on the same wrist (it already sampled; this did not).
                 ScoreRing(label: String(localized: "Charge"), value: snap.charge,
                           calibrating: snap.chargeCalibrating || stale,
-                          color: StrandPalette.chargeColor)
+                          color: snap.charge.map { StrandPalette.chargeRingColor($0) }
+                                 ?? StrandPalette.chargeColor)
                 ScoreRing(label: String(localized: "Effort"), value: snap.effort,
                           calibrating: snap.effortCalibrating || stale,
                           color: StrandPalette.effortColor)

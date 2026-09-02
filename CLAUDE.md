@@ -151,6 +151,18 @@ Swift, you MUST build the app yourself: `xcodebuild … build` locally, or run `
   components on Apple, `Palette` / `Metrics` on Android. No hardcoded colors, fonts, or spacing.
 - **Migrations:** add a versioned migration + a test; never mutate an existing migration. Watch for
   data-loss traps (window-wide deletes, backfill rewrites) — prefer additive/transactional changes.
+- **Analysis recipe and update migrations:** every upstream RyanBR commit/PR and every local feature
+  must explicitly answer `Analysis migration required: yes/no`. Answer **yes** when it changes a scoring
+  formula, an analytics/input window, the meaning of a persisted derived value, source precedence or
+  provenance, baseline semantics, or cache invalidation in a way that makes existing scores stale. In
+  that case bump `IntelligenceEngine.currentAnalysisRecipeVersion`, add a resumable versioned migration,
+  cover it with regression tests (and the Kotlin twin when cross-platform), and mention the rescore in
+  release notes. UI/navigation/logging changes and output-identical performance refactors answer **no**
+  and must not bump the recipe. Never use `MARKETING_VERSION` or `CURRENT_PROJECT_VERSION` as a proxy:
+  Xcode installs and UI-only releases must not launch a historical rescore. A migration marks its recipe
+  cursor only after success, never deletes raw data or user sleep/workout corrections, and must use the
+  narrowest affected-day interval it can prove. Settings keeps an explicit, confirmation-gated manual
+  21-day reanalysis for diagnostics; that manual action does not itself advance the recipe version.
 - **Deriving a physiological signal from raw sensor data — validate against the artifact, not one
   match:** the WHOOP optical/motion buffers are fixed-N-samples-per-record, so autocorrelation/spectral
   methods can manufacture a peak at the record period that *looks* physiological and coincidentally

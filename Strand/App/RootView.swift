@@ -3,6 +3,9 @@ import StrandDesign
 
 enum NavItem: String, CaseIterable, Identifiable, Hashable {
     case today = "Today"
+    /// The ranked Momentum feed at full size. The Today card shows its top entry; this is the whole
+    /// list. New case, so no persisted sidebar selection is disturbed.
+    case momentum = "Momentum"
     case intelligence = "Intelligence"
     case insightsHub = "What Moves You"
     case coach = "Coach"
@@ -41,6 +44,7 @@ enum NavItem: String, CaseIterable, Identifiable, Hashable {
     var titleKey: LocalizedStringKey {
         switch self {
         case .today: return "Today"
+        case .momentum: return "Momentum"
         case .intelligence: return "Intelligence"
         case .insightsHub: return "What Moves You"
         case .coach: return "Coach"
@@ -86,6 +90,7 @@ enum NavItem: String, CaseIterable, Identifiable, Hashable {
     var localizedTitle: String {
         switch self {
         case .today: return String(localized: "Today")
+        case .momentum: return String(localized: "Momentum")
         case .intelligence: return String(localized: "Intelligence")
         case .insightsHub: return String(localized: "What Moves You")
         case .coach: return String(localized: "Coach")
@@ -123,6 +128,7 @@ enum NavItem: String, CaseIterable, Identifiable, Hashable {
     var icon: String {
         switch self {
         case .today: return "circle.hexagongrid.fill"
+        case .momentum: return "bolt.horizontal"
         case .intelligence: return "brain.head.profile"
         case .insightsHub: return "wand.and.sparkles"
         case .coach: return "sparkles"
@@ -181,7 +187,7 @@ struct NavGroup: Identifiable {
         // S6: the overlapping insight surfaces (Intelligence / What Moves You / Insights / Insights Hub)
         // all collapse under this single Insights group rather than scattering across the flat list.
         NavGroup(title: "Insights", id: "insights", items: [
-            .intelligence, .insightsHub, .coach, .goalJourney, .explore, .compare, .insights,
+            .momentum, .intelligence, .insightsHub, .coach, .goalJourney, .explore, .compare, .insights,
             .labBook, .rhythm, .trends,
         ]),
         NavGroup(title: "Data & App", id: "data_app", items: [
@@ -205,7 +211,10 @@ struct RootView: View {
     /// switch the sidebar selection without owning it — see `NavRouter`.
     @EnvironmentObject var router: NavRouter
     /// The liquid Today (default) vs the classic Today, same flag the iOS shell + Settings toggle read.
-    @AppStorage("noop.liquidTodayEnabled") private var liquidTodayEnabled = true
+    @AppStorage(TodayDashboardStyle.storageKey) private var todayDashboardStyleRaw = TodayDashboardStyle.liquid.rawValue
+    private var todayDashboardStyle: TodayDashboardStyle {
+        TodayDashboardStyle.resolve(todayDashboardStyleRaw) ?? .liquid
+    }
     @State private var selection: NavItem? = .today
     /// Which sidebar groups are expanded (S1, #805). Default = the group owning the launch selection
     /// (`.today`). The single-item Today/Sleep sections always read expanded so their one row shows; the
@@ -443,6 +452,7 @@ struct RootView: View {
     @ViewBuilder private var detail: some View {
         switch selection ?? .today {
         case .today: todayDetail
+        case .momentum: MomentumScreen()
         case .intelligence: IntelligenceView()
         case .insightsHub: InsightsHubView()
         case .coach: CoachView()
@@ -488,7 +498,12 @@ struct RootView: View {
             // Today's root-level links push TabRoute VALUES (#198), so this stack must register
             // their destinations (once per stack — a double registration double-pushes, #38).
             Group {
-                if liquidTodayEnabled { LiquidTodayView() } else { TodayView() }
+                switch todayDashboardStyle {
+                case .classic:  TodayView()
+                case .liquid:   LiquidTodayView()
+                case .trends:   TrendsDashboardView()
+                case .overview: OverviewDashboardView()
+                }
             }
             .tabRouteDestinations()
         }

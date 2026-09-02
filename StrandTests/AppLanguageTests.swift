@@ -8,12 +8,18 @@ final class AppLanguageTests: XCTestCase {
 
     func testChineseCatalogTagIsSupported() {
         XCTAssertEqual(AppLanguage.resolve("zh"), .chinese)
-        XCTAssertEqual(AppLanguage.chinese.autonym, "中文")
+        XCTAssertEqual(AppLanguage.chinese.autonym, "简体中文")
     }
 
     func testPolishCatalogTagIsSupported() {
         XCTAssertEqual(AppLanguage.resolve("pl"), .polish)
         XCTAssertEqual(AppLanguage.polish.autonym, "Polski")
+    }
+
+    func testEveryCatalogLanguageCanBeSelected() {
+        XCTAssertEqual(AppLanguage.resolve("it"), .italian)
+        XCTAssertEqual(AppLanguage.resolve("ru"), .russian)
+        XCTAssertEqual(AppLanguage.resolve("zh-Hant"), .traditionalChinese)
     }
 
     func testExplicitLanguageWritesAndSystemRemovesAppleOverride() throws {

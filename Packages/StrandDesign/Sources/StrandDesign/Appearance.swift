@@ -102,6 +102,7 @@ public extension View {
 /// `accent`/`accentHover`/`accentMuted`/`focusRing` accessors in `StrandPalette` branch on it. Mirror in
 /// Kotlin via `Palette.accentChoice` + `NoopPrefs.accentColor`/`accentCustomHex`.
 public enum AccentColor: String, CaseIterable, Identifiable, Sendable {
+    case systemBlue  // Apple system blue, the default chrome accent
     case mint        // the brand default (#1068 NoopVisualStyle.mint world)
     case whoopBlue   // the classic WHOOP link blue
     case custom      // a user-picked colour (hex stored separately)
@@ -115,17 +116,19 @@ public enum AccentColor: String, CaseIterable, Identifiable, Sendable {
 
     public var label: String {
         switch self {
+        case .systemBlue: return "System Blue"
         case .mint:      return String(localized: "Mint", bundle: .module)
         case .whoopBlue: return String(localized: "WHOOP Blue", bundle: .module)
         case .custom:    return String(localized: "Custom", bundle: .module)
         }
     }
 
-    public static func resolve(_ raw: String) -> AccentColor { AccentColor(rawValue: raw) ?? .mint }
+    public static func resolve(_ raw: String) -> AccentColor { AccentColor(rawValue: raw) ?? .systemBlue }
 
     /// The chrome accent. `.custom` resolves the stored hex at read time.
     public var accent: Color {
         switch self {
+        case .systemBlue: return Color.systemBlue
         case .mint:      return NoopVisualStyle.mint
         case .whoopBlue: return Color(light: "#234F9E", dark: "#60A0E0")
         case .custom:    return Color(hex: StrandPalette.customAccentHex)
@@ -135,6 +138,7 @@ public enum AccentColor: String, CaseIterable, Identifiable, Sendable {
     /// The brighter hover/pressed accent. For `.custom` it is the chosen colour lightened toward white.
     public var accentHover: Color {
         switch self {
+        case .systemBlue: return Color(light: "#409CFF", dark: "#409CFF")
         case .mint:      return NoopVisualStyle.mintGlow
         case .whoopBlue: return Color(light: "#3A6FC0", dark: "#8FBEEC")
         case .custom:    return AccentColor.lighten(StrandPalette.customAccentHex)
@@ -145,6 +149,7 @@ public enum AccentColor: String, CaseIterable, Identifiable, Sendable {
     /// composites over whatever surface is behind it — the same 0.18 the mint world uses.
     public var accentMuted: Color {
         switch self {
+        case .systemBlue: return Color.systemBlue.opacity(0.18)
         case .mint:      return NoopVisualStyle.mintDeep.opacity(0.18)
         case .whoopBlue: return Color(light: "#234F9E", dark: "#60A0E0").opacity(0.18)
         case .custom:    return Color(hex: StrandPalette.customAccentHex).opacity(0.18)
@@ -178,9 +183,11 @@ public extension View {
 /// selecting a preset writes those four prefs, and the granular controls stay available underneath. There
 /// is NO stored "current theme" — it's DERIVED from the live prefs via [matching], so tweaking any one
 /// control simply resolves to `.custom`. Theme MODE (System/Light/Dark) is independent and never bundled.
+/// The Apple Health preset is the default recipe for new installs; the legacy presets remain selectable.
 /// Twin of Kotlin `ThemePreset`.
 public enum ThemePreset: String, CaseIterable, Identifiable, Sendable {
-    case mint       // brand default: mint accent, Titanium charts, backdrop on, solid cards
+    case health   // Apple Health: system-blue chrome and semantic Apple Health data colours
+    case mint       // legacy brand: mint accent, Titanium charts, backdrop on, solid cards
     case ocean      // WHOOP-blue accent, Titanium charts, backdrop on, solid
     case classic    // WHOOP-blue accent, Classic throwback charts, backdrop on, solid
     case midnight   // mint accent, Titanium charts, backdrop OFF (plain canvas), solid
@@ -191,6 +198,7 @@ public enum ThemePreset: String, CaseIterable, Identifiable, Sendable {
 
     public var label: String {
         switch self {
+        case .health:   return String(localized: "Apple Health", bundle: .module)
         case .mint:     return String(localized: "Mint", bundle: .module)
         case .ocean:    return String(localized: "Ocean", bundle: .module)
         case .classic:  return String(localized: "Classic", bundle: .module)
@@ -212,6 +220,7 @@ public enum ThemePreset: String, CaseIterable, Identifiable, Sendable {
 
     public var recipe: Recipe? {
         switch self {
+        case .health:   return Recipe(accent: .systemBlue, chart: .health,   backdrop: false, cardOpacity: 100)
         case .mint:     return Recipe(accent: .mint,      chart: .titanium, backdrop: true,  cardOpacity: 100)
         case .ocean:    return Recipe(accent: .whoopBlue, chart: .titanium, backdrop: true,  cardOpacity: 100)
         case .classic:  return Recipe(accent: .whoopBlue, chart: .classic,  backdrop: true,  cardOpacity: 100)
@@ -224,7 +233,7 @@ public enum ThemePreset: String, CaseIterable, Identifiable, Sendable {
     /// The presets a user can pick (everything except the derived `.custom` sentinel).
     public static var selectable: [ThemePreset] { allCases.filter { $0 != .custom } }
 
-    public static func resolve(_ raw: String) -> ThemePreset { ThemePreset(rawValue: raw) ?? .mint }
+    public static func resolve(_ raw: String) -> ThemePreset { ThemePreset(rawValue: raw) ?? .health }
 
     /// Which preset the live prefs correspond to, or `.custom` when none match.
     public static func matching(accent: AccentColor, chart: ChartStyle,

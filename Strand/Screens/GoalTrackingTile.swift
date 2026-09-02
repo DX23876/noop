@@ -51,14 +51,21 @@ struct GoalTrackingTile: View {
     // MARK: - Hero
 
     private func heroBlock(_ snapshot: GoalTrackingSnapshot) -> some View {
-        let tint = colorFor(snapshot.goal.kind)
+        // Two DIFFERENT colour channels, deliberately: `identity` names which goal this is (fixed per
+        // kind, matches the leading icon everywhere else the icon appears); `status` says how it's
+        // doing. Before this split, the ring/bars used `identity` for a STATUS encoding — a goal could
+        // show an orange progress ring right beside a red "At risk" pill, two colours for the one
+        // question "is this okay?". The ring, the waypoint strip and the day strip now answer that
+        // question the same way the pill already does.
+        let identity = colorFor(snapshot.goal.kind)
+        let status = snapshot.health.tone.color
         return VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .top, spacing: 12) {
-                ring(snapshot, tint: tint)
+                ring(snapshot, tint: status)
                 VStack(alignment: .leading, spacing: 5) {
                     HStack(spacing: 6) {
                         Image(systemName: snapshot.goal.kind.icon)
-                            .font(StrandFont.footnote).foregroundStyle(tint)
+                            .font(StrandFont.footnote).foregroundStyle(identity)
                             .accessibilityHidden(true)
                         Text(snapshot.displayTitle)
                             .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
@@ -73,7 +80,7 @@ struct GoalTrackingTile: View {
                 }
                 Spacer(minLength: 0)
             }
-            strip(for: snapshot, tint: tint)
+            strip(for: snapshot, tint: status)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .combine)
@@ -113,10 +120,11 @@ struct GoalTrackingTile: View {
     /// One goal in a line: what it is, how far along, and how it's doing. The `PipBar` is the house
     /// bar for a 0…max value; a goal that isn't scored shows the honest words instead of an empty one.
     private func row(_ snapshot: GoalTrackingSnapshot) -> some View {
-        let tint = colorFor(snapshot.goal.kind)
+        let identity = colorFor(snapshot.goal.kind)
+        let status = snapshot.health.tone.color
         return HStack(spacing: 9) {
             Image(systemName: snapshot.goal.kind.icon)
-                .font(StrandFont.footnote).foregroundStyle(tint)
+                .font(StrandFont.footnote).foregroundStyle(identity)
                 .frame(width: 18)
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 4) {
@@ -124,7 +132,7 @@ struct GoalTrackingTile: View {
                     .font(StrandFont.footnote).foregroundStyle(StrandPalette.textPrimary)
                     .lineLimit(1)
                 if let fraction = snapshot.progressFraction {
-                    PipBar(value: fraction * 100, segments: 14, tint: tint, height: 6)
+                    PipBar(value: fraction * 100, segments: 14, tint: status, height: 6)
                 } else if let reason = snapshot.unscoredReason {
                     Text(reason)
                         .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)

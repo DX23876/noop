@@ -129,6 +129,41 @@ private struct AppleInspiredForegroundModifier: ViewModifier {
     }
 }
 
+/// Apple Health / iOS Settings-style leading icon treatment for navigation and menu rows: a compact
+/// semantic-colour tile with a white monochrome SF Symbol. The user's existing colour preference still
+/// controls the treatment; with colours disabled, the symbol falls back to NOOP's accent without a tile.
+private struct AppleInspiredMenuIconModifier: ViewModifier {
+    let id: String
+    let size: CGFloat
+    @AppStorage(AppleInspiredColorsPrefs.enabledKey) private var enabled = AppleInspiredColorsPrefs.defaultEnabled
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if enabled {
+            content
+                .symbolRenderingMode(.monochrome)
+                .font(.system(size: size * 0.5, weight: .semibold))
+                .foregroundStyle(Color.white)
+                .frame(width: size, height: size)
+                .background {
+                    RoundedRectangle(cornerRadius: size * 0.28, style: .continuous)
+                        .fill(AppleInspiredColors.color(for: id))
+                }
+                .overlay {
+                    RoundedRectangle(cornerRadius: size * 0.28, style: .continuous)
+                        .stroke(Color.white.opacity(0.16), lineWidth: 0.5)
+                }
+                .shadow(color: AppleInspiredColors.color(for: id).opacity(0.18), radius: 2, y: 1)
+        } else {
+            content
+                .symbolRenderingMode(.monochrome)
+                .font(.system(size: size * 0.5, weight: .semibold))
+                .foregroundStyle(StrandPalette.accent)
+                .frame(width: size, height: size)
+        }
+    }
+}
+
 public extension View {
     /// Applies a preference-reactive tint to a primary control. Disabled states remain native.
     func appleInspiredTint(_ id: String) -> some View {
@@ -139,5 +174,11 @@ public extension View {
     /// Do not attach this to a composite `Label`: ordinary menu text intentionally remains neutral.
     func appleInspiredForeground(_ id: String) -> some View {
         modifier(AppleInspiredForegroundModifier(id: id))
+    }
+
+    /// Styles a leading navigation/menu symbol as a compact Apple Health-inspired colour tile.
+    /// Keep chevrons, status indicators, destructive symbols, and chart marks out of this modifier.
+    func appleInspiredMenuIcon(_ id: String, size: CGFloat = 30) -> some View {
+        modifier(AppleInspiredMenuIconModifier(id: id, size: size))
     }
 }

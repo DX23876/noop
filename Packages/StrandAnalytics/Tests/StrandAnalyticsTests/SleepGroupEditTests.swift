@@ -47,6 +47,40 @@ final class SleepGroupEditTests: XCTestCase {
         XCTAssertTrue(plan.clipped[0].userEdited)
     }
 
+    // MARK: - relocationPlan: the consented "Move anyway"
+
+    /// The confirmed move: one carrier fragment takes the new window outright, everything else retires.
+    /// Before this, consenting to the move reached `plan`, which can only return an empty plan for a
+    /// disjoint window, so the whole edit was a silent no-op.
+    func testRelocationMovesOneCarrierAndRetiresTheRest() {
+        let plan = SleepGroupEdit.relocationPlan(splitNight, newStartTs: t0 + 20 * hour,
+                                                 newEndTs: t0 + 22 * hour)
+        XCTAssertEqual(plan.clipped.count, 1)
+        XCTAssertEqual(plan.clipped[0].effectiveStartTs, t0 + 20 * hour)
+        XCTAssertEqual(plan.clipped[0].endTs, t0 + 22 * hour)
+        XCTAssertTrue(plan.clipped[0].userEdited)
+        XCTAssertEqual(plan.dropped.count, 2)
+        XCTAssertFalse(plan.dropped.contains { $0.startTs == plan.clipped[0].startTs })
+    }
+
+    /// The carrier is the LONGEST fragment, and its immutable key never moves.
+    func testRelocationCarrierIsTheLongestFragment() {
+        let group = [fragment(t0, t0 + hour),
+                     fragment(t0 + 2 * hour, t0 + 8 * hour),   // longest
+                     fragment(t0 + 9 * hour, t0 + 10 * hour)]
+        let plan = SleepGroupEdit.relocationPlan(group, newStartTs: t0 + 30 * hour,
+                                                 newEndTs: t0 + 36 * hour)
+        XCTAssertEqual(plan.clipped[0].startTs, t0 + 2 * hour, "the immutable key must not move")
+        XCTAssertEqual(plan.dropped.map(\.startTs).sorted(), [t0, t0 + 9 * hour])
+    }
+
+    /// An inverted or empty window is still refused — consent does not bypass the window guard.
+    func testRelocationRefusesInvertedOrEmptyInput() {
+        XCTAssertTrue(SleepGroupEdit.relocationPlan(splitNight, newStartTs: t0 + 6 * hour,
+                                                    newEndTs: t0 + hour).clipped.isEmpty)
+        XCTAssertTrue(SleepGroupEdit.relocationPlan([], newStartTs: t0, newEndTs: t0 + hour).clipped.isEmpty)
+    }
+
     func testDisjointAndInvertedWindowsChangeNothing() {
         let disjoint = SleepGroupEdit.plan(splitNight, newStartTs: t0 + 20 * hour,
                                            newEndTs: t0 + 22 * hour)

@@ -483,7 +483,7 @@ private struct TestModeRow: View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 12) {
                 Image(systemName: mode.icon)
-                    .appleInspiredForeground("testCentre").frame(width: 24)
+                    .appleInspiredMenuIcon("testCentre")
                 VStack(alignment: .leading, spacing: 2) {
                     Text(mode.title).font(StrandFont.body).foregroundStyle(StrandPalette.textPrimary)
                     Text(TestCentreLayout.statusText(for: mode, active: on, elapsedSeconds: elapsed,

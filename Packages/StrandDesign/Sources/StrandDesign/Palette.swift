@@ -100,15 +100,16 @@ public enum StrandPalette {
     public static let heroFill   = Color(light: "FFFFFFD9", dark: "0D0E14CC")
     public static let heroBorder = Color(light: "0000001A", dark: "FFFFFF1C")
 
-    // MARK: Glow — ambient bloom behind heroes / charts (additive on dark; faint warm on light)
-    public static let glowAmbient    = NoopVisualStyle.mintGlow.opacity(0.28)
+    // MARK: Glow — neutral Apple-blue bloom behind heroes / charts. Mint remains an optional user accent,
+    // never a default cast over otherwise neutral surfaces.
+    public static let glowAmbient    = Color.systemBlue.opacity(0.20)
 
-    // MARK: Accent — chrome anchor (links, selection, focus, generic accent). USER-SELECTABLE (mint /
-    // WHOOP blue / custom) via `accentChoice` below, default mint (#1068). Only the chrome accent is
+    // MARK: Accent — chrome anchor (links, selection, focus, generic accent). USER-SELECTABLE (system /
+    // mint / WHOOP blue / custom) via `accentChoice` below, default system blue. Only the chrome accent is
     // user-themed — the recovery/strain/sleep DATA worlds follow `chartStyle`, never this.
     /// The user's chrome-accent choice. Set from `@AppStorage(AccentColor.storageKey)` at the app root
-    /// via `.noopAccent(...)`; the four accessors below branch on it. Default mint.
-    public static var accentChoice: AccentColor = .mint
+    /// via `.noopAccent(...)`; the four accessors below branch on it. Default system blue.
+    public static var accentChoice: AccentColor = .systemBlue
     /// The custom accent's hex, used only when `accentChoice == .custom`. Set alongside `accentChoice`.
     public static var customAccentHex: String = AccentColor.defaultCustomHex
     public static var accent: Color { accentChoice.accent }
@@ -127,7 +128,7 @@ public enum StrandPalette {
     // (recoveryStops, strainStops, hrZones, sleepStageColor, stress gradient, status, metric, and the
     // DomainTheme worlds) branch on this — so flipping it re-colours every gauge/chart/scale, in BOTH
     // light and dark, with NO call-site changes. Chrome (surfaces, text, accent) is never touched.
-    public static var chartStyle: ChartStyle = .signature
+    public static var chartStyle: ChartStyle = .health
     /// Convenience for any spot that only ever cared about the titanium/classic split. Everything that
     /// also needs to know about `.health` branches on `chartStyle` directly (a 3-way switch).
     @inline(__always) static var isClassic: Bool { chartStyle == .classic }
@@ -784,13 +785,100 @@ public enum StrandPalette {
 
     /// The state word for a recovery score, per spec §9.3.
     /// DEPLETED · LOW · MODERATE · PRIMED · PEAK
+    ///
+    /// The thresholds themselves now live in `ChargeBand` — the ONE place the codebase decides what a
+    /// Charge number means, so a ring's colour and the word beside it can never disagree. This is a
+    /// thin forwarder kept for the call sites that only want the word.
     public static func recoveryState(_ score: Double) -> String {
-        switch score {
-        case ..<25:  return String(localized: "DEPLETED", bundle: .module)
-        case ..<50:  return String(localized: "LOW", bundle: .module)
-        case ..<70:  return String(localized: "MODERATE", bundle: .module)
-        case ..<88:  return String(localized: "PRIMED", bundle: .module)
-        default:     return String(localized: "PEAK", bundle: .module)
+        ChargeBand.of(score: score).word
+    }
+
+    /// The colour for a CHARGE score wherever it is drawn as a ring or a tint — the Today hero, both
+    /// iOS widgets, the watch glance and the watch complications.
+    ///
+    /// It samples the recovery ramp CONTINUOUSLY (as WHOOP does) rather than stepping per band: the
+    /// band exists to pick a word and a tone, not to quantise the colour. Every Charge surface must go
+    /// through here. They did not, and the app contradicted itself: the complications already sampled
+    /// `recoveryColor(_:)` while the hero, both widgets and the glance painted a FIXED `chargeColor`, so
+    /// one score read red on the watch face and green in the widget beside it.
+    ///
+    /// `score` is the 0...100 Charge value. A day with no score has no colour to sample — callers pass
+    /// their own empty-state tint (`textTertiary`) rather than a fabricated 0, which would read as a
+    /// real, terrible recovery.
+    public static func chargeRingColor(_ score: Double) -> Color {
+        chargeBandColor(ChargeBand.of(score: score))
+    }
+
+    /// The DISCRETE colour for a Charge band, one flat swatch per band per style — never an
+    /// interpolated in-between.
+    ///
+    /// `chargeRingColor` used to sample the CONTINUOUS `recoveryStops` ramp, whose stop locations
+    /// (0/.30/.55/.78/1.00) were never reconciled with `ChargeBand`'s own thresholds (25/50/70/88).
+    /// A score of 51 reads "MODERATE" in text but sampled a blend sitting BETWEEN the ramp's orange
+    /// stop (.30) and yellow stop (.55) — a muddy in-between that is not any style's real system
+    /// colour, and does not match the word printed under it. `GlowRing` fills its arc FLAT in one
+    /// colour (unlike `RecoveryRing`'s swept gradient, where continuous sampling is correct), so every
+    /// flat-filled Charge ring inherited that mismatch — the Today hero, both iOS widgets, the watch
+    /// glance, the watch complications, and Momentum's tone-by-Charge messages.
+    ///
+    /// The fix re-keys the SAME named per-style stop constants (nothing invented) onto `ChargeBand`'s
+    /// thresholds instead of the ramp's own stop locations, so the ring colour and the band word always
+    /// name the same band. The Titanium/Signature constants were already commented "depleted / low /
+    /// moderate / primed / peak" — the 1:1 mapping was always the intent, just never wired through.
+    ///
+    /// `recoveryColor`/`recoveryStops` are UNCHANGED and still continuous: a swept gauge arc, a
+    /// sparkline or a trend line should keep blending smoothly between samples. Only the flat-fill case
+    /// wants a discrete swatch.
+    public static func chargeBandColor(_ band: ChargeBand) -> Color {
+        switch chartStyle {
+        case .classic:
+            switch band {
+            case .depleted: return cRecovery000
+            case .low:      return cRecovery030
+            case .moderate: return cRecovery055
+            case .primed:   return cRecovery078
+            case .peak:     return cRecovery100
+            }
+        case .health:
+            switch band {
+            case .depleted: return hRecovery000
+            case .low:      return hRecovery030
+            case .moderate: return hRecovery055
+            case .primed:   return hRecovery078
+            case .peak:     return hRecovery100
+            }
+        case .aurora:
+            switch band {
+            case .depleted: return auRecovery000
+            case .low:      return auRecovery030
+            case .moderate: return auRecovery055
+            case .primed:   return auRecovery078
+            case .peak:     return auRecovery100
+            }
+        case .sunset:
+            switch band {
+            case .depleted: return suRecovery000
+            case .low:      return suRecovery030
+            case .moderate: return suRecovery055
+            case .primed:   return suRecovery078
+            case .peak:     return suRecovery100
+            }
+        case .forest:
+            switch band {
+            case .depleted: return foRecovery000
+            case .low:      return foRecovery030
+            case .moderate: return foRecovery055
+            case .primed:   return foRecovery078
+            case .peak:     return foRecovery100
+            }
+        case .titanium, .signature:
+            switch band {
+            case .depleted: return recovery000
+            case .low:      return recovery030
+            case .moderate: return recovery055
+            case .primed:   return recovery078
+            case .peak:     return recovery100
+            }
         }
     }
 

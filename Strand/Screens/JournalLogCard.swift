@@ -228,7 +228,7 @@ struct JournalLogCard: View {
             HStack(spacing: 8) {
                 Image(systemName: "arrow.triangle.merge")
                     .font(StrandFont.body)
-                    .appleInspiredForeground("journal")
+                    .appleInspiredMenuIcon("journal")
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Find duplicate questions")
                         .font(StrandFont.subhead)

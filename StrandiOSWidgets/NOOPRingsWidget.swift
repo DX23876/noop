@@ -49,11 +49,18 @@ struct NOOPRingsWidgetView: View {
 
     private var snap: WidgetSnapshot { entry.snapshot }
 
+    /// Value-sampled Charge tint through the one shared helper, so this widget agrees with the Today
+    /// hero and the watch complication instead of painting every score the same green. No score = no
+    /// colour to sample; the ring keeps the domain accent for its empty track.
+    private var chargeTint: Color {
+        snap.recovery.map { StrandPalette.chargeRingColor(Double($0)) } ?? StrandPalette.chargeColor
+    }
+
     var body: some View {
         switch family {
         case .systemMedium:
             HStack(spacing: 0) {
-                RingGauge(value: snap.recovery, maxValue: 100, tint: StrandPalette.chargeColor, label: "Charge")
+                RingGauge(value: snap.recovery, maxValue: 100, tint: chargeTint, label: "Charge")
                     .frame(maxWidth: .infinity)
                 RingGauge(value: snap.effort, maxValue: 100, tint: StrandPalette.effortColor, label: "Effort")
                     .frame(maxWidth: .infinity)
@@ -64,7 +71,7 @@ struct NOOPRingsWidgetView: View {
         default:
             // .systemSmall: Charge alone — the one score that matters most at a glance (matches the
             // lock-screen accessory's headline choice in NOOPWidget).
-            RingGauge(value: snap.recovery, maxValue: 100, tint: StrandPalette.chargeColor, label: "Charge")
+            RingGauge(value: snap.recovery, maxValue: 100, tint: chargeTint, label: "Charge")
                 .padding(12)
         }
     }

@@ -1,1244 +1,1283 @@
 {
-  "sourceLanguage": "en",
-  "strings": {
-    "\\(context.state.bpm.map(String.init) ?? \"–\") bpm": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "\\(context.state.bpm.map(String.init) ?? \"–\") S/min"
+  "sourceLanguage" : "en",
+  "strings" : {
+    "–" : {
+
+    },
+    "—" : {
+      "shouldTranslate" : false
+    },
+    "\\(bpm) bpm" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "\\(bpm) S/min"
           }
         },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "\\(context.state.bpm.map(String.init) ?? \"–\") lpm"
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "\\(bpm) lpm"
           }
         },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "\\(context.state.bpm.map(String.init) ?? \"–\") batt./min"
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "\\(bpm) batt./min"
           }
         },
-        "pt-PT": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "\\(context.state.bpm.map(String.init) ?? \"–\") bat./min"
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "\\(bpm) batt./min"
           }
         },
-        "pl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "\\(context.state.bpm.map(String.init) ?? \"–\") ud./min"
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "\\(bpm) ud./min"
           }
         },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "\\(context.state.bpm.map(String.init) ?? \"–\") batt./min"
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "\\(bpm) bat./min"
           }
         },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "\\(context.state.bpm.map(String.init) ?? \"–\") уд/мин"
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "\\(bpm) уд/мин"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "\\(context.state.bpm.map(String.init) ?? \"–\") 次/分"
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "\\(bpm) 次/分"
           }
         },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "\\(context.state.bpm.map(String.init) ?? \"–\") 次/分"
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "\\(bpm) 次/分"
           }
         }
       }
     },
-    "\\(context.state.bpm.map(String.init) ?? \"–\")": {
-      "shouldTranslate": false
-    },
-    "\\(bpm) bpm": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "\\(bpm) S/min"
+    "\\(context.state.bpm.map(String.init) ?? \"–\") bpm" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "\\(context.state.bpm.map(String.init) ?? \"–\") S/min"
           }
         },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "\\(bpm) lpm"
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "\\(context.state.bpm.map(String.init) ?? \"–\") lpm"
           }
         },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "\\(bpm) batt./min"
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "\\(context.state.bpm.map(String.init) ?? \"–\") batt./min"
           }
         },
-        "pt-PT": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "\\(bpm) bat./min"
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "\\(context.state.bpm.map(String.init) ?? \"–\") batt./min"
           }
         },
-        "pl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "\\(bpm) ud./min"
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "\\(context.state.bpm.map(String.init) ?? \"–\") ud./min"
           }
         },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "\\(bpm) batt./min"
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "\\(context.state.bpm.map(String.init) ?? \"–\") bat./min"
           }
         },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "\\(bpm) уд/мин"
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "\\(context.state.bpm.map(String.init) ?? \"–\") уд/мин"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "\\(bpm) 次/分"
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "\\(context.state.bpm.map(String.init) ?? \"–\") 次/分"
           }
         },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "\\(bpm) 次/分"
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "\\(context.state.bpm.map(String.init) ?? \"–\") 次/分"
           }
         }
       }
     },
-    "Connected": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Verbunden"
+    "%@" : {
+
+    },
+    "%@ active" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ aktiv"
           }
         },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Conectado"
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ activas"
           }
         },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Connecté"
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ actives"
           }
         },
-        "pt-PT": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ligado"
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ attive"
           }
         },
-        "pl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Połączono"
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ aktywnych"
           }
         },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Connesso"
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ ativas"
           }
         },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Подключено"
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ активных"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "已连接"
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 活动消耗"
           }
         },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "已連線"
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 活動消耗"
           }
         }
       }
     },
-    "Disconnected": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Getrennt"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Desconectado"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Déconnecté"
-          }
-        },
-        "pt-PT": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Desligado"
-          }
-        },
-        "pl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Rozłączono"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Disconnesso"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Отключено"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "已断开"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "已中斷連線"
-          }
-        }
-      }
+    "%@ bpm" : {
+
     },
-    "\\(hrv)": {
-      "shouldTranslate": false
-    },
-    "%@ active": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%@ aktiv"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%@ activas"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%@ actives"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%@ attive"
-          }
-        },
-        "pl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%@ aktywnych"
-          }
-        },
-        "pt-PT": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%@ ativas"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%@ активных"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%@ 活动消耗"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%@ 活動消耗"
-          }
-        }
-      }
-    },
-    "%@ kcal": {
-      "localizations": {
-        "pl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%@ kcal"
+    "%@ kcal" : {
+      "localizations" : {
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ kcal"
           }
         }
       },
-      "shouldTranslate": false
+      "shouldTranslate" : false
     },
-    "Active": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Aktiv"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Activa"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Active"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Attiva"
-          }
-        },
-        "pl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Aktywna"
-          }
-        },
-        "pt-PT": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ativa"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Активная"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "活动"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "活動"
+    "%@ out of %lld" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ out of %2$lld"
           }
         }
       }
     },
-    "Basal": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Grundumsatz"
+    "%lld" : {
+
+    },
+    "%lld bpm" : {
+
+    },
+    "%lld%%" : {
+
+    },
+    "~%@ projected" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "~%@ prognostiziert"
           }
         },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Basal"
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "~%@ proyectadas"
           }
         },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Basale"
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "~%@ projetées"
           }
         },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Basale"
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "~%@ previste"
           }
         },
-        "pl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Podstawowa"
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "~%@ prognozowane"
           }
         },
-        "pt-PT": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Basal"
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "~%@ projetadas"
           }
         },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Основной обмен"
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "~%@ по прогнозу"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "基础代谢"
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "预计约 %@"
           }
         },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "基礎代謝"
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "預計約 %@"
           }
         }
       }
     },
-    "ENERGY": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "ENERGIE"
+    "🔥 %@ kcal today" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "🔥 %@ kcal heute"
           }
         },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "ENERGÍA"
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "🔥 %@ kcal hoy"
           }
         },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "ÉNERGIE"
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "🔥 %@ kcal aujourd’hui"
           }
         },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "ENERGIA"
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "🔥 %@ kcal oggi"
           }
         },
-        "pl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "ENERGIA"
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "🔥 %@ kcal dzisiaj"
           }
         },
-        "pt-PT": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "ENERGIA"
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "🔥 %@ kcal hoje"
           }
         },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "ЭНЕРГИЯ"
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "🔥 %@ ккал сегодня"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "能量"
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "🔥 今日 %@ 千卡"
           }
         },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "能量"
-          }
-        }
-      }
-    },
-    "Energy": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Energie"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Energía"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Énergie"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Energia"
-          }
-        },
-        "pl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Energia"
-          }
-        },
-        "pt-PT": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Energia"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Энергия"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "能量"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "能量"
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "🔥 今日 %@ 千卡"
           }
         }
       }
     },
-    "Estimated": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Geschätzt"
+    "Active" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aktiv"
           }
         },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Estimado"
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Activa"
           }
         },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Estimé"
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Active"
           }
         },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Stimato"
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Attiva"
           }
         },
-        "pl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Szacowane"
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aktywna"
           }
         },
-        "pt-PT": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Estimado"
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ativa"
           }
         },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Расчёт"
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Активная"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "估算"
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "活动"
           }
         },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "估算"
-          }
-        }
-      }
-    },
-    "Measured": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Gemessen"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Medido"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Mesuré"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Misurato"
-          }
-        },
-        "pl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Zmierzone"
-          }
-        },
-        "pt-PT": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Medido"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Измерено"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "已测量"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "已測量"
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "活動"
           }
         }
       }
     },
-    "NOOP Energy": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "NOOP Energie"
+    "Basal" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Grundumsatz"
           }
         },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Energía NOOP"
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Basal"
           }
         },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Énergie NOOP"
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Basale"
           }
         },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Energia NOOP"
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Basale"
           }
         },
-        "pl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Energia NOOP"
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Podstawowa"
           }
         },
-        "pt-PT": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Energia NOOP"
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Basal"
           }
         },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Энергия NOOP"
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Основной обмен"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "NOOP 能量"
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "基础代谢"
           }
         },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "NOOP 能量"
-          }
-        }
-      }
-    },
-    "No energy data today": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Heute keine Energiedaten"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Hoy no hay datos de energía"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Aucune donnée d’énergie aujourd’hui"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Nessun dato energetico oggi"
-          }
-        },
-        "pl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Brak dzisiejszych danych o energii"
-          }
-        },
-        "pt-PT": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Sem dados de energia hoje"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Сегодня нет данных об энергии"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "今天暂无能量数据"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "今天暫無能量資料"
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "基礎代謝"
           }
         }
       }
     },
-    "Partly estimated": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Teilweise geschätzt"
+    "Charge, Effort and Rest as score rings, plus live HR and strap battery at a glance." : {
+
+    },
+    "Charge, Effort and Rest as three rings, just like Today." : {
+
+    },
+    "Connected" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verbunden"
           }
         },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Estimado parcialmente"
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Conectado"
           }
         },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Partiellement estimé"
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connecté"
           }
         },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Parzialmente stimato"
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connesso"
           }
         },
-        "pl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Częściowo szacowane"
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Połączono"
           }
         },
-        "pt-PT": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Parcialmente estimado"
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ligado"
           }
         },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Частично рассчитано"
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Подключено"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "部分估算"
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已连接"
           }
         },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "部分估算"
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已連線"
           }
         }
       }
     },
-    "Projected today": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Heute prognostiziert"
+    "Disconnected" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Getrennt"
           }
         },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Proyección de hoy"
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Desconectado"
           }
         },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Projection du jour"
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Déconnecté"
           }
         },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Proiezione di oggi"
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Disconnesso"
           }
         },
-        "pl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Prognoza na dziś"
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rozłączono"
           }
         },
-        "pt-PT": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Projeção de hoje"
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Desligado"
           }
         },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Прогноз на сегодня"
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Отключено"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "今日预测"
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已断开"
           }
         },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "今日預測"
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已中斷連線"
           }
         }
       }
     },
-    "Total, active and basal calories for today, with an honest projection.": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Gesamter, aktiver und basaler Kalorienverbrauch für heute – mit ehrlicher Prognose."
+    "Energy" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Energie"
           }
         },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Calorías totales, activas y basales de hoy, con una proyección clara."
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Energía"
           }
         },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Calories totales, actives et basales du jour, avec une projection transparente."
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Énergie"
           }
         },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Calorie totali, attive e basali di oggi, con una proiezione trasparente."
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Energia"
           }
         },
-        "pl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Dzisiejsze kalorie całkowite, aktywne i podstawowe wraz z uczciwą prognozą."
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Energia"
           }
         },
-        "pt-PT": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Calorias totais, ativas e basais de hoje, com uma projeção transparente."
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Energia"
           }
         },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Общий, активный и базовый расход калорий за сегодня с прозрачным прогнозом."
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Энергия"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "今天的总消耗、活动消耗和基础消耗，并提供如实预测。"
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "能量"
           }
         },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "今天的總消耗、活動消耗和基礎消耗，並提供如實預測。"
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "能量"
           }
         }
       }
     },
-    "Updated": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Aktualisiert"
+    "ENERGY" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ENERGIE"
           }
         },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Actualizado"
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ENERGÍA"
           }
         },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Mis à jour"
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ÉNERGIE"
           }
         },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Aggiornato"
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ENERGIA"
           }
         },
-        "pl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Zaktualizowano"
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ENERGIA"
           }
         },
-        "pt-PT": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Atualizado"
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ENERGIA"
           }
         },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Обновлено"
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ЭНЕРГИЯ"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "已更新"
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "能量"
           }
         },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "已更新"
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "能量"
           }
         }
       }
     },
-    "kcal total so far": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "kcal bisher insgesamt"
+    "Estimated" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Geschätzt"
           }
         },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "kcal totales hasta ahora"
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Estimado"
           }
         },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "kcal au total jusqu’ici"
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Estimé"
           }
         },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "kcal totali finora"
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stimato"
           }
         },
-        "pl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "kcal łącznie do tej pory"
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Szacowane"
           }
         },
-        "pt-PT": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "kcal totais até agora"
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Estimado"
           }
         },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "ккал всего к этому моменту"
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Расчёт"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "目前总计千卡"
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "估算"
           }
         },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "目前總計千卡"
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "估算"
           }
         }
       }
     },
-    "total burned so far": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "bisheriger Gesamtverbrauch"
+    "kcal total so far" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "kcal bisher insgesamt"
           }
         },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "total quemado hasta ahora"
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "kcal totales hasta ahora"
           }
         },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "total dépensé jusqu’ici"
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "kcal au total jusqu’ici"
           }
         },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "totale consumato finora"
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "kcal totali finora"
           }
         },
-        "pl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "dotychczasowy całkowity wydatek"
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "kcal łącznie do tej pory"
           }
         },
-        "pt-PT": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "total gasto até agora"
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "kcal totais até agora"
           }
         },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "всего потрачено к этому моменту"
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ккал всего к этому моменту"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "目前总消耗"
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "目前总计千卡"
           }
         },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "目前總消耗"
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "目前總計千卡"
           }
         }
       }
     },
-    "~%@ projected": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "~%@ prognostiziert"
+    "Measured" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gemessen"
           }
         },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "~%@ proyectadas"
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Medido"
           }
         },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "~%@ projetées"
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mesuré"
           }
         },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "~%@ previste"
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Misurato"
           }
         },
-        "pl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "~%@ prognozowane"
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zmierzone"
           }
         },
-        "pt-PT": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "~%@ projetadas"
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Medido"
           }
         },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "~%@ по прогнозу"
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Измерено"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "预计约 %@"
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已测量"
           }
         },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "預計約 %@"
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已測量"
           }
         }
       }
     },
-    "—": {
-      "shouldTranslate": false
+    "No energy data today" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Heute keine Energiedaten"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hoy no hay datos de energía"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucune donnée d’énergie aujourd’hui"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nessun dato energetico oggi"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Brak dzisiejszych danych o energii"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sem dados de energia hoje"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Сегодня нет данных об энергии"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "今天暂无能量数据"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "今天暫無能量資料"
+          }
+        }
+      }
     },
-    "🔥 %@ kcal today": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "🔥 %@ kcal heute"
+    "NOOP" : {
+
+    },
+    "NOOP Energy" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP Energie"
           }
         },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "🔥 %@ kcal hoy"
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Energía NOOP"
           }
         },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "🔥 %@ kcal aujourd’hui"
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Énergie NOOP"
           }
         },
-        "pt-PT": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "🔥 %@ kcal hoje"
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Energia NOOP"
           }
         },
-        "pl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "🔥 %@ kcal dzisiaj"
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Energia NOOP"
           }
         },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "🔥 %@ kcal oggi"
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Energia NOOP"
           }
         },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "🔥 %@ ккал сегодня"
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Энергия NOOP"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "🔥 今日 %@ 千卡"
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP 能量"
           }
         },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "🔥 今日 %@ 千卡"
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP 能量"
+          }
+        }
+      }
+    },
+    "NOOP Rings" : {
+
+    },
+    "Partly estimated" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Teilweise geschätzt"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Estimado parcialmente"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Partiellement estimé"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Parzialmente stimato"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Częściowo szacowane"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Parcialmente estimado"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Частично рассчитано"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "部分估算"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "部分估算"
+          }
+        }
+      }
+    },
+    "Projected today" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Heute prognostiziert"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Proyección de hoy"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Projection du jour"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Proiezione di oggi"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Prognoza na dziś"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Projeção de hoje"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Прогноз на сегодня"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "今日预测"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "今日預測"
+          }
+        }
+      }
+    },
+    "total burned so far" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "bisheriger Gesamtverbrauch"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "total quemado hasta ahora"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "total dépensé jusqu’ici"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "totale consumato finora"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "dotychczasowy całkowity wydatek"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "total gasto até agora"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "всего потрачено к этому моменту"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "目前总消耗"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "目前總消耗"
+          }
+        }
+      }
+    },
+    "Total, active and basal calories for today, with an honest projection." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gesamter, aktiver und basaler Kalorienverbrauch für heute – mit ehrlicher Prognose."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Calorías totales, activas y basales de hoy, con una proyección clara."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Calories totales, actives et basales du jour, avec une projection transparente."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Calorie totali, attive e basali di oggi, con una proiezione trasparente."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dzisiejsze kalorie całkowite, aktywne i podstawowe wraz z uczciwą prognozą."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Calorias totais, ativas e basais de hoje, com uma projeção transparente."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Общий, активный и базовый расход калорий за сегодня с прозрачным прогнозом."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "今天的总消耗、活动消耗和基础消耗，并提供如实预测。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "今天的總消耗、活動消耗和基礎消耗，並提供如實預測。"
+          }
+        }
+      }
+    },
+    "unavailable" : {
+
+    },
+    "Updated" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aktualisiert"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Actualizado"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mis à jour"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aggiornato"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zaktualizowano"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Atualizado"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Обновлено"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已更新"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已更新"
           }
         }
       }
     }
   },
-  "version": "1.0"
+  "version" : "1.0"
 }

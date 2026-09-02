@@ -151,6 +151,54 @@ final class MetricsCacheTests: XCTestCase {
         XCTAssertTrue(stored.allSatisfy(\.userEdited))
     }
 
+    func testSleepGroupEditInvalidatesOldAndNewUTCDaysOnlyAfterCommit() async throws {
+        let store = try await WhoopStore.inMemory()
+        let owner = "devA-noop"
+        try await store.upsertSleepSessions([
+            CachedSleepSession(startTs: 1_000, endTs: 2_000, efficiency: nil,
+                               restingHr: nil, avgHrv: nil, stagesJSON: nil)
+        ], deviceId: owner)
+        let oldBefore = try await store.analysisInputRevision(deviceId: owner, from: 0, to: 3_000)
+        let newBefore = try await store.analysisInputRevision(deviceId: owner,
+                                                              from: 172_800, to: 176_000)
+
+        _ = try await store.applySleepGroupEdit(edits: [
+            SleepSessionEditMutation(deviceId: owner, detectedStartTs: 1_000,
+                                     newStartTs: 173_000, newEndTs: 175_000, stagesJSON: nil)
+        ], drops: [])
+
+        let oldAfter = try await store.analysisInputRevision(deviceId: owner, from: 0, to: 3_000)
+        let newAfter = try await store.analysisInputRevision(deviceId: owner,
+                                                             from: 172_800, to: 176_000)
+        XCTAssertGreaterThan(oldAfter.inputRevision, oldBefore.inputRevision)
+        XCTAssertGreaterThan(newAfter.inputRevision, newBefore.inputRevision)
+        XCTAssertEqual(oldAfter.inputRevision, newAfter.inputRevision,
+                       "one committed group edit uses one revision across every affected UTC bucket")
+    }
+
+    func testFailedSleepGroupEditRollsBackAnalysisRevision() async throws {
+        let store = try await WhoopStore.inMemory()
+        let owner = "devA-noop"
+        try await store.upsertSleepSessions([
+            CachedSleepSession(startTs: 1_000, endTs: 2_000, efficiency: nil,
+                               restingHr: nil, avgHrv: nil, stagesJSON: nil)
+        ], deviceId: owner)
+        let before = try await store.analysisInputRevision(deviceId: owner, from: 0, to: 10_000)
+
+        do {
+            _ = try await store.applySleepGroupEdit(edits: [
+                SleepSessionEditMutation(deviceId: owner, detectedStartTs: 1_000,
+                                         newStartTs: 1_200, newEndTs: 1_800, stagesJSON: nil),
+                SleepSessionEditMutation(deviceId: owner, detectedStartTs: 9_999,
+                                         newStartTs: 9_999, newEndTs: 10_999, stagesJSON: nil),
+            ], drops: [])
+            XCTFail("the transaction should fail")
+        } catch { }
+
+        let after = try await store.analysisInputRevision(deviceId: owner, from: 0, to: 10_000)
+        XCTAssertEqual(after, before, "a rolled-back edit must not invalidate a persisted day")
+    }
+
     func testSleepGroupEditRollsBackEveryFragmentWhenAnyKeyIsMissing() async throws {
         let store = try await WhoopStore.inMemory()
         let original = CachedSleepSession(startTs: 1_000, endTs: 2_000, efficiency: nil,
@@ -442,6 +490,70 @@ final class MetricsCacheTests: XCTestCase {
         ], deviceId: "devA")
         let rows = try await store.dailyMetrics(deviceId: "devA", from: "2026-05-10", to: "2026-05-31")
         XCTAssertEqual(rows.map { $0.day }, ["2026-05-20"])
+    }
+
+    func testDailyActivityUpsertPreservesSleepAndRecoveryFields() async throws {
+        let store = try await WhoopStore.inMemory()
+        let original = DailyMetric(
+            day: "2026-05-23", totalSleepMin: 447.5, efficiency: 0.93,
+            deepMin: 95, remMin: 105, lightMin: 247.5, disturbances: 4,
+            restingHr: 57, avgHrv: 40, recovery: 64, strain: 12,
+            exerciseCount: 2, spo2Pct: 96, skinTempDevC: 0.2,
+            respRateBpm: 13.2, steps: 5_400, activeKcalEst: 3_377,
+            energyCoverageSeconds: 50_000)
+        try await store.upsertDailyMetrics([original], deviceId: "devA-noop")
+
+        let changed = try await store.upsertDailyActivity(
+            day: original.day, strain: 63.5, steps: 9_861, deviceId: "devA-noop")
+        XCTAssertEqual(changed, 1)
+
+        let rows = try await store.dailyMetrics(
+            deviceId: "devA-noop", from: original.day, to: original.day)
+        let updated = try XCTUnwrap(rows.first)
+        XCTAssertEqual(updated.strain, 63.5)
+        XCTAssertEqual(updated.steps, 9_861)
+        XCTAssertEqual(updated.totalSleepMin, original.totalSleepMin)
+        XCTAssertEqual(updated.efficiency, original.efficiency)
+        XCTAssertEqual(updated.deepMin, original.deepMin)
+        XCTAssertEqual(updated.remMin, original.remMin)
+        XCTAssertEqual(updated.lightMin, original.lightMin)
+        XCTAssertEqual(updated.disturbances, original.disturbances)
+        XCTAssertEqual(updated.restingHr, original.restingHr)
+        XCTAssertEqual(updated.avgHrv, original.avgHrv)
+        XCTAssertEqual(updated.recovery, original.recovery)
+        XCTAssertEqual(updated.exerciseCount, original.exerciseCount)
+        XCTAssertEqual(updated.activeKcalEst, original.activeKcalEst)
+        XCTAssertEqual(updated.energyCoverageSeconds, original.energyCoverageSeconds)
+    }
+
+    func testDailyActivityNilInputsPreserveExistingValuesAndEmptyUpdateIsNoop() async throws {
+        let store = try await WhoopStore.inMemory()
+        let original = DailyMetric(
+            day: "2026-05-24", totalSleepMin: nil, efficiency: nil, deepMin: nil,
+            remMin: nil, lightMin: nil, disturbances: nil, restingHr: 60,
+            avgHrv: nil, recovery: nil, strain: 44, exerciseCount: nil,
+            steps: 7_000)
+        try await store.upsertDailyMetrics([original], deviceId: "devA-noop")
+
+        _ = try await store.upsertDailyActivity(
+            day: original.day, strain: 48, steps: nil, deviceId: "devA-noop")
+        var rows = try await store.dailyMetrics(
+            deviceId: "devA-noop", from: original.day, to: original.day)
+        var updated = try XCTUnwrap(rows.first)
+        XCTAssertEqual(updated.strain, 48)
+        XCTAssertEqual(updated.steps, 7_000)
+
+        _ = try await store.upsertDailyActivity(
+            day: original.day, strain: nil, steps: 7_500, deviceId: "devA-noop")
+        rows = try await store.dailyMetrics(
+            deviceId: "devA-noop", from: original.day, to: original.day)
+        updated = try XCTUnwrap(rows.first)
+        XCTAssertEqual(updated.strain, 48)
+        XCTAssertEqual(updated.steps, 7_500)
+
+        let noChange = try await store.upsertDailyActivity(
+            day: original.day, strain: nil, steps: nil, deviceId: "devA-noop")
+        XCTAssertEqual(noChange, 0)
     }
 
     // MARK: - windowed computed-daily delete (#277 local-day re-bucketing migration)

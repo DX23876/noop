@@ -31,10 +31,16 @@ public struct ActivityShape: Equatable, Sendable {
     public let cumulativeByHour: [Double]
     /// How many usable days the shape was fitted from — surfaced so callers can say how well-known it is.
     public let sampleDays: Int
+    /// Typical active kcal in each local hour. Unlike `cumulativeByHour`, this retains magnitude and
+    /// therefore lets a quiet morning use the person's historical remainder instead of dividing by a
+    /// near-zero fraction.
+    public let expectedActiveByHour: [Double]
 
-    public init(cumulativeByHour: [Double], sampleDays: Int) {
+    public init(cumulativeByHour: [Double], sampleDays: Int,
+                expectedActiveByHour: [Double] = []) {
         self.cumulativeByHour = cumulativeByHour
         self.sampleDays = sampleDays
+        self.expectedActiveByHour = expectedActiveByHour
     }
 
     /// Expected fraction of the day's active energy burned by `elapsedSeconds` into a local day of
@@ -56,13 +62,25 @@ public struct ActivityShape: Equatable, Sendable {
         let end = cumulativeByHour[index]
         return min(1, max(0, start + (end - start) * withinHour))
     }
+
+    public func expectedActivity(elapsedSeconds: Double, dayDurationSeconds: Double)
+        -> (toNow: Double, remaining: Double)? {
+        guard expectedActiveByHour.count == 24, dayDurationSeconds > 0 else { return nil }
+        let position = min(24, max(0, elapsedSeconds / dayDurationSeconds * 24))
+        let wholeHours = min(24, Int(position))
+        let partial = position - Double(wholeHours)
+        var toNow = expectedActiveByHour.prefix(wholeHours).reduce(0, +)
+        if wholeHours < 24 { toNow += expectedActiveByHour[wholeHours] * partial }
+        let total = expectedActiveByHour.reduce(0, +)
+        return (toNow, max(0, total - toNow))
+    }
 }
 
 public enum ActivityShapeEngine {
     /// Below this the curve is not offered at all and the caller keeps the linear fallback. A shape
     /// fitted from a handful of days is a description of those days, not of the person.
-    public static let minimumDays = 14
-    public static let maximumWindowDays = 42
+    public static let minimumDays = 7
+    public static let maximumWindowDays = 28
     /// A day must carry at least this much active energy to describe a shape. A near-zero day has no
     /// meaningful distribution to normalize — dividing by it manufactures a shape out of rounding.
     public static let minimumDailyActiveKcal = 50.0
@@ -88,18 +106,22 @@ public enum ActivityShapeEngine {
                 let clean = day.activeByHour.map { $0.isFinite && $0 > 0 ? $0 : 0 }
                 let total = clean.reduce(0, +)
                 guard total >= minimumDailyActiveKcal else { return nil }
-                // Normalize to this day's OWN total: the curve is a shape, not a magnitude.
-                return clean.map { $0 / total }
+                return clean
             }
             .suffix(maximumWindowDays)
         guard usable.count >= minimumDays else { return nil }
+
+        let normalizedDays = usable.map { day -> [Double] in
+            let total = day.reduce(0, +)
+            return day.map { $0 / total }
+        }
 
         // Median share per hour, then integrate. Medians do not sum to 1 (they are taken
         // independently per hour), so the cumulative curve is renormalized by its own final value.
         var shares: [Double] = []
         shares.reserveCapacity(24)
         for hour in 0..<24 {
-            shares.append(median(usable.map { $0[hour] }))
+            shares.append(median(normalizedDays.map { $0[hour] }))
         }
         var running = 0.0
         var cumulative: [Double] = []
@@ -116,7 +138,9 @@ public enum ActivityShapeEngine {
             normalized[index] = max(normalized[index], normalized[index - 1])
         }
         normalized[23] = 1.0
-        return ActivityShape(cumulativeByHour: normalized, sampleDays: usable.count)
+        let expected = (0..<24).map { hour in median(usable.map { $0[hour] }) }
+        return ActivityShape(cumulativeByHour: normalized, sampleDays: usable.count,
+                             expectedActiveByHour: expected)
     }
 
     private static func median(_ values: [Double]) -> Double {

@@ -86,6 +86,29 @@ public enum ReadinessEngine {
     private static let chronicWindow  = 28
     private static let minChronic     = 14   // need at least this much strain history for ACWR
 
+    // MARK: Monotony gating (#monotony-lowload)
+    //
+    // Foster monotony is mean/SD of the week's load. It is only interpretable ALONGSIDE the load itself
+    // — Foster's own companion figure is training strain (load x monotony) — because a week of near
+    // identical LOW load has a tiny SD and therefore a large quotient. Without a gate the engine told a
+    // wearer who had spent the week walking that their days were "too similarly intense" and warned
+    // them about overload, which is the opposite of the truth.
+
+    /// The week must not be markedly lighter than the wearer's own recent norm for the overload reading
+    /// to apply. Deliberately the SAME 0.8 as the lower ACWR sweet-spot bound below, not a new number:
+    /// the rule then reads as "monotony only warns while ACWR is not already saying ramping down", so
+    /// the two signals cannot contradict each other.
+    private static let monotonyMinLoadRatio = 0.8
+
+    /// Absolute floor on the week's mean load, on NOOP's 0-100 Effort axis. 6/21 of the scale is the
+    /// LIGHT/MODERATE band boundary the app already draws (`StrainGauge.stateLabel`); duplicated as a
+    /// literal because StrandAnalytics deliberately does not depend on StrandDesign.
+    ///
+    /// The relative rule alone is NOT enough, and this is the case that proves it: someone who has not
+    /// trained for a month has acute ~= chronic, so the ratio test passes and the engine would warn a
+    /// thoroughly detrained wearer about overload. Both conditions must hold.
+    private static let monotonyMinWeekLoad = 100.0 * 6.0 / 21.0
+
     // MARK: Entry point
 
     /// Evaluate readiness from daily metrics. `days` may be in any order; the most recent day is
@@ -119,7 +142,17 @@ public enum ReadinessEngine {
             h = (h &* 1099511628211) ^ (d.restingHr.map { UInt64(bitPattern: Int64($0)) } ?? .max)
             h = (h &* 1099511628211) ^ (d.respRateBpm ?? -1).bitPattern
             h = (h &* 1099511628211) ^ (d.strain ?? -1).bitPattern
-            sum ^= h                                   // commutative fold → order-independent
+            // Avalanche the row hash before folding. Without this the LAST field (strain) sits in `h`
+            // un-mixed, straight from a bare XOR, so it contributed to the checksum linearly.
+            h = (h &* 1099511628211)
+            h ^= h >> 29; h = h &* 0xBF58476D1CE4E5B9; h ^= h >> 32
+            // ADDITION, not XOR. The fold must stay commutative (order-independent, as documented), but
+            // XOR CANCELS: any row hash appearing an even number of times vanished from the checksum
+            // entirely. A week alternating +j/-j around a base has 14 of each value, so its whole strain
+            // contribution folded to zero and every such history — light or hard — keyed the SAME cache
+            // entry. `ReadinessEngine.evaluate` then handed back another history's verdict, which the
+            // coach briefs on. Addition accumulates where XOR annihilates.
+            sum = sum &+ h                             // commutative fold → order-independent
             let dh = d.day.hashValue
             if i == 0 { minDayHash = dh; maxDayHash = dh } else { minDayHash = min(minDayHash, dh); maxDayHash = max(maxDayHash, dh) }
         }
@@ -212,12 +245,15 @@ public enum ReadinessEngine {
                 acwr = ratio
                 signals.append(acwrSignal(ratio, acute: acute, chronic: chronic))
             }
-            // Foster monotony over the last week of strain.
+            // Foster monotony over the last week of strain. The VALUE is always recorded — charts, the
+            // coach context and the explanations read it. Only the overload WARNING is gated, because
+            // that reading presupposes a week that actually carried load (see the tunables above).
             let week = Array(strainSeries.suffix(acuteWindow))
             if week.count >= 4, let sd = sampleSD(week), sd > 0, let m = mean(week) {
                 let mono = m / sd
                 monotony = mono
-                if mono >= 2.0 {
+                let weekCarriedLoad = m >= chronic * monotonyMinLoadRatio && m >= monotonyMinWeekLoad
+                if mono >= 2.0, weekCarriedLoad {
                     signals.append(Signal(key: "monotony", label: "Training variety",
                         evidence: "monotony \(String(format: "%.1f", mono))",
                         evidenceData: .monotony(mono),
@@ -293,10 +329,14 @@ public enum ReadinessEngine {
         let evidence = "7d \(String(format: "%.1f", acute)) / 28d \(String(format: "%.1f", chronic))"
         switch ratio {
         case ..<0.8:
+            // NEUTRAL, not `.watch`. Ramping down is a state, not a concern — and the detail already
+            // says "room to build". As a `.watch` it blocked `primed` in `synthesize`, so a wearer who
+            // had rested and recovered well could never be given the green light this very signal was
+            // describing. The warning for ramping up TOO fast (1.3...1.5) keeps its `.watch`.
             return Signal(key: "acwr", label: "Training load",
                 evidence: evidence,
                 evidenceData: .trainingLoad(acute: acute, chronic: chronic),
-                detail: "ramping down (acute:chronic \(pct)) - room to build", flag: .watch)
+                detail: "ramping down (acute:chronic \(pct)) - room to build", flag: .neutral)
         case 0.8..<1.3:
             return Signal(key: "acwr", label: "Training load",
                 evidence: evidence,

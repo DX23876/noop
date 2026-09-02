@@ -18,6 +18,9 @@ struct RootTabView: View {
     /// The AI coach engine (injected at the app root), so the draggable floating Coach button can present
     /// the chat from the shell.
     @EnvironmentObject private var coach: AICoachEngine
+    #if DEBUG
+    @EnvironmentObject private var intelligence: IntelligenceEngine
+    #endif
 
     /// Whether the draggable floating Coach button is one of the user's chosen entry points.
     @AppStorage(CoachEntryPrefs.floatingButtonKey) private var coachFloatingButtonEnabled = true
@@ -69,19 +72,27 @@ struct RootTabView: View {
     /// Whitespace alone is not a search — it would blank the index for a stray space.
     private var isSearchingMore: Bool { !SearchMatch.tokens(moreQuery).isEmpty }
 
-    /// V8 liquid redesign is the default Today; the Settings toggle lets a user fall back to the classic
-    /// Today if they prefer it (keyed identically to the SettingsView toggle). Default ON.
-    @AppStorage("noop.liquidTodayEnabled") private var liquidTodayEnabled = true
+    /// V8 liquid redesign is the default Today; the Settings picker lets a user choose Classic, or
+    /// either of the two reference-matched dashboards, instead (keyed identically to the SettingsView
+    /// picker). Default Liquid.
+    @AppStorage(TodayDashboardStyle.storageKey) private var todayDashboardStyleRaw = TodayDashboardStyle.liquid.rawValue
+    private var todayDashboardStyle: TodayDashboardStyle {
+        TodayDashboardStyle.resolve(todayDashboardStyleRaw) ?? .liquid
+    }
 
-    /// The Today tab root, honouring the liquid/classic preference.
+    /// The Today tab root, honouring the chosen dashboard style.
     ///
     /// The Heute-screen redesign (StrandiOS/Redesign/) used to take priority here when its own
     /// `noop.heuteRedesignEnabled` flag was on — removed along with its Settings toggle, since the
     /// prototype never got past off-by-default/untested-on-a-real-strap. Its code is left in place,
     /// just unreached from here, so no persisted `true` from an earlier build can resurrect it.
     @ViewBuilder private var todayTabRoot: some View {
-        if liquidTodayEnabled { LiquidTodayView() }
-        else { TodayView() }
+        switch todayDashboardStyle {
+        case .classic:  TodayView()
+        case .liquid:   LiquidTodayView()
+        case .trends:   TrendsDashboardView()
+        case .overview: OverviewDashboardView()
+        }
     }
 
     /// Clear the selection indicator UIKit derives from the bar's tint. With NOOP's gold accent the
@@ -167,7 +178,10 @@ struct RootTabView: View {
                 tab(SleepView(), "Sleep", "bed.double", path: $tabPaths[2], scrollSignal: scrollTop[2]).tag(2)
                 moreTab(path: $tabPaths[3], scrollSignal: scrollTop[3]).tag(3)
             }
-            .tint(StrandPalette.accent)
+            // Overview Dashboard mockup fidelity (2026-08-31): the active tab reads green, not the
+            // configurable Accent colour. `.tint()` colours the whole bar uniformly — there is no native
+            // per-tab-item override — so this is deliberately a global change across all four tabs.
+            .tint(StrandPalette.chargeColor)
             // Tab crossfade — README §Motion: ~240ms opacity swap between tab roots, global calm
             // easing cubic-bezier(0.22,1,0.36,1).
             .animation(.timingCurve(0.22, 1, 0.36, 1, duration: 0.24), value: selectedTab)
@@ -671,6 +685,7 @@ struct RootTabView: View {
 /// per-screen chrome the old inline links applied lives at the single `navigationDestination(for:)`
 /// registration in `moreTab`.
 enum MoreDestination: Hashable {
+    case momentum
     case insightsHub, intelligence, coach, coachSettings, goalJourney, insights, explore, compare
     case live, workouts, health, labBook, stress, breathe, intervals, rhythm
     case fusedRecord, appleHealth, miBand, dataSources, backupSync, shortcutsExport, noopLimitations
@@ -682,6 +697,7 @@ enum MoreDestination: Hashable {
 
     @ViewBuilder var destination: some View {
         switch self {
+        case .momentum:        MomentumScreen()
         case .insightsHub:     InsightsHubView()
         case .intelligence:    IntelligenceView()
         case .coach:           CoachView()
@@ -720,7 +736,7 @@ enum MoreDestination: Hashable {
 
 
 /// One tappable destination row in the More index. A `NavigationLink` whose label is the standard app row:
-/// the SF Symbol icon tinted by its semantic Apple-inspired role, the title in the body text colour, a `Spacer`, and a
+/// the SF Symbol in its semantic Apple-inspired colour tile, the title in the body text colour, a `Spacer`, and a
 /// trailing `chevron.right` in `textTertiary`. ~44pt min height + the card's row insets keep the whole row a
 /// comfortable tap target.
 struct MoreRow: View {
@@ -762,11 +778,9 @@ struct MoreRow: View {
             HStack(spacing: 14) {
                 // Pin the semantic colour directly. A plain inherited tint gets re-resolved by iOS to its
                 // default blue a beat after first render — so the icons flashed green→blue (#184). The
-                // explicit foreground style prevents that; the title keeps the primary text colour.
+                // shared tile owns both the stable fill and white glyph; the title remains neutral.
                 Image(systemName: icon)
-                    .font(.system(size: 17, weight: .regular))
-                    .appleInspiredForeground(colorKey ?? String(describing: route))
-                    .frame(width: 26, alignment: .center)
+                    .appleInspiredMenuIcon(colorKey ?? String(describing: route))
                 VStack(alignment: .leading, spacing: 1) {
                     Text(title)
                         .font(StrandFont.body)
@@ -873,9 +887,13 @@ private struct QuickActionSheet: View {
             HStack(spacing: 13) {
                 Image(systemName: icon)
                     .font(.system(size: 17, weight: .semibold))
-                    .foregroundStyle(tint)
+                    .foregroundStyle(Color.white)
                     .frame(width: 38, height: 38)
-                    .background(RoundedRectangle(cornerRadius: 11, style: .continuous).fill(StrandPalette.surfaceInset))
+                    .background(RoundedRectangle(cornerRadius: 11, style: .continuous).fill(tint))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 11, style: .continuous)
+                            .stroke(Color.white.opacity(0.16), lineWidth: 0.5)
+                    }
                 VStack(alignment: .leading, spacing: 2) {
                     Text(title)
                         .font(StrandFont.headline)

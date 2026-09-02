@@ -309,7 +309,7 @@ private struct AlertSection<Content: View>: View {
                     Text("\(overline)").strandOverline()
                     HStack(spacing: NoopMetrics.space2 + 2) {
                         Image(systemName: icon)
-                            .foregroundStyle(StrandPalette.accent)
+                            .appleInspiredMenuIcon("notifications")
                             .accessibilityHidden(true)
                         Text(title)
                             .font(StrandFont.title2)

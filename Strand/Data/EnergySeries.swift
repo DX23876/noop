@@ -3,6 +3,14 @@ import StrandAnalytics
 import WhoopProtocol   // StepSample — the @57 counter + @63 activity class behind bucket movement
 import WhoopStore
 
+struct EnergyTimelinePoint: Identifiable, Equatable, Sendable {
+    let timestamp: Date
+    let basalKcal: Double
+    let activeKcal: Double
+    var totalKcal: Double { basalKcal + activeKcal }
+    var id: Date { timestamp }
+}
+
 struct EnergyCalibrationViewState: Equatable {
     let status: EnergyCalibrationStatus
     let factor: Double?
@@ -136,9 +144,12 @@ extension Repository {
             // the legacy denominator is the larger (low-confidence PPG stretches are dropped from the
             // bucket model but counted by `energyCoverageSeconds`), the basal top-up it implies is too
             // big and `max(0, total - basal)` silently eats the day's active energy.
+            let legacyEnergy = day == todayKey
+                ? nil
+                : strap?.activeKcalEst.map { ($0, strap?.energyCoverageSeconds) }
             let strapEnergy: (kcal: Double, seconds: Int?)? = derived.map {
-                ($0.rawTotalKcal, $0.observedSeconds)
-            } ?? strap?.activeKcalEst.map { ($0, strap?.energyCoverageSeconds) }
+                ($0.rawTotalKcal, $0.representedSeconds)
+            } ?? legacyEnergy
             let inputs = EnergyEngine.DayInputs(
                 day: day,
                 appleActiveKcal: apple?.activeKcal,
@@ -151,7 +162,11 @@ extension Repository {
                 calibrationStatus: calibration.status,
                 // Apple's own step total first (a phone counts all day), else the strap's.
                 steps: apple?.steps ?? strap?.steps,
-                hoursWithSteps: stepHoursByDay[day])
+                hoursWithSteps: stepHoursByDay[day],
+                unresolvedElevatedHRSeconds: derived.map {
+                    Self.energyContextSeconds($0.contextJSON, context: .unresolvedElevatedHR)
+                } ?? 0,
+                modelWeightSource: derived?.weightSource.rawValue ?? "profile")
             var dayProfile = profile
             if let date = WeightSeries.date(forDay: day),
                let historicalWeight = CausalWeightResolver.weight(
@@ -172,6 +187,39 @@ extension Repository {
     func todayEnergy(profile: UserProfile) async -> DailyEnergySummary? {
         let todayKey = Self.localDayKey(Date())
         return await energySummaries(days: 2, profile: profile).last { $0.day == todayKey }
+    }
+
+    /// Cumulative v5 output for the current day. Basal accrues continuously from midnight while
+    /// active energy comes only from the persisted, context-qualified five-minute buckets.
+    func todayEnergyTimeline(profile: UserProfile, now: Date = Date()) async
+        -> [EnergyTimelinePoint] {
+        guard let store = await storeHandle(),
+              let bmr = Calories.bmrKcalPerDay(profile: profile) else { return [] }
+        let calendar = Calendar.current
+        let day = Self.localDayKey(now)
+        let start = calendar.startOfDay(for: now)
+        let end = calendar.date(byAdding: .day, value: 1, to: start) ?? start.addingTimeInterval(86_400)
+        let duration = end.timeIntervalSince(start)
+        let rows = (try? await store.whoopEnergyBuckets(deviceId: deviceId, day: day)) ?? []
+        guard !rows.isEmpty else { return [] }
+        let calibration = await energyCalibrationState(store: store)
+        let activeFactor = calibration.status == .active ? (calibration.factor ?? 1) : 1
+        var active = 0.0
+        var points = [EnergyTimelinePoint(timestamp: start, basalKcal: 0, activeKcal: 0)]
+        for row in rows where row.bucketStart < Int(now.timeIntervalSince1970) {
+            active += row.activeKcal * activeFactor
+            let bucketEnd = min(now, Date(timeIntervalSince1970:
+                TimeInterval(row.bucketStart + row.durationSeconds)))
+            let elapsed = min(duration, max(0, bucketEnd.timeIntervalSince(start)))
+            points.append(.init(timestamp: bucketEnd, basalKcal: bmr * elapsed / duration,
+                                activeKcal: active))
+        }
+        let elapsed = min(duration, max(0, now.timeIntervalSince(start)))
+        if points.last?.timestamp != now {
+            points.append(.init(timestamp: now, basalKcal: bmr * elapsed / duration,
+                                activeKcal: active))
+        }
+        return points
     }
 
     func energyCalibrationState() async -> EnergyCalibrationViewState {
@@ -200,7 +248,7 @@ extension Repository {
         if let store = await storeHandle() {
             _ = try? await store.setEnergyCalibrationEnabled(deviceId: deviceId, enabled: enabled)
         }
-        if enabled { await refreshWhoopEnergyModel(days: 30, profile: profile) }
+        if enabled { await refreshWhoopEnergyModel(days: 120, profile: profile) }
         return await energyCalibrationState()
     }
 
@@ -216,11 +264,16 @@ extension Repository {
     /// Rebuilds the auditable WHOOP bucket output and, only after explicit opt-in, learns a bounded
     /// Apple Watch reference factor from time-aligned high-quality buckets. Sources remain separate:
     /// each point compares one WHOOP estimate with one selected Watch source and never adds devices.
-    func refreshWhoopEnergyModel(days: Int = 30, profile: UserProfile) async {
+    func refreshWhoopEnergyModel(days: Int = 120, profile: UserProfile) async {
         guard let store = await storeHandle() else { return }
         let now = Date()
         let calendar = Calendar.current
-        let fromDate = calendar.date(byAdding: .day, value: -max(7, days), to: now) ?? now
+        // Callers may request a current-day repair after a model-version upgrade. Calibration still
+        // enforces its own seven-day minimum when fitting, so forcing every refresh to read at least
+        // seven days only made the Energy detail screen unnecessarily block on raw movement history.
+        let fromDate = days <= 1
+            ? calendar.startOfDay(for: now)
+            : (calendar.date(byAdding: .day, value: -days, to: now) ?? now)
         let from = Int(fromDate.timeIntervalSince1970)
         let to = Int(now.timeIntervalSince1970) + 1
         let hr = await hrBuckets(from: from, to: to, bucketSeconds: 300)
@@ -234,10 +287,14 @@ extension Repository {
                                         source: point.source == .manual ? .manual : .health)
             }
         }
-        let resting = self.days.compactMap(\.restingHr).suffix(14).map(Double.init).sorted()
-        let restingHR = resting.isEmpty ? nil : resting[resting.count / 2]
-        let maximumHR = profile.age > 0 ? StrainScorer.tanakaHRmax(age: profile.age) : nil
+        let maximumHR = profile.maxHR
+            ?? (profile.age > 0 ? StrainScorer.tanakaHRmax(age: profile.age) : nil)
+        let sleepIntervals = await energySleepIntervals(store: store, from: from, to: to)
+        let offWristIntervals = await energyOffWristIntervals(store: store, from: from, to: to)
+        let workoutIntervals = await energyWorkoutIntervals(store: store, from: from, to: to)
         var bucketResults: [Int: WhoopEnergyBucketResult] = [:]
+        var bucketInputs: [Int: WhoopEnergyBucket] = [:]
+        var pendingWindow: [WhoopEnergyWindowDay] = []
         // Active-only kcal per bucket (bucket total minus that bucket's own basal share). Populated
         // once here and reused by the Watch-calibration fit below — the fit must compare like with
         // like (Apple's `activeKcal` is already basal-free), and computing it twice would risk the
@@ -262,46 +319,86 @@ extension Repository {
             // Read per day rather than once for the whole window: `stepSample` is a ~1 Hz stream, so
             // 30 days at once is millions of rows on a phone, while one day is bounded and released
             // before the next iteration.
-            let dayFrom = rows.map(\.ts).min() ?? from
-            let dayTo = (rows.map(\.ts).max() ?? to) + WhoopEnergyModel.defaultBucketSeconds
+            let dayStartDate = WeightSeries.date(forDay: day)
+                ?? Date(timeIntervalSince1970: TimeInterval(rows.map(\.ts).min() ?? from))
+            let dayFrom = Int(calendar.startOfDay(for: dayStartDate).timeIntervalSince1970)
+            let nextDay = calendar.date(byAdding: .day, value: 1,
+                                        to: calendar.startOfDay(for: dayStartDate)) ?? dayStartDate
+            let dayTo = min(to, Int(nextDay.timeIntervalSince1970))
             let movement = await stepMovementByBucket(from: dayFrom, to: dayTo, profile: profile)
-            let inputs = rows.map {
-                let move = movement[$0.ts]
-                return WhoopEnergyBucket(start: $0.ts,
-                                         durationSeconds: min(300, max(1, $0.sampleSeconds)),
-                                         averageHR: $0.bpm,
-                                         steps: move?.steps,
-                                         activityClass: move?.activityClass)
+            let hrByStart = Dictionary(rows.map { ($0.ts, $0) }, uniquingKeysWith: { a, _ in a })
+            let bucketStarts = Set(hrByStart.keys).union(movement.keys).sorted()
+            let inputs = bucketStarts.compactMap { start -> WhoopEnergyBucket? in
+                let wallSeconds = min(300, dayTo - start)
+                guard wallSeconds > 0 else { return nil }
+                let hrRow = hrByStart[start]
+                let move = movement[start]
+                let midpoint = start + wallSeconds / 2
+                let workout = Self.energyInterval(at: midpoint, in: workoutIntervals)
+                return WhoopEnergyBucket(
+                    start: start, durationSeconds: wallSeconds,
+                    hrCoverageSeconds: min(wallSeconds, max(0, hrRow?.sampleSeconds ?? 0)),
+                    averageHR: hrRow?.bpm, steps: move?.steps,
+                    activityClass: move?.activityClass,
+                    isWorkout: workout != nil, workoutKind: workout?.kind ?? .other,
+                    isSleep: Self.contains(midpoint, in: sleepIntervals),
+                    isOffWrist: Self.contains(midpoint, in: offWristIntervals),
+                    hasMovementCoverage: move?.covered == true,
+                    movementSeconds: move?.movementSeconds ?? 0)
             }
+            for input in inputs { bucketInputs[input.start] = input }
+            let priorResting = self.days.filter { $0.day < day }.compactMap(\.restingHr)
+                .suffix(14).map(Double.init).sorted()
+            let restingHR = priorResting.isEmpty ? nil : priorResting[priorResting.count / 2]
             guard let estimate = WhoopEnergyModel.estimate(
                 buckets: inputs, profile: dayProfile, restingHR: restingHR,
-                maxHR: maximumHR) else { continue }
+                maxHR: maximumHR, flexHR: restingHR.map { $0 + 20 }) else { continue }
             for bucket in estimate.buckets { bucketResults[bucket.start] = bucket }
             // The same pass, kept at hourly resolution so `ActivityShapeEngine` can fit a personal
             // time-of-day profile later without re-walking the raw ~1 Hz streams. ACTIVE energy only:
             // basal is flat by construction and would flatten the very shape this measures.
-            let basalPerSecond = (Calories.bmrKcalPerDay(profile: dayProfile) ?? 0) / 86_400
             var activeByHour: [Int: Double] = [:]
             for bucket in estimate.buckets {
-                let seconds = Double(min(300, max(1, bucketSeconds(for: bucket.start, in: rows))))
-                let active = max(0, bucket.kcal - basalPerSecond * seconds)
+                let active = bucket.activeKcal
                 whoopActiveByBucket[bucket.start] = active
                 guard active > 0 else { continue }
                 let hour = calendar.component(
                     .hour, from: Date(timeIntervalSince1970: TimeInterval(bucket.start)))
                 activeByHour[hour, default: 0] += active
             }
-            _ = try? await store.replaceWhoopEnergyHours(
-                day: day, deviceId: deviceId, activeKcalByHour: activeByHour)
             let row = WhoopDailyEnergyRow(
                 day: day, rawTotalKcal: estimate.totalKcal,
                 modelVersion: WhoopDailyEnergyEstimate.modelVersion,
                 observedSeconds: estimate.observedSeconds,
                 inferredSeconds: estimate.inferredSeconds,
                 modeledSeconds: estimate.modeledSeconds,
+                representedSeconds: estimate.representedSeconds,
+                physiologicalSeconds: estimate.physiologicalSeconds,
+                contextJSON: Self.energyContextJSON(estimate.contextSeconds),
                 uncertaintyFraction: estimate.uncertaintyFraction,
                 weightKg: dayProfile.weightKg, weightSource: weightSource)
-            _ = try? await store.upsertWhoopDailyEnergy([row], deviceId: deviceId)
+            let storedBuckets = estimate.buckets.compactMap { bucket -> WhoopEnergyBucketRow? in
+                guard let input = bucketInputs[bucket.start] else { return nil }
+                return .init(day: day, bucketStart: bucket.start,
+                             durationSeconds: input.durationSeconds,
+                             basalKcal: max(0, bucket.kcal - bucket.activeKcal),
+                             activeKcal: bucket.activeKcal,
+                             context: bucket.context.rawValue,
+                             evidence: bucket.evidence.rawValue,
+                             uncertaintyFraction: bucket.uncertaintyFraction)
+            }
+            pendingWindow.append(.init(daily: row, activeKcalByHour: activeByHour,
+                                       buckets: storedBuckets))
+        }
+
+        // Daily totals and their hourly activity shape describe one model generation. Publish the
+        // entire recomputed window in one SQLite transaction so a cancellation or write failure can
+        // never expose half v3 / half v4 state.
+        guard !pendingWindow.isEmpty else { return }
+        do {
+            _ = try await store.replaceWhoopEnergyWindow(pendingWindow, deviceId: deviceId)
+        } catch {
+            return
         }
 
         guard EnergyCalibrationPreferences.enabled else { return }
@@ -312,9 +409,7 @@ extension Repository {
         // basal share. A fit fitted on totals would bake resting metabolism into the ratio, and
         // `EnergyEngine.burn` would then apply that diluted factor to active energy alone: two
         // different quantities calibrated against each other, understating the true correction.
-        let candidates = referenceRows.filter {
-            ($0.activeKcal ?? 0) > 0 && $0.coverageSeconds > 0
-        }
+        let candidates = referenceRows.filter { $0.coverageSeconds > 0 }
         // Keep this deliberately simple for Swift 5's type checker. The nested generic
         // Dictionary(grouping:) -> tuple map -> ternary sort expression timed out in the
         // universal macOS CI build even though newer local compilers accepted it.
@@ -331,14 +426,27 @@ extension Repository {
         let hrByStart = Dictionary(hr.map { ($0.ts, $0) }, uniquingKeysWith: { a, _ in a })
         let points = candidates.compactMap { row -> EnergyCalibrationPoint? in
             guard row.sourceId == chosenSource, let whoopActive = whoopActiveByBucket[row.bucketStart],
-                  let hrBucket = hrByStart[row.bucketStart] else { return nil }
+                  let context = bucketResults[row.bucketStart]?.context,
+                  let input = bucketInputs[row.bucketStart] else { return nil }
             let apple = (row.activeKcal ?? 0) / Double(row.coverageSeconds) * 300
-            let normalizedWhoop = whoopActive / Double(max(1, hrBucket.sampleSeconds)) * 300
+            // `activeKcal` covers the WHOLE wall bucket. Dividing it by HR seconds (the former code)
+            // inflated a sparse optical bucket before fitting. Only wall duration belongs here.
+            let normalizedWhoop = whoopActive / Double(max(1, input.durationSeconds)) * 300
             let coverage = Double(row.coverageSeconds) / Double(HealthEnergyBucketRow.durationSeconds)
-            let whoopCoverage = Double(hrBucket.sampleSeconds) / 300
-            let quality = min(min(row.quality ?? coverage, coverage), min(hrBucket.conf, whoopCoverage))
+            let hrBucket = hrByStart[row.bucketStart]
+            let signalCoverage: Double
+            let signalQuality: Double
+            if context == .locomotion, input.hasMovementCoverage {
+                signalCoverage = 1
+                signalQuality = hrBucket?.conf ?? 1
+            } else {
+                signalCoverage = Double(input.hrCoverageSeconds) / Double(input.durationSeconds)
+                signalQuality = hrBucket?.conf ?? 0
+            }
+            let quality = min(min(row.quality ?? coverage, coverage),
+                              min(signalQuality, signalCoverage))
             return .init(timestamp: row.bucketStart, whoopKcal: normalizedWhoop,
-                         appleWatchKcal: apple, overlapQuality: quality)
+                         appleWatchKcal: apple, overlapQuality: quality, context: context)
         }
         guard let fit = EnergyCalibrationEngine.fit(points: points, calendar: calendar) else { return }
         let model = EnergyCalibrationModelRow(
@@ -347,13 +455,6 @@ extension Repository {
             coefficientOfVariation: fit.coefficientOfVariation,
             fittedAt: Int(now.timeIntervalSince1970), modelVersion: EnergyCalibrationFit.modelVersion)
         _ = try? await store.saveEnergyCalibrationModel(model)
-    }
-
-    /// How many seconds the bucket starting at `start` actually observed, from the HR rows it was
-    /// built from. Mirrors the `durationSeconds` handed to `WhoopEnergyModel`, so the basal share
-    /// subtracted per hour matches the basal share the model added.
-    private nonisolated func bucketSeconds(for start: Int, in rows: [HRBucket]) -> Int {
-        rows.first { $0.ts == start }.map { min(300, max(1, $0.sampleSeconds)) } ?? 300
     }
 
     /// The user's personal time-of-day activity profile, or nil until enough history exists.
@@ -371,9 +472,16 @@ extension Repository {
         let rows = (try? await store.whoopEnergyHours(deviceId: deviceId,
                                                       from: Self.localDayKey(firstDate),
                                                       to: Self.localDayKey(yesterday))) ?? []
-        guard !rows.isEmpty else { return nil }
+        let daily = (try? await store.whoopDailyEnergy(deviceId: deviceId,
+                                                       from: Self.localDayKey(firstDate),
+                                                       to: Self.localDayKey(yesterday))) ?? []
+        let eligibleDays = Set(daily.filter {
+            $0.modelVersion == WhoopDailyEnergyEstimate.modelVersion
+                && $0.representedSeconds >= Int(86_400 * EnergyEngine.solidCoverage)
+        }.map(\.day))
+        guard !rows.isEmpty, !eligibleDays.isEmpty else { return nil }
         var byDay: [String: [Double]] = [:]
-        for row in rows where (0...23).contains(row.hour) {
+        for row in rows where eligibleDays.contains(row.day) && (0...23).contains(row.hour) {
             byDay[row.day, default: [Double](repeating: 0, count: 24)][row.hour] += row.activeKcal
         }
         return ActivityShapeEngine.fit(days: byDay.sorted { $0.key < $1.key }
@@ -393,11 +501,12 @@ extension Repository {
     ///   • **`stepTicksPerStep`** (#139) converts motion TICKS to steps. Skipping it would feed the MET
     ///     model an inflated cadence on a 5/MG, which over-counts precisely where the counter is worst.
     ///
-    /// Empty for a WHOOP 4.0, whose record layout carries no `@57` counter at all — that strap keeps
-    /// exactly today's HR-only behaviour rather than degrading.
+    /// Empty for a WHOOP 4.0, whose record layout carries no `@57` counter at all. Without a separate
+    /// phone movement stream or trusted workout that device deliberately takes v4's conservative
+    /// physiological path; HR alone is never promoted to activity.
     private func stepMovementByBucket(
         from: Int, to: Int, profile: UserProfile
-    ) async -> [Int: (steps: Int?, activityClass: Int?)] {
+    ) async -> [Int: (steps: Int?, activityClass: Int?, covered: Bool, movementSeconds: Int)] {
         guard let store = await storeHandle() else { return [:] }
         var samples: [StepSample] = []
         for id in importedReadIds {   // active strap FIRST, mirroring strapStepTicks
@@ -413,13 +522,23 @@ extension Repository {
     /// gap rules are unit-testable without a store.
     nonisolated static func bucketStepMovement(
         _ samples: [StepSample], ticksPerStep: Double
-    ) -> [Int: (steps: Int?, activityClass: Int?)] {
+    ) -> [Int: (steps: Int?, activityClass: Int?, covered: Bool, movementSeconds: Int)] {
         let sorted = samples.sorted { $0.ts < $1.ts }
         guard sorted.count >= 2 else { return [:] }
 
         let bucketSeconds = WhoopEnergyModel.defaultBucketSeconds
         var byBucket: [Int: [StepSample]] = [:]
         var classCounts: [Int: [Int: Int]] = [:]
+        var movementSecondsByBucket: [Int: Int] = [:]
+        for (previous, current) in zip(sorted, sorted.dropFirst()) {
+            let bucket = (current.ts / bucketSeconds) * bucketSeconds
+            let interval = min(30, max(0, current.ts - previous.ts))
+            let counterMoved = current.counter != previous.counter
+            let classMoved = (current.activityClass ?? 0) > 0
+            if counterMoved || classMoved {
+                movementSecondsByBucket[bucket, default: 0] += interval
+            }
+        }
         for (index, sample) in sorted.enumerated() {
             let start = (sample.ts / bucketSeconds) * bucketSeconds
             // Carry the PREVIOUS sample into each bucket as well. `stepsInWindow` needs a predecessor
@@ -452,8 +571,84 @@ extension Repository {
             let cls = classCounts[start]?.max {
                 $0.value != $1.value ? $0.value < $1.value : $0.key > $1.key
             }?.key
-            out[start] = (steps: steps, activityClass: cls)
+            out[start] = (steps: steps, activityClass: cls, covered: true,
+                          movementSeconds: min(bucketSeconds,
+                                               movementSecondsByBucket[start] ?? 0))
         }
+    }
+
+    private typealias EnergyWorkoutInterval = (start: Int, end: Int, kind: EnergyWorkoutKind)
+
+    private func energySleepIntervals(store: WhoopStore, from: Int, to: Int) async
+        -> [(start: Int, end: Int)] {
+        var rows: [CachedSleepSession] = []
+        for id in computedReadIds + importedReadIds {
+            rows += (try? await store.sleepSessions(deviceId: id, from: from - 43_200,
+                                                     to: to, limit: 10_000)) ?? []
+        }
+        return rows.map { (start: $0.effectiveStartTs, end: $0.endTs) }
+            .filter { $0.end > $0.start }
+    }
+
+    private func energyOffWristIntervals(store: WhoopStore, from: Int, to: Int) async
+        -> [(start: Int, end: Int)] {
+        for id in importedReadIds {
+            let events = (try? await store.events(deviceId: id, from: from, to: to,
+                                                  limit: 100_000)) ?? []
+            let intervals = AnalyticsEngine.offWristIntervals(events: events, windowEnd: to)
+            if !intervals.isEmpty { return intervals }
+        }
+        return []
+    }
+
+    private func energyWorkoutIntervals(store: WhoopStore, from: Int, to: Int) async
+        -> [EnergyWorkoutInterval] {
+        var rows: [WorkoutRow] = []
+        let ids = importedReadIds + computedReadIds
+            + [Self.appleHealthSource, "lifting", "activity-file"]
+        for id in ids {
+            rows += (try? await store.workouts(deviceId: id, from: from - 43_200,
+                                               to: to, limit: 100_000)) ?? []
+        }
+        return rows.filter { $0.endTs > $0.startTs }.map {
+            (start: $0.startTs, end: $0.endTs, kind: Self.energyWorkoutKind($0.sport))
+        }
+    }
+
+    private nonisolated static func energyWorkoutKind(_ sport: String) -> EnergyWorkoutKind {
+        let key = sport.lowercased().filter { $0.isLetter }
+        if ["strength", "weight", "lifting", "crossfit", "functional", "yoga", "pilates"]
+            .contains(where: key.contains) { return .resistance }
+        if ["run", "walk", "cycle", "cycling", "bike", "swim", "row", "hike", "ski"]
+            .contains(where: key.contains) { return .endurance }
+        return .other
+    }
+
+    private nonisolated static func contains(_ timestamp: Int,
+                                             in intervals: [(start: Int, end: Int)]) -> Bool {
+        intervals.contains { $0.start <= timestamp && timestamp < $0.end }
+    }
+
+    private nonisolated static func energyInterval(at timestamp: Int,
+                                                   in intervals: [EnergyWorkoutInterval])
+        -> EnergyWorkoutInterval? {
+        intervals.first { $0.start <= timestamp && timestamp < $0.end }
+    }
+
+    private nonisolated static func energyContextJSON(_ values: [EnergyContext: Int]) -> String {
+        let object = Dictionary(uniqueKeysWithValues: values.map { ($0.key.rawValue, $0.value) })
+        guard JSONSerialization.isValidJSONObject(object),
+              let data = try? JSONSerialization.data(withJSONObject: object, options: [.sortedKeys]) else {
+            return "{}"
+        }
+        return String(data: data, encoding: .utf8) ?? "{}"
+    }
+
+    private nonisolated static func energyContextSeconds(_ raw: String,
+                                                         context: EnergyContext) -> Int {
+        guard let data = raw.data(using: .utf8),
+              let object = try? JSONSerialization.jsonObject(with: data) as? [String: Int] else { return 0 }
+        return max(0, object[context.rawValue] ?? 0)
     }
 
     /// How many distinct hours of each day carry a step count — the movement-coverage signal.
@@ -542,6 +737,7 @@ extension Repository {
         UserProfile(weightKg: profile.weightKg,
                     heightCm: profile.heightCm,
                     age: Double(profile.age),
-                    sex: profile.sex)
+                    sex: profile.sex,
+                    maxHR: Double(profile.hrMax))
     }
 }

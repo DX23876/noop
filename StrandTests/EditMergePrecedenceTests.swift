@@ -8,6 +8,18 @@ import StrandAnalytics
 /// fields win on those days while imports still win everywhere else. Pure (no store).
 final class EditMergePrecedenceTests: XCTestCase {
 
+    func testSleepEditorDismissesOnlyAfterSuccessfulAction() {
+        XCTAssertTrue(SleepEditorActionOutcome.success.shouldDismiss)
+        XCTAssertNil(SleepEditorActionOutcome.success.errorMessage)
+    }
+
+    func testSleepEditorKeepsSheetOpenAndShowsFailure() {
+        let outcome = SleepEditorActionOutcome.failure("Could not save the corrected sleep.")
+
+        XCTAssertFalse(outcome.shouldDismiss)
+        XCTAssertEqual(outcome.errorMessage, "Could not save the corrected sleep.")
+    }
+
     /// On an EDITED day, computed sleep fields win over the import; non-sleep fields still follow imports.
     func testEditedDayComputedSleepWins() {
         let imported = full(day: "2026-06-12", totalSleepMin: 480, deepMin: 90, remMin: 110,
@@ -105,6 +117,61 @@ final class EditMergePrecedenceTests: XCTestCase {
         XCTAssertEqual(rebuilt[0].lightMin, 150)
         XCTAssertEqual(try XCTUnwrap(rebuilt[0].efficiency), 280.0 / 300.0, accuracy: 0.0001)
         XCTAssertEqual(rebuilt[0].recovery, 80, "non-sleep import fields must remain intact")
+    }
+
+    func testEditedImportedSleepKeepsScoreAndRebasesDebtFromOriginalDuration() throws {
+        let endTs = 1_780_000_000
+        let day = Repository.sleepEndDayKey(endTs)
+        let corrected = CachedSleepSession(
+            startTs: endTs - 6 * 3_600,
+            endTs: endTs,
+            efficiency: 0.9,
+            restingHr: nil,
+            avgHrv: nil,
+            stagesJSON: #"{"awake":20,"light":180,"deep":70,"rem":90}"#,
+            userEdited: true
+        )
+        var imported = ImportedSleepFigures()
+        imported.performancePct = 87
+        imported.consistencyPct = 76
+        imported.needMin = 510
+        imported.debtMin = 35
+        imported.originalSleepMin = 480
+        let correctedDay = full(day: day, totalSleepMin: 340, deepMin: 70, remMin: 90,
+                                lightMin: 180, efficiency: 340.0 / 360.0,
+                                recovery: 80, strain: 9)
+
+        let adjusted = Repository.applyingEditedImportedSleepFigures(
+            [day: imported], sessions: [corrected], days: [correctedDay])
+        let result = try XCTUnwrap(adjusted[day])
+
+        XCTAssertEqual(result.performancePct, 87, "the imported Rest score remains verbatim")
+        XCTAssertEqual(result.consistencyPct, 76)
+        XCTAssertEqual(try XCTUnwrap(result.debtMin), 175, accuracy: 0.0001,
+                       "35 imported debt + 480 original - 340 corrected")
+    }
+
+    func testDeletedWakeDayClearsOnlySleepFields() {
+        let original = DailyMetric(
+            day: "2026-08-30", totalSleepMin: 420, efficiency: 0.9,
+            deepMin: 80, remMin: 100, lightMin: 240, disturbances: 4,
+            restingHr: 51, avgHrv: 68, recovery: 79, strain: 8,
+            exerciseCount: 1, spo2Pct: 97, skinTempDevC: 0.1, respRateBpm: 14,
+            steps: 8_000, activeKcalEst: 500, avgSdnn: 55,
+            energyCoverageSeconds: 70_000)
+
+        let hidden = Repository.suppressingSleepWakeDays(["2026-08-30"], from: [original])[0]
+
+        XCTAssertNil(hidden.totalSleepMin)
+        XCTAssertNil(hidden.efficiency)
+        XCTAssertNil(hidden.deepMin)
+        XCTAssertNil(hidden.remMin)
+        XCTAssertNil(hidden.lightMin)
+        XCTAssertNil(hidden.disturbances)
+        XCTAssertEqual(hidden.recovery, 79)
+        XCTAssertEqual(hidden.avgHrv, 68)
+        XCTAssertEqual(hidden.steps, 8_000)
+        XCTAssertEqual(hidden.energyCoverageSeconds, 70_000)
     }
 
     // MARK: - sleep_performance daily-column derivation (#614)

@@ -96,4 +96,76 @@ final class WhoopDailyEnergyStoreTests: XCTestCase {
         XCTAssertEqual(badDay, 0)
         XCTAssertEqual(noDevice, 0)
     }
+
+    // MARK: - v49 atomic model window
+
+    func testEnergyWindowPublishesDailyAndHourlyRowsTogether() async throws {
+        let store = try await WhoopStore.inMemory()
+        let daily = WhoopDailyEnergyRow(
+            day: "2026-08-28", rawTotalKcal: 2_150, modelVersion: "whoop-bucket-v4",
+            observedSeconds: 72_000, inferredSeconds: 8_000, modeledSeconds: 4_000,
+            physiologicalSeconds: 2_000,
+            contextJSON: "{\"locomotion\":3600,\"unresolvedElevatedHR\":300}",
+            uncertaintyFraction: 0.21, weightKg: 80, weightSource: .history)
+
+        let changed = try await store.replaceWhoopEnergyWindow(
+            [.init(daily: daily, activeKcalByHour: [7: 140, 18: 90])], deviceId: "whoop-a")
+        let dailyRows = try await store.whoopDailyEnergy(
+            deviceId: "whoop-a", from: daily.day, to: daily.day)
+        let hours = try await store.whoopEnergyHours(
+            deviceId: "whoop-a", from: daily.day, to: daily.day)
+
+        XCTAssertGreaterThan(changed, 0)
+        XCTAssertEqual(dailyRows, [daily])
+        XCTAssertEqual(hours.map(\.hour), [7, 18])
+    }
+
+    func testEnergyWindowPublishesAndReplacesTimelineBucketsAtomically() async throws {
+        let store = try await WhoopStore.inMemory()
+        let daily = WhoopDailyEnergyRow(
+            day: "2026-08-28", rawTotalKcal: 2_150, modelVersion: "whoop-bucket-v5",
+            observedSeconds: 72_000, inferredSeconds: 8_000, modeledSeconds: 4_000,
+            uncertaintyFraction: 0.21, weightKg: 80, weightSource: .history)
+        let first = WhoopEnergyBucketRow(
+            day: daily.day, bucketStart: 1_777_334_400, durationSeconds: 300,
+            basalKcal: 6.2, activeKcal: 0, context: "unresolvedElevatedHR",
+            evidence: "physiological", uncertaintyFraction: 0.3)
+        let second = WhoopEnergyBucketRow(
+            day: daily.day, bucketStart: 1_777_334_700, durationSeconds: 300,
+            basalKcal: 6.2, activeKcal: 4.5, context: "locomotion",
+            evidence: "movement", uncertaintyFraction: 0.15)
+
+        try await store.replaceWhoopEnergyWindow(
+            [.init(daily: daily, activeKcalByHour: [7: 4.5], buckets: [first, second])],
+            deviceId: "whoop-a")
+        try await store.replaceWhoopEnergyWindow(
+            [.init(daily: daily, activeKcalByHour: [:], buckets: [first])],
+            deviceId: "whoop-a")
+
+        let buckets = try await store.whoopEnergyBuckets(deviceId: "whoop-a", day: daily.day)
+        XCTAssertEqual(buckets, [first], "a recompute must not leave stale timeline buckets")
+    }
+
+    func testInvalidEnergyWindowDoesNotPartiallyReplaceExistingRows() async throws {
+        let store = try await WhoopStore.inMemory()
+        let existing = WhoopDailyEnergyRow(
+            day: "2026-08-28", rawTotalKcal: 2_000, modelVersion: "whoop-bucket-v4",
+            observedSeconds: 80_000, inferredSeconds: 0, modeledSeconds: 0,
+            uncertaintyFraction: 0.2, weightKg: 80, weightSource: .profile)
+        try await store.replaceWhoopEnergyWindow(
+            [.init(daily: existing, activeKcalByHour: [6: 100])], deviceId: "whoop-a")
+        let invalid = WhoopDailyEnergyRow(
+            day: "bad", rawTotalKcal: .nan, modelVersion: "",
+            observedSeconds: -1, inferredSeconds: 0, modeledSeconds: 0,
+            uncertaintyFraction: 2, weightKg: 0, weightSource: .profile)
+
+        let changed = try await store.replaceWhoopEnergyWindow(
+            [.init(daily: existing, activeKcalByHour: [6: 50]),
+             .init(daily: invalid, activeKcalByHour: [7: 50])], deviceId: "whoop-a")
+        let hours = try await store.whoopEnergyHours(
+            deviceId: "whoop-a", from: existing.day, to: existing.day)
+
+        XCTAssertEqual(changed, 0)
+        XCTAssertEqual(hours.map(\.activeKcal), [100])
+    }
 }

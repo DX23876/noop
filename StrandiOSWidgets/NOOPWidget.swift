@@ -57,8 +57,12 @@ struct NOOPWidgetView: View {
 
     // MARK: - Colours (match Today's GlowRing domain constants)
 
+    /// Value-sampled, via the one shared Charge colour (`StrandPalette.chargeRingColor`) every Charge
+    /// surface now goes through. It used to be a FIXED `chargeColor`, which is why the same score could
+    /// read green here and red on the watch complication beside it. No score = no colour to sample, so
+    /// the empty state keeps its own tint rather than sampling a fabricated 0.
     private var chargeColor: Color {
-        snap.recovery != nil ? StrandPalette.chargeColor : StrandPalette.textTertiary
+        snap.recovery.map { StrandPalette.chargeRingColor(Double($0)) } ?? StrandPalette.textTertiary
     }
 
     /// Fixed domain accent — same as `TodayView.effortRing` (`StrandPalette.effortColor`), not the

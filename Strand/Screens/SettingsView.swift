@@ -45,7 +45,8 @@ struct SettingsView: View {
     /// The sections inside the collapsed "Advanced" disclosure. Listed once here so the group's own
     /// visibility and its contents can never disagree about what "Advanced holds a match" means.
     private static let advancedSectionIDs: [SettingsSectionID] = [
-        .recovery, .hrv, .testCentre, .liveSessions, .sleepStaging, .experimentalWhoop5, .diagnostics, .backup,
+        .recovery, .analysisMaintenance, .hrv, .testCentre, .liveSessions, .sleepStaging,
+        .experimentalWhoop5, .diagnostics, .backup,
     ]
 
     /// Keep the Advanced group when it still holds something the query matches.
@@ -227,8 +228,8 @@ struct SettingsView: View {
     @AppStorage(ChartStyle.storageKey) private var chartStyleRaw = ChartStyle.health.rawValue
     // Sleep tab stage-CHART shape: Classic per-stage rows, or the WHOOP-style stepped hypnogram Filled/Ribbon.
     @AppStorage(SleepChartStyle.storageKey) private var sleepChartStyleRaw = SleepChartStyle.classic.rawValue
-    // Chrome accent colour (mint / WHOOP blue / custom). Chrome only — never the data colour worlds.
-    @AppStorage(AccentColor.storageKey) private var accentRaw = AccentColor.mint.rawValue
+    // Chrome accent colour (system blue / mint / WHOOP blue / custom). Chrome only — never data colours.
+    @AppStorage(AccentColor.storageKey) private var accentRaw = AccentColor.systemBlue.rawValue
     @AppStorage(AccentColor.customHexKey) private var accentCustomHex = AccentColor.defaultCustomHex
     // Day-cycle scene backdrop behind Today (#698). Default OFF. On adds the moving time-of-day scene;
     // off (the default) keeps the plain dark canvas. TodayView reads the same key to gate its
@@ -248,6 +249,11 @@ struct SettingsView: View {
     // Hydration tracker (opt-in, MVP). Default OFF — when off the hydration dashboard card + detail are
     // hidden. Mirrors the Android pref so the toggle reads the same on both platforms.
     @AppStorage(HydrationStore.enabledKey) private var hydrationEnabled = false
+
+    /// The optional daily step goal the Momentum card counts down to. 0 = not set, which is the default
+    /// and NOT a broken state: with no goal, Momentum compares against the wearer's own recent median
+    /// ("quieter day than usual") rather than inventing a target nobody chose.
+    @AppStorage("momentum.stepGoal") private var momentumStepGoal = 0
 
     /// Opt-in "Auto-detect workouts" (default OFF). When ON, Today scans the last day or two of HR for a
     /// sustained-elevated window and offers — via a single dismissible card — to save it as a workout.
@@ -385,6 +391,9 @@ struct SettingsView: View {
                         isExpanded: isSearching ? .constant(true) : $advancedOpen
                     ) {
                         if shows(.recovery) { recoveryCard }
+                        if shows(.analysisMaintenance) {
+                            AnalysisMaintenanceSettingsCard(engine: model.intelligence)
+                        }
                         // #518: Continuous HRV capture + the HRV window live here now, not in the
                         // always-visible Strap card — power-user tuning, and the search still finds it.
                         if shows(.hrv) { hrvCard }
@@ -1304,8 +1313,8 @@ struct SettingsView: View {
                     .accessibilityLabel("Sleep chart")
                 }
                 rowDivider
-                // Chrome accent colour — the links/buttons/selection tint only. The recovery/strain/sleep
-                // DATA colours follow "Chart colours" above, never this. Custom reveals a colour well.
+                // Accent controls links, buttons, focus, and selection. Chart colours controls health data
+                // only (recovery, strain, sleep); it never changes chrome. Custom reveals a colour well.
                 FormRow(label: "Accent") {
                     Picker("Accent", selection: $accentRaw) {
                         ForEach(AccentColor.allCases) { c in
@@ -1776,6 +1785,30 @@ struct SettingsView: View {
 
                 rowDivider
 
+                // Momentum's step countdown has no target of its own to fall back on — a goal is a
+                // choice, not something the app should pick for someone. Without this row the
+                // "2,340 steps to your goal" message could never appear at all.
+                Stepper(value: $momentumStepGoal, in: 0...30_000, step: 500) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Daily step goal")
+                            .font(StrandFont.subhead)
+                            .foregroundStyle(StrandPalette.textPrimary)
+                        Text(momentumStepGoal > 0
+                             ? "\(momentumStepGoal) steps"
+                             : String(localized: "Not set"))
+                            .font(StrandFont.footnote)
+                            .foregroundStyle(StrandPalette.textSecondary)
+                    }
+                }
+                .accessibilityHint("Momentum counts down to this goal during the day")
+
+                Text("Momentum uses this for its \"steps to go\" read. Left unset, it compares your day against your own recent normal instead of a target you didn't choose.")
+                    .font(StrandFont.caption)
+                    .foregroundStyle(StrandPalette.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                rowDivider
+
                 Toggle(isOn: $autoDetectWorkoutsEnabled) {
                     Text("Auto-detect workouts")
                         .font(StrandFont.subhead)
@@ -1917,14 +1950,21 @@ struct SettingsView: View {
         if shows(.diagnostics) { rawSensorDiagnosticsCard }
     }
 
-    /// Opt-in liquid Today redesign (default ON in this build). Off falls back to the
-    /// classic dashboard immediately, no rebuild. Same data either way.
-    @AppStorage("noop.liquidTodayEnabled") private var liquidTodayEnabled = true
+    /// Which Today dashboard renders (Classic/Liquid/Trends/Overview). Replaces the old
+    /// `noop.liquidTodayEnabled` bool — migrated once at app launch, see `TodayDashboardStyle`.
+    @AppStorage(TodayDashboardStyle.storageKey) private var todayDashboardStyleRaw = TodayDashboardStyle.liquid.rawValue
 
-    /// The Today-variant toggle, appended to the bottom of `appearanceCard`'s own section (on-device
+    /// The Trends dashboard's four metric-strip slots. Deliberately configured ONLY here — never as an
+    /// edit affordance on the dashboard itself, see `TrendsMetricSlotsPrefs`.
+    @AppStorage(TrendsMetricSlotsPrefs.slot1Key) private var trendsSlot1Raw = TrendsMetricSlotsPrefs.defaultSlots[0].rawValue
+    @AppStorage(TrendsMetricSlotsPrefs.slot2Key) private var trendsSlot2Raw = TrendsMetricSlotsPrefs.defaultSlots[1].rawValue
+    @AppStorage(TrendsMetricSlotsPrefs.slot3Key) private var trendsSlot3Raw = TrendsMetricSlotsPrefs.defaultSlots[2].rawValue
+    @AppStorage(TrendsMetricSlotsPrefs.slot4Key) private var trendsSlot4Raw = TrendsMetricSlotsPrefs.defaultSlots[3].rawValue
+
+    /// The Today-variant picker, appended to the bottom of `appearanceCard`'s own section (on-device
     /// feedback: this belongs with Appearance, not buried in the collapsed Advanced → Experimental
-    /// group). Kept as a private helper rather than inline in `appearanceCard` so the toggle body stays
-    /// readable next to its `@AppStorage` declaration above.
+    /// group). Kept as a private helper rather than inline in `appearanceCard` so the picker body stays
+    /// readable next to its `@AppStorage` declarations above.
     ///
     /// The Heute-screen redesign toggle (StrandiOS/Redesign/) used to live here too — removed, since the
     /// prototype never got past off-by-default/untested-on-a-real-strap. `RootTabView` no longer reads
@@ -1937,17 +1977,83 @@ struct SettingsView: View {
                 .foregroundStyle(StrandPalette.textTertiary)
                 .padding(.top, 4)
 
-            Toggle(isOn: $liquidTodayEnabled) {
-                Text("Liquid Today (prototype)")
-                    .font(StrandFont.subhead)
-                    .foregroundStyle(StrandPalette.textPrimary)
+            FormRow(label: "Dashboard style") {
+                Picker("Dashboard style", selection: $todayDashboardStyleRaw) {
+                    ForEach(TodayDashboardStyle.allCases) { style in
+                        Text(style.label).tag(style.rawValue)
+                    }
+                }
+                .labelsHidden()
+                .pickerStyle(.menu)
+                .appleInspiredTint("settings.controls")
+                .accessibilityLabel("Dashboard style")
             }
-            .toggleStyle(.switch)
-            .appleInspiredTint("settings.controls")
-            Text("Replaces the Today tab with the prototype redesign. Turn it off any time to return to the classic dashboard. Reads the same live data from your strap.")
+            Text("Replaces the Today tab's layout. Switch back any time — every style reads the same live data from your strap.")
                 .font(StrandFont.caption)
                 .foregroundStyle(StrandPalette.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
+
+            if TodayDashboardStyle.resolve(todayDashboardStyleRaw) == .trends {
+                trendsSlotPickers
+            }
+
+            // The switches live in Settings as well as behind the dashboards' hidden wordmark long-press.
+            // Show the selected layout's independent preferences only: turning on an extra for Trends
+            // must never silently add it to Overview (or vice versa).
+            if let dashboard = dashboardExtraSectionsStyle {
+                rowDivider
+                Text("Dashboard sections")
+                    .font(StrandFont.overline)
+                    .tracking(StrandFont.overlineTracking)
+                    .foregroundStyle(StrandPalette.textTertiary)
+                NavigationLink {
+                    DashboardLayoutEditor(dashboard: dashboard)
+                } label: {
+                    HStack {
+                        Label("Arrange dashboard", systemImage: "slider.horizontal.3")
+                        Spacer()
+                        Image(systemName: "chevron.right").font(.caption).foregroundStyle(StrandPalette.textTertiary)
+                    }
+                    .font(StrandFont.subhead)
+                    .foregroundStyle(StrandPalette.textPrimary)
+                }
+            }
+        }
+    }
+
+    private var dashboardExtraSectionsStyle: String? {
+        switch TodayDashboardStyle.resolve(todayDashboardStyleRaw) {
+        case .trends: return "trends"
+        case .overview: return "overview"
+        default: return nil
+        }
+    }
+
+    /// Which four cards the Trends dashboard's metric strip shows — see `TrendsMetricSlotsPrefs`. Only
+    /// shown while the Trends style is selected.
+    private var trendsSlotPickers: some View {
+        VStack(alignment: .leading, spacing: NoopMetrics.rowSpacing) {
+            rowDivider
+            trendsSlotRow(label: "Slot 1", selection: $trendsSlot1Raw)
+            rowDivider
+            trendsSlotRow(label: "Slot 2", selection: $trendsSlot2Raw)
+            rowDivider
+            trendsSlotRow(label: "Slot 3", selection: $trendsSlot3Raw)
+            rowDivider
+            trendsSlotRow(label: "Slot 4", selection: $trendsSlot4Raw)
+        }
+    }
+
+    private func trendsSlotRow(label: LocalizedStringKey, selection: Binding<String>) -> some View {
+        FormRow(label: label) {
+            Picker(label, selection: selection) {
+                ForEach(DashboardCard.allCases) { card in
+                    Text(card.title).tag(card.rawValue)
+                }
+            }
+            .labelsHidden()
+            .pickerStyle(.menu)
+            .appleInspiredTint("settings.controls")
         }
     }
 
@@ -2725,7 +2831,7 @@ struct SettingsView: View {
                 } label: {
                     HStack(spacing: 8) {
                         Image(systemName: "externaldrive.fill.badge.icloud")
-                            .appleInspiredForeground("backupSync")
+                            .appleInspiredMenuIcon("backupSync")
                             .accessibilityHidden(true)
                         Text("Backup & Sync to a folder…")
                             .foregroundStyle(StrandPalette.textPrimary)
@@ -2851,7 +2957,7 @@ struct SettingsView: View {
                 } label: {
                     HStack(spacing: 10) {
                         Image(systemName: "questionmark.circle")
-                            .appleInspiredForeground("intelligence")
+                            .appleInspiredMenuIcon("intelligence")
                             .accessibilityHidden(true)
                         VStack(alignment: .leading, spacing: 1) {
                             Text("How NOOP works")
@@ -2880,7 +2986,7 @@ struct SettingsView: View {
                 } label: {
                     HStack(spacing: 10) {
                         Image(systemName: "questionmark.circle")
-                            .appleInspiredForeground("intelligence")
+                            .appleInspiredMenuIcon("intelligence")
                             .accessibilityHidden(true)
                         VStack(alignment: .leading, spacing: 1) {
                             Text("How your scores work")
@@ -2912,7 +3018,7 @@ struct SettingsView: View {
                 } label: {
                     HStack(spacing: 10) {
                         Image(systemName: "applewatch")
-                            .appleInspiredForeground("appleHealth")
+                            .appleInspiredMenuIcon("appleHealth")
                             .accessibilityHidden(true)
                         VStack(alignment: .leading, spacing: 1) {
                             Text("About Apple Watch data")
@@ -2942,7 +3048,7 @@ struct SettingsView: View {
                 } label: {
                     HStack(spacing: 10) {
                         Image(systemName: "internaldrive")
-                            .appleInspiredForeground("backupSync")
+                            .appleInspiredMenuIcon("backupSync")
                             .accessibilityHidden(true)
                         VStack(alignment: .leading, spacing: 1) {
                             Text("Storage")
@@ -3051,7 +3157,7 @@ struct SettingsView: View {
                 Link(destination: URL(string: "https://github.com/ryanbr/noop")!) {
                     HStack(spacing: 10) {
                         Image(systemName: "chevron.left.forwardslash.chevron.right")
-                            .appleInspiredForeground("settings.about")
+                            .appleInspiredMenuIcon("settings.about")
                             .accessibilityHidden(true)
                         VStack(alignment: .leading, spacing: 1) {
                             Text("Project home & source")
@@ -3138,7 +3244,7 @@ struct SettingsView: View {
         } label: {
             HStack(spacing: 10) {
                 Image(systemName: "stethoscope")
-                    .appleInspiredForeground("testCentre")
+                    .appleInspiredMenuIcon("testCentre")
                     .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 1) {
                     Text("Diagnostics")
@@ -3170,7 +3276,7 @@ struct SettingsView: View {
         return VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 8) {
                 Image(systemName: "iphone.gen3")
-                    .appleInspiredForeground("deviceSetup")
+                    .appleInspiredMenuIcon("deviceSetup")
                     .accessibilityHidden(true)
                 Text("Using NOOP on iPhone")
                     .font(StrandFont.subhead.weight(.semibold))
@@ -3307,7 +3413,7 @@ private struct SettingsDisclosureGroup<Content: View>: View {
 // MARK: - Section card
 
 /// A grouped settings card: a "Settings" overline + icon + title header, an explanatory blurb,
-/// then content. The section surface stays neutral; the leading SF Symbol carries its semantic colour.
+/// then content. The section surface stays neutral; the leading SF Symbol carries its semantic colour tile.
 private struct SettingsSection<Content: View>: View {
     let icon: String
     let title: LocalizedStringKey
@@ -3324,7 +3430,7 @@ private struct SettingsSection<Content: View>: View {
                     Text("Settings").strandOverline()
                     HStack(spacing: NoopMetrics.space2 + 2) {
                         Image(systemName: icon)
-                            .appleInspiredForeground(icon)
+                            .appleInspiredMenuIcon(icon)
                             .accessibilityHidden(true)
                         Text(title)
                             .font(StrandFont.title2)
@@ -3338,6 +3444,98 @@ private struct SettingsSection<Content: View>: View {
                 content()
             }
         }
+    }
+}
+
+// MARK: - Analysis maintenance
+
+private struct AnalysisMaintenanceSettingsCard: View {
+    @ObservedObject var engine: IntelligenceEngine
+    @State private var confirmingReanalysis = false
+
+    private var busy: Bool {
+        switch engine.analysisMaintenancePhase {
+        case .checking, .migrating, .manualRecent, .refreshingToday: return true
+        default: return engine.computing
+        }
+    }
+
+    private var statusText: String {
+        switch engine.analysisMaintenancePhase {
+        case .idle:
+            let ts = UserDefaults.standard.double(forKey: IntelligenceEngine.analysisLastRunKey)
+            guard ts > 0 else { return String(localized: "No manual reanalysis has run yet.") }
+            return String(
+                format: String(localized: "Last completed %@"),
+                locale: AppLanguage.activeLocale,
+                Date(timeIntervalSince1970: ts).formatted(.relative(presentation: .named)))
+        case .checking: return String(localized: "Checking the analysis recipe…")
+        case .migrating(let from, let to):
+            return String(
+                format: String(localized: "Updating analysis recipe %lld → %lld…"),
+                locale: AppLanguage.activeLocale, Int64(from), Int64(to))
+        case .manualRecent: return String(localized: "Reanalyzing the last 21 days…")
+        case .refreshingToday: return String(localized: "Refreshing today's activity…")
+        case .completed(let date):
+            return String(
+                format: String(localized: "Completed %@"),
+                locale: AppLanguage.activeLocale,
+                date.formatted(.relative(presentation: .named)))
+        case .failed(let message): return message
+        }
+    }
+
+    var body: some View {
+        SettingsSection(
+            icon: "arrow.triangle.2.circlepath.circle",
+            title: "Analysis & maintenance",
+            blurb: "NOOP updates today's activity automatically. Historical scores are reanalyzed only when an analysis migration requires it, not after ordinary Xcode installs or UI updates."
+        ) {
+            VStack(alignment: .leading, spacing: NoopMetrics.rowSpacing) {
+                HStack {
+                    Text("Analysis recipe").foregroundStyle(StrandPalette.textSecondary)
+                    Spacer()
+                    Text(verbatim: "v\(max(engine.analysisRecipeVersion, IntelligenceEngine.currentAnalysisRecipeVersion))")
+                        .font(StrandFont.captionNumber)
+                        .foregroundStyle(StrandPalette.textPrimary)
+                }
+                .font(StrandFont.subhead)
+
+                HStack(spacing: 7) {
+                    if busy { ProgressView().controlSize(.small) }
+                    Text(statusText)
+                        .font(StrandFont.caption)
+                        .foregroundStyle(statusTone)
+                }
+
+                NoopButton("Refresh today's activity", systemImage: "figure.walk.motion", kind: .secondary) {
+                    Task { _ = await engine.manuallyRefreshCurrentDayActivity() }
+                }
+                .disabled(busy)
+
+                NoopButton("Reanalyze the last 21 days", systemImage: "clock.arrow.2.circlepath", kind: .secondary) {
+                    confirmingReanalysis = true
+                }
+                .disabled(busy)
+
+                Text("Reanalysis replaces derived scores only. Raw sensor data and your sleep or workout corrections stay unchanged.")
+                    .font(StrandFont.caption)
+                    .foregroundStyle(StrandPalette.textTertiary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .confirmationDialog("Reanalyze the last 21 days?",
+                            isPresented: $confirmingReanalysis, titleVisibility: .visible) {
+            Button("Reanalyze") { Task { _ = await engine.manuallyReanalyzeRecent() } }
+            Button("Cancel", role: .cancel) { }
+        } message: {
+            Text("This can take several minutes. NOOP keeps all raw data and manual corrections and recalculates only derived scores.")
+        }
+    }
+
+    private var statusTone: Color {
+        if case .failed = engine.analysisMaintenancePhase { return StrandPalette.statusWarning }
+        return StrandPalette.textSecondary
     }
 }
 

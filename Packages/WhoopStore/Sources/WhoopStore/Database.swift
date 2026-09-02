@@ -1113,6 +1113,33 @@ extension WhoopStore {
             try db.create(index: "idx_whoopEnergyHourly_device_day",
                           on: "whoopEnergyHourly", columns: ["deviceId", "day"])
         }
+        // v49-whoop-energy-context: v4 distinguishes observed activity from a bounded physiological
+        // estimate. Additive defaults preserve every v3 row until the 120-day recompute replaces it.
+        migrator.registerMigration("v49-whoop-energy-context") { db in
+            try db.alter(table: "whoopDailyEnergy") { t in
+                t.add(column: "representedSeconds", .integer).notNull().defaults(to: 0)
+                t.add(column: "physiologicalSeconds", .integer).notNull().defaults(to: 0)
+                t.add(column: "contextJSON", .text).notNull().defaults(to: "{}")
+            }
+        }
+        // v50-whoop-energy-buckets: auditable five-minute output for the cumulative Today curve.
+        // It is derived data and is replaced atomically with the daily/hourly v5 rows.
+        migrator.registerMigration("v50-whoop-energy-buckets") { db in
+            try db.create(table: "whoopEnergyBucket") { t in
+                t.column("deviceId", .text).notNull()
+                t.column("day", .text).notNull()
+                t.column("bucketStart", .integer).notNull()
+                t.column("durationSeconds", .integer).notNull()
+                t.column("basalKcal", .double).notNull()
+                t.column("activeKcal", .double).notNull()
+                t.column("context", .text).notNull()
+                t.column("evidence", .text).notNull()
+                t.column("uncertaintyFraction", .double).notNull()
+                t.primaryKey(["deviceId", "bucketStart"])
+            }
+            try db.create(index: "idx_whoopEnergyBucket_device_day",
+                          on: "whoopEnergyBucket", columns: ["deviceId", "day"])
+        }
         return migrator
     }
 }

@@ -56,7 +56,10 @@ enum TodaySection: String, CaseIterable, Identifiable {
         case .coach:          return String(localized: "Coach")
         case .hero:           return String(localized: "Charge / Effort / Rest")
         case .liveSession:    return String(localized: "Start session")
-        case .synthesis:      return String(localized: "Synthesis")
+        // The rawValue `synthesis` is the PERSISTED key in `today.sectionOrder`, and unknown tokens are
+        // dropped on load — renaming the case would silently reset the saved layout of every user who
+        // ever reordered Today. Only the LABEL follows the card's new name.
+        case .synthesis:      return String(localized: "Momentum")
         case .goals:          return String(localized: "Goals")
         case .keyMetrics:     return String(localized: "Key Metrics")
         case .energy:         return String(localized: "Energy")

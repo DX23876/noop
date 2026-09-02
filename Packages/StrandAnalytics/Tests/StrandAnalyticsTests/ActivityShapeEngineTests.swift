@@ -15,8 +15,8 @@ final class ActivityShapeEngineTests: XCTestCase {
     }
 
     func testTooLittleHistoryOffersNoShapeAtAll() {
-        XCTAssertNil(ActivityShapeEngine.fit(days: morningPerson(days: 13)))
-        XCTAssertNotNil(ActivityShapeEngine.fit(days: morningPerson(days: 14)))
+        XCTAssertNil(ActivityShapeEngine.fit(days: morningPerson(days: 6)))
+        XCTAssertNotNil(ActivityShapeEngine.fit(days: morningPerson(days: 7)))
     }
 
     func testNearEmptyDaysAreNotNormalisedIntoAShape() {

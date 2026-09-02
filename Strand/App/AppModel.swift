@@ -507,6 +507,9 @@ final class AppModel: ObservableObject {
             await GoalTrackingStore.shared.refresh(repo: self.repo)
             diagPhase("goals done")
             await self.recordAppVersionChangeIfNeeded()        // #1410: stamp an update transition once
+            // Analytics migrations are keyed to their own persisted recipe, never to the app/build
+            // version. On an ordinary Xcode reinstall this is a one-row read and no historical work.
+            await self.intelligence.prepareAnalysisRecipe()
             try? await Task.sleep(nanoseconds: 6_000_000_000)  // give the first offload a moment
             // FIX 2(a): DEFER the heavy one-shot 4000-day heal/rescore while an import is in flight. A
             // large Apple Health import is the worst-case launch overlap , running a 4000-iteration heal
@@ -542,22 +545,11 @@ final class AppModel: ObservableObject {
                 // the one-shot done flag is set, purges any pollution, and rescores the affected days , so a
                 // wandering-clock strap can't keep re-polluting. A no-op when nothing's pending.
                 await self.intelligence.runTimestampHealIfNeeded(historyDays: 21)
-                // #836: the steady-state tick is a BACKSTOP, not a data-driven refresh — every real update
-                // (sync backfill, import, edit, recalibrate, heal) already rescores via its own forced call.
-                // `force: false` skips the heavy 21-day rescore when the raw HR stream is unchanged since the
-                // last run, instead of re-reading ~21×54 h of HR every 15 min on a big-import library. A new
-                // sample (the heal above, or a sync) moves the fingerprint and the tick rescores as before.
-                // #1538: do not start a background backstop pass that cannot finish under suspension.
-                await RescoreBackgroundScheduler.run(owesOnDefer: false,
-                                                      log: { [live = self.live] line in
-                                                          live.append(log: line)
-                                                      }) {
-                    // `allowDayReuse: true`: when the whole-history watermark HAS moved, this tick still only
-                // needs to re-derive the days the new samples actually landed in — which is exactly what
-                // the per-day fingerprint resolves (#launch-rescore).
-                    await self.intelligence.analyzeRecent(force: false, allowDayReuse: true,
-                                                          reason: .rawMutation)
-                }
+                // A live strap advances the raw-write sequence continuously, so even the old
+                // `force:false` fingerprint gate repeatedly entered the 21-day pipeline. The cadence is
+                // only a UI backstop; real sync/import/edit paths already request their authoritative
+                // recompute. Keep this pass strictly current-day and field-scoped.
+                await self.refreshCurrentDayActivity()
                 if !effortMaintenanceStarted {
                     effortMaintenanceStarted = true
                     // Exact-day HR + strain only, newest first. Seven days per resumable generation and
@@ -573,12 +565,7 @@ final class AppModel: ObservableObject {
                 // v5: recompute the skin-temp suite snapshots (cycle phase + body clock) from the
                 // freshly-scored history so the Health hub cards read a ready result.
                 await self.refreshV5Signals()
-                // #836 battery: 30-min BACKSTOP cadence (twin of Android ANALYZE_INTERVAL_MS). The
-                // `force: false` gate above can't skip while the strap streams live HR — the fingerprint
-                // advances every second — so this re-scored the whole 21-day window every 15 min even though
-                // only today's daytime HR changed. It's a pure backstop (every real update rescores via its
-                // own forced call above), so halving the cadence only delays the idle refresh of today's
-                // live Effort/steps; recovery/sleep are night-computed and unaffected.
+                // 30-minute current-day backstop. Recovery/sleep remain data-driven by completed syncs.
                 try? await Task.sleep(nanoseconds: 1_800_000_000_000)  // 30 min backstop (#836 battery)
             }
         }
@@ -761,9 +748,19 @@ final class AppModel: ObservableObject {
         #endif
     }
 
+    /// Fast foreground-facing refresh for values that change throughout the day. The complete analysis
+    /// remains queued separately; callers use this to avoid holding Today on an old step/Effort snapshot
+    /// while that heavier work is running.
+    func refreshCurrentDayActivity() async {
+        _ = await intelligence.refreshCurrentDayActivity()
+    }
+
     private func refreshAfterCompletedBackfill() async {
         live.append(log: "Backfill: refreshing dashboard cache from completed sync")
-        await repo.refresh(days: 120)
+        // Publish the two continuously-changing activity values first. This reads one calendar day and
+        // writes only steps/Effort; it is intentionally independent of the multi-day sleep/recovery pass
+        // below, which may take minutes on a large local library or be deferred by iOS.
+        await refreshCurrentDayActivity()
         // Score the freshly-offloaded raw data RIGHT NOW rather than waiting for the next 15-minute
         // analyzeRecent tick , otherwise a just-synced night's Charge / Effort / Rest can take up to
         // 15 minutes to appear on a strap-only (no-import) dashboard. analyzeRecent no-ops if a tick is
@@ -788,7 +785,7 @@ final class AppModel: ObservableObject {
         // Keep the WHOOP-first expenditure row in step with each completed strap offload. Apple
         // reference fitting still remains opt-in inside the repository method.
         await repo.refreshWhoopEnergyModel(
-            days: 30, profile: Repository.analyticsProfile(profile))
+            days: 120, profile: Repository.analyticsProfile(profile))
         #if os(iOS)
         // #980: a strap backfill routinely completes while the app is BACKGROUNDED (it runs as a
         // bluetooth-central, so it stays alive to receive the offload). The only other widget-publish
@@ -1082,7 +1079,7 @@ final class AppModel: ObservableObject {
             guard let self else { return }
             if let store = await self.repo.storeHandle() {
                 _ = try? await store.upsertWorkouts([row], deviceId: self.deviceId)
-                await self.repo.refresh()
+                await self.refreshCurrentDayActivity()
             }
         }
     }
@@ -1281,7 +1278,7 @@ final class AppModel: ObservableObject {
         await AppleWatchDevice.registerIfAuthorized(
             registry: registry, store: store, authorized: authorized, now: now)
         guard registry.devices.contains(where: { $0.id == AppleWatchDevice.deviceId }) else {
-            await repo.refresh()
+            await refreshCurrentDayActivity()
             return
         }
 
@@ -1296,6 +1293,9 @@ final class AppModel: ObservableObject {
         } else {
             await repo.refresh()
         }
+        // Health sync may have inserted current-day HR/steps after the foreground refresh ran. Fold that
+        // fresh input into Effort/steps now; do not wait for the next 15-minute complete analysis tick.
+        await refreshCurrentDayActivity()
     }
     #endif
 

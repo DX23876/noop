@@ -20,15 +20,25 @@ public struct GlowRing: View {
     public var color: Color
     public var diameter: CGFloat
     public var lineWidth: CGFloat
+    /// An optional short word under the number, INSIDE the ring — the score's band read in words
+    /// (DEPLETED / LOW / MODERATE / PRIMED / PEAK).
+    ///
+    /// It exists because the Charge ring is now coloured by its VALUE: colour alone carries no
+    /// information for a colour-blind reader, and several of the selectable chart styles compress the
+    /// red-to-green distance further. The word is what makes a value-coloured ring readable, so it is a
+    /// condition of that change rather than an ornament. nil (the default) renders exactly as before,
+    /// which is what the fixed-colour Effort and Rest rings pass.
+    public var caption: String? = nil
 
     public init(fraction: Double, value: Double, format: @escaping (Double) -> String,
-                color: Color, diameter: CGFloat, lineWidth: CGFloat) {
+                color: Color, diameter: CGFloat, lineWidth: CGFloat, caption: String? = nil) {
         self.fraction = fraction
         self.value = value
         self.format = format
         self.color = color
         self.diameter = diameter
         self.lineWidth = lineWidth
+        self.caption = caption
     }
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -40,6 +50,13 @@ public struct GlowRing: View {
     /// centre read-outs visually consistent regardless of state.
     public static func centerFont(diameter: CGFloat) -> Font {
         StrandFont.rounded(diameter * 0.36, weight: .bold)
+    }
+
+    /// The band-word font for a ring of the given diameter. Scaled off the diameter exactly as
+    /// `centerFont` is, so the number and the word keep their proportion across the hero's now-unequal
+    /// centre and flank rings.
+    public static func captionFont(diameter: CGFloat) -> Font {
+        StrandFont.rounded(max(8, diameter * 0.11), weight: .semibold)
     }
 
     private var clamped: CGFloat { CGFloat(min(max(fraction, 0), 1)) }
@@ -57,16 +74,26 @@ public struct GlowRing: View {
             // Design Reset: NO glow. A flat, crisp solid arc only — the clean Material-style look.
             arc.stroke(color, style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
 
-            // Centred rolling number.
-            Text(format(shown))
-                .font(Self.centerFont(diameter: diameter))
-                .foregroundStyle(StrandPalette.textPrimary)
-                .monospacedDigit()
-                .lineLimit(1)
-                .minimumScaleFactor(0.5)
-                .contentTransition(.numericText())
-                .padding(.horizontal, lineWidth + 4)
-                .animation(reduceMotion ? nil : .easeOut(duration: 0.85), value: shown)
+            // Centred rolling number, with the optional band word tucked under it.
+            VStack(spacing: 0) {
+                Text(format(shown))
+                    .font(Self.centerFont(diameter: diameter))
+                    .foregroundStyle(StrandPalette.textPrimary)
+                    .monospacedDigit()
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.5)
+                    .contentTransition(.numericText())
+                    .animation(reduceMotion ? nil : .easeOut(duration: 0.85), value: shown)
+                if let caption {
+                    Text(caption)
+                        .font(Self.captionFont(diameter: diameter))
+                        .tracking(StrandFont.overlineTracking)
+                        .foregroundStyle(StrandPalette.textSecondary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.5)
+                }
+            }
+            .padding(.horizontal, lineWidth + 4)
         }
         .frame(width: diameter, height: diameter)
         .animation(reduceMotion ? nil : drawSpring, value: filled)

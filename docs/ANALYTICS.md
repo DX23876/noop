@@ -454,19 +454,19 @@ Per-second blend of **Keytel (2005)** active expenditure and **revised Harris–
 
 ## Daily energy — `EnergyEngine`, `WhoopEnergyModel`, Watch calibration, adaptive TDEE
 
-Source: `Packages/StrandAnalytics/Sources/StrandAnalytics/{EnergyEngine,WhoopEnergyModel,EnergyCalibrationEngine,AdaptiveExpenditureEngine}.swift`, all pure and DB-free. Together they answer "how much did I burn today?" (the **ENERGY** card in Control Center / Today, `Strand/Screens/EnergyCard.swift`) without ever silently adding two devices' measurements for the same body.
+Source: `Packages/StrandAnalytics/Sources/StrandAnalytics/{EnergyEngine,WhoopEnergyModel,EnergyCalibrationEngine,EnergyValidation,AdaptiveExpenditureEngine}.swift`, all pure and DB-free. Together they answer "how much did I burn today?" (the **ENERGY** card in Control Center / Today, `Strand/Screens/EnergyCard.swift`) without ever silently adding two devices' measurements for the same body.
 
 ### `EnergyEngine` — one day's total, sources never summed
 
 `EnergyEngine.summarize(_:profile:context:)` selects **one** source per day and, where possible, tops it up with the *modelled remainder* — it never adds two measured sources together:
 
-1. **`strapWornTime`** — the WHOOP total (from `whoopDailyEnergy`, or the legacy `DailyMetric.activeKcalEst`) whenever present. The total and its coverage denominator are always taken from the **same** model — `(rawTotalKcal, observedSeconds)` or `(activeKcalEst, energyCoverageSeconds)`, never crossed. Crossing them lets the engine divide one model's kcal by another's seconds, and where the legacy denominator is the larger the implied basal top-up eats the day's active energy through `max(0, total − basal)`. This is canonical: an optional Watch calibration factor may scale it, but Apple never replaces it. The worn-time total is topped up with `profile BMR × unworn seconds`, never a full day's BMR (that would double-count every worn second — the trap the file's header exists to prevent). The Watch factor scales **active energy only** — see "Calibrating active energy only" under `EnergyCalibrationEngine` below.
+1. **`strapWornTime`** — the WHOOP total (from `whoopDailyEnergy`, or the legacy `DailyMetric.activeKcalEst`) whenever present. The total and its coverage denominator are always taken from the **same** model — `(rawTotalKcal, representedSeconds)` for v4 or `(activeKcalEst, energyCoverageSeconds)` for the legacy path, never crossed. `representedSeconds` is wall time whose basal share is already inside the bucket total; HR evidence remains separately available as `observedSeconds`. This is canonical: an optional Watch calibration factor may scale it, but Apple never replaces it. The worn-time total is topped up with `profile BMR × unrepresented seconds`, never a full day's BMR (that would double-count every represented second — the trap the file's header exists to prevent). The Watch factor scales **active energy only** — see "Calibrating active energy only" under `EnergyCalibrationEngine` below.
 2. **`appleSplit`** — Apple's own `active_kcal` + `basal_kcal`, used only on a day with no WHOOP estimate.
 3. **`mixed`** — Apple active energy with no basal figure; basal is modelled from BMR × elapsed fraction.
 4. **`stepsEstimate`** — no energy measurement anywhere: `steps × 0.0005 kcal/step/kg × bodyWeightKg`, calibrated so 10,000 steps ≈ 400 kcal for an 80 kg adult.
 5. **`profileOnly`** — nothing measured; only the modelled 24 h BMR is reported, and `totalBurnedSoFar` stays `nil` (never `0`).
 
-Coverage (`EnergyCoverage.energy`) is the fraction of the elapsed local day the day's *actual* source reported for: real strap HR seconds, or — for an `appleSplit` day, since 2026-08-25 — `healthEnergyBucket.coverageSeconds` (max per bucket across sources, never summed; iOS only, see below). Confidence (`ScoreConfidence`) is `.solid` at ≥80% coverage (`solidCoverage`), `.building` at ≥40% (`buildingCoverage`), `.calibrating` below — a modelled day is never `.solid` however complete it looks. **`appleSplit` runs this exact same ladder once a coverage signal exists.** Reporting both active and basal energy is not proof Apple covered the whole elapsed day, only that it covered whatever it saw — the same principle already applied to the strap. Where no coverage signal exists at all (a macOS import, or any day before `healthEnergyBucket` existed — the bridge that populates it is iOS-only), `.appleSplit` keeps its previous `.solid` rather than being marked down for a platform gap it didn't create: an *absent* signal is not evidence of a *thin* one. Local-day seconds are calendar-derived (`Repository.energyDayContext`), not a fixed 86,400, so DST transitions don't skew basal accrual.
+Coverage (`EnergyCoverage.energy`) is the fraction of the elapsed local day the day's *actual* source represented: v4 context-bucket wall seconds, or — for an `appleSplit` day — `healthEnergyBucket.coverageSeconds` (max per bucket across sources, never summed; iOS only, see below). Confidence (`ScoreConfidence`) is `.solid` at ≥80% coverage (`solidCoverage`), `.building` at ≥40% (`buildingCoverage`), `.calibrating` below. Reporting both active and basal energy is not proof Apple covered the whole elapsed day, only that it covered whatever it saw. Where no coverage signal exists at all, `.appleSplit` keeps its previous `.solid`: an *absent* signal is not evidence of a *thin* one. Local-day seconds are calendar-derived (`Repository.energyDayContext`), not a fixed 86,400, so DST transitions don't skew basal accrual.
 
 ### The day forecast — `projectedTotalBurn` / `projectedRangeKcal`
 
@@ -490,15 +490,13 @@ Source: `ActivityShapeEngine.swift` (pure). Fits `f(t) ∈ [0,1]` — the cumula
 - Fitted from complete days only — today is still accruing, and including it would teach the curve that this person stops being active at whatever time it currently is.
 - Deliberately **not** split weekday/weekend yet: a real effect, but splitting doubles the history each arm needs, and the fallback is honest linear behaviour rather than a worse curve.
 
-### The adaptive TDEE as a forecast prior
+### The adaptive TDEE stays separate from the wearable forecast
 
-`summarize(adaptivePriorKcal:)` blends the long-horizon retrospective TDEE into the **forecast only**:
-
-    final = w × sensorForecast + (1 − w) × prior,   w rises with coverage
-
-The case it exists for: an 11:00 workout on a day the strap has barely seen can project 3,700 kcal for someone whose measured six-week maintenance is 2,750. The sensors are not wrong about the workout — they are wrong about the thirteen hours they did not observe, and the prior is the only thing in the app that knows what those hours usually cost. The sensor keeps at least `minimumSensorWeight` (0.5), so the prior can temper a forecast but never replace it with an average of the person's past; at `priorFullTrustCoverage` (0.90) the prior drops out entirely. **`totalBurnedSoFar` is never touched** — an energy-balance model must not rewrite a measurement (`fork/decisions.md`, 2026-08-25).
-
-An **unknown** coverage signal does not shrink anything. Only a *measured* thin day is tempered, because this has to read that nil exactly the way `confidence(...)` does — that ladder calls an unknown-coverage day `.solid` (a macOS import didn't create the platform gap), and halving the same day's forecast toward a long-horizon average would put two contradictory readings of one nil in one file: "High" on the badge, half-trusted in the number beneath it.
+`summarize(adaptivePriorKcal:)` keeps the parameter for source compatibility but deliberately does
+not blend it into today's wearable estimate. The retrospective intake/weight model answers a
+different question and remains a separate card. Today's projection is available only once at least
+seven sufficiently complete v5 days provide both a personal time-of-day shape and typical hourly
+activity magnitude; until then the UI says that the forecast is learning.
 
 ### The forecast interval
 
@@ -508,20 +506,21 @@ An **unknown** coverage signal does not shrink anything. Only a *measured* thin 
 
 A pure, Apple-Health-free model over five-minute `WhoopEnergyBucket`s (HR, motion intensity, steps, distance, stride, the strap's `activity_class`, and workout/sleep/off-wrist flags), producing a `WhoopDailyEnergyEstimate` with an explicit **evidence mix** per bucket:
 
-- **`observed`** — a valid HR sample (30–240 bpm) drives an HR-reserve MET curve: `met = 1 + 11·reserve²` (capped 14) for workout/high-reserve buckets (`reserve ≥ 0.50`), else the conservative `met = 1 + 2.5·reserve`, where `reserve = (hr − restingHR) / (maxHR − restingHR)`. **When the same bucket also carries a movement signal, the model takes `max(hrMET, movementMET)`** (see "Why HR alone cannot see a walk" below). Active kcal: `max(0, met−1) × 3.5 × weightKg / 200 × minutes`.
-- **`inferred`** — no HR, but steps/distance/motion/activity-class indicate movement: a coarse MET from walking/running speed (km/h) or step cadence, same active-kcal formula, basal added underneath.
-- **`modeled`** — off-wrist or sleep, or no signal at all: pure basal fill (`BMR/86,400 × seconds`).
+- **`observed`** — HR contributes inside an independently established workout or locomotion context. A workout uses the continuous curve `1 + coefficient·HRR²` (coefficient 11 endurance / 8 resistance / 9.5 other); locomotion is movement-primary and HR may add at most 1.5 MET as a secondary correction.
+- **`inferred`** — movement covers time without HR. Speed/cadence/activity class supplies the locomotion MET and basal is added underneath.
+- **`physiological`** — HR was observed but neither movement nor a trusted workout proves activity. It is retained as provenance (`unresolvedElevatedHR`) but contributes **zero active kcal**. Heart rate can grade confirmed activity; it cannot prove activity by itself.
+- **`modeled`** — off-wrist, sleep, sedentary-without-HR, or unknown signal: pure basal fill (`BMR/86,400 × seconds`).
 
-#### Why HR alone cannot see a walk *(model v2, 2026-08-25)*
+Context is selected **before** any calorie equation, in precedence order: off-wrist → sleep → confirmed workout → locomotion → sedentary/unresolved elevated HR → unknown. A high heart rate cannot promote its own bucket into a workout. Active kcal in every active branch is `max(0, met−1) × 3.5 × weightKg / 200 × minutes`.
+
+#### Why HR alone cannot define activity *(historical v2/v4 defect, resolved by v5)*
 
 Both energy paths used to gate active energy on heart-rate reserve alone, and both went blind at ordinary walking intensity:
 
 - The legacy whole-day path (`Calories.estimateDayCalories`) credits every second below `restingHR + 0.50 × HRR` the **bare resting rate** — and `restingKcalPerS` is *exactly* `bmrKcalPerDay / 86,400`, the same number `EnergyEngine` subtracts as its basal top-up. The two cancel, so a 30-minute walk at ~37 % HRR was worth **bit-exactly zero** active kcal. (The 50 % gate was a deliberate over-correction against a "calories too high" report; it fixed over-counting by making low-intensity movement invisible.)
 - The bucket model's low-intensity curve returns ~1.9 MET at that same reserve, where a brisk walk really costs 3.0–4.3 MET.
 
-v2 therefore lets **movement corroborate** the HR reading: `max()`, never a replacement or an average. Movement can only ever *raise* the estimate, and only when a real steps / distance / motion / activity-class signal exists for that bucket — a high-HR, quiet-wrist bucket (cycling, lifting) keeps the HR curve untouched. The guard matters: `movementMET` floors at 1.5, so calling it for a bucket with no movement signal would invent half a MET on every still, awake second. Evidence stays `observed`, because HR *was* measured; the movement channel corroborates it rather than standing in for it.
-
-The strap's own **`activity_class@63`** (0 still / 1 walk / 2 run, WHOOP 5/MG only) sets a MET **floor** (walk ≥ 3.0, run ≥ 7.0) rather than being averaged in — it is a direct classification, not something inferred from a tick counter. It never lowers a faster reading, so a run misreported as a walk keeps the run's energy. A WHOOP 4.0 carries no `@57` counter and no `@63` class, so it keeps exactly the HR-only behaviour.
+v2 fixed the missing walk by taking `max(hrMET, movementMET)`, but retained the mirror-image error: high HR with a quiet wrist kept the full exercise curve even when stress, caffeine, heat, illness or sensor error was the more plausible explanation. v4 made locomotion movement-primary but still granted quiet elevated HR up to 0.5 MET. At high body weight that small per-minute allowance accumulated into a large false activity total. v5 removes that allowance entirely and charges locomotion only for seconds where the movement stream actually changed, rather than charging an entire five-minute bucket for a brief event. The strap's own **`activity_class@63`** (0 still / 1 walk / 2 run, WHOOP 5/MG only) still sets a floor (walk ≥ 3.0, run ≥ 7.0). WHOOP 4.0 has neither `@57` nor `@63`; without phone movement or a trusted workout it therefore takes the conservative physiological path, not an HR-only exercise path.
 
 #### One MET curve, not two *(model v3, 2026-08-26)*
 
@@ -529,35 +528,47 @@ The strap's own **`activity_class@63`** (0 still / 1 walk / 2 run, WHOOP 5/MG on
 
 Both branches now resolve to a **speed in km/h** and look it up in one shared, cited curve — `speedMETTable`, piecewise-linear between reference points from Ainsworth et al.'s *2011 Compendium of Physical Activities*, the standard external reference for activity METs (walking 3.2→16.1 km/h through running paces, up to 14.5 MET at 16.1 km/h — the elite-pace ceiling, up from the old hand-picked 12). The cadence branch has no measured stride yet — `strideM` already exists on `healthEnergyBucket` from Apple's calibrated walking-step-length reading, but nothing reads it into this model — so cadence is converted to speed with a population-average 0.75 m stride as a documented placeholder, pending that wiring.
 
+#### Context before intensity and movement duration *(model v5, 2026-08-29)*
+
+The production assembler now supplies real sleep, off-wrist, workout, movement-coverage and workout-kind inputs; v3 declared these fields but built buckets from HR alone, leaving most branches unreachable. Workout trust is deliberately independent of the calorie equation: imported/manual workouts qualify, as do NOOP workouts produced by the existing detector only after **both** sustained HR and sustained motion passed. Endurance and resistance use different continuous coefficients, removing the old discontinuity at 50% HR reserve.
+
+`restingHR` is causal: each day uses the median of up to 14 prior daily resting-HR values, never the current day's eventual answer. User-supplied max HR wins over Tanaka. Quiet elevated HR is exposed as `unresolvedElevatedHR` time in the Energy detail screen instead of being silently called activity, and contributes zero active kcal.
+
 Bucket movement is assembled in `Repository.stepMovementByBucket` (`Strand/Data/EnergySeries.swift`), which reuses three existing rules rather than re-deriving them: **one device id, never merged** (`@57` is cumulative — interleaving two straps fabricates huge deltas), the shared **`StepsCounter`** wrap-aware kernel, and the **`stepTicksPerStep`** tick→step calibration (#139). It reads one day at a time, because `stepSample` is a ~1 Hz stream. The bucketing itself is the pure `Repository.bucketStepMovement`, split out (like `latestActivityClass`) so its delta and gap rules are unit-testable without a store.
 
 Each bucket carries the **previous** sample as well, because `stepsInWindow` needs a predecessor to form a delta and a slice starting cold silently drops the ticks accrued across every boundary — 288 small losses a day, all in the same direction. That predecessor is accepted only from within one bucket-width, though: `@57` is cumulative, so a sample from before a data gap (a charge break, a not-yet-offloaded stretch) carries every tick of that whole gap, `StepsCounter` accepts any delta below 512, and crediting it to the first bucket after the gap renders hours of absence as five minutes of brisk walking — which then feeds `movementMET` a cadence that never happened.
 
-`uncertaintyFraction` blends per-second weights `0.10·observed + 0.22·inferred + 0.35·modeled`, capped at 0.50 — deliberately conservative and monotonic in evidence quality. Body weight is resolved **per day**, not from today's profile, via `CausalWeightResolver` — a 10-day EWMA (`α = 2/11`) over `bodyWeightEntry` + imported Health weights, manual entries winning ties on the same local day, valid for at most 90 days before falling back to the profile default. This prevents a new weigh-in from silently rewriting historical calorie totals.
+`uncertaintyFraction` is duration-weighted from context-specific provisional widths (18% confirmed workout; 20–28% locomotion; 35% unresolved/sedentary physiological; 40–45% unknown; 20% sleep; 30% off-wrist), capped at 60%. These widths are engineering priors, not validated confidence intervals; the calorimetry gate below explicitly tests their coverage. Body weight is resolved **per day**, not from today's profile, via `CausalWeightResolver` — a 10-day EWMA (`α = 2/11`) over `bodyWeightEntry` + imported Health weights, manual entries winning ties on the same local day, valid for at most 90 days before falling back to the profile default. This prevents a new weigh-in from silently rewriting historical calorie totals.
 
-`AppModel.refreshWhoopEnergyModel` runs this after every completed strap offload (`Strand/App/AppModel.swift`) and persists one `whoopDailyEnergy` row per day (`WhoopStore`), keyed by `WhoopDailyEnergyEstimate.modelVersion` (currently `"whoop-bucket-v3"`). `Repository.energySummaries` **filters rows to the current version**, so a formula change genuinely invalidates old rows instead of drawing two model generations as one trend line — a superseded row falls back to the legacy whole-day estimate until the next refresh overwrites it.
+`AppModel.refreshWhoopEnergyModel` runs this after every completed strap offload (`Strand/App/AppModel.swift`) and recomputes 120 days. Daily totals, hourly activity-shape rows and auditable five-minute timeline buckets are assembled first, then published in **one SQLite transaction** by `replaceWhoopEnergyWindow`; cancellation cannot expose mixed generations. Rows are keyed by `WhoopDailyEnergyEstimate.modelVersion` (currently `"whoop-bucket-v5"`), and reads filter to that exact version.
 
 ### `EnergyCalibrationEngine` — opt-in, bounded Apple Watch reference factor
 
 Off by default (Settings toggle inside the Energy detail screen, `EnergyCalibrationPreferences.enabled`). When enabled, NOOP compares time-aligned WHOOP bucket output against Apple Health reference buckets **from an Apple Watch source only** (`HealthEnergySourceKind.calibrationEligible`; iPhone/third-party/NOOP's-own writes are never eligible) and fits a single multiplier:
 
 - Requires **≥7 distinct days** (`minimumDays`) and **≥84 buckets** (`minimumBuckets`) at `overlapQuality ≥ 0.70`.
-- Takes the **median** ratio `appleWatchKcal / whoopKcal`, trims outliers beyond 3×MAD (or ±0.001 when MAD is zero), and refits the median over the trimmed set.
+- Uses only `locomotion` and `confirmedWorkout` buckets, trims ratio outliers beyond 3×MAD (or ±0.001 when MAD is zero), then fits a robust Huber slope through the origin. Apple zero-active rows are retained, so a WHOOP false positive can pull the factor down instead of disappearing from training.
 - Rejects the fit outright if the trimmed sample's coefficient of variation exceeds `0.20` (`maximumCV`) — an unstable ratio is not a calibration.
 - Clamps the result to **`0.80...1.20`** (`factorRange`): calibration can only ever nudge the WHOOP number, never dominate it.
 
 `Repository.refreshWhoopEnergyModel` picks the single Watch source with the most eligible buckets in-window (never blends multiple watches) before fitting. State surfaces as `EnergyCalibrationStatus`: `off` → `learning` (opted in, no fit yet) → `active` (fit applied) → `paused` (opted out, fit retained for a later re-enable without re-fitting from scratch).
 
-#### Calibrating active energy only *(fit v2, 2026-08-25)*
+#### Calibrating active energy only *(fit v3, 2026-08-28)*
 
 Both sides of the fit are now **active-only kcal, never totals**:
 
 - Apple already reports `activeKcal` separately from `basalKcal`, so no subtraction is needed there.
-- WHOOP's side is `bucket.kcal − basalPerSecond × bucketSeconds` — the same active-only figure written to `whoopEnergyHourly` (see `ActivityShapeEngine` above), reused rather than recomputed so the two copies of the basal-subtraction arithmetic cannot drift apart.
+- WHOOP's side is the bucket's stored `activeKcal` — the same active-only figure written to `whoopEnergyHourly`, reused rather than recomputed. It is normalized by wall-bucket duration, never sparse HR seconds. Apple is normalized by its own `coverageSeconds`.
 
 Fitting on totals (v1) baked resting metabolism into the ratio and diluted it: at a typical 70% basal share, a real active-energy ratio of 1.5 shows up as a total-based ratio of only ~1.15. Applying THAT diluted factor to active energy alone — which is what `EnergyEngine.burn` has always done — systematically under-corrected. The fix therefore touches both ends together: the fit's inputs (here) and where the factor is applied (`EnergyEngine.burn`, above — `rawActive = strapTotal − observedBasal`, then `active = rawActive × factor`; **never** a straight multiplier on the raw WHOOP total, and never applied to the legacy branch that has no coverage denominator to isolate basal from).
 
-`EnergyCalibrationFit.modelVersion` moved to `"watch-reference-v2"` for exactly this reason: `Repository.energyCalibrationState` treats a stored fit as `.active` only when its version matches, so a v1 (total-based) fit reads as absent — back to `.learning` — rather than being applied as though it had been fitted on active-only energy. No migration needed; the version check does the invalidation.
+`EnergyCalibrationFit.modelVersion` is `"watch-reference-v3"`. `Repository.energyCalibrationState` treats a stored fit as `.active` only when its version matches, so older fits read as `.learning` rather than being applied under changed inclusion rules. Calibration remains opt-in and is not ground truth.
+
+### `EnergyValidation` / `Tools/EnergyBench` — external release gate
+
+Algorithm tests prove invariants (monotonicity, no 50%-HRR jump, the 0.5-MET quiet-HR ceiling, context precedence); they do **not** prove calorie accuracy. That claim requires an external study. `EnergyBench` consumes interval labels from indirect calorimetry, evaluates only rows explicitly marked `holdout`, and uses a simultaneously worn Apple Watch as the secondary non-inferiority comparator — never as training truth.
+
+The pre-registered gate requires ≥20 held-out participants; ≥20 intervals each for sedentary, unresolved elevated HR, locomotion and confirmed workout; ≤15% overall WAPE; ≤10% absolute bias; ≤25% WAPE per required context; NOOP no more than three percentage points worse than Apple; and 80–99% empirical coverage of the published uncertainty intervals. The CLI exits non-zero while any condition is missing or fails. **No repository test or Watch calibration satisfies this gate, and v4 must not be described as “Apple-Watch-accurate” until a real held-out calorimetry dataset passes it.**
 
 ### `AdaptiveExpenditureEngine` — retrospective TDEE from intake + weight trend
 

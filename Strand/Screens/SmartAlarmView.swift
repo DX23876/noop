@@ -179,7 +179,7 @@ struct SmartAlarmView: View {
                     Text("Morning").strandOverline()
                     HStack(spacing: 10) {
                         Image(systemName: "alarm.fill")
-                            .appleInspiredForeground("alarms")
+                            .appleInspiredMenuIcon("alarms")
                             .accessibilityHidden(true)
                         Text("Strap wake-alarm")
                             .font(StrandFont.title2)

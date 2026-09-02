@@ -313,10 +313,10 @@ captured only when the research toggle is on. Decoded data is always committed *
 so pruning raw (`PrunePolicy`: 24h window / 50MB cap) can never lose a metric. `cursors` holds durable
 watermarks such as `strap_trim`.
 
-**Energy model** (v45–v47) — `healthEnergyBucket` (a bounded five-minute Apple Health reference
+**Energy model** (v45–v49) — `healthEnergyBucket` (a bounded five-minute Apple Health reference
 stream, Apple Watch buckets only eligible), `whoopDailyEnergy` (the derived WHOOP-first daily total
-and its evidence mix), `energyCalibrationModel` (the opt-in, bounded Apple-Watch-reference
-calibration fit). Kept deliberately separate from `dailyMetric`/`appleDaily` so no import or refit
+and its evidence/context mix), `whoopEnergyHourly` (the hourly active-energy shape), and
+`energyCalibrationModel` (the opt-in, bounded Apple-Watch-reference calibration fit). Kept deliberately separate from `dailyMetric`/`appleDaily` so no import or refit
 can silently change another table's number — see `docs/DATA_MODEL.md` §Energy model tables and
 `docs/ANALYTICS.md` §Daily energy.
 

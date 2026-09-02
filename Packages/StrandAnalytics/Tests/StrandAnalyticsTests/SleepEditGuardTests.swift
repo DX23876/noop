@@ -112,6 +112,73 @@ final class SleepEditGuardTests: XCTestCase {
         XCTAssertEqual(corrected, candidate)
     }
 
+    // MARK: - Rule 1b: the mirror roll (bed corrected FORWARD across midnight)
+
+    /// THE REPORTED SHAPE: night 23:34 Mon -> 10:15 Tue. The picker seeds the bed on MONDAY; the user
+    /// rolls the TIME to 00:30 meaning Tuesday morning, and the date stays Monday -> a ~34 h window that
+    /// `clampedEditWindow` refuses, which showed up as a dead Save button. The guard snaps it forward.
+    func testCrossMidnightRollForwardIncrementsDate() {
+        let previous = date(2026, 8, 3, 23, 34)     // seeded onset, Monday evening
+        let candidate = date(2026, 8, 3, 0, 30)     // rolled to 00:30, date left on Monday
+        let wake = date(2026, 8, 4, 10, 15)
+        let now = date(2026, 8, 4, 11, 0)
+        let corrected = SleepEditGuard.autoCorrectedBed(
+            previousBed: previous, candidateBed: candidate, originalWake: wake, now: now,
+            currentWake: wake, calendar: cal)
+        XCTAssertEqual(corrected, date(2026, 8, 4, 0, 30))
+    }
+
+    /// A long-but-plausible night (14 h, inside `maxAutoCorrectNightSec`) is NOT nudged forward: the
+    /// implausibility test and the rescue share the same bound, so only impossible spans move.
+    func testLongButPlausibleNightIsNotIncremented() {
+        let previous = date(2026, 8, 3, 21, 0)
+        let candidate = date(2026, 8, 3, 20, 0)
+        let wake = date(2026, 8, 4, 10, 0)          // 14 h window
+        let now = date(2026, 8, 4, 11, 0)
+        let corrected = SleepEditGuard.autoCorrectedBed(
+            previousBed: previous, candidateBed: candidate, originalWake: wake, now: now,
+            currentWake: wake, calendar: cal)
+        XCTAssertEqual(corrected, candidate)
+    }
+
+    /// Without `currentWake` (the "Add a nap" sheet, and every pre-existing caller) the new rule is
+    /// inert — the same impossible span stays verbatim.
+    func testIncrementNeedsCurrentWakeAndIsOtherwiseInert() {
+        let previous = date(2026, 8, 3, 23, 34)
+        let candidate = date(2026, 8, 3, 0, 30)
+        let now = date(2026, 8, 4, 11, 0)
+        let corrected = SleepEditGuard.autoCorrectedBed(
+            previousBed: previous, candidateBed: candidate, originalWake: date(2026, 8, 4, 10, 15),
+            now: now, calendar: cal)
+        XCTAssertEqual(corrected, candidate)
+    }
+
+    /// Decrement keeps precedence: a candidate that is BOTH in the future and impossibly far from the
+    /// wake resolves the #940 way (back a day), never forward into a future-dated night.
+    func testDecrementWinsOverIncrement() {
+        let previous = date(2026, 7, 2, 1, 6)
+        let candidate = date(2026, 7, 2, 23, 0)     // future at 05:03, and at/after the wake
+        let wake = date(2026, 7, 2, 5, 0)
+        let now = date(2026, 7, 2, 5, 3)
+        let corrected = SleepEditGuard.autoCorrectedBed(
+            previousBed: previous, candidateBed: candidate, originalWake: wake, now: now,
+            currentWake: wake, calendar: cal)
+        XCTAssertEqual(corrected, date(2026, 7, 1, 23, 0))
+    }
+
+    /// An increment that would land in the FUTURE is refused — the clamp behind it must never be handed
+    /// a future-dated bed.
+    func testIncrementThatLandsInTheFutureIsNotApplied() {
+        let previous = date(2026, 8, 4, 23, 30)
+        let candidate = date(2026, 8, 4, 2, 0)
+        let wake = date(2026, 8, 5, 23, 0)
+        let now = date(2026, 8, 4, 12, 0)           // incremented bed (5 Aug 02:00) is still ahead of now
+        let corrected = SleepEditGuard.autoCorrectedBed(
+            previousBed: previous, candidateBed: candidate, originalWake: wake, now: now,
+            currentWake: wake, calendar: cal)
+        XCTAssertEqual(corrected, candidate)
+    }
+
     // MARK: - Rule 2: disjoint-from-coverage detection
 
     func testOverlappingWindowIsNotDisjoint() {

@@ -141,7 +141,7 @@ final class EnergyEngineTests: XCTestCase {
         }
     }
 
-    func testStrapTopUpUsesObservedSecondsNotCaloriesDividedByBmr() {
+    func testStrapTopUpUsesRepresentedSecondsNotCaloriesDividedByBmr() {
         let covered = 10_800
         let strap = bmr * 0.125 + 700
         let summary = EnergyEngine.summarize(
@@ -168,7 +168,8 @@ final class EnergyEngineTests: XCTestCase {
             context: context(elapsed: 0.5, today: true))
         XCTAssertEqual(summary.basalBurnedSoFar ?? 0, bmr * 0.5, accuracy: 1)
         XCTAssertEqual(summary.totalBurnedSoFar ?? 0, 300 + bmr * 0.5, accuracy: 1)
-        XCTAssertEqual(summary.projectedTotalBurn ?? 0, bmr + 600, accuracy: 1)
+        XCTAssertNil(summary.projectedTotalBurn)
+        XCTAssertEqual(summary.forecastStatus, .learning)
     }
 
     func testProjectionExtrapolatesActiveEnergyAndAddsBmrOnce() {
@@ -176,7 +177,7 @@ final class EnergyEngineTests: XCTestCase {
             inputs(appleActive: 300, appleBasal: bmr * 0.5), profile: profile,
             context: context(elapsed: 0.5, today: true))
         XCTAssertEqual(summary.totalBurnedSoFar ?? 0, bmr * 0.5 + 300, accuracy: 1)
-        XCTAssertEqual(summary.projectedTotalBurn ?? 0, bmr + 600, accuracy: 1)
+        XCTAssertNil(summary.projectedTotalBurn)
     }
 
     // MARK: - Personal day shape, TDEE prior, forecast interval
@@ -189,18 +190,14 @@ final class EnergyEngineTests: XCTestCase {
         return ActivityShapeEngine.fit(days: days)!
     }
 
-    /// The formula must COLLAPSE to the previous arithmetic when no shape applies — algebraically
-    /// identical, not merely close, so a user without history sees no change at all.
-    func testWithoutAShapeTheProjectionIsBitIdenticalToTheLinearModel() throws {
+    func testWithoutHistoryForecastStaysInLearningInsteadOfExtrapolating() throws {
         let inputs = EnergyEngine.DayInputs(day: "2026-08-25", appleActiveKcal: 400,
                                             appleBasalKcal: 900)
         let context = EnergyEngine.DayContext(isToday: true, dayDurationSeconds: 86_400,
                                               elapsedSeconds: 43_200)
         let summary = EnergyEngine.summarize(inputs, profile: profile, context: context)
-        let bmr = try XCTUnwrap(Calories.bmrKcalPerDay(profile: profile))
-        // The old expression for an appleSplit day: basal + bmr*(1-f) + active/f.
-        XCTAssertEqual(try XCTUnwrap(summary.projectedTotalBurn),
-                       900 + bmr * 0.5 + 400 / 0.5, accuracy: 0.0001)
+        XCTAssertNil(summary.projectedTotalBurn)
+        XCTAssertEqual(summary.forecastStatus, .learning)
     }
 
     /// The defect this replaces: an 08:00 workout extrapolated linearly projects a fantastical day.
@@ -211,15 +208,11 @@ final class EnergyEngineTests: XCTestCase {
         // 09:00 — 37.5% of the day gone, but a morning person has banked nearly all their activity.
         let context = EnergyEngine.DayContext(isToday: true, dayDurationSeconds: 86_400,
                                               elapsedSeconds: 9 * 3_600)
-        let linear = EnergyEngine.summarize(inputs, profile: profile, context: context)
         let shaped = EnergyEngine.summarize(inputs, profile: profile, context: context,
                                             shape: shape(peakHours: [6, 7, 8]))
-        let linearValue = try XCTUnwrap(linear.projectedTotalBurn)
         let shapedValue = try XCTUnwrap(shaped.projectedTotalBurn)
-        XCTAssertLessThan(shapedValue, linearValue,
-                          "a curve that says the activity is already done must lower the forecast")
-        // Linear credits 600/0.375 = 1600 active; the shape credits close to the 600 actually burned.
-        XCTAssertLessThan(shapedValue, linearValue - 500)
+        let oldLinear = 300 + bmr * (1 - 0.375) + 600 / 0.375
+        XCTAssertLessThan(shapedValue, oldLinear - 500)
     }
 
     /// The mirror case: a quiet morning before an evening session must NOT be read as a quiet day.
@@ -228,16 +221,12 @@ final class EnergyEngineTests: XCTestCase {
                                             appleBasalKcal: 500)
         let context = EnergyEngine.DayContext(isToday: true, dayDurationSeconds: 86_400,
                                               elapsedSeconds: 14 * 3_600)
-        let linear = EnergyEngine.summarize(inputs, profile: profile, context: context)
         let shaped = EnergyEngine.summarize(inputs, profile: profile, context: context,
                                             shape: shape(peakHours: [18, 19, 20]))
-        XCTAssertGreaterThan(try XCTUnwrap(shaped.projectedTotalBurn),
-                             try XCTUnwrap(linear.projectedTotalBurn))
+        XCTAssertGreaterThan(try XCTUnwrap(shaped.projectedTotalBurn), 500 + bmr * (10.0 / 24.0) + 60)
     }
 
-    /// The multiplier is clamped: a near-zero point on the curve must not turn a few kcal at dawn
-    /// into a five-figure day.
-    func testRemainingActivityMultiplierIsClamped() throws {
+    func testQuietMorningUsesHistoricalRemainderWithoutSixTimesExplosion() throws {
         let inputs = EnergyEngine.DayInputs(day: "2026-08-25", appleActiveKcal: 40,
                                             appleBasalKcal: 200)
         let context = EnergyEngine.DayContext(isToday: true, dayDurationSeconds: 86_400,
@@ -245,25 +234,23 @@ final class EnergyEngineTests: XCTestCase {
         let shaped = EnergyEngine.summarize(inputs, profile: profile, context: context,
                                             shape: shape(peakHours: [20, 21]))
         let bmr = try XCTUnwrap(Calories.bmrKcalPerDay(profile: profile))
-        let ceiling = 240 + bmr + 40 * EnergyEngine.maxRemainingActivityMultiplier
+        let ceiling = 240 + bmr + 500
         XCTAssertLessThanOrEqual(try XCTUnwrap(shaped.projectedTotalBurn), ceiling)
     }
 
-    /// The prior tempers a thinly-covered forecast, and drops out entirely once the day is well seen.
-    func testAdaptivePriorShrinksAThinlyCoveredForecastButNotAWellCoveredOne() throws {
+    func testAdaptivePriorDoesNotRewriteTheWearableForecast() throws {
         let context = EnergyEngine.DayContext(isToday: true, dayDurationSeconds: 86_400,
                                               elapsedSeconds: 43_200)
         func projection(coverageSeconds: Int, prior: Double?) throws -> Double {
             let inputs = EnergyEngine.DayInputs(day: "2026-08-25", strapTotalKcal: 1_500,
                                                 strapCoverageSeconds: coverageSeconds)
             return try XCTUnwrap(EnergyEngine.summarize(inputs, profile: profile, context: context,
+                                                        shape: shape(peakHours: [7, 12, 18]),
                                                         adaptivePriorKcal: prior).projectedTotalBurn)
         }
-        // Barely-covered day: the prior pulls the forecast down toward measured maintenance.
         let thinBare = try projection(coverageSeconds: 3_600, prior: nil)
         let thinWithPrior = try projection(coverageSeconds: 3_600, prior: 2_400)
-        XCTAssertLessThan(thinWithPrior, thinBare)
-        // Well-covered day: full sensor weight, prior contributes nothing.
+        XCTAssertEqual(thinWithPrior, thinBare, accuracy: 0.001)
         let fullBare = try projection(coverageSeconds: 43_000, prior: nil)
         let fullWithPrior = try projection(coverageSeconds: 43_000, prior: 2_400)
         XCTAssertEqual(fullWithPrior, fullBare, accuracy: 0.001)
@@ -277,8 +264,10 @@ final class EnergyEngineTests: XCTestCase {
         let context = EnergyEngine.DayContext(isToday: true, dayDurationSeconds: 86_400,
                                               elapsedSeconds: 43_200)
         let noSignal = inputs(appleActive: 400, appleBasal: 900)
-        let bare = EnergyEngine.summarize(noSignal, profile: profile, context: context)
+        let activity = shape(peakHours: [7, 12, 18])
+        let bare = EnergyEngine.summarize(noSignal, profile: profile, context: context, shape: activity)
         let withPrior = EnergyEngine.summarize(noSignal, profile: profile, context: context,
+                                               shape: activity,
                                                adaptivePriorKcal: 2_400)
         XCTAssertNil(bare.coverage.energy)
         XCTAssertEqual(bare.confidence, .solid)
@@ -287,16 +276,17 @@ final class EnergyEngineTests: XCTestCase {
                        "an unknown coverage signal must not shrink a forecast the ladder calls solid")
     }
 
-    /// A KNOWN-thin Apple day is the case the prior actually exists for, and must still shrink.
-    func testKnownThinCoverageStillLetsThePriorTemperTheForecast() throws {
+    func testKnownThinCoverageDoesNotLetAdaptiveEstimateTemperForecast() throws {
         let context = EnergyEngine.DayContext(isToday: true, dayDurationSeconds: 86_400,
                                               elapsedSeconds: 43_200)
         let thin = inputs(appleActive: 400, appleBasal: 900, appleCoverage: 3_600)
-        let bare = EnergyEngine.summarize(thin, profile: profile, context: context)
+        let activity = shape(peakHours: [7, 12, 18])
+        let bare = EnergyEngine.summarize(thin, profile: profile, context: context, shape: activity)
         let withPrior = EnergyEngine.summarize(thin, profile: profile, context: context,
+                                               shape: activity,
                                                adaptivePriorKcal: 2_400)
-        XCTAssertLessThan(try XCTUnwrap(withPrior.projectedTotalBurn),
-                          try XCTUnwrap(bare.projectedTotalBurn))
+        XCTAssertEqual(try XCTUnwrap(withPrior.projectedTotalBurn),
+                       try XCTUnwrap(bare.projectedTotalBurn), accuracy: 0.001)
     }
 
     /// A non-positive strap total is "no strap data" to `burn(...)` (it guards `strap > 0`), so every
@@ -336,7 +326,8 @@ final class EnergyEngineTests: XCTestCase {
                                                 strapCoverageSeconds: 40_000,
                                                 strapUncertaintyFraction: uncertainty)
             let range = try XCTUnwrap(EnergyEngine.summarize(
-                inputs, profile: profile, context: context).projectedRangeKcal)
+                inputs, profile: profile, context: context,
+                shape: shape(peakHours: [7, 12, 18])).projectedRangeKcal)
             return range.upperBound - range.lowerBound
         }
         XCTAssertLessThan(try width(uncertainty: 0.05), try width(uncertainty: 0.35))

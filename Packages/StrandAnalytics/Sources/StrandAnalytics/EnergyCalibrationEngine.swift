@@ -7,23 +7,23 @@ public struct EnergyCalibrationPoint: Equatable, Sendable {
     public let whoopKcal: Double
     public let appleWatchKcal: Double
     public let overlapQuality: Double
+    public let context: EnergyContext
 
     public init(timestamp: Int, whoopKcal: Double, appleWatchKcal: Double,
-                overlapQuality: Double) {
+                overlapQuality: Double, context: EnergyContext = .confirmedWorkout) {
         self.timestamp = timestamp
         self.whoopKcal = whoopKcal
         self.appleWatchKcal = appleWatchKcal
         self.overlapQuality = overlapQuality
+        self.context = context
     }
 }
 
 public struct EnergyCalibrationFit: Equatable, Sendable {
-    /// v2 (2026-08-25): the fit compares ACTIVE-only energy on both sides — previously it compared
-    /// Apple's active+basal total against WHOOP's, which baked resting metabolism into the ratio and
-    /// diluted it (`EnergyEngine.burn` applies the factor to active energy alone). Bumped rather than
-    /// edited in place so a stored v1 fit is treated as absent — a state that reads `.learning` again,
-    /// not one masquerading as `.active` on a factor it was never fitted for.
-    public static let modelVersion = "watch-reference-v2"
+    /// v3 (2026-08-28): only independently confirmed locomotion/workout buckets train the fit and
+    /// Apple zero-active buckets remain in the robust regression, so WHOOP false positives can pull
+    /// the factor down instead of being silently discarded. A stored v2 fit returns to `.learning`.
+    public static let modelVersion = "watch-reference-v3"
     public let factor: Double
     public let sampleDays: Int
     public let sampleBuckets: Int
@@ -45,8 +45,9 @@ public enum EnergyCalibrationEngine {
         let usable = points.filter {
             $0.whoopKcal.isFinite && $0.appleWatchKcal.isFinite
                 && $0.overlapQuality.isFinite && $0.overlapQuality >= minimumOverlapQuality
-                && $0.whoopKcal >= 0.2 && $0.appleWatchKcal >= 0.2
+                && $0.whoopKcal >= 0.2 && $0.appleWatchKcal >= 0
                 && $0.whoopKcal <= 100 && $0.appleWatchKcal <= 100
+                && ($0.context == .locomotion || $0.context == .confirmedWorkout)
         }
         guard usable.count >= minimumBuckets else { return nil }
         let days = Set(usable.map {
@@ -63,12 +64,33 @@ public enum EnergyCalibrationEngine {
             ? rawRatios.filter { abs($0 - centre) <= 3 * mad }
             : rawRatios.filter { abs($0 - centre) <= 0.001 }
         guard trimmed.count >= minimumBuckets else { return nil }
-        let factor = min(factorRange.upperBound, max(factorRange.lowerBound, median(trimmed)))
+        // Robust Huber slope through the origin, including Apple zero-active buckets. The old positive-
+        // ratio-only fit could never learn that WHOOP had produced a false positive.
+        let retained = usable.filter { point in
+            let ratio = point.appleWatchKcal / point.whoopKcal
+            return mad == 0 ? abs(ratio - centre) <= 0.001 : abs(ratio - centre) <= 3 * mad
+        }
+        guard retained.count >= minimumBuckets else { return nil }
+        var slope = median(trimmed)
+        for _ in 0..<8 {
+            let residuals = retained.map { abs($0.appleWatchKcal - slope * $0.whoopKcal) }.sorted()
+            let delta = max(0.25, 1.5 * median(residuals))
+            var numerator = 0.0
+            var denominator = 0.0
+            for point in retained {
+                let residual = abs(point.appleWatchKcal - slope * point.whoopKcal)
+                let weight = residual <= delta ? 1.0 : delta / residual
+                numerator += weight * point.whoopKcal * point.appleWatchKcal
+                denominator += weight * point.whoopKcal * point.whoopKcal
+            }
+            if denominator > 0 { slope = numerator / denominator }
+        }
+        let factor = min(factorRange.upperBound, max(factorRange.lowerBound, slope))
         let mean = trimmed.reduce(0, +) / Double(trimmed.count)
         let variance = trimmed.reduce(0) { $0 + pow($1 - mean, 2) } / Double(trimmed.count)
         let cv = mean > 0 ? sqrt(variance) / mean : .infinity
         guard cv.isFinite, cv <= maximumCV else { return nil }
-        return .init(factor: factor, sampleDays: days.count, sampleBuckets: trimmed.count,
+        return .init(factor: factor, sampleDays: days.count, sampleBuckets: retained.count,
                      coefficientOfVariation: cv)
     }
 

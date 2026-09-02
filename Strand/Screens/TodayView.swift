@@ -306,8 +306,9 @@ struct TodayView: View {
 
     // 14-day sparkline series, keyed by metric key. Loaded once in .task.
     @State private var sparks: [String: [Double]] = [:]
-    /// Today's source-aware energy summary, or nil before loading / without usable inputs.
-    @State private var energySummary: DailyEnergySummary?
+    /// Canonical energy summaries by local day. The compact Calories tile and full Energy card both
+    /// read this map, so their total can never diverge by falling back to another source.
+    @State private var energySummariesByDay: [String: DailyEnergySummary] = [:]
     /// The smoothed weight summary behind the Weight tile's headline number, or nil before loading.
     @State private var weightSummary: WeightTrendSummary?
     @State private var workouts: [WorkoutRow] = []
@@ -481,6 +482,20 @@ struct TodayView: View {
     // home screen stays tight; the live content (#506) is unchanged, only the chrome folds. @State (not
     // persisted) so a relaunch starts collapsed again.
     @State private var synthesisExpanded = false
+
+    // MARK: Momentum (#momentum)
+    /// The kind currently on the card and when it took the slot, so `MomentumFeed` can hold it there for
+    /// its dwell. Persisted so the card does not change identity across a relaunch.
+    @AppStorage("momentum.lastKind") private var momentumLastKind = ""
+    @AppStorage("momentum.lastAt") private var momentumLastAt: Double = 0
+    /// "yyyy-MM-dd|kind,kind" — the kinds snoozed today. Day-stamped so it self-clears at the rollover.
+    @AppStorage("momentum.snoozed") private var momentumSnoozedRaw = ""
+    /// The optional daily step goal. 0 = not set, and the activity read then compares against the
+    /// wearer's own median instead of inventing a target.
+    @AppStorage("momentum.stepGoal") private var momentumStepGoal = 0
+    @State private var showMomentumMore = false
+    /// The resolved feed. Rebuilt only when `momentumKey` changes — see that type for why.
+    @State private var momentumFeed: [MomentumMessage] = []
 
     // S5: the Key Metrics grid caps at the first `metricsCollapsedCap` tiles behind a "Show all metrics"
     // expander, collapsing OVERFLOW only (never dropping or reordering a user-selected tile, #251). @State
@@ -1499,6 +1514,8 @@ struct TodayView: View {
         // Reload when the data refreshes OR the selected day changes, the HR trend and Rest score are
         // day-scoped, so navigating must re-fetch them for the newly selected window.
         .task(id: TodayLoadKey(seq: repo.refreshSeq, offset: selectedDayOffset)) { await loadAll() }
+        // Momentum is resolved here, not in the body — see `MomentumKey`.
+        .task(id: momentumKey) { rebuildMomentum() }
         // #989: hydration writes don't bump refreshSeq, so the card needs its own triggers, a logged /
         // edited / deleted drink (hydrationSeq) and the Settings feature toggle both re-read just the two
         // hydration fields. Cheap (one metricSeries row), never re-runs the heavy loads.
@@ -1583,6 +1600,24 @@ struct TodayView: View {
         // A1 (#514/#706): the Charge breakdown, opened by tapping the Today hero Charge ring. The body
         // builds lazily here (#819 lag) from the drivers DERIVED off the displayed row (never a second read).
         .sheet(isPresented: $showChargeBreakdown) { chargeBreakdownSheet }
+        // The header's "All" opens the Momentum DASHBOARD — the same feed at full size. Presented rather
+        // than pushed because Today's own NavigationStack is the tab's, and the card can be reached from
+        // any scroll position; the `showGoalJourney` sheet next to it does exactly the same.
+        .sheet(isPresented: $showMomentumMore) {
+            NavigationStack {
+                // The SAME resolved list the card is showing. Rebuilding here could hand the dashboard
+                // a different feed than the card the user just tapped.
+                MomentumView(messages: momentumFeed,
+                             recentDays: repo.days,
+                             onAction: { runMomentumAction($0) })
+                    .toolbar {
+                        ToolbarItem(placement: .confirmationAction) {
+                            Button("Done") { showMomentumMore = false }
+                        }
+                    }
+            }
+            .environmentObject(repo)
+        }
         // A tapped workout from `workoutsSection`, opened directly — mirrors WorkoutsView's own
         // `WorkoutDetailTarget` sheet exactly, so the detail looks identical wherever it's opened from.
         .sheet(item: $workoutDetailTarget) { target in
@@ -1877,10 +1912,13 @@ struct TodayView: View {
             switch signal.flag {
             case .good: return String(localized: "in the sweet spot (acute:chronic \(ratio))")
             case .bad: return String(localized: "spiking (acute:chronic \(ratio)) - higher injury risk")
-            case .watch: return acute < chronic
+            case .watch: return String(localized: "building fast (acute:chronic \(ratio)) - watch fatigue")
+            // Ramping down now carries `.neutral` (it is a state, not a concern — it no longer blocks
+            // `primed`). Without this branch it fell to the sweet-spot line, which would tell a wearer
+            // in the middle of a deload week that their load is exactly where it should be.
+            case .neutral: return acute < chronic
                 ? String(localized: "ramping down (acute:chronic \(ratio)) - room to build")
-                : String(localized: "building fast (acute:chronic \(ratio)) - watch fatigue")
-            case .neutral: return String(localized: "in the sweet spot (acute:chronic \(ratio))")
+                : String(localized: "in the sweet spot (acute:chronic \(ratio))")
             }
         }
         switch (signal.key, signal.flag) {
@@ -1893,7 +1931,10 @@ struct TodayView: View {
         case ("rhr", .bad): return String(localized: "elevated - overtraining or illness can do this")
         case ("respRate", .bad): return String(localized: "up vs baseline - sometimes an early sign of getting sick")
         case ("respRate", .watch): return String(localized: "slightly raised vs baseline")
-        case ("monotony", _): return String(localized: "low - similar strain every day raises strain/illness risk")
+        // Only `.watch` — the engine now emits this signal solely when the week actually carried load
+        // (see `ReadinessEngine`'s monotony gating). Matching on ANY flag was how a week of walks got
+        // told its days were "too similarly intense".
+        case ("monotony", .watch): return String(localized: "low - similar strain every day raises strain/illness risk")
         default: return String(localized: "in your normal range")
         }
     }
@@ -1979,7 +2020,7 @@ struct TodayView: View {
             // glanceable verdict without the full card.
             metricsSection
         case .energy:
-            if selectedDayOffset == 0, let energySummary {
+            if selectedDayOffset == 0, let energySummary = selectedEnergySummary {
                 NavigationLink(value: TabRoute.energy) {
                     EnergyCard(summary: energySummary)
                 }
@@ -2330,11 +2371,9 @@ struct TodayView: View {
             }
             .accessibilityElement(children: .combine)
 
-            // S4: the Synthesis card collapses to a single one-liner that EXPANDS on tap. Default collapsed
-            // so the home screen stays tight; the live content (#506) is unchanged, only the chrome folds.
-            // The headline (synthesisCardStatus / the calibration status / the DEBUG frame) stays visible in
-            // both states, so a glance still reads today's verdict; the detail body reveals on tap.
-            synthesisCollapsible(d: d, score: score)
+            // The Momentum card: the highest-ranked thing worth saying right now, with a way into the
+            // full feed. Resolved in a `.task`, never here — see `MomentumKey`.
+            momentumSection()
 
             if let note = effortZeroNote {
                 HStack(alignment: .top, spacing: 6) {
@@ -2352,98 +2391,185 @@ struct TodayView: View {
         }
     }
 
-    /// S4: the Synthesis card, collapsed to a one-liner that expands on tap. Collapsed: the category +
-    /// status headline + a chevron. Expanded: the FULL `InsightCard` (status + detail), the existing locked
-    /// component, unchanged. The headline is the SAME `synthesisCardStatus` / calibration / DEBUG-frame copy
-    /// in both states (#506 content untouched), so only the chrome folds, never the read.
-    /// Plain (non-ViewBuilder) resolver for the Synthesis headline + detail. Kept OUT of the @ViewBuilder
-    /// body below because an if/else of assignments inside a ViewBuilder is read as a Void "view" and fails
-    /// to compile. The copy is identical in the collapsed and expanded states (#506 content untouched).
-    private func synthesisCopy(d: DailyMetric?, score: Double?) -> (status: LocalizedStringKey, detail: LocalizedStringKey) {
-        #if DEBUG
-        if let f = DemoDayHarness.active {
-            return ("\(f.synthHeadline)", "\(f.synthBody)")
+    /// String twins of `calibrationStatus` / `calibrationDetail`. The originals are `LocalizedStringKey`,
+    /// which a `MomentumMessage` cannot carry — its strings arrive already localized so the pure feed
+    /// stays free of a catalog. The literals are IDENTICAL, so both forms resolve to the same catalog
+    /// entries and no new translation work is created.
+    private var calibrationStatusText: String? {
+        recoveryCalibration == nil ? nil : String(localized: "Calibrating")
+    }
+    private var calibrationDetailText: String? {
+        guard let n = recoveryCalibration else { return nil }
+        if let stale = Baselines.nightsSinceNewestValidNight(dayKeys: repo.days.map(\.day),
+                                                             nightlyHrv: repo.days.map(\.avgHrv),
+                                                             today: Repository.logicalDayKey(Date())),
+           stale > Baselines.staleDays {
+            return String(localized: "No new nights from your strap for \(stale) days. Check it's connected and saving data.")
         }
-        #endif
-        // Paket 4: a set exception status is an explicit user statement, so it outranks even the
-        // calibration/normal copy chain — it wins during calibration too, not just once readiness is live.
-        if status.state != .active {
-            let s = BaseCardStatement.current(status: status, readiness: readiness)
-            return (LocalizedStringKey(s.headline), LocalizedStringKey(s.summary))
-        }
-        return (calibrationStatus ?? "\(synthesisCardStatus(d, score: score))",
-                calibrationDetail ?? "\(synthesisCardDetail(d, score: score))")
+        return String(localized: "Learning your baseline, \(n) of \(Baselines.minNightsSeed) nights.")
     }
 
-    @ViewBuilder
-    private func synthesisCollapsible(d: DailyMetric?, score: Double?) -> some View {
-        // Resolve the headline + detail once so the collapsed line and the expanded card never disagree.
-        let copy = synthesisCopy(d: d, score: score)
-        let status = copy.status
-        let detail = copy.detail
+    /// This screen's half of the Momentum inputs. Everything derived identically for both Today
+    /// variants (medians, sleep need, goals, plan, strain run) lives in `MomentumBuilder.inputs(_:)`;
+    /// this only supplies what is genuinely screen-specific.
+    private func momentumContext(d: DailyMetric?) -> MomentumBuilder.Context {
+        var c = MomentumBuilder.Context()
+        c.displayDay = d
+        c.lastScoredDay = lastScoredRecoveryDay
+        c.allDays = repo.days
+        c.dayKey = selectedDayKey
+        c.isToday = selectedDayOffset == 0
+        c.carriedCaption = lastScoredRecoveryDay.map { carriedCaption($0) }
 
-        if synthesisExpanded {
-            // Expanded: the same compact card chrome with the detail line revealed.
-            Button {
-                withAnimation(StrandMotion.interactive) { synthesisExpanded = false }
-            } label: {
-                NoopCard(tint: StrandPalette.chargeColor) {
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack(alignment: .firstTextBaseline, spacing: 8) {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("Synthesis").strandOverline()
-                                Text(status)
-                                    .font(StrandFont.headline)
-                                    .foregroundStyle(StrandPalette.textPrimary)
-                                    .lineLimit(1)
-                                    .minimumScaleFactor(0.85)
-                            }
-                            Spacer(minLength: 8)
-                            Image(systemName: "chevron.up")
-                                .font(.system(size: 12, weight: .bold))
-                                .foregroundStyle(StrandPalette.textTertiary)
-                        }
-                        Text(detail)
-                            .font(StrandFont.subhead)
-                            .foregroundStyle(StrandPalette.textSecondary)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .contentShape(Rectangle())
-                }
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Synthesis. \(status)")
-            .accessibilityHint("Collapse")
-        } else {
-            // Collapsed: the same card chrome with only the status headline and a down-chevron.
-            Button {
-                withAnimation(StrandMotion.interactive) { synthesisExpanded = true }
-            } label: {
-                NoopCard(tint: StrandPalette.chargeColor) {
-                    HStack(alignment: .firstTextBaseline, spacing: 8) {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Synthesis").strandOverline()
-                            Text(status)
-                                .font(StrandFont.headline)
-                                .foregroundStyle(StrandPalette.textPrimary)
-                                .lineLimit(1)
-                                .minimumScaleFactor(0.85)
-                        }
-                        Spacer(minLength: 8)
-                        Image(systemName: "chevron.down")
-                            .font(.system(size: 12, weight: .bold))
-                            .foregroundStyle(StrandPalette.textTertiary)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .contentShape(Rectangle())
-                }
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Synthesis. \(status)")
-            .accessibilityHint("Expand for the full read")
+        // An explicit sick / injured / on-break statement outranks anything inferred.
+        if status.state != .active {
+            c.statusOverride = BaseCardStatement.current(status: status, readiness: readiness)
         }
+        if let h = calibrationStatusText, let dtl = calibrationDetailText {
+            c.calibration = (headline: h, detail: dtl)
+        }
+
+        // Steps: the measured figure and the strap estimate stay apart — only the measured one may
+        // carry a remaining count (see the gate in the builder).
+        let appleSteps = appleDays.last(where: { $0.day == selectedDayKey })?.steps
+        c.measuredSteps = d?.steps ?? appleSteps
+        c.estimatedSteps = stepsEstByDay[selectedDayKey]
+        c.stepGoal = momentumStepGoal
+
+        // A commitment made for TODAY that has not been recorded. Resolved through the SAME selector
+        // the Plan card on this screen uses, so the two cannot disagree about what is still open.
+        if selectedDayOffset == 0,
+           let next = PlanTodayCard.next(from: CoachPlanStore.shared.proposals,
+                                         today: selectedDayKey, now: Date()),
+           next.day == selectedDayKey, (d?.exerciseCount ?? 0) == 0 {
+            // `sport` is what the proposal actually names (there is no title field) — "Run", "Strength".
+            c.openPlannedSessionToday = next.sport
+        }
+        return c
+    }
+
+    /// What the Momentum feed actually depends on.
+    ///
+    /// The feed used to be assembled inside the view body, and this body recomposes with live heart
+    /// rate — so several passes over ~120 daily rows, a sort, a plan scan and two freshly-built text
+    /// blocks ran about once a second. Same fix `SleepView` uses (`model` + `modelKey`): a cheap key,
+    /// and the real work only when it moves.
+    ///
+    /// `hour` is the load-bearing member. The time-of-day weighting is the ONE input that changes
+    /// without any new data, so a key without it would freeze the card on whatever it said at launch —
+    /// the optimisation would silently switch off the feature it is optimising.
+    struct MomentumKey: Equatable {
+        let refreshSeq: Int
+        let dayOffset: Int
+        let hour: Int
+        let lastShownKind: String
+        let snoozed: String
+        let goalsUpdatedAt: Date?
+        let statusState: String
+    }
+
+    private var momentumKey: MomentumKey {
+        MomentumKey(refreshSeq: repo.refreshSeq,
+                    dayOffset: selectedDayOffset,
+                    hour: Calendar.current.component(.hour, from: Date()),
+                    lastShownKind: momentumLastKind,
+                    snoozed: momentumSnoozedRaw,
+                    goalsUpdatedAt: GoalTrackingStore.shared.lastUpdated,
+                    statusState: status.state.rawValue)
+    }
+
+    /// Resolve the feed and publish it. Called from a `.task(id:)`, never from the body: the publish
+    /// writes to an `ObservableObject`, and doing that during a view update is what SwiftUI warns
+    /// about with "Modifying state during view update".
+    private func rebuildMomentum() {
+        let messages = momentumMessages(d: displayDay, score: displayDay?.recovery)
+        momentumFeed = messages
+        // Published so the dashboard opened from the More index or the macOS sidebar shows the same
+        // feed rather than assembling a second, subtly different one.
+        MomentumStore.shared.publish(messages, recentDays: repo.days)
+    }
+
+    /// The ranked Momentum messages for the shown day. The logic lives in `MomentumResolver` so the
+    /// Liquid Today screen resolves the identical feed rather than growing a second copy of it.
+    private func momentumMessages(d: DailyMetric?, score: Double?) -> [MomentumMessage] {
+        #if DEBUG
+        if let f = DemoDayHarness.active {
+            // The pinned frame LEADS; the real seeded candidates follow it. Returning only the frame
+            // (which is what this did first) left the entry point and the whole Momentum dashboard empty
+            // in exactly the demo sweep meant to show them, so a screenshot run could never capture
+            // either. Ranking is skipped on purpose — the frame decides the order for a capture.
+            let led = MomentumMessage(kind: f.momentumKind, tone: f.momentumTone,
+                                      headline: f.synthHeadline, detail: f.synthBody,
+                                      progress: f.momentumProgress.map {
+                                          MomentumProgress(fraction: $0.fraction, label: $0.label)
+                                      })
+            let rest = MomentumBuilder.candidates(MomentumBuilder.inputs(momentumContext(d: d)))
+                .filter { $0.kind != f.momentumKind }
+            return [led] + rest
+        }
+        #endif
+        return MomentumResolver.feed(context: momentumContext(d: d),
+                                     snoozedRaw: momentumSnoozedRaw,
+                                     lastKind: momentumLastKind,
+                                     lastAt: momentumLastAt,
+                                     retrospective: selectedDayOffset != 0)
+    }
+
+    private func snoozeMomentum(_ kind: MomentumKind, headline: String) {
+        momentumSnoozedRaw = MomentumResolver.snoozing(kind, into: momentumSnoozedRaw)
+        // Into the Updates inbox, so a dismissal is recoverable rather than a message the user can never
+        // get back — the same contract every other dismissable Today card honours.
+        //
+        // The entry NAMES the message. The card's content rotates through the day, so a generic
+        // "Momentum message hidden" left the user no way to tell which of them they had put away — and
+        // no way to judge whether they wanted it back. The × hides one message, not the card, and the
+        // inbox is where that has to be legible.
+        updateStore.post(UpdateItem(kind: .dismissedCard,
+                                    title: headline,
+                                    message: String(localized: "Hidden in Momentum for today. It can come back tomorrow."),
+                                    restorePayload: "momentum.\(kind.rawValue)"))
+    }
+
+    /// The Momentum card: the top-ranked message, with a chip onto the rest.
+    @ViewBuilder
+    private func momentumSection() -> some View {
+        let messages = momentumFeed
+        if let top = messages.first {
+            MomentumCard(
+                message: top,
+                remainingCount: max(0, messages.count - 1),
+                onOpenMore: { showMomentumMore = true },
+                onAction: { runMomentumAction($0) },
+                onDismiss: {
+                    withAnimation(StrandMotion.interactive) {
+                        snoozeMomentum(top.kind, headline: top.headline)
+                    }
+                })
+            // Record what is on screen so the dwell rule can keep it there. Only on a CHANGE, or the
+            // timestamp would reset on every body pass and the message would never age out.
+            .onAppear { noteMomentumShown(top.kind) }
+            .onChangeCompat(of: top.kind.rawValue) { _ in noteMomentumShown(top.kind) }
+        }
+    }
+
+    /// Where a Momentum action leads. One runner for both surfaces, so the card and the dashboard can
+    /// never send the same action to different places. The dashboard is dismissed first — otherwise its
+    /// sheet would sit on top of whatever the action opens.
+    private func runMomentumAction(_ destination: MomentumDestination) {
+        showMomentumMore = false
+        switch destination {
+        case .chargeBreakdown: showChargeBreakdown = true
+        case .goalJourney:     showGoalJourney = true
+        case .plan:            showPlan = true
+        case .liveSession:     showLiveSession = true
+        case .none:            break
+        }
+    }
+
+    private func noteMomentumShown(_ kind: MomentumKind) {
+        guard momentumLastKind != kind.rawValue else { return }
+        momentumLastKind = kind.rawValue
+        momentumLastAt = Date().timeIntervalSince1970
     }
 
     /// S4 (#205): the one-word readiness pill on the hero (Push / Maintain / Rest). A small tinted capsule
@@ -2606,9 +2732,12 @@ struct TodayView: View {
         case .stress:
             pinnedCardRow(icon: card.icon, tint: tint, title: card.title, subtitle: card.subtitle,
                           value: dashboardValue(card), route: .stress)
-        case .fitnessAge, .vo2max, .vitality, .steps, .calories:
+        case .fitnessAge, .vo2max, .vitality, .steps:
             pinnedCardRow(icon: card.icon, tint: tint, title: card.title, subtitle: card.subtitle,
                           value: dashboardValue(card), route: .health)
+        case .calories:
+            pinnedCardRow(icon: card.icon, tint: tint, title: card.title, subtitle: card.subtitle,
+                          value: dashboardValue(card), route: .energy)
         case .hrv, .restingHr, .respiratory, .bloodOxygen, .skinTemp:
             // The overnight vitals share the Health detail screen (the vital-signs surface).
             pinnedCardRow(icon: card.icon, tint: tint, title: card.title, subtitle: card.subtitle,
@@ -2630,6 +2759,9 @@ struct TodayView: View {
             // no coach button either (there's nothing for it to explain).
             pinnedCardRow(icon: card.icon, tint: tint, title: card.title, subtitle: card.subtitle,
                           value: dashboardValue(card), route: .coupled, showsCoachButton: false)
+        case .weight:
+            pinnedCardRow(icon: card.icon, tint: tint, title: card.title, subtitle: card.subtitle,
+                          value: dashboardValue(card), route: .weight)
         }
     }
 
@@ -2643,14 +2775,19 @@ struct TodayView: View {
         case .vitality:    return StrandPalette.restColor
         case .hrv:         return StrandPalette.metricPurple
         case .restingHr:   return StrandPalette.metricRose
-        case .respiratory: return StrandPalette.accent
+        // Was the CHROME accent, the same class of leak as Momentum's neutral tone (see
+        // `MomentumTint`): every sibling card here takes a data-world metric accent, and only this one
+        // fell back to the brand colour. Cyan matches Apple's own Respiratory category colour, and it's
+        // already what SpO2/steps/hydration use — this just stops being the exception.
+        case .respiratory: return StrandPalette.metricCyan
         case .bloodOxygen: return StrandPalette.metricCyan
         case .skinTemp:    return StrandPalette.metricAmber
         case .sleep:       return StrandPalette.restColor
         case .steps:       return StrandPalette.metricCyan
-        case .calories:    return StrandPalette.metricAmber
+        case .calories:    return StrandPalette.energyHighlight
         case .hydration:   return StrandPalette.metricCyan
         case .coupled:     return StrandPalette.chargeColor
+        case .weight:      return StrandPalette.metricRose
         }
     }
 
@@ -2727,9 +2864,7 @@ struct TodayView: View {
             let est = stepsEstByDay[selectedDayKey].map { intString(Double($0)) }
             return real ?? est ?? "—"
         case .calories:
-            // #843/#813 parity with the Steps card just above: scope to the SELECTED day, not the latest
-            // imported row, so a navigated past day shows that day's calories, not today's.
-            return withUnit(caloriesValue(appleDays.last(where: { $0.day == selectedDayKey })))
+            return withUnit(EnergyDisplay.totalText(selectedEnergySummary))
         case .stress:
             #if DEBUG
             // DEBUG promo harness: pin the Stress card (0–3) to the active frame's value. No-op otherwise.
@@ -2755,6 +2890,11 @@ struct TodayView: View {
             // A tap-through row with no metric value of its own, the row shows just the chevron. Returning
             // an empty string (not "—") renders no number and leaves it un-dimmed (it isn't a missing value).
             return ""
+        case .weight:
+            // Same three-tier resolution the classic Weight tile uses: trend when reliable, else the
+            // latest measurement, else the profile fallback — never a bare "—" once a profile weight exists.
+            let resolved = WeightSeries.displayWeight(summary: weightSummary, profileWeightKg: profile.weightKg)
+            return UnitFormatter.massFromKilograms(resolved.kg, system: unitSystem)
         }
     }
 
@@ -2991,72 +3131,6 @@ struct TodayView: View {
 
     // MARK: Synthesis card, today's read, or the carried last-scored read (#543)
 
-    /// The Synthesis status word, carrying the LAST scored day's read when today isn't scored yet (the
-    /// post-rollover state), so the card mirrors the carried Charge ring instead of reading "No Data".
-    /// When today IS scored (or there's nothing to carry) it's today's own `hrvInsightStatus`.
-    private func synthesisCardStatus(_ d: DailyMetric?, score: Double?) -> String {
-        if let prior = lastScoredRecoveryDay {
-            return hrvInsightStatus(prior, score: prior.recovery)
-        }
-        return hrvInsightStatus(d, score: score)
-    }
-
-    /// The Synthesis detail line. When carrying a prior scored day it summarises THAT day and appends a
-    /// "Last night · <date>" provenance, so the prior read is never silently passed off as today's.
-    private func synthesisCardDetail(_ d: DailyMetric?, score: Double?) -> String {
-        if let prior = lastScoredRecoveryDay {
-            return hrvInsightDetail(prior, score: prior.recovery) + " " + carriedCaption(prior) + "."
-        }
-        return hrvInsightDetail(d, score: score)
-    }
-
-    /// The Synthesis status colour, keyed on the carried prior recovery when carrying, else today's.
-    private func synthesisCardColor(score: Double?) -> Color {
-        if let rec = lastScoredRecoveryDay?.recovery {
-            return StrandPalette.recoveryColor(rec)
-        }
-        return score.map { StrandPalette.recoveryColor($0) } ?? StrandPalette.textTertiary
-    }
-
-    /// Screen-4 insight headline, when the HRV baseline is established, the gold "primed" read
-    /// keyed on how far today's HRV sits above/below the learned baseline ("HRV 12% over baseline");
-    /// otherwise the recovery-state word. Purely a re-presentation of the existing recovery + HRV
-    /// bindings (no new computation beyond the baseline mean already available on `repo.days`).
-    private func hrvInsightStatus(_ d: DailyMetric?, score: Double?) -> String {
-        guard let pct = hrvBaselineDeltaPct(d) else { return synthesisWord(score) }
-        return pct >= 0
-            ? String(localized: "HRV \(abs(pct))% over baseline")
-            : String(localized: "HRV \(abs(pct))% under baseline")
-    }
-
-    /// The supporting line for the screen-4 insight: the primed/steady read tied to the HRV delta,
-    /// folding in the recovery-state synthesis so the card still reads as a coaching summary.
-    private func hrvInsightDetail(_ d: DailyMetric?, score: Double?) -> String {
-        guard let pct = hrvBaselineDeltaPct(d) else { return synthesisDetail(d) }
-        let lead: String
-        if pct >= 8 { lead = String(localized: "Your nervous system is well-recovered, so you're primed to push") }
-        else if pct >= -8 { lead = String(localized: "You're in balance with your baseline, so moderate strain is well-judged") }
-        else { lead = String(localized: "HRV is below your baseline, so ease into the day") }
-        return lead + ". " + synthesisDetail(d)
-    }
-
-    /// Today's HRV as a percentage above/below the learned baseline (mean of prior nights' avgHrv),
-    /// rounded to a whole percent. nil until there are enough banked HRV nights to form a stable
-    /// baseline (mirrors the recovery seed gate), the insight then falls back to the state word.
-    private func hrvBaselineDeltaPct(_ d: DailyMetric?) -> Int? {
-        guard let today = d?.avgHrv, today > 0 else { return nil }
-        // Baseline = mean of the prior nights' HRV, excluding the row being read so "vs baseline"
-        // compares it against the rest of history. Excludes the row's OWN day (not always the selected
-        // day) so a carried prior-day synthesis (#543) isn't compared against a baseline that includes
-        // itself. Needs the same seed depth recovery uses to be honest.
-        let excludeDay = d?.day ?? selectedDayKey
-        let prior = repo.days
-            .filter { $0.day != excludeDay }
-            .compactMap(\.avgHrv)
-            .filter { $0 > 0 }
-        return Self.hrvBaselineDeltaPct(today: today, priorHrvs: prior)
-    }
-
     /// Pure core of the HRV-vs-baseline delta: today's HRV against the mean of the prior nights' HRV,
     /// rounded to a whole percent. nil until there are enough banked HRV nights to form a stable
     /// baseline (mirrors the recovery seed gate), the insight then falls back to the state word.
@@ -3113,8 +3187,10 @@ struct TodayView: View {
         // and never clips. Until the first layout measures width, fall back to a sensible phone width so the
         // rings render at a reasonable size on the very first frame rather than collapsing.
         let measured = heroRingRowWidth > 1 ? heroRingRowWidth : 345
-        // Design Reset: three EQUAL clean rings (no glow, faint track) in Charge / Effort / Rest order with
-        // generous spacing, mirroring the flat mockup. Sized off width so they stay equal on any phone.
+        // Three EQUAL clean rings (no glow, faint track) in EFFORT / CHARGE / REST order: Charge sits in
+        // the MIDDLE, which is where the eye lands first, so it leads the row without being drawn bigger
+        // than its peers. Sized off the measured width so they stay equal on any phone; the row stays
+        // self-sizing (#762).
         let ring = Self.heroRingDiameter(rowWidth: measured)
         HStack(alignment: .top, spacing: 22) {
             // Component 4: Charge/Rest badge their real per-day merge winner; Effort has no badge.
@@ -3122,12 +3198,12 @@ struct TodayView: View {
             // edge, INSIDE the ring frame so it adds no stacked height, keeping the #762 self-sizing row
             // untouched). It opens the Charge breakdown sheet (the existing ChargeBreakdownSection), built
             // lazily on tap. No new badge/dot/tier sits under the ring (that would re-load the #762 stack).
+            heroRingColumn(section: .effort, domain: .effort) {
+                effortRing(d: d, diameter: ring)
+            }
             heroRingColumn(section: .charge, domain: .charge, provenanceKey: "recovery",
                            onRingTap: { showChargeBreakdown = true }) {
                 chargeRing(score: score, d: d, diameter: ring)
-            }
-            heroRingColumn(section: .effort, domain: .effort) {
-                effortRing(d: d, diameter: ring)
             }
             heroRingColumn(section: .rest, domain: .rest, provenanceKey: "sleep_performance") {
                 restRing(diameter: ring)
@@ -3276,15 +3352,21 @@ struct TodayView: View {
     @ViewBuilder
     private func chargeRing(score: Double?, d: DailyMetric?, diameter: CGFloat) -> some View {
         if let s = score {
+            // Value-sampled, not the fixed domain green: a Charge of 22 must not look like a Charge of 91.
+            // The band WORD rides inside the ring for the same reason the colour changed — colour alone is
+            // no information for a colour-blind reader, and the alternative chart styles compress the
+            // ramp. Both come from the one canonical band (`ChargeBand`, behind these two helpers).
             GlowRing(fraction: s / 100, value: s, format: { "\(Int($0.rounded()))" },
-                     color: StrandPalette.chargeColor, diameter: diameter, lineWidth: diameter * 0.10)
+                     color: StrandPalette.chargeRingColor(s), diameter: diameter,
+                     lineWidth: diameter * 0.10, caption: StrandPalette.recoveryState(s))
         } else if recoveryCalibration == nil, let carried = lastScoredCharge {
             // #802: a CARRIED last-night Charge draws as a real (dimmed) ring, matching the Rest ring, rather
             // than a bare number on a faint track, which read as broken next to Rest's filled ring. Same
             // diameter, so the #762 self-sizing hero row is untouched; the dim + the row-level "Last night"
             // caption already beneath the rings mark it as carried, not today's fresh score.
             GlowRing(fraction: carried.value / 100, value: carried.value, format: { "\(Int($0.rounded()))" },
-                     color: StrandPalette.chargeColor, diameter: diameter, lineWidth: diameter * 0.10)
+                     color: StrandPalette.chargeRingColor(carried.value), diameter: diameter,
+                     lineWidth: diameter * 0.10, caption: StrandPalette.recoveryState(carried.value))
                 .opacity(0.8)
         } else {
             emptyHeroRing(diameter: diameter) { ringEmptyOverlay(d: d, diameter: diameter) }
@@ -3639,7 +3721,7 @@ struct TodayView: View {
     /// both hosting `NavigationStack`s (`RootTabView.swift:285/393`, `RootView.swift:471`), so no new
     /// wiring is needed beyond the link itself.
     private func keyMetricTile(_ metric: KeyMetric) -> some View {
-        NavigationLink(value: keyMetricRoute(metric)) {
+        NavigationLink(value: Self.keyMetricRoute(metric)) {
             keyMetricTileContent(metric)
         }
         .buttonStyle(.plain)
@@ -3648,7 +3730,7 @@ struct TodayView: View {
     /// The `TabRoute` a Key-Metric tile opens, keyed by the SAME (key, source) pair `loadHistoryWide()`
     /// already fetches that tile's sparkline from (`sparkValues` call sites below) — so the tap-through
     /// destination and the graph it shows are always the same signal, never a mismatch.
-    private func keyMetricRoute(_ metric: KeyMetric) -> TabRoute {
+    static func keyMetricRoute(_ metric: KeyMetric) -> TabRoute {
         switch metric {
         case .charge:      return .metricSourced(key: "recovery", source: "my-whoop")
         case .effort:      return .metricSourced(key: "strain", source: "my-whoop")
@@ -3659,7 +3741,7 @@ struct TodayView: View {
         case .respiratory: return .metricSourced(key: "resp_rate", source: "apple-health")
         case .steps:       return .metricSourced(key: "steps", source: "apple-health")
         case .weight:      return .weight
-        case .calories:    return .metricSourced(key: "active_kcal", source: "apple-health")
+        case .calories:    return .energy
         }
     }
 
@@ -3668,10 +3750,6 @@ struct TodayView: View {
     @ViewBuilder
     private func keyMetricTileContent(_ metric: KeyMetric) -> some View {
         let d = displayDay
-        // #843/#813: scope to the SELECTED day (like the Steps tile just below), not the latest imported
-        // AppleDaily row — the tail can be days stale, or from a day the user has since navigated away
-        // from, and would otherwise show today's (or an old import's) calories on a past day.
-        let aLatest = appleDays.last(where: { $0.day == selectedDayKey })
         switch metric {
         case .charge:
             // Order of precedence: today's own scored recovery → mid-calibration "N of 4" → the last
@@ -3893,11 +3971,11 @@ struct TodayView: View {
         case .calories:
             StatTile(
                 label: "Calories",
-                value: caloriesValue(aLatest),
-                caption: String(localized: "active"),
-                accent: StrandPalette.metricAmber,
-                sparkline: keyMetricsDetailed ? windowedSpark("active_kcal") : nil,
-                sparkColor: StrandPalette.metricAmber
+                value: EnergyDisplay.totalText(selectedEnergySummary),
+                caption: String(localized: "total burned so far"),
+                accent: StrandPalette.energyHighlight,
+                sparkline: keyMetricsDetailed ? windowedSpark("energy_total") : nil,
+                sparkColor: StrandPalette.energyHighlight
             )
         }
     }
@@ -4371,8 +4449,8 @@ struct TodayView: View {
         async let stepsAppleSpark    = sparkValues("steps", source: "apple-health", window: 14)
         async let weightSpark        = weightSparkValues(window: 90)
         async let weightSummaryA     = repo.weightTrendSummary(days: 91)
-        async let energyA            = repo.todayEnergy(profile: Repository.analyticsProfile(profile))
-        async let activeKcalSpark    = sparkValues("active_kcal", source: "apple-health", window: 14)
+        async let energyA            = repo.energySummaries(days: 30,
+                                                             profile: Repository.analyticsProfile(profile))
 
         sparks["recovery"]        = await recoverySpark
         sparks["strain"]          = await strainSpark
@@ -4391,8 +4469,10 @@ struct TodayView: View {
         if !strapSteps.isEmpty { sparks["steps"] = strapSteps }
         sparks["weight"]      = await weightSpark
         weightSummary         = await weightSummaryA
-        energySummary         = await energyA
-        sparks["active_kcal"] = await activeKcalSpark
+        let energySummaries = await energyA
+        energySummariesByDay = Dictionary(energySummaries.map { ($0.day, $0) },
+                                          uniquingKeysWith: { _, latest in latest })
+        sparks["energy_total"] = energySummaries.suffix(14).compactMap(\.totalBurnedSoFar)
 
         // Steps ESTIMATE per day (WHOOP 4.0 motion → calibrated steps), the Mi-Band series, workout +
         // Apple-daily rows, and the three "your cards" series, all history-wide (none depends on the
@@ -4881,52 +4961,6 @@ struct TodayView: View {
         }
     }
 
-    /// A short recovery state word for the synthesis hero.
-    private func synthesisWord(_ score: Double?) -> String {
-        guard let s = score else { return String(localized: "No Data") }
-        // #1405: these are CHARGE/recovery-level words, a different axis from the ReadinessEngine training
-        // verdict (Run down / Strained / Balanced / Primed). They must NOT share a word, or the Synthesis
-        // card ("Steady") and the Charge-breakdown Readiness card ("Primed") read as the same thing
-        // contradicting itself. So the [70,88) band is "Strong" (which also matches this card's own "Charge
-        // is strong" detail copy), leaving "Primed" exclusively to the readiness engine. Keep parity with Kotlin.
-        switch s {
-        case ..<25:  return String(localized: "Depleted")
-        case ..<50:  return String(localized: "Low")
-        case ..<70:  return String(localized: "Steady")
-        case ..<88:  return String(localized: "Strong")
-        default:     return String(localized: "Peak")
-        }
-    }
-
-    /// Plain-English synthesis of recovery + sleep. Whole-phrase variants per (charge band × sleep
-    /// state), never a stitched tail fragment, so every combination is one clean catalog key.
-    private func synthesisDetail(_ d: DailyMetric?) -> String {
-        guard let d, let rec = d.recovery else {
-            return String(localized: "No metrics yet. Import your Whoop export or wear the strap to begin.")
-        }
-        // true = slept 7h+; false = short; nil = no banked duration.
-        let sleptWell: Bool? = d.totalSleepMin.map { $0 / 60.0 >= 7 }
-        switch rec {
-        case ..<50:
-            switch sleptWell {
-            case true?:  return String(localized: "Charge is low and sleep was consistent.")
-            case false?: return String(localized: "Charge is low but sleep ran short.")
-            case nil:    return String(localized: "Charge is low.")
-            }
-        case ..<70:
-            switch sleptWell {
-            case true?:  return String(localized: "Charge is steady and sleep was consistent.")
-            case false?: return String(localized: "Charge is steady but sleep ran short.")
-            case nil:    return String(localized: "Charge is steady.")
-            }
-        default:
-            switch sleptWell {
-            case true?:  return String(localized: "Charge is strong and sleep was consistent.")
-            case false?: return String(localized: "Charge is strong but sleep ran short.")
-            case nil:    return String(localized: "Charge is strong.")
-            }
-        }
-    }
 
     private func ringSupporting(_ d: DailyMetric?) -> String {
         let hrv = d?.avgHrv.map { String(localized: "\(Int($0.rounded())) ms") } ?? " - ms"
@@ -5010,15 +5044,8 @@ struct TodayView: View {
         }
     }
 
-    /// Active calories (Apple) for the SELECTED day. `a` is already day-scoped by the caller
-    /// (`appleDays.last(where: { $0.day == selectedDayKey })`); a real reading for that day wins. The
-    /// sparkline-tail fallback only applies on TODAY (a same-day value that hasn't landed in `appleDays`
-    /// yet) — a navigated PAST day with no row for that day shows "—" rather than the tail, which is the
-    /// most recent value overall, not this day's. Mirrors the Steps tile's day-scoping (#843/#813).
-    private func caloriesValue(_ a: AppleDaily?) -> String {
-        if let kcal = a?.activeKcal { return intString(kcal) }
-        guard selectedDayOffset == 0 else { return "—" }
-        return latestString("active_kcal", decimals: 0)
+    private var selectedEnergySummary: DailyEnergySummary? {
+        energySummariesByDay[selectedDayKey]
     }
 
     private func workoutDuration(_ w: WorkoutRow) -> String {

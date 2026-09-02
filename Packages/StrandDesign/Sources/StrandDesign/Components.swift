@@ -221,6 +221,9 @@ public struct StatTile<Accessory: View>: View {
     var deltaColor: Color = StrandPalette.textTertiary
     var sparkline: [Double]? = nil
     var sparkColor: Color = StrandPalette.accent
+    /// Opts a StatTile into the Today-only visual treatment. Nil preserves the global component's exact
+    /// existing appearance on every non-Today screen.
+    var todaySystemImage: String? = nil
     /// An optional trailing accessory laid out INLINE in the header row beside the label (e.g. a small
     /// ⓘ that opens a scoring guide). Inline placement — not a corner overlay — so it can never sit on
     /// top of the value, sparkline or trend chip on a narrow tile (#495). Defaults to nothing.
@@ -231,73 +234,93 @@ public struct StatTile<Accessory: View>: View {
                 accent: Color = StrandPalette.textPrimary, delta: String? = nil,
                 deltaColor: Color = StrandPalette.textTertiary,
                 sparkline: [Double]? = nil, sparkColor: Color = StrandPalette.accent,
+                todaySystemImage: String? = nil,
                 @ViewBuilder accessory: @escaping () -> Accessory) {
         self.verbatimLabel = verbatimLabel
         self.label = label; self.value = value; self.caption = caption; self.accent = accent
         self.delta = delta; self.deltaColor = deltaColor; self.sparkline = sparkline; self.sparkColor = sparkColor
+        self.todaySystemImage = todaySystemImage
         self.accessory = accessory
     }
 
+    @ViewBuilder
     public var body: some View {
-        // The tile borrows its accent as a faint card wash, so each metric tile reads as
-        // part of its colour world while staying legible on the deep blue-black.
-        NoopCard(padding: 14, tint: accent) {
-            VStack(alignment: .leading, spacing: 0) {
-                // Header row: the metric label, and (right-aligned) the optional accessory laid out in
-                // flow so it reserves its own space rather than floating over the value below (#495).
-                HStack(alignment: .top, spacing: 4) {
-                    // Shrink before wrapping. With an accessory beside it the header row is narrow,
-                    // and a six-character label like "CHARGE" broke to "CHAR-/GE" in a three-column
-                    // tile while "REST" beside it did not — a ragged row from one character of
-                    // difference. Scaling keeps every label on one line whatever sits next to it.
-                    labelText.strandOverline()
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.75)
-                    Spacer(minLength: 0)
-                    accessory()
-                }
-                Spacer(minLength: 4)
-                HStack(alignment: .firstTextBaseline, spacing: 6) {
-                    Text(value).font(StrandFont.number(valueFontSize)).foregroundStyle(accent)
-                        .lineLimit(1).minimumScaleFactor(0.6)
-                    Spacer(minLength: 0)
-                    // Trend chip — the delta as a tinted pill with a direction arrow.
-                    //
-                    if let delta { TrendChip(text: delta, color: deltaColor) }
-                }
-                // Sparkline isn't available on watchOS (it relies on chart-hover helpers); the watch
-                // doesn't use StatTile, but guard the reference so the file still compiles there.
-                #if !os(watchOS)
-                if let sparkline, sparkline.count > 1 {
-                    Sparkline(values: sparkline, gradient: Gradient(colors: [sparkColor.opacity(0.5), sparkColor]))
-                        .frame(height: 22).padding(.top, 4)
-                        .accessibilityHidden(true)
-                }
-                #endif
-                if let caption {
-                    Text(caption).font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
-                        .lineLimit(dynamicTypeSize.isAccessibilitySize ? 3 : 1)
-                        // Shrink before ellipsising. A caption's length is not fully under the caller's
-                        // control: a workout's "14 Aug · 18:27" is 14 characters on a 24-hour clock and
-                        // "28 Dec · 11:59 PM" is 17 on a 12-hour one, because the time formatter follows
-                        // the reader's own convention (`setLocalizedDateFormatFromTemplate("jmm")`).
-                        // Sizing the tile for one of those silently truncates for the other; a slightly
-                        // smaller line keeps every character in both.
-                        .minimumScaleFactor(0.8)
-                        .padding(.top, 2)
+        if let todaySystemImage {
+            TodayMetricTile(
+                label: labelText,
+                systemImage: todaySystemImage,
+                value: value,
+                caption: caption,
+                tint: accent,
+                delta: delta,
+                deltaColor: deltaColor,
+                sparkline: sparkline,
+                sparkColor: sparkColor,
+                accessory: accessory
+            )
+            .frame(minHeight: NoopMetrics.tileHeight, maxHeight: .infinity)
+            .accessibilityElement(children: .combine)
+        } else {
+            // The tile borrows its accent as a faint card wash, so each metric tile reads as
+            // part of its colour world while staying legible on the deep blue-black.
+            NoopCard(padding: 14, tint: accent) {
+                VStack(alignment: .leading, spacing: 0) {
+                    // Header row: the metric label, and (right-aligned) the optional accessory laid out in
+                    // flow so it reserves its own space rather than floating over the value below (#495).
+                    HStack(alignment: .top, spacing: 4) {
+                        // Shrink before wrapping. With an accessory beside it the header row is narrow,
+                        // and a six-character label like "CHARGE" broke to "CHAR-/GE" in a three-column
+                        // tile while "REST" beside it did not — a ragged row from one character of
+                        // difference. Scaling keeps every label on one line whatever sits next to it.
+                        labelText.strandOverline()
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.75)
+                        Spacer(minLength: 0)
+                        accessory()
+                    }
+                    Spacer(minLength: 4)
+                    HStack(alignment: .firstTextBaseline, spacing: 6) {
+                        Text(value).font(StrandFont.number(valueFontSize)).foregroundStyle(accent)
+                            .lineLimit(1).minimumScaleFactor(0.6)
+                        Spacer(minLength: 0)
+                        // Trend chip — the delta as a tinted pill with a direction arrow.
+                        //
+                        if let delta { TrendChip(text: delta, color: deltaColor) }
+                    }
+                    // Sparkline isn't available on watchOS (it relies on chart-hover helpers); the watch
+                    // doesn't use StatTile, but guard the reference so the file still compiles there.
+                    #if !os(watchOS)
+                    if let sparkline, sparkline.count > 1 {
+                        Sparkline(values: sparkline, gradient: Gradient(colors: [sparkColor.opacity(0.5), sparkColor]))
+                            .frame(height: 22).padding(.top, 4)
+                            .accessibilityHidden(true)
+                    }
+                    #endif
+                    if let caption {
+                        Text(caption).font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
+                            .lineLimit(dynamicTypeSize.isAccessibilitySize ? 3 : 1)
+                            // Shrink before ellipsising. A caption's length is not fully under the caller's
+                            // control: a workout's "14 Aug · 18:27" is 14 characters on a 24-hour clock and
+                            // "28 Dec · 11:59 PM" is 17 on a 12-hour one, because the time formatter follows
+                            // the reader's own convention (`setLocalizedDateFormatFromTemplate("jmm")`).
+                            // Sizing the tile for one of those silently truncates for the other; a slightly
+                            // smaller line keeps every character in both.
+                            .minimumScaleFactor(0.8)
+                            .padding(.top, 2)
+                    }
                 }
             }
+            // A FLOOR, not a fixed height: a sparkline tile's content exceeds the 96pt base and must be
+            // allowed to grow rather than clip. maxHeight: .infinity lets a caller that DOES hand this tile a
+            // bounded height (e.g. the Key Metrics grid pins every cell to NoopMetrics.keyMetricTileHeight)
+            // stretch it to fill; in an unbounded parent it resolves to the content's own height, unchanged.
+            // Note: inside a LazyVGrid the cell only offers content height, so equal heights come from the
+            // caller pinning a fixed height, not from maxHeight: .infinity alone.
+            .frame(minHeight: NoopMetrics.tileHeight, maxHeight: .infinity)
+            // One VoiceOver stop per tile (label, value, caption, delta) instead of up
+            // to four fragmented stops; the decorative sparkline is hidden above.
+            .accessibilityElement(children: .combine)
         }
-        // A FLOOR, not a fixed height: a sparkline tile's content exceeds the 96pt base and must be
-        // allowed to grow rather than clip. maxHeight: .infinity lets a caller that DOES hand this tile a
-        // bounded height (e.g. the Key Metrics grid pins every cell to NoopMetrics.keyMetricTileHeight)
-        // stretch it to fill; in an unbounded parent it resolves to the content's own height, unchanged.
-        // Note: inside a LazyVGrid the cell only offers content height, so equal heights come from the
-        // caller pinning a fixed height, not from maxHeight: .infinity alone.
-        .frame(minHeight: NoopMetrics.tileHeight, maxHeight: .infinity)
-        // One VoiceOver stop per tile (label, value, caption, delta) instead of up
-        // to four fragmented stops; the decorative sparkline is hidden above.
-        .accessibilityElement(children: .combine)
     }
 }
 
@@ -308,10 +331,12 @@ public extension StatTile where Accessory == EmptyView {
          value: String, caption: String? = nil,
          accent: Color = StrandPalette.textPrimary, delta: String? = nil,
          deltaColor: Color = StrandPalette.textTertiary,
-         sparkline: [Double]? = nil, sparkColor: Color = StrandPalette.accent) {
+         sparkline: [Double]? = nil, sparkColor: Color = StrandPalette.accent,
+         todaySystemImage: String? = nil) {
         self.init(label: label, verbatimLabel: verbatimLabel, value: value, caption: caption,
                   accent: accent, delta: delta,
                   deltaColor: deltaColor, sparkline: sparkline, sparkColor: sparkColor,
+                  todaySystemImage: todaySystemImage,
                   accessory: { EmptyView() })
     }
 }

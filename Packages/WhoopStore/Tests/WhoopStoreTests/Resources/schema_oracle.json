@@ -49,7 +49,9 @@
     "v45-health-energy-buckets",
     "v46-whoop-daily-energy",
     "v47-energy-calibration-model",
-    "v48-whoop-energy-hourly"
+    "v48-whoop-energy-hourly",
+    "v49-whoop-energy-context",
+    "v50-whoop-energy-buckets"
   ],
   "divergenceReasons": {
     "android-orphan-synced-column": "REAL COLUMN DRIFT: `synced` exists on Android only. GRDB's v10 note is explicit that stepSample gets no `synced` column ('unused; see StreamStore'), and v12's ppgHrSample never had one either; the Room entities copied the flag from the older per-second entities. Nothing reads it on Android — the per-row upload flag belongs to an upload path that does not exist there — so it is dead width, not divergent data. Removing it needs a Room table rebuild.",
@@ -374,7 +376,10 @@
         { "name": "modeledSeconds", "affinity": "INTEGER", "notNull": true, "default": null },
         { "name": "uncertaintyFraction", "affinity": "REAL", "notNull": true, "default": null },
         { "name": "weightKg", "affinity": "REAL", "notNull": true, "default": null },
-        { "name": "weightSource", "affinity": "TEXT", "notNull": true, "default": null }
+        { "name": "weightSource", "affinity": "TEXT", "notNull": true, "default": null },
+        { "name": "representedSeconds", "affinity": "INTEGER", "notNull": true, "default": "0" },
+        { "name": "physiologicalSeconds", "affinity": "INTEGER", "notNull": true, "default": "0" },
+        { "name": "contextJSON", "affinity": "TEXT", "notNull": true, "default": "'{}'" }
       ],
       "primaryKey": ["deviceId", "day"],
       "indices": [
@@ -393,6 +398,25 @@
       "primaryKey": ["deviceId", "day", "hour"],
       "indices": [
         { "name": "idx_whoopEnergyHourly_device_day", "unique": false, "columns": ["deviceId", "day"] }
+      ]
+    },
+    "whoopEnergyBucket": {
+      "platform": "ios_only",
+      "reason": "Five-minute derived WHOOP v5 energy timeline. It is atomically replaced with the iOS-only daily energy model and contains no raw samples.",
+      "columns": [
+        { "name": "deviceId", "affinity": "TEXT", "notNull": true, "default": null },
+        { "name": "day", "affinity": "TEXT", "notNull": true, "default": null },
+        { "name": "bucketStart", "affinity": "INTEGER", "notNull": true, "default": null },
+        { "name": "durationSeconds", "affinity": "INTEGER", "notNull": true, "default": null },
+        { "name": "basalKcal", "affinity": "REAL", "notNull": true, "default": null },
+        { "name": "activeKcal", "affinity": "REAL", "notNull": true, "default": null },
+        { "name": "context", "affinity": "TEXT", "notNull": true, "default": null },
+        { "name": "evidence", "affinity": "TEXT", "notNull": true, "default": null },
+        { "name": "uncertaintyFraction", "affinity": "REAL", "notNull": true, "default": null }
+      ],
+      "primaryKey": ["deviceId", "bucketStart"],
+      "indices": [
+        { "name": "idx_whoopEnergyBucket_device_day", "unique": false, "columns": ["deviceId", "day"] }
       ]
     },
     "energyCalibrationModel": {

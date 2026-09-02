@@ -12,6 +12,7 @@ enum SettingsSectionID: String, CaseIterable, Hashable, Sendable {
     case appearance
     case strap
     case recovery
+    case analysisMaintenance
     /// HRV tuning, moved out of the always-visible Strap card into Advanced (upstream #518).
     case hrv
     case testCentre
@@ -100,6 +101,12 @@ enum SettingsSearchCatalog {
             title: "Recovery",
             keywords: ["charge", "baseline", "recalibrate", "re-learn", "HRV",
                        "resting heart rate"]
+        ),
+        SettingsSearchEntry(
+            id: .analysisMaintenance,
+            title: "Analysis & maintenance",
+            keywords: ["reanalysis", "recompute", "21 days", "refresh today",
+                       "analysis recipe", "migration", "scores stuck"]
         ),
         SettingsSearchEntry(
             id: .testCentre,

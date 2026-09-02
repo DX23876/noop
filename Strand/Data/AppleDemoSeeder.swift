@@ -52,6 +52,13 @@ enum AppleDemoSeeder {
     /// No-op once any goal exists — it never touches a real one.
     @MainActor
     private static func seedDemoGoalIfNeeded() async {
+        // Momentum's step countdown needs a target the user chose; there is deliberately no default, so
+        // without this the flagship "steps to go" message could never appear in a demo capture at all.
+        // Only ever set when unset, so a real value on a dev device is never overwritten.
+        if UserDefaults.standard.integer(forKey: "momentum.stepGoal") == 0 {
+            UserDefaults.standard.set(10_000, forKey: "momentum.stepGoal")
+        }
+
         let store = CoachGoalStore.shared
         guard store.goals.isEmpty else { return }
         let now = Date()

@@ -65,6 +65,10 @@ enum MoreCatalog {
         // here: it's an action, reachable from the floating button, the Today tile and deep links,
         // not a place (its .coach destination stays registered so those entry points still push it).
         MoreGroup(title: "Analysis", entries: [
+            // The full ranked feed the Today card shows one entry of. Listed first in Analysis because
+            // it answers "what should I look at", which is the question this whole group serves.
+            MoreEntry("Momentum", "bolt.horizontal", .momentum,
+                      keywords: ["today", "priority", "what matters", "insights", "goals"]),
             // Renamed to match InsightsHubView's own ScreenScaffold title ("Insights") — the word
             // freed up once the section became "Analysis" and the old "Insights" row became "Journal".
             MoreEntry("Insights", "wand.and.sparkles", .insightsHub,

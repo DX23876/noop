@@ -31,6 +31,17 @@ final class TodayHeroRingLayoutTests: XCTestCase {
         XCTAssertEqual(d, (345 - 56) / 3.4, accuracy: 0.01)
     }
 
+    /// The three rings are EQUAL again (the centre one was briefly drawn larger). What survives from
+    /// that experiment is the ORDER — Effort · Charge · Rest, so Charge leads from the middle — and this
+    /// guard: all three rings plus the two 22pt gaps must fit the row they were measured from, or the
+    /// self-sizing hero row (#762) starts clipping, which is the exact failure the sizing rule exists for.
+    func testTrioPlusGapsFitsTheMeasuredWidth() {
+        for width in [CGFloat(320), 345, 390, 430] {
+            let d = TodayView.heroRingDiameter(rowWidth: width)
+            XCTAssertLessThanOrEqual(3 * d + 2 * 22, width, "the trio overflows a \(width)pt row")
+        }
+    }
+
     func testDiameterIsMonotonicInWidth() {
         // Wider rows never yield a smaller ring - the map is non-decreasing across the range.
         let widths: [CGFloat] = [120, 240, 300, 345, 400, 600, 900]

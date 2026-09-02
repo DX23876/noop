@@ -68,7 +68,7 @@ struct BackupSyncView: View {
             VStack(alignment: .leading, spacing: 10) {
                 HStack(spacing: 10) {
                     Image(systemName: "folder.fill")
-                        .appleInspiredForeground("backupSync")
+                        .appleInspiredMenuIcon("backupSync")
                         .accessibilityHidden(true)
                     Text("Backup folder")
                         .font(StrandFont.headline).foregroundStyle(StrandPalette.textPrimary)
@@ -115,7 +115,7 @@ struct BackupSyncView: View {
                     VStack(alignment: .leading, spacing: 2) {
                         HStack(spacing: 8) {
                             Image(systemName: "clock.arrow.circlepath")
-                                .appleInspiredForeground("backupSync")
+                                .appleInspiredMenuIcon("backupSync")
                                 .accessibilityHidden(true)
                             Text("Daily auto-backup")
                                 .font(StrandFont.body).foregroundStyle(StrandPalette.textPrimary)
@@ -179,7 +179,7 @@ struct BackupSyncView: View {
             VStack(alignment: .leading, spacing: 10) {
                 HStack(spacing: 10) {
                     Image(systemName: "arrow.uturn.backward.circle.fill")
-                        .appleInspiredForeground("backupSync")
+                        .appleInspiredMenuIcon("backupSync")
                         .accessibilityHidden(true)
                     Text("Restore")
                         .font(StrandFont.headline).foregroundStyle(StrandPalette.textPrimary)
