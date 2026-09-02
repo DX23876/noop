@@ -7,7 +7,10 @@ import SwiftUI
 // plus neutral and accent. The ConnectionDot is a tiny pulsing presence indicator
 // used in the strap-status footer / menu-bar.
 
-public enum StrandTone: Sendable {
+/// `Equatable` so a tone-producing rule (e.g. the strap-battery level bands) can be pinned by a test.
+/// Comparing the rendered `Color` cannot do that: SwiftUI catalog colours compare by provider identity,
+/// so even two reads of the same palette entry are not equal.
+public enum StrandTone: Sendable, Equatable {
     case neutral
     case accent
     case positive

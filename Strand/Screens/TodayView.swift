@@ -5504,14 +5504,9 @@ private struct StrapSyncRow: View {
 private struct StrapBatteryRow: View {
     @EnvironmentObject private var live: LiveState
 
-    /// Battery tint, same thresholds as the menu-bar stat (MenuBarContent.batteryTone).
-    private func tint(_ pct: Double) -> Color {
-        switch pct {
-        case ..<15: return StrandPalette.statusCritical
-        case ..<35: return StrandPalette.statusWarning
-        default:    return StrandPalette.statusPositive
-        }
-    }
+    /// Battery tint, same thresholds as the menu-bar stat (MenuBarContent.batteryTone) — now read from
+    /// the one shared table so the dashboards' header control cannot drift its own set again.
+    private func tint(_ pct: Double) -> Color { StrapBatteryDisplayState.tint(pct) }
 
     /// Level-banded battery glyph; the bolt variant when the strap reports charging.
     private func symbol(_ pct: Double) -> String {
@@ -5525,20 +5520,11 @@ private struct StrapBatteryRow: View {
         }
     }
 
-    /// #713: "~X left" runtime from `live.batteryEstimate`. Under 48 hours we show hours so a nearly-flat
-    /// strap reads honestly ("~6h left"); at two days or more we round to days ("~9 days left"). nil (no
-    /// banked discharge yet, or charging) hides it, so the badge only ever shows an estimate we trust.
+    /// #713: the "~X left" runtime badge. The formatting moved to `StrapBatteryCopy.runtimeBadge`, which
+    /// the Liquid row (a verbatim copy of this one) and the dashboards' header control now share.
     private var estimateText: String? {
-        guard live.charging != true, let est = live.batteryEstimate else { return nil }
-        let hours = est.hoursRemaining
-        guard hours.isFinite, hours > 0 else { return nil }
-        if hours < 48 {
-            return String(localized: "~\(Int(hours.rounded()))h left")
-        }
-        let days = Int((hours / 24).rounded())
-        return days == 1
-            ? String(localized: "~1 day left")
-            : String(localized: "~\(days) days left")
+        StrapBatteryCopy.runtimeBadge(hoursRemaining: live.batteryEstimate?.hoursRemaining,
+                                      charging: live.charging == true)
     }
 
     var body: some View {

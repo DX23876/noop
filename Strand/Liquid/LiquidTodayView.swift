@@ -3168,19 +3168,11 @@ private struct LiquidStrapBatteryRow: View {
     }
 
     /// #992: the v8 Liquid redesign dropped the "~X days left" estimate the classic Today showed (#713).
-    /// Reproduced verbatim from `TodayView.estimateText`: under 48 h show hours, at two days or more round to
-    /// days; nil (no banked discharge yet, or charging) hides it, so the row only ever shows an estimate we trust.
+    /// This was a verbatim copy of `TodayView.estimateText`; both now call the shared
+    /// `StrapBatteryCopy.runtimeBadge`, so the wording and the 48-hour boundary have one home.
     private var estimateText: String? {
-        guard live.charging != true, let est = live.batteryEstimate else { return nil }
-        let hours = est.hoursRemaining
-        guard hours.isFinite, hours > 0 else { return nil }
-        if hours < 48 {
-            return String(localized: "~\(Int(hours.rounded()))h left")
-        }
-        let days = Int((hours / 24).rounded())
-        return days == 1
-            ? String(localized: "~1 day left")
-            : String(localized: "~\(days) days left")
+        StrapBatteryCopy.runtimeBadge(hoursRemaining: live.batteryEstimate?.hoursRemaining,
+                                      charging: live.charging == true)
     }
 }
 
