@@ -9,6 +9,41 @@ import GRDB
 /// `DailySkinTempAbsoluteMigrationTest` (v33 → v34).
 final class DailySkinTempAbsoluteTests: XCTestCase {
 
+    /// A device that ran an intermediate build of this migration under an earlier identifier (upstream
+    /// registered it before the fork's own pre-existing v40 forced a renumber to v51 during the merge)
+    /// already has `dailyMetric.skinTempC` with no `v51-daily-skin-temp-absolute` row recorded. Without
+    /// the existence guard, the next launch's `ADD COLUMN` fails with "duplicate column name" forever —
+    /// the store never opens. Simulate that stuck state directly against a file-backed store (needed so
+    /// the migrator's `grdb_migrations` bookkeeping persists across the two `migrate` calls, unlike
+    /// `WhoopStore.inMemory()`) and confirm the normal open path now recovers.
+    func testV51ToleratesColumnAlreadyPresentFromAnEarlierMigrationName() async throws {
+        let path = NSTemporaryDirectory() + "whoopstore-\(UUID().uuidString).sqlite"
+        defer { try? FileManager.default.removeItem(atPath: path) }
+
+        let pool = try DatabasePool(path: path)
+        try WhoopStore.makeMigrator().migrate(pool, upTo: "v50-whoop-energy-buckets")
+        // Simulate the stuck device: the column exists, but v51 was never recorded as applied.
+        try await pool.write { db in
+            try db.alter(table: "dailyMetric") { t in
+                t.add(column: "skinTempC", .double)
+            }
+        }
+
+        // The normal open path must now succeed rather than re-throwing "duplicate column name".
+        let store = try await WhoopStore(path: path)
+        let cols = try await store.columnNamesForTest(table: "dailyMetric")
+        XCTAssertTrue(cols.contains("skinTempC"))
+
+        let d = DailyMetric(day: "2026-08-14", totalSleepMin: 415, efficiency: 0.9,
+                            deepMin: 88, remMin: 108, lightMin: 219, disturbances: 2,
+                            restingHr: 50, avgHrv: 62.0, recovery: 0.06, strain: 10.5,
+                            exerciseCount: 1, skinTempC: 34.6)
+        try await store.upsertDailyMetrics([d], deviceId: "devA")
+        let rows = try await store.dailyMetrics(deviceId: "devA", from: "2026-08-01", to: "2026-08-31")
+        XCTAssertEqual(try XCTUnwrap(rows.first?.skinTempC), 34.6, accuracy: 0.001,
+                       "the column must still be usable after the guarded migration")
+    }
+
     func testV40SkinTempAbsoluteColumnPresent() async throws {
         let store = try await WhoopStore.inMemory()
         let cols = try await store.columnNamesForTest(table: "dailyMetric")

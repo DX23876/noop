@@ -1140,8 +1140,16 @@ extension WhoopStore {
         // because the value is re-derived from raw `skinTempSample` rows that are still on disk — no
         // separate backfill, and therefore no second implementation that could disagree with the live one.
         migrator.registerMigration("v51-daily-skin-temp-absolute") { db in
-            try db.alter(table: "dailyMetric") { t in
-                t.add(column: "skinTempC", .double)
+            // Same rename-collision guard as v44-energy-coverage above: this migration is carried over
+            // from upstream, which registered it under an earlier identifier before the fork's own
+            // pre-existing v40 forced a renumber to v51. A device that ran an intermediate build of this
+            // branch under the old name already has the column with no `v51-daily-skin-temp-absolute`
+            // row recorded, which would otherwise fail this ALTER on every launch forever.
+            let hasColumn = try db.columns(in: "dailyMetric").contains { $0.name == "skinTempC" }
+            if !hasColumn {
+                try db.alter(table: "dailyMetric") { t in
+                    t.add(column: "skinTempC", .double)
+                }
             }
         }
         // Retire the bounded, write-only legacy cache. Session-owned IMU now lives in the file-backed store.
