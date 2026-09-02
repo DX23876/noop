@@ -1,4 +1,8 @@
 import XCTest
+#if canImport(FoundationXML)
+// See the source files: corelibs keeps XMLParser in its own module.
+import FoundationXML
+#endif
 @testable import StrandImport
 
 final class AppleHealthImporterTests: XCTestCase {

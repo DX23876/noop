@@ -68,6 +68,20 @@ final class ReadTests: XCTestCase {
         XCTAssertEqual(scoped.count, 3)
     }
 
+    /// Regression: motion can arrive after HR in a historical offload. The whole-pass watermark must move
+    /// for that gravity-only commit or the first partial (no-sleep) result becomes sticky.
+    func testAnalysisFingerprintMovesWhenSleepCriticalGravityArrivesAfterHr() async throws {
+        let store = try await seeded()
+        let hrOnly = try await store.analysisFingerprint()
+        _ = try await store.insert(
+            Streams(gravity: [GravitySample(ts: 400, x: 0, y: 0, z: 1)]),
+            deviceId: "dev1"
+        )
+        let withGravity = try await store.analysisFingerprint()
+        XCTAssertNotEqual(hrOnly, withGravity)
+        XCTAssertTrue(withGravity.contains("|g1|"))
+    }
+
     func testHrBucketsAveragePerBucketOrderedAndDeviceScoped() async throws {
         let store = try await seeded()
         // 200s buckets over dev1's ts 100/200/300 (bpm 60/61/62):
@@ -273,20 +287,23 @@ final class ReadTests: XCTestCase {
                     ppgWaveform: [PpgWaveformSample(ts: 400, samples: [1, 2, 3])],
                     v18Aux: [V18AuxSample(ts: 400, slotValues: [1, 2])]),
             deviceId: "dev1")
-        _ = try await store.insertRawImu(deviceId: "dev1",
-                                         rows: [(ts: 400, cols: [Int16(1), Int16(2)])],
-                                         retentionRows: 1000)
+        // The raw outbox is Compression-backed and absent off Darwin; the DECODED half of this count is
+        // platform-neutral and still worth asserting there, so only the raw seeding is gated.
+#if canImport(Compression)
         try await store.enqueueRawBatch(
             RawBatchMeta(batchId: "b1", deviceId: "dev1",
                          clockRef: ClockRef(device: 0, wall: 0), capturedAt: 1,
                          startTs: 0, endTs: 0, frameCount: 1, byteSize: 4),
             frames: [[0xAA, 0x00, 0x01, 0x02]])
+#endif
         let stats = try await store.storageStats()
         // dev1: 3 hr + 2 rr + 1 event + 1 battery + 1 spo2 + 1 skinTemp + 1 resp + 1 gravity
-        //       + 1 step + 1 sleepState + 1 ppgHr + 1 ppgWaveform + 1 v18Aux + 1 rawImu = 17
-        // other: 1 hr = 1 → 18 decoded rows across all 14 raw tables.
-        XCTAssertEqual(stats.decodedRows, 18)
+        //       + 1 step + 1 sleepState + 1 ppgHr + 1 ppgWaveform + 1 v18Aux = 16
+        // other: 1 hr = 1 → 17 decoded rows.
+        XCTAssertEqual(stats.decodedRows, 17)
+#if canImport(Compression)
         XCTAssertEqual(stats.rawBatches, 1)
         XCTAssertEqual(stats.rawBytes, 4)
+#endif
     }
 }

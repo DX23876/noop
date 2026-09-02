@@ -79,6 +79,19 @@ that otherwise reproduced flags 1–15 byte-for-byte in this order.
 - **iOS / Android only on real hardware:** macOS CoreBluetooth can't complete the authenticated SMP bond
   the command characteristic requires, so the write path is unavailable on Mac.
 
+## High-rate IMU capture is a separate switch
+
+The R22 feature flags above govern deep-history products; they are not the missing step for an explicit
+100 Hz motion session. Hardware testing found a separate bounded raw-data sequence: `START_RAW_DATA`
+(81) must precede the two-byte 5/MG `TOGGLE_IMU_MODE` (106) selector. Sending 106 alone can return
+`SUCCESS` while producing no packets. With `[0x01, 0x01]` after command 81, NOOP receives and decodes
+the six-axis 100 Hz buffers; stop uses command 82 followed by `[0x01, 0x00]`.
+
+This establishes an on-demand research/workout capture path, not a safe continuous mode. Battery,
+retention, and BLE-airtime cost over day-scale recording remain unmeasured. The session collector,
+file-backed storage, Bluetooth-gap repair, and export contract are documented in
+[5/MG raw data capture](RAW_DATA_CAPTURE.md).
+
 ## Honest limits
 
 - **No cloud scores.** Recovery/strain/sleep *scores* are computed in WHOOP's cloud and no public
@@ -90,9 +103,10 @@ that otherwise reproduced flags 1–15 byte-for-byte in this order.
   `get_data_range`/`send_historical_data` loop NOOP already runs. If it does, the write path is belt-and-
   suspenders.
 - **The large records are no longer an undifferentiated type-`0x2F` blob.** Layout v21 (1,244 bytes)
-  contains six-axis IMU data; layout v20 (2,140 bytes) contains five repeated optical measurement
-  blocks; layout v26 contains a 24-sample PPG waveform. The v20 blocks are preserved without
-  wavelength labels because the current capture does not prove red/IR identity.
+  contains six-axis IMU data; layout v20 (2,140 bytes) contains five repeated measurement blocks whose
+  sensor identity remains open; layout v26 contains a 24-sample PPG waveform. The v20 blocks are
+  preserved without optical/wavelength labels because the current capture does not prove what produced
+  them, let alone red/IR identity.
 - **SpO₂ is not “one calibration away.”** The current v20 corpus has three active measurement blocks,
   but it has not established two separate red and infrared illumination measurements. See
   [`WHOOP5_OPTICAL_EXPERIMENT.md`](WHOOP5_OPTICAL_EXPERIMENT.md) for the passive controlled experiment

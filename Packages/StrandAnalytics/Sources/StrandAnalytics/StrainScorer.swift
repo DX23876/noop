@@ -65,6 +65,35 @@ public enum StrainScorer {
         24.0 * 60.0 * 1.0 * banisterScale * exp(b)
     }
 
+    /// The %HRR a waking, sedentary body sits at — the "cost of being alive", not training load.
+    ///
+    /// Banister pays at EVERY intensity by design, which is the point: it catches the intermittent work
+    /// Edwards zeroes. The side effect is that sixteen waking hours of doing nothing accumulate real
+    /// TRIMP, so a desk day cannot score zero however still you are — while the same day under Edwards,
+    /// whose first zone starts at 50% HRR, scores exactly zero. A 24 h day held at 5% HRR scores 0 under
+    /// Edwards and 45 under Banister on the shipped constants. That is not two recipes on one axis; that
+    /// is two axes (#1624).
+    ///
+    /// THIS IS THE ONE TUNED CONSTANT here, and it is a judgement rather than a measurement: low enough
+    /// not to erase genuine light activity, high enough that ordinary sitting nets to nothing. Resting HR
+    /// is measured asleep, so a waking body sits above it even at complete rest — precisely the gap this
+    /// closes. Treat it as calibratable, not as physiology.
+    public static let banisterSedentaryHRR: Double = 0.10
+
+    /// TRIMP per minute at `banisterSedentaryHRR` — the rate subtracted from every day.
+    static func banisterBaselineRatePerMinute(b: Double) -> Double {
+        banisterScale * banisterSedentaryHRR * exp(b * banisterSedentaryHRR)
+    }
+
+    /// The sedentary TRIMP accrued over `minutes`, subtracted from a day's Banister TRIMP so the axis
+    /// starts where Edwards' does. Subtracted from the DENOMINATOR too, so the top is unmoved and a
+    /// theoretical maximum day still maps to exactly `maxStrain` — anchoring only the bottom would trade
+    /// one mismatched end for the other.
+    static func banisterBaseline(minutes: Double, b: Double) -> Double {
+        banisterBaselineRatePerMinute(b: b) * minutes
+    }
+
+
     /// The log-map denominator for a method, so a caller never has to know which constant belongs to
     /// which recipe. Ceiling + 1 in both cases, mirroring how `strainDenominator` was derived, so a
     /// theoretical maximum day maps to exactly `maxStrain` under either method.
@@ -73,7 +102,10 @@ public enum StrainScorer {
         case .edwards:
             return strainDenominator
         case .banister:
-            return banisterDailyCeiling(b: sex.lowercased().hasPrefix("f") ? banisterBWomen : banisterBMen) + 1.0
+            let b = sex.lowercased().hasPrefix("f") ? banisterBWomen : banisterBMen
+            // Ceiling MINUS a full day of sedentary baseline, matching what is subtracted from the day
+            // itself, so both ends of the axis line up with Edwards (#1624).
+            return banisterDailyCeiling(b: b) - banisterBaseline(minutes: 24.0 * 60.0, b: b) + 1.0
         }
     }
 
@@ -184,6 +216,7 @@ public enum StrainScorer {
     public static func effectiveEffort(live: Double?, stored: Double?) -> Double? {
         guard let live else { return stored }
         guard let stored else { return live }
+        if live == 0.0 && stored == 0.0 { return 0.0 }
         return Swift.max(live, stored)
     }
 
@@ -236,12 +269,25 @@ public enum StrainScorer {
         return acc
     }
 
+    /// - Parameter floorRatePerMinute: per-minute rate treated as "no effort" and subtracted from EVERY
+    ///   sample, floored at zero (#1624). Zero — the default — is the original, unfloored Banister recipe,
+    ///   so every existing caller and test is byte-identical. Pass `banisterBaselineRatePerMinute` to
+    ///   score the excess over a sedentary day, which is what the daily scorer does.
+    ///
+    ///   Per SAMPLE, never as one lump off the total: a day quieter than the floor would otherwise run a
+    ///   deficit that eats into real work done on top, and 90 minutes at 35% HRR inside an otherwise still
+    ///   day would net negative and clamp to zero — erasing exactly the intermittent effort this recipe
+    ///   exists to capture.
     static func banisterTRIMP(_ hr: [HRSample], restingHR: Double, hrReserve: Double,
-                              durations: [Double], b: Double) -> Double {
+                              durations: [Double], b: Double,
+                              floorRatePerMinute: Double = 0.0) -> Double {
         var acc = 0.0
         for i in hr.indices {
             let x = pctHRR(Double(hr[i].bpm), restingHR: restingHR, hrReserve: hrReserve) / 100.0
-            if x > 0 { acc += durations[i] * x * banisterScale * exp(b * x) }
+            if x > 0 {
+                let rate = x * banisterScale * exp(b * x)
+                acc += durations[i] * max(rate - floorRatePerMinute, 0.0)
+            }
         }
         return acc
     }
@@ -305,7 +351,15 @@ public enum StrainScorer {
                               restingHR: Double = defaultRestingHR,
                               method: Method = .edwards,
                               sex: String = "male",
-                              denominator: Double? = nil) -> Double? {
+                              denominator: Double? = nil,
+                              // Optional diagnostic sink. Nil by default and the line is built ONLY when
+                              // one is supplied, so a pass nobody is watching pays nothing.
+                              //
+                              // Supplying one BYPASSES the memo — see the guard below. Without that the
+                              // line would usually never appear, because the Today view has already cached
+                              // the day at live-HR tick rate before the scoring pass asks.
+                              diag: ((String) -> Void)? = nil,
+                              day: String = "") -> Double? {
         // Resolve BEFORE the memo key is built, or a Banister request would be cached under Edwards'
         // denominator and a later Edwards request could collide with it.
         let resolvedDenominator = denominator ?? logMapDenominator(method: method, sex: sex)
@@ -317,10 +371,51 @@ public enum StrainScorer {
             hr: StreamFingerprint.of(hr, ts: { $0.ts }, quant: { Int($0.bpm) }),
             maxHR: maxHR, restingHR: restingHR, method: method,
             sexF: sex.lowercased().hasPrefix("f"), denom: resolvedDenominator)
+        // A diagnostic request BYPASSES the memo, and must. The Today view re-reads this on every
+        // live-HR tick with no sink, so by the time the scoring pass asks with one the answer is already
+        // cached — and a cache hit never reaches the code that emits, so the line would simply never
+        // appear. Recomputing one day per pass to be able to report it is the trade, and it is a cheap
+        // one. Kotlin has no memo here and always emits; this keeps the two behaving the same.
+        guard diag == nil else {
+            return strainUncached(hr, maxHR: maxHR, restingHR: restingHR, method: method, sex: sex,
+                                  denominator: resolvedDenominator, diag: diag, day: day)
+        }
         return strainCache.value(key) {
             strainUncached(hr, maxHR: maxHR, restingHR: restingHR, method: method, sex: sex,
-                           denominator: resolvedDenominator)
+                           denominator: resolvedDenominator, diag: nil, day: day)
         }
+    }
+
+    /// One line naming what an Effort score was computed FROM, or why it could not be computed.
+    ///
+    /// The gap this closes: `strain` is the only score in the app with no trace at all. WorkoutDetector,
+    /// SleepStager and both engines each emit a funnel; the number on the Today hero ring emitted nothing,
+    /// so a log could not distinguish "measured, and the day was genuinely calm" from "could not measure".
+    /// A reader looking for the latter finds `workout detect`, which is WORKOUT-BOUT detection and answers
+    /// a different question — a confusion that has already produced one wrong diagnosis.
+    ///
+    /// `enough` is the `strain` gate spelled out: dense (>= minReadings) OR sparse-but-sustained. `trimp`
+    /// and `strain` are absent when the gate refused, which is exactly the case a bare 0 hides.
+    /// Byte-identical to the Kotlin `StrainScorer.scoreFunnelLine`.
+    public static func scoreFunnelLine(day: String, hrSamples: Int, enough: Bool,
+                                       maxHR: Double, maxHRProvided: Bool, restingHR: Double,
+                                       method: Method, trimp: Double?, strain: Double?) -> String {
+        func r1(_ v: Double) -> String { String(format: "%.1f", v) }
+        // Built by appending rather than as one `+` chain. A chain of interpolated segments is a single
+        // expression, and this one blew the type-checker's budget on the first attempt — the same failure
+        // that took the iOS build down in #1767. Statements give the solver one small problem at a time.
+        let src: String = maxHRProvided ? "provided" : "default"
+        let trimpText: String = trimp.map(r1) ?? "n/a"
+        let strainText: String = strain.map(r1) ?? "n/a"
+        var out = "effort score day=\(day) hr=\(hrSamples) enough=\(enough)"
+        out += " hrMax=\(r1(maxHR))(\(src))"
+        out += " rhr=\(r1(restingHR)) reserve=\(r1(maxHR - restingHR))"
+        // Method carries no raw value here; interpolating the case yields "edwards"/"banister", which
+        // is exactly what Kotlin's `method.name.lowercase()` produces. The two lines must match byte for
+        // byte, so this is the one spelling that keeps them equal.
+        out += " method=\(method)"
+        out += " trimp=\(trimpText) strain=\(strainText)"
+        return out
     }
 
     /// Key folds `sex` to the single bit the recipe reads (`hasPrefix("f")`) so "female"/"f"/"F" all hit.
@@ -332,7 +427,8 @@ public enum StrainScorer {
     private static let strainCache = AnalyticsMemoCache<StrainKey, Double?>(capacity: 48)
 
     private static func strainUncached(_ hr: [HRSample], maxHR: Double?, restingHR: Double,
-                                       method: Method, sex: String, denominator: Double) -> Double? {
+                                       method: Method, sex: String, denominator: Double,
+                                       diag: ((String) -> Void)? = nil, day: String = "") -> Double? {
         let effMax = maxHR ?? Double(defaultMaxHR())
         // Enough data to trust the score: a dense stream (≥ minReadings) OR a sparse-but-sustained
         // one spanning ≥ minSpanSeconds with a sample floor (#482 — the 5/MG's ~30 s HR cadence).
@@ -345,7 +441,14 @@ public enum StrainScorer {
         } else {
             enoughData = false
         }
-        if !enoughData || effMax <= restingHR { return nil }
+        if !enoughData || effMax <= restingHR {
+            // The refusal is the half a bare number cannot show: nil here and 0.0 on a calm day look
+            // identical on the ring, and only one of them is a measurement.
+            diag?(scoreFunnelLine(day: day, hrSamples: hr.count, enough: enoughData, maxHR: effMax,
+                                  maxHRProvided: maxHR != nil, restingHR: restingHR, method: method,
+                                  trimp: nil, strain: nil))
+            return nil
+        }
 
         let durations = sampleDurationsMinutes(hr)
         let hrReserve = effMax - restingHR
@@ -354,12 +457,19 @@ public enum StrainScorer {
         switch method {
         case .banister:
             let b = sex.lowercased().hasPrefix("f") ? banisterBWomen : banisterBMen
+            // Excess over the sedentary baseline for the SAME span, floored at zero. Without this a desk
+            // day scores ~45 on a 0-100 axis whose bottom is supposed to be no exertion (#1624).
             trimp = banisterTRIMP(hr, restingHR: restingHR, hrReserve: hrReserve,
-                                  durations: durations, b: b)
+                                  durations: durations, b: b,
+                                  floorRatePerMinute: banisterBaselineRatePerMinute(b: b))
         case .edwards:
             trimp = edwardsTRIMP(hr, restingHR: restingHR, hrReserve: hrReserve,
                                  durations: durations)
         }
-        return trimpToStrain(trimp, denominator: denominator)
+        let scored = trimpToStrain(trimp, denominator: denominator)
+        diag?(scoreFunnelLine(day: day, hrSamples: hr.count, enough: enoughData, maxHR: effMax,
+                              maxHRProvided: maxHR != nil, restingHR: restingHR, method: method,
+                              trimp: trimp, strain: scored))
+        return scored
     }
 }

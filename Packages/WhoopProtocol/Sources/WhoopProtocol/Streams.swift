@@ -10,6 +10,30 @@ public struct HRSample: Equatable, Codable {
     public init(ts: Int, bpm: Int) { self.ts = ts; self.bpm = bpm }
 }
 
+/// Sensor-contact state carried by the standard BLE Heart Rate Measurement flags.
+///
+/// This is deliberately a tri-state rather than a Bool: a peripheral that does not support contact
+/// detection has not said that contact is absent. `unsupported` is also the only valid result whenever
+/// flag bit 2 is clear, irrespective of the value in detected bit 1.
+public enum StandardHRContact: String, Equatable, Codable, Sendable {
+    case unsupported
+    case supportedNotDetected = "supported_not_detected"
+    case supportedDetected = "supported_detected"
+
+    /// Decode the BLE Heart Rate Measurement flags: bit 2 = supported, bit 1 = detected.
+    /// `unsupported` wins whenever bit 2 is clear, irrespective of detected bit 1.
+    /// Twin of Kotlin `StandardHrContact.fromMeasurementFlags`.
+    public static func fromMeasurementFlags(_ flags: UInt8) -> StandardHRContact {
+        if flags & 0x04 == 0 {
+            return .unsupported
+        } else if flags & 0x02 == 0 {
+            return .supportedNotDetected
+        } else {
+            return .supportedDetected
+        }
+    }
+}
+
 /// WHICH sensor channel produced an R-R interval (#1071).
 ///
 /// A WHOOP strap has ONE beat source, so its rows carry no channel (nil) and nothing here changes for
@@ -57,8 +81,30 @@ public struct RRInterval: Equatable, Codable {
     /// that second, so the over-count is accumulation across offloads. WHOOP's wire format has no
     /// channel field, so `srcChannel` can never answer this for a strap — `ord` is what is left.
     public let ord: Int?
-    public init(ts: Int, rrMs: Int, srcChannel: RRSourceChannel? = nil, ord: Int? = nil) {
-        self.ts = ts; self.rrMs = rrMs; self.srcChannel = srcChannel; self.ord = ord
+    /// Storage identity for equal beats in the same second. Defaults to zero so wire decoders and
+    /// callers that predate the widened database key remain source- and behaviour-compatible.
+    public let seq: Int
+    public init(ts: Int, rrMs: Int, srcChannel: RRSourceChannel? = nil, ord: Int? = nil, seq: Int = 0) {
+        self.ts = ts; self.rrMs = rrMs; self.srcChannel = srcChannel; self.ord = ord; self.seq = seq
+    }
+
+    private enum CodingKeys: String, CodingKey { case ts, rrMs, srcChannel, ord, seq }
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        ts = try c.decode(Int.self, forKey: .ts)
+        rrMs = try c.decode(Int.self, forKey: .rrMs)
+        srcChannel = try c.decodeIfPresent(RRSourceChannel.self, forKey: .srcChannel)
+        ord = try c.decodeIfPresent(Int.self, forKey: .ord)
+        seq = try c.decodeIfPresent(Int.self, forKey: .seq) ?? 0
+    }
+    public func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(ts, forKey: .ts)
+        try c.encode(rrMs, forKey: .rrMs)
+        try c.encodeIfPresent(srcChannel, forKey: .srcChannel)
+        try c.encodeIfPresent(ord, forKey: .ord)
+        // Preserve the legacy encoded shape for the overwhelmingly common seq=0 row.
+        if seq != 0 { try c.encode(seq, forKey: .seq) }
     }
 }
 

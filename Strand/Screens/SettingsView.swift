@@ -344,6 +344,9 @@ struct SettingsView: View {
 
     /// User-initiated GitHub release check behind the About "Check for updates" button.
     @StateObject private var updateChecker = UpdateChecker()
+    /// #1659. Default comes from `UpdateAvailability.defaultEnabled` so the toggle and the launch check
+    /// cannot disagree about what "unset" means.
+    @AppStorage(UpdateWatch.Keys.enabled) private var autoCheckUpdates = UpdateAvailability.defaultEnabled
     @Environment(\.openURL) private var openURL
 
     /// Whether the "Advanced" disclosure (Recovery, Test Centre, experimental probes, Backup &
@@ -1672,10 +1675,27 @@ struct SettingsView: View {
     }
 
     private var strapStatusDetail: String {
-        if live.bonded && live.connected {
+        // encryptedBond, not bonded — see LiveState.connectionStatusLabel. Saying "is paired" for a
+        // live-HR-only link contradicts both LiveView's pill and the buzz/alarm rows on this same screen,
+        // which correctly refuse and explain that they need the full encrypted bond.
+        //
+        // A live-HR link falls through to the pairing hint when one is set, and otherwise to "Finishing
+        // the secure pairing handshake…", which is accurate HERE because this platform still retries the
+        // CLIENT_HELLO on every connect. The #1635 suppression is now ported here too, so once it latches
+        // nothing is finishing any more and the old fall-through would describe a handshake that is no
+        // longer being attempted. The `bonded && connected` arm below is that fix, matching the Android
+        // twin (`SettingsLogic.strapStatusLine`).
+        if live.encryptedBond && live.connected {
             return String(localized: "Your strap is paired and sending data. Open Live for a real-time heart rate.")
         }
+        // An actionable hint outranks the generic arm: the suppression hint names the one action that
+        // restores the handshake, which "not fully paired" alone does not.
         if live.connected, let hint = live.pairingHint { return hint }
+        // Live HR over the UNBONDED standard profile (#69). True whenever the handshake is suppressed or
+        // simply has not landed, and the honest description either way.
+        if live.bonded && live.connected {
+            return String(localized: "Live heart rate is streaming, but your strap is not fully paired. Buzz, alarms and history sync need the encrypted pairing.")
+        }
         if live.connected { return String(localized: "Connected. Finishing the secure pairing handshake…") }
         if live.bonded { return String(localized: "Previously paired but not currently connected. Re-scan to reconnect.") }
         return String(localized: "No strap connected. Put your WHOOP nearby and tap Re-scan to pair.")
@@ -2183,7 +2203,7 @@ struct SettingsView: View {
         SettingsSection(
             icon: "flask.fill",
             title: "Experimental · WHOOP 5 / MG",
-            blurb: "Live heart rate already works on a WHOOP 5/MG strap. These probes go further and try to coax more out of it. They are guesses, off by default, and only ever touch a 5/MG strap. WHOOP 4.0 is never affected."
+            blurb: "Normal WHOOP 5/MG recording and history sync are supported. These remaining controls are developer experiments for unmapped protocol features and now live in Test Centre."
         ) {
             VStack(alignment: .leading, spacing: NoopMetrics.rowSpacing) {
                 Toggle(isOn: $puffinExperiments) {
@@ -2212,7 +2232,7 @@ struct SettingsView: View {
                 // strap kept every flag the enable sequence set while the UI implied it had been undone.
                 // Now it offers the real undo. Turning it ON still writes nothing until the button is tapped.
                 .onChangeCompat(of: deepDataEnabled) { on in if !on { confirmingDeepDataDisable = true } }
-                Text("WHOOP 5/MG straps hand a fresh app only live heart rate. The official app switches on the deeper streams (high-rate HR + motion + history) by writing a set of feature flags, a sequence two independent projects have documented. With this on, the button below sends that exact sequence to your strap. Unlike everything else here it does write to the strap — and it is reversible: \u{201C}Turn deep data back off\u{201D} writes the off value to the same flags and then reads every one of them back, so you see what the strap actually stores rather than just that it acked. Experimental: it may do nothing on your firmware. iPhone/Android only. A Mac can't write to a 5/MG.")
+                Text("Legacy R22 feature-flag experiment. The strap accepts these writes, but NOOP has not observed them enabling a separate live stream. This is not required for normal WHOOP 5/MG support or for the Raw Data Collector. It writes persistent strap settings and may do nothing on your firmware.")
                     .font(StrandFont.caption)
                     .foregroundStyle(StrandPalette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -2927,9 +2947,7 @@ struct SettingsView: View {
     /// project.yml MARKETING_VERSION), so the About pill can never go stale the way a hand-edited
     /// Swift constant can. Mirrors how Android's pill reads BuildConfig.VERSION_NAME. Falls back to
     /// the hand-maintained changelog version only if the Info.plist key is somehow missing.
-    private var bundleVersionString: String {
-        (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String) ?? AppChangelog.currentVersion
-    }
+    private var bundleVersionString: String { UpdateWatch.installedVersion }
 
     private var aboutCard: some View {
         SettingsSection(
@@ -3111,6 +3129,23 @@ struct SettingsView: View {
                         }
                         Spacer()
                     }
+
+                    // #1659: the automatic half. iOS cannot auto-update a sideloaded build at all — no API
+                    // lets an app install or re-sign an .ipa — so noticing and saying so is the whole of
+                    // what is possible. ON by default, because a sideloaded app has no store to tell the
+                    // user anything and a setting nobody finds is the feature not existing; switching it
+                    // off here stops the request entirely. See UpdateAvailability.defaultEnabled.
+                    Toggle(isOn: $autoCheckUpdates) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Check automatically")
+                                .font(StrandFont.subhead)
+                                .foregroundStyle(StrandPalette.textPrimary)
+                            Text("Once a day, NOOP asks GitHub for the latest version number and puts a note in Updates if there's a newer one. Nothing about you is sent, and it never installs anything.")
+                                .font(StrandFont.footnote)
+                                .foregroundStyle(StrandPalette.textSecondary)
+                        }
+                    }
+                    .tint(StrandPalette.accent)
 
                     // Update available: show what's new, with a download straight to the release.
                     if case .available(let v, let url, let notes) = updateChecker.state {
@@ -3760,7 +3795,7 @@ struct StepsCalibrationSheet: View {
                     .font(StrandFont.headline)
                     .foregroundStyle(StrandPalette.textPrimary)
                 Text(is5MG
-                     ? String(localized: "NOOP estimates your steps from your WHOOP's motion, calibrated to your phone's step count. It's an estimate, not a step counter — a WHOOP 5.0 / MG streams motion (not a step count) only with deep data on.")
+                     ? String(localized: "NOOP estimates your steps from your WHOOP's stored motion, calibrated to your phone's step count. It's an estimate, not a hardware step counter; normal WHOOP 5/MG history sync supplies the motion data.")
                      : String(localized: "NOOP estimates your steps from your WHOOP's motion, calibrated to your phone's step count. It's an estimate, not a step counter. A WHOOP 4.0 doesn't transmit steps."))
                     .font(StrandFont.subhead)
                     .foregroundStyle(StrandPalette.textSecondary)
@@ -3801,7 +3836,7 @@ struct StepsCalibrationSheet: View {
     /// The "why it's empty" line — a 5/MG needs the deep-data unlock before it streams motion at all.
     private var noMotionLead: String {
         if is5MG {
-            return String(localized: "We're not seeing any motion from your WHOOP 5.0 / MG yet. Unlike a 4.0, a 5/MG only streams motion (and history) once the experimental deep-data unlock is on — so until then there's nothing to estimate steps from. Importing history from WHOOP or Apple Health doesn't provide the strap motion this needs.")
+            return String(localized: "We're not seeing motion from your WHOOP 5.0 / MG yet. Keep NOOP connected and let strap history finish syncing; the experimental R22 flags are not required. Account or Apple Health imports do not contain the raw strap motion this estimate needs.")
         }
         return String(localized: "We're not seeing any motion from your strap yet. Steps are estimated from your WHOOP's banked motion history, so your strap needs to sync that history before NOOP has anything to count.")
     }
@@ -3809,7 +3844,7 @@ struct StepsCalibrationSheet: View {
     /// The "what to do" line — 5/MG points at the deep-data toggle (unless it's already on, then just sync).
     private var noMotionAction: String {
         if is5MG && !deepDataEnabled {
-            return String(localized: "Turn on Settings → \u{201C}Unlock WHOOP 5/MG deep data (R22)\u{201D}, reconnect your strap, then open NOOP near it and let a day or two of motion sync. Your step estimate and the calibration below fill in once motion lands.")
+            return String(localized: "Open NOOP near the strap and let WHOOP 5/MG history finish syncing. The step estimate and calibration fill in once enough stored motion has arrived; the legacy R22 experiment is not required.")
         }
         if is5MG {
             return String(localized: "Deep data is on — open NOOP near your strap and let it sync its motion history (a full first-run sync can take a while). Once a day or two of motion lands, your step estimate and the calibration below fill in.")
@@ -4015,7 +4050,7 @@ struct StepsCalibrationSheet: View {
             .sorted { $0.day > $1.day }
 
         // Reconstruct the estimate for the most recent phone-covered days, motion-by-motion.
-        guard coeff > 0, let store = await repo.storeHandle() else { return }
+        guard coeff > 0 else { return }
         let cal = StepsEstimateEngine.Calibration(coefficient: coeff,
                                                   sampleDays: profile.stepsCalibrationSampleDays,
                                                   confidence: profile.stepsCalibrationConfidence,
@@ -4027,8 +4062,10 @@ struct StepsCalibrationSheet: View {
         for entry in phoneDays.prefix(10) {           // scan a few extra to fill 7 after motion gaps
             guard let dayDate = dayParser.date(from: entry.day) else { continue }
             let mid = Int(calendar.startOfDay(for: dayDate).timeIntervalSince1970)
-            let grav = (try? await store.gravitySamples(deviceId: repo.deviceId, from: mid,
-                                                        to: mid + 86_400 - 1, limit: Int.max)) ?? []
+            // #1643: the UNION, not `repo.deviceId` alone — a re-added strap leaves motion under both the
+            // active id and the canonical one, and reading either by itself makes this screen disagree
+            // with the estimator it is supposed to be reconstructing.
+            let grav = await repo.gravitySamplesUnion(from: mid, to: mid + 86_400 - 1)
             let motion = StepsEstimateEngine.dayMotionIntensity(grav)
             guard motion > 0, let est = StepsEstimateEngine.estimate(motion: motion, calibration: cal) else { continue }
             motions.append(motion)

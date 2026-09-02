@@ -2,18 +2,25 @@
 
 ## Scope
 
-NOOP is a fully offline, on-device app. It has no servers, no accounts, and no
-cloud sync, so the usual web attack surface does not apply. What remains is local:
+NOOP is an offline-by-default, on-device app. It operates no servers, accounts,
+cloud sync, or telemetry, so the usual hosted-service attack surface does not apply.
+What remains is local or explicitly user-configured:
 
 - **Bluetooth Low Energy** — the link to your WHOOP strap.
 - **Local SQLite database** — every reading is stored on your own device.
 - **File imports** — WHOOP CSV exports and Apple Health ZIP files you choose to open.
-- **AI Coach (optional, off by default)** — the only feature that makes a network
-  request, and only with an API key you supply yourself, to the provider you choose.
+- **AI Coach (optional, off by default)** — sends a compact summary only when asked,
+  with credentials you supply, to the provider you choose.
+- **Self-hosted push (Experimental, Android, off by default)** — sends versioned batches
+  one way to a user-owned endpoint after offload; it never reads records back and never
+  participates in strap sync. A receiver can only narrow the fixed stream registry it accepts.
+  See [`docs/PUSH_PROTOCOL.md`](docs/PUSH_PROTOCOL.md).
+- **Oura history import (compile-time optional)** — pulls from Oura using a developer
+  application and grant supplied by the user; it is absent from default builds.
 
-A useful security report is one that lets data leave the device when it shouldn't,
+A useful security report is one that lets data leave the device without the corresponding opt-in,
 lets a malicious strap or crafted import file corrupt the database or run code, or
-otherwise breaks the offline, local-only guarantee the app makes.
+otherwise breaks the offline-by-default or one-way-export guarantees the app makes.
 
 ## Reporting a vulnerability
 

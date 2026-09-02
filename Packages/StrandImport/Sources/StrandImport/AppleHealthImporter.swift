@@ -1,4 +1,9 @@
 import Foundation
+#if canImport(FoundationXML)
+// corelibs Foundation moved the event-driven XML parser into its own module; Darwin keeps it in
+// Foundation. Conditional so one import serves both, with no #if at the use sites.
+import FoundationXML
+#endif
 import ZIPFoundation
 
 /// Parses an Apple Health export (`export.xml`, possibly inside `export.zip`)

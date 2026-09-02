@@ -310,7 +310,9 @@ private struct UpdateRow: View {
     private var symbol: String {
         switch item.category {
         case .actionable:     return "sparkles"
-        case .informative:    return item.kind == .whatsNew ? "sparkles" : "waveform.path.ecg"
+        case .informative:
+            if item.kind == .newVersion { return "arrow.down.circle" }
+            return item.kind == .whatsNew ? "sparkles" : "waveform.path.ecg"
         case .statusReminder:
             return item.kind == .dismissedCard ? "rectangle.on.rectangle" : "bell.badge.fill"
         }

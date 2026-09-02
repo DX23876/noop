@@ -17,6 +17,8 @@ struct UpdateItem: Identifiable, Codable, Equatable {
         case whatsNew        // a release note (seeded from AppChangelog on first run after an update)
         case reading         // new data arrived (e.g. "N days backfilled") — links to Trends
         case strapAlert      // a strap-side heads-up (low battery, sync) — informational
+        /// A newer release exists that this install does not have (#1659).
+        case newVersion
 
         /// The `Category` a row written before that field existed falls back to on decode, chosen to
         /// match each kind's pre-existing behaviour (e.g. `.dismissedCard`/`.strapAlert` were already
@@ -27,6 +29,7 @@ struct UpdateItem: Identifiable, Codable, Equatable {
             case .whatsNew:      return .informative
             case .reading:       return .informative
             case .strapAlert:    return .statusReminder
+            case .newVersion:    return .informative
             }
         }
     }

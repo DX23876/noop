@@ -57,11 +57,15 @@ This is long-standing practice, not a one-off. Worked examples already in the tr
   field order, widths and enum values for `FilteredLabradorPacket` / `RawLabradorPacket`, plus the
   `{revision, arg, padding}` command payload shape, re-derived from static analysis of the vendor's iOS
   client. The four command NUMBERS were already in our own `CommandNumber` table from the whoomp/goose
-  work above. Everything ships as an **unvalidated candidate**: no strap has yet been asked whether it
-  honours these commands, the decode backs no metric, and the fields nobody can attest (the wrist enum's
-  raw values, the progress "timed out" sentinel, the ECG sample unit, the packet type byte) are carried
-  raw rather than named. The on-strap rhythm classifier's verdict is decoded as a byte and is never
-  presented as a finding — NOOP is not a medical device.
+  work above. Most of it still ships as an **unvalidated candidate**: the decode backs no metric, and the
+  fields nobody can attest (the wrist enum's raw values, the progress "timed out" sentinel, the ECG
+  sample unit, the packet type byte) are carried raw rather than named. **One exception is now attested
+  rather than inferred:** `ControlSignal`'s raw values were also read off the client's enum order, and a
+  WHOOP MG (`WS50_r00`, fw `50.39.1.0`) contradicts that reading — `1` stops generation, `2` starts it,
+  `0` is refused. The enum now carries the hardware values with the device and firmware named. A
+  hardware-observed value is strictly stronger than the inference it replaces, but it is one device.
+  The on-strap rhythm classifier's verdict is decoded as a byte and is never presented as a finding —
+  NOOP is not a medical device.
 
 And the line held from the other side:
 

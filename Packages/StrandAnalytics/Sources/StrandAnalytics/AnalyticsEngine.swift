@@ -293,6 +293,10 @@ public enum AnalyticsEngine {
     public static let vendorRespMinSpanS = 3_600
 
     public static func analyzeDay(day: String,
+                                  // Optional sink for the Effort funnel line. Nil (the default) builds
+                                  // nothing at all — see StrainScorer.strain. A parameter rather than a
+                                  // field so this engine stays pure.
+                                  strainDiag: ((String) -> Void)? = nil,
                                   hr: [HRSample] = [],
                                   rr: [RRInterval] = [],
                                   resp: [RespSample] = [],
@@ -546,17 +550,36 @@ public enum AnalyticsEngine {
         var deepS = 0.0, remS = 0.0, lightS = 0.0, tstS = 0.0
         var inBedS = 0.0, effWeighted = 0.0
         var disturbances = 0
+        // Hypnogram COVERAGE across the group: how much of the fragments' own spans the stage segments
+        // actually account for. Accumulated separately from `inBedS` because that one later absorbs the
+        // inter-fragment gap (#777/#705), which is a different quantity — a bridged out-of-bed gap is
+        // known-awake time between two fragments, whereas a hole INSIDE a fragment is time we never
+        // observed at all. Summed straight off `s.stages` (no JSON re-parse: the segments are already
+        // decoded here), then handed to `HypnogramCoverage` so the ratio/clamp/nil rules have ONE
+        // definition shared with the merge-side guard.
+        // NOTE on scope at THIS call site: coverage here is summed off the DECODED segments, not off
+        // `stagesJSON`, so the timestamp-free shapes are not screened out by the payload-shape rule the
+        // merge side uses. A minute-dict session decodes to zero segments and contributes span with no
+        // cover, and what keeps it from reading as a holed night is `fraction`'s `coveredSeconds > 0`
+        // returning nil for a group with no timestamped stages at all. Same outcome, different
+        // mechanism — and it holds only while a group is single-sourced, which the day merge ensures by
+        // choosing one side. A group mixing a timestamped fragment with a minute-dict one would read as
+        // holed; `HypnogramCoverageTests.testMixedSourceGroupReadsAsHoled` pins both halves.
+        var coveredS = 0.0, spanS = 0.0
         for s in mainGroup {
             let m = SleepStager.hypnogramMetrics(s)
             let inBed = Double(s.end - s.start)
             inBedS += inBed                       // each fragment's own in-bed span (the gap is added below)
             effWeighted += s.efficiency * inBed   // in-bed-weighted efficiency across the group
+            spanS += inBed
+            for seg in s.stages where seg.end > seg.start { coveredS += Double(seg.end - seg.start) }
             deepS += m.deepMin * 60.0
             remS += m.remMin * 60.0
             lightS += m.lightMin * 60.0
             tstS += m.tstS
             disturbances += m.disturbances
         }
+        let stageCoverage = HypnogramCoverage.fraction(coveredSeconds: coveredS, spanSeconds: spanS)
         // OUT-OF-BED time BETWEEN bridged fragments is AWAKE (#777/#705): a main night bridged from two
         // fragments split by a 20-min wake gap was reporting that gap as nowhere (it is in no fragment's
         // [start,end) span), so 20+ min of real awake read as ~4 min - a v7.1 regression, multi-reporter.
@@ -801,8 +824,12 @@ public enum AnalyticsEngine {
         // night `hr` for pure-function callers/tests.
         let effMaxHR: Double? = maxHROverride ?? (profile.age > 0 ? StrainScorer.tanakaHRmax(age: profile.age) : nil)
         let restForStrain = restingHRDaily.map(Double.init) ?? StrainScorer.defaultRestingHR
+        // The Effort ring's own funnel. A nil sink builds nothing at all, so a caller that does not want
+        // diagnostics pays nothing; IntelligenceEngine passes its per-day recorder, the same one the
+        // `workout detect` and `sleep-detect` lines beside it already use.
         let strain = StrainScorer.strain(dayHr ?? hr, maxHR: effMaxHR, restingHR: restForStrain,
-                                         method: effortMethod, sex: profile.sex)
+                                         method: effortMethod, sex: profile.sex,
+                                         diag: strainDiag, day: day)
 
         // ── Workouts ──────────────────────────────────────────────────────────
         // Detect over the full CALENDAR day (dayHr/dayGravity) when the caller supplies it, so a
@@ -911,7 +938,11 @@ public enum AnalyticsEngine {
             spo2Red: nightlySpo2Raw?.red,
             spo2Ir: nightlySpo2Raw?.ir,
             avgSdnn: avgSDNNDaily,
-            energyCoverageSeconds: energyCoverageSeconds)
+            energyCoverageSeconds: energyCoverageSeconds,
+            // The ABSOLUTE this pass's deviation was derived from (#1636). Set HERE, beside
+            // `skinTempDevC`, so the engine's own row is symmetric: any path that persists this
+            // struct directly keeps both thermal values, not just the one.
+            skinTempC: nightlySkinTempC)
         _ = sleepStart; _ = sleepEnd  // available for callers wiring sleep_start/end columns
 
         // ── Cache rows ────────────────────────────────────────────────────────
@@ -959,11 +990,14 @@ public enum AnalyticsEngine {
         let effortConfidence = ScoreConfidence.effort(strain: strain, hrSampleCount: hr.count)
         // Rest confidence with H9: downgrade a high-efficiency night whose deep+REM share is implausibly low
         // to low-confidence (likely staging miss) — honest, no faked stages. tstS/efficiency are the
-        // main-group totals computed above; restorative = deepS + remS.
+        // main-group totals computed above; restorative = deepS + remS. `stageCoverage` adds the third
+        // guard: a night whose stage timeline covers only part of its own span (an incompletely-received
+        // device hypnogram) cannot earn a SOLID Rest either, and neither of the other two can see it.
         let restConfidence = ScoreConfidence.rest(hasSession: !matched.isEmpty,
                                                   hasStagedSleep: hasStagedSleep,
                                                   asleepSeconds: tstS, restorativeSeconds: deepS + remS,
-                                                  efficiency: efficiency, gravitySparse: gravitySparse)
+                                                  efficiency: efficiency, gravitySparse: gravitySparse,
+                                                  stageCoverage: stageCoverage)
 
         return DayResult(daily: daily, sleepSessions: matched, cachedSleep: cachedSleep,
                          workouts: workouts, recovery: recovery, strain: strain,
@@ -1196,7 +1230,13 @@ public enum AnalyticsEngine {
     ///
     /// DIAGNOSTIC ONLY. Nothing scores this, it never writes `spo2Pct`, and it is not a blood-oxygen
     /// reading — it is the raw candidate averaged, surfaced so it can be checked against a real one.
-    /// Byte-parity twin of the Kotlin `nightlySpo2CandidateMean`.
+    ///
+    /// The mean is ROUNDED (`.rounded()`), not floored — `sum / kept` on two `Int`s truncates toward
+    /// zero, silently biasing every candidate down by up to 0.99 (e.g. a true 97.97 shipped as 97,
+    /// missing an app-displayed 98 the transform's own precise value would have round-matched). Every
+    /// value in range is positive (70...100), so round-half-up and round-half-away-from-zero agree —
+    /// no platform-divergence risk from the rounding rule itself. Byte-parity twin of the Kotlin
+    /// `nightlySpo2CandidateMean`.
     public static func nightlySpo2CandidateMean(_ sessions: [SleepSession],
                                          aux: [V18AuxSample]) -> (mean: Int, samples: Int)? {
         guard !sessions.isEmpty, !aux.isEmpty else { return nil }
@@ -1207,7 +1247,7 @@ public enum AnalyticsEngine {
             sum += v; kept += 1
         }
         guard kept > 0 else { return nil }
-        return (mean: sum / kept, samples: kept)
+        return (mean: Int((Double(sum) / Double(kept)).rounded()), samples: kept)
     }
 
     /// The plausible range for a raw Oura `0x6F` SpO2 sample before the ceiling transform below.
@@ -1236,7 +1276,14 @@ public enum AnalyticsEngine {
     ///
     /// Gated to `spo2SingleChannelPlausible` (50...110) BEFORE the ceiling is applied, so a
     /// contaminated row (down to -1016) cannot drag the mean down — the ceiling alone only guards
-    /// the top of the range. Byte-parity twin of the Kotlin `nightlySpo2CeilingMean`.
+    /// the top of the range.
+    ///
+    /// The mean is ROUNDED (`.rounded()`), not floored — same fix, same reasoning, as
+    /// `nightlySpo2CandidateMean` just above (found 2026-08-24 comparing a live-persisted 08-23/24
+    /// row against the Oura app: the transform's precise mean, 97.97, round-matched the app's 98%,
+    /// but the shipped `sum / kept` Int division floored it to 97, a spurious miss). All values here
+    /// are positive too, so the rounding-rule choice is again inert. Byte-parity twin of the Kotlin
+    /// `nightlySpo2CeilingMean`.
     public static func nightlySpo2CeilingMean(_ sessions: [SleepSession],
                                         spo2: [SpO2Sample]) -> (mean: Int, samples: Int)? {
         guard !sessions.isEmpty, !spo2.isEmpty else { return nil }
@@ -1247,7 +1294,7 @@ public enum AnalyticsEngine {
             sum += min(s.red, 100); kept += 1
         }
         guard kept > 0 else { return nil }
-        return (mean: sum / kept, samples: kept)
+        return (mean: Int((Double(sum) / Double(kept)).rounded()), samples: kept)
     }
 
     /// #1169 SHADOW METRIC: the primary-session MEAN resting HR — window each detected sleep session's HR

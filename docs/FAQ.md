@@ -50,8 +50,9 @@ into something diagnosable.
 NOOP has no server, account, telemetry, or cloud sync. Raw sensor streams and the local database stay
 on your device unless you explicitly export/share them. Three user-controlled paths can use the
 network: the optional Coach sends your question and an approved compact text summary to the provider
-you configure; a source-built Oura lane pulls your own Oura history in; and **Check for updates**
-reads public release metadata from GitHub when you tap it.
+you configure; a source-built Oura lane pulls your own Oura history in; and the update checker reads
+public release metadata from GitHub when you tap it or, when enabled, at most once per day. It never
+installs anything and can be disabled under Settings → About.
 
 Two exports can carry your data off-device **when you choose where to send them**:
 

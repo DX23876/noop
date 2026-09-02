@@ -214,15 +214,15 @@ identity changes with every build.
 |---|---|
 | ⌚ **Own your strap data** | Connect directly to a WHOOP 4.0 or 5.0/MG over Bluetooth. No WHOOP account, subscription, or cloud relay. |
 | 📈 **Compute locally** | Charge, Effort, Rest, sleep, HRV, heart rate, recovery trends, and correlations are calculated and stored on your device. |
-| 🔒 **Keep control** | No telemetry, no NOOP account, and no NOOP server. Network access is limited to explicit features: your chosen Coach provider, an optional source-built Oura import, and the manual public-release check. |
+| 🔒 **Keep control** | No telemetry, no NOOP account, and no NOOP server. Network access is limited to explicit features: your chosen Coach provider, an optional source-built Oura import, and the metadata-only public-release check (manual or, when enabled, at most daily). |
 | 📬 **See what happened** | Today and the bell keep daily signals, important status, and recent alerts visible without turning every event into noise. |
 
 ## Privacy, precisely
 
 NOOP AI is offline-first. Your strap data, database, scores, history, goals, coach memory, and plans
 stay on your device. The optional AI Coach contacts only the provider you configure when you ask it
-to; a source-built Oura history lane can pull your own Oura data in; and **Check for updates** reads
-only the latest public release metadata when you tap it. None of these paths uploads raw sensor
+to; a source-built Oura history lane can pull your own Oura data in; and the update checker reads
+only the latest public release metadata manually or, when enabled, at most daily. None of these paths uploads raw sensor
 streams or gives NOOP a server or account.
 
 More detail: [Privacy and security](docs/PRIVACY_SECURITY.md).

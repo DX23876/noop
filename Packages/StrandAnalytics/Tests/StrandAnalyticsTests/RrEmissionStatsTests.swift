@@ -112,6 +112,12 @@ final class RrEmissionStatsTests: XCTestCase {
         let line = RrEmissionStats.logLine(path: "historical", offered: 3, inserted: 2, r)
         XCTAssertTrue(line.hasPrefix("rr emit path=historical offered=3 inserted=2 secs=2 "), line)
         XCTAssertTrue(line.contains("perSec[1/2/3/4+]=1/1/0/0"), line)
+
+        // A LIVE path censuses before the insert and cannot know what the conflict key kept, so it
+        // passes nil and the line must say "n/a". Echoing `offered` there would read as "the primary
+        // key absorbed nothing" — a claim neither live path is in a position to make.
+        let live = RrEmissionStats.logLine(path: "live-standard", offered: 3, inserted: nil, r)
+        XCTAssertTrue(live.contains("offered=3 inserted=n/a "), live)
     }
 
     /// A GAP must not read as healthy emission. Two doubled seconds an hour apart carry a 2.0 emission
@@ -126,5 +132,23 @@ final class RrEmissionStatsTests: XCTestCase {
         XCTAssertLessThan(r.ratio, 0.01, "span ratio is diluted by the gap, as documented")
         let line = RrEmissionStats.logLine(path: "historical", offered: 4, inserted: 4, r)
         XCTAssertTrue(line.contains("ratio=0.00 ratioRep=1.60"), line)
+    }
+
+    /// The LIVE census rate-limit. Twin of Kotlin `shouldEmitLiveCensusRateLimits` — same table, same
+    /// answers, oracle-checked against a standalone Swift build of the helper.
+    ///
+    /// The `lastEmit=0` rows are the ones that matter. The sentinel is checked explicitly, not left to
+    /// the gap arithmetic: with a real unix `nowSec` (~1.8e9) the subtraction clears any gap by accident
+    /// of magnitude, so the "first flush always reports" contract held in production while being false
+    /// for small timestamps — which is exactly what a unit test uses.
+    func testShouldEmitLiveCensus() {
+        XCTAssertTrue(RrEmissionStats.shouldEmitLiveCensus(lastEmitSec: 0, nowSec: 0))
+        XCTAssertTrue(RrEmissionStats.shouldEmitLiveCensus(lastEmitSec: 0, nowSec: 1))
+        XCTAssertTrue(RrEmissionStats.shouldEmitLiveCensus(lastEmitSec: 0, nowSec: 1_700_000_000))
+        XCTAssertFalse(RrEmissionStats.shouldEmitLiveCensus(lastEmitSec: 1_700_000_000, nowSec: 1_700_000_000))
+        XCTAssertFalse(RrEmissionStats.shouldEmitLiveCensus(lastEmitSec: 1_700_000_000, nowSec: 1_700_000_899))
+        XCTAssertTrue(RrEmissionStats.shouldEmitLiveCensus(lastEmitSec: 1_700_000_000, nowSec: 1_700_000_900))
+        XCTAssertTrue(RrEmissionStats.shouldEmitLiveCensus(lastEmitSec: 1_700_000_000, nowSec: 1_700_000_901))
+        XCTAssertTrue(RrEmissionStats.shouldEmitLiveCensus(lastEmitSec: 1_700_000_900, nowSec: 1_700_000_000))
     }
 }

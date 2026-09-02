@@ -11,9 +11,15 @@ import StrandAnalytics
 /// itself rather than relying on the values WHOOP computed in the imported CSV.
 @MainActor
 final class IntelligenceEngine: ObservableObject {
+    /// Minimum raw HR samples required before a day is scored. Shared by the gate and its diagnostics so
+    /// the threshold cannot drift between code paths (RyanBR #1538 parity).
+    static let minHrSamples = 200
+
     /// Version of the *meaning* of persisted derived scores. App marketing/build versions are
     /// deliberately unrelated: bump this only when an analytics change makes existing scores stale.
-    static let currentAnalysisRecipeVersion = 1
+    // v2: RyanBR v11 changes persisted analysis inputs/outputs (including absolute nightly skin
+    // temperature and scoring-source handling). Existing v1 rows need one bounded refresh.
+    static let currentAnalysisRecipeVersion = 2
     static let analysisRecipeCursor = "analysis:recipeVersion"
     static let analysisLastRunKey = "noop.analysisMaintenance.lastRun"
 
@@ -298,10 +304,21 @@ final class IntelligenceEngine: ObservableObject {
     /// SAME span the floor came from, so the two numbers are directly comparable). Empty in-bed → nightMean
     /// is "nil". Counts/bpm only , no timestamps or PII. Pure so it's unit-tested directly and is the SAME
     /// line `analyzeRecent` ships. Byte-identical to the Android `rhrFloorMeanLogLine`.
-    /// #1331 diagnostic line: the night's computed respiratory rate (breaths/min) or "nil". Format kept
-    /// simple so it stays byte-identical to the Android `respRateLogLine`.
-    nonisolated static func respRateLogLine(day: String, respRateBpm: Double?) -> String {
-        "resp day=\(day) rpm=\(respRateBpm.map { String(format: "%.1f", $0) } ?? "nil")"
+    /// #1331 diagnostic line: the night's computed respiratory rate and, when it is missing after the
+    /// HRV block ran, whether the RSA beat-accuracy gate refused the R-R input.
+    nonisolated static func respRateLogLine(day: String,
+                                            respRateBpm: Double?,
+                                            beatAccurate: Double? = nil,
+                                            rrIntegrity: String? = nil) -> String {
+        let base = "resp day=\(day) rpm=\(respRateBpm.map { String(format: "%.1f", $0) } ?? "nil")"
+        guard respRateBpm == nil, let beatAccurate else { return base }
+        let acc = beatAccurate.isNaN ? "NaN" : String(format: "%.2f", beatAccurate)
+        let gate = String(format: "%.2f", HRVAnalyzer.beatAccuracyMinFraction)
+        let integrity = rrIntegrity ?? "unknown"
+        if beatAccurate < HRVAnalyzer.beatAccuracyMinFraction {
+            return "\(base) beatAccurate=\(acc)<\(gate) rrIntegrity=\(integrity) — RSA gate refused the R-R"
+        }
+        return "\(base) beatAccurate=\(acc)>=\(gate) rrIntegrity=\(integrity) — gate passed, cause is elsewhere"
     }
 
     nonisolated static func rhrFloorMeanLogLine(day: String, floor: Int, inBedBpms: [Int]) -> String {
@@ -346,8 +363,10 @@ final class IntelligenceEngine: ObservableObject {
     nonisolated static func sleepDetectNoNightLogLine(day: String, hrCount: Int, rrCount: Int,
                                                       respCount: Int, gravCount: Int, stepCount: Int,
                                                       providedCount: Int, windowHours: Int) -> String {
+        let reason = gravCount == 0 ? "no-motion" : "staged-none"
         return "sleep-detect day=\(day) NO-NIGHT hr=\(hrCount) rr=\(rrCount) resp=\(respCount) "
-            + "grav=\(gravCount) steps=\(stepCount) provided=\(providedCount) window=\(windowHours)h"
+            + "grav=\(gravCount) steps=\(stepCount) provided=\(providedCount) window=\(windowHours)h "
+            + "reason=\(reason)"
     }
 
     /// #674/#1244: the "sleep total with no matched session" divergence line. A COMPUTED day whose fresh
@@ -978,7 +997,7 @@ final class IntelligenceEngine: ObservableObject {
         // #1005: time the whole pass — the trigger line above records WHY; this records how many nights
         // and how long (the CPU cost per run), so a re-score STORM is visible in the strap log.
         let reScoreStart = Date()
-        RescoreBackgroundScheduler.markRescoreOwed()
+        let owedToken = RescoreBackgroundScheduler.markRescoreOwed()
 
         let up = UserProfile(weightKg: profile.weightKg, heightCm: profile.heightCm,
                              age: Double(profile.age), sex: profile.sex,
@@ -1298,11 +1317,11 @@ final class IntelligenceEngine: ObservableObject {
 
                 let hr = (try? await store.hrSamples(deviceId: owner, from: from, to: to, limit: Int.max)) ?? []
                 let diagHrMs = diagLap()
-                guard hr.count >= 200 else {
+                guard hr.count >= Self.minHrSamples else {
                     // Need real raw data, not a stray sample. The skipped day gets no DayScan, so its
                     // diagnostic is carried in `skippedDayLines` and replayed through `diagnosticSink`
                     // on the main actor below (upstream #714 fix — a bare `diag()` doesn't exist in Swift).
-                    skippedDayLines.append("sleep day=\(day) SKIPPED hrSamples=\(hr.count) (need ≥200)")
+                    skippedDayLines.append("sleep day=\(day) SKIPPED hrSamples=\(hr.count) (need ≥\(Self.minHrSamples))")
                     continue
                 }
                 let rr = (try? await store.rrIntervals(deviceId: owner, from: from, to: to, limit: Int.max)) ?? []
@@ -1543,6 +1562,8 @@ final class IntelligenceEngine: ObservableObject {
                 let sleepRr = sleepRrRows.map { Double($0.rrMs) }
                 let hrvDiag: String?
                 let hrvOverCounted: Bool?   // #1118: nil = no in-sleep R-R (no HRV to caveat)
+                var respGateAcc: Double?
+                var respGateIntegrity: String?
                 if sleepRr.isEmpty {
                     hrvOverCounted = nil
                     // #1244: no in-sleep R-R means no HRV summary. If the whole night also detected NO
@@ -1600,6 +1621,8 @@ final class IntelligenceEngine: ObservableObject {
                     // measurements: the per-record SUM is right to ~1% (meanNN and RHR stay correct and
                     // WHOOP-validated) while the individual intervals are not. Gate on that too.
                     let accVal = HRVAnalyzer.beatAccurateFraction(tsSec: ts, rrMs: sleepRr)
+                    respGateAcc = accVal
+                    respGateIntegrity = verdict.rawValue
                     let acc = String(format: "%.2f", accVal)
                     let sdnnField = HRVAnalyzer.beatSpreadIsTrustworthy(verdict)
                         && HRVAnalyzer.beatValuesAreTrustworthy(beatAccurateFraction: accVal)
@@ -1723,7 +1746,10 @@ final class IntelligenceEngine: ObservableObject {
                 }
                 // #1331 respiratory diagnostic — a run of nil nights localises when it stopped. Same
                 // pure-compute-here / replay-on-main-actor path as rhrLine.
-                let respLine: String? = Self.respRateLogLine(day: res.daily.day, respRateBpm: res.daily.respRateBpm)
+                let respLine: String? = Self.respRateLogLine(day: res.daily.day,
+                                                            respRateBpm: res.daily.respRateBpm,
+                                                            beatAccurate: respGateAcc,
+                                                            rrIntegrity: respGateIntegrity)
                 // #103/queue-11a: SpO₂ candidate nightly mean. Only computed when the display toggle is
                 // ON, and the transform is device-conditional (#1086-style brand lookup, matching
                 // `skinTempWornToleranceSec`'s idiom just above): a WHOOP owner averages the in-band
@@ -2147,7 +2173,8 @@ final class IntelligenceEngine: ObservableObject {
                     hrRows: owned?.hrRows ?? 0, importedWhoop: importedWhoopDays.contains(daily.day),
                     importedApple: appleHealthDays.contains(daily.day)), .universal)
             }
-            dailies.append(daily.with(recovery: recovery, skinTempDevC: skinDev))
+            dailies.append(daily.with(recovery: recovery, skinTempDevC: skinDev,
+                                      skinTempC: daily.skinTempC))
             if let rest = AnalyticsEngine.Rest.composite(daily: daily) {
                 restPoints.append(MetricPoint(day: daily.day, key: "sleep_performance", value: rest))
             }
@@ -2261,7 +2288,8 @@ final class IntelligenceEngine: ObservableObject {
         let appleByDay = Dictionary(appleRows.map { ($0.day, $0) }, uniquingKeysWith: { a, _ in a })
         for w in watchScored {
             guard let recovery = w.recovery, let row = appleByDay[w.day] else { continue }
-            appleRecoveryRows.append(row.with(recovery: recovery, skinTempDevC: row.skinTempDevC))
+            appleRecoveryRows.append(row.with(recovery: recovery, skinTempDevC: row.skinTempDevC,
+                                               skinTempC: row.skinTempC))
             // Surface the watch-only day in the By-Day list with its watch provenance + confidence.
             out.append(Computed(day: w.day, recovery: recovery, strain: row.strain,
                                 sleepMin: row.totalSleepMin, hrv: row.avgHrv, rhr: row.restingHr,
@@ -2310,7 +2338,8 @@ final class IntelligenceEngine: ObservableObject {
             let byDay = Dictionary(rows.map { ($0.day, $0) }, uniquingKeysWith: { a, _ in a })
             for w in Self.watchRecoveries(appleRows: rows, strapRecoveryDays: importScoredDays) {
                 guard let recovery = w.recovery, let row = byDay[w.day] else { continue }
-                let scored = row.with(recovery: recovery, skinTempDevC: row.skinTempDevC)
+                let scored = row.with(recovery: recovery, skinTempDevC: row.skinTempDevC,
+                                      skinTempC: row.skinTempC)
                 dailies.append(scored)
                 importScoredDays.insert(w.day)
                 resolvedScoreOwnerByDay[w.day] = source
@@ -2777,7 +2806,11 @@ final class IntelligenceEngine: ObservableObject {
         // background wake from one that never could, instead of guessing from a constant — the cost varies
         // by more than an order of magnitude with history size.
         let elapsed = Date().timeIntervalSince(reScoreStart)
-        RescoreBackgroundScheduler.markRescoreCompleted(seconds: elapsed)
+        let settled = RescoreBackgroundScheduler.markRescoreCompleted(seconds: elapsed,
+                                                                       owedToken: owedToken)
+        if !settled {
+            diagnosticSink?("re-score: completed, but a newer rescore request remains owed (#1681)", nil)
+        }
         diagnosticSink?("re-score: done — scored \(scoredNights.count) night(s) in \(Int(elapsed * 1000)) ms (#1005)", nil)
     }
 
@@ -3236,16 +3269,17 @@ final class IntelligenceEngine: ObservableObject {
     }
 }
 
-private extension DailyMetric {
+extension DailyMetric {
     /// Rebuild the immutable DailyMetric with a substituted recovery + skin-temp deviation
     /// (the struct has no `copy()`). (#78)
-    func with(recovery r: Double?, skinTempDevC sd: Double?) -> DailyMetric {
+    func with(recovery r: Double?, skinTempDevC sd: Double?, skinTempC sa: Double?) -> DailyMetric {
         DailyMetric(day: day, totalSleepMin: totalSleepMin, efficiency: efficiency, deepMin: deepMin,
                     remMin: remMin, lightMin: lightMin, disturbances: disturbances, restingHr: restingHr,
                     avgHrv: avgHrv, recovery: r, strain: strain, exerciseCount: exerciseCount,
                     spo2Pct: spo2Pct, skinTempDevC: sd, respRateBpm: respRateBpm,
                     steps: steps, activeKcalEst: activeKcalEst,
-                    spo2Red: spo2Red, spo2Ir: spo2Ir, avgSdnn: avgSdnn)
+                    spo2Red: spo2Red, spo2Ir: spo2Ir, avgSdnn: avgSdnn,
+                    energyCoverageSeconds: energyCoverageSeconds, skinTempC: sa)
     }
 
     /// Rebuild with substituted sleep-derived fields (a user-corrected wake window), leaving every
@@ -3256,7 +3290,8 @@ private extension DailyMetric {
                     disturbances: disturbances, restingHr: restingHr, avgHrv: avgHrv, recovery: recovery,
                     strain: strain, exerciseCount: exerciseCount, spo2Pct: spo2Pct,
                     skinTempDevC: skinTempDevC, respRateBpm: respRateBpm, steps: steps,
-                    activeKcalEst: activeKcalEst, spo2Red: spo2Red, spo2Ir: spo2Ir, avgSdnn: avgSdnn)
+                    activeKcalEst: activeKcalEst, spo2Red: spo2Red, spo2Ir: spo2Ir, avgSdnn: avgSdnn,
+                    energyCoverageSeconds: energyCoverageSeconds, skinTempC: skinTempC)
     }
 }
 

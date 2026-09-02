@@ -13,6 +13,30 @@ import UIKit
 import AppKit
 #endif
 
+/// The label a discovered ring is listed under: its advertised local name, or `fallback` when it did
+/// not advertise one.
+///
+/// A BONDED ring routinely stops advertising a local name, so the blank case is the NORMAL case for the
+/// ring a user most wants to reconnect to (#1776), not an error path — the scan's service filter is the
+/// only gate and the name is a label. Callers therefore never see an empty `DiscoveredRing.name`, which
+/// is why the wizard renders it unguarded on both platforms (#1783 reads that as a missing guard; the
+/// guard is here, at the single construction site).
+///
+/// BLANK, not empty. The Kotlin twin is `ouraAdvertisedLabel` in `ble/OuraLiveSource.kt`, built on
+/// `ifBlank`, which treats an all-whitespace name as absent. `isEmpty` does not, so a ring advertising
+/// `" "` would have listed blank here and as "Oura" there — the exact silent Swift/Kotlin divergence the
+/// parity contract calls out. Both sides now treat whitespace as absent and return the name UNTRIMMED
+/// when it is present. Pinned by the Kotlin `OuraNamelessRingDiscoveryTest` against this function's own
+/// output. The two agree over ASCII whitespace, ordinary names, and U+00A0. `ifBlank` does NOT test
+/// `Character.isWhitespace`, which would indeed exclude U+00A0; it tests Kotlin's `Char.isWhitespace`,
+/// defined as `Character.isWhitespace(c) || Character.isSpaceChar(c)`, and the second disjunct restores
+/// every non-breaking space the first drops. The pair parts only on U+0085 (blank here, not in Kotlin)
+/// and U+001C–U+001F (blank in Kotlin, not here), which no BLE local name carries — stated rather than
+/// silently overclaimed.
+func ouraAdvertisedLabel(_ advertisedName: String, fallback: String) -> String {
+    advertisedName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? fallback : advertisedName
+}
+
 /// EXPERIMENTAL, ISOLATED live-BLE source for the Oura ring (gen 3/4/5), driven by the clean-room
 /// `OuraProtocol.OuraDriver`.
 ///
@@ -1397,8 +1421,10 @@ public final class OuraLiveSource: NSObject, ObservableObject {
                 fetchHistoryIfIdle()   // pull last night's banked temp/SpO2/HRV/sleep-phase right away
                 write([OuraCommands.getBattery()])   // ask once HR streams; the 0x0D reply routes to onBattery
                 // Read-only diagnostic: ask the ring its SpO2 / real-steps feature status once, so a capture
-                // confirms (from the ring itself) that these server-flag features are subscription-gated OFF
-                // for an offline ring. NEVER an enable/set-mode write - purely the 0x20 read verb.
+                // sees the ring's own gate state. NOT reliably "off" for an offline ring — on-device
+                // 2026-08-25 real_steps read back status=1 (enabled) here, matching the real Oura app's read
+                // of the same ring byte-for-byte (worklog analysis/2026-08-25-noop-ring-hci-realsteps-
+                // confirmation.txt). NEVER an enable/set-mode write - purely the 0x20 read verb.
                 write([OuraCommands.spo2ReadStatus(), OuraCommands.realStepsReadStatus()])
                 // Read-only capture (#771/#772): the ring's GetProductInfo serial + hardware pages are
                 // pre-auth readable. The SERIAL is a STABLE per-ring identity — unlike the CoreBluetooth UUID,
@@ -2199,15 +2225,20 @@ extension OuraLiveSource: @preconcurrency CBCentralManagerDelegate {
                                rssi RSSI: NSNumber) {
         let advName = advertisementData[CBAdvertisementDataLocalNameKey] as? String
         let name = advName ?? peripheral.name ?? ""
-        // The scan already filters on the Oura service, but re-check the name through the gen recogniser
-        // so a coincidental service match without an Oura-shaped name is dropped (best-effort).
+        // Best-effort generation guess from the advertised name — a LABEL only (the wizard falls back to
+        // .gen3 when it is nil). Nothing is dropped here: the scan's service filter is the only gate, so a
+        // ring is listed even when it advertises no local name at all. That is deliberate — a BONDED ring
+        // often stops advertising one, and treating the empty name as a miss is the bug the Android twin
+        // carried (`ExperimentalBrand.recognise(name) != OURA` in `ble/OuraLiveSource.kt`, where
+        // `recognise("")` is nil) until it was brought in line with this side. Do not "restore" a
+        // name-based drop on either platform.
         let detectedGen = OuraRingGen.recognise(advertisedName: name)
         let id = peripheral.identifier
         let firstSight = seenPeripherals[id] == nil
         seenPeripherals[id] = peripheral
-        if firstSight { log("Oura: found \(name.isEmpty ? "Oura ring" : name) (\(id)) rssi \(RSSI.intValue)") }
+        if firstSight { log("Oura: found \(ouraAdvertisedLabel(name, fallback: "Oura ring")) (\(id)) rssi \(RSSI.intValue)") }
         let ring = DiscoveredRing(id: id,
-                                  name: name.isEmpty ? "Oura" : name,
+                                  name: ouraAdvertisedLabel(name, fallback: "Oura"),
                                   rssi: RSSI.intValue,
                                   detectedGen: detectedGen)
         if let idx = discovered.firstIndex(where: { $0.id == id }) {

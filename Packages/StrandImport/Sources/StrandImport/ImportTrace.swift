@@ -62,6 +62,33 @@ public enum ImportTrace {
     /// CSV row with no parseable timestamp) and the number of tolerant-import spans the XML sanitizer
     /// scrubbed (`skippedSpans`, Apple Health only; 0 elsewhere). So a partial import never silently looks
     /// complete.
+    /// Which metric columns an imported table actually carried, and which were empty in every row.
+    ///
+    /// The import trace already reports rows in, rows rejected and days mapped, but not whether a given
+    /// COLUMN arrived. That is the question behind a whole class of "why is this card empty" reports: the
+    /// file imported cleanly, the rows landed, and one metric is still blank because the export never
+    /// contained it — or contained it under a header the aliases do not match. Both look identical from
+    /// outside, and neither is distinguishable from a store-write failure without this line.
+    ///
+    /// `counts` is (column, rows-with-a-usable-value) in the parser's own order, so the line reads in the
+    /// order a maintainer would look for them. A column at zero is called out explicitly in an ABSENT
+    /// clause rather than left for the reader to spot among a dozen numbers; the clause is omitted when
+    /// every column arrived, so the healthy case is quiet but still present.
+    ///
+    /// Known at parse time, so it carries none of the store-write ambiguity that keeps `rowsOut` honest
+    /// but unverified on Android — this line means the same thing on both platforms.
+    public static func columnCoverageLine(stage: String, rows: Int, counts: [(String, Int)]) -> String {
+        // Built from the non-empty parts rather than interpolated positionally: an empty `counts` would
+        // otherwise leave a trailing space, and a malformed line is worse than a useless one for anything
+        // that later greps these logs. No caller can pass empty today; the formatter is shared and public,
+        // so it should not depend on that staying true.
+        let head = "import columns stage=\(stage) rows=\(rows)"
+        let body = counts.map { "\($0.0)=\($0.1)" }.joined(separator: " ")
+        let absent = counts.filter { $0.1 == 0 }.map(\.0)
+        let tail = absent.isEmpty ? "" : " — ABSENT: \(absent.joined(separator: ", "))"
+        return body.isEmpty ? head : "\(head) \(body)\(tail)"
+    }
+
     public static func rejectLine(droppedRows: Int, skippedSpans: Int) -> String {
         "import rejects droppedRows=\(droppedRows) skippedSpans=\(skippedSpans)"
     }

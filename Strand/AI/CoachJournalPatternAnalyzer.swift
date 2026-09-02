@@ -60,6 +60,7 @@ enum CoachJournalPatternAnalyzer {
             let explicit = Dictionary(responses.map { ($0.day, $0.answeredYes) },
                                       uniquingKeysWith: { _, latest in latest })
             let yesDays = Set(explicit.compactMap { $0.value ? $0.key : nil })
+            let noDays = Set(explicit.compactMap { $0.value ? nil : $0.key })
             guard explicit.values.contains(true), explicit.values.contains(false) else { continue }
 
             for lag in EffectRanker.lagSet {
@@ -70,6 +71,7 @@ enum CoachJournalPatternAnalyzer {
                     aligned[day] = value
                 }
                 guard let effect = BehaviorInsights.effect(behaviorDays: yesDays,
+                                                           controlDays: noDays,
                                                            outcomeByDay: aligned,
                                                            behavior: question,
                                                            outcome: outcomeName)

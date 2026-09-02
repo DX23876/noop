@@ -714,7 +714,16 @@ struct LiquidTodayView: View {
     private func handlePull(_ y: CGFloat) {
         pullY = max(0, y)
         guard !refreshing else { return }
-        if pullY >= pullThreshold, !refreshArmed {
+        // #1748 twin: gate the ARM, not the release. `syncNow()`'s own gate checks connected + bonded, and
+        // `bonded` is set by the live-HR path for a 5/MG that has never completed a handshake — so the pull
+        // was accepted and then declined in silence. `historyReady` is the client's OWN precondition, so
+        // this cannot withhold a sync that would have run.
+        //
+        // On the ARM specifically: gating the RELEASE below would leave `refreshArmed` stuck true for the
+        // rest of the gesture, since that branch is the only thing that clears it — a worse failure than
+        // the silent one being fixed. Not arming also withholds the haptic, which is the honest signal
+        // that the gesture is unavailable rather than unresponsive.
+        if pullY >= pullThreshold, !refreshArmed, ble.state.historyReady {
             refreshArmed = true
             pullHaptic &+= 1
         }
@@ -1232,30 +1241,51 @@ struct LiquidTodayView: View {
                      title: card.title, sub: card.subtitle,
                      value: stepsText, tint: StrandPalette.metricCyan, frac: fracOver(stepCount, 10000))
         case .bloodOxygen:
-            // THREE tiers, matching the Android `dashboardCardValue`: today → whole-row vitals carry → the
-            // last row that actually HAS a reading. The third tier is not redundant: computed "-noop" rows
-            // write `spo2Pct = nil`, so the whole-row carry routinely lands on an empty field.
+            // #1627: these two were the last cards still on the "not wired yet" placeholder, so on iOS 26 —
+            // where Liquid Today is the DEFAULT Today screen — Blood Oxygen and Skin Temp read "–" for
+            // everyone while every other card on the same screen showed a real number off the same
+            // `displayDay`. Reported with a clean A/B: turning Liquid Today off restored both immediately.
             //
-            // Not carried over from classic Today: its #103 fallback to the experimental `spo2_candidate`
-            // strap estimate. That series comes from `metricSeries`, not from a DailyMetric field, so this
-            // screen has no source for it (`kSparks` is built purely from daily rows) and wiring one is a
-            // separate change. The toggle is experimental and default-off; the calibrated value above is
-            // what both screens show with it off.
-            let spo2 = displayDay?.spo2Pct ?? vitalsDay?.spo2Pct ?? spo2Day?.spo2Pct
-            cardLink(.metric("spo2"), icon: card.icon, title: card.title, sub: card.subtitle,
-                     value: spo2.map { String(format: "%.0f%%", $0) } ?? "–",
+            // The VALUE resolution is copied from the Key Metrics tile below rather than reinvented —
+            // candidate fallback and experimental gating included — so the card and the tile cannot
+            // disagree about the same day's number. The tile's key/route handling is deliberately NOT
+            // copied; see below for why the two are not interchangeable.
+            let spo2Real = displayDay?.spo2Pct ?? vitalsDay?.spo2Pct
+            let spo2CandidateOn = PuffinExperiment.spo2CandidateDisplayEnabled
+            let spo2Candidate = spo2Real == nil && spo2CandidateOn
+                ? spo2CandidateByDay[cachedDisplayDay?.day ?? selectedDayKey]
+                : nil
+            let spo2 = spo2Real ?? spo2Candidate
+            // ALWAYS routes to "spo2", never "spo2_candidate". The Key Metrics tile switches that string,
+            // but there it is a SPARKLINE SERIES key (ktile feeds it to windowedSpark; navigation goes
+            // through its separate detailMetric argument). Here the string is a NAVIGATION route resolved
+            // against MetricCatalog — which has no "spo2_candidate" entry — so switching it would drop the
+            // tap into the Health catch-all instead of the Blood Oxygen detail. Same literal, two different
+            // key spaces.
+            // The candidate MUST carry its label. Every other surface that shows it says "strap estimate
+            // (unverified)" — the Key Metrics tile below, VitalSignsSummary, the classic TodayView — and
+            // PuffinExperiment's own doc says the toggle surfaces it "in the Blood Oxygen tile/card,
+            // labelled". An unlabelled number here would read as a measured SpO2 on the one surface that
+            // is the DEFAULT Today screen on iOS 26. The subtitle is the slot this card has.
+            cardLink(.metric("spo2"), icon: card.icon,
+                     title: card.title,
+                     sub: spo2Candidate != nil ? String(localized: "strap estimate (unverified)") : card.subtitle,
+                     // Em dash, not the en dash the stub used: the classic Blood Oxygen card and
+                     // skinTempCardValue both return "—", so the stub's "–" would have left the two
+                     // adjacent cards printing different glyphs for the same "no reading" state.
+                     value: spo2.map { String(format: "%.0f%%", locale: AppLanguage.activeLocale, $0) } ?? "—",
                      tint: StrandPalette.metricCyan, frac: fracOver(spo2, 100))
         case .skinTemp:
-            // Same three tiers. Formatting goes through the shared `SkinTempDisplay` rather than a local
-            // "%+.1f°": the stored field is BIMODAL (#622) — an imported row can hold an ABSOLUTE wrist
-            // temperature (~30–35 °C) while a live row holds a signed deviation from baseline. A fixed
-            // signed format would print "+34.2°" for the absolute case. The helper detects which it is,
-            // signs only deviations, converts to °F when asked, and always labels the scale ("°C" / "Δ°C").
-            let skin = displayDay?.skinTempDevC ?? vitalsDay?.skinTempDevC ?? skinTempDay?.skinTempDevC
+            // Skin temp has NO Key Metrics tile to mirror (KeyMetric has no skinTemp case), so this uses
+            // the classic card's extracted resolver instead — the same one TodayView calls, which is why
+            // it is a static: the formatting decision is testable without a live view.
+            //
+            // frac stays nil deliberately. A signed deviation has no natural 0–100 fill, and a ring drawn
+            // from one would imply a magnitude the number does not carry.
+            let skin = displayDay?.skinTempC ?? vitalsDay?.skinTempC
+                ?? displayDay?.skinTempDevC ?? vitalsDay?.skinTempDevC ?? skinTempDay?.skinTempDevC
             cardLink(.metric("skin_temp"), icon: card.icon, title: card.title, sub: card.subtitle,
-                     value: skin.map {
-                         SkinTempDisplay.format($0, fahrenheit: temperatureUnit == .fahrenheit)
-                     } ?? "–",
+                     value: TodayView.skinTempCardValue(skin, fahrenheit: temperatureUnit == .fahrenheit),
                      tint: StrandPalette.metricAmber, frac: nil)
         case .calories:
             cardLink(.energy, icon: card.icon,
@@ -1794,6 +1824,8 @@ struct LiquidTodayView: View {
         case .respiratory:  return (displayDay?.respRateBpm ?? vitalsDay?.respRateBpm) != nil
         case .steps:        return stepCount != nil
         case .calories:     return selectedEnergySummary?.totalBurnedSoFar != nil
+        case .skinTemp:     return (displayDay?.skinTempC ?? vitalsDay?.skinTempC
+                                    ?? displayDay?.skinTempDevC ?? vitalsDay?.skinTempDevC) != nil
         }
     }
 
@@ -1848,6 +1880,22 @@ struct LiquidTodayView: View {
                   EnergyDisplay.totalText(selectedEnergySummary), "kcal", StrandPalette.energyHighlight,
                   nil, key: "energy_total", caption: String(localized: "total burned so far"),
                   route: .energy)
+        case .skinTemp:
+            // Added 2026-08-24 (queue 11c follow-up): first Key Metrics appearance for Skin Temp — was
+            // already a "Your Cards" tile (`DashboardCard.skinTemp`), never a Key Metrics one. Same
+            // 2-level carry the Blood Oxygen case just above uses (displayDay → the cached vitals carry),
+            // and the SAME `SkinTempDisplay` formatter every other skin-temp surface uses so a deviation
+            // reads "+0.1 Δ°C" here exactly as it does on "Your Cards"/the Deep Timeline, never the plain
+            // `%+.1f°` that read a fabricated absolute value for a signed deviation (#622).
+            let skinValue = displayDay?.skinTempC ?? vitalsDay?.skinTempC
+                ?? displayDay?.skinTempDevC ?? vitalsDay?.skinTempDevC
+            let skinText = skinValue.map {
+                SkinTempDisplay.format($0, fahrenheit: temperatureUnit == .fahrenheit)
+            } ?? "—"
+            // The card's own unit is deliberately empty — the value carries "°C"/"Δ°F" itself, same as
+            // the classic TodayView Skin Temp card.
+            ktile(String(localized: "Skin Temp"), icon: metric.customizationIcon,
+                  skinText, "", StrandPalette.metricAmber, nil, key: "skin_temp")
         }
     }
 
@@ -2134,6 +2182,9 @@ struct LiquidTodayView: View {
             "rhr": sparkRows.compactMap { r in r.restingHr.map { (r.day, Double($0)) } },
             "spo2": sparkRows.compactMap { r in r.spo2Pct.map { (r.day, $0) } },
             "spo2_candidate": spo2CandSeries.filter { $0.day >= sparkCutoff && $0.day <= selectedDayKey },
+            // Added 2026-08-24 (queue 11c follow-up) for the new Skin Temp Key Metrics tile — already
+            // loaded on `sparkRows` (`daysSnapshot`), same as every other DailyMetric-column tile above.
+            "skin_temp": sparkRows.compactMap { r in r.skinTempDevC.map { (r.day, $0) } },
             "resp_rate": sparkRows.compactMap { r in r.respRateBpm.map { (r.day, $0) } },
             "steps": sparkRows.compactMap { r in r.steps.map { (r.day, Double($0)) } },
             "energy_total": energyTotalSpark,
@@ -2195,7 +2246,7 @@ struct LiquidTodayView: View {
         if HostedCardPrefs.decodeEnabled(hostedCardsRaw).contains(where: { $0.origin == sleepOrigin }) {
             let hostedSessions = await repo.allSleepSessions()
             let hostedHabitual = await repo.habitualMidsleepSec()
-            let hostedMotion = await repo.sessionMotions(starts: hostedSessions.map { $0.startTs })
+            let hostedMotion = await repo.sessionMotions(sessions: hostedSessions)
             hostedSleepModel = SleepModel.build(SleepModelInputs(
                 days: repo.days,
                 sleeps: repo.sleeps,
@@ -2339,22 +2390,22 @@ struct LiquidTodayView: View {
         return f.string(from: NSNumber(value: Int(s))) ?? "\(Int(s))"
     }
 
-    // The user's Effort display scale (#268), 0–100 by default or the WHOOP 0–21 axis if chosen — the SAME
-    // preference the Workouts screen + Trends read, so a workout's Effort number is identical everywhere.
-    @AppStorage(UnitPrefs.effortScaleKey) private var effortScaleRaw = EffortScale.hundred.rawValue
-    private var effortScale: EffortScale { UnitPrefs.resolveEffortScale(effortScaleRaw) }
-
-    // The user's Metric/Imperial preference, same key + resolution as TodayView/WorkoutsView, so a workout's
-    // distance reads the same number everywhere instead of this card alone staying hardcoded metric.
+    // °C / °F for the Skin Temp card, resolved exactly the way the other six screens that show a
+    // temperature resolve it (TodayView, FullDayChartView, MetricExplorerView x2, SettingsView,
+    // HealthView): the explicit override when set, else derived from the unit system. Liquid Today was
+    // the ONLY one of them missing it — which is why its Skin Temp card could not honour the preference
+    // even once it had a value to show (#1627).
     @AppStorage(UnitPrefs.systemKey) private var unitSystemRaw = UnitSystem.metric.rawValue
     private var unitSystem: UnitSystem { UnitSystem(rawValue: unitSystemRaw) ?? .metric }
-    /// Skin temperature is the one card here that needs the temperature preference (°C/°F), resolved the
-    /// same way every other screen does it (`FullDayChartView`, `MetricExplorerView`): the explicit
-    /// override when set, else derived from the unit system.
     @AppStorage(UnitPrefs.temperatureKey) private var temperatureRaw = ""
     private var temperatureUnit: TemperatureUnit {
         UnitPrefs.resolveTemperature(system: unitSystem, override: temperatureRaw)
     }
+
+    // The user's Effort display scale (#268), 0–100 by default or the WHOOP 0–21 axis if chosen — the SAME
+    // preference the Workouts screen + Trends read, so a workout's Effort number is identical everywhere.
+    @AppStorage(UnitPrefs.effortScaleKey) private var effortScaleRaw = EffortScale.hundred.rawValue
+    private var effortScale: EffortScale { UnitPrefs.resolveEffortScale(effortScaleRaw) }
 
     private func effortText(_ s: Double?) -> String {
         guard let s else { return "–" }

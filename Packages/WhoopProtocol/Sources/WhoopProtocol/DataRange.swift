@@ -62,18 +62,18 @@ public enum DataRange {
     /// confirmed against real 4.0 / 5-MG captures, so it NEVER gates sync or backfill — it only logs.
     ///
     /// The app reads three u32s from the command-response INNER payload (whose byte 0 is a subtype), at
-    /// `V(i) = word @ (i*4 + 1)`: write page `W = V(2)`, read pointer `U = V(3)`, ring capacity `T = V(5)`.
-    /// The inner payload starts at `cmdOff + 1`, so those words sit at frame offsets `cmdOff + 10/14/22`
-    /// here. Read u32 LITTLE-endian to match the frame's other words (the app's ByteBuffer default is
-    /// big-endian, but this frame carries its unix words LE — a fixture will settle it; a flip is one line).
-    /// Backlog with wraparound: `W < U ? W + (T - U) : W - U`.
+    /// `V(i) = word @ (i*4 + 3)`: write pointer `W = V(2)`, read pointer `U = V(3)`, ring capacity `T = V(5)`.
+    /// The inner payload starts at `cmdOff + 1`, so those words sit at frame offsets `cmdOff + 12/16/24`
+    /// here. Read u32 LITTLE-endian to match the frame's other words. Backlog with wraparound:
+    /// `W < U ? W + (T - U) : W - U`.
     ///
     /// Returns nil for a too-short frame or implausible values — a capacity that is 0 or above a sane
     /// ceiling (a misaligned read hitting a timestamp / `0xFFFFFFFF`), a pointer at/beyond capacity, or a
     /// backlog past capacity — so a garbage frame can never log a nonsense number.
     public static func pagesBehind(from frame: [UInt8], cmdOff: Int) -> Int? {
         guard cmdOff >= 0 else { return nil }
-        let wOff = cmdOff + 10, uOff = cmdOff + 14, tOff = cmdOff + 22
+        let payloadOffset = cmdOff + 1
+        let wOff = payloadOffset + 11, uOff = payloadOffset + 15, tOff = payloadOffset + 23
         guard tOff + 4 <= frame.count else { return nil }
         func u32(_ o: Int) -> Int {
             Int(frame[o]) | Int(frame[o + 1]) << 8 | Int(frame[o + 2]) << 16 | Int(frame[o + 3]) << 24
@@ -83,5 +83,20 @@ public enum DataRange {
         let behind = w < u ? w + (t - u) : w - u
         guard behind >= 0, behind <= t else { return nil }
         return behind
+    }
+
+    /// True when a GET_DATA_RANGE COMMAND_RESPONSE is the `PENDING(2)` acknowledgement rather than the
+    /// answer. The strap replies twice: a short PENDING ack, then the payload with `SUCCESS(1)`. Framing's
+    /// own result-code table already states it — "2=PENDING precedes SUCCESS on GET_DATA_RANGE
+    /// (hardware-confirmed, #78 fork)" — but `pagesBehind` had no way to tell the two apart, so the ack
+    /// (which carries no ring pointers by construction) decoded to nil and logged as a decode FAILURE once
+    /// per sync.
+    ///
+    /// The result byte sits at `cmdOff + 2`, after the echoed opcode and the origin sequence. A frame too
+    /// short to hold one is not a PENDING ack, so it stays false and the caller keeps its existing
+    /// too-short handling.
+    public static func isPendingResponse(_ frame: [UInt8], cmdOff: Int) -> Bool {
+        guard cmdOff >= 0, cmdOff + 2 < frame.count else { return false }
+        return frame[cmdOff + 2] == 2
     }
 }

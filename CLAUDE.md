@@ -10,14 +10,18 @@ the fork's scope, sync rules, commit identity, and documentation workflow.
 
 ## What NOOP is (and the hard scope limits)
 
-NOOP is a **fully offline, on-device** companion app for WHOOP 4.0 and 5.0/MG straps (with
+NOOP is an **offline-by-default, on-device** companion app for WHOOP 4.0 and 5.0/MG straps (with
 **experimental** Oura support in the tree — gated behind `ExperimentalBrand`, not a shipped supported
 strap). It pairs over Bluetooth, stores everything in on-device SQLite, and computes recovery / strain
-/ HRV / sleep locally. There is **no server, no account, no cloud sync, no telemetry**, and the project stays
-**anonymous** (iOS/Android ship build-from-source / sideload, not via the App Store).
+/ HRV / sleep locally. There is **no NOOP-operated server, no account, no cloud dependency, no
+telemetry**, and the project stays **anonymous** (iOS/Android ship build-from-source / sideload, not
+via the App Store). Issue #1314 permits one narrow exception: a default-off Experimental client may
+export data one way to an HTTP(S) endpoint the user owns and configures. It must remain outside strap
+sync, never read data back, and ship no receiver or hosted service in this repository.
 
 These are hard constraints, not preferences. A PR is out of scope if it:
-- adds a server, account, cloud sync, or sends any data off-device;
+- adds a server, account, cloud dependency, or sends data off-device without the explicit user export
+  boundary in [`docs/SCOPE.md`](docs/SCOPE.md) (including #1314's one-way self-hosted push);
 - adds analytics/telemetry/crash-reporting that phones home;
 - adds WHOOP firmware, decompiled app code, logos/assets, or any DRM circumvention. NOOP is
   **clean-room interoperability** with hardware the user owns — keep it that way. (That bars
@@ -62,6 +66,13 @@ Swift. So:
   decoder, an analytics formula, a migration, or a stored value on one platform, change the twin on
   the other in the same PR (or explicitly call out why not). "It's Compose vs SwiftUI" is *not* a
   license to let the numbers diverge.
+- **Verify byte-identical by oracle, not by eye.** Extract the pure helper, compile the Swift twin
+  standalone (`swiftc -O twin.swift main.swift -o t && ./t`) over the whole input space or a spread of
+  cases, and paste that stdout verbatim as the expected literal in the Kotlin test. Reading the two
+  implementations side by side does not catch what this does: it found a Swift helper trimming its input
+  where the Kotlin one only checked blank-ness — invisible in review, and it would have surfaced as two
+  field logs that disagreed. Note the oracle only guards the direction it is written in; a matching test
+  on the other side is what stops Swift drifting.
 - **UI parity is feature-level, not pixel-level.** SwiftUI Charts vs Compose Canvas legitimately
   differ; the *behavior* and the *data* must not.
 - **Cross-platform hashes/dedup keys must use a platform-neutral algorithm** (e.g. FNV-1a over UTF-16
@@ -111,8 +122,8 @@ xcodegen generate && xcodebuild -project Strand.xcodeproj -scheme Strand \
 ### What each CI job covers — and the gaps
 | Workflow | Covers | Runner | Default state |
 |---|---|---|---|
-| `swift-packages.yml` | `swift test` for **`Packages/**` only** (WhoopProtocol, WhoopStore, StrandAnalytics, StrandImport, StrandDesign, NoopLocalAccess) | macos-15 | **active** |
-| `app-build.yml` | **Compile-only** of the **app targets** (`Strand` macOS + `NOOPiOS` iOS). iOS leg needs **macos-26** (iOS 26 SDK / `glassEffect`). | macos-15 / macos-26 | **disabled** (on-demand) |
+| `swift-packages.yml` | TWO jobs. `test`: `swift test` over **`Packages/**`** (WhoopProtocol, WhoopStore, StrandAnalytics, StrandImport, StrandDesign, NoopLocalAccess). `tools`: `swift build` + `swift test` over **`Tools/SleepBench`, `Tools/SleepPSG`, `Tools/Backfill`** — Backfill has no test target, so it is build-only. Path-filtered to those directories. | macos-15 | **active** |
+| `app-build.yml` | Builds the **app targets** (`Strand` macOS + `NOOPiOS` iOS) **and runs `StrandTests`** on the macOS/`Strand` leg only — the iOS leg is compile-only. iOS leg needs **macos-26** (iOS 26 SDK / `glassEffect`). | macos-15 / macos-26 | **disabled** (on-demand) |
 | `android.yml` | `assembleFullDebug` + `testFullDebugUnitTest` | ubuntu | **active**, path-filtered to `android/**` |
 | `source-hygiene.yml` | Doc comments that bind to nothing (`Tools/doc_comment_lint.py`) | ubuntu | **active** |
 | `i18n-coverage.yml` | Diff-scoped translation gate (`Tools/i18n_audit.py --ci`) | ubuntu | **active** |
@@ -128,12 +139,17 @@ properties are initialized`) will pass every green check and still be broken. If
 Swift, you MUST build the app yourself: `xcodebuild … build` locally, or run `app-build.yml` on demand.
 
 ### Local walls (things that will *not* build where you expect)
-- **On Linux:** only `WhoopProtocol` / `OuraProtocol` (pure) build & test. Every GRDB-linked package —
-  `WhoopStore`, `StrandImport`, `StrandAnalytics` (via `WhoopStore`), and `NoopLocalAccess` — fails with
-  `sqlite3.h not found` (GRDB's CSQLite), and `StrandDesign` needs SwiftUI — all need **macOS**. Android
-  JVM unit tests **do** run on Linux.
-- **App targets** (`Strand`, `NOOPiOS`) need **Xcode on macOS**; there is no Linux/CI unit-test target
-  for them (`StrandTests` runs only under `xcodebuild … test` on macOS).
+- **On Linux:** `WhoopProtocol` / `OuraProtocol` (pure) build & test with a bare toolchain. The
+  GRDB-linked packages need the snapshot-enabled SQLite build in [`docs/BUILD.md`](docs/BUILD.md) — with
+  it, all four build AND test: `StrandAnalytics` (1523), `WhoopStore` (439), `StrandImport` (249) and
+  `NoopLocalAccess` (9). Without those flags they fail with `sqlite3.h not found` (GRDB's CSQLite). `StrandDesign`
+  needs SwiftUI and is macOS-only. Android JVM unit tests **do** run on Linux.
+  **None of this is CI-enforced** — `swift-packages.yml` is macOS-only, so Linux support is honour-system
+  and a change can break it silently.
+- **App targets** (`Strand`, `NOOPiOS`) need **Xcode on macOS**; `StrandTests` runs only under
+  `xcodebuild … test` on macOS — locally, or via `app-build.yml`, which does run it on the `Strand` leg.
+  Since that workflow is **disabled by default**, app-target tests are only as validated as your last
+  on-demand dispatch: writing them is not the same as having run them.
 - **BLE behavior cannot be CI- or Linux-tested.** Anything on the CoreBluetooth / offload / live-HR
   path (`Strand/BLE`, `Strand/Collect`, Android `com.noop.ble`) must be **validated on a real strap**;
   compile-success proves nothing about connection behavior. Say what you tested on hardware.
@@ -143,10 +159,35 @@ Swift, you MUST build the app yourself: `xcodebuild … build` locally, or run `
 - **BLE (read [`docs/CONTRIBUTING.md`](docs/CONTRIBUTING.md) §BLE safety contract first):** never add
   destructive/write commands to hardware; CRC-gate every inbound frame; keep the connection path
   stable; no hardcoded hex frame bytes in app code — protocol facts live in the decoders/schema.
+- **`didBond` is load-bearing well beyond the handshake — check every reader before you make a strap
+  deliberately not bond.** At least three independent mechanisms treat "connected but never bonded" as a
+  fault to be corrected: the bond watchdog bounces the link once its window expires, the #982 never-bonded
+  detector counts self-drops toward pausing auto-reconnect, and the bond-refusal give-up latches on it.
+  A change that legitimately leaves a strap unbonded — suppressing an unanswerable handshake, deferring
+  one while an OS pairing is in flight — silently re-arms all of them, and each will undo the change a few
+  seconds or a few drops later while reporting a cause that never happened (#1635). Not-bonding is only
+  evidence of a fault when we were actually *trying* to bond.
+- **A diagnostic may only assert what it can attribute.** Repeatedly in the #1635 investigation a line
+  claimed more than it observed and sent the diagnosis backwards: a `GATT_*` status rendered through the
+  `BluetoothStatusCodes` table (different enumeration, colliding small integers), a bond declared from a
+  completion nobody checked the characteristic of, "we write WITH RESPONSE" printed before the code that
+  decides whether to write at all, "the strap refused" for a local `SecurityException`, and a *persisted*
+  refusal blaming a strap for a read that our own in-flight pairing broke. Prefer silence, or name the
+  gap. Conversely, do not let a path go quiet: replacing a wrong line with no line removed the evidence
+  that identified the bug. Gate per-connect readouts behind the Test Centre domain; leave rare-event
+  evidence (a state transition, a mismatch) always-on, since it costs nothing when nothing happens and is
+  what is missing when someone reports a problem without Test Centre enabled.
 - **Device / strap model resolution:** map a registry `model` label to a family through the ONE
   canonical resolver (`DeviceFamily.forRegistryModel` on both platforms), never a scattered
   string compare — the wizard stores `"4.0"`, other paths `"WHOOP 4.0"`, and single-spelling checks
   silently miss straps. Reads must thread the registry's **active** strap id, not a raw BLE address.
+- **`doc_comment_lint` reports at the wrong line on purpose — do not chase it.** The baseline is a
+  *per-file count* of grandfathered sites, not a set of line numbers (deliberately: a line-keyed baseline
+  goes stale constantly). So adding one new detached doc comment makes the file overflow its budget and
+  the failures print against **other, pre-existing** sites — often nowhere near your edit. Look at what
+  you just inserted, not at the lines it names. The usual cause is inserting a declaration directly above
+  an existing one, which lands your code between that neighbour's doc block and the thing it documents:
+  insert **above the neighbour's doc block**, or after the previous declaration's closing brace.
 - **Design system is law:** UI uses only design tokens — `StrandPalette` / `StrandFont` / shared
   components on Apple, `Palette` / `Metrics` on Android. No hardcoded colors, fonts, or spacing.
 - **Migrations:** add a versioned migration + a test; never mutate an existing migration. Watch for

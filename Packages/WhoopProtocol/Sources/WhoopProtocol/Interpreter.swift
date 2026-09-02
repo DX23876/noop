@@ -838,6 +838,11 @@ private func decodeWhoop5CommandResponse(_ frame: [UInt8], fb: FieldBuilder, sch
         }
         if pay.count >= 97, pay[93] == 50 {
             fb.parsed["fw_version"] = .string("\(pay[93]).\(pay[94]).\(pay[95]).\(pay[96])")
+        } else {
+            // The guards fail closed by design, which left a strap reporting no firmware with no way to
+            // say WHY - a different generation byte and a MOVED offset look identical from a log. Carry
+            // the evidence instead; see `firmwareGateDiagnostic`.
+            fb.parsed["fw_gate"] = .string(firmwareGateDiagnostic(payload: pay, nameEndIndex: i))
         }
     }
 }
@@ -882,7 +887,9 @@ private func decodeWhoop5Event(_ frame: [UInt8], fb: FieldBuilder, schema: Schem
 /// chunk_len 52, channel 1): `record_index` u16@9 (monotonic per-chunk counter — the frame's u8 seq
 /// slot is its low byte), `unix` u32@12 + `subsec` u16@16 (batch write time), chunk_len u16@18,
 /// channel u8@20, text bytes @21 up to the CRC32 trailer with NUL padding. The Kotlin twin is
-/// `Framing.decodeConsoleLogsWhoop5` (text key "console"), same offsets.
+/// `Framing.decodeConsoleLogsWhoop5`, same offsets. The text key is "log" — matching the Python
+/// reference decoder that `golden.json` is generated from, which `ParityTests` pins. Kotlin used
+/// "console" for the same field, and the mismatch is why a reader ported from that side got nil.
 private func decodeWhoop5ConsoleLogs(_ frame: [UInt8], fb: FieldBuilder, payloadEnd: Int?) {
     if let idx = readDType(frame, 9, "u16") {
         fb.add(9, 2, "record_index", "meta", value: .int(idx), note: "per-chunk counter")

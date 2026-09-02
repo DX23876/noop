@@ -1,6 +1,6 @@
 {
   "_readme": "SHARED Room<->GRDB SCHEMA ORACLE (#775). Two byte-identical copies: Packages/WhoopStore/Tests/WhoopStoreTests/Resources/schema_oracle.json and android/app/src/test/resources/schema_oracle.json. SchemaOracleTests.swift compares GRDB's PRAGMA table_info/index_list against it; SchemaOracleTest.kt compares Room's exported schema JSON against it. `columns` is the iOS/GRDB shape in GRDB column order (macOS is the reference implementation); every way Android differs is spelled out in an `android` / `iosAbsent` / `androidColumnOrder` override naming a key in `divergenceReasons`. Adding a column, reordering one, or changing a type/nullability on one platform only fails both suites until it is either fixed or written down here.",
-  "roomVersion": 33,
+  "roomVersion": 35,
   "grdbMigrations": [
     "v1",
     "v2",
@@ -51,7 +51,9 @@
     "v47-energy-calibration-model",
     "v48-whoop-energy-hourly",
     "v49-whoop-energy-context",
-    "v50-whoop-energy-buckets"
+    "v50-whoop-energy-buckets",
+    "v51-daily-skin-temp-absolute",
+    "v52-drop-raw-imu-sample"
   ],
   "divergenceReasons": {
     "android-orphan-synced-column": "REAL COLUMN DRIFT: `synced` exists on Android only. GRDB's v10 note is explicit that stepSample gets no `synced` column ('unused; see StreamStore'), and v12's ppgHrSample never had one either; the Room entities copied the flag from the older per-second entities. Nothing reads it on Android — the per-row upload flag belongs to an upload path that does not exist there — so it is dead width, not divergent data. Removing it needs a Room table rebuild.",
@@ -572,6 +574,12 @@
           "default": null,
           "androidAbsent": true,
           "divergence": "daily-energy-coverage-ios-only"
+        },
+        {
+          "name": "skinTempC",
+          "affinity": "REAL",
+          "notNull": false,
+          "default": null
         }
       ],
       "primaryKey": [
@@ -1546,34 +1554,6 @@
       ],
       "primaryKey": [
         "batchId"
-      ],
-      "indices": []
-    },
-    "rawImuSample": {
-      "platform": "both",
-      "columns": [
-        {
-          "name": "deviceId",
-          "affinity": "TEXT",
-          "notNull": true,
-          "default": null
-        },
-        {
-          "name": "ts",
-          "affinity": "INTEGER",
-          "notNull": true,
-          "default": null
-        },
-        {
-          "name": "samples",
-          "affinity": "BLOB",
-          "notNull": true,
-          "default": null
-        }
-      ],
-      "primaryKey": [
-        "deviceId",
-        "ts"
       ],
       "indices": []
     },

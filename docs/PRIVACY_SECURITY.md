@@ -27,7 +27,7 @@ no login, no cloud sync, and no telemetry. Everything NOOP computes about you li
 single SQLite file on your own device.
 
 There are three user-controlled network paths: the **AI Coach** (§1.1a), the source-built **Oura
-history import** (§1.1b), and the manual **Check for updates** action (§1.1c). The AI Coach is off
+history import** (§1.1b), and the metadata-only **update check** (§1.1c). The AI Coach is off
 until you turn it on with your own API key; when you
 ask it a question it sends a short text summary of your recent metrics to the provider you
 choose. The Oura history import is **not even compiled into a default build** — the code
@@ -65,8 +65,8 @@ other networking API — still true after the Oura history import (§1.1b) lande
 and REST calls live entirely in the app target, `Strand/Oura/`, and `StrandImport`
 gained only pure, network-free parsers for Oura's payload shapes. The released macOS and iOS apps
 share these implementations. App-target networking is isolated to the AI Coach (`Strand/AI/`), the
-compile-time Oura cloud lane (`Strand/Oura/`), and the manual release reader
-(`Strand/System/UpdateChecker.swift`).
+compile-time Oura cloud lane (`Strand/Oura/`), and the release reader
+(`Strand/System/UpdateChecker.swift` and `Strand/System/UpdateAvailability.swift`).
 The package manifests reference dependency *download* URLs that Swift Package Manager
 resolves at build time, never at runtime:
 
@@ -106,8 +106,9 @@ feature and operates only on your terms:
   provider you picked, under your own account. NOOP runs no server in between and keeps
   no copy.
 
-If you never enable the AI Coach, never build the Oura import, and never tap **Check for updates**,
-NOOP makes no network request. In a default build, the Oura cloud code is not in the binary.
+If you never enable the AI Coach, never build the Oura import, and disable automatic update checks,
+NOOP makes no background network request. The manual update button remains user-initiated. In a
+default build, the Oura cloud code is not in the binary.
 
 ### 1.1b The Oura history import (compiled out by default, bring your own OAuth app)
 
@@ -150,13 +151,15 @@ API — a one-time, foreground backfill you trigger yourself, not an ongoing bac
 
 If you never build the lane in, your binary cannot call `ouraring.com` — the code is not there.
 
-### 1.1c Check for updates (manual, metadata only)
+### 1.1c Check for updates (metadata only)
 
-`Strand/System/UpdateChecker.swift` performs one user-initiated HTTPS GET to
-`https://api.github.com/repos/DX23876/noop/releases/latest` when you tap **Check for updates** in
-Settings. It sends no health data, database content, device identifier, NOOP account identifier (none
-exists), or background telemetry. It reads the public tag, notes, and asset links needed to tell you
-whether a newer release exists. There is no timer, launch check, or automatic download.
+`Strand/System/UpdateChecker.swift` performs an unauthenticated HTTPS GET to
+`https://api.github.com/repos/DX23876/noop/releases/latest`. The same reader backs the manual
+**Check for updates** button and, when **Check automatically** is enabled, an at-most-daily check after
+onboarding. It sends no health data, database content, device identifier, NOOP account identifier
+(none exists), or telemetry. It reads the public tag, notes, and release URL needed to tell you whether
+a newer release exists. It never downloads or installs an update. Turning the automatic toggle off
+removes the background request; the manual button remains available.
 
 ### 1.2 The macOS sandbox (and what it means for the controlled network paths)
 

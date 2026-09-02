@@ -46,6 +46,40 @@ final class AlarmReadbackDecodeTests: XCTestCase {
         XCTAssertEqual(FrameRouter.armedAlarmEpoch(in: frame), 1_750_990_944)
     }
 
+    /// The armed GET readback, captured verbatim on fw 41.17.6.0 (2026-08-26, #34/#1706): 11 bytes,
+    /// `[form 0x01][stored 0x01][u32 LE epoch][00 00][04 00 20]`, epoch at OFFSET 2. The SET-mirror
+    /// read at offset 1 decodes this very payload to 2_389_889_025 — 2045-09-24, inside the
+    /// plausibility window — so the gate cannot catch the misread and only this fixture pins the
+    /// offset. (The arm that produced it sent epoch 1_787_720_400; the strap stored it exactly.)
+    func testGetReadbackPayload_decodesEpochAtOffsetTwo() {
+        let frame = responseFrame(payload: [0x01, 0x01, 0xD0, 0x72, 0x8E, 0x6A, 0x00, 0x00, 0x04, 0x00, 0x20])
+        XCTAssertEqual(FrameRouter.armedAlarmEpoch(in: frame), 1_787_720_400)
+    }
+
+    /// All three arm/readback pairs from the same capture set (2026-08-26..28): each readback carries
+    /// exactly the epoch the arm sent, at offset 2. Three independent values rule out coincidence —
+    /// under the offset-1 misread each decodes to the value the app actually logged (2389889025 /
+    /// 2412007425 / 2434125825: the sent epoch's low three bytes shifted up a byte, plus the flag).
+    func testGetReadback_allThreeCaptures_decodeTheSentEpoch() {
+        let captures: [([UInt8], UInt32)] = [
+            ([0x01, 0x01, 0xD0, 0x72, 0x8E, 0x6A, 0x00, 0x00, 0x04, 0x00, 0x20], 1_787_720_400),
+            ([0x01, 0x01, 0x50, 0xC4, 0x8F, 0x6A, 0x00, 0x00, 0x04, 0x00, 0x20], 1_787_806_800),
+            ([0x01, 0x01, 0xD0, 0x15, 0x91, 0x6A, 0x00, 0x00, 0x04, 0x00, 0x20], 1_787_893_200),
+        ]
+        for (payload, sentEpoch) in captures {
+            XCTAssertEqual(FrameRouter.armedAlarmEpoch(in: responseFrame(payload: payload)), sentEpoch)
+        }
+    }
+
+    /// An 11-byte readback whose epoch field is implausible falls to the raw-hex line, NOT to the
+    /// mirror offsets — those are known-wrong for this shape (they fold the stored flag into the
+    /// epoch's low byte), so trying them here could resurrect the misread this shape exists to kill.
+    func testGetReadback_implausibleEpoch_fallsToRawHexNotMirrorRead() {
+        let frame = responseFrame(payload: [0x01, 0x01, 0x05, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x00, 0x20])
+        XCTAssertNil(FrameRouter.armedAlarmEpoch(in: frame))
+        XCTAssertFalse(FrameRouter.readbackReportsNoAlarm(in: frame))
+    }
+
     /// A result-style single byte (e.g. an UNSUPPORTED echo) must not decode; the router falls back to
     /// the raw-hex line.
     func testShortGarbagePayload_decodesNil() {
@@ -81,6 +115,13 @@ final class AlarmReadbackDecodeTests: XCTestCase {
     func testArmedEpoch_isNotReportedAsNoAlarm() {
         let frame = responseFrame(payload: [0x01, 0x30, 0xD5, 0x35, 0x6A, 0x00, 0x00, 0x00, 0x00])
         XCTAssertNotNil(FrameRouter.armedAlarmEpoch(in: frame))
+        XCTAssertFalse(FrameRouter.readbackReportsNoAlarm(in: frame))
+    }
+
+    /// An armed 11-byte GET readback is NOT "no alarm" — same mutual exclusion, readback shape.
+    func testArmedGetReadback_isNotReportedAsNoAlarm() {
+        let frame = responseFrame(payload: [0x01, 0x01, 0xD0, 0x72, 0x8E, 0x6A, 0x00, 0x00, 0x04, 0x00, 0x20])
+        XCTAssertEqual(FrameRouter.armedAlarmEpoch(in: frame), 1_787_720_400)
         XCTAssertFalse(FrameRouter.readbackReportsNoAlarm(in: frame))
     }
 

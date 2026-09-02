@@ -323,6 +323,9 @@ final class AICoachEngine: ObservableObject {
     @Published private(set) var conversations: [CoachConversation] = []
     /// The conversation currently shown in the chat. `messages` reads/writes into this one.
     @Published var activeConversationID: UUID?
+    /// Local day the current transcript was last written on; nil while it is empty. Drives the day
+    /// boundary in `send` — see `isStaleConversation`. Kotlin twin: `CoachViewModel.conversationDay`.
+    private var conversationDay: Int?
     @Published var sending = false
     @Published var errorText: String?
     /// The same failure as `errorText`, but TYPED, so the error row can offer the right way forward
@@ -1246,6 +1249,11 @@ final class AICoachEngine: ObservableObject {
         } else {
             explicitlyDisconnected = true
         }
+        // Retire the visible transcript without deleting conversation history. The fork stores multiple
+        // conversations, so starting a fresh one is the privacy-equivalent of upstream clearing its
+        // single in-memory transcript while still preserving the user's explicit history feature.
+        newConversation()
+        conversationDay = nil
         objectWillChange.send()
     }
 
@@ -1281,6 +1289,11 @@ final class AICoachEngine: ObservableObject {
     /// Forget the stored key.
     func clearKey() {
         AIKeyStore.clear()
+        // Same reasoning as `disconnect`: clearing the key returns the user to the setup screen, and
+        // Kotlin empties the transcript when it does. Leaving it meant a "clear my key" on Apple removed
+        // the credential and kept the conversation.
+        messages = []
+        conversationDay = nil
         objectWillChange.send()
     }
 
@@ -1472,6 +1485,14 @@ final class AICoachEngine: ObservableObject {
         }
 
         clearError()
+        // A transcript from an earlier local day becomes a saved history item and a fresh conversation
+        // is opened. This preserves the fork's multi-conversation feature while adopting upstream's
+        // protection against yesterday's assistant replies contaminating today's context.
+        let today = Self.localEpochDay()
+        if Self.isStaleConversation(lastEpochDay: conversationDay, todayEpochDay: today) {
+            newConversation()
+        }
+        conversationDay = today
         // The current question becomes searchable for the NEXT turn, not its own retrieval.
         let conversationsBeforeCurrentQuestion = conversations
         // Route through `appendMessage` for upstream's `maxStoredMessages` cap (unbounded-RAM fix, #741)
@@ -4307,7 +4328,7 @@ final class AICoachEngine: ObservableObject {
     }
 
     /// One derived stress line for the coach context: the Baevsky Stress Index over TODAY's R-R, read
-    /// via the store exactly as `StressView` does (`storeHandle()` → `rrIntervals(deviceId:from:to:)`),
+    /// via the same device-aware repository R-R union as `StressView`,
     /// then summarised to a single number with `StressIndex.stressIndex(rr:)`. Returns nil when the
     /// store is unavailable or there are too few clean beats (the histogram needs >= 20), so the line is
     /// simply absent, never a fabricated value. Summary-only: the raw R-R never leaves the device.
@@ -4315,9 +4336,7 @@ final class AICoachEngine: ObservableObject {
         let cal = Calendar.current
         let from = Int(cal.startOfDay(for: Date()).timeIntervalSince1970)
         let to = Int(Date().timeIntervalSince1970)
-        guard let store = await repo.storeHandle() else { return nil }
-        let rr = (try? await store.rrIntervals(
-            deviceId: repo.deviceId, from: from, to: to, limit: Int.max)) ?? []
+        let rr = await repo.rrIntervals(from: from, to: to, limit: 200_000)
         guard let si = StressIndex.stressIndex(rr: rr) else { return nil }
         var line = Self.stressIndexSummary(si: si)
 
@@ -4496,6 +4515,36 @@ final class AICoachEngine: ObservableObject {
     /// count survives as a floor (`minMessages`), so no provider ends up with less context than before;
     /// a large model simply gets more when the turns are short. (Android still uses the flat count; this
     /// is a fork-side divergence, and the floor keeps the two agreeing on the small-model case.)
+
+    /// True when a transcript last written on `lastEpochDay` should be retired before a question asked
+    /// on `todayEpochDay` — i.e. the conversation crossed into a new local day.
+    ///
+    /// STRICTLY forward (`>`, never `!=`): a clock that moves BACKWARDS — the user flying west, a
+    /// timezone change, an NTP correction — must not wipe a conversation they are in the middle of.
+    /// Only real elapsed days retire a transcript. A nil `lastEpochDay` (nothing sent yet) is never
+    /// stale. Kotlin twin: `CoachViewModel.isStaleConversation`.
+    ///
+    /// `nonisolated` because it is a pure function of its arguments. AICoachEngine is @MainActor, so
+    /// without this the rule inherits that isolation and cannot be called from a synchronous test —
+    /// which is exactly how the first attempt at this twin failed to compile. Isolating a function
+    /// that touches no state buys nothing and costs its testability.
+    nonisolated static func isStaleConversation(lastEpochDay: Int?, todayEpochDay: Int) -> Bool {
+        guard let lastEpochDay else { return false }
+        return todayEpochDay > lastEpochDay
+    }
+
+    /// Days since the epoch in the LOCAL calendar — the twin of Kotlin's `LocalDate.now().toEpochDay()`.
+    ///
+    /// Counted with calendar day arithmetic from `startOfDay`, not by dividing an interval by 86,400:
+    /// a day is not always 86,400 seconds (DST), and the rule only needs a value that increments
+    /// exactly once per local midnight and orders correctly. Injectable so the tests never depend on
+    /// the machine's clock or zone.
+    nonisolated static func localEpochDay(_ date: Date = Date(), calendar: Calendar = .current) -> Int {
+        let start = calendar.startOfDay(for: date)
+        let epoch = Date(timeIntervalSince1970: 0)
+        return calendar.dateComponents([.day], from: epoch, to: start).day ?? 0
+    }
+
     private func windowedMessages() -> [ChatMessage] {
         // `requestModel`, not `model`: a deep re-run may go to a model with a different context window,
         // and the window has to match the model the request is actually sent to.

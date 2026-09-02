@@ -92,6 +92,7 @@ final class DeviceRegistry: ObservableObject {
     /// Best-effort: a store failure leaves the recordings and published state untouched. Awaits the delete
     /// BEFORE `reload()` so the refreshed device list reflects the emptied recordings.
     func deleteDeviceData(_ id: String, store: WhoopStore) async {
+        guard ImuSessionFileStore.shared.deleteDevice(id) else { return }
         do {
             try await store.deleteAllData(deviceId: id)
         } catch {
@@ -108,6 +109,7 @@ final class DeviceRegistry: ObservableObject {
     /// and refreshes the published list. Best-effort: if the data wipe fails the registry row is left in
     /// place (we never leave orphaned recordings behind a removed row).
     func forget(_ id: String, store: WhoopStore) async {
+        guard ImuSessionFileStore.shared.deleteDevice(id) else { return }
         do {
             try await store.deleteAllData(deviceId: id)
         } catch {

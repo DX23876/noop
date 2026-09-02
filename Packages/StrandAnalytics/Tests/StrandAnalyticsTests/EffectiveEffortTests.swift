@@ -47,4 +47,61 @@ final class EffectiveEffortTests: XCTestCase {
     func testEqualSourcesResolveToThatValue() {
         XCTAssertEqual(StrainScorer.effectiveEffort(live: 7.25, stored: 7.25)!, 7.25, accuracy: 1e-9)
     }
+
+    /// #37: when both sources are zero, every sign pairing has the canonical positive-zero bits.
+    func testBothPresentZerosCanonicalizePositiveZero() {
+        let cases: [(label: String, live: Double, stored: Double)] = [
+            ("positive/positive", 0.0, 0.0),
+            ("positive/negative", 0.0, -0.0),
+            ("negative/positive", -0.0, 0.0),
+            ("negative/negative", -0.0, -0.0),
+        ]
+
+        for testCase in cases {
+            let result = StrainScorer.effectiveEffort(live: testCase.live, stored: testCase.stored)!
+            XCTAssertEqual(result.bitPattern, 0.0.bitPattern, testCase.label)
+        }
+    }
+
+    /// A missing source is passthrough, including its exact signed-zero and NaN representation.
+    func testSingleSourcePassesThroughBitForBit() {
+        let values = [
+            0.0,
+            -0.0,
+            7.25,
+            -7.25,
+            Double.infinity,
+            -Double.infinity,
+            Double(bitPattern: 0x7ff8_0000_0000_0042),
+        ]
+
+        for value in values {
+            XCTAssertEqual(StrainScorer.effectiveEffort(live: value, stored: nil)!.bitPattern,
+                           value.bitPattern)
+            XCTAssertEqual(StrainScorer.effectiveEffort(live: nil, stored: value)!.bitPattern,
+                           value.bitPattern)
+        }
+    }
+
+    /// The zero canonicalization must not broaden into a replacement for Swift's MAX semantics.
+    func testBothPresentNonzeroAndNaNBehaviorIsUnchanged() {
+        let nanA = Double(bitPattern: 0x7ff8_0000_0000_0042)
+        let nanB = Double(bitPattern: 0x7ff8_0000_0000_0024)
+        let cases: [(live: Double, stored: Double, expected: Double)] = [
+            (2.3, 0.5, 2.3),
+            (7.25, 7.25, 7.25),
+            (Double.infinity, 12.0, Double.infinity),
+            (12.0, Double.infinity, Double.infinity),
+            (-Double.infinity, -Double.infinity, -Double.infinity),
+            (nanA, 1.0, nanA),
+            (1.0, nanA, 1.0),
+            (nanA, nanB, nanA),
+            (nanB, nanA, nanB),
+        ]
+
+        for testCase in cases {
+            let result = StrainScorer.effectiveEffort(live: testCase.live, stored: testCase.stored)!
+            XCTAssertEqual(result.bitPattern, testCase.expected.bitPattern)
+        }
+    }
 }

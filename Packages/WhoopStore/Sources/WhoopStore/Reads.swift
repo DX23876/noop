@@ -68,6 +68,23 @@ extension WhoopStore {
         }
     }
 
+    /// Standard-BLE sensor-contact readings recorded alongside generic HR samples. Rows before this
+    /// feature have no contact event, so this intentionally returns no invented legacy values.
+    public func standardHRContacts(deviceId: String, from: Int, to: Int,
+                                   limit: Int) async throws -> [StandardHRContactSample] {
+        try syncRead { db in
+            try Row.fetchAll(db, sql: """
+                SELECT ts, payloadJSON FROM event
+                WHERE deviceId = ? AND kind = ? AND ts >= ? AND ts <= ?
+                ORDER BY ts ASC LIMIT ?
+                """, arguments: [deviceId, StandardHRMapping.contactEventKind, from, to, limit])
+                .map { row in
+                    let json: String = row["payloadJSON"]
+                    return try StandardHRMapping.contactSample(ts: row["ts"], payloadJSON: json)
+                }
+        }
+    }
+
     /// Cheap change-detector for the raw HR stream: `(count, maxTs)` over `[from, to]`, computed in
     /// SQLite over the `(deviceId, ts)` index WITHOUT materializing any rows (#836). Lets a caller decide
     /// "nothing was inserted since last time, skip the expensive re-read" for pennies, `COUNT(*)` moves on
@@ -167,6 +184,42 @@ extension WhoopStore {
             let c: Int = row["c"]
             let m: Int = row["m"]
             return (c, m)
+        }
+    }
+
+    /// Cross-device change detector for every raw stream that can change a daily score or sleep session.
+    ///
+    /// The original analysis watermark covered `hrSample` only. Historical offloads do not commit their
+    /// streams atomically: HR can land first and motion/gravity later. A pass run between those commits sees
+    /// no usable sleep, then the post-offload gate used to skip the decisive retry because HR itself had not
+    /// changed. Fingerprint the complete scoring input instead. HR keeps its established count+timestamp
+    /// fingerprint; the other streams use SQLite's monotonic rowid frontier, which catches old backfills
+    /// without full-table COUNT scans over millions of dense motion/R-R rows.
+    /// `v2` intentionally changes the persisted watermark once on upgrade so every install gets one clean
+    /// rescore under the complete contract.
+    public func analysisFingerprint() async throws -> String {
+        try syncRead { db in
+            guard let row = try Row.fetchOne(db, sql: """
+                SELECT
+                  (SELECT COUNT(*) FROM hrSample) AS hc,
+                  (SELECT COALESCE(MAX(ts), 0) FROM hrSample) AS hm,
+                  (SELECT COALESCE(MAX(rowid), 0) FROM ppgHrSample) AS p,
+                  (SELECT COALESCE(MAX(rowid), 0) FROM rrInterval) AS r,
+                  (SELECT COALESCE(MAX(rowid), 0) FROM respSample) AS x,
+                  (SELECT COALESCE(MAX(rowid), 0) FROM gravitySample) AS g,
+                  (SELECT COALESCE(MAX(rowid), 0) FROM sleepStateSample) AS s,
+                  (SELECT COALESCE(MAX(rowid), 0) FROM event) AS e,
+                  (SELECT COALESCE(MAX(rowid), 0) FROM spo2Sample) AS o,
+                  (SELECT COALESCE(MAX(rowid), 0) FROM skinTempSample) AS t,
+                  (SELECT COALESCE(MAX(rowid), 0) FROM stepSample) AS z
+                """) else { return "" }
+            let hc: Int = row["hc"], hm: Int = row["hm"]
+            let keys = ["p", "r", "x", "g", "s", "e", "o", "t", "z"]
+            let tails = keys.map { key -> String in
+                let frontier: Int = row[key]
+                return key + String(frontier)
+            }
+            return "v2|h\(hc):\(hm)|" + tails.joined(separator: "|")
         }
     }
 
@@ -290,7 +343,7 @@ extension WhoopStore {
     public nonisolated func rrIntervals(deviceId: String, from: Int, to: Int, limit: Int) async throws -> [RRInterval] {
         try await asyncRead { db in
             try Row.fetchAll(db, sql: """
-                SELECT ts, rrMs, srcChannel, ord FROM rrInterval
+                SELECT ts, rrMs, srcChannel, ord, seq FROM rrInterval
                 WHERE deviceId = ? AND ts >= ? AND ts <= ?
                 AND (srcChannel IS NULL OR srcChannel <> ?)
                 AND (tsSuspect IS NULL OR tsSuspect <> 1)   -- #1073: exclude future-stamped beats
@@ -299,7 +352,7 @@ extension WhoopStore {
                 .map { row in
                     RRInterval(ts: row["ts"], rrMs: row["rrMs"],
                                srcChannel: (row["srcChannel"] as Int?).flatMap(RRSourceChannel.init(rawValue:)),
-                               ord: row["ord"] as Int?)
+                               ord: row["ord"] as Int?, seq: row["seq"])
                 }
         }
     }
@@ -382,6 +435,79 @@ extension WhoopStore {
         }
     }
 
+    /// Raw biometric sample counts per device id in a window, across every id present in the tables -
+    /// including ids the device registry cannot see.
+    ///
+    /// The registry is the wrong place to ask "where did this night's samples go". `my-whoop` is a source
+    /// LABEL for imported/computed data, not necessarily a `pairedDevice` row, and `DeviceRegistryStore.remove`
+    /// deletes the row while leaving every sample table untouched. So a forgotten or import-only id owns rows
+    /// that `all()` will never list. Asking the sample tables directly has no such blind spot.
+    ///
+    /// Counts `hrSample` + `ppgHrSample` + `gravitySample` - the same streams the night funnel's
+    /// "no raw biometric samples" guard tests. Unordered; callers sort.
+    ///
+    /// Filtering on `ts` without a `deviceId` cannot seek into the `(deviceId, ts)` primary key, so this
+    /// is an index-ONLY scan (both columns live in that index, so no table rows are touched) with
+    /// `deviceId` leading, which also lets the GROUP BY skip a temp b-tree. Cheap enough for a
+    /// user-triggered diagnostics export, which is the only caller.
+    /// Which raw streams a device has ANY rows for in a window — the strap-capability question,
+    /// answered without counting.
+    ///
+    /// EXISTS rather than COUNT on purpose. The question is presence, every one of these tables is keyed
+    /// `(deviceId, ts)`, so each subquery is an index seek that stops at the first row instead of walking a
+    /// night's worth — a 4.0 night carries ~190k gravity rows and counting them to learn "yes" would be
+    /// absurd. One statement so it is one round trip.
+    ///
+    /// Answers what no existing line could: a strap streaming live HR with no motion cannot produce a
+    /// staged night or an auto-detected workout, and until now a reader had to infer that from the absence
+    /// of other lines. Diagnostics-export only, like `rawSampleCountsByDevice`. Kotlin twin:
+    /// `WhoopDao.streamPresence`.
+    public struct StreamPresence: Sendable, Equatable {
+        public let hr: Bool, rr: Bool, gravity: Bool, steps: Bool
+        public init(hr: Bool, rr: Bool, gravity: Bool, steps: Bool) {
+            self.hr = hr; self.rr = rr; self.gravity = gravity; self.steps = steps
+        }
+    }
+
+    public nonisolated func streamPresence(deviceId: String, from: Int, to: Int) async throws -> StreamPresence {
+        try await asyncRead { db in
+            let row = try Row.fetchOne(db, sql: """
+                SELECT
+                  EXISTS(SELECT 1 FROM hrSample WHERE deviceId = ? AND ts >= ? AND ts <= ?) AS hr,
+                  EXISTS(SELECT 1 FROM rrInterval WHERE deviceId = ? AND ts >= ? AND ts <= ?) AS rr,
+                  EXISTS(SELECT 1 FROM gravitySample WHERE deviceId = ? AND ts >= ? AND ts <= ?) AS gravity,
+                  EXISTS(SELECT 1 FROM stepSample WHERE deviceId = ? AND ts >= ? AND ts <= ?) AS steps
+                """, arguments: [deviceId, from, to, deviceId, from, to,
+                                 deviceId, from, to, deviceId, from, to])
+            return StreamPresence(
+                hr: (row?["hr"] ?? 0) != 0, rr: (row?["rr"] ?? 0) != 0,
+                gravity: (row?["gravity"] ?? 0) != 0, steps: (row?["steps"] ?? 0) != 0)
+        }
+    }
+
+    public nonisolated func rawSampleCountsByDevice(from: Int, to: Int) async throws -> [(String, Int)] {
+        try await asyncRead { db in
+            try Row.fetchAll(db, sql: """
+                SELECT deviceId, SUM(n) AS total FROM (
+                    SELECT deviceId, COUNT(*) AS n FROM hrSample WHERE ts >= ? AND ts <= ? GROUP BY deviceId
+                    UNION ALL
+                    SELECT deviceId, COUNT(*) AS n FROM ppgHrSample WHERE ts >= ? AND ts <= ? GROUP BY deviceId
+                    UNION ALL
+                    SELECT deviceId, COUNT(*) AS n FROM gravitySample WHERE ts >= ? AND ts <= ? GROUP BY deviceId
+                )
+                GROUP BY deviceId
+                """, arguments: [from, to, from, to, from, to])
+            .map { row -> (String, Int) in
+                // `deviceId` is NOT NULL and the GROUP BY guarantees SUM(n) >= 1 per row, so both read
+                // straight into non-optionals - same idiom as `hrFingerprint` above.
+                let d: String = row["deviceId"]
+                let t: Int = row["total"]
+                return (d, t)
+            }
+            .filter { !$0.0.isEmpty && $0.1 > 0 }
+        }
+    }
+
     public nonisolated func gravitySamples(deviceId: String, from: Int, to: Int, limit: Int) async throws -> [GravitySample] {
         try await asyncRead { db in
             try Row.fetchAll(db, sql: """
@@ -446,7 +572,7 @@ extension WhoopStore {
             let rawTables = ["hrSample", "rrInterval", "event", "battery",
                              "spo2Sample", "skinTempSample", "respSample", "gravitySample",
                              "stepSample", "ppgHrSample", "sleepStateSample", "ppgWaveformSample",
-                             "rawImuSample", "v18AuxSample"]
+                             "v18AuxSample"]
             var decoded = 0
             for t in rawTables {
                 decoded += try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM \(t)") ?? 0

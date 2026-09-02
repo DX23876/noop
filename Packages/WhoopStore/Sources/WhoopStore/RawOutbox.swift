@@ -1,13 +1,8 @@
+#if canImport(Compression)
 import Foundation
 import Compression
 import GRDB
 import WhoopProtocol
-
-public struct ClockRef: Equatable, Codable {
-    public let device: Int
-    public let wall: Int
-    public init(device: Int, wall: Int) { self.device = device; self.wall = wall }
-}
 
 public struct RawBatchMeta: Equatable {
     public let batchId: String
@@ -252,3 +247,4 @@ extension WhoopStore {
         }
     }
 }
+#endif

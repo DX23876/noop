@@ -131,13 +131,26 @@ public struct DailyMetric: Equatable, Codable {
     /// compute it from the night's R-R (`HRVAnalyzer.sdnnIndex`); Apple rows mirror their own SDNN reading;
     /// Oura/other imports carry no SDNN so it stays nil.
     public let avgSdnn: Double?
+    /// Nightly ABSOLUTE skin temperature (°C) — the wear-gated mean over the night's detected sleep, the
+    /// value `skinTempDevC` is derived FROM (#1636).
+    ///
+    /// The engine already computed this on every scoring pass and threw it away once the deviation was
+    /// taken, so a wearer could see "+0.5 Δ°C" with no way to learn what it moved from — and a febrile
+    /// night reads as a small delta while the absolute reads as a fever. v40 column, nullable: nights
+    /// scored before it shipped stay nil until a re-score re-derives them from the same raw samples.
+    ///
+    /// Distinct from `skinTempDevC`, which is bimodal — CSV/Apple imports write an ABSOLUTE wrist °C into
+    /// that column and `SkinTempDisplay.isAbsoluteSkinTemp` separates them by magnitude. This column is
+    /// unambiguous: it is always an absolute, and only the strap pipeline writes it.
+    public let skinTempC: Double?
     public init(day: String, totalSleepMin: Double?, efficiency: Double?, deepMin: Double?,
                 remMin: Double?, lightMin: Double?, disturbances: Int?, restingHr: Int?,
                 avgHrv: Double?, recovery: Double?, strain: Double?, exerciseCount: Int?,
                 spo2Pct: Double? = nil, skinTempDevC: Double? = nil, respRateBpm: Double? = nil,
                 steps: Int? = nil, activeKcalEst: Double? = nil,
                 spo2Red: Int? = nil, spo2Ir: Int? = nil, avgSdnn: Double? = nil,
-                energyCoverageSeconds: Int? = nil) {
+                energyCoverageSeconds: Int? = nil,
+                skinTempC: Double? = nil) {
         self.day = day; self.totalSleepMin = totalSleepMin; self.efficiency = efficiency
         self.deepMin = deepMin; self.remMin = remMin; self.lightMin = lightMin
         self.disturbances = disturbances; self.restingHr = restingHr; self.avgHrv = avgHrv
@@ -146,6 +159,7 @@ public struct DailyMetric: Equatable, Codable {
         self.steps = steps; self.activeKcalEst = activeKcalEst
         self.spo2Red = spo2Red; self.spo2Ir = spo2Ir; self.avgSdnn = avgSdnn
         self.energyCoverageSeconds = energyCoverageSeconds
+        self.skinTempC = skinTempC
     }
 
     /// The freshest STRICTLY-PRIOR day that carries at least one overnight vital (HRV / resting HR /
@@ -563,8 +577,8 @@ extension WhoopStore {
                     (deviceId, day, totalSleepMin, efficiency, deepMin, remMin, lightMin,
                      disturbances, restingHr, avgHrv, recovery, strain, exerciseCount,
                      spo2Pct, skinTempDevC, respRateBpm, steps, activeKcalEst,
-                     spo2Red, spo2Ir, avgSdnn, energyCoverageSeconds)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                     spo2Red, spo2Ir, avgSdnn, energyCoverageSeconds, skinTempC)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(deviceId, day) DO UPDATE SET
                     totalSleepMin = excluded.totalSleepMin,
                     efficiency = excluded.efficiency,
@@ -585,13 +599,15 @@ extension WhoopStore {
                     spo2Red = excluded.spo2Red,
                     spo2Ir = excluded.spo2Ir,
                     avgSdnn = excluded.avgSdnn,
-                    energyCoverageSeconds = excluded.energyCoverageSeconds
+                    energyCoverageSeconds = excluded.energyCoverageSeconds,
+                    skinTempC = excluded.skinTempC
                 """, arguments: [deviceId, d.day, d.totalSleepMin, d.efficiency, d.deepMin,
                                  d.remMin, d.lightMin, d.disturbances, d.restingHr, d.avgHrv,
                                  d.recovery, d.strain, d.exerciseCount,
                                  d.spo2Pct, d.skinTempDevC, d.respRateBpm,
                                  d.steps, d.activeKcalEst,
-                                 d.spo2Red, d.spo2Ir, d.avgSdnn, d.energyCoverageSeconds])
+                                 d.spo2Red, d.spo2Ir, d.avgSdnn,
+                                 d.energyCoverageSeconds, d.skinTempC])
             n += db.changesCount
         }
         return n
@@ -685,7 +701,7 @@ extension WhoopStore {
                 SELECT day, totalSleepMin, efficiency, deepMin, remMin, lightMin, disturbances,
                        restingHr, avgHrv, recovery, strain, exerciseCount,
                        spo2Pct, skinTempDevC, respRateBpm, steps, activeKcalEst,
-                       spo2Red, spo2Ir, avgSdnn, energyCoverageSeconds FROM dailyMetric
+                       spo2Red, spo2Ir, avgSdnn, energyCoverageSeconds, skinTempC FROM dailyMetric
                 WHERE deviceId = ? AND day >= ? AND day <= ?
                 ORDER BY day ASC
                 """, arguments: [deviceId, from, to])
@@ -700,7 +716,8 @@ extension WhoopStore {
                                 respRateBpm: $0["respRateBpm"],
                                 steps: $0["steps"], activeKcalEst: $0["activeKcalEst"],
                                 spo2Red: $0["spo2Red"], spo2Ir: $0["spo2Ir"], avgSdnn: $0["avgSdnn"],
-                                energyCoverageSeconds: $0["energyCoverageSeconds"])
+                                energyCoverageSeconds: $0["energyCoverageSeconds"],
+                                skinTempC: $0["skinTempC"])
                 }
         }
     }
@@ -715,7 +732,7 @@ extension WhoopStore {
                 SELECT day, totalSleepMin, efficiency, deepMin, remMin, lightMin, disturbances,
                        restingHr, avgHrv, recovery, strain, exerciseCount,
                        spo2Pct, skinTempDevC, respRateBpm, steps, activeKcalEst,
-                       spo2Red, spo2Ir, avgSdnn, energyCoverageSeconds FROM dailyMetric
+                       spo2Red, spo2Ir, avgSdnn, energyCoverageSeconds, skinTempC FROM dailyMetric
                 WHERE deviceId = ? AND day < ?
                 ORDER BY day DESC LIMIT ?
                 """, arguments: [deviceId, day, max(0, limit)])
@@ -730,7 +747,8 @@ extension WhoopStore {
                                 respRateBpm: $0["respRateBpm"],
                                 steps: $0["steps"], activeKcalEst: $0["activeKcalEst"],
                                 spo2Red: $0["spo2Red"], spo2Ir: $0["spo2Ir"], avgSdnn: $0["avgSdnn"],
-                                energyCoverageSeconds: $0["energyCoverageSeconds"])
+                                energyCoverageSeconds: $0["energyCoverageSeconds"],
+                                skinTempC: $0["skinTempC"])
                 }
         }
     }

@@ -60,7 +60,7 @@ extension WhoopStore {
             let rawTables = ["hrSample", "rrInterval", "event", "battery",
                              "spo2Sample", "skinTempSample", "respSample",
                              "gravitySample", "stepSample", "ppgHrSample",
-                             "sleepStateSample", "ppgWaveformSample", "rawImuSample", "v18AuxSample"]
+                             "sleepStateSample", "ppgWaveformSample", "v18AuxSample"]
             var rawDeleted = 0
             var affectedBuckets: [String: Set<Int>] = [:]
             for table in rawTables {

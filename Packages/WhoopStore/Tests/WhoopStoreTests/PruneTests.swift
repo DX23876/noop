@@ -1,3 +1,6 @@
+#if canImport(Compression)
+// Every test here drives the zlib-backed raw outbox (pruneRaw / RawBatchMeta), which exists only
+// where Compression does. Same treatment RawOutboxTests gets, for the same reason.
 import XCTest
 import WhoopProtocol
 @testable import WhoopStore
@@ -77,4 +80,6 @@ final class PruneTests: XCTestCase {
                                               maxUnsyncedBytes: 1_000_000)
         XCTAssertEqual(pruned, 0)
     }
+
 }
+#endif

@@ -1,11 +1,13 @@
 import Foundation
+import WhoopProtocol
 
 /// Pure parser for the standard BLE Heart Rate Measurement characteristic (0x2A37).
-/// Returns the heart rate (bpm) and any R-R intervals (ms). Pure → unit-testable.
+/// Returns the heart rate (bpm), R-R intervals (ms), and the contact state. Pure → unit-testable.
 public enum StandardHeartRate {
-    public static func parse(_ data: [UInt8]) -> (hr: Int, rr: [Int])? {
+    public static func parse(_ data: [UInt8]) -> (hr: Int, rr: [Int], contact: StandardHRContact)? {
         guard !data.isEmpty else { return nil }
         let flags = data[0]
+        let contact = StandardHRContact.fromMeasurementFlags(flags)
         var idx = 1
         let hr: Int
         if flags & 0x01 != 0 {                       // 16-bit HR
@@ -24,6 +26,6 @@ public enum StandardHeartRate {
                 idx += 2
             }
         }
-        return (hr, rr)
+        return (hr, rr, contact)
     }
 }

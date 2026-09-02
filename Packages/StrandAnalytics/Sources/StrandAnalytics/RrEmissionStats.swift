@@ -127,6 +127,34 @@ public enum RrEmissionStats {
                       spanSec: span, ratio: ratio, perSecond: hist, gapHist: gapHist, fill: fill)
     }
 
+    /// 15 minutes: rare enough not to bury the log, frequent enough to sample a night several times.
+    public static let liveCensusMinGapSec: Int = 900
+
+    /// Should a LIVE census line be emitted now? (#1118 instrumentation.)
+    ///
+    /// The historical census is emitted once per offload SESSION, which is naturally rare. The two live
+    /// paths flush roughly every 30 readings, so emitting per flush would put a line on the strap log
+    /// every ~30 seconds all night — a volume that buries the very evidence it exists to provide. One
+    /// line per path per `minGapSec` is plenty: a single flush already spans enough seconds to make
+    /// `ratioRep` meaningful (the historical line settles it on 39 s), and what matters is comparing the
+    /// paths, not sampling either densely.
+    ///
+    /// `lastEmitSec` is 0 before the first line, so the first flush of a connection always reports.
+    /// A clock that moves BACKWARDS emits rather than suppresses: the alternative wedges the census shut
+    /// until wall time catches up, and a silent instrument is worse than a duplicated line.
+    ///
+    /// Byte-parity twin of Kotlin `RrEmissionStats.shouldEmitLiveCensus`.
+    public static func shouldEmitLiveCensus(lastEmitSec: Int, nowSec: Int,
+                                            minGapSec: Int = liveCensusMinGapSec) -> Bool {
+        // The "never emitted" sentinel is checked EXPLICITLY. Falling through to the gap arithmetic
+        // gets the right answer in production only because a real unix `nowSec` is ~1.8e9 and so
+        // trivially clears any gap — an accident of magnitude, not a rule. It also made the helper
+        // untestable with small timestamps, which is how this was caught.
+        if lastEmitSec <= 0 { return true }
+        if nowSec < lastEmitSec { return true }
+        return nowSec - lastEmitSec >= minGapSec
+    }
+
     /// One compact log line. `offered`/`inserted` come from the caller: `inserted` is what the store
     /// actually wrote after its `ON CONFLICT` key, so `offered - inserted` is how much the primary key
     /// already absorbs — the third number needed to tell emission from ingest.
@@ -140,11 +168,16 @@ public enum RrEmissionStats {
     /// gapless, and `ratioRep` is the one to trust when they disagree. (`ratioRep`'s denominator can
     /// double-count at most one second per chunk boundary when a session's counts are summed, which is
     /// negligible against thousands of seconds — and errs the same safe way, low.)
-    public static func logLine(path: String, offered: Int, inserted: Int, _ r: Result) -> String {
+    public static func logLine(path: String, offered: Int, inserted: Int?, _ r: Result) -> String {
+        // NIL renders "n/a", never a number. Only the historical path can see what the store's conflict
+        // key actually kept; the live paths census BEFORE the insert and have no such count. Echoing
+        // `offered` there would print `offered=N inserted=N`, which reads as "the primary key absorbed
+        // nothing" — a measurement neither path made. Same reason GpsSession passes rawFixes = nil.
+        let ins = inserted.map(String.init) ?? "n/a"
         let ratio = String(format: "%.2f", r.ratio)
         let rep = r.secondsWithRr > 0 ? Double(r.sumRrMs) / 1000.0 / Double(r.secondsWithRr) : 0
         let h = r.perSecond
-        return "rr emit path=\(path) offered=\(offered) inserted=\(inserted) secs=\(r.secondsWithRr) "
+        return "rr emit path=\(path) offered=\(offered) inserted=\(ins) secs=\(r.secondsWithRr) "
             + "sumRr=\(r.sumRrMs / 1000)s span=\(r.spanSec)s ratio=\(ratio) "
             + "ratioRep=\(String(format: "%.2f", rep)) "
             + "perSec[1/2/3/4+]=\(h[0])/\(h[1])/\(h[2])/\(h[3]) "

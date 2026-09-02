@@ -424,6 +424,12 @@ public func frame(seq: UInt8, payload: [UInt8] = [0x00]) -> [UInt8] {
 | 122 | `STOP_HAPTICS` | `[0x00]` | stop an in-progress haptic |
 | 123 | `SELECT_WRIST` | — | set strap wrist |
 
+**5/MG raw-IMU sequence (hardware-verified):** command 106 accepting a write does not mean that the
+producer started. A bounded capture first sends `START_RAW_DATA` (81) `[0x01]`, then command 106 with
+the two-byte selector `[0x01, 0x01]`. Stop uses `STOP_RAW_DATA` (82) `[0x01]`, then command 106
+`[0x01, 0x00]`. The one-byte payload in the table remains the WHOOP 4 form. See
+[5/MG raw data capture](RAW_DATA_CAPTURE.md) for storage, history repair, and export semantics.
+
 **Payload builders** in `WhoopCommand`:
 
 - `setAlarmPayload(epochSec:)` → `[0x01] + epoch u32 LE + [0x00, 0x00]` (7 bytes).
@@ -459,9 +465,19 @@ mapping as unconfirmed — the 5/MG is known to remap opcodes into the high spac
 at 145/146/147 there versus 10/11 on a 4.0), so a code that is accepted is not evidence that it means
 what the name says.
 
-What is confirmed: on a real WHOOP 5 MG (`WS50_r03`), 124, 125 and 139 are all **accepted** — each
-answers `COMMAND_RESPONSE` with result `SUCCESS(1)` — and no ECG-shaped data followed in a 30-second
-window. That is a null result with several live explanations (an open electrode circuit, flash rather
+The turn-on ORDER and the 124 argument are attested on one device. On a WHOOP MG (`WS50_r00`, fw
+`50.39.1.0`), 139 gates the **stream**: with it off nothing arrives, so the working sequence is
+**`139 = 1` then `124 = 2`**, after which type-43 carries a ~100 Hz single-channel i16 waveform,
+present only while both clasp electrodes are held. 139 does not appear to gate the front end itself —
+with 139 closed, `124 = 2` still made the strap's own `CONSOLE_LOGS` report `MAX86176: Set ECG ON`
+while no packets arrived (eight sends, eight console lines, correlated on the strap's own uptime;
+#891). Both directions are reversible (`124 = 1` or `139 = 0` stop the stream, both `SUCCESS`);
+disconnecting also clears it. One device, one firmware — see the ⚠️ on `ControlSignal`.
+
+What is confirmed on the other device: on a real WHOOP 5 MG (`WS50_r03`), 124, 125 and 139 are all
+**accepted** — each answers `COMMAND_RESPONSE` with result `SUCCESS(1)` — and no ECG-shaped data
+followed in a 30-second window. Those runs used `124 = 1` as their start verb, which under the mapping
+above stops generation. That is a null result with several live explanations (an open electrode circuit, flash rather
 than a realtime channel, a wrong opcode mapping, no start verb, a flag block, an entitlement gate); see
 #891. The three reply frames are pinned as decode fixtures in `Whoop5CommandResponseTests` /
 `CommandCatalogueTest`.
@@ -813,7 +829,7 @@ Three reasons the numbers are **not** settled, all of which the on-hardware prob
 | Code | Command | Arg | Reversible? |
 |-----:|---------|-----|---|
 | 123 (0x7B) | `SELECT_WRIST` | `0` right / `1` left — **inferred from enum order, unconfirmed** | **Persistent device config** — survives disconnect; re-writable |
-| 124 (0x7C) | `TOGGLE_LABRADOR_DATA_GENERATION` | `0` stop / `1` start / `2` restart | yes — `stop` is the OFF path |
+| 124 (0x7C) | `TOGGLE_LABRADOR_DATA_GENERATION` | `1` stop / `2` start — `0` is REFUSED (`FAILURE(0)`, generation unchanged). Attested on one MG (`WS50_r00`, fw `50.39.1.0`); the earlier `0`/`1`/`2` reading came from the client's enum order | yes — `124 = 1` is the OFF path, and `139 = 0` also stops it |
 | 125 (0x7D) | `TOGGLE_LABRADOR_RAW_SAVE` | `0`/`1` | yes |
 | 139 (0x8B) | `TOGGLE_LABRADOR_FILTERED` | `0`/`1` | yes |
 

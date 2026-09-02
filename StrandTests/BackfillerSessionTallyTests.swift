@@ -54,7 +54,7 @@ final class BackfillerSessionTallyTests: XCTestCase {
 
     // No nights persisted → no line (nothing to date).
     func testClockDiagNilWhenNoNights() {
-        XCTAssertNil(Backfiller.sessionClockDiagLine(nightKeys: [], device: 1_700_000_000, wall: 1_700_000_000, usedIdentityRef: false))
+        XCTAssertNil(Backfiller.sessionClockDiagLine(nightKeys: [], device: 1_700_000_000, wall: 1_700_000_000, usedIdentityRef: false, family: .whoop4))
     }
 
     // The #67 signature: rows landed years in the past AND the offload used the identity fallback (no
@@ -63,7 +63,7 @@ final class BackfillerSessionTallyTests: XCTestCase {
         let marchDay = 1_711_276_123 / 86_400          // 2024-03-24
         let line = Backfiller.sessionClockDiagLine(nightKeys: [marchDay],
                                                    device: 1_783_486_611, wall: 1_783_486_611,
-                                                   usedIdentityRef: true)
+                                                   usedIdentityRef: true, family: .whoop4)
         XCTAssertEqual(line, "Backfill: rows landed on 2024-03-24 · clock ref: IDENTITY fallback (no clock correlation at decode) - stale-record correction OFF")
     }
 
@@ -72,7 +72,7 @@ final class BackfillerSessionTallyTests: XCTestCase {
         let day = 1_711_276_123 / 86_400
         let line = Backfiller.sessionClockDiagLine(nightKeys: [day],
                                                    device: 1_711_276_123, wall: 1_783_486_123,
-                                                   usedIdentityRef: false)
+                                                   usedIdentityRef: false, family: .whoop4)
         XCTAssertNotNil(line)
         XCTAssertTrue(line!.contains("835d behind wall - correction engaged"), line ?? "")
     }
@@ -82,7 +82,7 @@ final class BackfillerSessionTallyTests: XCTestCase {
         let day = 1_783_400_000 / 86_400
         let line = Backfiller.sessionClockDiagLine(nightKeys: [day],
                                                    device: 1_783_400_000, wall: 1_783_400_050,
-                                                   usedIdentityRef: false)
+                                                   usedIdentityRef: false, family: .whoop4)
         XCTAssertTrue(line!.hasSuffix("· clock ref in sync"), line ?? "")
         XCTAssertFalse(line!.contains("…"))   // one day, not a range
     }
@@ -91,15 +91,52 @@ final class BackfillerSessionTallyTests: XCTestCase {
     func testClockDiagMultiNightRange() {
         let d0 = 1_711_276_123 / 86_400
         let d1 = d0 + 2
-        let line = Backfiller.sessionClockDiagLine(nightKeys: [d0, d1], device: nil, wall: nil, usedIdentityRef: false)
+        let line = Backfiller.sessionClockDiagLine(nightKeys: [d0, d1], device: nil, wall: nil, usedIdentityRef: false, family: .whoop4)
         XCTAssertTrue(line!.contains("2024-03-24…2024-03-26"), line ?? "")
+    }
+
+    // #1598: the SAME identity ref that is a fault on a 4.0 is the designed decode on a 5/MG, whose
+    // records carry real-unix seconds. It must not be reported as the #700 "IDENTITY fallback" bug —
+    // every healthy 5/MG session sets usedIdentityRef, and that line sent triage down a dead end.
+    func testClockDiagIdentityOnWhoop5ReadsAsByDesignNotFallback() {
+        let day = 1_783_400_000 / 86_400
+        let line = Backfiller.sessionClockDiagLine(nightKeys: [day],
+                                                   device: 1_783_400_000, wall: 1_783_400_000,
+                                                   usedIdentityRef: true, family: .whoop5)
+        XCTAssertNotNil(line)
+        XCTAssertFalse(line!.contains("IDENTITY fallback"), line ?? "")
+        XCTAssertFalse(line!.contains("correction OFF"), line ?? "")
+        XCTAssertTrue(line!.contains("identity - correct for 5/MG"), line ?? "")
+    }
+
+    // ...and the 4.0 warning is untouched by that carve-out — same inputs, different family.
+    func testClockDiagIdentityStillWarnsOnWhoop4() {
+        let day = 1_783_400_000 / 86_400
+        let line = Backfiller.sessionClockDiagLine(nightKeys: [day],
+                                                   device: 1_783_400_000, wall: 1_783_400_000,
+                                                   usedIdentityRef: true, family: .whoop4)
+        XCTAssertTrue(line!.contains("IDENTITY fallback"), line ?? "")
+    }
+
+    // The 5/MG carve-out is gated on usedIdentityRef, not on the family alone: a 5/MG that somehow
+    // decoded with a real correlation still reports the ordinary in-sync/stale verdicts.
+    func testClockDiagWhoop5WithRealRefStillReportsInSync() {
+        let day = 1_783_400_000 / 86_400
+        let line = Backfiller.sessionClockDiagLine(nightKeys: [day],
+                                                   device: 1_783_400_000, wall: 1_783_400_050,
+                                                   usedIdentityRef: false, family: .whoop5)
+        XCTAssertTrue(line!.hasSuffix("· clock ref in sync"), line ?? "")
     }
 
     // No em-dash leaks (matches the noCursorLine/futureRtcLine convention).
     func testClockDiagHasNoEmDash() {
         let line = Backfiller.sessionClockDiagLine(nightKeys: [1_711_276_123 / 86_400],
-                                                   device: 1_783_486_611, wall: 1_783_486_611, usedIdentityRef: true)
+                                                   device: 1_783_486_611, wall: 1_783_486_611, usedIdentityRef: true, family: .whoop4)
         XCTAssertFalse(line!.contains("\u{2014}"))
+        // #1598's 5/MG variant is held to the same convention.
+        let w5 = Backfiller.sessionClockDiagLine(nightKeys: [1_711_276_123 / 86_400],
+                                                 device: 1_783_486_611, wall: 1_783_486_611, usedIdentityRef: true, family: .whoop5)
+        XCTAssertFalse(w5!.contains("\u{2014}"))
     }
 
     // #783: trim=0xFFFFFFFF on a fresh run that banked NOTHING means "no banked history": the genuine
@@ -247,5 +284,63 @@ final class BackfillerSessionTallyTests: XCTestCase {
         XCTAssertTrue(joined.contains("no banked history to offload"),
                       "a truly-empty no-cursor session must still warn the strap has no banked history")
         XCTAssertTrue(joined.contains("fully charge it"))
+    }
+
+    // MARK: - #1683: the stale counterpart to futureRtcLine
+
+    /// A strap that stopped banking weeks ago and one that is caught up produced the SAME "banked no
+    /// sensor history" line, so neither the user nor a triager could tell them apart. That is why #1541
+    /// stayed open and unactionable.
+    func testACaughtUpOrBrieflyIdleStrapIsNotStale() {
+        let now = 1_700_000_000
+        XCTAssertFalse(Backfiller.isStaleNewestRecord(newestUnix: nil, wallNowUnix: now))
+        XCTAssertFalse(Backfiller.isStaleNewestRecord(newestUnix: 0, wallNowUnix: now))
+        XCTAssertFalse(Backfiller.isStaleNewestRecord(newestUnix: now, wallNowUnix: now))
+        XCTAssertFalse(Backfiller.isStaleNewestRecord(newestUnix: now - 86_400, wallNowUnix: now),
+                       "one night off-wrist is ordinary and must stay silent")
+    }
+
+    func testTwoDaysIsTheBoundaryAndQualifies() {
+        let now = 1_700_000_000
+        XCTAssertTrue(Backfiller.isStaleNewestRecord(newestUnix: now - 2 * 86_400, wallNowUnix: now))
+    }
+
+    /// A future-dated record belongs to `futureRtcLine`; this rule must not also claim it.
+    func testAFutureDatedRecordIsNotStale() {
+        let now = 1_700_000_000
+        XCTAssertFalse(Backfiller.isStaleNewestRecord(newestUnix: now + 86_400, wallNowUnix: now))
+    }
+
+    /// The numbers from the #1683 capture: newest stored record 1785692420 against a wall clock of
+    /// 1787820941. The user was told only "banked no sensor history"; this says three weeks.
+    func testStaleRecordLineReportsTheRealCaptureAsTwentyFourDays() {
+        let line = Backfiller.staleRecordLine(newestUnix: 1_785_692_420, wallNowUnix: 1_787_820_941)
+        XCTAssertTrue(line.contains("about 24 day(s) old"), line)
+        XCTAssertTrue(line.contains("stopped saving history"), line)
+        // The part the old advice omitted: charging alone has already been retried every connect.
+        XCTAssertTrue(line.contains("re-sends the clock on every connect"), line)
+        // The test that tells the user whether NOOP is even involved.
+        XCTAssertTrue(line.contains("official WHOOP app"), line)
+        XCTAssertFalse(line.contains("\u{2014}"))
+    }
+
+    /// States the fact, never the diagnosis: a drawered strap shows the same number innocently.
+    func testStaleRecordLineDoesNotAssertACorruptClock() {
+        let line = Backfiller.staleRecordLine(newestUnix: 1_700_000_000 - 20 * 86_400,
+                                              wallNowUnix: 1_700_000_000)
+        XCTAssertFalse(line.contains("corrupt"), line)
+        XCTAssertTrue(line.contains("If you have worn it"), line)
+    }
+
+    /// The banner is what the user READS; the log line needs a capture export. The standing banner
+    /// omitted the age entirely and PROMISED that charging "should" work - advice NOOP has effectively
+    /// retried on every connect for weeks, since it re-sends SET_CLOCK each time.
+    func testStaleRecordBannerDatesTheSilenceAndPromisesNothing() {
+        let line = Backfiller.staleRecordBanner(newestUnix: 1_785_692_420, wallNowUnix: 1_787_820_941)
+        XCTAssertTrue(line.contains("about 24 day(s) old"), line)
+        XCTAssertTrue(line.contains("If you have been wearing it"), line)
+        XCTAssertTrue(line.contains("official WHOOP app"), line)
+        XCTAssertFalse(line.contains("should start banking again"), line)
+        XCTAssertFalse(line.contains("\u{2014}"))
     }
 }

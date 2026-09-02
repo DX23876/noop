@@ -12,8 +12,9 @@ features so the boundary is discoverable.
 NOOP is **offline-first, on-device, and anonymous**: no NOOP server, account, cloud sync, or telemetry,
 and **not a medical device** (see the [Disclaimer](../DISCLAIMER.md#5-not-a-medical-device)). The
 user-controlled exceptions are narrow: Coach requests go directly to the configured provider, a
-source-built Oura lane imports data from the user's own account, and the manual update check reads
-public GitHub release metadata. These are hard boundaries, not permission to add general cloud
+source-built Oura lane imports data from the user's own account, and the update checker reads public
+GitHub release metadata manually or, when enabled, at most once per day. These are hard boundaries,
+not permission to add general cloud
 features.
 
 ## Out of scope

@@ -91,6 +91,44 @@ brew install xcodegen
 The packages themselves only need a Swift toolchain — they build and test with plain `swift build`
 / `swift test`, no Xcode project required.
 
+### Swift package tests on Linux
+
+Install Swift 6 or newer plus a C compiler, `curl`, and `unzip`. GRDB uses SQLite's snapshot API,
+which distribution builds commonly omit, so build a private snapshot-enabled library:
+
+```bash
+SQLITE_SNAPSHOT_DIR="$(mktemp -d)"
+curl -fsSLo "$SQLITE_SNAPSHOT_DIR/sqlite.zip" https://sqlite.org/2026/sqlite-amalgamation-3530400.zip
+unzip -p "$SQLITE_SNAPSHOT_DIR/sqlite.zip" sqlite-amalgamation-3530400/sqlite3.c > "$SQLITE_SNAPSHOT_DIR/sqlite3.c"
+unzip -p "$SQLITE_SNAPSHOT_DIR/sqlite.zip" sqlite-amalgamation-3530400/sqlite3.h > "$SQLITE_SNAPSHOT_DIR/sqlite3.h"
+echo "b1dd5d74ec7f29055a6684fa06fb3c2f6821c87dd38f9a458dfd2e8a1db28189  $SQLITE_SNAPSHOT_DIR/sqlite3.c" | sha256sum --check
+cc -shared -fPIC -DSQLITE_ENABLE_SNAPSHOT=1 "$SQLITE_SNAPSHOT_DIR/sqlite3.c" -o "$SQLITE_SNAPSHOT_DIR/libsqlite3.so.0"
+ln -s libsqlite3.so.0 "$SQLITE_SNAPSHOT_DIR/libsqlite3.so"
+cd Packages/StrandAnalytics
+LD_LIBRARY_PATH="$SQLITE_SNAPSHOT_DIR${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" \
+  swift test -Xcc -I"$SQLITE_SNAPSHOT_DIR" -Xlinker -L"$SQLITE_SNAPSHOT_DIR"
+```
+
+This currently runs 1,523 platform-neutral package tests with one intentional skip. It does not run
+iOS simulator/UI tests or Darwin's Compression-backed raw outbox. The existing package CI remains
+macOS-only.
+
+The same two flags work for the other GRDB-linked packages — swap the `cd` and repeat:
+
+| Package | Linux status |
+|---|---|
+| `StrandAnalytics` | builds + tests (1,523, one skip) |
+| `WhoopStore` | builds + tests (439) |
+| `StrandImport` | builds + tests (249, one skip) |
+| `NoopLocalAccess` | builds + tests (9) |
+| `StrandDesign` | macOS only (SwiftUI) |
+
+The Compression-backed raw outbox is Darwin-only, so the tests that drive it (`RawOutboxTests`,
+`PruneTests`, and the raw half of `ReadTests.testStorageStats`) compile out off Darwin. Everything they
+cover still runs in the macOS CI job.
+
+Because none of this runs in CI, treat a green Linux run as a convenience rather than a guarantee.
+
 ---
 
 ## macOS build & run (reference implementation)

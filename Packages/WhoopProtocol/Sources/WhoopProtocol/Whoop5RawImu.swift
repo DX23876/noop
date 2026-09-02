@@ -8,9 +8,9 @@ import Foundation
 // app captures (documented in Asherlc/dofek `docs/whoop-ble-protocol.md` as the type-0x2B raw packet)
 // and the same columnar convention as the 4.0's 1917 REALTIME_RAW_DATA variant.
 //
-// IMPORTANT: the 5/MG's *live* raw-IMU stream is firmware-refused (TOGGLE_IMU_MODE / cmd 106 acks but
-// never streams), but the OFFLOAD buffer carries full accel AND gyro — so 100 Hz 6-axis IMU IS
-// obtainable on the 5.0 via the historical path.
+// Hardware validation on a WHOOP 5/MG established that live raw IMU requires START_RAW_DATA (81)
+// followed by TOGGLE_IMU_MODE (106) with payload [1,1]. Opcode 106 on its own acknowledges without
+// starting the producer. The same 1244-byte shape is also banked and later returned by history sync.
 //
 // Frame layout (the reassembled BLE frame = 8-byte puffin envelope + payload; offsets are FRAME-absolute):
 //   @15  u32 LE   strap unix seconds for this 1-second frame

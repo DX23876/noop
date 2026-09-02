@@ -1,17 +1,16 @@
 import Foundation
 
-// SleepDebt.swift — a rolling sleep-debt ledger over the last N nights.
+// SleepDebt.swift — a recency-weighted sleep-debt estimate over the last N nights.
 //
 // Pure, deterministic, DB-free. Given a chronological series of per-night total
 // sleep (minutes) and a personal sleep need (hours), it accumulates a running
-// balance of (actual − need) per night across a capped trailing window (14 nights
-// by default) and reports the net balance plus the per-night deltas that make it
-// up.
+// debt estimate across a capped trailing window (14 nights by default). The
+// previous estimate is part of the following night's need; 55% of any unmet need
+// carries forward. Tiny, non-actionable results below ten minutes are cleared.
 //
 // HONEST by construction:
-//   - It is a plain debt accumulator — sum of nightly (slept − need) — NOT a
-//     physiological model. A surplus night (slept > need) genuinely offsets a
-//     deficit one, the same way a checking balance nets credits and debits.
+//   - It is a planning estimate, not a physiological claim. Meeting base need plus
+//     the current estimate clears the debt; extra sleep never creates a surplus.
 //   - The window is capped (default 14) so "debt" never compounds indefinitely
 //     across months of history — only the recent fortnight is in scope.
 //   - Nights with no usable sleep total are SKIPPED entirely (no zero-fill), so a
@@ -38,10 +37,10 @@ public struct SleepDebtNight: Equatable, Sendable {
     }
 }
 
-/// The rolling sleep-debt ledger over the capped trailing window.
+/// The sleep-debt estimate over the capped trailing window.
 public struct SleepDebtLedger: Equatable, Sendable {
-    /// Net running balance (minutes) across the window: Σ(slept − need). Negative =
-    /// net DEBT (under-slept overall), positive = net SURPLUS, 0 = on target.
+    /// Current estimate in the existing signed UI convention: negative = debt,
+    /// zero = on target. This model never reports a positive surplus.
     public let balanceMin: Double
     /// Per-night contributions, oldest → newest, one per counted night (skipped
     /// nights are absent). The `deltaMin` values are the per-night bar/spark.
@@ -67,9 +66,15 @@ public enum SleepDebt {
     /// short enough that one rough patch doesn't read as months of compounding debt.
     public static let defaultWindowNights: Int = 14
 
+    /// Share of the complete unmet need carried into the following night.
+    public static let debtCarryFactor: Double = 0.55
+
+    /// Calculated debts smaller than this are too small to be actionable.
+    public static let minimumDebtMin: Double = 10.0
+
     /// "On target" deadband (minutes): a |balance| under this reads as balanced rather
     /// than as a debt/surplus, so a few stray minutes don't flip the headline.
-    public static let onTargetBandMin: Double = 30.0
+    public static let onTargetBandMin: Double = minimumDebtMin
 
     /// Sleep credited toward debt for one day. `mainSleepMin` remains the canonical
     /// main-night total used by Rest and the sleep headline; separately-recorded naps
@@ -82,6 +87,41 @@ public enum SleepDebt {
     public static func creditedSleepMin(mainSleepMin: Double?, napSleepMin: Double = 0) -> Double? {
         guard let mainSleepMin, mainSleepMin > 0 else { return nil }
         return mainSleepMin + max(napSleepMin, 0)
+    }
+
+    /// Debt values oldest → newest for local fallback surfaces. The returned history is
+    /// not capped: each usable day's local value is independently recomputed from the
+    /// trailing `window` usable nights. An imported value wins verbatim for that day's
+    /// output only; it never seeds or replaces the local recurrence. Imported-only rows
+    /// are emitted but do not consume a usable-night slot. Rows with neither usable sleep
+    /// nor an imported value have no debt observation and are omitted.
+    public static func debtSeries(
+        series: [(day: String, totalSleepMin: Double?)],
+        needHours: Double = AnalyticsEngine.Rest.defaultNeedHours,
+        importedDebtMin: [String: Double] = [:],
+        window: Int = defaultWindowNights
+    ) -> [(day: String, value: Double)] {
+        let cap = max(window, 1)
+        var usableHistory: [(day: String, totalSleepMin: Double?)] = []
+        usableHistory.reserveCapacity(cap)
+        var result: [(day: String, value: Double)] = []
+        result.reserveCapacity(series.count)
+
+        for row in series {
+            let sleptMin = row.totalSleepMin.flatMap { $0 > 0 ? $0 : nil }
+            if let sleptMin {
+                usableHistory.append((row.day, sleptMin))
+                if usableHistory.count > cap { usableHistory.removeFirst() }
+            }
+
+            if let imported = importedDebtMin[row.day] {
+                result.append((row.day, imported))
+            } else if sleptMin != nil {
+                let debt = ledger(series: usableHistory, needHours: needHours, window: cap).magnitudeMin
+                result.append((row.day, debt))
+            }
+        }
+        return result
     }
 
     /// Build the ledger from a chronological `[(day, totalSleepMin?)]` series.
@@ -97,9 +137,9 @@ public enum SleepDebt {
     ///   - window: how many of the most-recent COUNTED nights to include. Defaults to
     ///     `defaultWindowNights` (14). Clamped to ≥ 1.
     ///
-    /// The balance is Σ over the window of (sleptMin − needMin): a surplus night
-    /// offsets a deficit one. Returns an empty ledger (balance 0, no nights) when no
-    /// night has usable data.
+    /// For each retained night, `nextDebt = 0.55 × max(0, need + debt − slept)`.
+    /// Results below ten minutes clear to zero. `SleepDebtNight.deltaMin` deliberately
+    /// remains the raw `slept − base need` value used by the per-night bars.
     public static func ledger(series: [(day: String, totalSleepMin: Double?)],
                               needHours: Double = AnalyticsEngine.Rest.defaultNeedHours,
                               window: Int = defaultWindowNights) -> SleepDebtLedger {
@@ -113,14 +153,15 @@ public enum SleepDebt {
 
         var nights: [SleepDebtNight] = []
         nights.reserveCapacity(windowed.count)
-        var balance = 0.0
+        var debt = 0.0
         for row in windowed {
             let slept = row.totalSleepMin ?? 0
             let delta = slept - needMin
-            balance += delta
+            let calculatedDebt = debtCarryFactor * max(0, needMin + debt - slept)
+            debt = calculatedDebt < minimumDebtMin ? 0 : calculatedDebt
             nights.append(SleepDebtNight(day: row.day, sleptMin: slept, deltaMin: delta))
         }
-        return SleepDebtLedger(balanceMin: round1(balance), nights: nights, needMin: needMin)
+        return SleepDebtLedger(balanceMin: round1(-debt), nights: nights, needMin: needMin)
     }
 
     /// Round to 1 decimal place (the ledger is reported in whole/near-whole minutes;

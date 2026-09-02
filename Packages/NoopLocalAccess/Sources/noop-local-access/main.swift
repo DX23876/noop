@@ -11,6 +11,8 @@ enum NoopLocalAccessMain {
         switch command {
         case "mcp":
             runMCP(configuration: .environment())
+        case "query":
+            runQuery(arguments: args)
         case "codex-config":
             print(codexConfig(arguments: args))
         case "--help", "-h", "help":
@@ -18,6 +20,33 @@ enum NoopLocalAccessMain {
         default:
             fputs("Unknown command: \(command)\n\n\(helpText)\n", stderr)
             Foundation.exit(64)
+        }
+    }
+
+    private static func runQuery(arguments: [String]) {
+        if arguments == ["--help"] || arguments == ["-h"] {
+            print(helpText)
+            return
+        }
+        do {
+            let request = try NoopCLIQuery.parse(arguments: arguments)
+            let payload = try NoopCLIQuery.dispatch(request)
+            FileHandle.standardOutput.write(try NoopCLIQuery.encodeLine(payload))
+        } catch let error as NoopCLIQueryError {
+            fputs("[noop-local-access] \(error)\n", stderr)
+            Foundation.exit(error.exitCode)
+        } catch let error as LocalAccessError {
+            let message: String
+            if case .databaseUnavailable = error {
+                message = "NOOP database is unavailable"
+            } else {
+                message = error.description
+            }
+            fputs("[noop-local-access] \(message)\n", stderr)
+            Foundation.exit(1)
+        } catch {
+            fputs("[noop-local-access] runtime error\n", stderr)
+            Foundation.exit(1)
         }
     }
 
@@ -77,7 +106,18 @@ enum NoopLocalAccessMain {
     private static let helpText = """
     Usage:
       noop-local-access mcp
+      noop-local-access query <tool> [flags]
       noop-local-access codex-config [--db-path /absolute/path/to/whoop.sqlite]
+
+    Query tools:
+      health_snapshot [--days N]
+      metric_series --key KEY [--source SOURCE] [--days N] [--from-day YYYY-MM-DD] [--to-day YYYY-MM-DD] [--limit N]
+      data_freshness
+      sleep_summary [--days N]
+      workout_summary [--days N]
+
+    Query options:
+      --db-path PATH    Explicit NOOP SQLite path. Otherwise NOOP_DB_PATH or the official app container is used.
 
     Environment:
       NOOP_DB_PATH    Explicit NOOP SQLite path. Optional; otherwise the official macOS app container is used.

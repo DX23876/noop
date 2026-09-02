@@ -327,7 +327,7 @@ struct AddDeviceWizard: View {
         VStack(alignment: .leading, spacing: 10) {
             typeRow(.whoop5mg, icon: "applewatch.side.right",
                     title: "WHOOP 5.0 / MG",
-                    subtitle: String(localized: "Newer WHOOP band, experimental in NOOP"))
+                    subtitle: String(localized: "Newer WHOOP band with live data and history sync"))
             typeRow(.whoop4, icon: "applewatch.side.right",
                     title: "WHOOP 4.0",
                     subtitle: String(localized: "NOOP's primary, fully-supported band"))
@@ -1430,7 +1430,7 @@ struct AddDeviceWizard: View {
             Image(systemName: "flask")
                 .foregroundStyle(StrandPalette.statusWarning)
                 .accessibilityHidden(true)
-            Text("WHOOP 5.0 / MG support is newer and still experimental in NOOP.")
+            Text("WHOOP 5.0 / MG supports live data and strap history. Protocol-research tools are available separately in Test Centre.")
                 .font(StrandFont.footnote)
                 .foregroundStyle(StrandPalette.statusWarning)
                 .fixedSize(horizontal: false, vertical: true)

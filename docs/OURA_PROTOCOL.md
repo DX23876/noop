@@ -738,6 +738,20 @@ like its sibling banked streams (`.hrv`/`.temp`/`.spo2`/`.sleepPhase`) — the f
   | 7 | `sleep_state` | u8 | — | source's parser THROWS if ∉ {0,1,2} |
   | 8–9 | `cv` | u16 LE | / 65536 | ⇒ [0,1) |
 
+  ⚠️ **The `motion_count` guard differs by ONE between the two independent re-derivations of the same
+  native function, and our corpus cannot settle it.** NOOP (the table above and both platform decoders)
+  rejects a body with `motion_count ≥ 121`; [open_oura]'s `decode_sleep_period_info` (PR #15, merged
+  2026-08-31) rejects `≥ 120`. Both cite the same `RepNumericRangeError` throw in
+  `parse_api_sleep_period_info`, so one of the two readings is off by one — settling it needs the binary,
+  not more nights. **Measured impact: none.** Across **8 075** distinct `0x6A` records in NOOP's capture
+  corpus (every `oura-resp.jsonl` held under `worklog/artifacts/Sleep Nights/`, de-duplicated by `ringTs`)
+  `motion_count` maxes at **55** — modal value 0, *nothing* ≥ 100, and **no record at 120** — while
+  `sleep_state` is only ever 0 or 1. Neither guard has ever fired on real data and no record has ever
+  landed in the disputed slot. ⇒ **Leave NOOP's `< 121` as it stands: this is a documented open
+  discrepancy, not a bug to "fix" into agreement with upstream.** (Weak physical argument for `< 121`, not
+  evidence: at a ~296 s cadence a bounded per-window tally with an *inclusive* upper bound throws at
+  ≥ 121, not ≥ 120.)
+
   **CORRECTION to this line's previous revision**, which read *"bytes6–9 four int8 metrics; bytes10–11
   `uint8/8.0`; byte12 motion-seconds; byte13 sleep-state int8; bytes14–15 uint16 LE/65536"* [ringverse]:
   the OFFSETS were right and the `/8.0` was right, but there were **no names** — so the tag looked like
@@ -986,7 +1000,13 @@ edit of the ring's tag.
     window is the single regime a walking-equivalent model should do best in, and it does not overturn the
     857-day picture (median ≈ 0, p90 +186 %) that gates it. It is recorded because it bounds the error on
     the one regime where the estimate is meant to apply.
-  - **Real Steps (feature `0x0B`) server gating [open_oura-feat]:** real_steps is behind the server flag `activity/real_steps` (default **false**; `FeatureDefinitions.ActivityRealSteps`, Gen 3+), the same server-flag-off pattern as SpO2 (§7.1). This explains `0x7E`/`0x7F` never once appearing across the PR #960 live sessions - the ring isn't sending them, it is not a NOOP decode gap. `0x50` itself is an always-on base stream (not feature-gated), matching it appearing in every session.
+  - **Real Steps (feature `0x0B`) server gating [open_oura-feat]:** real_steps is documented as sitting behind the server flag `activity/real_steps` (default **false**; `FeatureDefinitions.ActivityRealSteps`, Gen 3+), the same server-flag-off pattern as SpO2 (§7.1).
+
+    **CORRECTED 2026-08-27 (#1629).** This section previously concluded: *"This explains `0x7E`/`0x7F` never once appearing across the PR #960 live sessions - the ring isn't sending them, it is not a NOOP decode gap."* **That explanation no longer holds.** On-device captures read the ring's own real_steps status (`2f 02 20 0b`) back as **`status=1` (enabled)** — identically from an authenticated Oura-app session and from NOOP's own fully offline, unauthenticated connection to the same ring. The gate is ring-side state, not something tied to which client asks.
+
+    So the *observation* stands — `0x7E`/`0x7F` still never appeared in those sessions — but the *cause* attributed to it does not. Be careful about what the new reading does and does not show: **`status=1` is not evidence the ring emits those tags.** It only removes gating as the explanation. Why they are absent is currently **unknown**, and a decode gap is back on the table as a possibility rather than ruled out. `0x50` is unaffected: an always-on base stream, not feature-gated, and it appears in every session.
+
+    Anything that cited this paragraph to close a line of investigation should be re-read on that basis.
 - **`0x7E`/`0x7F` real_steps_features 1/2** (18 B each): bit-packed step features merged across the paired events. **(UNVERIFIED - partial)** [ringverse]
   - **Unpack formula ([oura-rs] - Th0rgal/open_oura `crates/oura-protocol/src/events.rs#L566`, clean-room
     fact citation): 14 fields from the 14-byte body.** Fields 0 and 8 are genuine 9-bit values built as

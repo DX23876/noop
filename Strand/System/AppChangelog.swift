@@ -7,7 +7,7 @@ enum AppChangelog {
 
     /// Bump this when you add a release below. The "What's New" sheet shows automatically when the
     /// stored last-seen version is behind this. (Decoupled from the bundle version on purpose.)
-    static let currentVersion = "10.5.0"
+    static let currentVersion = "11.0.0"
 
     struct Release: Identifiable {
         let version: String
@@ -19,6 +19,32 @@ enum AppChangelog {
 
     /// Newest first.
     static let releases: [Release] = [
+        Release(
+            version: "11.0.0",
+            title: "A WHOOP 5 that stays connected, your body clock on the Sleep screen, and a Journal that knows No from nothing",
+            date: "September 2026",
+            items: [
+                "**The WHOOP 5.0 and MG stop dropping every few seconds (#1635, thanks @Zebsi235).** A handshake the strap never answers was knocking a perfectly good link down about every five seconds, all day. NOOP now recognises a strap that will not complete that handshake, stops attempting it, and holds the link instead — live heart rate keeps streaming rather than restarting forever. Tapping Connect costs one reconnect now, not five.",
+                "**Your body clock, on the Sleep screen (#1722, #1723, #1729, #1733).** A 24-hour dial showing when your body actually wants to sleep, and a chronotype read from your own nights rather than a questionnaire. It says what it used and refuses to guess when it cannot see enough.",
+                "**Nights read straighter (#1717, #1734, #1741, #1755, #1782).** A night that only partly downloaded is no longer scored as if it were whole. Sleep that arrives in fragments is stitched back together when your heart rate says you stayed asleep through the gap. And sleep debt is now a number you can act on tonight.",
+                "**A day you never logged is not a day you answered No (#322).** Journal insights compared days you ticked against every other day — including the ones you simply did not open the app. They now compare Yes days against No days only, so an untracked week stops quietly counting against you.",
+                "**NOOP tells you when there is a new version (#1674, #1675).** Both platforms now notice a release and say so, on by default, checked directly against the release feed with nothing else sent.",
+                "**Health Connect asks for one category at a time (#1509, thanks @kavemang).** Recovery, Activity and Body composition are chosen before Android's prompt appears, so you grant what you meant to. Existing installs keep exactly what they already had.",
+            ]
+        ),
+        Release(
+            version: "10.6.0",
+            title: "An Effort scale you choose, a ring that gets to sleep, and far fewer wasted re-scores",
+            date: "August 2026",
+            items: [
+                "**Pick how Effort is scored (#1562, #1563).** Banister TRIMP is now wired end to end and selectable, so Effort can follow the method you trust rather than the one that happened to ship. A workout is also scored against the same HRmax as the day containing it (#1565).",
+                "**The phone stops re-scoring all night (#1557, #1559).** A background re-score that could not finish used to restart from the beginning, forever. It now runs where it can complete, and the diagnostics say which pass ran and why — so days that quietly refused to compute now compute.",
+                "**The Oura ring is allowed to sleep (#1526, #1550, thanks @pipiche38).** Live-HR daytime mode was being held open whenever nobody was looking at the app, blocking the ring's own overnight sleep suite. NOOP now hands the ring back out of daytime mode, on suspend and on teardown.",
+                "**Sleep reads straighter (#1551, #1552, thanks @bartmuskala).** The Classic view draws the night's heart-rate line, and the stage breakdown is ramp-aware with the redundant legend gone.",
+                "**Pause or discard a live workout, and SDNN on Android (#1533, #1535, thanks @bhelm).** Live workouts gain pause and discard controls, and the SDNN index that was iOS-only is now on both platforms.",
+                "**Your strap's device key stays out of the strap log (#1610).** A WHOOP 4.0 identity response carries the strap serial and its device key side by side; the log now reports the structure and withholds the key, so a log attached to an issue no longer publishes it.",
+            ]
+        ),
         Release(
             version: "10.5.0",
             title: "Training load, a VO₂max without a tape measure, and Apple Health write-back",

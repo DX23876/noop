@@ -142,9 +142,10 @@ final class AppModel: ObservableObject {
 
         var isPaused: Bool { pausedAt != nil }
 
+        /// Delegates to `ActiveWorkoutClock` so this and the two card surfaces cannot drift apart again.
         func elapsed(at now: Date = Date()) -> TimeInterval {
-            max(0, now.timeIntervalSince(start) - pausedDuration
-                - (pausedAt.map { now.timeIntervalSince($0) } ?? 0))
+            ActiveWorkoutClock.activeElapsed(start: start, pausedAt: pausedAt,
+                                             pausedDuration: pausedDuration, now: now)
         }
     }
     struct HealthAlert: Equatable {
@@ -642,6 +643,12 @@ final class AppModel: ObservableObject {
             })
         coordinator.start()
         self.deviceRegistry = registry
+        // #1303: adoption re-points the strap onto its stable `whoop-<serial>` id inside BLEManager (which
+        // holds only the non-observable store), so mirror it onto the OBSERVABLE registry here or the
+        // Devices screen and the source coordinator keep watching an id that no longer exists.
+        self.ble.onSerialIdentityAdopted = { [weak registry] serialId in
+            registry?.setActive(serialId)
+        }
         self.sourceCoordinator = coordinator
         // #814 READ SPINE (HIGH-1): drive the read side off the registry's `activeDeviceId` for the WHOLE
         // session, exactly as SourceCoordinator drives the WRITE side off the SAME publisher. A Devices-
@@ -765,7 +772,7 @@ final class AppModel: ObservableObject {
         // analyzeRecent tick , otherwise a just-synced night's Charge / Effort / Rest can take up to
         // 15 minutes to appear on a strap-only (no-import) dashboard. analyzeRecent no-ops if a tick is
         // already running and refreshes the dashboard itself once the new scores persist. (PR #218)
-        // #1196/#1146: `skipIfUnchanged` gates THIS post-offload pass on the HR fingerprint — an empty/
+        // #1196/#1146: `skipIfUnchanged` gates THIS post-offload pass on the complete raw-input fingerprint — an empty/
         // duplicate offload (nothing new banked, common on a flapping link) skips the whole-window rescore
         // instead of churning it, which was surfacing as a Trends/streak "0 days" flicker. Only this
         // post-offload caller opts in; every other analyzeRecent path still forces unconditionally.
@@ -1964,6 +1971,17 @@ final class AppModel: ObservableObject {
         }
     }
 
+    /// The reader's temperature unit, resolved the way every screen resolves it. AppModel is not a View,
+    /// so there is no @AppStorage — but the resolution must stay identical (explicit override when set,
+    /// else derived from the unit system), or the alert banner and the Skin Temp card disagree about
+    /// what unit the same number is in.
+    private var displayTemperatureUnit: TemperatureUnit {
+        let d = UserDefaults.standard
+        let system = UnitSystem(rawValue: d.string(forKey: UnitPrefs.systemKey) ?? "") ?? .metric
+        return UnitPrefs.resolveTemperature(system: system,
+                                            override: d.string(forKey: UnitPrefs.temperatureKey) ?? "")
+    }
+
     /// Run the `IllnessSignalEngine` from the day history + the journal-derived confounder context, then
     /// publish the result + the semantic `healthAlert` banner payload.
     private func applyIllnessSignal(_ days: [DailyMetric], alcohol: Bool,
@@ -2034,8 +2052,21 @@ final class AppModel: ObservableObject {
             labels["hrv"] = String(localized: "HRV −\(percent)%")
         }
         if let r = rm({ $0.skinTempDevC }), r > 0 {
-            let temperature = String(format: "%.1f", locale: AppLanguage.activeLocale, r)
-            labels["skinTemp"] = String(localized: "Skin temperature +\(temperature) °C")
+            // The value is STORED in °C but must be SHOWN in the reader's unit: this label welded "°C"
+            // into the translated string, so a Fahrenheit user got "+0.7 °C" from the banner while every
+            // other surface rendered the same night as "+1.3 Δ°F".
+            //
+            // #111/#622: skinTempDevC is BIMODAL — an imported night is an ABSOLUTE wrist °C, a live one
+            // a signed DEVIATION — so neither the conversion nor the unit chip may be assumed. Kind and
+            // chip come from SkinTempDisplay, the same authority the Today and Health tiles use. The
+            // NUMBER is formatted here rather than by SkinTempDisplay because these decimals go through
+            // AppLanguage.activeLocale: a German reader sees "0,7", which the package's plain
+            // String(format:) would flatten to "0.7".
+            let temperature = UnitFormatter.skinTempSignalPhrase(
+                r,
+                fahrenheit: displayTemperatureUnit == .fahrenheit,
+                locale: AppLanguage.activeLocale)
+            labels["skinTemp"] = String(localized: "Skin temperature \(temperature)")
         }
         if let r = rm({ $0.respRateBpm }), let b = mean(base.compactMap { $0.respRateBpm }), r > b {
             labels["respiration"] = String(localized: "Respiration up")

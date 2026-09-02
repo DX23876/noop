@@ -2,4 +2,3 @@
 # Format: <path> <count>.  The gate fails when a file EXCEEDS its count, or when a
 # file not listed here has any. Ratchet DOWN as they are fixed — never up.
 # Generated at the time Tools/doc_comment_lint.py landed; see #846 for the pattern.
-

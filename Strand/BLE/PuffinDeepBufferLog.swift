@@ -34,9 +34,9 @@ enum PuffinOpticalExperimentPhase: String, CaseIterable, Sendable {
 /// packets that carry tens-of-Hz sensor data (motion + optical) rather than the 1 Hz historical
 /// rollup NOOP already decodes (#423).
 ///
-/// On-strap probing (#423) established that the 5/MG has no live raw-IMU stream, but it DOES bank
-/// high-rate motion (accel content verified: int16-ish triples sphere-fitting to ~1 g at the 1/4096
-/// scale) and ships it inside big type-0x2F buffers during the connect-time offload burst — 124 B
+/// On-strap probing (#423) established that the 5/MG banks high-rate motion and can stream it live
+/// during an explicitly armed raw-data session (accel content verified: int16-ish triples
+/// sphere-fitting to ~1 g at the 1/4096 scale). History also ships it inside big type-0x2F buffers — 124 B
 /// (≈1 Hz record), 1244 B and 2140 B (≈32 and ≈59 sub-records per timestamped second). NOOP's
 /// historical decoder pulls the 1 Hz gravity vector out and DISCARDS the high-rate remainder. Those
 /// bursts are ephemeral and backlog-gated, so a byte-perfect decoder can't be captured on demand — it

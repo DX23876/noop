@@ -681,6 +681,17 @@ public enum StrandPalette {
         case .titanium: return Color(light: "#3A80D6", dark: "#4A90E2")
         }
     }
+    /// The Rest family's most legible LINE colour — for strokes that must read on a busy or translucent
+    /// surface, such as the body-clock dial's arcs over a custom background image.
+    ///
+    /// Introduces no new value: it selects the existing token that is the bright blue in each palette.
+    /// The families are not parallel — classic's `restBright` is a PURPLE accent while modern's is the
+    /// blue, and classic's `restColor` is the blue where modern's is a muted steel — so a card naming
+    /// either token directly gets the right colour in one palette and the wrong one in the other. Both
+    /// resolve to #6FA8E8 in dark.
+    public static var restLine: Color {
+        chartStyle == .classic ? restColor : restBright
+    }
     public static var restGradient: Gradient { Gradient(colors: [restDeep, restBright]) }
 
     /// Stress — blue→gold→orange world / Classic green→amber→red / Apple Health

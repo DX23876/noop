@@ -40,6 +40,9 @@ private struct InsightsLoadKey: Equatable {
 /// the seq AND the dayKey still match (see `Repository.insightsLoadedSeq` / `insightsLoadedDayKey`).
 struct InsightsLoadCache {
     let behaviours: [String: Set<String>]
+    /// Per behaviour, the days it was logged NO. Cached alongside `behaviours` because a restore that
+    /// dropped it would leave the ranker with no controls and silently produce no insights at all.
+    let controls: [String: Set<String>]
     let importedQuestions: [String]
     let outcomeByKey: [String: [String: Double]]
     let seriesByKey: [String: [(day: String, value: Double)]]
@@ -147,6 +150,8 @@ struct InsightsView: View {
 
     /// behaviour question → set of days where it was answered yes.
     @State private var behaviours: [String: Set<String>] = [:]
+    /// Per behaviour, the days it was logged NO — the only legitimate control group.
+    @State private var controls: [String: Set<String>] = [:]
     /// outcome key → [day: value].
     @State private var outcomeByKey: [String: [String: Double]] = [:]
     /// outcome key → ordered (day, value) series for correlations.
@@ -435,6 +440,7 @@ struct InsightsView: View {
                        rawSeries: rawSeries, workouts: workouts)
         }.value
         let byBehaviour = shaped.behaviours
+        let controlsByBehaviour = shaped.controls
         let numericByBehaviour = shaped.numericJournalByKey
         let importedQs = shaped.importedQuestions
         let byKey = shaped.outcomeByKey
@@ -443,6 +449,7 @@ struct InsightsView: View {
 
         await MainActor.run {
             self.behaviours = byBehaviour
+            self.controls = controlsByBehaviour
             self.importedQuestions = importedQs
             self.outcomeByKey = byKey
             self.seriesByKey = seriesMap
@@ -459,6 +466,7 @@ struct InsightsView: View {
             // freshest read, a subsequent re-mount never restores stale data behind a journal toggle.
             self.repo.insightsCache = InsightsLoadCache(
                 behaviours: byBehaviour,
+                controls: controlsByBehaviour,
                 importedQuestions: importedQs,
                 outcomeByKey: byKey,
                 seriesByKey: seriesMap,
@@ -484,11 +492,13 @@ struct InsightsView: View {
                                   workouts: [WorkoutRow]) -> InsightsLoadCache {
         let entries = Repository.mergeJournal(imported: imported, native: native)
         var byBehaviour: [String: Set<String>] = [:]
+        var controlsByBehaviour: [String: Set<String>] = [:]
         var numericByBehaviour: [String: [String: Double]] = [:]
         // Only "yes" answers count as the behaviour occurring. A numeric log writes answeredYes=true too
         // (#322), so a numeric item lands in the with/without split here unchanged.
-        for e in entries where e.answeredYes {
-            byBehaviour[e.question, default: []].insert(e.day)
+        for e in entries {
+            if e.answeredYes { byBehaviour[e.question, default: []].insert(e.day) }
+            else { controlsByBehaviour[e.question, default: []].insert(e.day) }
         }
         for e in entries {
             if let v = e.numericValue { numericByBehaviour[e.question, default: [:]][e.day] = v }
@@ -529,6 +539,7 @@ struct InsightsView: View {
         let costs = computeActivityCosts(workouts: workouts, days: mergedDays)
 
         return InsightsLoadCache(behaviours: byBehaviour,
+                                 controls: controlsByBehaviour,
                                  importedQuestions: importedQs,
                                  outcomeByKey: byKey,
                                  seriesByKey: seriesMap,
@@ -542,6 +553,7 @@ struct InsightsView: View {
     @MainActor
     private func restoreFromCache(_ c: InsightsLoadCache) {
         behaviours = c.behaviours
+        controls = c.controls
         importedQuestions = c.importedQuestions
         outcomeByKey = c.outcomeByKey
         seriesByKey = c.seriesByKey
@@ -603,6 +615,7 @@ struct InsightsView: View {
         let outcomeDays = outcomeByKey[outcome.key] ?? [:]
         ranked = BehaviorInsights.rank(
             behaviors: behaviours,
+            controls: controls,
             outcomeByDay: outcomeDays,
             outcome: outcome.outcomeName
         )
