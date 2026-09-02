@@ -281,6 +281,68 @@ enum DailyStepsReading: Equatable {
     }
 }
 
+/// The most recent BANKED estimate as of a given day.
+///
+/// Fitness age, VO₂max and Vitality are slow-moving derived estimates, not per-day measurements: the
+/// engine banks a new one when it has enough to say, which is not every day. TodayView reads them as
+/// "the latest banked value" (`#1391: latest banked VO₂max estimate`); the dashboards asked for the value
+/// dated exactly to the selected day and therefore showed "—" on every day the estimate had not been
+/// rewritten — which is most days.
+///
+/// The `<=` is what makes one rule serve both cases: on today it IS the latest banked value, matching
+/// Today; on a navigated past day it is the estimate as it stood then, rather than a number from after
+/// the day being read.
+///
+/// This is deliberately NOT the rule for measurements — see `DailyStepsReading`, where reaching for the
+/// newest row is the bug. A step count belongs to its day; a fitness age does not.
+func latestBanked(_ series: [(day: String, value: Double)], asOf dayKey: String) -> Double? {
+    series.last(where: { $0.day <= dayKey })?.value
+}
+
+/// The PER-FIELD vitals carry the dashboard cards use, mirroring `TodayView.dashboardValue`.
+///
+/// Three of these columns are sparse by construction, so "today's row has nothing" is not the same as
+/// "nobody has measured this". The on-device engine writes `spo2Pct = nil` for WHOOP 5/MG entirely, and
+/// computed rows write it nil even when an imported row holds a real reading — which is why the two
+/// dashboards showed "—" for Blood Oxygen while Today, which carries, showed a number for the same day.
+///
+/// The rows come from `Repository`'s own selectors (`lastVitalsDay` / `lastSpo2Day` / `lastSkinTempDay` /
+/// `lastRespDay`), never a locally invented "newest row with a value": #1331 is exactly that bug, where
+/// two unbounded resolvers printed one CSV import's 15.6 as today's respiratory rate for a fortnight. The
+/// respiratory carry is the staleness-BOUNDED one for that reason; SpO₂ and skin temperature are sparse
+/// or import-fed, so last-known-of-any-age is the honest answer for them.
+///
+/// HRV and resting HR deliberately do NOT carry here: `TodayView.dashboardValue` reads them from the day
+/// itself, and a dashboard card that carried them would disagree with Today.
+struct DashboardVitalCarry {
+    var vitals: DailyMetric?
+    var spo2: DailyMetric?
+    var skinTemp: DailyMetric?
+    var resp: DailyMetric?
+
+    /// Resolve all four carries for a day. Returns empty carries for a navigated past day, which shows
+    /// its own row verbatim — carrying INTO the past would show a value recorded after the day being read.
+    static func resolve(days: [DailyMetric], todayKey: String, isToday: Bool) -> DashboardVitalCarry {
+        guard isToday else { return DashboardVitalCarry() }
+        return DashboardVitalCarry(vitals: Repository.lastVitalsDay(days: days, todayKey: todayKey),
+                                   spo2: Repository.lastSpo2Day(days: days, todayKey: todayKey),
+                                   skinTemp: Repository.lastSkinTempDay(days: days, todayKey: todayKey),
+                                   resp: Repository.lastRespDay(days: days, todayKey: todayKey))
+    }
+
+    func spo2Pct(_ day: DailyMetric?) -> Double? {
+        day?.spo2Pct ?? vitals?.spo2Pct ?? spo2?.spo2Pct
+    }
+
+    func skinTempDevC(_ day: DailyMetric?) -> Double? {
+        day?.skinTempDevC ?? vitals?.skinTempDevC ?? skinTemp?.skinTempDevC
+    }
+
+    func respRateBpm(_ day: DailyMetric?) -> Double? {
+        day?.respRateBpm ?? resp?.respRateBpm
+    }
+}
+
 /// Exactly three compact Overview focus cards. Coach stays available without being a default.
 enum OverviewFocusItem: String, CaseIterable, Identifiable {
     case hrv, restingHr, steps, sleep, bloodOxygen, respiratory, stress, calories, hydration, fitnessAge, vo2max, coach

@@ -53,6 +53,8 @@ struct OverviewDashboardView: View {
     @State private var hydrationTotalML: Double?
     @State private var todayEnergySummary: DailyEnergySummary?
     @State private var resolvedWeightKg: Double?
+    /// The per-field vitals carry the dashboard cards use — see `DashboardVitalCarry`.
+    @State private var vitalCarry = DashboardVitalCarry()
     @State private var showCoach = false
     @State private var showUpdatesInbox = false
     @State private var showAllMetrics = false
@@ -242,6 +244,9 @@ struct OverviewDashboardView: View {
         async let energySummariesA = repo.energySummaries(days: 30, profile: Repository.analyticsProfile(profile))
         async let weightSummaryA = repo.weightTrendSummary(days: 91)
 
+        vitalCarry = DashboardVitalCarry.resolve(days: allDays,
+                                                 todayKey: displayDay?.day ?? selectedDayKey,
+                                                 isToday: selectedDayOffset == 0)
         appleDays = await appleDaysA
         let restSeries = await restSeriesA
         let restByDay = Dictionary(restSeries.map { ($0.day, $0.value) }, uniquingKeysWith: { _, last in last })
@@ -249,9 +254,9 @@ struct OverviewDashboardView: View {
             todayValue: displayDay.flatMap { restByDay[$0.day] },
             lastDay: restSeries.last?.day, lastValue: restSeries.last?.value,
             isTodaySelected: selectedDayOffset == 0, todayKey: todayKey)
-        fitnessAgeToday = (await fitnessAgeSeriesA).last(where: { $0.day == selectedDayKey })?.value
-        vo2maxToday = (await vo2maxSeriesA).last(where: { $0.day == selectedDayKey })?.value
-        vitalityToday = (await vitalitySeriesA).last(where: { $0.day == selectedDayKey })?.value
+        fitnessAgeToday = latestBanked(await fitnessAgeSeriesA, asOf: selectedDayKey)
+        vo2maxToday = latestBanked(await vo2maxSeriesA, asOf: selectedDayKey)
+        vitalityToday = latestBanked(await vitalitySeriesA, asOf: selectedDayKey)
         stressToday = StressModel(days: scopedDays, stored: await stressStoredA)?.score
         stepsEstToday = (await stepsEstSeriesA).last(where: { $0.day == selectedDayKey })
             .map { Int($0.value.rounded()) }
@@ -369,6 +374,20 @@ struct OverviewDashboardView: View {
         case .weight:
             guard let kg = resolvedWeightKg else { return "—" }
             return UnitFormatter.massFromKilograms(kg, system: unitSystem)
+        // The three sparse columns carry, exactly as Today's own dashboard cards do: a nil here means
+        // "no reading on this row", not "nobody measured".
+        case .bloodOxygen:
+            return vitalCarry.spo2Pct(displayDay).map {
+                String(format: "%.0f%%", locale: AppLanguage.activeLocale, $0)
+            } ?? "—"
+        case .respiratory:
+            return vitalCarry.respRateBpm(displayDay).map {
+                String(format: "%.1f", locale: AppLanguage.activeLocale, $0)
+            } ?? "—"
+        case .skinTemp:
+            return vitalCarry.skinTempDevC(displayDay).map {
+                String(format: "%+.1f°", locale: AppLanguage.activeLocale, $0)
+            } ?? "—"
         default:
             // Key the Apple row off the SELECTED day, not off `displayDay?.day`: a day with no
             // `DailyMetric` row leaves `displayDay` nil, which matched no Apple row and printed "—" for

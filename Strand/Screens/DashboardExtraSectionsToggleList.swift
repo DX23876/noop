@@ -415,11 +415,51 @@ struct DashboardSupplementSections: View {
 
 /// Selection management is deliberately only exposed in dashboard configuration, never as a visible
 /// edit affordance on either reference-matched dashboard.
+///
+/// This was a flat list of on/off toggles, which made the "Your cards" list the one editable surface on
+/// these dashboards you could not actually arrange: a card could be added or removed, never moved, so the
+/// order was whatever order it happened to be toggled in. The Overview health list next to it has had a
+/// proper shown/hidden editor all along — this now uses the same one (`EditableLayoutList`), so both
+/// behave alike and the stored order means what it looks like.
 struct DashboardCardSelectionEditor: View {
     @AppStorage(DashboardCardPrefs.selectionKey) private var raw = ""
-    var body: some View { NavigationLink { selectionList } label: { Label("Manage your cards", systemImage: "rectangle.grid.2x2").font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary) } }
-    private var selectionList: some View { List { ForEach(DashboardCard.allCases) { card in Toggle(card.title, isOn: binding(card)) } }.navigationTitle("Your cards") }
-    private func binding(_ card: DashboardCard) -> Binding<Bool> { Binding(get: { DashboardCardPrefs.decodeEnabled(raw).contains(card) }, set: { enabled in var cards = DashboardCardPrefs.decodeEnabled(raw); if enabled { if !cards.contains(card) { cards.append(card) } } else { cards.removeAll { $0 == card } }; raw = DashboardCardPrefs.encode(cards) }) }
+    var body: some View {
+        NavigationLink {
+            DashboardCardArrangeList(raw: $raw)
+        } label: {
+            Label("Manage your cards", systemImage: "rectangle.grid.2x2")
+                .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
+        }
+    }
+}
+
+private struct DashboardCardArrangeList: View {
+    @Binding var raw: String
+    @State private var draft = EditableLayoutDraft(visible: DashboardCard.defaultSelection,
+                                                   allItems: DashboardCard.canonicalOrder)
+
+    var body: some View {
+        EditableLayoutList(draft: $draft,
+                           shownTitle: String(localized: "Shown"), hiddenTitle: String(localized: "Hidden"),
+                           title: \.title, subtitle: { _ in nil }, icon: \.icon,
+                           tint: { TrendsMetricStrip.tint($0) }, configurationLabel: { _ in nil },
+                           onConfigure: { _ in }, onReset: reset, allowEmpty: false) { EmptyView() }
+            .navigationTitle("Your cards")
+            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done", action: save) } }
+            .onAppear {
+                draft = EditableLayoutDraft(visible: DashboardCardPrefs.decodeEnabled(raw),
+                                            allItems: DashboardCard.canonicalOrder)
+            }
+            // Saved on the way out as well as on Done: a swipe-back is a normal way to leave a pushed
+            // screen, and losing the arrangement to it would read as the editor not working at all.
+            .onDisappear(perform: save)
+    }
+
+    private func save() { raw = DashboardCardPrefs.encode(draft.visible) }
+    private func reset() {
+        draft = EditableLayoutDraft(visible: DashboardCard.defaultSelection,
+                                    allItems: DashboardCard.canonicalOrder)
+    }
 }
 
 struct HostedCardSelectionEditor: View {

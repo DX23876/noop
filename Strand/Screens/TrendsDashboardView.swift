@@ -60,6 +60,8 @@ struct TrendsDashboardView: View {
     @State private var stressToday: Double?
     @State private var hydrationTotalML: Double?
     @State private var resolvedWeightKg: Double?
+    /// The per-field vitals carry the dashboard cards use — see `DashboardVitalCarry`.
+    @State private var vitalCarry = DashboardVitalCarry()
     @State private var showCoach = false
     @State private var showUpdatesInbox = false
     @State private var showSettings = false
@@ -251,14 +253,17 @@ struct TrendsDashboardView: View {
         async let hydrationA = repo.hydrationTotal(day: selectedDayKey)
         async let weightSummaryA = repo.weightTrendSummary(days: 91)
 
+        vitalCarry = DashboardVitalCarry.resolve(days: allDays,
+                                                 todayKey: displayDay?.day ?? selectedDayKey,
+                                                 isToday: selectedDayOffset == 0)
         appleDays = await appleDaysA
         let restSeries = await restSeriesA
         restByDay = Dictionary(restSeries.map { ($0.day, $0.value) }, uniquingKeysWith: { _, last in last })
         restSeriesTail = restSeries.last
         todayEnergySummary = (await energySummariesA).last(where: { $0.day == selectedDayKey })
-        fitnessAgeToday = (await fitnessAgeSeriesA).last(where: { $0.day == selectedDayKey })?.value
-        vo2maxToday = (await vo2maxSeriesA).last(where: { $0.day == selectedDayKey })?.value
-        vitalityToday = (await vitalitySeriesA).last(where: { $0.day == selectedDayKey })?.value
+        fitnessAgeToday = latestBanked(await fitnessAgeSeriesA, asOf: selectedDayKey)
+        vo2maxToday = latestBanked(await vo2maxSeriesA, asOf: selectedDayKey)
+        vitalityToday = latestBanked(await vitalitySeriesA, asOf: selectedDayKey)
         stressToday = StressModel(days: scopedDays, stored: await stressStoredA)?.score
         hydrationTotalML = await hydrationA
         resolvedWeightKg = WeightSeries.displayWeight(summary: await weightSummaryA,
@@ -361,6 +366,20 @@ struct TrendsDashboardView: View {
         case .weight:
             guard let kg = resolvedWeightKg else { return "—" }
             return UnitFormatter.massFromKilograms(kg, system: unitSystem)
+        // The three sparse columns carry, exactly as Today's own dashboard cards do: a nil here means
+        // "no reading on this row", not "nobody measured".
+        case .bloodOxygen:
+            return vitalCarry.spo2Pct(displayDay).map {
+                String(format: "%.0f%%", locale: AppLanguage.activeLocale, $0)
+            } ?? "—"
+        case .respiratory:
+            return vitalCarry.respRateBpm(displayDay).map {
+                String(format: "%.1f", locale: AppLanguage.activeLocale, $0)
+            } ?? "—"
+        case .skinTemp:
+            return vitalCarry.skinTempDevC(displayDay).map {
+                String(format: "%+.1f°", locale: AppLanguage.activeLocale, $0)
+            } ?? "—"
         default:
             return TrendsMetricStrip.valueText(card, day: displayDay,
                                                 appleDay: appleDays.last(where: { $0.day == selectedDayKey }))
