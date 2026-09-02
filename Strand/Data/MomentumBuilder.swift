@@ -78,6 +78,21 @@ enum MomentumBuilder {
         /// The week's Effort so far against this wearer's own typical week, 0...1+. Feeds the
         /// "good day to push" read, which must not fire in the middle of a hard week.
         var weekLoadRatio: Double?
+
+        /// The raised strain / illness early-warning, already localized by the caller (the SAME copy the
+        /// Today banner renders, so the two cannot describe one alert two ways). nil when none is raised.
+        var healthAlertCopy: String?
+
+        /// Hours of strap runtime left on the current discharge, and the local hour the feed is being
+        /// built at. Both are needed to decide whether the strap will still be recording at wake-up;
+        /// either being nil simply produces no candidate.
+        var strapHoursRemaining: Double?
+        var hourOfDay: Int?
+
+        /// The current menstrual-cycle phase name and its day range, already localized. nil unless cycle
+        /// tracking is on and a phase has been resolved.
+        var cyclePhaseTitle: String?
+        var cycleDayRange: String?
     }
 
     // MARK: - Entry point
@@ -87,11 +102,74 @@ enum MomentumBuilder {
     static func candidates(_ i: Inputs) -> [MomentumMessage] {
         var out: [MomentumMessage] = []
         appendOverrides(i, into: &out)
+        appendHealthAlert(i, into: &out)
         appendRecovery(i, into: &out)
         appendTraining(i, into: &out)
         appendActivity(i, into: &out)
+        appendSleepAction(i, into: &out)
+        appendStrapBattery(i, into: &out)
         appendProgress(i, into: &out)
+        appendCycle(i, into: &out)
         return out
+    }
+
+    // MARK: - Tier 1 — something is wrong now, or a window closes tonight
+
+    /// The strain / illness early-warning. Momentum had no channel for it: the only surface was the
+    /// Today banner, so the feed could be leading with a step goal while the app had decided something
+    /// looked wrong. The copy is the caller's — the SAME string the banner renders — so the two cannot
+    /// describe one alert two ways.
+    private static func appendHealthAlert(_ i: Inputs, into out: inout [MomentumMessage]) {
+        guard i.isToday, let copy = i.healthAlertCopy else { return }
+        out.append(MomentumMessage(
+            kind: .healthAlert, tone: .critical,
+            headline: String(localized: "Your body looks strained"),
+            detail: copy,
+            actionLine: String(localized: "Favour rest today, and treat any plan as optional.")))
+    }
+
+    /// Tonight's lights-out target. `sleepCatchUp` names the debt; this names the action that clears it,
+    /// using the SAME owed-minutes figure and the same "keep it doable" shift (`bedtimeShiftMinutes`),
+    /// so the two can never disagree about how much is owed.
+    ///
+    /// Evening and night only: "lights out by 22:40" at nine in the morning is noise, not advice.
+    private static func appendSleepAction(_ i: Inputs, into out: inout [MomentumMessage]) {
+        guard i.isToday, let hour = i.hourOfDay, hour >= 18 || hour < 4,
+              let owed = sleepOwedMinutes(i) else { return }
+        let shift = bedtimeShiftMinutes(owed)
+        out.append(MomentumMessage(
+            kind: .bedtimeTarget, tone: .neutral,
+            headline: String(localized: "Turn in \(shift) minutes earlier tonight"),
+            detail: String(localized: "You are \(durationText(owed)) short against your own need this week."),
+            actionLine: String(localized: "One earlier night, not the whole debt at once.")))
+    }
+
+    /// The strap will not last the night. A battery percentage is not news — a night about to be missed
+    /// is, which is why this is emitted only when the remaining runtime cannot cover a normal night's
+    /// sleep from now. Evening and night only, for the same reason: it is an actionable job at bedtime.
+    private static func appendStrapBattery(_ i: Inputs, into out: inout [MomentumMessage]) {
+        guard i.isToday, let hours = i.strapHoursRemaining, hours.isFinite, hours > 0,
+              let hour = i.hourOfDay, hour >= 18 || hour < 4,
+              hours < nightRuntimeHours else { return }
+        out.append(MomentumMessage(
+            kind: .strapBattery, tone: .caution,
+            headline: String(localized: "Charge the strap before bed"),
+            detail: String(localized: "About \(Int(hours.rounded())) hours left — not enough to record tonight."),
+            actionLine: String(localized: "A short charge now keeps the night's data.")))
+    }
+
+    /// The runtime a night needs to be recorded end to end: a night's sleep plus the evening before it.
+    /// Deliberately generous — waking to a strap that died at 03:00 loses the night either way.
+    static let nightRuntimeHours: Double = 10
+
+    // MARK: - Tier 5 — context that is true of the day being read
+
+    private static func appendCycle(_ i: Inputs, into out: inout [MomentumMessage]) {
+        guard let title = i.cyclePhaseTitle else { return }
+        out.append(MomentumMessage(
+            kind: .cyclePhase, tone: .neutral,
+            headline: title,
+            detail: i.cycleDayRange ?? String(localized: "Cycle phase, estimated on device.")))
     }
 
     // MARK: - Tier 0 — what the user told us, and the honest "not yet"
@@ -370,6 +448,15 @@ extension MomentumBuilder {
         var stepGoal: Int = 0
         /// A session committed for today, still unrecorded.
         var openPlannedSessionToday: String?
+
+        /// The raised health alert's copy, the strap's remaining runtime, and the cycle phase — each
+        /// supplied as a plain value by the screen. A screen that cannot supply one passes nil and simply
+        /// gets no candidate of that kind, which is how a surface without Today's full state stays quiet
+        /// rather than wrong.
+        var healthAlertCopy: String?
+        var strapHoursRemaining: Double?
+        var cyclePhaseTitle: String?
+        var cycleDayRange: String?
     }
 
     /// Everything the builder needs, assembled once for either Today screen.
@@ -431,6 +518,14 @@ extension MomentumBuilder {
         i.openPlannedSessionToday = c.openPlannedSessionToday
         i.strainingDaysInARow = strainingRun(c.allDays)
         i.weekLoadRatio = weekLoadRatio(c.allDays)
+
+        i.healthAlertCopy = c.healthAlertCopy
+        i.strapHoursRemaining = c.strapHoursRemaining
+        i.cyclePhaseTitle = c.cyclePhaseTitle
+        i.cycleDayRange = c.cycleDayRange
+        // The local hour gates the two evening/night messages. Read once here rather than in each
+        // branch, so a feed built in one pass cannot straddle a boundary mid-assembly.
+        i.hourOfDay = Calendar.current.component(.hour, from: Date())
         return i
     }
 

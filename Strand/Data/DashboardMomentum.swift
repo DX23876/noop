@@ -43,7 +43,8 @@ enum DashboardMomentum {
                         dayKey: String,
                         isToday: Bool,
                         steps: DailyStepsReading?,
-                        stepGoal: Int) -> MomentumBuilder.Context {
+                        stepGoal: Int,
+                        model: AppModel) -> MomentumBuilder.Context {
         var c = MomentumBuilder.Context()
         c.displayDay = displayDay
         c.allDays = allDays
@@ -78,7 +79,37 @@ enum DashboardMomentum {
            next.day == dayKey, (displayDay?.exerciseCount ?? 0) == 0 {
             c.openPlannedSessionToday = next.sport
         }
+
+        // The raised alert's copy is the SAME string the Today banner renders, so the feed and the
+        // banner cannot describe one alert two ways.
+        c.healthAlertCopy = model.healthAlert.map { localizedHealthAlertCopy($0) }
+
+        // Read, not observed. `AppModel.live` is a plain `let`, so touching it here — inside a load, not
+        // a body — costs nothing; an `@EnvironmentObject live` on a dashboard would re-evaluate the whole
+        // screen on every ~1 Hz strap tick, which is the regression these screens just had removed.
+        c.strapHoursRemaining = model.live.batteryEstimate?.hoursRemaining
+
+        if let phase = model.cyclePhase {
+            c.cyclePhaseTitle = cyclePhaseTitle(phase.phase)
+            if let lo = phase.cycleDayLow, let hi = phase.cycleDayHigh {
+                c.cycleDayRange = lo == hi
+                    ? String(localized: "~day \(lo)")
+                    : String(localized: "~day \(lo)-\(hi)")
+            }
+        }
         return c
+    }
+
+    /// The same wording `MenstrualCycleHomeCard` and both dashboards' cycle sections use — one vocabulary
+    /// for a phase name, not a second guess at what to call each `CyclePhaseEngine.Phase`.
+    static func cyclePhaseTitle(_ phase: CyclePhaseEngine.Phase) -> String {
+        switch phase {
+        case .follicular:    return String(localized: "Follicular")
+        case .periOvulatory: return String(localized: "Mid-cycle shift")
+        case .luteal:        return String(localized: "Luteal")
+        case .unknown:       return String(localized: "No clear pattern")
+        case .learning:      return String(localized: "Learning your pattern")
+        }
     }
 
     /// Resolve and publish. Call from a `.task(id:)`, never from a body: the publish writes to an

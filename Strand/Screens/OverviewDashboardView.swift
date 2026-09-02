@@ -289,7 +289,7 @@ struct OverviewDashboardView: View {
         DashboardMomentum.publish(
             context: DashboardMomentum.context(displayDay: displayDay, allDays: allDays,
                                                dayKey: selectedDayKey, isToday: selectedDayOffset == 0,
-                                               steps: todayStepsReading, stepGoal: stepGoal),
+                                               steps: todayStepsReading, stepGoal: stepGoal, model: model),
             allDays: allDays,
             snoozedRaw: momentumSnoozedRaw, lastKind: momentumLastKind, lastAt: momentumLastAt,
             retrospective: selectedDayOffset != 0)

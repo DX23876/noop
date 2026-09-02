@@ -52,16 +52,30 @@ public enum MomentumKind: String, CaseIterable, Equatable, Sendable {
     case streak
     /// A multi-day HRV direction against baseline.
     case hrvTrend
+    /// The strain / illness early-warning, when one is raised. Momentum had no channel for it at all:
+    /// the only surface was the Today banner, so the feed could be talking about step goals while the
+    /// app had decided something looked wrong.
+    case healthAlert
+    /// Tonight's lights-out target to meet this wearer's own sleep need. `sleepCatchUp` names the debt;
+    /// this names the action that would clear it.
+    case bedtimeTarget
+    /// The strap will not last the night on its current discharge. Emitted only when that is true — a
+    /// battery reading is not news, a night about to be missed is.
+    case strapBattery
+    /// The current menstrual-cycle phase, when cycle tracking is on.
+    case cyclePhase
 
     /// Ordering tier, lower is more important. The comment above is the contract; this is it in code.
     public var tier: Int {
         switch self {
         case .statusOverride, .calibrating:        return 0
-        case .planDeviation, .weeklyTrainingGoal:  return 1
+        // Time-critical: something is wrong now, or a window is closing tonight. Both new members earn
+        // the tier the same way the existing ones do — the BUILDER only emits them when that is true.
+        case .planDeviation, .weeklyTrainingGoal, .healthAlert, .strapBattery: return 1
         case .milestone, .weightMilestone:         return 2
         case .restDayNeeded, .recoveryRead, .trainingSuggestion: return 3
-        case .stepGoal, .stepsBelowUsual, .sleepCatchUp:         return 4
-        case .streak, .hrvTrend:                   return 5
+        case .stepGoal, .stepsBelowUsual, .sleepCatchUp, .bedtimeTarget:      return 4
+        case .streak, .hrvTrend, .cyclePhase:      return 5
         }
     }
 
@@ -70,10 +84,14 @@ public enum MomentumKind: String, CaseIterable, Equatable, Sendable {
     /// than hiding itself entirely, so a past day still reads as something.
     public var isRetrospective: Bool {
         switch self {
-        case .recoveryRead, .hrvTrend, .streak, .milestone, .weightMilestone, .calibrating:
+        // A cycle phase is a true statement about the day being read, like a recovery score is.
+        case .recoveryRead, .hrvTrend, .streak, .milestone, .weightMilestone, .calibrating, .cyclePhase:
             return true
+        // The three new actionable ones are all about NOW: "your strap won't last tonight" and "lights
+        // out by 22:40" are nonsense on last Tuesday, and a health alert is a live state, not a record.
         case .statusOverride, .planDeviation, .weeklyTrainingGoal, .restDayNeeded,
-             .trainingSuggestion, .stepGoal, .stepsBelowUsual, .sleepCatchUp:
+             .trainingSuggestion, .stepGoal, .stepsBelowUsual, .sleepCatchUp,
+             .healthAlert, .bedtimeTarget, .strapBattery:
             return false
         }
     }
@@ -214,13 +232,20 @@ public enum MomentumFeed {
             }
         case 18...23:  // evening — what is still owed, and how to land the day
             switch kind {
-            case .sleepCatchUp:                  return maxBonus
+            // `sleepCatchUp` names the debt and `bedtimeTarget` names the action that clears it. Equal
+            // weight, same tier: the tie falls to builder order, which emits the debt first.
+            case .sleepCatchUp, .bedtimeTarget:  return maxBonus
             case .streak:                        return 80
-            case .weeklyTrainingGoal:            return 40
+            // Charging it is an evening job — a strap that dies at 02:00 costs the whole night.
+            case .weeklyTrainingGoal, .strapBattery: return 40
             default: return 0
             }
-        default:       // night — nothing to act on but sleep
-            return kind == .sleepCatchUp ? maxBonus : 0
+        default:       // night — nothing to act on but sleep, and the strap that has to record it
+            switch kind {
+            case .sleepCatchUp, .bedtimeTarget:  return maxBonus
+            case .strapBattery:                  return 40
+            default: return 0
+            }
         }
     }
 

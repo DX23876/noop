@@ -225,3 +225,92 @@ final class MomentumFeedTests: XCTestCase {
         }
     }
 }
+
+/// The four kinds added so Momentum can speak about the things the app already knows but the feed had no
+/// channel for: a raised health alert, tonight's bedtime target, a strap that will not survive the night,
+/// and the cycle phase.
+///
+/// Each is pinned where it can go wrong: the tier it earns, whether it survives a navigated past day, and
+/// the hour it belongs to. The ranking maths itself is unchanged — these only had to fit the ladder.
+final class MomentumNewKindsTests: XCTestCase {
+
+    private func msg(_ kind: MomentumKind, tone: MomentumTone = .neutral) -> MomentumMessage {
+        MomentumMessage(kind: kind, tone: tone, headline: kind.rawValue, detail: "d")
+    }
+
+    private let morning = 9
+    private let evening = 20
+    private let night = 2
+
+    // MARK: - Health alert
+
+    /// Critical tone plus a time-critical tier: something the app believes is wrong must not sit under a
+    /// step goal. It still cannot displace an explicit statement from the wearer themselves.
+    func testHealthAlertLeadsUnlessTheWearerHasSaidOtherwise() {
+        let out = MomentumFeed.rank([msg(.stepGoal), msg(.recoveryRead),
+                                     msg(.healthAlert, tone: .critical)], hour: morning)
+        XCTAssertEqual(out.first?.kind, .healthAlert)
+
+        let withStatus = MomentumFeed.rank([msg(.healthAlert, tone: .critical), msg(.statusOverride)],
+                                           hour: morning)
+        XCTAssertEqual(withStatus.first?.kind, .statusOverride)
+    }
+
+    /// A raised alert is a live state, not a record of one, so a navigated past day drops it.
+    func testTheActionableNewKindsAreNotRetrospective() {
+        for kind: MomentumKind in [.healthAlert, .bedtimeTarget, .strapBattery] {
+            XCTAssertFalse(kind.isRetrospective, "\(kind) must not survive onto a past day")
+        }
+        let out = MomentumFeed.rank([msg(.healthAlert, tone: .critical), msg(.bedtimeTarget),
+                                     msg(.strapBattery), msg(.recoveryRead)],
+                                    hour: evening, retrospective: true)
+        XCTAssertEqual(out.map(\.kind), [.recoveryRead])
+    }
+
+    // MARK: - Evening kinds
+
+    /// The bedtime target belongs to the evening and the small hours, and nowhere else: "lights out by
+    /// 22:40" at nine in the morning is noise.
+    func testBedtimeTargetIsWeightedForTheEveningAndNight() {
+        XCTAssertEqual(MomentumFeed.timeBonus(.bedtimeTarget, hour: evening), MomentumFeed.maxBonus)
+        XCTAssertEqual(MomentumFeed.timeBonus(.bedtimeTarget, hour: night), MomentumFeed.maxBonus)
+        XCTAssertEqual(MomentumFeed.timeBonus(.bedtimeTarget, hour: morning), 0)
+    }
+
+    /// The debt and the action that clears it share a tier and an evening weight, so the tie falls to
+    /// builder order — which emits the debt first. Pinned so a reshuffle there is a deliberate act.
+    func testSleepDebtStillLeadsItsOwnAction() {
+        let out = MomentumFeed.rank([msg(.sleepCatchUp), msg(.bedtimeTarget)], hour: evening)
+        XCTAssertEqual(out.map(\.kind), [.sleepCatchUp, .bedtimeTarget])
+    }
+
+    /// Charging is an evening job, but a strap dying mid-night is time-critical enough to outrank the
+    /// ordinary evening reads rather than sit below them.
+    func testStrapBatteryIsTimeCriticalAndEveningWeighted() {
+        XCTAssertEqual(MomentumKind.strapBattery.tier, 1)
+        XCTAssertEqual(MomentumFeed.timeBonus(.strapBattery, hour: morning), 0)
+        XCTAssertGreaterThan(MomentumFeed.timeBonus(.strapBattery, hour: evening), 0)
+
+        let out = MomentumFeed.rank([msg(.streak), msg(.sleepCatchUp), msg(.strapBattery, tone: .caution)],
+                                    hour: evening)
+        XCTAssertEqual(out.first?.kind, .strapBattery)
+    }
+
+    // MARK: - Cycle
+
+    /// A phase is a true statement about the day being read, so unlike the others it survives a past day.
+    func testCyclePhaseIsRetrospectiveAndSitsInTheContextTier() {
+        XCTAssertTrue(MomentumKind.cyclePhase.isRetrospective)
+        XCTAssertEqual(MomentumKind.cyclePhase.tier, 5)
+
+        let out = MomentumFeed.rank([msg(.cyclePhase), msg(.recoveryRead)],
+                                    hour: morning, retrospective: true)
+        XCTAssertEqual(Set(out.map(\.kind)), [.cyclePhase, .recoveryRead])
+    }
+
+    /// Context must never take the card from something actionable.
+    func testCyclePhaseDoesNotOutrankAnActionableRead() {
+        let out = MomentumFeed.rank([msg(.cyclePhase), msg(.stepGoal)], hour: 14)
+        XCTAssertEqual(out.first?.kind, .stepGoal)
+    }
+}

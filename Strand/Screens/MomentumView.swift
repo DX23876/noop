@@ -210,8 +210,14 @@ struct MomentumView: View {
             series(recentDays.suffix(21).compactMap(\.recovery), tint: tint(m))
         case .restDayNeeded:
             series(recentDays.suffix(14).compactMap(\.strain), tint: tint(m))
-        case .sleepCatchUp:
+        // Both are arguments about the same series: one names the debt, the other the night that starts
+        // clearing it, so both show the sleep the argument is made from.
+        case .sleepCatchUp, .bedtimeTarget:
             series(recentDays.suffix(14).compactMap(\.totalSleepMin).map { $0 / 60 }, tint: tint(m))
+        // The alert fires on several signals at once; strain is the one this screen holds a series for,
+        // and showing it is honest about what is being read rather than implying it is the whole case.
+        case .healthAlert:
+            series(recentDays.suffix(14).compactMap(\.strain), tint: tint(m))
         case .stepGoal, .stepsBelowUsual:
             series(recentDays.suffix(14).compactMap(\.steps).map(Double.init), tint: tint(m))
         case .weeklyTrainingGoal, .milestone, .weightMilestone, .streak:
@@ -224,7 +230,10 @@ struct MomentumView: View {
                         .foregroundStyle(StrandPalette.textTertiary)
                 }
             }
-        case .statusOverride, .calibrating, .planDeviation, .trainingSuggestion:
+        // No series behind these: a battery reading and a cycle phase are states, not trends this screen
+        // holds history for. No chart beats a flat placeholder line.
+        case .statusOverride, .calibrating, .planDeviation, .trainingSuggestion,
+             .strapBattery, .cyclePhase:
             EmptyView()
         }
     }
@@ -344,6 +353,10 @@ enum MomentumSymbol {
         case .sleepCatchUp:       return "bed.double"
         case .streak:             return "flame"
         case .hrvTrend:           return "chart.line.uptrend.xyaxis"
+        case .healthAlert:        return "exclamationmark.triangle.fill"
+        case .bedtimeTarget:      return "moon.zzz"
+        case .strapBattery:       return "battery.25"
+        case .cyclePhase:         return "drop.degreesign"
         }
     }
 }
