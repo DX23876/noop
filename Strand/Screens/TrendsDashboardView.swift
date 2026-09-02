@@ -24,7 +24,6 @@ struct TrendsDashboardView: View {
     // re-evaluate the WHOLE dashboard body on every heart-rate tick. The one thing on this screen that
     // shows live values, `DashboardBatteryButton`, owns its own `LiveState` and re-renders alone.
     @Environment(\.scrollToTopSignal) private var scrollToTopSignal
-    @ObservedObject private var identityStore = CoachIdentityStore.shared
     @ObservedObject private var goalStore = CoachGoalStore.shared
     @ObservedObject private var goalTracking = GoalTrackingStore.shared
 
@@ -67,6 +66,8 @@ struct TrendsDashboardView: View {
     @State private var showExtraSections = false
     @State private var showPlan = false
     @State private var showLiveSession = false
+    @AppStorage(DashboardArrangeHint.seenKey("trends")) private var arrangeHintSeen = false
+    @State private var showArrangeHint = false
     @State private var selectedDayOffset = 0
 
     /// Scroll-to-top target for an at-root Today re-tap, the same zero-height anchor Liquid Today uses.
@@ -128,6 +129,14 @@ struct TrendsDashboardView: View {
             showLiveSession = true
         }
         .liveSessionCover(isPresented: $showLiveSession)
+        // Told once, on the screen the gesture belongs to. The flag is written as the sheet is raised, so
+        // swiping it away still counts as having been told.
+        .onAppear {
+            guard !arrangeHintSeen else { return }
+            arrangeHintSeen = true
+            showArrangeHint = true
+        }
+        .dashboardArrangeHint(dashboard: "trends", isPresented: $showArrangeHint)
         .sheet(isPresented: $showPlan) { CoachPlanView().environmentObject(coach) }
         .sheet(isPresented: $showUpdatesInbox) { UpdatesInboxView(onClose: { showUpdatesInbox = false }) }
         .sheet(isPresented: $showExtraSections) {
@@ -406,56 +415,12 @@ struct TrendsDashboardView: View {
 
     // MARK: - Coach card
 
-    /// "Dein Coach {Name}" + a greeting + one recommendation sentence. The sentence is the SAME copy
-    /// Momentum already derives for a recovery-driven training read (`MomentumCopy.stateDetail`), so
-    /// this card can never say something different from what Today's own Momentum card says.
-    @ViewBuilder
+    /// Shared with Overview (`DashboardCoachCard`) so the two dashboards cannot drift into two different
+    /// Coach greetings or two different recommendation sentences.
     private var coachCard: some View {
-        Button { showCoach = true } label: {
-            NoopCard(padding: NoopMetrics.cardPadding, tint: StrandPalette.accent) {
-                HStack(alignment: .top, spacing: 12) {
-                    CoachEntryAvatar(size: 52)
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("\(String(localized: "Your coach")) \(identityStore.identity.name)".uppercased())
-                            .font(StrandFont.overline)
-                            .tracking(StrandFont.overlineTracking)
-                            .foregroundStyle(StrandPalette.statusPositive)
-                        Text(greetingLine)
-                            .font(StrandFont.title2)
-                            .foregroundStyle(StrandPalette.textPrimary)
-                        Text(MomentumCopy.stateDetail(displayDay))
-                            .font(StrandFont.subhead)
-                            .foregroundStyle(StrandPalette.textSecondary)
-                            .fixedSize(horizontal: false, vertical: true)
-                        HStack(spacing: 4) {
-                            Image(systemName: "checkmark.circle.fill")
-                            Text("Today's recommendation")
-                        }
-                        .font(StrandFont.footnote.weight(.semibold))
-                        .foregroundStyle(StrandPalette.statusPositive)
-                        .padding(.horizontal, 10).padding(.vertical, 5)
-                        .background(Capsule().fill(StrandPalette.statusPositive.opacity(0.14)))
-                    }
-                    Spacer(minLength: 0)
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(StrandPalette.textTertiary)
-                }
-            }
-        }
-        .buttonStyle(.plain)
+        DashboardCoachCard(day: displayDay) { showCoach = true }
     }
 
-    private var greetingLine: String {
-        let h = Calendar.current.component(.hour, from: Date())
-        // Same hour bucket the greeting text itself uses — sun for morning/afternoon, moon for evening.
-        let emoji = h < 17 ? "☀️" : "🌙"
-        let greeting = h < 12 ? String(localized: "Good morning")
-            : h < 17 ? String(localized: "Good afternoon")
-            : String(localized: "Good evening")
-        guard let name = profile.displayName else { return "\(greeting) \(emoji)" }
-        return "\(greeting), \(name). \(emoji)"
-    }
 
     // MARK: - Hero rings
 

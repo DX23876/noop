@@ -15,11 +15,13 @@ final class DashboardLayoutSectionsTests: XCTestCase {
     // MARK: - Default order
 
     func testDefaultOrderLeadsWithEachDashboardsOwnReferenceBlocks() {
-        // Trends opens on its reference blocks, Overview on its own three — the extras trail both.
+        // Trends opens on its reference blocks, Overview on its own — the extras trail both. Both lead
+        // with Coach: Overview had no Coach surface at all beyond the header icon, which is not where
+        // anyone looks for a recommendation.
         XCTAssertEqual(Array(DashboardLayoutSection.defaultOrder(for: "trends").prefix(5)),
                        [.coach, .hero, .trendsChart, .metricStrip, .activity])
-        XCTAssertEqual(Array(DashboardLayoutSection.defaultOrder(for: "overview").prefix(3)),
-                       [.overview, .focus, .health])
+        XCTAssertEqual(Array(DashboardLayoutSection.defaultOrder(for: "overview").prefix(4)),
+                       [.coach, .overview, .focus, .health])
 
         // Every non-reference section is an extra, on both dashboards, and every case is placed.
         for dashboard in ["trends", "overview"] {
@@ -71,6 +73,22 @@ final class DashboardLayoutSectionsTests: XCTestCase {
 
         XCTAssertEqual(order.first, .hero)
         XCTAssertEqual(Set(order), Set(DashboardLayoutSection.defaultOrder(for: "trends")))
+    }
+
+    /// Coach is a reference block, not an optional extra, so an untouched dashboard actually shows it.
+    /// Declaring it an extra would have hidden it by default and reproduced the very gap it closes.
+    func testCoachIsVisibleByDefaultOnBothDashboards() {
+        XCTAssertFalse(DashboardLayoutSection.coach.isExtra)
+        for dashboard in ["trends", "overview"] {
+            let hidden = DashboardLayoutPrefs.hidden("", dashboard: dashboard)
+            XCTAssertFalse(hidden.contains(.coach), "\(dashboard): Coach must not start hidden")
+        }
+    }
+
+    /// One hint per dashboard, not one per app: someone who has used Trends for months and then tries
+    /// Overview has not been told about Overview's wordmark.
+    func testArrangeHintIsRememberedPerDashboard() {
+        XCTAssertNotEqual(DashboardArrangeHint.seenKey("trends"), DashboardArrangeHint.seenKey("overview"))
     }
 
     // MARK: - What the load gating rests on

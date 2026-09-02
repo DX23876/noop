@@ -66,6 +66,8 @@ struct OverviewDashboardView: View {
     @State private var showStepGoalSetting = false
     @State private var showPlan = false
     @State private var showLiveSession = false
+    @AppStorage(DashboardArrangeHint.seenKey("overview")) private var arrangeHintSeen = false
+    @State private var showArrangeHint = false
 
     /// Scroll-to-top target for an at-root Today re-tap, the same zero-height anchor Liquid Today uses.
     private static let topAnchorID = "overviewDashboardTop"
@@ -147,6 +149,14 @@ struct OverviewDashboardView: View {
             showLiveSession = true
         }
         .liveSessionCover(isPresented: $showLiveSession)
+        // Told once, on the screen the gesture belongs to. The flag is written as the sheet is raised, so
+        // swiping it away still counts as having been told.
+        .onAppear {
+            guard !arrangeHintSeen else { return }
+            arrangeHintSeen = true
+            showArrangeHint = true
+        }
+        .dashboardArrangeHint(dashboard: "overview", isPresented: $showArrangeHint)
         .sheet(isPresented: $showPlan) { CoachPlanView().environmentObject(coach) }
         .sheet(isPresented: $showUpdatesInbox) { UpdatesInboxView(onClose: { showUpdatesInbox = false }) }
         .sheet(isPresented: $showExtraSections) {
@@ -170,6 +180,12 @@ struct OverviewDashboardView: View {
 
     @ViewBuilder private func dashboardSection(_ section: DashboardLayoutSection) -> some View {
         switch section {
+        case .coach:
+            // The SAME card Trends renders. Overview previously had no Coach surface at all beyond the
+            // header's person icon, which is not a place anyone looks for a recommendation. `compact`
+            // keeps it inside this screen's tighter scale. The Coach focus TILE stays available too —
+            // the card is the default, the tile is a choice.
+            DashboardCoachCard(day: displayDay, compact: true) { showCoach = true }
         case .overview: overviewCard
         case .focus: importantRow
         case .health: healthList
@@ -178,7 +194,7 @@ struct OverviewDashboardView: View {
         case .energyDetail: energyDetailSection
         case .journal: if selectedDayOffset == 0 { journalSection }
         case .menstrualCycle: if selectedDayOffset == 0 { menstrualCycleSection }
-        case .coach, .hero, .trendsChart, .metricStrip, .activity: EmptyView()
+        case .hero, .trendsChart, .metricStrip, .activity: EmptyView()
         default:
             DashboardSupplementSections(dashboard: "overview", compact: true, day: displayDay,
                                         appleDay: appleDays.last(where: { $0.day == selectedDayKey }),

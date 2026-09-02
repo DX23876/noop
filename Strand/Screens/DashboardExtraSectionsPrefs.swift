@@ -115,9 +115,12 @@ enum DashboardLayoutSection: String, CaseIterable, Identifiable {
     }
     static func defaultOrder(for dashboard: String) -> [Self] {
         let extras: [Self] = [.liveSession, .momentum, .goals, .keyMetrics, .energyDetail, .workoutsList, .heartRate, .recoveryVitals, .yourCards, .menstrualCycle, .journal, .dataSources, .addedCards]
+        // Overview leads with the Coach card too: it had no Coach surface at all beyond the header icon,
+        // while Trends has carried one since it shipped. Both are reorderable and hideable like any other
+        // non-extra block, so anyone who does not want it can move it away.
         return dashboard == "trends"
             ? [.coach, .hero, .trendsChart, .metricStrip, .activity] + extras
-            : [.overview, .focus, .health] + extras
+            : [.coach, .overview, .focus, .health] + extras
     }
 }
 
