@@ -48,6 +48,8 @@ struct OverviewDashboardView: View {
     @State private var vo2maxToday: Double?
     @State private var vitalityToday: Double?
     @State private var stressToday: Double?
+    /// The on-device steps estimate for the selected day — the third tier of `DailyStepsReading`.
+    @State private var stepsEstToday: Int?
     @State private var hydrationTotalML: Double?
     @State private var todayEnergySummary: DailyEnergySummary?
     @State private var resolvedWeightKg: Double?
@@ -212,6 +214,9 @@ struct OverviewDashboardView: View {
         async let vo2maxSeriesA = repo.exploreSeries(key: "vo2max_est", source: Repository.whoopSource, days: 120)
         async let vitalitySeriesA = repo.exploreSeries(key: "vitality", source: Repository.whoopSource, days: 120)
         async let stressStoredA = repo.series(key: "stress", source: Repository.whoopSource, days: 120)
+        // The computed "steps_est" metricSeries the IntelligenceEngine writes — the same series Today
+        // reads. Consulted ONLY when the day has no real count, so it never overrides a measurement.
+        async let stepsEstSeriesA = repo.exploreSeries(key: "steps_est", source: Repository.whoopSource, days: 120)
         async let hydrationA = repo.hydrationTotal(day: selectedDayKey)
         async let energySummariesA = repo.energySummaries(days: 30, profile: Repository.analyticsProfile(profile))
         async let weightSummaryA = repo.weightTrendSummary(days: 91)
@@ -227,6 +232,8 @@ struct OverviewDashboardView: View {
         vo2maxToday = (await vo2maxSeriesA).last(where: { $0.day == selectedDayKey })?.value
         vitalityToday = (await vitalitySeriesA).last(where: { $0.day == selectedDayKey })?.value
         stressToday = StressModel(days: scopedDays, stored: await stressStoredA)?.score
+        stepsEstToday = (await stepsEstSeriesA).last(where: { $0.day == selectedDayKey })
+            .map { Int($0.value.rounded()) }
         hydrationTotalML = await hydrationA
         todayEnergySummary = (await energySummariesA).last(where: { $0.day == selectedDayKey })
         resolvedWeightKg = WeightSeries.displayWeight(summary: await weightSummaryA,
@@ -340,10 +347,14 @@ struct OverviewDashboardView: View {
         }
     }
 
-    private var todaySteps: Int? {
-        // Same reason as `healthValueText`: fall back on the SELECTED day's Apple row, which survives a
-        // day that has no strap-scored `DailyMetric` at all.
-        displayDay?.steps ?? appleDays.last(where: { $0.day == selectedDayKey })?.steps
+    /// The selected day's step figure under TodayView's own rule (`DailyStepsReading`): the strap's
+    /// same-day counter, else Apple Health for the SAME day, else the on-device estimate — which the card
+    /// then labels, so an estimate is never read as a measurement. This screen used to stop after the
+    /// first two, so a WHOOP 4.0 (no strap counter) with no same-day Apple row had nothing to show.
+    private var todayStepsReading: DailyStepsReading? {
+        DailyStepsReading.resolve(strapSteps: displayDay?.steps,
+                                  appleSteps: appleDays.last(where: { $0.day == selectedDayKey })?.steps,
+                                  estimatedSteps: stepsEstToday)
     }
 
     // MARK: - Header
@@ -621,27 +632,35 @@ struct OverviewDashboardView: View {
     }
 
     @ViewBuilder private var activityMiniCard: some View {
-        let steps = todaySteps
+        let reading = todayStepsReading
         if stepGoal > 0 {
             NavigationLink(value: DashboardCard.steps.detailRoute(day: displayDay,
                                                                   appleDay: appleDays.last(where: { $0.day == selectedDayKey }))) {
-                activityMiniCardContent(steps: steps, goal: stepGoal)
+                activityMiniCardContent(reading: reading, goal: stepGoal)
             }
             .buttonStyle(.plain)
         } else {
             Button { showStepGoalSetting = true } label: {
-                activityMiniCardContent(steps: steps, goal: nil)
+                activityMiniCardContent(reading: reading, goal: nil)
             }
             .buttonStyle(.plain)
         }
     }
 
-    private func activityMiniCardContent(steps: Int?, goal: Int?) -> some View {
+    private func activityMiniCardContent(reading: DailyStepsReading?, goal: Int?) -> some View {
+        let steps = reading?.steps
         let fraction = goal.flatMap { target in steps.map { min(1, Double($0) / Double(max(target, 1))) } } ?? 0
         return miniCard(icon: "figure.walk", tint: StrandPalette.chargeColor, title: "Activity") {
             VStack(alignment: .leading, spacing: 5) {
                 HStack(alignment: .firstTextBaseline, spacing: 3) {
                     Text(steps.map { "\($0)" } ?? "—").font(StrandFont.number(16)).foregroundStyle(StrandPalette.textPrimary)
+                    // An estimated day says so. A WHOOP 4.0 sends no step counter, so the on-device
+                    // estimate is the only figure available — but it must never be read as a count.
+                    if reading?.isEstimated == true {
+                        Text("est.")
+                            .font(StrandFont.caption)
+                            .foregroundStyle(StrandPalette.textTertiary)
+                    }
                 }
                 Text("Steps").font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
                 if let goal {

@@ -248,6 +248,39 @@ enum OverviewHealthCardsPrefs {
     static func encode(_ cards: [DashboardCard]) -> String { DashboardCardPrefs.encode(cards) }
 }
 
+/// How a day's step figure was arrived at, and the rule for choosing it.
+///
+/// The rule is TodayView's (#843/#813, `TodayView.keyMetricTile(.steps)`), lifted out so a second screen
+/// cannot ship a shorter version of it. Two things it exists to prevent, both of which have happened:
+///
+/// 1. **Never the latest imported Apple-Health row.** That row can be days stale, and using it froze the
+///    tile on an old import — a number from another day presented as this day's.
+/// 2. **An estimate is never passed off as a count.** A WHOOP 4.0 sends no step counter, so the
+///    on-device estimate fills the gap — but it is labelled, so it cannot be mistaken for a measurement.
+enum DailyStepsReading: Equatable {
+    /// A real count for THIS day: the strap's own counter, or Apple Health for the same day.
+    case measured(Int)
+    /// The on-device estimate for this day (WHOOP 4.0 motion → calibrated steps). Always shown labelled.
+    case estimated(Int)
+
+    var steps: Int {
+        switch self {
+        case .measured(let n), .estimated(let n): return n
+        }
+    }
+
+    var isEstimated: Bool { if case .estimated = self { return true }; return false }
+
+    /// All three inputs must already be scoped to the SAME day — passing "the newest row I have" for
+    /// `appleSteps` is the bug this type exists to stop.
+    static func resolve(strapSteps: Int?, appleSteps: Int?, estimatedSteps: Int?) -> DailyStepsReading? {
+        if let strapSteps { return .measured(strapSteps) }
+        if let appleSteps { return .measured(appleSteps) }
+        if let estimatedSteps { return .estimated(estimatedSteps) }
+        return nil
+    }
+}
+
 /// Exactly three compact Overview focus cards. Coach stays available without being a default.
 enum OverviewFocusItem: String, CaseIterable, Identifiable {
     case hrv, restingHr, steps, sleep, bloodOxygen, respiratory, stress, calories, hydration, fitnessAge, vo2max, coach
