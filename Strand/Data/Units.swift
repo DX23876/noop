@@ -107,6 +107,14 @@ enum UnitPrefs {
         return raw == EffortScale.whoop.rawValue ? 0.21 : 1.0
     }
 
+    /// The chosen Effort scale, read straight from defaults — for the user-facing surfaces that are NOT
+    /// SwiftUI views and so cannot hold an `@AppStorage`: notification bodies, the updates inbox, any
+    /// string built outside a view's lifetime. A view must keep using `@AppStorage(effortScaleKey)` so
+    /// flipping the setting redraws it; this accessor cannot observe a change.
+    static func currentEffortScale() -> EffortScale {
+        resolveEffortScale(UserDefaults.standard.string(forKey: effortScaleKey) ?? "")
+    }
+
     /// Whether the live-HR Live Activity (Lock Screen + Dynamic Island) may show, iOS only (#336).
     /// Defaults to ON. The user can turn it off in Notifications settings without digging into iOS
     /// Settings — `liveActivityEnabled()` reads it default-true so an unset key keeps the old behaviour.
@@ -315,6 +323,21 @@ enum UnitFormatter {
     /// the toggle reaches all of them at once. The stored value is unchanged; only the display converts.
     static func effortDisplay(_ value: Double, scale: EffortScale) -> String {
         oneDecimal(effortValue(value, scale: scale))
+    }
+
+    /// An Effort figure WITH the axis it is on, e.g. "63/100" or "13.2/21" — for prose and one-line
+    /// summaries, where a bare number cannot be read off a surrounding ring or "of N" caption and so is
+    /// ambiguous between the two scales. A coached session that says "target effort 63" to someone whose
+    /// app is set to the WHOOP axis is not merely unconverted, it is unreadable: 63 does not exist there.
+    ///
+    /// Decimals follow the app-wide convention (`TodayView.effortRing`): a whole number on the 0–100 axis
+    /// so it matches Charge and Rest, one decimal on the compressed 0–21 axis where the tenth carries
+    /// real information.
+    static func effortWithScale(_ value: Double, scale: EffortScale) -> String {
+        let shown = effortValue(value, scale: scale)
+        let number = scale == .whoop ? String(format: "%.1f", locale: AppLanguage.activeLocale, shown)
+                                     : "\(Int(shown.rounded()))"
+        return "\(number)/\(effortScaleMax(scale))"
     }
 
     /// The "out of" denominator label for the selected Effort scale — "100" or "21". Used by the tile

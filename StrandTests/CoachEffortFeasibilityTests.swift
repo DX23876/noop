@@ -110,15 +110,21 @@ final class CoachEffortFeasibilityTests: XCTestCase {
         XCTAssertEqual(try XCTUnwrap(stored.targetEffort), 20, accuracy: 1e-9)
     }
 
-    /// The summary the Today card and the coach context both read must carry the session's shape, so a
-    /// wearer sees what they agreed to rather than a bare sport name.
+    /// Both summaries must carry the session's SHAPE, so a wearer sees what they agreed to rather than a
+    /// bare sport name — and so the coach's context describes the same session the card does.
+    ///
+    /// The two differ in exactly one place: the Effort figure. The user's string renders the wearer's
+    /// display axis, the model's stays on the canonical 0–100 the tool schema accepts (see
+    /// `PlanProposalEffortScaleTests`). This test used to read one shared string; the split is why it now
+    /// checks both.
     func testSummaryNamesDurationAndZone() {
         let p = PlanProposal(day: today, sport: "Zone 2 ride", intent: .easy,
                              targetEffort: 34, zone: 2, durationMin: 20)
-        let summary = p.summary()
-        XCTAssertTrue(summary.contains("20 min"), summary)
-        XCTAssertTrue(summary.contains("Zone 2"), summary)
-        XCTAssertTrue(summary.contains("34"), summary)
+        for summary in [p.summary(effortScale: .hundred), p.contextSummary()] {
+            XCTAssertTrue(summary.contains("20 min"), summary)
+            XCTAssertTrue(summary.contains("Zone 2"), summary)
+            XCTAssertTrue(summary.contains("34"), summary)
+        }
     }
 
     /// A plan stored before this change decodes with no zone/duration rather than failing to load.

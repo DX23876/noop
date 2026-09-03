@@ -15,6 +15,13 @@ import StrandDesign
 /// Decline IS the dismiss. That also sidesteps TodayView's dismiss-switch `default: break` trap and
 /// LiquidTodayView's lack of a dismiss path entirely.
 struct MorningSuggestionCard: View {
+    /// #268: Effort is STORED on the canonical 0–100 axis; this is the wearer's chosen display axis, so a
+    /// planned session's target reads on the same scale as every Effort ring in the app. `@AppStorage`
+    /// rather than `UnitPrefs.currentEffortScale()` so flipping the setting redraws this card.
+    @AppStorage(UnitPrefs.effortScaleKey) private var effortScaleRaw = EffortScale.hundred.rawValue
+    private var effortScale: EffortScale { UnitPrefs.resolveEffortScale(effortScaleRaw) }
+
+
     @EnvironmentObject private var coach: AICoachEngine
     @EnvironmentObject private var router: NavRouter
     @ObservedObject private var store = CoachPlanStore.shared
@@ -130,7 +137,7 @@ struct MorningSuggestionCard: View {
                         .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
                     Spacer(minLength: 4)
                 }
-                Text(p.summary())
+                Text(p.summary(effortScale: effortScale))
                     .font(StrandFont.body).foregroundStyle(StrandPalette.textPrimary)
                     .fixedSize(horizontal: false, vertical: true)
                 if !p.rationale.isEmpty {

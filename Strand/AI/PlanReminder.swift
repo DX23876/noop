@@ -70,7 +70,7 @@ enum PlanReminder {
 
         let content = UNMutableNotificationContent()
         content.title = String(localized: "Time for your planned session")
-        content.body = proposal.summary()
+        content.body = proposal.summary(effortScale: UnitPrefs.currentEffortScale())
         content.sound = .default
 
         let comps = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute], from: time)

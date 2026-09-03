@@ -838,7 +838,7 @@ final class CoachSemanticMemory: ObservableObject, SemanticMemoryCoordinator {
                 let note = proposal.feedbackNote.map { ". User note: \($0)" } ?? ""
                 result += chunks(kind: .recommendationFeedback,
                                  sourceID: proposal.id.uuidString,
-                                 text: "\(proposal.day): \(outcome) — \(proposal.summary())\(note)",
+                                 text: "\(proposal.day): \(outcome) — \(proposal.contextSummary())\(note)",
                                  updatedAt: proposal.decidedAt ?? proposal.createdAt,
                                  scope: .patterns,
                                  priority: proposal.effectFeedback == nil ? 45 : 70)

@@ -10,6 +10,13 @@ import StrandDesign
 /// session is an ambient reminder, not a demand — so it lives out of the way until its time draws near,
 /// when it colours and pulses to reclaim attention (`emphasis`).
 struct PlanTodayCard: View {
+    /// #268: Effort is STORED on the canonical 0–100 axis; this is the wearer's chosen display axis, so a
+    /// planned session's target reads on the same scale as every Effort ring in the app. `@AppStorage`
+    /// rather than `UnitPrefs.currentEffortScale()` so flipping the setting redraws this card.
+    @AppStorage(UnitPrefs.effortScaleKey) private var effortScaleRaw = EffortScale.hundred.rawValue
+    private var effortScale: EffortScale { UnitPrefs.resolveEffortScale(effortScaleRaw) }
+
+
     @ObservedObject private var store = CoachPlanStore.shared
     @Binding var showPlan: Bool
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -108,7 +115,7 @@ struct PlanTodayCard: View {
                             .foregroundStyle(emphasis == .none ? StrandPalette.accent : accent(for: emphasis))
                             .accessibilityHidden(true)
                         VStack(alignment: .leading, spacing: 1) {
-                            Text("Next up: \(p.summary())")
+                            Text("Next up: \(p.summary(effortScale: effortScale))")
                                 .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
                                 .lineLimit(1)
                             // A committed session with no time is a real commitment the user just hasn't
@@ -169,7 +176,7 @@ struct PlanTodayCard: View {
         case .approaching: state = String(localized: "starting soon")
         case .none:        state = dayLabel(p.day)
         }
-        return Text("Next planned session: \(p.summary()), \(state). Opens your plan.")
+        return Text("Next planned session: \(p.summary(effortScale: effortScale)), \(state). Opens your plan.")
     }
 
     private func dayLabel(_ day: String) -> String {

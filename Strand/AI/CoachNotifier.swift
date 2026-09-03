@@ -65,13 +65,13 @@ enum CoachNotifier {
         if let existing = store.items.first(where: {
             $0.category == .actionable && $0.planProposalId == proposal.id
         }) {
-            store.refresh(existing.id, message: proposal.summary())
+            store.refresh(existing.id, message: proposal.summary(effortScale: UnitPrefs.currentEffortScale()))
             return
         }
         store.post(UpdateItem(
             kind: .dismissedCard,
             title: String(localized: "Suggested session"),
-            message: proposal.summary(),
+            message: proposal.summary(effortScale: UnitPrefs.currentEffortScale()),
             category: .actionable,
             priority: .normal,
             actionRequired: true,

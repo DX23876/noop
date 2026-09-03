@@ -6,6 +6,13 @@ import StrandDesign
 /// This screen is where the consent lives. The coach can only ever propose; every "yes" on this page is
 /// a deliberate tap. Nothing here nags — a proposal you ignore just sits there.
 struct CoachPlanView: View {
+    /// #268: Effort is STORED on the canonical 0–100 axis; this is the wearer's chosen display axis, so a
+    /// planned session's target reads on the same scale as every Effort ring in the app. `@AppStorage`
+    /// rather than `UnitPrefs.currentEffortScale()` so flipping the setting redraws this card.
+    @AppStorage(UnitPrefs.effortScaleKey) private var effortScaleRaw = EffortScale.hundred.rawValue
+    private var effortScale: EffortScale { UnitPrefs.resolveEffortScale(effortScaleRaw) }
+
+
     @EnvironmentObject private var coach: AICoachEngine
     @EnvironmentObject private var repo: Repository
     @ObservedObject private var store = CoachPlanStore.shared
@@ -114,7 +121,7 @@ struct CoachPlanView: View {
                             .foregroundStyle(StrandPalette.statusWarning)
                             .accessibilityHidden(true)
                         VStack(alignment: .leading, spacing: 1) {
-                            Text(proposal.summary())
+                            Text(proposal.summary(effortScale: effortScale))
                                 .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
                             Text(resolution.kind == .overdue
                                  ? "This date has passed, but nothing has been assumed."
@@ -179,7 +186,7 @@ struct CoachPlanView: View {
                 HStack(spacing: 8) {
                     Image(systemName: "sparkles").foregroundStyle(StrandPalette.accent)
                         .accessibilityHidden(true)
-                    Text(p.summary())
+                    Text(p.summary(effortScale: effortScale))
                         .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
                     Spacer(minLength: 4)
                     Text(dayLabel(p.day)).strandOverline()
@@ -214,7 +221,7 @@ struct CoachPlanView: View {
                     Image(systemName: "calendar").foregroundStyle(StrandPalette.accent)
                         .accessibilityHidden(true)
                     VStack(alignment: .leading, spacing: 1) {
-                        Text(p.summary())
+                        Text(p.summary(effortScale: effortScale))
                             .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
                         if let from = p.swappedFrom {
                             Text("swapped from \(from)")
@@ -260,7 +267,7 @@ struct CoachPlanView: View {
                     .foregroundStyle(StrandPalette.textTertiary)
                     .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 1) {
-                    Text(p.summary())
+                    Text(p.summary(effortScale: effortScale))
                         .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
                     Text(statusLine(p))
                         .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
@@ -435,6 +442,13 @@ struct CoachPlanView: View {
 }
 
 private struct PlanEffectFeedbackSheet: View {
+    /// #268: Effort is STORED on the canonical 0–100 axis; this is the wearer's chosen display axis, so a
+    /// planned session's target reads on the same scale as every Effort ring in the app. `@AppStorage`
+    /// rather than `UnitPrefs.currentEffortScale()` so flipping the setting redraws this card.
+    @AppStorage(UnitPrefs.effortScaleKey) private var effortScaleRaw = EffortScale.hundred.rawValue
+    private var effortScale: EffortScale { UnitPrefs.resolveEffortScale(effortScaleRaw) }
+
+
     let proposal: PlanProposal
     @ObservedObject private var store = CoachPlanStore.shared
     @Environment(\.dismiss) private var dismiss
@@ -445,7 +459,7 @@ private struct PlanEffectFeedbackSheet: View {
         NavigationStack {
             Form {
                 Section {
-                    Text(proposal.summary())
+                    Text(proposal.summary(effortScale: effortScale))
                         .font(StrandFont.subhead)
                         .foregroundStyle(StrandPalette.textPrimary)
                     Text("Completion and effect are stored separately. Missing feedback stays missing and is never treated as “no effect”.")

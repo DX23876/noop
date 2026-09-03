@@ -279,8 +279,9 @@ struct PlanProposal: Codable, Identifiable, Equatable {
         return values.filter { seen.insert($0).inserted }
     }
 
-    /// One-line description for the context / UI, e.g. "Zone 2 ride (easy), 20 min in Zone 2 at 10:00".
-    func summary() -> String {
+    /// The parts of the one-line description that do not depend on who is reading it.
+    /// e.g. "Zone 2 ride (easy), 20 min in Zone 2 at 10:00".
+    private func summaryStem() -> String {
         var s = "\(sport) (\(intent.rawValue))"
         if let durationMin { s += ", \(durationMin) min" }
         if let zone { s += " in Zone \(zone)" }
@@ -288,6 +289,34 @@ struct PlanProposal: Codable, Identifiable, Equatable {
             let df = DateFormatter(); df.dateFormat = "HH:mm"
             s += " at \(df.string(from: time))"
         }
+        return s
+    }
+
+    /// One-line description FOR THE USER — plan cards, the morning suggestion, notification bodies.
+    ///
+    /// `targetEffort` is stored on NOOP's canonical 0–100 axis (the coach's tools, its context and
+    /// `EffortFeasibility` all work there, and the WHOOP 0–21 setting is display-only, #268). So this is
+    /// the boundary where it must be converted: a proposal read "target effort 63" on every surface,
+    /// whatever the wearer had chosen, and 63 is not a number the 0–21 axis can produce. The figure also
+    /// carries its axis, because a lone number in a sentence has no ring or "of N" caption beside it to
+    /// be read against.
+    ///
+    /// Callers writing for the MODEL or for stored memory want `contextSummary()` instead — the split is
+    /// deliberate, so neither can be reached by forgetting an argument.
+    func summary(effortScale: EffortScale) -> String {
+        var s = summaryStem()
+        if let targetEffort {
+            s += ", target effort " + UnitFormatter.effortWithScale(targetEffort, scale: effortScale)
+        }
+        return s
+    }
+
+    /// One-line description FOR THE MODEL and for semantic memory: Effort stays on the canonical 0–100
+    /// axis, unconverted and unlabelled, exactly as the tool schema (`target_effort`, "0–100") and the
+    /// day context (`effort(0-100)`) describe it. Rendering the wearer's display axis here would feed the
+    /// coach numbers on a scale its own tools cannot accept.
+    func contextSummary() -> String {
+        var s = summaryStem()
         if let targetEffort { s += String(format: ", target effort %.0f", targetEffort) }
         return s
     }

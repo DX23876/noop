@@ -10,6 +10,13 @@ import StrandAnalytics
 /// available, the page falls back to what IS real — sessions completed and recovery context — rather
 /// than showing a confident-looking bar built on nothing.
 struct JourneyView: View {
+    /// #268: Effort is STORED on the canonical 0–100 axis; this is the wearer's chosen display axis, so a
+    /// planned session's target reads on the same scale as every Effort ring in the app. `@AppStorage`
+    /// rather than `UnitPrefs.currentEffortScale()` so flipping the setting redraws this view.
+    @AppStorage(UnitPrefs.effortScaleKey) private var effortScaleRaw = EffortScale.hundred.rawValue
+    private var effortScale: EffortScale { UnitPrefs.resolveEffortScale(effortScaleRaw) }
+
+
     @EnvironmentObject private var coach: AICoachEngine
     @EnvironmentObject private var repo: Repository
     @ObservedObject private var goalStore = CoachGoalStore.shared
@@ -799,14 +806,14 @@ struct JourneyView: View {
                 .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 1) {
-                Text(p.summary()).font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
+                Text(p.summary(effortScale: effortScale)).font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
                 Text(planStatusLine(p)).font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
             }
             Spacer(minLength: 4)
             Text(p.day).font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(p.summary()), \(planStatusLine(p)), \(p.day)")
+        .accessibilityLabel("\(p.summary(effortScale: effortScale)), \(planStatusLine(p)), \(p.day)")
     }
 
     private func planIcon(_ status: PlanProposal.Status) -> String {

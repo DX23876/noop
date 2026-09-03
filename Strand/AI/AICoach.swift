@@ -3679,7 +3679,7 @@ final class AICoachEngine: ObservableObject {
 
         var lines = ["PLAN vs WHAT HAPPENED (last \(days) days):"]
         for p in relevant.prefix(14) {
-            var line = "  \(p.day): \(p.summary()) — \(p.status.rawValue)"
+            var line = "  \(p.day): \(p.contextSummary()) — \(p.status.rawValue)"
             if let reason = p.skipReason { line += " (\(reason.label))" }
             if unresolved.contains(p.id) {
                 line += " — awaiting the user's confirmation; this is NOT a miss"
@@ -3728,14 +3728,14 @@ final class AICoachEngine: ObservableObject {
         let pending = store.pending.filter { $0.day >= today }
         if !pending.isEmpty {
             lines.append("AWAITING THE USER'S DECISION (you proposed these; they haven't answered):")
-            for p in pending.prefix(5) { lines.append("  \(p.day): \(p.summary())") }
+            for p in pending.prefix(5) { lines.append("  \(p.day): \(p.contextSummary())") }
         }
         let committed = store.commitments(fromDay: today)
         if !committed.isEmpty {
             lines.append("THE USER HAS COMMITTED TO (do NOT propose any of these again — comment on them, "
                          + "adjust them if asked, but they're already on the table):")
             for p in committed.prefix(7) {
-                var line = "  \(p.day): \(p.summary())"
+                var line = "  \(p.day): \(p.contextSummary())"
                 // Mark the ORIGIN so the coach doesn't re-pitch the user's OWN routine as its idea (#P7 9.8).
                 switch p.source {
                 case .userCreated: line += " — the user's own session"
@@ -3871,7 +3871,7 @@ final class AICoachEngine: ObservableObject {
         CoachNotifier.postPlanProposal(proposal)
         let adapted = adaptation.evidenceNote.map { " Local adaptation: \($0)" } ?? ""
         let effortNote = correction.map { " \($0)" } ?? ""
-        return "Proposed (NOT scheduled): \(proposal.summary()) on \(dayKey).\(adapted)\(effortNote) "
+        return "Proposed (NOT scheduled): \(proposal.contextSummary()) on \(dayKey).\(adapted)\(effortNote) "
             + "It's waiting for the user to accept, change or decline it in the app — tell them it's "
             + "there for their yes, and don't refer to it as booked."
     }
@@ -4623,6 +4623,40 @@ final class AICoachEngine: ObservableObject {
     /// Build a compact plain-text summary of the user's recent data: last ~14 days of
     /// recovery/strain/sleep-hours/HRV/restingHR where present, plus 30-day averages, plus a few
     /// recent workouts. Kept well under ~1500 tokens. If there's no data, it says so.
+    /// The Effort-axis instruction for the model, or nil when the wearer reads NOOP's native axis and
+    /// there is nothing to convert.
+    ///
+    /// Effort is CANONICALLY 0–100 everywhere the model touches it: this context's day lines and
+    /// averages, `target_effort` in the tool schema, `PlanProposal.contextSummary()`, the
+    /// `EffortFeasibility` corrections. That must not change — the model has to reason and call tools on
+    /// one axis, and converting its inputs would have it pass a 0–21 figure into a 0–100 parameter and
+    /// prescribe a rest day while believing it asked for a hard session.
+    ///
+    /// What was wrong is the OUTPUT: prose. `PlanProposal.summary(effortScale:)` converts the structured
+    /// target, but a coach writing "push to about 63 today" was still quoting a number that does not
+    /// exist on the axis the wearer's rings show. So the split is stated to the model directly: read and
+    /// call on 0–100, quote on their axis.
+    ///
+    /// Emitted ONLY for the non-native axis. On the default `.hundred` the conversion is the identity, so
+    /// the note would be pure tokens — and every existing install's context stays byte-identical.
+    ///
+    /// This is an INSTRUCTION, not a guarantee: unlike the structured summary, nothing enforces it. It is
+    /// the strongest available lever on prose, and it belongs in the context rather than in
+    /// `defaultSystemPrompt` because that prompt is user-editable — an instruction there would miss every
+    /// wearer who has customised it.
+    nonisolated static func effortAxisNote(scale: EffortScale) -> String? {
+        guard scale == .whoop else { return nil }
+        let max = UnitFormatter.effortScaleMax(scale)
+        let example = UnitFormatter.effortWithScale(63, scale: scale)
+        return "EFFORT AXIS — this user's app displays Effort on the WHOOP-style 0–\(max) axis, not "
+            + "NOOP's native 0–100. Every effort figure below, and every target_effort you pass to a "
+            + "tool, is on the 0–100 axis and MUST stay there: reason and call tools in 0–100. But when "
+            + "you quote an effort number back to them in your reply, convert it — multiply by "
+            + "\(UnitFormatter.effortScaleFactor), one decimal, and name the axis. An effort of 63 is "
+            + "written \"\(example)\" to them. Never show them a raw 0–100 effort figure; that number "
+            + "does not exist on the axis they read."
+    }
+
     func buildContext(includeGoals: Bool = true) -> String {
         let days = repo.days // oldest → newest
         var lines: [String] = [clockLine(), "", "USER BIOMETRIC SUMMARY (the user's own wearable data):"]
@@ -4651,6 +4685,10 @@ final class AICoachEngine: ObservableObject {
 
         // Last ~14 days, newest first for readability.
         let recent = Array(days.suffix(14)).reversed()
+        if let axisNote = Self.effortAxisNote(scale: UnitPrefs.currentEffortScale()) {
+            lines.append("")
+            lines.append(axisNote)
+        }
         lines.append("")
         lines.append("Recent days (newest first) — charge(0-100), effort(0-100), rest/sleep(h), HRV(ms), RHR(bpm):")
         for d in recent {
@@ -4691,6 +4729,9 @@ final class AICoachEngine: ObservableObject {
         guard !days.isEmpty else {
             lines.append("No wearable data is available yet. Do not invent a trend or a recovery score.")
             return lines.joined(separator: "\n")
+        }
+        if let axisNote = Self.effortAxisNote(scale: UnitPrefs.currentEffortScale()) {
+            lines.append(axisNote)
         }
         if let latest = days.last {
             lines.append("Latest recorded day: " + dayLine(latest))
