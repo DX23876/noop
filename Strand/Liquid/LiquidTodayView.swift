@@ -210,6 +210,11 @@ struct LiquidTodayView: View {
     /// The Charge hero's resolved state (#543 carry + the honest label), resolved ONCE in load() alongside
     /// the other caches. It composes `TodayView.lastScoredRecoveryDay`, which is O(days) — exactly the scan
     /// this cache exists to keep out of body. Never resolved in body.
+    /// Today's in-progress Effort (#402), re-scored from the raw HR stream because the stored daily row
+    /// lags. Read LAST in load() (see the assignment) so the hero paints on the stored row first and this
+    /// only ever raises it — `StrainScorer.effectiveEffort` takes the max, so it cannot flicker downward.
+    /// nil on a navigated past day, which has no in-progress figure.
+    @State private var liveTodayStrain: Double?
     @State private var cachedChargeDisplay: ChargeDisplay = .noData
     /// The last fully-scored prior recovery day, cached in load() so the Charge-breakdown sheet can read
     /// the same `chargeBreakdownRow` classic Today uses (today's own row, else the carried last-scored)
@@ -288,6 +293,14 @@ struct LiquidTodayView: View {
     private var respDay: DailyMetric? { cachedRespDay }
     /// The Charge hero's resolved state (see `cachedChargeDisplay`), read O(1) from the cache.
     private var chargeDisplay: ChargeDisplay { cachedChargeDisplay }
+    /// THE Effort figure for this screen (#1001): the live in-progress score floored at the stored row, so
+    /// the hero, the zero-note and the Key Metrics tile cannot show three different numbers — and so this
+    /// screen agrees with classic Today, which has resolved Effort this way all along. A past day has no
+    /// live figure and reads its stored row verbatim.
+    private var effortValue: Double? {
+        StrainScorer.effectiveEffort(live: selectedDayOffset == 0 ? liveTodayStrain : nil,
+                                     stored: displayDay?.strain)
+    }
     /// The last fully-scored prior recovery day (see `cachedPriorScored`), read O(1) from the cache.
     /// Used by `chargeBreakdownRow` so the breakdown sheet reads the same carried row the ring shows.
     private var priorScoredDay: DailyMetric? { cachedPriorScored }
@@ -967,7 +980,7 @@ struct LiquidTodayView: View {
             // one decimal on the compressed 0–21 axis to match the app-wide `effortDisplay` convention
             // (12.6, not a rounded "13"); the 0–100 hero stays a whole number as before.
             HeroScoreCell(label: DomainTheme.effort.productName,
-                          score: displayDay?.strain.map { UnitFormatter.effortValue($0, scale: effortScale) },
+                          score: effortValue.map { UnitFormatter.effortValue($0, scale: effortScale) },
                           tint: StrandPalette.effortColor, animated: dataLoaded,
                           onGuide: { guideSection = .effort },
                           maxValue: effortScale == .whoop ? 21 : 100,
@@ -1366,7 +1379,7 @@ struct LiquidTodayView: View {
     /// card when today's Effort is ~0, so a calm day explains itself instead of a bare 0. Reuses classic's
     /// String Catalog entry verbatim — one key serves both Today screens.
     private var effortZeroNote: String? {
-        guard EffortDisplay.showsZeroNote(strain: displayDay?.strain, isToday: selectedDayOffset == 0) else { return nil }
+        guard EffortDisplay.showsZeroNote(strain: effortValue, isToday: selectedDayOffset == 0) else { return nil }
         return String(localized: "No cardio load yet. Effort builds once your heart rate climbs into your effort zone (around 50% of your heart-rate reserve). A calm day honestly reads near zero.")
     }
 
@@ -1815,7 +1828,7 @@ struct LiquidTodayView: View {
     private func keyMetricHasValue(_ metric: KeyMetric, hrv: Double?, rhr: Double?) -> Bool {
         switch metric {
         case .charge:       return chargeDisplay.pct != nil
-        case .effort:       return displayDay?.strain != nil
+        case .effort:       return effortValue != nil
         case .rest:         return restScore != nil
         case .hrv:          return hrv != nil
         case .restingHr:    return rhr != nil
@@ -1846,8 +1859,8 @@ struct LiquidTodayView: View {
             // #45 parity with the hero: route through effortDisplay so this tile shows the SAME number on
             // the SAME scale as the Effort hero (0–21 WHOOP vs 0–100), instead of always the raw 0–100
             // stored value — the two used to disagree whenever the user picked the WHOOP scale.
-            let effortText = displayDay?.strain.map { UnitFormatter.effortDisplay($0, scale: effortScale) } ?? "–"
-            ktile(DomainTheme.effort.productName, icon: metric.customizationIcon, effortText, "%", StrandPalette.effortColor, frac(displayDay?.strain), key: "strain")
+            let effortText = effortValue.map { UnitFormatter.effortDisplay($0, scale: effortScale) } ?? "–"
+            ktile(DomainTheme.effort.productName, icon: metric.customizationIcon, effortText, "%", StrandPalette.effortColor, frac(effortValue), key: "strain")
         case .rest:
             ktile(DomainTheme.rest.productName, icon: metric.customizationIcon, intText(restScore), "%", StrandPalette.restColor, frac(restScore), key: "sleep_performance")
         case .hrv:
@@ -2257,6 +2270,13 @@ struct LiquidTodayView: View {
         } else {
             hostedSleepModel = nil
         }
+
+        // Today's in-progress Effort, DELIBERATELY last: it is the heaviest read on this pass, and every
+        // surface it feeds already has a value drawn from the stored row by the time it lands. Because
+        // `effectiveEffort` floors at that row, the refinement can only raise the number.
+        liveTodayStrain = selectedDayOffset == 0
+            ? await LiveEffort.today(repo: repo, profile: profile, restingHr: displayDay?.restingHr)
+            : nil
 
         // First load done — bring the hero gauges + sky to life now the launch churn has settled.
         if !dataLoaded { withAnimation(.easeIn(duration: 0.4)) { dataLoaded = true } }
@@ -2817,8 +2837,8 @@ extension LiquidTodayView {
     /// `TodayView.effortZeroNote`). Pure + static so the gate is testable with no view: the note shows
     /// ONLY for today when a strain value exists and is ~0 — a genuinely calm day reads near zero, while a
     /// no-data day shows its own ring overlay and a past day is never annotated. Liquid reads
-    /// `displayDay?.strain` directly (it has no live-strain accumulator like classic's `liveTodayStrain`),
-    /// which is exactly the value its Effort hero draws.
+    /// `effortValue` — the same live-floored-by-stored figure its Effort hero draws, now that this screen
+    /// resolves Effort through `StrainScorer.effectiveEffort` like classic Today does.
     enum EffortDisplay {
         static func showsZeroNote(strain: Double?, isToday: Bool) -> Bool {
             guard isToday, let s = strain else { return false }
@@ -2828,77 +2848,6 @@ extension LiquidTodayView {
 
     /// (A3/B2, docs/bugs/2026-07-15-strap-battery-backfill-observability.md)
     typealias StrapBatteryDisplay = StrapBatteryDisplayState
-
-    /// What the Charge hero can honestly say for the selected day. Pure + static so the truth table is
-    /// testable with no clock and no view (`LiquidChargeCarryTests`).
-    ///
-    /// See `LiquidChargeCarryTests` for the regression this closes: Liquid read `displayDay?.recovery`
-    /// raw, so after the 04:00 rollover — or on any day with no scored night — Charge blanked while the
-    /// Rest hero (`freshRestScore`) and the vitals (`Repository.lastVitalsDay`) carried right beside it,
-    /// and the widget/watch/Live Activity (`Repository.widgetAnchor`, #911) all showed a number.
-    ///
-    /// The SELECTION is not re-implemented here: callers pass the row `TodayView.lastScoredRecoveryDay`
-    /// picked (its #547 future-day guard included) and the caption comes from `TodayView.carriedCaption`,
-    /// so the two Today screens cannot drift apart.
-    enum ChargeDisplay: Equatable {
-        /// The selected day scored its own Charge.
-        case scored(pct: Double)
-        /// No score for the selected day; showing a REAL prior night's, stamped with whose it is.
-        case carried(pct: Double, caption: String)
-        /// Pre-seed-gate: the baseline is still learning and owns its own "N of 4 nights" copy.
-        case calibrating(nights: Int)
-        /// Nothing honest to show — no score, no prior night, and not calibrating.
-        case noData
-
-        /// The number the hero vessel draws, or nil for the honest empty state. A carry draws the REAL
-        /// prior value; the empty states draw nothing rather than a fabricated zero.
-        var pct: Double? {
-            switch self {
-            case .scored(let p): return p
-            case .carried(let p, _): return p
-            case .calibrating, .noData: return nil
-            }
-        }
-
-        /// The short Charge-state pill beside the greeting. It shares a row with the greeting under a
-        /// `fixedSize`, so it stays SHORT — the carried day's full "Last night · <date>" stamp lives in
-        /// `caption`, not here. Only `.calibrating` may say "Calibrating": the pill used to key off
-        /// `recovery != nil` and so claimed a calibrating baseline on every unscored day, including a
-        /// trusted wearer who simply hadn't worn the strap that night.
-        var stateLabel: String {
-            switch self {
-            case .scored: return String(localized: "Solid")
-            case .carried: return String(localized: "Last night")
-            case .calibrating: return String(localized: "Calibrating")
-            case .noData: return String(localized: "No data")
-            }
-        }
-
-        /// The synthesis-card detail line while the baseline is still forming — the same "N of
-        /// `Baselines.minNightsSeed` nights" progress classic `TodayView.calibrationDetail` surfaces, so a
-        /// wearer in their first few nights reads identical calibration copy on both Today screens (before
-        /// this, Liquid dropped the count and showed a bare "Calibrating"). Non-nil ONLY for `.calibrating`:
-        /// the compact greeting pill stays short ("Calibrating") because it shares a `fixedSize` row with
-        /// the greeting, so the count lives here in the card, exactly as classic keeps it out of its
-        /// `ScoreStatePill`. Reuses classic's String Catalog key verbatim — one entry serves both screens.
-        var calibrationDetail: String? {
-            guard case .calibrating(let nights) = self else { return nil }
-            return String(localized: "Learning your baseline, \(nights) of \(Baselines.minNightsSeed) nights.")
-        }
-
-        static func resolve(todayRecovery: Double?, priorScored: DailyMetric?,
-                            calibrationNights: Int?, todayKey: String) -> ChargeDisplay {
-            if let pct = todayRecovery { return .scored(pct: pct) }
-            // Calibration owns its own copy and beats the carry — mid-calibration there is no trustworthy
-            // prior score to stand in. Mirrors `lastScoredRecoveryDay`, which returns nil when calibrating.
-            if let n = calibrationNights { return .calibrating(nights: n) }
-            // `lastScoredRecoveryDay` only ever selects a row whose recovery is non-nil, so the second bind
-            // is belt-and-suspenders: a nil falls through to noData rather than fabricating a carry.
-            guard let prior = priorScored, let pct = prior.recovery else { return .noData }
-            return .carried(pct: pct,
-                            caption: TodayView.carriedCaption(priorDayKey: prior.day, todayKey: todayKey))
-        }
-    }
 }
 
 /// Strap-battery ring. At sync start it briefly expands within the trailing control row, then settles into

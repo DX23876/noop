@@ -41,6 +41,14 @@ struct OverviewDashboardView: View {
     private var effortScale: EffortScale { UnitPrefs.resolveEffortScale(effortScaleRaw) }
 
     @State private var displayDay: DailyMetric?
+    /// The Charge hero's resolved state — scored / carried / calibrating / no-data. Resolved ONCE in
+    /// load() (`ChargeDisplay.resolve` scans the day list) and read O(1) by the ring, exactly as Liquid
+    /// caches it. Not a bare `Double?`: "no score" is not "0%", and each empty state has its own copy.
+    @State private var chargeDisplay: ChargeDisplay = .noData
+    /// Today's in-progress Effort (#402), re-scored from the raw HR stream because the stored daily row
+    /// lags. Read LAST in load() (see the assignment) so the rings paint on the stored row first and this
+    /// only ever raises it — `StrainScorer.effectiveEffort` takes the max, so it cannot flicker downward.
+    @State private var liveTodayStrain: Double?
     @State private var recentDays: [DailyMetric] = []
     @State private var appleDays: [AppleDaily] = []
     @State private var restScore: Double?
@@ -218,6 +226,14 @@ struct OverviewDashboardView: View {
         displayDay = selectedDayOffset == 0
             ? (repo.today ?? allDays.last(where: { $0.day == selectedDayKey }))
             : allDays.last(where: { $0.day == selectedDayKey })
+        // #543 carry, through the SAME composition both Today screens use. This ring used to draw
+        // `displayDay?.recovery` raw, so every day before tonight's night was scored — including the whole
+        // morning after the 04:00 rollover — Recovery read "—" / "No score yet" while the Sleep ring
+        // (`freshRestScore`) carried right beside it. Strain deliberately still does not carry: it is
+        // today's own accumulation, so yesterday's number would be a false statement, not a stale one.
+        chargeDisplay = ChargeDisplay.resolve(days: allDays, displayDay: displayDay,
+                                              selectedDayKey: selectedDayKey,
+                                              isToday: selectedDayOffset == 0)
         // One pass over the day list, not two: `recentDays` is the tail of the same scoped slice the
         // stress model reads below.
         let scopedDays = allDays.filter { $0.day <= selectedDayKey }
@@ -298,6 +314,15 @@ struct OverviewDashboardView: View {
             allDays: allDays,
             snoozedRaw: momentumSnoozedRaw, lastKind: momentumLastKind, lastAt: momentumLastAt,
             retrospective: selectedDayOffset != 0)
+
+        // Today's in-progress Effort, DELIBERATELY last: it is the heaviest read on this pass, and every
+        // surface it feeds already has a value drawn from the stored row by the time it lands. Because
+        // `effectiveEffort` floors at that row, the refinement can only raise the number, never drop it —
+        // so nothing on screen moves backwards while this resolves.
+        liveTodayStrain = selectedDayOffset == 0
+            ? await LiveEffort.today(repo: repo, profile: profile, restingHr: displayDay?.restingHr)
+            : nil
+
     }
 
     private var daySwipeGesture: some Gesture {
@@ -483,11 +508,21 @@ struct OverviewDashboardView: View {
 
     // MARK: - Heute im Überblick
 
+    /// THE Effort figure for this screen (#1001): the live in-progress score floored at the stored row —
+    /// the same resolution classic Today and Liquid use, so the number does not change with the Today style.
+    /// A past day has no live figure and reads its stored row verbatim.
+    private var effortValue: Double? {
+        StrainScorer.effectiveEffort(live: selectedDayOffset == 0 ? liveTodayStrain : nil,
+                                     stored: displayDay?.strain)
+    }
+
     private var overviewTone: StrandTone {
         let d = displayDay
-        let charge = d?.recovery.map(ChargeBand.of(score:))
+        // The band of the number the ring actually DRAWS (carry included), not of today's raw row — a
+        // carried Charge of 31 must not leave the card tinted "positive" beside a red ring.
+        let charge = chargeDisplay.pct.map(ChargeBand.of(score:))
         let restOK = (restScore ?? 0) >= 70
-        let effortOK = (d?.strain ?? 0) < 90   // 0-100 axis: only flag a genuinely maxed-out day
+        let effortOK = (effortValue ?? 0) < 90   // 0-100 axis: only flag a genuinely maxed-out day
         if charge == .depleted || !effortOK { return .critical }
         if charge == .low || !restOK { return .warning }
         return .positive
@@ -500,24 +535,31 @@ struct OverviewDashboardView: View {
             VStack(alignment: .leading, spacing: 10) {
                 Text("Today at a glance").strandOverline()
                 HStack(alignment: .top, spacing: 0) {
-                    NavigationLink(value: TabRoute.metricSourced(key: "recovery", source: Repository.whoopSource)) { overviewRing(label: "Recovery", value: d?.recovery,
-                                color: d?.recovery.map { StrandPalette.chargeRingColor($0) } ?? StrandPalette.textTertiary,
+                    // Charge resolves through `ChargeDisplay` (see load()): today's own score, else the
+                    // carried last-scored night drawn DIMMED with its date as the detail line (#802/#543),
+                    // else the calibrating countdown, else "—". Same order, same copy and the same catalog
+                    // keys as classic Today and Liquid.
+                    NavigationLink(value: TabRoute.metricSourced(key: "recovery", source: Repository.whoopSource)) { overviewRing(label: "Recovery", value: chargeDisplay.pct,
+                                color: chargeDisplay.pct.map { StrandPalette.chargeRingColor($0) } ?? StrandPalette.textTertiary,
                                 mainFormat: { "\(Int($0.rounded()))" }, suffix: "%", denominatorCaption: nil,
                                 // Same word tier `MomentumCard`'s recovery-state uses (#1405: a
                                 // different axis from ReadinessEngine's training verdict — never
                                 // "Primed" here, that word means something else on this screen).
-                                word: d?.recovery != nil ? MomentumCopy.stateWord(d?.recovery) : nil,
-                                detail: recoveryDetail(d)) }.buttonStyle(.plain)
+                                word: chargeDisplay.pct.map { MomentumCopy.stateWord($0) },
+                                detail: recoveryDetail(),
+                                dimmed: chargeDisplay.carriedCaption != nil,
+                                emptyTitle: chargeDisplay.emptyRingLines?.title,
+                                emptySubtitle: chargeDisplay.emptyRingLines?.subtitle) }.buttonStyle(.plain)
                     Divider().overlay(StrandPalette.hairline).padding(.top, 22).padding(.bottom, 4)
-                    NavigationLink(value: TabRoute.metricSourced(key: "strain", source: Repository.whoopSource)) { overviewRing(label: "Strain", value: d?.strain,
+                    NavigationLink(value: TabRoute.metricSourced(key: "strain", source: Repository.whoopSource)) { overviewRing(label: "Strain", value: effortValue,
                                 color: StrandPalette.effortColor,
                                 // Real scale from Settings (0…100 or WHOOP 0…21) — the same source
                                 // TodayView/LiquidTodayView's own Effort rings read (Units.swift). The
                                 // denominator is the ring's true "out of X", never an invented one.
                                 mainFormat: { UnitFormatter.effortDisplay($0, scale: effortScale) }, suffix: "",
                                 denominatorCaption: "/\(UnitFormatter.effortScaleMax(effortScale))",
-                                word: d?.strain.map { effortWord($0) },
-                                detail: strainDetail(d)) }.buttonStyle(.plain)
+                                word: effortValue.map { effortWord($0) },
+                                detail: strainDetail()) }.buttonStyle(.plain)
                     Divider().overlay(StrandPalette.hairline).padding(.top, 22).padding(.bottom, 4)
                     NavigationLink(value: TabRoute.metricSourced(key: "sleep_performance", source: Repository.whoopSource)) { overviewRing(label: "Sleep", value: restScore,
                                 color: StrandPalette.restColor,
@@ -561,10 +603,17 @@ struct OverviewDashboardView: View {
     /// overlays the composed centre text itself. `Text` concatenation (`+`) keeps each fragment's own
     /// font, which is what makes the size split possible without touching the shared `GlowRing.swift`
     /// (used by many other screens' hero rings).
+    ///
+    /// `dimmed` marks a CARRIED value (#802: a carried Charge draws as a real, dimmed ring rather than a
+    /// bare track, which read as broken beside a filled Sleep ring); `emptyTitle`/`emptySubtitle` replace
+    /// the bare "—" inside an empty ring when there is something honest to say instead (the calibrating
+    /// countdown). All three default to off, so the Strain and Sleep rings are untouched.
     @ViewBuilder
     private func overviewRing(label: LocalizedStringKey, value: Double?, color: Color,
                               mainFormat: @escaping (Double) -> String, suffix: String,
-                              denominatorCaption: String?, word: String?, detail: String) -> some View {
+                              denominatorCaption: String?, word: String?, detail: String,
+                              dimmed: Bool = false,
+                              emptyTitle: String? = nil, emptySubtitle: String? = nil) -> some View {
         VStack(spacing: 6) {
             Text(label).font(StrandFont.footnote.weight(.semibold)).foregroundStyle(color)
             if let value {
@@ -586,10 +635,26 @@ struct OverviewDashboardView: View {
                     }
                     .padding(.horizontal, 10)
                 }
+                .opacity(dimmed ? 0.8 : 1)
             } else {
                 ZStack {
                     Circle().stroke(StrandPalette.textPrimary.opacity(0.10), style: StrokeStyle(lineWidth: 6))
-                    Text("—").font(GlowRing.centerFont(diameter: Self.ringDiameter)).foregroundStyle(StrandPalette.textTertiary)
+                    if let emptyTitle {
+                        // Same two-line treatment as classic Today's `ringEmptyOverlay`: the word reads as
+                        // the centre label with its count beneath, guarded against wrapping inside the
+                        // ring's narrow interior.
+                        VStack(spacing: 2) {
+                            Text(emptyTitle).font(StrandFont.footnote.weight(.semibold))
+                                .foregroundStyle(StrandPalette.textPrimary)
+                                .lineLimit(1).minimumScaleFactor(0.7).fixedSize()
+                            if let emptySubtitle {
+                                Text(emptySubtitle).font(StrandFont.footnote)
+                                    .foregroundStyle(StrandPalette.textSecondary).lineLimit(1)
+                            }
+                        }
+                    } else {
+                        Text("—").font(GlowRing.centerFont(diameter: Self.ringDiameter)).foregroundStyle(StrandPalette.textTertiary)
+                    }
                 }
                 .frame(width: Self.ringDiameter, height: Self.ringDiameter)
             }
@@ -611,8 +676,14 @@ struct OverviewDashboardView: View {
 
     private static let ringDiameter: CGFloat = 74
 
-    private func recoveryDetail(_ d: DailyMetric?) -> String {
-        guard let s = d?.recovery else { return String(localized: "No score yet") }
+    /// The Recovery ring's detail line, keyed on what the ring DRAWS. A carried night spends the line on
+    /// its provenance ("Last night · 2 Sep") instead of a training verdict: this ring has no room for both,
+    /// and saying whose score it is outranks repeating advice the number already implies. Calibrating spends
+    /// it on the same "Learning your baseline, N of 4 nights." copy classic Today's synthesis card shows.
+    private func recoveryDetail() -> String {
+        if let caption = chargeDisplay.carriedCaption { return caption }
+        if let detail = chargeDisplay.calibrationDetail { return detail }
+        guard let s = chargeDisplay.pct else { return String(localized: "No score yet") }
         switch ChargeBand.of(score: s) {
         case .peak, .primed: return String(localized: "Recovered and ready to perform.")
         case .moderate:      return String(localized: "Moderate training suits today.")
@@ -628,8 +699,8 @@ struct OverviewDashboardView: View {
         }
     }
 
-    private func strainDetail(_ d: DailyMetric?) -> String {
-        guard let s = d?.strain else { return String(localized: "No load recorded yet") }
+    private func strainDetail() -> String {
+        guard let s = effortValue else { return String(localized: "No load recorded yet") }
         return s < 60 ? String(localized: "Optimal training possible today.")
                       : String(localized: "Already a demanding day.")
     }

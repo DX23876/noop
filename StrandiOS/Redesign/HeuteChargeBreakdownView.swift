@@ -29,7 +29,7 @@ struct HeuteChargeBreakdownSheet: View {
     let restScore: Double?
     /// The resolved Charge state, so the header can draw the real value and the calibrating branch can read
     /// its banked-nights count without a second computation.
-    let chargeDisplay: LiquidTodayView.ChargeDisplay
+    let chargeDisplay: ChargeDisplay
 
     @Environment(\.dismiss) private var dismiss
 

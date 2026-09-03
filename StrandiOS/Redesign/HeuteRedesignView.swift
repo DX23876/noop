@@ -14,9 +14,9 @@ import WhoopStore
 // re-implement them. This screen used to carry forward "the most recent non-nil value ≤ the selected day"
 // for EVERYTHING (Charge, Effort, vitals alike), which is a different rule from the one classic/Liquid
 // agree on and could therefore show a different number for the same day:
-//  • recovery-derived (Charge) goes through `TodayView.lastScoredRecoveryDay` + `LiquidTodayView
-//    .ChargeDisplay.resolve`, so a mid-calibration wearer reads the honest "Learning your baseline, N of
-//    4 nights" here too, instead of a stale prior score presented as today's.
+//  • recovery-derived (Charge) goes through `TodayView.lastScoredRecoveryDay` + `ChargeDisplay.resolve`,
+//    so a mid-calibration wearer reads the honest "Learning your baseline, N of 4 nights" here too,
+//    instead of a stale prior score presented as today's.
 //  • raw vitals (HRV / resting HR / respiratory / SpO₂) go through `Repository.lastVitalsDay` /
 //    `lastSpo2Day`, which are recovery-INDEPENDENT (a night with real HRV but no recovery is a valid
 //    source for a vital, but NOT for Charge — that asymmetry is the whole point of having two selectors).
@@ -43,9 +43,9 @@ struct HeuteRedesignView: View {
     @State private var selectedDayOffset = 0
     @State private var readiness = ReadinessEngine.evaluate(days: [], today: nil)
     /// The resolved Charge state — scored / carried / calibrating / no-data. Shared with Liquid Today
-    /// (`LiquidTodayView.ChargeDisplay`) rather than reduced to a bare `Double` here, because "no score"
+    /// (`ChargeDisplay`) rather than reduced to a bare `Double` here, because "no score"
     /// is not the same as "0%": the ring must draw nothing and the base card must say why.
-    @State private var chargeDisplay: LiquidTodayView.ChargeDisplay = .noData
+    @State private var chargeDisplay: ChargeDisplay = .noData
     @State private var effort: Double = 0
     @State private var rest: Double = 0
     /// Presents the Charge breakdown (why the value is what it is) when the Charge ring is tapped —
@@ -262,7 +262,7 @@ struct HeuteRedesignView: View {
                                                           isToday: isToday,
                                                           todayScored: day?.recovery != nil,
                                                           isCalibrating: calNights != nil)
-        chargeDisplay = LiquidTodayView.ChargeDisplay.resolve(todayRecovery: day?.recovery,
+        chargeDisplay = ChargeDisplay.resolve(todayRecovery: day?.recovery,
                                                               priorScored: priorScored,
                                                               calibrationNights: calNights,
                                                               todayKey: tkey)

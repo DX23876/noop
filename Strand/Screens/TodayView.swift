@@ -4800,16 +4800,12 @@ struct TodayView: View {
         // from age, today's resting HR (else the default), sex, so the live number matches what the
         // engine will eventually persist. Below StrainScorer.minReadings the scorer returns nil and the
         // gauge falls back to the stored row (never a fabricated value); a navigated past day clears it.
-        let liveStrainLocal: Double?
-        if selectedDayOffset == 0 {
-            let todayHr = await repo.hrSamples(from: windowStart, to: windowEnd)
-            let maxHR = profile.age > 0 ? StrainScorer.tanakaHRmax(age: Double(profile.age)) : nil
-            let restHR = displayDay?.restingHr.map(Double.init) ?? StrainScorer.defaultRestingHR
-            liveStrainLocal = StrainScorer.strain(todayHr, maxHR: maxHR, restingHR: restHR,
-                                        method: PuffinExperiment.effortMethod, sex: profile.sex)
-        } else {
-            liveStrainLocal = nil
-        }
+        // The read itself moved to `LiveEffort.today` verbatim, so Liquid and the two dashboards can score
+        // today's Effort from the IDENTICAL window and parameters instead of each copying them (#1001's
+        // one-figure rule, applied across Today STYLES rather than within one screen).
+        let liveStrainLocal: Double? = selectedDayOffset == 0
+            ? await LiveEffort.today(repo: repo, profile: profile, restingHr: displayDay?.restingHr)
+            : nil
         liveTodayStrain = liveStrainLocal
 
         // Sleep session overlapping the window. Uses `allSleepSessions` (BOTH the imported and the

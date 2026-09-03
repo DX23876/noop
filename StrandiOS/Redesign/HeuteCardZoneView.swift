@@ -18,7 +18,7 @@ struct HeuteCardZoneView: View {
     let status: ActivityStatus
     let readiness: ReadinessEngine.Readiness
     /// While the recovery baseline is still forming, the honest "Learning your baseline, N of 4 nights"
-    /// line (from `LiquidTodayView.ChargeDisplay.calibrationDetail`, the same copy the other two screens
+    /// line (from `ChargeDisplay.calibrationDetail`, the same copy the other two screens
     /// show) REPLACES the readiness statement — mid-calibration there is no trustworthy verdict to state.
     /// nil once a score or a carry exists. Ignored when an ActivityStatus override is active (a set status
     /// is an explicit user statement that wins regardless).

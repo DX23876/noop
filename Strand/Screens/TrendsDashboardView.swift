@@ -62,6 +62,14 @@ struct TrendsDashboardView: View {
     @State private var resolvedWeightKg: Double?
     /// The per-field vitals carry the dashboard cards use — see `DashboardVitalCarry`.
     @State private var vitalCarry = DashboardVitalCarry()
+    /// The Charge hero's resolved state — scored / carried / calibrating / no-data. Resolved ONCE in
+    /// load() (`ChargeDisplay.resolve` scans the day list) and read O(1) by the ring, exactly as Liquid
+    /// caches it. Not a bare `Double?`: "no score" is not "0%", and each empty state has its own copy.
+    @State private var chargeDisplay: ChargeDisplay = .noData
+    /// Today's in-progress Effort (#402), re-scored from the raw HR stream because the stored daily row
+    /// lags. Read LAST in load() (see the assignment) so the rings paint on the stored row first and this
+    /// only ever raises it — `StrainScorer.effectiveEffort` takes the max, so it cannot flicker downward.
+    @State private var liveTodayStrain: Double?
     @State private var showCoach = false
     @State private var showUpdatesInbox = false
     @State private var showSettings = false
@@ -232,6 +240,14 @@ struct TrendsDashboardView: View {
         displayDay = selectedDayOffset == 0
             ? (repo.today ?? allDays.last(where: { $0.day == selectedDayKey }))
             : allDays.last(where: { $0.day == selectedDayKey })
+        // #543 carry, through the SAME composition both Today screens use. This hero used to draw
+        // `displayDay?.recovery` raw, so every day before tonight's night was scored — including the whole
+        // morning after the 04:00 rollover — CHARGE read "—" while REST (`freshRestScore`) carried right
+        // beside it. Effort deliberately still does not carry: it is today's own accumulation, so
+        // yesterday's number would be a false statement, not a stale one.
+        chargeDisplay = ChargeDisplay.resolve(days: allDays, displayDay: displayDay,
+                                              selectedDayKey: selectedDayKey,
+                                              isToday: selectedDayOffset == 0)
         let sections = layoutSections
 
         // Rest is its own scored series ("sleep_performance"), not derived from raw sleep minutes — the
@@ -316,6 +332,15 @@ struct TrendsDashboardView: View {
             allDays: allDays,
             snoozedRaw: momentumSnoozedRaw, lastKind: momentumLastKind, lastAt: momentumLastAt,
             retrospective: selectedDayOffset != 0)
+
+        // Today's in-progress Effort, DELIBERATELY last: it is the heaviest read on this pass, and every
+        // surface it feeds already has a value drawn from the stored row by the time it lands. Because
+        // `effectiveEffort` floors at that row, the refinement can only raise the number, never drop it —
+        // so nothing on screen moves backwards while this resolves.
+        liveTodayStrain = selectedDayOffset == 0
+            ? await LiveEffort.today(repo: repo, profile: profile, restingHr: displayDay?.restingHr)
+            : nil
+
     }
 
     private static func journalDayKeys(days: Int = 7, anchor: Date = Date()) -> [String] {
@@ -342,6 +367,14 @@ struct TrendsDashboardView: View {
 
     /// The Rest score for a given day, with the same today-only, freshness-gated carry Today's own Rest
     /// ring uses (`TodayView.freshRestScore`) — never a bare `totalSleepMin / 8h` guess.
+    /// THE Effort figure for this screen (#1001): the live in-progress score floored at the stored row —
+    /// the same resolution classic Today and Liquid use, so the number does not change with the Today style.
+    /// A past day has no live figure and reads its stored row verbatim.
+    private var effortValue: Double? {
+        StrainScorer.effectiveEffort(live: selectedDayOffset == 0 ? liveTodayStrain : nil,
+                                     stored: displayDay?.strain)
+    }
+
     private func restScore(for day: DailyMetric?, isToday: Bool) -> Double? {
         TodayView.freshRestScore(todayValue: day.flatMap { restByDay[$0.day] },
                                  lastDay: restSeriesTail?.day, lastValue: restSeriesTail?.value,
@@ -467,12 +500,18 @@ struct TrendsDashboardView: View {
     private var heroRings: some View {
         let d = displayDay
         return HStack(spacing: 16) {
-            heroRing(label: "CHARGE", systemImage: "bolt.heart.fill", score: d?.recovery,
-                    color: d?.recovery.map { StrandPalette.chargeRingColor($0) } ?? StrandPalette.textTertiary,
-                    route: .metricSourced(key: "recovery", source: Repository.whoopSource))
+            // Charge resolves through `ChargeDisplay` (see load()): today's own score, else the carried
+            // last-scored night drawn DIMMED with its date beneath (#802/#543), else the calibrating
+            // countdown, else "—". Same order, same copy and same catalog keys as classic Today and Liquid.
+            heroRing(label: "CHARGE", systemImage: "bolt.heart.fill", score: chargeDisplay.pct,
+                    color: chargeDisplay.pct.map { StrandPalette.chargeRingColor($0) } ?? StrandPalette.textTertiary,
+                    route: .metricSourced(key: "recovery", source: Repository.whoopSource),
+                    dimmed: chargeDisplay.carriedCaption != nil, caption: chargeDisplay.carriedCaption,
+                    emptyTitle: chargeDisplay.emptyRingLines?.title,
+                    emptySubtitle: chargeDisplay.emptyRingLines?.subtitle)
             heroRing(label: "EFFORT", systemImage: "figure.run",
-                    score: d?.strain,
-                    displayValue: d?.strain.map { UnitFormatter.effortValue($0, scale: effortScale) },
+                    score: effortValue,
+                    displayValue: effortValue.map { UnitFormatter.effortValue($0, scale: effortScale) },
                     decimals: effortScale == .whoop ? 1 : 0, color: StrandPalette.effortColor,
                     route: .metricSourced(key: "strain", source: Repository.whoopSource))
             heroRing(label: "REST", systemImage: "moon.stars.fill",
@@ -482,9 +521,16 @@ struct TrendsDashboardView: View {
         .frame(maxWidth: .infinity)
     }
 
+    /// One hero ring. `dimmed` marks a CARRIED value (#802: a carried Charge draws as a real, dimmed ring
+    /// rather than a bare track, which read as broken beside a filled Rest ring); `caption` is the stamp
+    /// under the label that says whose day it is; `emptyTitle`/`emptySubtitle` replace the bare "—" inside
+    /// an empty ring when there is something honest to say instead (the calibrating countdown). All three
+    /// default to off, so the Effort and Rest rings are untouched.
     @ViewBuilder
     private func heroRing(label: String, systemImage: String, score: Double?, displayValue: Double? = nil,
-                          decimals: Int = 0, color: Color, route: TabRoute) -> some View {
+                          decimals: Int = 0, color: Color, route: TabRoute,
+                          dimmed: Bool = false, caption: String? = nil,
+                          emptyTitle: String? = nil, emptySubtitle: String? = nil) -> some View {
         NavigationLink(value: route) { VStack(spacing: 6) {
             if let score {
                 GlowRing(fraction: score / 100, value: displayValue ?? score,
@@ -497,11 +543,27 @@ struct TrendsDashboardView: View {
                             .foregroundStyle(color)
                             .padding(.top, 16)
                     }
+                    .opacity(dimmed ? 0.8 : 1)
             } else {
                 ZStack {
                     Circle().stroke(StrandPalette.textPrimary.opacity(0.10),
                                     style: StrokeStyle(lineWidth: 9, lineCap: .round))
-                    Text("—").font(GlowRing.centerFont(diameter: 92)).foregroundStyle(StrandPalette.textTertiary)
+                    if let emptyTitle {
+                        // Same two-line treatment as classic Today's `ringEmptyOverlay`: the word reads as
+                        // the centre label with its count beneath, guarded against wrapping inside the
+                        // ring's narrow interior.
+                        VStack(spacing: 3) {
+                            Text(emptyTitle).font(StrandFont.headline)
+                                .foregroundStyle(StrandPalette.textPrimary)
+                                .lineLimit(1).minimumScaleFactor(0.7).fixedSize()
+                            if let emptySubtitle {
+                                Text(emptySubtitle).font(StrandFont.footnote)
+                                    .foregroundStyle(StrandPalette.textSecondary).lineLimit(1)
+                            }
+                        }
+                    } else {
+                        Text("—").font(GlowRing.centerFont(diameter: 92)).foregroundStyle(StrandPalette.textTertiary)
+                    }
                 }
                 .frame(width: 92, height: 92)
             }
@@ -509,6 +571,12 @@ struct TrendsDashboardView: View {
                 .font(StrandFont.overline)
                 .tracking(StrandFont.overlineTracking)
                 .foregroundStyle(StrandPalette.textSecondary)
+            if let caption {
+                Text(caption)
+                    .font(StrandFont.footnote)
+                    .foregroundStyle(StrandPalette.textTertiary)
+                    .lineLimit(1).minimumScaleFactor(0.7)
+            }
         }
         .frame(maxWidth: .infinity)
         }

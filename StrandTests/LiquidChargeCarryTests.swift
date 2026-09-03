@@ -19,7 +19,7 @@ import StrandAnalytics
 /// This pins the presentation decision on top of them. Pure, so it needs no strap, no clock and no view.
 final class LiquidChargeCarryTests: XCTestCase {
 
-    private typealias Display = LiquidTodayView.ChargeDisplay
+    private typealias Display = ChargeDisplay
 
     private func day(_ key: String, recovery: Double?) -> DailyMetric {
         DailyMetric(day: key, totalSleepMin: nil, efficiency: nil, deepMin: nil, remMin: nil,
