@@ -87,6 +87,33 @@ final class IntelligenceEngine: ObservableObject {
         case semanticChange = 4
     }
 
+    /// The shape of the pass that SETTLES an outstanding re-score debt (#1538), as a value so the choice
+    /// is pinned by a test rather than left as four defaults at a call site.
+    ///
+    /// A debt is recorded in two situations, and this has to be right for both:
+    ///
+    ///  • the post-offload pass was DEFERRED because the app was backgrounded. That pass would have run
+    ///    as `skipIfUnchanged: true, allowDayReuse: true` — a completed offload is a pure raw-data change
+    ///    in specific days, which is exactly what the per-day fingerprint resolves.
+    ///  • a pass was KILLED partway. It wrote no fingerprints (they are written at the end), so the days
+    ///    it would have re-derived still carry their previous ones and are re-derived again on the next
+    ///    pass if — and only if — their raw inputs actually moved.
+    ///
+    /// So: FORCED, because the debt is already the answer to "is there work?" and gating on the whole-
+    /// window fingerprint would ask it again. But with day reuse ALLOWED, because the debt says work
+    /// exists SOMEWHERE in the window, never that all 21 days must be re-derived from raw.
+    ///
+    /// Settling with `allowDayReuse: false` — the previous behaviour, inherited from the defaults — turned
+    /// every foreground entry after a background sync into a full 21-day re-derivation, and on a library
+    /// where a pass exceeds `RescoreBackgroundPolicy.backgroundBudgetSeconds` that is self-sustaining: the
+    /// long pass keeps `lastCompletedPassSeconds` over budget, so the next background offload defers
+    /// again, records another debt, and the next foreground entry pays the full cost again. The wearer
+    /// sees the app re-analysing every single time they open it, with nothing having changed.
+    nonisolated static func deferredRescorePlan()
+        -> (force: Bool, skipIfUnchanged: Bool, allowDayReuse: Bool, reason: AnalysisReason) {
+        (force: true, skipIfUnchanged: false, allowDayReuse: true, reason: .rawMutation)
+    }
+
     private struct PendingAnalysis {
         var maxDays: Int
         var force: Bool
@@ -855,8 +882,35 @@ final class IntelligenceEngine: ObservableObject {
     /// wherever the change is INVISIBLE in the raw streams: a sleep or workout edit, an import, a
     /// baseline recalibrate, an HRV/stager settings flip, the timestamp heal, the one-shot Effort
     /// rescore, and the manual "recompute" button (a user asking for a recompute should get one).
+    /// Whether a pass may skip days whose persisted fingerprint still matches, unless the caller says
+    /// otherwise. TRUE — reuse is the default, and refusing it is the thing that must be stated.
+    ///
+    /// It was false, which made the whole `dayScanFingerprint` / `analysisInputRevision` mechanism
+    /// (v38–v40) unreachable from all but two of eleven call sites. Measured on a real 2.8 GB library:
+    /// `day-skip: scanned=21 reused=0 of 21`, 2261 s per pass — while 15 of the last 17 days had a stored
+    /// `inputRevision` byte-identical to the current one and would every one of them have been reused.
+    /// A pass that long cannot drain its own queue: triggers arrive every few minutes, so the next request
+    /// is always already waiting, and `runAnalysisQueue` starts the next full re-derivation 47 ms after
+    /// finishing the last one. The app analyses continuously and never finishes.
+    ///
+    /// Upstream does not have this problem because its in-memory `AnalyzeRecentDayCache` (#1005) is
+    /// UNCONDITIONAL. This fork replaced it with something better — persisted, survives relaunch,
+    /// invalidated by the write side rather than a session key — and then put it behind an opt-in
+    /// nobody opted into.
+    ///
+    /// Safe as a default because the fingerprint sees every mutation that can change a day's score:
+    /// raw ingest (`StreamStore.insert`), sleep edits (`applySleepEdit` / `applySleepGroupEdit` /
+    /// `deleteSleepSession`), the timestamp heal, a device wipe or re-point (`markAnalysisDeviceChanged`),
+    /// and — through `semanticSignature` — every scoring toggle, profile field and baseline epoch.
+    ///
+    /// The ONE thing it cannot see is a workout mutation: `upsertWorkouts` / `deleteWorkouts` deliberately
+    /// do not mark their days, because the analysis pass itself deletes and re-inserts detected workouts
+    /// in the window it just scored — marking there would have every pass invalidate its own output and
+    /// destroy reuse permanently. So the workout-edit callers pass `false` explicitly; see `WorkoutsView`.
+    static let dayReuseDefault = true
+
     func analyzeRecent(maxDays: Int = 21, force: Bool = true, skipIfUnchanged: Bool = false,
-                       allowDayReuse: Bool = false,
+                       allowDayReuse: Bool = IntelligenceEngine.dayReuseDefault,
                        reason: AnalysisReason = .semanticChange,
                        affectedUTCInterval: Range<Int>? = nil) async {
         await withCheckedContinuation { waiter in
@@ -923,7 +977,14 @@ final class IntelligenceEngine: ObservableObject {
         // to a concrete caller + workload instead of guessed at from a paused stack.
         let diagStart = Date()
         let diagCaller = Thread.callStackSymbols.dropFirst().prefix(6).joined(separator: " <- ")
-        NSLog("[FREEZE-DIAG] analyzeRecent ENTER maxDays=\(maxDays) force=\(force) computing=\(computing)\n  caller: \(diagCaller)")
+        // `allowDayReuse` and `skipIfUnchanged` decide whether this pass may skip days it has already
+        // scored — the difference between a few seconds and, on a deep library, tens of minutes. They were
+        // missing from this line, so a log showing a full re-derivation could not say WHETHER reuse had
+        // been refused by the caller or attempted and missed. That is the gap the async `caller:` stack
+        // cannot close: it unwinds into concurrency trampolines, not into the call site.
+        NSLog("[FREEZE-DIAG] analyzeRecent ENTER maxDays=\(maxDays) force=\(force) "
+            + "allowDayReuse=\(allowDayReuse) skipIfUnchanged=\(skipIfUnchanged) reason=\(reason) "
+            + "computing=\(computing)\n  caller: \(diagCaller)")
         defer {
             NSLog("[FREEZE-DIAG] analyzeRecent EXIT maxDays=\(maxDays) force=\(force) took=\(String(format: "%.2f", Date().timeIntervalSince(diagStart)))s")
         }

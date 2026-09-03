@@ -268,7 +268,12 @@ struct WorkoutsView: View {
                     // average / peak HR, strain and calories appear immediately (from your own strap data)
                     // instead of waiting up to 15 minutes for the next analyze tick. No-ops when the strap
                     // had no HR for that window, and never overrides a value you typed yourself.
-                    await model.intelligence.analyzeRecent()
+                    // `allowDayReuse: false`: a workout mutation is the ONE change the per-day fingerprint cannot
+                    // see. `upsertWorkouts` / `deleteWorkouts` deliberately do not mark their days changed,
+                    // because the analysis pass itself deletes and re-inserts DETECTED workouts in the window
+                    // it just scored — marking there would have every pass invalidate its own output. So the
+                    // day this edit touches has to be re-derived by saying so, not by the fingerprint noticing.
+                    await model.intelligence.analyzeRecent(allowDayReuse: false)
                     await reload()
                     // Post-log note (#439): if this sport now has a solid/building recovery-cost
                     // entry, surface its personal-pattern sentence as a transient caption.
@@ -484,7 +489,17 @@ struct WorkoutsView: View {
         // #524: also drop any on-device GPS route stored under this session's natural key, so deleting a
         // workout doesn't leave its route orphaned in the RouteStore side-store.
         RouteStore.remove(startTs: row.startTs, sport: row.sport)
-        Task { await repo.deleteWorkout(row); await reload() }
+        Task {
+            await repo.deleteWorkout(row)
+            // Re-derive the day the deletion touched. This path used to rescore only by accident: it did
+            // not ask for one, and the next `analyzeRecent` from anywhere happened to re-derive every day
+            // because reuse was off by default. With reuse ON (`IntelligenceEngine.dayReuseDefault`) that
+            // accident is gone — the day's fingerprint has not moved, since workout mutations deliberately
+            // do not mark it (see the note on the manual-save path) — so the deletion has to say so itself,
+            // or the day would keep scoring a workout that is no longer there.
+            await model.intelligence.analyzeRecent(allowDayReuse: false)
+            await reload()
+        }
     }
 
     /// Common sports offered when re-labelling a detected bout (keeps the menu short and honest —
@@ -1298,7 +1313,9 @@ struct WorkoutsView: View {
         selectionMode = false; selected.removeAll(); mergeSportPrompt = nil
         Task {
             await repo.mergeWorkouts(chosen, into: merged)
-            await model.intelligence.analyzeRecent()
+            // `allowDayReuse: false` — see the note on the manual-save path above: a workout mutation is
+            // invisible to the per-day fingerprint, so the affected day must be re-derived explicitly.
+            await model.intelligence.analyzeRecent(allowDayReuse: false)
             await reload()
         }
     }

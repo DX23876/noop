@@ -744,10 +744,19 @@ final class AppModel: ObservableObject {
     /// Forced rather than `skipIfUnchanged`: an interrupted pass never advanced the watermark — by design,
     /// so that it cannot mark unscored data as scored — so gating on the fingerprint here would be asking
     /// a question whose answer is already known to be "yes, there is work".
+    ///
+    /// But forced is NOT the same as "re-derive all 21 days from raw", and taking `analyzeRecent()`'s
+    /// defaults here quietly meant the second. See `IntelligenceEngine.deferredRescorePlan()`: the debt
+    /// says work exists somewhere in the window, and the per-day fingerprint says where. Without reuse
+    /// this call made every foreground entry after a background sync pay a full re-derivation, which on a
+    /// large library keeps the measured pass duration over the background budget and so guarantees the
+    /// next offload defers too — the app re-analysing on every open, with nothing having changed.
     func runDeferredRescoreIfOwed() async {
         guard RescoreBackgroundScheduler.isRescoreOwed else { return }
         live.append(log: "re-score: resuming a pass an earlier attempt could not finish (#1538)")
-        await intelligence.analyzeRecent()
+        let plan = IntelligenceEngine.deferredRescorePlan()
+        await intelligence.analyzeRecent(force: plan.force, skipIfUnchanged: plan.skipIfUnchanged,
+                                         allowDayReuse: plan.allowDayReuse, reason: plan.reason)
         #if os(iOS)
         // The deferred pass is the one that finally produces today's score, and it runs with no UI
         // attached — so publish the snapshot here too, for the same reason the post-offload path does.

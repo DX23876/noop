@@ -95,7 +95,11 @@ struct IntelligenceView: View {
         .task { if intelligence.results.isEmpty { await intelligence.analyzeRecent() } }
         .toolbar {
             ToolbarItem {
-                Button { Task { await intelligence.analyzeRecent() } } label: {
+                // `allowDayReuse: false`: this button is a person saying "do it again", the same intent as
+                // Settings' "Reanalyze the last 21 days". Reuse is the right DEFAULT for the automatic
+                // paths, but honouring it here would make the button a no-op on exactly the days the
+                // person is staring at and doubting.
+                Button { Task { await intelligence.analyzeRecent(allowDayReuse: false) } } label: {
                     Label("Recompute", systemImage: "arrow.clockwise")
                 }
                 .disabled(intelligence.computing)
