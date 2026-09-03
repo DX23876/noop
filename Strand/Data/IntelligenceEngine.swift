@@ -64,6 +64,20 @@ final class IntelligenceEngine: ObservableObject {
     @Published var note: String?
     @Published private(set) var analysisRecipeVersion = 0
     @Published private(set) var analysisMaintenancePhase: AnalysisMaintenancePhase = .idle
+    /// Live progress of the running pass, or nil when none is in flight. See `AnalysisProgress` for why a
+    /// spinner was not enough. Written once per day (plus one per surrounding stage) from the detached
+    /// scan through a main-actor hop, so it costs one published write per ~15 s of work.
+    @Published private(set) var analysisProgress: AnalysisProgress?
+
+    /// Accept a progress step, refusing any that would move the day counter BACKWARDS. Each step hops to
+    /// the main actor as its own `Task`, and separate tasks carry no ordering guarantee between them — so
+    /// without this a late-delivered step could make the bar and the day number jump back, which reads as
+    /// the pass restarting. The stage is allowed to advance freely; only the day counter is monotonic.
+    func noteAnalysisProgress(_ next: AnalysisProgress) {
+        if let current = analysisProgress, current.stage == next.stage,
+           next.completedDays < current.completedDays { return }
+        analysisProgress = next
+    }
 
     enum AnalysisReason: Int, Sendable {
         case rawMutation = 0
@@ -913,6 +927,13 @@ final class IntelligenceEngine: ObservableObject {
         defer {
             NSLog("[FREEZE-DIAG] analyzeRecent EXIT maxDays=\(maxDays) force=\(force) took=\(String(format: "%.2f", Date().timeIntervalSince(diagStart)))s")
         }
+        // Progress starts the moment the pass does and is cleared on EVERY exit — including the early
+        // `return`s below (no store, missing metric config) and a thrown error. A progress card left on
+        // screen by a pass that already gave up would be the same lie as the spinner it replaces.
+        let progressStartedAt = Date()
+        analysisProgress = AnalysisProgress(stage: .preparing, completedDays: 0, totalDays: maxDays,
+                                            startedAt: progressStartedAt, lastStepAt: progressStartedAt)
+        defer { analysisProgress = nil }
         // #899-A: a concurrent pass already holds the lock. A NON-forced idle tick is safe to drop (the
         // in-flight pass already covers the same window). But a FORCED call is a real update path (a
         // post-backfill rescore after a sync) , dropping it would leave a freshly-synced night unscored
@@ -1196,6 +1217,18 @@ final class IntelligenceEngine: ObservableObject {
         // no amount of raw-input matching can see them move.
         let traitSignature = DayScanFingerprint.TraitSignature(
             consistency: sleepConsistency, needHours: sleepNeedHours, midsleepSec: habitualMidsleepSec)
+        // Per-day progress out of the detached loop. `self` is captured WEAKLY and touched only inside the
+        // main-actor hop — the loop body itself still reads nothing isolated, which is the invariant FIX 1
+        // above depends on. The hop is one `Task` per day (~15 s apart), so it cannot contend with the scan.
+        let publishScanStep: @Sendable (Int) -> Void = { [weak self] completedDays in
+            Task { @MainActor in
+                self?.noteAnalysisProgress(AnalysisProgress(stage: .scanning,
+                                                            completedDays: completedDays,
+                                                            totalDays: maxDays,
+                                                            startedAt: progressStartedAt,
+                                                            lastStepAt: Date()))
+            }
+        }
         let (scanned, skippedDayLines, reusedDays): ([DayScan], [String], [String]) =
         await Task.detached(priority: .utility) {
             var out: [DayScan] = []
@@ -1226,6 +1259,11 @@ final class IntelligenceEngine: ObservableObject {
                 // costs nothing when the CPU is free and changes NO computed value — the loop body,
                 // its inputs and its output are untouched.
                 await Task.yield()
+                // Published here rather than at the end of the body: the loop has three `continue` paths
+                // (affected-interval miss, fingerprint reuse, too-few-HR skip), and a step that only fired
+                // on the full path would look stalled through a run of reused days — exactly the case where
+                // the pass is moving fastest.
+                publishScanStep(offset)
                 let dayStart = nowLocalMidnight - offset * 86_400
                 let day = AnalyticsEngine.dayString(dayStart, offsetSec: tzOffset)
                 // Read a generous window around the night that ends on `day`; the stager finds the span.
@@ -1861,6 +1899,11 @@ final class IntelligenceEngine: ObservableObject {
                                  hrvDiag: scan.hrvDiag,
                                  detectionFunnel: res.detectionFunnel))
         }
+
+        // The day loop is done; everything below (persist, baseline re-fold, window reconciliation) is
+        // real work on a deep library, so the card must not sit at "day 21 of 21" through it.
+        analysisProgress = AnalysisProgress(stage: .finishing, completedDays: maxDays, totalDays: maxDays,
+                                            startedAt: progressStartedAt, lastStepAt: Date())
 
         // ── Reused days (#launch-rescore) ────────────────────────────────────────────────────────────
         // A day whose raw inputs have not moved was not re-derived above. It still has to take part in

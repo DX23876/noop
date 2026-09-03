@@ -3537,10 +3537,18 @@ private struct AnalysisMaintenanceSettingsCard: View {
                 .font(StrandFont.subhead)
 
                 HStack(spacing: 7) {
-                    if busy { ProgressView().controlSize(.small) }
+                    if busy && engine.analysisProgress == nil { ProgressView().controlSize(.small) }
                     Text(statusText)
                         .font(StrandFont.caption)
                         .foregroundStyle(statusTone)
+                }
+
+                // A running pass shows what it is actually doing. The indeterminate spinner above is kept
+                // only for the window where the engine is busy but has not published a step yet — it looks
+                // identical for a pass on day 7 and one that stopped an hour ago, which is precisely the
+                // confusion this block removes.
+                if let progress = engine.analysisProgress {
+                    analysisProgressView(progress)
                 }
 
                 NoopButton("Refresh today's activity", systemImage: "figure.walk.motion", kind: .secondary) {
@@ -3565,6 +3573,30 @@ private struct AnalysisMaintenanceSettingsCard: View {
             Button("Cancel", role: .cancel) { }
         } message: {
             Text("This can take several minutes. NOOP keeps all raw data and manual corrections and recalculates only derived scores.")
+        }
+    }
+
+    /// The live progress block: a determinate bar, the day position with an estimate once one can be
+    /// justified, and the freshness line. `TimelineView` drives the clock so the freshness ages on screen
+    /// without the engine having to publish anything — a stalled pass therefore reveals itself by the line
+    /// growing, which a spinner can never do. One tick a second, and only while a pass is in flight.
+    @ViewBuilder
+    private func analysisProgressView(_ progress: AnalysisProgress) -> some View {
+        TimelineView(.periodic(from: .now, by: 1)) { context in
+            let now = context.date
+            VStack(alignment: .leading, spacing: 5) {
+                ProgressView(value: progress.fraction)
+                    .tint(StrandPalette.accent)
+                Text(AnalysisProgressFormat.detailLine(progress, now: now))
+                    .font(StrandFont.caption)
+                    .foregroundStyle(StrandPalette.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                Text(AnalysisProgressFormat.freshnessLine(progress, now: now))
+                    .font(StrandFont.caption)
+                    .foregroundStyle(progress.looksStalled(now: now)
+                                     ? StrandPalette.statusWarning : StrandPalette.textTertiary)
+            }
+            .accessibilityElement(children: .combine)
         }
     }
 
