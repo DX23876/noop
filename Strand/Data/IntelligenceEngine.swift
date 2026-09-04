@@ -932,6 +932,44 @@ final class IntelligenceEngine: ObservableObject {
         }
     }
 
+    /// The body mass to score each day with: the wearer's weight AS OF that day, resolved causally from
+    /// the weigh-in history, falling back to the current profile value for days no observation reaches.
+    ///
+    /// Weight used to enter the pass as ONE number applied to the whole window, folded into the
+    /// pass-global `semanticSignature`. Two consequences, and the second is why this exists:
+    ///
+    ///  • Historical calories were rewritten by a future weigh-in. `EnergySeries` had already rejected
+    ///    that — "using today's profile weight for history leaks future information backwards and can
+    ///    rewrite old calorie totals after a new weigh-in" — and resolves per day. The day scan was the
+    ///    last place still doing it the old way.
+    ///  • Because the number was pass-global, every Health weigh-in invalidated ALL 21 days at once.
+    ///    Measured on a real device: `miss: semanticSignature=21`, with the field diff naming
+    ///    `weight: 211.0 → 209.55` — one morning weigh-in, synced from Health, costing a full
+    ///    re-derivation of three weeks of sleep staging that weight cannot influence at all. (It reaches
+    ///    exactly two persisted values: the day's `activeKcalEst` and the kcal of already-detected
+    ///    workouts. Not staging, HRV, Rest, Charge or Effort, and not WHICH workouts are found.)
+    ///
+    /// `CausalWeightResolver` only ever consults observations at or before the instant asked for, so a
+    /// weigh-in today cannot move any earlier day's value — that property is what makes the per-day
+    /// signature stable, and it is pinned by test.
+    ///
+    /// The resolution instant matches `EnergySeries` exactly (day noon + 12 h, i.e. the day's end). Not
+    /// cosmetic: a different instant here would score a day against a different weight than the energy
+    /// series shows for it, which is the drift this whole change is closing.
+    nonisolated static func weightByDay(days: [String], observations: [CausalWeightObservation],
+                                        fallbackKg: Double,
+                                        calendar: Calendar = .current) -> [String: Double] {
+        var out: [String: Double] = [:]
+        for day in days {
+            let resolved = WeightSeries.date(forDay: day).flatMap {
+                CausalWeightResolver.weight(at: Int($0.timeIntervalSince1970 + 43_200),
+                                            observations: observations, calendar: calendar)
+            }
+            out[day] = resolved ?? fallbackKg
+        }
+        return out
+    }
+
     static let dayReuseDefault = true
 
     func analyzeRecent(maxDays: Int = 21, force: Bool = true, skipIfUnchanged: Bool = false,
@@ -1258,8 +1296,32 @@ final class IntelligenceEngine: ObservableObject {
         // Deliberate semantic invalidation seam. Bump only when unchanged inputs intentionally produce a
         // different score. Profile/toggle values are stored separately in a stable textual signature.
         let scoringVersion = 1
-        let semanticSignature = [
-            "weight=\(profile.weightKg.bitPattern)",
+        // Every day this pass will walk, in the same derivation the loop below uses, so the per-day
+        // weight map is keyed identically to the days it is looked up by.
+        let scanDayKeys = (0..<maxDays).map {
+            AnalyticsEngine.dayString(nowLocalMidnight - $0 * 86_400, offsetSec: tzOffset)
+        }
+        // ONE read of the weigh-in history (NOOP's own log unioned with Apple Health — `WeightSeries.merge`),
+        // resolved to a weight per day before the detached loop and captured into it as a plain value. The
+        // `+ 100` days match `EnergySeries`: the resolver is a 10-day EWMA with a 90-day carry, so it needs
+        // history older than the scan window to answer for the window's first day.
+        let weightObservations: [CausalWeightObservation] = await repo
+            .weightSeries(days: max(maxDays + 100, 100))
+            .compactMap { point in
+                WeightSeries.date(forDay: point.day).map {
+                    CausalWeightObservation(timestamp: Int($0.timeIntervalSince1970),
+                                            weightKg: point.value,
+                                            source: point.source == .manual ? .manual : .health)
+                }
+            }
+        let profileWeightKg = profile.weightKg
+        let weightByDay = Self.weightByDay(days: scanDayKeys, observations: weightObservations,
+                                           fallbackKg: profileWeightKg)
+        // `weight` is deliberately NOT here — it is per DAY (see `weightByDay`), appended by
+        // `semanticSignature(forDay:)` below. Everything in this list is genuinely pass-global: it holds
+        // for every day in the window or for none, which is what makes a single miss on one of these
+        // explain the whole window at once.
+        let semanticSignatureBase = [
             "height=\(profile.heightCm.bitPattern)",
             "age=\(profile.age)",
             "sex=\(String(describing: profile.sex))",
@@ -1272,6 +1334,13 @@ final class IntelligenceEngine: ObservableObject {
             "hrvEpoch=\(Baselines.hrvBaselineEpoch())",
             "recoveryEpoch=\(Baselines.recoveryBaselineEpoch())",
         ].joined(separator: "|")
+        // The signature a day is COMPARED against and the one it is WRITTEN with have to come from here,
+        // both of them. They already had to agree; now that one field varies by day, a second copy of the
+        // "+ weight" step would be a copy that can disagree — and the failure it produces is silent and
+        // total: no day ever matches again, and the log says only "semanticSignature".
+        let semanticSignature: @Sendable (String) -> String = { day in
+            "\(semanticSignatureBase)|weight=\((weightByDay[day] ?? profileWeightKg).bitPattern)"
+        }
         // ── Per-day skip (#launch-rescore) ───────────────────────────────────────────────────────────
         // Re-deriving a day costs a ~54 h read (~950 k rows on a fully-worn library) plus sleep staging,
         // and the pass does it for EVERY day in the window on EVERY run. On a real install that is almost
@@ -1317,7 +1386,8 @@ final class IntelligenceEngine: ObservableObject {
             }
         }
         let (scanned, skippedDayLines, reusedDays, reuseMissesByDay, firstSemanticMismatch):
-            ([DayScan], [String], [String], [(day: String, misses: [String])], String?) =
+            ([DayScan], [String], [String], [(day: String, misses: [String])],
+             (day: String, stored: String)?) =
         await Task.detached(priority: .utility) {
             var out: [DayScan] = []
             // Days reused from their persisted row (fingerprint matched) — carried out so the main-actor
@@ -1333,9 +1403,11 @@ final class IntelligenceEngine: ObservableObject {
             // D1: per-day reuse-miss reasons, carried out and replayed on the main actor (the sink is
             // main-actor bound), same pattern as `skippedDayLines`. Empty when reuse was not attempted.
             var reuseMissesByDay: [(day: String, misses: [String])] = []
-            // The stored signature of the FIRST day that missed on it — pass-global, so one
-            // sample explains every day, and diffing it names the field rather than the group.
-            var firstSemanticMismatch: String? = nil
+            // The FIRST day that missed on the signature, with the signature it had stored. The day
+            // rides along because the signature is no longer wholly pass-global: every field except
+            // `weight` holds for the whole window, `weight` is that day's own. Rebuilding the current
+            // side without the day would diff against some other day's weight and invent a difference.
+            var firstSemanticMismatch: (day: String, stored: String)? = nil
             // #938: the WHOOP 4.0 ADC offset is per-device, not per-night. Learn one anchor per owner
             // from the whole scan window and reuse it for every night so cross-night deviations survive.
             let skinAnchorScanFrom = nowLocalMidnight - (maxDays - 1) * 86_400 - 30 * 3_600
@@ -1429,22 +1501,26 @@ final class IntelligenceEngine: ObservableObject {
                                                          inputRevision: probe.inputRevision,
                                                          deviceRevision: probe.deviceRevision,
                                                          scoringVersion: scoringVersion,
-                                                         semanticSignature: semanticSignature)
+                                                         semanticSignature: semanticSignature(day))
                         let misses = stored.reuseMisses(current)
                         if misses.isEmpty {
                             reusedDays.append(day)
                             continue
                         }
                         if misses.contains(.semanticSignature), firstSemanticMismatch == nil {
-                            firstSemanticMismatch = stored.semanticSignature
-                            // Emitted IMMEDIATELY, not with the end-of-pass summary. The signature is
-                            // pass-global, so the first day that fails on it already carries the whole
-                            // answer — waiting for the loop to finish would cost a full re-derivation
-                            // (~15 min on a deep library) to learn something known after the first day.
+                            firstSemanticMismatch = (day: day, stored: stored.semanticSignature ?? "")
+                            // Emitted IMMEDIATELY, not with the end-of-pass summary: waiting for the loop
+                            // to finish costs a full re-derivation (~15 min on a deep library) to learn
+                            // something the first miss already shows. This is the line that found the
+                            // weight bug, so it stays.
+                            //
+                            // It reports the FIRST miss and claims no more than that. A miss on any field
+                            // but `weight` is pass-global and does explain the whole window; a `weight`
+                            // miss is that day's alone, and other days may differ or not.
                             // NSLog rather than `diagnosticSink`: the sink is main-actor bound and this
                             // runs inside the detached loop, and this line is read in the Xcode console.
                             let early = IntelligenceEngine.semanticSignatureDiff(
-                                stored: stored.semanticSignature ?? "", current: semanticSignature)
+                                stored: stored.semanticSignature ?? "", current: semanticSignature(day))
                             NSLog("[FREEZE-DIAG] reuse semantic diff (first miss, day=\(day)): "
                                 + (early.isEmpty ? "(no field differs — parse failure?)"
                                                  : early.joined(separator: ", ")))
@@ -1677,6 +1753,13 @@ final class IntelligenceEngine: ObservableObject {
                 } else {
                     providedSleep = []
                 }
+                // Score this day against the body mass the wearer had ON it, not the one they have now.
+                // Same `var dayProfile = profile` shape `EnergySeries` uses, and it must agree with the
+                // weight `semanticSignature(day)` just claimed: a day whose signature promises one weight
+                // and whose scoring uses another would be reused on a fingerprint that describes numbers
+                // it does not hold.
+                var dayProfile = up
+                dayProfile.weightKg = weightByDay[day] ?? up.weightKg
                 let diagAnalyzeStart = Date()   // TEMP DIAGNOSTIC: math cost, separated from the read cost
                 let res = AnalyticsEngine.analyzeDay(day: day, hr: hr, rr: rr, resp: resp,
                                                      vendorResp: vendorResp, gravity: grav,
@@ -1687,7 +1770,7 @@ final class IntelligenceEngine: ObservableObject {
                                                      skinTempAnchorRaw: skinAnchorRaw,   // #938 second capture
                                                      skinTempWornToleranceSec: skinWornToleranceSec,   // #1467
                                                      spo2: spo2,                   // #93
-                                                     profile: up, baselines: baselines1, maxHROverride: maxHR,
+                                                     profile: dayProfile, baselines: baselines1, maxHROverride: maxHR,
                                                      tzOffsetSeconds: tzOffset, wristOff: wristOff,
                                                      sleepNeedHours: sleepNeedHours,
                                                      sleepConsistency: sleepConsistency,
@@ -2092,12 +2175,15 @@ final class IntelligenceEngine: ObservableObject {
                 + "recomputed=\(scannedDays.count) | miss: \(breakdown)"
             diagnosticSink?(line, nil)
             NSLog("[FREEZE-DIAG] \(line)")
-            // `semanticSignature` is pass-global: one sample explains all of them, so the field-level
-            // diff is printed once rather than per day.
-            if let storedSemantic = firstSemanticMismatch {
-                let diff = Self.semanticSignatureDiff(stored: storedSemantic, current: semanticSignature)
+            // The same first-miss diff as the early NSLog above, repeated into the shareable strap log —
+            // which the detached loop cannot reach, the sink being main-actor bound. Named with its day,
+            // since `weight` makes the signature partly per-day.
+            if let firstSemanticMismatch {
+                let diff = Self.semanticSignatureDiff(
+                    stored: firstSemanticMismatch.stored,
+                    current: semanticSignature(firstSemanticMismatch.day))
                 let detail = diff.isEmpty ? "(no field differs — parse failure?)" : diff.joined(separator: ", ")
-                let semanticLine = "reuse semantic diff: \(detail)"
+                let semanticLine = "reuse semantic diff (first miss, day=\(firstSemanticMismatch.day)): \(detail)"
                 diagnosticSink?(semanticLine, nil)
                 NSLog("[FREEZE-DIAG] \(semanticLine)")
             }
@@ -3031,7 +3117,7 @@ final class IntelligenceEngine: ObservableObject {
                                       inputRevision: probe.inputRevision,
                                       deviceRevision: probe.deviceRevision,
                                       scoringVersion: scoringVersion,
-                                      semanticSignature: semanticSignature)
+                                      semanticSignature: semanticSignature(day))
         }
         if !scanFingerprints.isEmpty {
             _ = try? await store.upsertDayScanFingerprints(scanFingerprints, deviceId: computedId)
