@@ -154,3 +154,68 @@ final class AnalysisProgressTests: XCTestCase {
         XCTAssertFalse(line.lowercased().contains("stuck"), line)
     }
 }
+
+/// Pins the reuse read-out (#1005 follow-up).
+///
+/// Reported the morning after day-reuse shipped: "instead of analysing a single day it does a 21-day
+/// analysis again". It was not — the completed pass took 49 s where the un-reusing one took 2261 s. What
+/// the wearer saw was THIS card: the loop walks the whole window even when nearly every day is a
+/// fingerprint match, so the counter still races 1 → 21 and a bare "Day 7 of 21" reads exactly like the
+/// full re-derivation that had just been fixed. The number was true and the impression it left was wrong.
+@MainActor
+final class AnalysisProgressReuseTests: XCTestCase {
+
+    private let t0 = Date(timeIntervalSince1970: 1_800_000_000)
+
+    private func scanning(completed: Int, reused: Int, total: Int = 21) -> AnalysisProgress {
+        AnalysisProgress(stage: .scanning, completedDays: completed, reusedDays: reused,
+                         totalDays: total, startedAt: t0, lastStepAt: t0.addingTimeInterval(60))
+    }
+
+    /// THE fix: when days are being reused, the line has to say so — that is the answer to the question
+    /// the counter provokes.
+    func testScanningLineReportsReusedDays() {
+        let line = AnalysisProgressFormat.detailLine(scanning(completed: 7, reused: 5),
+                                                     now: t0.addingTimeInterval(60))
+        // 7 days behind it means it is working on the 8th — the position is 1-based (see
+        // `testDetailLineNamesTheDayBeingWorkedOn`).
+        XCTAssertTrue(line.contains("8"), line)
+        XCTAssertTrue(line.contains("21"), line)
+        XCTAssertTrue(line.contains("5"), "the reuse count is the point of this line: \(line)")
+    }
+
+    /// A pass that is genuinely re-deriving everything says nothing about reuse — there is none, and an
+    /// "0 unchanged" would be noise on the one pass where the full count is real work.
+    func testNoReuseAddsNoClause() {
+        let line = AnalysisProgressFormat.detailLine(scanning(completed: 7, reused: 0),
+                                                     now: t0.addingTimeInterval(60))
+        XCTAssertFalse(line.lowercased().contains("unchanged"), line)
+    }
+
+    /// The finishing line states the SPLIT, because that is what a wearer reads when they finally look:
+    /// "re-derived 2 of 21" is the whole difference between a working pass and the runaway one.
+    func testFinishingLineStatesTheSplit() {
+        let p = AnalysisProgress(stage: .finishing, completedDays: 21, reusedDays: 19,
+                                 totalDays: 21, startedAt: t0, lastStepAt: t0)
+        let line = AnalysisProgressFormat.detailLine(p, now: t0)
+        XCTAssertTrue(line.contains("2"), "21 total minus 19 reused is 2 re-derived: \(line)")
+        XCTAssertTrue(line.contains("21"), line)
+    }
+
+    /// With nothing reused the finishing line stays the plain one — no invented split.
+    func testFinishingWithoutReuseStaysPlain() {
+        let p = AnalysisProgress(stage: .finishing, completedDays: 21, reusedDays: 0,
+                                 totalDays: 21, startedAt: t0, lastStepAt: t0)
+        XCTAssertFalse(AnalysisProgressFormat.detailLine(p, now: t0).contains("re-derived"))
+    }
+
+    /// Reuse must not disturb the bar or the freshness half — those answer different questions and are
+    /// pinned separately.
+    func testReuseDoesNotChangeFractionOrFreshness() {
+        let a = scanning(completed: 7, reused: 0)
+        let b = scanning(completed: 7, reused: 5)
+        XCTAssertEqual(a.fraction, b.fraction)
+        XCTAssertEqual(a.secondsSinceLastStep(now: t0.addingTimeInterval(60)),
+                       b.secondsSinceLastStep(now: t0.addingTimeInterval(60)))
+    }
+}

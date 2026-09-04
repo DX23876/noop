@@ -41,6 +41,12 @@ struct AnalysisProgress: Equatable, Sendable {
     var stage: Stage
     /// Days the loop has STARTED past, i.e. how many are behind it. 0 during `.preparing`.
     var completedDays: Int
+    /// How many of those days were REUSED — their persisted fingerprint still matched, so nothing was
+    /// re-derived from raw. Load-bearing for the copy, not decoration: the loop walks the whole window
+    /// even when almost none of it is real work, so a bare "day 7 of 21" reads exactly like the full
+    /// re-derivation this stopped doing. A wearer watching the counter race to 21 in a few seconds
+    /// concluded, reasonably, that nothing had changed.
+    var reusedDays: Int = 0
     /// The window this pass was asked for (`maxDays`).
     var totalDays: Int
     /// When the pass began — the anchor for the elapsed time the estimate divides.
@@ -130,18 +136,35 @@ enum AnalysisProgressFormat {
         case .preparing:
             return String(localized: "Reading history and folding baselines…")
         case .finishing:
-            return String(localized: "Saving scores…")
+            guard p.reusedDays > 0 else { return String(localized: "Saving scores…") }
+            // Stated at the end too: this is the line a wearer reads when they finally look, and
+            // "re-derived 2 of 21" is the difference between a working pass and the runaway one this
+            // replaced. `totalDays` rather than `completedDays` — every day is behind it by now.
+            return String(format: String(localized: "Saving scores — re-derived %lld of %lld days"),
+                          locale: AppLanguage.activeLocale,
+                          Int64(max(0, p.totalDays - p.reusedDays)), Int64(p.totalDays))
         case .scanning:
             let position = String(
                 format: String(localized: "Day %lld of %lld"),
                 locale: AppLanguage.activeLocale,
                 Int64(p.completedDays + 1), Int64(p.totalDays))
+            // The reuse count comes FIRST when there is one. It is the answer to the question the
+            // counter provokes ("is it redoing everything again?"), and it is the honest headline: on a
+            // settled library almost every day here is a fingerprint match, not a re-score.
+            let reuse = p.reusedDays > 0
+                ? String(format: String(localized: "%lld unchanged"),
+                         locale: AppLanguage.activeLocale, Int64(p.reusedDays))
+                : nil
+            let head = reuse.map {
+                String(format: String(localized: "%@ · %@"), locale: AppLanguage.activeLocale,
+                       position, $0)
+            } ?? position
             guard let eta = p.estimatedSecondsRemaining(now: now) else {
                 return String(format: String(localized: "%@ · estimating…"),
-                              locale: AppLanguage.activeLocale, position)
+                              locale: AppLanguage.activeLocale, head)
             }
             return String(format: String(localized: "%@ · about %@ left"),
-                          locale: AppLanguage.activeLocale, position, coarseDuration(eta))
+                          locale: AppLanguage.activeLocale, head, coarseDuration(eta))
         }
     }
 

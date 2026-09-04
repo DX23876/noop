@@ -92,15 +92,43 @@ public struct DayScanFingerprint: Equatable, Sendable {
     /// the current probe; an unrecorded trait set means we cannot show the day was scored against
     /// today's traits, and "cannot show" has to read the same as "was not".
     public func inputsMatch(_ other: DayScanFingerprint) -> Bool {
-        guard ownerId == other.ownerId else { return false }
-        guard let myInput = inputRevision, let theirInput = other.inputRevision,
-              let myDevice = deviceRevision, let theirDevice = other.deviceRevision,
-              let myVersion = scoringVersion, let theirVersion = other.scoringVersion,
-              let mySemantic = semanticSignature, let theirSemantic = other.semanticSignature,
-              myInput == theirInput, myDevice == theirDevice,
-              myVersion == theirVersion, mySemantic == theirSemantic else { return false }
-        guard let mine = traits, let theirs = other.traits else { return false }
-        return mine == theirs
+        reuseMisses(other).isEmpty
+    }
+
+    /// Which individual conditions of `inputsMatch` fail, ALL of them, in a stable order. Empty means
+    /// the day may be reused — `inputsMatch` is defined as exactly that, so the verdict and its
+    /// explanation can never drift apart.
+    ///
+    /// This exists because `reused=0 of 21` on a device was indistinguishable from `reused=0` for any
+    /// other reason: the Bool says a day was re-derived, never which of six conditions decided it, and
+    /// five of the six are PASS-GLOBAL (they either pass for every day or fail for every day). Knowing
+    /// which one flipped is the difference between a cache bug and a scoring-dependency problem.
+    ///
+    /// Nil-handling matches `inputsMatch`'s rule exactly: a nil on EITHER side counts as a miss, not a
+    /// pass. `self` is the stored record, `other` the current probe; an unrecorded value cannot show the
+    /// day was scored against today's inputs, and "cannot show" has to read the same as "was not".
+    public func reuseMisses(_ other: DayScanFingerprint) -> [ReuseMiss] {
+        var misses: [ReuseMiss] = []
+        if ownerId != other.ownerId { misses.append(.owner) }
+        if inputRevision == nil || other.inputRevision == nil
+            || inputRevision != other.inputRevision { misses.append(.inputRevision) }
+        if deviceRevision == nil || other.deviceRevision == nil
+            || deviceRevision != other.deviceRevision { misses.append(.deviceRevision) }
+        if scoringVersion == nil || other.scoringVersion == nil
+            || scoringVersion != other.scoringVersion { misses.append(.scoringVersion) }
+        if semanticSignature == nil || other.semanticSignature == nil
+            || semanticSignature != other.semanticSignature { misses.append(.semanticSignature) }
+        if traits == nil || other.traits == nil || traits != other.traits { misses.append(.traits) }
+        return misses
+    }
+
+    /// One condition of `inputsMatch`. `owner`, `deviceRevision`, `scoringVersion`, `semanticSignature`
+    /// and `traits` are PASS-GLOBAL — a pass computes one value for the whole window, so each either
+    /// passes for every day or fails for every day. Only `inputRevision` is per-day. That asymmetry is
+    /// the whole diagnostic value: a summary showing 20 misses on a pass-global condition names the
+    /// cause outright, while 1–2 on `inputRevision` is ordinary new data.
+    public enum ReuseMiss: String, CaseIterable, Sendable {
+        case owner, inputRevision, deviceRevision, scoringVersion, semanticSignature, traits
     }
 }
 

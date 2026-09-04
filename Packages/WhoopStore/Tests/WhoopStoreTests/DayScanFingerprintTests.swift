@@ -225,3 +225,101 @@ final class DayScanFingerprintTests: XCTestCase {
                                                                semanticSignature: "profile-v1")))
     }
 }
+
+/// Pins `reuseMisses(_:)` — the D1 diagnostic that names WHICH condition rejected a day.
+///
+/// Motivation from a real device: `day-skip: scanned=21 reused=0 of 21` with reuse explicitly ENABLED.
+/// The count alone cannot tell "the cache is broken" from "a scoring input legitimately moved", and five
+/// of the six conditions are pass-global — they pass for every day or fail for every day. Which one
+/// flipped is the difference between a cache bug and a scoring-dependency problem.
+final class DayScanFingerprintReuseMissTests: XCTestCase {
+
+    private func traits(consistency: Double? = 0.80, need: Double = 8.0,
+                        midsleep: Int? = 4 * 3600) -> DayScanFingerprint.TraitSignature {
+        DayScanFingerprint.TraitSignature(consistency: consistency, needHours: need, midsleepSec: midsleep)
+    }
+
+    private func fp(owner: String = "whoop-1",
+                    traits t: DayScanFingerprint.TraitSignature? = nil,
+                    inputRevision: Int? = 7, deviceRevision: Int? = 1,
+                    scoringVersion: Int? = 1,
+                    semanticSignature: String? = "profile-v1") -> DayScanFingerprint {
+        DayScanFingerprint(day: "2026-09-01", ownerId: owner, hrCount: 0, hrMaxTs: 0, nightlySkinC: nil,
+                           traits: t ?? traits(), inputRevision: inputRevision,
+                           deviceRevision: deviceRevision, scoringVersion: scoringVersion,
+                           semanticSignature: semanticSignature)
+    }
+
+    /// THE invariant: the verdict IS the absence of misses. `inputsMatch` is defined as
+    /// `reuseMisses(_:).isEmpty`, so a log line can never contradict the decision it explains.
+    func testVerdictAndExplanationCannotDisagree() {
+        let stored = fp()
+        let cases: [DayScanFingerprint] = [
+            fp(),                                       // identical
+            fp(owner: "whoop-2"),
+            fp(traits: traits(consistency: 0.61)),
+            fp(inputRevision: 8),
+            fp(deviceRevision: 2),
+            fp(scoringVersion: 2),
+            fp(semanticSignature: "profile-v2"),
+            fp(inputRevision: nil),
+            DayScanFingerprint(day: "2026-09-01", ownerId: "whoop-1", hrCount: 0, hrMaxTs: 0,
+                               nightlySkinC: nil, traits: nil, inputRevision: 7, deviceRevision: 1,
+                               scoringVersion: 1, semanticSignature: "profile-v1"),
+        ]
+        for probe in cases {
+            XCTAssertEqual(stored.inputsMatch(probe), stored.reuseMisses(probe).isEmpty,
+                           "match and misses must agree for \(probe)")
+        }
+    }
+
+    func testIdenticalInputsProduceNoMisses() {
+        XCTAssertEqual(fp().reuseMisses(fp()), [])
+    }
+
+    /// The device case the diagnostic was built for: only the learned traits moved. Exactly one miss —
+    /// so a summary reading `traits=20` names a global invalidation and nothing else.
+    func testOnlyTraitsMovedIsReportedAsTraitsAlone() {
+        XCTAssertEqual(fp().reuseMisses(fp(traits: traits(consistency: 0.61))), [.traits])
+    }
+
+    /// The ordinary case: one day's raw inputs moved. One miss, on the ONLY per-day condition — which is
+    /// how a normal day rollover is told apart from a global invalidation.
+    func testOnlyInputRevisionMovedIsReportedAlone() {
+        XCTAssertEqual(fp().reuseMisses(fp(inputRevision: 8)), [.inputRevision])
+    }
+
+    /// Several conditions failing at once must ALL be listed, not just the first — otherwise the summary
+    /// under-counts whichever condition happens to be checked later.
+    func testEveryFailingConditionIsListed() {
+        let misses = fp().reuseMisses(fp(owner: "whoop-2", traits: traits(need: 9.0),
+                                         inputRevision: 8, deviceRevision: 2,
+                                         scoringVersion: 2, semanticSignature: "profile-v2"))
+        XCTAssertEqual(Set(misses), Set(DayScanFingerprint.ReuseMiss.allCases))
+    }
+
+    /// Nil on EITHER side is a miss, not a pass — the same rule `inputsMatch` documents. An unrecorded
+    /// value cannot show the day was scored against today's inputs.
+    func testNilOnEitherSideCountsAsAMiss() {
+        // Built directly rather than through `fp`: that helper coalesces a nil `traits` to the default,
+        // so it cannot express the genuinely-unrecorded case this test is about.
+        let noTraits = DayScanFingerprint(day: "2026-09-01", ownerId: "whoop-1", hrCount: 0, hrMaxTs: 0,
+                                          nightlySkinC: nil, traits: nil, inputRevision: 7,
+                                          deviceRevision: 1, scoringVersion: 1,
+                                          semanticSignature: "profile-v1")
+        XCTAssertEqual(fp().reuseMisses(noTraits), [.traits])
+        XCTAssertEqual(noTraits.reuseMisses(fp()), [.traits])
+        XCTAssertEqual(fp().reuseMisses(fp(inputRevision: nil)), [.inputRevision])
+        XCTAssertEqual(fp(inputRevision: nil).reuseMisses(fp()), [.inputRevision])
+        // Both nil is still a miss: two unknowns are not evidence of sameness.
+        XCTAssertEqual(noTraits.reuseMisses(noTraits), [.traits])
+    }
+
+    /// The order is stable so two logs of the same shape are diffable.
+    func testMissOrderIsStable() {
+        let a = fp().reuseMisses(fp(owner: "x", inputRevision: 8, semanticSignature: "y"))
+        let b = fp().reuseMisses(fp(owner: "x", inputRevision: 8, semanticSignature: "y"))
+        XCTAssertEqual(a, b)
+        XCTAssertEqual(a, [.owner, .inputRevision, .semanticSignature])
+    }
+}

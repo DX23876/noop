@@ -110,3 +110,50 @@ final class DayReuseDefaultTests: XCTestCase {
                        IntelligenceEngine.dayReuseDefault)
     }
 }
+
+/// Pins the semantic-signature field diff (D1 follow-up).
+///
+/// D1 measured `miss: semanticSignature=21` on a real device — all 21 days invalidated at once by the
+/// one pass-global string that folds twelve values. Naming the group is not yet actionable: a profile
+/// field written as a side effect and a deliberate settings change look identical at that level.
+@MainActor
+final class SemanticSignatureDiffTests: XCTestCase {
+
+    private let base = "weight=4641576901735455130|height=4641135337865740288|age=35|sex=male"
+        + "|hrmax=193|stepTicks=4609434218613702656|tz=7200|deepHrv=1|spo2Candidate=1"
+        + "|effortMethod=edwards|hrvEpoch=0.0|recoveryEpoch=0.0"
+
+    func testIdenticalSignaturesDifferInNothing() {
+        XCTAssertEqual(IntelligenceEngine.semanticSignatureDiff(stored: base, current: base), [])
+    }
+
+    /// THE case the device hit: one field moved, and the diff has to say which — with both values, so a
+    /// stale write is distinguishable from a real change.
+    func testNamesTheSingleFieldThatMoved() {
+        let moved = base.replacingOccurrences(of: "hrmax=193", with: "hrmax=195")
+        let diff = IntelligenceEngine.semanticSignatureDiff(stored: base, current: moved)
+        XCTAssertEqual(diff, ["hrmax: 193 → 195"])
+    }
+
+    /// Several at once are all listed, sorted, so two logs of the same shape are diffable.
+    func testListsEveryChangedFieldSorted() {
+        let moved = base
+            .replacingOccurrences(of: "tz=7200", with: "tz=3600")
+            .replacingOccurrences(of: "age=35", with: "age=36")
+        XCTAssertEqual(IntelligenceEngine.semanticSignatureDiff(stored: base, current: moved),
+                       ["age: 35 → 36", "tz: 7200 → 3600"])
+    }
+
+    /// A field appearing or vanishing (the format gained or lost a key between builds) is reported as
+    /// such rather than silently ignored — that is itself a reason every day would invalidate.
+    func testAppearingFieldIsReported() {
+        let diff = IntelligenceEngine.semanticSignatureDiff(stored: base, current: base + "|newKey=1")
+        XCTAssertEqual(diff, ["newKey: <absent> → 1"])
+    }
+
+    /// An unparseable side yields nothing rather than a misleading "everything changed" list.
+    func testUnparseableInputYieldsNoDiff() {
+        XCTAssertEqual(IntelligenceEngine.semanticSignatureDiff(stored: "", current: base), [])
+        XCTAssertEqual(IntelligenceEngine.semanticSignatureDiff(stored: base, current: ""), [])
+    }
+}

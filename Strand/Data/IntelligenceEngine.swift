@@ -907,6 +907,31 @@ final class IntelligenceEngine: ObservableObject {
     /// do not mark their days, because the analysis pass itself deletes and re-inserts detected workouts
     /// in the window it just scored — marking there would have every pass invalidate its own output and
     /// destroy reuse permanently. So the workout-edit callers pass `false` explicitly; see `WorkoutsView`.
+    /// Which `semanticSignature` FIELDS differ between a stored fingerprint and the current pass, as
+    /// "key: stored → current" strings. Empty when the two are equal or either side is unparseable.
+    ///
+    /// D1 named `semanticSignature` as the condition that invalidates all 21 days at once, which is one
+    /// question deeper than "the cache missed" but still one short of actionable: the signature folds
+    /// twelve values (profile fields, unit toggles, baseline epochs), and knowing WHICH of them moved
+    /// between two passes 11 ms apart is the difference between a stale profile write and a genuine
+    /// settings change. Pure so the parsing is unit-testable; the format is built right above.
+    nonisolated static func semanticSignatureDiff(stored: String, current: String) -> [String] {
+        func fields(_ s: String) -> [String: String] {
+            var out: [String: String] = [:]
+            for part in s.split(separator: "|") {
+                guard let eq = part.firstIndex(of: "=") else { continue }
+                out[String(part[part.startIndex..<eq])] = String(part[part.index(after: eq)...])
+            }
+            return out
+        }
+        let a = fields(stored), b = fields(current)
+        guard !a.isEmpty, !b.isEmpty else { return [] }
+        return Set(a.keys).union(b.keys).sorted().compactMap { key in
+            let old = a[key] ?? "<absent>", new = b[key] ?? "<absent>"
+            return old == new ? nil : "\(key): \(old) → \(new)"
+        }
+    }
+
     static let dayReuseDefault = true
 
     func analyzeRecent(maxDays: Int = 21, force: Bool = true, skipIfUnchanged: Bool = false,
@@ -1281,16 +1306,18 @@ final class IntelligenceEngine: ObservableObject {
         // Per-day progress out of the detached loop. `self` is captured WEAKLY and touched only inside the
         // main-actor hop — the loop body itself still reads nothing isolated, which is the invariant FIX 1
         // above depends on. The hop is one `Task` per day (~15 s apart), so it cannot contend with the scan.
-        let publishScanStep: @Sendable (Int) -> Void = { [weak self] completedDays in
+        let publishScanStep: @Sendable (Int, Int) -> Void = { [weak self] completedDays, reusedSoFar in
             Task { @MainActor in
                 self?.noteAnalysisProgress(AnalysisProgress(stage: .scanning,
                                                             completedDays: completedDays,
+                                                            reusedDays: reusedSoFar,
                                                             totalDays: maxDays,
                                                             startedAt: progressStartedAt,
                                                             lastStepAt: Date()))
             }
         }
-        let (scanned, skippedDayLines, reusedDays): ([DayScan], [String], [String]) =
+        let (scanned, skippedDayLines, reusedDays, reuseMissesByDay, firstSemanticMismatch):
+            ([DayScan], [String], [String], [(day: String, misses: [String])], String?) =
         await Task.detached(priority: .utility) {
             var out: [DayScan] = []
             // Days reused from their persisted row (fingerprint matched) — carried out so the main-actor
@@ -1303,6 +1330,12 @@ final class IntelligenceEngine: ObservableObject {
             // along on one; carried out alongside `out` and replayed through `diagnosticSink` on the main
             // actor below, same as `rhrLine`/the trace arrays. Mirrors the Kotlin `diag` sink.
             var skippedDayLines: [String] = []
+            // D1: per-day reuse-miss reasons, carried out and replayed on the main actor (the sink is
+            // main-actor bound), same pattern as `skippedDayLines`. Empty when reuse was not attempted.
+            var reuseMissesByDay: [(day: String, misses: [String])] = []
+            // The stored signature of the FIRST day that missed on it — pass-global, so one
+            // sample explains every day, and diffing it names the field rather than the group.
+            var firstSemanticMismatch: String? = nil
             // #938: the WHOOP 4.0 ADC offset is per-device, not per-night. Learn one anchor per owner
             // from the whole scan window and reuse it for every night so cross-night deviations survive.
             let skinAnchorScanFrom = nowLocalMidnight - (maxDays - 1) * 86_400 - 30 * 3_600
@@ -1324,7 +1357,7 @@ final class IntelligenceEngine: ObservableObject {
                 // (affected-interval miss, fingerprint reuse, too-few-HR skip), and a step that only fired
                 // on the full path would look stalled through a run of reused days — exactly the case where
                 // the pass is moving fastest.
-                publishScanStep(offset)
+                publishScanStep(offset, reusedDays.count)
                 let dayStart = nowLocalMidnight - offset * 86_400
                 let day = AnalyticsEngine.dayString(dayStart, offsetSec: tzOffset)
                 // Read a generous window around the night that ends on `day`; the stager finds the span.
@@ -1383,17 +1416,47 @@ final class IntelligenceEngine: ObservableObject {
                         deviceRevision: max(ownerRevision.deviceRevision,
                                             computedProbe?.deviceRevision ?? 0))
                 }
-                if reuseAllowed, let probe, let stored = storedFingerprints[day],
-                   persistedRowsByDay[day] != nil,
-                   stored.inputsMatch(DayScanFingerprint(day: day, ownerId: owner,
+                // D1: the reuse decision, and WHY. Restructured from one `if` into an explicit branch so
+                // every rejected day can name the condition that rejected it. The verdict is unchanged —
+                // `inputsMatch` is now literally `reuseMisses(_:).isEmpty`, so the explanation cannot
+                // drift from the decision. `reuseMissesByDay` is carried out of this detached loop and
+                // replayed through `diagnosticSink` on the main actor, exactly like `skippedDayLines`.
+                if reuseAllowed {
+                    if let probe, let stored = storedFingerprints[day], persistedRowsByDay[day] != nil {
+                        let current = DayScanFingerprint(day: day, ownerId: owner,
                                                          hrCount: 0, hrMaxTs: 0,
                                                          nightlySkinC: nil, traits: traitSignature,
                                                          inputRevision: probe.inputRevision,
                                                          deviceRevision: probe.deviceRevision,
                                                          scoringVersion: scoringVersion,
-                                                         semanticSignature: semanticSignature)) {
-                    reusedDays.append(day)
-                    continue
+                                                         semanticSignature: semanticSignature)
+                        let misses = stored.reuseMisses(current)
+                        if misses.isEmpty {
+                            reusedDays.append(day)
+                            continue
+                        }
+                        if misses.contains(.semanticSignature), firstSemanticMismatch == nil {
+                            firstSemanticMismatch = stored.semanticSignature
+                            // Emitted IMMEDIATELY, not with the end-of-pass summary. The signature is
+                            // pass-global, so the first day that fails on it already carries the whole
+                            // answer — waiting for the loop to finish would cost a full re-derivation
+                            // (~15 min on a deep library) to learn something known after the first day.
+                            // NSLog rather than `diagnosticSink`: the sink is main-actor bound and this
+                            // runs inside the detached loop, and this line is read in the Xcode console.
+                            let early = IntelligenceEngine.semanticSignatureDiff(
+                                stored: stored.semanticSignature ?? "", current: semanticSignature)
+                            NSLog("[FREEZE-DIAG] reuse semantic diff (first miss, day=\(day)): "
+                                + (early.isEmpty ? "(no field differs — parse failure?)"
+                                                 : early.joined(separator: ", ")))
+                        }
+                        reuseMissesByDay.append((day: day, misses: misses.map(\.rawValue)))
+                    } else {
+                        // Not a condition mismatch: there was nothing to compare against. Recorded
+                        // separately so it can never be mistaken for a real invalidation.
+                        let why = probe == nil ? "noProbe"
+                            : (storedFingerprints[day] == nil ? "noStoredFingerprint" : "noPersistedRow")
+                        reuseMissesByDay.append((day: day, misses: [why]))
+                    }
                 }
 
                 // TEMP DIAGNOSTIC (#freeze-investigation) — attribute the per-day cost. `hrSamples` UNIONs
@@ -1891,7 +1954,7 @@ final class IntelligenceEngine: ObservableObject {
                                    primarySessionRHR: primarySessionRHR,
                                    primarySessionRHRCoverage: primarySessionRHRCoverage))
             }
-            return (out, skippedDayLines, reusedDays)
+            return (out, skippedDayLines, reusedDays, reuseMissesByDay, firstSemanticMismatch)
         }.value
 
         // #714: replay each skipped day's diagnostic now that we're back on the main actor (diagnosticSink
@@ -1963,7 +2026,8 @@ final class IntelligenceEngine: ObservableObject {
 
         // The day loop is done; everything below (persist, baseline re-fold, window reconciliation) is
         // real work on a deep library, so the card must not sit at "day 21 of 21" through it.
-        analysisProgress = AnalysisProgress(stage: .finishing, completedDays: maxDays, totalDays: maxDays,
+        analysisProgress = AnalysisProgress(stage: .finishing, completedDays: maxDays,
+                                            reusedDays: reusedDays.count, totalDays: maxDays,
                                             startedAt: progressStartedAt, lastStepAt: Date())
 
         // ── Reused days (#launch-rescore) ────────────────────────────────────────────────────────────
@@ -2002,6 +2066,42 @@ final class IntelligenceEngine: ObservableObject {
         diagnosticSink?("re-score: scanned \(scannedDays.count) day(s), reused \(reusedDays.count) "
             + "unchanged day(s) from their stored scores", nil)
         NSLog("[FREEZE-DIAG] analyzeRecent day-skip: scanned=\(scannedDays.count) reused=\(reusedDays.count) of \(maxDays)")
+
+        // D1: WHY each day was re-derived rather than reused. `day-skip` above reports the COUNT, which
+        // on a real device was indistinguishable between "the cache is broken" and "a scoring input
+        // legitimately moved". Five of the six conditions are pass-global — they pass for every day or
+        // fail for every day — so the summary's shape names the cause outright: 20 misses on a
+        // pass-global condition is a global invalidation, 1–2 on `inputRevision` is ordinary new data.
+        for entry in reuseMissesByDay {
+            diagnosticSink?("reuse day=\(entry.day) reuse=false miss=\(entry.misses.joined(separator: ","))",
+                            nil)
+        }
+        if !reuseMissesByDay.isEmpty {
+            var missCounts: [String: Int] = [:]
+            for entry in reuseMissesByDay {
+                for miss in entry.misses { missCounts[miss, default: 0] += 1 }
+            }
+            // Sorted by count then name so two runs of the same shape print identically and a diff of
+            // two logs shows what actually moved.
+            let breakdown = missCounts.sorted { ($0.value, $1.key) > ($1.value, $0.key) }
+                .map { "\($0.key)=\($0.value)" }.joined(separator: " ")
+            // `walked` is the whole window; `recomputed` is what actually cost anything. The first
+            // draft of this line printed `scanned=` for the re-derived count AND `recomputed=` for the
+            // same number, which read as if two different things happened to agree.
+            let line = "reuse summary: walked=\(maxDays) reused=\(reusedDays.count) "
+                + "recomputed=\(scannedDays.count) | miss: \(breakdown)"
+            diagnosticSink?(line, nil)
+            NSLog("[FREEZE-DIAG] \(line)")
+            // `semanticSignature` is pass-global: one sample explains all of them, so the field-level
+            // diff is printed once rather than per day.
+            if let storedSemantic = firstSemanticMismatch {
+                let diff = Self.semanticSignatureDiff(stored: storedSemantic, current: semanticSignature)
+                let detail = diff.isEmpty ? "(no field differs — parse failure?)" : diff.joined(separator: ", ")
+                let semanticLine = "reuse semantic diff: \(detail)"
+                diagnosticSink?(semanticLine, nil)
+                NSLog("[FREEZE-DIAG] \(semanticLine)")
+            }
+        }
 
         // ── Seed the baseline from the UNION of imported nightly history + the values just computed.
         // THIS is the BLE-only recovery fix: the "-noop" nightly avgHrv/restingHr finally feed the
