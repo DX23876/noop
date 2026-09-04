@@ -2102,6 +2102,36 @@ final class IntelligenceEngine: ObservableObject {
                 NSLog("[FREEZE-DIAG] \(semanticLine)")
             }
         }
+        // TEMP DIAGNOSTIC (D3) — where the time AFTER the day loop goes.
+        //
+        // Measured on a real 2.8 GB library once per-day reuse worked: a pass that re-derived exactly ONE
+        // day still took 93 s, and only 35–54 s of that was the day. The remainder is everything from here
+        // to EXIT, and it is FIXED cost — it folds baselines over the whole history, re-scores recovery for
+        // all 21 days against the new baseline, and persists the window, none of which gets cheaper because
+        // reuse worked. That makes this phase the largest single item in a steady-state pass, and nothing
+        // in it was timed.
+        //
+        // Attribution before any fix: the candidates here (a daily-metrics read spanning all of time, two
+        // 100 000-row workout reads, the self-heal, pass 2, the persist tail, a full repo.refresh) are all
+        // plausible and that is exactly the problem. Three hypotheses in this investigation were reasoned
+        // rather than measured, and all three were wrong.
+        //
+        // One line per pass. The marks are placed on statement boundaries, never between a comment block
+        // and the code it explains.
+        var diagPhaseLast = Date()
+        var diagPhases: [String] = []
+        func diagMark(_ name: String) {
+            let now = Date()
+            diagPhases.append("\(name)=\(String(format: "%.2f", now.timeIntervalSince(diagPhaseLast)))s")
+            diagPhaseLast = now
+        }
+        // A defer rather than a trailing call: the phases already measured are worth having even when a
+        // later step returns early or throws, which is precisely the pass whose cost is unexplained.
+        defer {
+            if !diagPhases.isEmpty {
+                NSLog("[FREEZE-DIAG] post-loop: " + diagPhases.joined(separator: " "))
+            }
+        }
 
         // ── Seed the baseline from the UNION of imported nightly history + the values just computed.
         // THIS is the BLE-only recovery fix: the "-noop" nightly avgHrv/restingHr finally feed the
@@ -2192,6 +2222,7 @@ final class IntelligenceEngine: ObservableObject {
         // a detected bout overlapping ANY of them is skipped below. Port of the Android dedup block.
         // (`computedId` is bound once above, before the off-actor scan loop.)
         let windowStart = now - maxDays * 86_400 - 30 * 3_600
+        diagMark("baselines")
         var realWorkouts = (try? await store.workouts(deviceId: deviceId, from: windowStart,
                                                        to: now, limit: 100_000)) ?? []
         realWorkouts += (try? await store.workouts(deviceId: "apple-health", from: windowStart,
@@ -2211,6 +2242,7 @@ final class IntelligenceEngine: ObservableObject {
         // Rest composite (0–100) per computed night, persisted as the `sleep_performance` metric
         // series so the dashboard's Rest score reflects the new composite, not raw efficiency.
         var restPoints: [MetricPoint] = []
+        diagMark("workoutRead")
         // User-corrected sleep windows override the detected sleep when scoring a day's sleep aggregates,
         // so Rest + recovery honor the edit , not just the Sleep tab's session view. An edited block
         // substitutes its detected twin (matched by the stable detected startTs) before totals recompute.
@@ -2238,6 +2270,7 @@ final class IntelligenceEngine: ObservableObject {
         // and nothing about the imported numbers is exposed. WHOOP wins over Apple, matching the merge's
         // source priority (whoopImport 0 < appleHealth 2 in DailyMetricSource.vitalPriority).
         let importedWhoopDays = Set(hist.map { $0.day })
+        diagMark("selfHeal")
         // The WHOLE apple-health daily history, chronological. Used both as a key-presence set for the
         // By-Day badge AND as the SDNN+RHR input for the Apple-Watch recovery fold below (a watch-only user
         // has these daily aggregates but no raw stream, so the raw-HR scoring loop never touched them).
@@ -2260,6 +2293,7 @@ final class IntelligenceEngine: ObservableObject {
         // the auto path produced NO trace at all (the "mode was on but produced NO trace" report), so an
         // "auto workout appeared then vanished" could not be explained from an export. Diagnostic only.
         let workoutsTraceActive = TestCentre.active(.workouts)
+        diagMark("appleRead")
         for night in scoredNights {
             // #299: scope the edits to THIS day before folding. A userEdited row / hand-logged nap belongs
             // to exactly ONE day — the day its night ENDS on, matching the daily's end-day bucket. `endTs`
@@ -2586,6 +2620,7 @@ final class IntelligenceEngine: ObservableObject {
             provenanceByCell["\(point.day)\u{1F}\(point.key)"] =
                 ScoreInputProvenanceRow(day: point.day, key: point.key, sourceId: source)
         }
+        diagMark("score2")
         try? await store.persistComputedScores(
             dailyMetrics: dailies,
             metricPoints: restPoints,
@@ -2971,6 +3006,7 @@ final class IntelligenceEngine: ObservableObject {
             ? "No scored nights yet. Wear the strap with NOOP connected overnight and the engine will score your charge, effort and rest itself, no WHOOP cloud required."
             : nil
 
+        diagMark("persist")
         // Reload the dashboard caches so the freshly computed scores show up immediately. A heal-only
         // pass (#899 dedup deleted stale session rows but no daily changed) must refresh too, so the
         // Sleep tab stops showing the removed duplicates right away.
@@ -3015,6 +3051,7 @@ final class IntelligenceEngine: ObservableObject {
         if !settled {
             diagnosticSink?("re-score: completed, but a newer rescore request remains owed (#1681)", nil)
         }
+        diagMark("refreshTail")
         diagnosticSink?("re-score: done — scored \(scoredNights.count) night(s) in \(Int(elapsed * 1000)) ms (#1005)", nil)
     }
 
