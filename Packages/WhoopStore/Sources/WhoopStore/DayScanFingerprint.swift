@@ -101,7 +101,7 @@ public struct DayScanFingerprint: Equatable, Sendable {
     ///
     /// This exists because `reused=0 of 21` on a device was indistinguishable from `reused=0` for any
     /// other reason: the Bool says a day was re-derived, never which of six conditions decided it, and
-    /// five of the six are PASS-GLOBAL (they either pass for every day or fail for every day). Knowing
+    /// four of the six are PASS-GLOBAL (they either pass for every day or fail for every day). Knowing
     /// which one flipped is the difference between a cache bug and a scoring-dependency problem.
     ///
     /// Nil-handling matches `inputsMatch`'s rule exactly: a nil on EITHER side counts as a miss, not a
@@ -122,11 +122,19 @@ public struct DayScanFingerprint: Equatable, Sendable {
         return misses
     }
 
-    /// One condition of `inputsMatch`. `owner`, `deviceRevision`, `scoringVersion`, `semanticSignature`
-    /// and `traits` are PASS-GLOBAL — a pass computes one value for the whole window, so each either
-    /// passes for every day or fails for every day. Only `inputRevision` is per-day. That asymmetry is
-    /// the whole diagnostic value: a summary showing 20 misses on a pass-global condition names the
-    /// cause outright, while 1–2 on `inputRevision` is ordinary new data.
+    /// One condition of `inputsMatch`, in three groups rather than two.
+    ///
+    /// `owner`, `deviceRevision`, `scoringVersion` and `traits` are PASS-GLOBAL — a pass computes one
+    /// value for the whole window, so each either passes for every day or fails for every day.
+    /// `inputRevision` is per-day. `semanticSignature` is MIXED, and used to be listed with the
+    /// pass-global four: it still carries pass-global fields (height, age, sex, tick calibration, tz,
+    /// the deep-HRV window), but body mass and max HR are now resolved PER DAY, so a weigh-in or a
+    /// max-HR change moves the signature of one day and leaves the other twenty matching. That is the
+    /// point of resolving them per day at all — as one global string, either invalidated all 21 days.
+    ///
+    /// The counts are still what names the cause, and the split makes them sharper: 21 misses on
+    /// `semanticSignature` is a genuinely global field, 1 is a per-day one, and `semanticSignatureDiff`
+    /// says which field either way. 1–2 on `inputRevision` is ordinary new data.
     public enum ReuseMiss: String, CaseIterable, Sendable {
         case owner, inputRevision, deviceRevision, scoringVersion, semanticSignature, traits
     }
