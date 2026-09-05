@@ -131,3 +131,81 @@ final class WeightByDayTests: XCTestCase {
         XCTAssertNotEqual(try XCTUnwrap(out["2026-09-04"]), try XCTUnwrap(out["2026-09-01"]))
     }
 }
+
+/// Pins the properties the per-day weight fix RESTS on, as opposed to the ones it provides.
+///
+/// The fix replaces one pass-global number with a resolved value per day. That only ends the repeated
+/// full re-derivations if the resolved value is stable between passes — a value that wobbles would
+/// invalidate all 21 days forever, which is the exact failure it was written to stop, restored in a form
+/// nobody would look for. These tests hold the stability; `WeightByDayTests` holds the causality.
+final class WeightByDayStabilityTests: XCTestCase {
+
+    private let fallback = 80.0
+
+    private func obs(_ day: String, _ kg: Double) throws -> CausalWeightObservation {
+        let date = try XCTUnwrap(WeightSeries.date(forDay: day))
+        return CausalWeightObservation(timestamp: Int(date.timeIntervalSince1970),
+                                       weightKg: kg, source: .health)
+    }
+
+    private func history() throws -> [CausalWeightObservation] {
+        [try obs("2026-08-20", 96.4), try obs("2026-08-27", 95.9),
+         try obs("2026-09-01", 95.2), try obs("2026-09-04", 95.05)]
+    }
+
+    /// THE stability property. Two passes over an unchanged history must produce BIT-identical values —
+    /// not merely close ones. The signature compares `bitPattern`, so a difference in the last bit is as
+    /// total an invalidation as a difference of ten kilos.
+    func testResolvingTwiceOverAnUnchangedHistoryIsBitIdentical() throws {
+        let days = ["2026-09-05", "2026-09-04", "2026-09-03", "2026-09-02", "2026-09-01"]
+        let observations = try history()
+        let first = IntelligenceEngine.weightByDay(days: days, observations: observations,
+                                                   fallbackKg: fallback)
+        let second = IntelligenceEngine.weightByDay(days: days, observations: observations,
+                                                    fallbackKg: fallback)
+        for day in days {
+            XCTAssertEqual(try XCTUnwrap(first[day]).bitPattern,
+                           try XCTUnwrap(second[day]).bitPattern,
+                           "\(day) resolved to a different bit pattern on the second pass")
+        }
+    }
+
+    /// A day's value must not depend on which WINDOW it was asked about. The scan asks for 21 days; other
+    /// callers ask for other spans. If the answer moved with the question, two passes with different
+    /// windows would disagree about the same day and each would invalidate the other's work.
+    func testADaysValueDoesNotDependOnTheWindowItWasAskedIn() throws {
+        let observations = try history()
+        let narrow = IntelligenceEngine.weightByDay(days: ["2026-09-03"], observations: observations,
+                                                    fallbackKg: fallback)
+        let wide = IntelligenceEngine.weightByDay(
+            days: (0..<21).map { String(format: "2026-09-%02d", 21 - $0) },
+            observations: observations, fallbackKg: fallback)
+        XCTAssertEqual(try XCTUnwrap(narrow["2026-09-03"]).bitPattern,
+                       try XCTUnwrap(wide["2026-09-03"]).bitPattern)
+    }
+
+    /// The order observations arrive in is not information. `CausalWeightResolver` sorts internally, but
+    /// this is the caller's contract: a Health sync that returns rows in a different order than last time
+    /// must not re-derive three weeks.
+    func testObservationOrderDoesNotChangeTheResult() throws {
+        let days = ["2026-09-05", "2026-09-01"]
+        let forward = try history()
+        let a = IntelligenceEngine.weightByDay(days: days, observations: forward, fallbackKg: fallback)
+        let b = IntelligenceEngine.weightByDay(days: days, observations: forward.reversed(),
+                                               fallbackKg: fallback)
+        for day in days {
+            XCTAssertEqual(try XCTUnwrap(a[day]).bitPattern, try XCTUnwrap(b[day]).bitPattern, day)
+        }
+    }
+
+    /// End to end, in the shape the device log prints: a per-day signature differing only in its weight
+    /// component must be reported as `weight`, alone. That line is the diagnostic that identified this bug
+    /// three times over; without it the pass says only "semanticSignature" and names no field.
+    func testAWeightOnlyDifferenceIsReportedAsWeightAlone() throws {
+        let base = "height=4640607293656334336|age=35|sex=male|hrmax=0|tz=7200"
+        let stored = "\(base)|weight=\((95.05).bitPattern)"
+        let current = "\(base)|weight=\((95.2).bitPattern)"
+        XCTAssertEqual(IntelligenceEngine.semanticSignatureDiff(stored: stored, current: current),
+                       ["weight: \((95.05).bitPattern) → \((95.2).bitPattern)"])
+    }
+}
