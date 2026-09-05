@@ -986,6 +986,7 @@ final class AICoachEngine: ObservableObject {
     func newConversation() {
         if let cur = activeConversation, cur.messages.isEmpty {
             chartsByMessage = [:]
+            cardsByMessage = [:]
             clearError()
             return
         }
@@ -1081,6 +1082,11 @@ final class AICoachEngine: ObservableObject {
             if let id = UUID(uuidString: idStr) { map[id] = snap.artifact }
         }
         chartsByMessage = map
+        var cardMap: [UUID: CoachCardArtifact] = [:]
+        for (idStr, snap) in convo.cards {
+            if let id = UUID(uuidString: idStr) { cardMap[id] = snap.artifact }
+        }
+        cardsByMessage = cardMap
     }
 
     // MARK: Send control (start / stop / regenerate)
@@ -1155,6 +1161,7 @@ final class AICoachEngine: ObservableObject {
         // leaving those behind would strand images with no message to hang on.
         for m in msgs[lastUserIdx...] where m.role == .assistant {
             chartsByMessage[m.id] = nil
+            cardsByMessage[m.id] = nil
             removeChartSnapshot(m.id)
         }
         msgs.removeSubrange(lastUserIdx...)
@@ -1173,6 +1180,7 @@ final class AICoachEngine: ObservableObject {
         var msgs = messages
         for m in msgs[lastUserIdx...] where m.role == .assistant {
             chartsByMessage[m.id] = nil
+            cardsByMessage[m.id] = nil
             removeChartSnapshot(m.id)
         }
         msgs.removeSubrange(lastUserIdx...)   // drop the user turn too; send() re-appends it
@@ -1184,7 +1192,11 @@ final class AICoachEngine: ObservableObject {
     private func removeChartSnapshot(_ id: UUID) {
         guard let cid = activeConversationID,
               let idx = conversations.firstIndex(where: { $0.id == cid }) else { return }
+        // Both artifact kinds, from the one call site: a message that can no longer host anything
+        // cannot host a card either, and a snapshot left behind is a card that reappears after a
+        // relaunch attached to a message that no longer exists.
         conversations[idx].charts[id.uuidString] = nil
+        conversations[idx].cards[id.uuidString] = nil
     }
 
     /// True when an error is really a task/URL cancellation (a user Stop), not a genuine failure.
@@ -1459,8 +1471,9 @@ final class AICoachEngine: ObservableObject {
         messages.removeFirst(overflow)
         // A trimmed message can no longer host anything: drop its chart from memory AND from the
         // persisted conversation snapshot, or a long chat keeps every chart it ever drew.
-        for message in dropped where chartsByMessage[message.id] != nil {
+        for message in dropped {
             chartsByMessage[message.id] = nil
+            cardsByMessage[message.id] = nil
             removeChartSnapshot(message.id)
         }
         shiftSummaryWatermark(by: overflow)
@@ -1629,12 +1642,14 @@ final class AICoachEngine: ObservableObject {
                                                             memoryWrites: takeMemoryWrites())
                 }
                 flushPendingCharts()
+            flushPendingCards()
             } catch let e as AICoachError {
                 removeAssistantIfEmpty(replyId); discardPendingCharts(); setError(e)
             } catch {
                 // A user-initiated Stop cancels the task; keep whatever streamed so far, show no error.
                 if Self.isCancellation(error) {
                     flushPendingCharts()
+                    flushPendingCards()
                 } else {
                     removeAssistantIfEmpty(replyId); discardPendingCharts()
                     setError(error)
@@ -1652,6 +1667,7 @@ final class AICoachEngine: ObservableObject {
                                       toolsUsed: reply.toolsUsed, localContextUsed: localContextUsed,
                                       memoryWrites: takeMemoryWrites()))
             flushPendingCharts()
+            flushPendingCards()
         } catch let e as AICoachError {
             discardPendingCharts(); setError(e)
         } catch {
@@ -1685,6 +1701,9 @@ final class AICoachEngine: ObservableObject {
     /// renders a native chart for any assistant message whose id is present here. Published so the UI
     /// updates when a chart lands.
     @Published var chartsByMessage: [UUID: CoachChartArtifact] = [:]
+    /// Cards the coach showed, keyed by the empty assistant message that hosts each one. Same shape as
+    /// `chartsByMessage` — see `CoachCardArtifact` for why the two are separate maps rather than one.
+    @Published var cardsByMessage: [UUID: CoachCardArtifact] = [:]
 
     /// Charts requested via the `plot_metric` tool during the current turn, flushed into the transcript
     /// once the reply is done so they appear BELOW the coach's explanation rather than mid-stream.
@@ -1717,6 +1736,7 @@ final class AICoachEngine: ObservableObject {
     }
 
     private var pendingCharts: [CoachChartArtifact] = []
+    var pendingCards: [CoachCardArtifact] = []
 
     /// Handle a `plot_metric` tool call: build the chart and queue it, returning a text confirmation the
     /// model can reference. Returns a "no data" note (never a fabricated chart) when the metric is empty.
@@ -1747,7 +1767,29 @@ final class AICoachEngine: ObservableObject {
     }
 
     /// Discard any queued charts (used when a turn errors out).
-    func discardPendingCharts() { pendingCharts.removeAll() }
+    func discardPendingCharts() { pendingCharts.removeAll(); pendingCards.removeAll() }
+
+    /// The card twin of `flushPendingCharts`, with the same re-find-after-append rule: writing
+    /// `messages` re-sorts the conversation list, so an index captured before the append is stale.
+    func flushPendingCards() {
+        for art in pendingCards {
+            let id = UUID()
+            appendMessage(ChatMessage(id: id, role: .assistant, text: ""))
+            cardsByMessage[id] = art
+            if let cid = activeConversationID,
+               let idx = conversations.firstIndex(where: { $0.id == cid }) {
+                conversations[idx].cards[id.uuidString] = CoachCardSnapshot(art)
+            }
+        }
+        pendingCards.removeAll()
+    }
+
+    /// A card needs the same metric resolution `plot_metric` uses, and that resolver is private to the
+    /// engine. Exposed here rather than duplicated: two resolvers for one metric key is how a card and
+    /// a chart of the same thing begin to disagree, with nothing to say which drifted.
+    func chartArtifactForCard(metric: String, days: Int) async -> CoachChartArtifact? {
+        await chartArtifact(metric: metric, days: days)
+    }
 
     /// Build a chart artifact from the user's own daily metrics. Reads the private store, so it lives on
     /// the engine rather than in the tool extension. Returns nil for too little data. The five hand-named

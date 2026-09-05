@@ -117,6 +117,14 @@ struct CoachView: View {
     private var suggestions: [String] { CoachPrompts.suggestions(for: promptContext) }
     @State private var promptContext = CoachPrompts.Context()
 
+    /// Whether to offer follow-ups under the transcript: the conversation is idle and the last thing in
+    /// it is a finished coach reply. Not after the user's own turn (the answer is still coming), and not
+    /// while streaming (see the note at the call site).
+    private var showsFollowUpChips: Bool {
+        guard !coach.sending, coach.errorText == nil, let last = coach.messages.last else { return false }
+        return last.role == .assistant && !last.text.isEmpty
+    }
+
     /// Build the prompt context from what the app already has. Cheap by construction — in-memory reads
     /// of already-loaded state, no query and no derivation — because a suggestion that cost a request
     /// would be a worse deal than typing the question.
@@ -243,7 +251,11 @@ struct CoachView: View {
                 }
             }
         }
+        // Refreshed when the thread empties AND when a reply finishes: a turn can create the very thing
+        // the next suggestion should be about — the coach drafts a routine, and "talk me through the
+        // draft" only becomes worth offering once it exists.
         .task(id: coach.messages.isEmpty) { await refreshPromptContext() }
+        .task(id: coach.sending) { if !coach.sending { await refreshPromptContext() } }
         .task(id: coach.dataConsent) {
             await coach.prepareSemanticMemory()
             // On open: the morning brief (forward), then — in order, each with its own once-per-day or
@@ -507,12 +519,24 @@ struct CoachView: View {
                     if !coach.dataConsent {
                         consentOffBanner.id("consentOff").padding(.top, Self.groupGap)
                     }
-                    // Suggestion chips live at the bottom of an empty transcript, just above the composer.
+                    // Suggestion chips sit at the bottom of the transcript, just above the composer.
+                    //
+                    // Offered in three situations, in falling order of specificity: an empty thread (what
+                    // could I ask?), right after a card read (#P11 — metric-specific follow-ups, which
+                    // beat the general set because they are about the thing just shown), and after a
+                    // finished reply. That last one is the addition: the moment a person most often wants
+                    // a follow-up is the moment they have just read an answer, and until now the row
+                    // vanished the instant the conversation started.
+                    //
+                    // Only after a FINISHED reply, never mid-stream: chips appearing under half an answer
+                    // invite a tap that discards the rest of it.
                     if coach.messages.isEmpty {
                         suggestionChips.padding(.top, 4)
                     } else if !coach.cardSuggestions.isEmpty {
-                        // After a card read (#P11): metric-specific follow-ups, offered until the next turn.
                         cardSuggestionChips.padding(.top, 4)
+                    } else if showsFollowUpChips {
+                        suggestionChips.padding(.top, Self.groupGap)
+                            .transition(.opacity)
                     }
                 }
                 .padding(.horizontal, 18)
@@ -689,6 +713,16 @@ struct CoachView: View {
                 HStack(alignment: .top, spacing: 8) {
                     assistantGutter(groupStart: groupStart)
                     CoachChartBubble(artifact: chart)
+                    Spacer(minLength: 0)
+                }
+            } else if let card = coach.cardsByMessage[message.id] {
+                // A card hosts on its own empty assistant message, exactly like a chart, so it sits
+                // UNDER the reply it belongs to rather than interrupting it. Held to the reading width
+                // so a card and the paragraph above it share one left edge.
+                HStack(alignment: .top, spacing: 8) {
+                    assistantGutter(groupStart: groupStart)
+                    CoachCardBubble(artifact: card)
+                        .frame(maxWidth: Self.readingWidth, alignment: .leading)
                     Spacer(minLength: 0)
                 }
             } else if !message.text.isEmpty {
@@ -949,6 +983,7 @@ struct CoachView: View {
         case .chargeDrivers:           Text("Charge breakdown")
         case .proposePlan:             Text("Plan proposal")
         case .proposeGoalSetup:        Text("Goal and routine draft")
+        case .showCard:                Text("A card from your data")
         case .findHevyExercises:       Text("Your exercise list")
         case .hevyRoutines:            Text("Your routines")
         case .proposeHevyRoutine:      Text("Routine draft")
@@ -989,6 +1024,7 @@ struct CoachView: View {
         case .chargeDrivers:           Text("What moved your Charge up or down")
         case .proposePlan:             Text("A session proposed for you to accept or change")
         case .proposeGoalSetup:        Text("A goal and routines prepared for your review")
+        case .showCard:                Text("One of your own figures, shown as a card")
         case .findHevyExercises:       Text("The exercises in your Hevy catalogue")
         case .hevyRoutines:            Text("The routines saved in your Hevy account")
         case .proposeHevyRoutine:      Text("A routine drafted for your review — not sent to Hevy")
@@ -1324,8 +1360,23 @@ struct CoachView: View {
 
     // MARK: - Composer (docked)
 
+    /// The composer's leading slot — attachments, a camera, whatever comes later.
+    ///
+    /// EMPTY, and deliberately not a disabled button: a dead control that does nothing when tapped is
+    /// worse than no control, and "coming soon" affordances train people to stop trying things.
+    ///
+    /// What this DOES buy is that the row is already a three-part layout (leading accessory, field,
+    /// send) with its alignment and spacing settled, so adding one later is a body change rather than a
+    /// composer redesign. `EmptyView` occupies no space, so nothing about the current look depends on
+    /// this being here.
+    @ViewBuilder
+    private var composerLeadingAccessory: some View {
+        EmptyView()
+    }
+
     private var composer: some View {
         HStack(alignment: .bottom, spacing: 10) {
+            composerLeadingAccessory
             TextField(coach.dataConsent ? "Ask Coach about your data…" : "Ask Coach…", text: $draft, axis: .vertical)
                 .textFieldStyle(.plain)
                 .font(StrandFont.body)

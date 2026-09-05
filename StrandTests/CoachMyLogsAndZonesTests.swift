@@ -77,11 +77,16 @@ final class CoachMyLogsAndZonesTests: XCTestCase {
         // `find_hevy_exercises` and `get_hevy_routines` the model would have to invent them, which is
         // how a routine ends up naming an exercise nobody has. Three definitions is the price of a
         // coach that can write a training plan against the user's real catalogue instead of guessing.
-        XCTAssertEqual(engine.coachTools.count, 31,
+        //
+        // 31 → 32: `show_card`. Reviewed and intended. The point of it is what it does NOT take: it has
+        // no parameter that could carry a value, so the model names a card and the app fills in every
+        // number from the user's own series. A figure the model assembled and the app rendered as a
+        // measurement is the invention this whole app is arranged to avoid.
+        XCTAssertEqual(engine.coachTools.count, 32,
                        "tool count changed — confirm the added per-round cost is intended")
 
         engine.toolConsent.enabled.insert(.patterns)
-        XCTAssertEqual(engine.coachTools.count, 33,
+        XCTAssertEqual(engine.coachTools.count, 34,
                        "the second opt-in adds personal patterns and training preferences")
     }
 

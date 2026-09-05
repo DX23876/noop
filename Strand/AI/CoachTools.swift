@@ -21,6 +21,9 @@ enum CoachTool: String, CaseIterable {
     case personalPatterns = "get_personal_patterns"
     /// Draw a native chart of one metric over a day range directly in the chat (a visual artifact).
     case plotMetric = "plot_metric"
+    /// Show one metric or one workout as a CARD in the chat. The model picks which; the app fills in
+    /// every number, so a card can never carry a figure nobody measured.
+    case showCard = "show_card"
     /// Save a durable fact about the user to the coach's persistent memory (CoachMemory).
     case rememberFact = "remember_fact"
     /// Correct a fact already in memory (replace its text) — so the coach's memory self-heals.
@@ -106,6 +109,14 @@ enum CoachTool: String, CaseIterable {
             return "Get the user's strongest personal patterns (their own n-of-1 correlations), a "
                 + "personal dose-response read for alcohol/caffeine when they log doses, and a roll-up "
                 + "of their logged Lab Book health numbers. Use to explain what helps or hurts them."
+        case .showCard:
+            return "Show ONE metric or ONE workout as a compact card in the chat, under your reply. Use it "
+                + "when a single figure is the point of the answer — today's HRV, last night's rest, the "
+                + "session they just did — where a chart would be overkill and a sentence buries the number. "
+                + "kind=metric with a metric key (charge, effort, hrv, rhr, sleep, or any key this user has), "
+                + "or kind=workout with workout_start from get_recent_workouts. The app fills in every value "
+                + "from the user's own data: do not pass numbers, and do not restate the card's figures in "
+                + "your text — say what they MEAN. At most one or two cards per reply."
         case .plotMetric:
             return "Draw a chart of one metric over time, shown directly in the chat. Use it when a "
                 + "trend is easier to see than to describe. metric is charge, effort, hrv, rhr or sleep, "
@@ -636,6 +647,18 @@ enum CoachTool: String, CaseIterable {
                                   "items": ["type": "object", "properties": exerciseProperties]]
                 ],
                 "required": ["title", "exercises"]
+            ]
+        case .showCard:
+            return [
+                "type": "object",
+                "properties": [
+                    "kind": ["type": "string", "enum": ["metric", "workout"],
+                             "description": "Defaults to metric."],
+                    "metric": ["type": "string",
+                               "description": "For kind=metric: charge, effort, hrv, rhr, sleep, or any metric key this user has data for."],
+                    "workout_start": ["type": "integer",
+                                      "description": "For kind=workout: the session's start timestamp in unix seconds, copied from get_recent_workouts."]
+                ]
             ]
         case .proposeGoalSetup:
             let goalProperties: [String: Any] = [
@@ -1241,6 +1264,10 @@ extension AICoachEngine {
         case .estimateSessionEffort:
             return await estimateSessionEffortTool(zone: Self.intArg(input["zone"]),
                                                    durationMin: Self.intArg(input["duration_min"]))
+        case .showCard:
+            return await handleShowCard(kind: (input["kind"] as? String) ?? "metric",
+                                        metric: input["metric"] as? String,
+                                        workoutStart: Self.intArg(input["workout_start"]))
         case .findHevyExercises:
             let raw = (input["limit"] as? Int) ?? Int(input["limit"] as? Double ?? 15)
             return await findHevyExercisesTool(query: input["query"] as? String,

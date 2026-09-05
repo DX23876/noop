@@ -55,7 +55,51 @@ struct StrengthView: View {
             .padding(NoopMetrics.screenPadding)
         }
         .navigationTitle(Text("Strength"))
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                if let context = coachContext { CoachCardButton(context: context) }
+            }
+        }
         .task { await loadIfNeeded() }
+    }
+
+    /// What the coach is handed when "Ask coach" is tapped here (#P11).
+    ///
+    /// Built from figures this screen has ALREADY derived — nothing new is computed, and no raw set
+    /// leaves the device beyond the compact line the coach could fetch through its own tools anyway.
+    /// Without it the user would have to retype what they are looking at, which is the whole reason the
+    /// card-context entry exists.
+    ///
+    /// Nil until the screen has something to talk about: an "ask coach" button over an empty screen
+    /// promises a conversation neither side can have.
+    private var coachContext: CoachCardContext? {
+        guard loaded, let latest = summaries.first else { return nil }
+        var parts: [String] = []
+        parts.append("Last session \(Date(timeIntervalSince1970: TimeInterval(latest.startTs)).formatted(date: .abbreviated, time: .omitted)): "
+                     + "\(latest.workingSetCount) working sets across \(latest.exerciseCount) exercises")
+        if latest.volumeLoadKg > 0 {
+            parts.append("volume \(HevySource.groupedKg(latest.volumeLoadKg)) kg")
+        }
+        if let rpe = latest.meanRpe {
+            parts.append(String(format: "mean RPE %.1f over %d of %d sets", rpe,
+                                latest.rpeSetCount, latest.workingSetCount))
+        }
+        let week = weeklyMuscles.prefix(4)
+            .map { "\($0.group.label) \($0.primary)" }
+            .joined(separator: ", ")
+        if !week.isEmpty { parts.append("hard sets this week — " + week) }
+        if let id = selectedTemplateId, let point = trend.last, let e1rm = point.bestE1RMKg {
+            let title = templates[id]?.title ?? id
+            parts.append(String(format: "%@ estimated 1RM %.1f kg", title, e1rm))
+        }
+        return CoachCardContext(
+            title: String(localized: "Strength"),
+            summary: parts.joined(separator: " · "),
+            suggestions: [
+                String(localized: "Is my volume where it should be?"),
+                String(localized: "Which muscle group am I neglecting?"),
+                String(localized: "How is my bench progressing?"),
+            ])
     }
 
     // MARK: - Empty

@@ -48,7 +48,10 @@ extension CoachTool {
     /// ship without being consent-gated.
     var purpose: CoachPurpose {
         switch self {
-        case .biometricSummary, .readiness, .chargeDrivers, .sleepDetail, .plotMetric, .energyBalance:
+        // A card is the same data the metric tools already return, drawn instead of described, so it
+        // rides `.coreBiometrics` with `plot_metric` rather than inventing a purpose for one tool.
+        case .biometricSummary, .readiness, .chargeDrivers, .sleepDetail, .plotMetric, .energyBalance,
+             .showCard:
             return .coreBiometrics
         case .dataCatalog, .metricHistory:
             return .longHistory

@@ -18,6 +18,9 @@ struct CoachConversation: Identifiable, Codable, Equatable {
     /// Chart snapshots keyed by the id (as a string, for clean JSON) of the empty assistant message
     /// that hosts them in the transcript. Rebuilt into `chartsByMessage` when the conversation loads.
     var charts: [String: CoachChartSnapshot]
+    /// Cards shown in this thread, keyed by their host message id. Additive and decoded with a default,
+    /// exactly like `charts`, so a transcript written before cards existed still loads.
+    var cards: [String: CoachCardSnapshot]
     /// A short distilled summary of the conversation, produced by the cheap memory model. Feeds
     /// cross-conversation recall (the digest + the search tool). `nil` until summarised. Optional, so
     /// conversations saved before this field existed decode fine.
@@ -48,6 +51,7 @@ struct CoachConversation: Identifiable, Codable, Equatable {
          updatedAt: Date = Date(),
          messages: [ChatMessage] = [],
          charts: [String: CoachChartSnapshot] = [:],
+         cards: [String: CoachCardSnapshot] = [:],
          summary: String? = nil,
          summarizedCount: Int? = nil,
          archived: Bool = false,
@@ -58,6 +62,7 @@ struct CoachConversation: Identifiable, Codable, Equatable {
         self.updatedAt = updatedAt
         self.messages = messages
         self.charts = charts
+        self.cards = cards
         self.summary = summary
         self.summarizedCount = summarizedCount
         self.archived = archived
@@ -65,7 +70,7 @@ struct CoachConversation: Identifiable, Codable, Equatable {
     }
 
     private enum CodingKeys: String, CodingKey {
-        case id, title, createdAt, updatedAt, messages, charts, summary, summarizedCount, archived
+        case id, title, createdAt, updatedAt, messages, charts, cards, summary, summarizedCount, archived
         case pinned
     }
 
@@ -77,6 +82,7 @@ struct CoachConversation: Identifiable, Codable, Equatable {
         updatedAt = try c.decode(Date.self, forKey: .updatedAt)
         messages = try c.decode([ChatMessage].self, forKey: .messages)
         charts = try c.decodeIfPresent([String: CoachChartSnapshot].self, forKey: .charts) ?? [:]
+        cards = try c.decodeIfPresent([String: CoachCardSnapshot].self, forKey: .cards) ?? [:]
         summary = try c.decodeIfPresent(String.self, forKey: .summary)
         summarizedCount = try c.decodeIfPresent(Int.self, forKey: .summarizedCount)
         archived = try c.decodeIfPresent(Bool.self, forKey: .archived) ?? false
