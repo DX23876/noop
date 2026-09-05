@@ -54,7 +54,8 @@
     "v50-whoop-energy-buckets",
     "v51-daily-skin-temp-absolute",
     "v52-drop-raw-imu-sample",
-    "v53-daily-sleep-hr-only"
+    "v53-daily-sleep-hr-only",
+    "v54-hevy-strength"
   ],
   "divergenceReasons": {
     "android-orphan-synced-column": "REAL COLUMN DRIFT: `synced` exists on Android only. GRDB's v10 note is explicit that stepSample gets no `synced` column ('unused; see StreamStore'), and v12's ppgHrSample never had one either; the Room entities copied the flag from the older per-second entities. Nothing reads it on Android — the per-row upload flag belongs to an upload path that does not exist there — so it is dead width, not divergent data. Removing it needs a Room table rebuild.",
@@ -364,6 +365,90 @@
       "primaryKey": ["deviceId", "sourceId", "bucketStart"],
       "indices": [
         { "name": "idx_healthEnergyBucket_device_time", "unique": false, "columns": ["deviceId", "bucketStart"] }
+      ]
+    },
+    "hevyExercise": {
+      "platform": "ios_only",
+      "reason": "One exercise within a Hevy session (GRDB v54), ordered by `idx`. ON DELETE CASCADE from hevyWorkout so a session deleted in Hevy cannot leave orphan rows that still count toward weekly volume. ios_only for the same reason as hevyWorkout.",
+      "columns": [
+        { "name": "workoutId", "affinity": "TEXT", "notNull": true, "default": null },
+        { "name": "idx", "affinity": "INTEGER", "notNull": true, "default": null },
+        { "name": "title", "affinity": "TEXT", "notNull": true, "default": null },
+        { "name": "templateId", "affinity": "TEXT", "notNull": false, "default": null },
+        { "name": "supersetId", "affinity": "INTEGER", "notNull": false, "default": null },
+        { "name": "notes", "affinity": "TEXT", "notNull": false, "default": null }
+      ],
+      "primaryKey": ["workoutId", "idx"],
+      "indices": [
+        { "name": "idx_hevyExercise_template", "unique": false, "columns": ["templateId"] }
+      ]
+    },
+    "hevyExerciseTemplate": {
+      "platform": "ios_only",
+      "reason": "The Hevy exercise catalogue (GRDB v54), mirrored in FULL rather than only for exercises already performed — a coach that can only name movements from the history could never suggest a new one. `secondaryMuscleGroupsJSON` is a JSON array of raw enum values. ios_only for the same reason as hevyWorkout.",
+      "columns": [
+        { "name": "id", "affinity": "TEXT", "notNull": false, "default": null },
+        { "name": "title", "affinity": "TEXT", "notNull": true, "default": null },
+        { "name": "type", "affinity": "TEXT", "notNull": true, "default": null },
+        { "name": "primaryMuscleGroup", "affinity": "TEXT", "notNull": true, "default": null },
+        { "name": "secondaryMuscleGroupsJSON", "affinity": "TEXT", "notNull": true, "default": null },
+        { "name": "equipment", "affinity": "TEXT", "notNull": true, "default": null },
+        { "name": "isCustom", "affinity": "NUMERIC", "notNull": true, "default": null }
+      ],
+      "primaryKey": ["id"],
+      "indices": [
+        { "name": "idx_hevyExerciseTemplate_muscle", "unique": false, "columns": ["primaryMuscleGroup"] }
+      ]
+    },
+    "hevyRoutine": {
+      "platform": "ios_only",
+      "reason": "One saved Hevy routine (GRDB v54). `rawJSON` is the server's verbatim document: `PUT /v1/routines/{id}` is a FULL REPLACE, so a field this build does not model would be dropped on the first edit unless the original is still around to merge into. ios_only for the same reason as hevyWorkout.",
+      "columns": [
+        { "name": "id", "affinity": "TEXT", "notNull": false, "default": null },
+        { "name": "title", "affinity": "TEXT", "notNull": true, "default": null },
+        { "name": "folderId", "affinity": "INTEGER", "notNull": false, "default": null },
+        { "name": "notes", "affinity": "TEXT", "notNull": false, "default": null },
+        { "name": "updatedAtTs", "affinity": "INTEGER", "notNull": true, "default": null },
+        { "name": "rawJSON", "affinity": "TEXT", "notNull": true, "default": null }
+      ],
+      "primaryKey": ["id"],
+      "indices": []
+    },
+    "hevySet": {
+      "platform": "ios_only",
+      "reason": "One logged set (GRDB v54): its own table rather than a JSON blob because the whole point is to query it — sets per muscle group per week, e1RM per exercise over time, RPE at a given load. ON DELETE CASCADE from hevyWorkout. ios_only for the same reason as hevyWorkout.",
+      "columns": [
+        { "name": "workoutId", "affinity": "TEXT", "notNull": true, "default": null },
+        { "name": "exerciseIdx", "affinity": "INTEGER", "notNull": true, "default": null },
+        { "name": "idx", "affinity": "INTEGER", "notNull": true, "default": null },
+        { "name": "type", "affinity": "TEXT", "notNull": true, "default": null },
+        { "name": "weightKg", "affinity": "REAL", "notNull": false, "default": null },
+        { "name": "reps", "affinity": "INTEGER", "notNull": false, "default": null },
+        { "name": "distanceM", "affinity": "REAL", "notNull": false, "default": null },
+        { "name": "durationS", "affinity": "REAL", "notNull": false, "default": null },
+        { "name": "rpe", "affinity": "REAL", "notNull": false, "default": null },
+        { "name": "customMetric", "affinity": "REAL", "notNull": false, "default": null }
+      ],
+      "primaryKey": ["workoutId", "exerciseIdx", "idx"],
+      "indices": []
+    },
+    "hevyWorkout": {
+      "platform": "ios_only",
+      "reason": "One Hevy strength session (GRDB v54). Hevy's own workout UUID is the primary key, which is what makes the incremental `events?since=` feed idempotent and what a `deleted` event names. This fork carries no Android app, so there is no Room twin to pin — an ios_only entry rather than silent drift.",
+      "columns": [
+        { "name": "id", "affinity": "TEXT", "notNull": false, "default": null },
+        { "name": "title", "affinity": "TEXT", "notNull": true, "default": null },
+        { "name": "routineId", "affinity": "TEXT", "notNull": false, "default": null },
+        { "name": "notes", "affinity": "TEXT", "notNull": false, "default": null },
+        { "name": "startTs", "affinity": "INTEGER", "notNull": true, "default": null },
+        { "name": "endTs", "affinity": "INTEGER", "notNull": true, "default": null },
+        { "name": "updatedAtTs", "affinity": "INTEGER", "notNull": true, "default": null },
+        { "name": "createdAtTs", "affinity": "INTEGER", "notNull": true, "default": null }
+      ],
+      "primaryKey": ["id"],
+      "indices": [
+        { "name": "idx_hevyWorkout_startTs", "unique": false, "columns": ["startTs"] },
+        { "name": "idx_hevyWorkout_updatedAtTs", "unique": false, "columns": ["updatedAtTs"] }
       ]
     },
     "whoopDailyEnergy": {

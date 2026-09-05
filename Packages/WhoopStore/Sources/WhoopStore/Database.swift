@@ -1174,6 +1174,87 @@ extension WhoopStore {
                 t.add(column: "sleepHrOnly", .boolean)
             }
         }
+        // v54-hevy-strength: the Hevy lane's own tables. Purely additive — nothing existing is touched,
+        // so an install that never connects Hevy carries five empty tables and behaves exactly as before.
+        //
+        // Set-level rows are their own tables rather than a JSON blob on `workout` because the whole
+        // point is to query them: sets per muscle group per week, e1RM per exercise over time, RPE at a
+        // given load. A blob would make every one of those a full deserialize-and-scan.
+        //
+        // Hevy's ids are the primary keys throughout. That is what makes a re-sync idempotent (the same
+        // workout upserts in place) and what a `deleted` event can name.
+        migrator.registerMigration("v54-hevy-strength") { db in
+            try db.create(table: "hevyWorkout") { t in
+                t.column("id", .text).primaryKey()        // Hevy's own workout UUID
+                t.column("title", .text).notNull()
+                t.column("routineId", .text)
+                t.column("notes", .text)
+                t.column("startTs", .integer).notNull()
+                t.column("endTs", .integer).notNull()
+                t.column("updatedAtTs", .integer).notNull()
+                t.column("createdAtTs", .integer).notNull()
+            }
+            // Every read is "the sessions in this window", newest first.
+            try db.create(index: "idx_hevyWorkout_startTs", on: "hevyWorkout", columns: ["startTs"])
+            // The incremental cursor is MAX(updatedAtTs); indexed so resuming a sync is a lookup.
+            try db.create(index: "idx_hevyWorkout_updatedAtTs", on: "hevyWorkout", columns: ["updatedAtTs"])
+
+            // ON DELETE CASCADE on both child tables: a workout deleted in Hevy must take its exercises
+            // and sets with it. Doing that in SQL rather than in Swift means a future delete path cannot
+            // forget one of the two and leave orphan sets that still count toward weekly volume.
+            try db.create(table: "hevyExercise") { t in
+                t.column("workoutId", .text).notNull()
+                    .references("hevyWorkout", onDelete: .cascade)
+                t.column("idx", .integer).notNull()       // order within the workout
+                t.column("title", .text).notNull()
+                t.column("templateId", .text)
+                t.column("supersetId", .integer)
+                t.column("notes", .text)
+                t.primaryKey(["workoutId", "idx"])
+            }
+            try db.create(index: "idx_hevyExercise_template", on: "hevyExercise", columns: ["templateId"])
+
+            try db.create(table: "hevySet") { t in
+                t.column("workoutId", .text).notNull()
+                    .references("hevyWorkout", onDelete: .cascade)
+                t.column("exerciseIdx", .integer).notNull()
+                t.column("idx", .integer).notNull()       // order within the exercise
+                t.column("type", .text).notNull()         // normal | warmup | dropset | failure | other
+                t.column("weightKg", .double)
+                t.column("reps", .integer)
+                t.column("distanceM", .double)
+                t.column("durationS", .double)
+                t.column("rpe", .double)
+                t.column("customMetric", .double)
+                t.primaryKey(["workoutId", "exerciseIdx", "idx"])
+            }
+
+            // The catalogue: mirrored in full, so a coach can name a movement the user has never done.
+            try db.create(table: "hevyExerciseTemplate") { t in
+                t.column("id", .text).primaryKey()
+                t.column("title", .text).notNull()
+                t.column("type", .text).notNull()         // Hevy's own token, e.g. "weight_reps"
+                t.column("primaryMuscleGroup", .text).notNull()
+                t.column("secondaryMuscleGroupsJSON", .text).notNull()   // JSON array of raw values
+                t.column("equipment", .text).notNull()
+                t.column("isCustom", .boolean).notNull()
+            }
+            // Muscle-group and title lookups back the exercise search the coach uses to pick movements.
+            try db.create(index: "idx_hevyExerciseTemplate_muscle",
+                          on: "hevyExerciseTemplate", columns: ["primaryMuscleGroup"])
+
+            // `rawJSON` is the server's own routine document, kept verbatim. `PUT /v1/routines/{id}` is
+            // a FULL REPLACE: a field this build does not model would be dropped on the first edit
+            // unless the original is still around to merge into. See `HevyRoutine`.
+            try db.create(table: "hevyRoutine") { t in
+                t.column("id", .text).primaryKey()
+                t.column("title", .text).notNull()
+                t.column("folderId", .integer)
+                t.column("notes", .text)
+                t.column("updatedAtTs", .integer).notNull()
+                t.column("rawJSON", .text).notNull()
+            }
+        }
         return migrator
     }
 }
