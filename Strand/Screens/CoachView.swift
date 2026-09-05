@@ -59,10 +59,21 @@ struct CoachView: View {
     /// Vertical gap before a NEW turn (a role switch, or the first message) — bigger, so a fresh reply or
     /// question reads as its own moment (#R-chat-tidy). Also used before the typing indicator/error banner,
     /// which are themselves always the start of a new turn.
-    private static let groupGap: CGFloat = 16
+    private static let groupGap: CGFloat = 26
     /// Vertical gap before a CONTINUATION bubble — the same sender following themselves, tight so a run of
     /// coach turns still reads as one thought rather than several unrelated ones.
     private static let continuationGap: CGFloat = 4
+    /// The reading column a coach reply is laid out in.
+    ///
+    /// 720 rather than the old 560: that number was a BUBBLE width, chosen so a speech bubble did not
+    /// span the screen. A reply is now text on a page, and the constraint that matters for reading is
+    /// line length — roughly 70–90 characters at this size, which is where the eye reliably finds the
+    /// start of the next line. Wider is not better; this is a maximum, and on a phone the screen is
+    /// narrower than it anyway.
+    private static let readingWidth: CGFloat = 720
+    /// The transcript column: the reading width plus the avatar gutter and the row padding, so a reply
+    /// gets its full measure rather than losing the gutter out of it.
+    private static let transcriptWidth: CGFloat = 800
     /// The ONE extra indent step for content nested a level deeper than a reply's side content (evidence
     /// header, Regenerate, actionRow all sit flush with each other; the expanded evidence detail sits one
     /// `sideContentIndent` in from that) — previously three uneven levels (#R-chat-tidy).
@@ -99,7 +110,46 @@ struct CoachView: View {
     @AppStorage(AppleInspiredColorsPrefs.enabledKey) private var appleHealthColors = AppleInspiredColorsPrefs.defaultEnabled
 
     /// #1862: shared with the Today Coach launcher sheet — see `CoachPrompts`.
-    private var suggestions: [String] { CoachPrompts.suggestions }
+    ///
+    /// Resolved once into `@State` rather than computed in the body, and read from `coach.repo` rather
+    /// than through an `@EnvironmentObject`: observing the repository here would re-render the whole
+    /// transcript on every dashboard publish, which is a steep price for four chips.
+    private var suggestions: [String] { CoachPrompts.suggestions(for: promptContext) }
+    @State private var promptContext = CoachPrompts.Context()
+
+    /// Build the prompt context from what the app already has. Cheap by construction — in-memory reads
+    /// of already-loaded state, no query and no derivation — because a suggestion that cost a request
+    /// would be a worse deal than typing the question.
+    private func refreshPromptContext() async {
+        var context = CoachPrompts.Context()
+        // Everything below is either already in memory or one indexed range read over a small table.
+        // Deliberately NOT `repo.workoutRows()`: that walks every source and reconciles HR per row, and
+        // it is the read that made the launch path slow (#freeze-investigation). `exerciseCount` on the
+        // day already answers "did I train today", which is all a chip needs.
+        let days = coach.repo.days
+        let todayKey = Repository.localDayKey(Date())
+        if let today = days.first(where: { $0.day == todayKey }) {
+            context.chargeToday = today.recovery
+            context.hasSleepLastNight = today.totalSleepMin != nil
+            context.trainedToday = (today.exerciseCount ?? 0) > 0
+        }
+        // The user's own recent average, so "low" means low FOR THEM — the same principle every other
+        // comparison in the app follows.
+        let recent = days.prefix(30).compactMap(\.recovery)
+        if recent.count >= 5 {
+            context.chargeBaseline = recent.reduce(0, +) / Double(recent.count)
+        }
+        context.hevyConnected = HevyCredentials.isConnected
+        if context.hevyConnected, let store = await coach.repo.storeHandle() {
+            let dayStart = Int(Calendar.current.startOfDay(for: Date()).timeIntervalSince1970)
+            let sessions = (try? await store.hevyWorkouts(from: dayStart,
+                                                          to: dayStart + 86_400, limit: 10)) ?? []
+            context.strengthToday = !sessions.isEmpty
+            if !sessions.isEmpty { context.trainedToday = true }
+        }
+        context.hasPendingDraft = !goalSetupStore.pending.isEmpty || !hevyRoutineStore.pending.isEmpty
+        promptContext = context
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -193,6 +243,7 @@ struct CoachView: View {
                 }
             }
         }
+        .task(id: coach.messages.isEmpty) { await refreshPromptContext() }
         .task(id: coach.dataConsent) {
             await coach.prepareSemanticMemory()
             // On open: the morning brief (forward), then — in order, each with its own once-per-day or
@@ -464,9 +515,14 @@ struct CoachView: View {
                         cardSuggestionChips.padding(.top, 4)
                     }
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 12)
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 18)
+                .padding(.vertical, 20)
+                // The transcript is a CENTRED column on a wide window rather than text pinned to the
+                // left edge. Without this the reading measure above would hold the lines to 720pt while
+                // leaving the rest of a Mac window empty on one side, which looks like a layout bug
+                // rather than a choice. On a phone the screen is narrower than the cap, so nothing moves.
+                .frame(maxWidth: Self.transcriptWidth, alignment: .leading)
+                .frame(maxWidth: .infinity, alignment: .center)
                 // The insert/remove transitions above only play if the COUNT change itself is animated —
                 // the engine publishes `messages` outside any `withAnimation`, so the animation has to be
                 // declared here rather than wrapped around the scroll call.
@@ -588,14 +644,16 @@ struct CoachView: View {
         switch message.role {
         case .user:
             HStack {
-                Spacer(minLength: 48)
+                // 32 rather than 48: the question no longer has to leave room for a bubble opposite it,
+                // and a long question crushed into half the width reads as an afterthought to the answer.
+                Spacer(minLength: 32)
                 Text(message.text)
                     .font(StrandFont.body)
                     .foregroundStyle(StrandPalette.surfaceBase)
                     .textSelection(.enabled)
                     .multilineTextAlignment(.leading)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 10)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
                     // A tail-side corner pulled tight (and a soft gradient instead of a flat fill) is what
                     // makes a rectangle read as a spoken turn rather than as a table cell.
                     .background(
@@ -604,7 +662,7 @@ struct CoachView: View {
                                        startPoint: .top, endPoint: .bottom),
                         in: CoachBubbleShape(side: .user)
                     )
-                    .frame(maxWidth: 520, alignment: .trailing)
+                    .frame(maxWidth: 620, alignment: .trailing)
                     .contextMenu {
                         copyButton(message.text)
                         shareButton(message.text)
@@ -653,12 +711,18 @@ struct CoachView: View {
                                     .textSelection(.enabled)
                             }
                         }
+                            // NO BUBBLE. The coach's reply is content on a page, not a spoken turn in a
+                            // messenger. A frosted card around six paragraphs with headings and a table
+                            // reads as a receipt for an answer rather than the answer, and the rounded
+                            // tail — which exists to say "someone said this" — is exactly wrong for
+                            // something meant to be read rather than heard.
+                            //
+                            // The speaker is still marked: the avatar gutter to the left says who is
+                            // talking, and the user's own turn keeps its bubble, so the alternation is
+                            // unambiguous without wrapping the long half in a container.
                             .fixedSize(horizontal: false, vertical: true)
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 11)
-                            .frostedCardSurface(tint: StrandPalette.chargeColor, cornerRadius: CoachRadius.card)
-                            .clipShape(CoachBubbleShape(side: .coach))
-                            .frame(maxWidth: 560, alignment: .leading)
+                            .padding(.vertical, 4)
+                            .frame(maxWidth: Self.readingWidth, alignment: .leading)
                             .contextMenu {
                                 copyButton(message.text)
                                 shareButton(message.text)
@@ -676,7 +740,7 @@ struct CoachView: View {
                                     }
                                 }
                             }
-                        Spacer(minLength: 48)
+                        Spacer(minLength: 0)
                     }
                     .accessibilityElement(children: .combine)
                     .accessibilityLabel("Coach said: \(message.text)")
@@ -1270,9 +1334,12 @@ struct CoachView: View {
                 // `.accessibility1` and above a line holds only a few words, so five of them is a
                 // keyhole. The upper bound still exists — an unbounded field would push the send button
                 // off-screen.
-                .lineLimit(1...(dynamicTypeSize >= .accessibility1 ? 12 : 5))
-                .padding(.horizontal, 12)
-                .padding(.vertical, 9)
+                // Eight lines before it starts scrolling internally, not five. A question worth
+                // typing is often a paragraph, and a field that starts scrolling mid-thought hides the
+                // beginning of what you were writing.
+                .lineLimit(1...(dynamicTypeSize >= .accessibility1 ? 14 : 8))
+                .padding(.horizontal, 14)
+                .padding(.vertical, 12)
                 .background(StrandPalette.surfaceInset, in: RoundedRectangle(cornerRadius: CoachRadius.field, style: .continuous))
                 .overlay(RoundedRectangle(cornerRadius: CoachRadius.field, style: .continuous)
                     .strokeBorder(composerFocused ? StrandPalette.focusRing : StrandPalette.hairline, lineWidth: 1))
@@ -1289,14 +1356,16 @@ struct CoachView: View {
 
             sendOrStopButton
         }
-        .padding(10)
+        .padding(12)
         // A floating glass capsule instead of a bordered box: on iOS 26 this is real Liquid Glass, below
         // it the same `.ultraThinMaterial` the composer always had.
         .liquidGlass(in: RoundedRectangle(cornerRadius: 26, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 26, style: .continuous)
             .strokeBorder(composerFocused ? StrandPalette.focusRing : StrandPalette.hairline, lineWidth: 1))
         .animation(reduceMotion ? nil : .easeOut(duration: 0.18), value: composerFocused)
-        .padding(.horizontal, 12)
+        .frame(maxWidth: Self.transcriptWidth)
+        .frame(maxWidth: .infinity, alignment: .center)
+        .padding(.horizontal, 18)
         // Breathing room above the safe area. Nothing is added for the tab bar any more: the iOS shell
         // uses the PLATFORM bar, which is part of the safe area, so a bottom-docked composer is lifted
         // clear of it by the system. The old `+ composerFloatingBarClearance` compensated for a custom
