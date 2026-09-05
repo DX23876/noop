@@ -71,11 +71,17 @@ final class CoachMyLogsAndZonesTests: XCTestCase {
         // 25 → 26: `estimate_session_effort` joined the wire. Reviewed and intended — the coach was
         // stating Effort figures its own arithmetic could not produce ("15 for a 20-minute Zone 2
         // ride"), and one small tool definition is a fair price for prescriptions that hold up.
-        XCTAssertEqual(engine.coachTools.count, 28,
+        //
+        // 28 → 31: the three Hevy strength tools. Reviewed and intended, and the first two are the
+        // reason the third can exist at all — Hevy identifies movements by opaque ids, so without
+        // `find_hevy_exercises` and `get_hevy_routines` the model would have to invent them, which is
+        // how a routine ends up naming an exercise nobody has. Three definitions is the price of a
+        // coach that can write a training plan against the user's real catalogue instead of guessing.
+        XCTAssertEqual(engine.coachTools.count, 31,
                        "tool count changed — confirm the added per-round cost is intended")
 
         engine.toolConsent.enabled.insert(.patterns)
-        XCTAssertEqual(engine.coachTools.count, 30,
+        XCTAssertEqual(engine.coachTools.count, 33,
                        "the second opt-in adds personal patterns and training preferences")
     }
 

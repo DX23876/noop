@@ -1,4 +1,5 @@
 import Foundation
+import WhoopStore
 
 /// Tool-calling for the coach. Instead of pre-baking one fixed text block into every request, the
 /// model is offered TOOLS it can call to pull the user's own metrics on demand — so it reasons about
@@ -72,6 +73,15 @@ enum CoachTool: String, CaseIterable {
     /// What a PLANNED session is worth in Effort, so the coach can quote a real figure instead of
     /// guessing one that its own arithmetic cannot produce.
     case estimateSessionEffort = "estimate_session_effort"
+    /// Look up movements in the user's synced Hevy catalogue. The ONLY way to obtain a real
+    /// `exercise_template_id` — without it the model invents ids of the right shape that refer to
+    /// nothing, or worse, to a different exercise.
+    case findHevyExercises = "find_hevy_exercises"
+    /// The user's saved Hevy routines. The only way to name one for an update — the model must never
+    /// guess a routine id.
+    case hevyRoutines = "get_hevy_routines"
+    /// DRAFT a Hevy routine for review. Writes nothing to Hevy; only the review screen can send.
+    case proposeHevyRoutine = "propose_hevy_routine"
 
     /// Natural-language description the model reads to decide when to call the tool.
     var description: String {
@@ -198,6 +208,26 @@ enum CoachTool: String, CaseIterable {
                 + "the app resolves and labels it rather than trusting you to invent one. Never propose nutrition, "
                 + "medication, dosage or treatment routines. Do not say the goal or routines were created—say the draft "
                 + "is waiting for review."
+        case .findHevyExercises:
+            return "Search the user's synced Hevy exercise catalogue by name, muscle group and/or equipment. "
+                + "Returns each movement's exercise_template_id, which propose_hevy_routine requires. ALWAYS "
+                + "call this before drafting a routine and copy ids from it verbatim — never invent or guess an "
+                + "id, and never reuse one from memory. muscle_group is one of Hevy's own values (chest, lats, "
+                + "quadriceps, hamstrings, glutes, shoulders, biceps, triceps, abdominals, calves, upper_back, "
+                + "lower_back, traps, forearms, abductors, adductors, neck, cardio, full_body)."
+        case .hevyRoutines:
+            return "List the user's saved Hevy routines with their ids and the exercises each contains. "
+                + "Call this before proposing a CHANGE to an existing routine, and copy routine_id verbatim."
+        case .proposeHevyRoutine:
+            return "DRAFT a strength routine for the user to review in the app. It is NOT sent to Hevy and "
+                + "nothing changes in their account until they open the draft and choose to send it. Use "
+                + "operation=update with an exact routine_id to change an existing routine — note that Hevy "
+                + "replaces the WHOLE routine, so list every exercise it should still contain, not only the "
+                + "ones you are changing. Otherwise use create. Every "
+                + "exercise_template_id must come from find_hevy_exercises. Prescribe reps as a range "
+                + "(rep_range_start/rep_range_end) when a range is what you mean; use weight_kg only when you "
+                + "have grounds for a specific load from the user's own history. Give a short rationale. Say "
+                + "the draft is waiting for review — never that a routine was created, saved or added."
         case .sessionOutlook:
             return "Find out what a session would cost this user, from THEIR OWN history: typical Charge "
                 + "cost the next morning, bounce-back days, and a projection for tomorrow. Pass "
@@ -549,6 +579,63 @@ enum CoachTool: String, CaseIterable {
                     ]
                 ],
                 "required": ["sport", "intent"]
+            ]
+        case .findHevyExercises:
+            return [
+                "type": "object",
+                "properties": [
+                    "query": ["type": "string",
+                              "description": "Words from the movement's name, e.g. \"bench press\" or \"romanian deadlift\". All words must appear."],
+                    "muscle_group": ["type": "string",
+                                     "enum": HevyMuscleGroup.allCases.map(\.rawValue),
+                                     "description": "Restrict to movements training this muscle, primary or secondary."],
+                    "equipment": ["type": "string",
+                                  "enum": HevyEquipment.allCases.map(\.rawValue),
+                                  "description": "Restrict to movements using this equipment."],
+                    "limit": ["type": "integer",
+                              "description": "How many to return (1–40). Defaults to 15."]
+                ]
+            ]
+        case .hevyRoutines:
+            return ["type": "object", "properties": [:]]
+        case .proposeHevyRoutine:
+            let setProperties: [String: Any] = [
+                "type": ["type": "string", "enum": ["normal", "warmup", "dropset", "failure"],
+                         "description": "Defaults to normal."],
+                "weight_kg": ["type": "number",
+                              "description": "A specific load, only when the user's own history supports one."],
+                "reps": ["type": "integer", "description": "A single rep target."],
+                "rep_range_start": ["type": "integer", "description": "Lower bound of a rep range."],
+                "rep_range_end": ["type": "integer", "description": "Upper bound of a rep range."]
+            ]
+            let exerciseProperties: [String: Any] = [
+                "exercise_template_id": ["type": "string",
+                                         "description": "Verbatim id from find_hevy_exercises. Never invented."],
+                "superset_id": ["type": "integer",
+                                "description": "Exercises sharing a value form one superset."],
+                "rest_seconds": ["type": "integer", "description": "Rest between sets, 0–900."],
+                "notes": ["type": "string", "description": "A short cue for this exercise."],
+                "sets": ["type": "array",
+                         "items": ["type": "object", "properties": setProperties]]
+            ]
+            return [
+                "type": "object",
+                "properties": [
+                    "operation": ["type": "string", "enum": ["create", "update"],
+                                  "description": "Defaults to create."],
+                    "routine_id": ["type": "string",
+                                   "description": "Required for update: the exact id of a synced routine."],
+                    "title": ["type": "string", "description": "The routine's name."],
+                    "notes": ["type": "string", "description": "A short note for the routine as a whole."],
+                    "folder_id": ["type": "integer", "description": "Hevy folder id, when the user named one."],
+                    "times_per_week": ["type": "number",
+                                       "description": "How often the user will run this routine. Only when they said so; the app's volume check uses it."],
+                    "rationale": ["type": "string",
+                                  "description": "Why this routine, in one or two sentences. The user reads it when deciding."],
+                    "exercises": ["type": "array",
+                                  "items": ["type": "object", "properties": exerciseProperties]]
+                ],
+                "required": ["title", "exercises"]
             ]
         case .proposeGoalSetup:
             let goalProperties: [String: Any] = [
@@ -1154,6 +1241,16 @@ extension AICoachEngine {
         case .estimateSessionEffort:
             return await estimateSessionEffortTool(zone: Self.intArg(input["zone"]),
                                                    durationMin: Self.intArg(input["duration_min"]))
+        case .findHevyExercises:
+            let raw = (input["limit"] as? Int) ?? Int(input["limit"] as? Double ?? 15)
+            return await findHevyExercisesTool(query: input["query"] as? String,
+                                               muscleGroup: input["muscle_group"] as? String,
+                                               equipment: input["equipment"] as? String,
+                                               limit: max(1, min(raw, 40)))
+        case .hevyRoutines:
+            return await hevyRoutinesTool()
+        case .proposeHevyRoutine:
+            return await proposeHevyRoutineTool(input: input)
         }
     }
 }

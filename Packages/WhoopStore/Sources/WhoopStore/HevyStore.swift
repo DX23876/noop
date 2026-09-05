@@ -244,6 +244,14 @@ extension WhoopStore {
     }
 
     /// Saved routines, newest edit first.
+    ///
+    /// **`exercises` comes back EMPTY.** A routine's contents live only inside `rawJSON`, and decoding
+    /// that needs the API parser, which lives in `StrandImport` — a package that depends on this one, so
+    /// it cannot be called from here. Callers that need the contents parse `rawJSON` themselves; the
+    /// app layer does exactly that in `HevyRoutineTool`.
+    ///
+    /// This is stated rather than left to be discovered because an empty array reads as "this routine
+    /// has no exercises", which is a different and much more plausible-looking claim.
     public func hevyRoutines() async throws -> [HevyRoutine] {
         try syncRead { db in
             try Row.fetchAll(db, sql: """

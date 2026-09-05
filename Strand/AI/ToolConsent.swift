@@ -54,7 +54,11 @@ extension CoachTool {
             return .longHistory
         case .recentWorkouts, .zoneMinutes, .sessionOutlook, .simulateDay, .estimateSessionEffort:
             return .workouts
-        case .proposePlan, .proposeGoalSetup, .planAdherence, .rangeReport:
+        // The two Hevy tools ride `.planning` with the other propose tools rather than inventing a
+        // purpose nobody would recognise in Settings: reading the exercise catalogue and drafting a
+        // routine are training planning, and a user who turned planning off wants neither.
+        case .proposePlan, .proposeGoalSetup, .planAdherence, .rangeReport,
+             .findHevyExercises, .hevyRoutines, .proposeHevyRoutine:
             return .planning
         case .stressIndex:
             return .stress

@@ -32,7 +32,7 @@ struct CoachView: View {
     /// SwiftUI glitch where dismissing one can intermittently re-present or bounce back to whatever's
     /// underneath — reported as "Something else" (a custom goal) looping back to the goal picker.
     private enum ActiveSheet: Int, Identifiable {
-        case settings, history, plan, goal, goalSetup, firstUse, goalOnboarding
+        case settings, history, plan, goal, goalSetup, hevyRoutine, firstUse, goalOnboarding
         var id: Int { rawValue }
     }
     @State private var activeSheet: ActiveSheet?
@@ -78,6 +78,9 @@ struct CoachView: View {
     /// Goal/routine drafts use the same visible pending affordance as plan proposals, while remaining a
     /// separate review flow because their safety, limits and multi-goal links need explicit editing.
     @ObservedObject private var goalSetupStore = CoachGoalSetupProposalStore.shared
+    /// Drafted Hevy routines waiting to be reviewed and sent. Same visible-pending affordance as goal
+    /// drafts, because it is the same promise: the coach prepared something, and only you can send it.
+    @ObservedObject private var hevyRoutineStore = HevyRoutineProposalStore.shared
     /// The coach's identity (#R9) — avatar + name shown in the header, updated live from settings.
     @ObservedObject private var identityStore = CoachIdentityStore.shared
     /// Drives the per-reply memory receipt: what a turn saved, and the controls to confirm, correct or
@@ -154,6 +157,26 @@ struct CoachView: View {
                                     Button("Done") { activeSheet = nil }
                                 }
                             }
+                    }
+                }
+            case .hevyRoutine:
+                if let proposal = hevyRoutineStore.pending.first {
+                    HevyRoutineReviewView(proposalId: proposal.id) { activeSheet = nil }
+                } else {
+                    NavigationStack {
+                        VStack(spacing: 12) {
+                            Image(systemName: "checkmark.circle")
+                                .font(.system(size: 36)).foregroundStyle(StrandPalette.accent)
+                            Text("No draft waiting").font(StrandFont.headline)
+                            Text("This routine draft has already been decided.")
+                                .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
+                        }
+                        .padding()
+                        .toolbar {
+                            ToolbarItem(placement: .confirmationAction) {
+                                Button("Done") { activeSheet = nil }
+                            }
+                        }
                     }
                 }
             case .firstUse:
@@ -862,6 +885,9 @@ struct CoachView: View {
         case .chargeDrivers:           Text("Charge breakdown")
         case .proposePlan:             Text("Plan proposal")
         case .proposeGoalSetup:        Text("Goal and routine draft")
+        case .findHevyExercises:       Text("Your exercise list")
+        case .hevyRoutines:            Text("Your routines")
+        case .proposeHevyRoutine:      Text("Routine draft")
         case .sessionOutlook:          Text("Session outlook")
         case .simulateDay:             Text("Simulation")
         case .planAdherence:           Text("Plan adherence")
@@ -899,6 +925,9 @@ struct CoachView: View {
         case .chargeDrivers:           Text("What moved your Charge up or down")
         case .proposePlan:             Text("A session proposed for you to accept or change")
         case .proposeGoalSetup:        Text("A goal and routines prepared for your review")
+        case .findHevyExercises:       Text("The exercises in your Hevy catalogue")
+        case .hevyRoutines:            Text("The routines saved in your Hevy account")
+        case .proposeHevyRoutine:      Text("A routine drafted for your review — not sent to Hevy")
         case .sessionOutlook:          Text("What a session would cost, from your history")
         case .simulateDay:             Text("Tomorrow's Charge under a plan")
         case .planAdherence:           Text("How closely you've kept to your plan")
@@ -1033,6 +1062,10 @@ struct CoachView: View {
             HStack(spacing: 8) {
                 if !goalSetupStore.pending.isEmpty {
                     actionChip(icon: "target", action: { activeSheet = .goalSetup }) { Text("Review draft") }
+                }
+                if !hevyRoutineStore.pending.isEmpty {
+                    actionChip(icon: "dumbbell.fill",
+                               action: { activeSheet = .hevyRoutine }) { Text("Review routine") }
                 }
                 // Each title is a literal `Text(...)` at its own call site (not a `String` routed through
                 // `actionChip`'s parameter) — the same scanner-visibility reason as `evidenceLabel` above.
