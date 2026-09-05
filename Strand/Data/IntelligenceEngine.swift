@@ -972,6 +972,22 @@ final class IntelligenceEngine: ObservableObject {
 
     static let dayReuseDefault = true
 
+    /// Metric-series keys for the cached per-day motion volume the WHOOP-4 steps calibration fits on, and
+    /// the two revisions it was folded against.
+    ///
+    /// Stored beside the `steps_est` the same block writes, under the same computed id and the same
+    /// `MetricPoint` mechanism, so this needs no schema of its own. Three rows per day for a 60-day window
+    /// replace an unbounded gravity read per day — measured at 28.93 s of a 31.83 s post-loop phase, on
+    /// every pass, for a value that only moves when that day's raw does.
+    ///
+    /// The revisions are the cache key, not a timestamp: `analysisInputRevision` already records exactly
+    /// when a day's streams changed, and reusing it means this cache can never be staler than the per-day
+    /// scan reuse built on the same signal. Both halves are kept — `deviceRevision` is what a wipe or a
+    /// re-point moves, and ignoring it would serve a volume folded from a stream that has since re-homed.
+    static let stepsMotionKey = "steps_motion"
+    static let stepsMotionInputRevKey = "steps_motion_input_rev"
+    static let stepsMotionDeviceRevKey = "steps_motion_device_rev"
+
     func analyzeRecent(maxDays: Int = 21, force: Bool = true, skipIfUnchanged: Bool = false,
                        allowDayReuse: Bool = IntelligenceEngine.dayReuseDefault,
                        reason: AnalysisReason = .semanticChange,
@@ -2861,7 +2877,35 @@ final class IntelligenceEngine: ObservableObject {
         // on changes. Bind `deviceId` (a MainActor instance `let`) to a local Sendable `String` so the
         // @Sendable detached closure captures the VALUE, never `self`, exactly as FIX 1's `ownerFallbackId`.
         let stepsFallbackId = deviceId
-        let (refStepsByDay, motionByDay): ([String: Double], [String: Double]) =
+        // The 60 gravity reads below were the single most expensive thing in the whole post-loop phase:
+        // 28.93 s of a 31.83 s measured total, every pass, while the ten other phases together cost 2.90 s.
+        // On a worn library that is ~9 million rows re-read to re-derive a number that cannot have moved —
+        // and it is why the phase did NOT scale with days re-derived: it always reads the same 60 days.
+        //
+        // `dayMotionIntensity` is a pure fold over ONE day's gravity stream, so its result changes exactly
+        // when that day's raw changes — which the database already records, in the same
+        // `analysisInputRevision` the per-day scan reuse is built on. So the volume is cached beside the
+        // `steps_est` it feeds, under the same computed id and the same MetricPoint mechanism, and a day is
+        // re-folded only when its revision moved. Three small indexed reads replace one unbounded one.
+        //
+        // Both revisions are kept, not just the input one: `deviceRevision` is what a wipe or a re-point
+        // moves, and a cache that ignored it would serve a volume folded from a stream that has since been
+        // re-homed. A missing or mismatched entry falls through to the full fold, so the slow path stays the
+        // fallback rather than the norm.
+        let cachedMotion = Dictionary(
+            (((try? await store.metricSeries(deviceId: computedId, key: Self.stepsMotionKey,
+                                             from: calOldest, to: newestDay)) ?? [])
+                .map { ($0.day, $0.value) }), uniquingKeysWith: { _, last in last })
+        let cachedMotionInputRev = Dictionary(
+            (((try? await store.metricSeries(deviceId: computedId, key: Self.stepsMotionInputRevKey,
+                                             from: calOldest, to: newestDay)) ?? [])
+                .map { ($0.day, $0.value) }), uniquingKeysWith: { _, last in last })
+        let cachedMotionDeviceRev = Dictionary(
+            (((try? await store.metricSeries(deviceId: computedId, key: Self.stepsMotionDeviceRevKey,
+                                             from: calOldest, to: newestDay)) ?? [])
+                .map { ($0.day, $0.value) }), uniquingKeysWith: { _, last in last })
+        let (refStepsByDay, motionByDay, freshMotion, motionReused):
+            ([String: Double], [String: Double], [(day: String, motion: Double, input: Int, device: Int)], Int) =
             await Task.detached(priority: .utility) {
             // Phone reference steps per day, from the apple-health daily rows (steps > 0 only).
             // #693: read `appleDaily`, NOT `dailyMetrics`. Apple-Health import writes the phone step count into
@@ -2875,6 +2919,8 @@ final class IntelligenceEngine: ObservableObject {
             // Per-day motion volume over the calibration window, read from the owner-resolved strap streams.
             // (Owner resolution mirrors the scoring loop; one device installs resolve to `deviceId`.)
             var motion: [String: Double] = [:]
+            var fresh: [(day: String, motion: Double, input: Int, device: Int)] = []
+            var reused = 0
             for off in 0..<stepsCalDays {
                 let dayMid = Self.midnightLocal(nowLocalMidnight - off * 86_400, offsetSec: tzOffset)
                 let dayEnd = dayMid + 86_400 - 1
@@ -2882,13 +2928,46 @@ final class IntelligenceEngine: ObservableObject {
                 let owner = await Self.resolveDayOwner(day: dayKey, from: dayMid, to: dayEnd, store: store,
                                                        devices: regDevices, activeId: regActiveId,
                                                        registry: registry, fallbackDeviceId: stepsFallbackId)
+                // One indexed MAX over a handful of revision rows, the same probe the day scan uses. It
+                // decides whether the unbounded gravity read below can be skipped.
+                let probe = try? await store.analysisInputRevision(deviceId: owner, from: dayMid, to: dayEnd)
+                if let probe,
+                   let cached = cachedMotion[dayKey],
+                   let cachedInput = cachedMotionInputRev[dayKey],
+                   let cachedDevice = cachedMotionDeviceRev[dayKey],
+                   Int(cachedInput) == probe.inputRevision,
+                   Int(cachedDevice) == probe.deviceRevision {
+                    if cached > 0 { motion[dayKey] = cached }
+                    reused += 1
+                    continue
+                }
                 let grav = (try? await store.gravitySamples(deviceId: owner, from: dayMid, to: dayEnd,
                                                             limit: Int.max)) ?? []
                 let m = StepsEstimateEngine.dayMotionIntensity(grav)
                 if m > 0 { motion[dayKey] = m }
+                // Cached even when the fold produced 0 (an unworn day). Storing only the positive ones
+                // would leave every gap re-reading its whole stream forever to rediscover that it is empty.
+                if let probe {
+                    fresh.append((day: dayKey, motion: m,
+                                  input: probe.inputRevision, device: probe.deviceRevision))
+                }
             }
-            return (refSteps, motion)
+            return (refSteps, motion, fresh, reused)
         }.value
+        if !freshMotion.isEmpty {
+            var points: [MetricPoint] = []
+            points.reserveCapacity(freshMotion.count * 3)
+            for row in freshMotion {
+                points.append(MetricPoint(day: row.day, key: Self.stepsMotionKey, value: row.motion))
+                points.append(MetricPoint(day: row.day, key: Self.stepsMotionInputRevKey,
+                                          value: Double(row.input)))
+                points.append(MetricPoint(day: row.day, key: Self.stepsMotionDeviceRevKey,
+                                          value: Double(row.device)))
+            }
+            _ = try? await store.upsertMetricSeries(points, deviceId: computedId)
+        }
+        NSLog("[FREEZE-DIAG] steps motion cache: reused=\(motionReused) refolded=\(freshMotion.count) "
+            + "of \(stepsCalDays)")
         // Build calibration points only for days with BOTH a motion volume and a real phone step count.
         let calPoints = motionByDay.compactMap { (day, motion) -> StepsEstimateEngine.CalibrationPoint? in
             guard let s = refStepsByDay[day] else { return nil }
