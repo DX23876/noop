@@ -7,6 +7,16 @@ import StrandDesign
 /// natural analogue is a `TabView` with the most-used screens as tabs and everything else under a
 /// "More" list. Every screen is the same `StrandDesign`-built view the macOS app uses.
 struct RootTabView: View {
+    /// #1841: shared with Android by NAME and meaning, not by storage — the two platforms keep their own
+    /// stores, exactly as the Clock format setting does.
+    ///
+    /// Default FALSE here while Android defaults true, and the divergence is deliberate. Apple's forums
+    /// report `.tabBarMinimizeBehavior(.onScrollDown)` failing to trigger in tabs built on
+    /// `NavigationStack(path:)` — which is every primary tab in this file, bound deliberately so a tab
+    /// root can pop and re-scroll. So this may well be inert on our structure, and defaulting ON would
+    /// advertise a behaviour that never happens. Off until someone confirms it on an iOS 26 device.
+    @AppStorage("noop.bottomBarAutoHide") private var bottomBarAutoHide = false
+
     /// External entry points must wait until the mandatory first-run gates have completed. The root owns
     /// that state; keeping it explicit here prevents this shell's window-level sheet from covering a gate.
     let homeScreenQuickActionsEnabled: Bool
@@ -182,6 +192,10 @@ struct RootTabView: View {
             // configurable Accent colour. `.tint()` colours the whole bar uniformly — there is no native
             // per-tab-item override — so this is deliberately a global change across all four tabs.
             .tint(StrandPalette.chargeColor)
+            // #1841: the same "Hide bar when scrolling" preference the macOS settings screen exposes.
+            // Here the system owns the behaviour — iOS 26's tab bar MINIMISES to a pill on scroll down
+            // rather than sliding away entirely, so this is the platform's read of the same intent.
+            .noopTabBarAutoHide(bottomBarAutoHide)
             // Tab crossfade — README §Motion: ~240ms opacity swap between tab roots, global calm
             // easing cubic-bezier(0.22,1,0.36,1).
             .animation(.timingCurve(0.22, 1, 0.36, 1, duration: 0.24), value: selectedTab)
@@ -281,6 +295,11 @@ struct RootTabView: View {
                 // Reuses the SAME quick-action sheet machinery `.activeWorkout` does for `.live` — the
                 // coach chat's action row asks for Breathe directly, skipping the quick-action MENU step.
                 withAnimation(Self.sheetEase) { quickAction = .breathe }
+                router.requestedDestination = nil
+            case .coach:
+                // #1862: the Today Coach launcher hands its question here. Coach is a pillar sheet on
+                // iPhone, the same as the Insights hub, so route it that way rather than switching tabs.
+                routedPillar = dest
                 router.requestedDestination = nil
             case .journal:
                 // The #627 Today journal widget opens the journal through the quick-action Journal sheet
@@ -398,6 +417,9 @@ struct RootTabView: View {
                 // .energy is pushed onto Today's own stack (handled above); this fallback keeps the
                 // sheet host exhaustive if the destination is ever presented here directly.
                 case .energy: EnergyDetailView()
+                // #1862: Coach IS presented here — the launcher sheet routes to it as a pillar, so unlike
+                // the fallbacks above this arm is the real destination, not a safety net.
+                case .coach: CoachView()
                 }
             }
             // The Trends/Today fallbacks above emit TabRoute value pushes (#198), which need a
@@ -921,3 +943,25 @@ private struct QuickActionSheet: View {
 
 
 #endif
+
+/// #1841: apply the iOS 26 tab-bar minimise behaviour, doing nothing on older systems.
+///
+/// The availability branch is deliberately the ONLY branch. `RootTabView` already documents what happens
+/// when a condition that flips at runtime wraps this `TabView`: #519 put two states in separate
+/// `_ConditionalContent` branches, and every navigation rebuilt the whole subtree, resetting `@State`
+/// inside the tab roots — scroll offsets, chart ranges, expanded sections.
+///
+/// So the preference must NOT select between branches. It selects the modifier's ARGUMENT, while the
+/// availability check — fixed for the life of the process — is what picks a branch. Toggling the setting
+/// changes a value, never the view's identity.
+extension View {
+    @ViewBuilder
+    func noopTabBarAutoHide(_ enabled: Bool) -> some View {
+        if #available(iOS 26.0, *) {
+            // `.onScrollDown` minimises to a pill on downward scroll; `.never` pins it fully visible.
+            self.tabBarMinimizeBehavior(enabled ? .onScrollDown : .never)
+        } else {
+            self
+        }
+    }
+}

@@ -347,6 +347,9 @@ struct RootView: View {
             case .sleep: selection = .sleep
             // The Energy widget is iOS-only. A forwarded URL on macOS still lands safely on Today.
             case .energy: selection = .today
+            // #1862: the Today Coach card's launcher hands off here, so the send/stream/consent surface
+            // stays in exactly one place.
+            case .coach: selection = .coach
             case nil: break
             }
             if dest != nil { router.requestedDestination = nil }

@@ -8,7 +8,7 @@ public enum WhoopStoreInfo {
     /// The store schema-version marker, bumped per migration. Surfaced in the backup manifest (#1410) so an
     /// export records the platform's schema version (a platform-scoped indicator — Android reports its Room
     /// version independently; the two numbering schemes are not expected to match).
-    public static let schemaVersion = 21
+    public static let schemaVersion = 22
 }
 
 /// Serializes `DatabasePool` creation + migration so two concurrent opens of the SAME file can never
@@ -62,6 +62,8 @@ public actor WhoopStore {
     /// v18 aux rows banked since the retention sweep last ran, PER DEVICE — the sweep is per device too,
     /// so a shared counter would let one strap spend another's budget. See `StreamStore`.
     var v18AuxRowsSincePrune: [String: Int] = [:]
+    var stepDataRevision = StepDataRevisionIndex()
+    let revisionInstanceToken = UUID().uuidString
     let dbWriter: any DatabaseWriter
 
     /// Read-only handle to the underlying GRDB writer for the synchronous `DeviceRegistryStore`.
@@ -342,5 +344,46 @@ public actor WhoopStore {
         try syncRead { db in
             try Set(db.indexes(on: table).map(\.name))
         }
+    }
+}
+
+/// Compact process-local cache witness keyed by owner and UTC day. Cycle windows move with `now`, so
+/// using their exact end timestamp as a cache key would invalidate an otherwise unchanged active cycle
+/// every second. Keeping revisions per UTC day makes the signature stable until a row in that day lands.
+/// Its process-lifetime size is proportional to owners × UTC days that receive new step rows.
+struct StepDataRevisionIndex {
+    private static let utcDaySeconds = 86_400
+    private var nextRevision = 0
+    private var byOwnerDay: [OwnerDay: Int] = [:]
+
+    private struct OwnerDay: Hashable {
+        let owner: String
+        let day: Int
+    }
+
+    mutating func record(deviceId: String, insertedTimestamps: [Int]) {
+        guard !insertedTimestamps.isEmpty else { return }
+        nextRevision += 1
+        for timestamp in insertedTimestamps {
+            byOwnerDay[OwnerDay(owner: deviceId, day: timestamp.floorDividing(by: Self.utcDaySeconds))]
+                = nextRevision
+        }
+    }
+
+    func signature(deviceId: String, from: Int, to: Int) -> String {
+        guard to > from else { return "" }
+        let first = from.floorDividing(by: Self.utcDaySeconds)
+        let last = (to - 1).floorDividing(by: Self.utcDaySeconds)
+        return (first...last).map { day in
+            "\(day):\(byOwnerDay[OwnerDay(owner: deviceId, day: day), default: 0])"
+        }.joined(separator: ",")
+    }
+}
+
+private extension Int {
+    func floorDividing(by divisor: Int) -> Int {
+        let quotient = self / divisor
+        let remainder = self % divisor
+        return remainder < 0 ? quotient - 1 : quotient
     }
 }

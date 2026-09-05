@@ -31,6 +31,8 @@ enum LiquidHeaderMetrics {
 }
 
 struct LiquidTodayView: View {
+    @AppStorage(DayCycleMode.storageKey) private var dayCycleModeRaw = DayCycleMode.sleepOnset.rawValue
+    private var dayCycleMode: DayCycleMode { DayCycleMode.persisted(dayCycleModeRaw) }
     @EnvironmentObject var repo: Repository
     @EnvironmentObject var router: NavRouter
     @EnvironmentObject var profile: ProfileStore
@@ -115,6 +117,8 @@ struct LiquidTodayView: View {
     // sheets / expanders
     @State private var guideSection: ScoreSection?
     @State private var customizationDestination: TodayCustomizationDestination?
+    /// #1862: the optional Coach launcher sheet. Presentation state only — opening it requests nothing.
+    @State private var showCoachLauncher = false
     @State private var showSettings = false
     @State private var synthesisExpanded = false
 
@@ -207,6 +211,9 @@ struct LiquidTodayView: View {
     @State private var cachedSpo2Day: DailyMetric?
     @State private var cachedSkinTempDay: DailyMetric?
     @State private var cachedRespDay: DailyMetric?
+    @State private var cachedHrvDay: DailyMetric?
+    @State private var cachedRestingHrDay: DailyMetric?
+    @State private var cachedSkinTempReadingDay: DailyMetric?
     /// The Charge hero's resolved state (#543 carry + the honest label), resolved ONCE in load() alongside
     /// the other caches. It composes `TodayView.lastScoredRecoveryDay`, which is O(days) — exactly the scan
     /// this cache exists to keep out of body. Never resolved in body.
@@ -291,6 +298,25 @@ struct LiquidTodayView: View {
     /// The prior-day RESPIRATORY carry (#1331): staleness-bounded, so a recent missed night reads the last
     /// real value while a weeks-old one honestly shows "No Data". Non-nil only at offset 0.
     private var respDay: DailyMetric? { cachedRespDay }
+
+    /// PER-FIELD HRV / resting-HR carries (#1842), read O(1) from the cache like `vitalsDay`. `vitalsDay`'s
+    /// predicate is an OR across HRV / resting-HR / respiratory, so it resolves the freshest row with ANY of
+    /// them — a respiratory-only row blanks HRV and Resting HR on both the vitals card and the Key Metrics
+    /// tiles. Twins of `DailyMetric.lastHrvDay` / `lastRestingHrDay`; mirror the Android per-field rows.
+    private var hrvDay: DailyMetric? { cachedHrvDay }
+
+    private var restingHrDay: DailyMetric? { cachedRestingHrDay }
+
+    /// The skin-temp reading these cards LEAD with (#1844): today's row if it holds either number, else the
+    /// vitals carry, else the freshest prior row with either. Both numbers come off the SAME row, so an
+    /// absolute is never paired with another night's deviation. Twin of `TodayView.skinTempLeadReading`.
+    private var skinTempLeadReading: SkinTempDisplay.Reading? {
+        let row = [displayDay, vitalsDay, cachedSkinTempReadingDay]
+            .compactMap { $0 }
+            .first { $0.skinTempC != nil || $0.skinTempDevC != nil }
+        return SkinTempDisplay.leadReading(absC: row?.skinTempC, devC: row?.skinTempDevC,
+                                           prefer: SkinTempDisplay.Kind(rawValue: skinTempDisplayRaw) ?? .absolute)
+    }
     /// The Charge hero's resolved state (see `cachedChargeDisplay`), read O(1) from the cache.
     private var chargeDisplay: ChargeDisplay { cachedChargeDisplay }
     /// THE Effort figure for this screen (#1001): the live in-progress score floored at the stored row, so
@@ -605,7 +631,7 @@ struct LiquidTodayView: View {
         .liquidMediumHaptic(trigger: pullHaptic)
         // hydrationSeq joins the id so logging a drink re-reads the card immediately, the same trigger set
         // classic TodayView's reloadHydration() uses.
-        .task(id: "\(repo.refreshSeq)-\(selectedDayOffset)-\(repo.hydrationSeq)-\(hydrationEnabled)") { await load() }
+        .task(id: "\(repo.refreshSeq)-\(selectedDayOffset)-\(repo.hydrationSeq)-\(hydrationEnabled)-\(dayCycleModeRaw)") { await load() }
         // Momentum is resolved here, not in the body — see `TodayView.MomentumKey`.
         .task(id: momentumKey) { rebuildMomentum() }
         // Honour a one-shot "open Live Session" request (the coach chat's action chip, or any future
@@ -642,6 +668,9 @@ struct LiquidTodayView: View {
                 dashboardCardsRaw: $dashboardCardsRaw,
                 hostedCardsRaw: $hostedCardsRaw
             )
+        }
+        .sheet(isPresented: $showCoachLauncher) {
+            CoachLauncherSheet()
         }
         .sheet(isPresented: $showSettings) {
             NavigationStack {
@@ -1295,10 +1324,10 @@ struct LiquidTodayView: View {
             //
             // frac stays nil deliberately. A signed deviation has no natural 0–100 fill, and a ring drawn
             // from one would imply a magnitude the number does not carry.
-            let skin = displayDay?.skinTempC ?? vitalsDay?.skinTempC
-                ?? displayDay?.skinTempDevC ?? vitalsDay?.skinTempDevC ?? skinTempDay?.skinTempDevC
+            // #1844: lead with the night's measured ABSOLUTE when it has one; deviation nights unchanged.
+            let skin = skinTempLeadReading
             cardLink(.metric("skin_temp"), icon: card.icon, title: card.title, sub: card.subtitle,
-                     value: TodayView.skinTempCardValue(skin, fahrenheit: temperatureUnit == .fahrenheit),
+                     value: TodayView.skinTempCardValue(reading: skin, fahrenheit: temperatureUnit == .fahrenheit),
                      tint: StrandPalette.metricAmber, frac: nil)
         case .calories:
             cardLink(.energy, icon: card.icon,
@@ -1329,6 +1358,11 @@ struct LiquidTodayView: View {
             let weightText = resolvedWeightKg.map { UnitFormatter.massFromKilograms($0.kg, system: unitSystem) } ?? "—"
             cardLink(.weight, icon: card.icon, title: card.title, sub: card.subtitle,
                      value: weightText, tint: StrandPalette.metricRose, frac: nil)
+        case .coach:
+            // #1862: a sheet rather than a push — the point of the card is to try Coach WITHOUT
+            // leaving Today. No "ask coach" sparkle either: the whole row already opens the coach.
+            cardAction(icon: card.icon, title: card.title, sub: card.subtitle, value: "",
+                       tint: StrandPalette.accent, frac: 0.5) { showCoachLauncher = true }
         }
     }
 
@@ -1370,6 +1404,32 @@ struct LiquidTodayView: View {
                     .padding(.trailing, NoopMetrics.space4)
             }
         }
+        .background(TodayCardSurface(tint: tint, surfaceOpacity: cardOpacity))
+    }
+
+    /// The same dashboard row, running `action` instead of pushing a route (#1862). Coach is the one card
+    /// that opens a SHEET, so it cannot ride a `NavigationLink`; it reuses `TodayDashboardRow` and
+    /// `TodayCardSurface` so the two kinds of row cannot drift apart visually. No "ask coach" sparkle —
+    /// the whole row already opens the coach, so a second control for it would be the same tap twice.
+    private func cardAction(icon: String, title: String, sub: String, value: String,
+                            tint: Color, frac: Double?,
+                            action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            TodayDashboardRow(
+                systemImage: icon,
+                title: title,
+                subtitle: sub,
+                value: value,
+                tint: tint,
+                progress: frac,
+                isPlaceholder: value == "–" || value == "—"
+            )
+            .padding(.leading, NoopMetrics.space4)
+            .padding(.vertical, NoopMetrics.space3)
+            .padding(.trailing, NoopMetrics.space4)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(LiquidPressStyle())
         .background(TodayCardSurface(tint: tint, surfaceOpacity: cardOpacity))
     }
 
@@ -1701,9 +1761,10 @@ struct LiquidTodayView: View {
 
     private var recoveryVitalsSection: some View {
         // PER-FIELD, today-first carry: each vital reads today's own value, else falls back to the prior
-        // day that recorded it (`vitalsDay`). Coalesce ONCE so the number and its fill fraction agree.
-        let hrv = displayDay?.avgHrv ?? vitalsDay?.avgHrv
-        let rhr = (displayDay?.restingHr ?? vitalsDay?.restingHr).map(Double.init)
+        // day that recorded THAT vital (#1842 — `vitalsDay` is the freshest row with ANY of the three, so it
+        // blanks one the row lacks). Coalesce ONCE so the number and its fill fraction agree.
+        let hrv = displayDay?.avgHrv ?? hrvDay?.avgHrv
+        let rhr = (displayDay?.restingHr ?? restingHrDay?.restingHr).map(Double.init)
         let resp = displayDay?.respRateBpm ?? vitalsDay?.respRateBpm
         return card {
             VStack(alignment: .leading, spacing: NoopMetrics.space3) {
@@ -1784,8 +1845,8 @@ struct LiquidTodayView: View {
         // HRV / Rest HR (+ Blood Oxygen / Respiratory) tiles share the recovery vitals' per-field
         // today-first carry so they don't blank at the rollover while Recovery/Strain/Rest stay strictly
         // today's own (they are scored surfaces).
-        let hrv = displayDay?.avgHrv ?? vitalsDay?.avgHrv
-        let rhr = (displayDay?.restingHr ?? vitalsDay?.restingHr).map(Double.init)
+        let hrv = displayDay?.avgHrv ?? hrvDay?.avgHrv
+        let rhr = (displayDay?.restingHr ?? restingHrDay?.restingHr).map(Double.init)
         return VStack(spacing: NoopMetrics.space2) {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 sectionHead("KEY METRICS", trailing: trendWindowLabel)
@@ -1900,11 +1961,9 @@ struct LiquidTodayView: View {
             // and the SAME `SkinTempDisplay` formatter every other skin-temp surface uses so a deviation
             // reads "+0.1 Δ°C" here exactly as it does on "Your Cards"/the Deep Timeline, never the plain
             // `%+.1f°` that read a fabricated absolute value for a signed deviation (#622).
-            let skinValue = displayDay?.skinTempC ?? vitalsDay?.skinTempC
-                ?? displayDay?.skinTempDevC ?? vitalsDay?.skinTempDevC
-            let skinText = skinValue.map {
-                SkinTempDisplay.format($0, fahrenheit: temperatureUnit == .fahrenheit)
-            } ?? "—"
+            // #1844: same lead-with-the-absolute resolution as "Your Cards" above, so the two agree.
+            let skinText = TodayView.skinTempCardValue(reading: skinTempLeadReading,
+                                                       fahrenheit: temperatureUnit == .fahrenheit)
             // The card's own unit is deliberately empty — the value carries "°C"/"Δ°F" itself, same as
             // the classic TodayView Skin Temp card.
             ktile(String(localized: "Skin Temp"), icon: metric.customizationIcon,
@@ -2079,6 +2138,9 @@ struct LiquidTodayView: View {
         cachedSpo2Day = (selectedDayOffset == 0) ? Repository.lastSpo2Day(days: repo.days, todayKey: tkey) : nil
         cachedSkinTempDay = (selectedDayOffset == 0) ? Repository.lastSkinTempDay(days: repo.days, todayKey: tkey) : nil
         cachedRespDay = (selectedDayOffset == 0) ? Repository.lastRespDay(days: repo.days, todayKey: tkey) : nil
+        cachedHrvDay = (selectedDayOffset == 0) ? Repository.lastHrvDay(days: repo.days, todayKey: tkey) : nil
+        cachedRestingHrDay = (selectedDayOffset == 0) ? Repository.lastRestingHrDay(days: repo.days, todayKey: tkey) : nil
+        cachedSkinTempReadingDay = (selectedDayOffset == 0) ? Repository.lastSkinTempReadingDay(days: repo.days, todayKey: tkey) : nil
         // Charge carry (#543) + the honest label, resolved here for the same reason as the two above: the
         // selector below scans repo.days. Calibration nights come from the SAME `RecoveryScorer` helper the
         // classic Today reads, so the two screens agree on when a wearer is genuinely mid-calibration
@@ -2108,11 +2170,17 @@ struct LiquidTodayView: View {
 
         let cal = Calendar.current
         let dayStart = cal.startOfDay(for: selectedLogicalDay)
-        let from = Int(dayStart.timeIntervalSince1970)
+        let calendarFrom = Int(dayStart.timeIntervalSince1970)
         // today → midnight..now; a past day → its full 24h (a missing morning reads as empty space).
-        let to: Int = selectedDayOffset == 0
+        let calendarTo: Int = selectedDayOffset == 0
             ? Int(Date().timeIntervalSince1970)
             : Int((cal.date(byAdding: .day, value: 1, to: dayStart) ?? dayStart).timeIntervalSince1970)
+        let nextDayKey = Repository.localDayKey(cal.date(byAdding: .day, value: 1, to: dayStart) ?? dayStart)
+        let cycleMarkers = dayCycleMode == .sleepOnset
+            ? await repo.exploreSeries(key: DayCycleIntelligenceIntegration.onsetKey, source: "my-whoop") : []
+        let from = cycleMarkers.last(where: { $0.day == selectedDayKey }).map { Int($0.value) } ?? calendarFrom
+        let toExclusive = cycleMarkers.last(where: { $0.day == nextDayKey }).map { Int($0.value) } ?? calendarTo
+        let to = max(from, toExclusive - 1)
 
         async let restA = repo.exploreSeries(key: "sleep_performance", source: "my-whoop")
         async let stressA = repo.series(key: "stress", source: "my-whoop")
@@ -2418,6 +2486,7 @@ struct LiquidTodayView: View {
     @AppStorage(UnitPrefs.systemKey) private var unitSystemRaw = UnitSystem.metric.rawValue
     private var unitSystem: UnitSystem { UnitSystem(rawValue: unitSystemRaw) ?? .metric }
     @AppStorage(UnitPrefs.temperatureKey) private var temperatureRaw = ""
+    @AppStorage(UnitPrefs.skinTempDisplayKey) private var skinTempDisplayRaw = ""   // #1846
     private var temperatureUnit: TemperatureUnit {
         UnitPrefs.resolveTemperature(system: unitSystem, override: temperatureRaw)
     }
@@ -2458,11 +2527,15 @@ struct LiquidTodayView: View {
     /// "Latest sleep · <date>" (#779) instead of a false "Last night". When every shown vital is today's
     /// own (or there's nothing to carry), it returns nil — the card must not claim "Last night" at all.
     private var vitalsProvenanceLine: String? {
-        guard let carried = vitalsDay else { return nil }
-        let carriedHrv = displayDay?.avgHrv == nil && carried.avgHrv != nil
-        let carriedRhr = displayDay?.restingHr == nil && carried.restingHr != nil
-        let carriedResp = displayDay?.respRateBpm == nil && carried.respRateBpm != nil
-        guard carriedHrv || carriedRhr || carriedResp else { return nil }
+        // Each vital can carry from a DIFFERENT row (#1842), so the one card-level footnote stamps the
+        // OLDEST row any SHOWN carried vital came from — erring old is the only safe direction for a caption
+        // whose job is to stop a stale read passing as today's, and it keeps the "Latest sleep" relabel
+        // (#779) firing on the value that actually is weeks old. A row counts only if it SUPPLIED the value.
+        let fromHrv: DailyMetric? = (displayDay?.avgHrv == nil && hrvDay?.avgHrv != nil) ? hrvDay : nil
+        let fromRhr: DailyMetric? = (displayDay?.restingHr == nil && restingHrDay?.restingHr != nil) ? restingHrDay : nil
+        let fromResp: DailyMetric? = (displayDay?.respRateBpm == nil && vitalsDay?.respRateBpm != nil) ? vitalsDay : nil
+        let sources: [DailyMetric] = [fromHrv, fromRhr, fromResp].compactMap { $0 }
+        guard let carried = sources.min(by: { $0.day < $1.day }) else { return nil }
         return TodayView.carriedCaption(priorDayKey: carried.day,
                                         todayKey: displayDay?.day ?? selectedDayKey)
     }

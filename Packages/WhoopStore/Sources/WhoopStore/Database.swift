@@ -1156,6 +1156,24 @@ extension WhoopStore {
         migrator.registerMigration("v52-drop-raw-imu-sample") { db in
             try db.drop(table: "rawImuSample")
         }
+        // Whether every sleep session that day was staged from heart rate alone (#1801).
+        //
+        // Renumbered from upstream's `v42-daily-sleep-hr-only` on the way in: this fork's migrator is at
+        // v52, so arriving as "v42" would have run a migration numbered BELOW ten of its predecessors and
+        // read, forever, as if the sequence had gone backwards. GRDB keys by name and applies in
+        // registration order, so nothing breaks either way — but the number is the only thing telling the
+        // next reader when this ran, and a wrong one costs more than the rename. Safe to rename here
+        // because no install in this fork has ever recorded the upstream identifier.
+        //
+        // Upstream's note explains the column exists there for its Kotlin twin (`DailyMetric.sleepHrOnly`,
+        // Room MIGRATION_35_36). That reason does not apply here — the Android tree is gone and the parity
+        // contract retired (see docs/FORK_GUIDE.md) — but the column is kept so a backup written by either
+        // tree still restores into the other.
+        migrator.registerMigration("v53-daily-sleep-hr-only") { db in
+            try db.alter(table: "dailyMetric") { t in
+                t.add(column: "sleepHrOnly", .boolean)
+            }
+        }
         return migrator
     }
 }

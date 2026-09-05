@@ -78,6 +78,7 @@ struct TrendsMetricStrip: View {
         case .stress:                 return StrandPalette.effortColor
         case .fitnessAge, .vo2max, .vitality, .coupled: return StrandPalette.chargeColor
         case .hydration:              return StrandPalette.metricCyan
+        case .coach:                  return StrandPalette.accent
         }
     }
 
@@ -107,6 +108,10 @@ struct TrendsMetricStrip: View {
             // weight-trend summary). Honest "—" rather than a guess; pick a different slot for these
             // today, or wire a dedicated resolver if a slot needs one later.
             return "—"
+        case .coach:
+            // Not a metric at all — the Coach card is a launcher, so there is no measurement to miss.
+            // Empty rather than "—", the same distinction `TodayView.dashboardValue` makes for it.
+            return ""
         }
     }
 }

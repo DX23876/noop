@@ -46,9 +46,7 @@ struct CoupledView: View {
     /// the cold-start threshold, which keeps the broad overnight-band bonus.
     @State private var habitualMidsleepSec: Int? = nil
 
-    /// #614: TODAY's workout count from the SAME deduped/dismissed-filtered list the Workouts screen shows
-    /// (`repo.workoutRows`), not `DailyMetric.exerciseCount` (strap-DETECTED only — a Health-Connect import
-    /// with auto-detect off read as 0 while the Workouts screen showed it). Loaded in `.task`.
+    /// Today's all-source workout count materialized onto the same physiological cycle as the other cards.
     @State private var workoutsToday: Int = 0
 
     /// The day the coupled read describes, today's resolved row (the same `resolveToday` #304/#144 boundary
@@ -159,14 +157,7 @@ struct CoupledView: View {
         // bed→wake span below resolves identically (#294). Re-runs on a sync/import refresh.
         .task(id: repo.refreshSeq) {
             habitualMidsleepSec = await repo.habitualMidsleepSec()
-            // #614: count TODAY's workouts by their START's logical day (the SAME 04:00-rollover key
-            // DailyMetric.day uses), so the Coupled stat equals the Workouts overview for today.
-            let key = todayKey
-            // A short window is enough to count today's rows (the cross-source dedup is local to the set),
-            // and avoids loading the full history just for one number.
-            workoutsToday = await repo.workoutRows(days: 2).filter {
-                Repository.logicalDayKey(Date(timeIntervalSince1970: TimeInterval($0.startTs))) == key
-            }.count
+            workoutsToday = day?.exerciseCount ?? 0
         }
     }
 
@@ -339,7 +330,7 @@ struct CoupledView: View {
                                  caloriesText,
                                  tint: StrandPalette.metricAmber)
                         heroStat(String(localized: "Workouts"),
-                                 "\(workoutsToday)",   // #614: real workout count (all sources), not exerciseCount
+                                 "\(workoutsToday)",
                                  tint: StrandPalette.textPrimary)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -705,12 +696,9 @@ struct CoupledView: View {
         Self.clockFmt.string(from: Date(timeIntervalSince1970: TimeInterval(ts)))
     }
 
-    private static let clockFmt: DateFormatter = {
-        let f = DateFormatter()
-        f.locale = AppLanguage.activeLocale
-        f.setLocalizedDateFormatFromTemplate("jmm")
-        return f
-    }()
+    /// #1821: routed through AppClock so the Clock format setting reaches this label. Was a `static
+    /// let`, which would have frozen the reader's choice at first use until the app relaunched.
+    private static var clockFmt: DateFormatter { AppClock.hourMinuteFormatter() }
 
     /// "6h 42m" from a minutes count, for the slept-vs-needed read. Mirror EXACTLY in Kotlin.
     static func hoursMinutes(_ minutes: Double) -> String {

@@ -16,7 +16,12 @@ final class EnergyStepBucketTests: XCTestCase {
     /// 288 small losses a day, all in the same direction.
     func testBoundaryDeltaIsNotLostBetweenAdjacentBuckets() throws {
         // Bucket A: 0…299, bucket B: 300…599. 100 ticks accrue across the A→B boundary.
-        let samples = [sample(290, 1_000), sample(305, 1_100), sample(590, 1_150)]
+        //
+        // The 40 s between the first two is not arbitrary padding: `StepsCounter.isPlausibleDelta` caps a
+        // window at `maxTicksPerSecond` (4/s), so the original 15 s spacing made 100 ticks a rate no
+        // locomotion produces and the counter rejected the very delta this test is about. The property
+        // under test is the BOUNDARY CARRY, not the rate gate — so the fixture has to clear the gate.
+        let samples = [sample(290, 1_000), sample(330, 1_100), sample(590, 1_150)]
         let out = Repository.bucketStepMovement(samples, ticksPerStep: 1.0)
         // B must see the 100 across the boundary plus the 50 within it.
         XCTAssertEqual(try XCTUnwrap(out[300]?.steps), 150)

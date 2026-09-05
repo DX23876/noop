@@ -74,6 +74,7 @@ public enum BackupSettings {
         "units.system": .string,
         "units.temperature": .string,
         "effort.scale": .string,
+        "dayCycle.mode": .string,
         "today.hostedCards": .string,
         // #1361: the user's own custom journal BEHAVIOURS (newline-joined names). Deliberately NOT in
         // `appleDefaultsKey` below — it isn't a flat UserDefaults key (customs are derived from the
@@ -101,6 +102,7 @@ public enum BackupSettings {
         "units.system": "units.system",
         "units.temperature": "units.temperature",
         "effort.scale": "effort.scale",
+        "dayCycle.mode": "noop.dayCycleMode",
         "today.hostedCards": "today.hostedCards",
     ]
 

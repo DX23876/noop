@@ -50,11 +50,22 @@ public struct SleepSession: Equatable, Sendable {
     public let restingHR: Int?
     /// Mean RMSSD over 5-min windows across the session (ms), or nil.
     public let avgHRV: Double?
+    /// Staged WITHOUT a motion spine, from heart rate alone (#1801).
+    ///
+    /// True only for a strap that streams HR but banks no motion, where Stage 0's gravity-stillness
+    /// spine has nothing to work with. Such a night is weaker by construction, not by tuning: with
+    /// motion gone a quiet evening at rest can sit in the sleep band. It is allowed to describe itself
+    /// — duration, stages, Rest — and must NOT reach anything it cannot be unwound from, which is why
+    /// `restingHR` and `avgHRV` are left nil on one rather than filtered out downstream.
+    ///
+    /// Kotlin twin: `DetectedSleep.hrOnly` (the model names diverge, `DetectedSleep`/`SleepSession`).
+    public let hrOnly: Bool
 
     public init(start: Int, end: Int, efficiency: Double, stages: [StageSegment],
-                restingHR: Int?, avgHRV: Double?) {
+                restingHR: Int?, avgHRV: Double?, hrOnly: Bool = false) {
         self.start = start; self.end = end; self.efficiency = efficiency
         self.stages = stages; self.restingHR = restingHR; self.avgHRV = avgHRV
+        self.hrOnly = hrOnly
     }
 }
 
@@ -470,6 +481,234 @@ public enum SleepStager {
             }
         }
         return periods
+    }
+
+    /// Percentile of the window's bpm that anchors the HR-only sleep band.
+    ///
+    /// NOT `hrBaseline`. That is the window MEDIAN, and it is the right anchor where it is used — as a
+    /// CONFIRMATION gate on a run gravity stillness already found, where being permissive is deliberate.
+    /// As a PRIMARY threshold it is disqualified by arithmetic rather than by tuning: a median splits the
+    /// samples in half by definition, so a band of `median * 1.05` admits strictly more than half of any
+    /// window whatever the data. Measured on a realistic 24 h (16 h awake 74-96, 8 h night 59-70) it
+    /// called 14.4 hours sleep against a truth of 8.
+    ///
+    /// A tenth percentile sits in the night's trough instead, which is what a sleep band should be
+    /// anchored to, and cannot admit half the window however the day is shaped.
+    public static let hrOnlyAnchorPercentile: Double = 0.10
+
+    /// Multiplier above `hrOnlyAnchorPercentile` that still counts as asleep.
+    ///
+    /// Numerically equal to `hrSleepBandMult` today, and deliberately a SEPARATE constant: that one is a
+    /// confirmation gate's tolerance and this one is a detector's, and a future change to either has no
+    /// business silently moving the other.
+    ///
+    /// Chosen conservatively from a sweep over anchor x multiplier against windows with known truth,
+    /// because the two failure directions are not symmetric. Over-detection puts a wrong Rest number on
+    /// screen; under-detection leaves "No data", which is the state this feature is trying to improve on
+    /// and therefore a safe place to fail. p10 x 1.05 measured 8.1 h against a truth of 8 on a
+    /// field-shaped 24 h window, and under-reads a long multi-night window rather than over-reading it
+    /// (8.7 h of 16 h across two nights in 54 h) — pinned in `SleepStagerHrOnlyAnchorTests`.
+    public static let hrOnlyBandMult: Double = 1.05
+
+    /// The `hrOnlyAnchorPercentile` of `hr` by bpm, or nil when empty. Nearest-rank (no interpolation), so
+    /// the value is always one the wearer actually recorded and the two platforms cannot disagree on a
+    /// rounding rule.
+    static func hrOnlyBaseline(_ hr: [HRSample]) -> Double? {
+        hrPercentile(hr, hrOnlyAnchorPercentile)
+    }
+
+    /// The `p` percentile of `hr` by bpm, nearest-rank. Shared with `hrOnlyBaseline` so the spread the
+    /// trace reports is measured by the SAME rule as the anchor it is meant to be judged against.
+    static func hrPercentile(_ hr: [HRSample], _ p: Double) -> Double? {
+        percentileOfSorted(hr.map { Double($0.bpm) }.sorted(), p)
+    }
+
+    /// The `p` percentile of an ALREADY-SORTED bpm list, nearest-rank. Split out because the caller
+    /// needs three percentiles from the same window, and the obvious spelling sorts once per
+    /// percentile — ~160k samples sorted three times per scored day across a 21-day rescore.
+    static func percentileOfSorted(_ sorted: [Double], _ p: Double) -> Double? {
+        if sorted.isEmpty { return nil }
+        let idx = min(max(Int(Double(sorted.count - 1) * p), 0), sorted.count - 1)
+        return sorted[idx]
+    }
+
+    /// How many distinct `hrOnlyEpochS` buckets `sortedByTs` spans.
+    ///
+    /// A single pass rather than a Set, because `hrS` is already sorted by timestamp so the bucket key
+    /// is non-decreasing. The obvious spelling (`Set(hrS.map { … })`) builds a full intermediate array
+    /// AND a set over every sample to end up with a few thousand distinct keys — per scored day, across
+    /// the 21-day rescore. A diagnostic must not cost what it is measuring.
+    static func distinctEpochs(_ sortedByTs: [HRSample]) -> Int {
+        var count = 0
+        var last = Int.min
+        for s in sortedByTs {
+            let key = s.ts / hrOnlyEpochS
+            if key != last { count += 1; last = key }
+        }
+        return count
+    }
+
+    /// Epoch for the HR-only spine, in seconds.
+    public static let hrOnlyEpochS: Int = 60
+
+    /// Sleep/active runs built from HEART RATE ALONE, for a strap that streams HR but banks no motion.
+    ///
+    /// Stage 0 is normally a gravity-stillness spine (Cole-Kripke) that HR only CONFIRMS, via
+    /// `hrSleepBandAcross` and `confirmSleepWithHR`. A WHOOP 5/MG that cannot bond never banks motion at
+    /// all — `SET_CLOCK` rides a handshake it never completes — so `grav` is empty, there is no spine, and
+    /// no quantity of HR can stage the night (#1801). This builds the spine from the one signal such a
+    /// strap does provide.
+    ///
+    /// Deliberately the SAME rule the confirm path already trusts: per-epoch MEDIAN bpm against
+    /// `baseline * hrSleepBandMult`, median for the reason `hrSleepBandAcross` spells out. The run
+    /// construction follows `buildRuns` — close on a class change or a gap over `maxGapMin` — so the two
+    /// spines segment alike once flags exist, and only the flag SOURCE differs.
+    ///
+    /// With ONE branch deliberately absent, and it is not an oversight. `buildRuns` can forgive a gap when
+    /// `hrSleepBandAcross` vouches that HR stayed in band across it, which rescues a night whose GRAVITY
+    /// dropped out. Here the gap IS in the heart rate, so there is nothing left to vouch with and no
+    /// analogue to port. A long HR dropout therefore breaks an HR-only run where it would not break a
+    /// motion-backed one, and a night fragmented that way is dropped by the caller's minimum-duration
+    /// gate rather than bridged.
+    ///
+    /// WEAKER THAN THE MOTION SPINE, by construction rather than by tuning. The file already notes that a
+    /// long still daytime stretch is gravity-indistinguishable from a nap and that HR is what saves it;
+    /// with motion gone the inverse is exposed, and a quiet evening at rest can sit in the sleep band. A
+    /// caller must treat these runs as lower-confidence than a motion-backed night and must not let one
+    /// reach a baseline it cannot be unwound from.
+    ///
+    /// Bucket order does not depend on sort stability: samples are grouped by epoch and reduced with a
+    /// median, so their order within an epoch cannot change the result.
+    static func hrOnlySleepRuns(_ hr: [HRSample], baseline: Double?,
+                                epochS: Int = hrOnlyEpochS,
+                                maxGapMinutes: Int = maxGapMin) -> [Period] {
+        guard let baseline = baseline, baseline > 0 else { return [] }
+        if hr.isEmpty || epochS <= 0 { return [] }
+        var byEpoch: [Int: [Double]] = [:]
+        var lastTs: [Int: Int] = [:]
+        for s in hr {
+            let k = s.ts / epochS
+            byEpoch[k, default: []].append(Double(s.bpm))
+            lastTs[k] = max(lastTs[k] ?? Int.min, s.ts)
+        }
+        let keys = byEpoch.keys.sorted()
+        // Two axes, deliberately. A gap and a run's START use the epoch's own start, so a gap is measured
+        // between epochs rather than between whichever samples sat at their edges. A run's END is the last
+        // SAMPLE observed in its final epoch, which is what `buildRuns` means by `end` — reading the epoch
+        // start there would report every run one whole epoch shorter than the data it covers, and that
+        // understatement would then be weighed against the caller's minimum-duration gate.
+        let times = keys.map { $0 * epochS }
+        let ends = keys.map { lastTs[$0]! }
+        let flags = keys.map { HRVAnalyzer.median(byEpoch[$0]!) <= baseline * hrOnlyBandMult }
+        let maxGapS = maxGapMinutes * 60
+        var periods: [Period] = []
+        var runStart = 0
+        for i in 1...keys.count {
+            let atEnd = (i == keys.count)
+            let close: Bool
+            if atEnd {
+                close = true
+            } else {
+                close = flags[i] != flags[runStart] || (times[i] - times[i - 1]) > maxGapS
+            }
+            if close {
+                periods.append(Period(stage: flags[runStart] ? "sleep" : "active",
+                                      start: times[runStart], end: ends[i - 1]))
+                runStart = i
+            }
+        }
+        return periods
+    }
+
+    /// Whole sleep SESSIONS from heart rate alone, for a strap that banks no motion (#1801).
+    ///
+    /// `hrOnlySleepRuns` supplies the spine this normally gets from gravity stillness; `SleepStagerV2`
+    /// then stages each surviving run from HR and R-R with an EMPTY gravity array. That is not a
+    /// degenerate call: V2's epoch features read HR and R-R directly and only its motion-quiescence terms
+    /// go quiet, so it returns a real hypnogram rather than one flat stage. A stageless session would be
+    /// dropped by `sleepSessionFromProvided` anyway, so a night that fails to stage is correctly omitted
+    /// here rather than passed on hollow.
+    ///
+    /// The anchor is `hrOnlyBaseline` — the `hrOnlyAnchorPercentile` of the window — and NOT the
+    /// `hrBaseline` median the motion path derives. Reusing that median looked like parity and was a bug:
+    /// as a confirmation gate on an already-detected run it is deliberately permissive, but as a primary
+    /// threshold it admits over half of any window by definition. See `hrOnlyAnchorPercentile`.
+    ///
+    /// `restingHR` and `avgHRV` are MEASURED here and reported (#1884). They were withheld under #1801,
+    /// which treated them as inferred; they are not. Only the session BOUNDS are inferred from heart rate
+    /// — that is what `hrOnly` marks — while each RMSSD is computed over its own 5-minute window, so fuzzy
+    /// bounds change WHICH windows are included, not whether any one of them is valid. Withholding them
+    /// discarded a measured 22-25 ms and left Charge with no input at all, which is a worse error than a
+    /// slightly fuzzy one.
+    ///
+    /// The flag travels on instead, so a consumer that wants to weigh an HR-only night down still can.
+    /// `public` because the app target calls it: `Strand/Data/IntelligenceEngine.swift` is the day scan,
+    /// and it lives outside this package. The spine and the anchor below it stay `internal` — the tests
+    /// reach them with `@testable`, and nothing outside should be building its own spine.
+    public static func hrOnlySessions(hr: [HRSample], rr: [RRInterval], resp: [RespSample],
+                                      minMinutes: Int = minSleepMin,
+                                      traceSink: ((String) -> Void)? = nil) -> [SleepSession] {
+        let hrS = hr.sorted { $0.ts < $1.ts }
+        // ONE sort of the bpm axis, reused for the anchor and for the spread the trace reports.
+        let sortedBpm = hrS.map { Double($0.bpm) }.sorted()
+        guard let baseline = percentileOfSorted(sortedBpm, hrOnlyAnchorPercentile) else {
+            traceSink?(GateTrace.hrOnlyLine(anchorBpm: nil, bandBpm: nil, hrP50: nil, hrP90: nil,
+                                            epochs: 0, runs: 0,
+                                            mergedRuns: 0, sleepRuns: 0, longestSleepMin: 0,
+                                            staged: 0, kept: 0, minSleepMin: minMinutes))
+            return []
+        }
+        let rrS = rr.sorted { $0.ts < $1.ts }
+        var out: [SleepSession] = []
+        // mergePeriods for the same reason the motion path calls it: a run boundary is a threshold
+        // crossing, and a sleeping heart rate oscillates across the band all night. Without this the
+        // spine returns the night's minutes correctly but shredded into sub-mergeMin fragments, every one
+        // of which then fails the minimum-duration gate below — 8 h of detected sleep yielding zero
+        // sessions. Absorbing the short runs first is what turns a spine into a night.
+        let rawRuns = hrOnlySleepRuns(hrS, baseline: baseline)
+        let merged = mergePeriods(rawRuns)
+        var staged = 0
+        var longestSleepS = 0
+        for p in merged {
+            if p.stage != "sleep" { continue }
+            longestSleepS = max(longestSleepS, p.end - p.start)
+            if (p.end - p.start) < minMinutes * 60 { continue }
+            let stages = SleepStagerV2.stageSession(start: p.start, end: p.end, grav: [],
+                                                    hr: hrS, rr: rrS, resp: resp)
+            staged += 1
+            if stages.isEmpty { continue }
+            // #1884: MEASURED, not nilled. The bounds here are inferred from heart rate, which is why
+            // `hrOnly` marks the session — but each RMSSD is computed over its own 5-minute window tagged
+            // by the stage at its centre, so fuzzy bounds change WHICH windows are included, not whether
+            // any one of them is valid. A field log showed this path computing a stable 22-25ms deepOnly
+            // and discarding it, leaving Charge unscoreable. `hrOnly` still travels with the session, so
+            // it is a quality marker now rather than a delete. Kotlin twin: `SleepStager.hrOnlySessions`.
+            out.append(SleepSession(start: p.start, end: p.end,
+                                    efficiency: efficiency(start: p.start, end: p.end, stages: stages),
+                                    stages: stages,
+                                    restingHR: sessionRestingHR(start: p.start, end: p.end, hr: hrS),
+                                    avgHRV: sessionAvgHRV(start: p.start, end: p.end, rr: rrS),
+                                    hrOnly: true))
+        }
+        traceSink?(GateTrace.hrOnlyLine(
+            anchorBpm: baseline,
+            bandBpm: baseline * hrOnlyBandMult,
+            // The wearer's own spread. An anchor alone cannot be judged: p10 of 60 means one thing when
+            // the median is 63 and quite another when it is 74, and only the second leaves a night the
+            // band can separate.
+            hrP50: percentileOfSorted(sortedBpm, 0.50),
+            hrP90: percentileOfSorted(sortedBpm, 0.90),
+            // The real epoch count, not the sample count: the spine buckets by `hrOnlyEpochS` before it
+            // decides anything, so this is the axis every other number here is measured on.
+            epochs: distinctEpochs(hrS),
+            runs: rawRuns.count,
+            mergedRuns: merged.count,
+            sleepRuns: merged.filter { $0.stage == "sleep" }.count,
+            longestSleepMin: longestSleepS / 60,
+            staged: staged,
+            kept: out.count,
+            minSleepMin: minMinutes))
+        return out
     }
 
     /// Absorb runs shorter than mergeMin minutes into their neighbours.

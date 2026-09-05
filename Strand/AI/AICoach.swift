@@ -379,6 +379,15 @@ final class AICoachEngine: ObservableObject {
             conversations.sort { $0.updatedAt > $1.updatedAt }
         }
     }
+
+    /// #1862: a question handed over by the Today Coach launcher sheet, for `CoachView` to send on appear.
+    ///
+    /// The launcher owns no send, stream, error or consent surface of its own — duplicating those is how a
+    /// second chat UI drifts from the first. It collects a question and hands it here; the Coach screen,
+    /// which already has all of that, consumes it exactly once and clears it. Nil is the normal state, and
+    /// setting it performs NO network work by itself.
+    @Published var pendingPrompt: String?
+
     @Published var provider: AIProvider {
         didSet {
             guard provider != oldValue else { return }
@@ -669,9 +678,11 @@ final class AICoachEngine: ObservableObject {
     static let defaultSystemPrompt = """
     You are an elite, supportive recovery and performance coach with a real training methodology. \
     Your source of truth is the user's own wearable data (charge 0-100, effort 0-100, rest 0-100, \
-    HRV, resting heart rate) and recent workouts — provided below as a summary, or fetched with your \
-    tools. Charge is the daily recovery/readiness score, effort is the daily cardiovascular load score, \
-    and rest is the nightly sleep-quality score. \
+    sleep duration and its deep/REM/light breakdown, sleep efficiency, HRV, resting heart rate) and \
+    recent workouts — provided below as a summary, or fetched with your tools. Charge is the daily \
+    recovery/readiness score, effort is the daily cardiovascular load score, and rest is the nightly \
+    sleep-quality score. A dash in the data means that value was NOT MEASURED that day — say so rather \
+    than treating it as a zero. \
     Coach using autoregulation:
     • Readiness → prescription: your autoregulation input is a Readiness verdict computed the SAME way \
     the app's own Today screen shows it - level (primed/balanced/strained/rundown), acute:chronic \
@@ -4690,7 +4701,8 @@ final class AICoachEngine: ObservableObject {
             lines.append(axisNote)
         }
         lines.append("")
-        lines.append("Recent days (newest first) — charge(0-100), effort(0-100), rest/sleep(h), HRV(ms), RHR(bpm):")
+        lines.append("Recent days (newest first) — charge(0-100), effort(0-100), rest/sleep(h), "
+                     + "deep/REM/light(h), eff(%), HRV(ms), RHR(bpm). A dash means NOT MEASURED, not zero:")
         for d in recent {
             lines.append("  " + dayLine(d))
         }
@@ -4807,14 +4819,55 @@ final class AICoachEngine: ObservableObject {
 
     // MARK: Formatting helpers
 
-    private func dayLine(_ d: DailyMetric) -> String {
+    /// `internal`, not private, so `AICoachSleepContextTests` can assert the emitted line directly.
+    /// Swift's `buildContext()` takes no arguments (it reads the repo), unlike the Kotlin twin which is
+    /// handed the day list — so without this the formatter has no seam and the Swift half of a change
+    /// with fifteen Kotlin tests would ship untested.
+    func dayLine(_ d: DailyMetric) -> String {
         var parts: [String] = [d.day + ":"]
         parts.append("charge " + (d.recovery.map { "\(Int($0.rounded()))" } ?? "—"))
         parts.append("effort " + (d.strain.map { String(format: "%.1f", $0) } ?? "—"))
         parts.append("rest " + (d.totalSleepMin.map { String(format: "%.1fh", $0 / 60) } ?? "—"))
+        // The stage breakdown and efficiency, which the coach could not see at all: a user asked why it
+        // said it had no access to sleep stages, and it was answering honestly — `rest 7.8h` was every
+        // word it got about a night. These four sit on the SAME DailyMetric the line already reads, so
+        // nothing new is plumbed; they were simply never included. (#124 widened this context once
+        // before, for the same reason.)
+        //
+        // Always emitted, "—" when absent, like every other field here. A night with no staging then
+        // says so rather than going quiet, which matters more than line length: the alternative — only
+        // appending stages when present — gives the model a schema that changes shape between days and
+        // invites it to read a missing field as a zero.
+        parts.append("deep " + hoursOrDash(d.deepMin))
+        parts.append("REM " + hoursOrDash(d.remMin))
+        parts.append("light " + hoursOrDash(d.lightMin))
+        parts.append("eff " + efficiencyPercentOrDash(d.efficiency))
         parts.append("HRV " + (d.avgHrv.map { "\(Int($0.rounded()))ms" } ?? "—"))
         parts.append("RHR " + (d.restingHr.map { "\($0)bpm" } ?? "—"))
         return parts.joined(separator: ", ")
+    }
+
+    /// Minutes as "1.4h", or "—" when the night has no value. Matches the `rest` field's format so a
+    /// stage total and the total it is part of read on the same scale.
+    private func hoursOrDash(_ minutes: Double?) -> String {
+        minutes.map { String(format: "%.1fh", $0 / 60) } ?? "—"
+    }
+
+    /// Efficiency as a percentage, NORMALISING the stored value first.
+    ///
+    /// `DailyMetric.efficiency` is not reliably a 0–1 fraction: it "arrives as % on some import paths",
+    /// which `SleepView` and `StagesCard` each guard against inline with this same `> 1.5` test. A bare
+    /// `* 100` would therefore hand the coach "eff 9400%" for an imported night — and a model given a
+    /// nonsense number reasons about it confidently rather than ignoring it.
+    ///
+    /// 1.5 rather than 1.0 because a genuine fraction can exceed 1.0 only by floating-point noise, while
+    /// a genuine percentage is 30–100 and nowhere near the threshold. Android's two copies of this guard
+    /// split at 1.0 instead, which is a pre-existing divergence and not this change's to settle.
+    func efficiencyPercentOrDash(_ raw: Double?) -> String {
+        guard var e = raw, e > 0 else { return "—" }
+        if e > 1.5 { e /= 100 }
+        guard e > 0, e <= 1 else { return "—" }
+        return "\(Int((e * 100).rounded()))%"
     }
 
     private func avgOne(_ xs: [Double]) -> String {

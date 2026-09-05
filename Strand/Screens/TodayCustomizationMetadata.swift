@@ -89,6 +89,7 @@ extension DashboardCard {
         case .sleep: return StrandPalette.restColor
         case .coupled: return StrandPalette.chargeColor
         case .weight: return StrandPalette.metricRose
+        case .coach: return StrandPalette.accent
         }
     }
 }

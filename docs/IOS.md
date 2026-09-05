@@ -16,6 +16,62 @@ The [10.1.1 release](https://github.com/DX23876/noop/releases/tag/v10.1.1-dx) pu
 Both IPAs are unsigned. The AltStore variant removes only the embedded Watch bundle; it keeps the
 widget extension and the capability template used to provision the shared App Group and HealthKit.
 
+### If AltStore's Error Log says "Install NOOP Failed"
+
+The same failure also shows up **on the phone**, in AltStore's own Error Log, where it names NOOP and so
+looks like NOOP's fault:
+
+> **Install NOOP Failed** — `NSCocoaErrorDomain 3840`
+> *The data couldn't be read because it isn't in the correct format.*
+
+**Read the whole log before concluding anything.** If it also contains:
+
+> **Refresh AltStore Failed** — `NSCocoaErrorDomain 3840`
+
+then AltStore could not refresh **its own app**, which nothing about NOOP's `.ipa` or NOOP's source can
+cause. Every "… Failed" line is the same decode failure hitting whatever AltStore happened to be doing at
+that minute — installing NOOP, refreshing NOOP, refreshing itself. The NOOP-named lines are the symptom,
+not the cause.
+
+`NSCocoaErrorDomain 3840` is a parse error: AltStore expected structured data and got something else back
+(usually an HTML page). See the section below — it is the same underlying problem as the desktop sign-in
+failure, just reported from the phone instead of AltServer.
+
+### If AltServer can't sign in with your Apple ID
+
+A failure at **step 1** — before NOOP is involved at all — looks like this:
+
+> **AltServer could not sign in with your Apple ID. The data is not in the correct format.**
+>
+> `NSCocoaErrorDomain 3840` · *Encountered unknown tag html on line 1*
+
+**This is a known AltStore bug on OS 26.2, not a problem with your setup.** It is reported upstream in
+[altstoreio/AltStore#1695](https://github.com/altstoreio/AltStore/issues/1695) and
+[#1699](https://github.com/altstoreio/AltStore/issues/1699), on macOS Tahoe 26.2 with iOS/iPadOS 26.2, and
+at the time of writing there is no maintainer fix or workaround. Nothing you can change on your machine
+resolves it.
+
+What the error means, for the record: AltServer asked Apple's ID service for a property list and received
+an **HTML page**, so the parser hit `<html>` on the first line. The "malformed data byte group / invalid
+hex" line beneath it is the same failure reported by the older-style parser, not a second fault.
+
+**What actually works today:**
+
+- **Use [SideStore](https://sidestore.io) instead.** It is a separate implementation that does not go
+  through AltServer's Apple ID sign-in, and NOOP's source works there identically — the same URL, the same
+  auto-updates. This is the practical answer while the upstream bug is open.
+- **Install the `.ipa` directly** with any sideloader that signs on-device, if you prefer not to add a
+  source at all.
+- **Watch the issues above** if you would rather wait for AltStore itself.
+
+Local network filtering — a DNS blocker, a VPN, a captive portal — can produce an identical-looking error
+by returning a block page, so it is worth ruling out if you have any. But it is **not** the usual cause,
+and the two reports that prompted this note were both the upstream bug.
+
+This is AltStore's own setup rather than anything NOOP controls, but it is the first step of the install,
+so it is written down here rather than left as a dead end.
+
+
 ## Install with AltStore or SideStore
 
 1. Install [AltStore](https://altstore.io) or [SideStore](https://sidestore.io) using its official

@@ -73,6 +73,10 @@ struct SettingsView: View {
     @State private var backupAlertTitle = ""
     @State private var backupAlertMessage = ""
     @State private var showBackupAlert = false
+    /// #1807: a restore refused ONLY for size is recoverable, so it gets its own two-button alert rather
+    /// than the shared single-OK one every other backup outcome uses.
+    @State private var showOversizeRestoreConfirm = false
+    @State private var oversizeRestoreMessage = ""
 
     /// Opt-in WHOOP 5/MG protocol experiments (off by default). See [PuffinExperiment].
     @AppStorage(PuffinExperiment.defaultsKey) private var puffinExperiments = false
@@ -207,8 +211,16 @@ struct SettingsView: View {
     // Imperial/Metric display preference (D#103). Stored data is always SI; this only changes how
     // distances/weights/heights/temperatures are SHOWN — and lets the profile fields below take
     // imperial entry. Temperature has a separate override so °C/°F can be picked independently.
+    /// #1821: Clock format. Defaults to `.system`, so upgrading changes nobody's displayed times.
+    /// #1841: shared with Android by name and meaning; each platform keeps its own store. Default FALSE
+    /// on Apple (Android defaults true) because the system behaviour may not fire on our
+    /// `NavigationStack(path:)` tabs — see RootTabView.
+    @AppStorage("noop.bottomBarAutoHide") private var bottomBarAutoHide = false
+    @AppStorage(ClockFormatPreference.defaultsKey)
+    private var clockFormatRaw = ClockFormatPreference.system.rawValue
     @AppStorage(UnitPrefs.systemKey) private var unitSystemRaw = UnitSystem.metric.rawValue
     @AppStorage(UnitPrefs.temperatureKey) private var temperatureRaw = ""
+    @AppStorage(UnitPrefs.skinTempDisplayKey) private var skinTempDisplayRaw = ""   // #1846
     // Effort display scale (#268). Display-only — Effort stays stored 0–100, this only chooses whether
     // it's shown on NOOP's 0–100 axis or WHOOP's 0–21 Day Strain axis.
     @AppStorage(UnitPrefs.effortScaleKey) private var effortScaleRaw = EffortScale.hundred.rawValue
@@ -216,6 +228,7 @@ struct SettingsView: View {
     @AppStorage(UnitPrefs.hrvWindowKey) private var hrvWindowRaw = HrvWindow.whole.rawValue
     // Live-HR Live Activity (Lock Screen + Dynamic Island), iOS only (#336). Default on.
     @AppStorage(UnitPrefs.liveActivityKey) private var liveActivityEnabled = true
+    @AppStorage(DayCycleMode.storageKey) private var dayCycleModeRaw = DayCycleMode.sleepOnset.rawValue
     // Alternate app icon (iOS only) — false = Titanium (primary AppIcon), true = Blue Titanium
     // ("AppIcon-Navy"). Display-only preference; the live switch goes through setAlternateIconName.
     @AppStorage("appIcon.alt") private var useNavyIcon = false
@@ -430,6 +443,15 @@ struct SettingsView: View {
             Button("OK", role: .cancel) { }
         } message: {
             Text(backupAlertMessage)
+        }
+        // Title and buttons reuse catalogue strings that already carry all nine locales, rather than
+        // minting new copy that would ship English everywhere until someone translated it. The message
+        // below is where the specifics live. (#1807)
+        .alert("Backup problem", isPresented: $showOversizeRestoreConfirm) {
+            Button("Restore") { runImport(allowOversize: true) }
+            Button("Cancel", role: .cancel) { }
+        } message: {
+            Text(oversizeRestoreMessage)
         }
         .confirmationDialog("Recalibrate your Charge baseline?",
                             isPresented: $showRecalibrateConfirm, titleVisibility: .visible) {
@@ -673,6 +695,27 @@ struct SettingsView: View {
                 Text("Where each zone starts, as a share of your max heart rate. Changes the zones you see and the ones your coach prescribes — not your Effort score.")
                     .font(StrandFont.footnote)
                     .foregroundStyle(StrandPalette.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                rowDivider
+                FormRow(label: "Day cycle") {
+                    Picker("Day starts", selection: Binding(
+                        get: { DayCycleMode.persisted(dayCycleModeRaw) },
+                        set: { mode in
+                            dayCycleModeRaw = mode.rawValue
+                            Task { await model.intelligence.analyzeRecent(); await model.repo.refresh() }
+                        }
+                    )) {
+                        Text("Main sleep").tag(DayCycleMode.sleepOnset)
+                        Text("00:00").tag(DayCycleMode.midnight)
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.menu)
+                }
+                Text(dayCycleModeRaw == DayCycleMode.midnight.rawValue
+                     ? "Uses a conventional local calendar day from 00:00 to 00:00."
+                     : "Default. Steps and in-progress Effort restart at the beginning of detected main sleep. Naps do not start a new day; missing sleep falls back to local midnight.")
+                    .font(StrandFont.footnote)
+                    .foregroundStyle(StrandPalette.textTertiary)
                     .fixedSize(horizontal: false, vertical: true)
                 rowDivider
                 // Step calibration (#139/#132): daily steps = @57 counter ticks ÷ this divisor.
@@ -1125,6 +1168,20 @@ struct SettingsView: View {
                     .accessibilityLabel("Temperature unit")
                 }
                 rowDivider
+                FormRow(label: "Skin temperature") {
+                    // #1846: lead with a temperature ("33.5 °C") or with the move from your own baseline
+                    // ("-0.1 Δ°C"). Only a PREFERENCE — a night that measured just one of the two still
+                    // shows that one, so the choice can never blank a card.
+                    Picker("Skin temperature", selection: $skinTempDisplayRaw) {
+                        Text("Temperature").tag("")
+                        Text("vs baseline").tag(SkinTempDisplay.Kind.deviation.rawValue)
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.menu)
+                    .tint(StrandPalette.accent)
+                    .accessibilityLabel("Skin temperature display")
+                }
+                rowDivider
                 // Effort scale (#268) — show NOOP's native 0–100 Effort or WHOOP's 0–21 Day Strain axis.
                 // Display-only; the stored value never changes, so a flip just re-labels every Effort read-out.
                 FormRow(label: "Effort scale") {
@@ -1259,6 +1316,41 @@ struct SettingsView: View {
                     .foregroundStyle(StrandPalette.textTertiary)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.top, NoopMetrics.space1)
+                rowDivider
+                // #1821: sits with Language rather than in Units because it is an app-owned display
+                // CONVENTION, not a unit of measurement — and like Language it offers "System default",
+                // which here means the device's own 24-Hour Time switch rather than the region default.
+                // Unlike Language this needs no relaunch: the formatter caches per resolved template.
+                FormRow(label: "Clock") {
+                    Picker("Clock", selection: $clockFormatRaw) {
+                        Text("System default").tag(ClockFormatPreference.system.rawValue)
+                        Text("12-hour").tag(ClockFormatPreference.twelveHour.rawValue)
+                        Text("24-hour").tag(ClockFormatPreference.twentyFourHour.rawValue)
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.menu)
+                    .tint(StrandPalette.accent)
+                    .accessibilityLabel("Clock")
+                    // #1829: the resolved clock is memoised, so the write has to drop the memo or the
+                    // picker would appear to do nothing until the app restarted.
+                    .onChangeCompat(of: clockFormatRaw) { _ in AppClock.invalidate() }
+                }
+                #if os(iOS)
+                rowDivider
+                // #1841: the same preference Android drives its own bar with, by name and meaning. Here
+                // the SYSTEM owns the behaviour — iOS 26 minimises the tab bar to a pill on scroll rather
+                // than sliding it away — so this asks for the platform's reading of the intent rather
+                // than reproducing ours. Below iOS 26 the modifier is inert and the row simply does
+                // nothing, which is why it is not offered there.
+                if #available(iOS 26.0, *) {
+                    FormRow(label: "Hide bar when scrolling") {
+                        Toggle("", isOn: $bottomBarAutoHide)
+                            .labelsHidden()
+                            .tint(StrandPalette.accent)
+                            .accessibilityLabel("Hide bar when scrolling")
+                    }
+                }
+                #endif
                 rowDivider
                 // Theme presets — one-tap bundles coordinating accent + chart world + backdrop + card
                 // opacity. Derived (no stored value): tweaking any control below flips this to Custom.
@@ -1694,7 +1786,7 @@ struct SettingsView: View {
         // Live HR over the UNBONDED standard profile (#69). True whenever the handshake is suppressed or
         // simply has not landed, and the honest description either way.
         if live.bonded && live.connected {
-            return String(localized: "Live heart rate is streaming, but your strap is not fully paired. Buzz, alarms and history sync need the encrypted pairing.")
+            return String(localized: "Live heart rate is streaming, but your strap is not fully paired. The encrypted pairing is what carries motion, skin temperature, SpO₂ and respiratory rate — without it, sleep is staged from heart rate alone. Buzz, alarms and history sync need it too.")
         }
         if live.connected { return String(localized: "Connected. Finishing the secure pairing handshake…") }
         if live.bonded { return String(localized: "Previously paired but not currently connected. Re-scan to reconnect.") }
@@ -2892,10 +2984,10 @@ struct SettingsView: View {
         }
     }
 
-    private func runImport() {
+    private func runImport(allowOversize: Bool = false) {
         backupBusy = true
         Task {
-            let result = await DataBackup.runImport()
+            let result = await DataBackup.runImport(allowOversize: allowOversize)
             handleBackup(result)
         }
     }
@@ -2930,6 +3022,19 @@ struct SettingsView: View {
             backupAlertTitle = String(localized: "Backup exported")
             backupAlertMessage = String(localized: "Saved to \(url.lastPathComponent). Copy this file to your other \(Platform.deviceNoun) and use Import there to restore everything.")
             showBackupAlert = true
+        case .exportedOversize(let url, let bytes, let limit):
+            // #1807: the file is written and worth keeping — say so first, then say what restoring it
+            // will ask for. The old behaviour said nothing here and refused at restore, which is the
+            // one moment the original is already gone.
+            let size = ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file)
+            let cap = ByteCountFormatter.string(fromByteCount: limit, countStyle: .file)
+            backupAlertTitle = String(localized: "Backup exported")
+            backupAlertMessage = String(localized: "Saved to \(url.lastPathComponent). Your database is \(size), over the \(cap) NOOP restores without asking — the backup is complete and valid, and restoring it will ask you to confirm once.")
+            showBackupAlert = true
+        case .restoreTooLarge(let name, let limit):
+            let cap = ByteCountFormatter.string(fromByteCount: limit, countStyle: .file)
+            oversizeRestoreMessage = String(localized: "\(name) is larger than the \(cap) NOOP restores without asking. That limit guards against a malicious archive expanding to fill this \(Platform.deviceNoun) — a backup you exported yourself is not that. Restoring it needs the space the database will take. You'll be asked to choose the file again.")
+            showOversizeRestoreConfirm = true
         case .imported:
             backupAlertTitle = String(localized: "Backup imported")
             backupAlertMessage = String(localized: "Your data has been restored. Quit and reopen NOOP for it to take effect.")
@@ -3736,6 +3841,15 @@ struct StepsCalibrationSheet: View {
     @State private var draftManual: Double = 0
     @State private var didLoad = false
 
+    /// The strap has banked no motion, and we have looked.
+    ///
+    /// Named once because two places depend on it and they must stay exactly complementary: the
+    /// no-motion banner appears, and the calibration countdown does NOT. Written as two separate
+    /// expressions they drifted immediately — the guard's first draft tested `sampleMotion == nil`
+    /// alone, which is also true during the load, so the countdown vanished in a window where the
+    /// banner had not appeared yet and the card explained nothing at all.
+    private var strapHasNoMotion: Bool { didLoad && sampleMotion == nil }
+
     /// #107: the sheet's guidance depends on the strap family. A WHOOP 4.0 streams motion automatically, so
     /// "let it sync" is right; a 5/MG only streams motion once the experimental deep-data unlock is on, so
     /// the 4.0 advice is futile there and the empty state must say so instead.
@@ -3756,7 +3870,7 @@ struct StepsCalibrationSheet: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: NoopMetrics.sectionSpacing) {
                     explainerCard
-                    if didLoad && sampleMotion == nil { noMotionNote }
+                    if strapHasNoMotion { noMotionNote }
                     currentFitCard
                     comparisonCard
                     manualAdjustCard
@@ -3914,6 +4028,18 @@ struct StepsCalibrationSheet: View {
                     Text("Not calibrated yet")
                         .font(StrandFont.bodyNumber)
                         .foregroundStyle(StrandPalette.textPrimary)
+                    // Only ask for phone-step days when phone-step days are what is actually missing.
+                    //
+                    // A step estimate is `motion * coefficient` (`StepsEstimateEngine.estimate`) and a
+                    // calibration point is the ratio `steps / motion`, so BOTH halves are required. With no
+                    // banked strap motion neither the estimate nor the fit can move however many days the
+                    // phone counts. The countdown below then names the half the user already has and hides
+                    // the half they do not — a field report asked whether entering Apple Health steps by
+                    // hand would start the calibration, which is exactly the conclusion it invites.
+                    //
+                    // The no-motion banner at the top of this sheet already explains the real blocker, so
+                    // the honest move is to stop competing with it rather than to add more copy.
+                    if !strapHasNoMotion {
                     // #589: a concrete countdown instead of a vague "a few days". Headline comes straight
                     // from the engine's needsMoreDays state so the wording matches the Today steps tile.
                     // #693: drive `have` off `profile.stepsCalibrationSampleDays` — the value the engine
@@ -3931,6 +4057,7 @@ struct StepsCalibrationSheet: View {
                         .font(StrandFont.footnote)
                         .foregroundStyle(StrandPalette.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)
+                    }
                 }
             }
         }

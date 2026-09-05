@@ -345,27 +345,59 @@ struct LiveWorkoutView: View {
 
     // MARK: - Bottom floating controls
 
-    /// Diameter shared by the exit and workout-type Liquid Glass circles so the centered timer stays
-    /// optically balanced against equal side chrome.
+    /// Diameter shared by every Liquid Glass circle in the bottom capsule, so the row reads as one
+    /// set of controls rather than a mix of sizes.
+    ///
+    /// It used to justify itself as keeping "the centered timer optically balanced against equal side
+    /// chrome". The side chrome has not been equal since #1533 put two circles on the left and one on
+    /// the right, and the timer is no longer centred against them — see `bottomControlRow`.
     private static let bottomControlDiameter: CGFloat = 56
     /// Tight inset so the glass circles nest into the capsule ends (stopwatch-bar proportions).
     private static let bottomBarInset: CGFloat = 4
 
-    /// One shared dark floating capsule: Liquid Glass exit · elapsed · Liquid Glass workout-type.
-    /// The timer is centered in the bar via ZStack; the glass circles sit in a separate HStack so
-    /// uneven label widths cannot pull the time off-center. The capsule itself is solid elevated
-    /// chrome — not Liquid Glass.
+    /// One shared dark floating capsule: discard · pause · elapsed · end.
+    ///
+    /// Laid out in ONE HStack, so the timer and the controls cannot overlap. #1068 built this as a
+    /// ZStack with the timer centred independently — deliberately, "so uneven label widths cannot pull
+    /// the time off-center" — and that held while the bar carried one circle per side. #1533 added the
+    /// discard and pause controls to the left group, and a centred 40pt timer then began where two
+    /// 56pt circles plus their spacing end: `0:02` merely touched the pause button, and anything wider
+    /// went under it. A field report of "two timers" was this one half-occluded, read as a duplicate of
+    /// the big TIME readout above. `.allowsHitTesting(false)` on the timer was already a tell that it
+    /// sat beneath something tappable.
+    ///
+    /// The trade is deliberate: the timer now sits centred in the space the buttons leave rather than
+    /// in the bar, so it reads slightly right of true centre because the left chrome is heavier. That
+    /// is the cost of the layout being unable to collide at all. The buttons keep the positions they
+    /// have shipped with — moving pause to the right would centre the timer better and would also move
+    /// a control under the thumb of everyone already using this screen, which is a worse trade than an
+    /// off-centre clock.
+    ///
+    /// It can still run out of ROOM, and the arithmetic is tighter than it looks: three 56pt circles
+    /// and their gaps leave the timer roughly 161pt on a 393pt screen, against about 144pt for a
+    /// `1:30:00` at 40pt monospaced. On a 375pt device, or at a larger Dynamic Type, that does not fit,
+    /// so the timer scales rather than overflowing the capsule. The alternative considered — padding
+    /// the timer clear of the widest group to keep true centring — left it barely 105pt and would have
+    /// truncated the same clock outright.
     private var bottomControlRow: some View {
-        ZStack {
+        HStack(spacing: NoopMetrics.space2) {
+            deleteWorkoutGlassButton
+            pauseWorkoutGlassButton
+            Spacer(minLength: NoopMetrics.space2)
             bottomElapsedTimer
                 .allowsHitTesting(false)
-
-            HStack(spacing: NoopMetrics.space2) {
-                deleteWorkoutGlassButton
-                pauseWorkoutGlassButton
-                Spacer(minLength: 0)
-                endWorkoutGlassButton
-            }
+                // Scaling down is the honest failure when the room runs out: truncating a clock to
+                // "1:30:0" would be worse than a smaller one. Same idiom the rest of this file uses.
+                .lineLimit(1)
+                .minimumScaleFactor(0.6)
+                // NO layoutPriority here, deliberately. Raising the timer's priority sizes it BEFORE
+                // the three circles, and those are fixed 56pt frames — inflexible, so when the space
+                // runs out they do not shrink, they clip. That inverts which element gives way: a
+                // half-drawn pause button is worse than a smaller clock, and a clipped control is the
+                // failure this whole change exists to remove. At equal priority the inflexible frames
+                // are satisfied first and the Text scales into what is left, which is the order wanted.
+            Spacer(minLength: NoopMetrics.space2)
+            endWorkoutGlassButton
         }
         .padding(Self.bottomBarInset)
         .background {

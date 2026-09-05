@@ -424,6 +424,75 @@ extension WhoopStore {
         }
     }
 
+    /// Kotlin twin: `WhoopDao.stepSamplesPage`.
+    public func stepSamplesPage(deviceId: String, afterExclusive: Int, endExclusive: Int,
+                                limit: Int) async throws -> [StepSample] {
+        try syncRead { db in
+            try Row.fetchAll(db, sql: """
+                SELECT ts, counter, activityClass FROM stepSample
+                WHERE deviceId = ? AND ts > ? AND ts < ?
+                ORDER BY ts ASC LIMIT ?
+                """, arguments: [deviceId, afterExclusive, endExclusive, limit]).map {
+                    StepSample(ts: $0["ts"], counter: $0["counter"], activityClass: $0["activityClass"])
+                }
+        }
+    }
+
+    /// Last counter sample before a cycle boundary, used to attribute the first in-cycle delta correctly.
+    /// Kotlin twin: `WhoopDao.stepSampleBefore`.
+    public func stepSampleBefore(deviceId: String, before: Int) async throws -> StepSample? {
+        try syncRead { db in
+            try Row.fetchOne(db, sql: """
+                SELECT ts, counter, activityClass FROM stepSample
+                WHERE deviceId = ? AND ts < ? ORDER BY ts DESC LIMIT 1
+                """, arguments: [deviceId, before]).map {
+                    StepSample(ts: $0["ts"], counter: $0["counter"], activityClass: $0["activityClass"])
+                }
+        }
+    }
+
+    /// Kotlin twin: `WhoopDao.hasStepActivityClasses`.
+    public func hasStepActivityClasses(deviceId: String, from: Int, to: Int) async throws -> Bool {
+        try syncRead { db in
+            try Int.fetchOne(db, sql: """
+                SELECT EXISTS(SELECT 1 FROM stepSample
+                WHERE deviceId = ? AND ts >= ? AND ts < ? AND activityClass IS NOT NULL)
+                """, arguments: [deviceId, from, to]) == 1
+        }
+    }
+
+    /// Kotlin twin: `WhoopRepository.stepTimestampCoverage`.
+    public func stepTimestampCoverage(deviceId: String, from: Int, to: Int) async throws
+        -> (first: Int?, last: Int?) {
+        try syncRead { db in
+            let row = try Row.fetchOne(db, sql: """
+                SELECT MIN(ts) AS firstTs, MAX(ts) AS lastTs FROM stepSample
+                WHERE deviceId = ? AND ts >= ? AND ts < ?
+                """, arguments: [deviceId, from, to])
+            return (row?["firstTs"], row?["lastTs"])
+        }
+    }
+
+    /// Bounded process-local invalidator over the UTC days touched by this window. The instance token
+    /// prevents a static cycle cache surviving a store reopen from reusing revisions from the old DB.
+    /// Kotlin twin: `WhoopRepository.stepDataRevisionSignature`.
+    public func stepDataRevisionSignature(deviceId: String, from: Int, to: Int) async -> String {
+        "\(revisionInstanceToken):\(deviceId):\(stepDataRevision.signature(deviceId: deviceId, from: from, to: to))"
+    }
+
+    public func stepDiagnosticMotionCounts(deviceId: String, from: Int, to: Int) async throws
+        -> (gravity: Int, aux: Int) {
+        try syncRead { db in
+            let gravity = try Int.fetchOne(db, sql: """
+                SELECT COUNT(*) FROM gravitySample WHERE deviceId = ? AND ts >= ? AND ts < ?
+                """, arguments: [deviceId, from, to]) ?? 0
+            let aux = try Int.fetchOne(db, sql: """
+                SELECT COUNT(*) FROM v18AuxSample WHERE deviceId = ? AND ts >= ? AND ts < ?
+                """, arguments: [deviceId, from, to]) ?? 0
+            return (gravity, aux)
+        }
+    }
+
     public nonisolated func respSamples(deviceId: String, from: Int, to: Int, limit: Int) async throws -> [RespSample] {
         try await asyncRead { db in
             try Row.fetchAll(db, sql: """

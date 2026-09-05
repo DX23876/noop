@@ -73,4 +73,43 @@ final class BatteryPackInfoTests: XCTestCase {
         XCTAssertNil(BatteryPackInfo.decodeExtended(frame: bytes(attachedHex)))
         XCTAssertNil(BatteryPackInfo.decode(frame: bytes(attachedHex))?.voltageMv)
     }
+
+    /// The gauge must be sanity-checked before it is shown. These offsets are an unvalidated candidate
+    /// re-derived from two captures; a wrong one does not fail, it renders a confident wrong number — the
+    /// failure this project treats as worse than a blank. A percentage outside 0...100 means the offset
+    /// moved, so the caller renders nothing.
+    func testOutOfRangeChargeIsNotDisplayable() {
+        XCTAssertFalse(BatteryPackInfo.Info(present: true, socPct: 2488.1, serial: "P", btAddr: "aa").displayable)
+        XCTAssertFalse(BatteryPackInfo.Info(present: true, socPct: -1, serial: "P", btAddr: "aa").displayable)
+    }
+
+    /// A plausible gauge on an attached pack is the one case that shows.
+    func testInRangeChargeOnAnAttachedPackIsDisplayable() {
+        XCTAssertTrue(BatteryPackInfo.Info(present: true, socPct: 73.4, serial: "P", btAddr: "aa").displayable)
+        XCTAssertTrue(BatteryPackInfo.Info(present: true, socPct: 0, serial: "P", btAddr: "aa").displayable)
+        XCTAssertTrue(BatteryPackInfo.Info(present: true, socPct: 100, serial: "P", btAddr: "aa").displayable)
+    }
+
+    /// A removed pack must clear the card, never hold the last reading.
+    func testAbsentPackIsNeverDisplayable() {
+        XCTAssertFalse(BatteryPackInfo.Info(present: false, socPct: nil, serial: nil, btAddr: nil).displayable)
+        // Even if a stale charge rides along, absence wins.
+        XCTAssertFalse(BatteryPackInfo.Info(present: false, socPct: 80, serial: nil, btAddr: nil).displayable)
+    }
+
+    /// The router branch that decodes this reply matches on the command NAME
+    /// (`cmdName.hasPrefix("GET_BATTERY_PACK_INFO(")`), which comes from the schema's CommandNumber table.
+    /// A rename or a removal there would not fail to compile — the branch would simply stop matching and
+    /// the whole feature would go quiet, with the decoder back to having no caller. Pin the string.
+    func testCommand151ResolvesToTheNameTheRouterMatchesOn() {
+        XCTAssertEqual(loadSchema().enumName("CommandNumber", 151), "GET_BATTERY_PACK_INFO(151)")
+    }
+
+    /// `displayable` is about a CHARGE percentage, and the 4.0 path carries a voltage instead — so it is
+    /// always false there, correctly. Pinned because the name is generic enough that a future 4.0 voltage
+    /// card might reach for this gate and get a permanent no.
+    func testFourPointOhVoltagePathIsNeverDisplayable() {
+        let v = BatteryPackInfo.Info(present: true, socPct: nil, serial: nil, btAddr: nil, voltageMv: 3_900)
+        XCTAssertFalse(v.displayable)
+    }
 }

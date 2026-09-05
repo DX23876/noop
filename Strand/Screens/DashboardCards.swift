@@ -44,6 +44,13 @@ enum DashboardCard: String, CaseIterable, Identifiable {
     /// weight explicitly; not in `defaultSelection`, so nothing existing changes.
     case weight
 
+    /// Optional, default-OFF (#1862): a tap-through that opens the Coach launcher SHEET rather than pushing
+    /// a screen — the one card that does. Coach is otherwise buried in More, and entering it means leaving
+    /// Today. Like `coupled` it carries no metric value of its own and is absent from `defaultSelection`, so
+    /// a fresh install never shows it: someone who does not use a provider should not gain a fixed dashboard
+    /// row for one. Opening the sheet makes NO provider request — see `CoachLauncherSheet`.
+    case coach
+
     var id: String { rawValue }
 
     /// The card's display label (the UPPERCASE WHOOP metric-row label is derived from this). Localized via
@@ -66,6 +73,7 @@ enum DashboardCard: String, CaseIterable, Identifiable {
         case .hydration:   return String(localized: "Hydration")
         case .coupled:     return String(localized: "Coupled view")
         case .weight:      return String(localized: "Weight")
+        case .coach:       return String(localized: "Coach")
         }
     }
 
@@ -88,6 +96,9 @@ enum DashboardCard: String, CaseIterable, Identifiable {
         case .hydration:   return String(localized: "Today's fluid")
         case .coupled:     return String(localized: "Recovery, strain and sleep in one glance")
         case .weight:      return String(localized: "Current weight")
+        // Reuses the Coach screen's own subtitle, so the card and the screen describe the feature
+        // identically and no new copy needs translating into ten locales.
+        case .coach:       return String(localized: "Ask about your charge, effort, rest and workouts, grounded in your own numbers.")
         }
     }
 
@@ -109,6 +120,7 @@ enum DashboardCard: String, CaseIterable, Identifiable {
         case .hydration:   return "waterbottle.fill"
         case .coupled:     return "circle.hexagongrid.fill"
         case .weight:      return "scalemass.fill"
+        case .coach:       return "bubble.left.and.text.bubble.right.fill"
         }
     }
 
@@ -132,6 +144,7 @@ enum DashboardCard: String, CaseIterable, Identifiable {
         case .hydration:   return ""    // value bakes in "<total> / <goal> L" itself
         case .coupled:     return ""    // a tap-through row, no value, so no unit
         case .weight:      return ""    // UnitFormatter.massFromKilograms bakes the unit in
+        case .coach:       return ""    // likewise: a launcher row, no metric of its own
         }
     }
 
@@ -164,6 +177,9 @@ enum DashboardCard: String, CaseIterable, Identifiable {
         case .hydration:   return .hydration
         case .coupled:     return .coupled
         case .weight:      return .weight
+        // #1862: the card opens a sheet rather than pushing, so both Today styles special-case it before
+        // reaching here. This is the honest fallback for any caller that does route by identifier.
+        case .coach:       return .coach
         }
     }
 

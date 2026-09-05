@@ -21,6 +21,7 @@ final class BackupSettingsTests: XCTestCase {
             "units.system": "imperial",
             "units.temperature": "celsius",
             "effort.scale": "whoop",
+            "dayCycle.mode": "sleep_onset",
             // #today-hosted-cards: the one layout pref carried, a JSON [String] stored under the String kind.
             "today.hostedCards": "[\"sleep.sleepMarks\"]",
             // #1361: custom journal behaviours, a newline-joined name list — the embedded newline must
@@ -40,6 +41,7 @@ final class BackupSettingsTests: XCTestCase {
         XCTAssertEqual(back["units.system"] as? String, "imperial")
         XCTAssertEqual(back["units.temperature"] as? String, "celsius")
         XCTAssertEqual(back["effort.scale"] as? String, "whoop")
+        XCTAssertEqual(back["dayCycle.mode"] as? String, "sleep_onset")
         XCTAssertEqual(back["today.hostedCards"] as? String, "[\"sleep.sleepMarks\"]")
         XCTAssertEqual(back["journal.customBehaviors"] as? String, "Cold plunge\nMagnesium")
         XCTAssertEqual(back.count, values.count, "Nothing extra should appear")

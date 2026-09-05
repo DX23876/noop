@@ -288,7 +288,14 @@ struct BackupSyncView: View {
                     alertMessage = String(localized: "Fully quit and reopen NOOP to load it.")
                 case .failure(let m):
                     alertTitle = String(localized: "Restore problem"); alertMessage = m
-                case .cancelled, .exported:
+                case .restoreTooLarge(let name, let limit):
+                    // #1807: recoverable, but not from here — this view restores a snapshot directly and
+                    // has no confirm step to hang the override on. Point at the path that does, rather
+                    // than leaving the user with a refusal and nowhere to go.
+                    let cap = ByteCountFormatter.string(fromByteCount: limit, countStyle: .file)
+                    alertTitle = String(localized: "Backup problem")
+                    alertMessage = String(localized: "\(name) is larger than the \(cap) NOOP restores without asking. You can still restore it from Settings → Backup & restore → Import, which will ask you to confirm.")
+                case .cancelled, .exported, .exportedOversize:
                     alertTitle = String(localized: "Restore problem"); alertMessage = String(localized: "Couldn't restore that backup.")
                 }
                 showAlert = true
@@ -305,6 +312,8 @@ struct BackupSyncView: View {
 
     private func absoluteTime(_ ms: Int) -> String {
         let f = DateFormatter()
+        // #1821: localized DATE style untouched; only the hour cycle is the reader's.
+        f.locale = AppClock.formattingLocale
         f.dateStyle = .medium
         f.timeStyle = .short
         return f.string(from: Date(timeIntervalSince1970: Double(ms) / 1000.0))
@@ -373,6 +382,9 @@ private struct RestorePickerSheet: View {
 
     private func absoluteTime(_ ms: Int) -> String {
         let f = DateFormatter()
+        // #1821: localized DATE style untouched; only the hour cycle is the reader's. Second copy of
+        // this helper in the file - a single-shot replace fixed only the first, which the sweep caught.
+        f.locale = AppClock.formattingLocale
         f.dateStyle = .medium
         f.timeStyle = .short
         return f.string(from: Date(timeIntervalSince1970: Double(ms) / 1000.0))

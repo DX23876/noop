@@ -95,12 +95,8 @@ struct CoachView: View {
     /// recolors the More tab and Coach's submenus. See `CoachIconColors`.
     @AppStorage(AppleInspiredColorsPrefs.enabledKey) private var appleHealthColors = AppleInspiredColorsPrefs.defaultEnabled
 
-    private let suggestions = [
-        String(localized: "How's my charge trending?"),
-        String(localized: "What should today's training look like?"),
-        String(localized: "Analyse my sleep"),
-        String(localized: "Why am I run down?"),
-    ]
+    /// #1862: shared with the Today Coach launcher sheet — see `CoachPrompts`.
+    private var suggestions: [String] { CoachPrompts.suggestions }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -189,6 +185,16 @@ struct CoachView: View {
             if await coach.runProactiveNudgeIfNeeded() { return }
             if await coach.runGoalReviewIfNeeded() { return }
             await coach.runWeeklyReviewIfNeeded()
+        }
+        // #1862: a question handed over by the Today launcher sheet. Cleared BEFORE sending so a view
+        // rebuild mid-flight cannot send it twice, and gated on `isConfigured` so an unconfigured handoff
+        // (which the launcher does not produce, but a future caller might) degrades to showing setup
+        // rather than a failed request.
+        .task(id: coach.pendingPrompt) {
+            guard let prompt = coach.pendingPrompt, !prompt.isEmpty else { return }
+            coach.pendingPrompt = nil
+            guard coach.isConfigured else { return }
+            await coach.send(prompt)
         }
         // Tapping the daily check-in notification (routed here by RootTabView) runs a real check-in —
         // a look BACK at what happened, not a re-run of the morning brief. Its own once-a-day lock.

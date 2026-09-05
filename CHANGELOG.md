@@ -17,6 +17,66 @@ approximate; downloads are on the [Releases](https://github.com/NoopApp/noop/rel
 
 ---
 
+## 11.1.0: A clock you choose, sleep without motion, and logs that report instead of assuming (all platforms)
+
+**Choose how you read times**
+
+- **Clock format: System / 12-hour / 24-hour (#1821).** Times were decided by your device's *region*, not
+  by you. On Apple that is deliberate — it preserves regional date order and clock style — but building a
+  locale from a region identifier discards the explicit **24-Hour Time** switch in iOS Settings, so
+  someone in a 24-hour country who preferred a 12-hour clock had no way to ask for one. Settings →
+  Appearance now offers the choice, defaulting to System, and System now follows your phone's own switch.
+  It applies to the Asleep/Woke row, workout and nap times, caffeine and hydration entries, backup
+  timestamps, sleep-stage timelines and the home-screen widgets. Chart axis ticks stay 24-hour for now:
+  12-hour labels are wider and the axis spacing needs checking on a device first.
+
+**Sleep**
+
+- **A night can be found from heart rate alone (#1801).** Sleep detection is built on stillness, so a
+  strap that banks no movement scored no nights at all — the everyday reality of a WHOOP 5/MG that will
+  not complete pairing. NOOP can now detect and stage such a night from heart rate. It is display-only by
+  design: an HR-only night never feeds resting heart rate, HRV or SDNN baselines, because it was not
+  established with the evidence those depend on.
+- **The AI coach receives your sleep stages (#1816).** It had been answering that it could not see them,
+  because deep, REM and light minutes were never included in its context. They are now, with efficiency
+  normalised so it cannot arrive as a nonsensical percentage.
+
+**Straps, logs and honesty**
+
+- **The 1970/71 clock warning takes battery into account (#1818).** It previously offered one remedy at
+  any charge level, so people already at 100% were told to charge to 100% and reconnect — advice that was
+  not backed by any precondition in the code.
+- **Every disconnect records what actually happened (#1809, thanks @supremesynergy).** How long the link
+  held, how many frames and bytes arrived, whether the realtime stream was armed, and how it ended. A
+  strap log could not previously state whether a strap had transmitted anything; you had to infer it from
+  every logged line happening to be outgoing, which measures NOOP's logging rather than the strap.
+- **The clock exchange quotes the strap's reply (#1823).** NOOP wrote "clock synced" the moment it queued
+  the write, before any answer existed, so a log could assert the clock was set while the connection
+  readout said 1970/71. It now says what it *sent* and records the reply frame. On a WHOOP 5/MG the
+  readout also claimed "RTC reads 1970/71" when no clock had ever been read on that family; it now
+  reports the evidence it has, which is how the strap dated its records.
+
+**Backup, widgets and interface**
+
+- **Oversize backups (#1807).** Export warns when an archive exceeds the 2 GiB restore ceiling instead of
+  writing one that cannot be restored, and an oversize restore can be allowed through rather than refused.
+- **Home-screen widgets (#1795, thanks @Sneheth; #1799).** Heart-rate and HRV values had swapped icons on
+  Apple. Both platforms' widgets now also read aloud properly, speaking the value rather than a bare
+  number.
+- **Live workout no longer shows two overlapping timers (#1814),** and the steps calibration card stops
+  asking for data already provided (#1815).
+- **Oura rings that advertise no name (#1797, thanks @pipiche38)** label consistently across platforms,
+  and Android's standard heart-rate logging is honest about how much it captured (#1796, thanks @kvnloo).
+
+**Still open**
+
+WHOOP 5/MG history remains unsolved. A strap that will not complete the pairing handshake is never given
+a clock, and an un-clocked 5/MG does not persist sensor data to flash, so its offloads complete empty.
+The diagnostics above exist to separate that from a strap that *was* clocked and still refuses — a
+different fault seen on the same firmware.
+
+---
+
 ## 9.3.0: Water and caffeine import, honest Effort, and an Oura resting-heart-rate fix (all platforms)
 
 A release about the numbers being right, on top of 9.2.1.

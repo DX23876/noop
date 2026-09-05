@@ -48,6 +48,10 @@ enum TabRoute: Hashable {
     case weight
     /// Today's energy detail, including source provenance and observed-day coverage.
     case energy
+    /// The coach chat (#1862). Both Today styles open the Coach card as a SHEET and never push this, so
+    /// it exists for the one caller that routes a dashboard card by identifier (`DashboardCards
+    /// .detailRoute`) — which must name a real destination rather than stand in with another screen's.
+    case coach
 }
 
 extension View {
@@ -88,6 +92,7 @@ extension View {
             case .coupled: CoupledView()
             case .weight: WeightDetailView()
             case .energy: EnergyDetailView()
+            case .coach: CoachView()
             }
         }
     }

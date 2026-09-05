@@ -517,7 +517,6 @@ struct OverviewDashboardView: View {
     }
 
     private var overviewTone: StrandTone {
-        let d = displayDay
         // The band of the number the ring actually DRAWS (carry included), not of today's raw row — a
         // carried Charge of 31 must not leave the card tinted "positive" beside a red ring.
         let charge = chargeDisplay.pct.map(ChargeBand.of(score:))

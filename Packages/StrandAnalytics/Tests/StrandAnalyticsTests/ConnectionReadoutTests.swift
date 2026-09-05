@@ -204,9 +204,11 @@ final class ConnectionReadoutTests: XCTestCase {
         XCTAssertEqual(
             ConnectionReadout.clockLatchedLabel(deviceClockUnix: nil, strapNewestUnix: 1_782_475_600),
             "yes")
+        // #1823: no clock was READ on this path - it is the 5/MG fallback, where the only evidence is
+        // how the strap dated its records. The wording must not claim a clock reading.
         XCTAssertEqual(
             ConnectionReadout.clockLatchedLabel(deviceClockUnix: nil, strapNewestUnix: 40_000_000),
-            "no (RTC reads 1970/71)")
+            "no (records dated 1970/71)")
         XCTAssertEqual(
             ConnectionReadout.clockLatchedLabel(deviceClockUnix: nil, strapNewestUnix: nil),
             "no (waiting for the strap clock)")
@@ -222,6 +224,75 @@ final class ConnectionReadoutTests: XCTestCase {
         XCTAssertNil(ConnectionReadout.rtcWarning(deviceClockUnix: 1_782_475_600, strapNewestUnix: 1_782_475_000))
         XCTAssertNil(ConnectionReadout.rtcWarning(deviceClockUnix: nil, strapNewestUnix: nil),
                      "no signal seen yet must not fabricate a fault")
+    }
+
+    /// #1818: the remedy must track the battery. A charged strap told to "charge to 100%" is the bug
+    /// the field report hit - the user had already done it, twice.
+    func testRtcWarningRemedyTracksBattery() {
+        let flat = ConnectionReadout.rtcWarning(deviceClockUnix: 40_000_000, strapNewestUnix: nil,
+                                                batteryPct: 40)
+        XCTAssertEqual(flat?.contains("Charge the strap to 100%"), true,
+                       "a low strap keeps the charge advice - a flat battery really does reset the RTC")
+
+        let charged = ConnectionReadout.rtcWarning(deviceClockUnix: 40_000_000, strapNewestUnix: nil,
+                                                   batteryPct: 100)
+        XCTAssertEqual(charged?.contains("Charge the strap to 100%"), false,
+                       "an already-charged strap must not be sent round the loop it just ran")
+        XCTAssertEqual(charged?.contains("already charged"), true)
+        XCTAssertEqual(charged?.contains("strap log"), true, "it must name the next actionable step")
+        // The charged copy must stay true for EVERY strap. "NOOP re-sends the clock on every connect"
+        // holds on WHOOP4 but not on a 5/MG, where the write is gated behind didBond and an unbondable
+        // strap (#1635) is never clocked at all - the strap most likely to be showing this warning.
+        XCTAssertEqual(charged?.contains("every connect"), false,
+                       "no model-specific mechanism claim in copy shown to every model")
+
+        // Pin the VALUE, not just the symbol: feeding the constant back into the function under test
+        // can never catch a wrong threshold, and nothing else would catch it drifting away from the
+        // Kotlin twin - the two platforms would each keep passing while giving different advice.
+        XCTAssertEqual(ConnectionReadout.rtcAlreadyChargedPct, 95)
+
+        // Boundary, from both sides, with literals: inclusive at 95, charge advice at 94.
+        let atThreshold = ConnectionReadout.rtcWarning(deviceClockUnix: 40_000_000,
+                                                       strapNewestUnix: nil, batteryPct: 95)
+        XCTAssertEqual(atThreshold?.contains("already charged"), true)
+        let justBelow = ConnectionReadout.rtcWarning(deviceClockUnix: 40_000_000,
+                                                     strapNewestUnix: nil, batteryPct: 94)
+        XCTAssertEqual(justBelow?.contains("Charge the strap to 100%"), true)
+
+        // Battery not read yet: we only withdraw advice on evidence, so the default stands.
+        let unknown = ConnectionReadout.rtcWarning(deviceClockUnix: 40_000_000, strapNewestUnix: nil)
+        XCTAssertEqual(unknown?.contains("Charge the strap to 100%"), true)
+
+        // A sane clock stays silent no matter how full the battery is.
+        XCTAssertNil(ConnectionReadout.rtcWarning(deviceClockUnix: 1_782_475_600,
+                                                  strapNewestUnix: 1_782_475_000, batteryPct: 100))
+    }
+
+    /// #1809: the epitaph exists so a strap log can STATE that nothing arrived, rather than a reporter
+    /// inferring it from the fact that every logged line happened to be outgoing.
+    func testLinkEpitaph() {
+        let silent = ConnectionReadout.linkEpitaph(upMillis: 4_123, inboundFrames: 0, inboundBytes: 0,
+                                                   cmdChannelFrames: 0, realtimeArmed: false,
+                                                   ended: "CBError.connectionTimeout(6)")
+        XCTAssertEqual(silent,
+                       "Link epitaph: up 4123ms, inbound 0 frames / 0 bytes (cmd-channel 0), "
+                       + "realtime armed=no, ended=CBError.connectionTimeout(6)"
+                       + " - the strap sent NOTHING on this link")
+
+        // A link that carried traffic must NOT claim silence.
+        let alive = ConnectionReadout.linkEpitaph(upMillis: 61_000, inboundFrames: 812,
+                                                  inboundBytes: 40_990, cmdChannelFrames: 9,
+                                                  realtimeArmed: true, ended: "intentional")
+        XCTAssertEqual(alive,
+                       "Link epitaph: up 61000ms, inbound 812 frames / 40990 bytes (cmd-channel 9), "
+                       + "realtime armed=yes, ended=intentional")
+        XCTAssertFalse(alive.contains("NOTHING"))
+
+        // Negatives are clamped rather than printed: a monotonic-clock hiccup must not emit "up -3ms".
+        XCTAssertTrue(ConnectionReadout.linkEpitaph(upMillis: -3, inboundFrames: -1, inboundBytes: -9,
+                                                    cmdChannelFrames: -2, realtimeArmed: false,
+                                                    ended: "x")
+                        .hasPrefix("Link epitaph: up 0ms, inbound 0 frames / 0 bytes (cmd-channel 0)"))
     }
 
     func testLastFrameLabel() {

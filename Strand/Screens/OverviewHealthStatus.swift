@@ -42,7 +42,7 @@ enum OverviewHealthStatus {
                                            populationRange: (-0.6)...0.6,
                                            cfg: VitalBands.skinTempDeviationCfg))
         case .steps, .stress, .sleep, .fitnessAge, .vo2max, .vitality, .calories, .hydration,
-             .coupled, .weight:
+             .coupled, .weight, .coach:
             return nil
         }
     }
