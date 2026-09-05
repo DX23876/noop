@@ -22,6 +22,12 @@ struct DataSourcesView: View {
     @State private var liftingImporting = false
     @State private var liftingSummary: String?
     @State private var liftingFailed = false
+    /// The Hevy API lane. A `@StateObject` because it owns an async sync whose progress the card
+    /// renders; `Repository` is passed into each action rather than captured, since the environment
+    /// is not resolved when this initialiser runs.
+    @StateObject private var hevy = HevyConnectModel()
+    @State private var hevyKeyDraft = ""
+    @State private var confirmHevyForget = false
     // Activity-file (GPX / TCX / FIT) import state — same lightweight, self-contained pattern: parse the
     // file, upsert one workout row under the "activity-file" source, and persist optional measured
     // summaries like file steps under that source, refresh. No HR Effort is touched.
@@ -94,14 +100,15 @@ struct DataSourcesView: View {
                 appleHealthCard.staggeredAppear(index: 1)
                 xiaomiCard.staggeredAppear(index: 2)
                 nutritionCard.staggeredAppear(index: 3)
-                liftingCard.staggeredAppear(index: 4)
-                activityFileCard.staggeredAppear(index: 5)
-                wearableCard.staggeredAppear(index: 6)
+                hevyCard.staggeredAppear(index: 4)
+                liftingCard.staggeredAppear(index: 5)
+                activityFileCard.staggeredAppear(index: 6)
+                wearableCard.staggeredAppear(index: 7)
                 #if OURA_CLOUD_IMPORT
-                ouraCloudCard.staggeredAppear(index: 7)
+                ouraCloudCard.staggeredAppear(index: 8)
                 #endif
-                broadcastHrCard.staggeredAppear(index: 8)
-                liveCard.staggeredAppear(index: 9)
+                broadcastHrCard.staggeredAppear(index: 9)
+                liveCard.staggeredAppear(index: 10)
             }
         }
         .onAppear {
@@ -234,6 +241,122 @@ struct DataSourcesView: View {
             if let s = nutritionSummary {
                 Text(s).font(StrandFont.subhead)
                     .foregroundStyle(nutritionFailed ? StrandPalette.statusWarning : StrandPalette.statusPositive)
+            }
+        }
+    }
+
+    /// The Hevy API lane: a key, a sync, and an honest state.
+    ///
+    /// Deliberately separate from `liftingCard` (the CSV/JSON file import) rather than folded into it.
+    /// They are different things — one is a live connection to an account, the other a file the user
+    /// picks — and the file import stays the way in for anyone without Hevy Pro, which the API requires.
+    private var hevyCard: some View {
+        card(title: String(localized: "Hevy (API sync)"), icon: "dumbbell.fill",
+             tint: DomainTheme.effort.color,
+             status: hevyStatusPill,
+             subtitle: String(localized: "Sync your strength training from Hevy: every set, rep, weight and RPE, plus the exercise list. NOOP reads it and never writes to your Hevy log. Lifting volume is reported on its own and never becomes cardio Effort. Needs Hevy Pro — the key is at hevy.com/settings?developer.")) {
+            if hevy.isConnected {
+                connectedHevyControls
+            } else {
+                hevyKeyEntry
+            }
+            if let message = hevy.message {
+                Text(message).font(StrandFont.subhead)
+                    .foregroundStyle(hevy.failed ? StrandPalette.statusWarning : StrandPalette.statusPositive)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .confirmationDialog(String(localized: "Remove every synced Hevy session?"),
+                            isPresented: $confirmHevyForget, titleVisibility: .visible) {
+            Button(String(localized: "Remove everything"), role: .destructive) {
+                hevy.disconnectAndForget(repo: repo)
+            }
+            Button(String(localized: "Cancel"), role: .cancel) {}
+        } message: {
+            Text("This deletes the sessions, sets and exercises NOOP synced from Hevy. Your Hevy account is untouched.")
+        }
+    }
+
+    /// Connection state at a glance. `nil` while the card is idle and unconnected — an empty pill is
+    /// noise on a source nobody has set up.
+    @ViewBuilder
+    private var hevyStatusPill: some View {
+        if hevy.isBusy {
+            StatePill("Syncing", tone: .accent, pulsing: true)
+        } else if hevy.status.lastError != nil {
+            StatePill("Needs attention", tone: .warning)
+        } else if hevy.isConnected {
+            StatePill("Connected", tone: .positive)
+        } else {
+            EmptyView()
+        }
+    }
+
+    private var hevyKeyEntry: some View {
+        VStack(alignment: .leading, spacing: NoopMetrics.space2) {
+            // A secure field, not a plain one: the key is a live credential and has no business
+            // sitting legible on screen or in a screenshot.
+            SecureField(String(localized: "Hevy API key"), text: $hevyKeyDraft)
+                .textFieldStyle(.roundedBorder)
+                .frame(maxWidth: 420)
+                .disabled(hevy.isBusy)
+            HStack(spacing: NoopMetrics.space3) {
+                Button {
+                    hevy.connect(key: hevyKeyDraft, repo: repo)
+                    hevyKeyDraft = ""
+                } label: {
+                    Label(hevy.isBusy ? "Connecting…" : "Connect", systemImage: "link")
+                }
+                .buttonStyle(NoopButtonStyle(.primary))
+                .disabled(hevy.isBusy || hevyKeyDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                if hevy.isBusy { ProgressView().controlSize(.small) }
+            }
+        }
+    }
+
+    private var connectedHevyControls: some View {
+        VStack(alignment: .leading, spacing: NoopMetrics.space2) {
+            if let key = hevy.redactedKey {
+                Text("Key \(key)").font(StrandFont.footnote)
+                    .foregroundStyle(StrandPalette.textTertiary)
+            }
+            hevySyncDetail
+            HStack(spacing: NoopMetrics.space3) {
+                Button {
+                    Task { await hevy.sync(repo: repo) }
+                } label: {
+                    Label(hevy.isBusy ? "Syncing…" : "Sync now", systemImage: "arrow.triangle.2.circlepath")
+                }
+                .buttonStyle(NoopButtonStyle(.primary))
+                .disabled(hevy.isBusy)
+                Button(String(localized: "Disconnect")) { hevy.disconnect() }
+                    .buttonStyle(NoopButtonStyle(.secondary))
+                    .disabled(hevy.isBusy)
+                Button(String(localized: "Remove data…"), role: .destructive) { confirmHevyForget = true }
+                    .buttonStyle(NoopButtonStyle(.secondary))
+                    .disabled(hevy.isBusy)
+                if hevy.isBusy { ProgressView().controlSize(.small) }
+            }
+        }
+    }
+
+    /// What the last run did, in the card rather than in a log. A background sync that fails silently
+    /// leaves someone looking at stale numbers with no way to find out why.
+    @ViewBuilder
+    private var hevySyncDetail: some View {
+        if case .syncing(let step) = hevy.phase {
+            Text(step).font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
+        } else {
+            VStack(alignment: .leading, spacing: 2) {
+                if let last = hevy.status.lastSuccess {
+                    Text("Last synced \(last.formatted(date: .abbreviated, time: .shortened)) · \(hevy.status.storedWorkouts) sessions")
+                        .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                }
+                if let error = hevy.status.lastError {
+                    Text(error).font(StrandFont.footnote)
+                        .foregroundStyle(StrandPalette.statusWarning)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
         }
     }

@@ -611,7 +611,7 @@ struct WorkoutsView: View {
 
     /// The origin classes offered in the Source filter (imported + on-device), in a stable menu order.
     private static let sourceFilterOptions: [WorkoutSource] =
-        [.whoop, .apple, .detected, .manual, .lifting, .activityFile]
+        [.whoop, .apple, .detected, .manual, .hevy, .lifting, .activityFile]
 
     /// The Source-filter menu label for an origin class (matches the row source badges).
     private static func sourceFilterLabel(_ c: WorkoutSource) -> String {
@@ -620,6 +620,7 @@ struct WorkoutsView: View {
         case .apple:        return String(localized: "Apple")
         case .detected:     return String(localized: "Detected")
         case .manual:       return String(localized: "Manual")
+        case .hevy:         return String(localized: "Hevy")
         case .lifting:      return String(localized: "Lifting")
         case .activityFile: return String(localized: "File")
         }
@@ -1626,7 +1627,7 @@ struct WorkoutsView: View {
             Button("Edit…") { editWorkout(row) }
             Divider()
             Button("Delete", role: .destructive) { delete(row) }
-        case .whoop, .apple, .lifting, .activityFile:
+        case .whoop, .apple, .lifting, .activityFile, .hevy:
             // Imported history is read-only; offer a copy-to-manual edit path that doesn't touch it.
             Button("Duplicate as manual…") { editWorkout(asManualCopy(row), isCopy: true) }
         }
@@ -1666,6 +1667,7 @@ struct WorkoutsView: View {
             case .apple:    return (String(localized: "Apple"), StrandPalette.metricCyan, String(localized: "Source Apple Health"))
             case .detected: return (String(localized: "Detected"), StrandPalette.metricPurple, String(localized: "Source on-device detected"))
             case .manual:   return (String(localized: "Manual"), StrandPalette.statusWarning, String(localized: "Source manual entry"))
+            case .hevy:     return (String(localized: "Hevy"), StrandPalette.zone2, String(localized: "Source synced from Hevy"))
             case .lifting:  return (String(localized: "Lifting"), StrandPalette.zone2, String(localized: "Source imported lifting log"))
             case .activityFile: return (String(localized: "File"), StrandPalette.metricAmber, String(localized: "Source imported activity file"))
             }

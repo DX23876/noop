@@ -14,7 +14,7 @@ import StrandAnalytics   // WorkoutsTrace: the dedup-decision line formatter for
 /// Classification order matters: "-noop" is checked BEFORE "whoop" because the computed id
 /// "my-whoop-noop" also contains the substring "whoop".
 enum WorkoutSource: Equatable {
-    case whoop, apple, detected, manual, lifting, activityFile
+    case whoop, apple, detected, manual, lifting, activityFile, hevy
 
     /// Canonical Apple Health source id written by new imports. The early rows used the underscore
     /// spelling, so reads must accept both — see `isAppleHealth`.
@@ -25,7 +25,12 @@ enum WorkoutSource: Equatable {
         let s = source.lowercased()
         if s.hasSuffix("-noop") { return .detected }   // BEFORE whoop: "my-whoop-noop" contains "whoop"
         if s == "manual" { return .manual }
-        if s == "lifting" { return .lifting }          // imported Hevy / Liftosaur strength session
+        if s == "lifting" { return .lifting }          // imported Hevy / Liftosaur strength CSV/JSON
+        // API-synced Hevy sessions. A source of their OWN, not folded into `.lifting`: the two lanes can
+        // hold the SAME session (someone who imported a CSV export before connecting the API), and
+        // keeping them apart is what lets `dedupCrossSource` collapse that pair instead of one lane
+        // silently overwriting the other's history.
+        if s == HevySource.id { return .hevy }
         if s == "activity-file" { return .activityFile } // imported GPX / TCX / FIT activity file
         if isAppleHealth(s) { return .apple }          // both spellings → Apple Health
         if s.contains("whoop") { return .whoop }
@@ -314,6 +319,7 @@ enum WorkoutSource: Equatable {
         case .manual:       return "manual"
         case .lifting:      return "lifting"
         case .activityFile: return "activityFile"
+        case .hevy:         return "hevy"
         }
     }
 
@@ -465,7 +471,7 @@ enum WorkoutMerge {
     static func isMergeable(_ row: WorkoutRow) -> Bool {
         switch WorkoutSource.classify(row.source) {
         case .manual, .detected: return true
-        case .whoop, .apple, .lifting, .activityFile: return false
+        case .whoop, .apple, .lifting, .activityFile, .hevy: return false
         }
     }
 

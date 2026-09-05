@@ -558,6 +558,7 @@ struct WorkoutDetailView: View {
             case .apple:    return (String(localized: "Apple"), StrandPalette.metricCyan)
             case .detected: return (String(localized: "Detected"), StrandPalette.metricPurple)
             case .manual:   return (String(localized: "Manual"), StrandPalette.statusWarning)
+            case .hevy:     return (String(localized: "Hevy"), StrandPalette.zone2)
             case .lifting:  return (String(localized: "Lifting"), StrandPalette.zone2)
             case .activityFile: return (String(localized: "File"), StrandPalette.metricAmber)
             }
