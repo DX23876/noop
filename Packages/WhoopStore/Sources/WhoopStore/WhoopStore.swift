@@ -286,6 +286,26 @@ public actor WhoopStore {
         return found ? total : nil
     }
 
+    /// TEMP DIAGNOSTIC (#freeze-investigation) — the three on-disk components separately, in MB.
+    ///
+    /// `databaseFileSizeBytes` deliberately SUMS them, which is right for the Storage screen and wrong
+    /// for this question: a `-wal` that keeps growing because no checkpoint can run — a reader snapshot
+    /// is always open on a live dashboard — makes every later write in the same session slower than the
+    /// one before it, while the total barely moves. That is the shape a real measurement showed: an
+    /// analysis pass whose persist phase went 33.6 → 57.4 → 60.2 → 67.9 → 71.3 s across one session
+    /// while the work it was persisting got SMALLER. Reading the components apart is what tells that
+    /// case from a single slow write. Remove with the rest of the FREEZE-DIAG block.
+    public func databaseFootprintMB() async -> (db: Double, wal: Double, shm: Double)? {
+        let base = dbWriter.path
+        guard base != ":memory:", !base.isEmpty else { return nil }
+        let fm = FileManager.default
+        let mb = { (suffix: String) -> Double in
+            let size = (try? fm.attributesOfItem(atPath: base + suffix))?[.size] as? NSNumber
+            return (size?.doubleValue ?? 0) / 1_048_576
+        }
+        return (db: mb(""), wal: mb("-wal"), shm: mb("-shm"))
+    }
+
     // MARK: - Introspection (used by tests)
 
     public func tableNames() async throws -> Set<String> {

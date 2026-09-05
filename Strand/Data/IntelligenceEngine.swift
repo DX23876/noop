@@ -2204,6 +2204,20 @@ final class IntelligenceEngine: ObservableObject {
         //
         // One line per pass. The marks are placed on statement boundaries, never between a comment block
         // and the code it explains.
+        //
+        // The first run answered the question and raised a sharper one. Of a 33–71 s post-loop, `persist`
+        // was 33–71 s and every other phase under 1.1 s — including the two this file guessed at, the
+        // all-of-time Apple daily read (0.18–0.87 s) and the pair of 100 000-row workout reads
+        // (0.28–1.08 s). Both suspicions wrong, which is why they were measured. `persist` is therefore
+        // split further, and the split has to explain two things the aggregate could not: it does NOT
+        // scale with days re-derived (33.6 s for a 21-day pass, 71.3 s for a 2-day one), and it GROWS
+        // across passes in one session (33.6 → 57.4 → 60.2 → 67.9 → 71.3 s). Something accumulates that
+        // is not this pass's own workload.
+        // Read alongside the phase timer, not instead of it: the timings say WHICH write got slower,
+        // this says whether the file underneath them is growing. A `-wal` that cannot checkpoint —
+        // a dashboard always holds a reader snapshot open — is the standing explanation for a write
+        // path that degrades within one session, and it is testable rather than plausible.
+        let diagFootprintBefore = await store.databaseFootprintMB()
         var diagPhaseLast = Date()
         var diagPhases: [String] = []
         func diagMark(_ name: String) {
@@ -2734,6 +2748,7 @@ final class IntelligenceEngine: ObservableObject {
                 _ = try? await store.deleteDailyMetrics(deviceId: computedId, from: stale.day, to: stale.day)
             }
         }
+        diagMark("p.scores")
         // ── Fitness Age (Phase 2) , weekly, keyed to the week's Saturday ────────────────────────────
         // Roll the last 7 computed days into the Nes/HUNT inputs and upsert a weekly Fitness Age (+ an
         // optional VO₂max when a waist is set) under the same "-noop" source. Idempotent on the Saturday
@@ -2811,6 +2826,7 @@ final class IntelligenceEngine: ObservableObject {
                 _ = try? await store.upsertMetricSeries(stressRows, deviceId: Repository.whoopSource)
             }
         }
+        diagMark("p.derived")
 
         // ── Steps ESTIMATE (WHOOP 4.0) , DAILY, keyed to each strap-only day ────────────────────────
         // A WHOOP 4.0 sends no step count over BLE, so for days the phone DIDN'T also count steps we
@@ -2929,6 +2945,7 @@ final class IntelligenceEngine: ObservableObject {
                 }
             }
         }
+        diagMark("p.steps")
 
         // Drop any freshly-detected session that overlaps a night the user has already hand-corrected.
         // A detected onset can drift second-to-second as more raw data arrives, so without this the
@@ -2977,6 +2994,7 @@ final class IntelligenceEngine: ObservableObject {
         for (start, states) in sleepStateByStart {
             _ = try? await store.persistSessionSleepState(deviceId: computedId, sessionStart: start, states: states)
         }
+        diagMark("p.sleepWrite")
         // ── Overlap-aware banked-sleep heal (#899) ────────────────────────────────────────────────────
         // An unstable strap clock re-banks the SAME night under a shifted timebase, so successive passes
         // detect it at shifted bounds and the upsert above lands a SECOND row beside the stale one (the
@@ -3092,7 +3110,7 @@ final class IntelligenceEngine: ObservableObject {
             ? "No scored nights yet. Wear the strap with NOOP connected overnight and the engine will score your charge, effort and rest itself, no WHOOP cloud required."
             : nil
 
-        diagMark("persist")
+        diagMark("p.sleepHeal+workouts")
         // Reload the dashboard caches so the freshly computed scores show up immediately. A heal-only
         // pass (#899 dedup deleted stale session rows but no daily changed) must refresh too, so the
         // Sleep tab stops showing the removed duplicates right away.
@@ -3138,6 +3156,11 @@ final class IntelligenceEngine: ObservableObject {
             diagnosticSink?("re-score: completed, but a newer rescore request remains owed (#1681)", nil)
         }
         diagMark("refreshTail")
+        if let before = diagFootprintBefore, let after = await store.databaseFootprintMB() {
+            let f = { (v: Double) in String(format: "%.1f", v) }
+            NSLog("[FREEZE-DIAG] store footprint: db=\(f(before.db))→\(f(after.db)) MB "
+                + "wal=\(f(before.wal))→\(f(after.wal)) MB shm=\(f(before.shm))→\(f(after.shm)) MB")
+        }
         diagnosticSink?("re-score: done — scored \(scoredNights.count) night(s) in \(Int(elapsed * 1000)) ms (#1005)", nil)
     }
 
