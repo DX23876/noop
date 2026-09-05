@@ -98,6 +98,10 @@ enum MoreCatalog {
                       keywords: ["heart rate", "BPM", "live console", "now"]),
             MoreEntry("Workouts", "figure.run", .workouts,
                       keywords: ["training", "sessions", "exercise", "activities"]),
+            // Beside Workouts on purpose: the same question at a different resolution. Workouts says
+            // when you trained, Strength says what the session contained and whether it is moving.
+            MoreEntry("Strength", "dumbbell.fill", .strength,
+                      keywords: ["lifting", "hevy", "sets", "reps", "volume", "1rm", "gym"]),
             MoreEntry("Health", "heart.text.square.fill", .health,
                       keywords: ["biometrics", "fitness age", "vitality", "skin temperature"]),
             // Renamed from "Lab Book": names the content directly (blood/BP/body numbers), not the
