@@ -165,12 +165,55 @@ enum RescoreBackgroundScheduler {
         }
     }
 
+    #if os(iOS)
+    /// The one execution assertion any number of concurrent callers share, and how many are holding it.
+    ///
+    /// One assertion PER CALLER was the bug. `work()` is `analyzeRecent`, which awaits a serialised queue,
+    /// so every trigger that arrives while a pass runs blocks in its own `run` — each having taken its own
+    /// `beginBackgroundTask`. A strap that offloads repeatedly during a twelve-minute pass therefore piled
+    /// up eleven live assertions for ONE piece of work, every one of them over iOS's thirty-second courtesy
+    /// and every one of them a termination risk the log named by number:
+    /// `Background Task 11 ("noop.rescore"), was created over 30 seconds ago`.
+    ///
+    /// Refcounted rather than dropped, because the assertion earns its keep: it is what lets a pass survive
+    /// the wearer putting the phone down mid-run. Taking it once and releasing it when the LAST holder
+    /// finishes keeps that protection and removes the pile-up. `@MainActor` on the enum is what makes the
+    /// counter safe without a lock; the box below still needs its own, since iOS may fire the expiry
+    /// handler from elsewhere.
+    ///
+    /// Present in `upstream/main` byte-identically before this change — the pile-up is a shared weakness,
+    /// not a fork regression, and the fix is written to be portable back.
+    private static var sharedAssertion: BackgroundAssertion?
+    private static var assertionHolders = 0
+    #endif
+
     /// Hold an execution assertion for the duration of `work` so a SHORT pass is not suspended halfway.
     /// A long one still outlives the grant; the assertion's expiry handler is where that becomes visible
     /// in the log and where the work is escalated, rather than the process simply vanishing.
+    ///
+    /// The assertion belongs to the WORK, not to this call — see `sharedAssertion`.
     private static func withAssertion(log: @escaping (String) -> Void, work: () async -> Void) async {
         #if os(iOS)
+        acquireAssertion(log: log)
+        defer { releaseAssertion() }
+        await work()
+        #else
+        await work()
+        #endif
+    }
+
+    #if os(iOS)
+    /// Join the shared assertion, taking a fresh one only when none is held.
+    ///
+    /// The `sharedAssertion == nil` test rather than `assertionHolders == 0`: after an expiry the box is
+    /// cleared while holders are still running, and a caller arriving then should be allowed to ask for a
+    /// new grant. iOS answers with `.invalid` when it will not give one, which the box already treats as
+    /// nothing to end.
+    private static func acquireAssertion(log: @escaping (String) -> Void) {
+        assertionHolders += 1
+        guard sharedAssertion == nil else { return }
         let assertion = BackgroundAssertion()
+        sharedAssertion = assertion
         let taskID = UIApplication.shared.beginBackgroundTask(withName: "noop.rescore") {
             // iOS invokes this on the main thread when it is about to reclaim the assertion. The pass
             // itself cannot be cancelled from here — its heavy loop runs in a detached task, which does
@@ -181,17 +224,24 @@ enum RescoreBackgroundScheduler {
                 log("re-score: background time expired before the pass finished — escalating (#1538)")
                 schedule()
                 assertion.end()
+                if sharedAssertion === assertion { sharedAssertion = nil }
             }
         }
         assertion.store(taskID)
-        await work()
-        // Idempotent under the box's lock, so the expiry path and this one cannot double-end the task —
-        // which UIKit treats as a programmer error — and cannot leak it either.
-        assertion.end()
-        #else
-        await work()
-        #endif
     }
+
+    /// Leave the shared assertion, ending it once the last holder is gone.
+    ///
+    /// `end()` is idempotent under the box's lock, so the expiry path and this one cannot double-end the
+    /// task — which UIKit treats as a programmer error — and cannot leak it either.
+    private static func releaseAssertion() {
+        guard assertionHolders > 0 else { return }
+        assertionHolders -= 1
+        guard assertionHolders == 0 else { return }
+        sharedAssertion?.end()
+        sharedAssertion = nil
+    }
+    #endif
 
     // MARK: - iOS background-processing plumbing
 
