@@ -12,10 +12,16 @@ features so the boundary is discoverable.
 NOOP is **offline-first, on-device, and anonymous**: no NOOP server, account, cloud sync, or telemetry,
 and **not a medical device** (see the [Disclaimer](../DISCLAIMER.md#5-not-a-medical-device)). The
 user-controlled exceptions are narrow: Coach requests go directly to the configured provider, a
-source-built Oura lane imports data from the user's own account, and the update checker reads public
-GitHub release metadata manually or, when enabled, at most once per day. These are hard boundaries,
-not permission to add general cloud
+source-built Oura lane imports data from the user's own account, an opt-in Hevy lane imports the user's
+own strength training from theirs, and the update checker reads public GitHub release metadata manually
+or, when enabled, at most once per day. These are hard boundaries, not permission to add general cloud
 features.
+
+Each exception shares one shape, which is what makes it an exception rather than a precedent: the
+user's own account, their own credential, data moving IN, nothing hosted by this project, and default
+off. The Hevy lane adds the only outbound write in the app — a training routine the coach drafted — and
+it is gated the same way every irreversible action here is: a review screen showing exactly what would
+change, and a button the person has to press.
 
 ## Out of scope
 

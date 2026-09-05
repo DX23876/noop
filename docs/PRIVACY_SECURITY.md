@@ -26,8 +26,9 @@ local SQLite — has no network layer at all: no phone-home, no analytics, no ac
 no login, no cloud sync, and no telemetry. Everything NOOP computes about you lives in a
 single SQLite file on your own device.
 
-There are three user-controlled network paths: the **AI Coach** (§1.1a), the source-built **Oura
-history import** (§1.1b), and the metadata-only **update check** (§1.1c). The AI Coach is off
+There are four user-controlled network paths: the **AI Coach** (§1.1a), the source-built **Oura
+history import** (§1.1b), the metadata-only **update check** (§1.1c), and the **Hevy strength sync**
+(§1.1d). The AI Coach is off
 until you turn it on with your own API key; when you
 ask it a question it sends a short text summary of your recent metrics to the provider you
 choose. The Oura history import is **not even compiled into a default build** — the code
@@ -55,7 +56,7 @@ and the user-initiated public release check; the
 biometric pipeline produces no network traffic of any kind. The Apple Health export above is
 an **on-device** hand-off, not a network upload — see §1.3.
 
-### 1.1 Network code: three controlled paths
+### 1.1 Network code: four controlled paths
 
 The biometric pipeline and reusable Swift packages
 (`WhoopProtocol`, `WhoopStore`, `StrandAnalytics`, `StrandImport`, `StrandDesign`, `OuraProtocol`,
@@ -65,8 +66,10 @@ other networking API — still true after the Oura history import (§1.1b) lande
 and REST calls live entirely in the app target, `Strand/Oura/`, and `StrandImport`
 gained only pure, network-free parsers for Oura's payload shapes. The released macOS and iOS apps
 share these implementations. App-target networking is isolated to the AI Coach (`Strand/AI/`), the
-compile-time Oura cloud lane (`Strand/Oura/`), and the release reader
-(`Strand/System/UpdateChecker.swift` and `Strand/System/UpdateAvailability.swift`).
+compile-time Oura cloud lane (`Strand/Oura/`), the Hevy strength lane (`Strand/Hevy/`), and the release
+reader (`Strand/System/UpdateChecker.swift` and `Strand/System/UpdateAvailability.swift`). The Hevy lane
+follows the same split as Oura: its HTTP lives in the app target, and `StrandImport` gained only a pure,
+network-free parser for Hevy's payload shapes.
 The package manifests reference dependency *download* URLs that Swift Package Manager
 resolves at build time, never at runtime:
 
@@ -160,6 +163,31 @@ onboarding. It sends no health data, database content, device identifier, NOOP a
 (none exists), or telemetry. It reads the public tag, notes, and release URL needed to tell you whether
 a newer release exists. It never downloads or installs an update. Turning the automatic toggle off
 removes the background request; the manual button remains available.
+
+### 1.1d The Hevy strength sync (optional, off by default, bring your own key)
+
+`Strand/Hevy/` reads the user's own Hevy account over `https://api.hevyapp.com/v1` with an API key they
+paste themselves. It is **off until connected** — no key, no requests — and the key lives in the
+Keychain under `com.noop.hevy`, `ThisDeviceOnly`, so it neither syncs to another device nor rides along
+in a `.noopbak`.
+
+**The direction is inbound.** NOOP reads workouts, the exercise catalogue and saved routines; no health
+data, database content, device identifier or telemetry is ever sent. The requests carry the key and
+nothing else.
+
+**The one exception, and how it is gated.** The coach can DRAFT a training routine, and sending that
+draft is the only outbound write in the app. It is not automatic and cannot be made automatic: the
+coach's tool creates a proposal, a review screen shows every exercise and set — including which
+exercises an update would REMOVE, since Hevy's `PUT` replaces the whole routine — and only a button in
+that screen calls `HevyRoutineWriter`, the single type in the program that performs a `POST` or `PUT`.
+There is no code path from a model reply to a write. NOOP never creates or edits a *workout* in Hevy;
+`POST /v1/workouts` is not wired up at all.
+
+Steady-state cost is one request: after the first backfill the sync reads
+`GET /v1/workouts/events?since=`, which usually returns nothing.
+
+Hevy's public API requires a Hevy Pro account. Disconnecting removes the key and keeps the synced
+history; a separate, confirmed action removes both.
 
 ### 1.2 The macOS sandbox (and what it means for the controlled network paths)
 
@@ -503,7 +531,7 @@ dedicated source id `nutrition-csv`, alongside your other metrics and entirely o
 
 | Surface | Risk | Mitigation | Where |
 |---------|------|------------|-------|
-| Process | Data exfiltration / network egress | Network paths are isolated and user-controlled: Coach text to the configured provider (§1.1a), source-built inbound Oura import (§1.1b), and a metadata-only manual GitHub release check (§1.1c). Raw streams are never payloads. | `Strand/AI/`, `Strand/Oura/`, `Strand/System/UpdateChecker.swift` |
+| Process | Data exfiltration / network egress | Network paths are isolated and user-controlled: Coach text to the configured provider (§1.1a), source-built inbound Oura import (§1.1b), a metadata-only manual GitHub release check (§1.1c), and the inbound Hevy strength sync (§1.1d), whose only outbound write is a routine the user reviewed and sent by hand. Raw streams are never payloads. | `Strand/AI/`, `Strand/Oura/`, `Strand/Hevy/`, `Strand/System/UpdateChecker.swift` |
 | Local access | Unintended disclosure to a local client | Separate user-launched CLI; SQLite opened read-only; bounded tools over standard input/output; no network listener. The user controls the downstream client (§1.4). | `Packages/NoopLocalAccess/` |
 | Oura history import | OAuth token / scope leakage, cross-account data mixing | Compiled out by default (`OURA_CLOUD_IMPORT`, §1.1b); tokens Keychain-only (`kSecAttrAccessibleAfterFirstUnlock`, never UserDefaults/plist); fixed OAuth scopes set at build time; raw + normalized rows partitioned under `deviceId = "oura-api"`; Oura's own scores kept reference-only (`ref_*`/`oura_*` metricSeries keys, never NOOP's Charge/Effort/Rest); `.cloudImport` is structurally priority-2 so it never seizes a WHOOP day; Forget Oura access purges tokens + every `oura-api` row incl. the raw archive | `Strand/Oura/OuraTokenStore.swift`, `Strand/Oura/OuraConnectModel.swift`, `Packages/WhoopStore/Sources/WhoopStore/OuraRawStore.swift` |
 | Filesystem | Broad disk access | Only `files.user-selected.read-write`; data stays in the sandbox container | `Strand.entitlements`, `Strand/Collect/StorePaths.swift` |

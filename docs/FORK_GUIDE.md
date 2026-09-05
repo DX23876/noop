@@ -105,7 +105,8 @@ for intent — their Kotlin diff often explains what the Swift one is doing.
 
 **Separate and still binding:** biometric storage and scoring stay on-device, with no NOOP server,
 account, cloud sync, or telemetry. The only controlled network paths are the configured Coach
-provider, source-built inbound Oura history import, and manual public-release check; see
+provider, source-built inbound Oura history import, manual public-release check, and the opt-in Hevy
+strength sync — inbound, with one outbound write the user reviews and sends by hand; see
 [`PRIVACY_SECURITY.md`](PRIVACY_SECURITY.md).
 
 ### The AI coach
