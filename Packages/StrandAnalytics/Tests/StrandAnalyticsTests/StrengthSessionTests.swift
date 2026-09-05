@@ -300,6 +300,186 @@ final class StrengthSessionTests: XCTestCase {
         XCTAssertEqual(ranked.first?.sessions, 2)
     }
 
+    // MARK: - Weeks, load and the user's own range
+
+    /// A day-noon timestamp, so a session lands unambiguously on its day key.
+    private func ts(_ day: String) -> Int {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.timeZone = TimeZone(identifier: "UTC")
+        f.dateFormat = "yyyy-MM-dd"
+        return Int((f.date(from: day) ?? Date(timeIntervalSince1970: 0)).timeIntervalSince1970) + 43_200
+    }
+
+    private func dayWorkout(_ day: String, sets: Int, templateId: String = "T1") -> HevyWorkout {
+        HevyWorkout(id: "\(day)-\(templateId)", title: "", routineId: nil, notes: nil,
+                    startTs: ts(day), endTs: ts(day) + 3600, updatedAtTs: ts(day),
+                    createdAtTs: ts(day),
+                    exercises: [exercise(0, templateId: templateId,
+                                         sets: (0..<sets).map { set($0, kg: 100, reps: 5) })])
+    }
+
+    /// The week is Monday–Sunday and anchored the same way `WeeklyDigestEngine` anchors it. Two
+    /// different week boundaries in one app is how the same session lands in different weeks on two
+    /// screens.
+    func testTheWeekIsMondayToSundayAndExcludesNeighbours() {
+        // 2026-06-01 is a Monday.
+        let workouts = [
+            dayWorkout("2026-05-31", sets: 5),   // the Sunday before
+            dayWorkout("2026-06-01", sets: 4),
+            dayWorkout("2026-06-07", sets: 6),   // the Sunday inside
+            dayWorkout("2026-06-08", sets: 9),   // the Monday after
+        ]
+        let week = StrengthSession.week(containing: "2026-06-03", workouts: workouts,
+                                        templates: bench)
+        XCTAssertEqual(week.mondayKey, "2026-06-01")
+        XCTAssertEqual(week.sessionCount, 2)
+        XCTAssertEqual(week.workingSetCount, 10)
+    }
+
+    // MARK: - Acute vs chronic
+
+    /// THE reason this is a ratio and not a score: it says something checkable. A steady routine sits
+    /// near 1.0 whatever the absolute volume, so the figure means the same thing for someone doing four
+    /// sets a week and someone doing forty.
+    func testASteadyRoutineSitsNearOne() throws {
+        var workouts: [HevyWorkout] = []
+        var day = "2026-04-01"
+        for index in 0..<60 {
+            if index % 2 == 0 { workouts.append(dayWorkout(day, sets: 10)) }
+            day = WeeklyDigestEngine.addDays(day, 1)
+        }
+        let now = Self.date("2026-05-30")
+        let load = try XCTUnwrap(StrengthSession.setLoadRatio(workouts, asOf: now))
+        XCTAssertEqual(load.ratio, 1.0, accuracy: 0.15)
+        XCTAssertEqual(load.band, .steady)
+    }
+
+    /// A genuine ramp is reported as one, in the band the literature uses.
+    func testARampIsReportedAsBuildingOrSpiking() throws {
+        var workouts: [HevyWorkout] = []
+        var day = "2026-04-01"
+        for index in 0..<60 {
+            // The last week carries three times the usual volume.
+            let sets = index >= 53 ? 30 : 10
+            if index % 2 == 0 { workouts.append(dayWorkout(day, sets: sets)) }
+            day = WeeklyDigestEngine.addDays(day, 1)
+        }
+        let load = try XCTUnwrap(StrengthSession.setLoadRatio(workouts, asOf: Self.date("2026-05-30")))
+        XCTAssertGreaterThan(load.ratio, 1.5)
+        XCTAssertEqual(load.band, .spiking)
+    }
+
+    /// Rest days are ZEROS, not gaps. Averaging only the days that held a session would make someone who
+    /// trained twice this week look identical to someone who trained six times — which is the difference
+    /// between "load" and "how hard were the days I trained".
+    func testRestDaysCountAsZeroLoad() throws {
+        var workouts: [HevyWorkout] = []
+        var day = "2026-04-01"
+        for index in 0..<60 {
+            // Trains every other day for a month, then only once in the final week.
+            let trains = index >= 53 ? (index == 55) : (index % 2 == 0)
+            if trains { workouts.append(dayWorkout(day, sets: 10)) }
+            day = WeeklyDigestEngine.addDays(day, 1)
+        }
+        let load = try XCTUnwrap(StrengthSession.setLoadRatio(workouts, asOf: Self.date("2026-05-30")))
+        XCTAssertLessThan(load.ratio, 0.8, "a week that was mostly rest is a ramp DOWN")
+        XCTAssertEqual(load.band, .rampingDown)
+    }
+
+    /// Too little history means NO ratio. One computed from a fortnight is mostly a statement about how
+    /// little data there is.
+    func testTooLittleHistoryYieldsNoRatio() {
+        let workouts = (0..<4).map { dayWorkout(WeeklyDigestEngine.addDays("2026-05-20", $0), sets: 10) }
+        XCTAssertNil(StrengthSession.setLoadRatio(workouts, asOf: Self.date("2026-05-24")))
+    }
+
+    /// The windows and the bands are READ from `ReadinessEngine`, never copied — so the app cannot hold
+    /// two definitions of "acute load", one for heart rate and one for sets.
+    func testTheWindowsComeFromTheOneDefinition() {
+        XCTAssertEqual(ReadinessEngine.acuteWindow, 7)
+        XCTAssertEqual(ReadinessEngine.chronicWindow, 28)
+        XCTAssertEqual(ReadinessEngine.LoadBand.of(ratio: 0.5), .rampingDown)
+        XCTAssertEqual(ReadinessEngine.LoadBand.of(ratio: 1.0), .steady)
+        XCTAssertEqual(ReadinessEngine.LoadBand.of(ratio: 1.4), .buildingFast)
+        XCTAssertEqual(ReadinessEngine.LoadBand.of(ratio: 2.0), .spiking)
+    }
+
+    // MARK: - The user's own range
+
+    /// A BAND, not a target — built from the user's own completed weeks. This is what replaces the
+    /// "12 / 14" of a design mockup: NOOP has no evidence about what anyone's correct weekly volume is,
+    /// but it knows what this person has been doing.
+    func testTheTypicalBandComesFromTheUsersOwnWeeks() throws {
+        var workouts: [HevyWorkout] = []
+        // Eight completed weeks of 10, 12, 10, 14, 10, 12, 10, 14 chest sets.
+        let weekly = [10, 12, 10, 14, 10, 12, 10, 14]
+        var monday = "2026-04-06"
+        for sets in weekly {
+            workouts.append(dayWorkout(monday, sets: sets))
+            monday = WeeklyDigestEngine.addDays(monday, 7)
+        }
+        let bands = StrengthSession.typicalWeeklySets(workouts, templates: bench,
+                                                      endingBefore: monday)
+        let chest = try XCTUnwrap(bands[.chest])
+        XCTAssertGreaterThanOrEqual(chest.lowerBound, 10)
+        XCTAssertLessThanOrEqual(chest.upperBound, 14)
+        XCTAssertLessThan(chest.lowerBound, chest.upperBound)
+    }
+
+    /// Weeks with NO training are excluded. A stretch away or ill is not evidence about someone's usual
+    /// volume, and counting it as a run of zeros would drag every band down and then report the return
+    /// to normal as unusually high.
+    func testWeeksWithoutTrainingDoNotDragTheBandDown() throws {
+        var workouts: [HevyWorkout] = []
+        var monday = "2026-04-06"
+        for index in 0..<8 {
+            if index != 3 && index != 4 {           // two weeks off in the middle
+                workouts.append(dayWorkout(monday, sets: 12))
+            }
+            monday = WeeklyDigestEngine.addDays(monday, 7)
+        }
+        let bands = StrengthSession.typicalWeeklySets(workouts, templates: bench,
+                                                      endingBefore: monday)
+        let chest = try XCTUnwrap(bands[.chest])
+        XCTAssertEqual(chest.lowerBound, 12, accuracy: 0.001)
+        XCTAssertEqual(chest.upperBound, 12, accuracy: 0.001)
+    }
+
+    /// A muscle group never trained gets NO band rather than a 0…0 reference the reader would have to
+    /// interpret.
+    func testAnUntrainedGroupHasNoBand() {
+        var workouts: [HevyWorkout] = []
+        var monday = "2026-04-06"
+        for _ in 0..<8 {
+            workouts.append(dayWorkout(monday, sets: 12))
+            monday = WeeklyDigestEngine.addDays(monday, 7)
+        }
+        let bands = StrengthSession.typicalWeeklySets(workouts, templates: bench,
+                                                      endingBefore: monday)
+        XCTAssertNil(bands[.quadriceps])
+    }
+
+    /// Fewer than three completed weeks is not a range. Two points would produce a "band" that is really
+    /// just the two values, presented with the authority of a distribution.
+    func testFewerThanThreeWeeksYieldsNoBand() {
+        let workouts = [
+            dayWorkout("2026-04-06", sets: 12),
+            dayWorkout("2026-04-13", sets: 14),
+        ]
+        let bands = StrengthSession.typicalWeeklySets(workouts, templates: bench,
+                                                      endingBefore: "2026-04-20")
+        XCTAssertTrue(bands.isEmpty)
+    }
+
+    private static func date(_ day: String) -> Date {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.timeZone = TimeZone(identifier: "UTC")
+        f.dateFormat = "yyyy-MM-dd"
+        return (f.date(from: day) ?? Date(timeIntervalSince1970: 0)).addingTimeInterval(43_200)
+    }
+
     /// An exercise performed twice in ONE session counts as one session for it, not two.
     func testFrequencyCountsSessionsNotOccurrences() {
         let w = workout([

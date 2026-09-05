@@ -297,6 +297,194 @@ public enum StrengthSession {
         return (sets, volume)
     }
 
+    // MARK: - Load, over weeks
+
+    /// One week of strength training, as the weekly view reads it.
+    public struct WeekSummary: Equatable, Sendable {
+        /// Monday of the week, "yyyy-MM-dd".
+        public let mondayKey: String
+        public let sessionCount: Int
+        public let workingSetCount: Int
+        public let volumeLoadKg: Double
+        public let setsByMuscle: [HevyMuscleGroup: Int]
+        public let secondarySetsByMuscle: [HevyMuscleGroup: Int]
+        public let unattributedSetCount: Int
+
+        public init(mondayKey: String, sessionCount: Int, workingSetCount: Int, volumeLoadKg: Double,
+                    setsByMuscle: [HevyMuscleGroup: Int], secondarySetsByMuscle: [HevyMuscleGroup: Int],
+                    unattributedSetCount: Int) {
+            self.mondayKey = mondayKey
+            self.sessionCount = sessionCount
+            self.workingSetCount = workingSetCount
+            self.volumeLoadKg = volumeLoadKg
+            self.setsByMuscle = setsByMuscle
+            self.secondarySetsByMuscle = secondarySetsByMuscle
+            self.unattributedSetCount = unattributedSetCount
+        }
+    }
+
+    /// Summarise the Monday–Sunday week containing `anchorDay`.
+    ///
+    /// Weeks are the unit strength training is actually prescribed in, and Monday-anchored to match
+    /// `WeeklyDigestEngine` — two different week boundaries in one app is how the same session ends up
+    /// in different weeks on two screens.
+    public static func week(containing anchorDay: String,
+                            workouts: [HevyWorkout],
+                            templates: [String: HevyExerciseTemplate],
+                            tzOffsetSeconds: Int = 0) -> WeekSummary {
+        guard let monday = WeeklyDigestEngine.mondayOfWeek(containing: anchorDay) else {
+            return WeekSummary(mondayKey: anchorDay, sessionCount: 0, workingSetCount: 0,
+                               volumeLoadKg: 0, setsByMuscle: [:], secondarySetsByMuscle: [:],
+                               unattributedSetCount: 0)
+        }
+        let sunday = WeeklyDigestEngine.addDays(monday, 6)
+        let inWeek = workouts.filter { workout in
+            let day = AnalyticsEngine.dayString(workout.startTs, offsetSec: tzOffsetSeconds)
+            return day >= monday && day <= sunday
+        }
+        let tally = hardSetsByMuscle(inWeek, templates: templates)
+        let summaries = inWeek.map { summarize($0, templates: templates) }
+        return WeekSummary(
+            mondayKey: monday,
+            sessionCount: inWeek.count,
+            workingSetCount: summaries.reduce(0) { $0 + $1.workingSetCount },
+            volumeLoadKg: summaries.reduce(0) { $0 + $1.volumeLoadKg },
+            setsByMuscle: tally.primary,
+            secondarySetsByMuscle: tally.secondary,
+            unattributedSetCount: tally.unattributed)
+    }
+
+    /// The acute-versus-chronic ratio of WORKING SETS, and the band it falls in.
+    ///
+    /// The same arithmetic `ReadinessEngine` runs over heart-rate strain, in set units instead — and
+    /// deliberately the same windows and the same band cut points, read from that engine rather than
+    /// copied, so the app cannot end up holding two definitions of "acute load".
+    ///
+    /// A RATIO is what this reports, never a score. "1.05" says something checkable — a fifth more than
+    /// usual — where a "72" would be a number with no unit, no model behind it and nothing a reader
+    /// could disagree with.
+    ///
+    /// Returns nil below `ReadinessEngine.minChronic` days of history: a ratio computed from a fortnight
+    /// is mostly a statement about how little data there is.
+    public struct SetLoadRatio: Equatable, Sendable {
+        /// Mean working sets per day over the acute window.
+        public let acute: Double
+        /// Mean working sets per day over the chronic window.
+        public let chronic: Double
+        public let ratio: Double
+        public let band: ReadinessEngine.LoadBand
+
+        public init(acute: Double, chronic: Double, ratio: Double, band: ReadinessEngine.LoadBand) {
+            self.acute = acute
+            self.chronic = chronic
+            self.ratio = ratio
+            self.band = band
+        }
+    }
+
+    public static func setLoadRatio(_ workouts: [HevyWorkout],
+                                    asOf now: Date = Date(),
+                                    tzOffsetSeconds: Int = 0) -> SetLoadRatio? {
+        let (setsByDay, _) = dailyTotals(workouts, tzOffsetSeconds: tzOffsetSeconds)
+        let today = AnalyticsEngine.dayString(Int(now.timeIntervalSince1970), offsetSec: tzOffsetSeconds)
+
+        // A DENSE series, zero-filled: a rest day is a real zero, and averaging only the days that
+        // happened to have sessions would make someone who trained twice look identical to someone who
+        // trained six times. That is the whole difference between "load" and "how hard were the days I
+        // trained".
+        func meanPerDay(_ span: Int) -> Double? {
+            var days: [Double] = []
+            var day = today
+            for _ in 0..<span {
+                days.append(Double(setsByDay[day] ?? 0))
+                day = WeeklyDigestEngine.addDays(day, -1)
+            }
+            guard !days.isEmpty else { return nil }
+            return days.reduce(0, +) / Double(days.count)
+        }
+
+        // Enough history to compare against, measured from the FIRST session rather than from the
+        // window: someone three weeks into using Hevy has no chronic load to speak of.
+        let firstDay = setsByDay.keys.min()
+        guard let firstDay,
+              daysBetween(firstDay, and: today) >= ReadinessEngine.minChronic else { return nil }
+
+        guard let acute = meanPerDay(ReadinessEngine.acuteWindow),
+              let chronic = meanPerDay(ReadinessEngine.chronicWindow),
+              chronic > 0 else { return nil }
+        let ratio = acute / chronic
+        return SetLoadRatio(acute: acute, chronic: chronic, ratio: ratio,
+                            band: ReadinessEngine.LoadBand.of(ratio: ratio))
+    }
+
+    /// Whole days between two "yyyy-MM-dd" keys, or 0 when either is unparseable.
+    static func daysBetween(_ from: String, and to: String) -> Int {
+        var count = 0
+        var cursor = from
+        while cursor < to && count < 4000 {
+            cursor = WeeklyDigestEngine.addDays(cursor, 1)
+            count += 1
+        }
+        return count
+    }
+
+    // MARK: - The user's own range
+
+    /// The user's typical weekly working-set count per muscle group, as a p25…p75 band over the last
+    /// `weeks` complete weeks (this week excluded — it is the thing being compared).
+    ///
+    /// A BAND, not a target. NOOP has no evidence about what anyone's correct weekly volume is, and a
+    /// textbook number presented as "your goal" would be exactly the invented figure this whole lane
+    /// avoids. What it does have is what this person has actually been doing, which is enough to say
+    /// "this week is unusual for you" — and that is a claim the data supports.
+    ///
+    /// Quartiles rather than mean ± SD: a single deload week would drag a mean and widen an SD, while
+    /// the interquartile range simply ignores it.
+    public static func typicalWeeklySets(_ workouts: [HevyWorkout],
+                                         templates: [String: HevyExerciseTemplate],
+                                         endingBefore anchorDay: String,
+                                         weeks: Int = 8,
+                                         tzOffsetSeconds: Int = 0) -> [HevyMuscleGroup: ClosedRange<Double>] {
+        guard let thisMonday = WeeklyDigestEngine.mondayOfWeek(containing: anchorDay) else { return [:] }
+        var byGroup: [HevyMuscleGroup: [Double]] = [:]
+        var monday = WeeklyDigestEngine.addDays(thisMonday, -7)
+        for _ in 0..<max(weeks, 1) {
+            let summary = week(containing: monday, workouts: workouts, templates: templates,
+                               tzOffsetSeconds: tzOffsetSeconds)
+            // Only weeks that HELD training contribute. A stretch when someone was ill or away is not
+            // evidence about their usual volume, and including it as a run of zeros would drag every
+            // band down and then report the return to normal as unusually high.
+            if summary.sessionCount > 0 {
+                for group in HevyMuscleGroup.allCases {
+                    byGroup[group, default: []].append(Double(summary.setsByMuscle[group] ?? 0))
+                }
+            }
+            monday = WeeklyDigestEngine.addDays(monday, -7)
+        }
+
+        var out: [HevyMuscleGroup: ClosedRange<Double>] = [:]
+        for (group, values) in byGroup where values.count >= 3 {
+            let sorted = values.sorted()
+            let lo = percentile(sorted, 0.25)
+            let hi = percentile(sorted, 0.75)
+            // A group never trained has a 0…0 band, which says nothing; omit it rather than draw an
+            // empty reference the reader would have to interpret.
+            if hi > 0 { out[group] = lo...hi }
+        }
+        return out
+    }
+
+    /// Linear-interpolated percentile over a sorted array.
+    static func percentile(_ sorted: [Double], _ p: Double) -> Double {
+        guard !sorted.isEmpty else { return 0 }
+        if sorted.count == 1 { return sorted[0] }
+        let position = p * Double(sorted.count - 1)
+        let lower = Int(position.rounded(.down))
+        let upper = min(lower + 1, sorted.count - 1)
+        let fraction = position - Double(lower)
+        return sorted[lower] + (sorted[upper] - sorted[lower]) * fraction
+    }
+
     /// The day keys a set of sessions falls on — the shape `EffectRanker` wants for a behaviour, which
     /// is how a "leg day" becomes something the existing lag-aware effect machinery can measure
     /// against tomorrow's Charge without any new statistics.

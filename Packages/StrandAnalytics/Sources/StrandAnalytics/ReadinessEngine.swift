@@ -82,9 +82,13 @@ public enum ReadinessEngine {
 
     private static let baselineWindow = 30   // days for HRV / RHR / RR baselines
     private static let minBaseline    = 7    // need at least this many baseline nights
-    private static let acuteWindow    = 7
-    private static let chronicWindow  = 28
-    private static let minChronic     = 14   // need at least this much strain history for ACWR
+    // These three are PUBLIC because a second consumer now exists: the strength lane runs the identical
+    // acute-versus-chronic comparison over working sets. Copying the numbers there would be the
+    // "one number in two places" shape `StreamReadCap` was created to stop — the two would drift, and
+    // the app would quietly hold two different definitions of what "acute load" means.
+    public static let acuteWindow    = 7
+    public static let chronicWindow  = 28
+    public static let minChronic     = 14   // need at least this much history before a ratio is honest
 
     // MARK: Monotony gating (#monotony-lowload)
     //
@@ -322,6 +326,34 @@ public enum ReadinessEngine {
                       evidenceData: .metric(value: v, baseline: logDomain ? exp(m) : m,
                                             unit: unit, decimals: decimals),
                       detail: text, flag: flag)
+    }
+
+    /// Where an acute:chronic ratio falls, as a named band.
+    ///
+    /// The cut points are the conventional ones and they live HERE, in one place, because two surfaces
+    /// now read them: this engine's Readiness signal and the strength lane's load tile. A second copy
+    /// would let the same ratio be called "sweet spot" on one screen and "building fast" on another.
+    ///
+    /// The band is a description of a RATIO, deliberately unitless — which is what lets the same
+    /// arithmetic serve heart-rate strain and working sets without either pretending to be the other.
+    public enum LoadBand: String, Sendable, CaseIterable {
+        /// < 0.8 — doing less than usual. A state, not a concern.
+        case rampingDown
+        /// 0.8–1.3 — the range most of the literature treats as unremarkable.
+        case steady
+        /// 1.3–1.5 — building faster than the body has been prepared for.
+        case buildingFast
+        /// ≥ 1.5 — a spike.
+        case spiking
+
+        public static func of(ratio: Double) -> LoadBand {
+            switch ratio {
+            case ..<0.8:    return .rampingDown
+            case 0.8..<1.3: return .steady
+            case 1.3..<1.5: return .buildingFast
+            default:        return .spiking
+            }
+        }
     }
 
     private static func acwrSignal(_ ratio: Double, acute: Double, chronic: Double) -> Signal {
