@@ -988,6 +988,45 @@ final class IntelligenceEngine: ObservableObject {
     static let stepsMotionInputRevKey = "steps_motion_input_rev"
     static let stepsMotionDeviceRevKey = "steps_motion_device_rev"
 
+    /// Metric-series key for the max-HR override's EFFECTIVE-FROM history: one day-dated entry per
+    /// change, stored beside `steps_est` and `steps_motion` under the same computed id.
+    static let hrmaxEffectiveKey = "hrmax_effective"
+
+    /// Which max-HR override each day was — and stays — scored with: the newest entry dated at or
+    /// before that day, or `fallback` when none is.
+    ///
+    /// Max HR used to be one pass-global number, so nudging the Settings stepper re-derived three
+    /// weeks. Measured twice in one afternoon on a real device: `hrmax: 203 → 195` (681 s) and then
+    /// `hrmax: 195 → 196` (259 s), for two taps. Nothing in the app even triggers a pass on the change
+    /// — the stepper only writes the value, and whichever pass runs next pays for it.
+    ///
+    /// Re-scoring was not WRONG: max HR feeds Effort and, through the z2+ gate, which workouts are
+    /// detected at all. It was wrong to apply it BACKWARDS. Max HR is a property of the wearer at a
+    /// point in time; last month's nights were lived at last month's value, and re-scoring them against
+    /// a number set today rewrites history with information that did not exist then. So a value takes
+    /// effect from the day it is set and never moves an earlier day again — which is also what stops
+    /// the re-derivation, since an untouched day keeps a matching fingerprint.
+    ///
+    /// The raw override is stored, not the Tanaka-resolved effective HR: the signature component keeps
+    /// its exact existing form that way, so seeding an install's history with its current value leaves
+    /// every day's signature byte-identical and the changeover costs no re-derivation at all.
+    ///
+    /// Duplicates on one day resolve to the last given, matching the store's own (deviceId, day, key)
+    /// uniqueness — several taps in one day are one entry, not several.
+    nonisolated static func hrmaxByDay(days: [String], journal: [(day: String, value: Int)],
+                                       fallback: Int) -> [String: Int] {
+        var byDay: [String: Int] = [:]
+        for entry in journal { byDay[entry.day] = entry.value }
+        let ordered = byDay.sorted { $0.key < $1.key }
+        var out: [String: Int] = [:]
+        for day in days {
+            var resolved = fallback
+            for entry in ordered where entry.key <= day { resolved = entry.value }
+            out[day] = resolved
+        }
+        return out
+    }
+
     func analyzeRecent(maxDays: Int = 21, force: Bool = true, skipIfUnchanged: Bool = false,
                        allowDayReuse: Bool = IntelligenceEngine.dayReuseDefault,
                        reason: AnalysisReason = .semanticChange,
@@ -1164,7 +1203,7 @@ final class IntelligenceEngine: ObservableObject {
                              age: Double(profile.age), sex: profile.sex,
                              stepTicksPerStep: profile.stepTicksPerStep)
 
-        let maxHR = profile.hrMaxOverride > 0 ? Double(profile.hrMaxOverride) : nil
+        // (The pass-global max HR that used to live here is now resolved per day — see `hrmaxByDay`.)
         let now = Int(Date().timeIntervalSince1970)
         // Device wall-clock offset (seconds east of UTC) for the sleep detector's daytime
         // false-sleep guard (#90): the stager places each window's center on the LOCAL clock
@@ -1317,6 +1356,9 @@ final class IntelligenceEngine: ObservableObject {
         let scanDayKeys = (0..<maxDays).map {
             AnalyticsEngine.dayString(nowLocalMidnight - $0 * 86_400, offsetSec: tzOffset)
         }
+        // Newest first, so `.first` is today and `.last` the window's oldest day.
+        let newestScanDay = scanDayKeys.first ?? AnalyticsEngine.dayString(nowLocalMidnight,
+                                                                          offsetSec: tzOffset)
         // ONE read of the weigh-in history (NOOP's own log unioned with Apple Health — `WeightSeries.merge`),
         // resolved to a weight per day before the detached loop and captured into it as a plain value. The
         // `+ 100` days match `EnergySeries`: the resolver is a 10-day EWMA with a 90-day carry, so it needs
@@ -1333,15 +1375,55 @@ final class IntelligenceEngine: ObservableObject {
         let profileWeightKg = profile.weightKg
         let weightByDay = Self.weightByDay(days: scanDayKeys, observations: weightObservations,
                                            fallbackKg: profileWeightKg)
-        // `weight` is deliberately NOT here — it is per DAY (see `weightByDay`), appended by
-        // `semanticSignature(forDay:)` below. Everything in this list is genuinely pass-global: it holds
+        // The max-HR override's effective-from history — see `hrmaxByDay`. Read whole (a handful of rows
+        // however long the install has run), because resolving the window's OLDEST day needs the entry in
+        // force before it, which by definition predates the window.
+        let profileHrmax = profile.hrMaxOverride
+        var hrmaxJournal = ((try? await store.metricSeries(deviceId: computedId,
+                                                           key: Self.hrmaxEffectiveKey,
+                                                           from: "0000-01-01", to: newestScanDay)) ?? [])
+            .map { (day: $0.day, value: Int($0.value.rounded())) }
+        // Seed once, at the OLDEST day this pass walks, with the value the install already has. Every day
+        // then resolves to it, the signature stays byte-identical to the pass-global form it replaces, and
+        // the changeover costs no re-derivation — unlike the weight fix, which had to pay for one.
+        //
+        // Afterwards: append when the setting no longer agrees with the newest entry. Written HERE rather
+        // than from a Settings observer on purpose — an observer that misses a change (the app is killed
+        // before it fires) would leave the new value never taking effect at all, while a comparison the
+        // pass makes every time cannot. The cost is that the effective day is the day a pass NOTICES the
+        // change: set it at 23:50 with no pass until tomorrow and the change day keeps the old value.
+        var hrmaxToWrite: [MetricPoint] = []
+        if hrmaxJournal.isEmpty {
+            let seedDay = scanDayKeys.last ?? newestScanDay
+            hrmaxJournal = [(day: seedDay, value: profileHrmax)]
+            hrmaxToWrite = [MetricPoint(day: seedDay, key: Self.hrmaxEffectiveKey,
+                                        value: Double(profileHrmax))]
+        } else if hrmaxJournal.max(by: { $0.day < $1.day })?.value != profileHrmax {
+            hrmaxJournal.append((day: newestScanDay, value: profileHrmax))
+            hrmaxToWrite = [MetricPoint(day: newestScanDay, key: Self.hrmaxEffectiveKey,
+                                        value: Double(profileHrmax))]
+        }
+        if !hrmaxToWrite.isEmpty {
+            _ = try? await store.upsertMetricSeries(hrmaxToWrite, deviceId: computedId)
+        }
+        let hrmaxByDay = Self.hrmaxByDay(days: scanDayKeys, journal: hrmaxJournal,
+                                         fallback: profileHrmax)
+        // `weight` and `hrmax` are deliberately NOT in these two lists — both are per DAY, spliced in by
+        // `semanticSignature(forDay:)` below. Everything that remains is genuinely pass-global: it holds
         // for every day in the window or for none, which is what makes a single miss on one of these
         // explain the whole window at once.
-        let semanticSignatureBase = [
+        //
+        // Split in two rather than appended, so `hrmax` keeps its EXACT position in the string. The
+        // signature is compared as raw text, so moving a field to the end would change every day's
+        // signature and cost the full re-derivation this change exists to avoid. (`semanticSignatureDiff`
+        // parses into a dictionary and is order-blind, so only the match is sensitive to this — which is
+        // precisely the half that is easy to get wrong unnoticed.)
+        let semanticSignatureHead = [
             "height=\(profile.heightCm.bitPattern)",
             "age=\(profile.age)",
             "sex=\(String(describing: profile.sex))",
-            "hrmax=\(profile.hrMaxOverride)",
+        ].joined(separator: "|")
+        let semanticSignatureTail = [
             "stepTicks=\(profile.stepTicksPerStep.bitPattern)",
             "tz=\(tzOffset)",
             "deepHrv=\(deepHrvWindow ? 1 : 0)",
@@ -1351,11 +1433,12 @@ final class IntelligenceEngine: ObservableObject {
             "recoveryEpoch=\(Baselines.recoveryBaselineEpoch())",
         ].joined(separator: "|")
         // The signature a day is COMPARED against and the one it is WRITTEN with have to come from here,
-        // both of them. They already had to agree; now that one field varies by day, a second copy of the
-        // "+ weight" step would be a copy that can disagree — and the failure it produces is silent and
-        // total: no day ever matches again, and the log says only "semanticSignature".
+        // both of them. They already had to agree; now that two fields vary by day, a second copy of this
+        // assembly would be a copy that can disagree — and the failure it produces is silent and total:
+        // no day ever matches again, and the log says only "semanticSignature".
         let semanticSignature: @Sendable (String) -> String = { day in
-            "\(semanticSignatureBase)|weight=\((weightByDay[day] ?? profileWeightKg).bitPattern)"
+            "\(semanticSignatureHead)|hrmax=\(hrmaxByDay[day] ?? profileHrmax)|\(semanticSignatureTail)"
+                + "|weight=\((weightByDay[day] ?? profileWeightKg).bitPattern)"
         }
         // ── Per-day skip (#launch-rescore) ───────────────────────────────────────────────────────────
         // Re-deriving a day costs a ~54 h read (~950 k rows on a fully-worn library) plus sleep staging,
@@ -1776,6 +1859,11 @@ final class IntelligenceEngine: ObservableObject {
                 // it does not hold.
                 var dayProfile = up
                 dayProfile.weightKg = weightByDay[day] ?? up.weightKg
+                // Same rule as the weight above, for the same reason: the signature promises a max HR for
+                // this day, so this is the one the day must be scored with. It reaches Effort AND the
+                // z2+ gate that decides which workouts are detected at all.
+                let dayHrmax = hrmaxByDay[day] ?? profileHrmax
+                let dayMaxHR: Double? = dayHrmax > 0 ? Double(dayHrmax) : nil
                 let diagAnalyzeStart = Date()   // TEMP DIAGNOSTIC: math cost, separated from the read cost
                 let res = AnalyticsEngine.analyzeDay(day: day, hr: hr, rr: rr, resp: resp,
                                                      vendorResp: vendorResp, gravity: grav,
@@ -1786,7 +1874,8 @@ final class IntelligenceEngine: ObservableObject {
                                                      skinTempAnchorRaw: skinAnchorRaw,   // #938 second capture
                                                      skinTempWornToleranceSec: skinWornToleranceSec,   // #1467
                                                      spo2: spo2,                   // #93
-                                                     profile: dayProfile, baselines: baselines1, maxHROverride: maxHR,
+                                                     profile: dayProfile, baselines: baselines1,
+                                                     maxHROverride: dayMaxHR,
                                                      tzOffsetSeconds: tzOffset, wristOff: wristOff,
                                                      sleepNeedHours: sleepNeedHours,
                                                      sleepConsistency: sleepConsistency,
