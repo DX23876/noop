@@ -4,6 +4,68 @@ import WhoopProtocol
 import WhoopStore
 import StrandAnalytics
 
+// MARK: - Running work at a priority the caller cannot raise
+//
+// `Task.detached(priority: .utility) { … }` does NOT keep that priority when a higher-priority task
+// `await`s its `.value`. Awaiting a task records a DEPENDENCY, and the Swift runtime escalates the
+// awaited task to the waiter's priority so it cannot be starved by the thing waiting on it. Everything
+// that reaches the analysis scan is main-actor isolated, so the whole chain — `runAnalysisMaintenance`
+// → `analyzeRecent` → `runAnalysisQueue` → `performAnalyzeRecent` → the detached scan — runs at the
+// UI's own quality of service. The `.utility` in the source is a comment, not a behaviour.
+//
+// That is the mechanism behind "the app stutters for seconds while a 21-day pass runs": the scan is not
+// blocking the main actor, it is competing with it for CPU and memory bandwidth as an equal.
+//
+// The way out is to await something that is NOT a task. A continuation carries no dependency edge, so
+// the runtime has nothing to escalate through and the detached task keeps the priority it was given.
+// Cancellation has to be re-attached by hand for the same reason — that is what the handler below is
+// for, and it is the part that would silently rot if it were left out.
+
+/// Holds the in-flight task so a cancellation arriving before, during or after its creation still lands.
+private final class UnescalatedTaskBox: @unchecked Sendable {
+    private let lock = NSLock()
+    private var task: Task<Void, Never>?
+    private var cancelled = false
+
+    /// Cancellation can arrive BEFORE the task exists — the handler is installed first. Adopting a task
+    /// into an already-cancelled box therefore cancels it immediately rather than losing the signal.
+    func adopt(_ incoming: Task<Void, Never>) {
+        lock.lock()
+        let alreadyCancelled = cancelled
+        if !alreadyCancelled { task = incoming }
+        lock.unlock()
+        if alreadyCancelled { incoming.cancel() }
+    }
+
+    func cancel() {
+        lock.lock()
+        cancelled = true
+        let inFlight = task
+        lock.unlock()
+        inFlight?.cancel()
+    }
+}
+
+/// Run `work` off the current actor at a priority the awaiting caller cannot escalate.
+///
+/// Use instead of `await Task.detached(priority:)` wherever the caller is (or may be) main-actor bound
+/// and the work is long enough to be felt. The result crosses back through the continuation rather than
+/// through `Task.Success`, which is also what lets non-`Sendable` results — `DayScan` is deliberately
+/// one — cross exactly as they did before.
+func runUnescalated<T>(priority: TaskPriority = .utility,
+                       _ work: @escaping @Sendable () async -> T) async -> T {
+    let box = UnescalatedTaskBox()
+    return await withTaskCancellationHandler {
+        await withCheckedContinuation { (continuation: CheckedContinuation<T, Never>) in
+            box.adopt(Task.detached(priority: priority) {
+                continuation.resume(returning: await work())
+            })
+        }
+    } onCancel: {
+        box.cancel()
+    }
+}
+
 /// On-device "intelligence": computes recovery / day-strain / sleep from the raw strap streams using
 /// the same model shape WHOOP uses (HRV vs personal baseline ~60%, resting HR ~20%, sleep ~15%,
 /// respiration ~5%; strain 0–21 from cardiovascular load). This is what makes NOOP independent of
@@ -776,7 +838,7 @@ final class IntelligenceEngine: ObservableObject {
         let devices = (try? registry.all()) ?? []
         let activeId = (try? registry.activeDeviceId()) ?? fallbackId
 
-        let updates: [(day: String, strain: Double?)] = await Task.detached(priority: .utility) {
+        let updates: [(day: String, strain: Double?)] = await runUnescalated {
             var result: [(day: String, strain: Double?)] = []
             result.reserveCapacity(batch.count)
             for row in batch {
@@ -796,7 +858,7 @@ final class IntelligenceEngine: ObservableObject {
                 result.append((row.day, strain))
             }
             return result
-        }.value
+        }
 
         do {
             _ = try await store.updateDailyStrains(updates, deviceId: computedId)
@@ -1489,7 +1551,7 @@ final class IntelligenceEngine: ObservableObject {
         let (scanned, skippedDayLines, reusedDays, reuseMissesByDay, firstSemanticMismatch):
             ([DayScan], [String], [String], [(day: String, misses: [String])],
              (day: String, stored: String)?) =
-        await Task.detached(priority: .utility) {
+        await runUnescalated {
             var out: [DayScan] = []
             // Days reused from their persisted row (fingerprint matched) — carried out so the main-actor
             // fold can rebuild their pass-2 state, and so the RECONCILIATION below can tell them apart from
@@ -1899,6 +1961,20 @@ final class IntelligenceEngine: ObservableObject {
                 // z2+ gate that decides which workouts are detected at all.
                 let dayHrmax = hrmaxByDay[day] ?? profileHrmax
                 let dayMaxHR: Double? = dayHrmax > 0 ? Double(dayHrmax) : nil
+                // Hand-off between the reads and the scorer. The reads above are each an `await` on the
+                // store actor and therefore already suspension points; `analyzeDay` below is one
+                // synchronous fold with none. Yielding here bounds how long the scan holds its thread
+                // without offering it back, and yielding again after the fold does the same for the
+                // persistence preparation that follows. Neither changes an input, an output or the
+                // order anything happens in.
+                //
+                // Whether this is enough is a QUESTION THE LOG ANSWERS, not this comment: the per-day
+                // diagnostic below reports `rawRead=` against `analysisPipeline=`. If the pipeline
+                // dominates, no yield placed around it can help and the fold itself would have to be
+                // broken up — which would mean making `AnalyticsEngine.analyzeDay` async and carrying
+                // concurrency into a deliberately pure, platform-free package. That is a separate
+                // decision and is deliberately not taken here.
+                await Task.yield()
                 let diagAnalyzeStart = Date()   // TEMP DIAGNOSTIC: math cost, separated from the read cost
                 let res = AnalyticsEngine.analyzeDay(day: day, hr: hr, rr: rr, resp: resp,
                                                      vendorResp: vendorResp, gravity: grav,
@@ -1934,6 +2010,7 @@ final class IntelligenceEngine: ObservableObject {
                                                      deepHrvWindow: deepHrvWindow,
                                                      effortMethod: effortMethodGlobal)
                 diagAnalyzeMs = Date().timeIntervalSince(diagAnalyzeStart) * 1000   // TEMP DIAGNOSTIC
+                await Task.yield()
                 // #195: whole-night HRV cleaning-pipeline summary for the always-on strap log, so a "reads ~2x
                 // too high" report is triageable without the HRV test mode: RMSSD vs SDNN (rmssd >> sdnn =
                 // beat-to-beat jitter surviving the ectopic filter, not real HRV), meanNN as an HR sanity-check,
@@ -2178,7 +2255,7 @@ final class IntelligenceEngine: ObservableObject {
                                    primarySessionRHRCoverage: primarySessionRHRCoverage))
             }
             return (out, skippedDayLines, reusedDays, reuseMissesByDay, firstSemanticMismatch)
-        }.value
+        }
 
         // #714: replay each skipped day's diagnostic now that we're back on the main actor (diagnosticSink
         // is MainActor-bound). Always-on , not gated behind a test mode, mirroring the Kotlin `diag` sink.
@@ -3107,7 +3184,7 @@ final class IntelligenceEngine: ObservableObject {
                 .map { ($0.day, $0.value) }), uniquingKeysWith: { _, last in last })
         let (refStepsByDay, motionByDay, freshMotion, motionReused):
             ([String: Double], [String: Double], [(day: String, motion: Double, input: Int, device: Int)], Int) =
-            await Task.detached(priority: .utility) {
+            await runUnescalated {
             // Phone reference steps per day, from the apple-health daily rows (steps > 0 only).
             // #693: read `appleDaily`, NOT `dailyMetrics`. Apple-Health import writes the phone step count into
             // `appleDaily.steps` (Int?), never into a dailyMetric `steps` row , so the old `dailyMetrics` read
@@ -3154,7 +3231,7 @@ final class IntelligenceEngine: ObservableObject {
                 }
             }
             return (refSteps, motion, fresh, reused)
-        }.value
+        }
         if !freshMotion.isEmpty {
             var points: [MetricPoint] = []
             points.reserveCapacity(freshMotion.count * 3)
