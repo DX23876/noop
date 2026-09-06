@@ -570,18 +570,40 @@ struct StrengthView: View {
         }
     }
 
+    /// Label over value in the narrow column beside the chart; label and value on ONE line once the
+    /// facts move under a full-width chart.
+    ///
+    /// Stacking is right at 132pt and wrong at 360: three facts became six lines with a card's worth of
+    /// empty space to the right of every one of them. This is the same mistake as reusing `StatTile`'s
+    /// icon variant three across — a layout carries an assumption about the width it was shaped for,
+    /// and moving it somewhere wider does not carry that assumption along.
+    @ViewBuilder
+    private func factRow<Value: View>(_ label: String,
+                                      @ViewBuilder value: () -> Value) -> some View {
+        let caption = Text(label).font(StrandFont.caption)
+            .foregroundStyle(StrandPalette.textTertiary)
+        if isCompact {
+            HStack(alignment: .firstTextBaseline) {
+                caption
+                Spacer(minLength: 8)
+                value()
+            }
+        } else {
+            VStack(alignment: .leading, spacing: 2) {
+                caption
+                value()
+            }
+        }
+    }
+
     private func factRow(_ label: String, text: String) -> some View {
-        VStack(alignment: .leading, spacing: 1) {
-            Text(label).font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+        factRow(label) {
             Text(text).font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
         }
     }
 
     private func factRow(_ label: String, chip: TrendChip) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(label).font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
-            chip
-        }
+        factRow(label) { chip }
     }
 
     // MARK: - Sessions
