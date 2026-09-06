@@ -6,13 +6,12 @@ import StrandDesign
 // MARK: - Strength — what the Hevy log says, and nothing it doesn't
 //
 // The Workouts list answers "when did I train?". This screen answers what that list structurally
-// cannot: what the sessions contained, whether the numbers are moving, which muscles are getting the
-// work, and how a kind of session sits with the next morning.
+// cannot: what the sessions contained, whether the numbers are moving, and which muscles are getting
+// the work.
 //
-// NO MATHS HAPPENS IN THIS FILE. Every figure comes from `StrengthSession` and
-// `StrengthRecoveryResponse` (StrandAnalytics — pure, unit-tested, database-free), for the same reason
-// `WeightDetailView` derives nothing itself: a second calculation in a view is how a screen starts
-// disagreeing with the coach about the same training.
+// NO MATHS HAPPENS IN THIS FILE. Every figure comes from `StrengthSession` (StrandAnalytics — pure,
+// unit-tested, database-free), for the same reason `WeightDetailView` derives nothing itself: a second
+// calculation in a view is how a screen starts disagreeing with the coach about the same training.
 //
 // ## Three numbers this screen refuses to invent
 //
@@ -29,6 +28,27 @@ import StrandDesign
 //   • "Recovery Capacity" is the week's mean Charge with the Readiness level beside it. The value
 //     already existed and already had a name — inventing a fourth term for it is the "more scores
 //     without explanation" this screen is meant to avoid.
+//
+// ## And one it USED to make
+//
+// This screen briefly carried a "Recovery after training" section that compared leg days with upper
+// days against the next morning's Charge, HRV and sleep need. It was removed, along with its
+// analytics and tests, for two reasons worth recording so it does not come back by accident.
+//
+// It could not be right for everyone: a session was classified as legs or upper by where more than
+// half its working sets landed, so a full-body session belonged to neither and its lifter read "5
+// more sessions of this kind needed" forever — a promise that waiting would help, when waiting never
+// would. No fixed taxonomy fixes that, because the split is the lifter's decision, not ours.
+//
+// And it measured the axis with the least support. HRV shows a dose-response to VOLUME (it moves at
+// about five sets per muscle group, not below), but a randomised crossover trial found no HRV
+// difference between two very different leg protocols, with RMSSD back at baseline within thirty
+// minutes despite lasting neuromuscular fatigue. "Which muscle" is the weakest thing to read a
+// recovery signal from, and it was the thing the card read.
+//
+// What replaced it claims less: the muscle map below shows LOAD — sets done, and when — and says
+// nothing about what that load cost. A per-muscle freshness percentage would need an assumed decay
+// curve applied to everyone, which is the universal formula this project rules out.
 
 struct StrengthView: View {
     @EnvironmentObject var repo: Repository
@@ -40,13 +60,16 @@ struct StrengthView: View {
     /// The mirrored `WorkoutRow`s, which is where the strap's heart rate lands — the "how did the body
     /// answer" half of the pairing this whole lane exists for.
     @State private var rows: [WorkoutRow] = []
-    /// The outcome series the recovery analysis reads.
-    @State private var chargeByDay: [String: Double] = [:]
-    @State private var hrvByDay: [String: Double] = [:]
-    @State private var sleepNeedByDay: [String: Double] = [:]
     /// Mean Charge and the Readiness level for the selected week.
     @State private var weekCharge: Double?
     @State private var weekEffort: Double?
+
+    @State private var mapFace: MuscleLoadMap.Face = .front
+    @State private var selectedRegion: MuscleLoadMap.Region?
+    /// Working sets per muscle over the trailing 7 days, and when each was last worked. Both are
+    /// computed once at load — they depend on the sessions, not on which week the stepper points at.
+    @State private var recentSets: [HevyMuscleGroup: Int] = [:]
+    @State private var lastWorked: [HevyMuscleGroup: (day: String, startTs: Int, exercise: String)] = [:]
 
     @State private var selectedTemplateId: String?
     @State private var loaded = false
@@ -70,7 +93,6 @@ struct StrengthView: View {
                 } else {
                     thisWeek
                     muscleGroups
-                    recoveryAfterTraining
                     exerciseProgress
                     recentSessions
                     actionRow
@@ -280,8 +302,15 @@ struct StrengthView: View {
 
     private var muscleGroups: some View {
         VStack(alignment: .leading, spacing: NoopMetrics.gap) {
+            // TWO windows, and therefore two headers. The map is a rolling 7 days because "what has my
+            // body had lately" is a question about now; the list follows the week stepper because it
+            // is about the week being reviewed. One shared header over both would have quietly told
+            // the reader that a bar and a shaded region were counting the same sets. They are not.
+            SectionHeader("Muscle load", overline: "Last 7 days")
+            bodyMapCard
+
             HStack {
-                SectionHeader("Muscle groups", overline: "This week")
+                SectionHeader("Muscle groups", trailing: weekRangeText)
                 Spacer(minLength: 8)
                 HStack(spacing: 4) {
                     Text("Working sets / your usual")
@@ -312,6 +341,74 @@ struct StrengthView: View {
         }
     }
 
+    /// The body map: what has been loaded lately, and nothing about what it cost.
+    ///
+    /// Shading is LOAD only — sets in the last seven days against this person's own typical week. It is
+    /// not a freshness reading, and the "worked N days ago" line beside it is deliberately kept as
+    /// separate text: folding "how much" and "how long ago" into a single colour is precisely the step
+    /// that turns two measurements into a model with an invented decay curve.
+    ///
+    /// The window is a rolling seven days, NOT the week the stepper is pointing at. The map answers
+    /// "what has my body had recently", which is a question about now; making it follow the stepper
+    /// would show a body state from three weeks ago as if it were current.
+    private var bodyMapCard: some View {
+        NoopCard {
+            VStack(alignment: .leading, spacing: NoopMetrics.space2) {
+                Picker("", selection: $mapFace) {
+                    ForEach(MuscleLoadMap.Face.allCases, id: \.self) { face in
+                        Text(face.label).tag(face)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .frame(maxWidth: 220)
+
+                HStack(alignment: .top, spacing: NoopMetrics.space2) {
+                    MuscleLoadMap(intensity: mapIntensity,
+                                  face: mapFace,
+                                  onSelect: { selectedRegion = $0 },
+                                  accessibilityValue: { mapAccessibility($0) })
+                        .frame(maxWidth: 200)
+                    mapLegend
+                }
+
+                if let text = selectedRegionText {
+                    Divider().overlay(StrandPalette.hairline)
+                    Text(text)
+                        .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Text("Shading is how many working sets each muscle has taken in the last 7 days, against your own usual week. It says nothing about how recovered you are.")
+                    .font(StrandFont.caption)
+                    .foregroundStyle(StrandPalette.textTertiary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    /// The three or four muscles worked most recently, as plain dates. This is the "when" half, and it
+    /// stays in words: a date is a fact, a percentage would not be.
+    private var mapLegend: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            if recentlyWorked.isEmpty {
+                Text("Nothing logged in the last 7 days.")
+                    .font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            } else {
+                ForEach(recentlyWorked, id: \.group) { item in
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(item.group.label)
+                            .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
+                        Text(item.detail)
+                            .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
     /// One muscle-group row: name, the bar with the user's own band behind it, and the count.
     ///
     /// Laid out here rather than with `TypicalRangeRow` for the same reason as the tiles: that row
@@ -339,148 +436,6 @@ struct StrengthView: View {
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(row.accessibilityText)
-    }
-
-    // MARK: - Recovery after training
-
-    /// How the two kinds of session sit with the following morning.
-    ///
-    /// Everything here comes from `EffectRanker` through `StrengthRecoveryResponse`, including the
-    /// refusal: below the group threshold the card says how many sessions are still missing rather than
-    /// showing a number. There is no placeholder state — a figure on a health card is read as a
-    /// measurement whatever caption sits above it.
-    private var recoveryAfterTraining: some View {
-        VStack(alignment: .leading, spacing: NoopMetrics.gap) {
-            HStack {
-                SectionHeader("Recovery after training", overline: "Your own record")
-                Spacer(minLength: 8)
-                Text("last 8 weeks")
-                    .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
-            }
-            HStack(alignment: .top, spacing: 10) {
-                recoveryCard(.upper)
-                recoveryCard(.legs)
-            }
-            // Said once, under the pair, because the numbers invite the wrong reading otherwise.
-            //
-            // Each figure is a COMPARISON against the user's other training days, not the absolute cost
-            // of a session — that is the whole reason rest days are not the control (they would make
-            // every session look expensive by simply not being rest). With two kinds of session, each is
-            // the other's control, so the two cards are one finding shown from both sides and their
-            // numbers mirror. Two cards side by side otherwise read as two independent measurements.
-            if recovery.hasAnyReading {
-                Text("Each figure compares that kind of session with your OTHER training days — not with rest days. The two cards are the same comparison seen from both sides.")
-                    .font(StrandFont.caption)
-                    .foregroundStyle(StrandPalette.textTertiary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            if let sentence = comparisonSentence {
-                NoopCard(padding: 12, tint: StrandPalette.chargeColor) {
-                    HStack(alignment: .top, spacing: 8) {
-                        Image(systemName: "lightbulb.fill")
-                            .font(.system(size: 12))
-                            .foregroundStyle(StrandPalette.chargeColor)
-                            .accessibilityHidden(true)
-                        Text(sentence)
-                            .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                }
-            }
-        }
-    }
-
-    /// The six measured responses, worked out ONCE.
-    ///
-    /// Computing these in `body` is the obvious way to write this section and the wrong one. Each call
-    /// re-classifies every session — `summarize` over the whole history — and then runs three lags of
-    /// Welch's t-test, and the section asks for ten of them (two cards x three outcomes, the comparison
-    /// sentence, the framing line). SwiftUI re-evaluates a body whenever anything it touches changes,
-    /// so that cost is paid on every scroll and every tap of the week stepper, on a screen whose input
-    /// history only grows. None of it depends on view state: the inputs are the loaded sessions and the
-    /// loaded day series, so the analysis belongs at the end of the load.
-    struct RecoveryReadings: Equatable {
-        var legs: [StrengthRecoveryResponse.Response] = []
-        var upper: [StrengthRecoveryResponse.Response] = []
-        var comparison: String?
-
-        func triple(_ kind: StrengthSessionKind) -> [StrengthRecoveryResponse.Response] {
-            kind == .legs ? legs : upper
-        }
-        /// Charge is the gate for the whole card, so it leads both triples.
-        var hasAnyReading: Bool {
-            (legs.first?.isReady ?? false) || (upper.first?.isReady ?? false)
-        }
-    }
-
-    @State private var recovery = RecoveryReadings()
-
-    private func recoveryCard(_ kind: StrengthSessionKind) -> some View {
-        let triple = recovery.triple(kind)
-        let charge = triple.first
-        let hrv = triple.dropFirst().first
-        let need = triple.dropFirst(2).first
-
-        return NoopCard(padding: 12) {
-            VStack(alignment: .leading, spacing: 8) {
-                HStack(spacing: 8) {
-                    Image(systemName: kind == .legs ? "figure.strengthtraining.functional"
-                                                     : "figure.arms.open")
-                        .font(.system(size: 15))
-                        .foregroundStyle(DomainTheme.effort.color)
-                        .accessibilityHidden(true)
-                    VStack(alignment: .leading, spacing: 1) {
-                        Text(kind == .legs ? "Legs" : "Upper body")
-                            .font(StrandFont.headline).foregroundStyle(StrandPalette.textPrimary)
-                        Text(kind == .legs ? "quad & hamstring focus" : "push & pull sessions")
-                            .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
-                    }
-                }
-                if let charge, charge.isReady, let hrv, let need {
-                    Divider().overlay(StrandPalette.hairline)
-                    effectRow(String(localized: "Charge next day"), charge)
-                    effectRow(String(localized: "HRV"), hrv)
-                    effectRow(String(localized: "Sleep need"), need)
-                    if let confidence = charge.effect?.confidence {
-                        Text(confidenceText(confidence, sessions: charge.sessionCount))
-                            .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
-                    }
-                } else if let charge {
-                    Divider().overlay(StrandPalette.hairline)
-                    Text(shortfallText(charge))
-                        .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    private func effectRow(_ label: String, _ response: StrengthRecoveryResponse.Response) -> some View {
-        let delta = response.effect?.effect.delta
-        return HStack {
-            Text(label).font(StrandFont.subhead).foregroundStyle(StrandPalette.textSecondary)
-            Spacer(minLength: 8)
-            if let delta {
-                Text(signed(delta, outcome: response.outcome))
-                    .font(StrandFont.subhead)
-                    .foregroundStyle(costColor(delta, outcome: response.outcome))
-            } else {
-                Text("—").font(StrandFont.subhead).foregroundStyle(StrandPalette.textTertiary)
-            }
-        }
-    }
-
-    /// Which direction is the costly one — and it is NOT the same for every row.
-    ///
-    /// Lower Charge and lower HRV are costs, so a negative delta is the amber one. Sleep NEED runs the
-    /// other way: needing MORE sleep after a session is the cost, and colouring "+22 min" green because
-    /// the number went up would tell the reader the opposite of what happened. One shared rule for all
-    /// three rows is how that mistake gets made.
-    private func costColor(_ delta: Double, outcome: String) -> Color {
-        let costly = outcome == "Sleep need" ? delta > 0 : delta < 0
-        if abs(delta) < 0.5 { return StrandPalette.textSecondary }
-        return costly ? StrandPalette.statusWarning : StrandPalette.statusPositive
     }
 
     // MARK: - Exercise progress
@@ -872,6 +827,104 @@ struct StrengthView: View {
             .sorted { $0.sets == $1.sets ? $0.group.rawValue < $1.group.rawValue : $0.sets > $1.sets }
     }
 
+    /// Which body region a Hevy muscle group is drawn on.
+    ///
+    /// `cardio`, `fullBody` and `other` map to NOTHING on purpose — there is no honest place to shade
+    /// for them, and shading a nearby region instead would put work on a muscle that never did it.
+    /// They stay visible in the list below the map, which is where the sets they carry are counted.
+    private static func region(for group: HevyMuscleGroup) -> MuscleLoadMap.Region? {
+        switch group {
+        case .neck:        return .neck
+        case .traps:       return .traps
+        case .shoulders:   return .shoulders
+        case .chest:       return .chest
+        case .biceps:      return .biceps
+        case .triceps:     return .triceps
+        case .forearms:    return .forearms
+        case .abdominals:  return .abdominals
+        case .upperBack:   return .upperBack
+        case .lats:        return .lats
+        case .lowerBack:   return .lowerBack
+        case .glutes:      return .glutes
+        case .quadriceps:  return .quadriceps
+        case .hamstrings:  return .hamstrings
+        case .calves:      return .calves
+        case .adductors:   return .adductors
+        case .abductors:   return .abductors
+        case .cardio, .fullBody, .other: return nil
+        }
+    }
+
+    /// Shading, 0...1, measured against the top of this person's own typical week for that muscle.
+    ///
+    /// Two deliberate refusals. A muscle with too little history has no band, and rather than invent a
+    /// scale for it the value falls back to the busiest muscle this week — so it is still shaded
+    /// relative to something real, never to a number NOOP made up. And a zero stays a zero: `MuscleLoadMap`
+    /// draws untouched regions in the inset surface rather than a faint tint, because "a little work"
+    /// and "no work" must not look alike.
+    private var mapIntensity: [MuscleLoadMap.Region: Double] {
+        let bands = typicalBands
+        let busiest = Double(recentSets.values.max() ?? 0)
+        var out: [MuscleLoadMap.Region: Double] = [:]
+        for (group, sets) in recentSets {
+            guard let region = Self.region(for: group), sets > 0 else { continue }
+            let ceiling = bands[group].map { max($0.upperBound, 1) } ?? max(busiest, 1)
+            let value = min(1, Double(sets) / ceiling)
+            // Two Hevy groups can share one region only if the mapping changes; keep the larger anyway
+            // so a future many-to-one mapping cannot silently lose work.
+            out[region] = max(out[region] ?? 0, value)
+        }
+        return out
+    }
+
+    /// The muscles worked most recently, newest first — the "when" half of the map.
+    private var recentlyWorked: [(group: HevyMuscleGroup, detail: String)] {
+        lastWorked
+            .sorted { $0.value.startTs > $1.value.startTs }
+            .prefix(4)
+            .map { (group: $0.key, detail: Self.agoText($0.value.day, exercise: $0.value.exercise)) }
+    }
+
+    /// "2 days ago · Back Squat". Whole days only: the log records a start time, and "41 hours" would
+    /// suggest a precision about when the load landed that a workout's start timestamp does not carry.
+    private static func agoText(_ day: String, exercise: String) -> String {
+        let today = AnalyticsEngine.dayString(Int(Date().timeIntervalSince1970), offsetSec: 0)
+        let days = StrengthSession.daysBetween(day, and: today)
+        let when: String
+        switch days {
+        case ..<1: when = String(localized: "today")
+        case 1:    when = String(localized: "yesterday")
+        default:   when = String(localized: "\(days) days ago")
+        }
+        return "\(when) · \(exercise)"
+    }
+
+    /// What a tapped region says. Nil when nothing is selected, so the row simply is not drawn.
+    private var selectedRegionText: String? {
+        guard let selectedRegion else { return nil }
+        guard let group = HevyMuscleGroup.allCases.first(where: { Self.region(for: $0) == selectedRegion })
+        else { return nil }
+        let sets = recentSets[group] ?? 0
+        guard sets > 0 else {
+            return String(localized: "\(group.label): no working sets in the last 7 days.")
+        }
+        if let last = lastWorked[group] {
+            return "\(group.label): \(sets) working sets · \(Self.agoText(last.day, exercise: last.exercise))"
+        }
+        return String(localized: "\(group.label): \(sets) working sets in the last 7 days.")
+    }
+
+    private func mapAccessibility(_ region: MuscleLoadMap.Region) -> String {
+        guard let group = HevyMuscleGroup.allCases.first(where: { Self.region(for: $0) == region })
+        else { return "" }
+        let sets = recentSets[group] ?? 0
+        guard sets > 0 else { return String(localized: "no working sets in the last 7 days") }
+        if let last = lastWorked[group] {
+            return "\(sets) working sets, \(Self.agoText(last.day, exercise: last.exercise))"
+        }
+        return String(localized: "\(sets) working sets")
+    }
+
     /// The group furthest BELOW its own band, if any. Drives the middle action button.
     private var groupBelowItsBand: HevyMuscleGroup? {
         muscleRows
@@ -882,35 +935,6 @@ struct StrengthView: View {
             }
             .max { $0.1 < $1.1 }?.0
     }
-
-    /// Runs the analysis. Static and parameterised so it takes no view state and can be called from the
-    /// load before the corresponding `@State` has been assigned.
-    private static func readings(workouts: [HevyWorkout],
-                                 templates: [String: HevyExerciseTemplate],
-                                 charge: [String: Double], hrv: [String: Double],
-                                 sleepNeed: [String: Double],
-                                 tzOffsetSeconds: Int) -> RecoveryReadings {
-        // Charge FIRST in each triple: it is the gate the card checks and the series the comparison
-        // sentence is built from.
-        let outcomes: [(String, [String: Double])] =
-            [("Charge", charge), ("HRV", hrv), ("Sleep need", sleepNeed)]
-        func triple(_ kind: StrengthSessionKind) -> [StrengthRecoveryResponse.Response] {
-            outcomes.map { name, series in
-                StrengthRecoveryResponse.response(kind: kind, outcome: name, workouts: workouts,
-                                                  templates: templates, outcomeByDay: series,
-                                                  tzOffsetSeconds: tzOffsetSeconds)
-            }
-        }
-        let legs = triple(.legs)
-        let upper = triple(.upper)
-        var readings = RecoveryReadings(legs: legs, upper: upper, comparison: nil)
-        if let l = legs.first, let u = upper.first {
-            readings.comparison = StrengthRecoveryResponse.comparison(legs: l, upper: u)
-        }
-        return readings
-    }
-
-    private var comparisonSentence: String? { recovery.comparison }
 
     @State private var trend: [ExercisePerformancePoint] = []
 
@@ -980,32 +1004,6 @@ struct StrengthView: View {
         case .buildingFast: return StrandPalette.statusWarning
         case .spiking:      return StrandPalette.statusCritical
         }
-    }
-
-    /// A signed delta with the unit the outcome actually has. Charge is points, HRV milliseconds, sleep
-    /// need minutes — one shared formatter would silently label all three the same.
-    private func signed(_ delta: Double, outcome: String) -> String {
-        switch outcome {
-        case "HRV":        return String(format: "%+.0f ms", delta)
-        case "Sleep need": return String(format: "%+.0f min", delta)
-        default:           return String(format: "%+.0f", delta)
-        }
-    }
-
-    private func confidenceText(_ confidence: ScoreConfidence, sessions: Int) -> String {
-        String(localized: "from \(sessions) sessions · \(confidence.rawValue)")
-    }
-
-    /// What is still missing, in sessions. Names the CONTROL shortfall too — people expect to need more
-    /// leg days and are surprised that the comparison also needs other training days.
-    private func shortfallText(_ response: StrengthRecoveryResponse.Response) -> String {
-        if response.missingSessions > 0 {
-            return String(localized: "\(response.missingSessions) more sessions of this kind needed before NOOP can say anything.")
-        }
-        if response.missingControls > 0 {
-            return String(localized: "\(response.missingControls) more sessions of the OTHER kind needed — the comparison is against your other training days, not your rest days.")
-        }
-        return String(localized: "Not enough overlap with your recovery data yet.")
     }
 
     private func exerciseTitle(_ id: String) -> String {
@@ -1153,23 +1151,10 @@ struct StrengthView: View {
         rows = (try? await store.workouts(deviceId: HevySource.id, from: from, to: now + 86_400,
                                           limit: 500)) ?? []
 
-        // The outcome series the recovery analysis reads. `repo.days` is already loaded; sleep need is
-        // a metric series, so it needs its own bounded read.
-        var charge: [String: Double] = [:]
-        var hrv: [String: Double] = [:]
-        for day in repo.days {
-            if let value = day.recovery { charge[day.day] = value }
-            if let value = day.avgHrv { hrv[day.day] = value }
-        }
-        chargeByDay = charge
-        hrvByDay = hrv
-        let needRows = await repo.series(key: "sleep_need_min", source: Repository.whoopSource,
-                                         days: historyDays)
-        sleepNeedByDay = Dictionary(needRows.map { ($0.day, $0.value) },
-                                    uniquingKeysWith: { _, last in last })
-
-        recovery = Self.readings(workouts: sessions, templates: catalogue, charge: charge, hrv: hrv,
-                                 sleepNeed: sleepNeedByDay, tzOffsetSeconds: tzOffset)
+        recentSets = StrengthSession.recentSetsByMuscle(sessions, templates: catalogue,
+                                                        days: 7, now: now)
+        lastWorked = StrengthSession.lastWorkedByMuscle(sessions, templates: catalogue,
+                                                        tzOffsetSeconds: tzOffset)
 
         selectedTemplateId = StrengthSession.exerciseFrequency(sessions).first?.templateId
         recomputeTrend()
