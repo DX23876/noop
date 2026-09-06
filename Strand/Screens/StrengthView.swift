@@ -428,12 +428,28 @@ struct StrengthView: View {
                     }
                 }
 
+                Divider().overlay(StrandPalette.hairline)
                 if let selectedRegion, let text = selectedRegionText {
-                    Divider().overlay(StrandPalette.hairline)
                     Text(text)
                         .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
                         .fixedSize(horizontal: false, vertical: true)
-                    feedbackRow(for: selectedRegion)
+                    // Only in the "right now" view: the answer is about how a muscle feels TODAY, so
+                    // offering it while the map shows a week three back would invite rating that week.
+                    if mapMode == .now {
+                        feedbackRow(for: selectedRegion)
+                    }
+                } else {
+                    // The hint sits exactly where the detail will appear, so the affordance is where
+                    // the eye already is. Tucked into the closing caption it was a clause in small
+                    // tertiary text at the bottom of the card, which is a place people do not read
+                    // before deciding a picture is not interactive.
+                    Label(mapMode == .now
+                          ? String(localized: "Tap a muscle for detail — and to correct how recovered it feels.")
+                          : String(localized: "Tap a muscle to see what it did this week."),
+                          systemImage: "hand.tap")
+                        .font(StrandFont.caption)
+                        .foregroundStyle(StrandPalette.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
 
                 Text(modelCaveat)
@@ -487,7 +503,7 @@ struct StrengthView: View {
         var parts: [String] = []
         switch mapMode {
         case .now:
-            parts.append(String(localized: "Estimated load still on each muscle, against what one of your usual sessions leaves behind. How fast that fades is assumed, not measured — tap a muscle to tell NOOP how it actually feels."))
+            parts.append(String(localized: "Estimated load still on each muscle, against what one of your usual sessions leaves behind. How fast that fades is assumed, not measured — your answers are what correct it."))
         case .week:
             parts.append(String(localized: "Estimated stimulus this week, against your own usual week. It weighs each set by how heavy it was for you and how close to failure — it is not a count of sets."))
         }
