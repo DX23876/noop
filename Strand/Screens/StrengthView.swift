@@ -402,15 +402,29 @@ struct StrengthView: View {
                 .labelsHidden()
                 .frame(maxWidth: 220)
 
-                HStack(alignment: .top, spacing: NoopMetrics.space2) {
-                    MuscleLoadMap(load: mapLoad,
-                                  face: mapFace,
-                                  onSelect: { selectedRegion = $0 },
-                                  accessibilityValue: { mapAccessibility($0) })
-                        .frame(maxWidth: 200)
-                    VStack(alignment: .leading, spacing: NoopMetrics.space2) {
+                // The map is the point of the card, so it does not compete with the text for width.
+                // Side by side with BOTH the scale and the "last worked" list, a 1:2 figure collapsed
+                // to about a third of the card on a phone — the smallest thing in the section that
+                // exists to be looked at. On a compact width the list drops underneath and only the
+                // narrow colour scale stays beside it.
+                let map = MuscleLoadMap(load: mapLoad,
+                                        face: mapFace,
+                                        onSelect: { selectedRegion = $0 },
+                                        accessibilityValue: { mapAccessibility($0) })
+                if isCompact {
+                    HStack(alignment: .top, spacing: NoopMetrics.space2) {
+                        map.frame(height: 300)
                         mapScale
-                        mapLegend
+                        Spacer(minLength: 0)
+                    }
+                    mapLegend
+                } else {
+                    HStack(alignment: .top, spacing: NoopMetrics.space2) {
+                        map.frame(maxWidth: 200)
+                        VStack(alignment: .leading, spacing: NoopMetrics.space2) {
+                            mapScale
+                            mapLegend
+                        }
                     }
                 }
 
@@ -990,9 +1004,14 @@ struct StrengthView: View {
     }
 
     private func groups(in region: MuscleLoadMap.Region) -> [HevyMuscleGroup] {
-        HevyMuscleGroup.allCases
-            .filter { Self.region(for: $0) == region && (recentSets[$0] ?? 0) > 0 }
-            .sorted { (recentSets[$0] ?? 0) > (recentSets[$1] ?? 0) }
+        // Whatever the map is CURRENTLY shading. Filtering on the trailing 7 days regardless of view
+        // put a flat contradiction on screen: a muscle last trained nine days ago is still carrying
+        // load in the "right now" view and was shaded accordingly, while tapping it answered
+        // "nothing logged here in the last 7 days" — with "9 days ago · Squat" printed just above.
+        let values = mapMode == .now ? fatigueNow : weekStimulus
+        return HevyMuscleGroup.allCases
+            .filter { Self.region(for: $0) == region && (values[$0] ?? 0) > 0 }
+            .sorted { (values[$0] ?? 0) > (values[$1] ?? 0) }
     }
 
     /// What the map is shading: estimated load as a RATIO of this person's own usual, so 1.0 means
@@ -1039,31 +1058,53 @@ struct StrengthView: View {
         return "\(when) · \(exercise)"
     }
 
-    /// What a tapped region says: every muscle drawn there, with its sets and when it was last worked.
+    /// What a tapped region says: every muscle drawn there, in the words of the band it is in.
+    ///
+    /// The band's own label is reused rather than a number. "Well under your usual" is exactly as much
+    /// as the estimate supports; "0.4×" invites arithmetic the figure cannot carry.
     private var selectedRegionText: String? {
         guard let selectedRegion else { return nil }
         let hits = groups(in: selectedRegion)
         guard !hits.isEmpty else {
-            return String(localized: "Nothing logged here in the last 7 days.")
+            return mapMode == .now
+                ? String(localized: "No load left on this one.")
+                : String(localized: "Not trained in this week.")
         }
+        let values = mapMode == .now ? fatigueNow : weekStimulus
+        let yardsticks = mapMode == .now ? typicalSession : typicalWeek
         return hits.map { group in
-            let sets = recentSets[group] ?? 0
+            var line = "\(group.label): \(bandLabel(for: group, values: values, yardsticks: yardsticks))"
             if let last = lastWorked[group] {
-                return "\(group.label): \(sets) working sets · \(Self.agoText(last.day, exercise: last.exercise))"
+                line += " · \(Self.agoText(last.day, exercise: last.exercise))"
             }
-            return "\(group.label): \(sets) working sets"
+            return line
         }.joined(separator: "\n")
+    }
+
+    /// The band wording for one muscle in the active view.
+    private func bandLabel(for group: HevyMuscleGroup,
+                           values: [HevyMuscleGroup: Double],
+                           yardsticks: [HevyMuscleGroup: Double]) -> String {
+        let value = values[group] ?? 0
+        guard let yardstick = yardsticks[group], yardstick > 0 else {
+            // No personal yardstick yet, so there is no "usual" to compare against — say that rather
+            // than pick a band off a scale that does not exist for this muscle.
+            return String(localized: "not enough history to compare")
+        }
+        return MuscleLoadMap.Level.of(load: value / yardstick).label
     }
 
     private func mapAccessibility(_ region: MuscleLoadMap.Region) -> String {
         let hits = groups(in: region)
-        guard !hits.isEmpty else { return String(localized: "no working sets in the last 7 days") }
+        guard !hits.isEmpty else {
+            return mapMode == .now
+                ? String(localized: "no load left")
+                : String(localized: "not trained in this week")
+        }
+        let values = mapMode == .now ? fatigueNow : weekStimulus
+        let yardsticks = mapMode == .now ? typicalSession : typicalWeek
         return hits.map { group in
-            let sets = recentSets[group] ?? 0
-            if let last = lastWorked[group] {
-                return "\(group.label), \(sets) working sets, \(Self.agoText(last.day, exercise: last.exercise))"
-            }
-            return "\(group.label), \(sets) working sets"
+            "\(group.label), \(bandLabel(for: group, values: values, yardsticks: yardsticks))"
         }.joined(separator: ", ")
     }
 
