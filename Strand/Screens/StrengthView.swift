@@ -829,9 +829,15 @@ struct StrengthView: View {
 
     /// Which body region a Hevy muscle group is drawn on.
     ///
+    /// The artwork has no shape for two of Hevy's groups, and both get an anatomically defensible home
+    /// rather than being dropped:
+    ///
+    ///   • `lats` shades the UPPER BACK, which is where the latissimus actually is.
+    ///   • `abductors` shade the GLUTES, because gluteus medius and minimus are the hip abductors.
+    ///
     /// `cardio`, `fullBody` and `other` map to NOTHING on purpose — there is no honest place to shade
-    /// for them, and shading a nearby region instead would put work on a muscle that never did it.
-    /// They stay visible in the list below the map, which is where the sets they carry are counted.
+    /// for them, and colouring a nearby muscle instead would put work on one that never did it. They
+    /// stay visible in the list below the map, which is where their sets are counted.
     private static func region(for group: HevyMuscleGroup) -> MuscleLoadMap.Region? {
         switch group {
         case .neck:        return .neck
@@ -843,16 +849,28 @@ struct StrengthView: View {
         case .forearms:    return .forearms
         case .abdominals:  return .abdominals
         case .upperBack:   return .upperBack
-        case .lats:        return .lats
+        case .lats:        return .upperBack
         case .lowerBack:   return .lowerBack
         case .glutes:      return .glutes
+        case .abductors:   return .glutes
         case .quadriceps:  return .quadriceps
         case .hamstrings:  return .hamstrings
         case .calves:      return .calves
         case .adductors:   return .adductors
-        case .abductors:   return .abductors
         case .cardio, .fullBody, .other: return nil
         }
+    }
+
+    /// Every Hevy group drawn on one region, busiest first.
+    ///
+    /// The mapping stopped being one-to-one the moment lats and abductors were folded onto shapes they
+    /// share with another group, so anything reading back from a region has to expect a LIST. Taking
+    /// the first match would have silently reported a lat pulldown as upper-back work and hidden the
+    /// rest, which is the sort of wrong answer that looks perfectly reasonable on screen.
+    private func groups(in region: MuscleLoadMap.Region) -> [HevyMuscleGroup] {
+        HevyMuscleGroup.allCases
+            .filter { Self.region(for: $0) == region && (recentSets[$0] ?? 0) > 0 }
+            .sorted { (recentSets[$0] ?? 0) > (recentSets[$1] ?? 0) }
     }
 
     /// Shading, 0...1, measured against the top of this person's own typical week for that muscle.
@@ -899,30 +917,32 @@ struct StrengthView: View {
         return "\(when) · \(exercise)"
     }
 
-    /// What a tapped region says. Nil when nothing is selected, so the row simply is not drawn.
+    /// What a tapped region says: every muscle drawn there, with its sets and when it was last worked.
     private var selectedRegionText: String? {
         guard let selectedRegion else { return nil }
-        guard let group = HevyMuscleGroup.allCases.first(where: { Self.region(for: $0) == selectedRegion })
-        else { return nil }
-        let sets = recentSets[group] ?? 0
-        guard sets > 0 else {
-            return String(localized: "\(group.label): no working sets in the last 7 days.")
+        let hits = groups(in: selectedRegion)
+        guard !hits.isEmpty else {
+            return String(localized: "Nothing logged here in the last 7 days.")
         }
-        if let last = lastWorked[group] {
-            return "\(group.label): \(sets) working sets · \(Self.agoText(last.day, exercise: last.exercise))"
-        }
-        return String(localized: "\(group.label): \(sets) working sets in the last 7 days.")
+        return hits.map { group in
+            let sets = recentSets[group] ?? 0
+            if let last = lastWorked[group] {
+                return "\(group.label): \(sets) working sets · \(Self.agoText(last.day, exercise: last.exercise))"
+            }
+            return "\(group.label): \(sets) working sets"
+        }.joined(separator: "\n")
     }
 
     private func mapAccessibility(_ region: MuscleLoadMap.Region) -> String {
-        guard let group = HevyMuscleGroup.allCases.first(where: { Self.region(for: $0) == region })
-        else { return "" }
-        let sets = recentSets[group] ?? 0
-        guard sets > 0 else { return String(localized: "no working sets in the last 7 days") }
-        if let last = lastWorked[group] {
-            return "\(sets) working sets, \(Self.agoText(last.day, exercise: last.exercise))"
-        }
-        return String(localized: "\(sets) working sets")
+        let hits = groups(in: region)
+        guard !hits.isEmpty else { return String(localized: "no working sets in the last 7 days") }
+        return hits.map { group in
+            let sets = recentSets[group] ?? 0
+            if let last = lastWorked[group] {
+                return "\(group.label), \(sets) working sets, \(Self.agoText(last.day, exercise: last.exercise))"
+            }
+            return "\(group.label), \(sets) working sets"
+        }.joined(separator: ", ")
     }
 
     /// The group furthest BELOW its own band, if any. Drives the middle action button.
