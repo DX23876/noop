@@ -1255,6 +1255,30 @@ extension WhoopStore {
                 t.column("rawJSON", .text).notNull()
             }
         }
+
+        // The wearer's own answers about how a muscle feels. The point of the table is that this is
+        // the ONLY ground truth available about recovery: how fast load fades is not in a training
+        // log, and every app that shows a "94 % recovered" figure got it from a constant it assumed
+        // rather than measured.
+        //
+        // What is stored is the RAW answer and nothing else. The fatigue the model predicted at that
+        // moment is deliberately absent: it depends on the very time constant the answers are used to
+        // fit, so recording it would bake today's model into tomorrow's evidence and quietly make the
+        // fit agree with itself. The prediction is recomputed from the training log for whichever
+        // constant is under test.
+        migrator.registerMigration("v55-muscle-recovery-feedback") { db in
+            try db.create(table: "muscleRecoveryFeedback") { t in
+                t.column("muscleGroup", .text).notNull()   // HevyMuscleGroup raw value
+                t.column("ts", .integer).notNull()         // when the answer was given
+                t.column("feeling", .integer).notNull()    // 0 fresh … 3 still wrecked
+                // One answer per muscle per moment; answering again at the same second replaces it
+                // rather than double-counting a double tap.
+                t.primaryKey(["muscleGroup", "ts"])
+            }
+            // Every read is "this muscle's answers, oldest first", which is what the fit walks.
+            try db.create(index: "idx_muscleRecoveryFeedback_group",
+                          on: "muscleRecoveryFeedback", columns: ["muscleGroup", "ts"])
+        }
         return migrator
     }
 }
