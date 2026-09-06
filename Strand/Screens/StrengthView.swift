@@ -65,11 +65,41 @@ struct StrengthView: View {
     @State private var weekEffort: Double?
 
     @State private var mapFace: MuscleLoadMap.Face = .front
+    @State private var mapMode: MapMode = .now
     @State private var selectedRegion: MuscleLoadMap.Region?
     /// Working sets per muscle over the trailing 7 days, and when each was last worked. Both are
     /// computed once at load — they depend on the sessions, not on which week the stepper points at.
     @State private var recentSets: [HevyMuscleGroup: Int] = [:]
     @State private var lastWorked: [HevyMuscleGroup: (day: String, startTs: Int, exercise: String)] = [:]
+    /// Estimated load still outstanding per muscle, and the yardstick it is measured against — a
+    /// typical session for that muscle. Both from `MuscleStimulus` / `MuscleRecovery`.
+    @State private var fatigueNow: [HevyMuscleGroup: Double] = [:]
+    @State private var typicalSession: [HevyMuscleGroup: Double] = [:]
+    /// The selected week's estimated stimulus, and the wearer's usual week. Recomputed when the
+    /// stepper moves, never in `body`.
+    @State private var weekStimulus: [HevyMuscleGroup: Double] = [:]
+    @State private var typicalWeek: [HevyMuscleGroup: Double] = [:]
+    /// How much of the estimate rests on rated sets. Without RPE the proximity term is a constant, so
+    /// half the model is inert — and the card says so rather than looking equally confident.
+    @State private var ratedShare: Double = 0
+    /// The wearer's own answers, and the time constants fitted from them.
+    @State private var feedback: [MuscleRecovery.Observation] = []
+    @State private var tauByGroup: [HevyMuscleGroup: Double] = [:]
+    @State private var feedbackTarget: HevyMuscleGroup?
+
+    /// The two questions the map can answer. They are genuinely different — "what is still on me" is
+    /// about now, "what did this week hold" is about a week — so they get a switch rather than one
+    /// blended number that answers neither.
+    enum MapMode: String, CaseIterable, Identifiable {
+        case now, week
+        var id: String { rawValue }
+        var label: String {
+            switch self {
+            case .now:  return String(localized: "Right now")
+            case .week: return String(localized: "This week")
+            }
+        }
+    }
 
     @State private var selectedTemplateId: String?
     @State private var loaded = false
@@ -302,18 +332,21 @@ struct StrengthView: View {
 
     private var muscleGroups: some View {
         VStack(alignment: .leading, spacing: NoopMetrics.gap) {
-            // TWO windows, and therefore two headers. The map is a rolling 7 days because "what has my
-            // body had lately" is a question about now; the list follows the week stepper because it
-            // is about the week being reviewed. One shared header over both would have quietly told
-            // the reader that a bar and a shaded region were counting the same sets. They are not.
-            SectionHeader("Muscle load", overline: "Last 7 days")
+            // TWO SECTIONS, because they count DIFFERENT THINGS — and that is worth a header each.
+            //
+            // The map shades an ESTIMATE: sets weighed by how heavy they were for this person and how
+            // close to failure, with indirect work credited at half. The list counts SETS, once, on
+            // each set's primary muscle. So the map's totals are larger than the sets performed, and
+            // the two will never agree. One shared heading over both would quietly tell the reader
+            // that a shaded region and a bar were the same number seen twice.
+            SectionHeader("Muscle load", overline: "Estimated")
             bodyMapCard
 
             HStack {
-                SectionHeader("Muscle groups", trailing: weekRangeText)
+                SectionHeader("Working sets", trailing: weekRangeText)
                 Spacer(minLength: 8)
                 HStack(spacing: 4) {
-                    Text("Working sets / your usual")
+                    Text("Counted / your usual")
                         .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
                     infoButton(.muscleBands)
                 }
@@ -331,7 +364,7 @@ struct StrengthView: View {
                                 .foregroundStyle(StrandPalette.textTertiary)
                                 .fixedSize(horizontal: false, vertical: true)
                         }
-                        Text("A set counts once, on its exercise's primary muscle. Secondary involvement is counted separately, never added in.")
+                        Text("Counted sets: each one counts once, on its exercise's primary muscle. The map above is a different figure — an estimate that also weighs how heavy the set was for you and credits indirect work, so its totals are larger than the sets you did.")
                             .font(StrandFont.caption)
                             .foregroundStyle(StrandPalette.textTertiary)
                             .fixedSize(horizontal: false, vertical: true)
@@ -341,19 +374,25 @@ struct StrengthView: View {
         }
     }
 
-    /// The body map: what has been loaded lately, and nothing about what it cost.
+    /// The body map: an ESTIMATE of how much load each muscle is carrying.
     ///
-    /// Shading is LOAD only — sets in the last seven days against this person's own typical week. It is
-    /// not a freshness reading, and the "worked N days ago" line beside it is deliberately kept as
-    /// separate text: folding "how much" and "how long ago" into a single colour is precisely the step
-    /// that turns two measurements into a model with an invented decay curve.
+    /// Shading is `MuscleStimulus` — each set weighed by how heavy it was relative to this person's own
+    /// strength at the time and how close to failure it was taken — measured against their own usual.
+    /// It is not a recovery percentage, and there is no shade that means "ready". Green means little
+    /// load compared with a normal week, red means a lot; the legend says exactly that, because
+    /// green-to-red reads as good-to-bad unless something states otherwise.
     ///
-    /// The window is a rolling seven days, NOT the week the stepper is pointing at. The map answers
-    /// "what has my body had recently", which is a question about now; making it follow the stepper
-    /// would show a body state from three weeks ago as if it were current.
+    /// The one number here with nothing behind it is how fast load fades, and that is why the wearer
+    /// can answer back: a rating pulls their own time constant away from the assumed default.
     private var bodyMapCard: some View {
         NoopCard {
             VStack(alignment: .leading, spacing: NoopMetrics.space2) {
+                Picker("", selection: $mapMode) {
+                    ForEach(MapMode.allCases) { mode in Text(mode.label).tag(mode) }
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+
                 Picker("", selection: $mapFace) {
                     ForEach(MuscleLoadMap.Face.allCases, id: \.self) { face in
                         Text(face.label).tag(face)
@@ -364,26 +403,46 @@ struct StrengthView: View {
                 .frame(maxWidth: 220)
 
                 HStack(alignment: .top, spacing: NoopMetrics.space2) {
-                    MuscleLoadMap(intensity: mapIntensity,
+                    MuscleLoadMap(load: mapLoad,
                                   face: mapFace,
                                   onSelect: { selectedRegion = $0 },
                                   accessibilityValue: { mapAccessibility($0) })
                         .frame(maxWidth: 200)
-                    mapLegend
+                    VStack(alignment: .leading, spacing: NoopMetrics.space2) {
+                        mapScale
+                        mapLegend
+                    }
                 }
 
-                if let text = selectedRegionText {
+                if let selectedRegion, let text = selectedRegionText {
                     Divider().overlay(StrandPalette.hairline)
                     Text(text)
                         .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
                         .fixedSize(horizontal: false, vertical: true)
+                    feedbackRow(for: selectedRegion)
                 }
-                Text("Shading is how many working sets each muscle has taken in the last 7 days, against your own usual week. It says nothing about how recovered you are.")
+
+                Text(modelCaveat)
                     .font(StrandFont.caption)
                     .foregroundStyle(StrandPalette.textTertiary)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
+    }
+
+    /// What the colours mean, spelled out. Without this the ramp is read as a health verdict.
+    private var mapScale: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            ForEach([MuscleLoadMap.Level.light, .building, .usual, .wellAbove], id: \.self) { level in
+                HStack(spacing: 6) {
+                    RoundedRectangle(cornerRadius: 2).fill(level.color)
+                        .frame(width: 12, height: 8)
+                    Text(level.label)
+                        .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+                }
+            }
+        }
+        .accessibilityElement(children: .combine)
     }
 
     /// The three or four muscles worked most recently, as plain dates. This is the "when" half, and it
@@ -407,6 +466,60 @@ struct StrengthView: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// Where the estimate is weakest, said out loud rather than left for the reader to discover.
+    private var modelCaveat: String {
+        var parts: [String] = []
+        switch mapMode {
+        case .now:
+            parts.append(String(localized: "Estimated load still on each muscle, against what one of your usual sessions leaves behind. How fast that fades is assumed, not measured — tap a muscle to tell NOOP how it actually feels."))
+        case .week:
+            parts.append(String(localized: "Estimated stimulus this week, against your own usual week. It weighs each set by how heavy it was for you and how close to failure — it is not a count of sets."))
+        }
+        if ratedShare < 0.5 {
+            parts.append(String(localized: "Only \(Int((ratedShare * 100).rounded())) % of your sets carry an RPE, so the effort half of the estimate is mostly a default."))
+        }
+        return parts.joined(separator: " ")
+    }
+
+    /// The correction. Four coarse options, because a finer scale asks for a precision nobody has
+    /// about their own triceps, and no unprompted nagging — it appears only once a muscle is tapped.
+    @ViewBuilder
+    private func feedbackRow(for region: MuscleLoadMap.Region) -> some View {
+        if let group = groups(in: region).first ?? Self.anyGroup(for: region) {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("How recovered does \(group.label.lowercased()) feel?")
+                    .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+                HStack(spacing: 6) {
+                    ForEach(MuscleRecovery.Feeling.allCases, id: \.self) { feeling in
+                        Button(Self.feelingLabel(feeling)) { record(feeling, for: group) }
+                            .buttonStyle(.bordered)
+                            .font(StrandFont.caption)
+                    }
+                }
+            }
+        }
+    }
+
+    private static func feelingLabel(_ feeling: MuscleRecovery.Feeling) -> String {
+        switch feeling {
+        case .fresh:         return String(localized: "Fresh")
+        case .slightlyTired: return String(localized: "A bit tired")
+        case .clearlyTired:  return String(localized: "Tired")
+        case .stillWrecked:  return String(localized: "Wrecked")
+        }
+    }
+
+    private func record(_ feeling: MuscleRecovery.Feeling, for group: HevyMuscleGroup) {
+        let ts = Int(Date().timeIntervalSince1970)
+        feedback.append(.init(group: group, ts: ts, feeling: feeling))
+        refitTau()
+        Task {
+            guard let store = await repo.storeHandle() else { return }
+            try? await store.saveMuscleRecoveryFeedback(
+                .init(muscleGroup: group, ts: ts, feeling: feeling.rawValue))
+        }
     }
 
     /// One muscle-group row: name, the bar with the user's own band behind it, and the count.
@@ -867,30 +980,39 @@ struct StrengthView: View {
     /// share with another group, so anything reading back from a region has to expect a LIST. Taking
     /// the first match would have silently reported a lat pulldown as upper-back work and hidden the
     /// rest, which is the sort of wrong answer that looks perfectly reasonable on screen.
+    /// Any muscle drawn on a region, even one with no recent work — the feedback row needs a subject
+    /// for a muscle the wearer has not trained lately, which is exactly when "how does it feel?" is
+    /// worth asking.
+    private static func anyGroup(for target: MuscleLoadMap.Region) -> HevyMuscleGroup? {
+        // `target`, not `region` — a parameter named `region` shadows the `region(for:)` resolver and
+        // the call below would try to invoke the parameter.
+        HevyMuscleGroup.allCases.first { Self.region(for: $0) == target }
+    }
+
     private func groups(in region: MuscleLoadMap.Region) -> [HevyMuscleGroup] {
         HevyMuscleGroup.allCases
             .filter { Self.region(for: $0) == region && (recentSets[$0] ?? 0) > 0 }
             .sorted { (recentSets[$0] ?? 0) > (recentSets[$1] ?? 0) }
     }
 
-    /// Shading, 0...1, measured against the top of this person's own typical week for that muscle.
+    /// What the map is shading: estimated load as a RATIO of this person's own usual, so 1.0 means
+    /// "about a normal amount for you" in whichever view is showing.
     ///
-    /// Two deliberate refusals. A muscle with too little history has no band, and rather than invent a
-    /// scale for it the value falls back to the busiest muscle this week — so it is still shaded
-    /// relative to something real, never to a number NOOP made up. And a zero stays a zero: `MuscleLoadMap`
-    /// draws untouched regions in the inset surface rather than a faint tint, because "a little work"
-    /// and "no work" must not look alike.
-    private var mapIntensity: [MuscleLoadMap.Region: Double] {
-        let bands = typicalBands
-        let busiest = Double(recentSets.values.max() ?? 0)
+    /// Without a personal yardstick there is no ratio to draw. Rather than invent one, the fallback is
+    /// the busiest muscle in the same view — the shading is then relative to something real on screen,
+    /// and `modelCaveat` is what tells the reader which of the two they are looking at.
+    private var mapLoad: [MuscleLoadMap.Region: Double] {
+        let values = mapMode == .now ? fatigueNow : weekStimulus
+        let yardsticks = mapMode == .now ? typicalSession : typicalWeek
+        let busiest = values.values.max() ?? 0
         var out: [MuscleLoadMap.Region: Double] = [:]
-        for (group, sets) in recentSets {
-            guard let region = Self.region(for: group), sets > 0 else { continue }
-            let ceiling = bands[group].map { max($0.upperBound, 1) } ?? max(busiest, 1)
-            let value = min(1, Double(sets) / ceiling)
-            // Two Hevy groups can share one region only if the mapping changes; keep the larger anyway
-            // so a future many-to-one mapping cannot silently lose work.
-            out[region] = max(out[region] ?? 0, value)
+        for (group, value) in values where value > 0 {
+            guard let region = Self.region(for: group) else { continue }
+            let yardstick = yardsticks[group] ?? busiest
+            guard yardstick > 0 else { continue }
+            // Two Hevy groups can share one region; keep the larger so a many-to-one mapping cannot
+            // silently lose work.
+            out[region] = max(out[region] ?? 0, value / yardstick)
         }
         return out
     }
@@ -1176,6 +1298,19 @@ struct StrengthView: View {
         lastWorked = StrengthSession.lastWorkedByMuscle(sessions, templates: catalogue,
                                                         tzOffsetSeconds: tzOffset)
 
+        // The wearer's own answers first: they decide the time constants everything below decays with.
+        feedback = ((try? await store.muscleRecoveryFeedback()) ?? []).compactMap { row in
+            MuscleRecovery.Feeling(rawValue: row.feeling).map {
+                MuscleRecovery.Observation(group: row.muscleGroup, ts: row.ts, feeling: $0)
+            }
+        }
+        typicalSession = MuscleRecovery.typicalSessionStimulus(sessions, templates: catalogue)
+        refitTau()
+        let ratedIn = MuscleStimulus.stimulus(
+            for: sessions, templates: catalogue,
+            reference: MuscleStimulus.StrengthReference(workouts: sessions, templates: catalogue))
+        ratedShare = ratedIn.ratedShare
+
         selectedTemplateId = StrengthSession.exerciseFrequency(sessions).first?.templateId
         recomputeTrend()
         await refreshWeekScores()
@@ -1190,6 +1325,21 @@ struct StrengthView: View {
 
     /// Mean Charge and total Effort for the SELECTED week — recomputed on each step so the tiles follow
     /// the chevrons rather than always describing today.
+    /// Refit every muscle's time constant from the answers on hand, then recompute what is still
+    /// outstanding. Called after a load and after each new answer — never from `body`, because a fit
+    /// walks the whole history per muscle.
+    private func refitTau() {
+        var fitted: [HevyMuscleGroup: Double] = [:]
+        for group in HevyMuscleGroup.allCases {
+            fitted[group] = MuscleRecovery.fittedTauSeconds(for: group, observations: feedback,
+                                                            workouts: workouts, templates: templates)
+        }
+        tauByGroup = fitted
+        fatigueNow = MuscleRecovery.fatigue(workouts: workouts, templates: templates,
+                                            now: Int(Date().timeIntervalSince1970),
+                                            tau: { fitted[$0] ?? MuscleRecovery.defaultTauSeconds(for: $0) })
+    }
+
     private func refreshWeekScores() async {
         guard let monday = WeeklyDigestEngine.mondayOfWeek(containing: weekAnchorDay) else { return }
         let sunday = WeeklyDigestEngine.addDays(monday, 6)
@@ -1198,5 +1348,14 @@ struct StrengthView: View {
         weekCharge = charges.isEmpty ? nil : charges.reduce(0, +) / Double(charges.count)
         let efforts = inWeek.compactMap(\.strain)
         weekEffort = efforts.isEmpty ? nil : efforts.reduce(0, +)
+
+        // The map's week view and its yardstick move with the stepper, so they are recomputed here
+        // rather than in `body`: both walk the whole history.
+        weekStimulus = MuscleStimulus.weeklyStimulus(containing: weekAnchorDay, workouts: workouts,
+                                                     templates: templates,
+                                                     tzOffsetSeconds: tzOffset).byMuscle
+        typicalWeek = MuscleStimulus.typicalWeeklyStimulus(workouts, templates: templates,
+                                                           endingBefore: weekAnchorDay,
+                                                           tzOffsetSeconds: tzOffset)
     }
 }

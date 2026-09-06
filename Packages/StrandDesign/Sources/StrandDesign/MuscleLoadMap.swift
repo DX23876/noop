@@ -67,26 +67,22 @@ public struct MuscleLoadMap: View {
         }
     }
 
-    /// 0...1 per region. A region absent from the dictionary is drawn as untouched — which is a real
-    /// statement ("nothing here"), not missing data.
-    public var intensity: [Region: Double]
+    /// Load per region, where **1.0 is this person's own usual** — not a maximum and not a target.
+    /// A region absent from the dictionary is drawn as untouched, which is a real statement
+    /// ("nothing here"), not missing data.
+    public var load: [Region: Double]
     public var face: Face
-    /// The tint filled regions take. Passed in so the map inherits whatever domain it sits in rather
-    /// than hardcoding a colour.
-    public var tint: Color
     /// Called when a region is tapped, so the caller can point its list at the matching row.
     public var onSelect: ((Region) -> Void)?
     /// Reads out each region's value for VoiceOver; the map is otherwise a picture of numbers.
     public var accessibilityValue: (Region) -> String
 
-    public init(intensity: [Region: Double],
+    public init(load: [Region: Double],
                 face: Face,
-                tint: Color = DomainTheme.effort.color,
                 onSelect: ((Region) -> Void)? = nil,
                 accessibilityValue: @escaping (Region) -> String = { _ in "" }) {
-        self.intensity = intensity
+        self.load = load
         self.face = face
-        self.tint = tint
         self.onSelect = onSelect
         self.accessibilityValue = accessibilityValue
     }
@@ -127,15 +123,70 @@ public struct MuscleLoadMap: View {
     /// Width divided by height, from the source artwork's 724 × 1448 viewBox.
     static let aspect: CGFloat = 0.5
 
-    /// Untouched regions take the inset surface rather than a faint tint. A barely-tinted shape would
-    /// read as "a little work", and zero is not a little.
+    /// How much load a region is carrying, in four steps against the wearer's OWN usual.
+    ///
+    /// The four are deliberate rather than a smooth gradient. The number underneath is an estimate
+    /// built on chosen thresholds, and a continuous ramp would invite reading a shade difference as a
+    /// measured difference. Four steps say what can honestly be said: much less than usual, getting
+    /// there, about usual, well above.
+    ///
+    /// The scale is NOT a verdict. Red means "a lot compared with your normal week", not "danger" and
+    /// not "you are injured" — the legend beside the map says so, because green-to-red is read as
+    /// good-to-bad unless something says otherwise.
+    public enum Level: Int, Sendable, CaseIterable {
+        case none, light, building, usual, wellAbove
+
+        /// Where a load ratio falls. 1.0 is the wearer's usual, so `usual` straddles it.
+        public static func of(load: Double) -> Level {
+            switch load {
+            case ..<0.001: return .none
+            case ..<0.5:   return .light
+            case ..<0.9:   return .building
+            case ..<1.3:   return .usual
+            default:       return .wellAbove
+            }
+        }
+
+        public var color: Color {
+            // Untouched takes the inset surface, never a pale tint: a faint shade would read as "a
+            // little work", and zero is not a little.
+            guard self != .none else { return StrandPalette.surfaceInset }
+            // Sampled from the app's ONE data ramp, inverted — a lot of load reads like a low recovery
+            // score. Building the ramp from `statusWarning` and `metricAmber` instead looked right in
+            // the default palette and was wrong twice over: those two tokens are yellow and orange in
+            // `.health`, so picking them in that order made the scale run backwards, and in `.classic`,
+            // `.aurora`, `.sunset` and `.forest` they are the SAME colour, which would have collapsed
+            // two of the four steps into one wherever the wearer had changed chart style. Sampling the
+            // recovery gradient is monotonic and distinct in every style by construction.
+            return StrandPalette.recoveryColor(recoveryEquivalent)
+        }
+
+        /// Where this band sits on the 0...100 recovery scale the ramp is defined over. Four fixed
+        /// samples rather than a continuous sweep: the number underneath is an estimate, and a smooth
+        /// gradient invites reading a shade difference as a measured one.
+        private var recoveryEquivalent: Double {
+            switch self {
+            case .none:      return 100
+            case .light:     return 88
+            case .building:  return 62
+            case .usual:     return 36
+            case .wellAbove: return 10
+            }
+        }
+
+        public var label: String {
+            switch self {
+            case .none:      return String(localized: "not trained", bundle: .module)
+            case .light:     return String(localized: "well under your usual", bundle: .module)
+            case .building:  return String(localized: "under your usual", bundle: .module)
+            case .usual:     return String(localized: "about your usual", bundle: .module)
+            case .wellAbove: return String(localized: "well above your usual", bundle: .module)
+            }
+        }
+    }
+
     private func fill(for region: Region) -> Color {
-        let value = intensity[region] ?? 0
-        guard value > 0 else { return StrandPalette.surfaceInset }
-        // Floor the opacity well clear of the background so one set is visibly more than none, then
-        // scale the rest linearly. No curve: a curve would imply a dose-response shape this component
-        // has no business asserting.
-        return tint.opacity(0.28 + 0.72 * min(1, value))
+        Level.of(load: load[region] ?? 0).color
     }
 
     private func label(_ region: Region) -> String {
