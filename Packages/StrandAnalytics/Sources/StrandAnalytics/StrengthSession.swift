@@ -283,6 +283,59 @@ public enum StrengthSession {
         return (primary, secondary, unattributed)
     }
 
+    /// When each muscle group was last worked, and by which exercise.
+    ///
+    /// Two things this deliberately does NOT do. It does not count secondary involvement — a muscle
+    /// that merely assisted is not "worked", and the rest of the screen already draws that line, so
+    /// drawing it differently here would make the same word mean two things. And it does not decay:
+    /// the answer is a date, not a freshness estimate. Turning "three days ago" into "62 % recovered"
+    /// requires a decay constant nobody has measured for this wearer, and that is the assumption this
+    /// whole section exists to avoid.
+    ///
+    /// `exercise` is the title of the exercise that contributed the most working sets to that muscle in
+    /// the most recent session that trained it — the honest answer to "what did that".
+    public static func lastWorkedByMuscle(_ workouts: [HevyWorkout],
+                                          templates: [String: HevyExerciseTemplate],
+                                          tzOffsetSeconds: Int = 0)
+        -> [HevyMuscleGroup: (day: String, startTs: Int, exercise: String)] {
+        var out: [HevyMuscleGroup: (day: String, startTs: Int, exercise: String)] = [:]
+        // Oldest first, so a later session simply overwrites an earlier one and the last write wins.
+        // Sorting rather than comparing timestamps keeps the tie-break explicit: same start time, the
+        // one later in the array wins, which is the order the store returned them in.
+        for workout in workouts.sorted(by: { $0.startTs < $1.startTs }) {
+            var setsPerMuscle: [HevyMuscleGroup: [String: Int]] = [:]
+            for exercise in workout.exercises {
+                guard let id = exercise.templateId, let template = templates[id] else { continue }
+                let group = template.primaryMuscleGroup
+                let count = exercise.workingSets.count
+                guard count > 0 else { continue }
+                setsPerMuscle[group, default: [:]][exercise.title, default: 0] += count
+            }
+            let day = AnalyticsEngine.dayString(workout.startTs, offsetSec: tzOffsetSeconds)
+            for (group, byExercise) in setsPerMuscle {
+                // Ties break on the title so the same input always yields the same output.
+                let top = byExercise.sorted { $0.value == $1.value ? $0.key < $1.key : $0.value > $1.value }
+                guard let name = top.first?.key else { continue }
+                out[group] = (day: day, startTs: workout.startTs, exercise: name)
+            }
+        }
+        return out
+    }
+
+    /// Working sets per primary muscle group over the last `days` days ending at `now`, inclusive.
+    ///
+    /// The window is half-open at the start and inclusive at the end: a session exactly `days` days old
+    /// is OUT, one from this morning is IN. Stated because an off-by-one here silently changes every
+    /// number on the body map, and the boundary is what a test can pin.
+    public static func recentSetsByMuscle(_ workouts: [HevyWorkout],
+                                          templates: [String: HevyExerciseTemplate],
+                                          days: Int,
+                                          now: Int) -> [HevyMuscleGroup: Int] {
+        let cutoff = now - days * 86_400
+        let recent = workouts.filter { $0.startTs > cutoff && $0.startTs <= now }
+        return hardSetsByMuscle(recent, templates: templates).primary
+    }
+
     /// Total working sets and volume per LOCAL day, for a trend line.
     public static func dailyTotals(_ workouts: [HevyWorkout], tzOffsetSeconds: Int = 0)
         -> (setsByDay: [String: Int], volumeByDay: [String: Double]) {
@@ -418,7 +471,10 @@ public enum StrengthSession {
     }
 
     /// Whole days between two "yyyy-MM-dd" keys, or 0 when either is unparseable.
-    static func daysBetween(_ from: String, and to: String) -> Int {
+    ///
+    /// Returns 0 when `from` is not before `to`, which makes a day in the future read as "today"
+    /// rather than as a negative age. Callers rendering "N days ago" want exactly that.
+    public static func daysBetween(_ from: String, and to: String) -> Int {
         var count = 0
         var cursor = from
         while cursor < to && count < 4000 {

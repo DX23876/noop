@@ -480,6 +480,84 @@ final class StrengthSessionTests: XCTestCase {
         return (f.date(from: day) ?? Date(timeIntervalSince1970: 0)).addingTimeInterval(43_200)
     }
 
+    // MARK: - Muscle load: what was worked, and when
+
+    private func tsAt(_ day: String) -> Int { Int(Self.date(day).timeIntervalSince1970) }
+
+    private var legsAndPush: [String: HevyExerciseTemplate] {
+        ["SQ": template("SQ", primary: .quadriceps),
+         "LP": template("LP", primary: .quadriceps),
+         "BP": template("BP", primary: .chest, secondary: [.triceps])]
+    }
+
+    /// The most recent session that trained a muscle wins, and the exercise reported is the one that
+    /// did the most work on it — not merely the first one listed.
+    func testLastWorkedReportsTheMostRecentSessionAndItsMainExercise() throws {
+        let older = workout(id: "a", startTs: tsAt("2026-08-01"), [
+            exercise(0, templateId: "SQ", sets: [set(0, kg: 100, reps: 5)], title: "Back Squat"),
+        ])
+        let newer = workout(id: "b", startTs: tsAt("2026-08-05"), [
+            exercise(0, templateId: "SQ", sets: [set(0, kg: 100, reps: 5)], title: "Back Squat"),
+            exercise(1, templateId: "LP", sets: [set(0, kg: 200, reps: 8), set(1, kg: 200, reps: 8),
+                                                 set(2, kg: 200, reps: 8)], title: "Leg Press"),
+        ])
+        // Deliberately out of order: the function must not depend on the caller sorting for it.
+        let out = StrengthSession.lastWorkedByMuscle([newer, older], templates: legsAndPush)
+        let quads = try XCTUnwrap(out[.quadriceps])
+        XCTAssertEqual(quads.day, "2026-08-05")
+        XCTAssertEqual(quads.exercise, "Leg Press", "three sets beat one, regardless of listing order")
+    }
+
+    /// A muscle that only ASSISTED was not worked. The bench press lists triceps as secondary, and the
+    /// rest of the screen counts a set once on its primary muscle — reporting "triceps, today" here
+    /// would make the same word mean two different things in two places on one screen.
+    func testSecondaryInvolvementDoesNotCountAsWorked() {
+        let w = workout(id: "a", startTs: tsAt("2026-08-05"), [
+            exercise(0, templateId: "BP", sets: [set(0, kg: 80, reps: 5)], title: "Bench Press"),
+        ])
+        let out = StrengthSession.lastWorkedByMuscle([w], templates: legsAndPush)
+        XCTAssertNotNil(out[.chest])
+        XCTAssertNil(out[.triceps], "assisting is not being trained")
+    }
+
+    /// Warmup sets are not work, so a muscle that only saw warmups was not worked at all.
+    func testAMuscleWithOnlyWarmupSetsIsNotWorked() {
+        let w = workout(id: "a", startTs: tsAt("2026-08-05"), [
+            exercise(0, templateId: "SQ", sets: [set(0, .warmup, kg: 60, reps: 5)], title: "Back Squat"),
+        ])
+        XCTAssertTrue(StrengthSession.lastWorkedByMuscle([w], templates: legsAndPush).isEmpty)
+    }
+
+    /// The window boundary, pinned. Half-open at the start, inclusive at the end: a session exactly
+    /// `days` old is out, one from today is in. An off-by-one here silently changes every number on
+    /// the body map, and nothing on screen would look wrong.
+    func testTheRecentWindowExcludesTheOldestEdgeAndIncludesToday() {
+        let now = tsAt("2026-08-08")
+        let exactlySevenDaysOld = workout(id: "a", startTs: now - 7 * 86_400, [
+            exercise(0, templateId: "SQ", sets: [set(0, kg: 100, reps: 5)]),
+        ])
+        let justInside = workout(id: "b", startTs: now - 7 * 86_400 + 1, [
+            exercise(0, templateId: "SQ", sets: [set(0, kg: 100, reps: 5)]),
+        ])
+        let today = workout(id: "c", startTs: now, [
+            exercise(0, templateId: "SQ", sets: [set(0, kg: 100, reps: 5)]),
+        ])
+        let out = StrengthSession.recentSetsByMuscle([exactlySevenDaysOld, justInside, today],
+                                                     templates: legsAndPush, days: 7, now: now)
+        XCTAssertEqual(out[.quadriceps], 2, "the 7-day-old session is out; the other two are in")
+    }
+
+    /// A session in the future — a clock skew, a bad import — must not be counted as recent.
+    func testAFutureSessionIsNotCountedAsRecent() {
+        let now = tsAt("2026-08-08")
+        let tomorrow = workout(id: "a", startTs: now + 86_400, [
+            exercise(0, templateId: "SQ", sets: [set(0, kg: 100, reps: 5)]),
+        ])
+        let out = StrengthSession.recentSetsByMuscle([tomorrow], templates: legsAndPush,
+                                                     days: 7, now: now)
+        XCTAssertNil(out[.quadriceps])
+    }
+
     /// An exercise performed twice in ONE session counts as one session for it, not two.
     func testFrequencyCountsSessionsNotOccurrences() {
         let w = workout([
