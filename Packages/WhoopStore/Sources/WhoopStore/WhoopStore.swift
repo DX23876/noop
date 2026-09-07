@@ -194,8 +194,14 @@ public actor WhoopStore {
     /// Ordering: actor isolation used to impose an incidental order between a write and a following read.
     /// Within one task `await` still guarantees it; across tasks there was never a guarantee. Reads see
     /// committed data only, never a partial write.
+    ///
+    /// `caller` is filled in by the compiler with the name of the function that issued the read. Without
+    /// it the diagnostic below can say a read took nine seconds but not WHICH read — and a nine-second
+    /// query on a 2.9 GB file is only actionable once it has a name. A defaulted `#function` parameter
+    /// gets that for free: every existing call site keeps working unchanged.
     @inline(__always)
-    nonisolated func asyncRead<T: Sendable>(_ block: @escaping @Sendable (Database) throws -> T) async throws -> T {
+    nonisolated func asyncRead<T: Sendable>(_ block: @escaping @Sendable (Database) throws -> T,
+                                            caller: String = #function) async throws -> T {
         // TEMP DIAGNOSTIC (#freeze-investigation) — split WAITING from WORKING, at the one seam every
         // read goes through. `t0` is when the caller asked; `tAcquired` is when GRDB actually handed us a
         // reader connection and started running the block. The gap between them is queueing for one of the
@@ -213,7 +219,8 @@ public actor WhoopStore {
             let waited = tAcquired.timeIntervalSince(t0)
             let ran = Date().timeIntervalSince(tAcquired)
             if waited + ran > 0.25 {
-                NSLog("[FREEZE-DIAG] asyncRead wait=\(String(format: "%.3f", waited))s run=\(String(format: "%.3f", ran))s")
+                NSLog("[FREEZE-DIAG] asyncRead wait=\(String(format: "%.3f", waited))s "
+                    + "run=\(String(format: "%.3f", ran))s caller=\(caller)")
             }
             return result
         }
