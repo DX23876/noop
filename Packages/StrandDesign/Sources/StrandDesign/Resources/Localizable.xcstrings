@@ -906,6 +906,12 @@
         }
       }
     },
+    "Abdominals" : {
+
+    },
+    "about your usual" : {
+
+    },
     "Add" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -946,6 +952,9 @@
           }
         }
       }
+    },
+    "Adductors" : {
+
     },
     "Adopted via NoopButtonStyle" : {
       "extractionState" : "stale",
@@ -1300,6 +1309,9 @@
         }
       }
     },
+    "Back" : {
+
+    },
     "Bar only" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -1334,6 +1346,9 @@
           }
         }
       }
+    },
+    "Biceps" : {
+
     },
     "Body / Regular 15 — the thread of you, read in full." : {
       "extractionState" : "stale",
@@ -1579,6 +1594,9 @@
         }
       }
     },
+    "Calves" : {
+
+    },
     "Caption 12" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -1648,6 +1666,9 @@
           }
         }
       }
+    },
+    "Chest" : {
+
     },
     "Classic" : {
       "localizations" : {
@@ -2457,6 +2478,9 @@
         }
       }
     },
+    "Forearms" : {
+
+    },
     "Forest" : {
       "localizations" : {
         "de" : {
@@ -2514,6 +2538,9 @@
           }
         }
       }
+    },
+    "Front" : {
+
     },
     "Frosted" : {
       "localizations" : {
@@ -2636,6 +2663,12 @@
           }
         }
       }
+    },
+    "Glutes" : {
+
+    },
+    "Hamstrings" : {
+
     },
     "Headline / Semibold 17" : {
       "extractionState" : "stale",
@@ -3486,6 +3519,9 @@
         }
       }
     },
+    "Lower back" : {
+
+    },
     "Midnight" : {
       "localizations" : {
         "de" : {
@@ -3681,6 +3717,9 @@
           }
         }
       }
+    },
+    "Neck" : {
+
     },
     "Next day" : {
       "localizations" : {
@@ -3907,6 +3946,9 @@
           }
         }
       }
+    },
+    "not trained" : {
+
     },
     "Ocean" : {
       "localizations" : {
@@ -4261,6 +4303,9 @@
           }
         }
       }
+    },
+    "Quadriceps" : {
+
     },
     "range %@ to %@" : {
       "localizations" : {
@@ -5057,6 +5102,9 @@
       }
     },
     "Series" : {
+
+    },
+    "Shoulders" : {
 
     },
     "Signature" : {
@@ -6338,6 +6386,9 @@
         }
       }
     },
+    "Traps" : {
+
+    },
     "Trend" : {
       "localizations" : {
         "de" : {
@@ -6447,6 +6498,15 @@
           }
         }
       }
+    },
+    "Triceps" : {
+
+    },
+    "under your usual" : {
+
+    },
+    "Upper back" : {
+
     },
     "Value" : {
       "localizations" : {
@@ -6598,6 +6658,12 @@
           }
         }
       }
+    },
+    "well above your usual" : {
+
+    },
+    "well under your usual" : {
+
     },
     "Whoop 4.0" : {
       "extractionState" : "stale",
