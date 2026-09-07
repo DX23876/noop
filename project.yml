@@ -50,10 +50,18 @@ settings:
       # pass is dominated by exactly the code that suffers most from it, and this is a debug-built app
       # in daily use, not a throwaway.
       #
-      # Xcode compiles SPM package targets against the PROJECT configuration, so setting it here reaches
-      # WhoopProtocol / WhoopStore / StrandAnalytics / StrandImport / StrandDesign / OuraProtocol, while
-      # each app target's own `SWIFT_OPTIMIZATION_LEVEL: -Onone` (see `targets:`) keeps app code fully
-      # steppable. Debug symbols are unaffected either way — `-O` changes codegen, not `-g`.
+      # THIS DOES NOT REACH THE LOCAL PACKAGES, despite what this comment used to claim. Xcode compiles
+      # SPM package targets from the configuration's NAME, not from the project's build settings, so
+      # every debug build compiled StrandAnalytics at `-Onone` while this line sat here looking like it
+      # had been handled. Read off the actual compile to check it: `-module-name StrandAnalytics` came
+      # out `-Onone`, and one scored day cost 59 s of CPU on device where the same work takes about a
+      # second optimised.
+      #
+      # The packages now carry `.unsafeFlags(["-O"])` on their own targets (see each Package.swift),
+      # which is the only place that does reach them. This setting is kept for the app-adjacent targets
+      # the project does own; each app target's `SWIFT_OPTIMIZATION_LEVEL: -Onone` (see `targets:`)
+      # still opts app code back out so it stays steppable. Debug symbols are unaffected either way —
+      # `-O` changes codegen, not `-g`.
       SWIFT_OPTIMIZATION_LEVEL: "-O"
 packages:
   # Renders the Coach's LLM replies (GitHub-flavored Markdown — bold, lists,

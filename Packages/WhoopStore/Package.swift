@@ -20,7 +20,12 @@ let package = Package(
                 "WhoopProtocol",
                 "OuraProtocol",
                 .product(name: "GRDB", package: "GRDB.swift"),
-            ]
+            ],
+            // Optimised even in Debug — see the note on StrandAnalytics's target. Xcode compiles SPM
+            // package targets from the configuration NAME, so `project.yml`'s Debug
+            // `SWIFT_OPTIMIZATION_LEVEL: -O` never reached them, and this decode path ran
+            // unoptimised in every debug-built run of the app.
+            swiftSettings: [.unsafeFlags(["-O"])]
         ),
         .testTarget(
             name: "WhoopStoreTests",
