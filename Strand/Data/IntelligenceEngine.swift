@@ -1707,6 +1707,8 @@ final class IntelligenceEngine: ObservableObject {
                 // `took=` it reports never included them. `diagIterStart` (above, before the owner probe)
                 // marks the true start of the day's work so `total=` is honest about what a day costs.
                 var diagAnalyzeMs = 0.0
+                /// CPU time actually spent inside the scorer, against the wall time beside it.
+                var diagAnalyzeCpuMs = 0.0
                 var diagReadsMs = 0.0
                 var diagMark = Date()
                 func diagLap() -> Double {
@@ -1896,6 +1898,7 @@ final class IntelligenceEngine: ObservableObject {
                     NSLog("[FREEZE-DIAG]   day=\(day) owner=\(owner) total=\(f(total))s "
                         + "ownerProbe=\(f(diagOwnerMs / 1000))s rawRead=\(f(diagReadsMs / 1000))s "
                         + "hrRead=\(f(diagHrMs / 1000))s analysisPipeline=\(f(diagAnalyzeMs / 1000))s "
+                        + "analysisCPU=\(f(diagAnalyzeCpuMs / 1000))s "
                         + "other=\(f(other))s "
                         + "hr=\(hr.count) rr=\(rr.count) grav=\(grav.count) steps=\(steps.count)")
                 }
@@ -1975,6 +1978,24 @@ final class IntelligenceEngine: ObservableObject {
                 // concurrency into a deliberately pure, platform-free package. That is a separate
                 // decision and is deliberately not taken here.
                 await Task.yield()
+                // TEMP DIAGNOSTIC (#freeze-investigation) — CPU TIME AGAINST WALL TIME.
+                //
+                // Every number so far has been wall-clock, which cannot tell "this computation is slow"
+                // apart from "this computation was not given a CPU". That distinction decides the whole
+                // fix, and the two answers point opposite ways.
+                //
+                // The same day, synthesised at the device's own sample counts (hr 194k, rr 194k, grav
+                // 194k over the 54 h window) and scored in a DEBUG build, costs 1.6–2.4 s on a Mac —
+                // and stays there when the other streams, a messier night, twelve workouts or real
+                // baselines are added. The device reports 242 s. A phone is a few times slower than
+                // that machine, not a hundred. So either something about the real data is missing from
+                // the fixture, or the scan is being starved and the wall clock is measuring the wait.
+                //
+                // `clock_gettime(CLOCK_THREAD_CPUTIME_ID)` answers it directly: it advances only while
+                // this thread is actually running. cpu ≈ wall means the code is slow. cpu << wall means
+                // it is starved — and then lowering the scan's priority makes it worse, not better.
+                var cpuStart = timespec()
+                clock_gettime(CLOCK_THREAD_CPUTIME_ID, &cpuStart)
                 let diagAnalyzeStart = Date()   // TEMP DIAGNOSTIC: math cost, separated from the read cost
                 let res = AnalyticsEngine.analyzeDay(day: day, hr: hr, rr: rr, resp: resp,
                                                      vendorResp: vendorResp, gravity: grav,
@@ -2010,6 +2031,10 @@ final class IntelligenceEngine: ObservableObject {
                                                      deepHrvWindow: deepHrvWindow,
                                                      effortMethod: effortMethodGlobal)
                 diagAnalyzeMs = Date().timeIntervalSince(diagAnalyzeStart) * 1000   // TEMP DIAGNOSTIC
+                var cpuEnd = timespec()
+                clock_gettime(CLOCK_THREAD_CPUTIME_ID, &cpuEnd)
+                diagAnalyzeCpuMs = (Double(cpuEnd.tv_sec - cpuStart.tv_sec) * 1000)
+                    + (Double(cpuEnd.tv_nsec - cpuStart.tv_nsec) / 1_000_000)
                 await Task.yield()
                 // #195: whole-night HRV cleaning-pipeline summary for the always-on strap log, so a "reads ~2x
                 // too high" report is triageable without the HRV test mode: RMSSD vs SDNN (rmssd >> sdnn =
