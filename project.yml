@@ -59,9 +59,9 @@ settings:
       #
       # The packages now carry `.unsafeFlags(["-O"])` on their own targets (see each Package.swift),
       # which is the only place that does reach them. This setting is kept for the app-adjacent targets
-      # the project does own; each app target's `SWIFT_OPTIMIZATION_LEVEL: -Onone` (see `targets:`)
-      # still opts app code back out so it stays steppable. Debug symbols are unaffected either way —
-      # `-O` changes codegen, not `-g`.
+      # the project does own. macOS opts its app code back out to remain steppable; the device-used iOS
+      # app stays optimised so its large SwiftUI trees run at representative speed. Debug symbols are
+      # unaffected either way — `-O` changes codegen, not `-g`.
       SWIFT_OPTIMIZATION_LEVEL: "-O"
 packages:
   # Renders the Coach's LLM replies (GitHub-flavored Markdown — bold, lists,
@@ -370,9 +370,13 @@ targets:
         TARGETED_DEVICE_FAMILY: "1,2"
         SWIFT_EMIT_LOC_STRINGS: YES
       configs:
-        # Same opt-out as the macOS target: packages optimised in Debug, app code left steppable.
+        # The iOS Debug build is the build routinely installed and used on a physical phone. Its SwiftUI
+        # dashboards contain substantial generic/view-builder work; compiling that entire app module at
+        # -Onone made ordinary body evaluation, scrolling and hit handling visibly slower even after the
+        # analytics packages were optimised. Keep debug symbols but optimise codegen for realistic device
+        # behaviour. macOS retains its steppable -Onone override above.
         Debug:
-          SWIFT_OPTIMIZATION_LEVEL: "-Onone"
+          SWIFT_OPTIMIZATION_LEVEL: "-O"
     dependencies:
       - package: WhoopProtocol
       - package: WhoopStore

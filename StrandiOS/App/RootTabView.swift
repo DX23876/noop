@@ -21,16 +21,15 @@ struct RootTabView: View {
     /// that state; keeping it explicit here prevents this shell's window-level sheet from covering a gate.
     let homeScreenQuickActionsEnabled: Bool
 
-    @EnvironmentObject private var repo: Repository
+    /// Stable service reference supplied by the app host. Keeping it as a plain reference is deliberate:
+    /// this shell only invokes Repository/Coach actions and must not re-evaluate the complete TabView when
+    /// either object publishes an unrelated value. Screens below still observe the exact stores they use.
+    let model: AppModel
+    private var repo: Repository { model.repo }
+    private var coach: AICoachEngine { model.coach }
     /// Cross-screen navigation requests (e.g. Live → "Manage devices"). Devices isn't a tab — it lives
     /// behind the More list — so a request presents it as a sheet, matching the quick-action screens.
     @EnvironmentObject private var router: NavRouter
-    /// The AI coach engine (injected at the app root), so the draggable floating Coach button can present
-    /// the chat from the shell.
-    @EnvironmentObject private var coach: AICoachEngine
-    #if DEBUG
-    @EnvironmentObject private var intelligence: IntelligenceEngine
-    #endif
 
     /// Whether the draggable floating Coach button is one of the user's chosen entry points.
     @AppStorage(CoachEntryPrefs.floatingButtonKey) private var coachFloatingButtonEnabled = true
@@ -112,7 +111,8 @@ struct RootTabView: View {
     /// Deliberately the ONLY override. The pre-merge fork code also called
     /// `configureWithOpaqueBackground` here — that would opt the bar out of iOS 26's Liquid Glass and
     /// leave it looking dated, which is the opposite of why this shell went back to the platform bar.
-    init(homeScreenQuickActionsEnabled: Bool) {
+    init(model: AppModel, homeScreenQuickActionsEnabled: Bool) {
+        self.model = model
         self.homeScreenQuickActionsEnabled = homeScreenQuickActionsEnabled
         let appearance = UITabBarAppearance()
         appearance.selectionIndicatorTintColor = .clear
@@ -155,12 +155,14 @@ struct RootTabView: View {
     /// rebuild the tab roots underneath it. The same class of rebuild is what #197 caused with an
     /// `.id()` reset and #198 had to undo — it lost scroll position and re-ran `.task`.
     ///
-    /// Only a decisive horizontal flick switches tabs, and Today is carved out because it uses
-    /// horizontal swipe to change DAYS. Both thresholds are unchanged from the original gesture.
+    /// Only a decisive horizontal flick switches tabs. Today uses horizontal swipe to change DAYS, so
+    /// the attachment mask below disables this recognizer there entirely. Both thresholds are unchanged
+    /// from the original gesture.
     private var tabSwipeGesture: some Gesture {
         DragGesture(minimumDistance: 24)
             .onEnded { v in
-                // Today (tab 0) uses horizontal swipe to change DAYS, so tab-swipe is off there.
+                // Defensive guard for a selection change during an in-flight gesture. The GestureMask at
+                // the attachment site keeps this recognizer out of Today hit testing in the steady state.
                 guard selectedTab != 0 else { return }
                 let dx = v.translation.width, dy = v.translation.height
                 guard abs(dx) > 60, abs(dx) > abs(dy) * 1.6 else { return }
@@ -218,8 +220,10 @@ struct RootTabView: View {
             // hierarchy's gestures, disable the added one" — exactly this requirement. `.none` disables
             // the subview hierarchy TOO, which on a pushed screen would take out scrolling, taps and the
             // interactive-pop itself: far worse than the bug being fixed.
-            .simultaneousGesture(tabSwipeGesture,
-                                 including: tabPaths[selectedTab].isEmpty ? .all : .subviews)
+            .simultaneousGesture(
+                tabSwipeGesture,
+                including: selectedTab != 0 && tabPaths[selectedTab].isEmpty ? .all : .subviews
+            )
 
             // Draggable floating Coach button — an alternative entry to the Today banner, honouring the
             // user's Coach-entry preference. Floats over every tab; a tap opens the chat.
