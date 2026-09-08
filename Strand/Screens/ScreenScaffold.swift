@@ -17,6 +17,7 @@ struct ScreenScaffold<Content: View, Trailing: View>: View {
     /// 800+ day imported history (#345). Defaults to `false` so every existing caller keeps
     /// the eager `VStack` and its identical layout/scroll behaviour.
     var lazy: Bool = false
+    var contentSpacing: CGFloat = 20
     /// Optional full-bleed view drawn behind the scroll content at the TOP of the screen (e.g. Today's
     /// day-cycle scene). Defaults to nil so other screens stay on the flat canvas; nil renders nothing.
     var topBackground: AnyView? = nil
@@ -103,12 +104,12 @@ struct ScreenScaffold<Content: View, Trailing: View>: View {
     /// the previous layout. `@ViewBuilder` lets the two stack types resolve to one opaque return.
     @ViewBuilder private var column: some View {
         if lazy {
-            LazyVStack(alignment: .leading, spacing: 20) {
+            LazyVStack(alignment: .leading, spacing: contentSpacing) {
                 if title != nil || subtitle != nil { header }
                 content()
             }
         } else {
-            VStack(alignment: .leading, spacing: 20) {
+            VStack(alignment: .leading, spacing: contentSpacing) {
                 if title != nil || subtitle != nil { header }
                 content()
             }
@@ -141,9 +142,9 @@ extension ScreenScaffold where Trailing == EmptyView {
     /// Convenience init for the common case with no header trailing element — keeps every existing
     /// call site (which never passed `trailing`) source-compatible.
     init(title: LocalizedStringKey?, subtitle: LocalizedStringKey? = nil,
-         onRefresh: (() async -> Void)? = nil, lazy: Bool = false, topBackground: AnyView? = nil,
+         onRefresh: (() async -> Void)? = nil, lazy: Bool = false, contentSpacing: CGFloat = 20, topBackground: AnyView? = nil,
          @ViewBuilder content: @escaping () -> Content) {
-        self.init(title: title, subtitle: subtitle, onRefresh: onRefresh, lazy: lazy,
+        self.init(title: title, subtitle: subtitle, onRefresh: onRefresh, lazy: lazy, contentSpacing: contentSpacing,
                   topBackground: topBackground, trailing: { EmptyView() }, content: content)
     }
 }

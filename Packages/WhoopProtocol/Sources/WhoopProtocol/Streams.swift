@@ -4,7 +4,7 @@ import Foundation
 // Phase E and WhoopStore depend on these EXACT shapes. ts is wall-clock unix seconds
 // EXCEPT inside extractStreams' inputs; the structs themselves always carry wall-clock ts.
 
-public struct HRSample: Equatable, Codable {
+public struct HRSample: Equatable, Codable, Sendable {
     public let ts: Int          // wall-clock unix seconds
     public let bpm: Int
     public init(ts: Int, bpm: Int) { self.ts = ts; self.bpm = bpm }
@@ -329,7 +329,7 @@ public struct GravitySample: Equatable, Codable {
 /// 0=still, 1=walk, 2=run; nil when the byte was 0xFF/invalid or absent. A lightweight, no-cloud
 /// activity readout that rides alongside the counter. Optional + defaulted so existing call sites and
 /// the persisted store (which carries only ts/counter today) are unchanged.
-public struct StepSample: Equatable, Codable {
+public struct StepSample: Equatable, Codable, Sendable {
     public let ts: Int
     public let counter: Int
     public let activityClass: Int?

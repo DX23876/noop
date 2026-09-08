@@ -105,17 +105,11 @@ public actor WhoopStore {
             try db.execute(sql: "PRAGMA temp_store = MEMORY")
         }
         config.busyMode = .timeout(5)
+        // Five simultaneous SQLite scans were faster on small stores, but on a multi-GB phone database
+        // they saturated CPU and storage while SwiftUI missed frames. Two readers retain WAL overlap and
+        // leave capacity for the UI instead of letting background presentation work flood the device.
+        config.maximumReaderCount = 2
         let pool = try await StoreOpenGate.shared.openAndMigrate(path: path, configuration: config)
-        // TEMP DIAGNOSTIC (#freeze-investigation) — the on-disk footprint at open. A `-wal` that has grown
-        // large and never been checkpointed makes every read traverse its index, which is one of the
-        // candidate explanations for multi-second reads that should be indexed lookups.
-        // `checkpointWAL()` below is the remedy if that turns out to be the cause. Remove with the rest of
-        // the FREEZE-DIAG block.
-        let mb = { (p: String) -> String in
-            let n = (try? FileManager.default.attributesOfItem(atPath: p)[.size] as? Int64) ?? nil
-            return n.map { String(format: "%.1f MB", Double($0) / 1_048_576) } ?? "—"
-        }
-        NSLog("[FREEZE-DIAG] store open: db=\(mb(path)) wal=\(mb(path + "-wal")) shm=\(mb(path + "-shm"))")
         self.init(preMigrated: pool)
     }
 
@@ -195,35 +189,9 @@ public actor WhoopStore {
     /// Within one task `await` still guarantees it; across tasks there was never a guarantee. Reads see
     /// committed data only, never a partial write.
     ///
-    /// `caller` is filled in by the compiler with the name of the function that issued the read. Without
-    /// it the diagnostic below can say a read took nine seconds but not WHICH read — and a nine-second
-    /// query on a 2.9 GB file is only actionable once it has a name. A defaulted `#function` parameter
-    /// gets that for free: every existing call site keeps working unchanged.
     @inline(__always)
-    nonisolated func asyncRead<T: Sendable>(_ block: @escaping @Sendable (Database) throws -> T,
-                                            caller: String = #function) async throws -> T {
-        // TEMP DIAGNOSTIC (#freeze-investigation) — split WAITING from WORKING, at the one seam every
-        // read goes through. `t0` is when the caller asked; `tAcquired` is when GRDB actually handed us a
-        // reader connection and started running the block. The gap between them is queueing for one of the
-        // pool's `maximumReaderCount` (5) readers; the gap after it is real I/O.
-        //
-        // This exists because the two are indistinguishable from the call site, and every number so far has
-        // been the sum: a one-row `cursors` lookup measured 3.9 s on device while the same query on the same
-        // 1.83 GB file takes microseconds on a Mac, and six indexed `workout` reads (1.3 ms of real work)
-        // measured 56 s. Either the reads wait for a slot, or the device I/O really is that slow — this line
-        // is the only thing that can tell those apart. Remove with the rest of the FREEZE-DIAG block.
-        let t0 = Date()
-        return try await dbWriter.read { db in
-            let tAcquired = Date()
-            let result = try block(db)
-            let waited = tAcquired.timeIntervalSince(t0)
-            let ran = Date().timeIntervalSince(tAcquired)
-            if waited + ran > 0.25 {
-                NSLog("[FREEZE-DIAG] asyncRead wait=\(String(format: "%.3f", waited))s "
-                    + "run=\(String(format: "%.3f", ran))s caller=\(caller)")
-            }
-            return result
-        }
+    nonisolated func asyncRead<T: Sendable>(_ block: @escaping @Sendable (Database) throws -> T) async throws -> T {
+        try await dbWriter.read(block)
     }
 
     // MARK: - Maintenance

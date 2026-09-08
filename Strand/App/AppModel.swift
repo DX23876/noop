@@ -238,6 +238,9 @@ final class AppModel: ObservableObject {
     /// session. Mirrors how `SourceCoordinator` drives the WRITE side off the same publisher. Retained for
     /// the app's lifetime (the registry outlives the session); `removeDuplicates` collapses redundant emits.
     private var readSpineCancellable: AnyCancellable?
+    /// Keeps Repository's physical WHOOP source union in memory. This prevents visible presentation
+    /// requests from synchronously waiting on the registry database while analysis uses its readers.
+    private var readSourceListCancellable: AnyCancellable?
     /// Latched once the read-spine subscription has delivered its FIRST `activeDeviceId`. That first
     /// delivery is the publisher replaying the CURRENT value at subscribe time — a launch-time re-point,
     /// not a device change — and it must not force a full re-score. See `adoptActiveDeviceFromReadSpine`.
@@ -281,8 +284,17 @@ final class AppModel: ObservableObject {
             }
         }.store(in: &hrCancellables)
         // Smooth HR centrally so it's solid everywhere it's shown.
-        live.$heartRate.sink { [weak self] _ in self?.ingestHR() }.store(in: &hrCancellables)
-        live.$rr.sink { [weak self] _ in self?.ingestHR() }.store(in: &hrCancellables)
+        // Combine invokes a sink on the publisher's delivery thread. CoreBluetooth is configured for
+        // main, but restored/background sources can still bridge a value from another executor; make the
+        // UI-facing `bpm` publisher's actor hop explicit before `ingestHR()` mutates it.
+        live.$heartRate
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in self?.ingestHR() }
+            .store(in: &hrCancellables)
+        live.$rr
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in self?.ingestHR() }
+            .store(in: &hrCancellables)
 
         // Physical-input + wear hooks (fired live by FrameRouter).
         live.onDoubleTap = { [weak self] in self?.handleDoubleTap() }
@@ -442,41 +454,6 @@ final class AppModel: ObservableObject {
         // main thread free for SwiftUI during the deep-history pass right after an import / first launch.
         Task(priority: .utility) { [weak self] in
             guard let self else { return }
-            // TEMP DIAGNOSTIC (#freeze-investigation) — phase trace for the launch sequence. The first
-            // capture showed NO `analyzeRecent ENTER` at all, which ruled the analyze pass out as that
-            // launch's culprit and pointed at the steps BEFORE it: a full `repo.refresh()` (~50 store reads
-            // on a 1.7 GB database), a fixed 6 s sleep, and an import wait that can hold for 180 s. Without
-            // per-phase stamps there is no way to tell "still waiting by design" from "wedged".
-            // Remove with the rest of the FREEZE-DIAG block.
-            let diagT0 = Date()
-            func diagPhase(_ name: String) {
-                NSLog("[FREEZE-DIAG] startup \(name) at +\(String(format: "%.2f", Date().timeIntervalSince(diagT0)))s")
-            }
-            // TEMP DIAGNOSTIC (#freeze-investigation) — MAIN-ACTOR LATENCY PROBE.
-            //
-            // The wait/run split inside `asyncRead` came back clean: during a `workoutRows(45)` that took
-            // 48.5 s, NOT ONE read spent over 0.25 s either queueing for a pool connection or running. The
-            // queries are fast and the pool is free, so the time is going somewhere between the reads —
-            // and `Repository` is `@MainActor`, so every `await store.…` continuation has to get back onto
-            // the main actor before the next read can even be issued. Six awaits behind a saturated main
-            // actor is exactly the shape of a 48-second "read".
-            //
-            // This probe measures that directly and independently of the database: hop to the main actor,
-            // and report how long the hop took. A hop is a few microseconds of work, so anything above a
-            // frame is pure queueing behind whatever else is running there — which is also precisely what
-            // "the app is unusable" means, because the main actor IS the UI. Remove with the FREEZE-DIAG block.
-            Task.detached(priority: .utility) { [weak self] in
-                while self != nil && !Task.isCancelled {
-                    let t = Date()
-                    await MainActor.run { }
-                    let hop = Date().timeIntervalSince(t)
-                    if hop > 0.25 {
-                        NSLog("[FREEZE-DIAG] MAIN-ACTOR hop=\(String(format: "%.3f", hop))s (UI blocked this long)")
-                    }
-                    try? await Task.sleep(nanoseconds: 500_000_000)
-                }
-            }
-            diagPhase("begin")
             // The hrSample partition census USED to run here. It did its job — it proved the change
             // detector was partition-blind (`whoop-535B…` held the recent rows while the gate watched
             // `my-whoop`) — and it is deliberately NOT run on launch any more: a `GROUP BY deviceId`
@@ -498,15 +475,11 @@ final class AppModel: ObservableObject {
             // First paint is bounded by recent display data, never the user's complete archive. Full
             // history remains queryable through the range APIs used by history/Coach surfaces.
             await self.repo.refresh(days: 120)
-            diagPhase("repo.refresh(120) done")
             await self.wireSourceCoordinator()                 // dormant unless a generic strap is active
-            diagPhase("sourceCoordinator wired")
             // Give SwiftUI an uncontested render turn before optional plan/goal consumers begin.
             try? await Task.sleep(nanoseconds: 1_000_000_000)
             await PlanReconciliationCoordinator.reconcile(repo: self.repo)
-            diagPhase("plan reconcile done")
             await GoalTrackingStore.shared.refresh(repo: self.repo)
-            diagPhase("goals done")
             await self.recordAppVersionChangeIfNeeded()        // #1410: stamp an update transition once
             // Analytics migrations are keyed to their own persisted recipe, never to the app/build
             // version. On an ordinary Xcode reinstall this is a one-row read and no historical work.
@@ -523,22 +496,18 @@ final class AppModel: ObservableObject {
             // non-throwing import HANG would never reach, permanently starving the one-shot passes AND the
             // cadence loop below for the whole session. Bound it so a wedged import can't disable analysis;
             // the merge reads are off-actor now, so proceeding under a still-flagged import is safe.
-            diagPhase("post-6s-sleep, hasActiveImport=\(self.hasActiveImport)")
             var importWaited = 0
             while self.hasActiveImport && !Task.isCancelled && importWaited < 180 {
                 try? await Task.sleep(nanoseconds: 1_000_000_000)  // 1 s, re-check; ~3 min cap then proceed
                 importWaited += 1
             }
-            diagPhase("import wait done after \(importWaited)s")
             // One-shot on-upgrade heal (#547): purge rows a bad-clock strap dated to scattered garbage
             // (far-past / bogus-2027 / FUTURE) from an older build, then rescore the real days. Runs
             // BEFORE the Effort rescore + analyzeRecent loop so both operate on a cleaned DB. Persisted
             // flag → no-op on every subsequent launch; idempotent on a clean DB.
             await self.intelligence.runTimestampHealIfNeeded(historyDays: 21)
-            diagPhase("timestamp heal done")
             // The legacy Effort migration is deliberately not a launch task. Its old implementation ran
             // the complete sleep pipeline for 4000 days; the resumable maintenance path owns it instead.
-            diagPhase("launch maintenance done — entering steady-state loop")
             var effortMaintenanceStarted = false
             while !Task.isCancelled {
                 // #547 RE-POLLUTION: a sync since the last tick may have armed a re-heal (its ingest gate
@@ -621,6 +590,9 @@ final class AppModel: ObservableObject {
         guard sourceCoordinator == nil, let store = await repo.storeHandle() else { return }
         let registry = DeviceRegistry(store: DeviceRegistryStore(dbQueue: store.registryWriter))
         registry.reload()
+        repo.adoptRegisteredWhoopIds(registry.devices.compactMap {
+            $0.brand.caseInsensitiveCompare("WHOOP") == .orderedSame ? $0.id : nil
+        })
         let coordinator = SourceCoordinator(
             registry: registry,
             live: live,
@@ -667,6 +639,12 @@ final class AppModel: ObservableObject {
             .removeDuplicates()
             .sink { [weak self] id in
                 Task { await self?.adoptActiveDeviceFromReadSpine(id) }
+            }
+        readSourceListCancellable = registry.$devices
+            .sink { [weak self] devices in
+                self?.repo.adoptRegisteredWhoopIds(devices.compactMap {
+                    $0.brand.caseInsensitiveCompare("WHOOP") == .orderedSame ? $0.id : nil
+                })
             }
     }
 
@@ -717,12 +695,7 @@ final class AppModel: ObservableObject {
         let repoMoved = repo.adoptActiveDeviceId(trimmed)
         guard repoMoved else { return }
         live.append(log: "Read spine re-pointed to active device after registry change (#814).")
-        // TEMP DIAGNOSTIC: this refresh runs in the read-spine's OWN Task, concurrently with the launch
-        // sequence's refresh, and both queue on the same serial store actor. On a 1.7 GB database that is a
-        // prime suspect for a launch that never even reaches `analyzeRecent`.
-        let diagRefreshStart = Date()
         await repo.refresh(days: 120)
-        NSLog("[FREEZE-DIAG] adoptActiveDevice repo.refresh took=\(String(format: "%.2f", Date().timeIntervalSince(diagRefreshStart)))s")
         // `allowDayReuse: true`: a re-point changes WHICH device owns a day, and the owner id is part of
         // the per-day fingerprint — so every day whose ownership actually moved fails the match and is
         // re-derived, while the rest keep their scores (#launch-rescore).

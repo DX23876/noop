@@ -70,12 +70,17 @@ final class LiquidMotion {
 
     /// Smoothed world tilt in radians, clamped. Mouse fallback is unused on device;
     /// on Mac Catalyst / simulator it simply stays flat, which reads fine.
-    private(set) var tilt: Double = 0
+    private let tiltLock = NSLock()
+    private var storedTilt: Double = 0
+    private(set) var tilt: Double {
+        get { tiltLock.lock(); defer { tiltLock.unlock() }; return storedTilt }
+        set { tiltLock.lock(); defer { tiltLock.unlock() }; storedTilt = newValue }
+    }
 
     #if os(iOS)   // CMMotionManager is iOS/Catalyst only; CoreMotion imports on macOS but the class is unavailable there
     private let manager = CMMotionManager()
     /// Device-motion callbacks land here, OFF the main thread, so 60Hz sensor updates don't contend with
-    /// the scroll + Canvas redraws on main. `tilt` is a single 8-byte Double (atomic read/write on ARM64),
+    /// the scroll + Canvas redraws on main. `tilt` is a lock-protected snapshot,
     /// read from the Canvas draw on main — a one-frame-stale value is harmless for a decorative slosh.
     private let motionQueue: OperationQueue = {
         let q = OperationQueue()

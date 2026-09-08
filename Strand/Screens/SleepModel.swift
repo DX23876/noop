@@ -13,7 +13,7 @@ import WhoopStore
 // the fields below; only the DATA-BUILDING moved here. Behaviour is byte-identical to the previous
 // `SleepView.buildModel()` — see that call site's history for the per-line rationale.
 
-struct Stages {
+struct Stages: Sendable {
     var awake: Double
     var light: Double
     var deep: Double
@@ -24,7 +24,27 @@ struct Stages {
     var asleep: Double { light + deep + rem }
 }
 
-struct Night {
+struct Night: Sendable {
+    struct Prepared: Sendable {
+        let editGroup: [CachedSleepSession]
+        let editTarget: CachedSleepSession?
+        let mainGroupStarts: Set<Int>
+        let intervals: [SleepInterval]
+    }
+    var prepared: Prepared? = nil
+
+    /// Cache selector/JSON work before this value crosses to a rendering view.
+    func preparingForDisplay() -> Night {
+        var result = self
+        let full = SleepView.mainNightGroup(sourceBlocks, habitualMidsleepSec: habitualMidsleepSec)
+        let onset = SleepModel.nightOnsetTs(full)
+        let edits = full.filter { $0.effectiveStartTs >= onset }
+        result.prepared = Prepared(editGroup: edits,
+            editTarget: SleepView.mainNightSession(edits, habitualMidsleepSec: habitualMidsleepSec),
+            mainGroupStarts: Set(full.map(\.startTs)), intervals: intervals)
+        return result
+    }
+
     let session: CachedSleepSession
     let stages: Stages
     /// The REAL per-segment timeline for on-device computed nights (nil for imported nights,
@@ -54,13 +74,15 @@ struct Night {
     /// `applySleepEdit` matches. nil when there's no underlying block (a synthetic stub) — the edit
     /// affordance is then hidden. (#318, #518, #547)
     var editTarget: CachedSleepSession? {
-        SleepView.mainNightSession(editGroup, habitualMidsleepSec: habitualMidsleepSec)
+        if let prepared { return prepared.editTarget }
+        return SleepView.mainNightSession(editGroup, habitualMidsleepSec: habitualMidsleepSec)
     }
 
     /// The exact stored fragments represented by the hero's visible bed/wake window. The main-night
     /// selector first bridges the group; the onset-stub rule then removes any leading fragment the hero
     /// deliberately does not show. Editing this group therefore changes the same object the user sees.
     var editGroup: [CachedSleepSession] {
+        if let prepared { return prepared.editGroup }
         let full = SleepView.mainNightGroup(sourceBlocks, habitualMidsleepSec: habitualMidsleepSec)
         let onset = SleepModel.nightOnsetTs(full)
         return full.filter { $0.effectiveStartTs >= onset }
@@ -71,7 +93,8 @@ struct Night {
     /// group are naps. Without this the tab treated every block except the single winner as a nap and a
     /// biphasic night rendered as phantom naps. (#555)
     var mainGroupStarts: Set<Int> {
-        Set(SleepView.mainNightGroup(sourceBlocks, habitualMidsleepSec: habitualMidsleepSec).map { $0.startTs })
+        if let prepared { return prepared.mainGroupStarts }
+        return Set(SleepView.mainNightGroup(sourceBlocks, habitualMidsleepSec: habitualMidsleepSec).map { $0.startTs })
     }
 
     /// Total time in bed in minutes (from reconstructed stages).
@@ -84,6 +107,7 @@ struct Night {
     /// On-device computed nights use their REAL timeline; imported nights are reconstructed
     /// from durations only (the export has no per-epoch timeline).
     var intervals: [SleepInterval] {
+        if let prepared { return prepared.intervals }
         if let real = realSegments, real.count >= 2 { return real }
         var t: TimeInterval = 0
         var out: [SleepInterval] = []
@@ -145,11 +169,11 @@ struct Night {
 /// Memoized result of every expensive SleepView derivation. Built once per data change in
 /// `SleepModel.build(_:)` and read by the subviews, so full passes over the day rows / sleep sessions
 /// and the Night.intervals reconstruction no longer run on every render.
-struct SleepModel {
+struct SleepModel: Sendable {
     /// (latest, typical mean, full history) per metric — mirrors SleepView's per-tile series.
     typealias Metric = (latest: Double?, typical: Double?, series: [Double])
 
-    let night: Night
+    var night: Night
     /// Stage intervals for the hypnogram — computed once (Night.intervals is a computed
     /// property; it was previously re-derived on each access during render).
     let intervals: [SleepInterval]
@@ -186,7 +210,7 @@ struct SleepModel {
 /// Explicit inputs for `SleepModel.build(_:)` — a snapshot of the repository state the builder reads.
 /// The Sleep tab fills these from its `Repository` + loaded session/motion state; another host can
 /// supply the same fields to get a byte-identical model.
-struct SleepModelInputs {
+struct SleepModelInputs: Sendable {
     /// The cached per-day metric rows (`Repository.days`).
     let days: [DailyMetric]
     /// One-per-night sessions (`Repository.sleeps`) — the `navSessions` fallback and the
@@ -508,7 +532,7 @@ extension SleepModel {
         // #940: ONE un-mergeable newest day must not blank the whole tab. Degrade to the SAME honest
         // stage-less stub the ◀/▶ browse shows, keeping the edit/delete affordances reachable. nil
         // only when there is genuinely no day to show.
-        let night: Night
+        var night: Night
         let isStub: Bool
         if let merged = decodedNight(at: 0, navDays: dayGroups,
                                      habitualMidsleepSec: habitual, motionByStart: inputs.motionByStart) {

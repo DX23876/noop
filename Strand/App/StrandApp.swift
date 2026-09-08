@@ -58,6 +58,7 @@ struct StrandApp: App {
                 .environmentObject(model.ble)   // #334: Today pull-to-sync reads BLEManager (no HR churn)
                 .environmentObject(model.live)
                 .environmentObject(model.repo)
+                .dashboardPresentationScope(model: model)
                 .environmentObject(model.profile)
                 .environmentObject(model.behavior)
                 .environmentObject(model.intelligence)
@@ -106,12 +107,14 @@ struct StrandApp: App {
             MenuBarContent()
                 .environmentObject(model)
                 .environmentObject(model.repo)
+                .dashboardPresentationScope(model: model)
                 .environmentObject(model.live)
                 .environment(\.locale, AppLanguage.activeLocale)
         } label: {
             MenuBarLabel()
                 .environmentObject(model)
                 .environmentObject(model.repo)
+                .dashboardPresentationScope(model: model)
                 .environmentObject(model.live)
                 .environment(\.locale, AppLanguage.activeLocale)
         }

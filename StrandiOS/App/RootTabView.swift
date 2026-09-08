@@ -183,10 +183,10 @@ struct RootTabView: View {
         // every tab.
         ZStack(alignment: .bottom) {
             TabView(selection: nativeTabSelection) {
-                tab(todayTabRoot, "Today", "square.grid.2x2", path: $tabPaths[0], scrollSignal: scrollTop[0]).tag(0)
-                tab(TrendsView(), "Trends", "chart.line.uptrend.xyaxis", path: $tabPaths[1], scrollSignal: scrollTop[1]).tag(1)
-                tab(SleepView(), "Sleep", "bed.double", path: $tabPaths[2], scrollSignal: scrollTop[2]).tag(2)
-                moreTab(path: $tabPaths[3], scrollSignal: scrollTop[3]).tag(3)
+                tab(todayTabRoot, "Today", "square.grid.2x2", path: $tabPaths[0], scrollSignal: scrollTop[0]).environment(\.dashboardIsActive, selectedTab == 0).tag(0)
+                tab(TrendsView(), "Trends", "chart.line.uptrend.xyaxis", path: $tabPaths[1], scrollSignal: scrollTop[1]).environment(\.dashboardIsActive, selectedTab == 1).tag(1)
+                tab(SleepView(), "Sleep", "bed.double", path: $tabPaths[2], scrollSignal: scrollTop[2]).environment(\.dashboardIsActive, selectedTab == 2).tag(2)
+                moreTab(path: $tabPaths[3], scrollSignal: scrollTop[3]).environment(\.dashboardIsActive, selectedTab == 3).tag(3)
             }
             // Overview Dashboard mockup fidelity (2026-08-31): the active tab reads green, not the
             // configurable Accent colour. `.tint()` colours the whole bar uniformly — there is no native

@@ -33,6 +33,8 @@ enum LiquidHeaderMetrics {
 struct LiquidTodayView: View {
     @AppStorage(DayCycleMode.storageKey) private var dayCycleModeRaw = DayCycleMode.sleepOnset.rawValue
     private var dayCycleMode: DayCycleMode { DayCycleMode.persisted(dayCycleModeRaw) }
+    @Environment(\.sleepPresentationStore) private var sceneSleepStore
+    private var sleepStore: SleepPresentationStore { sceneSleepStore ?? repo.sleepPresentation }
     @EnvironmentObject var repo: Repository
     @EnvironmentObject var router: NavRouter
     @EnvironmentObject var profile: ProfileStore
@@ -65,43 +67,94 @@ struct LiquidTodayView: View {
     /// and later switched the feature off kept a permanently-blank row.
     @AppStorage(HydrationStore.enabledKey) private var hydrationEnabled = false
     /// Today's hydration total + goal (ml), resolved in `load()`. nil → the card shows "—".
-    @State private var hydrationTotalML: Double?
-    @State private var hydrationGoalML: Int?
+    private var hydrationTotalML: Double? {
+        get { snapshot.hydrationTotalML }
+        nonmutating set { snapshot.hydrationTotalML = newValue }
+    }
+    private var hydrationGoalML: Int? {
+        get { snapshot.hydrationGoalML }
+        nonmutating set { snapshot.hydrationGoalML = newValue }
+    }
 
     // async-loaded via the confirmed Repository accessors
-    @State private var restScore: Double?          // sleep_performance, day-keyed
+    private var restScore: Double? {
+        get { snapshot.restScore }
+        nonmutating set { snapshot.restScore = newValue }
+    }
     /// Input providers for the three scores, keyed by recovery / strain / sleep_performance.
-    @State private var heroProviderByMetric: [String: ScoreInputProvider] = [:]
-    @State private var stress: Double?             // StressModel(...).score, 0–3
-    @State private var fitnessAge: Double?         // exploreSeries("fitness_age").last
-    @State private var vo2max: Double?             // exploreSeries("vo2max_est").last (#1391)
-    @State private var vitality: Double?           // exploreSeries("vitality").last
+    private var heroProviderByMetric: [String: ScoreInputProvider] {
+        get { snapshot.heroProviderByMetric }
+        nonmutating set { snapshot.heroProviderByMetric = newValue }
+    }
+    private var stress: Double? {
+        get { snapshot.stress }
+        nonmutating set { snapshot.stress = newValue }
+    }
+    private var fitnessAge: Double? {
+        get { snapshot.fitnessAge }
+        nonmutating set { snapshot.fitnessAge = newValue }
+    }
+    private var vo2max: Double? {
+        get { snapshot.vo2max }
+        nonmutating set { snapshot.vo2max = newValue }
+    }
+    private var vitality: Double? {
+        get { snapshot.vitality }
+        nonmutating set { snapshot.vitality = newValue }
+    }
     // Queue 11a: day-keyed "spo2_candidate" metricSeries (WHOOP `spo2_candidate_82` or Oura
     // ceiling@100 `0x6F`, device-conditional — see `IntelligenceEngine`). Empty when the
     // experimental toggle is OFF (the engine writes nothing) or the owner has no in-band reading.
     // Read unconditionally like the classic TodayView's `spo2CandidateSpark` — always empty when
     // the toggle is off, so no separate gate is needed at fetch time.
-    @State private var spo2CandidateByDay: [String: Double] = [:]
-    @State private var stepsEst: Double?           // steps_est, day-keyed to the selected day (fallback)
-    @State private var importedStepsDay: Int?      // Apple Health steps for the selected day (middle tier)
+    private var spo2CandidateByDay: [String: Double] {
+        get { snapshot.spo2CandidateByDay }
+        nonmutating set { snapshot.spo2CandidateByDay = newValue }
+    }
+    private var stepsEst: Double? {
+        get { snapshot.stepsEst }
+        nonmutating set { snapshot.stepsEst = newValue }
+    }
+    private var importedStepsDay: Int? {
+        get { snapshot.importedStepsDay }
+        nonmutating set { snapshot.importedStepsDay = newValue }
+    }
     /// Canonical energy summaries keyed by local day. Both the full-width Energy card and the compact
     /// Calories tile read this same map, so choosing one or both in CUSTOMISE never changes the number.
-    @State private var energySummariesByDay: [String: DailyEnergySummary] = [:]
+    private var energySummariesByDay: [String: DailyEnergySummary] {
+        get { snapshot.energySummariesByDay }
+        nonmutating set { snapshot.energySummariesByDay = newValue }
+    }
     /// The Weight tile's resolved value and which tier it came from, or nil before the first `load()`.
     /// Was a permanent hardcoded "—" placeholder before — `WeightSeries.displayWeight` gives the same
     /// trend → last measurement → profile fallback classic/Heute use.
-    @State private var resolvedWeightKg: (kg: Double, tier: WeightDisplayTier)?
-    @State private var hrValues: [Double] = []     // hrBuckets since midnight → 5-min means
+    private var resolvedWeightKg: (kg: Double, tier: WeightDisplayTier)? {
+        get { snapshot.resolvedWeightKg }
+        nonmutating set { snapshot.resolvedWeightKg = newValue }
+    }
+    private var hrValues: [Double] {
+        get { snapshot.hrValues }
+        nonmutating set { snapshot.hrValues = newValue }
+    }
     /// The bucket START time for each `hrValues` entry, index-aligned. Kept as its own array rather
     /// than derived (midnight + i·5min) because `hrBuckets` returns only buckets that HAVE data —
     /// a strap-off gap shifts every later index, so a derived clock would misdate the scrub readout.
-    @State private var hrTimes: [Date] = []
-    @State private var workouts: [WorkoutRow] = [] // newest-first
+    private var hrTimes: [Date] {
+        get { snapshot.hrTimes }
+        nonmutating set { snapshot.hrTimes = newValue }
+    }
+    private var workouts: [WorkoutRow] {
+        get { snapshot.workouts }
+        nonmutating set { snapshot.workouts = newValue }
+    }
     /// #today-hosted-cards: the shared SleepModel that backs every SleepModel-derived hosted sleep card
     /// (Stages vs typical today; more to follow). Built ONCE in `load()` from the SAME inputs the Sleep tab
     /// uses (`SleepModel.build`), and only when a sleep-origin card is actually hosted — so a Today with no
     /// hosted sleep card pays none of the extra Repository work. nil until (and unless) it's built.
-    @State private var hostedSleepModel: SleepModel? = nil
+    private var hostedSleepModel: SleepModel? {
+        get { snapshot.hostedSleepModel }
+        nonmutating set { snapshot.hostedSleepModel = newValue }
+    }
 
     /// Wraps a tapped row so `.sheet(item:)` can present its detail (`WorkoutRow` isn't `Identifiable`) —
     /// mirrors `WorkoutsView.WorkoutDetailTarget` exactly.
@@ -179,7 +232,10 @@ struct LiquidTodayView: View {
     private var keyMetricsColumns: Int {
         dynamicTypeSize.isAccessibilitySize ? 1 : KeyMetricPrefs.columns(keyMetricsColumnsRaw)
     }
-    @State private var kSparks: [String: [(String, Double)]] = [:]
+    private var kSparks: [String: [(String, Double)]] {
+        get { snapshot.kSparks }
+        nonmutating set { snapshot.kSparks = newValue }
+    }
     private var enabledKeyMetrics: [KeyMetric] { KeyMetricPrefs.decodeEnabled(keyMetricsRaw) }
 
     // day navigation (0 = today, 1 = yesterday, …)
@@ -196,24 +252,51 @@ struct LiquidTodayView: View {
     // PERF: the body was rescanning repo.days (599 days) ~23× per pass for displayDay and ~3× for
     // readiness on EVERY re-render (every HR notify, every canvas frame that invalidates, every scroll).
     // Resolve both ONCE per data/day change in load() and read the cache in body (O(1)).
-    @State private var cachedDisplayDay: DailyMetric?
-    @State private var cachedReadiness: ReadinessEngine.Readiness?
+    private var cachedDisplayDay: DailyMetric? {
+        get { snapshot.cachedDisplayDay }
+        nonmutating set { snapshot.cachedDisplayDay = newValue }
+    }
+    private var cachedReadiness: ReadinessEngine.Readiness? {
+        get { snapshot.cachedReadiness }
+        nonmutating set { snapshot.cachedReadiness = newValue }
+    }
     /// The recovery-INDEPENDENT prior-day vitals carry (HRV / RHR / respiratory), resolved ONCE in load()
     /// alongside cachedDisplayDay. Fixes the v8 rollover blank: after 04:00, before tonight's sleep scores,
     /// today's row has no vitals yet, so these fall back to the last night that recorded them. Never
     /// resolved in body — body rescans repo.days ~23× per pass, and this cache keeps that read O(1).
-    @State private var cachedVitalsDay: DailyMetric?
+    private var cachedVitalsDay: DailyMetric? {
+        get { snapshot.cachedVitalsDay }
+        nonmutating set { snapshot.cachedVitalsDay = newValue }
+    }
     /// PER-FIELD carries for the two vitals whose predicate `cachedVitalsDay` does NOT check. The engine
     /// writes `spo2Pct` / `skinTempDevC` as nil on computed "-noop" rows, so the whole-row carry above
     /// lands on a row with an empty field and the card reads "–" even though a real reading exists a few
     /// nights back. Twins of classic Today's `lastSpo2Day` / `lastSkinTempDay` (and Android's
     /// `lastSpo2Row` / `lastSkinTempRow`); resolved ONCE in load() like every other O(days) scan here.
-    @State private var cachedSpo2Day: DailyMetric?
-    @State private var cachedSkinTempDay: DailyMetric?
-    @State private var cachedRespDay: DailyMetric?
-    @State private var cachedHrvDay: DailyMetric?
-    @State private var cachedRestingHrDay: DailyMetric?
-    @State private var cachedSkinTempReadingDay: DailyMetric?
+    private var cachedSpo2Day: DailyMetric? {
+        get { snapshot.cachedSpo2Day }
+        nonmutating set { snapshot.cachedSpo2Day = newValue }
+    }
+    private var cachedSkinTempDay: DailyMetric? {
+        get { snapshot.cachedSkinTempDay }
+        nonmutating set { snapshot.cachedSkinTempDay = newValue }
+    }
+    private var cachedRespDay: DailyMetric? {
+        get { snapshot.cachedRespDay }
+        nonmutating set { snapshot.cachedRespDay = newValue }
+    }
+    private var cachedHrvDay: DailyMetric? {
+        get { snapshot.cachedHrvDay }
+        nonmutating set { snapshot.cachedHrvDay = newValue }
+    }
+    private var cachedRestingHrDay: DailyMetric? {
+        get { snapshot.cachedRestingHrDay }
+        nonmutating set { snapshot.cachedRestingHrDay = newValue }
+    }
+    private var cachedSkinTempReadingDay: DailyMetric? {
+        get { snapshot.cachedSkinTempReadingDay }
+        nonmutating set { snapshot.cachedSkinTempReadingDay = newValue }
+    }
     /// The Charge hero's resolved state (#543 carry + the honest label), resolved ONCE in load() alongside
     /// the other caches. It composes `TodayView.lastScoredRecoveryDay`, which is O(days) — exactly the scan
     /// this cache exists to keep out of body. Never resolved in body.
@@ -221,12 +304,21 @@ struct LiquidTodayView: View {
     /// lags. Read LAST in load() (see the assignment) so the hero paints on the stored row first and this
     /// only ever raises it — `StrainScorer.effectiveEffort` takes the max, so it cannot flicker downward.
     /// nil on a navigated past day, which has no in-progress figure.
-    @State private var liveTodayStrain: Double?
-    @State private var cachedChargeDisplay: ChargeDisplay = .noData
+    private var liveTodayStrain: Double? {
+        get { snapshot.liveTodayStrain }
+        nonmutating set { snapshot.liveTodayStrain = newValue }
+    }
+    private var cachedChargeDisplay: ChargeDisplay {
+        get { snapshot.cachedChargeDisplay }
+        nonmutating set { snapshot.cachedChargeDisplay = newValue }
+    }
     /// The last fully-scored prior recovery day, cached in load() so the Charge-breakdown sheet can read
     /// the same `chargeBreakdownRow` classic Today uses (today's own row, else the carried last-scored)
     /// without an O(days) scan in body. Mirrors `TodayView.lastScoredRecoveryDay`.
-    @State private var cachedPriorScored: DailyMetric?
+    private var cachedPriorScored: DailyMetric? {
+        get { snapshot.cachedPriorScored }
+        nonmutating set { snapshot.cachedPriorScored = newValue }
+    }
     /// The Charge-breakdown sheet, opened from the readiness pill (parity with classic TodayView's
     /// `showChargeBreakdown`): tapping "Push"/"Maintain"/"Rest" opens the full drivers + confidence
     /// breakdown, the same sheet the Charge-ring tap opens in classic.
@@ -457,7 +549,7 @@ struct LiquidTodayView: View {
     var body: some View {
         ScrollViewReader { proxy in
         ScrollView {
-            VStack(spacing: 0) {
+            LazyVStack(spacing: 0) {
                 // Zero-height scroll-to-top anchor (#198 follow-up): the target for an at-root Today re-tap.
                 Color.clear.frame(height: 0).id(Self.topAnchorID)
                 // Scroll-offset probe at the very top (before padding), so its minY in the scroll's
@@ -470,7 +562,7 @@ struct LiquidTodayView: View {
 
                 liquidRefreshIndicator   // grows in the revealed space; a vessel filling with the pull
 
-                VStack(alignment: .leading, spacing: NoopMetrics.gap) {
+                LazyVStack(alignment: .leading, spacing: NoopMetrics.gap) {
                     scene
                     // The coach entry is NOT here any more: a full-width row between the wordmark and the
                     // scores both dominated the screen and pushed Charge/Effort/Rest down the page. It is now
@@ -590,7 +682,9 @@ struct LiquidTodayView: View {
         // vertical pull-to-refresh gesture above.
         .scrollBounceBehavior(.basedOnSize, axes: .horizontal)
         #endif
-        .onPreferenceChange(PullOffsetKey.self) { handlePull($0) }
+        .onPreferenceChange(PullOffsetKey.self) { value in
+            Task { @MainActor in handlePull(value) }
+        }
         // The sky is a FIXED full-bleed backdrop drawn behind the scroll content, edge-to-edge under the
         // status bar. A ScrollView background does not scroll with the content, so pulling down never
         // moves the sky (the exact behaviour the scaffold uses on the classic Today).
@@ -631,7 +725,23 @@ struct LiquidTodayView: View {
         .liquidMediumHaptic(trigger: pullHaptic)
         // hydrationSeq joins the id so logging a drink re-reads the card immediately, the same trigger set
         // classic TodayView's reloadHydration() uses.
-        .task(id: "\(repo.refreshSeq)-\(selectedDayOffset)-\(repo.hydrationSeq)-\(hydrationEnabled)-\(dayCycleModeRaw)") { await load() }
+        .task(id: loadKey) { await load() }
+        .task(id: repo.energyPresentationRevision) {
+            guard repo.energyPresentationRevision > 0 else { return }
+            let revision = repo.energyPresentationRevision
+            let values = await repo.energySummaries(
+                days: 30, profile: Repository.analyticsProfile(profile))
+            guard revision == repo.energyPresentationRevision else { return }
+            energySummariesByDay = Dictionary(values.map { ($0.day, $0) },
+                                              uniquingKeysWith: { _, latest in latest })
+        }
+        .task(id: "\(repo.hydrationSeq)-\(selectedDayKey)-\(hydrationEnabled)") {
+            guard hydrationEnabled else { hydrationTotalML = nil; return }
+            let day = selectedDayKey
+            let value = await repo.hydrationTotal(day: day)
+            guard !Task.isCancelled, day == selectedDayKey else { return }
+            hydrationTotalML = value
+        }
         // Momentum is resolved here, not in the body — see `TodayView.MomentumKey`.
         .task(id: momentumKey) { rebuildMomentum() }
         // Honour a one-shot "open Live Session" request (the coach chat's action chip, or any future
@@ -929,9 +1039,11 @@ struct LiquidTodayView: View {
                 .zIndex(1)
             }
             .onPreferenceChange(HeaderControlsWidthKey.self) { measured in
-                // Ignore sub-point churn so a rounding wobble cannot re-render the mask every frame.
-                guard measured > 0, abs(measured - headerControlsWidth) > 0.5 else { return }
-                headerControlsWidth = measured
+                Task { @MainActor in
+                    // Ignore sub-point churn so a rounding wobble cannot re-render the mask every frame.
+                    guard measured > 0, abs(measured - headerControlsWidth) > 0.5 else { return }
+                    headerControlsWidth = measured
+                }
             }
             // Subtle NOOP wordmark in the sky between header and hero. Perfectly centred (a letter row has
             // no trailing tracking gap the way `Text(...).tracking()` does), with a tap easter egg.
@@ -2110,7 +2222,62 @@ struct LiquidTodayView: View {
 
     // MARK: - Data
 
+    private struct Snapshot {
+        var hydrationTotalML: Double?
+        var hydrationGoalML: Int?
+        var restScore: Double?
+        var heroProviderByMetric: [String: ScoreInputProvider] = [:]
+        var stress: Double?
+        var fitnessAge: Double?
+        var vo2max: Double?
+        var vitality: Double?
+        var spo2CandidateByDay: [String: Double] = [:]
+        var stepsEst: Double?
+        var importedStepsDay: Int?
+        var energySummariesByDay: [String: DailyEnergySummary] = [:]
+        var resolvedWeightKg: (kg: Double, tier: WeightDisplayTier)?
+        var hrValues: [Double] = []
+        var hrTimes: [Date] = []
+        var workouts: [WorkoutRow] = []
+        var hostedSleepModel: SleepModel? = nil
+        var kSparks: [String: [(String, Double)]] = [:]
+        var cachedDisplayDay: DailyMetric?
+        var cachedReadiness: ReadinessEngine.Readiness?
+        var cachedVitalsDay: DailyMetric?
+        var cachedSpo2Day: DailyMetric?
+        var cachedSkinTempDay: DailyMetric?
+        var cachedRespDay: DailyMetric?
+        var cachedHrvDay: DailyMetric?
+        var cachedRestingHrDay: DailyMetric?
+        var cachedSkinTempReadingDay: DailyMetric?
+        var liveTodayStrain: Double?
+        var cachedChargeDisplay: ChargeDisplay = .noData
+        var cachedPriorScored: DailyMetric?
+    }
+    @State private var snapshot = Snapshot()
+    @State private var lastLoadedKey: DashboardLoadKey?
+    @State private var lastLoadedAt = Date.distantPast
+    @State private var loadGeneration = 0
+    private var loadKey: DashboardLoadKey {
+        DashboardLoadKey(repo: repo, selection: selectedDayKey,
+            preferences: "\(hydrationEnabled)-\(hostedCardsRaw)-\(dayCycleModeRaw)", profile: profile)
+    }
+
     private func load() async {
+        let key = loadKey
+        guard lastLoadedKey != key || (selectedDayOffset == 0 && Date().timeIntervalSince(lastLoadedAt) >= 120) else { return }
+        loadGeneration &+= 1
+        let generation = loadGeneration
+        let hydrationSequence = repo.hydrationSeq
+        let selectedDayKey = self.selectedDayKey
+        let selectedDayOffset = self.selectedDayOffset
+        let selectedLogicalDay = self.selectedLogicalDay
+        var next = Snapshot()
+        let allDays = repo.days
+        let day = resolveDisplayDay()
+        let hydrationEnabled = self.hydrationEnabled
+        let hostedCardsRaw = self.hostedCardsRaw
+        let dayCycleMode = self.dayCycleMode
         // Re-resolve the silent `validUntil` fallback on every (re)load, not just once at view creation —
         // a screen left open across the expiry would otherwise keep showing the stale exception state.
         let resolvedStatus = ActivityStatusStore.load()
@@ -2119,38 +2286,37 @@ struct LiquidTodayView: View {
         // #989: today's hydration total + goal. One metricSeries row + a UserDefaults read, same as classic
         // TodayView.reloadHydration(). Cleared when the feature is off so the card can't show a stale total.
         if hydrationEnabled {
-            hydrationTotalML = await repo.hydrationTotal(day: Repository.localDayKey(Date()))
-            hydrationGoalML = repo.hydrationGoalML(profileSex: profile.sex)
+            next.hydrationTotalML = await repo.hydrationTotal(day: Repository.localDayKey(Date()))
+            next.hydrationGoalML = repo.hydrationGoalML(profileSex: profile.sex)
         } else {
-            hydrationTotalML = nil
-            hydrationGoalML = nil
+            next.hydrationTotalML = nil
+            next.hydrationGoalML = nil
         }
         // Resolve the O(days) lookups ONCE here (not on every body re-render): the selected day and the
         // readiness verdict. Both scan repo.days (up to 599 rows); doing it per-render was the stutter.
-        let day = resolveDisplayDay()
-        cachedDisplayDay = day
+        next.cachedDisplayDay = day
         // Prior-day vitals carry, resolved ONCE here (never in body). Bound to today's own key so it can't
         // echo today's still-forming row; only on today (a past day's own row is the whole story).
-        let tkey = cachedDisplayDay?.day ?? selectedDayKey
-        cachedVitalsDay = (selectedDayOffset == 0) ? Repository.lastVitalsDay(days: repo.days, todayKey: tkey) : nil
+        let tkey = next.cachedDisplayDay?.day ?? selectedDayKey
+        next.cachedVitalsDay = (selectedDayOffset == 0) ? Repository.lastVitalsDay(days: allDays, todayKey: tkey) : nil
         // The two PER-FIELD carries, same rule and same key. Separate selectors because the whole-row one
         // above accepts a row whose `spo2Pct`/`skinTempDevC` is nil (computed rows always write nil there).
-        cachedSpo2Day = (selectedDayOffset == 0) ? Repository.lastSpo2Day(days: repo.days, todayKey: tkey) : nil
-        cachedSkinTempDay = (selectedDayOffset == 0) ? Repository.lastSkinTempDay(days: repo.days, todayKey: tkey) : nil
-        cachedRespDay = (selectedDayOffset == 0) ? Repository.lastRespDay(days: repo.days, todayKey: tkey) : nil
-        cachedHrvDay = (selectedDayOffset == 0) ? Repository.lastHrvDay(days: repo.days, todayKey: tkey) : nil
-        cachedRestingHrDay = (selectedDayOffset == 0) ? Repository.lastRestingHrDay(days: repo.days, todayKey: tkey) : nil
-        cachedSkinTempReadingDay = (selectedDayOffset == 0) ? Repository.lastSkinTempReadingDay(days: repo.days, todayKey: tkey) : nil
+        next.cachedSpo2Day = (selectedDayOffset == 0) ? Repository.lastSpo2Day(days: allDays, todayKey: tkey) : nil
+        next.cachedSkinTempDay = (selectedDayOffset == 0) ? Repository.lastSkinTempDay(days: allDays, todayKey: tkey) : nil
+        next.cachedRespDay = (selectedDayOffset == 0) ? Repository.lastRespDay(days: allDays, todayKey: tkey) : nil
+        next.cachedHrvDay = (selectedDayOffset == 0) ? Repository.lastHrvDay(days: allDays, todayKey: tkey) : nil
+        next.cachedRestingHrDay = (selectedDayOffset == 0) ? Repository.lastRestingHrDay(days: allDays, todayKey: tkey) : nil
+        next.cachedSkinTempReadingDay = (selectedDayOffset == 0) ? Repository.lastSkinTempReadingDay(days: allDays, todayKey: tkey) : nil
         // Charge carry (#543) + the honest label, resolved here for the same reason as the two above: the
         // selector below scans repo.days. Calibration nights come from the SAME `RecoveryScorer` helper the
         // classic Today reads, so the two screens agree on when a wearer is genuinely mid-calibration
         // rather than simply lacking a scored night.
         let calNights = (selectedDayOffset == 0)
-            ? RecoveryScorer.calibrationNights(nightlyHrv: repo.days.map(\.avgHrv),
-                                               dayKeys: repo.days.map(\.day),
+            ? RecoveryScorer.calibrationNights(nightlyHrv: allDays.map(\.avgHrv),
+                                               dayKeys: allDays.map(\.day),
                                                hasRecovery: day?.recovery != nil)
             : nil
-        let priorScored = TodayView.lastScoredRecoveryDay(days: repo.days, selectedDayKey: tkey,
+        let priorScored = TodayView.lastScoredRecoveryDay(days: allDays, selectedDayKey: tkey,
                                                            isToday: selectedDayOffset == 0,
                                                            todayScored: day?.recovery != nil,
                                                            isCalibrating: calNights != nil)
@@ -2159,10 +2325,10 @@ struct LiquidTodayView: View {
         // rollover and the readiness word would vanish/blank instead of carrying forward. Same anchor as
         // `TodayView.computeReadiness` / `HeuteRedesignView.load` — was previously anchored on `day?.day`
         // here only, which is what let this screen disagree with the other two (on-device feedback).
-        cachedReadiness = ReadinessEngine.evaluate(days: repo.days,
+        next.cachedReadiness = ReadinessEngine.evaluate(days: allDays,
                                                    today: priorScored?.day ?? Repository.logicalDayKey(Date()))
-        cachedPriorScored = priorScored
-        cachedChargeDisplay = ChargeDisplay.resolve(
+        next.cachedPriorScored = priorScored
+        next.cachedChargeDisplay = ChargeDisplay.resolve(
             todayRecovery: day?.recovery,
             priorScored: priorScored,
             calibrationNights: calNights,
@@ -2188,11 +2354,11 @@ struct LiquidTodayView: View {
         async let vo2A = repo.exploreSeries(key: "vo2max_est", source: "my-whoop")
         async let vitA = repo.exploreSeries(key: "vitality", source: "my-whoop")
         async let stepsA = repo.exploreSeries(key: "steps_est", source: "my-whoop")
-        // Queue 11a: SpO₂ candidate fallback (see `spo2CandidateByDay`'s declaration).
+        // Queue 11a: SpO₂ candidate fallback (see `next.spo2CandidateByDay`'s declaration).
         async let spo2CandA = repo.exploreSeries(key: "spo2_candidate", source: "my-whoop")
         async let appleA = repo.appleDailyRows()
         async let hrA = repo.hrBuckets(from: from, to: to, bucketSeconds: 300)
-        // `reconcileHrCap: 8` — same shape as `TodayView`: this renders `workouts.prefix(6)` and otherwise
+        // `reconcileHrCap: 8` — same shape as `TodayView`: this renders `next.workouts.prefix(6)` and otherwise
         // only uses `.count`, so the full 300-row display-only HR reconcile spent ~294 launch-path queries
         // on rows nobody sees. The budget is spent newest-first, so the six rendered cards keep their
         // trace-reconciled values. See `Repository.workoutRows(days:reconcileHrCap:)`.
@@ -2224,14 +2390,16 @@ struct LiquidTodayView: View {
         // gravity ⇒ no sleep_performance point ever written) used to pin Rest to the weeks-old series tail
         // forever while Charge advanced; freshness-gate the tail-fallback so a stale tail falls through to
         // the Rest hero's No-Data/calibrating state (same empty treatment Effort uses) instead of freezing.
-        restScore = TodayView.freshRestScore(
+        let correctedRest = DashboardRestScore.value(
+            day: selectedDayKey, days: allDays, importedSleep: repo.importedSleep)
+        next.restScore = correctedRest ?? TodayView.freshRestScore(
             todayValue: restByDay[selectedDayKey], lastDay: restSeries.last?.day,
             lastValue: restSeries.last?.value, isTodaySelected: selectedDayOffset == 0,
             todayKey: selectedDayKey)
         // StressModel loops the full history to build its baseline — run it OFF the main actor so a big
         // history doesn't stutter the UI. Snapshot the inputs (value types) into the detached task.
         let storedStress = await stressA
-        let daysSnapshot = repo.days
+        let daysSnapshot = allDays
 
         // #430 parity: the day-keyed series the DETAILED Key-Metrics tiles graph — a trailing CALENDAR
         // window ending on the selected day (not the last-N stored rows, which on an old import showed
@@ -2242,21 +2410,21 @@ struct LiquidTodayView: View {
         let sparkCutoff = Repository.localDayKey(cal.date(byAdding: .day, value: -29, to: dayStart) ?? dayStart)
         let sparkRows = daysSnapshot.filter { $0.day >= sparkCutoff && $0.day <= selectedDayKey }
         let spo2CandSeries = await spo2CandA
-        spo2CandidateByDay = Dictionary(
+        next.spo2CandidateByDay = Dictionary(
             spo2CandSeries.map { ($0.day, $0.value) },
             uniquingKeysWith: { _, last in last }
         )
         // Weight comes from the canonical resolver, which unions NOOP weigh-ins over Apple Health per day.
         let weightSeries = await weightSeriesA
-        resolvedWeightKg = WeightSeries.displayWeight(summary: await weightSummaryA,
+        next.resolvedWeightKg = WeightSeries.displayWeight(summary: await weightSummaryA,
                                                       profileWeightKg: profile.weightKg)
         let energySummaries = await energyA
-        energySummariesByDay = Dictionary(energySummaries.map { ($0.day, $0) },
+        next.energySummariesByDay = Dictionary(energySummaries.map { ($0.day, $0) },
                                           uniquingKeysWith: { _, latest in latest })
         let energyTotalSpark = energySummaries.compactMap { summary in
             summary.totalBurnedSoFar.map { (summary.day, $0) }
         }
-        kSparks = [
+        next.kSparks = [
             "recovery": sparkRows.compactMap { r in r.recovery.map { (r.day, $0) } },
             "strain": sparkRows.compactMap { r in r.strain.map { (r.day, $0) } },
             "hrv": sparkRows.compactMap { r in r.avgHrv.map { (r.day, $0) } },
@@ -2275,25 +2443,25 @@ struct LiquidTodayView: View {
                 .map { ($0.day, $0.value) },
             "weight": weightSeries.map { ($0.day, $0.value) },
         ]
-        stress = await Task.detached(priority: .utility) {
+        next.stress = await runUnescalated {
             StressModel(days: daysSnapshot, stored: storedStress)?.score
-        }.value
-        fitnessAge = (await fitA).last?.value   // history-wide latest banked (not day-scoped)
-        vo2max = (await vo2A).last?.value        // #1391: latest banked VO₂max estimate
-        vitality = (await vitA).last?.value
-        // Steps is a DAILY metric, so key it to the SELECTED day (like restScore above), not the history-wide
+        }
+        next.fitnessAge = (await fitA).last?.value   // history-wide latest banked (not day-scoped)
+        next.vo2max = (await vo2A).last?.value        // #1391: latest banked VO₂max estimate
+        next.vitality = (await vitA).last?.value
+        // Steps is a DAILY metric, so key it to the SELECTED day (like next.restScore above), not the history-wide
         // latest. Without this, swiping to a past day with no strap step count showed today's estimate (the
         // `.last` value) instead of that day's. Mirrors the classic Today's stepsEstByDay[selectedDayKey].
         let stepsByDay = Dictionary(stepsSeries.map { ($0.day, $0.value) }, uniquingKeysWith: { _, last in last })
-        stepsEst = stepsByDay[selectedDayKey] ?? (selectedDayOffset == 0 ? stepsSeries.last?.value : nil)
+        next.stepsEst = stepsByDay[selectedDayKey] ?? (selectedDayOffset == 0 ? stepsSeries.last?.value : nil)
         // Imported Apple Health steps for the SELECTED day (max across rows), the middle tier between the
         // measured strap count and the motion estimate. Health Connect is Android-only, so apple-health is
         // the sole import source on iOS. Mirrors Android `stepsForDay` (#377).
-        importedStepsDay = (await appleA).filter { $0.day == selectedDayKey }.compactMap { $0.steps }.max()
+        next.importedStepsDay = (await appleA).filter { $0.day == selectedDayKey }.compactMap { $0.steps }.max()
         let hrBuckets = await hrA
-        hrValues = hrBuckets.map { $0.bpm }
-        hrTimes = hrBuckets.map { Date(timeIntervalSince1970: TimeInterval($0.ts)) }
-        workouts = await wkA
+        next.hrValues = hrBuckets.map { $0.bpm }
+        next.hrTimes = hrBuckets.map { Date(timeIntervalSince1970: TimeInterval($0.ts)) }
+        next.workouts = await wkA
 
         let (chargeSource, effortSource, restSource) = await (chargeSourceA, effortSourceA, restSourceA)
         let sourceResolutions = [
@@ -2316,7 +2484,7 @@ struct LiquidTodayView: View {
                 )
             }
         }
-        heroProviderByMetric = providers
+        next.heroProviderByMetric = providers
 
         // #today-hosted-cards: build the shared SleepModel that backs the hosted sleep cards, but ONLY when
         // at least one sleep-origin card is actually hosted — otherwise Today pays no extra Repository cost.
@@ -2325,28 +2493,29 @@ struct LiquidTodayView: View {
         // numbers byte-identical to the Sleep tab. Reused by every SleepModel-backed hosted card (built once).
         let sleepOrigin = String(localized: "Sleep")
         if HostedCardPrefs.decodeEnabled(hostedCardsRaw).contains(where: { $0.origin == sleepOrigin }) {
-            let hostedSessions = await repo.allSleepSessions()
-            let hostedHabitual = await repo.habitualMidsleepSec()
-            let hostedMotion = await repo.sessionMotions(sessions: hostedSessions)
-            hostedSleepModel = SleepModel.build(SleepModelInputs(
-                days: repo.days,
-                sleeps: repo.sleeps,
-                allSessions: hostedSessions,
-                importedSleep: repo.importedSleep,
-                habitualMidsleepSec: hostedHabitual,
-                motionByStart: hostedMotion))
+            let revision = key.revision
+            let result = try? await sleepStore.model(repo: repo, revision: revision)
+            guard !Task.isCancelled, revision == SleepPresentationRevision(repo: repo) else { return }
+            next.hostedSleepModel = result
         } else {
-            hostedSleepModel = nil
+            next.hostedSleepModel = nil
         }
 
         // Today's in-progress Effort, DELIBERATELY last: it is the heaviest read on this pass, and every
         // surface it feeds already has a value drawn from the stored row by the time it lands. Because
         // `effectiveEffort` floors at that row, the refinement can only raise the number.
-        liveTodayStrain = selectedDayOffset == 0
-            ? await LiveEffort.today(repo: repo, profile: profile, restingHr: displayDay?.restingHr)
+        next.liveTodayStrain = selectedDayOffset == 0
+            ? await LiveEffort.today(repo: repo, profile: profile, restingHr: next.cachedDisplayDay?.restingHr)
             : nil
 
         // First load done — bring the hero gauges + sky to life now the launch churn has settled.
+
+        guard !Task.isCancelled, key == loadKey, generation == loadGeneration else { return }
+        if hydrationSequence != repo.hydrationSeq { next.hydrationTotalML = hydrationTotalML }
+        snapshot = next
+        lastLoadedKey = key
+        lastLoadedAt = Date()
+
         if !dataLoaded { withAnimation(.easeIn(duration: 0.4)) { dataLoaded = true } }
     }
 

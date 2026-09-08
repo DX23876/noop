@@ -15,7 +15,7 @@ private enum SleepGroupMutationError: Error {
 /// One cached sleep session pulled from the server's /v1/sleep. Natural key (deviceId, startTs).
 /// `stagesJSON` is the verbatim JSON array of stage segments ([{start,end,stage}]) — stored as a
 /// string so the cache stays schema-agnostic about the staging shape.
-public struct CachedSleepSession: Equatable, Codable {
+public struct CachedSleepSession: Equatable, Codable, Sendable {
     public let startTs: Int          // unix seconds
     public let endTs: Int            // unix seconds
     public let efficiency: Double?
@@ -90,7 +90,7 @@ public struct SleepSessionDeleteMutation {
 }
 
 /// One cached daily-metrics row pulled from the server's /v1/daily. Natural key (deviceId, day).
-public struct DailyMetric: Equatable, Codable {
+public struct DailyMetric: Equatable, Codable, Sendable {
     public let day: String           // YYYY-MM-DD
     public let totalSleepMin: Double?
     public let efficiency: Double?

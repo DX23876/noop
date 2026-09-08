@@ -349,8 +349,14 @@ struct LiquidVessel: View {
         _sim = State(initialValue: LiquidSim(target: value ?? 0))
     }
 
-    var body: some View {
-        if animated && !motion.poseStill(reduceMotion) { gauge } else { staticGauge }
+    @Environment(\.dashboardIsActive) private var dashboardIsActive
+    @Environment(\.scenePhase) private var scenePhase
+    @State private var isVisible = true
+
+    var body: some View { rendered.dashboardAnimationVisibility($isVisible) }
+
+    @ViewBuilder private var rendered: some View {
+        if animated && isVisible && dashboardIsActive && scenePhase == .active && !motion.poseStill(reduceMotion) { gauge } else { staticGauge }
     }
 
     private var gauge: some View {
@@ -398,8 +404,14 @@ struct LiquidTube: View {
     @ObservedObject private var motion = NoopMotionState.shared
     @State private var sim = LiquidSim(target: 0)
 
-    var body: some View {
-        if animated && !motion.poseStill(reduceMotion) { liveTube } else { staticTube }
+    @Environment(\.dashboardIsActive) private var dashboardIsActive
+    @Environment(\.scenePhase) private var scenePhase
+    @State private var isVisible = true
+
+    var body: some View { rendered.dashboardAnimationVisibility($isVisible) }
+
+    @ViewBuilder private var rendered: some View {
+        if animated && isVisible && dashboardIsActive && scenePhase == .active && !motion.poseStill(reduceMotion) { liveTube } else { staticTube }
     }
 
     private var liveTube: some View {
@@ -442,8 +454,14 @@ struct LiquidThread: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @ObservedObject private var motion = NoopMotionState.shared
 
-    var body: some View {
-        if animated && !motion.poseStill(reduceMotion) { liveThread } else { staticThread }
+    @Environment(\.dashboardIsActive) private var dashboardIsActive
+    @Environment(\.scenePhase) private var scenePhase
+    @State private var isVisible = true
+
+    var body: some View { rendered.dashboardAnimationVisibility($isVisible) }
+
+    @ViewBuilder private var rendered: some View {
+        if animated && isVisible && dashboardIsActive && scenePhase == .active && !motion.poseStill(reduceMotion) { liveThread } else { staticThread }
     }
 
     private var liveThread: some View {

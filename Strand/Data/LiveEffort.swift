@@ -39,10 +39,14 @@ enum LiveEffort {
         let dayStart = Calendar.current.startOfDay(for: Repository.logicalDay(Date()))
         let from = Int(dayStart.timeIntervalSince1970)
         let to = Int(Date().timeIntervalSince1970)
-        let hr = await repo.hrSamples(from: from, to: to)
         let maxHR = profile.age > 0 ? StrainScorer.tanakaHRmax(age: Double(profile.age)) : nil
         let restHR = restingHr.map(Double.init) ?? StrainScorer.defaultRestingHR
-        return StrainScorer.strain(hr, maxHR: maxHR, restingHR: restHR,
-                                   method: PuffinExperiment.effortMethod, sex: profile.sex)
+        let method = PuffinExperiment.effortMethod
+        let sex = profile.sex
+        let hr = await repo.hrSamples(from: from, to: to)
+        guard !Task.isCancelled else { return nil }
+        return await runUnescalated {
+            StrainScorer.strain(hr, maxHR: maxHR, restingHR: restHR, method: method, sex: sex)
+        }
     }
 }

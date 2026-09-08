@@ -88,9 +88,12 @@ struct LiquidSky: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @ObservedObject private var motion = NoopMotionState.shared
 
+    @Environment(\.dashboardIsActive) private var dashboardIsActive
+    @Environment(\.scenePhase) private var scenePhase
+
     var body: some View {
         TimelineView(.animation(minimumInterval: 1.0 / 20.0,
-                                paused: motion.poseStill(reduceMotion))) { tl in
+                                paused: !dashboardIsActive || scenePhase != .active || motion.poseStill(reduceMotion))) { tl in
             let now = liquidSeconds(tl.date)
             let h = hour ?? liveHour()
             // The sky must dissolve into the SAME canvas colour the body uses (theme-aware surfaceBase),

@@ -3,21 +3,30 @@ import StrandAnalytics
 import WhoopProtocol
 import WhoopStore
 
-@MainActor enum DayCycleIntelligenceIntegration {
+/// Serial owner of the day-cycle cache. Large raw-sample folds never execute on the UI actor.
+actor DayCycleIntelligenceIntegration {
     static let onsetKey = "day_cycle_onset_ts"
     static let pageSize = 10_000
 
-    struct Night { let daily: DailyMetric; let sleeps: [CachedSleepSession]; let workouts: [ExerciseSession]; let owner: String }
-    struct SourcedMarker: Sendable { let deviceId: String; let point: MetricPoint }
-    struct BoundaryRecoveryReader {
-        let sleepSessions: (String, Int, Int) async throws -> [CachedSleepSession]
-        let markers: (String, String, String) async throws -> [MetricPoint]
+    struct Night: Sendable {
+        let daily: DailyMetric
+        let sleeps: [CachedSleepSession]
+        let workouts: [ExerciseSession]
+        let owner: String
+        /// The analysis fingerprint proved this day unchanged, so its already-persisted activity values
+        /// can be reused when neither of the window's two sleep-onset boundaries moved.
+        var reused = false
     }
-    enum MarkerUpdate {
+    struct SourcedMarker: Sendable { let deviceId: String; let point: MetricPoint }
+    struct BoundaryRecoveryReader: Sendable {
+        let sleepSessions: @Sendable (String, Int, Int) async throws -> [CachedSleepSession]
+        let markers: @Sendable (String, String, String) async throws -> [MetricPoint]
+    }
+    enum MarkerUpdate: Sendable {
         case preserve
         case replace(points: [SourcedMarker], sourceIds: [String])
     }
-    struct Result {
+    struct Result: Sendable {
         let stepsByWakeDay: [String: Int]
         let strainByWakeDay: [String: Double]
         let caloriesByWakeDay: [String: Double]
@@ -26,7 +35,7 @@ import WhoopStore
         let firstWakeDay: String?
         let markerUpdate: MarkerUpdate
     }
-    struct PersistedBoundary {
+    struct PersistedBoundary: Sendable {
         let boundary: PhysiologicalSteps.CycleBoundary
         let wakeDay: String
         let owner: String
@@ -39,6 +48,22 @@ import WhoopStore
     final class Cache {
         fileprivate var cycles: [String: CachedCycle] = [:]
     }
+    private let cache = Cache()
+    private var computing = false
+    private var pending: [CheckedContinuation<Void, Never>] = []
+
+    // Actor reentrancy at database awaits must not interleave two analysis passes over this cache.
+    private func acquire() async {
+        if computing {
+            await withCheckedContinuation { pending.append($0) }
+        } else { computing = true }
+    }
+
+    private func release() {
+        if pending.isEmpty { computing = false }
+        else { pending.removeFirst().resume() }
+    }
+
     private static func computedId(_ owner: String) -> String { owner + "-noop" }
 
     static func recover(candidates: [(owner: String, priority: Int)], reader: BoundaryRecoveryReader,
@@ -50,6 +75,7 @@ import WhoopStore
         for candidate in candidates.sorted(by: {
             $0.priority == $1.priority ? $0.owner < $1.owner : $0.priority < $1.priority
         }) {
+            try Task.checkCancellation()
             let source = computedId(candidate.owner)
             let sessions = try await reader.sleepSessions(source, windowStart, now)
             let points = try await reader.markers(source, fromDay, toDay)
@@ -61,6 +87,7 @@ import WhoopStore
                 AnalyticsEngine.dayString($0.endTs, offsetSec: offsetSec)
             }
             for day in grouped.keys.sorted() where !claimed.contains(day) {
+                try Task.checkCancellation()
                 guard let marker = markers[day] else { continue }
                 let rows = grouped[day] ?? []
                 let blocks = rows.map { PhysiologicalSteps.SleepBlock(
@@ -84,19 +111,22 @@ import WhoopStore
         return output
     }
 
-    static func compute(nights: [Night], editedRows: [CachedSleepSession], store: WhoopStore,
+    func compute(nights: [Night], editedRows: [CachedSleepSession], store: WhoopStore,
                         candidates: [(owner: String, priority: Int)], physiologyOwners: [String],
                         workouts: [WorkoutRow], windowStart: Int,
                         now: Int, offsetSec: Int, habitualMidsleepSec: Int?, ticksPerStep: Double,
-                        mode: DayCycleMode, cache: Cache,
+                        mode: DayCycleMode,
                         profile: UserProfile, maxHROverride: Double?, effortMethod: StrainScorer.Method,
                         recoveryReader: BoundaryRecoveryReader? = nil,
-                        trace: ((String) -> Void)? = nil) async -> Result {
+                        trace: (@Sendable (String) -> Void)? = nil) async throws -> Result {
+        await acquire()
+        defer { release() }
+        try Task.checkCancellation()
         guard mode == .sleepOnset else {
             return Result(stepsByWakeDay: [:], strainByWakeDay: [:], caloriesByWakeDay: [:],
                           workoutCountByWakeDay: [:], onsetByWakeDay: [:], firstWakeDay: nil,
                           markerUpdate: .replace(points: [], sourceIds: Array(Set(
-                            candidates.map { computedId($0.owner) })).sorted()))
+                            candidates.map { Self.computedId($0.owner) })).sorted()))
         }
         let editsByDay = Dictionary(grouping: editedRows) {
             AnalyticsEngine.dayString($0.endTs, offsetSec: offsetSec)
@@ -140,12 +170,14 @@ import WhoopStore
                 },
                 markers: { source, fromDay, toDay in
                     try await store.metricSeries(
-                        deviceId: source, key: onsetKey, from: fromDay, to: toDay)
+                        deviceId: source, key: Self.onsetKey, from: fromDay, to: toDay)
                 })
-            recovered = try await recover(candidates: candidates,
+            recovered = try await Self.recover(candidates: candidates,
                 reader: recoveryReader ?? productionReader,
                 claimedDays: Set(wakeDayById.values), windowStart: windowStart, now: now,
                 offsetSec: offsetSec, habitualMidsleepSec: habitualMidsleepSec)
+        } catch is CancellationError {
+            throw CancellationError()
         } catch {
             // Fail closed: an unread namespace is unknown, not empty. Returning no replacement source IDs
             // prevents the persistence transaction from deleting valid markers after a transient read error.
@@ -182,47 +214,64 @@ import WhoopStore
         var steps: [String: Int] = [:], onsets: [String: Int] = [:]
         var strains: [String: Double] = [:], calories: [String: Double] = [:]
         var workoutCounts: [String: Int] = [:]
-        windowLoop: for window in windows {
+        let recomputedDays = Set(nights.lazy.filter { !$0.reused }.map { $0.daily.day })
+        windowLoop: for (windowIndex, window) in windows.enumerated() {
+            try Task.checkCancellation()
             guard let day = wakeDayById[window.sleepId], let fallback = ownerById[window.sleepId] else { continue }
             do {
             onsets[day] = window.onset
-            // Store ranges are inclusive. Read the active-first WHOOP + canonical union without borrowing
-            // step coverage: an HR-only device may legitimately have no step rows.
-            let hrEndInclusive = window.endExclusive - 1
-            let owners = ([fallback] + physiologyOwners).reduce(into: [String]()) {
-                if !$0.contains($1) { $0.append($1) }
-            }
-            var hrByTimestamp: [Int: HRSample] = [:]
-            if hrEndInclusive >= window.onset {
-                for owner in owners {
-                    let rows = (try? await store.hrSamples(
-                        deviceId: owner, from: window.onset, to: hrEndInclusive, limit: 200_000)) ?? []
-                    for row in rows where hrByTimestamp[row.ts] == nil { hrByTimestamp[row.ts] = row }
+            // Changing an onset changes its own window start and the preceding window's end. Every other
+            // fingerprint-reused day already holds the exact strain/calorie/workout result this fold would
+            // reproduce, so keep it instead of re-reading up to 200k HR rows for every historical day.
+            let nextDay = windows.indices.contains(windowIndex + 1)
+                ? wakeDayById[windows[windowIndex + 1].sleepId] : nil
+            let persisted = nights.first(where: { $0.daily.day == day })?.daily
+            let activityNeedsRecompute = persisted == nil || recomputedDays.contains(day)
+                || nextDay.map { recomputedDays.contains($0) } == true
+            if !activityNeedsRecompute, let persisted {
+                if let value = persisted.strain { strains[day] = value }
+                if let value = persisted.activeKcalEst { calories[day] = value }
+                if let value = persisted.exerciseCount { workoutCounts[day] = value }
+            } else {
+                // Store ranges are inclusive. Read the active-first WHOOP + canonical union without
+                // borrowing step coverage: an HR-only device may legitimately have no step rows.
+                let hrEndInclusive = window.endExclusive - 1
+                let owners = ([fallback] + physiologyOwners).reduce(into: [String]()) {
+                    if !$0.contains($1) { $0.append($1) }
                 }
-            }
-            let cycleHR = hrByTimestamp.values.sorted { $0.ts < $1.ts }
-            let restingHR = nights.first(where: { $0.daily.day == day })?.daily.restingHr.map(Double.init)
-                ?? StrainScorer.defaultRestingHR
-            let effectiveMaxHR = maxHROverride ?? (profile.age > 0 ? StrainScorer.tanakaHRmax(age: profile.age) : nil)
-            if let strain = StrainScorer.strain(cycleHR, maxHR: effectiveMaxHR,
-                                                restingHR: restingHR, method: effortMethod,
-                                                sex: profile.sex) { strains[day] = strain }
-            if !cycleHR.isEmpty {
-                calories[day] = Calories.estimateDayCalories(
-                    cycleHR, profile: profile, hrmax: effectiveMaxHR, restingHR: restingHR)
-            }
-            let persistedWorkoutKeys = workouts
-                .filter { $0.startTs >= window.onset && $0.startTs < window.endExclusive }
-                .map { "\($0.startTs):\($0.endTs)" }
-            let freshDetectedKeys = nights.flatMap(\.workouts)
-                .filter { $0.start >= window.onset && $0.start < window.endExclusive }
-                .filter { detected in
-                    !workouts.contains { persisted in
-                        detected.start < persisted.endTs && persisted.startTs < detected.end
+                var hrByTimestamp: [Int: HRSample] = [:]
+                if hrEndInclusive >= window.onset {
+                    for owner in owners {
+                        try Task.checkCancellation()
+                        let rows = (try? await store.hrSamples(
+                            deviceId: owner, from: window.onset, to: hrEndInclusive, limit: 200_000)) ?? []
+                        for row in rows where hrByTimestamp[row.ts] == nil { hrByTimestamp[row.ts] = row }
                     }
                 }
-                .map { "\($0.start):\($0.end)" }
-            workoutCounts[day] = Set(persistedWorkoutKeys + freshDetectedKeys).count
+                let cycleHR = hrByTimestamp.values.sorted { $0.ts < $1.ts }
+                let restingHR = persisted?.restingHr.map(Double.init) ?? StrainScorer.defaultRestingHR
+                let effectiveMaxHR = maxHROverride
+                    ?? (profile.age > 0 ? StrainScorer.tanakaHRmax(age: profile.age) : nil)
+                if let strain = StrainScorer.strain(cycleHR, maxHR: effectiveMaxHR,
+                                                    restingHR: restingHR, method: effortMethod,
+                                                    sex: profile.sex) { strains[day] = strain }
+                if !cycleHR.isEmpty {
+                    calories[day] = Calories.estimateDayCalories(
+                        cycleHR, profile: profile, hrmax: effectiveMaxHR, restingHR: restingHR)
+                }
+                let persistedWorkoutKeys = workouts
+                    .filter { $0.startTs >= window.onset && $0.startTs < window.endExclusive }
+                    .map { "\($0.startTs):\($0.endTs)" }
+                let freshDetectedKeys = nights.flatMap(\.workouts)
+                    .filter { $0.start >= window.onset && $0.start < window.endExclusive }
+                    .filter { detected in
+                        !workouts.contains { persisted in
+                            detected.start < persisted.endTs && persisted.startTs < detected.end
+                        }
+                    }
+                    .map { "\($0.start):\($0.end)" }
+                workoutCounts[day] = Set(persistedWorkoutKeys + freshDetectedKeys).count
+            }
             var ranked = priorities; ranked[fallback] = ranked[fallback] ?? ranked.values.min() ?? 0
             var coverage: [PhysiologicalSteps.OwnerCoverage] = []
             for (owner, priority) in ranked {
@@ -273,13 +322,14 @@ import WhoopStore
                     }
                     var cursor = segment.onset - 1
                     while cursor < segment.endExclusive {
+                        try Task.checkCancellation()
                         let page = try await store.stepSamplesPage(deviceId: segment.owner,
-                            afterExclusive: cursor, endExclusive: segment.endExclusive, limit: pageSize)
+                            afterExclusive: cursor, endExclusive: segment.endExclusive, limit: Self.pageSize)
                         guard !page.isEmpty else { break }
                         accumulator.acceptPage(page); pages += 1; samples += page.count; segmentSamples += page.count
                         guard let last = page.last, last.ts >= cursor else { break }
                         cursor = last.ts
-                        if page.count < pageSize { break }
+                        if page.count < Self.pageSize { break }
                     }
                     let motion = try? await store.stepDiagnosticMotionCounts(
                         deviceId: segment.owner, from: segment.onset, to: segment.endExclusive)
@@ -303,18 +353,20 @@ import WhoopStore
                 + "rejectedImplausible=\(result.count.rejectedImplausibleTicks) "
                 + "gravitySamples=\(result.count.gravitySamplesAvailable) auxSamples=\(result.count.auxSamplesAvailable) "
                 + "ticksPerStep=\(ticksPerStep) scaledSteps=\(scaled)")
+            } catch is CancellationError {
+                throw CancellationError()
             } catch {
                 trace?("stepsCycle wakeDay=\(day) status=error error=databaseRead")
                 continue windowLoop
             }
         }
-        let recoveredMarkers = recovered.map { SourcedMarker(deviceId: computedId($0.owner),
-            point: MetricPoint(day: $0.wakeDay, key: onsetKey, value: Double($0.boundary.onset))) }
+        let recoveredMarkers = recovered.map { SourcedMarker(deviceId: Self.computedId($0.owner),
+            point: MetricPoint(day: $0.wakeDay, key: Self.onsetKey, value: Double($0.boundary.onset))) }
         return Result(stepsByWakeDay: steps, strainByWakeDay: strains, caloriesByWakeDay: calories,
             workoutCountByWakeDay: workoutCounts, onsetByWakeDay: onsets,
             firstWakeDay: wakeDayById.values.min(), markerUpdate: .replace(
                 points: recoveredMarkers,
-                sourceIds: Array(Set(candidates.map { computedId($0.owner) })).sorted()))
+                sourceIds: Array(Set(candidates.map { Self.computedId($0.owner) })).sorted()))
     }
 
     static func applying(_ result: Result, to daily: DailyMetric) -> DailyMetric {
@@ -335,4 +387,13 @@ import WhoopStore
             energyCoverageSeconds: daily.energyCoverageSeconds,
             skinTempC: daily.skinTempC, sleepHrOnly: daily.sleepHrOnly)
     }
+}
+
+/// The worker writes trace lines; the engine drains them after the awaited computation.
+/// A lock also makes the Sendable callback safe if tracing gains another producer.
+final class DayCycleTraceBuffer: @unchecked Sendable {
+    private let lock = NSLock()
+    private var storage: [String] = []
+    func append(_ line: String) { lock.lock(); defer { lock.unlock() }; storage.append(line) }
+    var lines: [String] { lock.lock(); defer { lock.unlock() }; return storage }
 }

@@ -156,13 +156,35 @@ points between generations; everything downstream of `parseFrame` is generation-
 
 ## 4. The actor / concurrency model
 
-Concurrency is deliberately split between two isolation domains plus a serial drain:
+Concurrency separates UI publication from database reads and CPU-heavy presentation/analysis work:
 
 | Component | Isolation | Why |
 |---|---|---|
 | `WhoopStore` | **`actor`** | GRDB's `DatabaseQueue` calls block; the actor moves that blocking off the main thread onto its own serial executor. `DatabaseQueue` (not `DatabasePool`) is kept on purpose — the actor provides serialization. |
 | `AppModel`, `LiveState`, `Repository`, `BLEManager`, `FrameRouter`, `Collector`, `Backfiller` | **`@MainActor`** | These observe/mutate published UI state. CoreBluetooth's central is created on `queue: .main`, so delegate callbacks already arrive on the main actor — no hopping needed to update `LiveState`. |
+| `DayCycleIntelligenceIntegration` | **worker actor with FIFO admission** | Owns the day-cycle cache and folds HR/step pages outside the main actor. Admission remains held across database awaits; cancellation is checked between windows/pages. The engine applies the returned value and buffered diagnostics on the main actor. |
+| `SleepPresentationStore` | **scene-local `@MainActor` cache; detached value preparation** | Coalesces history, selected-night motion and HR reads across Sleep and hosted cards. Immutable inputs and prepared `Sendable` values cross the worker boundary; only completed, current revisions reach the UI. |
 | Historical frame drain | **serial Task queue** | `BLEManager.routeBackfillFrame` appends frames synchronously (delegate order) and a single drain `Task` awaits `Backfiller.ingest` one frame at a time, so `HISTORY_START → data → HISTORY_END` chunk assembly can never be reordered. |
+
+Dashboard roots avoid observing the high-frequency `AppModel`; live body-clock and cycle readouts
+observe it in leaf views. Sleep and Trends expose cards directly to the scaffold's lazy column.
+Classic keeps its existing lazy layout; Liquid, Trends Dashboard and Overview build long lists lazily.
+Dashboard loaders capture their identity before awaiting, collect a snapshot, then validate cancellation,
+data revision, source, day and relevant settings before publication. Hydration has an independent read.
+Explicit sleep edits also advance `Repository.sleepPresentationRevision`, including edits older than
+the normal recent-row refresh window. A cancelled consumer does not cancel a shared presentation read;
+invalidating its revision rejects late results for every waiter. Liquid decorative timelines pause when
+their card is not visible, their tab is inactive, or the scene is inactive.
+
+Sleep scores shown by dashboards resolve from the latest corrected daily record before falling back to a
+cached metric series. Energy window replacement advances a separate presentation revision so every Today
+dashboard reloads only its calorie value and sparkline after a detail rebuild. Large on-device databases
+use two concurrent GRDB readers: this preserves WAL overlap while preventing several full-history scans
+from saturating CPU and storage at the expense of scrolling. Repository keeps the observable registry's
+WHOOP source IDs in memory, so visible charts do not perform synchronous registry reads on the main actor
+while analysis occupies the database pool.
+Long analysis and step-calibration scans run at background priority through a continuation bridge, so an
+awaiting main-actor task cannot raise them back to interactive priority and compete with scrolling.
 
 The key invariant: **frames are buffered synchronously in delegate-callback order**, and only the
 slow work (decode + `await store.insert`) crosses into the store actor. `Collector.flush()` and

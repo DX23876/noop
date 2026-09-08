@@ -10,9 +10,6 @@ struct CoachGoalJourneyScreen: View {
                        subtitle: "Your target, your pace, your progress.") {
             CoachGoalJourneyView()
         }
-        // TEMP DIAGNOSTIC (#freeze-investigation): timestamps the moment this screen is built, so the
-        // analytics log lines can be read as before/during/after the tap. Remove with the other markers.
-        .onAppear { NSLog("[FREEZE-DIAG] >>> CoachGoalJourneyScreen onAppear (Goal & Journey opened)") }
     }
 }
 

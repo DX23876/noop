@@ -96,14 +96,6 @@ extension WhoopStore {
             WHERE deviceId = ? AND ts >= ? AND ts <= ?
             """
         return try await asyncRead { db in
-            // TEMP DIAGNOSTIC (#freeze-investigation) — time the query ITSELF, inside the read block.
-            // The caller already logs the total wall time of the `await`; the difference between the two is
-            // the wait to get onto `WhoopStore`'s serial actor executor (`syncRead` blocks it for the whole
-            // query, so a read queues behind any in-flight write). A 7.8 s total on an indexed COUNT over
-            // ~570 k rows is not something SQLite can spend COMPUTING, and this split proves where it went.
-            // The one-shot query plan rules out the other candidate: a full table scan instead of the
-            // (deviceId, ts) primary-key index. Remove with the rest of the FREEZE-DIAG block.
-            let diagStart = Date()
             // COUNT(*) and COALESCE(MAX(ts),0) are both NON-NULL, and the aggregate query always returns
             // exactly one row, so fetchOne is non-nil and the columns read straight into Int. The guard is
             // belt-and-suspenders.
@@ -111,17 +103,6 @@ extension WhoopStore {
                                              arguments: [deviceId, from, to]) else { return (0, 0) }
             let c: Int = row["c"]
             let m: Int = row["m"]
-            let diagSec = Date().timeIntervalSince(diagStart)
-            NSLog("[FREEZE-DIAG] hrFingerprint QUERY itself took=\(String(format: "%.3f", diagSec))s rows=\(c)")
-            // Only dump the plan when the query itself was slow — self-limiting (no state to latch), and it
-            // fires exactly in the case worth explaining. Expect `SEARCH hrSample USING ... (deviceId=?)`;
-            // a `SCAN hrSample` would mean the primary-key index isn't being used at all.
-            if diagSec > 1.0 {
-                let plan = (try? Row.fetchAll(db, sql: "EXPLAIN QUERY PLAN " + sql,
-                                              arguments: [deviceId, from, to])) ?? []
-                let detail = plan.compactMap { $0["detail"] as String? }
-                NSLog("[FREEZE-DIAG] hrFingerprint QUERY PLAN: \(detail.joined(separator: " | "))")
-            }
             return (c, m)
         }
     }
@@ -154,16 +135,12 @@ extension WhoopStore {
     /// Un-scoped `COUNT(*)` (no WHERE) is the shape SQLite answers from the smallest index b-tree.
     public nonisolated func syncedRowCount() async throws -> Int {
         try await asyncRead { db in
-            let diagStart = Date()
             var total = 0
             for table in ["hrSample", "rrInterval", "event", "battery", "spo2Sample",
                           "skinTempSample", "respSample", "gravitySample", "stepSample",
                           "ppgHrSample", "sleepStateSample"] {
                 total += try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM \(table)") ?? 0
             }
-            // TEMP DIAGNOSTIC (#freeze-investigation): this replaces a single scoped COUNT that measured
-            // 7.8 s on a large library, so its own cost has to be visible. Remove with the FREEZE-DIAG block.
-            NSLog("[FREEZE-DIAG] syncedRowCount QUERY itself took=\(String(format: "%.3f", Date().timeIntervalSince(diagStart)))s rows=\(total)")
             return total
         }
     }

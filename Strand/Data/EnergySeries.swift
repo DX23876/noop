@@ -400,6 +400,8 @@ extension Repository {
         } catch {
             return
         }
+        // Publish only after the atomic replacement succeeded, including every calibration exit below.
+        defer { noteEnergyPresentationChanged() }
 
         guard EnergyCalibrationPreferences.enabled else { return }
         let referenceRows = (try? await store.healthEnergyBuckets(

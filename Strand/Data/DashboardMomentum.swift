@@ -36,6 +36,21 @@ enum DashboardMomentum {
         static let stepGoal = "momentum.stepGoal"
     }
 
+    struct LiveInput {
+        let healthAlertCopy: String?
+        let strapHoursRemaining: Double?
+        let cyclePhaseTitle: String?
+        let cycleDayRange: String?
+        @MainActor init(model: AppModel?) {
+            healthAlertCopy = model?.healthAlert.map { localizedHealthAlertCopy($0) }
+            strapHoursRemaining = model?.live.batteryEstimate?.hoursRemaining
+            cyclePhaseTitle = model?.cyclePhase.map { DashboardMomentum.cyclePhaseTitle($0.phase) }
+            if let phase = model?.cyclePhase, let lo = phase.cycleDayLow, let hi = phase.cycleDayHigh {
+                cycleDayRange = lo == hi ? String(localized: "~day \(lo)") : String(localized: "~day \(lo)-\(hi)")
+            } else { cycleDayRange = nil }
+        }
+    }
+
     /// Build the context from what a dashboard holds. Every argument is a plain value the caller already
     /// resolved for its own rendering, so nothing here re-reads the store or re-derives a day.
     static func context(displayDay: DailyMetric?,
@@ -44,7 +59,7 @@ enum DashboardMomentum {
                         isToday: Bool,
                         steps: DailyStepsReading?,
                         stepGoal: Int,
-                        model: AppModel) -> MomentumBuilder.Context {
+                        live: LiveInput) -> MomentumBuilder.Context {
         var c = MomentumBuilder.Context()
         c.displayDay = displayDay
         c.allDays = allDays
@@ -82,21 +97,10 @@ enum DashboardMomentum {
 
         // The raised alert's copy is the SAME string the Today banner renders, so the feed and the
         // banner cannot describe one alert two ways.
-        c.healthAlertCopy = model.healthAlert.map { localizedHealthAlertCopy($0) }
-
-        // Read, not observed. `AppModel.live` is a plain `let`, so touching it here — inside a load, not
-        // a body — costs nothing; an `@EnvironmentObject live` on a dashboard would re-evaluate the whole
-        // screen on every ~1 Hz strap tick, which is the regression these screens just had removed.
-        c.strapHoursRemaining = model.live.batteryEstimate?.hoursRemaining
-
-        if let phase = model.cyclePhase {
-            c.cyclePhaseTitle = cyclePhaseTitle(phase.phase)
-            if let lo = phase.cycleDayLow, let hi = phase.cycleDayHigh {
-                c.cycleDayRange = lo == hi
-                    ? String(localized: "~day \(lo)")
-                    : String(localized: "~day \(lo)-\(hi)")
-            }
-        }
+        c.healthAlertCopy = live.healthAlertCopy
+        c.strapHoursRemaining = live.strapHoursRemaining
+        c.cyclePhaseTitle = live.cyclePhaseTitle
+        c.cycleDayRange = live.cycleDayRange
         return c
     }
 

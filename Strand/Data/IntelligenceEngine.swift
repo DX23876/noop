@@ -109,7 +109,7 @@ final class IntelligenceEngine: ObservableObject {
         return .migrate(from: storedVersion, to: currentAnalysisRecipeVersion)
     }
 
-    private let dayCycleCache = DayCycleIntelligenceIntegration.Cache()
+    private let dayCycleWorker = DayCycleIntelligenceIntegration()
 
     private let repo: Repository
     private let profile: ProfileStore
@@ -838,7 +838,7 @@ final class IntelligenceEngine: ObservableObject {
         let devices = (try? registry.all()) ?? []
         let activeId = (try? registry.activeDeviceId()) ?? fallbackId
 
-        let updates: [(day: String, strain: Double?)] = await runUnescalated {
+        let updates: [(day: String, strain: Double?)] = await runUnescalated(priority: .background) {
             var result: [(day: String, strain: Double?)] = []
             result.reserveCapacity(batch.count)
             for row in batch {
@@ -915,9 +915,7 @@ final class IntelligenceEngine: ObservableObject {
             NSLog("IntelligenceEngine: timestamp heal (#547) FAILED , \(error); will retry next launch")
             return   // leave the flag unset so a transient failure retries
         }
-        NSLog("[FREEZE-DIAG] runTimestampHealIfNeeded: didChange=\(result.didChange) rawDeleted=\(result.rawRowsDeleted) computedDeleted=\(result.computedRowsDeleted) (pending=\(pending))")
         if result.didChange {
-            NSLog("[FREEZE-DIAG] runTimestampHealIfNeeded: scheduling bounded repair rescore (maxDays=\(historyDays))")
             diagnosticSink?("Heal(#547): purged \(result.rawRowsDeleted) raw + \(result.computedRowsDeleted) computed row(s) with implausible (bad-clock) timestamps; rescoring the real days.", nil)
             // Recompute the affected real days from the surviving raw rows so the polluted (e.g. 721)
             // blocks regenerate cleanly. The dashboard refresh happens inside analyzeRecent on persist.
@@ -1154,22 +1152,6 @@ final class IntelligenceEngine: ObservableObject {
     private func performAnalyzeRecent(maxDays: Int, force: Bool, skipIfUnchanged: Bool,
                                       allowDayReuse: Bool, reason: AnalysisReason,
                                       affectedUTCInterval: Range<Int>?) async {
-        // TEMP DIAGNOSTIC (#freeze-investigation) — remove once the Goal & Journey freeze is understood.
-        // Logs WHO calls this, with WHAT window, and how long the pass takes, so a UI freeze can be tied
-        // to a concrete caller + workload instead of guessed at from a paused stack.
-        let diagStart = Date()
-        let diagCaller = Thread.callStackSymbols.dropFirst().prefix(6).joined(separator: " <- ")
-        // `allowDayReuse` and `skipIfUnchanged` decide whether this pass may skip days it has already
-        // scored — the difference between a few seconds and, on a deep library, tens of minutes. They were
-        // missing from this line, so a log showing a full re-derivation could not say WHETHER reuse had
-        // been refused by the caller or attempted and missed. That is the gap the async `caller:` stack
-        // cannot close: it unwinds into concurrency trampolines, not into the call site.
-        NSLog("[FREEZE-DIAG] analyzeRecent ENTER maxDays=\(maxDays) force=\(force) "
-            + "allowDayReuse=\(allowDayReuse) skipIfUnchanged=\(skipIfUnchanged) reason=\(reason) "
-            + "computing=\(computing)\n  caller: \(diagCaller)")
-        defer {
-            NSLog("[FREEZE-DIAG] analyzeRecent EXIT maxDays=\(maxDays) force=\(force) took=\(String(format: "%.2f", Date().timeIntervalSince(diagStart)))s")
-        }
         // Progress starts the moment the pass does and is cleared on EVERY exit — including the early
         // `return`s below (no store, missing metric config) and a thrown error. A progress card left on
         // screen by a pass that already gave up would be the same lie as the spinner it replaces.
@@ -1214,15 +1196,12 @@ final class IntelligenceEngine: ObservableObject {
         // mutation in the app (ingest, timestamp heal, per-device delete, serial re-point), and it is
         // MONOTONE, so unlike a row count it cannot return to an earlier value after a delete-then-
         // resync and go blind the way (1) did. See `WhoopStore.bumpSensorWriteSeq`.
-        let diagFpStart = Date()
         let wmKey: String = (try? await store.sensorWriteSeq()).map(String.init) ?? ""
         let storedWatermark = UserDefaults.standard.string(forKey: Self.analyzeWatermarkKey)
-        NSLog("[FREEZE-DIAG] sensorWriteSeq took=\(String(format: "%.3f", Date().timeIntervalSince(diagFpStart)))s key=\(wmKey)")
         // (The hrSample partition census lives in `AppModel`'s launch sequence, not here: this function is
         // reached only after the launch waits, so a census here never appeared on a slow launch.)
         if !force, !wmKey.isEmpty,
            storedWatermark == wmKey {
-            NSLog("[FREEZE-DIAG] analyzeRecent SHORT-CIRCUIT (unchanged fingerprint) — no work done")
             return
         }
         // #1196/#1146: a FORCED post-offload pass can opt into the same fingerprint gate. An empty/duplicate
@@ -1551,7 +1530,7 @@ final class IntelligenceEngine: ObservableObject {
         let (scanned, skippedDayLines, reusedDays, reuseMissesByDay, firstSemanticMismatch):
             ([DayScan], [String], [String], [(day: String, misses: [String])],
              (day: String, stored: String)?) =
-        await runUnescalated {
+        await runUnescalated(priority: .background) {
             var out: [DayScan] = []
             // Days reused from their persisted row (fingerprint matched) — carried out so the main-actor
             // fold can rebuild their pass-2 state, and so the RECONCILIATION below can tell them apart from
@@ -1580,9 +1559,8 @@ final class IntelligenceEngine: ObservableObject {
             for offset in 0..<maxDays {
                 // Cooperative hand-off between days (#goal-journey-freeze). Each day below is 10-18 s of
                 // uninterrupted array crunching on a library with a deep raw-HR history (~190 k HR +
-                // 200 k R-R samples per 54 h night window), and the enclosing `Task.detached(priority:
-                // .utility)` is PRIORITY-ESCALATED to the awaiting caller's QoS — this class is
-                // `@MainActor`, so the "background" scan actually competes with the UI. Without a
+                // 200 k R-R samples per 54 h night window). `runUnescalated(priority: .background)`
+                // keeps that work below interactive UI QoS even though this class is `@MainActor`. Without a
                 // suspension point the whole 21-day pass runs as one unbroken block and any view that
                 // needs a second layout pass (Goal & Journey does) waits minutes for it. `Task.yield()`
                 // costs nothing when the CPU is free and changes NO computed value — the loop body,
@@ -1616,17 +1594,9 @@ final class IntelligenceEngine: ObservableObject {
                 // this resolves to `deviceId` (active strap, has data → priority 0), so nothing changes; with
                 // multiple sources the day is scored from exactly one (active strap > other live straps >
                 // imports, or a locked override). Falls back to `deviceId` if the registry is unreadable.
-                // NOT a cost centre — measured, so nobody re-opens this. The suspicion was that on a
-                // multi-source install (where the #970 single-device fast path does not apply) the per-day
-                // `hrSamples(…, limit: 1)` probe would be expensive, because SQLite would have to satisfy
-                // the ORDER BY over the whole UNION — including the correlated NOT EXISTS — before it could
-                // apply the LIMIT. It does not: it plans the union as a MERGE of two already-ordered index
-                // scans and stops at the first row. Timed against 1.8 M rows: 62 µs.
-                let diagIterStart = Date()
                 let owner = await Self.resolveDayOwner(day: day, from: from, to: to, store: store,
                                                        devices: regDevices, activeId: regActiveId,
                                                        registry: registry, fallbackDeviceId: ownerFallbackId)
-                let diagOwnerMs = Date().timeIntervalSince(diagIterStart) * 1000
 
                 // ── The skip. Everything below this point is the expensive part of the pass ──────────
                 // One indexed MAX over at most three UTC-day revision rows decides
@@ -1672,21 +1642,6 @@ final class IntelligenceEngine: ObservableObject {
                         }
                         if misses.contains(.semanticSignature), firstSemanticMismatch == nil {
                             firstSemanticMismatch = (day: day, stored: stored.semanticSignature ?? "")
-                            // Emitted IMMEDIATELY, not with the end-of-pass summary: waiting for the loop
-                            // to finish costs a full re-derivation (~15 min on a deep library) to learn
-                            // something the first miss already shows. This is the line that found the
-                            // weight bug, so it stays.
-                            //
-                            // It reports the FIRST miss and claims no more than that. A miss on any field
-                            // but `weight` is pass-global and does explain the whole window; a `weight`
-                            // miss is that day's alone, and other days may differ or not.
-                            // NSLog rather than `diagnosticSink`: the sink is main-actor bound and this
-                            // runs inside the detached loop, and this line is read in the Xcode console.
-                            let early = IntelligenceEngine.semanticSignatureDiff(
-                                stored: stored.semanticSignature ?? "", current: semanticSignature(day))
-                            NSLog("[FREEZE-DIAG] reuse semantic diff (first miss, day=\(day)): "
-                                + (early.isEmpty ? "(no field differs — parse failure?)"
-                                                 : early.joined(separator: ", ")))
                         }
                         reuseMissesByDay.append((day: day, misses: misses.map(\.rawValue)))
                     } else {
@@ -1698,28 +1653,7 @@ final class IntelligenceEngine: ObservableObject {
                     }
                 }
 
-                // TEMP DIAGNOSTIC (#freeze-investigation) — attribute the per-day cost. `hrSamples` UNIONs
-                // `hrSample` with `ppgHrSample` through a CORRELATED `NOT EXISTS` per PPG row, so on a dense
-                // day it is a very different cost from the six plain reads. Without splitting reads from the
-                // analytics, a 20-second day can't be told apart from slow math and one optimises blind.
-                // Remove together with the rest of the FREEZE-DIAG block.
-                // NOTE: the pre-existing `diagDayStart` below is stamped AFTER every stream read, so the
-                // `took=` it reports never included them. `diagIterStart` (above, before the owner probe)
-                // marks the true start of the day's work so `total=` is honest about what a day costs.
-                var diagAnalyzeMs = 0.0
-                /// CPU time actually spent inside the scorer, against the wall time beside it.
-                var diagAnalyzeCpuMs = 0.0
-                var diagReadsMs = 0.0
-                var diagMark = Date()
-                func diagLap() -> Double {
-                    let ms = Date().timeIntervalSince(diagMark) * 1000
-                    diagMark = Date()
-                    diagReadsMs += ms
-                    return ms
-                }
-
                 let hr = (try? await store.hrSamples(deviceId: owner, from: from, to: to, limit: Int.max)) ?? []
-                let diagHrMs = diagLap()
                 guard hr.count >= Self.minHrSamples else {
                     // Need real raw data, not a stray sample. The skipped day gets no DayScan, so its
                     // diagnostic is carried in `skippedDayLines` and replayed through `diagnosticSink`
@@ -1748,11 +1682,9 @@ final class IntelligenceEngine: ObservableObject {
                 let grav = (try? await store.gravitySamples(deviceId: owner, from: from, to: to, limit: Int.max)) ?? []
                 let steps = (try? await store.stepSamples(deviceId: owner, from: from, to: to, limit: Int.max)) ?? []
                 let skin = (try? await store.skinTempSamples(deviceId: owner, from: from, to: to, limit: Int.max)) ?? []
-                _ = diagLap()   // TEMP DIAGNOSTIC: fold the plain reads above into `diagReadsMs`
                 // #93: WHOOP 4.0 raw SpO2 PPG samples for the night; analyzeDay banks the nightly red/IR ADC
                 // means on the DailyMetric. Empty on a 5/MG (no v24 spo2 channels) → the raw means stay nil.
                 let spo2 = (try? await store.spo2Samples(deviceId: owner, from: from, to: to, limit: Int.max)) ?? []
-                _ = diagLap()   // TEMP DIAGNOSTIC: fold the spo2 read into `diagReadsMs`
                 // #938: the strap family that WROTE this owner's skin-temp rows, so analyzeDay converts the raw
                 // register on the right scale (5/MG banks centidegrees, a WHOOP 4.0 v24 banks a raw ADC). The
                 // registry knows each device's model; unknown/non-WHOOP owners fall back to `.whoop5` (the prior
@@ -1885,23 +1817,6 @@ final class IntelligenceEngine: ObservableObject {
                 // HRV mode (#141): a per-day collector for the nightly per-window RMSSD + summary; nil = default.
                 var hrvTrace: [String] = []
                 let hrvTraceSink: ((String) -> Void)? = hrvTraceActive ? { hrvTrace.append($0) } : nil
-                // TEMP DIAGNOSTIC: per-day cost + input volume, so a slow pass shows WHICH day is heavy
-                // and how many samples it actually had to chew through.
-                defer {
-                    let f = { (s: Double) in String(format: "%.2f", s) }
-                    let total = Date().timeIntervalSince(diagIterStart)
-                    // `analysisPipeline` is the complete synchronous scorer. `other` is intentionally explicit
-                    // rather than the old misleading `post`: it includes owner resolution, auxiliary reads and
-                    // persistence preparation that are not yet timed independently.
-                    let measured = (diagOwnerMs + diagReadsMs + diagAnalyzeMs) / 1000
-                    let other = max(0, total - measured)
-                    NSLog("[FREEZE-DIAG]   day=\(day) owner=\(owner) total=\(f(total))s "
-                        + "ownerProbe=\(f(diagOwnerMs / 1000))s rawRead=\(f(diagReadsMs / 1000))s "
-                        + "hrRead=\(f(diagHrMs / 1000))s analysisPipeline=\(f(diagAnalyzeMs / 1000))s "
-                        + "analysisCPU=\(f(diagAnalyzeCpuMs / 1000))s "
-                        + "other=\(f(other))s "
-                        + "hr=\(hr.count) rr=\(rr.count) grav=\(grav.count) steps=\(steps.count)")
-                }
                 // #804 Fix A: when this day's owner is a device that sends NO usable gravity vector — so the
                 // motion detector can't stage the night and it scored blank — AND it has persisted its OWN
                 // hypnogram under its device namespace (an Oura ring's SleepNet night, #773), hand that
@@ -1984,19 +1899,6 @@ final class IntelligenceEngine: ObservableObject {
                 // apart from "this computation was not given a CPU". That distinction decides the whole
                 // fix, and the two answers point opposite ways.
                 //
-                // The same day, synthesised at the device's own sample counts (hr 194k, rr 194k, grav
-                // 194k over the 54 h window) and scored in a DEBUG build, costs 1.6–2.4 s on a Mac —
-                // and stays there when the other streams, a messier night, twelve workouts or real
-                // baselines are added. The device reports 242 s. A phone is a few times slower than
-                // that machine, not a hundred. So either something about the real data is missing from
-                // the fixture, or the scan is being starved and the wall clock is measuring the wait.
-                //
-                // `clock_gettime(CLOCK_THREAD_CPUTIME_ID)` answers it directly: it advances only while
-                // this thread is actually running. cpu ≈ wall means the code is slow. cpu << wall means
-                // it is starved — and then lowering the scan's priority makes it worse, not better.
-                var cpuStart = timespec()
-                clock_gettime(CLOCK_THREAD_CPUTIME_ID, &cpuStart)
-                let diagAnalyzeStart = Date()   // TEMP DIAGNOSTIC: math cost, separated from the read cost
                 let res = AnalyticsEngine.analyzeDay(day: day, hr: hr, rr: rr, resp: resp,
                                                      vendorResp: vendorResp, gravity: grav,
                                                      steps: steps, dayHr: dayHr, daySteps: daySteps,
@@ -2030,11 +1932,6 @@ final class IntelligenceEngine: ObservableObject {
                                                      hrvWindowDetail: dayStart == nowLocalMidnight,
                                                      deepHrvWindow: deepHrvWindow,
                                                      effortMethod: effortMethodGlobal)
-                diagAnalyzeMs = Date().timeIntervalSince(diagAnalyzeStart) * 1000   // TEMP DIAGNOSTIC
-                var cpuEnd = timespec()
-                clock_gettime(CLOCK_THREAD_CPUTIME_ID, &cpuEnd)
-                diagAnalyzeCpuMs = (Double(cpuEnd.tv_sec - cpuStart.tv_sec) * 1000)
-                    + (Double(cpuEnd.tv_nsec - cpuStart.tv_nsec) / 1_000_000)
                 await Task.yield()
                 // #195: whole-night HRV cleaning-pipeline summary for the always-on strap log, so a "reads ~2x
                 // too high" report is triageable without the HRV test mode: RMSSD vs SDNN (rmssd >> sdnn =
@@ -2390,7 +2287,6 @@ final class IntelligenceEngine: ObservableObject {
         let reusedDaySet = Set(reusedDays)
         diagnosticSink?("re-score: scanned \(scannedDays.count) day(s), reused \(reusedDays.count) "
             + "unchanged day(s) from their stored scores", nil)
-        NSLog("[FREEZE-DIAG] analyzeRecent day-skip: scanned=\(scannedDays.count) reused=\(reusedDays.count) of \(maxDays)")
 
         // D1: WHY each day was re-derived rather than reused. `day-skip` above reports the COUNT, which
         // on a real device was indistinguishable between "the cache is broken" and "a scoring input
@@ -2416,7 +2312,6 @@ final class IntelligenceEngine: ObservableObject {
             let line = "reuse summary: walked=\(maxDays) reused=\(reusedDays.count) "
                 + "recomputed=\(scannedDays.count) | miss: \(breakdown)"
             diagnosticSink?(line, nil)
-            NSLog("[FREEZE-DIAG] \(line)")
             // The same first-miss diff as the early NSLog above, repeated into the shareable strap log —
             // which the detached loop cannot reach, the sink being main-actor bound. Named with its day,
             // since `weight` makes the signature partly per-day.
@@ -2427,54 +2322,8 @@ final class IntelligenceEngine: ObservableObject {
                 let detail = diff.isEmpty ? "(no field differs — parse failure?)" : diff.joined(separator: ", ")
                 let semanticLine = "reuse semantic diff (first miss, day=\(firstSemanticMismatch.day)): \(detail)"
                 diagnosticSink?(semanticLine, nil)
-                NSLog("[FREEZE-DIAG] \(semanticLine)")
             }
         }
-        // TEMP DIAGNOSTIC (D3) — where the time AFTER the day loop goes.
-        //
-        // Measured on a real 2.8 GB library once per-day reuse worked: a pass that re-derived exactly ONE
-        // day still took 93 s, and only 35–54 s of that was the day. The remainder is everything from here
-        // to EXIT, and it is FIXED cost — it folds baselines over the whole history, re-scores recovery for
-        // all 21 days against the new baseline, and persists the window, none of which gets cheaper because
-        // reuse worked. That makes this phase the largest single item in a steady-state pass, and nothing
-        // in it was timed.
-        //
-        // Attribution before any fix: the candidates here (a daily-metrics read spanning all of time, two
-        // 100 000-row workout reads, the self-heal, pass 2, the persist tail, a full repo.refresh) are all
-        // plausible and that is exactly the problem. Three hypotheses in this investigation were reasoned
-        // rather than measured, and all three were wrong.
-        //
-        // One line per pass. The marks are placed on statement boundaries, never between a comment block
-        // and the code it explains.
-        //
-        // The first run answered the question and raised a sharper one. Of a 33–71 s post-loop, `persist`
-        // was 33–71 s and every other phase under 1.1 s — including the two this file guessed at, the
-        // all-of-time Apple daily read (0.18–0.87 s) and the pair of 100 000-row workout reads
-        // (0.28–1.08 s). Both suspicions wrong, which is why they were measured. `persist` is therefore
-        // split further, and the split has to explain two things the aggregate could not: it does NOT
-        // scale with days re-derived (33.6 s for a 21-day pass, 71.3 s for a 2-day one), and it GROWS
-        // across passes in one session (33.6 → 57.4 → 60.2 → 67.9 → 71.3 s). Something accumulates that
-        // is not this pass's own workload.
-        // Read alongside the phase timer, not instead of it: the timings say WHICH write got slower,
-        // this says whether the file underneath them is growing. A `-wal` that cannot checkpoint —
-        // a dashboard always holds a reader snapshot open — is the standing explanation for a write
-        // path that degrades within one session, and it is testable rather than plausible.
-        let diagFootprintBefore = await store.databaseFootprintMB()
-        var diagPhaseLast = Date()
-        var diagPhases: [String] = []
-        func diagMark(_ name: String) {
-            let now = Date()
-            diagPhases.append("\(name)=\(String(format: "%.2f", now.timeIntervalSince(diagPhaseLast)))s")
-            diagPhaseLast = now
-        }
-        // A defer rather than a trailing call: the phases already measured are worth having even when a
-        // later step returns early or throws, which is precisely the pass whose cost is unexplained.
-        defer {
-            if !diagPhases.isEmpty {
-                NSLog("[FREEZE-DIAG] post-loop: " + diagPhases.joined(separator: " "))
-            }
-        }
-
         // ── Seed the baseline from the UNION of imported nightly history + the values just computed.
         // THIS is the BLE-only recovery fix: the "-noop" nightly avgHrv/restingHr finally feed the
         // baseline so a strap-only user crosses Baselines.minNightsSeed and recovery lights up.
@@ -2564,7 +2413,6 @@ final class IntelligenceEngine: ObservableObject {
         // a detected bout overlapping ANY of them is skipped below. Port of the Android dedup block.
         // (`computedId` is bound once above, before the off-actor scan loop.)
         let windowStart = now - maxDays * 86_400 - StreamReadCap.lookbackSeconds
-        diagMark("baselines")
         var realWorkouts = (try? await store.workouts(deviceId: deviceId, from: windowStart,
                                                        to: now, limit: 100_000)) ?? []
         realWorkouts += (try? await store.workouts(deviceId: "apple-health", from: windowStart,
@@ -2584,7 +2432,6 @@ final class IntelligenceEngine: ObservableObject {
         // Rest composite (0–100) per computed night, persisted as the `sleep_performance` metric
         // series so the dashboard's Rest score reflects the new composite, not raw efficiency.
         var restPoints: [MetricPoint] = []
-        diagMark("workoutRead")
         // User-corrected sleep windows override the detected sleep when scoring a day's sleep aggregates,
         // so Rest + recovery honor the edit , not just the Sleep tab's session view. An edited block
         // substitutes its detected twin (matched by the stable detected startTs) before totals recompute.
@@ -2618,13 +2465,17 @@ final class IntelligenceEngine: ObservableObject {
         }
         let cycleWorkouts = await repo.workoutRows(days: maxDays + 2)
         let dayCycleMode = DayCycleMode.persisted(UserDefaults.standard.string(forKey: DayCycleMode.storageKey))
-        let physiologicalSteps = await DayCycleIntelligenceIntegration.compute(
+        let cycleTrace = DayCycleTraceBuffer()
+        let cycleTraceSink: (@Sendable (String) -> Void)?
+        if stepsTraceActive { cycleTraceSink = { cycleTrace.append($0) } } else { cycleTraceSink = nil }
+        guard let physiologicalSteps = try? await dayCycleWorker.compute(
             nights: scoredNights.map { night in
                 DayCycleIntelligenceIntegration.Night(
                     daily: night.daily,
                     sleeps: night.cachedSleep,
                     workouts: night.workouts,
-                    owner: resolvedScoreOwnerByDay[night.daily.day] ?? regActiveId)
+                    owner: resolvedScoreOwnerByDay[night.daily.day] ?? regActiveId,
+                    reused: reusedDaySet.contains(night.daily.day))
             },
             editedRows: editedRows,
             store: store,
@@ -2637,7 +2488,6 @@ final class IntelligenceEngine: ObservableObject {
             habitualMidsleepSec: habitualMidsleepSec,
             ticksPerStep: up.stepTicksPerStep,
             mode: dayCycleMode,
-            cache: dayCycleCache,
             profile: up,
             // The pass-global `maxHR` is gone — max HR now resolves PER DAY (see `hrmaxByDay`). This
             // recompute takes one value for the whole window, so it gets the NEWEST day's, which is the
@@ -2647,7 +2497,9 @@ final class IntelligenceEngine: ObservableObject {
             maxHROverride: (hrmaxByDay[newestScanDay] ?? profileHrmax) > 0
                 ? Double(hrmaxByDay[newestScanDay] ?? profileHrmax) : nil,
             effortMethod: effortMethodGlobal,
-            trace: stepsTraceActive ? { self.diagnosticSink?($0, .steps) } : nil)
+            trace: cycleTraceSink) else { return }
+        guard !Task.isCancelled else { return }
+        for line in cycleTrace.lines { diagnosticSink?(line, .steps) }
         // #299: `editsByStart` is now built PER DAY inside the scoring loop (scoped to the day each edit
         // belongs to), NOT window-wide here. sleepEditedDaily folds any edited row that isn't a twin of THIS
         // day's detected sessions in as a "manual" block, so a window-wide edit set let ONE user edit /
@@ -2662,7 +2514,6 @@ final class IntelligenceEngine: ObservableObject {
         // and nothing about the imported numbers is exposed. WHOOP wins over Apple, matching the merge's
         // source priority (whoopImport 0 < appleHealth 2 in DailyMetricSource.vitalPriority).
         let importedWhoopDays = Set(hist.map { $0.day })
-        diagMark("selfHeal")
         // The WHOLE apple-health daily history, chronological. Used both as a key-presence set for the
         // By-Day badge AND as the SDNN+RHR input for the Apple-Watch recovery fold below (a watch-only user
         // has these daily aggregates but no raw stream, so the raw-HR scoring loop never touched them).
@@ -2685,7 +2536,6 @@ final class IntelligenceEngine: ObservableObject {
         // the auto path produced NO trace at all (the "mode was on but produced NO trace" report), so an
         // "auto workout appeared then vanished" could not be explained from an export. Diagnostic only.
         let workoutsTraceActive = TestCentre.active(.workouts)
-        diagMark("appleRead")
         for night in scoredNights {
             // #299: scope the edits to THIS day before folding. A userEdited row / hand-logged nap belongs
             // to exactly ONE day — the day its night ENDS on, matching the daily's end-day bucket. `endTs`
@@ -3023,7 +2873,6 @@ final class IntelligenceEngine: ObservableObject {
             provenanceByCell["\(point.day)\u{1F}\(point.key)"] =
                 ScoreInputProvenanceRow(day: point.day, key: point.key, sourceId: source)
         }
-        diagMark("score2")
         let markerKeys: [String]
         let markerPoints: [SourcedMetricPoint]
         let markerSources: [String]
@@ -3067,7 +2916,6 @@ final class IntelligenceEngine: ObservableObject {
                 _ = try? await store.deleteDailyMetrics(deviceId: computedId, from: stale.day, to: stale.day)
             }
         }
-        diagMark("p.scores")
         // ── Fitness Age (Phase 2) , weekly, keyed to the week's Saturday ────────────────────────────
         // Roll the last 7 computed days into the Nes/HUNT inputs and upsert a weekly Fitness Age (+ an
         // optional VO₂max when a waist is set) under the same "-noop" source. Idempotent on the Saturday
@@ -3145,7 +2993,6 @@ final class IntelligenceEngine: ObservableObject {
                 _ = try? await store.upsertMetricSeries(stressRows, deviceId: Repository.whoopSource)
             }
         }
-        diagMark("p.derived")
 
         // ── Steps ESTIMATE (WHOOP 4.0) , DAILY, keyed to each strap-only day ────────────────────────
         // A WHOOP 4.0 sends no step count over BLE, so for days the phone DIDN'T also count steps we
@@ -3207,9 +3054,9 @@ final class IntelligenceEngine: ObservableObject {
             (((try? await store.metricSeries(deviceId: computedId, key: Self.stepsMotionDeviceRevKey,
                                              from: calOldest, to: newestDay)) ?? [])
                 .map { ($0.day, $0.value) }), uniquingKeysWith: { _, last in last })
-        let (refStepsByDay, motionByDay, freshMotion, motionReused):
+        let (refStepsByDay, motionByDay, freshMotion, _):
             ([String: Double], [String: Double], [(day: String, motion: Double, input: Int, device: Int)], Int) =
-            await runUnescalated {
+            await runUnescalated(priority: .background) {
             // Phone reference steps per day, from the apple-health daily rows (steps > 0 only).
             // #693: read `appleDaily`, NOT `dailyMetrics`. Apple-Health import writes the phone step count into
             // `appleDaily.steps` (Int?), never into a dailyMetric `steps` row , so the old `dailyMetrics` read
@@ -3269,8 +3116,6 @@ final class IntelligenceEngine: ObservableObject {
             }
             _ = try? await store.upsertMetricSeries(points, deviceId: computedId)
         }
-        NSLog("[FREEZE-DIAG] steps motion cache: reused=\(motionReused) refolded=\(freshMotion.count) "
-            + "of \(stepsCalDays)")
         // Build calibration points only for days with BOTH a motion volume and a real phone step count.
         let calPoints = motionByDay.compactMap { (day, motion) -> StepsEstimateEngine.CalibrationPoint? in
             guard let s = refStepsByDay[day] else { return nil }
@@ -3327,7 +3172,6 @@ final class IntelligenceEngine: ObservableObject {
                 }
             }
         }
-        diagMark("p.steps")
 
         // Drop any freshly-detected session that overlaps a night the user has already hand-corrected.
         // A detected onset can drift second-to-second as more raw data arrives, so without this the
@@ -3376,7 +3220,6 @@ final class IntelligenceEngine: ObservableObject {
         for (start, states) in sleepStateByStart {
             _ = try? await store.persistSessionSleepState(deviceId: computedId, sessionStart: start, states: states)
         }
-        diagMark("p.sleepWrite")
         // ── Overlap-aware banked-sleep heal (#899) ────────────────────────────────────────────────────
         // An unstable strap clock re-banks the SAME night under a shifted timebase, so successive passes
         // detect it at shifted bounds and the upsert above lands a SECOND row beside the stale one (the
@@ -3492,7 +3335,6 @@ final class IntelligenceEngine: ObservableObject {
             ? "No scored nights yet. Wear the strap with NOOP connected overnight and the engine will score your charge, effort and rest itself, no WHOOP cloud required."
             : nil
 
-        diagMark("p.sleepHeal+workouts")
         // Reload the dashboard caches so the freshly computed scores show up immediately. A heal-only
         // pass (#899 dedup deleted stale session rows but no daily changed) must refresh too, so the
         // Sleep tab stops showing the removed duplicates right away.
@@ -3536,12 +3378,6 @@ final class IntelligenceEngine: ObservableObject {
                                                                        owedToken: owedToken)
         if !settled {
             diagnosticSink?("re-score: completed, but a newer rescore request remains owed (#1681)", nil)
-        }
-        diagMark("refreshTail")
-        if let before = diagFootprintBefore, let after = await store.databaseFootprintMB() {
-            let f = { (v: Double) in String(format: "%.1f", v) }
-            NSLog("[FREEZE-DIAG] store footprint: db=\(f(before.db))→\(f(after.db)) MB "
-                + "wal=\(f(before.wal))→\(f(after.wal)) MB shm=\(f(before.shm))→\(f(after.shm)) MB")
         }
         diagnosticSink?("re-score: done — scored \(scoredNights.count) night(s) in \(Int(elapsed * 1000)) ms (#1005)", nil)
     }

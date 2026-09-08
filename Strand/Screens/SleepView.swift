@@ -31,15 +31,15 @@ struct SleepView: View {
     /// The empty state's "Open Data Sources" button routes through the shell (`NavRouter`), because
     /// neither shell exposes a selection this screen could set directly.
     @EnvironmentObject var router: NavRouter
-    /// For `circadianPhase` only (the body-clock dial). Named `appModel` because `model` on this screen is
-    /// already the built `SleepModel`.
-    @EnvironmentObject var appModel: AppModel
+    /// Shared with hosted sleep cards for this scene; navigation state remains local to this view.
+    @Environment(\.sleepPresentationStore) private var sceneSleepStore
+    private var sleepStore: SleepPresentationStore { sceneSleepStore ?? repo.sleepPresentation }
     // NOTE: SleepView itself deliberately does NOT observe `LiveState`. A connected strap publishes
     // at ~1 Hz; observing here would re-evaluate this heavy body on every tick. The only two live
     // dependencies — the "going to sleep / awake" mark card (it appends to the strap log) and the
     // "Syncing strap history…" note — each own their OWN `@EnvironmentObject var live` in a small
     // leaf below (mirrors the Today leaf-scoping pattern), so a tick refreshes only that leaf.
-    @EnvironmentObject var intelligence: IntelligenceEngine
+    @Environment(\.dashboardAppModel) private var appModel
 
     /// Memoized snapshot of every expensive derivation (latest Night with its intervals
     /// resolved once, the seven metric series, the trend points, the typical means). Rebuilt
@@ -49,40 +49,24 @@ struct SleepView: View {
     /// The Sleep tab's stage-chart shape (Settings → Appearance → Sleep chart). Display-only; Filled/Ribbon
     /// draw the WHOOP-style stepped hypnogram, Classic keeps the per-stage rows. Mirrors Android. (#sleep-chart-style)
     @AppStorage(SleepChartStyle.storageKey) private var sleepChartStyleRaw = SleepChartStyle.classic.rawValue
-    /// The repo signature the cached `model` was built from. Cheap to compute every render;
-    /// when it differs from the current inputs we rebuild the model.
-    @State private var modelKey: SleepInputKey?
-
     /// Which night the hero hypnogram shows: 0 = last night, N = N sleep-sessions back.
     /// Snaps back to 0 whenever the data key changes — a stale offset would silently point
     /// at a different session after a sync. The memoized trend `model` stays cached since
     /// the trends are night-independent. (#160)
     @State private var nightOffset = 0
-    /// Memoized decode of the NAVIGATED night (nil when `nightOffset == 0` — the hero reads
-    /// `model.night` then). Rebuilt only in the `nightOffset` / data-key onChange handlers;
-    /// `decodedNight` JSON-decodes, which must never run per body pass (1Hz HR ticks). (#160)
+    /// The displayed offset advances only with its fully prepared night snapshot.
+    @State private var displayedNightOffset = 0
     @State private var navNight: Night?
 
-    /// Every sleep BLOCK across both sources, UN-deduplicated (`repo.allSleepSessions`) — `repo.sleeps`
-    /// keeps one winner per night for the dashboard, collapsing split-sleep days (a nap + a main
-    /// sleep on the same day) into a single block. The hero groups these by day (`navDays`) and
-    /// merges each day into one Night, so a split day reads as one correctly-totalled night with the
-    /// gaps preserved. Oldest→newest. Falls back to `repo.sleeps` until loaded. (#170)
-    @State private var allSessions: [CachedSleepSession] = []
-
-    /// The user's LEARNED habitual midsleep (local time-of-day seconds), or nil under the cold-start
-    /// threshold. Loaded from `repo.habitualMidsleepSec()` — the SAME value `AnalyticsEngine.analyzeDay`
-    /// threads into the daily total — and fed into the main-night selector so the hero, the naps split,
-    /// and the edit target pick the SAME block the analytics rollup did, for a shift/late sleeper too. nil
-    /// keeps the existing cold-start overnight-band fallback. (#547) Refreshed with `allSessions`.
-    @State private var habitualMidsleepSec: Int? = nil
-
-    /// Persisted per-epoch MOTION series keyed by each session's detected `startTs` (#407). Loaded in the
-    /// same `.task` as `allSessions` from `repo.sessionMotions(sessions:)`, then laid along the hypnogram for
-    /// the SAME main-night GROUP blocks the hero resolved (mergeDay's group) — we do NOT re-resolve the
-    /// night, only read the already-chosen group's stored motion. A block with no stored series stays absent
-    /// (honest empty state for older rows whose `motionJSON` is NULL). Refreshed with `allSessions`.
-    @State private var motionByStart: [Int: [Double]] = [:]
+    @State private var presentation: SleepPresentation?
+    private var habitualMidsleepSec: Int? { presentation?.habitualMidsleepSec }
+    private var navDays: [[CachedSleepSession]] { presentation?.groups ?? [] }
+    private var revision: SleepPresentationRevision { SleepPresentationRevision(repo: repo) }
+    @State private var displayedRevision: SleepPresentationRevision?
+    private struct LoadKey: Equatable {
+        let revision: SleepPresentationRevision
+        let offset: Int
+    }
 
     /// Non-nil while the wake-time editor sheet is open. Carries the night's stable key (`startTs`) and
     /// current wake time so the editor seeds its picker; saving routes through `repo.editSleepWakeTime`,
@@ -96,6 +80,11 @@ struct SleepView: View {
     /// Sleeping heart-rate for the displayed night (1-min buckets), for the WHOOP-style HR chart above
     /// the stage rows. Loaded once per night via `.task(id:)` on the stage card. (ryanAtriumAi #988)
     @State private var nightHR: [HRBucket] = []
+    @State private var nightHRKey: String?
+
+    private func hrKey(_ night: Night) -> String {
+        "\(String(describing: displayedRevision))-\(night.session.startTs)-\(night.session.endTs)"
+    }
 
     /// The transient UNDO banner shown after a suppressing delete (#65). Non-nil for ~7 seconds: carries
     /// the snapshot needed to restore the deleted night into its ORIGINAL namespace and the window text
@@ -115,13 +104,7 @@ struct SleepView: View {
     }
 
     var body: some View {
-        // Resolve the memoized model for THIS render. `dataKey` is O(1)-ish (counts + last-row
-        // identity), so comparing it every render is cheap. When it matches the cached key we
-        // reuse the cached model untouched — the many body re-evaluations from hover/animation/
-        // 1Hz HR ticks pay nothing. When it differs (or on first render) we build once, here,
-        // synchronously, so the very first frame already shows content (no empty-state flash).
-        let key = dataKey
-        let resolved: SleepModel? = (key == modelKey) ? model : buildModel()
+        let resolved = model
         // Title lives inside the immersive night hero (Bevel-style composition). Omit the scaffold
         // header + generic sky so the Rest world owns the upper band and everything below returns to
         // the normal Sleep canvas. Empty state still gets a plain scaffold title for orientation.
@@ -135,7 +118,7 @@ struct SleepView: View {
                        // syncing note now own `live` in their own leaves), so a 1 Hz HR tick no longer
                        // re-evaluates this heavy body.
                        onRefresh: { await repo.refresh() },
-                       lazy: true,
+                       lazy: true, contentSpacing: NoopMetrics.sectionSpacing,
                        topBackground: resolved == nil ? nil : AnyView(sleepNightTopBackground)) {
             Group {
                 if let resolved {
@@ -144,7 +127,7 @@ struct SleepView: View {
                     // important number), the stage breakdown, night-detail tiles, stage comparison and the
                     // 30-night trend. Sleep marks / naps are an INPUT, not a read-out, so they sink to the
                     // bottom (they were second from the top).
-                    VStack(alignment: .leading, spacing: NoopMetrics.sectionSpacing) {
+                    Group {
                         if let sleepUndo { sleepUndoBanner(sleepUndo) }
                         SleepFreshnessNote(latestWakeTs: resolved.night.session.endTs)
                         // Bleed past ScreenScaffold's 16/24 gutters so the hero column is edge-to-edge
@@ -160,106 +143,83 @@ struct SleepView: View {
                             sleepSectionView(section, resolved).staggeredAppear(index: idx + 1)
                         }
                     }
+                } else if displayedRevision == nil {
+                    ProgressView().frame(maxWidth: .infinity)
                 } else {
                     emptyState
                 }
             }
-            // LiquidScoreGauge owns its own count-up animation (same as Home heroes).
-            // Persist the freshly-built model so subsequent renders with the same inputs hit
-            // the cache. Writing State during body is not allowed, so commit it after layout;
-            // `resolved` already drives THIS frame, so there is no flash and no extra rebuild.
-            .onChangeCompat(of: key) { newKey in
-                modelKey = newKey
-                model = buildModel()
-                // New data invalidates a navigated offset — the same offset would silently
-                // point at a different session. Snap back to last night. (#160)
-                nightOffset = 0
-                navNight = nil
-            }
-            // The navigated night is decoded once per ◀/▶ press, never per body pass —
-            // `decodedNight` JSON-decodes and body re-evaluates at 1Hz while HR streams. (#160)
-            .onChangeCompat(of: nightOffset) { newOffset in
-                navNight = newOffset == 0 ? nil : decodedNight(at: newOffset)
-            }
-            .onAppear {
-                if modelKey != key {
-                    modelKey = key
-                    model = resolved
-                    nightOffset = 0
-                    navNight = nil
-                }
-            }
-            // Load EVERY sleep block across BOTH sources (un-deduplicated) so the hero's ◀/▶ can
-            // browse split-sleep days the dashboard collapses — including Bluetooth-only nights,
-            // whose blocks live under the computed source. Re-runs whenever a sync/import bumps
-            // refreshSeq; snaps back to the newest day and rebuilds the model so offset 0 reflects
-            // the freshly-loaded blocks. (#170)
-            .task(id: repo.refreshSeq) {
-                allSessions = await repo.allSleepSessions()
-                // Load the learned habitual midsleep the engine used, so the main-night pick aligns to it
-                // (a shift/late sleeper) instead of only the cold-start band. nil under threshold. (#547)
-                habitualMidsleepSec = await repo.habitualMidsleepSec()
-                // Per-epoch motion for every block (#407), keyed by detected start. mergeDay reads only the
-                // already-resolved group's entries — this just pre-fetches them all so the model build is sync.
-                motionByStart = await repo.sessionMotions(sessions: allSessions)
-                nightOffset = 0
-                navNight = nil
-                modelKey = dataKey
-                model = buildModel()
-            }
-            .sheet(isPresented: $showSleepCustomize) {
-                SleepCustomizationSheet(sectionOrderRaw: $sleepSectionOrderRaw,
-                                        hiddenSectionsRaw: $sleepHiddenSectionsRaw)
-            }
-            .sheet(item: $wakeEdit) { edit in
-                // Validate against the WHOLE bridged night, not just its selector-winning fragment.
-                // On a split night that one row often owns neither visible edge; fragment-scoped seed,
-                // gate and write were why a successful correction appeared to jump straight back.
-                let coverageLo = edit.group.map { min($0.startTs, $0.effectiveStartTs) }.min() ?? edit.bedTs
-                let coverageHi = edit.group.map(\.endTs).max() ?? edit.wakeTs
-                SleepTimeEditor(bedTs: edit.bedTs, wakeTs: edit.wakeTs,
-                                coverage: coverageLo...max(coverageHi, coverageLo + 1),
-                                suppressesReDetection: !edit.userEdited,
-                                onSave: { newBedTs, newWakeTs, relocating in
-                    let outcome = await repo.editSleepGroupTimes(edit.group,
-                                                                newStartTs: newBedTs,
-                                                                newEndTs: newWakeTs,
-                                                                allowRelocation: relocating)
-                    switch outcome {
-                    case .failure(let failure):
-                        return .failure(sleepEditFailureMessage(failure))
-                    case .success(let result):
-                        CoachBriefStamp.invalidateAfterSleepCorrection(wakeTs: newWakeTs)
-                        if !result.retired.isEmpty {
-                            presentSleepUndo(result.retired, displayStart: newBedTs,
-                                             windowEnd: newWakeTs, fromEdit: true)
-                        }
-                        scheduleBackgroundRescore(wakeDays: result.affectedWakeDays,
-                                                  required: result.requiresLocalRescore)
-                        return .success
+        }
+        .task(id: LoadKey(revision: revision, offset: nightOffset)) {
+            let key = revision
+            let offset = displayedRevision == key ? nightOffset : 0
+            do {
+                let base = try await sleepStore.presentation(repo: repo, revision: key)
+                let night = try await sleepStore.night(offset: offset, presentation: base, repo: repo, revision: key)
+                try Task.checkCancellation()
+                guard key == revision else { return }
+                var resolved = base.model
+                if offset == 0, let night { resolved?.night = night }
+                presentation = base
+                model = resolved
+                navNight = offset == 0 ? nil : night
+                displayedNightOffset = offset
+                displayedRevision = key
+                if nightOffset != offset { nightOffset = offset }
+            } catch { /* A superseded load must not replace the currently visible night. */ }
+        }
+        .sheet(isPresented: $showSleepCustomize) {
+            SleepCustomizationSheet(sectionOrderRaw: $sleepSectionOrderRaw,
+                                    hiddenSectionsRaw: $sleepHiddenSectionsRaw)
+        }
+        .sheet(item: $wakeEdit) { edit in
+            // Validate against the WHOLE bridged night, not just its selector-winning fragment.
+            // On a split night that one row often owns neither visible edge; fragment-scoped seed,
+            // gate and write were why a successful correction appeared to jump straight back.
+            let coverageLo = edit.group.map { min($0.startTs, $0.effectiveStartTs) }.min() ?? edit.bedTs
+            let coverageHi = edit.group.map(\.endTs).max() ?? edit.wakeTs
+            SleepTimeEditor(bedTs: edit.bedTs, wakeTs: edit.wakeTs,
+                            coverage: coverageLo...max(coverageHi, coverageLo + 1),
+                            suppressesReDetection: !edit.userEdited,
+                            onSave: { newBedTs, newWakeTs, relocating in
+                let outcome = await repo.editSleepGroupTimes(edit.group,
+                                                            newStartTs: newBedTs,
+                                                            newEndTs: newWakeTs,
+                                                            allowRelocation: relocating)
+                switch outcome {
+                case .failure(let failure):
+                    return .failure(sleepEditFailureMessage(failure))
+                case .success(let result):
+                    CoachBriefStamp.invalidateAfterSleepCorrection(wakeTs: newWakeTs)
+                    if !result.retired.isEmpty {
+                        presentSleepUndo(result.retired, displayStart: newBedTs,
+                                         windowEnd: newWakeTs, fromEdit: true)
                     }
-                }, onDelete: {
-                    // Delete = the edit path minus the re-insert: drop this session so every metric
-                    // recomputes immediately as if the night were never recorded, durably tombstoned so a
-                    // re-detect doesn't bring it back, then re-score + refresh exactly like an edit. (#68)
-                    // #65: the returned snapshot lets the user UNDO within a few seconds. It restores the
-                    // deleted row into its ORIGINAL namespace and lifts the tombstone.
-                    guard let snapshot = await repo.deleteSleepSession(
-                        detectedStartTs: edit.detectedStartTs, endTs: edit.wakeTs) else {
-                        return .failure(String(localized: "Deleting this sleep failed. Nothing was changed."))
-                    }
-                    CoachBriefStamp.invalidateAfterSleepCorrection(wakeTs: edit.wakeTs)
-                    // `edit.bedTs` is the effective (displayed) onset, so the banner shows the same clock
-                    // time the user saw for this night.
-                    presentSleepUndo([snapshot], displayStart: edit.bedTs,
-                                     windowEnd: edit.wakeTs, fromEdit: false)
-                    scheduleBackgroundRescore(
-                        wakeDays: [snapshot.suppressedWakeDay
-                            ?? Repository.sleepEndDayKey(snapshot.endTs)],
-                        required: snapshot.ownerDeviceId.hasSuffix("-noop"))
+                    scheduleBackgroundRescore(wakeDays: result.affectedWakeDays,
+                                              required: result.requiresLocalRescore)
                     return .success
-                })
-            }
+                }
+            }, onDelete: {
+                // Delete = the edit path minus the re-insert: drop this session so every metric
+                // recomputes immediately as if the night were never recorded, durably tombstoned so a
+                // re-detect doesn't bring it back, then re-score + refresh exactly like an edit. (#68)
+                // #65: the returned snapshot lets the user UNDO within a few seconds. It restores the
+                // deleted row into its ORIGINAL namespace and lifts the tombstone.
+                guard let snapshot = await repo.deleteSleepSession(
+                    detectedStartTs: edit.detectedStartTs, endTs: edit.wakeTs) else {
+                    return .failure(String(localized: "Deleting this sleep failed. Nothing was changed."))
+                }
+                CoachBriefStamp.invalidateAfterSleepCorrection(wakeTs: edit.wakeTs)
+                // `edit.bedTs` is the effective (displayed) onset, so the banner shows the same clock
+                // time the user saw for this night.
+                presentSleepUndo([snapshot], displayStart: edit.bedTs,
+                                 windowEnd: edit.wakeTs, fromEdit: false)
+                scheduleBackgroundRescore(
+                    wakeDays: [snapshot.suppressedWakeDay
+                        ?? Repository.sleepEndDayKey(snapshot.endTs)],
+                    required: snapshot.ownerDeviceId.hasSuffix("-noop"))
+                return .success
+            })
         }
     }
 
@@ -315,7 +275,7 @@ struct SleepView: View {
         }.max() ?? 0
         let maxDays = max(1, oldestDistance + 2)
         Task(priority: .utility) {
-            await intelligence.analyzeRecent(maxDays: maxDays, force: true,
+            await appModel?.intelligence.analyzeRecent(maxDays: maxDays, force: true,
                                              allowDayReuse: true, reason: .semanticChange)
             await repo.refresh()
         }
@@ -397,7 +357,7 @@ struct SleepView: View {
     /// ◀/▶-navigated night. Shared by the Rest hero overline and the hypnogram nav header so both
     /// name the SAME night the hero's score is now resolved for.
     private var nightRelativeLabel: LocalizedStringKey {
-        let n = nightsAgo(nightOffset)
+        let n = nightsAgo(displayedNightOffset)
         return n == 0 ? "Last night" : (n == 1 ? "1 night ago" : "\(n) nights ago")
     }
 
@@ -419,12 +379,12 @@ struct SleepView: View {
         return d >= 0 ? d : offset
     }
 
-    /// The night the Rest hero reflects: the ◀/▶-navigated night while browsing (falling back to
-    /// last night only if that navigated night hasn't decoded yet), else last night. Keeps the
+    /// The night the Rest hero reflects. Navigation advances its label with the prepared night;
+    /// a stage-less historical night retains its own window. Keeps the
     /// hero's score, vessel fill, state word, provenance badge and overline on the SAME night the
     /// hypnogram shows — the fix for the score freezing on last night's value during navigation.
     private func heroNight(_ model: SleepModel) -> Night {
-        (nightOffset == 0 ? model.night : navNight) ?? model.night
+        (displayedNightOffset == 0 ? model.night : navNight) ?? model.night
     }
 
     /// The sleep-performance score (0–100) for a SPECIFIC night: the imported WHOOP figure for that
@@ -434,9 +394,8 @@ struct SleepView: View {
     /// a navigated past night reads ITS OWN score, never last night's. nil when that day has no score.
     private func performanceScore(for night: Night) -> Double? {
         let wakeDay = Repository.localDayKey(Date(timeIntervalSince1970: TimeInterval(night.session.endTs)))
-        if let p = repo.importedSleep[wakeDay]?.performancePct { return p }
-        guard let daily = repo.days.last(where: { $0.day == wakeDay }) else { return nil }
-        return AnalyticsEngine.Rest.composite(daily: daily)
+        return DashboardRestScore.value(day: wakeDay, days: repo.days,
+                                        importedSleep: repo.importedSleep)
     }
 
     /// Dispatch a reorderable Sleep section to its card. Naps rides with `.stages` (drawn inside the stages
@@ -462,11 +421,7 @@ struct SleepView: View {
     /// affordance every other card on this screen already has, rather than a new setting of its own.
     @ViewBuilder
     private func bodyClockDial(_ model: SleepModel) -> some View {
-        if let phase = appModel.circadianPhase, phase.confidence != .unreadable {
-            BodyClockDialCard(estimate: phase,
-                              actualBedHour: Self.localClockHour(model.night.session.effectiveStartTs),
-                              actualWakeHour: Self.localClockHour(model.night.session.endTs))
-        }
+        SleepBodyClockCard(night: model.night)
     }
 
     /// A unix second as a fractional local clock hour — the dial's only input beyond the phase estimate.
@@ -626,20 +581,20 @@ struct SleepView: View {
             // #940: when the NEWEST day failed to merge (model.isStubNight), offset 0 falls through
             // to the same honest stage-less stub path the navigated browse uses, instead of drawing
             // a zeroed stage card. History stays browsable and the edit pencil stays reachable.
-            if nightOffset == 0, !model.isStubNight {
+            if displayedNightOffset == 0, !model.isStubNight {
                 nightNavHeader(trailing: model.night.spanLabel)
                 sleepWindowRow(model.night)
                 stageCard(model.night, intervals: model.intervals)
                 napSection(model.night)
-            } else if let night = navNight {
+            } else if let night = navNight, night.stages.asleep > 0 {
                 nightNavHeader(trailing: night.spanLabel)
                 sleepWindowRow(night)
                 stageCard(night, intervals: night.intervals)
                 napSection(night)
-            } else if let session = sessionRow(at: nightOffset) {
+            } else if let session = sessionRow(at: displayedNightOffset) {
                 // Stage-less stub purely to reuse Night's date/time formatting.
                 let stub = Night(session: session, stages: Stages(awake: 0, light: 0, deep: 0, rem: 0),
-                                 sourceBlocks: dayBlocks(at: nightOffset),
+                                 sourceBlocks: dayBlocks(at: displayedNightOffset),
                                  habitualMidsleepSec: habitualMidsleepSec)
                 nightNavHeader(trailing: stub.spanLabel)
                 sleepWindowRow(stub)
@@ -655,7 +610,7 @@ struct SleepView: View {
         }
         // Stale-highlight guard: browsing to another night clears the stage selection. Attached to
         // the always-present hero container (not a branch that gets swapped out mid-navigation).
-        .onChange(of: nightOffset) { _ in selectedStage = nil }
+        .onChange(of: displayedNightOffset) { _ in selectedStage = nil }
     }
 
     /// Existing naps remain a compact, read-only part of the day's sleep accounting. Creation and editing
@@ -818,10 +773,16 @@ struct SleepView: View {
         }
         // WHOOP top-chart data (ryanAtriumAi #988): 1-min sleeping-HR buckets for THIS night, reloaded
         // only when the displayed night changes (same `.task(id:)` pattern the other per-night loads use).
-        .task(id: night.session.startTs) {
-            nightHR = await repo.hrBuckets(from: night.session.startTs,
-                                           to: night.session.endTs,
-                                           bucketSeconds: 60)
+        .task(id: hrKey(night)) {
+            guard let key = displayedRevision, key == revision else { return }
+            let request = hrKey(night)
+            do {
+                let buckets = try await sleepStore.hr(for: night, repo: repo, revision: key)
+                try Task.checkCancellation()
+                guard key == revision, request == hrKey(night) else { return }
+                nightHR = buckets
+                nightHRKey = request
+            } catch { }
         }
     }
 
@@ -1501,7 +1462,7 @@ struct SleepView: View {
     @ViewBuilder
     private func sleepHRChart(intervals: [SleepInterval], origin: TimeInterval, span: TimeInterval, night: Night) -> some View {
         let nightStartTs = night.onsetDate.timeIntervalSince1970
-        let buckets = nightHR.filter {
+        let buckets = (nightHRKey == hrKey(night) ? nightHR : []).filter {
             let rel = TimeInterval($0.ts) - nightStartTs
             return rel >= origin - 60 && rel <= origin + span + 60
         }
@@ -1654,59 +1615,11 @@ struct SleepView: View {
                                                     typicalTotalMin: model.typicalTotalMin))
     }
 
-    // MARK: - Memoization plumbing
-
-    /// A cheap fingerprint of the repo inputs this screen derives from. Recomputed every
-    /// render but only contains counts + the identity of the newest/oldest rows, so equality
-    /// is fast. When it changes we know `repo.days`/`repo.sleeps` actually changed and the
-    /// memoized `model` must be rebuilt; otherwise hover/animation/1Hz HR re-renders are free.
-    private var dataKey: SleepInputKey {
-        SleepInputKey(
-            loaded: repo.loaded,
-            daysCount: repo.days.count,
-            sleepsCount: repo.sleeps.count,
-            firstDay: repo.days.first?.day,
-            lastDay: repo.days.last?.day,
-            lastDayUpdated: repo.days.last,
-            lastSleep: repo.sleeps.last,
-            refreshSeq: repo.refreshSeq)
-    }
-
-    /// Build every expensive derivation exactly once. Called only when `dataKey` changes, so each
-    /// full pass over repo.days / repo.sleeps runs once per data change rather than once per render.
-    /// A thin wrapper: it snapshots the view's current state into `SleepModelInputs` and hands off to
-    /// the pure `SleepModel.build(_:)` (SleepModel.swift), which the Today host also calls. Returns
-    /// nil when there is no usable latest night (renders empty state).
-    private func buildModel() -> SleepModel? {
-        SleepModel.build(SleepModelInputs(
-            days: repo.days,
-            sleeps: repo.sleeps,
-            allSessions: allSessions,
-            importedSleep: repo.importedSleep,
-            habitualMidsleepSec: habitualMidsleepSec,
-            motionByStart: motionByStart))
-    }
-
-    // MARK: - Derived model
-
-    /// The browsable block list: every sleep session un-deduplicated (incl. same-day naps / split
-    /// sleep). Falls back to `repo.sleeps` (one-per-night) until the fuller list loads, so the hero
-    /// is never empty during the first frame. (#170)
-    private var navSessions: [CachedSleepSession] {
-        allSessions.isEmpty ? repo.sleeps : allSessions
-    }
-
-    /// The browsable DAY list — a thin wrapper over the shared `SleepModel.navDays`, which is the
-    /// source of truth the builder and the ◀/▶ nav both read (no duplicated grouping). (#170)
-    private var navDays: [[CachedSleepSession]] {
-        SleepModel.navDays(navSessions: navSessions)
-    }
-
     /// The device's current UTC offset (seconds east), evaluated once per pick. Feeds the selector's
     /// `offsetSec` so the timing test reads the user's clock via the SAME `offsetSec` math the engine
     /// uses (`SleepStageTotals.localSecOfDay`), instead of `Calendar.current.component(.hour:)` which was
     /// the duplicated, DST-fragile gate the audit flagged. (#547)
-    static var tzOffsetSec: Int { TimeZone.current.secondsFromGMT() }
+    nonisolated static var tzOffsetSec: Int { TimeZone.current.secondsFromGMT() }
 
     /// The day's single WINNING main block — the durable-edit anchor (`editTarget`) and the one block whose
     /// learned-timing score won. Scores by learned timing on each block's EFFECTIVE onset (what the user
@@ -1718,7 +1631,7 @@ struct SleepView: View {
     /// phantom naps (#555). `habitualMidsleepSec` is the SAME learned value the engine threads into the
     /// persisted totals (loaded via `repo.habitualMidsleepSec()`), so a shift/late sleeper's pick matches
     /// the analytics rollup; nil keeps the cold-start overnight-band bonus. (#525 / #547 / #561)
-    static func mainNightSession(_ sessions: [CachedSleepSession],
+    nonisolated static func mainNightSession(_ sessions: [CachedSleepSession],
                                  habitualMidsleepSec: Int? = nil) -> CachedSleepSession? {
         SleepStageTotals.mainNightIndex(
             sessions.map { SleepStageTotals.NightBlock(start: $0.effectiveStartTs, end: $0.endTs) },
@@ -1732,7 +1645,7 @@ struct SleepView: View {
     /// un-bridged single-block pick and rendered the bridged siblings as phantom naps (#555). A night with
     /// no bridgeable gap collapses to the single block `mainNightSession` picks, so the common case is byte-
     /// identical. Returns ascending by effective onset. (#561 / #555)
-    static func mainNightGroup(_ sessions: [CachedSleepSession],
+    nonisolated static func mainNightGroup(_ sessions: [CachedSleepSession],
                                habitualMidsleepSec: Int? = nil) -> [CachedSleepSession] {
         guard let idx = SleepStageTotals.mainNightGroupIndices(
             sessions.map { SleepStageTotals.NightBlock(start: $0.effectiveStartTs, end: $0.endTs) },
@@ -1745,7 +1658,7 @@ struct SleepView: View {
     /// same main-vs-nap classification the hero uses and decodes persisted stages. A stage-less nap
     /// contributes nothing rather than substituting its in-bed window. Mirrors Android
     /// `napSleepMinutesByDay`.
-    static func napSleepMinutes(_ sessions: [CachedSleepSession],
+    nonisolated static func napSleepMinutes(_ sessions: [CachedSleepSession],
                                 habitualMidsleepSec: Int? = nil) -> Double {
         let mainStarts = Set(mainNightGroup(sessions, habitualMidsleepSec: habitualMidsleepSec)
             .map { $0.startTs })
@@ -1761,7 +1674,7 @@ struct SleepView: View {
     /// band) should show — never a screen-local "freshest" or "longest single block" heuristic, which
     /// can silently disagree with each other and with the Sleep tab hero on a night stored as more than
     /// one block (#294). nil only when `sessions` has nothing bridgeable.
-    static func mainNightSpan(_ sessions: [CachedSleepSession],
+    nonisolated static func mainNightSpan(_ sessions: [CachedSleepSession],
                               habitualMidsleepSec: Int? = nil) -> (start: Int, end: Int)? {
         let group = mainNightGroup(sessions, habitualMidsleepSec: habitualMidsleepSec)
         guard let first = group.first, let last = group.last else { return nil }
@@ -1774,7 +1687,7 @@ struct SleepView: View {
     /// Classify a block as a nap: it's a nap exactly when it is NOT the day's chosen main block. Derived
     /// from the pick (never an independent onset/duration gate), so the label can't contradict the
     /// selection — the contradiction the audit flagged. The main block is never a nap. (#518/#547)
-    static func isNap(_ s: CachedSleepSession, main: CachedSleepSession?) -> Bool {
+    nonisolated static func isNap(_ s: CachedSleepSession, main: CachedSleepSession?) -> Bool {
         guard let main else { return false }
         return s.startTs != main.startTs
     }
@@ -1789,16 +1702,16 @@ struct SleepView: View {
     /// pre-sleep awake — so a tight cap missed it (#736). The real guard against swallowing a genuine first
     /// sleep fragment is `preOnsetStubAsleepMaxMin`: a stub must be essentially SLEEPLESS, which a real sleep
     /// block never is. The cap only stops a pathological all-day awake block from being silently dropped.
-    static let preOnsetStubMaxMin: Double = 240
+    nonisolated static let preOnsetStubMaxMin: Double = 240
     /// Most asleep minutes a fragment can carry and still count as a (sleepless) pre-onset awake stub. A real
     /// first sleep fragment of a biphasic night carries far more, so it's never mistaken for a stub. (#736)
-    static let preOnsetStubAsleepMaxMin: Double = 3
+    nonisolated static let preOnsetStubAsleepMaxMin: Double = 3
     /// A leading pre-onset fragment carrying SOME sleep is still spurious when it is minor RELATIVE to the
     /// night's main block: its asleep minutes are below this fraction of the largest fragment's. A genuine
     /// biphasic first sleep is comparable to the main block (well above this) and is kept; only a small stray
     /// lead is dropped. Extends the essentially-sleepless `preOnsetStubAsleepMaxMin` rule (#736), which missed
     /// a lead carrying a few minutes more than 3. Mirrors Android PRE_ONSET_STUB_MINOR_FRAC. (#259)
-    static let preOnsetStubMinorFrac: Double = 0.15
+    nonisolated static let preOnsetStubMinorFrac: Double = 0.15
 
     /// Absolute floor (ASLEEP minutes) under the #259 relative "minor lead" test: a leading fragment that
     /// carries at least this much real sleep is a genuine first sleep — a real sleep episode — and is NEVER
@@ -1808,14 +1721,14 @@ struct SleepView: View {
     /// already spans. 20 min ≈ the shortest standalone sleep episode; below it a handful of asleep minutes
     /// beside a long night is a stray lead. Mirrors Android PRE_ONSET_STUB_MINOR_ASLEEP_FLOOR_MIN.
     /// (bridged-night headline: a real 2026-07-14 12:16 first sleep hidden behind the 1:29 main block)
-    static let preOnsetStubMinorAsleepFloorMin: Double = 20
+    nonisolated static let preOnsetStubMinorAsleepFloorMin: Double = 20
 
     /// Pure stub test on a fragment's span + asleep minutes, so the rule is unit-testable without decoding
     /// JSON or building a view. Spurious when BRIEF and EITHER essentially sleepless OR minor relative to the
     /// main block (`refAsleepMin`, the group's largest asleep span): asleep below `preOnsetStubMinorFrac` of
     /// it AND below the absolute `preOnsetStubMinorAsleepFloorMin` real-sleep-episode floor. `refAsleepMin`
     /// defaults to 0 (relative test off) so existing callers/tests are byte-identical. (#736 / #259)
-    static func isPreOnsetAwakeStub(spanMin: Double, asleepMin: Double, refAsleepMin: Double = 0) -> Bool {
+    nonisolated static func isPreOnsetAwakeStub(spanMin: Double, asleepMin: Double, refAsleepMin: Double = 0) -> Bool {
         guard spanMin <= preOnsetStubMaxMin else { return false }
         if asleepMin <= preOnsetStubAsleepMaxMin { return true }
         // #259 relative "minor lead" test, floored: a real sleep episode (>= the floor) is never a stray
@@ -1829,7 +1742,7 @@ struct SleepView: View {
     /// fragment that is NOT a spurious leading pre-onset awake stub, falling back to 0 when every fragment is
     /// stub-like. Pure mirror of `nightOnsetTs`'s walk, driven by per-fragment (spanMin, asleepMin) so a
     /// golden test can pin the #736 behaviour without view internals. (#736)
-    static func nightOnsetIndex(spansMin: [Double], asleepsMin: [Double]) -> Int {
+    nonisolated static func nightOnsetIndex(spansMin: [Double], asleepsMin: [Double]) -> Int {
         let refAsleepMin = asleepsMin.max() ?? 0
         for i in spansMin.indices {
             let asleep = i < asleepsMin.count ? asleepsMin[i] : 0
@@ -1843,15 +1756,6 @@ struct SleepView: View {
     private func dayBlocks(at offset: Int) -> [CachedSleepSession] {
         let days = navDays
         return offset >= 0 && offset < days.count ? days[offset] : []
-    }
-
-    /// The merged Night for the DAY `offset` stops back from the most recent (0 = last night). Backs the
-    /// hero's ◀/▶ navigation via the `navNight` cache — a thin wrapper over the shared
-    /// `SleepModel.decodedNight`, which JSON-decodes, so it only runs from the builder and the onChange
-    /// handlers, never per render. (#160, #170)
-    private func decodedNight(at offset: Int) -> Night? {
-        SleepModel.decodedNight(at: offset, navDays: navDays,
-                                habitualMidsleepSec: habitualMidsleepSec, motionByStart: motionByStart)
     }
 
     /// A synthetic session for the DAY `offset` stops back, spanning the MAIN block's window (not the
@@ -1868,7 +1772,7 @@ struct SleepView: View {
     /// no-blank rule is unit-testable without view internals (SleepPhantomNightFallbackTests): as
     /// long as a day has a block, the tab has something honest to show and `buildModel` never
     /// collapses the whole screen to the first-run empty state. nil only for an empty day.
-    static func stubDaySession(_ blocks: [CachedSleepSession],
+    nonisolated static func stubDaySession(_ blocks: [CachedSleepSession],
                                habitualMidsleepSec: Int? = nil) -> CachedSleepSession? {
         guard let main = mainNightSession(blocks, habitualMidsleepSec: habitualMidsleepSec) ?? blocks.first
         else { return nil }
@@ -2019,7 +1923,7 @@ struct SleepView: View {
     /// pre-onset trim. Internal (not private) so the golden test pins the DECODE PATH itself, not a
     /// pre-computed minute count. Android twin: SleepScreen's onset stub-test caller needs the same
     /// both-format decode.
-    static func decodedAsleepMinutes(_ json: String?, effectiveStartTs: Int) -> Double {
+    nonisolated static func decodedAsleepMinutes(_ json: String?, effectiveStartTs: Int) -> Double {
         decodeStages(json)?.asleep
             ?? decodeSegments(json, sessionStart: effectiveStartTs)?.stages.asleep
             ?? 0
@@ -2027,7 +1931,7 @@ struct SleepView: View {
 
     /// Decode the imported stagesJSON dict of MINUTES {"light","deep","rem","awake"}.
     /// Internal (not private) so `SleepModel.mergeDay` (SleepModel.swift) can call it.
-    static func decodeStages(_ json: String?) -> Stages? {
+    nonisolated static func decodeStages(_ json: String?) -> Stages? {
         guard let json, let data = json.data(using: .utf8) else { return nil }
         guard let obj = try? JSONSerialization.jsonObject(with: data),
               let dict = obj as? [String: Any] else { return nil }
@@ -2046,7 +1950,7 @@ struct SleepView: View {
     /// "light"|"deep"|"rem"}] into stage totals plus the real timeline (seconds relative to the
     /// session start, the Hypnogram's domain). The on-device SleepStager calls awake "wake". (#77)
     /// Internal (not private) so `SleepModel.mergeDay` (SleepModel.swift) can call it.
-    static func decodeSegments(
+    nonisolated static func decodeSegments(
         _ json: String?, sessionStart: Int
     ) -> (stages: Stages, intervals: [SleepInterval])? {
         guard let json, let data = json.data(using: .utf8),
@@ -2450,7 +2354,7 @@ struct SleepMarkCard: View {
         live.append(log: mark.logLine)
         Task {
             guard let store = await repo.storeHandle() else { return }
-            try? await store.upsertMetricSeries([mark.metricPoint], deviceId: repo.deviceId)
+            _ = try? await store.upsertMetricSeries([mark.metricPoint], deviceId: repo.deviceId)
         }
     }
 }
@@ -2527,24 +2431,6 @@ private struct SleepFreshnessNote: View {
 }
 
 // MARK: - Local value types
-
-/// Cheap, Equatable fingerprint of the repo inputs SleepView derives from. Two snapshots are
-/// equal iff the data the screen reads is unchanged, so the heavy `SleepModel` rebuild is
-/// skipped on the many `body` re-evaluations that don't touch sleep data.
-private struct SleepInputKey: Equatable {
-    let loaded: Bool
-    let daysCount: Int
-    let sleepsCount: Int
-    let firstDay: String?
-    let lastDay: String?
-    /// Newest day row (Equatable) — catches in-place edits to the latest day's values.
-    let lastDayUpdated: DailyMetric?
-    /// Newest sleep session (Equatable) — catches a re-import of the latest night.
-    let lastSleep: CachedSleepSession?
-    /// Bumped on every Repository.refresh — catches a re-import that changes only the
-    /// imported metricSeries figures (importedSleep) without touching days/sleeps.
-    let refreshSeq: Int
-}
 
 // SleepModel / Night / Stages and the pure `SleepModel.build(_:)` derivation pipeline now live in
 // SleepModel.swift, so the Today host can build the same model without a SleepView instance.
@@ -2912,3 +2798,16 @@ private extension Repository {
     }
 }
 #endif
+
+/// Live AppModel changes invalidate only this dial, never the sleep charts or historical model.
+private struct SleepBodyClockCard: View {
+    let night: Night
+    @EnvironmentObject private var appModel: AppModel
+    var body: some View {
+        if let phase = appModel.circadianPhase, phase.confidence != .unreadable {
+            BodyClockDialCard(estimate: phase,
+                actualBedHour: SleepView.localClockHour(night.session.effectiveStartTs),
+                actualWakeHour: SleepView.localClockHour(night.session.endTs))
+        }
+    }
+}

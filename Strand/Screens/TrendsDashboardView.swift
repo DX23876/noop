@@ -18,7 +18,7 @@ struct TrendsDashboardView: View {
     @EnvironmentObject private var updateStore: UpdateStore
     @EnvironmentObject private var coach: AICoachEngine
     @EnvironmentObject private var router: NavRouter
-    @EnvironmentObject private var model: AppModel
+    @Environment(\.dashboardAppModel) private var model
     // Deliberately NO `@EnvironmentObject live: LiveState` here — see the leaf-isolation note in
     // TodayView: a connected strap publishes `LiveState` ~1 Hz, and observing it at this level would
     // re-evaluate the WHOLE dashboard body on every heart-rate tick. The one thing on this screen that
@@ -44,32 +44,89 @@ struct TrendsDashboardView: View {
         [slot1Raw, slot2Raw, slot3Raw, slot4Raw].map { DashboardCard(rawValue: $0) ?? .hrv }
     }
 
-    @State private var displayDay: DailyMetric?
-    @State private var recentDays: [DailyMetric] = []
-    @State private var restByDay: [String: Double] = [:]
-    @State private var restSeriesTail: (day: String, value: Double)?
-    @State private var appleDays: [AppleDaily] = []
-    @State private var latestWorkout: WorkoutRow?
-    @State private var latestWorkoutHR: [Double] = []
-    @State private var recentWorkouts: [WorkoutRow] = []
-    @State private var journalLoggedDays: Set<String>?
-    @State private var todayEnergySummary: DailyEnergySummary?
-    @State private var fitnessAgeToday: Double?
-    @State private var vo2maxToday: Double?
-    @State private var vitalityToday: Double?
-    @State private var stressToday: Double?
-    @State private var hydrationTotalML: Double?
-    @State private var resolvedWeightKg: Double?
+    private var displayDay: DailyMetric? {
+        get { snapshot.displayDay }
+        nonmutating set { snapshot.displayDay = newValue }
+    }
+    private var recentDays: [DailyMetric] {
+        get { snapshot.recentDays }
+        nonmutating set { snapshot.recentDays = newValue }
+    }
+    private var restByDay: [String: Double] {
+        get { snapshot.restByDay }
+        nonmutating set { snapshot.restByDay = newValue }
+    }
+    private var restSeriesTail: (day: String, value: Double)? {
+        get { snapshot.restSeriesTail }
+        nonmutating set { snapshot.restSeriesTail = newValue }
+    }
+    private var appleDays: [AppleDaily] {
+        get { snapshot.appleDays }
+        nonmutating set { snapshot.appleDays = newValue }
+    }
+    private var latestWorkout: WorkoutRow? {
+        get { snapshot.latestWorkout }
+        nonmutating set { snapshot.latestWorkout = newValue }
+    }
+    private var latestWorkoutHR: [Double] {
+        get { snapshot.latestWorkoutHR }
+        nonmutating set { snapshot.latestWorkoutHR = newValue }
+    }
+    private var recentWorkouts: [WorkoutRow] {
+        get { snapshot.recentWorkouts }
+        nonmutating set { snapshot.recentWorkouts = newValue }
+    }
+    private var journalLoggedDays: Set<String>? {
+        get { snapshot.journalLoggedDays }
+        nonmutating set { snapshot.journalLoggedDays = newValue }
+    }
+    private var todayEnergySummary: DailyEnergySummary? {
+        get { snapshot.todayEnergySummary }
+        nonmutating set { snapshot.todayEnergySummary = newValue }
+    }
+    private var fitnessAgeToday: Double? {
+        get { snapshot.fitnessAgeToday }
+        nonmutating set { snapshot.fitnessAgeToday = newValue }
+    }
+    private var vo2maxToday: Double? {
+        get { snapshot.vo2maxToday }
+        nonmutating set { snapshot.vo2maxToday = newValue }
+    }
+    private var vitalityToday: Double? {
+        get { snapshot.vitalityToday }
+        nonmutating set { snapshot.vitalityToday = newValue }
+    }
+    private var stressToday: Double? {
+        get { snapshot.stressToday }
+        nonmutating set { snapshot.stressToday = newValue }
+    }
+    private var hydrationTotalML: Double? {
+        get { snapshot.hydrationTotalML }
+        nonmutating set { snapshot.hydrationTotalML = newValue }
+    }
+    private var resolvedWeightKg: Double? {
+        get { snapshot.resolvedWeightKg }
+        nonmutating set { snapshot.resolvedWeightKg = newValue }
+    }
     /// The per-field vitals carry the dashboard cards use — see `DashboardVitalCarry`.
-    @State private var vitalCarry = DashboardVitalCarry()
+    private var vitalCarry: DashboardVitalCarry {
+        get { snapshot.vitalCarry }
+        nonmutating set { snapshot.vitalCarry = newValue }
+    }
     /// The Charge hero's resolved state — scored / carried / calibrating / no-data. Resolved ONCE in
     /// load() (`ChargeDisplay.resolve` scans the day list) and read O(1) by the ring, exactly as Liquid
     /// caches it. Not a bare `Double?`: "no score" is not "0%", and each empty state has its own copy.
-    @State private var chargeDisplay: ChargeDisplay = .noData
+    private var chargeDisplay: ChargeDisplay {
+        get { snapshot.chargeDisplay }
+        nonmutating set { snapshot.chargeDisplay = newValue }
+    }
     /// Today's in-progress Effort (#402), re-scored from the raw HR stream because the stored daily row
     /// lags. Read LAST in load() (see the assignment) so the rings paint on the stored row first and this
     /// only ever raises it — `StrainScorer.effectiveEffort` takes the max, so it cannot flicker downward.
-    @State private var liveTodayStrain: Double?
+    private var liveTodayStrain: Double? {
+        get { snapshot.liveTodayStrain }
+        nonmutating set { snapshot.liveTodayStrain = newValue }
+    }
     @State private var showCoach = false
     @State private var showUpdatesInbox = false
     @State private var showSettings = false
@@ -92,7 +149,7 @@ struct TrendsDashboardView: View {
     var body: some View {
         ScrollViewReader { proxy in
         ScrollView {
-            VStack(alignment: .leading, spacing: NoopMetrics.sectionSpacing) {
+            LazyVStack(alignment: .leading, spacing: NoopMetrics.sectionSpacing) {
                 Color.clear.frame(height: 0).id(Self.topAnchorID)
                 header
                 // Pinned ABOVE the reorderable block, exactly where Classic and Liquid Today pin them:
@@ -134,7 +191,20 @@ struct TrendsDashboardView: View {
         // The visible-section set joins the id because `load()` now skips the reads that only feed a
         // hidden section: showing one has to re-run the load that fills it, or it would render empty
         // until the next refresh.
-        .task(id: "\(repo.refreshSeq)-\(selectedDayOffset)-\(layoutSectionsKey)") { await load() }
+        .task(id: loadKey) { await load() }
+        .task(id: repo.energyPresentationRevision) {
+            guard repo.energyPresentationRevision > 0 else { return }
+            let revision = repo.energyPresentationRevision
+            let value = await repo.todayEnergy(profile: Repository.analyticsProfile(profile))
+            guard revision == repo.energyPresentationRevision else { return }
+            todayEnergySummary = value
+        }
+        .task(id: "\(repo.hydrationSeq)-\(selectedDayKey)") {
+            let day = selectedDayKey
+            let value = await repo.hydrationTotal(day: day)
+            guard !Task.isCancelled, day == selectedDayKey else { return }
+            hydrationTotalML = value
+        }
         .coachCover(isPresented: $showCoach, coach: coach)
         // Honour a one-shot "open Live Session" request (the coach chat's action chip, or a deep link).
         // Fires on the flag itself, not on appear, so it still works when Today is already the active
@@ -231,21 +301,61 @@ struct TrendsDashboardView: View {
 
     // MARK: - Loading
 
+    private struct Snapshot {
+        var displayDay: DailyMetric?
+        var recentDays: [DailyMetric] = []
+        var restByDay: [String: Double] = [:]
+        var restSeriesTail: (day: String, value: Double)?
+        var appleDays: [AppleDaily] = []
+        var latestWorkout: WorkoutRow?
+        var latestWorkoutHR: [Double] = []
+        var recentWorkouts: [WorkoutRow] = []
+        var journalLoggedDays: Set<String>?
+        var todayEnergySummary: DailyEnergySummary?
+        var fitnessAgeToday: Double?
+        var vo2maxToday: Double?
+        var vitalityToday: Double?
+        var stressToday: Double?
+        var hydrationTotalML: Double?
+        var resolvedWeightKg: Double?
+        var vitalCarry: DashboardVitalCarry = DashboardVitalCarry()
+        var chargeDisplay: ChargeDisplay = .noData
+        var liveTodayStrain: Double?
+    }
+    @State private var snapshot = Snapshot()
+    @State private var lastLoadedKey: DashboardLoadKey?
+    @State private var lastLoadedAt = Date.distantPast
+    @State private var loadGeneration = 0
+    private var loadKey: DashboardLoadKey {
+        DashboardLoadKey(repo: repo, selection: selectedDayKey,
+            preferences: layoutSectionsKey, profile: profile)
+    }
+
     private func load() async {
+        let key = loadKey
+        guard lastLoadedKey != key || (selectedDayOffset == 0 && Date().timeIntervalSince(lastLoadedAt) >= 120) else { return }
+        loadGeneration &+= 1
+        let generation = loadGeneration
+        let hydrationSequence = repo.hydrationSeq
+        let selectedDayKey = self.selectedDayKey
+        let selectedDayOffset = self.selectedDayOffset
+        let selectedLogicalDay = self.selectedLogicalDay
+        var next = Snapshot()
+        let liveInput = DashboardMomentum.LiveInput(model: model)
         let allDays = repo.days
-        // One pass over the day list, not two: `recentDays` is the tail of the same scoped slice the
+        // One pass over the day list, not two: `next.recentDays` is the tail of the same scoped slice the
         // stress model reads below.
         let scopedDays = allDays.filter { $0.day <= selectedDayKey }
-        recentDays = Array(scopedDays.suffix(120))
-        displayDay = selectedDayOffset == 0
+        next.recentDays = Array(scopedDays.suffix(120))
+        next.displayDay = selectedDayOffset == 0
             ? (repo.today ?? allDays.last(where: { $0.day == selectedDayKey }))
             : allDays.last(where: { $0.day == selectedDayKey })
         // #543 carry, through the SAME composition both Today screens use. This hero used to draw
-        // `displayDay?.recovery` raw, so every day before tonight's night was scored — including the whole
+        // `next.displayDay?.recovery` raw, so every day before tonight's night was scored — including the whole
         // morning after the 04:00 rollover — CHARGE read "—" while REST (`freshRestScore`) carried right
         // beside it. Effort deliberately still does not carry: it is today's own accumulation, so
         // yesterday's number would be a false statement, not a stale one.
-        chargeDisplay = ChargeDisplay.resolve(days: allDays, displayDay: displayDay,
+        next.chargeDisplay = ChargeDisplay.resolve(days: allDays, displayDay: next.displayDay,
                                               selectedDayKey: selectedDayKey,
                                               isToday: selectedDayOffset == 0)
         let sections = layoutSections
@@ -269,20 +379,27 @@ struct TrendsDashboardView: View {
         async let hydrationA = repo.hydrationTotal(day: selectedDayKey)
         async let weightSummaryA = repo.weightTrendSummary(days: 91)
 
-        vitalCarry = DashboardVitalCarry.resolve(days: allDays,
-                                                 todayKey: displayDay?.day ?? selectedDayKey,
+        next.vitalCarry = DashboardVitalCarry.resolve(days: allDays,
+                                                 todayKey: next.displayDay?.day ?? selectedDayKey,
                                                  isToday: selectedDayOffset == 0)
-        appleDays = await appleDaysA
+        next.appleDays = await appleDaysA
         let restSeries = await restSeriesA
-        restByDay = Dictionary(restSeries.map { ($0.day, $0.value) }, uniquingKeysWith: { _, last in last })
-        restSeriesTail = restSeries.last
-        todayEnergySummary = (await energySummariesA).last(where: { $0.day == selectedDayKey })
-        fitnessAgeToday = latestBanked(await fitnessAgeSeriesA, asOf: selectedDayKey)
-        vo2maxToday = latestBanked(await vo2maxSeriesA, asOf: selectedDayKey)
-        vitalityToday = latestBanked(await vitalitySeriesA, asOf: selectedDayKey)
-        stressToday = StressModel(days: scopedDays, stored: await stressStoredA)?.score
-        hydrationTotalML = await hydrationA
-        resolvedWeightKg = WeightSeries.displayWeight(summary: await weightSummaryA,
+        next.restByDay = Dictionary(restSeries.map { ($0.day, $0.value) }, uniquingKeysWith: { _, last in last })
+        for daily in allDays {
+            if let corrected = DashboardRestScore.value(
+                day: daily.day, days: allDays, importedSleep: repo.importedSleep) {
+                next.restByDay[daily.day] = corrected
+            }
+        }
+        next.restSeriesTail = restSeries.last
+        next.todayEnergySummary = (await energySummariesA).last(where: { $0.day == selectedDayKey })
+        next.fitnessAgeToday = latestBanked(await fitnessAgeSeriesA, asOf: selectedDayKey)
+        next.vo2maxToday = latestBanked(await vo2maxSeriesA, asOf: selectedDayKey)
+        next.vitalityToday = latestBanked(await vitalitySeriesA, asOf: selectedDayKey)
+        let storedStress = await stressStoredA
+        next.stressToday = await runUnescalated { StressModel(days: scopedDays, stored: storedStress)?.score }
+        next.hydrationTotalML = await hydrationA
+        next.resolvedWeightKg = WeightSeries.displayWeight(summary: await weightSummaryA,
                                                        profileWeightKg: profile.weightKg).kg
 
         // Workouts feed `.activity` (shown by default) and the optional `.workoutsList`; skip the read
@@ -296,50 +413,57 @@ struct TrendsDashboardView: View {
             let workouts = selectedDayOffset == 0 ? allWorkouts : allWorkouts.filter {
                 Repository.localDayKey(Date(timeIntervalSince1970: TimeInterval($0.startTs))) == selectedDayKey
             }
-            latestWorkout = workouts.first
-            recentWorkouts = Array(workouts.prefix(5))
+            next.latestWorkout = workouts.first
+            next.recentWorkouts = Array(workouts.prefix(5))
             if sections.contains(.activity), let w = workouts.first {
                 let hr = await repo.hrSamples(from: w.startTs, to: w.endTs, limit: 400)
-                latestWorkoutHR = hr.map { Double($0.bpm) }
+                next.latestWorkoutHR = hr.map { Double($0.bpm) }
             } else {
-                latestWorkoutHR = []
+                next.latestWorkoutHR = []
             }
         } else {
-            latestWorkout = nil
-            recentWorkouts = []
-            latestWorkoutHR = []
+            next.latestWorkout = nil
+            next.recentWorkouts = []
+            next.latestWorkoutHR = []
         }
 
         // Hidden by default — see the Overview twin's note on why this is gated rather than always read.
         if sections.contains(.journal) {
             let journalKeys = Self.journalDayKeys(anchor: selectedLogicalDay)
-            journalLoggedDays = await repo.nativeJournalDays(from: journalKeys.first ?? "", to: journalKeys.last ?? "")
+            next.journalLoggedDays = await repo.nativeJournalDays(from: journalKeys.first ?? "", to: journalKeys.last ?? "")
         } else {
-            journalLoggedDays = nil
+            next.journalLoggedDays = nil
         }
 
         // Publish the Momentum feed. Until now nothing on this screen did, so a wearer whose Today is a
         // dashboard had an empty MomentumStore forever — the section rendered its "open Momentum"
         // fallback and never a message. Done at the end of load(), after the values it reads are set.
         let steps = DailyStepsReading.resolve(
-            strapSteps: displayDay?.steps,
-            appleSteps: appleDays.last(where: { $0.day == selectedDayKey })?.steps,
+            strapSteps: next.displayDay?.steps,
+            appleSteps: next.appleDays.last(where: { $0.day == selectedDayKey })?.steps,
             estimatedSteps: nil)
-        DashboardMomentum.publish(
-            context: DashboardMomentum.context(displayDay: displayDay, allDays: allDays,
-                                               dayKey: selectedDayKey, isToday: selectedDayOffset == 0,
-                                               steps: steps, stepGoal: momentumStepGoal, model: model),
-            allDays: allDays,
-            snoozedRaw: momentumSnoozedRaw, lastKind: momentumLastKind, lastAt: momentumLastAt,
-            retrospective: selectedDayOffset != 0)
+
 
         // Today's in-progress Effort, DELIBERATELY last: it is the heaviest read on this pass, and every
         // surface it feeds already has a value drawn from the stored row by the time it lands. Because
         // `effectiveEffort` floors at that row, the refinement can only raise the number, never drop it —
         // so nothing on screen moves backwards while this resolves.
-        liveTodayStrain = selectedDayOffset == 0
-            ? await LiveEffort.today(repo: repo, profile: profile, restingHr: displayDay?.restingHr)
+        next.liveTodayStrain = selectedDayOffset == 0
+            ? await LiveEffort.today(repo: repo, profile: profile, restingHr: next.displayDay?.restingHr)
             : nil
+
+        guard !Task.isCancelled, key == loadKey, generation == loadGeneration else { return }
+        if hydrationSequence != repo.hydrationSeq { next.hydrationTotalML = hydrationTotalML }
+        snapshot = next
+        lastLoadedKey = key
+        lastLoadedAt = Date()
+        DashboardMomentum.publish(
+            context: DashboardMomentum.context(displayDay: next.displayDay, allDays: allDays,
+                                               dayKey: selectedDayKey, isToday: selectedDayOffset == 0,
+                                               steps: steps, stepGoal: momentumStepGoal, live: liveInput),
+            allDays: allDays,
+            snoozedRaw: momentumSnoozedRaw, lastKind: momentumLastKind, lastAt: momentumLastAt,
+            retrospective: selectedDayOffset != 0)
 
     }
 
@@ -852,16 +976,7 @@ struct TrendsDashboardView: View {
             VStack(alignment: .leading, spacing: NoopMetrics.gap) {
                 Text("Menstrual cycle").font(StrandFont.headline).foregroundStyle(StrandPalette.textPrimary)
                 NoopCard(padding: NoopMetrics.cardPadding) {
-                    HStack {
-                        Text(model.cyclePhase.map { cyclePhaseTitle($0.phase) }
-                             ?? String(localized: "Learning your pattern"))
-                            .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
-                        Spacer()
-                        if let result = model.cyclePhase, let lo = result.cycleDayLow, let hi = result.cycleDayHigh {
-                            (lo == hi ? Text("~day \(lo)") : Text("~day \(lo)-\(hi)"))
-                                .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
-                        }
-                    }
+                    DashboardCycleReadout()
                 }
             }
         }

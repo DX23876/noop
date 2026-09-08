@@ -70,13 +70,13 @@ final class DayCycleRecoveryTests: XCTestCase {
             sleepSessions: { _, _, _ in throw ReadFailure.injected },
             markers: { _, _, _ in XCTFail("marker read must not follow a failed session read"); return [] })
 
-        let result = await DayCycleIntelligenceIntegration.compute(
+        let result = try await DayCycleIntelligenceIntegration().compute(
             nights: [], editedRows: [], store: store,
             candidates: [(owner: "strap", priority: 0)],
             physiologyOwners: ["strap"], workouts: [],
             windowStart: 1_700_000_000, now: 1_700_086_400, offsetSec: 0,
             habitualMidsleepSec: nil, ticksPerStep: 1, mode: .sleepOnset,
-            cache: DayCycleIntelligenceIntegration.Cache(), profile: UserProfile(),
+            profile: UserProfile(),
             maxHROverride: nil, effortMethod: .edwards, recoveryReader: reader)
 
         guard case .preserve = result.markerUpdate else {

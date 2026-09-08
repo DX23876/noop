@@ -21,7 +21,7 @@ struct TrendsView: View {
     // observing it forced a full re-render of this subtree on every ~1 Hz live-HR tick.
 
     // The shared range control: W(7) / M(30) / 3M(90) / 6M(180) / 1Y(365) / ALL.
-    enum Range: Int, CaseIterable, Identifiable {
+    enum Range: Int, CaseIterable, Identifiable, Sendable {
         case week = 7, month = 30, quarter = 90, half = 180, year = 365, all = 0
         var id: Int { rawValue }
         var label: String {
@@ -92,65 +92,53 @@ struct TrendsView: View {
         return date(d)
     }
 
-    /// Days for a given range, taken RELATIVE TO TODAY (the phone's local date) — not the latest
-    /// recorded day, which on a stale import anchored W/M/3M to months-old data so it looked current
-    /// (issue #23). Empty short windows auto-widen (see `resolve`), so old imports surface under a
-    /// wider range / All history instead of masquerading as recent. `.all` returns everything.
-    /// ISO yyyy-MM-dd compares chronologically.
-    private func days(for r: Range) -> [DailyMetric] {
-        guard let n = r.days else { return repo.days }
-        let cutoffKey = Repository.localDayKey(Calendar.current.date(byAdding: .day, value: -(n - 1), to: Date()) ?? Date())
-        return repo.days.filter { $0.day >= cutoffKey }
-    }
-
-    /// Build trend points from a metric accessor over a day slice.
-    private func points(_ days: ArraySlice<DailyMetric>, _ value: (DailyMetric) -> Double?) -> [TrendPoint] {
-        days.compactMap { d in
-            guard let v = value(d), let dt = date(d.day) else { return nil }
-            return TrendPoint(date: dt, value: v)
-        }
-    }
-    private func points(_ days: [DailyMetric], _ value: (DailyMetric) -> Double?) -> [TrendPoint] {
-        points(days[...], value)
-    }
-
-    // MARK: Resolved metric (memoized per body)
-    //
-    // days(for:) / points each re-filter the full multi-year `repo.days` array,
-    // and the subviews used to fan out to them many times per render (caption +
-    // widened + windowPoints, ×4 metrics). `resolve(_:)` walks the widening order
-    // ONCE per metric (the smallest range ≥ selected whose window holds ≥1 point,
-    // else ALL), captures that window's points and its effective range, then
-    // derives the caption / widened flag from those — so a single body evaluation
-    // filters each metric's window once instead of dozens of times. Identical
-    // results to the old per-helper (effectiveRange / windowPoints / caption /
-    // widened) computation.
-    private struct ResolvedMetric {
+    struct ResolvedMetric: Sendable {
         var points: [TrendPoint]
         var effective: Range
         var widened: Bool
         var caption: String
     }
+    @State private var metrics: [String: ResolvedMetric] = [:]
+    @State private var metricsKey: String?
+    @State private var restCache = PresentationTaskCache<SleepPresentationRevision, [String: Double]>(capacity: 1)
+    private var loadKey: String { "\(SleepPresentationRevision(repo: repo))-\(range.rawValue)" }
+    private var emptyMetric: ResolvedMetric {
+        ResolvedMetric(points: [], effective: range, widened: false, caption: "")
+    }
 
-    private func resolve(_ value: (DailyMetric) -> Double?) -> ResolvedMetric {
-        // Find the smallest range ≥ selected whose window has ≥1 point, keeping
-        // that window's points so we don't re-filter to read them back.
-        for r in range.widening {
-            let pts = points(days(for: r), value)
-            if !pts.isEmpty {
-                return ResolvedMetric(points: pts, effective: r,
-                                      widened: r != range, caption: caption(count: pts.count, eff: r))
+    nonisolated static func prepare(days: [DailyMetric], rest: [String: Double],
+                                           range: Range, now: Date) -> [String: ResolvedMetric] {
+        let parser = DateFormatter()
+        parser.locale = Locale(identifier: "en_US_POSIX"); parser.timeZone = TimeZone(identifier: "UTC")
+        parser.dateFormat = "yyyy-MM-dd"
+        let dated = days.compactMap { row in parser.date(from: row.day).map { (row, $0) } }
+        let accessors: [(String, (DailyMetric) -> Double?)] = [
+            ("recovery", { $0.recovery }), ("hrv", { $0.avgHrv }),
+            ("rhr", { $0.restingHr.map(Double.init) }), ("strain", { $0.strain }),
+            ("rest", { rest[$0.day] })]
+        var result: [String: ResolvedMetric] = [:]
+        for (key, value) in accessors {
+            for r in range.widening {
+                let cutoff: String? = r.days.map {
+                    Repository.localDayKey(Calendar.current.date(byAdding: .day, value: -($0 - 1), to: now) ?? now)
+                }
+                let points = dated.compactMap { row, date -> TrendPoint? in
+                    guard cutoff.map({ row.day >= $0 }) ?? true, let v = value(row) else { return nil }
+                    return TrendPoint(date: date, value: v)
+                }
+                if !points.isEmpty || r == .all {
+                    result[key] = ResolvedMetric(points: points, effective: r, widened: r != range,
+                        caption: caption(count: points.count, eff: r, range: range))
+                    break
+                }
             }
         }
-        // No range held data: fall back to ALL (matches effectiveRange()).
-        let pts = points(days(for: .all), value)
-        return ResolvedMetric(points: pts, effective: .all,
-                              widened: .all != range, caption: caption(count: pts.count, eff: .all))
+        return result
     }
 
     /// Caption text from an already-resolved count + effective range. Mirrors
     /// `caption(_:)` exactly but takes precomputed inputs to avoid re-filtering.
-    private func caption(count n: Int, eff: Range) -> String {
+    nonisolated private static func caption(count n: Int, eff: Range, range: Range) -> String {
         if eff != range {
             return n == 1
                 ? String(localized: "1 reading · sparse, widened to \(name(for: eff))")
@@ -245,7 +233,7 @@ struct TrendsView: View {
         }
     }
 
-    private func name(for r: Range) -> String {
+    nonisolated private static func name(for r: Range) -> String {
         switch r {
         case .week:    return String(localized: "week")
         case .month:   return String(localized: "month")
@@ -274,10 +262,9 @@ struct TrendsView: View {
     private var scaffold: some View {
         ScreenScaffold(title: "Trends", subtitle: "The thread of you over time.",
                        // PERF (scroll): lazy column — byte-identical layout (LazyVStack == eager VStack
-                       // alignment/spacing/header). The content is one inner eager VStack, so the staggered
-                       // section reveal is unchanged; this only defers building that stack until it scrolls in.
+                       // alignment/spacing/header). Cards are direct children of the lazy column.
                        onRefresh: { await repo.refresh() },
-                       lazy: true,
+                       lazy: true, contentSpacing: NoopMetrics.sectionSpacing,
                        topBackground: liquidScaffoldSky()) {
             if repo.days.isEmpty {
                 if repo.loaded {
@@ -287,18 +274,15 @@ struct TrendsView: View {
                     ComingSoon.loading("Loading your history…", title: "Reading your history")
                 }
             } else {
-                // Resolve each metric's window ONCE per body and pass the results
-                // down — rangeBar/heroRecovery/smallMultiples all reuse these
-                // instead of re-filtering repo.days through caption/widened/
-                // windowPoints on every render (hover, animation, 1 Hz HR tick).
-                let recovery = resolve { $0.recovery }
-                let hrv = resolve { $0.avgHrv }
-                let rhr = resolve { $0.restingHr.map(Double.init) }
-                let strain = resolve { $0.strain }
+                // Read prepared metric windows; rendering does not filter the repository history.
+                let recovery = metrics["recovery"] ?? emptyMetric
+                let hrv = metrics["hrv"] ?? emptyMetric
+                let rhr = metrics["rhr"] ?? emptyMetric
+                let strain = metrics["strain"] ?? emptyMetric
                 // Rest = the sleep_performance composite — the same number the Today Rest score shows
                 // (#732); see sleepPerfByDay. resolve() still does the windowing/widening.
-                let rest = resolve { sleepPerfByDay[$0.day] }
-                VStack(alignment: .leading, spacing: NoopMetrics.sectionSpacing) {
+                let rest = metrics["rest"] ?? emptyMetric
+                Group {
                     // The main card list ripples in once on appear (Reduce-Motion safe).
                     Group {
                         // Week-in-review digest (#208) with prev/next week browsing (#710) — self-hides
@@ -332,12 +316,24 @@ struct TrendsView: View {
             TrendsReportSheet(days: repo.days)
         }
         // #732 — load the resolved sleep_performance series so Rest plots the SAME composite the Today
-        // Rest score uses (not raw efficiency). Mirrors TodayView's restScore read. Keyed on the day
-        // count so a newly-banked/-scored night refreshes Rest reactively, like the other metrics that
-        // read `repo.days` directly (and like the Android LaunchedEffect(days) twin).
-        .task(id: repo.days.count) {
-            let s = await repo.exploreSeries(key: "sleep_performance", source: "my-whoop")
-            sleepPerfByDay = Dictionary(s.map { ($0.day, $0.value) }, uniquingKeysWith: { _, last in last })
+        // Rest score uses (not raw efficiency). Mirrors TodayView's restScore read. Keyed on the data
+        // revision, including corrections to existing rows. A range change reuses the Rest read.
+        .task(id: loadKey) {
+            let key = loadKey, revision = SleepPresentationRevision(repo: repo)
+            guard metricsKey != key else { return }
+            let days = repo.days, range = self.range, now = Date()
+            do {
+                let rest = try await restCache.value(for: revision) {
+                    let series = await repo.exploreSeries(key: "sleep_performance", source: "my-whoop")
+                    try Task.checkCancellation()
+                    return Dictionary(series.map { ($0.day, $0.value) }, uniquingKeysWith: { _, last in last })
+                }
+                let prepared = await runUnescalated { Self.prepare(days: days, rest: rest, range: range, now: now) }
+                guard !Task.isCancelled, key == loadKey else { return }
+                sleepPerfByDay = rest
+                metrics = prepared
+                metricsKey = key
+            } catch { }
         }
     }
 

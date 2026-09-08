@@ -191,9 +191,11 @@ public struct ChargeSyncIndicator: View {
         // is the ZStack's natural size, which does not move while `pillProgress` animates.
         .background(labelWidthReader, alignment: .leading)
         .onPreferenceChange(SyncLabelWidthKey.self) { measured in
-            // Ignore sub-point churn, so a rounding wobble cannot restart the animation.
-            guard measured > 0, abs(measured - labelWidth) > 0.5 else { return }
-            labelWidth = measured
+            Task { @MainActor in
+                // Ignore sub-point churn, so a rounding wobble cannot restart the animation.
+                guard measured > 0, abs(measured - labelWidth) > 0.5 else { return }
+                labelWidth = measured
+            }
         }
         .frame(
             width: NoopMetrics.compactControlSize
