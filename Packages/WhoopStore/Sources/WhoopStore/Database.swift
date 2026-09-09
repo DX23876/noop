@@ -1279,6 +1279,24 @@ extension WhoopStore {
             try db.create(index: "idx_muscleRecoveryFeedback_group",
                           on: "muscleRecoveryFeedback", columns: ["muscleGroup", "ts"])
         }
+
+        // Detailed strength sessions can also originate from offline file imports. Provenance keeps
+        // disconnecting Hevy from deleting local history, while the mapping table lets an unknown CSV
+        // exercise be assigned once without pretending its muscle group can be inferred from its name.
+        migrator.registerMigration("v56-strength-sources") { db in
+            try db.alter(table: "hevyWorkout") { t in
+                t.add(column: "source", .text).notNull().defaults(to: "hevy_api")
+            }
+            try db.create(index: "idx_hevyWorkout_source_startTs", on: "hevyWorkout",
+                          columns: ["source", "startTs"])
+            try db.create(table: "strengthExerciseMapping") { t in
+                t.column("normalizedTitle", .text).primaryKey()
+                t.column("displayTitle", .text).notNull()
+                t.column("primaryMuscleGroup", .text).notNull()
+                t.column("secondaryMuscleGroupsJSON", .text).notNull()
+                t.column("updatedAtTs", .integer).notNull()
+            }
+        }
         return migrator
     }
 }

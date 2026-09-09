@@ -96,6 +96,16 @@ final class CoachLocalQueryRouterTests: XCTestCase {
         XCTAssertFalse(tools.contains(.personalPatterns))
     }
 
+    func testStrengthProgressUsesDetailedStrengthHistory() {
+        let engine = AICoachEngine(repo: Repository(deviceId: "test-strength-history-\(UUID().uuidString)"))
+        engine.toolConsent = ToolConsent(enabled: Set(CoachPurpose.allCases))
+
+        let tools = engine.coachTools(for: "Wie entwickelt sich meine Stärke beim Bankdrücken?")
+        XCTAssertTrue(tools.contains(.strengthHistory))
+        XCTAssertFalse(tools.contains(.recentWorkouts),
+                       "exercise-level strength questions need sets, load and reps rather than generic workouts")
+    }
+
     func testSensitiveJournalQuestionGetsOnlyTheDedicatedReader() {
         let engine = AICoachEngine(repo: Repository(deviceId: "test-sensitive-journal-policy-\(UUID().uuidString)"))
         engine.toolConsent = ToolConsent(enabled: Set(CoachPurpose.allCases))

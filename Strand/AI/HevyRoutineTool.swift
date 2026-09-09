@@ -95,7 +95,7 @@ extension AICoachEngine {
     /// the full before/after once one is picked.
     func hevyRoutinesTool() async -> String {
         guard let store = await repo.storeHandle() else { return "The local store isn't available." }
-        let routines = (try? await store.hevyRoutines()) ?? []
+        let routines = ((try? await store.hevyRoutines()) ?? []).map(Self.hydrate)
         guard !routines.isEmpty else {
             return "The user has no synced Hevy routines. You can still draft a NEW one with "
                 + "propose_hevy_routine (operation=create)."
@@ -138,6 +138,7 @@ extension AICoachEngine {
         let operation = HevyRoutineProposal.Operation(rawValue: (input["operation"] as? String) ?? "create")
             ?? .create
         var routineId: String?
+        var folderId: Int?
         var previous: [HevyRoutineDraftExercise]?
         var previousRaw: String?
         if operation == .update {
@@ -149,6 +150,9 @@ extension AICoachEngine {
                 return "Nothing drafted: no synced routine has id \(id)."
             }
             routineId = id
+            // Routine folders are not synchronized yet. Preserve a verified folder on updates and
+            // leave new routines unfiled instead of accepting an identifier the model could invent.
+            folderId = existing.folderId
             // Carried for the review screen's before/after and for restoring the previous version.
             // Hevy's PUT is a full replace with no partial update, so this is what makes a draft that
             // would drop exercises VISIBLE before it is sent — see `HevyRoutineWriter`.
@@ -195,7 +199,7 @@ extension AICoachEngine {
         var proposal = HevyRoutineProposal(
             operation: operation, routineId: routineId, title: title,
             notes: (input["notes"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines),
-            folderId: input["folder_id"] as? Int,
+            folderId: folderId,
             exercises: exercises, rationale: rationale,
             previousExercises: previous, previousRawJSON: previousRaw)
 

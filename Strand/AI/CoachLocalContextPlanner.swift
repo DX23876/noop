@@ -9,6 +9,7 @@ struct CoachLocalContextPlanner {
         case detailedBiometrics
         case readiness
         case workouts
+        case strength
         case planning
         case trainingPreferences
         case stress
@@ -25,12 +26,16 @@ struct CoachLocalContextPlanner {
         // A long-history question receives its evidence through the separate aggregate-only router. Do
         // not add a 14-day table simply because its wording happens to include "trend" or "last".
         if CoachLocalQueryRouter.explicitHistoryDays(for: question) != nil {
-            return [.compactBiometrics]
+            return CoachLocalQueryRouter.requestsStrengthHistory(for: question)
+                ? [.strength] : [.compactBiometrics]
         }
 
         var result: Set<Section> = [.compactBiometrics]
         if intersects(words, ["train", "training", "run", "running", "jog", "jogging", "workout", "gym", "lift", "lifting", "ride", "cycling", "cycle", "zone", "effort", "session", "exercise", "sport", "lauf", "laufen", "joggen", "training", "rad", "kraft", "einheit"]) {
             result.formUnion([.readiness, .workouts, .planning, .trainingPreferences])
+        }
+        if CoachLocalQueryRouter.requestsStrengthHistory(for: question) {
+            result.insert(.strength)
         }
         if intersects(words, ["today", "today's", "recovery", "readiness", "charge", "recover", "heute", "erholung", "bereit"]) {
             result.insert(.readiness)

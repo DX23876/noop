@@ -31,6 +31,11 @@ final class LiftingImporterTests: XCTestCase {
         XCTAssertEqual(s.topSetKg, 100)
         XCTAssertEqual(s.durationS, 3600)
         XCTAssertEqual(s.title, "Push Day")
+        XCTAssertEqual(s.exercises.map(\.title), ["Bench Press", "Bicep Curl"])
+        XCTAssertEqual(s.exercises[0].sets.count, 4)
+        XCTAssertEqual(s.exercises[0].sets[0].type, .warmup)
+        XCTAssertEqual(s.exercises[0].sets[1].weightKg, 100)
+        XCTAssertEqual(s.exercises[1].sets[0].reps, 8)
     }
 
     func testHevySplitsDistinctWorkoutsAndConvertsPounds() {
@@ -142,6 +147,9 @@ final class LiftingImporterTests: XCTestCase {
         XCTAssertEqual(s.totalReps, 13)
         XCTAssertEqual(s.start, Date(timeIntervalSince1970: 1748772000))
         XCTAssertEqual(s.durationS, 3600)
+        XCTAssertEqual(s.source, .liftosaur)
+        XCTAssertEqual(s.exercises.count, 2)
+        XCTAssertEqual(s.exercises.flatMap(\.sets).count, 3)
     }
 
     func testLiftosaurConvertsPoundUnitAndSkipsUncompletedSets() {

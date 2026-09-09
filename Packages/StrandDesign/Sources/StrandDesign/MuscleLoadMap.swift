@@ -115,6 +115,22 @@ public struct MuscleLoadMap: View {
                         .accessibilityLabel(Text(label(item.region)))
                         .accessibilityValue(Text(accessibilityValue(item.region)))
                 }
+                // Thin anatomical regions are hard to hit at phone size. A transparent gesture layer
+                // accepts taps inside the shape or within an 18-point stroked halo. Reversing the draw
+                // order preserves the same winner where two halos overlap.
+                Color.clear
+                    .contentShape(Rectangle())
+                    .gesture(SpatialTapGesture().onEnded { value in
+                        for item in art.regions.reversed() {
+                            let path = item.outline.path(width: w, height: h, originX: originX)
+                            if path.contains(value.location)
+                                || path.strokedPath(StrokeStyle(lineWidth: 18)).contains(value.location) {
+                                onSelect?(item.region)
+                                break
+                            }
+                        }
+                    })
+                    .accessibilityHidden(true)
             }
         }
         .aspectRatio(Self.aspect, contentMode: .fit)

@@ -15,6 +15,8 @@ enum CoachTool: String, CaseIterable {
     /// The user's recent workouts, newest first — parameterised, so the model can ask for more than
     /// the summary's default handful.
     case recentWorkouts = "get_recent_workouts"
+    /// Detailed lifting history down to exercises and sets, across API and offline imports.
+    case strengthHistory = "get_strength_history"
     /// Today's derived Baevsky Stress Index (autonomic-balance proxy over today's R-R).
     case stressIndex = "get_stress_index"
     /// The user's strongest n-of-1 patterns + Lab Book roll-up. Only offered when the second opt-in is on.
@@ -85,6 +87,8 @@ enum CoachTool: String, CaseIterable {
     case hevyRoutines = "get_hevy_routines"
     /// DRAFT a Hevy routine for review. Writes nothing to Hevy; only the review screen can send.
     case proposeHevyRoutine = "propose_hevy_routine"
+    /// Draft a completed Hevy workout or correction for explicit review.
+    case proposeHevyWorkout = "propose_hevy_workout"
 
     /// Natural-language description the model reads to decide when to call the tool.
     var description: String {
@@ -102,6 +106,10 @@ enum CoachTool: String, CaseIterable {
             return "Get the user's workout history (newest first) with total count, coverage, sports, "
                 + "local sources, duration, effort, average heart rate, energy and distance. Use days=30 "
                 + "for recent training or up to 3650 for a long-range workout question."
+        case .strengthHistory:
+            return "Get detailed strength history from Hevy API, Hevy CSV and Liftosaur: dated sessions, "
+                + "exercises, sets, reps, weight, RPE, volume, actual top weight and estimated 1RM trends. "
+                + "Use this for questions about strength, lifting progress or a specific exercise."
         case .stressIndex:
             return "Get today's derived stress index (Baevsky Stress Index over today's R-R intervals); "
                 + "higher means more sympathetic / under load. Use for stress or autonomic-balance questions."
@@ -239,6 +247,10 @@ enum CoachTool: String, CaseIterable {
                 + "(rep_range_start/rep_range_end) when a range is what you mean; use weight_kg only when you "
                 + "have grounds for a specific load from the user's own history. Give a short rationale. Say "
                 + "the draft is waiting for review — never that a routine was created, saved or added."
+        case .proposeHevyWorkout:
+            return "DRAFT a completed Hevy workout or a full correction for review. Call "
+                + "get_strength_history first for exact workout and exercise ids. This writes nothing until "
+                + "the user accepts the preview. Never create a future workout as completed."
         case .sessionOutlook:
             return "Find out what a session would cost this user, from THEIR OWN history: typical Charge "
                 + "cost the next morning, bounce-back days, and a projection for tomorrow. Pass "
@@ -304,6 +316,15 @@ enum CoachTool: String, CaseIterable {
                         "type": "integer",
                         "description": "How far back to search (1–3650 days). Defaults to 30."
                     ]
+                ]
+            ]
+        case .strengthHistory:
+            return [
+                "type": "object",
+                "properties": [
+                    "days": ["type": "integer", "description": "History window (1–3650 days). Defaults to 365."],
+                    "exercise": ["type": "string", "description": "Optional exercise name filter."],
+                    "limit": ["type": "integer", "description": "Recent sessions to include (1–12). Defaults to 6."]
                 ]
             ]
         case .personalPatterns:
@@ -638,7 +659,6 @@ enum CoachTool: String, CaseIterable {
                                    "description": "Required for update: the exact id of a synced routine."],
                     "title": ["type": "string", "description": "The routine's name."],
                     "notes": ["type": "string", "description": "A short note for the routine as a whole."],
-                    "folder_id": ["type": "integer", "description": "Hevy folder id, when the user named one."],
                     "times_per_week": ["type": "number",
                                        "description": "How often the user will run this routine. Only when they said so; the app's volume check uses it."],
                     "rationale": ["type": "string",
@@ -648,6 +668,24 @@ enum CoachTool: String, CaseIterable {
                 ],
                 "required": ["title", "exercises"]
             ]
+        case .proposeHevyWorkout:
+            let set: [String: Any] = ["type": "object", "properties": [
+                "type": ["type": "string", "enum": ["normal", "warmup", "dropset", "failure"]],
+                "weight_kg": ["type": "number"], "reps": ["type": "integer"],
+                "rpe": ["type": "number"]]]
+            let exercise: [String: Any] = ["type": "object", "properties": [
+                "exercise_template_id": ["type": "string"],
+                "sets": ["type": "array", "items": set]],
+                "required": ["exercise_template_id", "sets"]]
+            return ["type": "object", "properties": [
+                "operation": ["type": "string", "enum": ["create", "update"]],
+                "workout_id": ["type": "string", "description": "Exact id required for update."],
+                "title": ["type": "string"], "notes": ["type": "string"],
+                "start_ts": ["type": "integer", "description": "Unix seconds; must not be in the future."],
+                "end_ts": ["type": "integer"],
+                "exercises": ["type": "array", "items": exercise],
+                "rationale": ["type": "string"]],
+                "required": ["operation", "title", "start_ts", "end_ts", "exercises", "rationale"]]
         case .showCard:
             return [
                 "type": "object",
@@ -925,6 +963,9 @@ extension AICoachEngine {
             if routing.wantsWorkoutHistory {
                 // Historical workout questions must never be diverted into Lab Book or generic pattern
                 // tools. The workout reader now accepts the requested multi-year window itself.
+                if CoachLocalQueryRouter.requestsStrengthHistory(for: question) {
+                    return coachTools.filter { $0 == .strengthHistory }
+                }
                 return coachTools.filter { $0 == .recentWorkouts }
             }
             // A numeric/imported long-history question has one deterministic route: discover the local
@@ -1108,6 +1149,11 @@ extension AICoachEngine {
             let limit = max(1, min(raw, 30))
             let rawDays = (input["days"] as? Int) ?? Int(input["days"] as? Double ?? 30)
             return await recentWorkoutsBlock(limit: limit, days: max(1, min(rawDays, 3_650)))
+        case .strengthHistory:
+            let days = max(1, min(Self.intArg(input["days"]) ?? 365, 3_650))
+            let limit = max(1, min(Self.intArg(input["limit"]) ?? 6, 12))
+            return await strengthHistoryBlock(days: days, exercise: input["exercise"] as? String,
+                                              limit: limit)
         case .stressIndex:
             return await stressIndexLine()
                 ?? "Not enough clean R-R data today to compute a stress index yet."
@@ -1278,6 +1324,8 @@ extension AICoachEngine {
             return await hevyRoutinesTool()
         case .proposeHevyRoutine:
             return await proposeHevyRoutineTool(input: input)
+        case .proposeHevyWorkout:
+            return await proposeHevyWorkoutTool(input: input)
         }
     }
 }

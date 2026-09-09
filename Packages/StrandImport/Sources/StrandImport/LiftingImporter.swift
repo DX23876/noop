@@ -1,4 +1,5 @@
 import Foundation
+import WhoopStore
 
 // MARK: - Lifting import (Hevy CSV / Liftosaur JSON) — source "lifting"
 //
@@ -37,6 +38,9 @@ public struct LiftingSession: Sendable, Equatable {
     public var topSetKg: Double?
     /// Optional workout title from the export (e.g. "Push Day"). Surfaced in the note, never the sport.
     public var title: String?
+    /// Full exercise/set detail used by Strength and the coach.
+    public var exercises: [HevyExercise]
+    public var source: StrengthDataSource
 
     public init(
         start: Date,
@@ -46,7 +50,9 @@ public struct LiftingSession: Sendable, Equatable {
         exerciseCount: Int,
         totalReps: Int,
         topSetKg: Double?,
-        title: String?
+        title: String?,
+        exercises: [HevyExercise] = [],
+        source: StrengthDataSource = .hevyCSV
     ) {
         self.start = start
         self.end = end
@@ -56,6 +62,8 @@ public struct LiftingSession: Sendable, Equatable {
         self.totalReps = totalReps
         self.topSetKg = topSetKg
         self.title = title
+        self.exercises = exercises
+        self.source = source
     }
 
     /// Duration in seconds, or nil when start == end (no real interval to claim).
@@ -172,7 +180,13 @@ public enum LiftingImporter {
                 order.append(key)
             }
             byKey[key]?.endRaw = row.cell("end_time", "end") ?? byKey[key]?.endRaw
-            byKey[key]?.add(exercise: exercise, setType: setType, weightKg: weightKg, reps: reps)
+            let setIndex = row.double("set_index", "set_number", "set_order").flatMap(safeInt)
+            let rpe = row.double("rpe")
+            let distanceM = row.double("distance_meters", "distance_m")
+            let durationS = row.double("duration_seconds", "duration_s")
+            byKey[key]?.add(exercise: exercise, setIndex: setIndex, setType: setType,
+                            weightKg: weightKg, reps: reps, distanceM: distanceM,
+                            durationS: durationS, rpe: rpe)
         }
 
         return finish(order.compactMap { byKey[$0] }, skipped: skipped)
@@ -190,6 +204,8 @@ public enum LiftingImporter {
         var reps = 0
         var top: Double?
         var exercises = Set<String>()
+        var exerciseOrder: [String] = []
+        var detailedSets: [String: [HevySet]] = [:]
 
         init(start: Date, title: String?, zone: TimeZone) {
             self.start = start
@@ -200,9 +216,20 @@ public enum LiftingImporter {
         /// Count a set into the volume load. Warm-up sets are excluded from the working-volume figure
         /// (Hevy marks them `set_type = "warmup"`); a set needs a positive weight AND reps to add
         /// volume, but a completed bodyweight/duration set still increments the set count for context.
-        func add(exercise: String, setType: String, weightKg: Double?, reps: Int?) {
-            if !exercise.isEmpty { exercises.insert(exercise.lowercased()) }
-            if setType == "warmup" || setType == "warm_up" || setType == "warm-up" { return }
+        func add(exercise: String, setIndex: Int?, setType: String, weightKg: Double?, reps: Int?,
+                 distanceM: Double?, durationS: Double?, rpe: Double?) {
+            let name = exercise.trimmingCharacters(in: .whitespacesAndNewlines)
+            let key = name.lowercased()
+            if !name.isEmpty, exercises.insert(key).inserted { exerciseOrder.append(name) }
+            let type: HevySetType = ["warmup", "warm_up", "warm-up"].contains(setType)
+                ? .warmup : HevySetType.parse(setType)
+            if !name.isEmpty {
+                detailedSets[key, default: []].append(HevySet(
+                    index: setIndex ?? detailedSets[key, default: []].count,
+                    type: type, weightKg: weightKg, reps: reps, distanceM: distanceM,
+                    durationS: durationS, rpe: rpe, customMetric: nil))
+            }
+            if type == .warmup { return }
             sets += 1
             if let r = reps, r > 0 { self.reps += r }
             if let w = weightKg, w > 0 {
@@ -222,7 +249,12 @@ public enum LiftingImporter {
                 exerciseCount: exercises.count,
                 totalReps: reps,
                 topSetKg: top,
-                title: title
+                title: title,
+                exercises: exerciseOrder.enumerated().map { index, name in
+                    HevyExercise(index: index, title: name, templateId: nil, supersetId: nil,
+                                 notes: nil, sets: detailedSets[name.lowercased()] ?? [])
+                },
+                source: .hevyCSV
             )
         }
     }
@@ -265,25 +297,40 @@ public enum LiftingImporter {
         var sets = 0
         var reps = 0
         var top: Double?
-        var exercises = 0
+        var detailedExercises: [HevyExercise] = []
 
         let entries = (record["entries"] as? [Any]) ?? []
-        for case let entry as [String: Any] in entries {
-            exercises += 1
+        for (exerciseIndex, rawEntry) in entries.enumerated() {
+            guard let entry = rawEntry as? [String: Any] else { continue }
             // Liftosaur entries carry a default unit; individual sets may override it.
             let entryUnit = (entry["unit"] as? String)?.lowercased()
             let setList = (entry["sets"] as? [Any]) ?? []
-            for case let set as [String: Any] in setList {
+            var detailedSets: [HevySet] = []
+            for (setIndex, rawSet) in setList.enumerated() {
+                guard let set = rawSet as? [String: Any] else { continue }
                 // A LOGGED set carries `completedReps`; a template/planned set has only `reps` and is
                 // skipped (don't import work that wasn't done). No fallback to `reps` — that was
                 // counting template sets into the volume load.
                 guard let r = liftosaurInt(set["completedReps"]), r > 0 else { continue }
                 sets += 1
                 reps += r
-                if let w = liftosaurWeightKg(set, entryUnit: entryUnit), w > 0 {
+                let weight = liftosaurWeightKg(set, entryUnit: entryUnit)
+                detailedSets.append(HevySet(index: setIndex, type: .normal, weightKg: weight,
+                                            reps: r, distanceM: nil, durationS: nil,
+                                            rpe: liftosaurDouble(set["rpe"]), customMetric: nil))
+                if let w = weight, w > 0 {
                     top = max(top ?? 0, w)
                     volume += w * Double(r)
                 }
+            }
+            if !detailedSets.isEmpty {
+                let name = (entry["exerciseName"] as? String)
+                    ?? (entry["name"] as? String)
+                    ?? (entry["exercise"] as? String)
+                    ?? "Exercise \(exerciseIndex + 1)"
+                detailedExercises.append(HevyExercise(index: exerciseIndex, title: name,
+                                                       templateId: nil, supersetId: nil,
+                                                       notes: nil, sets: detailedSets))
             }
         }
 
@@ -293,10 +340,12 @@ public enum LiftingImporter {
             end: end >= start ? end : start,
             volumeLoadKg: volume,
             setCount: sets,
-            exerciseCount: exercises,
+            exerciseCount: detailedExercises.count,
             totalReps: reps,
             topSetKg: top,
-            title: (record["programName"] as? String) ?? (record["dayName"] as? String)
+            title: (record["programName"] as? String) ?? (record["dayName"] as? String),
+            exercises: detailedExercises,
+            source: .liftosaur
         )
     }
 

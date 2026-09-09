@@ -26,20 +26,32 @@ extension WhoopStore {
     /// importer batch one revision bump for a whole sync.
     @discardableResult
     public func upsertHevyWorkouts(_ workouts: [HevyWorkout]) async throws -> [Int] {
+        try await upsertStrengthWorkouts(workouts.map {
+            HevyWorkout(id: $0.id, title: $0.title, routineId: $0.routineId, notes: $0.notes,
+                        startTs: $0.startTs, endTs: $0.endTs, updatedAtTs: $0.updatedAtTs,
+                        createdAtTs: $0.createdAtTs, exercises: $0.exercises, source: .hevyAPI)
+        })
+    }
+
+    /// Upsert complete sessions from any strength source. File-import ids must be deterministic.
+    @discardableResult
+    public func upsertStrengthWorkouts(_ workouts: [HevyWorkout]) async throws -> [Int] {
         guard !workouts.isEmpty else { return [] }
         return try syncWrite { db in
             var touched: [Int] = []
             for w in workouts {
                 try db.execute(sql: """
                     INSERT INTO hevyWorkout
-                        (id, title, routineId, notes, startTs, endTs, updatedAtTs, createdAtTs)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                        (id, title, routineId, notes, startTs, endTs, updatedAtTs, createdAtTs, source)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ON CONFLICT(id) DO UPDATE SET
                         title = excluded.title, routineId = excluded.routineId, notes = excluded.notes,
                         startTs = excluded.startTs, endTs = excluded.endTs,
-                        updatedAtTs = excluded.updatedAtTs, createdAtTs = excluded.createdAtTs
+                        updatedAtTs = excluded.updatedAtTs, createdAtTs = excluded.createdAtTs,
+                        source = excluded.source
                     """, arguments: [w.id, w.title, w.routineId, w.notes,
-                                     w.startTs, w.endTs, w.updatedAtTs, w.createdAtTs])
+                                     w.startTs, w.endTs, w.updatedAtTs, w.createdAtTs,
+                                     w.source.rawValue])
 
                 // Rewrite the children wholesale. An edit that DROPS an exercise or a set has no
                 // upsert that would remove the stale row, and a leftover set would keep counting
@@ -140,6 +152,45 @@ extension WhoopStore {
         }
     }
 
+    public func upsertStrengthExerciseMapping(_ mapping: StrengthExerciseMapping) async throws {
+        let secondary = (try? JSONEncoder().encode(mapping.secondaryMuscleGroups.map(\.rawValue)))
+            .flatMap { String(data: $0, encoding: .utf8) } ?? "[]"
+        try syncWrite { db in
+            try db.execute(sql: """
+                INSERT INTO strengthExerciseMapping
+                    (normalizedTitle, displayTitle, primaryMuscleGroup, secondaryMuscleGroupsJSON, updatedAtTs)
+                VALUES (?, ?, ?, ?, ?)
+                ON CONFLICT(normalizedTitle) DO UPDATE SET
+                    displayTitle = excluded.displayTitle,
+                    primaryMuscleGroup = excluded.primaryMuscleGroup,
+                    secondaryMuscleGroupsJSON = excluded.secondaryMuscleGroupsJSON,
+                    updatedAtTs = excluded.updatedAtTs
+                """, arguments: [mapping.normalizedTitle, mapping.displayTitle,
+                                   mapping.primaryMuscleGroup.rawValue, secondary,
+                                   Int(Date().timeIntervalSince1970)])
+        }
+    }
+
+    public func strengthExerciseMappings() async throws -> [String: StrengthExerciseMapping] {
+        return try syncRead { db in
+            var result: [String: StrengthExerciseMapping] = [:]
+            for row in try Row.fetchAll(db, sql: """
+                SELECT normalizedTitle, displayTitle, primaryMuscleGroup, secondaryMuscleGroupsJSON
+                FROM strengthExerciseMapping
+                """) {
+                let key: String = row["normalizedTitle"]
+                let raw: String = row["secondaryMuscleGroupsJSON"]
+                let secondary = ((try? JSONDecoder().decode([String].self, from: Data(raw.utf8))) ?? [])
+                    .map(HevyMuscleGroup.parse)
+                result[key] = StrengthExerciseMapping(
+                    normalizedTitle: key, displayTitle: row["displayTitle"],
+                    primaryMuscleGroup: HevyMuscleGroup.parse(row["primaryMuscleGroup"]),
+                    secondaryMuscleGroups: secondary)
+            }
+            return result
+        }
+    }
+
     // MARK: - Reads
 
     /// Full workouts (with exercises and sets) whose START falls in [from, to], newest first.
@@ -148,14 +199,27 @@ extension WhoopStore {
     /// workout: a month of training is a few hundred sets, and the per-workout query shape is exactly
     /// the N+1 that made `workoutRows`' HR reconcile a launch-freeze suspect.
     public func hevyWorkouts(from: Int, to: Int, limit: Int = 2000) async throws -> [HevyWorkout] {
-        try syncRead { db in
+        try await strengthWorkouts(from: from, to: to, limit: limit, sources: [.hevyAPI])
+    }
+
+    /// Complete strength history across API and offline imports. Exact duplicate sessions are
+    /// collapsed for analysis, preferring API data and then the record with more set detail.
+    public func strengthWorkouts(from: Int, to: Int, limit: Int = 2000,
+                                 sources: Set<StrengthDataSource> = Set(StrengthDataSource.allCases)) async throws -> [HevyWorkout] {
+        guard !sources.isEmpty else { return [] }
+        return try syncRead { db in
+            let sourceValues = sources.map(\.rawValue).sorted()
+            let sourceMarks = databaseQuestionMarks(count: sourceValues.count)
+            var arguments: [DatabaseValueConvertible?] = [from, to]
+            arguments.append(contentsOf: sourceValues)
+            arguments.append(limit)
             let heads = try Row.fetchAll(db, sql: """
-                SELECT id, title, routineId, notes, startTs, endTs, updatedAtTs, createdAtTs
+                SELECT id, title, routineId, notes, startTs, endTs, updatedAtTs, createdAtTs, source
                 FROM hevyWorkout
-                WHERE startTs >= ? AND startTs <= ?
+                WHERE startTs >= ? AND startTs <= ? AND source IN (\(sourceMarks))
                 ORDER BY startTs DESC
                 LIMIT ?
-                """, arguments: [from, to, limit])
+                """, arguments: StatementArguments(arguments))
             guard !heads.isEmpty else { return [] }
             let ids = heads.map { $0["id"] as String }
             let placeholders = databaseQuestionMarks(count: ids.count)
@@ -177,6 +241,11 @@ extension WhoopStore {
                 setsByExercise[wid, default: [:]][eIdx, default: []].append(set)
             }
 
+            var mappings: [String: String] = [:]
+            for row in try Row.fetchAll(db, sql: "SELECT normalizedTitle FROM strengthExerciseMapping") {
+                let key: String = row["normalizedTitle"]
+                mappings[key] = "local:\(key)"
+            }
             var exercisesByWorkout: [String: [HevyExercise]] = [:]
             for row in try Row.fetchAll(db, sql: """
                 SELECT workoutId, idx, title, templateId, supersetId, notes
@@ -186,18 +255,34 @@ extension WhoopStore {
                 let wid: String = row["workoutId"]
                 let idx: Int = row["idx"]
                 exercisesByWorkout[wid, default: []].append(
-                    HevyExercise(index: idx, title: row["title"], templateId: row["templateId"],
+                    HevyExercise(index: idx, title: row["title"],
+                                 templateId: (row["templateId"] as String?) ?? mappings[strengthNormalizedTitle(row["title"])],
                                  supersetId: row["supersetId"], notes: row["notes"],
                                  sets: setsByExercise[wid]?[idx] ?? []))
             }
 
-            return heads.map { row in
+            let loaded = heads.map { row in
                 let id: String = row["id"]
                 return HevyWorkout(id: id, title: row["title"], routineId: row["routineId"],
                                    notes: row["notes"], startTs: row["startTs"], endTs: row["endTs"],
                                    updatedAtTs: row["updatedAtTs"], createdAtTs: row["createdAtTs"],
-                                   exercises: exercisesByWorkout[id] ?? [])
+                                   exercises: exercisesByWorkout[id] ?? [],
+                                   source: StrengthDataSource(rawValue: row["source"]) ?? .hevyAPI)
             }
+            var bySession: [String: HevyWorkout] = [:]
+            for workout in loaded {
+                let key = "\(workout.startTs)|\(workout.title.trimmingCharacters(in: .whitespacesAndNewlines).lowercased())"
+                if let old = bySession[key] {
+                    let oldSets = old.exercises.reduce(0) { $0 + $1.sets.count }
+                    let newSets = workout.exercises.reduce(0) { $0 + $1.sets.count }
+                    if (workout.source == .hevyAPI && old.source != .hevyAPI) || newSets > oldSets {
+                        bySession[key] = workout
+                    }
+                } else {
+                    bySession[key] = workout
+                }
+            }
+            return bySession.values.sorted { $0.startTs > $1.startTs }
         }
     }
 
@@ -208,13 +293,15 @@ extension WhoopStore {
     /// written — the failure mode where a run is interrupted and the next one skips the gap forever.
     public func hevyNewestUpdatedAt() async throws -> Int? {
         try syncRead { db in
-            try Int.fetchOne(db, sql: "SELECT MAX(updatedAtTs) FROM hevyWorkout")
+            try Int.fetchOne(db, sql: "SELECT MAX(updatedAtTs) FROM hevyWorkout WHERE source = ?",
+                             arguments: [StrengthDataSource.hevyAPI.rawValue])
         }
     }
 
     public func hevyWorkoutCount() async throws -> Int {
         try syncRead { db in
-            try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM hevyWorkout") ?? 0
+            try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM hevyWorkout WHERE source = ?",
+                             arguments: [StrengthDataSource.hevyAPI.rawValue]) ?? 0
         }
     }
 
@@ -241,6 +328,20 @@ extension WhoopStore {
             }
             return out
         }
+    }
+
+    /// API catalogue plus durable local mappings used by offline file imports.
+    public func strengthExerciseTemplates() async throws -> [String: HevyExerciseTemplate] {
+        var result = try await hevyExerciseTemplates()
+        for mapping in try await strengthExerciseMappings().values {
+            let id = "local:\(mapping.normalizedTitle)"
+            result[id] = HevyExerciseTemplate(id: id, title: mapping.displayTitle,
+                                               type: "weight_reps",
+                                               primaryMuscleGroup: mapping.primaryMuscleGroup,
+                                               secondaryMuscleGroups: mapping.secondaryMuscleGroups,
+                                               equipment: .other, isCustom: true)
+        }
+        return result
     }
 
     /// Saved routines, newest edit first.
@@ -270,7 +371,8 @@ extension WhoopStore {
     /// are the caller's to remove — they live in the shared workout table, not here.
     public func deleteAllHevyData() async throws {
         try syncWrite { db in
-            try db.execute(sql: "DELETE FROM hevyWorkout")       // cascades to exercises + sets
+            try db.execute(sql: "DELETE FROM hevyWorkout WHERE source = ?",
+                           arguments: [StrengthDataSource.hevyAPI.rawValue])
             try db.execute(sql: "DELETE FROM hevyExerciseTemplate")
             try db.execute(sql: "DELETE FROM hevyRoutine")
         }
@@ -281,4 +383,10 @@ extension WhoopStore {
 /// the list by string interpolation of the VALUES would be the injection this avoids.
 private func databaseQuestionMarks(count: Int) -> String {
     Array(repeating: "?", count: max(0, count)).joined(separator: ", ")
+}
+
+public func strengthNormalizedTitle(_ title: String) -> String {
+    title.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current)
+        .components(separatedBy: CharacterSet.alphanumerics.inverted)
+        .filter { !$0.isEmpty }.joined(separator: " ")
 }

@@ -39,9 +39,20 @@ struct CoachLocalQueryRouter {
         let workoutWords: Set<String> = [
             "workout", "workouts", "training", "trainings", "session", "sessions",
             "exercise", "sport", "activity", "activities", "einheit", "einheiten",
-            "aktivitat", "aktivitaten"
+            "aktivitat", "aktivitaten", "starke", "kraft", "strength", "lifting",
+            "muskel", "bankdrucken", "kniebeuge", "kreuzheben"
         ]
         return !questionWords.isDisjoint(with: workoutWords)
+    }
+
+    static func requestsStrengthHistory(for question: String) -> Bool {
+        let questionWords = words(in: folded(question))
+        let strengthWords: Set<String> = [
+            "starke", "kraft", "strength", "lift", "lifting", "muskel", "gewicht",
+            "wiederholungen", "reps", "satze", "sets", "volumen", "bankdrucken",
+            "kniebeuge", "kreuzheben"
+        ]
+        return !questionWords.isDisjoint(with: strengthWords)
     }
 
     /// A broad local-data inventory is itself an explicit request. It may expose only metadata, but it

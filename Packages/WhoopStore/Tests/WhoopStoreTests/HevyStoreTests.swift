@@ -243,6 +243,43 @@ final class HevyStoreTests: XCTestCase {
         XCTAssertTrue(templates.isEmpty)
         XCTAssertTrue(routines.isEmpty)
     }
+
+    func testOfflineStrengthSurvivesDisconnectAndDoesNotAdvanceAPICursor() async throws {
+        let store = try await WhoopStore.inMemory()
+        let imported = HevyWorkout(id: "hevy_csv:1", title: "Imported", routineId: nil, notes: nil,
+                                   startTs: 1_700_000_000, endTs: 1_700_003_600,
+                                   updatedAtTs: 1_900_000_000, createdAtTs: 1_700_000_000,
+                                   exercises: workout().exercises, source: .hevyCSV)
+        try await store.upsertStrengthWorkouts([imported])
+        let cursor = try await store.hevyNewestUpdatedAt()
+        let beforeDisconnect = try await store.strengthWorkouts(from: 0, to: 2_000_000_000)
+        XCTAssertNil(cursor)
+        XCTAssertEqual(beforeDisconnect.count, 1)
+
+        try await store.deleteAllHevyData()
+
+        let afterDisconnect = try await store.strengthWorkouts(from: 0, to: 2_000_000_000)
+        XCTAssertEqual(afterDisconnect.first?.source, .hevyCSV)
+    }
+
+    func testLocalExerciseMappingAttributesAnImportedExercise() async throws {
+        let store = try await WhoopStore.inMemory()
+        let exercise = HevyExercise(index: 0, title: "Mystery Press", templateId: nil,
+                                    supersetId: nil, notes: nil, sets: [set(0)])
+        let imported = HevyWorkout(id: "hevy_csv:2", title: "Imported", routineId: nil, notes: nil,
+                                   startTs: 1_700_000_000, endTs: 1_700_003_600,
+                                   updatedAtTs: 1_700_000_000, createdAtTs: 1_700_000_000,
+                                   exercises: [exercise], source: .hevyCSV)
+        try await store.upsertStrengthWorkouts([imported])
+        try await store.upsertStrengthExerciseMapping(StrengthExerciseMapping(
+            normalizedTitle: "mystery press", displayTitle: "Mystery Press",
+            primaryMuscleGroup: .chest, secondaryMuscleGroups: [.triceps]))
+
+        let read = try await store.strengthWorkouts(from: 0, to: 2_000_000_000)
+        XCTAssertEqual(read.first?.exercises.first?.templateId, "local:mystery press")
+        let templates = try await store.strengthExerciseTemplates()
+        XCTAssertEqual(templates["local:mystery press"]?.primaryMuscleGroup, .chest)
+    }
 }
 
 extension WhoopStore {

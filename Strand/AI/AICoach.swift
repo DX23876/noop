@@ -782,7 +782,7 @@ final class AICoachEngine: ObservableObject {
     Nothing about this user is in front of you until you fetch it — reach for a tool before you answer, \
     not after guessing. What your tools do:
     • READ their data — get_biometric_summary, get_readiness, get_charge_drivers, get_sleep_detail, \
-    get_recent_workouts, get_stress_index, get_energy_balance, get_zone_minutes, get_range_report, get_plan_adherence, \
+    get_recent_workouts, get_strength_history, get_stress_index, get_energy_balance, get_zone_minutes, get_range_report, get_plan_adherence, propose_hevy_workout, \
     get_my_logs (read back what they logged — caffeine, journal, lab, hydration, mood), plot_metric to \
     draw one, get_training_preferences before a plan when repeated declines may matter, and \
     get_personal_patterns when they've shared it. For a long-horizon or imported metric question, first \
@@ -3249,6 +3249,11 @@ final class AICoachEngine: ObservableObject {
             blocks.append(await recentWorkoutsBlock())
             categories.append(.recentWorkouts)
         }
+        if sections.contains(.strength), toolConsent.allows(.strengthHistory) {
+            blocks.append(await strengthHistoryBlock(days: CoachLocalQueryRouter.explicitHistoryDays(for: question) ?? 365,
+                                                     exercise: nil, limit: 6))
+            categories.append(.recentWorkouts)
+        }
         if sections.contains(.planning), toolConsent.allows(.planAdherence) {
             let profile = ProfileStore()
             if let goals = goalsBlock(profile: profile) { blocks.append(goals) }
@@ -4855,6 +4860,72 @@ final class AICoachEngine: ObservableObject {
             if let kcal = w.energyKcal { parts.append("\(Int(kcal.rounded())) kcal") }
             if let dist = w.distanceM { parts.append("\(String(format: "%.1f", dist / 1000)) km") }
             lines.append(parts.joined(separator: ", "))
+        }
+        return lines.joined(separator: "\n")
+    }
+
+    func strengthHistoryBlock(days: Int = 365, exercise: String? = nil, limit: Int = 6) async -> String {
+        guard let store = await repo.storeHandle() else { return "Strength history: local store unavailable." }
+        let now = Int(Date().timeIntervalSince1970)
+        let window = max(1, min(days, 3_650))
+        let all = (try? await store.strengthWorkouts(from: now - window * 86_400,
+                                                     to: now + 86_400, limit: 4_000)) ?? []
+        let needle = exercise?.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current)
+            .trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let sessions = all.compactMap { workout -> HevyWorkout? in
+            guard let needle, !needle.isEmpty else { return workout }
+            let matches = workout.exercises.filter {
+                $0.title.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current)
+                    .lowercased().contains(needle)
+            }
+            guard !matches.isEmpty else { return nil }
+            return HevyWorkout(id: workout.id, title: workout.title, routineId: workout.routineId,
+                               notes: workout.notes, startTs: workout.startTs, endTs: workout.endTs,
+                               updatedAtTs: workout.updatedAtTs, createdAtTs: workout.createdAtTs,
+                               exercises: matches, source: workout.source)
+        }
+        guard !sessions.isEmpty else { return "Strength history: no matching sessions in the last \(window) days." }
+
+        var lines = ["STRENGTH HISTORY: \(sessions.count) sessions, \(dateString(sessions.last!.startTs)) → \(dateString(sessions.first!.startTs)), searched \(window) days."]
+        let sourceCounts = Dictionary(grouping: sessions, by: \.source).mapValues(\.count)
+        lines.append("Sources: " + sourceCounts.keys.sorted { $0.rawValue < $1.rawValue }
+            .map { "\($0.rawValue) \(sourceCounts[$0]!)" }.joined(separator: ", "))
+
+        struct LiftPoint { let ts: Int; let weight: Double; let reps: Int; let e1rm: Double }
+        var points: [String: [LiftPoint]] = [:]
+        for workout in sessions {
+            for movement in workout.exercises {
+                for set in movement.workingSets {
+                    guard let weight = set.weightKg, weight > 0, let reps = set.reps, reps > 0 else { continue }
+                    guard let e1rm = OneRepMax.epley(weightKg: weight, reps: reps) else { continue }
+                    points[movement.title, default: []].append(
+                        LiftPoint(ts: workout.startTs, weight: weight, reps: reps,
+                                  e1rm: e1rm))
+                }
+            }
+        }
+        lines.append("Exercise trends (e1RM is an estimate; top weight is measured):")
+        for name in points.keys.sorted().prefix(20) {
+            let values = points[name]!.sorted { $0.ts < $1.ts }
+            guard let first = values.first, let latest = values.last else { continue }
+            let best = values.max { $0.e1rm < $1.e1rm }!
+            let top = values.max { $0.weight < $1.weight }!
+            let change = first.e1rm > 0 ? (latest.e1rm / first.e1rm - 1) * 100 : 0
+            lines.append("  \(name): first e1RM \(String(format: "%.1f", first.e1rm)) kg, latest \(String(format: "%.1f", latest.e1rm)) kg (\(String(format: "%+.1f", change))%), best \(String(format: "%.1f", best.e1rm)) kg; measured top \(String(format: "%.1f", top.weight)) kg × \(top.reps).")
+        }
+        lines.append("Recent sessions:")
+        for workout in sessions.prefix(max(1, min(limit, 12))) {
+            let volume = workout.exercises.flatMap(\.workingSets).compactMap(\.volumeLoadKg).reduce(0, +)
+            lines.append("  \(dateString(workout.startTs)) \(workout.title), id \(workout.id), \(String(format: "%.0f", volume)) kg volume [\(workout.source.rawValue)]")
+            for movement in workout.exercises {
+                let sets = movement.sets.map { set -> String in
+                    var value = "\(set.weightKg.map { String(format: "%.1f kg", $0) } ?? "bodyweight") × \(set.reps.map(String.init) ?? "—")"
+                    if set.type != .normal { value += " \(set.type.rawValue)" }
+                    if let rpe = set.rpe { value += " RPE \(String(format: "%.1f", rpe))" }
+                    return value
+                }
+                lines.append("    \(movement.title): \(sets.joined(separator: "; "))")
+            }
         }
         return lines.joined(separator: "\n")
     }

@@ -63,6 +63,12 @@ struct StrengthView: View {
     /// Mean Charge and the Readiness level for the selected week.
     @State private var weekCharge: Double?
     @State private var weekEffort: Double?
+    @State private var preparedWeek = StrengthSession.WeekSummary(
+        mondayKey: "", sessionCount: 0, workingSetCount: 0, volumeLoadKg: 0,
+        setsByMuscle: [:], secondarySetsByMuscle: [:], unattributedSetCount: 0)
+    @State private var preparedTypicalBands: [HevyMuscleGroup: ClosedRange<Double>] = [:]
+    @State private var preparedStrengthLoad: StrengthSession.SetLoadRatio?
+    @State private var exerciseChoices: [(templateId: String, sessions: Int)] = []
 
     @State private var mapFace: MuscleLoadMap.Face = .front
     @State private var mapMode: MapMode = .now
@@ -108,14 +114,31 @@ struct StrengthView: View {
     @State private var weekOffset = 0
     @State private var infoTopic: InfoTopic?
     @State private var showingAllSessions = false
+    @State private var showingFullScreenMap = false
+    @State private var unmappedExercises: [String] = []
+    private struct ExerciseMappingTarget: Identifiable { let name: String; var id: String { name } }
+    @State private var mappingExercise: ExerciseMappingTarget?
+    @State private var mappingPrimary: HevyMuscleGroup = .other
+    @State private var mappingSecondary: Set<HevyMuscleGroup> = []
 
     /// How far back the screen reads. A quarter covers a training block and the eight-week bands.
     private let historyDays = 120
     private var tzOffset: Int { TimeZone.current.secondsFromGMT() }
 
+    @ViewBuilder
     var body: some View {
+        #if os(macOS)
+        strengthContent
+            .sheet(isPresented: $showingFullScreenMap) { fullScreenMuscleMap }
+        #else
+        strengthContent
+            .fullScreenCover(isPresented: $showingFullScreenMap) { fullScreenMuscleMap }
+        #endif
+    }
+
+    private var strengthContent: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: NoopMetrics.sectionGap) {
+            LazyVStack(alignment: .leading, spacing: NoopMetrics.sectionGap) {
                 if !loaded {
                     ProgressView().frame(maxWidth: .infinity)
                 } else if workouts.isEmpty {
@@ -139,7 +162,8 @@ struct StrengthView: View {
         }
         .sheet(item: $infoTopic) { topic in infoSheet(topic) }
         .sheet(isPresented: $showingAllSessions) { allSessionsSheet }
-        .task { await loadIfNeeded() }
+        .sheet(item: $mappingExercise) { exercise in exerciseMappingSheet(exercise.name) }
+        .task(id: repo.refreshSeq) { await loadStrengthData() }
     }
 
     // MARK: - Sync status
@@ -188,9 +212,9 @@ struct StrengthView: View {
                         Text("Hevy is connected. Sessions appear here after the next sync.")
                             .font(StrandFont.subhead).foregroundStyle(StrandPalette.textSecondary)
                     } else {
-                        Text("Connect Hevy to see your lifting here.")
+                        Text("Connect Hevy or import a lifting file to see your training here.")
                             .font(StrandFont.headline).foregroundStyle(StrandPalette.textPrimary)
-                        Text("NOOP reads your sets, reps, weights and RPE from Hevy and shows them beside what your strap measured. Data Sources → Hevy.")
+                        Text("NOOP reads sets, reps, weights and RPE from Hevy, Hevy CSV or Liftosaur and shows them beside what your strap measured.")
                             .font(StrandFont.subhead).foregroundStyle(StrandPalette.textSecondary)
                             .fixedSize(horizontal: false, vertical: true)
                     }
@@ -294,7 +318,7 @@ struct StrengthView: View {
     /// silently describes the present would put two different weeks on one card and label them the same.
     @ViewBuilder
     private var strengthLoadTile: some View {
-        let load = StrengthSession.setLoadRatio(workouts, asOf: weekEndDate, tzOffsetSeconds: tzOffset)
+        let load = preparedStrengthLoad
         tile(icon: "chart.bar.fill",
              label: String(localized: "Strength load"),
              value: load.map { String(format: "%.2f", $0.ratio) } ?? "—",
@@ -341,6 +365,31 @@ struct StrengthView: View {
             // that a shaded region and a bar were the same number seen twice.
             SectionHeader("Muscle load", overline: "Estimated")
             bodyMapCard
+
+            if !unmappedExercises.isEmpty {
+                NoopCard {
+                    VStack(alignment: .leading, spacing: NoopMetrics.space2) {
+                        Text("Assign imported exercises")
+                            .font(StrandFont.headline).foregroundStyle(StrandPalette.textPrimary)
+                        Text("Choose muscles once for exercises the file could not match to the Hevy catalogue.")
+                            .font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
+                        ForEach(unmappedExercises, id: \.self) { exercise in
+                            Button {
+                                mappingPrimary = .other
+                                mappingSecondary = []
+                                mappingExercise = ExerciseMappingTarget(name: exercise)
+                            } label: {
+                                HStack {
+                                    Text(exercise).foregroundStyle(StrandPalette.textPrimary)
+                                    Spacer()
+                                    Image(systemName: "chevron.right").foregroundStyle(StrandPalette.textTertiary)
+                                }
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                }
+            }
 
             HStack {
                 SectionHeader("Working sets", trailing: weekRangeText)
@@ -402,6 +451,15 @@ struct StrengthView: View {
                 .labelsHidden()
                 .frame(maxWidth: 220)
 
+                HStack {
+                    Spacer()
+                    Button { showingFullScreenMap = true } label: {
+                        Label("Expand muscle map", systemImage: "arrow.up.left.and.arrow.down.right")
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(StrandPalette.accent)
+                }
+
                 // The map is the point of the card, so it does not compete with the text for width.
                 // Side by side with BOTH the scale and the "last worked" list, a 1:2 figure collapsed
                 // to about a third of the card on a phone — the smallest thing in the section that
@@ -412,11 +470,8 @@ struct StrengthView: View {
                                         onSelect: { selectedRegion = $0 },
                                         accessibilityValue: { mapAccessibility($0) })
                 if isCompact {
-                    HStack(alignment: .top, spacing: NoopMetrics.space2) {
-                        map.frame(height: 300)
-                        mapScale
-                        Spacer(minLength: 0)
-                    }
+                    map.frame(maxWidth: .infinity).frame(height: 520)
+                    mapScale
                     mapLegend
                 } else {
                     HStack(alignment: .top, spacing: NoopMetrics.space2) {
@@ -458,6 +513,95 @@ struct StrengthView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
+    }
+
+    private var fullScreenMuscleMap: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: NoopMetrics.space2) {
+                    Picker("", selection: $mapMode) {
+                        ForEach(MapMode.allCases) { mode in Text(mode.label).tag(mode) }
+                    }
+                    .pickerStyle(.segmented)
+                    Picker("", selection: $mapFace) {
+                        ForEach(MuscleLoadMap.Face.allCases, id: \.self) { face in
+                            Text(face.label).tag(face)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    MuscleLoadMap(load: mapLoad, face: mapFace,
+                                  onSelect: { selectedRegion = $0 },
+                                  accessibilityValue: { mapAccessibility($0) })
+                        .frame(maxWidth: .infinity)
+                        .frame(minHeight: 620)
+                    mapScale
+                    mapLegend
+                    if let selectedRegion, let text = selectedRegionText {
+                        Text(text).font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
+                        if mapMode == .now { feedbackRow(for: selectedRegion) }
+                    }
+                }
+                .padding(NoopMetrics.screenPadding)
+            }
+            .background(StrandPalette.surfaceBase)
+            .navigationTitle(Text("Muscle load"))
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { showingFullScreenMap = false }
+                }
+            }
+        }
+    }
+
+    private func exerciseMappingSheet(_ exercise: String) -> some View {
+        NavigationStack {
+            List {
+                Section("Primary muscle") {
+                    Picker("Primary muscle", selection: $mappingPrimary) {
+                        ForEach(HevyMuscleGroup.allCases, id: \.self) { group in
+                            Text(group.label).tag(group)
+                        }
+                    }
+                }
+                Section("Secondary muscles") {
+                    ForEach(HevyMuscleGroup.allCases.filter { $0 != mappingPrimary && $0 != .other }, id: \.self) { group in
+                        Button {
+                            if mappingSecondary.contains(group) { mappingSecondary.remove(group) }
+                            else { mappingSecondary.insert(group) }
+                        } label: {
+                            HStack {
+                                Text(group.label).foregroundStyle(StrandPalette.textPrimary)
+                                Spacer()
+                                if mappingSecondary.contains(group) {
+                                    Image(systemName: "checkmark").foregroundStyle(StrandPalette.accent)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            .navigationTitle(Text(exercise))
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { mappingExercise = nil }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") { Task { await saveMapping(for: exercise) } }
+                        .disabled(mappingPrimary == .other)
+                }
+            }
+        }
+    }
+
+    private func saveMapping(for exercise: String) async {
+        guard let store = await repo.storeHandle(), mappingPrimary != .other else { return }
+        let mapping = StrengthExerciseMapping(
+            normalizedTitle: strengthNormalizedTitle(exercise), displayTitle: exercise,
+            primaryMuscleGroup: mappingPrimary,
+            secondaryMuscleGroups: mappingSecondary.sorted { $0.rawValue < $1.rawValue })
+        try? await store.upsertStrengthExerciseMapping(mapping)
+        mappingExercise = nil
+        await loadStrengthData()
     }
 
     /// What the colours mean, spelled out. Without this the ramp is read as a health verdict.
@@ -544,8 +688,8 @@ struct StrengthView: View {
     private func record(_ feeling: MuscleRecovery.Feeling, for group: HevyMuscleGroup) {
         let ts = Int(Date().timeIntervalSince1970)
         feedback.append(.init(group: group, ts: ts, feeling: feeling))
-        refitTau()
         Task {
+            await refitTau()
             guard let store = await repo.storeHandle() else { return }
             try? await store.saveMuscleRecoveryFeedback(
                 .init(muscleGroup: group, ts: ts, feeling: feeling.rawValue))
@@ -630,12 +774,13 @@ struct StrengthView: View {
 
     private var exercisePicker: some View {
         Menu {
-            ForEach(StrengthSession.exerciseFrequency(workouts).prefix(30), id: \.templateId) { entry in
+            ForEach(exerciseChoices.prefix(30), id: \.templateId) { entry in
+                let exerciseLabel = exerciseTitle(entry.templateId) + "  ·  \(entry.sessions)×"
                 Button {
                     selectedTemplateId = entry.templateId
                     recomputeTrend()
                 } label: {
-                    Text(exerciseTitle(entry.templateId) + "  ·  \(entry.sessions)×")
+                    Text(verbatim: exerciseLabel)
                 }
             }
         } label: {
@@ -940,13 +1085,11 @@ struct StrengthView: View {
     }
 
     private var week: StrengthSession.WeekSummary {
-        StrengthSession.week(containing: weekAnchorDay, workouts: workouts,
-                             templates: templates, tzOffsetSeconds: tzOffset)
+        preparedWeek
     }
 
     private var typicalBands: [HevyMuscleGroup: ClosedRange<Double>] {
-        StrengthSession.typicalWeeklySets(workouts, templates: templates,
-                                          endingBefore: weekAnchorDay, tzOffsetSeconds: tzOffset)
+        preparedTypicalBands
     }
 
     /// Rows, busiest first. The bar's scale is the busiest group OR the top of its own band, whichever
@@ -1336,39 +1479,66 @@ struct StrengthView: View {
 
     // MARK: - Loading
 
-    private func loadIfNeeded() async {
-        guard !loaded else { return }
+    private func loadStrengthData() async {
         guard let store = await repo.storeHandle() else { loaded = true; return }
         let now = Int(Date().timeIntervalSince1970)
         let from = now - historyDays * 86_400
 
-        let sessions = (try? await store.hevyWorkouts(from: from, to: now + 86_400)) ?? []
-        let catalogue = (try? await store.hevyExerciseTemplates()) ?? [:]
-        workouts = sessions
-        templates = catalogue
-        summaries = sessions.map { StrengthSession.summarize($0, templates: catalogue) }
-        rows = (try? await store.workouts(deviceId: HevySource.id, from: from, to: now + 86_400,
-                                          limit: 500)) ?? []
-
-        recentSets = StrengthSession.recentSetsByMuscle(sessions, templates: catalogue,
-                                                        days: 7, now: now)
-        lastWorked = StrengthSession.lastWorkedByMuscle(sessions, templates: catalogue,
-                                                        tzOffsetSeconds: tzOffset)
-
-        // The wearer's own answers first: they decide the time constants everything below decays with.
-        feedback = ((try? await store.muscleRecoveryFeedback()) ?? []).compactMap { row in
+        let sessions = (try? await store.strengthWorkouts(from: from, to: now + 86_400)) ?? []
+        let catalogue = (try? await store.strengthExerciseTemplates()) ?? [:]
+        let observations = ((try? await store.muscleRecoveryFeedback()) ?? []).compactMap { row in
             MuscleRecovery.Feeling(rawValue: row.feeling).map {
                 MuscleRecovery.Observation(group: row.muscleGroup, ts: row.ts, feeling: $0)
             }
         }
-        typicalSession = MuscleRecovery.typicalSessionStimulus(sessions, templates: catalogue)
-        refitTau()
-        let ratedIn = MuscleStimulus.stimulus(
-            for: sessions, templates: catalogue,
-            reference: MuscleStimulus.StrengthReference(workouts: sessions, templates: catalogue))
-        ratedShare = ratedIn.ratedShare
+        let offset = tzOffset
+        let prepared = await Task.detached(priority: .userInitiated) {
+            let summaries = sessions.map { StrengthSession.summarize($0, templates: catalogue) }
+            let recent = StrengthSession.recentSetsByMuscle(sessions, templates: catalogue,
+                                                            days: 7, now: now)
+            let last = StrengthSession.lastWorkedByMuscle(sessions, templates: catalogue,
+                                                           tzOffsetSeconds: offset)
+            let typical = MuscleRecovery.typicalSessionStimulus(sessions, templates: catalogue)
+            var fitted: [HevyMuscleGroup: Double] = [:]
+            for group in HevyMuscleGroup.allCases {
+                fitted[group] = MuscleRecovery.fittedTauSeconds(for: group,
+                                                                observations: observations,
+                                                                workouts: sessions,
+                                                                templates: catalogue)
+            }
+            let fatigue = MuscleRecovery.fatigue(
+                workouts: sessions, templates: catalogue, now: now,
+                tau: { fitted[$0] ?? MuscleRecovery.defaultTauSeconds(for: $0) })
+            let stimulus = MuscleStimulus.stimulus(
+                for: sessions, templates: catalogue,
+                reference: MuscleStimulus.StrengthReference(workouts: sessions, templates: catalogue))
+            let selected = StrengthSession.exerciseFrequency(sessions).first?.templateId
+            let unmapped = Array(Set(sessions.flatMap(\.exercises)
+                .filter { $0.templateId == nil }.map(\.title))).sorted()
+            return (summaries, recent, last, typical, fitted, fatigue, stimulus.ratedShare,
+                    selected, unmapped)
+        }.value
+        workouts = sessions
+        templates = catalogue
+        summaries = prepared.0
+        unmappedExercises = prepared.8
+        rows = (try? await store.workouts(deviceId: HevySource.id, from: from, to: now + 86_400,
+                                          limit: 500)) ?? []
 
-        selectedTemplateId = StrengthSession.exerciseFrequency(sessions).first?.templateId
+        recentSets = prepared.1
+        lastWorked = prepared.2
+
+        // The wearer's own answers first: they decide the time constants everything below decays with.
+        feedback = observations
+        typicalSession = prepared.3
+        tauByGroup = prepared.4
+        fatigueNow = prepared.5
+        ratedShare = prepared.6
+
+        selectedTemplateId = prepared.7
+        exerciseChoices = await Task.detached(priority: .userInitiated) {
+            StrengthSession.exerciseFrequency(sessions)
+        }.value
         recomputeTrend()
         await refreshWeekScores()
         loaded = true
@@ -1385,16 +1555,26 @@ struct StrengthView: View {
     /// Refit every muscle's time constant from the answers on hand, then recompute what is still
     /// outstanding. Called after a load and after each new answer — never from `body`, because a fit
     /// walks the whole history per muscle.
-    private func refitTau() {
-        var fitted: [HevyMuscleGroup: Double] = [:]
-        for group in HevyMuscleGroup.allCases {
-            fitted[group] = MuscleRecovery.fittedTauSeconds(for: group, observations: feedback,
-                                                            workouts: workouts, templates: templates)
-        }
+    private func refitTau() async {
+        let observations = feedback
+        let sessions = workouts
+        let catalogue = templates
+        let now = Int(Date().timeIntervalSince1970)
+        let result = await Task.detached(priority: .userInitiated) {
+            var fitted: [HevyMuscleGroup: Double] = [:]
+            for group in HevyMuscleGroup.allCases {
+                fitted[group] = MuscleRecovery.fittedTauSeconds(for: group, observations: observations,
+                                                                workouts: sessions, templates: catalogue)
+            }
+            let fatigue = MuscleRecovery.fatigue(workouts: sessions, templates: catalogue,
+                                                 now: now,
+                                                 tau: { fitted[$0] ?? MuscleRecovery.defaultTauSeconds(for: $0) })
+            return (fitted, fatigue)
+        }.value
+        guard !Task.isCancelled else { return }
+        let fitted = result.0
         tauByGroup = fitted
-        fatigueNow = MuscleRecovery.fatigue(workouts: workouts, templates: templates,
-                                            now: Int(Date().timeIntervalSince1970),
-                                            tau: { fitted[$0] ?? MuscleRecovery.defaultTauSeconds(for: $0) })
+        fatigueNow = result.1
     }
 
     private func refreshWeekScores() async {
@@ -1406,13 +1586,31 @@ struct StrengthView: View {
         let efforts = inWeek.compactMap(\.strain)
         weekEffort = efforts.isEmpty ? nil : efforts.reduce(0, +)
 
-        // The map's week view and its yardstick move with the stepper, so they are recomputed here
-        // rather than in `body`: both walk the whole history.
-        weekStimulus = MuscleStimulus.weeklyStimulus(containing: weekAnchorDay, workouts: workouts,
-                                                     templates: templates,
-                                                     tzOffsetSeconds: tzOffset).byMuscle
-        typicalWeek = MuscleStimulus.typicalWeeklyStimulus(workouts, templates: templates,
-                                                           endingBefore: weekAnchorDay,
-                                                           tzOffsetSeconds: tzOffset)
+        let anchor = weekAnchorDay
+        let endDate = weekEndDate
+        let sessions = workouts
+        let catalogue = templates
+        let offset = tzOffset
+        let prepared = await Task.detached(priority: .userInitiated) {
+            let week = StrengthSession.week(containing: anchor, workouts: sessions,
+                                            templates: catalogue, tzOffsetSeconds: offset)
+            let bands = StrengthSession.typicalWeeklySets(sessions, templates: catalogue,
+                                                          endingBefore: anchor, tzOffsetSeconds: offset)
+            let load = StrengthSession.setLoadRatio(sessions, asOf: endDate,
+                                                    tzOffsetSeconds: offset)
+            let stimulus = MuscleStimulus.weeklyStimulus(containing: anchor, workouts: sessions,
+                                                         templates: catalogue,
+                                                         tzOffsetSeconds: offset).byMuscle
+            let typical = MuscleStimulus.typicalWeeklyStimulus(sessions, templates: catalogue,
+                                                               endingBefore: anchor,
+                                                               tzOffsetSeconds: offset)
+            return (week, bands, load, stimulus, typical)
+        }.value
+        guard !Task.isCancelled else { return }
+        preparedWeek = prepared.0
+        preparedTypicalBands = prepared.1
+        preparedStrengthLoad = prepared.2
+        weekStimulus = prepared.3
+        typicalWeek = prepared.4
     }
 }

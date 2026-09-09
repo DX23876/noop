@@ -27,4 +27,9 @@ final class CoachLocalContextPlannerTests: XCTestCase {
         XCTAssertTrue(sections.contains(.conversationMemory))
         XCTAssertFalse(sections.contains(.workouts))
     }
+
+    func testStrengthQuestionRequestsDetailedStrengthContext() {
+        let sections = CoachLocalContextPlanner.sections(for: "How has my bench press strength developed?")
+        XCTAssertEqual(sections, [.strength])
+    }
 }

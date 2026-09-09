@@ -32,7 +32,7 @@ struct CoachView: View {
     /// SwiftUI glitch where dismissing one can intermittently re-present or bounce back to whatever's
     /// underneath — reported as "Something else" (a custom goal) looping back to the goal picker.
     private enum ActiveSheet: Int, Identifiable {
-        case settings, history, plan, goal, goalSetup, hevyRoutine, firstUse, goalOnboarding
+        case settings, history, plan, goal, goalSetup, hevyRoutine, hevyWorkout, firstUse, goalOnboarding
         var id: Int { rawValue }
     }
     @State private var activeSheet: ActiveSheet?
@@ -92,6 +92,7 @@ struct CoachView: View {
     /// Drafted Hevy routines waiting to be reviewed and sent. Same visible-pending affordance as goal
     /// drafts, because it is the same promise: the coach prepared something, and only you can send it.
     @ObservedObject private var hevyRoutineStore = HevyRoutineProposalStore.shared
+    @ObservedObject private var hevyWorkoutStore = HevyWorkoutProposalStore.shared
     /// The coach's identity (#R9) — avatar + name shown in the header, updated live from settings.
     @ObservedObject private var identityStore = CoachIdentityStore.shared
     /// Drives the per-reply memory receipt: what a turn saved, and the controls to confirm, correct or
@@ -156,6 +157,7 @@ struct CoachView: View {
             if !sessions.isEmpty { context.trainedToday = true }
         }
         context.hasPendingDraft = !goalSetupStore.pending.isEmpty || !hevyRoutineStore.pending.isEmpty
+            || !hevyWorkoutStore.pending.isEmpty
         promptContext = context
     }
 
@@ -236,6 +238,12 @@ struct CoachView: View {
                             }
                         }
                     }
+                }
+            case .hevyWorkout:
+                if let proposal = hevyWorkoutStore.pending.first {
+                    HevyWorkoutReviewView(proposalId: proposal.id) { activeSheet = nil }
+                } else {
+                    Text("No workout draft waiting")
                 }
             case .firstUse:
                 CoachFirstUseSheet(onAcknowledge: {
@@ -965,6 +973,7 @@ struct CoachView: View {
         case .dataCatalog:             Text("Data catalog")
         case .biometricSummary:        Text("Your metrics")
         case .recentWorkouts:          Text("Recent workouts")
+        case .strengthHistory:         Text("Strength history")
         case .stressIndex:             Text("Stress index")
         case .personalPatterns:        Text("Your patterns")
         case .plotMetric:              Text("Chart")
@@ -987,6 +996,7 @@ struct CoachView: View {
         case .findHevyExercises:       Text("Your exercise list")
         case .hevyRoutines:            Text("Your routines")
         case .proposeHevyRoutine:      Text("Routine draft")
+        case .proposeHevyWorkout:      Text("Workout draft")
         case .sessionOutlook:          Text("Session outlook")
         case .simulateDay:             Text("Simulation")
         case .planAdherence:           Text("Plan adherence")
@@ -1006,6 +1016,7 @@ struct CoachView: View {
         case .dataCatalog:             Text("Which locally stored metrics and sources are available")
         case .biometricSummary:        Text("Recovery, HRV, resting HR and sleep")
         case .recentWorkouts:          Text("Your last few sessions and their strain")
+        case .strengthHistory:         Text("Your exercises, sets, weights, reps and strength trends")
         case .stressIndex:             Text("Autonomic load from today's heart-rate variability")
         case .personalPatterns:        Text("Your own strongest n-of-1 correlations")
         case .plotMetric:              Text("A metric plotted over time")
@@ -1028,6 +1039,7 @@ struct CoachView: View {
         case .findHevyExercises:       Text("The exercises in your Hevy catalogue")
         case .hevyRoutines:            Text("The routines saved in your Hevy account")
         case .proposeHevyRoutine:      Text("A routine drafted for your review — not sent to Hevy")
+        case .proposeHevyWorkout:      Text("A completed workout or correction drafted for your review")
         case .sessionOutlook:          Text("What a session would cost, from your history")
         case .simulateDay:             Text("Tomorrow's Charge under a plan")
         case .planAdherence:           Text("How closely you've kept to your plan")
@@ -1166,6 +1178,10 @@ struct CoachView: View {
                 if !hevyRoutineStore.pending.isEmpty {
                     actionChip(icon: "dumbbell.fill",
                                action: { activeSheet = .hevyRoutine }) { Text("Review routine") }
+                }
+                if !hevyWorkoutStore.pending.isEmpty {
+                    actionChip(icon: "figure.strengthtraining.traditional",
+                               action: { activeSheet = .hevyWorkout }) { Text("Review workout") }
                 }
                 // Each title is a literal `Text(...)` at its own call site (not a `String` routed through
                 // `actionChip`'s parameter) — the same scanner-visibility reason as `evidenceLabel` above.

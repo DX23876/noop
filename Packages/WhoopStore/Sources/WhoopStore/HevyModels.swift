@@ -1,5 +1,28 @@
 import Foundation
 
+/// Provenance for a detailed strength session. API and file imports share the same model so every
+/// consumer can work offline without losing exercise/set detail.
+public enum StrengthDataSource: String, Codable, Sendable, CaseIterable {
+    case hevyAPI = "hevy_api"
+    case hevyCSV = "hevy_csv"
+    case liftosaur
+}
+
+public struct StrengthExerciseMapping: Equatable, Codable, Sendable {
+    public let normalizedTitle: String
+    public let displayTitle: String
+    public let primaryMuscleGroup: HevyMuscleGroup
+    public let secondaryMuscleGroups: [HevyMuscleGroup]
+
+    public init(normalizedTitle: String, displayTitle: String, primaryMuscleGroup: HevyMuscleGroup,
+                secondaryMuscleGroups: [HevyMuscleGroup]) {
+        self.normalizedTitle = normalizedTitle
+        self.displayTitle = displayTitle
+        self.primaryMuscleGroup = primaryMuscleGroup
+        self.secondaryMuscleGroups = secondaryMuscleGroups
+    }
+}
+
 // MARK: - Hevy strength models (v54)
 //
 // The value types behind NOOP's Hevy lane: a logged strength session down to the individual set, plus
@@ -155,10 +178,11 @@ public struct HevyWorkout: Equatable, Codable, Sendable {
     public let updatedAtTs: Int
     public let createdAtTs: Int
     public let exercises: [HevyExercise]
+    public let source: StrengthDataSource
 
     public init(id: String, title: String, routineId: String?, notes: String?,
                 startTs: Int, endTs: Int, updatedAtTs: Int, createdAtTs: Int,
-                exercises: [HevyExercise]) {
+                exercises: [HevyExercise], source: StrengthDataSource = .hevyAPI) {
         self.id = id
         self.title = title
         self.routineId = routineId
@@ -168,11 +192,30 @@ public struct HevyWorkout: Equatable, Codable, Sendable {
         self.updatedAtTs = updatedAtTs
         self.createdAtTs = createdAtTs
         self.exercises = exercises
+        self.source = source
     }
 
     public var durationS: Double? {
         let d = Double(endTs - startTs)
         return d > 0 ? d : nil
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id, title, routineId, notes, startTs, endTs, updatedAtTs, createdAtTs, exercises, source
+    }
+
+    public init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        id = try values.decode(String.self, forKey: .id)
+        title = try values.decode(String.self, forKey: .title)
+        routineId = try values.decodeIfPresent(String.self, forKey: .routineId)
+        notes = try values.decodeIfPresent(String.self, forKey: .notes)
+        startTs = try values.decode(Int.self, forKey: .startTs)
+        endTs = try values.decode(Int.self, forKey: .endTs)
+        updatedAtTs = try values.decode(Int.self, forKey: .updatedAtTs)
+        createdAtTs = try values.decode(Int.self, forKey: .createdAtTs)
+        exercises = try values.decode([HevyExercise].self, forKey: .exercises)
+        source = try values.decodeIfPresent(StrengthDataSource.self, forKey: .source) ?? .hevyAPI
     }
 }
 

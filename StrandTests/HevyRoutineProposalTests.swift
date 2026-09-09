@@ -167,3 +167,49 @@ final class HevyRoutineProposalTests: XCTestCase {
         XCTAssertEqual(sets[0]["reps"] as? Int, 10)
     }
 }
+
+@MainActor
+final class HevyWorkoutProposalTests: XCTestCase {
+    private func workout(id: String = "pending-1") -> HevyWorkout {
+        HevyWorkout(
+            id: id, title: "Push day", routineId: nil, notes: "Good form",
+            startTs: 1_700_000_000, endTs: 1_700_003_600,
+            updatedAtTs: 1_700_003_600, createdAtTs: 1_700_000_000,
+            exercises: [
+                HevyExercise(index: 0, title: "Bench Press", templateId: "bench-1",
+                             supersetId: nil, notes: nil,
+                             sets: [
+                                HevySet(index: 0, type: .warmup, weightKg: 40, reps: 10,
+                                        distanceM: nil, durationS: nil, rpe: nil, customMetric: nil),
+                                HevySet(index: 1, type: .normal, weightKg: 80, reps: 8,
+                                        distanceM: nil, durationS: nil, rpe: 8, customMetric: nil),
+                             ])
+            ])
+    }
+
+    func testWorkoutProposalCannotPreAcceptItself() {
+        let defaults = UserDefaults(suiteName: "hevy.workout.tests.\(UUID().uuidString)")!
+        let inbox = HevyWorkoutProposalStore(defaults: defaults, storageKey: "test", loading: false)
+        var proposal = HevyWorkoutProposal(operation: .create, workout: workout(), rationale: "Progress")
+        proposal.status = .sent
+
+        XCTAssertTrue(inbox.propose(proposal))
+        XCTAssertEqual(inbox.pending.first?.status, .proposed)
+    }
+
+    func testCompletedWorkoutBodyPreservesReviewedSets() throws {
+        let data = try HevyWorkoutWriter.requestBody(for: workout())
+        let root = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        let body = try XCTUnwrap(root["workout"] as? [String: Any])
+        XCTAssertEqual(body["title"] as? String, "Push day")
+        XCTAssertEqual(body["description"] as? String, "Good form")
+        let exercises = try XCTUnwrap(body["exercises"] as? [[String: Any]])
+        XCTAssertEqual(exercises.first?["exercise_template_id"] as? String, "bench-1")
+        let sets = try XCTUnwrap(exercises.first?["sets"] as? [[String: Any]])
+        XCTAssertEqual(sets.count, 2)
+        XCTAssertEqual(sets[0]["type"] as? String, "warmup")
+        XCTAssertEqual(sets[1]["weight_kg"] as? Double, 80)
+        XCTAssertEqual(sets[1]["reps"] as? Int, 8)
+        XCTAssertEqual(sets[1]["rpe"] as? Double, 8)
+    }
+}

@@ -582,6 +582,28 @@ struct DataSourcesView: View {
                     liftingImporting = false
                     return
                 }
+                let catalogue = (try? await store.hevyExerciseTemplates()) ?? [:]
+                let catalogueByTitle = Dictionary(
+                    catalogue.values.map { (Self.normalizedExerciseTitle($0.title), $0.id) },
+                    uniquingKeysWith: { first, _ in first })
+                let detailed = result.sessions.map { session -> HevyWorkout in
+                    let start = Int(session.start.timeIntervalSince1970)
+                    let end = max(start, Int(session.end.timeIntervalSince1970))
+                    let sourcePrefix = session.source.rawValue
+                    let normalizedTitle = Self.normalizedExerciseTitle(session.title ?? "workout")
+                    let exercises = session.exercises.map { exercise in
+                        HevyExercise(index: exercise.index, title: exercise.title,
+                                     templateId: catalogueByTitle[Self.normalizedExerciseTitle(exercise.title)],
+                                     supersetId: exercise.supersetId, notes: exercise.notes,
+                                     sets: exercise.sets)
+                    }
+                    return HevyWorkout(id: "\(sourcePrefix):\(start):\(normalizedTitle)",
+                                       title: session.title?.isEmpty == false ? session.title! : LiftingImporter.sport,
+                                       routineId: nil, notes: session.volumeLoadNote(),
+                                       startTs: start, endTs: end, updatedAtTs: start,
+                                       createdAtTs: start, exercises: exercises, source: session.source)
+                }
+                try await store.upsertStrengthWorkouts(detailed)
                 let rows = result.sessions.map { s in
                     WorkoutRow(
                         startTs: Int(s.start.timeIntervalSince1970),
@@ -624,6 +646,13 @@ struct DataSourcesView: View {
             }
             liftingImporting = false
         }
+    }
+
+    private static func normalizedExerciseTitle(_ title: String) -> String {
+        title.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current)
+            .components(separatedBy: CharacterSet.alphanumerics.inverted)
+            .filter { !$0.isEmpty }
+            .joined(separator: " ")
     }
 
     /// Parse a single GPX / TCX / FIT activity file and upsert it as one workout (source
