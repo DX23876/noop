@@ -50,7 +50,13 @@ struct PlanTodayCard: View {
     static func shouldFlagInMomentum(_ proposal: PlanProposal, now: Date,
                                      calendar: Calendar = .current) -> Bool {
         if proposal.time == nil {
-            return calendar.component(.hour, from: now) >= untimedMomentumReminderHour
+            guard let reminderStart = calendar.date(bySettingHour: untimedMomentumReminderHour,
+                                                     minute: 0, second: 0, of: now),
+                  now >= reminderStart else { return false }
+            // A late acceptance is still a fresh, successful decision. The 18:00 reminder applies to
+            // commitments that were already open when the evening boundary arrived, not to one the
+            // person accepted at 18:05 while looking at Momentum.
+            return proposal.decidedAt.map { $0 < reminderStart } ?? true
         }
         return emphasis(for: proposal, now: now) == .due
     }

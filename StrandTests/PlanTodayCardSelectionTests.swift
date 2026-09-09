@@ -20,9 +20,10 @@ final class PlanTodayCardSelectionTests: XCTestCase {
         return f.date(from: "\(day) \(hhmm)")!
     }
 
-    private func commitment(day: String, time: Date?, sport: String = "Zone 2 ride") -> PlanProposal {
+    private func commitment(day: String, time: Date?, sport: String = "Zone 2 ride",
+                            decidedAt: Date? = nil) -> PlanProposal {
         PlanProposal(day: day, time: time, sport: sport, intent: .easy,
-                     status: .accepted, source: .userCreated)
+                     status: .accepted, source: .userCreated, decidedAt: decidedAt)
     }
 
     // MARK: - The regression
@@ -136,9 +137,14 @@ final class PlanTodayCardSelectionTests: XCTestCase {
     }
 
     func testUntimedCommitmentBecomesAnEveningReminderAtSix() {
-        let p = commitment(day: today, time: nil)
+        let p = commitment(day: today, time: nil, decidedAt: at("08:00", day: today))
         XCTAssertFalse(PlanTodayCard.shouldFlagInMomentum(p, now: at("17:59", day: today)))
         XCTAssertTrue(PlanTodayCard.shouldFlagInMomentum(p, now: at("18:00", day: today)))
+    }
+
+    func testUntimedCommitmentAcceptedAfterSixIsNotWarnedAboutImmediately() {
+        let p = commitment(day: today, time: nil, decidedAt: at("18:05", day: today))
+        XCTAssertFalse(PlanTodayCard.shouldFlagInMomentum(p, now: at("18:06", day: today)))
     }
 
     func testFutureAndApproachingCommitmentsStayInThePlanCard() {
