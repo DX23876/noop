@@ -30,9 +30,11 @@ enum LiveEffort {
     /// `restingHr` is the displayed day's own resting HR (the daily pass's input); nil falls back to
     /// `StrainScorer.defaultRestingHR`, exactly as the pass does.
     ///
-    /// COST: one indexed HR read bounded by `Repository.hrSamples`' own 8000-row limit, plus an O(n)
-    /// accumulation. It is the single heaviest read on the classic Today day-scoped pass, which is why
-    /// every caller runs it LAST — after the state its rings already draw from is set — so the screen
+    /// COST: one indexed HR read over the whole elapsed day — up to ~18 k rows on a worn day, bounded by
+    /// the explicit 200_000 cap at the call site (NOT `hrSamples`' 8000-row default, which used to
+    /// truncate this read; see the note there) — plus an O(n) accumulation. It is the single heaviest
+    /// read on the classic Today day-scoped pass, which is why every caller runs it LAST — after the
+    /// state its rings already draw from is set — so the screen
     /// paints on the stored row and only refines afterwards. Because `effectiveEffort` takes the MAX,
     /// that refinement can only ever raise the number, never flicker it downward.
     static func today(repo: Repository, profile: ProfileStore, restingHr: Int?) async -> Double? {
