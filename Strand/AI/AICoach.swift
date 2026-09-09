@@ -4092,6 +4092,23 @@ final class AICoachEngine: ObservableObject {
         if !sleeps.isEmpty {
             evidence.meanSleepHours = (sleeps.reduce(0, +) / Double(sleeps.count)) / 60
         }
+
+        // Working sets per week, over the same window goal tracking measures a set goal in. Nil rather
+        // than zero when no lifting log is connected: "I can't see one" and "you did none" are different
+        // answers, and only the second one deserves a verdict.
+        if let store = await repo.storeHandle() {
+            let now = Int(Date().timeIntervalSince1970)
+            let from = now - GoalMeasure.hardSetWindowDays * 86_400
+            let sessions = (try? await store.strengthWorkouts(from: from, to: now + 86_400)) ?? []
+            if !sessions.isEmpty {
+                let templates = (try? await store.strengthExerciseTemplates()) ?? [:]
+                let sets = sessions
+                    .map { StrengthSession.summarize($0, templates: templates).workingSetCount }
+                    .reduce(0, +)
+                evidence.hardSetsPerWeek = GoalMeasure.perWeek(count: sets,
+                                                               overDays: GoalMeasure.hardSetWindowDays)
+            }
+        }
         return evidence
     }
 
@@ -4993,27 +5010,75 @@ final class AICoachEngine: ObservableObject {
         lines.append("Sources: " + sourceCounts.keys.sorted { $0.rawValue < $1.rawValue }
             .map { "\($0.rawValue) \(sourceCounts[$0]!)" }.joined(separator: ", "))
 
+        // ONE e1RM point per exercise per SESSION — its best working set — rather than one per set.
+        // Feeding every set into the trend let a session with eight sets outvote one with two, so a
+        // change in how someone trains moved a line that is supposed to be about how strong they are.
         struct LiftPoint { let ts: Int; let weight: Double; let reps: Int; let e1rm: Double }
         var points: [String: [LiftPoint]] = [:]
+        var sessionBest: [String: [Int: LiftPoint]] = [:]
         for workout in sessions {
             for movement in workout.exercises {
                 for set in movement.workingSets {
                     guard let weight = set.weightKg, weight > 0, let reps = set.reps, reps > 0 else { continue }
                     guard let e1rm = OneRepMax.epley(weightKg: weight, reps: reps) else { continue }
-                    points[movement.title, default: []].append(
-                        LiftPoint(ts: workout.startTs, weight: weight, reps: reps,
-                                  e1rm: e1rm))
+                    let point = LiftPoint(ts: workout.startTs, weight: weight, reps: reps, e1rm: e1rm)
+                    points[movement.title, default: []].append(point)
+                    let existing = sessionBest[movement.title]?[workout.startTs]
+                    if existing == nil || e1rm > existing!.e1rm {
+                        sessionBest[movement.title, default: [:]][workout.startTs] = point
+                    }
                 }
             }
         }
-        lines.append("Exercise trends (e1RM is an estimate; top weight is measured):")
+        lines.append("Exercise trends (e1RM is an estimate; top weight is measured; the trend is the median of every pairwise slope, so one bad session cannot flip it):")
         for name in points.keys.sorted().prefix(20) {
             let values = points[name]!.sorted { $0.ts < $1.ts }
             guard let first = values.first, let latest = values.last else { continue }
             let best = values.max { $0.e1rm < $1.e1rm }!
             let top = values.max { $0.weight < $1.weight }!
-            let change = first.e1rm > 0 ? (latest.e1rm / first.e1rm - 1) * 100 : 0
-            lines.append("  \(name): first e1RM \(String(format: "%.1f", first.e1rm)) kg, latest \(String(format: "%.1f", latest.e1rm)) kg (\(String(format: "%+.1f", change))%), best \(String(format: "%.1f", best.e1rm)) kg; measured top \(String(format: "%.1f", top.weight)) kg × \(top.reps).")
+            var line = "  \(name): first e1RM \(String(format: "%.1f", first.e1rm)) kg, latest \(String(format: "%.1f", latest.e1rm)) kg, best \(String(format: "%.1f", best.e1rm)) kg; measured top \(String(format: "%.1f", top.weight)) kg × \(top.reps)."
+            // The same robust line the Strength screen draws, so the coach and the chart can never
+            // describe one history two different ways.
+            let trendPoints = (sessionBest[name] ?? [:]).values
+                .sorted { $0.ts < $1.ts }
+                .map { point in
+                    ExercisePerformancePoint(day: dateString(point.ts), startTs: point.ts,
+                                             workoutId: "", bestE1RMKg: point.e1rm,
+                                             heaviestSetKg: point.weight, workingSetCount: 1,
+                                             totalReps: point.reps, volumeLoadKg: point.weight * Double(point.reps),
+                                             meanRpe: nil, rpeSetCount: 0)
+                }
+            if let trend = StrengthProgress.e1rmTrend(trendPoints) {
+                line += trend.directionIsUnclear
+                    ? " Trend: no direction the sessions agree on (\(trend.pointCount) sessions)."
+                    : " Trend: \(String(format: "%+.2f", trend.slopePerWeek)) kg/week over \(trend.spanDays) days."
+            }
+            lines.append(line)
+        }
+
+        // What the sessions were made of, per muscle and per axis. Without this the coach could name
+        // every lift and still not answer "am I neglecting anything" — the question it is asked most.
+        let templates = (try? await store.strengthExerciseTemplates()) ?? [:]
+        let fourWeeks = sessions.filter { $0.startTs >= now - 28 * 86_400 }
+        if !fourWeeks.isEmpty {
+            let tally = StrengthSession.hardSetsByMuscle(fourWeeks, templates: templates)
+            let byMuscle = tally.primary
+                .sorted { $0.value == $1.value ? $0.key.rawValue < $1.key.rawValue : $0.value > $1.value }
+                .map { "\($0.key.label) \($0.value)" }
+                .joined(separator: ", ")
+            if !byMuscle.isEmpty {
+                lines.append("Hard sets per primary muscle, last 28 days: \(byMuscle)."
+                    + (tally.unattributed > 0 ? " \(tally.unattributed) sets could not be attributed to a muscle." : ""))
+            }
+            let readings = StrengthBalance.readings(setsByMuscle: tally.primary).filter { $0.total > 0 }
+            let balance = readings.compactMap { reading -> String? in
+                guard let ratio = reading.ratio else { return nil }
+                let labels = reading.axis.sideLabels
+                return "\(labels.a):\(labels.b) \(String(format: "%.2f", ratio)):1"
+            }.joined(separator: ", ")
+            if !balance.isEmpty {
+                lines.append("Balance over the same 28 days (counted sets, no target ratio exists): \(balance).")
+            }
         }
         lines.append("Recent sessions:")
         for workout in sessions.prefix(max(1, min(limit, 12))) {

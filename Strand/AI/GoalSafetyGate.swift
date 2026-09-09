@@ -61,6 +61,12 @@ enum GoalSafetyGate {
     static let runVolumeAggressiveFraction = 0.10
     static let runVolumeVeryAggressiveFraction = 0.20
 
+    /// The same convention applied to weekly WORKING SETS. Same numbers on purpose — the rule of thumb
+    /// is about how fast training volume of any kind is added, and inventing a second, different pair
+    /// for lifting would imply a precision neither figure has.
+    static let setVolumeAggressiveFraction = 0.10
+    static let setVolumeVeryAggressiveFraction = 0.20
+
     // MARK: - Entry point
 
     /// Assess the rate `goal` implies. `bodyWeightKg` comes from the user's profile and is only used
@@ -83,6 +89,8 @@ enum GoalSafetyGate {
             return assessWeight(ratePerWeek: ratePerWeek, bodyWeightKg: bodyWeightKg)
         case .run:
             return assessRunVolume(ratePerWeek: ratePerWeek, baseline: baseline)
+        case .hardSets:
+            return assessSetVolume(ratePerWeek: ratePerWeek, baseline: baseline)
         case .consistency, .sleep, .strength, .stress, .recovery, .custom:
             // No established rate-of-change risk we can judge honestly from what NOOP measures. Saying
             // nothing is better than inventing a threshold.
@@ -124,6 +132,43 @@ enum GoalSafetyGate {
                 rateDescription: desc,
                 warning: "That's \(desc) — on the brisk side. Doable, but keep an eye on recovery, and "
                     + "remember I plan your training, not your nutrition.")
+        }
+        return Assessment(verdict: .ok, ratePerWeek: ratePerWeek, rateDescription: desc, warning: nil)
+    }
+
+    /// A ramp in weekly WORKING SETS, judged the same way and on the same terms as running volume.
+    ///
+    /// The convention borrowed is the same one, with the same caveat: a ~10 %-per-week increase is a
+    /// widely used conservative rule of thumb whose evidence base is mixed. That is precisely why this
+    /// warns and never blocks — and why the wording says "convention", not "limit". Only a build-up is
+    /// judged; scaling volume back carries no progression risk.
+    ///
+    /// From a standing start (no baseline sets) there is no percentage to take, and the honest lens is
+    /// feasibility rather than safety — the same carve-out `assessRunVolume` makes.
+    private static func assessSetVolume(ratePerWeek: Double, baseline: Double) -> Assessment {
+        let desc = String(format: "%.1f sets/week", abs(ratePerWeek))
+        guard ratePerWeek > 0, baseline > 0 else {
+            return Assessment(verdict: .ok, ratePerWeek: ratePerWeek, rateDescription: desc, warning: nil)
+        }
+        let fraction = ratePerWeek / baseline
+        let pct = String(format: "%.0f%%", fraction * 100)
+        if fraction > setVolumeVeryAggressiveFraction {
+            return Assessment(
+                verdict: .veryAggressive,
+                ratePerWeek: ratePerWeek,
+                rateDescription: desc,
+                warning: "That means adding about +\(pct) of your weekly sets every week (\(desc)) — a "
+                    + "steep ramp for connective tissue, which adapts more slowly than muscle does. If "
+                    + "that is deliberate, tell me and I'll note it; otherwise a later date buys a lot.")
+        }
+        if fraction > setVolumeAggressiveFraction {
+            return Assessment(
+                verdict: .aggressive,
+                ratePerWeek: ratePerWeek,
+                rateDescription: desc,
+                warning: "That's about +\(pct) of your weekly sets per week (\(desc)) — a little above "
+                    + "the ~10%/week convention. Workable while you're recovering well; I'll watch your "
+                    + "set load ratio.")
         }
         return Assessment(verdict: .ok, ratePerWeek: ratePerWeek, rateDescription: desc, warning: nil)
     }

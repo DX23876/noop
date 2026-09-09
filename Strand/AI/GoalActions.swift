@@ -170,7 +170,10 @@ enum GoalActionEvaluator {
             return [.workout(sports: [], minimumMinutes: 30), .steps(minimum: 8_000)]
         case .run:
             return [.workout(sports: ["Running"], minimumMinutes: 30), .steps(minimum: 8_000)]
-        case .strength:
+        case .strength, .hardSets:
+            // The same daily offer for both strength kinds: what NOOP can check on a DAY is that a
+            // lifting session happened. The sets themselves are counted weekly by goal tracking, and a
+            // daily "did you do 3 sets" check would be a smaller claim than the goal makes.
             return [.workout(sports: ["Strength"], minimumMinutes: 30)]
         case .sleep:
             return [.sleep(minimumHours: 7.5)]

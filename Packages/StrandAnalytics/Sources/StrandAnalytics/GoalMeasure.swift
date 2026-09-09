@@ -177,9 +177,19 @@ public enum GoalMeasure {
         return Double(count) / (Double(overDays) / 7.0)
     }
 
+    /// The window a weekly working-set rate is averaged over.
+    ///
+    /// Four weeks, matching `consistencyWindowDays`: a set goal is a statement about a training week,
+    /// and one week of evidence would make a deload read as a collapse. Stated here rather than at the
+    /// call site so the measurement and the feasibility check cannot end up averaging over different
+    /// spans and disagreeing about the same training.
+    public static let hardSetWindowDays = 28
+
     /// Total minutes from a list of session durations in seconds, per week over the window.
-    /// The measure for a strength goal: NOOP has no load tracking, and time is the honest thing it
-    /// can actually count (the same choice WHOOP's "Strength Activity Time" goal makes).
+    ///
+    /// The measure for a `.strength` goal — strength ACTIVITY TIME, the same choice WHOOP's "Strength
+    /// Activity Time" goal makes, and the only honest figure when no lifting log is connected. A goal
+    /// about training VOLUME is the separate `.hardSets` kind, counted in working sets.
     public static func minutesPerWeek(durationsS: [Double], overDays: Int) -> Double? {
         guard overDays > 0 else { return nil }
         guard !durationsS.isEmpty else { return 0 }

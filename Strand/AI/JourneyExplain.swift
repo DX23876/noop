@@ -46,7 +46,7 @@ enum JourneyExplain {
 
     static func sessionRule(for kind: CoachGoal.Kind) -> SessionRule {
         switch kind {
-        case .run, .consistency, .strength:
+        case .run, .consistency, .strength, .hardSets:
             return SessionRule(
                 noun: "session", pluralNoun: "sessions",
                 definition: String(localized: "A session counts when you tick it off in Your plan, or log it against this goal here. Workouts your strap records aren't counted automatically — the coach can't tell which of them you meant for this goal."),
@@ -105,6 +105,8 @@ enum JourneyExplain {
             return String(localized: "The bar is your most recent logged weight placed between your starting point and your target. Without a synced weigh-in there is no bar — NOOP won't estimate your weight.")
         case .consistency:
             return String(localized: "The bar is your recent sessions-per-week against your weekly target. It needs a target above zero and enough training history to average.")
+        case .hardSets:
+            return String(localized: "The bar is your recent working sets per week against your weekly target — counted from your lifting log, each set once, on its exercise's primary muscle. Without a connected lifting log there is no bar, because there are no sets to count.")
         case .strength, .stress, .recovery, .custom:
             return String(localized: "There's no progress bar for this kind of goal, and that's deliberate: your strap can't measure it, so any percentage here would be invented. What's shown instead is what did happen — what you completed, and your recovery context.")
         }

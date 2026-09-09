@@ -316,6 +316,7 @@ struct CoachGoalOnboardingFlow: View {
         case .consistency: return "e.g. Train three times a week"
         case .sleep:       return "e.g. Sleep 7.5 hours a night"
         case .strength:    return "e.g. Get back to full-body strength work"
+        case .hardSets:    return "e.g. 18 hard sets a week for legs"
         case .weight:      return "e.g. Get to 78 kg"
         case .stress:      return "e.g. Fewer high-stress days each week"
         case .recovery:    return "e.g. Wake up feeling more recovered"

@@ -20,7 +20,14 @@ struct CoachGoal: Codable, Identifiable, Equatable {
         case run          // a distance/time running goal, measured in km
         case consistency  // sessions per week
         case sleep        // average nightly hours
-        case strength     // strength work — NOOP has no load tracking, so it is held, not measured
+        case strength     // strength ACTIVITY TIME — minutes per week, from the workout log
+        /// Hard sets per week, from the strength lane (Hevy / an imported lifting log).
+        ///
+        /// A KIND OF ITS OWN rather than a new unit on `.strength`. An existing strength goal holds a
+        /// target in minutes per week; reading that same number as sets would silently turn "120
+        /// minutes" into "120 hard sets" on the next launch, with nothing on screen to say the goal had
+        /// been reinterpreted. Two kinds means an old goal keeps meaning exactly what it meant.
+        case hardSets
         case weight       // body weight — TRACKED only; the coach never plans nutrition (see below)
         case stress       // reduce stress — held, not measured (no target rate to judge)
         case recovery     // recover better — held, not measured
@@ -34,6 +41,7 @@ struct CoachGoal: Codable, Identifiable, Equatable {
             case .consistency: return "Train regularly"
             case .sleep:       return "Sleep better"
             case .strength:    return "Build strength"
+            case .hardSets:    return "Weekly hard sets"
             case .weight:      return "Body weight"
             case .stress:      return "Reduce stress"
             case .recovery:    return "Recover better"
@@ -48,6 +56,7 @@ struct CoachGoal: Codable, Identifiable, Equatable {
             case .consistency: return "Show up a set number of times a week."
             case .sleep:       return "More, or steadier, nightly sleep."
             case .strength:    return "Get stronger over time."
+            case .hardSets:    return "A set number of working sets a week — needs a connected lifting log."
             case .weight:      return "Move your body weight toward a target."
             case .stress:      return "Bring your daily load down."
             case .recovery:    return "Give your body more room to bounce back."
@@ -62,6 +71,7 @@ struct CoachGoal: Codable, Identifiable, Equatable {
             case .consistency: return "calendar.badge.checkmark"
             case .sleep:       return "bed.double.fill"
             case .strength:    return "dumbbell.fill"
+            case .hardSets:    return "square.3.layers.3d"
             case .weight:      return "scalemass.fill"
             case .stress:      return "wind"
             case .recovery:    return "heart.fill"
@@ -76,8 +86,12 @@ struct CoachGoal: Codable, Identifiable, Equatable {
             case .consistency: return "sessions/week"
             case .sleep:       return "h"
             case .weight:      return "kg"
-            // Strength is measured as ACTIVITY TIME (no load tracking exists to claim anything else).
+            // Strength is measured as ACTIVITY TIME — the honest figure for someone with no lifting log
+            // connected, and the same choice WHOOP's "Strength Activity Time" goal makes.
             case .strength:    return "min/week"
+            // Working sets, counted once each on their exercise's primary muscle — the unit strength
+            // training is actually prescribed in, available since the Hevy lane landed.
+            case .hardSets:    return "sets/week"
             // Derived 0-100 scores: a bare number, deliberately not dressed up as a percentage or a
             // clinical unit.
             case .stress, .recovery, .custom: return ""
@@ -94,7 +108,11 @@ struct CoachGoal: Codable, Identifiable, Equatable {
         /// it knows what "on track" means for it (`CoachGoalMotivationTests` pins this).
         var isQuantified: Bool {
             switch self {
-            case .run, .consistency, .sleep, .weight: return true
+            // `hardSets` is judged for the same reason `consistency` is: it is a countable rate with a
+            // target the wearer chose, and NOOP can say plainly whether the week reached it. That is a
+            // different claim from `strength` above, where minutes of gym time say nothing about whether
+            // anyone got stronger.
+            case .run, .consistency, .sleep, .weight, .hardSets: return true
             case .strength, .stress, .recovery, .custom: return false
             }
         }

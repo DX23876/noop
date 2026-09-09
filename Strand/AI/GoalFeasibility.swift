@@ -47,13 +47,18 @@ enum GoalFeasibility {
         var sessionsPerWeek: Double?
         /// Recent mean nightly sleep, hours.
         var meanSleepHours: Double?
+        /// Recent working sets per week, from the strength lane. Nil when no lifting log is connected —
+        /// which is a different answer from zero and is reported as "I can't see one yet".
+        var hardSetsPerWeek: Double?
 
         init(vo2max: Double? = nil, longestRecentRunKm: Double? = nil,
-             sessionsPerWeek: Double? = nil, meanSleepHours: Double? = nil) {
+             sessionsPerWeek: Double? = nil, meanSleepHours: Double? = nil,
+             hardSetsPerWeek: Double? = nil) {
             self.vo2max = vo2max
             self.longestRecentRunKm = longestRecentRunKm
             self.sessionsPerWeek = sessionsPerWeek
             self.meanSleepHours = meanSleepHours
+            self.hardSetsPerWeek = hardSetsPerWeek
         }
     }
 
@@ -66,6 +71,10 @@ enum GoalFeasibility {
     static let runAmbitiousMultiple = 2.0
     /// Weekly session count beyond which a jump reads as a lifestyle change rather than a training one.
     static let consistencyAmbitiousJump = 3.0
+    /// A weekly set target above this multiple of the wearer's own current average reads as ambitious.
+    /// 1.5× matches `StrengthPlanGate.setJumpFactor` — one line for "that is a step change in volume",
+    /// used by both the routine check and the goal check, rather than two numbers that could drift.
+    static let hardSetAmbitiousMultiple = StrengthPlanGate.setJumpFactor
 
     // MARK: - Entry point
 
@@ -84,6 +93,7 @@ enum GoalFeasibility {
         switch goal.kind {
         case .run:         return assessRun(goal: goal, evidence: evidence, weeks: weeks)
         case .consistency: return assessConsistency(goal: goal, evidence: evidence)
+        case .hardSets:    return assessHardSets(goal: goal, evidence: evidence)
         case .sleep:       return assessSleep(goal: goal, evidence: evidence)
         case .weight:
             // Body weight is decided mostly by nutrition, which NOOP has no data on. Judging
@@ -182,6 +192,44 @@ enum GoalFeasibility {
             verdict: .supported,
             rationale: "You're averaging \(currentText) sessions a week; \(targetText) is a step up you can "
                 + "hold.",
+            suggestion: nil)
+    }
+
+    /// Weekly hard sets, judged against what the wearer is already doing.
+    ///
+    /// The same shape as the consistency check and deliberately so: both are "can you hold this many a
+    /// week", and the failure mode is the same one — the calendar, not the tissue. What is NOT claimed
+    /// here is that any particular weekly set count is right for this person; the verdict is only about
+    /// the size of the JUMP from their own current average.
+    ///
+    /// The multiple, not a fixed number of sets, because "ten more sets" means something different to
+    /// someone doing eight than to someone doing thirty. `hardSetAmbitiousMultiple` is stated below.
+    private static func assessHardSets(goal: CoachGoal, evidence: Evidence) -> Assessment {
+        guard let target = goal.target, target > 0 else {
+            return Assessment(verdict: .unknown,
+                              rationale: "No weekly set target set.", suggestion: nil)
+        }
+        guard let current = evidence.hardSetsPerWeek, current > 0 else {
+            return Assessment(
+                verdict: .unknown,
+                rationale: "I can't see a lifting log yet, so I don't know how many sets a week you're "
+                    + "doing now. Connect Hevy or import a lifting file and I can size this up.",
+                suggestion: nil)
+        }
+        let currentText = String(format: "%.0f", current)
+        let targetText = String(format: "%.0f", target)
+        if target / current > hardSetAmbitiousMultiple {
+            return Assessment(
+                verdict: .ambitious,
+                rationale: "You're averaging \(currentText) working sets a week and aiming for "
+                    + "\(targetText). That's a big step up in training time as much as in effort — the "
+                    + "thing that usually gives way first is the schedule.",
+                suggestion: nil)
+        }
+        return Assessment(
+            verdict: .supported,
+            rationale: "You're averaging \(currentText) working sets a week; \(targetText) is a step up "
+                + "you can build into.",
             suggestion: nil)
     }
 

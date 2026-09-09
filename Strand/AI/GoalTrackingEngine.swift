@@ -427,8 +427,12 @@ final class GoalTrackingStore: ObservableObject {
         // measure with no window at all, so a wearer who stopped weighing in months ago kept a stale
         // reading presented as current — every other kind is windowed inside `measurements`.
         let weightsInWindow = weightsWithin(GoalMeasure.weightWindowDays, weights: weights, now: now)
+        // Working sets for a `.hardSets` goal. Read here rather than derived from `workouts` above: a
+        // mirrored strength row carries a duration, not a set count — the sets only exist in the
+        // strength lane's own tables.
+        let hardSets = await hardSetsPerWeek(repo: repo, now: now)
         let measurementByKind = measurements(workouts: workouts, weights: weightsInWindow, stress: stress,
-                                             days: repo.days, now: now)
+                                             days: repo.days, hardSetsPerWeek: hardSets, now: now)
         let calendar = Calendar.autoupdatingCurrent
         let start = calendar.date(byAdding: .day, value: -365, to: now) ?? now
         let end = calendar.dateInterval(of: .weekOfYear, for: now)?.end ?? now
@@ -517,12 +521,31 @@ final class GoalTrackingStore: ObservableObject {
         CoachNotifier.syncGoalMonitoring(snapshots)
     }
 
+    /// Working sets per week over `GoalMeasure.hardSetWindowDays`, or nil when there is no lifting log.
+    ///
+    /// Nil, not zero, when nothing is connected — the goal is then UNMEASURED rather than unmet, and the
+    /// tile says "connect a lifting log" instead of showing a 0 that reads as a failure. An empty window
+    /// WITH a log is a real zero and returns one, exactly as the consistency measure does.
+    private func hardSetsPerWeek(repo: Repository, now: Date) async -> Double? {
+        guard let store = await repo.storeHandle() else { return nil }
+        let end = Int(now.timeIntervalSince1970)
+        let from = end - GoalMeasure.hardSetWindowDays * 86_400
+        guard let sessions = try? await store.strengthWorkouts(from: from, to: end + 86_400),
+              (try? await store.hevyWorkoutCount()).map({ $0 > 0 }) == true else { return nil }
+        let templates = (try? await store.strengthExerciseTemplates()) ?? [:]
+        let sets = sessions
+            .map { StrengthSession.summarize($0, templates: templates).workingSetCount }
+            .reduce(0, +)
+        return GoalMeasure.perWeek(count: sets, overDays: GoalMeasure.hardSetWindowDays)
+    }
+
     /// Derive "where am I now" per goal kind. `weights` arrives already windowed and ordered (the rate
     /// fit needs the same series, so the caller does it once). The window lengths and the smoothing live in
     /// `GoalMeasure` (StrandAnalytics) so they are unit-tested and defined once.
     private func measurements(workouts: [WorkoutRow], weights: [(day: String, value: Double)],
                               stress: [(day: String, value: Double)],
-                              days: [DailyMetric], now: Date) -> [CoachGoal.Kind: GoalMeasurement] {
+                              days: [DailyMetric], hardSetsPerWeek: Double?,
+                              now: Date) -> [CoachGoal.Kind: GoalMeasurement] {
         var result: [CoachGoal.Kind: GoalMeasurement] = [:]
 
         func within(_ windowDays: Int) -> [WorkoutRow] {
@@ -550,18 +573,39 @@ final class GoalTrackingStore: ObservableObject {
             result[.consistency] = GoalMeasurement(value: rate, date: latestDate(consistencyRows))
         }
 
-        // Strength as MINUTES PER WEEK. NOOP has no load tracking, so sets/reps/weight cannot be
-        // claimed — time can be counted honestly, and it is the same choice WHOOP's "Strength
-        // Activity Time" goal makes. Sport matching is the same lowercase-contains shape the run
-        // filter uses, and shares its limitation: a localized sport name would miss.
+        // Strength as MINUTES PER WEEK — strength ACTIVITY TIME, the same choice WHOOP's "Strength
+        // Activity Time" goal makes, and the honest measure for someone with no lifting log connected.
+        // A goal about training VOLUME is the separate `.hardSets` kind below.
+        //
+        // Matched on the SOURCE first and the sport name only as a fallback. The name test alone —
+        // `sport.contains("strength")` and three siblings — misses every session whose sport arrived
+        // localized ("Krafttraining", "Musculation"), and those are exactly the sessions a German or
+        // French user's strength goal is made of. A row from the Hevy or the lifting-import lane IS a
+        // strength session whatever its label says, so the lane answers first and the name only has to
+        // catch what reaches us from elsewhere (Apple Health, a strap, a manual entry).
         let strengthRows = consistencyRows.filter { row in
-            let sport = row.sport.lowercased()
-            return sport.contains("strength") || sport.contains("bodybuilding")
-                || sport.contains("weight training") || sport.contains("lifting")
+            switch WorkoutSource.classify(row.source) {
+            case .hevy, .lifting:
+                return true
+            default:
+                let sport = row.sport.lowercased()
+                return sport.contains("strength") || sport.contains("bodybuilding")
+                    || sport.contains("weight training") || sport.contains("lifting")
+                    || sport.contains("kraft") || sport.contains("musculation")
+                    || sport.contains("gewichtheben")
+            }
         }
         if let minutes = GoalMeasure.minutesPerWeek(durationsS: strengthRows.compactMap(\.durationS),
                                                     overDays: GoalMeasure.consistencyWindowDays) {
             result[.strength] = GoalMeasurement(value: minutes, date: latestDate(strengthRows))
+        }
+
+        // Working sets per week — the unit strength training is actually prescribed in, available since
+        // the Hevy lane landed. Dated from the newest strength row rather than the strength lane's own
+        // sessions: the two are mirrors of each other, and a `WorkoutRow` is what every other measure
+        // here is dated by.
+        if let sets = hardSetsPerWeek {
+            result[.hardSets] = GoalMeasurement(value: sets, date: latestDate(strengthRows))
         }
 
         let ascending = days.sorted { $0.day < $1.day }

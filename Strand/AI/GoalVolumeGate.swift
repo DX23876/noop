@@ -79,6 +79,10 @@ enum GoalVolumeGate {
         case .consistency: return goal.target ?? 0
         case .run:         return assumedRunSessionsPerWeek
         case .strength:    return assumedStrengthSessionsPerWeek
+        // A weekly SET target implies sessions only through however many sets a session holds, which
+        // varies far too much between lifters to assume. The same standing assumption the `.strength`
+        // kind carries is the honest floor here: a set goal means lifting is happening.
+        case .hardSets:    return assumedStrengthSessionsPerWeek
         case .sleep, .weight, .stress, .recovery, .custom: return 0
         }
     }
