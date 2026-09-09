@@ -213,6 +213,7 @@ struct WorkoutsView: View {
                 if let postLogNote { postLogBanner(postLogNote) }
                 effortHero(rows: windowRows, effectiveRange: resolved, groups: groups)
                 summarySection(rows: windowRows, effectiveRange: resolved, groups: groups)
+                analysisRow
                 heatmapSection()
                 breakdownSection(groups: groups, rows: windowRows)
                 if let z = zonesSummary {
@@ -1030,6 +1031,64 @@ struct WorkoutsView: View {
                          : nil,
                      accent: StrandPalette.textPrimary)
         }
+    }
+
+    // MARK: - Analysis hand-off
+    //
+    // This list answers "when did I train". The two analysis screens answer "what was it made of", and
+    // both were previously reachable only from a menu on iOS and nowhere at all in the macOS sidebar. A
+    // row here is where someone actually stands when that question occurs to them.
+
+    private var analysisRow: some View {
+        HStack(spacing: NoopMetrics.rowSpacing) {
+            analysisLink(title: String(localized: "Strength"),
+                         subtitle: String(localized: "sets, muscles, records"),
+                         icon: "dumbbell.fill") { StrengthView() }
+            analysisLink(title: String(localized: "Cardio"),
+                         subtitle: String(localized: "pace, distance, load"),
+                         icon: "figure.run.circle.fill") { CardioView() }
+        }
+    }
+
+    /// A CLOSURE-based link, not a `TabRoute` value.
+    ///
+    /// This screen is itself a pushed destination, and the stack that pushed it decides which value
+    /// types resolve: the Today stacks register `tabRouteDestinations()`, the More tab's stack registers
+    /// only `MoreDestination`. A value link therefore worked from one entry point and was silently
+    /// INERT from the other — the tap simply did nothing, which is exactly what happened the first time
+    /// this was tried. `TabRoute`'s own note says deeper links stay closure-based for this reason.
+    private func analysisLink<Destination: View>(
+        title: String, subtitle: String, icon: String,
+        @ViewBuilder destination: @escaping () -> Destination
+    ) -> some View {
+        NavigationLink {
+            destination()
+        } label: {
+            NoopCard(padding: 12) {
+                HStack(spacing: 10) {
+                    Image(systemName: icon)
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(StrandPalette.accent)
+                        .accessibilityHidden(true)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(title).font(StrandFont.subhead)
+                            .foregroundStyle(StrandPalette.textPrimary)
+                        Text(subtitle).font(StrandFont.caption)
+                            .foregroundStyle(StrandPalette.textTertiary)
+                            .lineLimit(1).minimumScaleFactor(0.8)
+                    }
+                    Spacer(minLength: 0)
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(StrandPalette.textTertiary)
+                        .accessibilityHidden(true)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+        .buttonStyle(.plain)
+        .strandPressable()
+        .accessibilityLabel("\(title): \(subtitle)")
     }
 
     // MARK: - Activity breakdown (per-sport NoopCards, identical layout)

@@ -77,6 +77,14 @@ public struct TrendChart: View {
     /// encodes value, and two ramped lines in one plot encode nothing distinguishable.
     public var overlayColor: Color
 
+    /// Formats the Y-AXIS tick labels, when the raw number is not the readable form of the value.
+    ///
+    /// nil (the default) keeps Swift Charts' own formatting, so every existing caller is unchanged. It
+    /// exists for series whose stored unit is not the unit anyone reads: a running pace is stored as
+    /// seconds per kilometre, and an axis labelled "300, 400, 500" is a chart nobody can use — where
+    /// "5:00, 6:40, 8:20" is immediately legible.
+    public var yAxisLabel: ((Double) -> String)?
+
     /// Mean of all point values, computed once in `init` so the area fill's gradient
     /// stop doesn't run an O(n) reduce for every mark on every render.
     private let averageValue: Double
@@ -98,8 +106,10 @@ public struct TrendChart: View {
         nowCapColor: Color? = nil,
         yDomain: ClosedRange<Double>? = nil,
         overlayPoints: [TrendPoint] = [],
-        overlayColor: Color = StrandPalette.textSecondary
+        overlayColor: Color = StrandPalette.textSecondary,
+        yAxisLabel: ((Double) -> String)? = nil
     ) {
+        self.yAxisLabel = yAxisLabel
         let sorted = points.sorted { $0.date < $1.date }
         self.overlayPoints = overlayPoints.sorted { $0.date < $1.date }
         self.overlayColor = overlayColor
@@ -311,10 +321,18 @@ public struct TrendChart: View {
             }
         }
         .chartYAxis {
-            AxisMarks(position: .leading, values: .automatic(desiredCount: 4)) { _ in
+            AxisMarks(position: .leading, values: .automatic(desiredCount: 4)) { value in
                 AxisGridLine().foregroundStyle(StrandPalette.hairline.opacity(0.4))
-                AxisValueLabel().foregroundStyle(StrandPalette.textTertiary)
+                if let yAxisLabel, let raw = value.as(Double.self) {
+                    AxisValueLabel {
+                        Text(verbatim: yAxisLabel(raw))
+                    }
+                    .foregroundStyle(StrandPalette.textTertiary)
                     .font(StrandFont.footnote)
+                } else {
+                    AxisValueLabel().foregroundStyle(StrandPalette.textTertiary)
+                        .font(StrandFont.footnote)
+                }
             }
         }
         .chartOverlay { proxy in

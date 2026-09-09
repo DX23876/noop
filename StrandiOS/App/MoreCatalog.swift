@@ -102,6 +102,11 @@ enum MoreCatalog {
             // when you trained, Strength says what the session contained and whether it is moving.
             MoreEntry("Strength", "dumbbell.fill", .strength,
                       keywords: ["lifting", "hevy", "sets", "reps", "volume", "1rm", "gym"]),
+            // The endurance half of the same pair. Workouts lists the sessions; Cardio says what they
+            // were made of — pace, distance, and whether any of it is getting faster.
+            MoreEntry("Cardio", "figure.run.circle.fill", .cardio,
+                      keywords: ["running", "cycling", "swimming", "pace", "distance", "endurance",
+                                 "km", "speed", "rowing"]),
             MoreEntry("Health", "heart.text.square.fill", .health,
                       keywords: ["biometrics", "fitness age", "vitality", "skin temperature"]),
             // Renamed from "Lab Book": names the content directly (blood/BP/body numbers), not the

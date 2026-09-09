@@ -720,7 +720,7 @@ struct RootTabView: View {
 enum MoreDestination: Hashable {
     case momentum
     case insightsHub, intelligence, coach, coachSettings, goalJourney, insights, explore, compare
-    case live, workouts, health, labBook, stress, breathe, intervals, rhythm, strength
+    case live, workouts, health, labBook, stress, breathe, intervals, rhythm, strength, cardio
     case fusedRecord, appleHealth, miBand, dataSources, backupSync, shortcutsExport, noopLimitations
     case alarms, automations, testCentre, siriShortcuts, powerSaving, settings
     /// Settings opened from a search hit, carrying the query so the screen lands already filtered to
@@ -744,6 +744,7 @@ enum MoreDestination: Hashable {
         case .live:            LiveView()
         case .workouts:        WorkoutsView()
         case .strength:        StrengthView()
+        case .cardio:          CardioView()
         case .health:          HealthView()
         case .labBook:         LabBookView()
         case .stress:          StressView()
