@@ -44,6 +44,14 @@ Strand/AI/
 ├── CoachGoalSetupTool.swift   Parses Coach drafts and resolves consented local baselines
 ├── CoachUsageLog.swift        Per-turn token accounting (all providers): cache hit/write/miss
 ├── CoachHistoryBudget.swift  Per-model token budget for the history window
+├── CoachVoiceInput.swift       (StrandiOS/App/) On-device speech into the composer — iOS only,
+│                                 on-device or nothing, never a server fallback (adopted from
+│                                 upstream K4 in the 2026-09-09 sync)
+├── CoachBriefScheduler.swift   (Strand/System/) The scheduled morning brief: a BGAppRefresh request
+│                                 for no-earlier-than the chosen time, its notification, and the App
+│                                 Group hand-off the Lock Screen widget reads. Calls
+│                                 `generateBriefText` — the SAME generation the chat uses, so the
+│                                 notification, the widget and the transcript quote one model run
 └── Providers/
     ├── Anthropic.swift             Base client (upstream file — kept untouched, see §9)
     ├── AnthropicTools.swift        Tool-use loop

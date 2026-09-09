@@ -95,6 +95,14 @@ struct StrandiOSApp: App {
         CoachCheckIn.registerCategory()
         let model = AppModel()
         SemanticMemoryBackgroundTask.attach(coach: model.coach)
+        // The scheduled morning brief's BGTask handler, registered before launch finishes for the same
+        // reason as the three above: iOS only delivers a task whose identifier was registered at launch
+        // AND listed in BGTaskSchedulerPermittedIdentifiers. The closure is the fork's OWN brief
+        // (`generateBriefText`), not a second generation path — so the notification, the widget and the
+        // Coach transcript all quote one model run, and the day's brief stamp is set by it exactly once.
+        CoachBriefScheduler.register { [weak model] in
+            await model?.coach.generateBriefText()
+        }
         // #1538: a strap offload completes while the app is BACKGROUNDED — it stays alive as a
         // bluetooth-central to receive it — and the re-score it triggers took nearly eight minutes on the
         // reporter's install, far longer than that wake survives. The pass is all-or-nothing, so being
@@ -336,6 +344,20 @@ struct StrandiOSApp: App {
         .onChange(of: scenePhase) { _, phase in
             if phase == .active {
                 model.drainPendingIntents(router: router)
+                // iOS grants a background refresh when it feels like it, and often not at all. Catch up
+                // on foreground so an enabled brief still lands on the day it was due instead of
+                // silently skipping whenever the system declined the wake. `catchUpIfDue` owns the
+                // once-a-day gate; this is a no-op when the brief is off, already generated, or not yet
+                // due. It also re-arms the next request, which a system reboot would otherwise drop.
+                Task { @MainActor in
+                    _ = await CoachBriefScheduler.catchUpIfDue { await model.coach.generateBriefText() }
+                    CoachBriefScheduler.activateIfEnabled { await model.coach.generateBriefText() }
+                    // A brief generated while the app was away is surfaced into the transcript here, so
+                    // opening Coach shows the brief the notification quoted rather than nothing.
+                    if let stored = CoachBriefScheduler.consumeStoredBrief() {
+                        model.coach.surfaceScheduledBrief(stored)
+                    }
+                }
                 // Re-arm the strap's smart alarm on foreground: the firmware alarm is a single instant
                 // and iOS can't re-arm it while suspended, so it would otherwise fire once and stop.
                 model.applySmartAlarm()

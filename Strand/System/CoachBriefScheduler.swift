@@ -58,6 +58,23 @@ enum CoachBriefScheduler {
         return min(max(v, 0), minutesPerDay - 1)
     }
 
+    /// `timeMinutes` as a `Date` a `DatePicker` can bind to (today's date, that hour and minute).
+    /// Same shape as `CoachCheckIn.timeAsDate`, so the two settings rows behave identically.
+    static var timeAsDate: Date {
+        Calendar.current.date(
+            bySettingHour: timeMinutes / 60, minute: timeMinutes % 60, second: 0, of: Date()
+        ) ?? Date()
+    }
+
+    /// Minutes-since-midnight from a picker `Date`, reading hour/minute only. The fallback is the
+    /// scheduler's own default rather than a bare 0, so a `Date` with no hour components cannot silently
+    /// move the brief to midnight.
+    static func minutes(from date: Date) -> Int {
+        let c = Calendar.current.dateComponents([.hour, .minute], from: date)
+        guard let hour = c.hour else { return defaultTimeMinutes }
+        return hour * 60 + (c.minute ?? 0)
+    }
+
     /// The most recently generated full brief text (for the notification tap-through), or nil before the
     /// first successful generation.
     static var storedBrief: String? { UserDefaults.standard.string(forKey: K.storedBrief) }

@@ -26,6 +26,12 @@ struct CoachView: View {
     /// Draft text in the composer (the question being typed).
     @State private var draft: String = ""
     @FocusState private var composerFocused: Bool
+    #if os(iOS)
+    /// The on-device speech controller. iOS-only: `CoachVoiceInput` lives in the iOS target, and macOS
+    /// has no equivalent single API, so the whole affordance compiles out rather than shipping a button
+    /// that cannot work.
+    @StateObject private var voiceInput = CoachVoiceInput()
+    #endif
     /// Presented sheet: settings, history, the plan book, goal & journey, the first-use note, and goal
     /// onboarding — ONE enum-driven sheet. `firstUse` and `goalOnboarding` used to be their own stacked
     /// `.sheet(isPresented:)` modifiers alongside this one; three sheet hosts on one view is the classic
@@ -1387,8 +1393,52 @@ struct CoachView: View {
     /// this being here.
     @ViewBuilder
     private var composerLeadingAccessory: some View {
+        #if os(iOS)
+        // On-device voice input. Shown only where the Speech framework can transcribe WITHOUT a server
+        // (`CoachVoiceInput` refuses a server fallback by construction), so a locale that would need one
+        // gets no button rather than a button that quietly ships audio off the phone. Only the resulting
+        // TEXT reaches the provider, through the same composer a typed question uses.
+        if CoachVoiceInput.isSupported { micButton }
+        #else
         EmptyView()
+        #endif
     }
+
+    #if os(iOS)
+    /// Push-to-talk into the draft: the live transcript replaces what is in the field as it streams, and
+    /// the final one is left there to edit or send. It never sends by itself — a misheard question that
+    /// went straight to the provider would cost a paid round to discover.
+    private var micButton: some View {
+        Button {
+            if voiceInput.isRecording {
+                voiceInput.stopTranscribing { final in
+                    if !final.isEmpty { draft = final }
+                    composerFocused = true
+                }
+            } else if voiceInput.canUseVoice {
+                voiceInput.startTranscribing { partial in draft = partial }
+            } else {
+                // First tap asks; a denial leaves `statusMessage` to explain, rather than a button that
+                // does nothing twice.
+                voiceInput.requestAuthorization { state in
+                    if state == .authorized {
+                        voiceInput.startTranscribing { partial in draft = partial }
+                    }
+                }
+            }
+        } label: {
+            Image(systemName: voiceInput.isRecording ? "waveform.circle.fill" : "mic.fill")
+                .font(.system(size: voiceInput.isRecording ? 26 : 20, weight: .semibold))
+                .foregroundStyle(voiceInput.isRecording ? StrandPalette.chargeColor : StrandPalette.textSecondary)
+                .frame(width: 30, height: 30)
+                .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .disabled(coach.sending)
+        .accessibilityLabel(voiceInput.isRecording ? Text("Stop recording") : Text("Ask by voice"))
+        .accessibilityHint(Text("Transcribes on device. Audio never leaves your iPhone."))
+    }
+    #endif
 
     private var composer: some View {
         HStack(alignment: .bottom, spacing: 10) {

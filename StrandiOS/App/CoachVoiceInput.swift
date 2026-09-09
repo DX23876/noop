@@ -26,12 +26,20 @@ import Speech
 @MainActor
 final class CoachVoiceInput: ObservableObject {
 
-    /// Whether voice input is available on this device + locale at all.
+    /// Whether voice input is available on this device + locale at all — i.e. whether the microphone
+    /// button should EXIST.
+    ///
+    /// It requires on-device recognition for the current locale, not merely a recognizer. The contract
+    /// above is that a locale which can only be transcribed by a server gets no voice input rather than
+    /// server transcription — and `startTranscribing` enforces that by refusing. So without this check
+    /// the button would still be drawn on those locales and every tap would fail with the same message:
+    /// an affordance that can never work is worse than no affordance.
+    ///
+    /// (`SFSpeechRecognizer.self != nil` was also dropped: a metatype is never nil, so it tested
+    /// nothing.)
     static var isSupported: Bool {
         #if canImport(UIKit)
-        return SFSpeechRecognizer.authorizationStatus() != .restricted
-            && SFSpeechRecognizer.self != nil
-            && SFSpeechRecognizer(locale: Locale.current) != nil
+        return SFSpeechRecognizer.authorizationStatus() != .restricted && localeSupportsOnDevice
         #else
         return false
         #endif

@@ -2747,9 +2747,26 @@ final class AICoachEngine: ObservableObject {
     /// Gated on a key + data consent; `!sending` prevents overlapping a brief with an in-flight message.
     @discardableResult
     private func generateBrief() async -> Bool {
-        var spoke = false
-        guard isConfigured, dataConsent, !sending else { return spoke }
-        guard let key = resolvedKey else { return spoke }
+        await generateBriefText() != nil
+    }
+
+    /// The brief, generated headlessly and RETURNED as text.
+    ///
+    /// Identical to what `generateBrief()` produces — it IS that function; the boolean overload above is
+    /// now a thin witness over it. Split out because a brief has two consumers with different needs: the
+    /// Coach screen only asks "did anything get said", while the scheduled morning brief
+    /// (`CoachBriefScheduler`) has to carry the text into a local notification and the Lock Screen
+    /// widget. Returning the text rather than re-generating for the second consumer is what keeps the
+    /// notification, the widget and the transcript quoting the SAME brief instead of three model runs
+    /// that would each say something slightly different about the same morning.
+    ///
+    /// It still appends to the transcript and still stamps the day, so a brief produced in the
+    /// background IS the day's brief — opening Coach afterwards shows it rather than generating a
+    /// second one.
+    func generateBriefText() async -> String? {
+        var spoken: String?
+        guard isConfigured, dataConsent, !sending else { return spoken }
+        guard let key = resolvedKey else { return spoken }
         clearError()
         memoryWrites = []
         sending = true
@@ -2776,7 +2793,7 @@ final class AICoachEngine: ObservableObject {
                 // Stamp only on genuine success, so a network failure doesn't burn the day's slot — a
                 // retry (reopening the conversation after a day boundary) can still land one.
                 CoachBriefStamp.stamp(day: Repository.logicalDayKey(Date()))
-                spoke = true
+                spoken = clean
             }
         } catch let e as AICoachError {
             setError(e)
@@ -2787,7 +2804,7 @@ final class AICoachEngine: ObservableObject {
                 setError(error)
             }
         }
-        return spoke
+        return spoken
     }
 
     /// Generate a check-in once per logical day (its OWN lock, independent of the brief's — see

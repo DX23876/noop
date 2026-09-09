@@ -64,6 +64,11 @@ struct CoachSettingsView: View {
     /// after the async refresh writes it (reading UserDefaults directly wouldn't re-render).
     @State private var checkInResolvedWake: Int? = CoachCheckIn.resolvedWakeMinutes
     @State private var checkInDenied: Bool = false
+    /// The scheduled morning brief (iOS only — it rides a `BGAppRefreshTask`, which macOS has no
+    /// equivalent of; the macOS coach generates its brief when the screen opens, as it always has).
+    @State private var briefOn: Bool = CoachBriefScheduler.isEnabled
+    @State private var briefTime: Date = CoachBriefScheduler.timeAsDate
+    @State private var briefDenied: Bool = false
     @State private var planReminderOn: Bool = PlanReminder.isEnabled
     @State private var planReminderDenied: Bool = false
     /// Fine-grained purpose toggles are intentionally secondary to the three simple privacy modes.
@@ -91,7 +96,7 @@ struct CoachSettingsView: View {
     /// The daily check-in LOOKS on but silently never fires once notification authorization is revoked
     /// (in iOS Settings, outside the app) — `checkInDenied` alone only catches a denial from THIS
     /// session's toggle; `refreshCheckInAuthorization` below also catches a revocation from any time.
-    private var coachingNeedsAttention: Bool { checkInOn && checkInDenied }
+    private var coachingNeedsAttention: Bool { (checkInOn && checkInDenied) || (briefOn && briefDenied) }
 
     /// A fact the coach saved but can't rely on until the user says it's right. An injury, goal or
     /// physiology fact is stored unconfirmed and is barred from the block that frames every reply, so
@@ -721,6 +726,9 @@ struct CoachSettingsView: View {
             morningSuggestionBar
             proactiveBar
             checkInBar
+            #if os(iOS)
+            morningBriefBar
+            #endif
             planReminderBar
         }
         .navigationTitle("Coaching")
@@ -1990,6 +1998,82 @@ struct CoachSettingsView: View {
             }
         }
         .disabled(!(coach.isConfigured && coach.dataConsent))
+    }
+
+    // MARK: - Scheduled morning brief
+
+    /// The brief, generated on a schedule instead of when you open Coach.
+    ///
+    /// iOS-only and deliberately honest about what it can promise: it submits a `BGAppRefreshTask` for
+    /// NO EARLIER THAN the chosen time and iOS decides when — or whether — the wake lands. It is not a
+    /// timer, and a phone that stays asleep gets the brief on the next foreground instead
+    /// (`catchUpIfDue`, from `StrandiOSApp`). Triple-gated: default off, needs notification permission,
+    /// and generates nothing without a configured Coach and data consent.
+    ///
+    /// It shares ONE generation with the chat — `generateBriefText` stamps the day and appends to the
+    /// transcript — so the notification, the Lock Screen widget and the conversation all quote the same
+    /// brief rather than three model runs disagreeing about the same morning.
+    @ViewBuilder
+    private var morningBriefBar: some View {
+        NoopCard(padding: 14, cornerRadius: NoopMetrics.groupedRadius) {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 10) {
+                    Image(systemName: briefOn ? "sun.horizon.fill" : "sun.horizon")
+                        .foregroundStyle(briefOn ? StrandPalette.accent : StrandPalette.textTertiary)
+                        .accessibilityHidden(true)
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text("Morning brief")
+                            .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
+                        Text(briefOn
+                             ? "On: today's brief is generated in the background and waiting when you open Coach."
+                             : "Off: nothing is generated or sent on a schedule.")
+                            .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    Spacer(minLength: 8)
+                    Toggle("", isOn: $briefOn)
+                        .labelsHidden().toggleStyle(.switch).appleInspiredTint("coach")
+                        .accessibilityLabel("Scheduled morning brief")
+                        .onChangeCompat(of: briefOn) { on in
+                            CoachBriefScheduler.setEnabled(
+                                on,
+                                generateBrief: { [weak coach] in await coach?.generateBriefText() }
+                            ) { outcome in
+                                if outcome == .denied {
+                                    briefOn = false
+                                    briefDenied = true
+                                } else {
+                                    briefDenied = false
+                                }
+                            }
+                        }
+                }
+                if briefOn {
+                    HStack {
+                        Text("Time").font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                        Spacer(minLength: 8)
+                        DatePicker("Morning brief time", selection: $briefTime,
+                                   displayedComponents: .hourAndMinute)
+                            .labelsHidden()
+                            .onChangeCompat(of: briefTime) { newValue in
+                                CoachBriefScheduler.setTimeMinutes(
+                                    CoachBriefScheduler.minutes(from: newValue),
+                                    generateBrief: { [weak coach] in await coach?.generateBriefText() })
+                            }
+                    }
+                    // Said plainly rather than implied: a background wake is the system's call, and a
+                    // setting that quietly means "sometime around then, maybe" should say so.
+                    Text("iOS decides when a background wake happens, so the brief may arrive later than this — or on your next open.")
+                        .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                if briefDenied {
+                    Text("Notifications are off for NOOP, so a scheduled brief could not be delivered. Turn them on in Settings.")
+                        .font(StrandFont.footnote).foregroundStyle(StrandPalette.recovery000)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+        }
     }
 
     // MARK: - Daily check-in
