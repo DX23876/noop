@@ -81,7 +81,34 @@ final class IntelligenceEngine: ObservableObject {
     /// deliberately unrelated: bump this only when an analytics change makes existing scores stale.
     // v2: RyanBR v11 changes persisted analysis inputs/outputs (including absolute nightly skin
     // temperature and scoring-source handling). Existing v1 rows need one bounded refresh.
-    static let currentAnalysisRecipeVersion = 2
+    //
+    // v3: the 2026-09-09 upstream sync (through 5cb134711) moves scored VALUES, not just how they are
+    // presented, so a row computed under v2 no longer means what the current code would produce for the
+    // same inputs. Each of these changes an output on some subset of nights:
+    //   • #1990/#1982 an UNUSABLE resting-HR baseline is treated as absent, so Charge stops scoring
+    //     against foldHistory's synthetic ~75 bpm midpoint on a cold-start install;
+    //   • #1978 an absent HRV baseline now refuses to score at all, where the raw overload could
+    //     previously return a Charge carrying no HRV term;
+    //   • #1977 an out-of-domain strain denominator is rejected rather than producing a number;
+    //   • RMSSD is WITHHELD on a night whose R-R over-counts, so those nights lose a wrong avgHrv
+    //     (and with it the baseline contribution that wrong value was making);
+    //   • #1943 a resting-HR bin must be well-populated AND physiologically plausible to win the
+    //     night's floor, which moves restingHr on nights with a thin or dropout-driven bin;
+    //   • the final HR/HRV window now CLOSES on the session end, so a sample sitting exactly on an
+    //     aligned boundary counts — it moves sessionRestingHR and avgHRV on those nights;
+    //   • heart-rate recovery now requires ONE CONTINUOUS effort rather than a sum of bursts;
+    //   • #1984 nights fragmented under minSleepMin are bridged, which changes the staged night, its
+    //     totals and therefore Rest;
+    //   • #2015 a day's motion is re-folded only when that day's gravity moved.
+    // The migration is the existing bounded 21-day forced pass (`runAnalysisMaintenance`): it is the
+    // narrowest interval this can prove, since every one of the above is a per-night derivation and the
+    // engine's own scoring window is 21 nights. Nights older than that keep their v2 values until they
+    // are re-scored for another reason — the same contract v1→v2 shipped with.
+    //
+    // NOT part of this bump: the skin-temp absolute backfill for nights OUTSIDE that window. It is its
+    // own resumable walker (`SkinTempBackfillWalker`), fill-only on a NULL column, and reachable
+    // deliberately rather than on launch.
+    static let currentAnalysisRecipeVersion = 3
     static let analysisRecipeCursor = "analysis:recipeVersion"
     static let analysisLastRunKey = "noop.analysisMaintenance.lastRun"
 
