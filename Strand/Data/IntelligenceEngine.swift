@@ -108,7 +108,13 @@ final class IntelligenceEngine: ObservableObject {
     // NOT part of this bump: the skin-temp absolute backfill for nights OUTSIDE that window. It is its
     // own resumable walker (`SkinTempBackfillWalker`), fill-only on a NULL column, and reachable
     // deliberately rather than on launch.
-    static let currentAnalysisRecipeVersion = 3
+    // v4 repairs recipe v3's destructive legacy-RR interaction. v3 correctly gated over-counted tagged
+    // streams, but older databases had no transport provenance, so it replaced recent HRV/Recovery with
+    // nil even though the prior value was the only recoverable result. v4 restores those legacy values as
+    // explicitly unverified, while new tagged data is reconciled before scoring and remains gated if it is
+    // still physically impossible. The bounded 21-day pass restores the same affected window; raw samples
+    // and manual sleep corrections are untouched.
+    static let currentAnalysisRecipeVersion = 4
     static let analysisRecipeCursor = "analysis:recipeVersion"
     static let analysisLastRunKey = "noop.analysisMaintenance.lastRun"
 
@@ -752,6 +758,12 @@ final class IntelligenceEngine: ObservableObject {
             await self.analyzeRecent(maxDays: 21, force: true, allowDayReuse: false,
                                      reason: .semanticChange)
             guard !Task.isCancelled else { return false }
+            // Publish the repaired daily snapshot before committing the migration cursor. If the
+            // process is interrupted between analysis and refresh, the recipe remains pending and
+            // retries on the next launch instead of leaving dashboards on their stale pre-migration
+            // values indefinitely.
+            await self.repo.refresh(days: 120)
+            guard !Task.isCancelled else { return false }
             if markRecipeOnSuccess {
                 do {
                     try await store.setCursor(Self.analysisRecipeCursor,
@@ -762,7 +774,6 @@ final class IntelligenceEngine: ObservableObject {
                     return false
                 }
             }
-            await self.repo.refresh(days: 120)
             let finished = Date()
             UserDefaults.standard.set(finished.timeIntervalSince1970,
                                       forKey: Self.analysisLastRunKey)

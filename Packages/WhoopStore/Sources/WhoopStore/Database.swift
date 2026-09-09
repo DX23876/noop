@@ -1317,6 +1317,16 @@ extension WhoopStore {
                 t.add(column: "baseCode", .integer)
             }
         }
+        // v58: identify the transport that delivered each R-R beat. WHOOP exposes the same heartbeat
+        // through historical/proprietary packets and standard 0x2A37 notifications; without provenance
+        // both copies were scored together when their coarse timestamps differed. Nullable and additive:
+        // legacy rows remain readable and can be labelled by an idempotent re-decode, while no raw sample
+        // or user correction is deleted.
+        migrator.registerMigration("v58-rr-transport") { db in
+            try db.alter(table: "rrInterval") { t in
+                t.add(column: "transport", .integer)
+            }
+        }
         return migrator
     }
 }

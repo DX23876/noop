@@ -58,7 +58,8 @@
   "v54-hevy-strength",
   "v55-muscle-recovery-feedback",
   "v56-strength-sources",
-  "v57-ppg-waveform-base-code"
+  "v57-ppg-waveform-base-code",
+  "v58-rr-transport"
  ],
  "divergenceReasons": {
   "android-orphan-synced-column": "REAL COLUMN DRIFT: `synced` exists on Android only. GRDB's v10 note is explicit that stepSample gets no `synced` column ('unused; see StreamStore'), and v12's ppgHrSample never had one either; the Room entities copied the flag from the older per-second entities. Nothing reads it on Android — the per-row upload flag belongs to an upload path that does not exist there — so it is dead width, not divergent data. Removing it needs a Room table rebuild.",
@@ -2310,6 +2311,12 @@
     },
     {
      "name": "tsSuspect",
+     "affinity": "INTEGER",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "transport",
      "affinity": "INTEGER",
      "notNull": false,
      "default": null

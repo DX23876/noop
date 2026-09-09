@@ -285,7 +285,9 @@ final class Collector {
         let acceptedHR = (30...220).contains(hr) ? 1 : 0
         let acceptedRR = rr.filter { (250...3000).contains($0) }
         if acceptedHR == 1 { stdHR.append(HRSample(ts: ts, bpm: hr)) }
-        stdRR.append(contentsOf: acceptedRR.map { RRInterval(ts: ts, rrMs: $0) })
+        stdRR.append(contentsOf: RrBatchTimestamps.spread(frameTs: ts, rrMs: acceptedRR).map {
+            RRInterval(ts: $0.ts, rrMs: $0.rrMs, transport: .standardHeartRate)
+        })
         // Only the CHANGES. Advanced here rather than at flush because the event travels in the buffer
         // until it persists: a failed insert re-inserts it at the front, so nothing has to be unwound.
         if let contact, StandardHRMapping.shouldRecordContact(previous: lastStdContact, current: contact) {

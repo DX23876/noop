@@ -402,19 +402,25 @@ extension WhoopStore {
     /// Every R-R consumer reads through this one function, so the `hrv diag` trace moves with the scores
     /// rather than reporting a coverage nobody can reproduce.
     public nonisolated func rrIntervals(deviceId: String, from: Int, to: Int, limit: Int) async throws -> [RRInterval] {
-        try await asyncRead { db in
-            try Row.fetchAll(db, sql: """
-                SELECT ts, rrMs, srcChannel, ord, seq FROM rrInterval
+        guard limit > 0 else { return [] }
+        return try await asyncRead { db in
+            // A corrected/tagged re-decode can temporarily coexist with the legacy rows it replaces.
+            // Read enough candidates for the transport reconciler before applying the caller's cap.
+            let candidateLimit = limit > Int.max / 4 ? Int.max : limit * 4
+            let rows = try Row.fetchAll(db, sql: """
+                SELECT ts, rrMs, srcChannel, transport, ord, seq FROM rrInterval
                 WHERE deviceId = ? AND ts >= ? AND ts <= ?
                 AND (srcChannel IS NULL OR srcChannel <> ?)
                 AND (tsSuspect IS NULL OR tsSuspect <> 1)   -- #1073: exclude future-stamped beats
                 ORDER BY ts ASC, ord ASC, rrMs ASC, seq ASC LIMIT ?
-                """, arguments: [deviceId, from, to, RRSourceChannel.spo2Ibi.rawValue, limit])
+                """, arguments: [deviceId, from, to, RRSourceChannel.spo2Ibi.rawValue, candidateLimit])
                 .map { row in
                     RRInterval(ts: row["ts"], rrMs: row["rrMs"],
                                srcChannel: (row["srcChannel"] as Int?).flatMap(RRSourceChannel.init(rawValue:)),
+                               transport: (row["transport"] as Int?).flatMap(RRTransport.init(rawValue:)),
                                ord: row["ord"] as Int?, seq: row["seq"])
                 }
+            return Array(RRTransportReconciler.reconcile(rows).prefix(limit))
         }
     }
 

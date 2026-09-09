@@ -29,7 +29,9 @@ final class HistoricalStreamsParityTests: XCTestCase {
         let streams = extractHistoricalStreams(parsed,
                         deviceClockRef: deviceClockRef, wallClockRef: wallClockRef)
         XCTAssertEqual(streams.hr, gold.hr.map { HRSample(ts: $0.ts, bpm: $0.bpm) })
-        XCTAssertEqual(streams.rr, gold.rr.map { RRInterval(ts: $0.ts, rrMs: $0.rr_ms) })
+        XCTAssertEqual(streams.rr, gold.rr.map {
+            RRInterval(ts: $0.ts, rrMs: $0.rr_ms, transport: .whoopHistorical)
+        })
         XCTAssertGreaterThan(streams.hr.count, 0)
     }
 }

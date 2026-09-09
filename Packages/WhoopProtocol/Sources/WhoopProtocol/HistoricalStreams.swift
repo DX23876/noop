@@ -268,7 +268,8 @@ public func extractHistoricalStreams(_ parsed: [ParsedFrame],
                 // #1118: the batch is spread across the time it describes — stamping every
                 // interval at the frame put ~1.5s of beats on 1s of clock. See RrBatchTimestamps.
                 for placed in RrBatchTimestamps.spread(frameTs: ts, rrMs: rrs) {
-                    out.rr.append(RRInterval(ts: placed.ts, rrMs: placed.rrMs))
+                    out.rr.append(RRInterval(ts: placed.ts, rrMs: placed.rrMs,
+                                             transport: .whoopHistorical))
                 }
             }
             if let red = p["spo2_red"]?.intValue {
@@ -396,7 +397,8 @@ public func extractHistoricalStreams(_ parsed: [ParsedFrame],
                 // #1118: the batch is spread across the time it describes — stamping every
                 // interval at the frame put ~1.5s of beats on 1s of clock. See RrBatchTimestamps.
                 for placed in RrBatchTimestamps.spread(frameTs: ts, rrMs: rrs) {
-                    out.rr.append(RRInterval(ts: placed.ts, rrMs: placed.rrMs))
+                    out.rr.append(RRInterval(ts: placed.ts, rrMs: placed.rrMs,
+                                             transport: .whoopHistorical))
                 }
             }
         case "EVENT":

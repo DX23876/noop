@@ -8,7 +8,8 @@ final class StandardHRMappingTests: XCTestCase {
         XCTAssertEqual(s.hr.map { $0.bpm }, [72])
         XCTAssertEqual(s.hr.map { $0.ts }, [1_750_000_000])
         XCTAssertEqual(s.rr.map { $0.rrMs }, [820, 815])
-        XCTAssertEqual(s.rr.map { $0.ts }, [1_750_000_000, 1_750_000_000])
+        XCTAssertEqual(s.rr.map { $0.ts }, [1_749_999_999, 1_750_000_000])
+        XCTAssertEqual(s.rr.map { $0.transport }, [.standardHeartRate, .standardHeartRate])
     }
 
     func testStandardHRWithNoRRLeavesRREmpty() throws {

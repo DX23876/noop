@@ -23,8 +23,8 @@ final class HrvOverCountGateTests: XCTestCase {
         let start = 1_000, end = 1_600
         var rr: [RRInterval] = []
         for i in 0..<600 {
-            rr.append(RRInterval(ts: start + i, rrMs: 900))
-            rr.append(RRInterval(ts: start + i, rrMs: 905))
+            rr.append(RRInterval(ts: start + i, rrMs: 900, transport: .whoopHistorical))
+            rr.append(RRInterval(ts: start + i, rrMs: 905, transport: .whoopHistorical))
         }
         XCTAssertTrue(windowsYieldRMSSD(start, end, rr), "precondition: these beats DO yield an RMSSD")
         XCTAssertNil(SleepStager.sessionAvgHRV(start: start, end: end, rr: rr),
@@ -36,8 +36,8 @@ final class HrvOverCountGateTests: XCTestCase {
         let start = 1_000, end = 1_600
         var rr: [RRInterval] = []
         for i in 0..<600 {
-            rr.append(RRInterval(ts: start + i, rrMs: 880))
-            rr.append(RRInterval(ts: start + i, rrMs: 960))
+            rr.append(RRInterval(ts: start + i, rrMs: 880, transport: .whoopHistorical))
+            rr.append(RRInterval(ts: start + i, rrMs: 960, transport: .whoopHistorical))
         }
         XCTAssertTrue(windowsYieldRMSSD(start, end, rr), "precondition: these beats DO yield an RMSSD")
         XCTAssertNil(SleepStager.sessionAvgHRV(start: start, end: end, rr: rr),
@@ -59,6 +59,18 @@ final class HrvOverCountGateTests: XCTestCase {
         let rr = (0..<300).map { RRInterval(ts: start + $0 * 2, rrMs: $0 % 2 == 0 ? 980 : 1_020) }
         XCTAssertNotNil(SleepStager.sessionAvgHRV(start: start, end: end, rr: rr),
                         "sparse is not the same as over-counted")
+    }
+
+    /// A pre-v58 database cannot identify which transport should win. Those nights keep the value users
+    /// had before recipe v3, while the existing over-count series exposes the value as unverified.
+    func testLegacyOverCountKeepsItsUnverifiedHRV() {
+        let start = 1_000, end = 1_600
+        var rr: [RRInterval] = []
+        for i in 0..<600 {
+            rr.append(RRInterval(ts: start + i, rrMs: 880))
+            rr.append(RRInterval(ts: start + i, rrMs: 960))
+        }
+        XCTAssertNotNil(SleepStager.sessionAvgHRV(start: start, end: end, rr: rr))
     }
 
     /// The verdict mapping itself, so the seam above and the rule stay pinned separately.

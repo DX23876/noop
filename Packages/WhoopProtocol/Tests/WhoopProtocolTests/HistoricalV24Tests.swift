@@ -60,7 +60,8 @@ final class HistoricalV24Tests: XCTestCase {
         let out = parseFrame(bytes(v24Hex))
         let st = extractHistoricalStreams([out], deviceClockRef: 0, wallClockRef: 0)
         XCTAssertEqual(st.hr, [HRSample(ts: 1700000000, bpm: 63)])
-        XCTAssertEqual(st.rr, [RRInterval(ts: 1700000000, rrMs: 850)])
+        XCTAssertEqual(st.rr, [RRInterval(ts: 1700000000, rrMs: 850,
+                                         transport: .whoopHistorical)])
         XCTAssertEqual(st.spo2.first, SpO2Sample(ts: 1700000000, red: 18000, ir: 17000))
         XCTAssertEqual(st.skinTemp.first, SkinTempSample(ts: 1700000000, raw: 900))
         XCTAssertEqual(st.resp.first?.raw, 3000)

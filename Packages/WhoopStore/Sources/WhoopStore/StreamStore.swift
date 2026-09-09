@@ -204,9 +204,11 @@ extension WhoopStore {
             }
             if !streams.rr.isEmpty {
                 let stmt = try db.cachedStatement(sql: """
-                    INSERT INTO rrInterval (deviceId, ts, rrMs, seq, ord, srcChannel)
-                    VALUES (?, ?, ?, ?, ?, ?)
-                    ON CONFLICT(deviceId, ts, rrMs, seq) DO NOTHING
+                    INSERT INTO rrInterval (deviceId, ts, rrMs, seq, ord, srcChannel, transport)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                    ON CONFLICT(deviceId, ts, rrMs, seq) DO UPDATE SET transport = excluded.transport
+                    WHERE excluded.transport IS NOT NULL
+                      AND (rrInterval.transport IS NULL OR excluded.transport > rrInterval.transport)
                     """)
                 // v24 (#163): number EQUAL (ts, rrMs) beats 0, 1, … within this batch so both survive;
                 // distinct beats keep seq 0 and their own (ts, rrMs, 0) key, so a distinct beat is never
@@ -237,7 +239,7 @@ extension WhoopStore {
                     let ord = ordByTs[r.ts] ?? 0
                     ordByTs[r.ts] = ord + 1
                     try stmt.execute(arguments: [deviceId, r.ts, r.rrMs, seq, ord,
-                                                 r.srcChannel?.rawValue])
+                                                 r.srcChannel?.rawValue, r.transport?.rawValue])
                     let changed = db.changesCount
                     rr += changed
                     if changed > 0 { changedAnalysisTimestamps.insert(r.ts) }

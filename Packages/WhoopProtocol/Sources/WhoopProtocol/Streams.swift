@@ -65,12 +65,28 @@ public enum RRSourceChannel: Int, Equatable, Codable, Sendable, CaseIterable {
     case ibiBare = 4
 }
 
+/// Transport that delivered an R-R interval to the app.
+///
+/// WHOOP can expose the same heartbeat through its historical/proprietary stream and through the
+/// standard 0x2A37 Heart Rate service. Keeping this provenance lets the read side choose one copy in an
+/// overlap while retaining every raw measurement on disk. Raw values encode preference so an idempotent
+/// re-decode can upgrade an exact duplicate to the best-known transport. They are durable SQLite codes;
+/// never renumber an existing case after this schema ships.
+public enum RRTransport: Int, Equatable, Codable, Sendable, CaseIterable {
+    case whoopRealtime = 1
+    case whoopHistorical = 2
+    case standardHeartRate = 3
+}
+
 public struct RRInterval: Equatable, Codable {
     public let ts: Int          // wall-clock unix seconds
     public let rrMs: Int
     /// The sensor channel this beat came from, or nil when the source does not distinguish one (every
     /// WHOOP row, and every row written before the column existed). See `RRSourceChannel`.
     public let srcChannel: RRSourceChannel?
+    /// How this beat reached the app. nil means a legacy row written before transport provenance existed,
+    /// or a source (such as Oura) for which the optical `srcChannel` already identifies the stream.
+    public let transport: RRTransport?
     /// #1008 diagnostics: this beat's EMISSION ORDER within the batch that delivered it, as stored in
     /// `rrInterval.ord`. nil on a decode (nothing has been stored yet) and on rows written before the
     /// column was surfaced to reads.
@@ -84,16 +100,19 @@ public struct RRInterval: Equatable, Codable {
     /// Storage identity for equal beats in the same second. Defaults to zero so wire decoders and
     /// callers that predate the widened database key remain source- and behaviour-compatible.
     public let seq: Int
-    public init(ts: Int, rrMs: Int, srcChannel: RRSourceChannel? = nil, ord: Int? = nil, seq: Int = 0) {
-        self.ts = ts; self.rrMs = rrMs; self.srcChannel = srcChannel; self.ord = ord; self.seq = seq
+    public init(ts: Int, rrMs: Int, srcChannel: RRSourceChannel? = nil,
+                transport: RRTransport? = nil, ord: Int? = nil, seq: Int = 0) {
+        self.ts = ts; self.rrMs = rrMs; self.srcChannel = srcChannel; self.transport = transport
+        self.ord = ord; self.seq = seq
     }
 
-    private enum CodingKeys: String, CodingKey { case ts, rrMs, srcChannel, ord, seq }
+    private enum CodingKeys: String, CodingKey { case ts, rrMs, srcChannel, transport, ord, seq }
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         ts = try c.decode(Int.self, forKey: .ts)
         rrMs = try c.decode(Int.self, forKey: .rrMs)
         srcChannel = try c.decodeIfPresent(RRSourceChannel.self, forKey: .srcChannel)
+        transport = try c.decodeIfPresent(RRTransport.self, forKey: .transport)
         ord = try c.decodeIfPresent(Int.self, forKey: .ord)
         seq = try c.decodeIfPresent(Int.self, forKey: .seq) ?? 0
     }
@@ -102,6 +121,7 @@ public struct RRInterval: Equatable, Codable {
         try c.encode(ts, forKey: .ts)
         try c.encode(rrMs, forKey: .rrMs)
         try c.encodeIfPresent(srcChannel, forKey: .srcChannel)
+        try c.encodeIfPresent(transport, forKey: .transport)
         try c.encodeIfPresent(ord, forKey: .ord)
         // Preserve the legacy encoded shape for the overwhelmingly common seq=0 row.
         if seq != 0 { try c.encode(seq, forKey: .seq) }
@@ -826,7 +846,8 @@ public func extractStreams(_ parsed: [ParsedFrame],
                 // #1118: the batch is spread across the time it describes — stamping every
                 // interval at the frame put ~1.5s of beats on 1s of clock. See RrBatchTimestamps.
                 for placed in RrBatchTimestamps.spread(frameTs: ts, rrMs: rrs) {
-                    out.rr.append(RRInterval(ts: placed.ts, rrMs: placed.rrMs))
+                    out.rr.append(RRInterval(ts: placed.ts, rrMs: placed.rrMs,
+                                             transport: .whoopRealtime))
                 }
             }
         case "EVENT":

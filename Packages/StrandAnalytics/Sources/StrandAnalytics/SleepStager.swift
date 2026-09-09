@@ -2994,7 +2994,14 @@ public enum SleepStager {
         // buying a distinction the caller discards would hand that back. `rrCoverage` is a single O(n)
         // pass. If a future gate ever needs the two over-count cases apart, compute it then.
         let verdict = HRVAnalyzer.classifyCoverage(coverage: coverage, collapsed: coverage)
-        guard HRVAnalyzer.successiveDiffIsTrustworthy(verdict) else { return nil }
+        if !HRVAnalyzer.successiveDiffIsTrustworthy(verdict) {
+            // Rows written before transport provenance cannot be reconciled after the fact: the old
+            // schema did not record whether a beat came from historical, proprietary realtime, or
+            // standard 0x2A37 delivery. Keep the pre-v3 result for a wholly legacy night and let the
+            // persisted `hrv_rr_overcount` flag label it unverified. New tagged data remains strictly
+            // gated if reconciliation still cannot bring it below the physical coverage ceiling.
+            guard seg.allSatisfy({ $0.transport == nil }) else { return nil }
+        }
         return vals.reduce(0, +) / Double(vals.count)
     }
 

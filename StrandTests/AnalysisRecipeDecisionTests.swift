@@ -21,17 +21,17 @@ final class AnalysisRecipeDecisionTests: XCTestCase {
     }
 
     /// The tests above are written against `current`, so they stay green through a bump without ever
-    /// witnessing one. This one names the numbers: an install carrying the pre-sync recipe must ask for
-    /// the v3 rescore, and it must ask for it as `2 → 3` rather than some other pair.
+    /// witnessing one. This one names the numbers: an install carrying the RR-overcount recipe must ask
+    /// for the v4 repair rescore, and it must ask for it as `3 → 4` rather than some other pair.
     ///
     /// It is deliberately a LITERAL pin. A future bump is supposed to make this line fail, because that
     /// failure is the prompt to answer CLAUDE.md's "Analysis migration required: yes/no" for whatever
     /// the bump carries — the question this file exists to stop anyone skipping.
-    func testRecipeVersionIsThreeAndAV2InstallMigratesToIt() {
-        XCTAssertEqual(IntelligenceEngine.currentAnalysisRecipeVersion, 3,
+    func testRecipeVersionIsFourAndAV3InstallMigratesToIt() {
+        XCTAssertEqual(IntelligenceEngine.currentAnalysisRecipeVersion, 4,
                        "recipe version changed — answer 'Analysis migration required' for what moved")
-        XCTAssertEqual(IntelligenceEngine.analysisRecipeDecision(storedVersion: 2),
-                       .migrate(from: 2, to: 3))
+        XCTAssertEqual(IntelligenceEngine.analysisRecipeDecision(storedVersion: 3),
+                       .migrate(from: 3, to: 4))
     }
 
     /// The recipe is about the MEANING of stored scores, not about the app's identity. An Xcode install
@@ -39,9 +39,9 @@ final class AnalysisRecipeDecisionTests: XCTestCase {
     /// build number here would cause. Pinned because the mistake is invisible until someone's phone
     /// spends twenty minutes re-scoring after a cosmetic update.
     func testAnInstallAlreadyAtTheCurrentRecipeNeverRescoresOnRelaunch() {
-        XCTAssertEqual(IntelligenceEngine.analysisRecipeDecision(storedVersion: 3), .upToDate)
+        XCTAssertEqual(IntelligenceEngine.analysisRecipeDecision(storedVersion: 4), .upToDate)
         // And a database written by a NEWER build that was rolled back stays put rather than
         // "migrating" backwards into a rescore that would overwrite better values with worse ones.
-        XCTAssertEqual(IntelligenceEngine.analysisRecipeDecision(storedVersion: 4), .upToDate)
+        XCTAssertEqual(IntelligenceEngine.analysisRecipeDecision(storedVersion: 5), .upToDate)
     }
 }

@@ -30,8 +30,9 @@ public enum StandardHRMapping {
         previous != current
     }
 
-    /// Build a `Streams` carrying one HR sample and zero-or-more R-R intervals, all stamped at the
-    /// same wall-clock `ts` (unix seconds). Pure → unit-testable.
+    /// Build a `Streams` carrying one HR sample and zero-or-more R-R intervals. A 0x2A37 notification
+    /// timestamps the end of its R-R batch, so each interval is placed on the beat it describes rather
+    /// than collapsing the whole batch onto one second.
     public static func samples(fromHR hr: Int, rr: [Int], contact: StandardHRContact? = nil,
                                at ts: Int) -> Streams {
         let events = contact.map { [
@@ -39,7 +40,9 @@ public enum StandardHRMapping {
         ] } ?? []
         return Streams(
             hr: [HRSample(ts: ts, bpm: hr)],
-            rr: rr.map { RRInterval(ts: ts, rrMs: $0) },
+            rr: RrBatchTimestamps.spread(frameTs: ts, rrMs: rr).map {
+                RRInterval(ts: $0.ts, rrMs: $0.rrMs, transport: .standardHeartRate)
+            },
             events: events
         )
     }
