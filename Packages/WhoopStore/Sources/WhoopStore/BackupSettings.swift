@@ -42,9 +42,9 @@ public enum BackupSettings {
     /// restored on another. Both bound sets travel even though only one is live, for the same reason
     /// the app keeps both: a restore should return the wearer to exactly where they were, including the
     /// mode they were not using at the time.
-    /// Display: the metric/imperial system, the
-    /// separate temperature override ("" = match the system), and the Effort axis (#268) — the three
-    /// display prefs that exist with identical semantics on both platforms. Deliberately EXCLUDED:
+    /// Display: the body and the exercise-distance system (split
+    /// upstream so a lifter can weigh in kg and still run in miles), the separate temperature override
+    /// ("" = follow body), and the Effort axis (#268). Deliberately EXCLUDED:
     /// step calibration (per-strap, not per-person), the avatar blob (bulky, and not "settings"),
     /// steps-engine fitted outputs (derived), and every noop.* toggle that is device- or
     /// install-specific — INCLUDING the Today/Sleep section order, Key-Metrics and dashboard-card
@@ -72,6 +72,7 @@ public enum BackupSettings {
         // and never repurposed, which is exactly the case this rule exists for.
         "profile.hrZoneThresholds": .string,
         "units.system": .string,
+        "units.distance": .string,
         "units.temperature": .string,
         "effort.scale": .string,
         "dayCycle.mode": .string,
@@ -100,6 +101,7 @@ public enum BackupSettings {
         "profile.zoneBpmEdges": "profile.zoneBpmEdges",
         "profile.hrZoneThresholds": "profile.hrZoneThresholds",
         "units.system": "units.system",
+        "units.distance": "units.distance",
         "units.temperature": "units.temperature",
         "effort.scale": "effort.scale",
         "dayCycle.mode": "noop.dayCycleMode",

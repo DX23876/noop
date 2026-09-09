@@ -1115,7 +1115,8 @@ struct LiquidTodayView: View {
             HeroScoreCell(label: DomainTheme.charge.productName, score: chargeDisplay.pct,
                           tint: chargeDisplay.pct.map { StrandPalette.chargeRingColor($0) }
                                 ?? StrandPalette.chargeColor,
-                          animated: dataLoaded, onGuide: { guideSection = .charge })
+                          animated: dataLoaded, onGuide: { guideSection = .charge },
+                          detailRoute: .metric("recovery"))
             // #45: the hero Effort must honour the user's Effort scale like every other Effort read-out.
             // Show the value on the chosen scale (0–100 or WHOOP 0–21) with the matching vessel max, and
             // one decimal on the compressed 0–21 axis to match the app-wide `effortDisplay` convention
@@ -1125,13 +1126,15 @@ struct LiquidTodayView: View {
                           tint: StrandPalette.effortColor, animated: dataLoaded,
                           onGuide: { guideSection = .effort },
                           maxValue: effortScale == .whoop ? 21 : 100,
-                          decimals: effortScale == .whoop ? 1 : 0)
+                          decimals: effortScale == .whoop ? 1 : 0,
+                          detailRoute: .metric("strain"))
             // The hero's provenance badge — which device/import actually supplied the inputs, not just
             // where NOOP ran the calculation. Upstream #778 fixed its accuracy (persisted alongside the
             // score itself, so it can't drift) and restored its position, centred on the top border and
             // aligned with the Rest vessel.
             HeroScoreCell(label: DomainTheme.rest.productName, score: restScore, tint: StrandPalette.restColor,
-                          animated: dataLoaded, onGuide: { guideSection = .rest })
+                          animated: dataLoaded, onGuide: { guideSection = .rest },
+                          detailRoute: .metric("sleep_performance"))
                 .overlay(alignment: .top) {
                     if let sourceLabel = heroSourceLabel {
                         SourceBadge("\(sourceLabel)", tint: StrandPalette.textSecondary)
@@ -1888,22 +1891,50 @@ struct LiquidTodayView: View {
                         Text(line).font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
                     }
                 }
+                // #706/#684: the same trends the HRV / Resting HR / Respiratory dashboard cards push. These
+                // rows show the SAME three vitals and had no way through, so this card was the one place on
+                // Today where a metric was a dead end. Routes taken from `liquidCard`'s own cases so the two
+                // surfaces cannot send the same vital to different trends.
                 vitalRow(String(localized: "Heart-rate variability"), unitText(hrv, "ms"),
-                         StrandPalette.metricCyan, fracOver(hrv, 120))
+                         StrandPalette.metricCyan, fracOver(hrv, 120), route: .metric("hrv"))
                 vitalRow(String(localized: "Resting heart rate"), unitText(rhr, "bpm"),
-                         StrandPalette.metricRose, fracOver(rhr, 100))
+                         StrandPalette.metricRose, fracOver(rhr, 100), route: .metric("rhr"))
                 vitalRow(String(localized: "Breaths per minute"), unitText(resp, "rpm", decimals: 1),
-                         StrandPalette.accent, fracOver(resp, 24))
+                         StrandPalette.accent, fracOver(resp, 24), route: .metric("resp_rate"))
             }
         }
     }
 
-    private func vitalRow(_ label: String, _ value: String, _ tint: Color, _ frac: Double?) -> some View {
+    /// A recovery-vital row, optionally pushing its own metric trend.
+    ///
+    /// `route: nil` renders exactly what shipped before - no link, no chevron - so a row that goes nowhere
+    /// never claims otherwise. `LiquidPressStyle` is not decoration: a bare `NavigationLink` applies the
+    /// default link chrome and would tint the whole row, which is the same reason `cardLink` carries it.
+    private func vitalRow(_ label: String, _ value: String, _ tint: Color, _ frac: Double?,
+                          route: TabRoute? = nil) -> some View {
+        Group {
+            if let route {
+                NavigationLink(value: route) { vitalRowBody(label, value, tint, frac, linked: true) }
+                    .buttonStyle(LiquidPressStyle())
+            } else {
+                vitalRowBody(label, value, tint, frac, linked: false)
+            }
+        }
+    }
+
+    private func vitalRowBody(_ label: String, _ value: String, _ tint: Color, _ frac: Double?,
+                              linked: Bool) -> some View {
         HStack(spacing: 12) {
-            LiquidVessel(value: frac, tint: tint, animated: false).frame(width: 26, height: 26)
+            // Same as cardLinkBody: without this the disc eats the row's NavigationLink tap.
+            LiquidVessel(value: frac, tint: tint, animated: false, tapPassesThrough: true)
+                .frame(width: 26, height: 26)
             Text(label).font(StrandFont.subhead).foregroundStyle(StrandPalette.textSecondary)
             Spacer()
             Text(value).font(StrandFont.number(15)).foregroundStyle(StrandPalette.textPrimary)
+            if linked {
+                Image(systemName: "chevron.right").font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(StrandPalette.textTertiary)
+            }
         }
     }
 
@@ -2347,6 +2378,28 @@ struct LiquidTodayView: View {
         let from = cycleMarkers.last(where: { $0.day == selectedDayKey }).map { Int($0.value) } ?? calendarFrom
         let toExclusive = cycleMarkers.last(where: { $0.day == nextDayKey }).map { Int($0.value) } ?? calendarTo
         let to = max(from, toExclusive - 1)
+        // #1001: in-progress Effort for TODAY, over the SAME window resolved just above (the day-cycle
+        // onset when that mode is on, else calendar midnight → now) with the identical params the daily
+        // pass uses, so the live number matches what the engine will eventually persist. Below
+        // `StrainScorer.minReadings` the scorer returns nil and the read-outs fall back to the stored row
+        // — never a fabricated value. A navigated past day clears it.
+        let liveStrainLocal: Double?
+        if selectedDayOffset == 0 {
+            // An EXPLICIT limit, not the 8000 default: that default is chart-sized, and this read is
+            // whole-window. `hrSamples` is `ORDER BY ts ASC LIMIT`, so truncation drops the NEWEST rows —
+            // at the ~18k HR rows a real day banks, the default covered roughly the first ten hours and the
+            // live score silently stopped climbing after that. It failed safe (`effectiveEffort` takes the
+            // max, so the stored row simply won) which is why it went unnoticed. 200_000 is what every
+            // other whole-window HR consumer already passes.
+            let todayHr = await repo.hrSamples(from: from, to: to, limit: 200_000)
+            let maxHR = profile.age > 0 ? StrainScorer.tanakaHRmax(age: Double(profile.age)) : nil
+            let restHR = day?.restingHr.map(Double.init) ?? StrainScorer.defaultRestingHR
+            liveStrainLocal = StrainScorer.strain(todayHr, maxHR: maxHR, restingHR: restHR,
+                                                  method: PuffinExperiment.effortMethod, sex: profile.sex)
+        } else {
+            liveStrainLocal = nil
+        }
+        liveTodayStrain = liveStrainLocal
 
         async let restA = repo.exploreSeries(key: "sleep_performance", source: "my-whoop")
         async let stressA = repo.series(key: "stress", source: "my-whoop")
@@ -2625,10 +2678,26 @@ struct LiquidTodayView: View {
 
     private func frac(_ v: Double?) -> Double? { v.map { max(0, min(1, $0 / 100)) } }
     private func fracOver(_ v: Double?, _ over: Double) -> Double? { v.map { max(0, min(1, $0 / over)) } }
-    private func intText(_ v: Double?) -> String { v.map { String(Int($0.rounded())) } ?? "–" }
+
+    /// What a tile shows when the metric has no value. One constant rather than a dash repeated at each
+    /// site, because the unit-suppression below has to recognise it.
+    static let noValueDash = "–"
+
+    /// Join a formatted tile value with its unit, dropping the unit when there is no value.
+    ///
+    /// #492 and the `–%` it left behind: a missing metric rendered its placeholder AND its unit, so an
+    /// empty Strain tile read `–%`, which parses as "minus percent" rather than "no data". Android has
+    /// had the guard all along (`unit = if (restScore != null) "%" else ""`, and `withUnit`'s NO_DATA
+    /// check); this is the iOS twin of it. `%` binds tight, every other unit takes a space.
+    static func tileDisplayValue(_ value: String, unit: String) -> String {
+        guard !unit.isEmpty, value != noValueDash else { return value }
+        return unit == "%" ? value + unit : value + " " + unit
+    }
+
+    private func intText(_ v: Double?) -> String { v.map { String(Int($0.rounded())) } ?? Self.noValueDash }
 
     private func unitText(_ v: Double?, _ unit: String, decimals: Int = 0) -> String {
-        guard let v else { return "–" }
+        guard let v else { return Self.noValueDash }
         let n = decimals > 0 ? String(format: "%.\(decimals)f", locale: AppLanguage.activeLocale, v) : String(Int(v.rounded()))
         return unit.isEmpty ? n : "\(n) \(unit)"
     }
@@ -2654,6 +2723,10 @@ struct LiquidTodayView: View {
     // even once it had a value to show (#1627).
     @AppStorage(UnitPrefs.systemKey) private var unitSystemRaw = UnitSystem.metric.rawValue
     private var unitSystem: UnitSystem { UnitSystem(rawValue: unitSystemRaw) ?? .metric }
+    @AppStorage(UnitPrefs.distanceSystemKey) private var distanceSystemRaw = ""
+    private var distanceUnitSystem: UnitSystem {
+        UnitPrefs.resolveDistance(system: unitSystem, override: distanceSystemRaw)
+    }
     @AppStorage(UnitPrefs.temperatureKey) private var temperatureRaw = ""
     @AppStorage(UnitPrefs.skinTempDisplayKey) private var skinTempDisplayRaw = ""   // #1846
     private var temperatureUnit: TemperatureUnit {
@@ -2665,8 +2738,17 @@ struct LiquidTodayView: View {
     @AppStorage(UnitPrefs.effortScaleKey) private var effortScaleRaw = EffortScale.hundred.rawValue
     private var effortScale: EffortScale { UnitPrefs.resolveEffortScale(effortScaleRaw) }
 
+    /// The Effort this view should show: the live in-progress score when it beats the stored row, else the
+    /// row (#1001). `StrainScorer.effectiveEffort` holds the never-drop floor and the live/stored
+    /// preference and is shared with the Kotlin twin, so the two platforms cannot resolve Effort
+    /// differently. `d` for today is always today's row or nil, never a prior day, so the floor cannot
+    /// resurrect a stale day — it only stops a read-out dropping below what today has already earned.
+    private func effortStrain(_ d: DailyMetric?) -> Double? {
+        StrainScorer.effectiveEffort(live: selectedDayOffset == 0 ? liveTodayStrain : nil, stored: d?.strain)
+    }
+
     private func effortText(_ s: Double?) -> String {
-        guard let s else { return "–" }
+        guard let s else { return Self.noValueDash }
         // Route through the shared formatter instead of hardcoding *21: a default (0–100) user was shown the
         // WHOOP-scaled number here while the hero + Workouts table showed 0–100, two numbers for one workout.
         return UnitFormatter.effortDisplay(s, scale: effortScale)
@@ -2676,7 +2758,9 @@ struct LiquidTodayView: View {
         var parts: [String] = []
         let secs = w.durationS ?? Double(max(w.endTs - w.startTs, 0))
         parts.append("\(Int(secs / 60)) min")
-        if let dm = w.distanceM, dm > 0 { parts.append(UnitFormatter.distanceFromMeters(dm, system: unitSystem)) }
+        if let dm = w.distanceM, dm > 0 {
+            parts.append(UnitFormatter.distanceFromMeters(dm, system: distanceUnitSystem))
+        }
         if let k = w.energyKcal { parts.append("\(Int(k.rounded())) kcal") }
         return parts.joined(separator: " · ")
     }
@@ -2797,22 +2881,59 @@ private struct HeroScoreCell: View {
     // Decimal places for the displayed number. 0 keeps the whole-number scores; the WHOOP 0–21 Effort
     // scale passes 1 to match the app-wide one-decimal `effortDisplay` convention (#45).
     var decimals: Int = 0
+    /// Where the GAUGE taps through to, or nil to keep the ring inert (#1995).
+    ///
+    /// Same `TabRoute.metric(key)` the Recovery Vitals rows use, so a ring and the Key-Metrics tile for
+    /// the same score land on the identical dossier rather than diverging. The LABEL keeps its own job:
+    /// it opens the scoring guide, which is this screen's only route to that explainer.
+    var detailRoute: TabRoute? = nil
+
+    /// The gauge, linked when there is somewhere to go.
+    ///
+    /// Built here rather than inline so the linked and plain forms stay in one place and the body reads
+    /// as three stacked elements rather than a branch.
+    @ViewBuilder
+    private var gaugeView: some View {
+        let gauge = LiquidScoreGauge(
+            score: score,
+            tint: tint,
+            diameter: Self.vesselDiameter,
+            animated: animated,
+            maxValue: maxValue,
+            decimals: decimals,
+            // Pinned white: this card's fill stays dark in BOTH themes, so the scheme-following
+            // number token went dark-on-near-black here.
+            numberColor: .white,
+            tapPassesThrough: detailRoute != nil
+        )
+        if let detailRoute {
+            NavigationLink(value: detailRoute) { gauge }
+                .buttonStyle(LiquidPressStyle())
+                // The ring is what shows the NUMBER, so its spoken label carries the number too. Without
+                // this a VoiceOver user hears only the metric name on the element displaying the value,
+                // while the label below it reads the score, which is backwards.
+                .accessibilityLabel(Text("\(label), \(spokenScore)"))
+                .accessibilityHint(Text("Opens the trend and readings"))
+        } else {
+            gauge
+        }
+    }
+
+    /// The score as VoiceOver should say it, matching the label row's own phrasing.
+    private var spokenScore: String {
+        guard let score else { return String(localized: "no data yet") }
+        return decimals > 0
+            ? String(format: "%.\(decimals)f", locale: AppLanguage.activeLocale, score)
+            : String(Int(score.rounded()))
+    }
 
     var body: some View {
         VStack(spacing: 7) {
-            // The vessel + count-up read-out now come from the shared `LiquidScoreGauge`
-            // (LiquidPrimitives.swift), which Sleep's hero uses too. Same geometry and the same
-            // hit-transparent number, so a tap still falls through to the vessel → splash.
-            // `numberColor` is pinned white: this card's fill stays dark in BOTH themes.
-            LiquidScoreGauge(
-                score: score,
-                tint: tint,
-                diameter: Self.vesselDiameter,
-                animated: animated,
-                maxValue: maxValue,
-                decimals: decimals,
-                numberColor: .white
-            )
+            // The vessel + count-up read-out come from the shared `LiquidScoreGauge`
+            // (LiquidPrimitives.swift) via `gaugeView`, which wraps it in the #1995 detail link when the
+            // caller gave one. Sleep's hero uses the same primitive, so geometry and the hit-transparent
+            // number match, and a tap with no route still falls through to the vessel → splash.
+            gaugeView
             HStack(spacing: 4) {
                 Button(action: onGuide) {
                     HStack(spacing: 3) {
@@ -2829,7 +2950,9 @@ private struct HeroScoreCell: View {
                 }
                 .buttonStyle(.plain)
             }
-            .accessibilityLabel(Text("\(label), \(score.map { decimals > 0 ? String(format: "%.\(decimals)f", locale: AppLanguage.activeLocale, $0) : String(Int($0.rounded())) } ?? String(localized: "no data yet")). See how it is scored."))
+            // `spokenScore` is the shared phrasing `gaugeView` also speaks, so the ring and its label
+            // never read the same number two different ways.
+            .accessibilityLabel(Text("\(label), \(spokenScore). See how it is scored."))
         }
         .frame(maxWidth: .infinity)
     }

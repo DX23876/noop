@@ -110,7 +110,14 @@ struct StrandiOSApp: App {
             appleDeviceId: model.appleDeviceId,
             noopDeviceId: model.deviceId
         )
-        _services = StateObject(wrappedValue: StrandiOSServices(model: model, health: bridge))
+        let services = StrandiOSServices(model: model, health: bridge)
+        _services = StateObject(wrappedValue: services)
+        // Tapping a scheduled morning-brief notification routes to Coach through the SAME NavRouter the
+        // shell observes — the services box owns it, so the closure captures that one rather than
+        // building a second router nothing is listening to.
+        NotificationPresenter.shared.onCoachBriefTapped = { [weak services] in
+            services?.router.openCoach()
+        }
         // Register a separate, always-on-while-authorized refresh task for Apple Health write-back.
         // The operation is write-only and bounded to the bridge's recent window; fresh BLE offloads still
         // use the immediate hook below. BGTaskScheduler chooses the actual wake time.
@@ -328,7 +335,7 @@ struct StrandiOSApp: App {
         // safe no-op until the user opts in.
         .onChange(of: scenePhase) { _, phase in
             if phase == .active {
-                model.drainPendingIntents()
+                model.drainPendingIntents(router: router)
                 // Re-arm the strap's smart alarm on foreground: the firmware alarm is a single instant
                 // and iOS can't re-arm it while suspended, so it would otherwise fire once and stop.
                 model.applySmartAlarm()

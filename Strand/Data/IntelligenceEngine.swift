@@ -295,6 +295,9 @@ final class IntelligenceEngine: ObservableObject {
         /// only after scores persist. nil means the probe failed and the day is deliberately not reusable.
         let inputProbe: AnalysisInputRevision?
         let rhrLine: String?
+        /// #1943 measure-only bin-population line (see `SleepStager.rhrBinGateLogLine`); nil on a clean
+        /// night, replayed with `rhrLine` so the two read together.
+        let rhrBinLine: String?
         /// #1331 respiratory diagnostic line (see `respRateLogLine`); replayed with `rhrLine`.
         let respLine: String?
         /// CAPTURE-B (#814/#799): the resolved READ owner id this day was scored from, and how many HR rows
@@ -467,11 +470,46 @@ final class IntelligenceEngine: ObservableObject {
     /// it's unit-tested directly; byte-identical to the Android `sleepDetectNoNightLogLine`.
     nonisolated static func sleepDetectNoNightLogLine(day: String, hrCount: Int, rrCount: Int,
                                                       respCount: Int, gravCount: Int, stepCount: Int,
-                                                      providedCount: Int, windowHours: Int) -> String {
+                                                      providedCount: Int, windowHours: Int,
+                                                      skinCount: Int) -> String {
+        // `reason` names WHICH absence this is, because grav=0 is printed but its consequence is not.
+        // With no motion the stager has no HR-only fallback, so no quantity of HR can stage a night — a
+        // strap capability limit, not a coverage gap, and the two want completely different follow-ups.
+        // With motion present the inputs were there and staging still produced nothing, which is the case
+        // actually worth investigating.
         let reason = gravCount == 0 ? "no-motion" : "staged-none"
+        // #1118 follow-up: name any stream that came back AT its read cap. A read that returns exactly the
+        // limit is the definition of truncated everywhere else here (`full.count >= limit`), and it is the
+        // one thing a reader cannot infer from the counts alone — `grav=192698` looks healthy until you
+        // know the cap it is 96% of.
+        //
+        // GRAVITY is why this exists. HR and R-R ride a SlidingStreamWindow, which counts its own
+        // truncations; gravity is a plain read with no counter at all, so a night clipped of its newest
+        // motion staged badly and said nothing. That is the difference between "this release fixes your
+        // night" and "your offload never ran", and a log could not tell them apart.
+        var atCap: [String] = []
+        // ONLY the plain reads. Gravity and skin are read whole, so a result of exactly the cap IS the
+        // truncation — the same `count >= limit` test used everywhere else here, and neither stream has a
+        // counter of its own, which is why this marker exists.
+        //
+        // HR and R-R are deliberately absent even though their counts are printed. They arrive through
+        // `SlidingStreamWindow.rows`, which returns `full.filter { ts in from...to }` — a SLICE of a read
+        // that usually spans more than this night. A spliced window that WAS truncated still hands back a
+        // slice under the cap, so the marker would silently fail to fire: a false negative on a line whose
+        // only value is that its absence means "not clipped". Their exact truncation count is already
+        // printed unconditionally once per pass by `WindowedStreamPlan.logLine` (`hrTruncated=`), so
+        // nothing is lost by declining to guess it per night.
+        //
+        // resp and steps are plain reads too, and equally judgeable, but stay unmarked on purpose: neither
+        // is a staging input, so clipping one cannot be the reason a night is missing. Their counts are
+        // printed as context. The marker answers "did a stream that could explain this get cut short",
+        // not "was every read complete".
+        if gravCount >= StreamReadCap.gravity { atCap.append("grav") }
+        if skinCount >= StreamReadCap.skin { atCap.append("skin") }
+        let capNote = atCap.isEmpty ? "" : " atCap=" + atCap.joined(separator: ",")
         return "sleep-detect day=\(day) NO-NIGHT hr=\(hrCount) rr=\(rrCount) resp=\(respCount) "
-            + "grav=\(gravCount) steps=\(stepCount) provided=\(providedCount) window=\(windowHours)h "
-            + "reason=\(reason)"
+            + "grav=\(gravCount) skin=\(skinCount) steps=\(stepCount) provided=\(providedCount) "
+            + "window=\(windowHours)h reason=\(reason)" + capNote
     }
 
     /// #674/#1244: the "sleep total with no matched session" divergence line. A COMPUTED day whose fresh
@@ -1962,7 +2000,8 @@ final class IntelligenceEngine: ObservableObject {
                         hrvDiag = Self.sleepDetectNoNightLogLine(
                             day: day, hrCount: hr.count, rrCount: rr.count, respCount: resp.count,
                             gravCount: grav.count, stepCount: steps.count,
-                            providedCount: providedSleep.count, windowHours: windowHours)
+                            providedCount: providedSleep.count, windowHours: windowHours,
+                            skinCount: skin.count)
                     } else {
                         hrvDiag = nil
                     }
@@ -1994,9 +2033,12 @@ final class IntelligenceEngine: ObservableObject {
                     // covers 1.25x its wall-clock reads ~197 ms across a sleeping night, against a 40-100 ms
                     // physiological range. Printing that number beside the verdict that says it cannot be
                     // trusted invites it to be read as a measurement, so it is withheld instead; the
-                    // `rrIntegrity=` field on the same line says why. RMSSD/meanNN are NOT withheld — mean
-                    // rate survives an over-count, and RMSSD's dominant error was the emission order fixed
-                    // at the write path (#1072).
+                    // `rrIntegrity=` field on the same line says why. meanNN is NOT withheld: mean rate
+                    // survives an over-count. RMSSD is not withheld FROM THIS LINE either, but it no longer
+                    // reaches the card, the daily row or the baseline on an over-counted night — the gate
+                    // that stops it lives in `SleepStager.sessionAvgHRV` (#1118). Printing the computed
+                    // value here while the app refused to use it is a known wart, held back to keep this
+                    // line byte-identical to the Kotlin twin, whose method budget has no room for it.
                     // P7' follow-up: the over-count verdict is necessary but NOT sufficient. The
                     // 2026-08-06 Oura night measured coverage 1.03 / `plausible` — no duplication at
                     // all, its records tiling the timeline at a fill ratio of 0.990 — and still printed
@@ -2122,11 +2164,18 @@ final class IntelligenceEngine: ObservableObject {
                 // Computed here (pure inputs) and carried out so the main actor can replay it through
                 // `diagnosticSink` in the SAME per-day order , the sink is a MainActor-bound closure.
                 var rhrLine: String?
+                var rhrBinLine: String?
                 if let floor = res.daily.restingHr {
                     let inBedBpms = hr.filter { s in
                         res.cachedSleep.contains { s.ts >= $0.startTs && s.ts < $0.endTs }
                     }.map { $0.bpm }
                     rhrLine = Self.rhrFloorMeanLogLine(day: res.daily.day, floor: floor, inBedBpms: inBedBpms)
+                    // #1943: conformance check that the gate `sessionRestingHR` now applies agrees with
+                    // the shipped floor. Silent when the gate is correctly applied.
+                    rhrBinLine = SleepStager.rhrBinGateLogLine(
+                        day: res.daily.day,
+                        sessions: res.cachedSleep.map { ($0.startTs, $0.endTs) },
+                        hr: hr, shippedFloor: floor)
                 }
                 // #1331 respiratory diagnostic — a run of nil nights localises when it stopped. Same
                 // pure-compute-here / replay-on-main-actor path as rhrLine.
@@ -2168,7 +2217,8 @@ final class IntelligenceEngine: ObservableObject {
                 // windowing + delegation lives in the byte-identical, tested `AnalyticsEngine`.
                 let (primarySessionRHR, primarySessionRHRCoverage) =
                     AnalyticsEngine.primarySessionRestingHRWithCoverage(sessions: res.sleepSessions, hr: hr)
-                out.append(DayScan(result: res, inputProbe: probe, rhrLine: rhrLine, respLine: respLine,
+                out.append(DayScan(result: res, inputProbe: probe,
+                                   rhrLine: rhrLine, rhrBinLine: rhrBinLine, respLine: respLine,
                                    readOwner: owner, hrRows: hr.count,
                                    sleepTrace: sleepTrace, stepsTrace: stepsTrace, hrvTrace: hrvTrace,
                                    hrvDiag: hrvDiag, spo2Candidate: spo2CandidateMean,
@@ -2177,6 +2227,20 @@ final class IntelligenceEngine: ObservableObject {
                                    primarySessionRHRCoverage: primarySessionRHRCoverage))
             }
             return (out, skippedDayLines, reusedDays, reuseMissesByDay, firstSemanticMismatch)
+        }
+
+        // #1538: the pass after the day loop was never measured. The cost line above brackets the loop and
+        // is emitted the moment it returns, so a pass whose time went somewhere later reported a small
+        // prep/score and no account of the rest — which is where the steps calibration was re-folding sixty
+        // days of gravity every pass, unseen. Stamp each phase as it completes; `AnalysisPhaseTally` renders
+        // them in execution order beside `re-score: done`. `Date()` matches the clock the loop's own tally
+        // uses, and the formatter floors a backwards clock step at zero.
+        var postLoopPhases: [(name: String, seconds: Double)] = []
+        var postLoopMark = Date()
+        func markPostLoopPhase(_ name: String) {
+            let now = Date()
+            postLoopPhases.append((name: name, seconds: now.timeIntervalSince(postLoopMark)))
+            postLoopMark = now
         }
 
         // #714: replay each skipped day's diagnostic now that we're back on the main actor (diagnosticSink
@@ -2228,6 +2292,7 @@ final class IntelligenceEngine: ObservableObject {
                 primarySessionRHRCoverageByDay[res.daily.day] = cov
             }
             if let line = scan.rhrLine { diagnosticSink?(line, nil) }
+            if let line = scan.rhrBinLine { diagnosticSink?(line, nil) }
             if let line = scan.respLine { diagnosticSink?(line, nil) }
             // Sleep & Rest test mode (E5): replay this day's gate-trace + Rest lines tagged `.sleep` so they
             // land under the profile tag in the export. Empty unless the mode is active.
@@ -2324,6 +2389,7 @@ final class IntelligenceEngine: ObservableObject {
                 diagnosticSink?(semanticLine, nil)
             }
         }
+        markPostLoopPhase("dayReplay")
         // ── Seed the baseline from the UNION of imported nightly history + the values just computed.
         // THIS is the BLE-only recovery fix: the "-noop" nightly avgHrv/restingHr finally feed the
         // baseline so a strap-only user crosses Baselines.minNightsSeed and recovery lights up.
@@ -2418,6 +2484,7 @@ final class IntelligenceEngine: ObservableObject {
         realWorkouts += (try? await store.workouts(deviceId: "apple-health", from: windowStart,
                                                     to: now, limit: 100_000)) ?? []
 
+        markPostLoopPhase("baselines")
         // ── Pass 2: re-score ONLY recovery against the now-seeded baseline (cheap, baseline-dependent);
         // every other field was computed once in pass 1. Recovery stays nil until the HRV baseline is
         // usable (≥ minNightsSeed valid nights) , honest cold-start, via RecoveryScorer's usable gate.
@@ -2761,6 +2828,7 @@ final class IntelligenceEngine: ObservableObject {
             }
         }
 
+        markPostLoopPhase("score2")
         // ── Apple-Watch recovery fold (M1 "Watch as a device") ──────────────────────────────────────
         // A watch-only user has apple-health DAILY aggregates (SDNN HRV + resting HR) but no raw stream, so
         // the raw-HR scoring loop above never touched their days and the import left `recovery: nil`. Fill
@@ -2790,6 +2858,7 @@ final class IntelligenceEngine: ObservableObject {
             _ = try? await store.upsertDailyMetrics(appleRecoveryRows, deviceId: Repository.appleHealthSource)
         }
 
+        markPostLoopPhase("watchFold")
         // #277 migration: the loop now keys days by the LOCAL calendar day. A prior run (before this
         // fix) wrote the SAME period under UTC-day keys, so without a cleanup an off-by-one UTC row and
         // the new local row would coexist as duplicate days. We reconcile the COMPUTED ("-noop") daily
@@ -2916,6 +2985,7 @@ final class IntelligenceEngine: ObservableObject {
                 _ = try? await store.deleteDailyMetrics(deviceId: computedId, from: stale.day, to: stale.day)
             }
         }
+        markPostLoopPhase("persist")
         // ── Fitness Age (Phase 2) , weekly, keyed to the week's Saturday ────────────────────────────
         // Roll the last 7 computed days into the Nes/HUNT inputs and upsert a weekly Fitness Age (+ an
         // optional VO₂max when a waist is set) under the same "-noop" source. Idempotent on the Saturday
@@ -2994,6 +3064,7 @@ final class IntelligenceEngine: ObservableObject {
             }
         }
 
+        markPostLoopPhase("weekly")
         // ── Steps ESTIMATE (WHOOP 4.0) , DAILY, keyed to each strap-only day ────────────────────────
         // A WHOOP 4.0 sends no step count over BLE, so for days the phone DIDN'T also count steps we
         // estimate them: calibrate the strap's daily MOTION VOLUME against the phone's real step count
@@ -3013,19 +3084,22 @@ final class IntelligenceEngine: ObservableObject {
             nowLocalMidnight - (stepsCalDays - 1) * 86_400, offsetSec: tzOffset)
         // ── FIX 2 (main-actor jank): hoist the 60-day steps-calibration STORE READS off the main actor ──
         // Same residual stall FIX 1 fixed, smaller scale: this class is `@MainActor`, so each `await store.…`
-        // below resumes its continuation ON the main actor , the apple-health read + 60 per-day
+        // below resumes its continuation ON the main actor , the apple-health read + the per-day
         // owner-resolve/gravity reads add 60+ read-resumes of main-actor contention every analyzeRecent.
         // The reads touch NO `@Published`/`profile`/`registry`-isolated state , only the captured immutable
-        // inputs (calOldest/newestDay/nowLocalMidnight/tzOffset/regDevices/regActiveId), the `WhoopStore`
-        // actor, the nonisolated `registry`, the nonisolated-static `resolveDayOwner`, and the pure static
-        // `StepsEstimateEngine.dayMotionIntensity`. So we hoist the whole gather into ONE
-        // `Task.detached(priority:.utility)` whose continuations resume OFF the main actor, returning two
-        // plain `[String: Double]` value types (fully Sendable , even cleaner than FIX 1's [DayScan]). The
-        // pure `StepsEstimateEngine.calibrate/estimate/status` fit + the `profile.*` assignments stay on the
-        // main actor below, consuming those dictionaries. Same per-day inputs (same window, same owner
+        // inputs (calOldest/newestDay/nowLocalMidnight/tzOffset/regDevices/regActiveId/the incoming motion
+        // cache), the `WhoopStore` actor, the nonisolated `registry`, the nonisolated-static
+        // `resolveDayOwner`, and the pure static `StepsEstimateEngine.dayMotionIntensity`. So we hoist the
+        // whole gather into ONE `Task.detached(priority:.utility)` whose continuations resume OFF the main
+        // actor, returning plain value types only: two `[String: Double]`, the updated
+        // `[String: (key: String, motion: Double)]` motion cache, and its log line. All fully Sendable ,
+        // tuples of Sendable elements, the same shape the day loop already returns its `dayScanCache` in.
+        // The pure `StepsEstimateEngine.calibrate/estimate/status` fit + the `profile.*` assignments stay on
+        // the main actor below, consuming those dictionaries. Same per-day inputs (same window, same owner
         // resolution, same `m > 0` / `steps > 0` filters), same outputs , only the executor the reads resume
-        // on changes. Bind `deviceId` (a MainActor instance `let`) to a local Sendable `String` so the
-        // @Sendable detached closure captures the VALUE, never `self`, exactly as FIX 1's `ownerFallbackId`.
+        // on changes, and — since the motion cache — which days need their gravity read at all. Bind
+        // `deviceId` (a MainActor instance `let`) to a local Sendable `String` so the @Sendable detached
+        // closure captures the VALUE, never `self`, exactly as FIX 1's `ownerFallbackId`.
         let stepsFallbackId = deviceId
         // The 60 gravity reads below were the single most expensive thing in the whole post-loop phase:
         // 28.93 s of a 31.83 s measured total, every pass, while the ten other phases together cost 2.90 s.
@@ -3068,6 +3142,11 @@ final class IntelligenceEngine: ObservableObject {
             for r in appleRows { if let s = r.steps, s > 0 { refSteps[r.day] = Double(s) } }
             // Per-day motion volume over the calibration window, read from the owner-resolved strap streams.
             // (Owner resolution mirrors the scoring loop; one device installs resolve to `deviceId`.)
+            //
+            // Each day is re-folded only when its own gravity witness moved. The fold is pure over that one
+            // stream, so an unchanged witness means an unchanged volume — see `StepsMotionCache`. The
+            // fingerprint is a COUNT/MAX aggregate over the same `(deviceId, ts)` index the read walks, so a
+            // hit replaces a read capped at 200,000 rows with one that returns a single row.
             var motion: [String: Double] = [:]
             var fresh: [(day: String, motion: Double, input: Int, device: Int)] = []
             var reused = 0
@@ -3091,13 +3170,18 @@ final class IntelligenceEngine: ObservableObject {
                     reused += 1
                     continue
                 }
-                let grav = (try? await store.gravitySamples(deviceId: owner, from: dayMid, to: dayEnd,
-                                                            limit: Int.max)) ?? []
-                let m = StepsEstimateEngine.dayMotionIntensity(grav)
+                // nil is a FAILED read; `[]` is a day that genuinely banked nothing. Collapsing both to
+                // zero costs one pass when it is a read error — but CACHING that zero costs every pass
+                // until the day's gravity happens to move, and this cache is persisted, so the stale zero
+                // would outlive the process that made it. Fold either way; store only the successful read.
+                let gravRead = try? await store.gravitySamples(deviceId: owner, from: dayMid, to: dayEnd,
+                                                               limit: Int.max)
+                let m = StepsEstimateEngine.dayMotionIntensity(gravRead ?? [])
                 if m > 0 { motion[dayKey] = m }
                 // Cached even when the fold produced 0 (an unworn day). Storing only the positive ones
                 // would leave every gap re-reading its whole stream forever to rediscover that it is empty.
-                if let probe {
+                // A zero that only means "we could not look" (`gravRead == nil`) is not cached.
+                if let probe, gravRead != nil {
                     fresh.append((day: dayKey, motion: m,
                                   input: probe.inputRevision, device: probe.deviceRevision))
                 }
@@ -3116,6 +3200,13 @@ final class IntelligenceEngine: ObservableObject {
             }
             _ = try? await store.upsertMetricSeries(points, deviceId: computedId)
         }
+        // #1816: persist whether the strap has banked ANY motion in the calibration scan window, so the
+        // Today tile can distinguish "Need N more phone-step days" (motion exists, phone half missing)
+        // from "No motion synced yet" (the motion half is the blocker, and no number of phone-step days
+        // will move the estimate or the fit). A step estimate is `motion * coefficient`, so with the
+        // motion half missing the caption that names only the phone half is a lie — it sent a field
+        // reporter to enter Apple Health steps by hand expecting calibration to start, which it cannot.
+        profile.stepsHasBankedMotion = !motionByDay.isEmpty
         // Build calibration points only for days with BOTH a motion volume and a real phone step count.
         let calPoints = motionByDay.compactMap { (day, motion) -> StepsEstimateEngine.CalibrationPoint? in
             guard let s = refStepsByDay[day] else { return nil }
@@ -3173,6 +3264,7 @@ final class IntelligenceEngine: ObservableObject {
             }
         }
 
+        markPostLoopPhase("steps")
         // Drop any freshly-detected session that overlaps a night the user has already hand-corrected.
         // A detected onset can drift second-to-second as more raw data arrives, so without this the
         // re-detected night would upsert as a SECOND row beside the edited one (different startTs ⇒ no
@@ -3220,6 +3312,7 @@ final class IntelligenceEngine: ObservableObject {
         for (start, states) in sleepStateByStart {
             _ = try? await store.persistSessionSleepState(deviceId: computedId, sessionStart: start, states: states)
         }
+        markPostLoopPhase("sleepWrite")
         // ── Overlap-aware banked-sleep heal (#899) ────────────────────────────────────────────────────
         // An unstable strap clock re-banks the SAME night under a shifted timebase, so successive passes
         // detect it at shifted bounds and the upsert above lands a SECOND row beside the stale one (the
@@ -3315,6 +3408,7 @@ final class IntelligenceEngine: ObservableObject {
             _ = try? await store.upsertWorkouts(rows, deviceId: devId)
         }
 
+        markPostLoopPhase("sleepHeal")
         // #137: a manually-started workout is scored from sparse live HR at save time , near-zero
         // calories/strain on a 5/MG. Now that offloaded HR may cover the window, re-score the
         // under-sampled ones from that denser data.
@@ -3365,10 +3459,13 @@ final class IntelligenceEngine: ObservableObject {
             _ = try? await store.upsertDayScanFingerprints(scanFingerprints, deviceId: computedId)
         }
 
-        // #836: record the raw-HR fingerprint this run scored against, so a later NON-forced tick can
-        // short-circuit while it's unchanged. Written ONLY here at the end of a completed run (never on an
+        markPostLoopPhase("workouts")
+        // #836/#sleep-sync: record the complete raw-analysis fingerprint this run scored against, so a later
+        // NON-forced tick can short-circuit while it's unchanged. Written ONLY at the end of a completed run (never on an
         // early guard-return), so an interrupted/failed run can't advance the watermark past unscored data.
         if !wmKey.isEmpty { UserDefaults.standard.set(wmKey, forKey: Self.analyzeWatermarkKey) }
+        markPostLoopPhase("tail")
+        diagnosticSink?(AnalysisPhaseTally.logLine(scope: "postLoop", postLoopPhases), nil)
         // #1538: clear the started-mark and bank how long a COMPLETED pass costs on this install. The
         // measurement is what lets `RescoreBackgroundPolicy` tell an install that finishes comfortably in a
         // background wake from one that never could, instead of guessing from a constant — the cost varies

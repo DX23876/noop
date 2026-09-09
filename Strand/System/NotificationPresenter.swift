@@ -17,6 +17,12 @@ final class NotificationPresenter: NSObject, UNUserNotificationCenterDelegate {
 
     private override init() { super.init() }
 
+    /// K5: wired by the app root (`StrandApp` on macOS, `StrandiOSApp` on iOS) at launch to route a
+    /// tapped scheduled morning-brief notification to the Coach screen via `NavRouter.openCoach()`. nil
+    /// is a safe no-op (the tap is simply not routed) rather than a crash if this ever fires before the
+    /// root has wired it.
+    var onCoachBriefTapped: (() -> Void)?
+
     func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         willPresent notification: UNNotification,
@@ -25,8 +31,12 @@ final class NotificationPresenter: NSObject, UNUserNotificationCenterDelegate {
         completionHandler([.banner, .sound, .list])
     }
 
-    /// Handle a tap. The NOOP AI daily coach check-in ("coach-checkin") broadcasts an in-app event so the
-    /// UI can open the Coach tab and refresh the brief; every other notification just opens the app.
+    /// Handle a tap. Two categories route somewhere; every other notification (wind-down,
+    /// smart-alarm, battery/illness) just opens the app to wherever it was.
+    ///
+    ///  * the NOOP AI daily coach check-in ("coach-checkin") broadcasts an in-app event so the UI can
+    ///    open the Coach tab and run the check-in;
+    ///  * the scheduled morning brief routes to Coach through the shared `NavRouter`.
     func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         didReceive response: UNNotificationResponse,
@@ -49,6 +59,8 @@ final class NotificationPresenter: NSObject, UNUserNotificationCenterDelegate {
                 // A tap (or the default action): open the coach and run the check-in.
                 NotificationCenter.default.post(name: .noopOpenCoachCheckIn, object: nil)
             }
+        } else if request.content.categoryIdentifier == CoachBriefScheduler.notificationCategoryId {
+            onCoachBriefTapped?()
         }
         completionHandler()
     }

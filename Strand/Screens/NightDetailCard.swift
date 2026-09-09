@@ -52,7 +52,8 @@ struct NightDetailCard: View {
                 StatTile(
                     label: "Efficiency",
                     value: pctValue(eff.latest),
-                    caption: vsTypical(eff.latest, eff.typical, suffix: "%"),
+                    caption: tileCaption(latestDay: eff.latestDay, latest: eff.latest,
+                                         typical: eff.typical, suffix: "%"),
                     accent: StrandPalette.statusPositive,
                     sparkline: spark(eff.series),
                     sparkColor: StrandPalette.statusPositive)
@@ -60,7 +61,8 @@ struct NightDetailCard: View {
                 StatTile(
                     label: "Consistency",
                     value: pctValue(cons.latest),
-                    caption: vsTypical(cons.latest, cons.typical, suffix: "%"),
+                    caption: tileCaption(latestDay: cons.latestDay, latest: cons.latest,
+                                         typical: cons.typical, suffix: "%"),
                     accent: cons.latest.map { StrandPalette.recoveryColor($0) } ?? StrandPalette.textPrimary,
                     sparkline: spark(cons.series),
                     sparkColor: StrandPalette.metricCyan)
@@ -68,7 +70,8 @@ struct NightDetailCard: View {
                 StatTile(
                     label: "Hours vs Needed",
                     value: pctValue(need.latest),
-                    caption: vsTypical(need.latest, need.typical, suffix: "%"),
+                    caption: tileCaption(latestDay: need.latestDay, latest: need.latest,
+                                         typical: need.typical, suffix: "%"),
                     accent: need.latest.map { StrandPalette.recoveryColor(min(100, $0)) } ?? StrandPalette.textPrimary,
                     sparkline: spark(need.series),
                     sparkColor: StrandPalette.restColor)
@@ -76,7 +79,8 @@ struct NightDetailCard: View {
                 StatTile(
                     label: "Restorative",
                     value: pctValue(rest.latest),
-                    caption: vsTypical(rest.latest, rest.typical, suffix: "%"),
+                    caption: tileCaption(latestDay: rest.latestDay, latest: rest.latest,
+                                         typical: rest.typical, suffix: "%"),
                     accent: StrandPalette.sleepREM,
                     sparkline: spark(rest.series),
                     sparkColor: StrandPalette.sleepREM)
@@ -84,7 +88,8 @@ struct NightDetailCard: View {
                 StatTile(
                     label: "Respiratory",
                     value: rrValue(resp.latest),
-                    caption: vsTypical(resp.latest, resp.typical, suffix: " rpm", decimals: 1),
+                    caption: tileCaption(latestDay: resp.latestDay, latest: resp.latest,
+                                         typical: resp.typical, suffix: " rpm", decimals: 1),
                     accent: StrandPalette.metricPurple,
                     sparkline: spark(resp.series),
                     sparkColor: StrandPalette.metricPurple)
@@ -113,6 +118,17 @@ struct NightDetailCard: View {
 
     private func rrValue(_ v: Double?) -> String {
         v.map { String(format: "%.1f", $0) } ?? "—"
+    }
+
+    /// #1946: a carried prior-day value is stamped "Carried · <date>" instead of "vs typical", so it
+    /// is never passed off as tonight's read. Falls through to `vsTypical` when the value is today's
+    /// own (or there is no value).
+    private func tileCaption(latestDay: String?, latest: Double?, typical: Double?,
+                             suffix: String, decimals: Int = 0) -> String {
+        if let carried = SleepModel.carriedMetricCaption(latestDay: latestDay, latest: latest) {
+            return carried
+        }
+        return vsTypical(latest, typical, suffix: suffix, decimals: decimals)
     }
 
     /// "+12% vs typical" / "−0.4 rpm vs typical" — the latest-vs-mean caption every tile carries.

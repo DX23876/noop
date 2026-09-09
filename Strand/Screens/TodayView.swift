@@ -318,6 +318,10 @@ struct TodayView: View {
     // the deferred set immediately (belt-and-braces alongside the coalesced refreshSeq bump). A bare boolean
     // that flips ~twice per offload, so it costs nothing like the per-tick chunk count would.
     @State private var liveBackfillingFlag = false
+    // #1164: mirror of `LiveState.historyPendingSync` (strap has banked records newer than our frontier).
+    // Bridged through the same `BackfillFlagBridge` as `liveBackfillingFlag` (no second LiveState observer).
+    // Drives the Today Rest "Pending sync" state so a provisional score isn't shown as final.
+    @State private var liveHistoryPendingSyncFlag = false
     // #755: have the history-wide reads ever populated this session? Used so the FIRST load always runs them
     // (even mid-offload, so a cold launch during a sync is never a blank dashboard), while later re-loads can
     // safely defer them during an active backfill.
@@ -780,6 +784,30 @@ struct TodayView: View {
         return lastValue
     }
 
+    /// #1164/#2012 — should today's Rest be MARKED provisional? When the strap has banked records not yet
+    /// offloaded, the Rest score is computed from partial data and may change once the full night lands and
+    /// `analyzeRecent` re-scores it. Saying so reads honestly instead of as a bug when the number moves.
+    ///
+    /// True means "caption it as pending", NOT "hide it". #2012: the number used to be withheld on both
+    /// surfaces while this was true, so a user whose night was scored saw nothing for as long as the strap
+    /// had anything left to send, which on a continuously banking strap is most of the day. A number that
+    /// may still move is not the same as no number, and it is the one the screen exists to show.
+    ///
+    /// Two honest signals, either of which means more data is expected:
+    /// - `backfilling`: an offload is actively running right now (data is draining).
+    /// - `historyPendingSync`: the strap reports banked records newer than our local frontier (the strap
+    ///   has data we haven't ingested yet, even when no offload is running — e.g. right after connect,
+    ///   before the first offload starts).
+    ///
+    /// Only applies to TODAY (a past day's score is final — no more data is coming for it) and only when a
+    /// Rest score EXISTS (pending annotates a score; it never fabricates one where there is none). Pure +
+    /// unit-testable. Mirror EXACTLY in Kotlin.
+    static func restPendingSync(restScore: Double?, backfilling: Bool,
+                                historyPendingSync: Bool, isTodaySelected: Bool) -> Bool {
+        guard isTodaySelected, restScore != nil else { return false }
+        return backfilling || historyPendingSync
+    }
+
     /// The carried recovery caption stamp, keyed on that scored day's own date and its recency. Within the
     /// freshness cap it reads "Last night · <date>"; once the carried day is older than the cap (#779) it
     /// reads "Latest sleep · <date>" so a weeks-old import is never surfaced as "Last night". Shared by every
@@ -825,10 +853,11 @@ struct TodayView: View {
     /// fold while actually recomputing it. One call folds each series exactly once (three passes), and the
     /// sheet reads drivers + confidence out of a single sheet-local `let`.
     private func chargeBreakdown() -> (drivers: [ChargeDriver], confidence: ScoreConfidence)? {
-        // The composition lives in the shared pure `ChargeBreakdownFormat.compute` so classic Today and the
-        // Heute redesign read ONE breakdown and can't drift (the P5 shared-selector principle). `restScore`
-        // is the same merged sleep_performance value the Rest ring reads, so the sleep-quality term stays
-        // consistent; `chargeBreakdownRow` mirrors the ring (today's own row, else the carried last-scored).
+        // The composition lives in the shared pure `ChargeBreakdownFormat.compute` so classic Today, the
+        // Heute redesign and Coupled read ONE breakdown and can't drift (the P5 shared-selector principle).
+        // `restScore` is the same merged sleep_performance value the Rest ring reads, so the sleep-quality
+        // term stays consistent; `chargeBreakdownRow` mirrors the ring (today's own row, else the carried
+        // last-scored one).
         ChargeBreakdownFormat.compute(row: chargeBreakdownRow, days: repo.days, restScore: restScore)
     }
 
@@ -1143,6 +1172,16 @@ struct TodayView: View {
                                                              today: Repository.logicalDayKey(Date())),
            stale > Baselines.staleDays {
             return "No new nights from your strap for \(stale) days. Check it's connected and saving data."
+        }
+        // #612 covers a TOTAL drought (nothing valid for staleDays). The common shape is the other one:
+        // nights arriving, most of them empty — five days in with three HRV-less nights sits at "2 of 4"
+        // with no reason given, which reads as a stuck counter. Name the missing nights so the wearer has
+        // something to act on instead of something to wait for.
+        let cov = Baselines.recentHrvCoverage(dayKeys: repo.days.map(\.day),
+                                              nightlyHrv: repo.days.map(\.avgHrv),
+                                              today: Repository.logicalDayKey(Date()))
+        if cov.missing > 0, cov.observed > 0 {
+            return "Learning your baseline, \(n) of \(Baselines.minNightsSeed) nights. \(cov.missing) of the last \(cov.observed) nights recorded no HRV. Check the strap is worn overnight and syncing."
         }
         return "Learning your baseline, \(n) of \(Baselines.minNightsSeed) nights."
     }
@@ -1568,7 +1607,8 @@ struct TodayView: View {
             // zero-size leaf in `.background` (no layout impact) that owns the observation and pushes only
             // the boolean EDGE up. loadAll reads the flag to defer the heavy history-wide reads during an
             // active offload; the off→false edge below re-runs them as a safety net to the coalesced refresh.
-            .background(BackfillFlagBridge(flag: $liveBackfillingFlag))
+            .background(BackfillFlagBridge(flag: $liveBackfillingFlag,
+                                            pendingSyncFlag: $liveHistoryPendingSyncFlag))
         }
         // Reload when the data refreshes OR the selected day changes, the HR trend and Rest score are
         // day-scoped, so navigating must re-fetch them for the newly selected window.
@@ -3200,11 +3240,11 @@ struct TodayView: View {
                 #endif
                 metricRow(icon: "waveform.path.ecg", label: "HRV",
                           value: demoHrv ?? (hrv.map { "\(Int($0.rounded()))" } ?? "—"), unit: "ms",
-                          tint: StrandPalette.metricCyan)
+                          tint: StrandPalette.metricCyan, route: .metric("hrv"))
                 Divider().overlay(StrandPalette.hairline)
                 metricRow(icon: "heart.fill", label: "Resting HR",
                           value: demoRhr ?? (rhr.map { "\($0)" } ?? "—"), unit: "bpm",
-                          tint: StrandPalette.metricRose)
+                          tint: StrandPalette.metricRose, route: .metric("rhr"))
                 Divider().overlay(StrandPalette.hairline)
                 metricRow(icon: "lungs.fill", label: "Respiratory",
                           // Today's own respiratory, else the carried night's; a non-carrying today keeps the
@@ -3212,7 +3252,7 @@ struct TodayView: View {
                           value: resp.map { String(format: "%.1f", locale: AppLanguage.activeLocale, $0) }
                               ?? (vd == nil ? latestString("resp_rate", decimals: 1) : "—"),
                           unit: "rpm",
-                          tint: StrandPalette.accent)
+                          tint: StrandPalette.accent, route: .metric("resp_rate"))
                 // ONE provenance footnote when a shown vital is a carried prior-day read (not today's),
                 // stamped with THAT row's date via the shared caption (which relabels a weeks-old carry to
                 // "Latest sleep", #779), so a prior read is never silently passed off as today.
@@ -3238,7 +3278,26 @@ struct TodayView: View {
     /// One README "metric row": a metric-hue line icon, a secondary label, and a right-aligned bold
     /// value with a small unit. Rows are divided by a hairline. Shared by the Today vitals card.
     @ViewBuilder
-    private func metricRow(icon: String, label: LocalizedStringKey, value: String, unit: String, tint: Color) -> some View {
+    /// A vitals row, optionally pushing its own metric trend (#706/#684).
+    ///
+    /// `route: nil` renders exactly what shipped before - no link, no chevron - so the three other callers
+    /// are untouched and a row that goes nowhere never claims otherwise. `LiquidPressStyle` is not
+    /// decoration: a bare `NavigationLink` applies the default link chrome and would tint the whole row,
+    /// which is why `cardLink` carries it too.
+    private func metricRow(icon: String, label: LocalizedStringKey, value: String, unit: String,
+                           tint: Color, route: TabRoute? = nil) -> some View {
+        Group {
+            if let route {
+                NavigationLink(value: route) { metricRowBody(icon, label, value, unit, tint, linked: true) }
+                    .buttonStyle(LiquidPressStyle())
+            } else {
+                metricRowBody(icon, label, value, unit, tint, linked: false)
+            }
+        }
+    }
+
+    private func metricRowBody(_ icon: String, _ label: LocalizedStringKey, _ value: String,
+                               _ unit: String, _ tint: Color, linked: Bool) -> some View {
         HStack(spacing: 12) {
             Image(systemName: icon)
                 .font(.system(size: 15, weight: .semibold))
@@ -3261,6 +3320,12 @@ struct TodayView: View {
                 Text(unit)
                     .font(StrandFont.footnote)
                     .foregroundStyle(StrandPalette.textTertiary)
+            }
+            // Only when the row goes somewhere: a row that cannot navigate must not imply it can.
+            if linked {
+                Image(systemName: "chevron.right").font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(StrandPalette.textTertiary)
+                    .accessibilityHidden(true)
             }
         }
         .padding(.vertical, NoopMetrics.space3)
@@ -3344,7 +3409,11 @@ struct TodayView: View {
                            onRingTap: { showChargeBreakdown = true }) {
                 chargeRing(score: score, d: d, diameter: ring)
             }
-            heroRingColumn(section: .rest, domain: .rest, provenanceKey: "sleep_performance") {
+            // #1164: while the strap still holds un-offloaded history, Rest says so under the ring
+            // instead of standing there as a finished number that is merely stale.
+            heroRingColumn(section: .rest, domain: .rest, provenanceKey: "sleep_performance",
+                           caption: restIsPendingSync ? "Pending sync" : nil,
+                           captionWidth: ring) {
                 restRing(diameter: ring)
             }
         }
@@ -3400,9 +3469,17 @@ struct TodayView: View {
     /// intrinsically diameter×diameter, so the column just centres it and stretches to an equal share
     /// of the row width.
     @ViewBuilder
+    /// `caption` is an optional one-line note under the domain label — currently Rest's "Pending sync".
+    ///
+    /// It lives HERE, under the label, rather than over the ring, for two reasons. It cannot cover the
+    /// score, which is what made the old overlay hide a number the user had every right to see. And it is
+    /// laid out at the COLUMN's width rather than the ring's, so it has room to render: the overlay was
+    /// measured against the circle and ellipsised its own explanation mid-word while spilling past the
+    /// ring's edge. Mirrors Android's `HeroRingColumn(caption:)`.
     private func heroRingColumn<RingBody: View>(
         section: ScoreSection, domain: DomainTheme, provenanceKey: String? = nil,
-        onRingTap: (() -> Void)? = nil,
+        onRingTap: (() -> Void)? = nil, caption: String? = nil,
+        captionWidth: CGFloat = 98,
         @ViewBuilder ring: () -> RingBody
     ) -> some View {
         VStack(spacing: 8) {
@@ -3475,6 +3552,24 @@ struct TodayView: View {
                         .accessibilityLabel("Source: \(label)")
                 }
             }
+            // LAST in the column, below the provenance badge rather than above it. The badges sit at the
+            // same height across the three columns and a caption on one of them must not push that
+            // column's badge a line lower than its neighbours'. The row is top-aligned and self-sizing
+            // (#762), so a caption grows the row and leaves every ring where it was.
+            if let caption {
+                // Bounded to the RING's width, not left to size itself. Unlike Android, whose three hero
+                // columns are laid out at a fixed `col` width, these columns take the width of what is in
+                // them — so an unbounded caption would widen this one on a longer translation and tip the
+                // trio off centre. Two lines at the ring's width fits the longest of them; the shrink is
+                // the same allowance the domain label above it already uses.
+                Text(caption)
+                    .font(StrandFont.footnote)
+                    .foregroundStyle(StrandPalette.textTertiary)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.7)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: captionWidth)
+            }
         }
     }
 
@@ -3527,9 +3622,21 @@ struct TodayView: View {
         }
     }
 
+    /// Whether today's Rest is provisional because the strap still has records to send. Resolved once and
+    /// read by both surfaces that say so — the hero column's caption and the Rest tile's — so the two can
+    /// never disagree about the same moment.
+    private var restIsPendingSync: Bool {
+        Self.restPendingSync(restScore: restScore, backfilling: liveBackfillingFlag,
+                             historyPendingSync: liveHistoryPendingSyncFlag,
+                             isTodaySelected: selectedDayOffset == 0)
+    }
+
     /// Rest (sleep composite 0–100) hero ring.
     @ViewBuilder
     private func restRing(diameter: CGFloat) -> some View {
+        // #1164/#2012: when the strap has banked records not yet offloaded, today's Rest is provisional —
+        // it may change once the full night lands and `analyzeRecent` re-scores it. That is now SAID, in
+        // the column's caption, rather than shown by withholding the number. Past days are final.
         if let s = restScore {
             GlowRing(fraction: s / 100, value: s, format: { "\(Int($0.rounded()))" },
                      color: StrandPalette.restColor, diameter: diameter, lineWidth: diameter * 0.10)
@@ -3625,8 +3732,14 @@ struct TodayView: View {
                 // the same lineLimit/scaleFactor guard so it never wraps, then its "N of 4" subtitle below.
                 Text("Calibrating").font(StrandFont.headline).foregroundStyle(StrandPalette.textPrimary)
                     .lineLimit(1).minimumScaleFactor(0.7).fixedSize()
-                Text("\(n) of \(Baselines.minNightsSeed)").font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
-                    .lineLimit(1)
+                // #1816's lesson on a second tile: a bare "2 of 4" under "Calibrating" is read as DAYS,
+                // and a wearer five days in reports it stuck. It counts NIGHTS THAT BANKED A USABLE HRV
+                // (`Baselines.update` only advances `nValid` for a non-nil in-range value), so a week of
+                // wear with three R-R-less nights genuinely sits at 2. Naming the unit is the whole fix:
+                // the number is right, the reader's unit was not.
+                Text("\(n) of \(Baselines.minNightsSeed) nights").font(StrandFont.footnote)
+                    .foregroundStyle(StrandPalette.textSecondary)
+                    .lineLimit(1).minimumScaleFactor(0.7)
             } else {
                 ringNoData(diameter: diameter)
             }
@@ -3943,16 +4056,23 @@ struct TodayView: View {
                 accessory: { scoreInfoButton(.effort) }
             )
         case .rest:
-            // Unscored TODAY → "building, wear it tonight" instead of a lone ", " caption (#527);
-            // a scored day keeps its sleep-duration / efficiency caption.
+            // #1164/#2012: a provisional Rest is SAID to be provisional, in the caption, rather than
+            // withheld. Blanking the number too left a user who had slept, and whose score was computed,
+            // looking at "—" for as long as the strap had anything left to send, which on a continuously
+            // banking strap is most of the day. Past days are final, so the state is today-only.
+            //
+            // Unscored TODAY → "building, wear it tonight" instead of a lone caption (#527); a scored day
+            // keeps its sleep-duration / efficiency caption.
             StatTile(
                 label: "Rest", verbatimLabel: DomainTheme.rest.productName,
                 value: restScore.map { "\(Int($0.rounded()))%" } ?? "—",
                 // Component 2: a scored day shows its duration/efficiency caption; an unscored TODAY shows
                 // the "building" hint; a past day with no Rest falls to the honest "Needs the strap" rather
                 // than a bare blank, so the tile always carries a state.
-                caption: restScore != nil ? restCaption(d)
-                    : (buildingHint(.rest) ?? restCaption(d) ?? Self.needsStrapCaption),
+                caption: restIsPendingSync
+                    ? String(localized: "Pending sync · strap history still offloading")
+                    : (restScore != nil ? restCaption(d)
+                        : (buildingHint(.rest) ?? restCaption(d) ?? Self.needsStrapCaption)),
                 accent: restScore.map { StrandPalette.recoveryColor($0) } ?? StrandPalette.textPrimary,
                 // The Rest composite (0–100) trend, not raw sleep minutes, tracks the score above (#614).
                 sparkline: keyMetricsDetailed ? windowedSpark("sleep_performance") : nil,
@@ -4466,13 +4586,35 @@ struct TodayView: View {
     /// number, and there is nothing for the user to go and do. `StatTile.caption` is optional, so nil
     /// renders NO caption rather than falling back to "today" — which would be its own small lie on a past
     /// day being browsed.
-    /// Twin of the Kotlin `stepsCalibrationPrompt` guard (#1514).
+    ///
+    /// #1816: when the strap has banked NO motion, the phone-step-days countdown is the wrong message.
+    /// A step estimate is `motion * coefficient`, so with the motion half missing neither the estimate
+    /// nor the fit moves however many days the phone counts — and the countdown that names only the
+    /// phone half sent a field reporter to enter Apple Health steps by hand expecting calibration to
+    /// start, which it cannot. The `stepsHasBankedMotion` flag is persisted by `IntelligenceEngine` on
+    /// every analytics pass, so it tracks a fresh strap's first sync without a per-render query. When
+    /// it is false, the caption says "No motion synced yet" instead — the same wording the calibration
+    /// sheet's no-motion banner uses, so the two surfaces agree. Twin of the Kotlin
+    /// `stepsCalibrationPrompt` guard (#1514).
     private var stepsCalibrationCaption: String? {
-        guard profile.stepsCalibrationCoefficient <= 0, profile.stepsManualCoefficient <= 0 else {
-            return nil
-        }
+        Self.stepsCalibrationCaption(coefficient: profile.stepsCalibrationCoefficient,
+                                     manualCoefficient: profile.stepsManualCoefficient,
+                                     hasBankedMotion: profile.stepsHasBankedMotion,
+                                     sampleDays: profile.stepsCalibrationSampleDays)
+    }
+
+    /// #1816: the pure decision behind `stepsCalibrationCaption`, extracted so it can be unit-tested
+    /// without a live view. Returns nil once a coefficient exists (a blank day is just a quiet one,
+    /// not a missing input). Returns "No motion synced yet" when the strap has banked no motion —
+    /// the motion half is the blocker, not the phone half, and the countdown that names only the
+    /// phone half is a lie. Otherwise returns the engine's `needsMoreDays` headline. Twin of the
+    /// Kotlin `stepsCalibrationPrompt` guard.
+    static func stepsCalibrationCaption(coefficient: Double, manualCoefficient: Double,
+                                        hasBankedMotion: Bool, sampleDays: Int) -> String? {
+        guard coefficient <= 0, manualCoefficient <= 0 else { return nil }
+        if !hasBankedMotion { return String(localized: "No motion synced yet") }
         let status = StepsEstimateEngine.CalibrationStatus.needsMoreDays(
-            have: profile.stepsCalibrationSampleDays,
+            have: sampleDays,
             need: StepsEstimateEngine.minCalibrationDays)
         return status.headline
     }
@@ -5634,12 +5776,21 @@ private struct SyncingHistoryNoteIfBackfilling: View {
 private struct BackfillFlagBridge: View {
     @EnvironmentObject private var live: LiveState
     @Binding var flag: Bool
+    /// #1164: optional mirror of `LiveState.historyPendingSync` (strap has banked records newer than our
+    /// frontier). Bridged through the SAME invisible leaf so a second LiveState observer isn't added to
+    /// the view tree (the 1 Hz flood isolation the top-of-type note describes). nil when the caller
+    /// doesn't need it.
+    @Binding var pendingSyncFlag: Bool
     var body: some View {
         Color.clear
             .frame(width: 0, height: 0)
             .accessibilityHidden(true)
-            .onAppear { if flag != live.backfilling { flag = live.backfilling } }
+            .onAppear {
+                if flag != live.backfilling { flag = live.backfilling }
+                if pendingSyncFlag != live.historyPendingSync { pendingSyncFlag = live.historyPendingSync }
+            }
             .onChangeCompat(of: live.backfilling) { now in if flag != now { flag = now } }
+            .onChangeCompat(of: live.historyPendingSync) { now in if pendingSyncFlag != now { pendingSyncFlag = now } }
     }
 }
 

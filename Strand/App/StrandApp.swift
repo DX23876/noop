@@ -34,12 +34,16 @@ struct StrandApp: App {
         // Register the check-in's action buttons before any notification can arrive — a category a
         // notification names but nobody registered simply shows no buttons, silently.
         CoachCheckIn.registerCategory()
+        // K5: tapping a scheduled morning-brief notification routes to Coach via the shared NavRouter.
+        let router = NavRouter()
+        _router = StateObject(wrappedValue: router)
+        NotificationPresenter.shared.onCoachBriefTapped = { [weak router] in router?.openCoach() }
     }
 
     @StateObject private var model = AppModel()
     /// Shared cross-screen navigation hook (e.g. Live → Devices). The macOS shell (`RootView`)
     /// observes it and drives the sidebar selection.
-    @StateObject private var router = NavRouter()
+    @StateObject private var router: NavRouter
     /// #267: drives a foreground sync kick when the window becomes active (no scenePhase hook
     /// existed on macOS before this).
     @Environment(\.scenePhase) private var scenePhase

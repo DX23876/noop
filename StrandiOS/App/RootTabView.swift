@@ -61,12 +61,12 @@ struct RootTabView: View {
     /// root view alive, so an at-root re-tap keeps scroll position and never re-runs `.task`
     /// (#198; the #197 resetID/`.id()` rebuild reset both). Requires the tab roots' first-hop
     /// links to push `TabRoute`/`MoreDestination` VALUES — closure-destination links bypass the path.
-    @State private var tabPaths: [NavigationPath] = Array(repeating: NavigationPath(), count: 4)
+    @State private var tabPaths: [NavigationPath] = Array(repeating: NavigationPath(), count: 5)
     /// One scroll-to-top token per tab. Bumped when the user re-taps the active tab while it's ALREADY
     /// at its root — the other half of the iOS convention #197/#198 left unserved (an at-root re-tap was
     /// a no-op). Threaded into each tab's root via `\.scrollToTopSignal`; ScreenScaffold / LiquidTodayView
     /// scroll to their top anchor when their tab's token changes.
-    @State private var scrollTop: [Int] = Array(repeating: 0, count: 4)
+    @State private var scrollTop: [Int] = Array(repeating: 0, count: 5)
     /// Which More-tab groups are expanded (S2). Insights + Body stay open at rest; Data + App collapse to
     /// just their header until tapped. Persisted (#860 item 2): the user's open/closed choice must SURVIVE
     /// leaving and re-entering the More tab (and relaunch), not reset to the seed every visit. Backed by an
@@ -166,7 +166,7 @@ struct RootTabView: View {
                 guard selectedTab != 0 else { return }
                 let dx = v.translation.width, dy = v.translation.height
                 guard abs(dx) > 60, abs(dx) > abs(dy) * 1.6 else { return }
-                let next = min(3, max(0, selectedTab + (dx < 0 ? 1 : -1)))
+                let next = min(4, max(0, selectedTab + (dx < 0 ? 1 : -1)))
                 if next != selectedTab {
                     withAnimation(.timingCurve(0.22, 1, 0.36, 1, duration: 0.24)) { selectedTab = next }
                 }
@@ -268,6 +268,11 @@ struct RootTabView: View {
                 router.requestedDestination = nil
             case .insightsHub, .labBook, .fusedRecord, .rhythm:
                 routedPillar = dest
+                router.requestedDestination = nil
+            case .coach:
+                // K3: Coach is now a top-level tab (tag 3) — switch to it directly instead of
+                // presenting it as a pillar sheet.
+                withAnimation(.timingCurve(0.22, 1, 0.36, 1, duration: 0.24)) { selectedTab = 3 }
                 router.requestedDestination = nil
             case .trends:
                 // Trends is a primary tab on iPhone (not a pillar sheet) — switch to it.
@@ -396,6 +401,8 @@ struct RootTabView: View {
                 case .fusedRecord: FusedRecordHost()
                 case .rhythm: RhythmHost(onClose: { routedPillar = nil })
                 case .devices: DevicesView()
+                // K5: the scheduled morning-brief notification's tap-through target.
+                case .coach: CoachView()
                 // .trends is never presented as a pillar sheet on iPhone (it's a primary tab — the
                 // requestedDestination handler switches `selectedTab` instead), but the switch must stay
                 // exhaustive. Fall back to Trends inside the sheet host if it ever arrives here.

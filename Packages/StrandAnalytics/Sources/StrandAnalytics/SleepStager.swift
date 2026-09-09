@@ -71,6 +71,17 @@ public struct SleepSession: Equatable, Sendable {
 
 public enum SleepStager {
 
+    // MARK: - #1943: RHR bin-gate thresholds (shared by sessionRestingHR and rhrBinGateLogLine)
+    // One constant per threshold, read by both the gate and its conformance check, so a drift
+    // between the two is structurally impossible rather than merely documented.
+
+    /// Minimum samples in a 5-min bin for it to qualify as a candidate for the night's resting HR.
+    /// A one-sample bin at the edge of a wear gap cannot become the floor.
+    public static let rhrMinBinSamples: Int = 5
+    /// Minimum plausible mean HR (bpm) for a bin to qualify. A dropout-driven sub-physiological
+    /// dip cannot become the floor.
+    public static let rhrMinPlausibleBpm: Double = 25
+
     // MARK: - Stage 0 constants (sleep.py)
 
     /// Per-sample gravity change (g) at/below which a sample is "still".
@@ -768,6 +779,23 @@ public enum SleepStager {
         let reason: String
     }
 
+    /// True when this night's sleep runs will ALL be dropped by `minSleepMin` yet add up to a plausible
+    /// night. Pure, so the rule can be tested without building gravity.
+    ///
+    /// The predicate is deliberately "today's answer is zero". Every run being under the floor means the
+    /// survival pass keeps none of them, so a bridge enabled on this basis can only turn nothing into
+    /// something; if any single run already clears the floor this is false, the sparse rule decides as
+    /// before, and a night that currently scores cannot change.
+    ///
+    /// Two runs at minimum, because one fragment is not a fragmented night. The SUM must clear the floor
+    /// so a handful of brief stirs does not become a night. Neither condition weakens what the bridge
+    /// itself checks. Kotlin twin: `isFragmentedToNothing`.
+    static func isFragmentedToNothing(_ sleepRunSpansS: [Int], minSleepS: Int) -> Bool {
+        sleepRunSpansS.count >= 2
+            && !sleepRunSpansS.contains { $0 >= minSleepS }
+            && sleepRunSpansS.reduce(0, +) >= minSleepS
+    }
+
     /// Per-pair explanation of `bridgeSparseSleep`, mirroring its rule EXACTLY (same adjacency walk,
     /// same `gap >= 0 && gap <= sparseBridgeGapMin*60`, same HR-band check) so the reasons describe what
     /// actually happened rather than an approximation. Only pairs the bridge itself CONSIDERS (two
@@ -1390,21 +1418,57 @@ public enum SleepStager {
         let flags = classifyStill(grav, deltas)
         var runs = buildRuns(grav, flags, sparse: sparse, hr: hrS, baseline: baseline)
         runs = mergePeriods(runs)
-        // Re-stitch sleep runs fragmented by pure gravity dropouts (sparse only) before minSleepMin.
+        let minSleepS = minSleepMin * 60
+        // #1937: a night whose sleep runs are ALL shorter than minSleepMin yields NO session at all,
+        // however much sleep they add up to. A real capture: five runs, 298 minutes of detected sleep,
+        // every one dropped for being about a minute short, and the night vanished.
+        //
+        // The bridge that exists to re-stitch fragments was switched off, because it is gated on the
+        // night being SPARSE (#308, so a dense night kept its original path byte-for-byte) and the night
+        // was dense. On the reporting device gravity coverage was 99.9%: the rescue was declined
+        // precisely because the data was good.
+        //
+        // So the bridge also runs when the night is fragmented to nothing. The gate is deliberately
+        // "today's answer is zero": if any single run already clears the floor this is false and the
+        // sparse rule decides exactly as before, so a night that currently scores cannot change. It can
+        // only turn nothing into something.
+        //
+        // Requiring the SUM to clear the floor keeps a handful of brief stirs from becoming a night, and
+        // the bridge's own rules still apply underneath — a gap longer than sparseBridgeGapMin, an
+        // intervening active run that is too long, or HR above the sleep band all still refuse. This
+        // enables the attempt; it does not weaken what the attempt checks.
+        //
+        // Deliberately NOT passed to buildRuns above, which takes its own `sparse` for the HR-vouched
+        // gap rule. That decides how runs are FORMED, so widening it would change the input to
+        // everything downstream including nights that currently score. This only re-stitches runs that
+        // are already built, and only when every one of them was about to be discarded.
+        // Evaluated unconditionally rather than short-circuited behind `sparse`, so the trace can
+        // report what it actually was on a sparse night too. It is a filter/map/sum over a handful of
+        // runs.
+        let fragmentedToNothing = isFragmentedToNothing(
+            runs.filter { $0.stage == "sleep" }.map { $0.end - $0.start }, minSleepS: minSleepS)
+        let bridgeEnabled = sparse || fragmentedToNothing
+        // Re-stitch sleep runs fragmented by gravity dropouts, before minSleepMin.
         let runsBeforeBridge = traceSink == nil ? 0 : runs.filter { $0.stage == "sleep" }.count
         // #737: capture the per-pair reasons BEFORE the merge mutates `runs`, so a bridge that changed
         // nothing still says why (gapTooLong / hrOutOfBand / overlap) instead of only before==after.
-        let bridgeResult = bridgeSparseSleepTraced(runs, sparse: sparse, hr: hrS, baseline: baseline)
+        let bridgeResult = bridgeSparseSleepTraced(runs, sparse: bridgeEnabled, hr: hrS, baseline: baseline)
         let bridgeAttempts = bridgeResult.1
         runs = bridgeResult.0
-        // Sleep & Rest test mode (E3): record the sparse-gravity bridge result, so a sparse 5.0 night
-        // rescued from fragmentation is visible. Only emitted when gravity is sparse (the only case the
-        // bridge can act) and only when tracing. Side-effect-only.
-        if let traceSink, sparse {
+        // Sleep & Rest test mode (E3): record the bridge result, so a night rescued from fragmentation
+        // is visible. Emitted whenever the bridge was ENABLED (sparse, or #1937's fragmented-to-nothing
+        // night) and only when tracing. Side-effect-only.
+        if let traceSink, bridgeEnabled {
             let runsAfterBridge = runs.filter { $0.stage == "sleep" }.count
+            // BOTH gates are reported, always, as their own k=v keys. The line used to hardcode
+            // `sparse=true`, which since #1937 could contradict the `sparse=false` on the summary line
+            // beside it. Emitting both (rather than one "why" naming the winner) keeps the key set
+            // identical on every night, which is what a reader diffing two nights, and any k=v parser,
+            // needs.
             traceSink(GateTrace.runLine(index: -1, startTs: 0, endTs: 0,
                 verdict: runsAfterBridge < runsBeforeBridge ? .kept : .dropped, gate: "sparseBridge",
-                detail: "sparse=true gapMin=\(sparseBridgeGapMin) runsBefore=\(runsBeforeBridge) runsAfter=\(runsAfterBridge)"))
+                detail: "sparse=\(sparse) fragmentedToNothing=\(fragmentedToNothing) "
+                    + "gapMin=\(sparseBridgeGapMin) runsBefore=\(runsBeforeBridge) runsAfter=\(runsAfterBridge)"))
             // #737: one line per pair the bridge CONSIDERED, each naming what it decided.
             //
             // #1657 changed what an empty list MEANS, so the wording changed with it. It used to mean
@@ -1425,8 +1489,6 @@ public enum SleepStager {
                         + "hrInSleepBand=\(a.hrInSleepBand) reason=\(a.reason)"))
             }
         }
-
-        let minSleepS = minSleepMin * 60
 
         var sessions: [SleepSession] = []
         // Continuous-sleep chain tracking so a real overnight sleep that runs PAST the daytime-band
@@ -2787,28 +2849,110 @@ public enum SleepStager {
     // MARK: - Per-session HR / HRV
 
     /// Lowest 5-min rolling-mean HR during the session (bpm), or nil.
+    ///
+    /// The window is CLOSED at both ends, so the binning is too: bins are `[t, t + windowS)` except
+    /// the final one, which is `[t, end]`. Half-open bins alone would admit a sample sitting exactly
+    /// on an aligned `end` through the prefilter and then place it in no bin — counted as data,
+    /// silently ignored. A zero-length window (`start == end`) is that single closed bin.
+    /// #1943: a conformance check that reports when the artefact gate `sessionRestingHR` applies
+    /// actually MOVED the floor. The shipped floor IS the gated floor, so comparing the gated floor
+    /// against it is silent by construction. Instead, this reports the UNGATED floor (the old rule:
+    /// min over every non-empty bin) against the shipped one, so the line fires when the gate
+    /// excluded the bin that would otherwise have won — which is exactly the frequency and magnitude
+    /// the measure-only diagnostic was meant to learn, and would never have reported otherwise.
+    ///
+    /// `sessionRestingHR` gates bins on `rhrMinBinSamples` and `rhrMinPlausibleBpm` before letting them
+    /// win the floor, falling back to the lowest of all bin means when no bin qualifies. This helper
+    /// reproduces the same partition and the same gate, and ALSO computes the ungated floor (min over
+    /// every non-empty bin, the pre-#1943 rule) so the two can be compared.
+    ///
+    /// Bins are built exactly as `sessionRestingHR` builds them, closed final bin included, or the line
+    /// would describe a different partition than the one it is judging.
+    ///
+    /// Returns nil unless the gate actually MOVED the floor (ungated != shipped), so the log carries
+    /// only the nights the gate did something. If it turns out to fire on one night in fifty, that is
+    /// worth knowing; if it fires nightly, that is worth knowing sooner.
+    ///
+    /// The counts still ride along when the line does fire, since they are the context for the change.
+    /// Same posture as the over-count-only R-R dump. Counts and bpm only, no timestamps. Pure. Twin of
+    /// Kotlin `rhrBinGateLogLine`.
+    public static func rhrBinGateLogLine(day: String, sessions: [(Int, Int)], hr: [HRSample],
+                                         shippedFloor: Int, minBinSamples: Int = rhrMinBinSamples,
+                                         minPlausibleBpm: Double = rhrMinPlausibleBpm) -> String? {
+        let windowS = 5 * 60
+        var bins = 0, thin = 0, implausible = 0, ungatedN = 0
+        var ungated: Double?
+        var gated: Double?
+        for (start, end) in sessions {
+            let seg = hr.filter { $0.ts >= start && $0.ts <= end }
+            if seg.isEmpty { continue }
+            var t = start
+            repeat {
+                let isFinal = t + windowS >= end
+                let win = seg.filter { $0.ts >= t && (isFinal || $0.ts < t + windowS) }
+                if !win.isEmpty {
+                    bins += 1
+                    let mean = Double(win.reduce(0) { $0 + $1.bpm }) / Double(win.count)
+                    if win.count < minBinSamples { thin += 1 }
+                    if mean < minPlausibleBpm { implausible += 1 }
+                    if ungated == nil || mean < ungated! { ungated = mean; ungatedN = win.count }
+                    if win.count >= minBinSamples, mean >= minPlausibleBpm,
+                       gated == nil || mean < gated! { gated = mean }
+                }
+                t += windowS
+            } while t < end
+        }
+        if bins == 0 { return nil }
+        let ungatedFloor = ungated.map { Int($0.rounded()) }
+        // The gate moved the floor when the ungated floor differs from the shipped one. The shipped
+        // floor IS the gated floor, so this fires when the gate excluded the bin that would have won
+        // under the old rule — which is the frequency and magnitude we want to learn.
+        let moved = ungatedFloor != nil && ungatedFloor != shippedFloor
+        if !moved { return nil }
+        let gatedFloor = gated.map { Int($0.rounded()) }
+        return "rhr bins day=\(day) bins=\(bins) thin=\(thin) implausible=\(implausible) "
+            + "winnerN=\(ungatedN) ungated=\(ungatedFloor.map(String.init) ?? "nil") "
+            + "gated=\(gatedFloor.map(String.init) ?? "nil") shipped=\(shippedFloor) gateMoved=\(moved)"
+    }
+
     static func sessionRestingHR(start: Int, end: Int, hr: [HRSample]) -> Int? {
         let windowS = 5 * 60
-        let bucketCount = max(0, (max(0, end - start) + windowS - 1) / windowS)
+        // #1943: a bin qualifies to WIN the floor only when it is well-populated (>= rhrMinBinSamples)
+        // and its mean is physiologically plausible (>= rhrMinPlausibleBpm). A one-sample bin at the
+        // edge of a wear gap, or a dropout-driven sub-physiological dip, cannot become the night's
+        // resting HR - that number is displayed, stored on the daily row, and fed to the baseline
+        // later nights are scored against. If no bin qualifies, fall back to the lowest of ALL bin
+        // means (ungated), then the all-sample mean - preserving the never-nil-on-data behaviour.
+        //
+        // Single-pass bucketing rather than a filter per window (upstream's shape): this runs over a
+        // whole night's HR for every scored session, so the per-window `filter` was quadratic in the
+        // night's sample count. The bucket boundaries are the same ones upstream walks, INCLUDING the
+        // closed final bin: the last bucket is `[t, end]`, so a sample sitting exactly on an aligned
+        // `end` lands in it instead of being admitted by the prefilter and then belonging to no bin.
+        // A zero-length window is that single closed bucket.
+        let bucketCount = max(1, (max(0, end - start) + windowS - 1) / windowS)
         var sums = Array(repeating: 0, count: bucketCount)
         var counts = Array(repeating: 0, count: bucketCount)
         var allSum = 0, allCount = 0
         for sample in hr where sample.ts >= start && sample.ts <= end {
             allSum += sample.bpm; allCount += 1
-            let bucket = (sample.ts - start) / windowS
-            // Preserve the old half-open final bucket: a sample exactly at an aligned `end` belongs to
-            // the inclusive session fallback but not to a `[t,t+window)` mean.
-            if bucket >= 0, bucket < bucketCount {
-                sums[bucket] += sample.bpm; counts[bucket] += 1
-            }
+            // `min(..., bucketCount - 1)` IS the closed final bin: only a sample at an aligned `end`
+            // can index past the last bucket, and that is exactly the one the rule keeps.
+            let bucket = min(max(0, (sample.ts - start) / windowS), bucketCount - 1)
+            sums[bucket] += sample.bpm; counts[bucket] += 1
         }
         guard allCount > 0 else { return nil }
-        var minimum: Double?
+        var gated: Double?
+        var ungated: Double?
         for i in 0..<bucketCount where counts[i] > 0 {
             let mean = Double(sums[i]) / Double(counts[i])
-            minimum = minimum.map { min($0, mean) } ?? mean
+            ungated = ungated.map { min($0, mean) } ?? mean
+            if counts[i] >= rhrMinBinSamples, mean >= rhrMinPlausibleBpm {
+                gated = gated.map { min($0, mean) } ?? mean
+            }
         }
-        if let minimum { return Int(minimum.rounded()) }
+        if let gated { return Int(gated.rounded()) }
+        if let ungated { return Int(ungated.rounded()) }
         let all = Double(allSum) / Double(allCount)
         return Int(all.rounded())
     }
@@ -2826,26 +2970,58 @@ public enum SleepStager {
     /// Uses the same range-filter + ≥2-valid-interval rule as hrv.rmssd().
     static func sessionAvgHRV(start: Int, end: Int, rr: [RRInterval]) -> Double? {
         let vals = sessionHrvWindows(start: start, end: end, rr: rr, stages: []).compactMap { $0.rmssd }
-        return vals.isEmpty ? nil : vals.reduce(0, +) / Double(vals.count)
+        if vals.isEmpty { return nil }
+        // #1118: refuse the night outright when its own R-R banks more beat-time than the wall clock it
+        // spans. Gated HERE rather than at the caller because this is where RMSSD BECOMES the day's HRV:
+        // one seam covers the daily row, the sleep-session cache, the Health card and the baseline that
+        // later nights are scored against, so none of them can end up disagreeing about whether the night
+        // was trustworthy. See `HRVAnalyzer.successiveDiffIsTrustworthy` for why an over-count corrupts a
+        // successive-difference statistic and why a blank is the right answer.
+        //
+        // Classified over the SAME beats the value was built from, windowed [start, end] exactly as
+        // `sessionHrvWindows` does, so the verdict cannot describe a different set of beats than the number
+        // it is gating.
+        let seg = rr.filter { $0.ts >= start && $0.ts <= end }
+        let segTs = seg.map { $0.ts }
+        let segMs = seg.map { Double($0.rrMs) }
+        let coverage = HRVAnalyzer.rrCoverage(tsSec: segTs, rrMs: segMs)
+        // `collapsed` is deliberately the SAME figure as `coverage`, which pins every over-count here to
+        // crossSecondOverCount. That is not a claim about which kind it is. The collapsed figure exists only
+        // to choose BETWEEN the two over-count verdicts, and this gate refuses both, so the real one would
+        // change no outcome — while costing a full sort of the night's ~50-70k beats, since
+        // `collapsedCoverage` opens with a sort. This runs per session, per day, across ~21 days of every
+        // analyzeRecent, every 15 minutes; #1510 cut this exact path from six sorts a night to two, and
+        // buying a distinction the caller discards would hand that back. `rrCoverage` is a single O(n)
+        // pass. If a future gate ever needs the two over-count cases apart, compute it then.
+        let verdict = HRVAnalyzer.classifyCoverage(coverage: coverage, collapsed: coverage)
+        guard HRVAnalyzer.successiveDiffIsTrustworthy(verdict) else { return nil }
+        return vals.reduce(0, +) / Double(vals.count)
     }
 
     /// Per-5-min-window RMSSD across a session, each window tagged with the sleep stage at its CENTER
     /// (from `stages`) — the SINGLE source `sessionAvgHRV` averages, and the HRV nightly trace reads.
     /// Passing `[]` for `stages` tags every window "?" (the plain-average path needs no stages). (#141)
+    ///
+    /// Windows follow the same closed-window rule as `sessionRestingHR`: `[t, t + windowS)` except
+    /// the final one, which is `[t, end]`, so a beat sitting exactly on an aligned `end` lands in a
+    /// window instead of being admitted by the prefilter and then dropped. Window stage tagging and
+    /// `startTs` are unchanged — the final window keeps its half-open center `t + windowS / 2`.
     static func sessionHrvWindows(start: Int, end: Int, rr: [RRInterval], stages: [StageSegment]) -> [HrvWindow] {
         // CONTRACT: `rr` MUST already be ts-sorted (RMSSD is built from SUCCESSIVE differences, so a bucket
         // has to be chronological). The value path passes the loop's pre-sorted `rrS`; the trace caller sorts
         // its own copy. Not sorted here on purpose — re-sorting the value path could reorder same-second RR
         // under Swift's unstable sort and shift the shipped avgHrv. Same contract the original sessionAvgHRV had.
         let windowS = 5 * 60
-        let bucketCount = max(0, (max(0, end - start) + windowS - 1) / windowS)
-        guard bucketCount > 0 else { return [] }
+        // Same closed-window rule (and the same single-pass bucketing) as `sessionRestingHR`: the
+        // final window is `[t, end]`, so an endpoint beat lands in it rather than being admitted by
+        // the prefilter and then dropped. A zero-length session is that single closed window.
+        let bucketCount = max(1, (max(0, end - start) + windowS - 1) / windowS)
         var buckets = Array(repeating: [Double](), count: bucketCount)
         var hasSessionRow = false
         for row in rr where row.ts >= start && row.ts <= end {
             hasSessionRow = true
-            let bucket = (row.ts - start) / windowS
-            if bucket >= 0, bucket < bucketCount { buckets[bucket].append(Double(row.rrMs)) }
+            let bucket = min(max(0, (row.ts - start) / windowS), bucketCount - 1)
+            buckets[bucket].append(Double(row.rrMs))
         }
         guard hasSessionRow else { return [] }
         var out: [HrvWindow] = []

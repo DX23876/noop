@@ -408,8 +408,11 @@ struct CoupledView: View {
                         // Left: the SLEEP PERFORMANCE % as the liquid vessel (Rest world), with the score
                         // counting up over the fluid. Empty vessel when there's no scored performance.
                         ZStack {
+                            // heroCard opts its vessel out of hit testing so the Button owns the tap;
+                            // this ring keeps its splash instead and lets the NavigationLink run alongside.
                             LiquidVessel(value: sleepPerformance.map { max(0, min(1, $0 / 100)) },
-                                         tint: StrandPalette.restColor, animated: false)
+                                         tint: StrandPalette.restColor, animated: false,
+                                         tapPassesThrough: true)
                                 .frame(width: 88, height: 88)
                             if let p = sleepPerformance {
                                 CountUpText(value: p,
@@ -531,21 +534,8 @@ struct CoupledView: View {
     /// sheet's inline confidence fold re-folded the full `repo.days` history four times per body eval of
     /// the open sheet; one call now folds each series exactly once, guards before any fold.
     private func chargeBreakdown() -> (drivers: [ChargeDriver], confidence: ScoreConfidence)? {
-        guard let row = breakdownRow, let hrv = row.avgHrv, let rhr = row.restingHr else { return nil }
-        let hrvBase = Baselines.foldHistory(repo.days.map(\.avgHrv), cfg: Baselines.hrvCfg)
-        guard hrvBase.usable else { return nil }
-        let rhrBase = Baselines.foldHistory(repo.days.map { $0.restingHr.map(Double.init) },
-                                            cfg: Baselines.restingHRCfg)
-        let respBase = Baselines.foldHistory(repo.days.map(\.respRateBpm), cfg: Baselines.respCfg)
-        // Rest-quality term = the same sleep performance the sleep row shows, ÷100 (AnalyticsEngine's form).
-        let sleepPerf = sleepPerformance.map { $0 / 100.0 }
-        let drivers = RecoveryScorer.chargeDrivers(
-            hrv: hrv, rhr: Double(rhr), resp: row.respRateBpm,
-            hrvBaseline: hrvBase,
-            rhrBaseline: rhrBase.usable ? rhrBase : nil,
-            respBaseline: respBase.usable ? respBase : nil,
-            sleepPerf: sleepPerf, skinTempDev: row.skinTempDevC)
-        return (drivers, ScoreConfidence.charge(recovery: row.recovery, hrvBaseline: hrvBase))
+        guard let row = breakdownRow else { return nil }
+        return ChargeBreakdownFormat.compute(row: row, days: repo.days, restScore: sleepPerformance)
     }
 
     @ViewBuilder

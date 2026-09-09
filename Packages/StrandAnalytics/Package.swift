@@ -33,6 +33,12 @@ let package = Package(
         // WhoopStore is declared on the TEST target as well as the library: the Oura respiration
         // scoring-exclusion tests assert on `OuraRespScale` (the seam that keeps the ring's 0x6A rows
         // out of the stager), and a transitively-visible module is not something a test should rely on.
-        .testTarget(name: "StrandAnalyticsTests", dependencies: ["StrandAnalytics", "WhoopStore"]),
+        // `Oracles/` holds the committed local-day-windows oracle the tests re-derive. Declared so SPM
+        // does not warn about an unhandled file; the test reads it by path from `#filePath`, not from
+        // the bundle, so it stays readable the same way in Xcode and on the command line. NOT `Fixtures/`
+        // — the repo's .gitignore excludes that directory name everywhere (it is where real Health
+        // exports land), so an oracle committed under it would silently never be committed at all.
+        .testTarget(name: "StrandAnalyticsTests", dependencies: ["StrandAnalytics", "WhoopStore"],
+                    resources: [.copy("Oracles")]),
     ]
 )

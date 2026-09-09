@@ -21,6 +21,7 @@ extension WidgetSnapshot {
     /// the rollover yet always describes today.
     @MainActor
     static func publish(from model: AppModel) async {
+        await refreshWidgetPresence()
         let days = model.repo.days
         let now = Date()
         // The recovery-derived anchor: today's row when it's scored, else the freshest STRICTLY-PRIOR
@@ -128,19 +129,69 @@ extension WidgetSnapshot {
     @MainActor
     private static func saveAndReloadIfChanged(_ snap: WidgetSnapshot, previous: WidgetSnapshot? = nil) {
         let previous = previous ?? load()
+        // Per-KIND reloads, not `reloadAllTimelines()`: a battery tick moves the glance widget and
+        // nothing else, and rebuilding the rings/energy/heart-rate timelines for it is exactly the cost
+        // the dedup exists to avoid. Upstream reloads everything because it dedups on one combined
+        // predicate; this fork already has the per-widget predicates, so it spends the reloads it owes.
         let glanceChanged = glanceContentChanged(from: previous, to: snap)
         let ringsChanged = ringsContentChanged(from: previous, to: snap)
         let energyChanged = energyContentChanged(from: previous, to: snap)
-        if glanceChanged || ringsChanged || energyChanged {
-            snap.save()
+        // The heart-rate widget (#1957) renders the CURRENT bpm and the trace behind it, so it reloads
+        // when either moves — a new trace bucket is a visible change there even when the number is not.
+        let tracePoint = WidgetSnapshot.traceNeedsPoint(previous: previous, bpm: snap.bpm, now: snap.updated)
+        let heartRateChanged = previous?.bpm != snap.bpm || tracePoint
+        if glanceChanged || ringsChanged || energyChanged || heartRateChanged {
+            snap.save(previousSeries: previous?.hrSeries ?? [])
             if glanceChanged { WidgetCenter.shared.reloadTimelines(ofKind: "NOOPWidget") }
             if ringsChanged { WidgetCenter.shared.reloadTimelines(ofKind: "NOOPRingsWidget") }
             if energyChanged { WidgetCenter.shared.reloadTimelines(ofKind: "NOOPEnergyWidget") }
+            // A trace point alone is deliberately NOT a reload: it is for the next timeline WidgetKit
+            // builds anyway, and spending one a minute at rest is what the dedup is here to prevent.
+            if previous?.bpm != snap.bpm { WidgetCenter.shared.reloadTimelines(ofKind: "HeartRateWidget") }
+            // WidgetKit offers no synchronous way to know whether a widget is placed, so the reload
+            // still goes out and the outcome is instead recorded honestly. Counting it as a reload
+            // would make a widget-removed export read exactly like a widget-installed one, which is
+            // half the comparison the counters exist for.
+            if !(glanceChanged || ringsChanged || energyChanged || previous?.bpm != snap.bpm) {
+                WidgetTelemetry.noteDeclined()   // trace-only write: persisted, nothing reloaded
+            } else if WidgetTelemetry.widgetsInstalled {
+                WidgetTelemetry.noteReloaded()
+            } else {
+                WidgetTelemetry.noteNoWidget()
+            }
         } else if liveUpdateRequiresFullBuild(previous: previous, now: snap.updated) {
             // The rollover's visible values can legitimately match yesterday's. Persist the fresh day
             // stamp once without spending a redundant WidgetKit reload, so later live ticks stay fast.
-            snap.save()
+            snap.save(previousSeries: previous?.hrSeries ?? [])
+            WidgetTelemetry.noteDeclined()
+        } else {
+            // Nothing at all to do. Counted rather than left as a silent fall-through: an outcome that
+            // records nothing is exactly how the Android counters came to report publishes that never
+            // went anywhere as if they had.
+            WidgetTelemetry.noteDeclined()
         }
+    }
+
+    /// Ask WidgetKit whether any widget is actually installed, and remember the answer.
+    ///
+    /// Only on the full publish path: it is already `async`, and the once-a-minute live path has no
+    /// `await` to spend on an XPC round trip it does not need. The answer changes when a user adds or
+    /// removes a widget, which is exactly when the app is being foregrounded anyway, so a value from
+    /// the last full publish is fresh enough for a diagnostic.
+    ///
+    /// A failure leaves the previous answer in place rather than guessing, and "never asked" counts as
+    /// installed — over-reporting reloads is the safe direction for a figure meant to show a cost.
+    @MainActor
+    private static func refreshWidgetPresence() async {
+        let installed: Bool? = await withCheckedContinuation { continuation in
+            WidgetCenter.shared.getCurrentConfigurations { result in
+                switch result {
+                case .success(let widgets): continuation.resume(returning: !widgets.isEmpty)
+                case .failure: continuation.resume(returning: nil)
+                }
+            }
+        }
+        if let installed { WidgetTelemetry.noteWidgetsInstalled(installed) }
     }
 
     /// #114/#169: HR is the ONE high-frequency widget-publish trigger — `model.bpm` moves every few
@@ -157,8 +208,12 @@ extension WidgetSnapshot {
         /// True (and stamps `now`) when at least `interval` has elapsed since the last HR-driven publish;
         /// false to skip this HR change. The first call always admits (`.distantPast`).
         static func admit(now: Date = Date()) -> Bool {
-            guard now.timeIntervalSince(lastPublishedAt) >= interval else { return false }
+            guard now.timeIntervalSince(lastPublishedAt) >= interval else {
+                WidgetTelemetry.noteGated(now: now)
+                return false
+            }
             lastPublishedAt = now
+            WidgetTelemetry.noteAdmitted(now: now)
             return true
         }
     }

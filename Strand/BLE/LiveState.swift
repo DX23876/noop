@@ -76,10 +76,38 @@ public final class LiveState: ObservableObject {
     /// GET_EXTENDED_BATTERY_INFO response (#592). Shown on the Devices card as a "x.xx V" readout beside the
     /// percent; nil until the first battery event lands. Twin of the Android LiveState.batteryMv.
     @Published public var batteryMv: Int? = nil
-    /// Charging flag from the strap's BATTERY_LEVEL events — wire observation: u8 bit0 in the
-    /// event payload (4.0 @26 / 5.0 @30), pushed ~every 8 min on captured links. nil until the
-    /// first event of a session; cleared on disconnect so a stale flag can't outlive the link.
-    /// Flag ONLY — the battery % keeps its family-specific source (#77).
+    /// Charging flag. Two sources, and they mean different things (#1935).
+    ///
+    /// The authority is the strap's BATTERY_LEVEL event — wire observation: u8 bit0 in the payload
+    /// (4.0 @26 / 5.0 @30), pushed ~every 8 min on captured links. That is a LEVEL signal from the
+    /// strap's own gauge: every live battery event rewrites this flag, whatever it was.
+    ///
+    /// On a 5/MG it is ALSO set by `BATTERY_PACK_CONNECTED(21)` and cleared by
+    /// `BATTERY_PACK_REMOVED(22)`, which is a latency win — 21 leads `CHARGING_ON(7)` by up to ~17 s in
+    /// captures, so the pill responds when the pack goes on. But 21 means A PACK WAS ATTACHED, not that
+    /// charging began. They diverge on a depleted pack or a poor contact: 21 fires, 7 never does, and
+    /// this reads true while nothing charges.
+    ///
+    /// THAT STATE IS BOUNDED, which is why it is documented rather than split. It does not last until 22:
+    /// the next live BATTERY_LEVEL overwrites it from the strap's own GAUGE, so the window is about one
+    /// battery cadence, and the gauge always gets the last word.
+    ///
+    /// It gets the last word only because nothing else repeats, which is a real constraint rather than an
+    /// observation (#1935). The pack record reaches this platform LOG-ONLY (`FrameRouter`, Test Centre
+    /// gated) and writes nothing here. Android learned the same rule the hard way: its pushed pack-info
+    /// event (109) once wrote `charging = true` on pack PRESENCE every couple of minutes, outran the
+    /// gauge, and held a flat pack at "charging" for its whole attachment. An EDGE may set this flag
+    /// (7, 21, 22); a repeating presence signal must not, or the gauge cannot correct it.
+    ///
+    /// It matters beyond the pill. `BLEManager.lowPowerThrottleActive` reads it and gates THREE levers, not
+    /// one: the low-battery offload cadence, the connection-priority throttle, and the continuous-capture
+    /// pause behind the user's own "Pause HRV capture" percentage. So a pack attached but not charging can
+    /// keep background capture running at low battery after the user asked for it to stop, for that
+    /// window. `BLEManager.batteryPollDue` also reads it, polling every tick instead of every
+    /// other, which is harmless and arguably wanted with a pack on.
+    ///
+    /// nil until the first event of a session; cleared on disconnect so a stale flag can't outlive the
+    /// link. Flag ONLY — the battery % keeps its family-specific source (#77).
     @Published public var charging: Bool? = nil
 
     /// The Oura ring's current wear/charge state (nil for non-Oura straps or before any evidence this
@@ -418,6 +446,13 @@ public final class LiveState: ObservableObject {
     /// True while a historical offload session is running, so screens can say "Syncing strap
     /// history…" instead of presenting half-loaded data as final (#77).
     @Published public var backfilling = false
+    /// #1164 — true when the strap reports banked records newer than our local HR frontier (the strap has
+    /// data we haven't ingested yet), even when no offload is actively running. Set by BLEManager from the
+    /// GET_DATA_RANGE newest vs. the collector's latest HR sample, with the same 5-min `behindGapSeconds`
+    /// the auto-continue predicate uses. Cleared on disconnect so a stale "pending" can't outlive the link.
+    /// Drives the Today Rest "Pending sync" state so a provisional score isn't shown as final before the
+    /// full night is offloaded. Twin of the Android LiveState.historyPendingSync.
+    @Published public var historyPendingSync = false
     /// Chunks acked during the current offload session — an honest progress signal (total pending is
     /// unknowable from the protocol, so a count, never a percent).
     @Published public var syncChunksThisSession: Int = 0
