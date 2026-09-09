@@ -170,39 +170,143 @@ public enum MuscleStimulus {
         var sets = 0
         var rated = 0
         for workout in workouts {
-            for exercise in workout.exercises {
-                let template = exercise.templateId.flatMap { templates[$0] }
-                for set in exercise.workingSets {
-                    sets += 1
-                    if set.rpe != nil { rated += 1 }
-                    let value = setStimulus(set, templateId: exercise.templateId, template: template,
-                                            at: workout.startTs, reference: reference)
-                    guard value > 0, let template else { continue }
-                    byMuscle[template.primaryMuscleGroup, default: 0] += value
-                    for secondary in template.secondaryMuscleGroups {
-                        byMuscle[secondary, default: 0] += value * secondaryShare
-                    }
-                }
-            }
+            let session = price(workout, templates: templates, reference: reference,
+                                tzOffsetSeconds: 0)
+            for (group, value) in session.byMuscle { byMuscle[group, default: 0] += value }
+            sets += session.workingSetCount
+            rated += session.ratedSetCount
         }
         return Result(byMuscle: byMuscle, workingSetCount: sets, ratedSetCount: rated)
     }
 
+    /// ONE session, priced and spread over its muscles.
+    ///
+    /// The single place the spreading rule is written. `stimulus(for:)` and `SessionStimulusIndex` both
+    /// go through it, so the map and the index cannot drift into two different ideas of what a set is
+    /// worth — which is exactly how the secondary-muscle double count survived on one side of the line
+    /// and not the other.
+    static func price(_ workout: HevyWorkout,
+                      templates: [String: HevyExerciseTemplate],
+                      reference: StrengthReference,
+                      tzOffsetSeconds: Int) -> SessionStimulusIndex.Session {
+        var byMuscle: [HevyMuscleGroup: Double] = [:]
+        var sets = 0
+        var rated = 0
+        for exercise in workout.exercises {
+            let template = exercise.templateId.flatMap { templates[$0] }
+            for set in exercise.workingSets {
+                sets += 1
+                if set.rpe != nil { rated += 1 }
+                let value = setStimulus(set, templateId: exercise.templateId, template: template,
+                                        at: workout.startTs, reference: reference)
+                guard value > 0, let template else { continue }
+                byMuscle[template.primaryMuscleGroup, default: 0] += value
+                // De-duplicated for the same reason `StrengthSession.summarize` de-duplicates its
+                // secondary tally: a template that lists a group twice in `secondary_muscle_groups`
+                // would otherwise be credited twice for one set.
+                for secondary in Set(template.secondaryMuscleGroups) {
+                    byMuscle[secondary, default: 0] += value * secondaryShare
+                }
+            }
+        }
+        return SessionStimulusIndex.Session(
+            workoutId: workout.id,
+            startTs: workout.startTs,
+            day: AnalyticsEngine.dayString(workout.startTs, offsetSec: tzOffsetSeconds),
+            byMuscle: byMuscle, workingSetCount: sets, ratedSetCount: rated)
+    }
+
+    // MARK: - Every session, priced once
+
+    /// The whole history, priced ONE time.
+    ///
+    /// ## Why this type exists
+    ///
+    /// Building a `StrengthReference` costs a pass over every set in the history, and pricing the
+    /// sessions against it costs another. The Strength screen used to pay both inside loops: the usual
+    /// week rebuilt a reference per week (eight of them), and the time-constant fit rebuilt two per
+    /// muscle group (twenty groups, so forty) — roughly fifty full passes over the same sessions to
+    /// draw one screen, and the whole lot again on every tap of the week stepper.
+    ///
+    /// Priced once, every question downstream — what is still outstanding right now, what a week held,
+    /// what a usual week looks like, which time constant fits the wearer's answers — becomes a sum over
+    /// a few hundred small dictionaries, which is what those questions actually are.
+    ///
+    /// The index is a VIEW OF ONE HISTORY at one timezone offset. It is not a cache with a lifetime:
+    /// rebuild it when the sessions change, and never keep one across a data reload.
+    public struct SessionStimulusIndex: Sendable {
+
+        /// One priced session.
+        public struct Session: Equatable, Sendable {
+            public let workoutId: String
+            public let startTs: Int
+            /// Local day key, at the offset the index was built with.
+            public let day: String
+            public let byMuscle: [HevyMuscleGroup: Double]
+            public let workingSetCount: Int
+            public let ratedSetCount: Int
+
+            public init(workoutId: String, startTs: Int, day: String,
+                        byMuscle: [HevyMuscleGroup: Double],
+                        workingSetCount: Int, ratedSetCount: Int) {
+                self.workoutId = workoutId
+                self.startTs = startTs
+                self.day = day
+                self.byMuscle = byMuscle
+                self.workingSetCount = workingSetCount
+                self.ratedSetCount = ratedSetCount
+            }
+        }
+
+        /// Ascending by start, so a window is a contiguous run and the last write of a day wins in the
+        /// same order every other derivation here uses.
+        public let sessions: [Session]
+
+        public init(workouts: [HevyWorkout],
+                    templates: [String: HevyExerciseTemplate],
+                    tzOffsetSeconds: Int = 0) {
+            let reference = StrengthReference(workouts: workouts, templates: templates)
+            sessions = workouts
+                .map { MuscleStimulus.price($0, templates: templates, reference: reference,
+                                            tzOffsetSeconds: tzOffsetSeconds) }
+                .sorted { $0.startTs < $1.startTs }
+        }
+
+        /// Sum of the sessions `include` accepts. The one aggregation everything else is phrased in.
+        public func total(where include: (Session) -> Bool = { _ in true }) -> Result {
+            var byMuscle: [HevyMuscleGroup: Double] = [:]
+            var sets = 0
+            var rated = 0
+            for session in sessions where include(session) {
+                for (group, value) in session.byMuscle { byMuscle[group, default: 0] += value }
+                sets += session.workingSetCount
+                rated += session.ratedSetCount
+            }
+            return Result(byMuscle: byMuscle, workingSetCount: sets, ratedSetCount: rated)
+        }
+
+        /// The Monday–Sunday week containing `anchorDay`, cut on the day keys the index already carries.
+        public func week(containing anchorDay: String) -> Result {
+            guard let monday = WeeklyDigestEngine.mondayOfWeek(containing: anchorDay) else {
+                return Result(byMuscle: [:], workingSetCount: 0, ratedSetCount: 0)
+            }
+            let sunday = WeeklyDigestEngine.addDays(monday, 6)
+            return total { $0.day >= monday && $0.day <= sunday }
+        }
+    }
+
     /// One calendar week's stimulus, for the week containing `anchorDay`.
+    ///
+    /// Convenience for a caller with exactly one week to draw. A screen that also wants the usual week,
+    /// the outstanding load or a fitted time constant should build a `SessionStimulusIndex` once and ask
+    /// it — that is the whole reason the index exists.
     public static func weeklyStimulus(containing anchorDay: String,
                                       workouts: [HevyWorkout],
                                       templates: [String: HevyExerciseTemplate],
                                       tzOffsetSeconds: Int = 0) -> Result {
-        guard let monday = WeeklyDigestEngine.mondayOfWeek(containing: anchorDay) else {
-            return Result(byMuscle: [:], workingSetCount: 0, ratedSetCount: 0)
-        }
-        let sunday = WeeklyDigestEngine.addDays(monday, 6)
-        let inWeek = workouts.filter {
-            let day = AnalyticsEngine.dayString($0.startTs, offsetSec: tzOffsetSeconds)
-            return day >= monday && day <= sunday
-        }
-        return stimulus(for: inWeek, templates: templates,
-                        reference: StrengthReference(workouts: workouts, templates: templates))
+        SessionStimulusIndex(workouts: workouts, templates: templates,
+                             tzOffsetSeconds: tzOffsetSeconds)
+            .week(containing: anchorDay)
     }
 
     // MARK: - What "usual" means for this person
@@ -217,18 +321,15 @@ public enum MuscleStimulus {
     /// Fewer than three training weeks yields nothing: three points is the least that can pretend to be
     /// a typical value, and below that the caller is expected to say it has no reference rather than
     /// draw one.
-    public static func typicalWeeklyStimulus(_ workouts: [HevyWorkout],
-                                            templates: [String: HevyExerciseTemplate],
-                                            endingBefore anchorDay: String,
-                                            weeks: Int = 8,
-                                            tzOffsetSeconds: Int = 0) -> [HevyMuscleGroup: Double] {
+    public static func typicalWeeklyStimulus(index: SessionStimulusIndex,
+                                             endingBefore anchorDay: String,
+                                             weeks: Int = 8) -> [HevyMuscleGroup: Double] {
         guard var monday = WeeklyDigestEngine.mondayOfWeek(containing: anchorDay) else { return [:] }
         monday = WeeklyDigestEngine.addDays(monday, -7)
 
         var byGroup: [HevyMuscleGroup: [Double]] = [:]
         for _ in 0..<max(weeks, 1) {
-            let week = weeklyStimulus(containing: monday, workouts: workouts,
-                                      templates: templates, tzOffsetSeconds: tzOffsetSeconds)
+            let week = index.week(containing: monday)
             if week.workingSetCount > 0 {
                 for group in HevyMuscleGroup.allCases {
                     byGroup[group, default: []].append(week.byMuscle[group] ?? 0)
@@ -245,6 +346,18 @@ public enum MuscleStimulus {
             if median > 0 { out[group] = median }
         }
         return out
+    }
+
+    /// Convenience for a caller with no index. Builds one — a full pass over the history — so prefer
+    /// the index form whenever the same screen also asks any other question of the same sessions.
+    public static func typicalWeeklyStimulus(_ workouts: [HevyWorkout],
+                                             templates: [String: HevyExerciseTemplate],
+                                             endingBefore anchorDay: String,
+                                             weeks: Int = 8,
+                                             tzOffsetSeconds: Int = 0) -> [HevyMuscleGroup: Double] {
+        typicalWeeklyStimulus(index: SessionStimulusIndex(workouts: workouts, templates: templates,
+                                                          tzOffsetSeconds: tzOffsetSeconds),
+                              endingBefore: anchorDay, weeks: weeks)
     }
 
     static func median(_ values: [Double]) -> Double {
@@ -316,17 +429,13 @@ public enum MuscleRecovery {
     ///
     /// Sessions are counted from when they STARTED, matching every other date on the screen. A session
     /// in the future contributes nothing rather than a value greater than its own stimulus.
-    public static func fatigue(workouts: [HevyWorkout],
-                               templates: [String: HevyExerciseTemplate],
+    public static func fatigue(index: MuscleStimulus.SessionStimulusIndex,
                                now: Int,
                                tau: (HevyMuscleGroup) -> Double = defaultTauSeconds)
         -> [HevyMuscleGroup: Double] {
-        let reference = MuscleStimulus.StrengthReference(workouts: workouts, templates: templates)
         var out: [HevyMuscleGroup: Double] = [:]
-        for workout in workouts where workout.startTs <= now {
-            let age = Double(now - workout.startTs)
-            let session = MuscleStimulus.stimulus(for: [workout], templates: templates,
-                                                  reference: reference)
+        for session in index.sessions where session.startTs <= now {
+            let age = Double(now - session.startTs)
             for (group, value) in session.byMuscle {
                 out[group, default: 0] += value * exp(-age / tau(group))
             }
@@ -334,19 +443,25 @@ public enum MuscleRecovery {
         return out
     }
 
+    /// Convenience for a caller with no index; builds one over the whole history.
+    public static func fatigue(workouts: [HevyWorkout],
+                               templates: [String: HevyExerciseTemplate],
+                               now: Int,
+                               tau: (HevyMuscleGroup) -> Double = defaultTauSeconds)
+        -> [HevyMuscleGroup: Double] {
+        fatigue(index: MuscleStimulus.SessionStimulusIndex(workouts: workouts, templates: templates),
+                now: now, tau: tau)
+    }
+
     /// The typical stimulus ONE session puts on a muscle — the yardstick the "right now" view divides
     /// by, so full colour means "about as much as a normal session of yours leaves behind".
     ///
     /// Median over the sessions that actually trained the muscle. Sessions that did not touch it are
     /// not evidence about what a session for it looks like.
-    public static func typicalSessionStimulus(_ workouts: [HevyWorkout],
-                                              templates: [String: HevyExerciseTemplate])
+    public static func typicalSessionStimulus(index: MuscleStimulus.SessionStimulusIndex)
         -> [HevyMuscleGroup: Double] {
-        let reference = MuscleStimulus.StrengthReference(workouts: workouts, templates: templates)
         var byGroup: [HevyMuscleGroup: [Double]] = [:]
-        for workout in workouts {
-            let session = MuscleStimulus.stimulus(for: [workout], templates: templates,
-                                                  reference: reference)
+        for session in index.sessions {
             for (group, value) in session.byMuscle where value > 0 {
                 byGroup[group, default: []].append(value)
             }
@@ -355,6 +470,14 @@ public enum MuscleRecovery {
             let m = MuscleStimulus.median(values)
             return m > 0 ? m : nil
         }
+    }
+
+    /// Convenience for a caller with no index; builds one over the whole history.
+    public static func typicalSessionStimulus(_ workouts: [HevyWorkout],
+                                              templates: [String: HevyExerciseTemplate])
+        -> [HevyMuscleGroup: Double] {
+        typicalSessionStimulus(index: MuscleStimulus.SessionStimulusIndex(workouts: workouts,
+                                                                          templates: templates))
     }
 
     /// Fit one muscle's time constant to what the wearer said, pulled toward the default.
@@ -369,25 +492,21 @@ public enum MuscleRecovery {
     /// feature is honest is that it treats those answers as evidence, not as commands.
     public static func fittedTauSeconds(for group: HevyMuscleGroup,
                                         observations: [Observation],
-                                        workouts: [HevyWorkout],
-                                        templates: [String: HevyExerciseTemplate]) -> Double {
+                                        index: MuscleStimulus.SessionStimulusIndex,
+                                        typicalSession: [HevyMuscleGroup: Double]) -> Double {
         let fallback = defaultTauSeconds(for: group)
         let mine = observations.filter { $0.group == group }.sorted { $0.ts < $1.ts }
         guard mine.count >= 2 else { return fallback }
 
-        guard let scale = typicalSessionStimulus(workouts, templates: templates)[group], scale > 0 else {
-            return fallback
-        }
+        guard let scale = typicalSession[group], scale > 0 else { return fallback }
 
-        // Precompute, once, what each answer is looking back at: the age and size of every session
-        // that had touched this muscle by then. The grid search then costs a handful of exponentials
-        // per candidate instead of rebuilding the strength reference and re-scoring the whole history.
-        // Written the obvious way first, it rebuilt that reference on the order of fifty times.
-        let reference = MuscleStimulus.StrengthReference(workouts: workouts, templates: templates)
-        let sessions: [(ts: Int, load: Double)] = workouts.compactMap { workout in
-            let value = MuscleStimulus.stimulus(for: [workout], templates: templates,
-                                                reference: reference).byMuscle[group] ?? 0
-            return value > 0 ? (workout.startTs, value) : nil
+        // What each answer is looking back at: the age and size of every session that had touched this
+        // muscle by then. The grid search then costs a handful of exponentials per candidate rather
+        // than a re-scoring of the history — and the sessions themselves arrive already priced, so
+        // fitting twenty muscle groups reads the same index twenty times instead of rebuilding it.
+        let sessions: [(ts: Int, load: Double)] = index.sessions.compactMap { session in
+            let value = session.byMuscle[group] ?? 0
+            return value > 0 ? (session.startTs, value) : nil
         }
         let lookbacks: [(ages: [Double], loads: [Double], target: Double)] = mine.map { observation in
             let past = sessions.filter { $0.ts <= observation.ts }
@@ -417,5 +536,17 @@ public enum MuscleRecovery {
         // means the fit, and the trust in between is proportional to how much was actually said.
         let trust = min(1, Double(mine.count) / Double(observationsForFullTrust))
         return fallback + (best - fallback) * trust
+    }
+
+    /// Convenience for a caller with no index. Builds one and derives the scale from it — two full
+    /// passes over the history, so a screen fitting every muscle group must use the index form instead:
+    /// twenty groups through here is forty passes, which is what it used to cost.
+    public static func fittedTauSeconds(for group: HevyMuscleGroup,
+                                        observations: [Observation],
+                                        workouts: [HevyWorkout],
+                                        templates: [String: HevyExerciseTemplate]) -> Double {
+        let index = MuscleStimulus.SessionStimulusIndex(workouts: workouts, templates: templates)
+        return fittedTauSeconds(for: group, observations: observations, index: index,
+                                typicalSession: typicalSessionStimulus(index: index))
     }
 }

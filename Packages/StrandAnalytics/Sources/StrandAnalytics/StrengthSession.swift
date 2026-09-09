@@ -474,14 +474,17 @@ public enum StrengthSession {
     ///
     /// Returns 0 when `from` is not before `to`, which makes a day in the future read as "today"
     /// rather than as a negative age. Callers rendering "N days ago" want exactly that.
+    ///
+    /// Two day numbers subtracted, not a walk. The walk it replaced stepped one calendar day at a time
+    /// — allocating and re-parsing a date string per step — and every "last worked 40 days ago" row on
+    /// the muscle list paid for forty of them while scrolling.
     public static func daysBetween(_ from: String, and to: String) -> Int {
-        var count = 0
-        var cursor = from
-        while cursor < to && count < 4000 {
-            cursor = WeeklyDigestEngine.addDays(cursor, 1)
-            count += 1
-        }
-        return count
+        guard from < to,
+              let (fy, fm, fd) = WeeklyDigestEngine.parseYMD(from),
+              let (ty, tm, td) = WeeklyDigestEngine.parseYMD(to) else { return 0 }
+        let delta = WeeklyDigestEngine.julianDayNumber(ty, tm, td)
+            - WeeklyDigestEngine.julianDayNumber(fy, fm, fd)
+        return max(0, delta)
     }
 
     // MARK: - The user's own range

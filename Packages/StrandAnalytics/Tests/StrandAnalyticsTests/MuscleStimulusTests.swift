@@ -317,4 +317,92 @@ final class MuscleStimulusTests: XCTestCase {
         XCTAssertTrue(MuscleStimulus.typicalWeeklyStimulus(workouts, templates: bench,
                                                            endingBefore: "2026-05-27").isEmpty)
     }
+
+    // MARK: - The secondary tally counts a group once
+
+    /// A template that names the same secondary group twice must be credited ONCE for a set.
+    ///
+    /// Hevy's `secondary_muscle_groups` is a list, not a set, and two of its labels can map onto one of
+    /// ours — `HevyMuscleGroup.parse` folds everything it does not recognise onto `.other`, so two
+    /// unknown labels on one exercise arrive as `[.other, .other]`. `StrengthSession` de-duplicated its
+    /// count and the stimulus estimate did not, which meant one screen's set count and the same
+    /// screen's colour disagreed with nothing on it to say which was right.
+    func testASecondaryGroupListedTwiceIsCreditedOnce() throws {
+        let templates = ["BP": template("BP", primary: .chest, secondary: [.triceps, .triceps])]
+        let session = workout("a", at: Self.ts("2026-07-08"),
+                              [exercise("BP", [set(0, kg: 100, reps: 5, rpe: 9)])])
+        let result = MuscleStimulus.stimulus(
+            for: [session], templates: templates,
+            reference: MuscleStimulus.StrengthReference(workouts: [session], templates: templates))
+        let chest = try XCTUnwrap(result.byMuscle[.chest])
+        XCTAssertGreaterThan(chest, 0)
+        XCTAssertEqual(try XCTUnwrap(result.byMuscle[.triceps]),
+                       chest * MuscleStimulus.secondaryShare, accuracy: 1e-9)
+    }
+
+    // MARK: - The index says exactly what the one-shot computation says
+
+    /// The priced index must agree with `stimulus(for:)` muscle for muscle.
+    ///
+    /// This is the guard on the optimisation, not on the arithmetic: the index exists only so a screen
+    /// stops rebuilding the strength reference dozens of times, and the moment it answers differently
+    /// it has stopped being the same feature. Asserted over a history with a rated set, an unrated set,
+    /// an exercise with no reference and an unattributable one, because those are the four paths
+    /// `setStimulus` can take.
+    func testTheIndexAgreesWithTheOneShotComputation() throws {
+        let templates = [
+            "BP": template("BP", primary: .chest, secondary: [.triceps]),
+            "PL": template("PL", primary: .abdominals, type: "duration"),
+        ]
+        let workouts = [
+            workout("pr", at: Self.ts("2026-07-01"), [exercise("BP", [set(0, kg: 100, reps: 1)])]),
+            workout("a", at: Self.ts("2026-07-03"), [exercise("BP", [set(0, kg: 80, reps: 5, rpe: 9)]),
+                                                     exercise("PL", [set(0, rpe: 8)])]),
+            workout("b", at: Self.ts("2026-07-06"), [exercise("BP", [set(0, kg: 60, reps: 8)]),
+                                                     exercise(nil, [set(0, kg: 20, reps: 12)])]),
+        ]
+        let reference = MuscleStimulus.StrengthReference(workouts: workouts, templates: templates)
+        let oneShot = MuscleStimulus.stimulus(for: workouts, templates: templates, reference: reference)
+        let index = MuscleStimulus.SessionStimulusIndex(workouts: workouts, templates: templates)
+        let fromIndex = index.total()
+
+        XCTAssertEqual(fromIndex.workingSetCount, oneShot.workingSetCount)
+        XCTAssertEqual(fromIndex.ratedSetCount, oneShot.ratedSetCount)
+        XCTAssertEqual(Set(fromIndex.byMuscle.keys), Set(oneShot.byMuscle.keys))
+        for (group, value) in oneShot.byMuscle {
+            XCTAssertEqual(try XCTUnwrap(fromIndex.byMuscle[group]), value, accuracy: 1e-9,
+                           "\(group) disagrees between the index and the one-shot computation")
+        }
+    }
+
+    /// The index-fed decay must equal the history-fed one. Same guard, one layer up: `fatigue` is what
+    /// the "right now" map is coloured by, and the convenience overload is what the tests above use.
+    func testTheIndexFedDecayMatchesTheHistoryFedOne() throws {
+        let templates = ["BP": template("BP", primary: .chest, secondary: [.triceps])]
+        let workouts = [
+            workout("pr", at: Self.ts("2026-07-01"), [exercise("BP", [set(0, kg: 100, reps: 1)])]),
+            workout("a", at: Self.ts("2026-07-04"), [exercise("BP", [set(0, kg: 85, reps: 5, rpe: 9)])]),
+        ]
+        let now = Self.ts("2026-07-06")
+        let direct = MuscleRecovery.fatigue(workouts: workouts, templates: templates, now: now)
+        let indexed = MuscleRecovery.fatigue(
+            index: MuscleStimulus.SessionStimulusIndex(workouts: workouts, templates: templates),
+            now: now)
+        XCTAssertEqual(Set(direct.keys), Set(indexed.keys))
+        for (group, value) in direct {
+            XCTAssertEqual(try XCTUnwrap(indexed[group]), value, accuracy: 1e-9)
+        }
+    }
+
+    /// A session in the FUTURE contributes nothing, through the index as it did through the history.
+    /// The window guard is the sort of thing an optimisation quietly drops.
+    func testAFutureSessionStillContributesNothing() {
+        let templates = ["BP": template("BP", primary: .chest)]
+        let workouts = [workout("later", at: Self.ts("2026-08-01"),
+                                [exercise("BP", [set(0, kg: 80, reps: 5, rpe: 9)])])]
+        let indexed = MuscleRecovery.fatigue(
+            index: MuscleStimulus.SessionStimulusIndex(workouts: workouts, templates: templates),
+            now: Self.ts("2026-07-20"))
+        XCTAssertTrue(indexed.isEmpty)
+    }
 }

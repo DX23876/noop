@@ -566,4 +566,25 @@ final class StrengthSessionTests: XCTestCase {
         ])
         XCTAssertEqual(StrengthSession.exerciseFrequency([w]).first?.sessions, 1)
     }
+    // MARK: - Day arithmetic
+
+    /// Whole days, both ends pinned. The figure behind every "last worked N days ago" row.
+    func testDaysBetweenCountsWholeDaysAcrossMonthAndYearBoundaries() {
+        XCTAssertEqual(StrengthSession.daysBetween("2026-07-01", and: "2026-07-01"), 0)
+        XCTAssertEqual(StrengthSession.daysBetween("2026-07-01", and: "2026-07-02"), 1)
+        XCTAssertEqual(StrengthSession.daysBetween("2026-06-28", and: "2026-07-02"), 4)
+        XCTAssertEqual(StrengthSession.daysBetween("2025-12-30", and: "2026-01-02"), 3)
+        // 2028 is a leap year: February has 29 days and the count must include it.
+        XCTAssertEqual(StrengthSession.daysBetween("2028-02-27", and: "2028-03-01"), 3)
+        XCTAssertEqual(StrengthSession.daysBetween("2027-02-27", and: "2027-03-01"), 2)
+    }
+
+    /// A day in the future reads as "today", not as a negative age — and an unparseable key yields 0
+    /// rather than a number nobody can account for.
+    func testDaysBetweenRefusesToGoBackwards() {
+        XCTAssertEqual(StrengthSession.daysBetween("2026-07-05", and: "2026-07-01"), 0)
+        XCTAssertEqual(StrengthSession.daysBetween("not-a-day", and: "2026-07-01"), 0)
+        XCTAssertEqual(StrengthSession.daysBetween("2026-07-01", and: "also-not"), 0)
+    }
+
 }
