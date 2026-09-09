@@ -278,7 +278,159 @@ enum AppleDemoSeeder {
         _ = try await store.upsertAppleDaily(appleRows, deviceId: apple)
         if !workouts.isEmpty { _ = try await store.upsertWorkouts(workouts, deviceId: whoop) }
         if !journal.isEmpty { _ = try await store.upsertJournal(journal, deviceId: whoop) }
-        NSLog("AppleDemoSeeder: seeded \(daily.count) days, \(workouts.count) workouts.")
+        let lifts = try await seedStrength(into: store, startDay: startDay, cal: cal, isoFmt: isoFmt)
+        NSLog("AppleDemoSeeder: seeded \(daily.count) days, \(workouts.count) workouts, \(lifts) lifting sessions.")
+    }
+
+    // MARK: - The strength lane
+    //
+    // Without this the Strength screen was unverifiable anywhere but a real account with Hevy connected:
+    // the seeder filled workouts, sleep and weight but never a lifting session, so every strength
+    // surface — the muscle map, the per-exercise trend, records, balance, the session breakdown — sat on
+    // its empty state and a visual check was impossible. The same gap the goal seed above was added to
+    // close, one lane over.
+    //
+    // A SEPARATE RNG, seeded independently. Drawing from the shared one would shift every subsequent
+    // draw and silently change the whole demo dataset — the sleep, the workouts, the journal — which is
+    // exactly what a fixed seed exists to prevent.
+    //
+    // The programme is a deliberate push / pull / legs split on Mon-Wed-Fri, with weights that climb
+    // slowly. That is not decoration: a flat programme would leave the trend line, the records and the
+    // balance card each rendering the "not enough to say" state they are designed to fall back to, and
+    // none of them would be verifiable.
+    private static func seedStrength(into store: WhoopStore, startDay: Date,
+                                     cal: Calendar, isoFmt: DateFormatter) async throws -> Int {
+        var rng = SplitMix64(seed: 0x5E7_5E7)
+        let templates = strengthTemplates
+        _ = try await store.upsertHevyExerciseTemplates(templates)
+
+        /// templateId → the working weight this block starts at. Bodyweight and timed movements carry
+        /// nil, so the seeded data exercises the "no weight logged" paths too.
+        let openingWeight: [String: Double?] = [
+            "demo-bench": 72.5, "demo-ohp": 45.0, "demo-pushdown": 32.5, "demo-dip": 10.0,
+            "demo-pullup": nil, "demo-row": 65.0, "demo-curl": 16.0,
+            "demo-squat": 95.0, "demo-rdl": 85.0, "demo-legpress": 160.0, "demo-plank": nil,
+        ]
+        // Monday push, Wednesday pull, Friday legs. Each entry is (templateId, working sets).
+        let split: [Int: (title: String, plan: [(String, Int)])] = [
+            2: ("Push", [("demo-bench", 4), ("demo-ohp", 3), ("demo-dip", 3), ("demo-pushdown", 3)]),
+            4: ("Pull", [("demo-row", 4), ("demo-pullup", 3), ("demo-curl", 3), ("demo-plank", 2)]),
+            6: ("Legs", [("demo-squat", 4), ("demo-rdl", 3), ("demo-legpress", 3), ("demo-plank", 2)]),
+        ]
+
+        var sessions: [HevyWorkout] = []
+        var mirrored: [WorkoutRow] = []
+
+        for i in 0..<DAYS {
+            let date = cal.date(byAdding: .day, value: i, to: startDay)!
+            let weekday = cal.component(.weekday, from: date)   // 1=Sun … 7=Sat
+            guard let day = split[weekday] else { continue }
+            // One missed session in ten, so the weekly bands have something to be a range OF.
+            guard rng.nextDouble() > 0.10 else { continue }
+
+            let weeks = Double(i) / 7.0
+            let start = Int(cal.startOfDay(for: date).timeIntervalSince1970) + 18 * 3600 + rng.nextInt(0, 40) * 60
+            var exercises: [HevyExercise] = []
+
+            for (index, entry) in day.plan.enumerated() {
+                let (templateId, workingSets) = entry
+                let template = templates.first { $0.id == templateId }
+                var sets: [HevySet] = []
+                var setIndex = 0
+
+                // Progressive overload: ~0.4 % a week off the opening weight, with a little noise, so
+                // the trend line has a direction and the records move a few times across the window.
+                let base = (openingWeight[templateId] ?? nil).map { $0 * (1 + 0.004 * weeks) }
+
+                // A warmup on the first movement of the day — the one the detail view dims and every
+                // figure excludes.
+                if index == 0, let base {
+                    sets.append(HevySet(index: setIndex, type: .warmup,
+                                        weightKg: round1(base * 0.55), reps: 8,
+                                        distanceM: nil, durationS: nil, rpe: nil, customMetric: nil))
+                    setIndex += 1
+                }
+
+                for setNumber in 0..<workingSets {
+                    // RPE on roughly two sets in three: the map's rated-share caption only says
+                    // something when the coverage is partial.
+                    let rpe: Double? = rng.nextDouble() < 0.66
+                        ? (7.0 + Double(setNumber) * 0.5 + (rng.nextDouble() < 0.3 ? 0.5 : 0)).clamped(6.0, 10.0)
+                        : nil
+                    if templateId == "demo-plank" {
+                        sets.append(HevySet(index: setIndex, type: .normal, weightKg: nil, reps: nil,
+                                            distanceM: nil, durationS: 45 + Double(rng.nextInt(0, 30)),
+                                            rpe: rpe, customMetric: nil))
+                    } else if let base {
+                        let reps = 5 + rng.nextInt(0, 4)
+                        let weight = round1(base * (1 - Double(setNumber) * 0.025) + gauss(&rng, 0, 1.2))
+                        sets.append(HevySet(index: setIndex, type: setNumber == workingSets - 1 && rng.nextDouble() < 0.15 ? .failure : .normal,
+                                            weightKg: weight, reps: reps,
+                                            distanceM: nil, durationS: nil, rpe: rpe, customMetric: nil))
+                    } else {
+                        // Bodyweight reps — no weight logged, which is exactly the case the bodyweight
+                        // volume figure exists for.
+                        sets.append(HevySet(index: setIndex, type: .normal, weightKg: nil,
+                                            reps: 6 + rng.nextInt(0, 5),
+                                            distanceM: nil, durationS: nil, rpe: rpe, customMetric: nil))
+                    }
+                    setIndex += 1
+                }
+
+                exercises.append(HevyExercise(
+                    index: index, title: template?.title ?? templateId, templateId: templateId,
+                    // The last two movements of each day are supersetted, so the detail view's grouping
+                    // has something to group.
+                    supersetId: index >= day.plan.count - 2 ? 1 : nil,
+                    notes: nil, sets: sets))
+            }
+
+            let duration = 3300 + rng.nextInt(0, 1500)
+            sessions.append(HevyWorkout(
+                id: "demo-\(isoFmt.string(from: date))", title: day.title, routineId: nil,
+                notes: nil, startTs: start, endTs: start + duration,
+                updatedAtTs: start, createdAtTs: start, exercises: exercises,
+                source: .hevyAPI))
+            // The mirror the sync coordinator would write, so the session also appears in the Workouts
+            // list and the Strength screen can pair it with what the strap recorded.
+            mirrored.append(WorkoutRow(
+                startTs: start, endTs: start + duration, sport: "Strength Training", source: "hevy",
+                durationS: Double(duration), energyKcal: nil, avgHr: nil, maxHr: nil,
+                strain: nil, distanceM: nil, zonesJSON: nil, notes: nil, steps: nil))
+        }
+
+        guard !sessions.isEmpty else { return 0 }
+        _ = try await store.upsertStrengthWorkouts(sessions)
+        _ = try await store.upsertWorkouts(mirrored, deviceId: "hevy")
+        return sessions.count
+    }
+
+    /// The demo exercise catalogue.
+    ///
+    /// Deliberately spans every movement SHAPE the strength lane handles — weight-and-reps, bodyweight
+    /// reps, weighted bodyweight, and a timed hold — because each takes a different path through the
+    /// e1RM estimate and the bodyweight pricing, and a catalogue of barbell lifts alone would leave
+    /// three of those four paths unrendered.
+    private static var strengthTemplates: [HevyExerciseTemplate] {
+        func t(_ id: String, _ title: String, _ type: String, _ primary: HevyMuscleGroup,
+               _ secondary: [HevyMuscleGroup], _ equipment: HevyEquipment) -> HevyExerciseTemplate {
+            HevyExerciseTemplate(id: id, title: title, type: type, primaryMuscleGroup: primary,
+                                 secondaryMuscleGroups: secondary, equipment: equipment,
+                                 isCustom: false)
+        }
+        return [
+            t("demo-bench", "Bench Press (Barbell)", "weight_reps", .chest, [.triceps, .shoulders], .barbell),
+            t("demo-ohp", "Overhead Press (Barbell)", "weight_reps", .shoulders, [.triceps], .barbell),
+            t("demo-pushdown", "Triceps Pushdown", "weight_reps", .triceps, [], .machine),
+            t("demo-dip", "Dip (Weighted)", "weighted_bodyweight", .chest, [.triceps], .none),
+            t("demo-pullup", "Pull Up", "bodyweight_reps", .lats, [.biceps], .none),
+            t("demo-row", "Bent Over Row (Barbell)", "weight_reps", .upperBack, [.biceps, .lats], .barbell),
+            t("demo-curl", "Biceps Curl (Dumbbell)", "weight_reps", .biceps, [.forearms], .dumbbell),
+            t("demo-squat", "Back Squat (Barbell)", "weight_reps", .quadriceps, [.glutes, .lowerBack], .barbell),
+            t("demo-rdl", "Romanian Deadlift", "weight_reps", .hamstrings, [.glutes, .lowerBack], .barbell),
+            t("demo-legpress", "Leg Press", "weight_reps", .quadriceps, [.glutes], .machine),
+            t("demo-plank", "Plank", "duration", .abdominals, [], .none),
+        ]
     }
 
     // MARK: - helpers
