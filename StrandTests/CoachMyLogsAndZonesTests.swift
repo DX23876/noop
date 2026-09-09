@@ -82,11 +82,20 @@ final class CoachMyLogsAndZonesTests: XCTestCase {
         // no parameter that could carry a value, so the model names a card and the app fills in every
         // number from the user's own series. A figure the model assembled and the app rendered as a
         // measurement is the invention this whole app is arranged to avoid.
-        XCTAssertEqual(engine.coachTools.count, 32,
+        //
+        // 32 → 34: `get_strength_history` and `propose_hevy_workout`, from the unified strength import.
+        // Reviewed and intended, and this pin was simply not bumped with them — it has been red since,
+        // unnoticed because `app-build.yml` (the only place StrandTests runs) had not been dispatched.
+        // Both earn the round: `get_strength_history` is the read the coach needs before it can say
+        // anything true about lifting — without it the model either guesses at volume or asks the user
+        // to retype what the app already holds — and `propose_hevy_workout` is the write side of the
+        // same lane, a single session drafted for review rather than the whole routine
+        // `propose_hevy_routine` covers.
+        XCTAssertEqual(engine.coachTools.count, 34,
                        "tool count changed — confirm the added per-round cost is intended")
 
         engine.toolConsent.enabled.insert(.patterns)
-        XCTAssertEqual(engine.coachTools.count, 34,
+        XCTAssertEqual(engine.coachTools.count, 36,
                        "the second opt-in adds personal patterns and training preferences")
     }
 

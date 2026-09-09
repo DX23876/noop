@@ -305,8 +305,36 @@ final class Repository: ObservableObject {
     }
 
     func adoptRegisteredWhoopIds(_ ids: [String]) {
+        resolvedRegisteredWhoopIdsFromRegistry = true
         registeredWhoopIds = ids.reduce(into: []) { result, id in
             if !result.contains(id) { result.append(id) }
+        }
+    }
+
+    /// Whether `registeredWhoopIds` has been established at least once — by `adoptRegisteredWhoopIds`
+    /// or by the registry read below. NOT the same as "the list is non-empty": a single-strap install
+    /// legitimately resolves to a list this facade adds nothing to, and re-reading the registry on
+    /// every raw call to rediscover that would be a query per read.
+    private var resolvedRegisteredWhoopIdsFromRegistry = false
+
+    /// Establish the registered WHOOP ids from the registry when nobody has adopted them yet.
+    ///
+    /// `AppModel.wireSourceCoordinator` is the normal author of this list, but it runs asynchronously
+    /// after launch — so every raw read that happens BEFORE it lands saw an empty list and silently
+    /// dropped a re-added or archived strap's samples. That is precisely the union this facade exists
+    /// to provide, missing for exactly as long as startup takes, and it is why the read path was given
+    /// the store in the first place (`rawPhysiologyReadIds(store:)`). Resolved once and then left
+    /// alone; the adopt above remains the authority and overwrites whatever this found.
+    ///
+    /// Best-effort by design: an unreadable registry leaves the list empty, which is the pre-existing
+    /// behaviour (active id ∪ canonical), never an error a chart has to render.
+    private func ensureRegisteredWhoopIds(store: WhoopStore) {
+        guard !resolvedRegisteredWhoopIdsFromRegistry else { return }
+        resolvedRegisteredWhoopIdsFromRegistry = true
+        let registry = DeviceRegistryStore(dbQueue: store.registryWriter)
+        guard let devices = try? registry.all() else { return }
+        registeredWhoopIds = devices.compactMap {
+            $0.brand.caseInsensitiveCompare("WHOOP") == .orderedSame ? $0.id : nil
         }
     }
 
@@ -323,8 +351,9 @@ final class Repository: ObservableObject {
     /// the final fallback. Archived devices intentionally remain: archive means "stop connecting, keep
     /// data", and historical timelines must not orphan their retained samples. The active id remains first
     /// even for a non-WHOOP provider, preserving the pre-multi-strap cross-provider path.
-    private func rawPhysiologyReadIds(store _: WhoopStore) -> [String] {
-        Self.rawWhoopSourceIds(activeDeviceId: deviceId, registeredWhoopIds: registeredWhoopIds)
+    private func rawPhysiologyReadIds(store: WhoopStore) -> [String] {
+        ensureRegisteredWhoopIds(store: store)
+        return Self.rawWhoopSourceIds(activeDeviceId: deviceId, registeredWhoopIds: registeredWhoopIds)
     }
 
     /// Pure ordering contract shared with Android's parity guard: current active source first, every other
