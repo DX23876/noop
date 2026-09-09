@@ -53,46 +53,16 @@ import StrandDesign
 struct StrengthView: View {
     @EnvironmentObject var repo: Repository
 
-    /// Every session in the read window, newest first.
-    @State private var workouts: [HevyWorkout] = []
-    @State private var templates: [String: HevyExerciseTemplate] = [:]
-    @State private var summaries: [StrengthSessionSummary] = []
-    /// The mirrored `WorkoutRow`s, which is where the strap's heart rate lands — the "how did the body
-    /// answer" half of the pairing this whole lane exists for.
-    @State private var rows: [WorkoutRow] = []
-    /// Mean Charge and the Readiness level for the selected week.
-    @State private var weekCharge: Double?
-    @State private var weekEffort: Double?
-    @State private var preparedWeek = StrengthSession.WeekSummary(
-        mondayKey: "", sessionCount: 0, workingSetCount: 0, volumeLoadKg: 0,
-        setsByMuscle: [:], secondarySetsByMuscle: [:], unattributedSetCount: 0)
-    @State private var preparedTypicalBands: [HevyMuscleGroup: ClosedRange<Double>] = [:]
-    @State private var preparedStrengthLoad: StrengthSession.SetLoadRatio?
-    @State private var exerciseChoices: [(templateId: String, sessions: Int)] = []
+    /// Everything this screen shows and the work that derives it. See `StrengthModel` for why it is
+    /// not twenty pieces of `@State` in here any more.
+    ///
+    /// Internal rather than private because the cards in `StrengthCards.swift` read it, and `private`
+    /// in Swift is file-scoped.
+    @StateObject var model = StrengthModel()
 
     @State private var mapFace: MuscleLoadMap.Face = .front
     @State private var mapMode: MapMode = .now
     @State private var selectedRegion: MuscleLoadMap.Region?
-    /// Working sets per muscle over the trailing 7 days, and when each was last worked. Both are
-    /// computed once at load — they depend on the sessions, not on which week the stepper points at.
-    @State private var recentSets: [HevyMuscleGroup: Int] = [:]
-    @State private var lastWorked: [HevyMuscleGroup: (day: String, startTs: Int, exercise: String)] = [:]
-    /// Estimated load still outstanding per muscle, and the yardstick it is measured against — a
-    /// typical session for that muscle. Both from `MuscleStimulus` / `MuscleRecovery`.
-    @State private var fatigueNow: [HevyMuscleGroup: Double] = [:]
-    @State private var typicalSession: [HevyMuscleGroup: Double] = [:]
-    /// The selected week's estimated stimulus, and the wearer's usual week. Recomputed when the
-    /// stepper moves, never in `body`.
-    @State private var weekStimulus: [HevyMuscleGroup: Double] = [:]
-    @State private var typicalWeek: [HevyMuscleGroup: Double] = [:]
-    /// How much of the estimate rests on rated sets. Without RPE the proximity term is a constant, so
-    /// half the model is inert — and the card says so rather than looking equally confident.
-    @State private var ratedShare: Double = 0
-    /// The wearer's own answers, and the time constants fitted from them.
-    @State private var feedback: [MuscleRecovery.Observation] = []
-    @State private var tauByGroup: [HevyMuscleGroup: Double] = [:]
-    @State private var feedbackTarget: HevyMuscleGroup?
-
     /// The two questions the map can answer. They are genuinely different — "what is still on me" is
     /// about now, "what did this week hold" is about a week — so they get a switch rather than one
     /// blended number that answers neither.
@@ -107,23 +77,40 @@ struct StrengthView: View {
         }
     }
 
-    @State private var selectedTemplateId: String?
-    @State private var loaded = false
-    /// 0 = the week containing today; each step back is one Monday–Sunday week earlier. Same shape as
-    /// `TrendsView`'s digest stepper, so the two navigate identically.
-    @State private var weekOffset = 0
     @State private var infoTopic: InfoTopic?
     @State private var showingAllSessions = false
     @State private var showingFullScreenMap = false
-    @State private var unmappedExercises: [String] = []
+    /// The session the detail sheet is showing, by Hevy workout id.
+    @State private var openSession: SessionTarget?
+    struct SessionTarget: Identifiable, Equatable { let id: String }
     private struct ExerciseMappingTarget: Identifiable { let name: String; var id: String { name } }
     @State private var mappingExercise: ExerciseMappingTarget?
     @State private var mappingPrimary: HevyMuscleGroup = .other
     @State private var mappingSecondary: Set<HevyMuscleGroup> = []
 
-    /// How far back the screen reads. A quarter covers a training block and the eight-week bands.
-    private let historyDays = 120
     private var tzOffset: Int { TimeZone.current.secondsFromGMT() }
+
+    // MARK: - The model, read as plain properties
+    //
+    // Thin proxies rather than `model.` at every use site: the rendering below is unchanged from when
+    // these were `@State`, and a mechanical prefix on two hundred lines would have made the move
+    // impossible to review for what it actually changed.
+
+    private var workouts: [HevyWorkout] { model.workouts }
+    private var templates: [String: HevyExerciseTemplate] { model.templates }
+    private var summaries: [StrengthSessionSummary] { model.summaries }
+    private var loaded: Bool { model.loaded }
+    private var unmappedExercises: [String] { model.unmappedExercises }
+    private var lastWorked: [HevyMuscleGroup: (day: String, startTs: Int, exercise: String)] { model.lastWorked }
+    private var fatigueNow: [HevyMuscleGroup: Double] { model.fatigueNow }
+    private var typicalSession: [HevyMuscleGroup: Double] { model.typicalSession }
+    private var weekStimulus: [HevyMuscleGroup: Double] { model.weekStimulus }
+    private var typicalWeek: [HevyMuscleGroup: Double] { model.typicalWeek }
+    private var ratedShare: Double { model.ratedShare }
+    private var weekCharge: Double? { model.weekCharge }
+    private var weekEffort: Double? { model.weekEffort }
+    private var trend: [ExercisePerformancePoint] { model.trend }
+    private var weekOffset: Int { model.weekOffset }
 
     @ViewBuilder
     var body: some View {
@@ -146,6 +133,7 @@ struct StrengthView: View {
                 } else {
                     thisWeek
                     muscleGroups
+                    balanceCard
                     exerciseProgress
                     recentSessions
                     actionRow
@@ -163,7 +151,22 @@ struct StrengthView: View {
         .sheet(item: $infoTopic) { topic in infoSheet(topic) }
         .sheet(isPresented: $showingAllSessions) { allSessionsSheet }
         .sheet(item: $mappingExercise) { exercise in exerciseMappingSheet(exercise.name) }
-        .task(id: repo.refreshSeq) { await loadStrengthData() }
+        .sheet(item: $openSession) { target in detailSheet(workoutId: target.id) }
+        .task(id: repo.refreshSeq) { await model.load(repo: repo) }
+        // `onChange`, not a second `.task(id:)`: a `.task(id:)` also fires on first appearance, so two
+        // of them meant every launch of this screen loaded the whole history twice.
+        .onChangeCompat(of: model.range) { _ in
+            Task { await model.load(repo: repo) }
+        }
+    }
+
+    /// The session detail, however it was reached.
+    @ViewBuilder
+    private func detailSheet(workoutId: String) -> some View {
+        if let breakdown = model.breakdown(for: workoutId) {
+            StrengthSessionDetailView(breakdown: breakdown,
+                                      matchedRow: model.matchedRow(for: breakdown.summary))
+        }
     }
 
     // MARK: - Sync status
@@ -207,7 +210,7 @@ struct StrengthView: View {
             NoopCard {
                 VStack(alignment: .leading, spacing: NoopMetrics.space2) {
                     if HevyCredentials.isConnected {
-                        Text("No strength sessions in the last \(historyDays) days.")
+                        Text("No strength sessions in the last \(model.range.days) days.")
                             .font(StrandFont.headline).foregroundStyle(StrandPalette.textPrimary)
                         Text("Hevy is connected. Sessions appear here after the next sync.")
                             .font(StrandFont.subhead).foregroundStyle(StrandPalette.textSecondary)
@@ -229,6 +232,8 @@ struct StrengthView: View {
         VStack(alignment: .leading, spacing: NoopMetrics.gap) {
             weekNavBar
             NoopCard {
+                // Three across: seven small facts to scan. See `tile(_:)` for why the shared
+                // Today tile could not simply be dropped in here at this size.
                 LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: 3),
                           spacing: 10) {
                     tile(icon: "dumbbell.fill", label: String(localized: "Sessions"),
@@ -237,10 +242,17 @@ struct StrengthView: View {
                          value: "\(week.workingSetCount)", tint: DomainTheme.effort.color)
                     tile(icon: "scalemass.fill", label: String(localized: "Volume"),
                          value: volumeText(week.volumeLoadKg), tint: DomainTheme.effort.color)
+                    bodyweightTile
                     strengthLoadTile
                     cardioLoadTile
                     chargeTile
                 }
+            }
+            if let progress = weekProgressText {
+                Label(progress, systemImage: "hourglass")
+                    .font(StrandFont.caption)
+                    .foregroundStyle(StrandPalette.textTertiary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
     }
@@ -255,6 +267,7 @@ struct StrengthView: View {
                     .foregroundStyle(StrandPalette.textPrimary)
             }
             Spacer(minLength: 8)
+            rangePicker
             HStack(spacing: 10) {
                 Button { stepWeek(-1) } label: { Image(systemName: "chevron.left") }
                     .disabled(weekOffset <= minWeekOffset)
@@ -270,46 +283,120 @@ struct StrengthView: View {
         }
     }
 
-    /// One tile of the weekly grid.
+    /// How far back the screen reads.
     ///
-    /// Laid out here rather than with `StatTile`: that component's icon variant reserves its width for
-    /// Today's two-column grid, and at three across every label truncated to "Sessi…" / "Hard…" —
-    /// which is worse than a local layout, because a tile whose label cannot be read is a number with
-    /// no name. The tokens are the design system's; only the arrangement is local.
+    /// It exists because the questions this screen gained cannot be answered inside a quarter: a record
+    /// set last spring, or a strength trend over a year, simply was not visible when the window was a
+    /// fixed 120 days. Reloading on a change rather than reading everything up front keeps the default
+    /// cheap for the people who never touch it.
+    private var rangePicker: some View {
+        Menu {
+            ForEach(StrengthModel.HistoryRange.allCases) { option in
+                Button {
+                    model.range = option
+                } label: {
+                    if model.range == option {
+                        Label(option.label, systemImage: "checkmark")
+                    } else {
+                        Text(option.label)
+                    }
+                }
+            }
+        } label: {
+            HStack(spacing: 4) {
+                Image(systemName: "calendar")
+                    .font(.system(size: 10, weight: .semibold))
+                Text(model.range.label)
+                    .font(StrandFont.caption)
+            }
+            .foregroundStyle(StrandPalette.textSecondary)
+            .padding(.horizontal, 9)
+            .padding(.vertical, 5)
+            .background(StrandPalette.surfaceInset,
+                        in: Capsule())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(String(localized: "History window"))
+    }
+
+    /// One tile of the weekly grid — compact, and every one the same size.
+    ///
+    /// Three across on a phone, deliberately small: this block is seven facts to be scanned, not seven
+    /// cards to be read. Two earlier attempts were both worse for the same underlying reason — the
+    /// shared `TodayMetricTile` sizes itself around its CONTENT, so a tile carrying a sparkline stood
+    /// taller than one that did not, and widening the grid to stop the labels truncating made the whole
+    /// block twice the height it needs.
+    ///
+    /// So: the modern surface and the coloured icon chip are the design system's (`TodayCardSurface`,
+    /// the same one Today's tiles sit on), and the LAYOUT is local and fixed-height, which is what makes
+    /// the grid line up. The eight-week history the sparklines used to show lives where there is room
+    /// for it — the week stepper, and the exercise chart below.
     private func tile(icon: String, label: String, value: String,
                       tint: Color, caption: String? = nil,
                       info: InfoTopic? = nil) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 5) {
-                Image(systemName: icon)
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(tint)
-                    .accessibilityHidden(true)
+            HStack(spacing: 0) {
+                ZStack {
+                    Circle().fill(tint.opacity(0.13))
+                    Image(systemName: icon)
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(tint)
+                }
+                .frame(width: 22, height: 22)
+                .accessibilityHidden(true)
                 Spacer(minLength: 0)
                 if let info { infoButton(info) }
             }
+            Spacer(minLength: 0)
             Text(value)
-                .font(StrandFont.number(24))
+                .font(StrandFont.number(26))
                 .foregroundStyle(StrandPalette.textPrimary)
-                .minimumScaleFactor(0.7)
                 .lineLimit(1)
+                .minimumScaleFactor(0.55)
+            // `subhead`, not `caption`: on iOS the scale runs subhead (13) → caption (12) → footnote
+            // (11), and a tile label set in caption reads as a footnote to a number that is the point
+            // of the tile. The caption line below stays a step smaller, which is what keeps the two
+            // apart now that the label has grown.
             Text(label)
-                .font(StrandFont.caption)
+                .font(StrandFont.subhead)
                 .foregroundStyle(StrandPalette.textSecondary)
-                .lineLimit(1).minimumScaleFactor(0.75)
-            if let caption {
-                Text(caption)
-                    .font(StrandFont.caption)
-                    .foregroundStyle(tint)
-                    .lineLimit(1).minimumScaleFactor(0.75)
-            }
+                .lineLimit(1)
+                .minimumScaleFactor(0.65)
+            // The caption line is RESERVED even when empty, so a tile that has nothing to add is the
+            // same height as one that does. Without it the grid rows staggered by a line.
+            Text(caption ?? " ")
+                .font(StrandFont.caption)
+                .foregroundStyle(tint)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(10)
-        .background(StrandPalette.surfaceInset,
-                    in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .padding(.horizontal, 10)
+        .padding(.vertical, 9)
+        .frame(maxWidth: .infinity, minHeight: 112, maxHeight: 112, alignment: .leading)
+        .background(TodayCardSurface(tint: tint, cornerRadius: NoopMetrics.groupedRadius))
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(label): \(value)\(caption.map { ", " + $0 } ?? "")")
+    }
+
+    /// The week's bodyweight volume — the work a calisthenics day actually moved, which volume load
+    /// counts as zero.
+    ///
+    /// Shown only when there IS some: a lifter who never does bodyweight work should not carry a
+    /// permanently empty tile, and a dash here would read as missing data rather than as "not
+    /// applicable". When weigh-ins were missing for some of it, the caption says how many sets went
+    /// unpriced instead of quietly leaving them out.
+    @ViewBuilder
+    private var bodyweightTile: some View {
+        if model.weekBodyweightKg > 0 || model.weekUnpricedBodyweightSets > 0 {
+            tile(icon: "figure.strengthtraining.functional",
+                 label: String(localized: "Bodyweight"),
+                 value: model.weekBodyweightKg > 0 ? volumeText(model.weekBodyweightKg) : "—",
+                 tint: StrandPalette.metricCyan,
+                 caption: model.weekUnpricedBodyweightSets > 0
+                    ? String(localized: "\(model.weekUnpricedBodyweightSets) sets unpriced")
+                    : String(localized: "\(model.weekBodyweightSets) sets"),
+                 info: .bodyweight)
+        }
     }
 
     /// The acute:chronic ratio of working sets, AS OF the selected week rather than as of today.
@@ -318,7 +405,7 @@ struct StrengthView: View {
     /// silently describes the present would put two different weeks on one card and label them the same.
     @ViewBuilder
     private var strengthLoadTile: some View {
-        let load = preparedStrengthLoad
+        let load = model.strengthLoad
         tile(icon: "chart.bar.fill",
              label: String(localized: "Strength load"),
              value: load.map { String(format: "%.2f", $0.ratio) } ?? "—",
@@ -409,6 +496,12 @@ struct StrengthView: View {
                         ForEach(muscleRows, id: \.group) { row in muscleRow(row) }
                         if week.unattributedSetCount > 0 {
                             Text("\(week.unattributedSetCount) sets couldn't be matched to a muscle group — their exercise isn't in the synced catalogue yet.")
+                                .font(StrandFont.caption)
+                                .foregroundStyle(StrandPalette.textTertiary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        if weekProgressText != nil {
+                            Text("This week is still running, and the band beside each muscle is made of your COMPLETE weeks — so a bar sitting below it today is not yet a shortfall.")
                                 .font(StrandFont.caption)
                                 .foregroundStyle(StrandPalette.textTertiary)
                                 .fixedSize(horizontal: false, vertical: true)
@@ -601,7 +694,7 @@ struct StrengthView: View {
             secondaryMuscleGroups: mappingSecondary.sorted { $0.rawValue < $1.rawValue })
         try? await store.upsertStrengthExerciseMapping(mapping)
         mappingExercise = nil
-        await loadStrengthData()
+        await model.load(repo: repo)
     }
 
     /// What the colours mean, spelled out. Without this the ramp is read as a health verdict.
@@ -650,6 +743,20 @@ struct StrengthView: View {
             parts.append(String(localized: "Estimated load still on each muscle, against what one of your usual sessions leaves behind. How fast that fades is assumed, not measured — your answers are what correct it."))
         case .week:
             parts.append(String(localized: "Estimated stimulus this week, against your own usual week. It weighs each set by how heavy it was for you and how close to failure — it is not a count of sets."))
+            // Two artefacts of cutting a continuous load into calendar weeks, said out loud rather than
+            // hidden, because on a colour ramp both of them read as a physiological claim:
+            //
+            //   • Mid-week everything shades light — not because the load is low, but because the week
+            //     is two days old and the comparison is against FINISHED weeks.
+            //   • Monday is a calendar boundary, not a physiological one. Sunday night's leg session is
+            //     still on you on Monday morning, and this view shows zero for it.
+            //
+            // Neither is a defect in the arithmetic; both are why "Right now" exists, is the default,
+            // and is the view that actually answers "what is still on me".
+            if weekProgressText != nil {
+                parts.append(String(localized: "This week is only \(weekElapsedDays) days old and your usual week is made of complete ones, so light shading here means the week is young, not that a muscle is fresh."))
+            }
+            parts.append(String(localized: "The week boundary is a calendar one: Sunday's session counts to last week even though it is still on you today. Switch to Right now for that question."))
         }
         if ratedShare < 0.5 {
             parts.append(String(localized: "Only \(Int((ratedShare * 100).rounded())) % of your sets carry an RPE, so the effort half of the estimate is mostly a default."))
@@ -686,14 +793,7 @@ struct StrengthView: View {
     }
 
     private func record(_ feeling: MuscleRecovery.Feeling, for group: HevyMuscleGroup) {
-        let ts = Int(Date().timeIntervalSince1970)
-        feedback.append(.init(group: group, ts: ts, feeling: feeling))
-        Task {
-            await refitTau()
-            guard let store = await repo.storeHandle() else { return }
-            try? await store.saveMuscleRecoveryFeedback(
-                .init(muscleGroup: group, ts: ts, feeling: feeling.rawValue))
-        }
+        Task { await model.record(feeling, for: group, repo: repo) }
     }
 
     /// One muscle-group row: name, the bar with the user's own band behind it, and the count.
@@ -733,9 +833,16 @@ struct StrengthView: View {
             NoopCard {
                 VStack(alignment: .leading, spacing: NoopMetrics.space2) {
                     exercisePicker
-                    if trend.count < 2 {
-                        Text("Not enough sessions of this exercise yet to show a trend.")
+                    // The guard tests the PLOTTABLE points, not the sessions. A plank has plenty of
+                    // sessions and no plottable value at all — no 1RM estimate (it is not a
+                    // weight-and-reps movement) and no volume load (no weight was lifted) — so this
+                    // drew an empty 0–100 grid under a caption explaining a line that was not there.
+                    if chartPoints.count < 2 {
+                        Text(trend.isEmpty
+                             ? String(localized: "Not enough sessions of this exercise yet to show a trend.")
+                             : String(localized: "This movement carries no number to plot: it has no one-rep-max estimate, and no weight to compute a volume load from. Sets and reps for it are in the sessions below."))
                             .font(StrandFont.subhead).foregroundStyle(StrandPalette.textSecondary)
+                            .fixedSize(horizontal: false, vertical: true)
                     } else {
                         // Side by side only where there is room for both.
                         //
@@ -745,14 +852,16 @@ struct StrengthView: View {
                         // Shortening the dates would have hidden that; the cause is the column, so on a
                         // compact width the facts go underneath and the chart gets the full card.
                         let chart = TrendChart(
-                            points: e1rmPoints,
+                            points: chartPoints,
                             gradient: Gradient(colors: [DomainTheme.effort.color.opacity(0.35),
                                                         DomainTheme.effort.color]),
-                            valueRange: e1rmRange,
+                            valueRange: chartRange,
                             height: 150,
                             valueFormat: { String(format: "%.0f kg", $0) },
                             dateFormat: { $0.formatted(date: .abbreviated, time: .omitted) },
-                            accessibilityLabel: String(localized: "Estimated one-rep max trend"))
+                            accessibilityLabel: model.trendIsVolume
+                                ? String(localized: "Volume per session trend")
+                                : String(localized: "Estimated one-rep max trend"))
                         if isCompact {
                             chart
                             trendFacts
@@ -762,10 +871,11 @@ struct StrengthView: View {
                                 trendFacts.frame(width: 132)
                             }
                         }
-                        Text("Estimated 1RM (Epley) from each session's best working set — a projection, not a lift you performed. Sets above 12 reps are left out, because the estimate stops being reliable there.")
+                        Text(chartCaption)
                             .font(StrandFont.caption)
                             .foregroundStyle(StrandPalette.textTertiary)
                             .fixedSize(horizontal: false, vertical: true)
+                        recordsStrip
                     }
                 }
             }
@@ -774,18 +884,17 @@ struct StrengthView: View {
 
     private var exercisePicker: some View {
         Menu {
-            ForEach(exerciseChoices.prefix(30), id: \.templateId) { entry in
+            ForEach(model.exerciseChoices.prefix(30)) { entry in
                 let exerciseLabel = exerciseTitle(entry.templateId) + "  ·  \(entry.sessions)×"
                 Button {
-                    selectedTemplateId = entry.templateId
-                    recomputeTrend()
+                    Task { await model.select(entry.templateId) }
                 } label: {
                     Text(verbatim: exerciseLabel)
                 }
             }
         } label: {
             HStack(spacing: 5) {
-                Text(selectedTemplateId.map(exerciseTitle) ?? String(localized: "Pick an exercise"))
+                Text(model.selectedTemplateId.map(exerciseTitle) ?? String(localized: "Pick an exercise"))
                     .font(StrandFont.headline).foregroundStyle(StrandPalette.textPrimary)
                 Image(systemName: "chevron.down")
                     .font(.system(size: 11, weight: .semibold))
@@ -799,11 +908,10 @@ struct StrengthView: View {
     /// next to one that does.
     private var trendFacts: some View {
         VStack(alignment: .leading, spacing: 8) {
-            if let change = e1rmChangePercent {
-                factRow(String(localized: "e1RM trend"),
-                        chip: TrendChip(text: String(format: "%+.0f %%", change),
-                                        color: change >= 0 ? StrandPalette.statusPositive
-                                                           : StrandPalette.statusWarning))
+            if let line = model.trendLine {
+                factRow(model.trendIsVolume ? String(localized: "Volume trend")
+                                            : String(localized: "Strength trend"),
+                        chip: TrendChip(text: trendChipText(line), color: trendChipColor(line)))
             }
             if let best = trend.compactMap(\.heaviestSetKg).max() {
                 factRow(String(localized: "Best set"),
@@ -811,6 +919,24 @@ struct StrengthView: View {
             }
             factRow(String(localized: "RPE"), text: rpeTrendText)
         }
+    }
+
+    /// The trend as a rate, or as an admission that the points do not agree on a direction.
+    ///
+    /// A rate rather than a per cent, and a word rather than a small number when the middle half of the
+    /// pairwise slopes straddles zero — see `StrengthTrendLine`. The reading this replaced was the
+    /// first estimate against the last, which called a four-week climb a decline whenever the final
+    /// session happened to be a bad one.
+    private func trendChipText(_ line: StrengthTrendLine) -> String {
+        guard !line.directionIsUnclear else { return String(localized: "no clear direction") }
+        return model.trendIsVolume
+            ? String(format: "%+.0f kg/wk", line.slopePerWeek)
+            : String(format: "%+.1f kg/wk", line.slopePerWeek)
+    }
+
+    private func trendChipColor(_ line: StrengthTrendLine) -> Color {
+        guard !line.directionIsUnclear else { return StrandPalette.textTertiary }
+        return line.slopePerWeek >= 0 ? StrandPalette.statusPositive : StrandPalette.statusWarning
     }
 
     /// Label over value in the narrow column beside the chart; label and value on ONE line once the
@@ -867,7 +993,20 @@ struct StrengthView: View {
         }
     }
 
+    /// One session in the list. Tappable since #E1: the detail sheet is the only place in the app that
+    /// says what a session actually contained, and a card that holds a summary of sets nobody can open
+    /// is a dead end.
     private func sessionRow(_ s: StrengthSessionSummary) -> some View {
+        Button {
+            openSession = SessionTarget(id: s.workoutId)
+        } label: {
+            sessionRowBody(s)
+        }
+        .buttonStyle(.plain)
+        .strandPressable()
+    }
+
+    private func sessionRowBody(_ s: StrengthSessionSummary) -> some View {
         NoopCard(padding: 12) {
             VStack(alignment: .leading, spacing: 6) {
                 HStack {
@@ -893,10 +1032,16 @@ struct StrengthView: View {
                     if matchedRow(s)?.avgHr != nil {
                         SourceBadge("Matched with WHOOP", tint: StrandPalette.statusPositive)
                     }
+                    Spacer(minLength: 0)
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(StrandPalette.textTertiary)
+                        .accessibilityHidden(true)
                 }
             }
         }
         .accessibilityElement(children: .combine)
+        .accessibilityHint(Text("Opens the session, exercise by exercise"))
     }
 
     /// One line per session. Volume states its coverage when it does not cover everything — "8,400 kg"
@@ -927,11 +1072,24 @@ struct StrengthView: View {
         return parts.joined(separator: " · ")
     }
 
+    /// Every session, in a stack of its own.
+    ///
+    /// The rows PUSH here rather than reusing `sessionRow`'s button: this list is already inside a
+    /// sheet, and asking SwiftUI to present a second sheet from within one silently does nothing — so
+    /// tapping a session in "All sessions" would have been a dead tap.
     private var allSessionsSheet: some View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 8) {
-                    ForEach(summaries, id: \.workoutId) { sessionRow($0) }
+                    ForEach(summaries, id: \.workoutId) { summary in
+                        NavigationLink {
+                            detailSheet(workoutId: summary.workoutId)
+                        } label: {
+                            sessionRowBody(summary)
+                        }
+                        .buttonStyle(.plain)
+                        .strandPressable()
+                    }
                 }
                 .padding(NoopMetrics.screenPadding)
             }
@@ -1001,11 +1159,11 @@ struct StrengthView: View {
     /// Without these the three tiles would be three new words with no explanation — which is the thing
     /// this screen was rebuilt to avoid, not something to add on the way.
     enum InfoTopic: String, Identifiable {
-        case strengthLoad, cardioLoad, charge, muscleBands
+        case strengthLoad, cardioLoad, charge, muscleBands, balance, bodyweight
         var id: String { rawValue }
     }
 
-    private func infoButton(_ topic: InfoTopic) -> some View {
+    func infoButton(_ topic: InfoTopic) -> some View {
         Button { infoTopic = topic } label: {
             Image(systemName: "info.circle")
                 .font(.system(size: 11))
@@ -1041,6 +1199,8 @@ struct StrengthView: View {
         case .cardioLoad:   return String(localized: "Cardio load")
         case .charge:       return String(localized: "Charge")
         case .muscleBands:  return String(localized: "Working sets / your usual")
+        case .balance:      return String(localized: "Balance")
+        case .bodyweight:   return String(localized: "Bodyweight volume")
         }
     }
 
@@ -1054,6 +1214,10 @@ struct StrengthView: View {
             return String(localized: "Your average Charge across this week — the same Charge as everywhere else in NOOP, not a new score.\n\nRead it beside the two load figures: a week of high load and falling Charge is a different week from one of high load and steady Charge, and that comparison is the reason all three sit together.")
         case .muscleBands:
             return String(localized: "The bar is this week's working sets for that muscle. The shaded band behind it is what YOU usually do — the middle half of your last eight training weeks.\n\nIt is not a target. NOOP has no way of knowing what your right weekly volume is, and a number from a textbook presented as your goal would be a guess wearing a uniform. What it can tell you is when a week is unusual for you, and that is what the band shows.\n\nWeeks with no training are left out, so a holiday does not drag the band down and then make your return look excessive.")
+        case .balance:
+            return String(localized: "Each bar splits this week's working sets between two sides — pushing against pulling, upper body against lower, quads against hips and hamstrings. A set counts once, on its exercise's primary muscle, exactly as in the list above.\n\nThe hatched region is YOUR usual ratio over the last eight training weeks. There is deliberately no target: '1:1 push to pull' is coaching advice, not a measurement, and printing it here would turn every week into a pass or a fail against a number nobody validated for you.\n\nThe groupings are conventions — a triceps set counts as pushing, a biceps set as pulling. They decide only how sets are added up.")
+        case .bodyweight:
+            return String(localized: "Volume load counts weight × reps, so a set of pull-ups counts as nothing: the log records no weight for it. This figure prices those sets at the body you actually moved, taken from your own weigh-ins around that session — never from your height, your age, or today's weight applied backwards.\n\nIt is reported BESIDE barbell tonnage and never added to it, because they are different measurements. And there is no leverage factor: a push-up is counted at your body weight like every other bodyweight movement, rather than at some fraction of it that nobody has measured for you.\n\nWith no weigh-in near a session, the sets it could not price are counted and shown instead of guessed.")
         }
     }
 
@@ -1084,13 +1248,9 @@ struct StrengthView: View {
             : String(localized: "usual \(lo)–\(hi)")
     }
 
-    private var week: StrengthSession.WeekSummary {
-        preparedWeek
-    }
+    private var week: StrengthSession.WeekSummary { model.week }
 
-    private var typicalBands: [HevyMuscleGroup: ClosedRange<Double>] {
-        preparedTypicalBands
-    }
+    private var typicalBands: [HevyMuscleGroup: ClosedRange<Double>] { model.typicalBands }
 
     /// Rows, busiest first. The bar's scale is the busiest group OR the top of its own band, whichever
     /// is larger, so a group sitting inside its band never renders as a full bar.
@@ -1278,30 +1438,32 @@ struct StrengthView: View {
             .max { $0.1 < $1.1 }?.0
     }
 
-    @State private var trend: [ExercisePerformancePoint] = []
-
-    private var e1rmPoints: [TrendPoint] {
+    /// The charted series: estimated 1RM where the movement defines one, session volume where it does
+    /// not. A bodyweight row or a plank used to draw an empty chart under a "1RM" caption — the axis was
+    /// blank because the estimate is undefined, which reads as missing data rather than as a movement
+    /// the estimate does not apply to.
+    private var chartPoints: [TrendPoint] {
         trend.compactMap { point in
-            point.bestE1RMKg.map {
+            let value = model.trendIsVolume ? (point.volumeLoadKg > 0 ? point.volumeLoadKg : nil)
+                                            : point.bestE1RMKg
+            return value.map {
                 TrendPoint(date: Date(timeIntervalSince1970: TimeInterval(point.startTs)), value: $0)
             }
         }
     }
 
-    private var e1rmRange: ClosedRange<Double> {
-        let values = e1rmPoints.map(\.value)
+    private var chartRange: ClosedRange<Double> {
+        let values = chartPoints.map(\.value)
         guard let lo = values.min(), let hi = values.max(), hi > lo else { return 0...100 }
         let pad = max(2.0, (hi - lo) * 0.25)
         return (lo - pad)...(hi + pad)
     }
 
-    /// Percent change from the first estimate to the last, over the charted window.
-    private var e1rmChangePercent: Double? {
-        let values = e1rmPoints.map(\.value)
-        guard let first = values.first, let last = values.last, first > 0, values.count >= 2 else {
-            return nil
+    private var chartCaption: String {
+        if model.trendIsVolume {
+            return String(localized: "Volume load per session (weight × reps). This movement has no one-rep-max estimate — the estimate is only defined for weight-and-reps exercises — so the honest progression question is whether you are doing more of it.")
         }
-        return (last - first) / first * 100
+        return String(localized: "Estimated 1RM (Epley) from each session's best working set — a projection, not a lift you performed. Sets above 12 reps are left out, because the estimate stops being reliable there. The trend beside it is the median of every pairwise slope, so one bad session cannot flip it.")
     }
 
     private func bestSetText(_ kg: Double) -> String {
@@ -1326,7 +1488,7 @@ struct StrengthView: View {
 
     // MARK: - Wording
 
-    private func volumeText(_ kg: Double) -> String {
+    func volumeText(_ kg: Double) -> String {
         kg >= 1000 ? String(format: "%.1f t", kg / 1000) : "\(HevySource.groupedKg(kg)) kg"
     }
 
@@ -1355,52 +1517,19 @@ struct StrengthView: View {
     }
 
     private func matchedRow(_ summary: StrengthSessionSummary) -> WorkoutRow? {
-        rows.first { abs($0.startTs - summary.startTs) <= 3600 }
+        model.matchedRow(for: summary)
     }
 
     // MARK: - Week navigation
 
-    private var earliestDay: String? {
-        workouts.map { AnalyticsEngine.dayString($0.startTs, offsetSec: tzOffset) }.min()
-    }
+    private var minWeekOffset: Int { model.minWeekOffset }
 
-    private var minWeekOffset: Int {
-        guard let earliest = earliestDay,
-              let earliestMon = WeeklyDigestEngine.mondayOfWeek(containing: earliest),
-              let thisMon = WeeklyDigestEngine.mondayOfWeek(containing: Repository.localDayKey(Date()))
-        else { return 0 }
-        var offset = 0
-        var monday = thisMon
-        while monday > earliestMon && offset > -520 {
-            monday = WeeklyDigestEngine.addDays(monday, -7)
-            offset -= 1
-        }
-        return offset
-    }
+    private var weekAnchorDay: String { model.weekAnchorDay }
 
-    private var weekAnchorDay: String {
-        WeeklyDigestEngine.addDays(Repository.localDayKey(Date()), weekOffset * 7)
-    }
-
-    /// The instant the selected week is read "as of": NOON on its Sunday, or now for the current week.
-    /// Every week-scoped figure takes this, so stepping back cannot leave one tile describing the present.
-    ///
-    /// Noon, not the end of the day. `WeightSeries.date(forDay:)` already returns local noon, and adding
-    /// a day's worth of seconds to it — which this did at first — lands at 11:59 the FOLLOWING morning.
-    /// The whole acute window then slid forward by one day, and a week that exactly matched the user's
-    /// average reported a ratio of 0.68. Mid-day is the anchor precisely because it cannot be pushed
-    /// across a boundary by a timezone offset in either direction.
-    private var weekEndDate: Date {
-        guard let monday = WeeklyDigestEngine.mondayOfWeek(containing: weekAnchorDay),
-              let sunday = WeightSeries.date(forDay: WeeklyDigestEngine.addDays(monday, 6)) else {
-            return Date()
-        }
-        return min(sunday, Date())
-    }
+    private var weekEndDate: Date { model.weekEndDate }
 
     private func stepWeek(_ delta: Int) {
-        weekOffset = max(minWeekOffset, min(0, weekOffset + delta))
-        Task { await refreshWeekScores() }
+        Task { await model.stepWeek(delta, repo: repo) }
     }
 
     private var weekRangeText: String {
@@ -1411,6 +1540,31 @@ struct StrengthView: View {
         }
         let format = Date.FormatStyle().day().month(.abbreviated)
         return "\(start.formatted(format)) – \(end.formatted(format))"
+    }
+
+    /// How far into the current week we are, or nil for a week that has finished.
+    ///
+    /// The week is the right UNIT — training is prescribed in weeks, the typical bands are built from
+    /// complete weeks, and the digest is Monday-anchored — but the CURRENT week is being compared
+    /// against bands made of finished ones. On a Tuesday that reads as "below your usual" when the only
+    /// thing that has happened is that the week is not over.
+    ///
+    /// So the state is named rather than corrected. Prorating the band to the day would be the tempting
+    /// fix and the wrong one: it assumes sets fall evenly across a week, which is not how anyone trains
+    /// — most weeks are three sessions on particular days, and a Tuesday sits at a different fraction
+    /// of the week's work for every person.
+    /// Days elapsed in the current week, Monday counting as day 1.
+    private var weekElapsedDays: Int {
+        guard let monday = WeeklyDigestEngine.mondayOfWeek(containing: weekAnchorDay) else { return 7 }
+        return StrengthSession.daysBetween(monday, and: Repository.localDayKey(Date())) + 1
+    }
+
+    private var weekProgressText: String? {
+        guard weekOffset == 0,
+              WeeklyDigestEngine.mondayOfWeek(containing: weekAnchorDay) != nil else { return nil }
+        let elapsed = weekElapsedDays
+        guard (1...6).contains(elapsed) else { return nil }   // a finished week needs no caveat
+        return String(localized: "day \(elapsed) of 7 — the week is still running")
     }
 
     // MARK: - Coach
@@ -1425,10 +1579,17 @@ struct StrengthView: View {
                        ?? "\(row.group.label) \(row.sets)" }
             .joined(separator: ", ")
         if !muscles.isEmpty { parts.append("hard sets — " + muscles) }
-        if let load = StrengthSession.setLoadRatio(workouts, asOf: weekEndDate,
-                                                   tzOffsetSeconds: tzOffset) {
+        if let load = model.strengthLoad {
             parts.append(String(format: "set load acute:chronic %.2f (%@)", load.ratio,
                                 bandLabel(load.band)))
+        }
+        if let line = model.trendLine, let id = model.selectedTemplateId {
+            parts.append(String(format: "%@ trend %+.1f kg/week%@", exerciseTitle(id),
+                                line.slopePerWeek,
+                                line.directionIsUnclear ? " (direction unclear)" : ""))
+        }
+        if model.weekBodyweightKg > 0 {
+            parts.append("bodyweight volume \(HevySource.groupedKg(model.weekBodyweightKg)) kg")
         }
         if let rpe = latest.meanRpe {
             parts.append(String(format: "last session mean RPE %.1f", rpe))
@@ -1477,140 +1638,4 @@ struct StrengthView: View {
     private var isCompact: Bool { false }
     #endif
 
-    // MARK: - Loading
-
-    private func loadStrengthData() async {
-        guard let store = await repo.storeHandle() else { loaded = true; return }
-        let now = Int(Date().timeIntervalSince1970)
-        let from = now - historyDays * 86_400
-
-        let sessions = (try? await store.strengthWorkouts(from: from, to: now + 86_400)) ?? []
-        let catalogue = (try? await store.strengthExerciseTemplates()) ?? [:]
-        let observations = ((try? await store.muscleRecoveryFeedback()) ?? []).compactMap { row in
-            MuscleRecovery.Feeling(rawValue: row.feeling).map {
-                MuscleRecovery.Observation(group: row.muscleGroup, ts: row.ts, feeling: $0)
-            }
-        }
-        let offset = tzOffset
-        let prepared = await Task.detached(priority: .userInitiated) {
-            let summaries = sessions.map { StrengthSession.summarize($0, templates: catalogue) }
-            let recent = StrengthSession.recentSetsByMuscle(sessions, templates: catalogue,
-                                                            days: 7, now: now)
-            let last = StrengthSession.lastWorkedByMuscle(sessions, templates: catalogue,
-                                                           tzOffsetSeconds: offset)
-            let typical = MuscleRecovery.typicalSessionStimulus(sessions, templates: catalogue)
-            var fitted: [HevyMuscleGroup: Double] = [:]
-            for group in HevyMuscleGroup.allCases {
-                fitted[group] = MuscleRecovery.fittedTauSeconds(for: group,
-                                                                observations: observations,
-                                                                workouts: sessions,
-                                                                templates: catalogue)
-            }
-            let fatigue = MuscleRecovery.fatigue(
-                workouts: sessions, templates: catalogue, now: now,
-                tau: { fitted[$0] ?? MuscleRecovery.defaultTauSeconds(for: $0) })
-            let stimulus = MuscleStimulus.stimulus(
-                for: sessions, templates: catalogue,
-                reference: MuscleStimulus.StrengthReference(workouts: sessions, templates: catalogue))
-            let selected = StrengthSession.exerciseFrequency(sessions).first?.templateId
-            let unmapped = Array(Set(sessions.flatMap(\.exercises)
-                .filter { $0.templateId == nil }.map(\.title))).sorted()
-            return (summaries, recent, last, typical, fitted, fatigue, stimulus.ratedShare,
-                    selected, unmapped)
-        }.value
-        workouts = sessions
-        templates = catalogue
-        summaries = prepared.0
-        unmappedExercises = prepared.8
-        rows = (try? await store.workouts(deviceId: HevySource.id, from: from, to: now + 86_400,
-                                          limit: 500)) ?? []
-
-        recentSets = prepared.1
-        lastWorked = prepared.2
-
-        // The wearer's own answers first: they decide the time constants everything below decays with.
-        feedback = observations
-        typicalSession = prepared.3
-        tauByGroup = prepared.4
-        fatigueNow = prepared.5
-        ratedShare = prepared.6
-
-        selectedTemplateId = prepared.7
-        exerciseChoices = await Task.detached(priority: .userInitiated) {
-            StrengthSession.exerciseFrequency(sessions)
-        }.value
-        recomputeTrend()
-        await refreshWeekScores()
-        loaded = true
-    }
-
-    private func recomputeTrend() {
-        guard let id = selectedTemplateId else { trend = []; return }
-        trend = StrengthSession.exerciseHistory(templateId: id, workouts: workouts,
-                                                templates: templates, tzOffsetSeconds: tzOffset)
-    }
-
-    /// Mean Charge and total Effort for the SELECTED week — recomputed on each step so the tiles follow
-    /// the chevrons rather than always describing today.
-    /// Refit every muscle's time constant from the answers on hand, then recompute what is still
-    /// outstanding. Called after a load and after each new answer — never from `body`, because a fit
-    /// walks the whole history per muscle.
-    private func refitTau() async {
-        let observations = feedback
-        let sessions = workouts
-        let catalogue = templates
-        let now = Int(Date().timeIntervalSince1970)
-        let result = await Task.detached(priority: .userInitiated) {
-            var fitted: [HevyMuscleGroup: Double] = [:]
-            for group in HevyMuscleGroup.allCases {
-                fitted[group] = MuscleRecovery.fittedTauSeconds(for: group, observations: observations,
-                                                                workouts: sessions, templates: catalogue)
-            }
-            let fatigue = MuscleRecovery.fatigue(workouts: sessions, templates: catalogue,
-                                                 now: now,
-                                                 tau: { fitted[$0] ?? MuscleRecovery.defaultTauSeconds(for: $0) })
-            return (fitted, fatigue)
-        }.value
-        guard !Task.isCancelled else { return }
-        let fitted = result.0
-        tauByGroup = fitted
-        fatigueNow = result.1
-    }
-
-    private func refreshWeekScores() async {
-        guard let monday = WeeklyDigestEngine.mondayOfWeek(containing: weekAnchorDay) else { return }
-        let sunday = WeeklyDigestEngine.addDays(monday, 6)
-        let inWeek = repo.days.filter { $0.day >= monday && $0.day <= sunday }
-        let charges = inWeek.compactMap(\.recovery)
-        weekCharge = charges.isEmpty ? nil : charges.reduce(0, +) / Double(charges.count)
-        let efforts = inWeek.compactMap(\.strain)
-        weekEffort = efforts.isEmpty ? nil : efforts.reduce(0, +)
-
-        let anchor = weekAnchorDay
-        let endDate = weekEndDate
-        let sessions = workouts
-        let catalogue = templates
-        let offset = tzOffset
-        let prepared = await Task.detached(priority: .userInitiated) {
-            let week = StrengthSession.week(containing: anchor, workouts: sessions,
-                                            templates: catalogue, tzOffsetSeconds: offset)
-            let bands = StrengthSession.typicalWeeklySets(sessions, templates: catalogue,
-                                                          endingBefore: anchor, tzOffsetSeconds: offset)
-            let load = StrengthSession.setLoadRatio(sessions, asOf: endDate,
-                                                    tzOffsetSeconds: offset)
-            let stimulus = MuscleStimulus.weeklyStimulus(containing: anchor, workouts: sessions,
-                                                         templates: catalogue,
-                                                         tzOffsetSeconds: offset).byMuscle
-            let typical = MuscleStimulus.typicalWeeklyStimulus(sessions, templates: catalogue,
-                                                               endingBefore: anchor,
-                                                               tzOffsetSeconds: offset)
-            return (week, bands, load, stimulus, typical)
-        }.value
-        guard !Task.isCancelled else { return }
-        preparedWeek = prepared.0
-        preparedTypicalBands = prepared.1
-        preparedStrengthLoad = prepared.2
-        weekStimulus = prepared.3
-        typicalWeek = prepared.4
-    }
 }
