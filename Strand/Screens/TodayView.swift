@@ -2544,10 +2544,13 @@ struct TodayView: View {
 
         // A commitment made for TODAY that has not been recorded. Resolved through the SAME selector
         // the Plan card on this screen uses, so the two cannot disagree about what is still open.
+        let now = Date()
         if selectedDayOffset == 0,
            let next = PlanTodayCard.next(from: CoachPlanStore.shared.proposals,
-                                         today: selectedDayKey, now: Date()),
-           next.day == selectedDayKey, (d?.exerciseCount ?? 0) == 0 {
+                                         today: selectedDayKey, now: now),
+           next.day == selectedDayKey,
+           PlanTodayCard.shouldFlagInMomentum(next, now: now),
+           (d?.exerciseCount ?? 0) == 0 {
             // `sport` is what the proposal actually names (there is no title field) — "Run", "Strength".
             c.openPlannedSessionToday = next.sport
         }

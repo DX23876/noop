@@ -30,6 +30,7 @@ struct PlanTodayCard: View {
     /// stays visible and "due" rather than silently vanishing at the moment it matters most.
     static let approachLead: TimeInterval = 30 * 60
     static let graceAfter: TimeInterval = 120 * 60
+    static let untimedMomentumReminderHour = 18
 
     /// Attention level for the card, driven purely by the session's time vs `now`. Pure + static so the
     /// windows are testable without a `View`.
@@ -40,6 +41,18 @@ struct PlanTodayCard: View {
         if now >= t && now < t.addingTimeInterval(graceAfter) { return .due }
         if now >= t.addingTimeInterval(-approachLead) && now < t { return .approaching }
         return .none
+    }
+
+    /// Momentum is an exception surface, not a second copy of the plan. Accepting a suggestion is a
+    /// successful decision and must not instantly become a yellow "still open" warning. The ambient
+    /// plan card keeps the commitment visible. A timed session reaches Momentum when its start time is
+    /// due. An untimed session remains neutral through the day and gets one evening reminder from 18:00.
+    static func shouldFlagInMomentum(_ proposal: PlanProposal, now: Date,
+                                     calendar: Calendar = .current) -> Bool {
+        if proposal.time == nil {
+            return calendar.component(.hour, from: now) >= untimedMomentumReminderHour
+        }
+        return emphasis(for: proposal, now: now) == .due
     }
 
     /// The soonest committed session worth showing. Pure + static so the selection rule is testable

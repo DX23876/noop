@@ -89,9 +89,12 @@ enum DashboardMomentum {
 
         // A commitment made for TODAY that has not been recorded, resolved through the SAME selector the
         // Plan card uses, so the two cannot disagree about what is still open.
+        let now = Date()
         if isToday,
-           let next = PlanTodayCard.next(from: CoachPlanStore.shared.proposals, today: dayKey, now: Date()),
-           next.day == dayKey, (displayDay?.exerciseCount ?? 0) == 0 {
+           let next = PlanTodayCard.next(from: CoachPlanStore.shared.proposals, today: dayKey, now: now),
+           next.day == dayKey,
+           PlanTodayCard.shouldFlagInMomentum(next, now: now),
+           (displayDay?.exerciseCount ?? 0) == 0 {
             c.openPlannedSessionToday = next.sport
         }
 

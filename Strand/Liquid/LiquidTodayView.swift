@@ -1695,10 +1695,13 @@ struct LiquidTodayView: View {
         c.measuredSteps = d?.steps ?? importedStepsDay
         c.estimatedSteps = stepsEst.map { Int($0) }
         c.stepGoal = momentumStepGoal
+        let now = Date()
         if selectedDayOffset == 0,
            let next = PlanTodayCard.next(from: CoachPlanStore.shared.proposals,
-                                         today: selectedDayKey, now: Date()),
-           next.day == selectedDayKey, (d?.exerciseCount ?? 0) == 0 {
+                                         today: selectedDayKey, now: now),
+           next.day == selectedDayKey,
+           PlanTodayCard.shouldFlagInMomentum(next, now: now),
+           (d?.exerciseCount ?? 0) == 0 {
             c.openPlannedSessionToday = next.sport
         }
         return c

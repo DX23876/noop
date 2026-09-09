@@ -127,4 +127,29 @@ final class PlanTodayCardSelectionTests: XCTestCase {
         let p = commitment(day: today, time: nil)
         XCTAssertEqual(PlanTodayCard.emphasis(for: p, now: now), .none)
     }
+
+    // MARK: - Momentum hand-off
+
+    func testFreshUntimedCommitmentDoesNotImmediatelyBecomeAMomentumWarning() {
+        let p = commitment(day: today, time: nil)
+        XCTAssertFalse(PlanTodayCard.shouldFlagInMomentum(p, now: now))
+    }
+
+    func testUntimedCommitmentBecomesAnEveningReminderAtSix() {
+        let p = commitment(day: today, time: nil)
+        XCTAssertFalse(PlanTodayCard.shouldFlagInMomentum(p, now: at("17:59", day: today)))
+        XCTAssertTrue(PlanTodayCard.shouldFlagInMomentum(p, now: at("18:00", day: today)))
+    }
+
+    func testFutureAndApproachingCommitmentsStayInThePlanCard() {
+        let future = commitment(day: today, time: at("18:00", day: today))
+        let approaching = commitment(day: today, time: at("08:20", day: today))
+        XCTAssertFalse(PlanTodayCard.shouldFlagInMomentum(future, now: now))
+        XCTAssertFalse(PlanTodayCard.shouldFlagInMomentum(approaching, now: now))
+    }
+
+    func testDueCommitmentMayBecomeAMomentumWarning() {
+        let p = commitment(day: today, time: at("07:00", day: today))
+        XCTAssertTrue(PlanTodayCard.shouldFlagInMomentum(p, now: now))
+    }
 }
