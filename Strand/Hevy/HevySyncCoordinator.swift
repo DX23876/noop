@@ -151,7 +151,7 @@ actor HevySyncCoordinator {
         // `since` is exclusive in practice but inclusive by the API's wording, so the same workout can
         // come back once more. That is harmless — every write here is idempotent — and re-delivering
         // one document is much cheaper than risking a missed edit on a boundary second.
-        let sinceISO = Self.iso.string(from: Date(timeIntervalSince1970: TimeInterval(cursor)))
+        let sinceISO = iso.string(from: Date(timeIntervalSince1970: TimeInterval(cursor)))
 
         var updates: [HevyWorkout] = []
         var deletions: [String] = []
@@ -297,7 +297,7 @@ actor HevySyncCoordinator {
         }
     }
 
-    private static let iso: ISO8601DateFormatter = {
+    private let iso: ISO8601DateFormatter = {
         let f = ISO8601DateFormatter()
         f.formatOptions = [.withInternetDateTime]
         return f

@@ -127,8 +127,8 @@ final class HevyConnectModel: ObservableObject {
             if let store = await repo.storeHandle() {
                 // The mirrored rows live in the shared workout table, so they are removed here rather
                 // than in `deleteAllHevyData`, which only owns the Hevy tables.
-                try? await store.deleteWorkouts(deviceId: HevySource.id, sport: HevySource.sport,
-                                                from: 0, to: Int(Date().timeIntervalSince1970) + 86_400)
+                _ = try? await store.deleteWorkouts(deviceId: HevySource.id, sport: HevySource.sport,
+                                                    from: 0, to: Int(Date().timeIntervalSince1970) + 86_400)
                 try? await store.deleteAllHevyData()
             }
             HevyCredentials.clear()

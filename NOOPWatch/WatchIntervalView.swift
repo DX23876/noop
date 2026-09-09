@@ -1,4 +1,5 @@
 import SwiftUI
+import Combine
 import StrandDesign
 
 // MARK: - WatchIntervalView — silent haptic HIIT, on the wrist

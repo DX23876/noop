@@ -21,7 +21,8 @@ enum PlanReminder {
     /// Turn the reminder on/off. Enabling gates on notification authorization first (mirrors
     /// `CoachCheckIn.setEnabled`); turning it off cancels every pending plan reminder immediately rather
     /// than leaving them to fire silently for a feature the user just switched off.
-    static func setEnabled(_ on: Bool, completion: (@MainActor (EnableOutcome) -> Void)? = nil) {
+    static func setEnabled(_ on: Bool,
+                           completion: (@MainActor @Sendable (EnableOutcome) -> Void)? = nil) {
         guard on else {
             UserDefaults.standard.set(false, forKey: K.enabled)
             cancelAll()
@@ -29,29 +30,25 @@ enum PlanReminder {
             return
         }
 
-        UNUserNotificationCenter.current().getNotificationSettings { settings in
-            Task { @MainActor in
-                switch settings.authorizationStatus {
-                case .authorized, .provisional, .ephemeral:
+        Task { @MainActor in
+            let center = UNUserNotificationCenter.current()
+            let settings = await center.notificationSettings()
+            switch settings.authorizationStatus {
+            case .authorized, .provisional, .ephemeral:
+                UserDefaults.standard.set(true, forKey: K.enabled)
+                completion?(.scheduled)
+            case .notDetermined:
+                let granted = (try? await center.requestAuthorization(options: [.alert, .sound])) ?? false
+                if granted {
                     UserDefaults.standard.set(true, forKey: K.enabled)
                     completion?(.scheduled)
-                case .notDetermined:
-                    UNUserNotificationCenter.current()
-                        .requestAuthorization(options: [.alert, .sound]) { granted, _ in
-                            Task { @MainActor in
-                                if granted {
-                                    UserDefaults.standard.set(true, forKey: K.enabled)
-                                    completion?(.scheduled)
-                                } else {
-                                    UserDefaults.standard.set(false, forKey: K.enabled)
-                                    completion?(.denied)
-                                }
-                            }
-                        }
-                default:
+                } else {
                     UserDefaults.standard.set(false, forKey: K.enabled)
                     completion?(.denied)
                 }
+            default:
+                UserDefaults.standard.set(false, forKey: K.enabled)
+                completion?(.denied)
             }
         }
     }

@@ -19,7 +19,7 @@ import WhoopProtocol
 final class PuffinFrameRecorder {
     /// UserDefaults flag, mirrored by the Settings toggle (`@AppStorage`). Separate from the puffin
     /// *probe* switch (`PuffinExperiment`): capturing is passive/safe, probing actively guesses.
-    static let enabledKey = "noopPuffinCapture"
+    nonisolated static let enabledKey = "noopPuffinCapture"
 
     /// Flush to disk every this-many frames so a crash/yank loses at most a handful of frames.
     private static let flushEvery = 25

@@ -174,7 +174,7 @@ struct HydrationView: View {
         NoopButton(title, systemImage: systemImage, kind: .secondary, fullWidth: true) {
             Task { await add(ml: ml) }
         }
-        .accessibilityLabel("Log \(title)")
+        .accessibilityLabel(Text(title))
     }
 
     // MARK: - Today's logged drinks (#798) - swipe to delete, tap to edit

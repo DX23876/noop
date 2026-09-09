@@ -369,7 +369,7 @@ struct HeuteVitalsGridView: View {
 /// so `dragGesture(for:)` above can hit-test the dragged finger position against every OTHER tile
 /// without needing `.onDrag`/`.onDrop`'s system drag-and-drop machinery.
 private struct TileFramePreferenceKey: PreferenceKey {
-    static var defaultValue: [String: CGRect] = [:]
+    static let defaultValue: [String: CGRect] = [:]
     static func reduce(value: inout [String: CGRect], nextValue: () -> [String: CGRect]) {
         value.merge(nextValue()) { _, new in new }
     }

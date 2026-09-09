@@ -342,7 +342,7 @@ final class CoachPlanStore: ObservableObject {
     /// After this many consecutive declines, the coach is told to stop softening and re-offer real work.
     /// Without a floor, a few "not today"s would train it into permanent wet-lettuce mode — the filter
     /// bubble, applied to training.
-    static let declineStreakFloor = 3
+    nonisolated static let declineStreakFloor = 3
 
     private static var fileURL: URL {
         let base = (try? FileManager.default.url(for: .applicationSupportDirectory,

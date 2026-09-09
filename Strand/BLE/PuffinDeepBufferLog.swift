@@ -66,10 +66,10 @@ final class PuffinDeepBufferLog {
     /// WHOOP 5/MG inner-record type byte for the R22 deep packets (type 47 / 0x2F), at offset 8 (the
     /// same position `BLEManager.isOffloadFrame` / `PuffinEventLog` index). The 1 Hz historical rollup
     /// is also type-0x2F but small; `minBufferBytes` keeps only the high-rate buffers.
-    private static let deepTypeByte: UInt8 = 0x2F
-    private static let innerRecordOffset = 8
+    private nonisolated static let deepTypeByte: UInt8 = 0x2F
+    private nonisolated static let innerRecordOffset = 8
     /// Skip the ~124-B ≈1 Hz record; keep the 1244-/2140-B high-rate buffers.
-    private static let minBufferBytes = 1000
+    private nonisolated static let minBufferBytes = 1000
 
     /// Pure predicate: is `frame` a WHOOP 5/MG high-rate deep buffer? A reassembled frame's inner-record
     /// type byte sits at offset 8, so this needs `count > 8` before indexing. Extracted so the offset-8

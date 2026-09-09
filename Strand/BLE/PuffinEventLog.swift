@@ -26,8 +26,8 @@ final class PuffinEventLog {
     /// The WHOOP 5/MG inner-record type byte for EVENT frames (type 48). The inner record starts at
     /// offset 8 (`[type][seq][cmd][data…]`) — the SAME position `BLEManager.isOffloadFrame` /
     /// `noteWhoop5R22Telemetry` index and the Interpreter reads the canonical type name from.
-    private static let eventTypeByte: UInt8 = 0x30
-    private static let innerRecordOffset = 8
+    private nonisolated static let eventTypeByte: UInt8 = 0x30
+    private nonisolated static let innerRecordOffset = 8
 
     /// Pure predicate: is `frame` a WHOOP 5/MG EVENT (type 48 / 0x30) frame? A reassembled frame's
     /// inner-record type byte sits at offset 8, so this needs `count > 8` before indexing. Extracted so

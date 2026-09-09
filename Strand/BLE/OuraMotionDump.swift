@@ -26,7 +26,7 @@ final class OuraMotionDump {
     /// bounded to ~2× this on disk instead of growing forever. Matches `OuraActivityDump`.
     private static let maxBytes = 25 * 1024 * 1024
 
-    private static let iso: ISO8601DateFormatter = {
+    private let iso: ISO8601DateFormatter = {
         let f = ISO8601DateFormatter()
         f.timeZone = TimeZone(identifier: "UTC")
         return f
@@ -63,7 +63,7 @@ final class OuraMotionDump {
 
         let line = OuraMotionDumpLine.encode(
             deviceId: deviceId, ringTs: ringTs, utc: utc,
-            iso: Self.iso.string(from: Date(timeIntervalSince1970: TimeInterval(utc))),
+            iso: iso.string(from: Date(timeIntervalSince1970: TimeInterval(utc))),
             orientation: orientation, motionSeconds: motionSeconds, x: x, y: y, z: z,
             lowIntensity: lowIntensity, highIntensity: highIntensity)
 

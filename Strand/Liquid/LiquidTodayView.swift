@@ -2712,7 +2712,7 @@ struct LiquidTodayView: View {
 
 /// Carries the Today scroll's top overscroll offset up to the view for the custom liquid pull-to-refresh.
 private struct PullOffsetKey: PreferenceKey {
-    static var defaultValue: CGFloat = 0
+    static let defaultValue: CGFloat = 0
     static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = nextValue() }
 }
 

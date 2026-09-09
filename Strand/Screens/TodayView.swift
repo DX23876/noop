@@ -33,7 +33,7 @@ import Foundation
 /// Measuring width via a zero-impact background reader instead lets the row self-size in height, so it grows
 /// to fit the rings + labels + badges and never clips. Reduce keeps the max, ignoring any 0 default.
 private struct HeroRingRowWidthKey: PreferenceKey {
-    static var defaultValue: CGFloat = 0
+    static let defaultValue: CGFloat = 0
     static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = max(value, nextValue()) }
 }
 

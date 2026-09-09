@@ -30,7 +30,7 @@ final class OuraRealStepsDump {
     /// bounded to ~2× this on disk instead of growing forever. Matches the other Oura Tier-B dumps.
     private static let maxBytes = 25 * 1024 * 1024
 
-    private static let iso: ISO8601DateFormatter = {
+    private let iso: ISO8601DateFormatter = {
         let f = ISO8601DateFormatter()
         f.timeZone = TimeZone(identifier: "UTC")
         return f
@@ -68,7 +68,7 @@ final class OuraRealStepsDump {
         let tagStr = "0x" + String(tag, radix: 16)
         let line = OuraRealStepsDumpLine.encode(
             deviceId: deviceId, tag: tagStr, ringTs: ringTs, utc: utc,
-            iso: Self.iso.string(from: Date(timeIntervalSince1970: TimeInterval(utc))), fields: fields)
+            iso: iso.string(from: Date(timeIntervalSince1970: TimeInterval(utc))), fields: fields)
 
         guard let data = (line + "\n").data(using: .utf8) else { return }
         do {

@@ -1,5 +1,6 @@
 import SwiftUI
 import Foundation
+import Combine
 import StrandDesign
 import StrandAnalytics
 
@@ -121,7 +122,7 @@ struct WatchBreatheView: View {
                 stop()
             }
         }
-        .onChange(of: protocolId) { newId in
+        .onChange(of: protocolId) { _, newId in
             if running { stop() }
             if let proto = BreathProtocolCatalog.protocolById(newId) {
                 sessionLength = SessionLength.from(recommendedMs: proto.recommendedDurationMs)

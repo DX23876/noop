@@ -31,7 +31,7 @@ final class OuraRawDump {
     /// this file needs it MORE than either: full hex of every notification, and no dedup high-water.
     private static let maxBytes = 25 * 1024 * 1024
 
-    private static let iso: ISO8601DateFormatter = {
+    private let iso: ISO8601DateFormatter = {
         let f = ISO8601DateFormatter()
         f.timeZone = TimeZone(identifier: "UTC")
         return f
@@ -63,7 +63,7 @@ final class OuraRawDump {
         let now = Date()
         let line = OuraRawDumpLine.encode(
             deviceId: deviceId, utc: Int(now.timeIntervalSince1970),
-            iso: Self.iso.string(from: now), bytes: bytes)
+            iso: iso.string(from: now), bytes: bytes)
 
         guard let data = (line + "\n").data(using: .utf8) else { return }
         do {
