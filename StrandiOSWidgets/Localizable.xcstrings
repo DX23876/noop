@@ -215,7 +215,14 @@
 
     },
     "Charge, Effort and Rest as three rings, just like Today." : {
-
+      "localizations" : {
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Poziom energii, Wysiłek i Odpoczynek jako trzy pierścienie, tak jak w Dziś."
+          }
+        }
+      }
     },
     "Coach" : {
       "localizations" : {
@@ -941,7 +948,14 @@
       }
     },
     "NOOP Rings" : {
-
+      "localizations" : {
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pierścienie NOOP"
+          }
+        }
+      }
     },
     "No brief yet" : {
       "localizations" : {
