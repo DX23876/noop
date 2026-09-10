@@ -1642,47 +1642,6 @@ final class Repository: ObservableObject {
         return blocks
     }
 
-    /// Hand-correct a night's bed (onset) and/or wake (end) time. `detectedStartTs` is the immutable
-    /// detected key; the corrected onset is stored in `startTsAdjusted` so the key never moves (the
-    /// recompute guard + daily override keep matching on it). The merged session list carries no source
-    /// deviceId (same reason as the journal reads below), so this applies under BOTH the imported and
-    /// computed sources , only the namespace that holds the night updates; the other is a no-op.
-    ///
-    /// Stages are **re-derived from the raw streams** for the corrected `[newStartTs, newEndTs]` window
-    /// via `SleepStager.stageSession` , exactly what WHOOP does, so extending a boundary recovers real
-    /// stages instead of a fabricated "awake" block. Only when the night has no raw data (an imported
-    /// night) does it fall back to reshaping the stored summary (`SleepWindowReclip`). Refreshes so the
-    /// hero re-reads the corrected night immediately.
-    func editSleepTimes(detectedStartTs: Int, oldEndTs: Int, storedStagesJSON: String?,
-                        newStartTs: Int, newEndTs: Int) async {
-        guard let store = await ensureStore() else { return }
-        // #940 belt-and-braces: never persist a future-ending or inverted corrected window, whatever
-        // the UI sent. The editor's own guards (past-bounded bed picker + cross-midnight auto-correct
-        // + the disjoint confirm) should make this unreachable; it is the last line so no client
-        // misbehaviour can write a phantom night the display merge cannot render.
-        guard let window = SleepEditGuard.clampedEditWindow(
-            start: newStartTs, end: newEndTs, now: Int(Date().timeIntervalSince1970)) else { return }
-        let (safeStartTs, safeEndTs) = window
-        // Re-derive stages from the raw streams for the corrected window; fall back to reshaping the
-        // stored summary when the strap has no dense data there yet. The fallback fires for a genuine
-        // imported night (no strap data at all) AND for the transient case where the user edits BEFORE
-        // a sync has imported this window , the latter then self-heals on the next post-sync
-        // `analyzeRecent` (see `selfHealEditedStages`), which re-derives the real stages once raw lands.
-        let stagesJSON = await restageFromRaw(start: safeStartTs, end: safeEndTs)
-            ?? SleepWindowReclip.reclip(stagesJSON: storedStagesJSON, sessionStart: detectedStartTs,
-                                        oldEnd: oldEndTs, newStart: safeStartTs, newEnd: safeEndTs)
-        // Resolve the actual owner from every namespace the Sleep tab can display. Stop at the first
-        // match so duplicate detected keys in another source cannot receive a second edit.
-        for ownerDeviceId in sleepOwnerIds {
-            let changed = (try? await store.applySleepEdit(
-                deviceId: ownerDeviceId, detectedStartTs: detectedStartTs,
-                newStartTs: safeStartTs, newEndTs: safeEndTs, stagesJSON: stagesJSON)) ?? 0
-            if changed > 0 { break }
-        }
-        sleepPresentationRevision &+= 1
-        await refresh()
-    }
-
     /// Hand-correct the whole bridged night shown by the Sleep hero. A split night is one product-level
     /// object even though it remains several keyed rows in the store; applying the window to only one row
     /// leaves the outer fragments defining the old visible times and lets analysis fold them straight back
@@ -1722,14 +1681,32 @@ final class Repository: ObservableObject {
             retired.append(snapshot)
         }
 
+        // A fragment whose window GREW is re-staged from the raw streams. The pure planner can only
+        // RESHAPE stages that already exist, so for time the old window never covered `SleepWindowReclip`
+        // fills in a fabricated trailing "wake" block. That block then becomes the night's stored truth —
+        // the daily rollup and the Sleep tab both read the stored `stagesJSON` — so extending a night the
+        // detector truncated added hours of "awake", left total sleep exactly where it was, and DROPPED
+        // the Rest score (in-bed grew, asleep did not) instead of correcting it. Re-deriving here is what
+        // the single-session path always did; the group rewrite dropped it.
+        //
+        // Scoped to fragments that grew: a window that only NARROWS has no uncovered time to stage, so it
+        // keeps the cheap re-clip and is byte-identical to before. A night with no dense raw (for example
+        // a genuine import) also keeps the re-clip fallback. This also delivers what
+        // `SleepGroupEdit.relocationPlan` already promises — a moved night prefers a real re-stage when
+        // the target window has the data.
+        let priorBounds = Dictionary(
+            group.map { ($0.startTs, (start: $0.effectiveStartTs, end: $0.endTs)) },
+            uniquingKeysWith: { first, _ in first })
         var edits: [SleepSessionEditMutation] = []
         edits.reserveCapacity(plan.clipped.count)
         for fragment in plan.clipped {
             guard let owner = clippedOwners[fragment.startTs] else { return .failure(.ownerUnresolved) }
-            // The pure planner has already re-clipped this fragment's existing stage breakdown. Keep the
-            // user-visible transaction cheap; dense raw re-staging belongs to the targeted background
-            // analysis after the sheet has closed.
-            let stages = fragment.stagesJSON
+            let prior = priorBounds[fragment.startTs]
+            let grew = prior.map { fragment.effectiveStartTs < $0.start || fragment.endTs > $0.end } ?? true
+            let stages = grew
+                ? (await restageFromRaw(start: fragment.effectiveStartTs, end: fragment.endTs)
+                    ?? fragment.stagesJSON)
+                : fragment.stagesJSON
             edits.append(SleepSessionEditMutation(
                 deviceId: owner,
                 detectedStartTs: fragment.startTs,
@@ -1777,7 +1754,7 @@ final class Repository: ObservableObject {
         ))
     }
 
-    /// Delete ONE sleep session: the `editSleepTimes` path minus the re-stage/re-insert, so the user can
+    /// Delete ONE sleep session: the `editSleepGroupTimes` path minus the re-stage/re-insert, so the user can
     /// clear a misread or spurious night and the day recomputes as if it were never recorded (#68; Android
     /// parity `WhoopRepository.deleteSleepSession`). `detectedStartTs` is the immutable detected key
     /// (`startTs`); `endTs` is the night's span, recorded in the tombstone so the engine's overlap test
@@ -1785,7 +1762,7 @@ final class Repository: ObservableObject {
     ///
     /// Two durable effects, mirroring the workout-dismiss path:
     ///  1. delete the row from whichever namespace OWNS it: try the computed source first, fall back to
-    ///     the imported `deviceId` only when no computed row matched, exactly as `editSleepTimes` applies
+    ///     the imported `deviceId` only when no computed row matched, exactly as `editSleepGroupTimes` applies
     ///     its edit (the merged session list carries no source deviceId, so we resolve the owner here and
     ///     never delete a coincidental same-startTs row in the other namespace);
     ///  2. persist a `dismissedSleep` span in UserDefaults so the next `analyzeRecent` re-detection doesn't
@@ -1966,7 +1943,7 @@ final class Repository: ObservableObject {
     /// NEVER folded into the night's main sleep (which would mislabel awake daytime as light sleep). Purely
     /// additive , `insertManualSleepSession` no-ops if a session already exists at that exact onset.
     func addManualNap(startTs: Int, endTs: Int) async {
-        // #940 belt-and-braces (same rule as editSleepTimes): a manually-added session can't end in
+        // #940 belt-and-braces (same rule as editSleepGroupTimes): a manually-added session can't end in
         // the future or invert; a future nap would otherwise own the tab's newest day as an
         // all-awake phantom exactly like the bad edit did. The clamped end is used verbatim.
         guard let store = await ensureStore(),
@@ -2008,9 +1985,9 @@ final class Repository: ObservableObject {
     /// returning the encoded `stagesJSON`, or `nil` when the strap does NOT densely cover the window ,
     /// i.e. there isn't enough worn-night data to stage (a couple of stray samples must not trigger a
     /// degenerate `stageSession` that overwrites a good breakdown). ~1 sample / 2 min is the floor.
-    /// Extracted from `editSleepTimes` so the post-sync self-heal reuses the exact density gate +
-    /// staging. Stages OFF the main actor , Repository is `@MainActor` and a multi-hour window is tens of
-    /// thousands of samples, which would otherwise freeze the UI.
+    /// Shared by the sleep-time editor, the manual nap and the post-sync self-heal, so all three apply the
+    /// exact same density gate + staging. Stages OFF the main actor , Repository is `@MainActor` and a
+    /// multi-hour window is tens of thousands of samples, which would otherwise freeze the UI.
     private func restageFromRaw(start: Int, end: Int) async -> String? {
         guard let store = await ensureStore() else { return nil }
         let lo = start - 3_600, hi = end + 3_600
