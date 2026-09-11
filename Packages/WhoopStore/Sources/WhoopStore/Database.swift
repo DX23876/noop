@@ -1327,6 +1327,65 @@ extension WhoopStore {
                 t.add(column: "transport", .integer)
             }
         }
+        // v59 (#1881 follow-up): re-file strap samples a live link wrote under an ARCHIVED registry row.
+        //
+        // `SourceIdentity.resolve` used to match the connected peripheral against every registry row,
+        // archived ones included, and take the first by `addedAt`. A strap that is removed and re-added
+        // keeps its peripheral address, so the archived legacy row and the new active row carried the same
+        // `peripheralId`, the older archived row won, and every reconnect re-pointed the Collector and
+        // Backfiller at it until the next launch. The analyze scan never reads archived devices, so those
+        // nights scored as empty.
+        //
+        // Narrowest provable interval: only rows NEWER than the archived row's `lastSeenAt`, because
+        // `DeviceRegistryStore.touch` never advances an archived row — nothing after that instant was
+        // recorded under that identity on purpose. Only an ACTIVE WHOOP with the same address receives rows.
+        // `UPDATE OR IGNORE` moves and never deletes: a sample whose key already exists under the active id
+        // stays where it is. The moved UTC days are marked for both ids so the day-scan fingerprints
+        // re-derive exactly those days and nothing else.
+        migrator.registerMigration("v59-reattribute-archived-strap-samples") { db in
+            let twins = try Row.fetchAll(db, sql: """
+                SELECT a.id AS archivedId, b.id AS activeId, a.lastSeenAt AS boundary
+                FROM pairedDevice a
+                JOIN pairedDevice b
+                  ON UPPER(a.peripheralId) = UPPER(b.peripheralId) AND a.id <> b.id
+                WHERE a.status = 'archived' AND b.status = 'active'
+                  AND TRIM(COALESCE(a.peripheralId, '')) <> ''
+                  AND (a.id = 'my-whoop' OR UPPER(a.brand) = 'WHOOP')
+                  AND (b.id = 'my-whoop' OR UPPER(b.brand) = 'WHOOP')
+                """)
+            // Frozen here rather than shared with `deviceScopedTables`: a migration must keep doing what it
+            // did the day it shipped. These are the per-sample streams the Collector and Backfiller write, plus
+            // `dynamicAccelSample`, which only installs that once ran the CosinorAge prototype's
+            // `v28-dynamic-accel` carry. This migrator never creates that one, so a missing table is skipped.
+            let sampleTables = ["hrSample", "rrInterval", "gravitySample", "dynamicAccelSample",
+                                "stepSample", "skinTempSample", "spo2Sample", "respSample",
+                                "sleepStateSample", "ppgHrSample", "ppgWaveformSample", "v18AuxSample",
+                                "event", "battery"]
+            for twin in twins {
+                let archivedId: String = twin["archivedId"]
+                let activeId: String = twin["activeId"]
+                let boundary: Int = twin["boundary"]
+                var movedUtcDays = Set<Int>()
+                for table in sampleTables {
+                    guard try db.tableExists(table) else { continue }
+                    let days = try Int.fetchAll(db, sql: """
+                        SELECT DISTINCT ts / 86400 FROM \(table) WHERE deviceId = ? AND ts > ?
+                        """, arguments: [archivedId, boundary])
+                    guard !days.isEmpty else { continue }
+                    try db.execute(sql: """
+                        UPDATE OR IGNORE \(table) SET deviceId = ? WHERE deviceId = ? AND ts > ?
+                        """, arguments: [activeId, archivedId, boundary])
+                    if db.changesCount > 0 { movedUtcDays.formUnion(days) }
+                }
+                // Captured raw frames are not an analysis input, but they are the same strap's bytes.
+                try db.execute(sql: """
+                    UPDATE rawBatch SET deviceId = ? WHERE deviceId = ? AND startTs > ?
+                    """, arguments: [activeId, archivedId, boundary])
+                let dayStarts = movedUtcDays.map { $0 * 86_400 }
+                try WhoopStore.markAnalysisInputsChanged(db, deviceId: activeId, timestamps: dayStarts)
+                try WhoopStore.markAnalysisInputsChanged(db, deviceId: archivedId, timestamps: dayStarts)
+            }
+        }
         return migrator
     }
 }

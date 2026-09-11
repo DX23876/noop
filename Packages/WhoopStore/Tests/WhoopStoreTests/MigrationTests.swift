@@ -295,6 +295,93 @@ final class MigrationTests: XCTestCase {
         }
     }
 
+    /// v59 (#1881 follow-up): a re-added strap keeps its peripheral address, so the archived legacy row
+    /// and the active row shared one `peripheralId` and the link filed samples under the archived id,
+    /// which the analyze scan never reads. The migration moves only what landed AFTER the archived row was
+    /// last seen, only onto the active WHOOP with the same address, never deletes a colliding sample, and
+    /// marks exactly the moved UTC days so the next scan re-derives them.
+    func testV59MovesSamplesAnArchivedTwinReceivedOntoTheActiveStrap() throws {
+        let dbQueue = try DatabaseQueue()
+        try WhoopStore.makeMigrator().migrate(dbQueue, upTo: "v58-rr-transport")
+        let lastSeen = 1_786_000_000
+        let night = 1_789_084_800          // midnight UTC, days after the archive
+        try dbQueue.write { db in
+            try db.execute(sql: """
+                INSERT OR REPLACE INTO pairedDevice
+                  (id, brand, model, sourceKind, capabilities, status, addedAt, lastSeenAt, peripheralId)
+                VALUES ('my-whoop', 'WHOOP', 'WHOOP', 'liveBLE', 'hr', 'archived', 1, ?, 'aaaa-1111'),
+                       ('whoop-5AG', 'WHOOP', '5.0 MG', 'liveBLE', 'hr', 'active', 2, ?, 'AAAA-1111')
+                """, arguments: [lastSeen, night])
+            // Before the archived row was last seen: its own history, which must stay.
+            try db.execute(sql: "INSERT INTO hrSample (deviceId, ts, bpm) VALUES ('my-whoop', ?, 50)",
+                           arguments: [lastSeen - 60])
+            // After: the misfiled night.
+            try db.execute(sql: "INSERT INTO hrSample (deviceId, ts, bpm) VALUES ('my-whoop', ?, 55)",
+                           arguments: [night])
+            try db.execute(sql: "INSERT INTO gravitySample (deviceId, ts, x, y, z) VALUES ('my-whoop', ?, 0, 0, 1)",
+                           arguments: [night])
+            try db.execute(sql: "INSERT INTO rrInterval (deviceId, ts, rrMs) VALUES ('my-whoop', ?, 1000)",
+                           arguments: [night])
+            try db.execute(sql: "INSERT INTO event (deviceId, ts, kind, payloadJSON) VALUES ('my-whoop', ?, 'wrist', '{}')",
+                           arguments: [night])
+            // The same second recorded under both ids.
+            try db.execute(sql: "INSERT INTO hrSample (deviceId, ts, bpm) VALUES ('my-whoop', ?, 70)",
+                           arguments: [night + 1])
+            try db.execute(sql: "INSERT INTO hrSample (deviceId, ts, bpm) VALUES ('whoop-5AG', ?, 71)",
+                           arguments: [night + 1])
+        }
+
+        try WhoopStore.makeMigrator().migrate(dbQueue)
+
+        try dbQueue.read { db in
+            func bpm(_ id: String, _ ts: Int) throws -> Int? {
+                try Int.fetchOne(db, sql: "SELECT bpm FROM hrSample WHERE deviceId = ? AND ts = ?",
+                                 arguments: [id, ts])
+            }
+            XCTAssertEqual(try bpm("whoop-5AG", night), 55, "the misfiled night moves to the active strap")
+            XCTAssertEqual(try bpm("my-whoop", lastSeen - 60), 50, "history from before the archive stays put")
+            XCTAssertEqual(try bpm("whoop-5AG", night + 1), 71, "a colliding sample never overwrites the active copy")
+            XCTAssertEqual(try bpm("my-whoop", night + 1), 70, "and the colliding copy is kept, not deleted")
+            for table in ["gravitySample", "rrInterval", "event"] {
+                XCTAssertEqual(try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM \(table) WHERE deviceId = 'whoop-5AG'"),
+                               1, table)
+                XCTAssertEqual(try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM \(table) WHERE deviceId = 'my-whoop'"),
+                               0, table)
+            }
+            let marked = try Int.fetchAll(db, sql: "SELECT utcDay FROM analysisInputRevision WHERE deviceId = 'whoop-5AG'")
+            XCTAssertEqual(marked, [night / 86_400], "exactly the moved day is re-derived, nothing wider")
+        }
+    }
+
+    /// v59 only ever moves onto an ACTIVE WHOOP. An archived row whose address only a merely-paired device
+    /// shares, or an archived row with no address at all, keeps every sample it has.
+    func testV59LeavesAnArchivedRowAloneWithoutAnActiveTwin() throws {
+        let dbQueue = try DatabaseQueue()
+        try WhoopStore.makeMigrator().migrate(dbQueue, upTo: "v58-rr-transport")
+        try dbQueue.write { db in
+            try db.execute(sql: """
+                INSERT OR REPLACE INTO pairedDevice
+                  (id, brand, model, sourceKind, capabilities, status, addedAt, lastSeenAt, peripheralId)
+                VALUES ('whoop-old', 'WHOOP', '4.0', 'liveBLE', 'hr', 'archived', 1, 100, 'BBBB'),
+                       ('whoop-spare', 'WHOOP', '4.0', 'liveBLE', 'hr', 'paired', 2, 100, 'BBBB'),
+                       ('whoop-bare', 'WHOOP', '4.0', 'liveBLE', 'hr', 'archived', 3, 100, NULL),
+                       ('whoop-new', 'WHOOP', '5.0 MG', 'liveBLE', 'hr', 'active', 4, 100, 'CCCC')
+                """)
+            for id in ["whoop-old", "whoop-bare"] {
+                try db.execute(sql: "INSERT INTO hrSample (deviceId, ts, bpm) VALUES (?, 500, 60)", arguments: [id])
+            }
+        }
+
+        try WhoopStore.makeMigrator().migrate(dbQueue)
+
+        try dbQueue.read { db in
+            XCTAssertEqual(try Int.fetchOne(db, sql: """
+                SELECT COUNT(*) FROM hrSample WHERE deviceId IN ('whoop-old', 'whoop-bare')
+                """), 2)
+            XCTAssertEqual(try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM analysisInputRevision"), 0)
+        }
+    }
+
     /// Regression for the old semantic `LIMIT 200000`: dense R-R windows must include the newest tail,
     /// not quietly treat a full page as the complete night.
     func testUnboundedRrReadIncludesRow200001AndNewestTail() async throws {
