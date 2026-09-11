@@ -110,10 +110,7 @@ struct MomentumCard: View {
     }
 
     private var momentumLabel: some View {
-        Text(verbatim: "MOMENTUM")
-            .font(StrandFont.overline)
-            .tracking(StrandFont.overlineTracking)
-            .foregroundStyle(StrandPalette.textSecondary)
+        Text("Momentum").strandOverline()
     }
 
     private var iconTile: some View {

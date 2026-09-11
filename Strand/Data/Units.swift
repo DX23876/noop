@@ -368,6 +368,20 @@ enum UnitFormatter {
         scale == .whoop ? "21" : "100"
     }
 
+    // MARK: Statistical notation
+    //
+    // Symbols and a number with nothing in them to translate, so screens show these verbatim rather
+    // than routing them through the catalog. Same "." decimal as every other figure here.
+
+    /// Cohen's d, e.g. "d = 0.52".
+    static func effectSize(_ d: Double) -> String { String(format: "d = %.2f", d) }
+
+    /// A correlation coefficient with its sign, e.g. "r = +0.31".
+    static func correlation(_ r: Double) -> String { String(format: "r = %+.2f", r) }
+
+    /// A signed whole percentage, e.g. "+12%".
+    static func signedPercent(_ percent: Double) -> String { String(format: "%+.0f%%", percent) }
+
     // MARK: Helpers
 
     private static func oneDecimal(_ v: Double) -> String { String(format: "%.1f", v) }

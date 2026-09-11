@@ -623,5 +623,14 @@
  "No working sets in the last 28 days": "Nessuna serie allenante negli ultimi 28 giorni",
  "All %lld working sets in the last 28 days carry an RPE": "Tutte le %lld serie allenanti degli ultimi 28 giorni hanno un RPE",
  "Only %lld of %lld working sets in the last 28 days carry an RPE, so most of the weighting is the neutral default for unrated sets": "Solo %lld serie allenanti su %lld degli ultimi 28 giorni hanno un RPE, quindi la ponderazione è per lo più il valore neutro predefinito per le serie senza RPE",
- "%lld of %lld working sets in the last 28 days carry an RPE; the rest use the neutral default": "%lld serie allenanti su %lld degli ultimi 28 giorni hanno un RPE; le altre usano il valore neutro predefinito"
+ "%lld of %lld working sets in the last 28 days carry an RPE; the rest use the neutral default": "%lld serie allenanti su %lld degli ultimi 28 giorni hanno un RPE; le altre usano il valore neutro predefinito",
+ "Choose a signal": "Scegli un segnale",
+ "the signal": "il segnale",
+ "Import your Oura history": "Importa la cronologia Oura",
+ "The most common cause is the ring was not fully reset in the Oura app, or the Oura app is still running. Reset the ring again, force-quit Oura, then try once more. If it keeps failing, your ring may be a generation NOOP cannot adopt yet. The ring is not bricked: re-pair it in the Oura app to recover it. You can still use file import.": "La causa più comune è che l'anello non è stato ripristinato del tutto nell'app Oura, oppure che l'app Oura è ancora in esecuzione. Ripristina di nuovo l'anello, forza la chiusura di Oura e riprova. Se continua a non riuscire, il tuo anello potrebbe essere di una generazione che NOOP non può ancora adottare. L'anello non è bloccato: riabbinalo nell'app Oura per recuperarlo. Puoi comunque usare l'importazione da file.",
+ "Today's coaching brief at a glance. Tap to open Coach.": "Il briefing di coaching di oggi a colpo d'occhio. Tocca per aprire Coach.",
+ "Live heart rate with the last three hours as a trace.": "Frequenza cardiaca in diretta con le ultime tre ore come traccia.",
+ "%@ out of %lld": "%@ su %lld",
+ "unavailable": "non disponibile",
+ "Charge, Effort and Rest as score rings, plus live HR and strap battery at a glance.": "Carica, Sforzo e Riposo come anelli, più frequenza cardiaca in diretta e batteria della fascia a colpo d'occhio."
 }

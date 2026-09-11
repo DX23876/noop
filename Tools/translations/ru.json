@@ -624,5 +624,14 @@
  "No working sets in the last 28 days": "Нет рабочих подходов за последние 28 дней",
  "All %lld working sets in the last 28 days carry an RPE": "У всех рабочих подходов за последние 28 дней (%lld) есть RPE",
  "Only %lld of %lld working sets in the last 28 days carry an RPE, so most of the weighting is the neutral default for unrated sets": "Только у %lld из %lld рабочих подходов за последние 28 дней есть RPE, поэтому вес в основном нейтральный по умолчанию для подходов без оценки",
- "%lld of %lld working sets in the last 28 days carry an RPE; the rest use the neutral default": "У %lld из %lld рабочих подходов за последние 28 дней есть RPE; остальные получают нейтральный вес по умолчанию"
+ "%lld of %lld working sets in the last 28 days carry an RPE; the rest use the neutral default": "У %lld из %lld рабочих подходов за последние 28 дней есть RPE; остальные получают нейтральный вес по умолчанию",
+ "Choose a signal": "Выбрать сигнал",
+ "the signal": "сигнал",
+ "Import your Oura history": "Импортировать историю Oura",
+ "The most common cause is the ring was not fully reset in the Oura app, or the Oura app is still running. Reset the ring again, force-quit Oura, then try once more. If it keeps failing, your ring may be a generation NOOP cannot adopt yet. The ring is not bricked: re-pair it in the Oura app to recover it. You can still use file import.": "Чаще всего кольцо не было полностью сброшено в приложении Oura или приложение Oura всё ещё запущено. Сбросьте кольцо ещё раз, принудительно закройте Oura и повторите попытку. Если ошибка повторяется, возможно, ваше кольцо относится к поколению, которое NOOP пока не умеет подключать. Кольцо не заблокировано: снова создайте пару в приложении Oura, чтобы восстановить его. Импорт из файла по-прежнему доступен.",
+ "Today's coaching brief at a glance. Tap to open Coach.": "Сегодняшняя сводка ИИ-тренера с одного взгляда. Нажмите, чтобы открыть ИИ-тренера.",
+ "Live heart rate with the last three hours as a trace.": "Пульс в реальном времени с графиком за последние три часа.",
+ "%@ out of %lld": "%@ из %lld",
+ "unavailable": "недоступно",
+ "Charge, Effort and Rest as score rings, plus live HR and strap battery at a glance.": "Заряд, Усилие и Отдых в виде колец, а также пульс в реальном времени и заряд браслета с одного взгляда."
 }

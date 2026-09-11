@@ -2,7 +2,7 @@
   "sourceLanguage" : "en",
   "strings" : {
     "%@" : {
-
+      "shouldTranslate" : false
     },
     "%@ active" : {
       "localizations" : {
@@ -63,7 +63,62 @@
       }
     },
     "%@ bpm" : {
-
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ bpm"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ ppm"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ bpm"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ bpm"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ bpm"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ bpm"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ уд/мин"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ bpm"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ bpm"
+          }
+        }
+      }
     },
     "%@ kcal" : {
       "localizations" : {
@@ -78,22 +133,125 @@
     },
     "%@ out of %lld" : {
       "localizations" : {
-        "en" : {
+        "de" : {
           "stringUnit" : {
-            "state" : "new",
-            "value" : "%1$@ out of %2$lld"
+            "state" : "translated",
+            "value" : "%@ von %lld"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ de %lld"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ sur %lld"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ su %lld"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ z %lld"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ de %lld"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ из %lld"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@，满分 %lld"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@，滿分 %lld"
           }
         }
       }
     },
     "%lld" : {
-
+      "shouldTranslate" : false
     },
     "%lld bpm" : {
-
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld bpm"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld ppm"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld bpm"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld bpm"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld bpm"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld bpm"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld уд/мин"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld bpm"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld bpm"
+          }
+        }
+      }
     },
     "%lld%%" : {
-
+      "shouldTranslate" : false
     },
     "Active" : {
       "localizations" : {
@@ -212,14 +370,117 @@
       }
     },
     "Charge, Effort and Rest as score rings, plus live HR and strap battery at a glance." : {
-
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Energie, Belastung und Erholung als Ringe, dazu Live-Herzfrequenz und Strap-Akku auf einen Blick."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Carga, Esfuerzo y Descanso como anillos, más frecuencia cardíaca en vivo y batería de la pulsera de un vistazo."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Charge, Effort et Repos en anneaux, avec la fréquence cardiaque en direct et la batterie du bracelet en un coup d'œil."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Carica, Sforzo e Riposo come anelli, più frequenza cardiaca in diretta e batteria della fascia a colpo d'occhio."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Energia, Wysiłek i Odpoczynek jako pierścienie oraz tętno na żywo i bateria opaski w skrócie."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Carga, Esforço e Descanso em anéis, mais frequência cardíaca em direto e bateria da pulseira num relance."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Заряд, Усилие и Отдых в виде колец, а также пульс в реальном времени и заряд браслета с одного взгляда."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "以圆环显示能量、消耗和休息，并一眼看到实时心率和手环电量。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "以圓環顯示能量、消耗和休息，並一眼看到即時心率和手環電量。"
+          }
+        }
+      }
     },
     "Charge, Effort and Rest as three rings, just like Today." : {
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Charge, Effort und Rest als drei Ringe, genau wie unter Heute."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Charge, Effort y Rest como tres anillos, igual que en Hoy."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Charge, Effort et Repos sous forme de trois anneaux, comme dans Aujourd'hui."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Charge, Fatica e Riposo come tre anelli, proprio come Oggi."
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Poziom energii, Wysiłek i Odpoczynek jako trzy pierścienie, tak jak w Dziś."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Charge, Esforço e Descanso como três anéis, assim como hoje."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Charge, Усилие и отдых в виде трех колец, как и сегодня."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "能量、消耗和休息三个圆环，与“今天”页面一致。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "能量、消耗和休息三個圓環，與「今天」頁面一致。"
           }
         }
       }
@@ -764,6 +1025,64 @@
         }
       }
     },
+    "Live heart rate with the last three hours as a trace." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Live-Herzfrequenz mit den letzten drei Stunden als Verlauf."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Frecuencia cardíaca en vivo con las últimas tres horas como trazo."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fréquence cardiaque en direct, avec les trois dernières heures en tracé."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Frequenza cardiaca in diretta con le ultime tre ore come traccia."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tętno na żywo z wykresem ostatnich trzech godzin."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Frequência cardíaca em direto com as últimas três horas como traçado."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Пульс в реальном времени с графиком за последние три часа."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "实时心率，并以曲线显示最近三小时。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "即時心率，並以曲線顯示最近三小時。"
+          }
+        }
+      }
+    },
     "Measured" : {
       "localizations" : {
         "de" : {
@@ -887,7 +1206,7 @@
       }
     },
     "NOOP" : {
-
+      "shouldTranslate" : false
     },
     "NOOP Energy" : {
       "localizations" : {
@@ -949,10 +1268,58 @@
     },
     "NOOP Rings" : {
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP-Ringe"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Anillos NOOP"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Anneaux NOOP"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP Anelli"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Pierścienie NOOP"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP Anéis"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP Кольца"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP 圆环"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP 圓環"
           }
         }
       }
@@ -1017,6 +1384,64 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "尚無簡報"
+          }
+        }
+      }
+    },
+    "No data" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keine Daten"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sin datos"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pas de données"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nessun dato"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Brak danych"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sem dados"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Нет данных"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无数据"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "無資料"
           }
         }
       }
@@ -1191,6 +1616,64 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "今日預測"
+          }
+        }
+      }
+    },
+    "Today's coaching brief at a glance. Tap to open Coach." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das heutige Coaching-Briefing auf einen Blick. Tippen, um den Coach zu öffnen."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El resumen de entrenamiento de hoy de un vistazo. Toca para abrir Entrenador."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le brief de coaching du jour en un coup d'œil. Touchez pour ouvrir Coach."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il briefing di coaching di oggi a colpo d'occhio. Tocca per aprire Coach."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dzisiejsze podsumowanie od trenera w skrócie. Stuknij, aby otworzyć Trenera."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O resumo de treino de hoje num relance. Toca para abrir o Treinador."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Сегодняшняя сводка ИИ-тренера с одного взгляда. Нажмите, чтобы открыть ИИ-тренера."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "一眼看到今天的教练简报。轻点打开教练。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "一眼看到今天的教練簡報。輕點開啟教練。"
           }
         }
       }
@@ -1610,7 +2093,62 @@
       }
     },
     "unavailable" : {
-
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "nicht verfügbar"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "no disponible"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "indisponible"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "non disponibile"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "niedostępne"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "indisponível"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "недоступно"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "不可用"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "無法使用"
+          }
+        }
+      }
     },
     "~%@ projected" : {
       "localizations" : {
@@ -1671,7 +2209,7 @@
       }
     },
     "–" : {
-
+      "shouldTranslate" : false
     },
     "—" : {
       "shouldTranslate" : false

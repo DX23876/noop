@@ -149,7 +149,7 @@ struct InsightsHubView: View {
                     Text("Effect size").strandOverline()
                     Spacer()
                     HStack(spacing: 6) {
-                        Text(String(format: "d = %.2f", e.cohensD))
+                        Text(verbatim: UnitFormatter.effectSize(e.cohensD))
                             .font(StrandFont.captionNumber)
                             .foregroundStyle(tintColor)
                         Text(Self.effectMagnitudeWord(e.cohensD))

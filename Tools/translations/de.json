@@ -646,5 +646,14 @@
   "No working sets in the last 28 days": "Keine Arbeitssätze in den letzten 28 Tagen",
   "All %lld working sets in the last 28 days carry an RPE": "Alle %lld Arbeitssätze der letzten 28 Tage tragen ein RPE",
   "Only %lld of %lld working sets in the last 28 days carry an RPE, so most of the weighting is the neutral default for unrated sets": "Nur %lld von %lld Arbeitssätzen der letzten 28 Tage tragen ein RPE, die Gewichtung ist deshalb überwiegend der neutrale Standard für unbewertete Sätze",
-  "%lld of %lld working sets in the last 28 days carry an RPE; the rest use the neutral default": "%lld von %lld Arbeitssätzen der letzten 28 Tage tragen ein RPE; der Rest nutzt den neutralen Standard"
+  "%lld of %lld working sets in the last 28 days carry an RPE; the rest use the neutral default": "%lld von %lld Arbeitssätzen der letzten 28 Tage tragen ein RPE; der Rest nutzt den neutralen Standard",
+  "Choose a signal": "Signal wählen",
+  "the signal": "das Signal",
+  "Import your Oura history": "Oura-Verlauf importieren",
+  "The most common cause is the ring was not fully reset in the Oura app, or the Oura app is still running. Reset the ring again, force-quit Oura, then try once more. If it keeps failing, your ring may be a generation NOOP cannot adopt yet. The ring is not bricked: re-pair it in the Oura app to recover it. You can still use file import.": "Meist wurde der Ring in der Oura-App nicht vollständig zurückgesetzt, oder die Oura-App läuft noch. Setze den Ring erneut zurück, beende Oura zwangsweise und versuche es dann noch einmal. Schlägt es weiter fehl, ist dein Ring vielleicht eine Generation, die NOOP noch nicht übernehmen kann. Der Ring ist nicht unbrauchbar: Kopple ihn in der Oura-App neu, um ihn wiederherzustellen. Der Dateiimport funktioniert weiterhin.",
+  "Today's coaching brief at a glance. Tap to open Coach.": "Das heutige Coaching-Briefing auf einen Blick. Tippen, um den Coach zu öffnen.",
+  "Live heart rate with the last three hours as a trace.": "Live-Herzfrequenz mit den letzten drei Stunden als Verlauf.",
+  "%@ out of %lld": "%@ von %lld",
+  "unavailable": "nicht verfügbar",
+  "Charge, Effort and Rest as score rings, plus live HR and strap battery at a glance.": "Energie, Belastung und Erholung als Ringe, dazu Live-Herzfrequenz und Strap-Akku auf einen Blick."
 }

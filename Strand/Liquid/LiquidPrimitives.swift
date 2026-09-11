@@ -594,8 +594,13 @@ struct CountUpNumber: View, Animatable {
         set { value = newValue }
     }
     var body: some View {
-        Text(decimals > 0 ? String(format: "%.\(decimals)f", value) : "\(Int(value.rounded()))")
+        Text(verbatim: display)
             .font(font).monospacedDigit()
+    }
+
+    /// A bare number — verbatim, since there is nothing in it to translate.
+    private var display: String {
+        decimals > 0 ? String(format: "%.\(decimals)f", value) : "\(Int(value.rounded()))"
     }
 }
 

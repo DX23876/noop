@@ -1784,5 +1784,14 @@
   "No working sets in the last 28 days": "Brak serii roboczych w ostatnich 28 dniach",
   "All %lld working sets in the last 28 days carry an RPE": "Wszystkie serie robocze z ostatnich 28 dni (%lld) mają RPE",
   "Only %lld of %lld working sets in the last 28 days carry an RPE, so most of the weighting is the neutral default for unrated sets": "Tylko %lld z %lld serii roboczych z ostatnich 28 dni ma RPE, więc ważenie to w większości neutralna wartość domyślna dla serii bez oceny",
-  "%lld of %lld working sets in the last 28 days carry an RPE; the rest use the neutral default": "%lld z %lld serii roboczych z ostatnich 28 dni ma RPE; pozostałe mają neutralną wartość domyślną"
+  "%lld of %lld working sets in the last 28 days carry an RPE; the rest use the neutral default": "%lld z %lld serii roboczych z ostatnich 28 dni ma RPE; pozostałe mają neutralną wartość domyślną",
+  "Choose a signal": "Wybierz sygnał",
+  "the signal": "sygnał",
+  "Import your Oura history": "Zaimportuj historię Oura",
+  "The most common cause is the ring was not fully reset in the Oura app, or the Oura app is still running. Reset the ring again, force-quit Oura, then try once more. If it keeps failing, your ring may be a generation NOOP cannot adopt yet. The ring is not bricked: re-pair it in the Oura app to recover it. You can still use file import.": "Najczęstsza przyczyna: pierścień nie został w pełni zresetowany w aplikacji Oura albo aplikacja Oura nadal działa. Zresetuj pierścień ponownie, wymuś zamknięcie Oura i spróbuj jeszcze raz. Jeśli nadal się nie udaje, twój pierścień może należeć do generacji, której NOOP jeszcze nie obsługuje. Pierścień nie jest zablokowany: sparuj go ponownie w aplikacji Oura, aby go odzyskać. Nadal możesz korzystać z importu plików.",
+  "Today's coaching brief at a glance. Tap to open Coach.": "Dzisiejsze podsumowanie od trenera w skrócie. Stuknij, aby otworzyć Trenera.",
+  "Live heart rate with the last three hours as a trace.": "Tętno na żywo z wykresem ostatnich trzech godzin.",
+  "%@ out of %lld": "%@ z %lld",
+  "unavailable": "niedostępne",
+  "Charge, Effort and Rest as score rings, plus live HR and strap battery at a glance.": "Energia, Wysiłek i Odpoczynek jako pierścienie oraz tętno na żywo i bateria opaski w skrócie."
 }

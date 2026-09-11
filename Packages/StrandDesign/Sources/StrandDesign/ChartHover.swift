@@ -58,7 +58,7 @@ public struct ChartTooltip: View {
         .background(NoopPanelSurface(cornerRadius: 8, elevated: true))
         .fixedSize()
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(label != nil ? "\(value), \(label!)" : value)
+        .accessibilityLabel([value, label].compactMap { $0 }.joined(separator: ", "))
     }
 }
 

@@ -4166,7 +4166,7 @@ struct StepsCalibrationSheet: View {
                             Text(Self.grouped(row.actual))
                                 .font(StrandFont.captionNumber).foregroundStyle(StrandPalette.textPrimary)
                                 .frame(width: 64, alignment: .trailing)
-                            Text(String(format: "%+.0f%%", row.errorPct))
+                            Text(verbatim: UnitFormatter.signedPercent(row.errorPct))
                                 .font(StrandFont.captionNumber)
                                 .foregroundStyle(abs(row.errorPct) <= 15
                                                  ? StrandPalette.metricCyan : StrandPalette.statusWarning)

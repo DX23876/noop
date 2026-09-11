@@ -342844,6 +342844,238 @@
           }
         }
       }
+    },
+    "Choose a signal" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Signal wählen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Elegir una señal"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choisir un signal"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scegli un segnale"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wybierz sygnał"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Escolher um sinal"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Выбрать сигнал"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "选择一个信号"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "選擇一個訊號"
+          }
+        }
+      }
+    },
+    "the signal" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "das Signal"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "la señal"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "le signal"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "il segnale"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "sygnał"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "o sinal"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "сигнал"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "该信号"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "該訊號"
+          }
+        }
+      }
+    },
+    "Import your Oura history" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Oura-Verlauf importieren"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Importar tu historial de Oura"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Importer votre historique Oura"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Importa la cronologia Oura"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zaimportuj historię Oura"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Importar o teu histórico Oura"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Импортировать историю Oura"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "导入你的 Oura 历史"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "匯入你的 Oura 歷史"
+          }
+        }
+      }
+    },
+    "The most common cause is the ring was not fully reset in the Oura app, or the Oura app is still running. Reset the ring again, force-quit Oura, then try once more. If it keeps failing, your ring may be a generation NOOP cannot adopt yet. The ring is not bricked: re-pair it in the Oura app to recover it. You can still use file import." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Meist wurde der Ring in der Oura-App nicht vollständig zurückgesetzt, oder die Oura-App läuft noch. Setze den Ring erneut zurück, beende Oura zwangsweise und versuche es dann noch einmal. Schlägt es weiter fehl, ist dein Ring vielleicht eine Generation, die NOOP noch nicht übernehmen kann. Der Ring ist nicht unbrauchbar: Kopple ihn in der Oura-App neu, um ihn wiederherzustellen. Der Dateiimport funktioniert weiterhin."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La causa más habitual es que el anillo no se restableció por completo en la app de Oura, o que la app de Oura sigue abierta. Restablece el anillo de nuevo, fuerza el cierre de Oura y vuelve a intentarlo. Si sigue fallando, puede que tu anillo sea de una generación que NOOP todavía no puede adoptar. El anillo no está inutilizado: vuelve a emparejarlo en la app de Oura para recuperarlo. Aún puedes usar la importación de archivos."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La cause la plus fréquente : l'anneau n'a pas été entièrement réinitialisé dans l'app Oura, ou l'app Oura est encore ouverte. Réinitialisez l'anneau, forcez la fermeture d'Oura, puis réessayez. Si l'échec persiste, votre anneau appartient peut-être à une génération que NOOP ne sait pas encore adopter. L'anneau n'est pas bloqué : réassociez-le dans l'app Oura pour le récupérer. L'import de fichiers reste disponible."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La causa più comune è che l'anello non è stato ripristinato del tutto nell'app Oura, oppure che l'app Oura è ancora in esecuzione. Ripristina di nuovo l'anello, forza la chiusura di Oura e riprova. Se continua a non riuscire, il tuo anello potrebbe essere di una generazione che NOOP non può ancora adottare. L'anello non è bloccato: riabbinalo nell'app Oura per recuperarlo. Puoi comunque usare l'importazione da file."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Najczęstsza przyczyna: pierścień nie został w pełni zresetowany w aplikacji Oura albo aplikacja Oura nadal działa. Zresetuj pierścień ponownie, wymuś zamknięcie Oura i spróbuj jeszcze raz. Jeśli nadal się nie udaje, twój pierścień może należeć do generacji, której NOOP jeszcze nie obsługuje. Pierścień nie jest zablokowany: sparuj go ponownie w aplikacji Oura, aby go odzyskać. Nadal możesz korzystać z importu plików."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A causa mais comum é o anel não ter sido totalmente reposto na aplicação Oura, ou a aplicação Oura ainda estar a correr. Repõe o anel novamente, força o encerramento da Oura e tenta outra vez. Se continuar a falhar, o teu anel pode ser de uma geração que o NOOP ainda não consegue adotar. O anel não ficou inutilizado: emparelha-o de novo na aplicação Oura para o recuperar. Continuas a poder usar a importação de ficheiros."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Чаще всего кольцо не было полностью сброшено в приложении Oura или приложение Oura всё ещё запущено. Сбросьте кольцо ещё раз, принудительно закройте Oura и повторите попытку. Если ошибка повторяется, возможно, ваше кольцо относится к поколению, которое NOOP пока не умеет подключать. Кольцо не заблокировано: снова создайте пару в приложении Oura, чтобы восстановить его. Импорт из файла по-прежнему доступен."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最常见的原因是戒指未在 Oura 应用中完全重置，或 Oura 应用仍在运行。请再次重置戒指，强制退出 Oura，然后重试。如果仍然失败，你的戒指可能属于 NOOP 暂时无法接管的世代。戒指并未损坏：在 Oura 应用中重新配对即可恢复。你仍可使用文件导入。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最常見的原因是戒指未在 Oura App 中完全重設，或 Oura App 仍在執行。請再次重設戒指，強制結束 Oura，然後重試。如果仍然失敗，你的戒指可能屬於 NOOP 暫時無法接管的世代。戒指並未損壞：在 Oura App 中重新配對即可復原。你仍可使用檔案匯入。"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

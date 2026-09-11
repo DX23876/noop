@@ -914,7 +914,7 @@ struct AddDeviceWizard: View {
             Text("We could not take over this ring.")
                 .font(StrandFont.headline)
                 .foregroundStyle(StrandPalette.textPrimary)
-            Text(model.ouraNeedsPairing ?? "The most common cause is the ring was not fully reset in the Oura app, or the Oura app is still running. Reset the ring again, force-quit Oura, then try once more. If it keeps failing, your ring may be a generation NOOP cannot adopt yet. The ring is not bricked: re-pair it in the Oura app to recover it. You can still use file import.")
+            Text(model.ouraNeedsPairing ?? String(localized: "The most common cause is the ring was not fully reset in the Oura app, or the Oura app is still running. Reset the ring again, force-quit Oura, then try once more. If it keeps failing, your ring may be a generation NOOP cannot adopt yet. The ring is not bricked: re-pair it in the Oura app to recover it. You can still use file import."))
                 .font(StrandFont.subhead)
                 .foregroundStyle(StrandPalette.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)

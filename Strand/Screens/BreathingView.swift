@@ -316,7 +316,7 @@ private struct BreathingContent: View {
                     }
                     .accessibilityLabel(String(localized: "Protocol info"))
                     if selectedBpm > 0 {
-                        Text(String(format: "%.1f br/min", selectedBpm))
+                        Text(String(localized: "\(String(format: "%.1f", selectedBpm)) br/min"))
                             .font(StrandFont.captionNumber)
                             .foregroundStyle(StrandPalette.textSecondary)
                     } else if isGuided {

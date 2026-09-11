@@ -437,7 +437,8 @@ struct DataSourcesView: View {
                     }.disabled(oura.busy)
                 } else {
                     Button { oura.connectAndImport(repo: repo) } label: {
-                        Label(oura.busy ? "Working…" : "Import your Oura history", systemImage: "square.and.arrow.down")
+                        Label(oura.busy ? String(localized: "Working…") : String(localized: "Import your Oura history"),
+                              systemImage: "square.and.arrow.down")
                     }
                     .buttonStyle(NoopButtonStyle(.primary))
                     .disabled(oura.busy || !oura.isConfigured)

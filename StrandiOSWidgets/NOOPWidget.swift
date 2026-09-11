@@ -158,12 +158,11 @@ struct NOOPWidgetView: View {
         // metric. Collapse the cell to one element that still speaks "Charge, 68 percent".
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text(label))
-        // Plain literal, not String(localized:). This extension's sources are StrandiOSWidgets +
-        // StrandiOSShared only — Strand/Resources/Localizable.xcstrings is NOT in the target, and
-        // String(localized:) resolves against Bundle.main, which for an app extension is the extension's
-        // own bundle. It would compile, look localized, and render English in every locale. Every other
-        // string in this file is a bare literal for the same reason: the widget is not localized yet.
-        .accessibilityValue(Text(text ?? "No data"))
+        // The value is a runtime string and stays verbatim. The fallback is a key in this extension's
+        // OWN catalog (StrandiOSWidgets/Localizable.xcstrings): Bundle.main for an app extension is the
+        // extension's bundle, which ships that catalog — the phone app's catalog is not in this target,
+        // so a key that only exists there would still render English.
+        .accessibilityValue(text.map { Text(verbatim: $0) } ?? Text("No data"))
     }
 
     private func scoreStyle(hasValue: Bool, tint: Color) -> AnyShapeStyle {
@@ -321,9 +320,8 @@ struct NOOPWidgetView: View {
     /// — three anonymous numbers. Same reasoning as `accessoryScore`, which #1715 fixed for the lock
     /// screen; this footer predates it.
     ///
-    /// Plain literals rather than `String(localized:)`, for the reason spelled out on `accessoryScore`:
-    /// this extension does not carry the app's string catalog, so `String(localized:)` would look
-    /// localized and render English anyway.
+    /// The spoken fallback resolves through the extension's own catalog, for the reason spelled out on
+    /// `accessoryScore`: the app's catalog is not in this target.
     private func vital(symbol: String, text: String?, name: String, spoken: String?) -> some View {
         Label(text ?? "–", systemImage: symbol)
             // Collapse first, like `accessoryScore` and `WidgetScoreRing` already do. A `Label` under
@@ -332,7 +330,7 @@ struct NOOPWidgetView: View {
             // something this file decides. Every other labelled graphic here ignores its children.
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(Text(name))
-            .accessibilityValue(Text(spoken ?? "No data"))
+            .accessibilityValue(spoken.map { Text(verbatim: $0) } ?? Text("No data"))
     }
 
     /// One labelled stat in the large grid — value over a caption, equal-width so the columns align.
@@ -359,7 +357,7 @@ struct NOOPWidgetView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text(name ?? label))
-        .accessibilityValue(Text(spoken ?? value ?? "No data"))
+        .accessibilityValue((spoken ?? value).map { Text(verbatim: $0) } ?? Text("No data"))
     }
 }
 

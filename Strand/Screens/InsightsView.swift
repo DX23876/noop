@@ -1221,7 +1221,7 @@ struct InsightsView: View {
                     Text("Effect size").strandOverline()
                     Spacer()
                     HStack(spacing: 6) {
-                        Text(String(format: "d = %.2f", e.cohensD))
+                        Text(verbatim: UnitFormatter.effectSize(e.cohensD))
                             .font(StrandFont.captionNumber)
                             .foregroundStyle(tintColor)
                         Text(effectMagnitudeWord(e.cohensD))
@@ -1416,7 +1416,7 @@ struct InsightsView: View {
                     .font(StrandFont.headline)
                     .foregroundStyle(StrandPalette.textPrimary)
                 Spacer()
-                Text(String(format: "r = %+.2f", r))
+                Text(verbatim: UnitFormatter.correlation(r))
                     .font(StrandFont.number(16))
                     .foregroundStyle(strength)
                 StatePill(rel.corr.pApprox < 0.05 ? "p < 0.05" : "n.s.",
