@@ -84,6 +84,11 @@ public enum BackupSettings {
         // SCOPE: NAMES only — the wire carries no kind/group, so a numeric custom behaviour restores as a
         // plain .bool toggle (identical on both platforms; historical entries keep their DB numericValue).
         "journal.customBehaviors": .string,
+        // The dated basal-formula log, as JSON (the wire carries Int/Double/String only). Without it a
+        // restore silently reverts to Harris-Benedict and the energy curve steps a second time with
+        // nobody having changed anything — the wearer would be looking at a bug that is really a lost
+        // setting. Append-only data, so a restore can only ever bring back what was already true.
+        "energy.bmrFormulaLog": .string,
     ]
 
     /// Canonical JSON key → this platform's UserDefaults key. Identity everywhere except
@@ -106,6 +111,7 @@ public enum BackupSettings {
         "effort.scale": "effort.scale",
         "dayCycle.mode": "noop.dayCycleMode",
         "today.hostedCards": "today.hostedCards",
+        "energy.bmrFormulaLog": "energy.bmrFormulaLog",
     ]
 
     // MARK: - Snapshot / apply (UserDefaults boundary)

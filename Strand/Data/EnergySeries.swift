@@ -61,9 +61,13 @@ extension Repository {
               let yesterday = calendar.date(byAdding: .day, value: -1, to: cutoff) else { return nil }
         let from = Self.localDayKey(firstDate)
         let to = Self.localDayKey(yesterday)
-        let nutrition = (try? await store.metricSeries(
-            deviceId: "nutrition-csv", key: "calories_in", from: from, to: to)) ?? []
-        guard !nutrition.isEmpty else { return nil }
+        // Both intake sources, manual winning a day it shares with an import — the same "one source
+        // wins a day, never a sum" rule weight follows. Reading only the CSV source (as this did) made
+        // a typed number invisible to the balance estimate, which for a strap-only setup is the ONLY
+        // remaining way to check the level at all.
+        let intake = await intakeByDay(from: from, to: to)
+        guard !intake.isEmpty else { return nil }
+        let nutrition = intake.map { MetricPoint(day: $0.key, key: "calories_in", value: $0.value) }
         let weights = await weightSeries(days: AdaptiveExpenditureEngine.maximumWindowDays + 2)
 
         var byDay: [String: (calories: Double?, weight: Double?)] = [:]
