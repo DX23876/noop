@@ -481,6 +481,13 @@ final class AppModel: ObservableObject {
             await PlanReconciliationCoordinator.reconcile(repo: self.repo)
             await GoalTrackingStore.shared.refresh(repo: self.repo)
             await self.recordAppVersionChangeIfNeeded()        // #1410: stamp an update transition once
+            // Retire the undated body scalars into dated readings. Runs after the first refresh so
+            // `days` is populated — the migration stamps the readings at the wearer's earliest
+            // recorded day, which is what makes it behaviour-preserving. Latched, so this is a single
+            // UserDefaults read on every later launch.
+            await self.repo.migrateProfileBodyScalarsIfNeeded(
+                weightKg: self.profile.weightKg, heightCm: self.profile.heightCm,
+                waistCm: self.profile.waistCm)
             // Analytics migrations are keyed to their own persisted recipe, never to the app/build
             // version. On an ordinary Xcode reinstall this is a one-row read and no historical work.
             await self.intelligence.prepareAnalysisRecipe()

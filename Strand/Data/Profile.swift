@@ -20,6 +20,17 @@ final class ProfileStore: ObservableObject {
         }
     }
     @Published var sex: String { didSet { d.set(sex, forKey: K.sex) } }          // "male" | "female" | "nonbinary"
+    /// Which cohort's equation applies to this body in composition formulas — "male" | "female", or ""
+    /// when nobody has said.
+    ///
+    /// Only meaningful when `sex` is `nonbinary`. The Navy body-fat method (Hodgdon & Beckett) was
+    /// fitted separately on male and female cohorts and the two take DIFFERENT measurements — the
+    /// female equation needs a hip circumference the male one does not — so there is no midpoint to
+    /// fall back on the way `Calories` takes one for its basal coefficients. The pattern the formula
+    /// reads tracks biological sex rather than how someone describes themselves, and NOOP cannot infer
+    /// it from a gender field. So it asks, in the profile, where the rest of the body facts live —
+    /// never as a second control on the Body page.
+    @Published var bodyFormulaSex: String { didSet { d.set(bodyFormulaSex, forKey: K.bodyFormulaSex) } }
     @Published var weightKg: Double { didSet { d.set(weightKg, forKey: K.weight) } }
     @Published var heightCm: Double { didSet { d.set(heightCm, forKey: K.height) } }
     /// Optional waist circumference (cm); 0 = not set. Only used to ALSO show an estimated VO₂max
@@ -108,6 +119,7 @@ final class ProfileStore: ObservableObject {
         /// cross-platform `.noopbak` whitelist keeps round-tripping an Int age unchanged.
         static let legacyAge = "profile.age"
         static let sex = "profile.sex", weight = "profile.weightKg"
+        static let bodyFormulaSex = "profile.bodyFormulaSex"
         static let height = "profile.heightCm", hrMax = "profile.hrMaxOverride"
         static let zoneMode = "profile.zoneMode"
         static let zonePercentEdges = "profile.zonePercentEdges"
@@ -148,6 +160,7 @@ final class ProfileStore: ObservableObject {
         d.set(resolvedDOB, forKey: K.dateOfBirth)
         d.set(Self.years(from: resolvedDOB, to: Date()), forKey: K.legacyAge)
         sex = d.string(forKey: K.sex) ?? "male"
+        bodyFormulaSex = d.string(forKey: K.bodyFormulaSex) ?? ""
         weightKg = d.object(forKey: K.weight) as? Double ?? 75
         heightCm = d.object(forKey: K.height) as? Double ?? 178
         waistCm = d.object(forKey: K.waist) as? Double ?? 0

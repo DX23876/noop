@@ -623,6 +623,29 @@ struct SettingsView: View {
                     .appleInspiredTint("settings.controls")
                     .accessibilityLabel("Sex")
                 }
+                // Only when the field above cannot select an equation on its own. The Navy body-fat
+                // method was fitted separately on a male and a female cohort, and the two take
+                // different measurements — so unlike the basal coefficients, which take a midpoint,
+                // there is nothing to average. Asked here rather than on the Body page, so the fact
+                // lives in one place.
+                if profile.sex.lowercased() == "nonbinary" {
+                    rowDivider
+                    FormRow(label: "Body-composition formula") {
+                        Picker("Body-composition formula", selection: $profile.bodyFormulaSex) {
+                            Text("Not set").tag("")
+                            Text("Male equation").tag("male")
+                            Text("Female equation").tag("female")
+                        }
+                        .labelsHidden()
+                        .pickerStyle(.menu)
+                        .appleInspiredTint("settings.controls")
+                        .accessibilityLabel("Body composition formula")
+                    }
+                    Text("Which published equation the body-fat estimate should use. It is a question about body composition rather than about identity, and NOOP has no way to infer it — so it asks instead of assuming.")
+                        .font(StrandFont.footnote)
+                        .foregroundStyle(StrandPalette.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
                 rowDivider
                 FormRow(label: "Weight") {
                     // Imperial mode steps in pounds and stores the kg equivalent; metric steps in kg.
@@ -663,6 +686,36 @@ struct SettingsView: View {
                     .font(StrandFont.footnote)
                     .foregroundStyle(StrandPalette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
+                rowDivider
+                // The way in to the Body page. The fields above stay editable on purpose: they are a
+                // standing value the whole app reads, while the Body page holds DATED measurements with
+                // their own history. Removing these rows outright would lose everyone who knows where
+                // they are — so this points at the fuller surface rather than replacing them with it.
+                NavigationLink {
+                    BodyView()
+                } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: "figure.stand")
+                            .appleInspiredMenuIcon("body")
+                            .accessibilityHidden(true)
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text("Body measurements…")
+                                .foregroundStyle(StrandPalette.textPrimary)
+                            Text("Weight, body fat and tape measurements, each with the date it was taken")
+                                .font(StrandFont.caption)
+                                .foregroundStyle(StrandPalette.textSecondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        Spacer(minLength: 0)
+                        Image(systemName: "chevron.right")
+                            .font(StrandFont.caption)
+                            .foregroundStyle(StrandPalette.textTertiary)
+                            .accessibilityHidden(true)
+                    }
+                    .font(StrandFont.subhead)
+                }
+                .buttonStyle(LiquidPressStyle())
+                .accessibilityLabel("Open body measurements")
                 rowDivider
                 FormRow(label: "Max heart rate") {
                     VStack(alignment: .trailing, spacing: 6) {

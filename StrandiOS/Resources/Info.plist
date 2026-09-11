@@ -63,6 +63,8 @@
 	</dict>
 	<key>NSBluetoothAlwaysUsageDescription</key>
 	<string>NOOP connects directly to your WHOOP strap over Bluetooth to read heart rate, R-R intervals, battery, and sensor data locally on your iPhone. Nothing leaves your device.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>NOOP takes progress photos for your own body log. They stay in the app on this device — never written to your photo library, never included in a backup, and their camera metadata, including location, is removed when they are saved.</string>
 	<key>NSHealthShareUsageDescription</key>
 	<string>NOOP reads your own Apple Health data on-device to compute recovery, strain, and sleep. Nothing leaves your device.</string>
 	<key>NSHealthUpdateUsageDescription</key>
