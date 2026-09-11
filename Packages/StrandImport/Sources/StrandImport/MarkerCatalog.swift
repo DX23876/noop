@@ -112,6 +112,35 @@ public enum MarkerCatalog {
         .init(key: "body_fat", displayName: "Body fat", category: .bodyMeasurement, canonicalUnit: "%", decimals: 1),
         .init(key: "waist", displayName: "Waist circumference", category: .bodyMeasurement, canonicalUnit: "cm", decimals: 1),
         .init(key: "height", displayName: "Height", category: .bodyMeasurement, canonicalUnit: "cm", decimals: 1),
+        // Circumferences. Only `waist` has an Apple Health counterpart; the rest are NOOP-local, which
+        // the Body page states so their absence from Health does not read as a sync fault. Sided sites
+        // are separate keys rather than one key with a side field: the store projects by key, and a
+        // left/right difference is only readable when each side has its own series.
+        .init(key: "neck", displayName: "Neck", category: .bodyMeasurement, canonicalUnit: "cm", decimals: 1),
+        .init(key: "shoulders", displayName: "Shoulders", category: .bodyMeasurement, canonicalUnit: "cm", decimals: 1),
+        .init(key: "chest", displayName: "Chest", category: .bodyMeasurement, canonicalUnit: "cm", decimals: 1),
+        // Hevy tracks waist and abdomen as SEPARATE sites (waist at the narrowest point, abdomen at the
+        // navel), and people who have been logging there have two different series. Collapsing them
+        // into one key would silently merge two measurements taken at different heights.
+        .init(key: "abdomen", displayName: "Abdomen", category: .bodyMeasurement, canonicalUnit: "cm", decimals: 1),
+        .init(key: "hips", displayName: "Hips", category: .bodyMeasurement, canonicalUnit: "cm", decimals: 1),
+        .init(key: "thigh_l", displayName: "Thigh (left)", category: .bodyMeasurement, canonicalUnit: "cm", decimals: 1),
+        .init(key: "thigh_r", displayName: "Thigh (right)", category: .bodyMeasurement, canonicalUnit: "cm", decimals: 1),
+        .init(key: "calf_l", displayName: "Calf (left)", category: .bodyMeasurement, canonicalUnit: "cm", decimals: 1),
+        .init(key: "calf_r", displayName: "Calf (right)", category: .bodyMeasurement, canonicalUnit: "cm", decimals: 1),
+        .init(key: "biceps_l", displayName: "Biceps (left)", category: .bodyMeasurement, canonicalUnit: "cm", decimals: 1),
+        .init(key: "biceps_r", displayName: "Biceps (right)", category: .bodyMeasurement, canonicalUnit: "cm", decimals: 1),
+        .init(key: "forearm_l", displayName: "Forearm (left)", category: .bodyMeasurement, canonicalUnit: "cm", decimals: 1),
+        .init(key: "forearm_r", displayName: "Forearm (right)", category: .bodyMeasurement, canonicalUnit: "cm", decimals: 1),
+    ]
+
+    /// The circumference sites, in head-to-toe order — the order the capture sheet and the Body page
+    /// list them in. Kept here rather than in the view so both surfaces cannot drift apart, and so a
+    /// site added to the catalog appears everywhere at once.
+    public static let circumferenceKeys = [
+        "neck", "shoulders", "chest", "waist", "abdomen", "hips",
+        "biceps_l", "biceps_r", "forearm_l", "forearm_r",
+        "thigh_l", "thigh_r", "calf_l", "calf_r",
     ]
 
     /// Fast lookup by key. Built once from `builtIn`.
