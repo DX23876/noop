@@ -18139,33 +18139,9 @@
           }
         },
         "pl" : {
-          "variations" : {
-            "plural" : {
-              "few" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "%lld sesje"
-                }
-              },
-              "many" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "%lld sesji"
-                }
-              },
-              "one" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "%lld sesja"
-                }
-              },
-              "other" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "%lld sesji"
-                }
-              }
-            }
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld sesji"
           }
         },
         "pt-PT" : {
@@ -18175,33 +18151,9 @@
           }
         },
         "ru" : {
-          "variations" : {
-            "plural" : {
-              "few" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "%lld сессии"
-                }
-              },
-              "many" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "%lld сессий"
-                }
-              },
-              "one" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "%lld сессия"
-                }
-              },
-              "other" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "%lld сессий"
-                }
-              }
-            }
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld тренировок"
           }
         },
         "zh-Hans" : {
@@ -280878,62 +280830,7 @@
       }
     },
     "Training Load" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Trainingslast"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Carga de entrenamiento"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Charge d'entraînement"
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Carico di allenamento"
-          }
-        },
-        "pl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Obciążenie treningowe"
-          }
-        },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Carga de treino"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Тренировочная нагрузка"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "训练负荷"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "訓練負荷"
-          }
-        }
-      }
+      "shouldTranslate" : false
     },
     "Training load: chronic vs acute" : {
       "localizations" : {
@@ -343137,6 +343034,4069 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "背面"
+          }
+        }
+      }
+    },
+    "Below your usual since %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unter deinem Üblichen seit %@"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Por debajo de lo habitual desde el %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sous votre niveau habituel depuis le %@"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sotto il tuo solito dal %@"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Poniżej zwykłego poziomu od %@"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abaixo do habitual desde %@"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ниже обычного уровня с %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "自 %@ 起低于常规水平"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "自 %@ 起低於常規水準"
+          }
+        }
+      }
+    },
+    "Too few lifts to judge, so rated on load alone" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zu wenige Übungen für ein Urteil – nur nach Belastung bewertet"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Muy pocos ejercicios para juzgar; valorado solo por la carga"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trop peu d'exercices pour juger : évalué sur la charge seule"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Troppo pochi esercizi per giudicare: valutato solo sul carico"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Za mało ćwiczeń do oceny, więc oceniono tylko obciążenie"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Poucos exercícios para avaliar; classificado só pela carga"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Слишком мало упражнений для оценки, поэтому оценка только по нагрузке"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "动作太少，无法判断，仅按负荷评估"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "動作太少，無法判斷，僅按負荷評估"
+          }
+        }
+      }
+    },
+    "%lld of %lld lifts rising" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld von %lld Übungen steigen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld de %lld ejercicios suben"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld exercices sur %lld progressent"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld esercizi su %lld in crescita"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld z %lld ćwiczeń rośnie"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld de %lld exercícios sobem"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld из %lld упражнений растут"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld/%lld 个动作在提升"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld/%lld 個動作在提升"
+          }
+        }
+      }
+    },
+    "%lld of %lld lifts falling" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld von %lld Übungen sinken"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld de %lld ejercicios bajan"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld exercices sur %lld régressent"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld esercizi su %lld in calo"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld z %lld ćwiczeń spada"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld de %lld exercícios descem"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld из %lld упражнений снижаются"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld/%lld 个动作在下降"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld/%lld 個動作在下降"
+          }
+        }
+      }
+    },
+    "No clear direction across %lld lifts" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keine klare Richtung bei %lld Übungen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sin dirección clara en %lld ejercicios"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pas de tendance nette sur %lld exercices"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nessuna direzione chiara su %lld esercizi"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Brak wyraźnego kierunku w %lld ćwiczeniach"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sem direção clara em %lld exercícios"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Нет явной тенденции по %lld упражнениям"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld 个动作没有明确方向"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld 個動作沒有明確方向"
+          }
+        }
+      }
+    },
+    "From heart rate, on Polar's scale" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aus der Herzfrequenz, auf Polars Skala"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A partir de la frecuencia cardíaca, en la escala de Polar"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "D'après la fréquence cardiaque, sur l'échelle de Polar"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dalla frequenza cardiaca, sulla scala di Polar"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Na podstawie tętna, w skali Polar"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A partir da frequência cardíaca, na escala da Polar"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "По пульсу, по шкале Polar"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "基于心率，采用 Polar 标尺"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "基於心率，採用 Polar 標尺"
+          }
+        }
+      }
+    },
+    "Much more strength work than usual, and your recovery is dropping. Take a few easier days before adding more." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deutlich mehr Krafttraining als üblich, und deine Erholung sinkt. Leg ein paar leichtere Tage ein, bevor du mehr draufpackst."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mucho más trabajo de fuerza de lo habitual y tu recuperación está bajando. Haz unos días más suaves antes de añadir más."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Beaucoup plus de travail de force que d'habitude, et votre récupération baisse. Prenez quelques jours plus légers avant d'en rajouter."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Molto più lavoro di forza del solito e il tuo recupero sta calando. Fai qualche giorno più leggero prima di aggiungere altro."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Znacznie więcej treningu siłowego niż zwykle, a regeneracja spada. Zrób kilka lżejszych dni, zanim dołożysz więcej."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Muito mais treino de força do que o habitual e a tua recuperação está a descer. Faz alguns dias mais leves antes de acrescentar mais."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Силовой работы намного больше обычного, и восстановление снижается. Проведите несколько более лёгких дней, прежде чем добавлять."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "力量训练明显多于平时，且恢复在下降。先安排几天轻松训练，再继续加量。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "力量訓練明顯多於平時，且恢復在下降。先安排幾天輕鬆訓練，再繼續加量。"
+          }
+        }
+      }
+    },
+    "Much more strength work than usual. Hold here until your usual level catches up." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deutlich mehr Krafttraining als üblich. Bleib auf diesem Niveau, bis dein übliches Niveau nachzieht."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mucho más trabajo de fuerza de lo habitual. Mantente aquí hasta que tu nivel habitual se ponga al día."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Beaucoup plus de travail de force que d'habitude. Restez à ce niveau le temps que votre niveau habituel rattrape."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Molto più lavoro di forza del solito. Resta su questo livello finché il tuo solito non si allinea."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Znacznie więcej treningu siłowego niż zwykle. Zostań na tym poziomie, aż twój zwykły poziom nadrobi."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Muito mais treino de força do que o habitual. Mantém-te aqui até o teu nível habitual acompanhar."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Силовой работы намного больше обычного. Держитесь этого уровня, пока ваш обычный уровень не догонит."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "力量训练明显多于平时。先保持在这个水平，等常规水平跟上。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "力量訓練明顯多於平時。先保持在這個水準，等常規水準跟上。"
+          }
+        }
+      }
+    },
+    "Much more cardio than usual. Hold here until your usual level catches up." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deutlich mehr Cardio als üblich. Bleib auf diesem Niveau, bis dein übliches Niveau nachzieht."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mucho más cardio de lo habitual. Mantente aquí hasta que tu nivel habitual se ponga al día."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Beaucoup plus de cardio que d'habitude. Restez à ce niveau le temps que votre niveau habituel rattrape."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Molto più cardio del solito. Resta su questo livello finché il tuo solito non si allinea."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Znacznie więcej cardio niż zwykle. Zostań na tym poziomie, aż twój zwykły poziom nadrobi."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Muito mais cardio do que o habitual. Mantém-te aqui até o teu nível habitual acompanhar."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Кардио намного больше обычного. Держитесь этого уровня, пока ваш обычный уровень не догонит."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "有氧训练明显多于平时。先保持在这个水平，等常规水平跟上。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "有氧訓練明顯多於平時。先保持在這個水準，等常規水準跟上。"
+          }
+        }
+      }
+    },
+    "Plenty of strength work, but your lifts are not improving. More volume will not fix that: look at sleep, recovery or the programme." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Viel Krafttraining, aber deine Übungen werden nicht stärker. Mehr Volumen löst das nicht: Schau auf Schlaf, Erholung oder dein Programm."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mucho trabajo de fuerza, pero tus ejercicios no mejoran. Más volumen no lo arreglará: revisa el sueño, la recuperación o el programa."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Beaucoup de travail de force, mais vos exercices ne progressent pas. Plus de volume n'y changera rien : regardez le sommeil, la récupération ou le programme."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tanto lavoro di forza, ma i tuoi esercizi non migliorano. Più volume non risolve: guarda sonno, recupero o programma."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dużo treningu siłowego, ale ćwiczenia nie idą w górę. Większa objętość tego nie naprawi: sprawdź sen, regenerację lub plan."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Muito treino de força, mas os teus exercícios não melhoram. Mais volume não resolve: olha para o sono, a recuperação ou o programa."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Много силовой работы, но упражнения не прогрессируют. Больший объём не поможет: обратите внимание на сон, восстановление или программу."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "力量训练很多，但动作没有进步。加量解决不了：检查睡眠、恢复或训练计划。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "力量訓練很多，但動作沒有進步。加量解決不了：檢查睡眠、恢復或訓練計畫。"
+          }
+        }
+      }
+    },
+    "Your recovery signals flagged on several recent nights. Hold your load rather than raising it." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deine Erholungswerte waren in mehreren der letzten Nächte auffällig. Halte die Belastung, statt sie zu steigern."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tus señales de recuperación han dado aviso en varias noches recientes. Mantén la carga en lugar de subirla."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vos signaux de récupération ont alerté plusieurs nuits récentes. Maintenez la charge plutôt que de l'augmenter."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "I tuoi segnali di recupero sono stati anomali in diverse notti recenti. Mantieni il carico invece di aumentarlo."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sygnały regeneracji były nieprawidłowe przez kilka ostatnich nocy. Utrzymaj obciążenie zamiast je zwiększać."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Os teus sinais de recuperação deram alerta em várias noites recentes. Mantém a carga em vez de a aumentar."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Показатели восстановления отклонялись в несколько последних ночей. Держите нагрузку, а не повышайте её."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最近几晚你的恢复信号出现异常。保持负荷，不要再增加。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最近幾晚你的恢復訊號出現異常。保持負荷，不要再增加。"
+          }
+        }
+      }
+    },
+    "Your build is working: load at or above your usual, and your recovery is keeping up." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dein Aufbau funktioniert: Belastung auf oder über deinem Üblichen, und deine Erholung hält mit."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tu progresión funciona: carga igual o superior a la habitual y tu recuperación acompaña."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Votre progression fonctionne : charge égale ou supérieure à l'habitude, et votre récupération suit."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La tua progressione funziona: carico pari o superiore al solito e il recupero tiene il passo."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Twoja progresja działa: obciążenie na zwykłym poziomie lub wyżej, a regeneracja nadąża."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A tua progressão está a resultar: carga igual ou acima do habitual e a recuperação acompanha."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ваша прогрессия работает: нагрузка на обычном уровне или выше, и восстановление успевает."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你的提升在起作用：负荷不低于平时，恢复也跟得上。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你的提升在起作用：負荷不低於平時，恢復也跟得上。"
+          }
+        }
+      }
+    },
+    "Your build is working: load at or above your usual, and it is paying off." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dein Aufbau funktioniert: Belastung auf oder über deinem Üblichen, und es zahlt sich aus."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tu progresión funciona: carga igual o superior a la habitual, y está dando resultado."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Votre progression fonctionne : charge égale ou supérieure à l'habitude, et elle porte ses fruits."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La tua progressione funziona: carico pari o superiore al solito, e sta dando frutti."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Twoja progresja działa: obciążenie na zwykłym poziomie lub wyżej i to się opłaca."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A tua progressão está a resultar: carga igual ou acima do habitual, e está a compensar."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ваша прогрессия работает: нагрузка на обычном уровне или выше, и это приносит результат."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你的提升在起作用：负荷不低于平时，并且见到了成效。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你的提升在起作用：負荷不低於平時，並且見到了成效。"
+          }
+        }
+      }
+    },
+    "A lighter stretch after a hard phase. Good timing to let strength and fitness settle." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eine leichtere Phase nach einer harten. Guter Zeitpunkt, damit sich Kraft und Fitness festigen."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Una etapa más ligera tras una fase dura. Buen momento para que la fuerza y la forma se asienten."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Une période plus légère après une phase dure. Bon moment pour laisser la force et la forme se consolider."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un periodo più leggero dopo una fase dura. Buon momento per consolidare forza e forma."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lżejszy okres po ciężkiej fazie. Dobry moment, by siła i forma się utrwaliły."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Uma fase mais leve depois de uma fase dura. Boa altura para a força e a forma consolidarem."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Более лёгкий период после тяжёлой фазы. Хорошее время, чтобы сила и форма закрепились."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "高强度阶段后的轻松期。正是巩固力量和体能的好时机。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "高強度階段後的輕鬆期。正是鞏固力量和體能的好時機。"
+          }
+        }
+      }
+    },
+    "You have been training well below your usual level. If this is not a planned break, restart with a few easy sessions." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Du trainierst deutlich unter deinem üblichen Niveau. Wenn das keine geplante Pause ist, steig mit ein paar leichten Einheiten wieder ein."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Llevas un tiempo entrenando muy por debajo de tu nivel habitual. Si no es una pausa planificada, vuelve con unas sesiones suaves."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vous vous entraînez nettement sous votre niveau habituel. Si ce n'est pas une pause prévue, reprenez avec quelques séances faciles."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ti stai allenando ben al di sotto del tuo livello abituale. Se non è una pausa pianificata, riparti con qualche sessione leggera."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trenujesz wyraźnie poniżej zwykłego poziomu. Jeśli to nie planowana przerwa, wróć od kilku lekkich treningów."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tens treinado bem abaixo do teu nível habitual. Se não é uma pausa planeada, recomeça com algumas sessões leves."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Вы тренируетесь заметно ниже обычного уровня. Если это не запланированный перерыв, начните снова с нескольких лёгких тренировок."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你的训练明显低于常规水平。如果不是计划中的休息，先从几次轻松训练重新开始。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你的訓練明顯低於常規水準。如果不是計畫中的休息，先從幾次輕鬆訓練重新開始。"
+          }
+        }
+      }
+    },
+    "You are holding your level. To build, raise the load in small steps." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Du hältst dein Niveau. Für Aufbau steigere die Belastung in kleinen Schritten."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mantienes tu nivel. Para progresar, sube la carga poco a poco."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vous maintenez votre niveau. Pour progresser, augmentez la charge par petites étapes."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stai mantenendo il tuo livello. Per progredire, aumenta il carico a piccoli passi."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Utrzymujesz swój poziom. Aby się rozwijać, zwiększaj obciążenie małymi krokami."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Estás a manter o teu nível. Para progredir, aumenta a carga aos poucos."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Вы удерживаете свой уровень. Чтобы расти, повышайте нагрузку небольшими шагами."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你在维持现有水平。想要提升，就小步增加负荷。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你在維持現有水準。想要提升，就小步增加負荷。"
+          }
+        }
+      }
+    },
+    "After two weeks of training this shows whether it is building, holding or too much." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nach zwei Wochen Training siehst du hier, ob es aufbaut, erhält oder zu viel ist."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tras dos semanas de entrenamiento, aquí verás si progresa, se mantiene o es demasiado."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Après deux semaines d'entraînement, vous verrez ici s'il fait progresser, maintient ou en fait trop."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dopo due settimane di allenamento qui vedrai se sta costruendo, mantenendo o se è troppo."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Po dwóch tygodniach treningu zobaczysz tu, czy buduje formę, ją utrzymuje, czy jest go za dużo."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Após duas semanas de treino, aqui vês se está a progredir, a manter ou se é demais."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "После двух недель тренировок здесь будет видно, растёт ли форма, держится или нагрузки слишком много."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "训练满两周后，这里会显示你是在提升、维持还是过量。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "訓練滿兩週後，這裡會顯示你是在提升、維持還是過量。"
+          }
+        }
+      }
+    },
+    "Last three nights" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Letzte drei Nächte"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Últimas tres noches"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trois dernières nuits"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ultime tre notti"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ostatnie trzy noce"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Últimas três noites"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Последние три ночи"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最近三晚"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最近三晚"
+          }
+        }
+      }
+    },
+    "Breathing" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Atmung"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Respiración"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Respiration"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Respirazione"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Oddech"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Respiração"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Дыхание"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "呼吸"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "呼吸"
+          }
+        }
+      }
+    },
+    "Flagging" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Auffällig"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alterado"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Anormal"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Anomalo"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nieprawidłowe"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alterado"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Отклонение"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "异常"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "異常"
+          }
+        }
+      }
+    },
+    "Too few nights with recovery data to judge yet." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Noch zu wenige Nächte mit Erholungsdaten für ein Urteil."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aún hay pocas noches con datos de recuperación para juzgar."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pas encore assez de nuits avec des données de récupération pour juger."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ancora troppe poche notti con dati di recupero per giudicare."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Za mało nocy z danymi o regeneracji, by ocenić."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ainda há poucas noites com dados de recuperação para avaliar."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Пока слишком мало ночей с данными о восстановлении для оценки."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "有恢复数据的夜晚还太少，暂无法判断。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "有恢復資料的夜晚還太少，暫無法判斷。"
+          }
+        }
+      }
+    },
+    "Strained: a signal flagged on %lld of %lld nights. Above 1.3 × usual this turns strength into overreaching." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Angespannt: Ein Wert war in %lld von %lld Nächten auffällig. Über dem 1,3-Fachen des Üblichen wird Kraft dadurch „überlastend“."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tensión: una señal dio aviso en %lld de %lld noches. Por encima de 1,3 × lo habitual, esto convierte la fuerza en sobrecarga."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tendu : un signal a alerté sur %lld nuits sur %lld. Au-dessus de 1,3 × l'habituel, la force passe en surcharge."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sotto sforzo: segnale anomalo in %lld notti su %lld. Oltre 1,3 × il solito, la forza passa a sovraccarico."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Obciążenie: sygnał nieprawidłowy w %lld z %lld nocy. Powyżej 1,3 × zwykłego poziomu siła przechodzi w przeciążenie."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Em esforço: um sinal deu alerta em %lld de %lld noites. Acima de 1,3 × o habitual, a força passa a sobrecarga."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Напряжение: отклонение в %lld из %lld ночей. Выше 1,3 × обычного это переводит силу в перегрузку."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "紧张：%lld/%lld 晚有信号异常。负荷超过常规 1.3 倍时，力量状态将变为负荷过高。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "緊張：%lld/%lld 晚有訊號異常。負荷超過常規 1.3 倍時，力量狀態將變為負荷過高。"
+          }
+        }
+      }
+    },
+    "Holding: a signal flagged on %lld of %lld nights." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stabil: Ein Wert war in %lld von %lld Nächten auffällig."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Estable: una señal dio aviso en %lld de %lld noches."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stable : un signal a alerté sur %lld nuits sur %lld."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stabile: segnale anomalo in %lld notti su %lld."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stabilnie: sygnał nieprawidłowy w %lld z %lld nocy."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Estável: um sinal deu alerta em %lld de %lld noites."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Стабильно: отклонение в %lld из %lld ночей."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "稳定：%lld/%lld 晚有信号异常。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "穩定：%lld/%lld 晚有訊號異常。"
+          }
+        }
+      }
+    },
+    "Last 8 weeks" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Letzte 8 Wochen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Últimas 8 semanas"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "8 dernières semaines"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ultime 8 settimane"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ostatnie 8 tygodni"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Últimas 8 semanas"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Последние 8 недель"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最近 8 周"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最近 8 週"
+          }
+        }
+      }
+    },
+    "Status history" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Statusverlauf"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Historial de estado"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Historique du statut"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cronologia dello stato"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Historia statusu"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Histórico de estado"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "История статуса"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "状态历史"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "狀態歷史"
+          }
+        }
+      }
+    },
+    "Each week is judged with that week's own data, as the screen would have shown it then." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jede Woche wird mit ihren eigenen Daten bewertet – so, wie die Seite sie damals gezeigt hätte."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cada semana se valora con sus propios datos, como la pantalla la habría mostrado entonces."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chaque semaine est évaluée avec ses propres données, comme l'écran l'aurait affichée à l'époque."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ogni settimana è valutata con i propri dati, come la schermata l'avrebbe mostrata allora."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Każdy tydzień oceniany jest na podstawie jego własnych danych, tak jak ekran pokazałby go wtedy."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cada semana é avaliada com os seus próprios dados, como o ecrã a teria mostrado na altura."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Каждая неделя оценивается по её собственным данным — так, как экран показал бы её тогда."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每周都用当周自己的数据评估，与当时屏幕的显示一致。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每週都用當週自己的資料評估，與當時畫面的顯示一致。"
+          }
+        }
+      }
+    },
+    "Strength development" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kraftentwicklung"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Evolución de la fuerza"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Évolution de la force"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Andamento della forza"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rozwój siły"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Evolução da força"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Динамика силы"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "力量发展"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "力量發展"
+          }
+        }
+      }
+    },
+    "Last six weeks" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Letzte sechs Wochen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Últimas seis semanas"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Six dernières semaines"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ultime sei settimane"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ostatnie sześć tygodni"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Últimas seis semanas"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Последние шесть недель"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最近六周"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最近六週"
+          }
+        }
+      }
+    },
+    "Log a lift at least four times within six weeks to see which way it is moving." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trainiere eine Übung mindestens viermal in sechs Wochen, um zu sehen, in welche Richtung sie sich entwickelt."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Registra un ejercicio al menos cuatro veces en seis semanas para ver hacia dónde evoluciona."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enregistrez un exercice au moins quatre fois en six semaines pour voir dans quel sens il évolue."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Registra un esercizio almeno quattro volte in sei settimane per vedere in che direzione va."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zapisz ćwiczenie co najmniej cztery razy w ciągu sześciu tygodni, aby zobaczyć, w którą stronę zmierza."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Regista um exercício pelo menos quatro vezes em seis semanas para ver em que sentido evolui."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Выполните упражнение хотя бы четыре раза за шесть недель, чтобы увидеть его динамику."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "六周内至少记录同一动作四次，才能看到它的变化方向。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "六週內至少記錄同一動作四次，才能看到它的變化方向。"
+          }
+        }
+      }
+    },
+    "No clear direction" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keine klare Richtung"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sin dirección clara"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pas de tendance nette"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nessuna direzione chiara"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Brak wyraźnego kierunku"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sem direção clara"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Нет явной тенденции"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无明确方向"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "無明確方向"
+          }
+        }
+      }
+    },
+    "%@ %@/week" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ %@/Woche"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ %@/semana"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ %@/semaine"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ %@/settimana"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ %@/tydz."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ %@/semana"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ %@/нед."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ %@/周"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ %@/週"
+          }
+        }
+      }
+    },
+    "Your own rating" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deine eigene Bewertung"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tu propia valoración"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Votre propre évaluation"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La tua valutazione"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Twoja własna ocena"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A tua própria avaliação"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ваша собственная оценка"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你的自我评分"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你的自我評分"
+          }
+        }
+      }
+    },
+    "What it rests on" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Worauf es beruht"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "En qué se basa"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sur quoi cela repose"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Su cosa si basa"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Na czym to się opiera"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Em que se baseia"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "На чём это основано"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "依据"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "依據"
+          }
+        }
+      }
+    },
+    "Data coverage" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Datenabdeckung"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cobertura de datos"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couverture des données"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copertura dei dati"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pokrycie danych"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cobertura de dados"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Покрытие данных"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "数据覆盖"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "資料覆蓋"
+          }
+        }
+      }
+    },
+    "The six states" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die sechs Zustände"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Los seis estados"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Les six états"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "I sei stati"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sześć stanów"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Os seis estados"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Шесть состояний"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "六种状态"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "六種狀態"
+          }
+        }
+      }
+    },
+    "Legend" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Legende"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Leyenda"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Légende"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Legenda"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Legenda"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Legenda"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Легенда"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "图例"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "圖例"
+          }
+        }
+      }
+    },
+    "How the status is set" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "So entsteht der Status"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cómo se determina el estado"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Comment le statut est déterminé"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Come viene stabilito lo stato"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jak ustalany jest status"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Como é definido o estado"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Как определяется статус"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "状态如何确定"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "狀態如何確定"
+          }
+        }
+      }
+    },
+    "Cardio uses Polar's cardio load status: the last 7 days against your level over up to 28 days, with Polar's thresholds 0.8, 1.0 and 1.3. Strength also asks whether your lifts are improving, and above 1.3 whether your recovery holds. It counts as detraining only after three weeks below your usual or with falling lifts, because maximal strength drops measurably only from the third week without training. The thresholds are a convention, not a measurement." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cardio nutzt Polars Cardio-Load-Status: die letzten 7 Tage gegen dein Niveau über bis zu 28 Tage, mit Polars Grenzen 0,8, 1,0 und 1,3. Kraft fragt zusätzlich, ob deine Übungen stärker werden, und oberhalb von 1,3, ob deine Erholung hält. Als abbauend gilt Kraft erst nach drei Wochen unter deinem Üblichen oder bei sinkenden Übungen, weil Maximalkraft erst ab der dritten Woche ohne Training messbar sinkt. Die Grenzen sind eine Konvention, keine Messung."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El cardio usa el estado de carga cardio de Polar: los últimos 7 días frente a tu nivel de hasta 28 días, con los umbrales de Polar 0,8, 1,0 y 1,3. La fuerza además comprueba si tus ejercicios mejoran y, por encima de 1,3, si tu recuperación aguanta. Solo cuenta como desentrenamiento tras tres semanas por debajo de lo habitual o con ejercicios en descenso, porque la fuerza máxima solo baja de forma medible a partir de la tercera semana sin entrenar. Los umbrales son una convención, no una medición."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le cardio utilise le statut de charge cardio de Polar : les 7 derniers jours comparés à votre niveau sur jusqu'à 28 jours, avec les seuils de Polar 0,8, 1,0 et 1,3. La force vérifie aussi si vos exercices progressent et, au-delà de 1,3, si votre récupération tient. Elle ne compte comme désentraînement qu'après trois semaines sous votre niveau habituel ou avec des exercices en baisse, car la force maximale ne baisse de façon mesurable qu'à partir de la troisième semaine sans entraînement. Les seuils sont une convention, pas une mesure."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il cardio usa lo stato del carico cardio di Polar: gli ultimi 7 giorni rispetto al tuo livello su fino a 28 giorni, con le soglie Polar 0,8, 1,0 e 1,3. La forza verifica anche se i tuoi esercizi migliorano e, sopra 1,3, se il recupero regge. Conta come deallenamento solo dopo tre settimane sotto il solito o con esercizi in calo, perché la forza massima cala in modo misurabile solo dalla terza settimana senza allenamento. Le soglie sono una convenzione, non una misurazione."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cardio korzysta ze statusu obciążenia cardio Polar: ostatnie 7 dni względem twojego poziomu z maksymalnie 28 dni, z progami Polar 0,8, 1,0 i 1,3. Siła dodatkowo sprawdza, czy ćwiczenia się poprawiają, a powyżej 1,3 – czy regeneracja nadąża. Roztrenowanie liczy się dopiero po trzech tygodniach poniżej zwykłego poziomu lub przy spadających ćwiczeniach, bo siła maksymalna spada mierzalnie dopiero od trzeciego tygodnia bez treningu. Progi to konwencja, nie pomiar."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O cardio usa o estado de carga cardio da Polar: os últimos 7 dias face ao teu nível de até 28 dias, com os limites da Polar 0,8, 1,0 e 1,3. A força verifica também se os teus exercícios melhoram e, acima de 1,3, se a recuperação aguenta. Só conta como destreino após três semanas abaixo do habitual ou com exercícios a descer, porque a força máxima só desce de forma mensurável a partir da terceira semana sem treino. Os limites são uma convenção, não uma medição."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Кардио использует статус кардионагрузки Polar: последние 7 дней против вашего уровня за период до 28 дней, с порогами Polar 0,8, 1,0 и 1,3. Для силы дополнительно проверяется, растут ли упражнения, а выше 1,3 — справляется ли восстановление. Снижение формы засчитывается только после трёх недель ниже обычного уровня или при падающих упражнениях, потому что максимальная сила заметно снижается лишь с третьей недели без тренировок. Пороги — это соглашение, а не измерение."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "有氧采用 Polar 的有氧负荷状态：最近 7 天与你最多 28 天的水平比较，阈值为 Polar 的 0.8、1.0 和 1.3。力量还会看动作是否在进步，并在 1.3 以上看恢复是否跟得上。只有低于常规水平三周或动作在下降时，才算体能下降，因为停训后最大力量要到第三周才会明显下降。这些阈值是约定，而非测量。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "有氧採用 Polar 的有氧負荷狀態：最近 7 天與你最多 28 天的水準比較，閾值為 Polar 的 0.8、1.0 和 1.3。力量還會看動作是否在進步，並在 1.3 以上看恢復是否跟得上。只有低於常規水準三週或動作在下降時，才算體能下降，因為停訓後最大力量要到第三週才會明顯下降。這些閾值是約定，而非測量。"
+          }
+        }
+      }
+    },
+    "Sources" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quellen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fuentes"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sources"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fonti"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Źródła"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fontes"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Источники"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "来源"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "來源"
+          }
+        }
+      }
+    },
+    "Detraining" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abbauend"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Desentrenamiento"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Désentraînement"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deallenamento"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Roztrenowanie"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Destreino"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Снижение формы"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "体能下降"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "體能下降"
+          }
+        }
+      }
+    },
+    "Recovering" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Erholend"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recuperación"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Récupération"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recupero"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Regeneracja"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recuperação"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Восстановление"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "恢复中"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "恢復中"
+          }
+        }
+      }
+    },
+    "Maintaining" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Erhaltend"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mantenimiento"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Maintien"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mantenimento"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Utrzymanie"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Manutenção"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Поддержание"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "维持"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "維持"
+          }
+        }
+      }
+    },
+    "Productive" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Produktiv"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Productivo"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Productif"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Produttivo"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Produktywny"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Produtivo"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Продуктивно"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "有效提升"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "有效提升"
+          }
+        }
+      }
+    },
+    "Unproductive" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unproduktiv"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Improductivo"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Improductif"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Improduttivo"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nieproduktywny"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Improdutivo"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Непродуктивно"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "收效甚微"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "收效甚微"
+          }
+        }
+      }
+    },
+    "Overreaching" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Überlastend"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sobrecarga"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Surcharge"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sovraccarico"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Przeciążenie"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sobrecarga"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Перегрузка"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "负荷过高"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "負荷過高"
+          }
+        }
+      }
+    },
+    "Well below your usual load for a while. Fitness starts to slip." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Seit einiger Zeit deutlich unter deiner üblichen Belastung. Die Fitness beginnt nachzulassen."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un tiempo muy por debajo de tu carga habitual. La forma empieza a bajar."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nettement sous votre charge habituelle depuis un moment. La forme commence à baisser."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Da un po' ben sotto il tuo carico abituale. La forma inizia a calare."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Od pewnego czasu wyraźnie poniżej zwykłego obciążenia. Forma zaczyna spadać."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Há algum tempo bem abaixo da tua carga habitual. A forma começa a descer."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Уже какое-то время заметно ниже обычной нагрузки. Форма начинает снижаться."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "一段时间以来负荷明显低于平时，体能开始下滑。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "一段時間以來負荷明顯低於平時，體能開始下滑。"
+          }
+        }
+      }
+    },
+    "A lighter stretch right after a hard phase. A deload, not a decline." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eine leichtere Phase direkt nach einer harten. Entlastung, kein Abbau."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Una etapa más ligera justo después de una fase dura. Una descarga, no un retroceso."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Une période plus légère juste après une phase dure. Une décharge, pas un déclin."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un periodo più leggero subito dopo una fase dura. Uno scarico, non un calo."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lżejszy okres tuż po ciężkiej fazie. Rozładowanie, nie spadek."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Uma fase mais leve logo após uma fase dura. Uma descarga, não um declínio."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Более лёгкий период сразу после тяжёлой фазы. Разгрузка, а не спад."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "高强度阶段后紧接的轻松期。是减载，不是退步。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "高強度階段後緊接的輕鬆期。是減載，不是退步。"
+          }
+        }
+      }
+    },
+    "About your usual load. You are holding your level." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Etwa deine übliche Belastung. Du hältst dein Niveau."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Más o menos tu carga habitual. Mantienes tu nivel."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "À peu près votre charge habituelle. Vous maintenez votre niveau."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Più o meno il tuo carico abituale. Mantieni il tuo livello."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mniej więcej zwykłe obciążenie. Utrzymujesz swój poziom."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mais ou menos a tua carga habitual. Estás a manter o teu nível."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Примерно обычная нагрузка. Вы удерживаете свой уровень."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "负荷与平时相当，你在维持现有水平。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "負荷與平時相當，你在維持現有水準。"
+          }
+        }
+      }
+    },
+    "At or a little above your usual load, and it is working." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Auf oder etwas über deiner üblichen Belastung – und es wirkt."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Igual o algo por encima de tu carga habitual, y está funcionando."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Égale ou un peu au-dessus de votre charge habituelle, et ça fonctionne."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pari o poco sopra il tuo carico abituale, e funziona."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Na zwykłym poziomie lub nieco powyżej – i to działa."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Igual ou um pouco acima da tua carga habitual, e está a resultar."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "На уровне обычной нагрузки или чуть выше — и это работает."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "负荷等于或略高于平时，并且有效。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "負荷等於或略高於平時，並且有效。"
+          }
+        }
+      }
+    },
+    "Strength only: plenty of load, but your lifts are not improving." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nur Kraft: viel Belastung, aber deine Übungen werden nicht stärker."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Solo fuerza: mucha carga, pero tus ejercicios no mejoran."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Force uniquement : beaucoup de charge, mais vos exercices ne progressent pas."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Solo forza: tanto carico, ma i tuoi esercizi non migliorano."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tylko siła: dużo obciążenia, ale ćwiczenia się nie poprawiają."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Só força: muita carga, mas os teus exercícios não melhoram."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Только сила: нагрузки много, но упражнения не прогрессируют."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "仅限力量：负荷很多，但动作没有进步。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "僅限力量：負荷很多，但動作沒有進步。"
+          }
+        }
+      }
+    },
+    "Well above your usual load. Fine for a short block, risky if it lasts." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deutlich über deiner üblichen Belastung. Für einen kurzen Block in Ordnung, riskant, wenn es anhält."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Muy por encima de tu carga habitual. Bien para un bloque corto, arriesgado si se prolonga."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nettement au-dessus de votre charge habituelle. Acceptable sur un court bloc, risqué si cela dure."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ben sopra il tuo carico abituale. Va bene per un blocco breve, rischioso se dura."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wyraźnie powyżej zwykłego obciążenia. W porządku na krótki blok, ryzykowne, jeśli trwa dłużej."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bem acima da tua carga habitual. Aceitável num bloco curto, arriscado se se prolongar."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Заметно выше обычной нагрузки. Нормально для короткого блока, рискованно, если затянется."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "负荷明显高于平时。短期训练块尚可，持续下去有风险。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "負荷明顯高於平時。短期訓練塊尚可，持續下去有風險。"
+          }
+        }
+      }
+    },
+    "%@ × usual" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ × üblich"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ × lo habitual"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ × l'habituel"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ × il solito"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ × zwykle"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ × o habitual"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ × обычного"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "常规的 %@ 倍"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "常規的 %@ 倍"
+          }
+        }
+      }
+    },
+    "Polar Training Load Pro · Garmin Training Status · Bosquet et al. 2013 · Pelland et al. 2024 · Robinson et al. 2024 · Foster 2001" : {
+      "shouldTranslate" : false
+    },
+    "Unclear" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unklar"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Incierto"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Incertain"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Incerto"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Niejasne"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Incerto"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Неясно"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "不明确"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "不明確"
+          }
+        }
+      }
+    },
+    "Signs of lasting overreaching" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Anzeichen anhaltender Überlastung"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Señales de sobrecarga prolongada"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Signes de surcharge prolongée"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Segni di sovraccarico prolungato"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Oznaki długotrwałego przeciążenia"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sinais de sobrecarga prolongada"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Признаки затяжной перегрузки"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "持续负荷过高的迹象"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "持續負荷過高的跡象"
+          }
+        }
+      }
+    },
+    "This is not a diagnosis of overtraining. That can only be made by a doctor, over months and after ruling out other causes. If your performance and how you feel stay down for weeks, get checked." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das ist keine Diagnose von Übertraining. Die kann nur eine Ärztin oder ein Arzt stellen – über Monate und nach Ausschluss anderer Ursachen. Bleiben Leistung und Befinden über Wochen schlecht, lass dich untersuchen."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Esto no es un diagnóstico de sobreentrenamiento. Solo puede hacerlo un médico, a lo largo de meses y tras descartar otras causas. Si tu rendimiento y cómo te sientes siguen bajos durante semanas, hazte revisar."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ce n'est pas un diagnostic de surentraînement. Seul un médecin peut le poser, sur plusieurs mois et après avoir écarté d'autres causes. Si vos performances et votre état restent en baisse pendant des semaines, consultez."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Questa non è una diagnosi di sovrallenamento. Può farla solo un medico, nell'arco di mesi e dopo aver escluso altre cause. Se prestazioni e benessere restano bassi per settimane, fatti controllare."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "To nie jest diagnoza przetrenowania. Może ją postawić tylko lekarz, na przestrzeni miesięcy i po wykluczeniu innych przyczyn. Jeśli wyniki i samopoczucie pozostają słabe przez tygodnie, zbadaj się."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Isto não é um diagnóstico de sobretreino. Só um médico o pode fazer, ao longo de meses e depois de excluir outras causas. Se o teu desempenho e a forma como te sentes continuarem em baixo durante semanas, faz um check-up."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Это не диагноз перетренированности. Его может поставить только врач — в течение месяцев и после исключения других причин. Если результаты и самочувствие остаются сниженными неделями, обследуйтесь."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这不是过度训练的诊断。过度训练只能由医生在数月观察并排除其他原因后确诊。如果表现和身体感受数周都没有好转，请就医检查。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "這不是過度訓練的診斷。過度訓練只能由醫生在數月觀察並排除其他原因後確診。如果表現和身體感受數週都沒有好轉，請就醫檢查。"
+          }
+        }
+      }
+    },
+    "Strength and cardio" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kraft und Cardio"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fuerza y cardio"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Force et cardio"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Forza e cardio"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Siła i cardio"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Força e cardio"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Сила и кардио"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "力量和有氧"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "力量和有氧"
+          }
+        }
+      }
+    },
+    "Overreaching for %lld weeks in a row (%@), with falling performance and strained recovery. Plan several easy or rest days now." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Seit %lld Wochen in Folge überlastend (%@), bei sinkender Leistung und angespannter Erholung. Plane jetzt mehrere leichte oder freie Tage ein."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sobrecarga durante %lld semanas seguidas (%@), con rendimiento en descenso y recuperación tensa. Planifica ya varios días suaves o de descanso."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Surcharge depuis %lld semaines d'affilée (%@), avec des performances en baisse et une récupération tendue. Prévoyez dès maintenant plusieurs jours légers ou de repos."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sovraccarico per %lld settimane di fila (%@), con prestazioni in calo e recupero sotto sforzo. Pianifica subito diversi giorni leggeri o di riposo."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Przeciążenie od %lld tygodni z rzędu (%@), przy spadających wynikach i obciążonej regeneracji. Zaplanuj teraz kilka lekkich dni lub dni wolnych."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sobrecarga há %lld semanas seguidas (%@), com desempenho a descer e recuperação em esforço. Planeia já vários dias leves ou de descanso."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Перегрузка %lld нед. подряд (%@) при снижающихся результатах и напряжённом восстановлении. Запланируйте сейчас несколько лёгких дней или дней отдыха."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已连续 %lld 周负荷过高（%@），且表现下降、恢复紧张。现在就安排几天轻松训练或休息。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已連續 %lld 週負荷過高（%@），且表現下降、恢復緊張。現在就安排幾天輕鬆訓練或休息。"
+          }
+        }
+      }
+    },
+    "Cardio development" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cardio-Entwicklung"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Evolución del cardio"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Évolution du cardio"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Andamento del cardio"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rozwój wydolności"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Evolução do cardio"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Динамика выносливости"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "有氧发展"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "有氧發展"
+          }
+        }
+      }
+    },
+    "Rising" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Steigend"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Suben"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "En hausse"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In crescita"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rośnie"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A subir"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Растут"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "上升"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "上升"
+          }
+        }
+      }
+    },
+    "Falling" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fallend"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bajan"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "En baisse"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In calo"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Spada"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A descer"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Снижаются"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "下降"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "下降"
+          }
+        }
+      }
+    },
+    "Each lift's estimated one-rep max over the last six weeks. A direction counts only when the sessions agree on it; the line for every lift is on the Strength screen." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das geschätzte Einwiederholungsmaximum jeder Übung über die letzten sechs Wochen. Eine Richtung zählt nur, wenn die Einheiten sich einig sind; die Linie jeder Übung findest du auf der Kraft-Seite."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El máximo estimado a una repetición de cada ejercicio en las últimas seis semanas. Una dirección solo cuenta cuando las sesiones coinciden; la línea de cada ejercicio está en la pantalla de Fuerza."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le max estimé sur une répétition de chaque exercice sur les six dernières semaines. Une tendance ne compte que si les séances concordent ; la courbe de chaque exercice se trouve sur l'écran Force."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il massimale stimato di ogni esercizio nelle ultime sei settimane. Una direzione conta solo quando le sessioni concordano; la linea di ogni esercizio è nella schermata Forza."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Szacowany ciężar maksymalny każdego ćwiczenia z ostatnich sześciu tygodni. Kierunek liczy się tylko, gdy treningi są zgodne; linię każdego ćwiczenia znajdziesz na ekranie Siła."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O máximo estimado a uma repetição de cada exercício nas últimas seis semanas. Uma direção só conta quando as sessões concordam; a linha de cada exercício está no ecrã Força."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Расчётный максимум на одно повторение для каждого упражнения за последние шесть недель. Направление учитывается, только когда тренировки согласуются; линия каждого упражнения — на экране «Сила»."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每个动作在过去六周的估算一次最大重量。只有各次训练一致时才计入方向；每个动作的趋势线在“力量”页面。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每個動作在過去六週的估算一次最大重量。只有各次訓練一致時才計入方向；每個動作的趨勢線在「力量」頁面。"
+          }
+        }
+      }
+    },
+    "VO₂max, last eight weeks" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "VO₂max, letzte acht Wochen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "VO₂máx, últimas ocho semanas"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "VO₂max, huit dernières semaines"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "VO₂max, ultime otto settimane"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "VO₂max, ostatnie osiem tygodni"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "VO₂máx, últimas oito semanas"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "VO₂max, последние восемь недель"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最大摄氧量，最近八周"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最大攝氧量，最近八週"
+          }
+        }
+      }
+    },
+    "%@ in %lld weeks" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ in %lld Wochen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ en %lld semanas"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ en %lld semaines"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ in %lld settimane"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ w %lld tyg."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ em %lld semanas"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ за %lld нед."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@（%lld 周内）"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@（%lld 週內）"
+          }
+        }
+      }
+    },
+    "Needs four readings" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Braucht vier Messwerte"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Necesita cuatro lecturas"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nécessite quatre mesures"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Servono quattro valori"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Potrzebne cztery pomiary"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Precisa de quatro leituras"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Нужно четыре измерения"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "需要四个读数"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "需要四個讀數"
+          }
+        }
+      }
+    },
+    "Measured by Apple Watch during outdoor walks and runs." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Von der Apple Watch bei Spaziergängen und Läufen im Freien gemessen."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Medido por el Apple Watch durante caminatas y carreras al aire libre."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mesuré par l'Apple Watch pendant les marches et courses en extérieur."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Misurato da Apple Watch durante camminate e corse all'aperto."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zmierzone przez Apple Watch podczas spacerów i biegów na zewnątrz."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Medido pelo Apple Watch durante caminhadas e corridas ao ar livre."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Измерено Apple Watch во время прогулок и пробежек на улице."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "由 Apple Watch 在户外步行和跑步时测得。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "由 Apple Watch 在戶外步行和跑步時測得。"
+          }
+        }
+      }
+    },
+    "Estimated by NOOP (%@) from your resting heart rate and activity. An estimate, not a lab test." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Von NOOP geschätzt (%@) aus Ruhepuls und Aktivität. Eine Schätzung, kein Labortest."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Estimado por NOOP (%@) a partir de tu frecuencia cardíaca en reposo y tu actividad. Una estimación, no una prueba de laboratorio."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Estimé par NOOP (%@) à partir de votre fréquence cardiaque au repos et de votre activité. Une estimation, pas un test en laboratoire."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stimato da NOOP (%@) dalla frequenza cardiaca a riposo e dall'attività. Una stima, non un test di laboratorio."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Oszacowane przez NOOP (%@) na podstawie tętna spoczynkowego i aktywności. To szacunek, nie badanie laboratoryjne."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Estimado pelo NOOP (%@) a partir da frequência cardíaca em repouso e da atividade. Uma estimativa, não um teste de laboratório."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Оценка NOOP (%@) по пульсу покоя и активности. Это оценка, а не лабораторный тест."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "由 NOOP 根据静息心率和活动估算（%@）。这是估算，而非实验室测试。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "由 NOOP 根據靜息心率和活動估算（%@）。這是估算，而非實驗室測試。"
+          }
+        }
+      }
+    },
+    "Earlier readings in this window came from a different estimate and are left out, so a change of method is not shown as fitness." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Frühere Werte in diesem Zeitraum stammen aus einer anderen Schätzung und bleiben außen vor, damit ein Methodenwechsel nicht als Fitness erscheint."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Las lecturas anteriores de este periodo proceden de otra estimación y se dejan fuera, para que un cambio de método no parezca forma física."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Les mesures antérieures de cette période proviennent d'une autre estimation et sont écartées, pour qu'un changement de méthode ne passe pas pour de la forme."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "I valori precedenti in questo periodo provengono da un'altra stima e sono esclusi, così un cambio di metodo non appare come forma fisica."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wcześniejsze odczyty z tego okresu pochodzą z innego szacunku i zostały pominięte, aby zmiana metody nie wyglądała na zmianę formy."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "As leituras anteriores deste período vêm de outra estimativa e ficam de fora, para que uma mudança de método não pareça forma física."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Более ранние значения за этот период получены другим методом оценки и не учитываются, чтобы смена метода не выглядела как изменение формы."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此期间较早的读数来自另一种估算方法，已排除在外，以免方法变化被误读为体能变化。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此期間較早的讀數來自另一種估算方法，已排除在外，以免方法變化被誤讀為體能變化。"
+          }
+        }
+      }
+    },
+    "No VO₂max readings in the last eight weeks yet. They come from Apple Health, or from NOOP's weekly estimate once your profile and resting heart rate allow it." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Noch keine VO₂max-Werte in den letzten acht Wochen. Sie kommen aus Apple Health oder aus NOOPs wöchentlicher Schätzung, sobald Profil und Ruhepuls es erlauben."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aún no hay lecturas de VO₂máx en las últimas ocho semanas. Llegan desde Apple Health o desde la estimación semanal de NOOP en cuanto tu perfil y tu frecuencia cardíaca en reposo lo permitan."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucune mesure de VO₂max sur les huit dernières semaines pour l'instant. Elles viennent d'Apple Santé, ou de l'estimation hebdomadaire de NOOP dès que votre profil et votre fréquence cardiaque au repos le permettent."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ancora nessun valore di VO₂max nelle ultime otto settimane. Arrivano da Apple Salute o dalla stima settimanale di NOOP, non appena profilo e frequenza cardiaca a riposo lo consentono."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Brak jeszcze odczytów VO₂max z ostatnich ośmiu tygodni. Pochodzą z Apple Zdrowie lub z cotygodniowego szacunku NOOP, gdy tylko pozwolą na to profil i tętno spoczynkowe."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ainda não há leituras de VO₂máx nas últimas oito semanas. Chegam do Apple Saúde ou da estimativa semanal do NOOP assim que o teu perfil e a frequência cardíaca em repouso o permitirem."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "За последние восемь недель пока нет значений VO₂max. Они приходят из Apple Health или из еженедельной оценки NOOP, как только профиль и пульс покоя это позволят."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最近八周还没有最大摄氧量读数。它们来自 Apple 健康，或在你的资料和静息心率满足条件后来自 NOOP 的每周估算。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最近八週還沒有最大攝氧量讀數。它們來自 Apple 健康，或在你的資料和靜息心率滿足條件後來自 NOOP 的每週估算。"
+          }
+        }
+      }
+    },
+    "Load against your usual" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Belastung gegenüber deinem Üblichen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Carga frente a lo habitual"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Charge par rapport à votre habitude"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Carico rispetto al solito"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Obciążenie względem zwykłego poziomu"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Carga face ao habitual"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Нагрузка относительно обычной"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "负荷与常规水平对比"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "負荷與常規水準對比"
+          }
+        }
+      }
+    },
+    "Estimated by NOOP from your resting heart rate and activity. An estimate, not a lab test." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Von NOOP aus Ruhepuls und Aktivität geschätzt. Eine Schätzung, kein Labortest."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Estimado por NOOP a partir de tu frecuencia cardíaca en reposo y tu actividad. Una estimación, no una prueba de laboratorio."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Estimé par NOOP à partir de votre fréquence cardiaque au repos et de votre activité. Une estimation, pas un test en laboratoire."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stimato da NOOP dalla frequenza cardiaca a riposo e dall'attività. Una stima, non un test di laboratorio."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Oszacowane przez NOOP na podstawie tętna spoczynkowego i aktywności. To szacunek, nie badanie laboratoryjne."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Estimado pelo NOOP a partir da frequência cardíaca em repouso e da atividade. Uma estimativa, não um teste de laboratório."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Оценка NOOP по пульсу покоя и активности. Это оценка, а не лабораторный тест."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "由 NOOP 根据静息心率和活动估算。这是估算，而非实验室测试。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "由 NOOP 根據靜息心率和活動估算。這是估算，而非實驗室測試。"
           }
         }
       }

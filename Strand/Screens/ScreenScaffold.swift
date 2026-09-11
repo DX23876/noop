@@ -157,14 +157,30 @@ struct DemoScrollBottomAnchor: View {
     }
 }
 
-/// Scrolls only under the explicit screenshot launch argument. The delay lets asynchronous screen
+/// Scrolls only under the explicit screenshot launch argument. The delays let asynchronous screen
 /// models publish their rows before the reader resolves the end marker; production builds are a no-op.
+///
+/// It scrolls more than once. A screen whose model loads for a second or two (Training Load recomputes
+/// eight weeks of status) was still showing its spinner at the first attempt, so the marker it scrolled
+/// to sat directly under the title and the capture showed the top of the page.
+///
+/// `--demo-scroll-to <id>` scrolls to a named section instead (a view tagged `.id("<id>")` inside the
+/// scaffold), so the middle of a long screen can be captured too, not just its two ends.
 @MainActor
 func scrollToDemoBottom(_ proxy: ScrollViewProxy) async {
     #if DEBUG
-    guard CommandLine.arguments.contains("--demo-scroll-bottom") else { return }
-    try? await Task.sleep(nanoseconds: 250_000_000)
-    proxy.scrollTo(screenScaffoldBottomAnchorID, anchor: .bottom)
+    let args = CommandLine.arguments
+    let target = args.firstIndex(of: "--demo-scroll-to").flatMap { args.indices.contains($0 + 1) ? args[$0 + 1] : nil }
+    guard target != nil || args.contains("--demo-scroll-bottom") else { return }
+    for delay: UInt64 in [250_000_000, 1_500_000_000, 3_000_000_000] {
+        try? await Task.sleep(nanoseconds: delay)
+        guard !Task.isCancelled else { return }
+        if let target {
+            proxy.scrollTo(target, anchor: .top)
+        } else {
+            proxy.scrollTo(screenScaffoldBottomAnchorID, anchor: .bottom)
+        }
+    }
     #endif
 }
 

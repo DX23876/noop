@@ -180,6 +180,15 @@ public struct RecoveryArc: Shape {
     public var fraction: Double
     public var lineWidth: CGFloat
 
+    /// Public so screens can draw their own dials from the same arc the Today rings use (the Training
+    /// Load status dial draws one per zone). The memberwise initialiser Swift synthesises is internal.
+    public init(startAngle: Angle, spanDegrees: Double, fraction: Double, lineWidth: CGFloat) {
+        self.startAngle = startAngle
+        self.spanDegrees = spanDegrees
+        self.fraction = fraction
+        self.lineWidth = lineWidth
+    }
+
     public var animatableData: Double {
         get { fraction }
         set { fraction = newValue }
