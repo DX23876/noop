@@ -455,9 +455,23 @@ struct CardioView: View {
     }
 
     private func paceAxisLabel(_ value: Double) -> String {
-        model.selectedModality.readout == .speed
-            ? (UnitFormatter.speedFromKilometersPerHour(value, system: units) ?? "—")
-            : UnitFormatter.paceFromSecPerKm(value, system: units)
+        if model.selectedModality.readout == .speed {
+            return UnitFormatter.speedFromKilometersPerHour(value, system: units) ?? "—"
+        }
+        return paceText(secPerKm: value, modality: model.selectedModality)
+    }
+
+    /// A pace in the unit its sport is actually spoken in. Swimming is read per hundred metres — every
+    /// pool clock and every written set says so — and "4:37 /km" for a swim is the same number rendered
+    /// in a unit no swimmer uses.
+    private func paceText(secPerKm: Double, modality: CardioModality) -> String {
+        guard modality.usesPerHundredMetres else {
+            return UnitFormatter.paceFromSecPerKm(secPerKm, system: units)
+        }
+        let secPer100 = secPerKm / 10
+        let minutes = Int(secPer100) / 60
+        let seconds = Int(secPer100.rounded()) % 60
+        return String(format: "%d:%02d /100 m", minutes, seconds)
     }
 
     private var paceChartLabel: String {
@@ -651,7 +665,7 @@ struct CardioView: View {
         switch session.modality.readout {
         case .pace:
             if let pace = session.paceSecPerKm {
-                parts.append(UnitFormatter.paceFromSecPerKm(pace, system: units))
+                parts.append(paceText(secPerKm: pace, modality: session.modality))
             }
         case .speed:
             if let speed = session.speedKmh,

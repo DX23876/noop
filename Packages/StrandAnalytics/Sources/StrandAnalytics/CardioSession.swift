@@ -59,6 +59,15 @@ public enum CardioModality: String, Equatable, Sendable, CaseIterable, Codable {
         }
     }
 
+    /// Whether this sport's pace is read per 100 METRES rather than per kilometre.
+    ///
+    /// Swimming is the one that differs, and it differs by convention rather than by arithmetic: every
+    /// pool clock, every set written on a whiteboard and every swimmer talks in "1:37 per hundred".
+    /// Showing a swim as "4:37 /km" is technically the same number and is read by nobody — the header
+    /// above already said as much, but only the comment knew. This is the property that lets the
+    /// display layer act on it.
+    public var usesPerHundredMetres: Bool { self == .swimming }
+
     /// Locale-stable key; the display layer localizes.
     public var label: String {
         switch self {

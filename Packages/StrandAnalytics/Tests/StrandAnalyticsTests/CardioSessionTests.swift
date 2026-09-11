@@ -193,3 +193,22 @@ final class CardioSessionTests: XCTestCase {
         XCTAssertEqual(band.upperBound, 60, accuracy: 1e-6)
     }
 }
+
+/// Pins which sports are read in which unit.
+final class CardioModalityUnitTests: XCTestCase {
+
+    /// Swimming is spoken per hundred metres — every pool clock and every written set says so. The
+    /// arithmetic is identical; the unit is the part swimmers can read.
+    func testOnlySwimmingIsReadPerHundredMetres() {
+        XCTAssertTrue(CardioModality.swimming.usesPerHundredMetres)
+        for modality in [CardioModality.foot, .cycling, .rowing, .other, .unknown, .strength] {
+            XCTAssertFalse(modality.usesPerHundredMetres, "\(modality)")
+        }
+    }
+
+    /// The unit question is separate from the pace-or-speed question: swimming still reports a pace.
+    func testSwimmingStillReportsAPace() {
+        XCTAssertEqual(CardioModality.swimming.readout, .pace)
+        XCTAssertEqual(CardioModality.cycling.readout, .speed)
+    }
+}
