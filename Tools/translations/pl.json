@@ -1864,5 +1864,6 @@
   "Earlier readings in this window came from a different estimate and are left out, so a change of method is not shown as fitness.": "Wcześniejsze odczyty z tego okresu pochodzą z innego szacunku i zostały pominięte, aby zmiana metody nie wyglądała na zmianę formy.",
   "No VO₂max readings in the last eight weeks yet. They come from Apple Health, or from NOOP's weekly estimate once your profile and resting heart rate allow it.": "Brak jeszcze odczytów VO₂max z ostatnich ośmiu tygodni. Pochodzą z Apple Zdrowie lub z cotygodniowego szacunku NOOP, gdy tylko pozwolą na to profil i tętno spoczynkowe.",
   "Load against your usual": "Obciążenie względem zwykłego poziomu",
-  "Estimated by NOOP from your resting heart rate and activity. An estimate, not a lab test.": "Oszacowane przez NOOP na podstawie tętna spoczynkowego i aktywności. To szacunek, nie badanie laboratoryjne."
+  "Estimated by NOOP from your resting heart rate and activity. An estimate, not a lab test.": "Oszacowane przez NOOP na podstawie tętna spoczynkowego i aktywności. To szacunek, nie badanie laboratoryjne.",
+  "Lifts": "Ćwiczenia"
 }

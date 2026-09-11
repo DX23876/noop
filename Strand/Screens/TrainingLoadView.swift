@@ -233,6 +233,9 @@ final class TrainingLoadModel: ObservableObject {
 struct TrainingLoadView: View {
     @EnvironmentObject private var repo: Repository
     @StateObject private var model = TrainingLoadModel()
+    @State private var shownVO2: Double = 0
+    @State private var adviceBounce = 0
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         ScreenScaffold(title: "Training Load",
@@ -243,16 +246,16 @@ struct TrainingLoadView: View {
             } else {
                 hero
                 sustainedCard
-                adviceCard
-                recoveryCard
+                adviceCard.trainingCardEntrance()
+                recoveryCard.trainingCardEntrance()
                 // Named sections for `--demo-scroll-to` screenshot QA (DEBUG only; ids are inert otherwise).
-                historyCard.id("history")
-                strengthSummaryCard.id("lifts")
-                vo2maxCard.id("cardio")
-                sessionCard
-                basisCard
-                legendCard
-                methodCard
+                historyCard.trainingCardEntrance().id("history")
+                strengthSummaryCard.trainingCardEntrance().id("lifts")
+                vo2maxCard.trainingCardEntrance().id("cardio")
+                sessionCard.trainingCardEntrance()
+                basisCard.trainingCardEntrance()
+                legendCard.trainingCardEntrance()
+                methodCard.trainingCardEntrance()
             }
         }
         .task(id: repo.refreshSeq) { await model.load(repo: repo) }
@@ -260,20 +263,23 @@ struct TrainingLoadView: View {
 
     // MARK: - The two dials
 
+    /// The two dials on a surface lit by their own status colours.
     private var hero: some View {
-        NoopCard {
-            VStack(spacing: NoopMetrics.space4) {
-                HStack(alignment: .top, spacing: NoopMetrics.space2) {
-                    LoadStatusRing(title: "Strength", symbol: "figure.strengthtraining.traditional",
-                                   lane: model.strength?.status, figure: strengthFigure,
-                                   evidence: strengthEvidence)
-                    LoadStatusRing(title: "Cardio", symbol: "heart.fill",
-                                   lane: model.cardio?.status, figure: cardioFigure,
-                                   evidence: cardioEvidence)
-                }
-                LoadZoneLegend()
+        VStack(spacing: NoopMetrics.space4) {
+            HStack(alignment: .top, spacing: NoopMetrics.space2) {
+                LoadStatusRing(title: "Strength", symbol: "figure.strengthtraining.traditional",
+                               lane: model.strength?.status, figure: strengthFigure,
+                               evidence: strengthEvidence)
+                LoadStatusRing(title: "Cardio", symbol: "heart.fill",
+                               lane: model.cardio?.status, figure: cardioFigure,
+                               evidence: cardioEvidence)
             }
+            LoadZoneLegend()
         }
+        .padding(NoopMetrics.cardPadding)
+        .frame(maxWidth: .infinity)
+        .background(TrainingHeroSurface(leading: model.strength?.status?.status.color ?? StrandPalette.textTertiary,
+                                        trailing: model.cardio?.status?.status.color ?? StrandPalette.textTertiary))
     }
 
     private var strengthFigure: String? {
@@ -371,22 +377,20 @@ struct TrainingLoadView: View {
 
     private var adviceCard: some View {
         let advice = advice
-        return NoopCard(tint: advice.color) {
-            HStack(alignment: .top, spacing: NoopMetrics.space3) {
-                ZStack {
-                    Circle().fill(advice.color)
-                    Image(systemName: advice.symbol)
-                        .font(StrandFont.rounded(17, weight: .bold))
-                        .foregroundStyle(StrandPalette.onDarkPrimary)
-                }
-                .frame(width: 38, height: 38)
-                .accessibilityHidden(true)
+        return TrainingWashCard(color: advice.color, watermark: advice.symbol) {
+            HStack(alignment: .center, spacing: NoopMetrics.space3) {
+                StatusBadge(symbol: advice.symbol, color: advice.color, size: 44, bounceTrigger: adviceBounce)
                 Text(advice.text)
                     .font(StrandFont.subhead.weight(.medium))
                     .foregroundStyle(StrandPalette.textPrimary)
                     .fixedSize(horizontal: false, vertical: true)
                 Spacer(minLength: 0)
             }
+        }
+        .task(id: advice.text) {
+            guard !reduceMotion else { return }
+            try? await Task.sleep(nanoseconds: 900_000_000)
+            adviceBounce += 1
         }
     }
 
@@ -397,13 +401,11 @@ struct TrainingLoadView: View {
     /// so many words that it is not a diagnosis of overtraining.
     @ViewBuilder private var sustainedCard: some View {
         if let warning = model.sustainedOverreaching {
-            NoopCard(tint: TrainingStatus.overreaching.color) {
+            TrainingWashCard(color: TrainingStatus.overreaching.color, watermark: "exclamationmark.octagon.fill") {
                 VStack(alignment: .leading, spacing: NoopMetrics.space2) {
                     HStack(spacing: NoopMetrics.space2) {
-                        Image(systemName: "exclamationmark.octagon.fill")
-                            .font(StrandFont.rounded(20, weight: .bold))
-                            .foregroundStyle(TrainingStatus.overreaching.color)
-                            .accessibilityHidden(true)
+                        StatusBadge(symbol: "exclamationmark.octagon.fill", color: TrainingStatus.overreaching.color,
+                                    size: 34, pulses: !reduceMotion)
                         Text("Signs of lasting overreaching")
                             .font(StrandFont.headline)
                             .foregroundStyle(StrandPalette.textPrimary)
@@ -443,6 +445,10 @@ struct TrainingLoadView: View {
                         recoveryTile("Resting HR", symbol: "heart.fill", key: "rhr")
                         recoveryTile("Breathing", symbol: "lungs.fill", key: "respRate")
                     }
+                    if let reading = model.recovery, reading.nightsRead > 0 {
+                        NightsMeter(strained: reading.strainedNights, read: reading.nightsRead,
+                                    total: TrainingStatusModel.recoveryNights)
+                    }
                     Text(recoverySummary)
                         .font(StrandFont.caption)
                         .foregroundStyle(StrandPalette.textSecondary)
@@ -460,15 +466,19 @@ struct TrainingLoadView: View {
         let state = !read ? String(localized: "No data")
             : (flagging ? String(localized: "Flagging") : String(localized: "Normal"))
         return VStack(spacing: 6) {
-            // Solid colour when there is a reading; a missing reading stays neutral so it never
-            // looks like a verdict.
-            ZStack {
-                Circle().fill(read ? color : StrandPalette.surfaceInset)
-                Image(systemName: symbol)
-                    .font(StrandFont.rounded(17, weight: .semibold))
-                    .foregroundStyle(read ? StrandPalette.onDarkPrimary : StrandPalette.textTertiary)
+            // A filled badge when there is a reading — pulsing while it flags; a missing reading stays
+            // neutral so it never looks like a verdict.
+            if read {
+                StatusBadge(symbol: symbol, color: color, size: 44, pulses: flagging && !reduceMotion)
+            } else {
+                ZStack {
+                    Circle().fill(StrandPalette.surfaceInset)
+                    Image(systemName: symbol)
+                        .font(StrandFont.rounded(18, weight: .semibold))
+                        .foregroundStyle(StrandPalette.textTertiary)
+                }
+                .frame(width: 44, height: 44)
             }
-            .frame(width: 42, height: 42)
             Text(title)
                 .font(StrandFont.caption.weight(.semibold))
                 .foregroundStyle(StrandPalette.textPrimary)
@@ -476,9 +486,12 @@ struct TrainingLoadView: View {
                 .minimumScaleFactor(0.8)
             Text(state)
                 .font(StrandFont.caption)
-                .foregroundStyle(color)
+                .foregroundStyle(StrandPalette.textSecondary)
         }
+        .padding(.vertical, NoopMetrics.space3)
         .frame(maxWidth: .infinity)
+        .background(RoundedRectangle(cornerRadius: 16, style: .continuous)
+            .fill(color.opacity(read ? 0.13 : 0.05)))
         .accessibilityElement(children: .combine)
     }
 
@@ -498,9 +511,6 @@ struct TrainingLoadView: View {
             SectionHeader("Last 8 weeks", overline: "Status history")
             NoopCard {
                 VStack(alignment: .leading, spacing: NoopMetrics.space3) {
-                    Text("Load against your usual")
-                        .font(StrandFont.subhead.weight(.semibold))
-                        .foregroundStyle(StrandPalette.textPrimary)
                     LoadRatioChart(points: model.ratios)
                     Divider().overlay(StrandPalette.hairline)
                     StatusHistoryStrip(history: model.history)
@@ -524,15 +534,7 @@ struct TrainingLoadView: View {
             NoopCard {
                 VStack(alignment: .leading, spacing: NoopMetrics.space3) {
                     if let response, response.evaluated > 0 {
-                        DirectionBar(rising: response.rising, unclear: response.unclear, falling: response.falling)
-                        HStack(spacing: NoopMetrics.space4) {
-                            countLabel(response.rising, symbol: "arrow.up.right",
-                                       color: StrandPalette.statusPositive, title: "Rising")
-                            countLabel(response.unclear, symbol: "minus",
-                                       color: StrandPalette.textTertiary, title: "Unclear")
-                            countLabel(response.falling, symbol: "arrow.down.right",
-                                       color: StrandPalette.statusCritical, title: "Falling")
-                        }
+                        liftDirections(response)
                         Text("Each lift's estimated one-rep max over the last six weeks. A direction counts only when the sessions agree on it; the line for every lift is on the Strength screen.")
                             .font(StrandFont.caption)
                             .foregroundStyle(StrandPalette.textTertiary)
@@ -548,15 +550,34 @@ struct TrainingLoadView: View {
         }
     }
 
-    private func countLabel(_ count: Int, symbol: String, color: Color, title: LocalizedStringKey) -> some View {
-        HStack(spacing: 6) {
-            ZStack {
-                Circle().fill(color)
-                Image(systemName: symbol)
-                    .font(StrandFont.rounded(10, weight: .bold))
-                    .foregroundStyle(StrandPalette.onDarkPrimary)
+    /// A donut with the counts beside it; a bar with the counts under it before macOS 14.
+    @ViewBuilder private func liftDirections(_ response: StrengthResponseReading) -> some View {
+        if #available(iOS 17.0, macOS 14.0, *) {
+            HStack(spacing: NoopMetrics.space4) {
+                LiftDirectionDonut(rising: response.rising, unclear: response.unclear, falling: response.falling)
+                    .frame(width: 116, height: 116)
+                VStack(alignment: .leading, spacing: NoopMetrics.space3) {
+                    directionCounts(response)
+                }
+                Spacer(minLength: 0)
             }
-            .frame(width: 22, height: 22)
+        } else {
+            DirectionBar(rising: response.rising, unclear: response.unclear, falling: response.falling)
+            HStack(spacing: NoopMetrics.space4) {
+                directionCounts(response)
+            }
+        }
+    }
+
+    @ViewBuilder private func directionCounts(_ response: StrengthResponseReading) -> some View {
+        countLabel(response.rising, symbol: "arrow.up.right", color: StrandPalette.statusPositive, title: "Rising")
+        countLabel(response.unclear, symbol: "minus", color: StrandPalette.textTertiary, title: "Unclear")
+        countLabel(response.falling, symbol: "arrow.down.right", color: StrandPalette.statusCritical, title: "Falling")
+    }
+
+    private func countLabel(_ count: Int, symbol: String, color: Color, title: LocalizedStringKey) -> some View {
+        HStack(spacing: 8) {
+            StatusBadge(symbol: symbol, color: color, size: 26)
             Text(verbatim: "\(count)")
                 .font(StrandFont.number(20))
                 .foregroundStyle(StrandPalette.textPrimary)
@@ -576,9 +597,17 @@ struct TrainingLoadView: View {
                 VStack(alignment: .leading, spacing: NoopMetrics.space3) {
                     if let vo2 = model.vo2max, let latest = vo2.latest {
                         HStack(alignment: .firstTextBaseline, spacing: NoopMetrics.space2) {
-                            Text(latest.value, format: .number.precision(.fractionLength(1)))
-                                .font(StrandFont.number(34, weight: .bold))
+                            TrainingCountUp(value: shownVO2, decimals: 1)
+                                .font(StrandFont.number(40, weight: .bold))
                                 .foregroundStyle(StrandPalette.textPrimary)
+                                .accessibilityLabel(Text(latest.value, format: .number.precision(.fractionLength(1))))
+                                .task(id: latest.value) {
+                                    if reduceMotion {
+                                        shownVO2 = latest.value
+                                    } else {
+                                        withAnimation(StrandMotion.drawIn) { shownVO2 = latest.value }
+                                    }
+                                }
                             Text(verbatim: "ml/kg/min")
                                 .font(StrandFont.caption)
                                 .foregroundStyle(StrandPalette.textTertiary)
@@ -633,16 +662,21 @@ struct TrainingLoadView: View {
             symbol = "hourglass"
             text = String(localized: "Needs four readings")
         }
+        let muted = vo2.direction == .unknown || vo2.direction == .unclear
         return HStack(spacing: 5) {
             Image(systemName: symbol).font(StrandFont.rounded(11, weight: .bold))
             Text(text).font(StrandFont.captionNumber)
         }
-        .foregroundStyle(vo2.direction == .unknown || vo2.direction == .unclear
-                         ? StrandPalette.textSecondary : StrandPalette.onDarkPrimary)
+        .foregroundStyle(muted ? StrandPalette.textSecondary : StrandPalette.onDarkPrimary)
         .padding(.horizontal, 10)
         .padding(.vertical, 5)
-        .background(Capsule().fill(vo2.direction == .unknown || vo2.direction == .unclear
-                                   ? StrandPalette.surfaceInset : color))
+        .background {
+            if muted {
+                Capsule().fill(StrandPalette.surfaceInset)
+            } else {
+                Capsule().fill(color.gradient).shadow(color: color.opacity(0.4), radius: 4, y: 2)
+            }
+        }
     }
 
     private func vo2SourceText(_ latest: VO2maxReading) -> String {
@@ -672,21 +706,28 @@ struct TrainingLoadView: View {
             SectionHeader("What it rests on", overline: "Data coverage")
             NoopCard {
                 VStack(alignment: .leading, spacing: NoopMetrics.space3) {
-                    basisRow(symbol: "figure.strengthtraining.traditional", text: strengthCoverage(model.strength))
+                    basisRow(symbol: "figure.strengthtraining.traditional", share: coverageShare(model.strength),
+                             text: strengthCoverage(model.strength))
                     Divider().overlay(StrandPalette.hairline)
-                    basisRow(symbol: "heart.fill", text: cardioCoverage(model.cardio))
+                    basisRow(symbol: "heart.fill", share: coverageShare(model.cardio),
+                             text: cardioCoverage(model.cardio))
                 }
             }
         }
     }
 
-    private func basisRow(symbol: String, text: String) -> some View {
-        HStack(alignment: .top, spacing: NoopMetrics.space3) {
-            Image(systemName: symbol)
-                .font(StrandFont.subhead)
-                .foregroundStyle(StrandPalette.textSecondary)
-                .frame(width: 22)
-                .accessibilityHidden(true)
+    /// The measured share of a lane's figure, nil when there is nothing to measure.
+    private func coverageShare(_ lane: TrainingLoadModel.Lane?) -> Double? {
+        guard let lane, lane.possibleCount > 0 else { return nil }
+        return Double(lane.measuredCount) / Double(lane.possibleCount)
+    }
+
+    private func basisRow(symbol: String, share: Double?, text: String) -> some View {
+        let color = share.map { $0 >= TrainingLoad.trustedRatedShare ? StrandPalette.statusPositive
+                                                                      : StrandPalette.statusWarning }
+            ?? StrandPalette.textTertiary
+        return HStack(alignment: .center, spacing: NoopMetrics.space3) {
+            CoverageRing(fraction: share ?? 0, color: color, symbol: symbol)
             Text(text)
                 .font(StrandFont.subhead)
                 .foregroundStyle(StrandPalette.textSecondary)
@@ -736,15 +777,7 @@ struct TrainingLoadView: View {
                 VStack(alignment: .leading, spacing: NoopMetrics.space3) {
                     ForEach(TrainingStatus.allCases, id: \.self) { status in
                         HStack(alignment: .top, spacing: NoopMetrics.space3) {
-                            ZStack {
-                                RoundedRectangle(cornerRadius: 9, style: .continuous)
-                                    .fill(status.color)
-                                Image(systemName: status.symbol)
-                                    .font(StrandFont.rounded(13, weight: .bold))
-                                    .foregroundStyle(StrandPalette.onDarkPrimary)
-                            }
-                            .frame(width: 32, height: 32)
-                            .accessibilityHidden(true)
+                            StatusBadge(symbol: status.symbol, color: status.color, size: 34, cornerRadius: 10)
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(status.label)
                                     .font(StrandFont.subhead.weight(.semibold))

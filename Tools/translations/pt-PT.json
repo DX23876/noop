@@ -728,5 +728,6 @@
   "Earlier readings in this window came from a different estimate and are left out, so a change of method is not shown as fitness.": "As leituras anteriores deste período vêm de outra estimativa e ficam de fora, para que uma mudança de método não pareça forma física.",
   "No VO₂max readings in the last eight weeks yet. They come from Apple Health, or from NOOP's weekly estimate once your profile and resting heart rate allow it.": "Ainda não há leituras de VO₂máx nas últimas oito semanas. Chegam do Apple Saúde ou da estimativa semanal do NOOP assim que o teu perfil e a frequência cardíaca em repouso o permitirem.",
   "Load against your usual": "Carga face ao habitual",
-  "Estimated by NOOP from your resting heart rate and activity. An estimate, not a lab test.": "Estimado pelo NOOP a partir da frequência cardíaca em repouso e da atividade. Uma estimativa, não um teste de laboratório."
+  "Estimated by NOOP from your resting heart rate and activity. An estimate, not a lab test.": "Estimado pelo NOOP a partir da frequência cardíaca em repouso e da atividade. Uma estimativa, não um teste de laboratório.",
+  "Lifts": "Exercícios"
 }
