@@ -350,7 +350,7 @@ struct CardioView: View {
                             ForEach(Array(model.week.bySport.enumerated()), id: \.offset) { index, total in
                                 HStack(spacing: 8) {
                                     Circle().fill(sportColor(index)).frame(width: 8, height: 8)
-                                    Text(WorkoutSource.displaySport(total.sport))
+                                    Text(sportName(total.sport))
                                         .font(StrandFont.subhead)
                                         .foregroundStyle(StrandPalette.textPrimary)
                                         .lineLimit(1)
@@ -435,12 +435,12 @@ struct CardioView: View {
                 } label: {
                     // Built from an already-localized sport name and a count, so the SEPARATOR is the
                     // only translatable part and it goes through the catalog like everything else.
-                    Text(String(localized: "\(WorkoutSource.displaySport(choice.sport))  ·  \(choice.sessions)×"))
+                    Text(String(localized: "\(sportName(choice.sport))  ·  \(choice.sessions)×"))
                 }
             }
         } label: {
             HStack(spacing: 5) {
-                Text(model.selectedSport.map { WorkoutSource.displaySport($0) }
+                Text(model.selectedSport.map { sportName($0) }
                      ?? String(localized: "Pick a sport"))
                     .font(StrandFont.headline).foregroundStyle(StrandPalette.textPrimary)
                 Image(systemName: "chevron.down")
@@ -561,7 +561,7 @@ struct CardioView: View {
             VStack(alignment: .leading, spacing: NoopMetrics.gap) {
                 HStack {
                     SectionHeader("Your bests",
-                                  overline: LocalizedStringKey(WorkoutSource.displaySport(sport)))
+                                  overline: LocalizedStringKey(sportName(sport)))
                     Spacer(minLength: 8)
                     Button { infoTopic = .bests } label: {
                         Image(systemName: "info.circle")
@@ -652,7 +652,7 @@ struct CardioView: View {
                         .font(.system(size: 13))
                         .foregroundStyle(DomainTheme.effort.color)
                         .accessibilityHidden(true)
-                    Text(WorkoutSource.displaySport(session.sport))
+                    Text(sportName(session.sport))
                         .font(StrandFont.headline)
                         .foregroundStyle(StrandPalette.textPrimary)
                         .lineLimit(1)
@@ -696,6 +696,29 @@ struct CardioView: View {
             parts.append(String(localized: "\(Int(beats.rounded())) beats/km"))
         }
         return parts.filter { $0 != "–" }.joined(separator: " · ")
+    }
+
+    /// Localized display for the common cardio labels while the stored sport stays locale-stable for
+    /// imports, deduplication and export. Unknown/free-text labels pass through exactly as entered.
+    private func sportName(_ sport: String) -> String {
+        let display = WorkoutSource.displaySport(sport)
+        switch display.lowercased() {
+        case "running":          return String(localized: "Running")
+        case "walking":          return String(localized: "Walking")
+        case "hiking":           return String(localized: "Hiking")
+        case "cycling":          return String(localized: "Cycling")
+        case "open-water swim":  return String(localized: "Open-water swim")
+        case "rowing":           return String(localized: "Rowing")
+        case "treadmill run":    return String(localized: "Treadmill run")
+        case "treadmill walk":   return String(localized: "Treadmill walk")
+        case "indoor cycle":     return String(localized: "Indoor cycle")
+        case "pool swim":        return String(localized: "Pool swim")
+        case "row machine":      return String(localized: "Row machine")
+        case "elliptical":       return String(localized: "Elliptical")
+        case "hiit":             return String(localized: "HIIT")
+        case "yoga":             return String(localized: "Yoga")
+        default:                 return display
+        }
     }
 
     private func sportSymbol(_ session: CardioSessionMetrics) -> String {

@@ -395,9 +395,10 @@ struct StrengthSessionDetailView: View {
         guard let primary = block.primaryMuscle else {
             return String(localized: "Not in the exercise catalogue — its sets count, its muscles cannot")
         }
-        var text = primary.label
+        var text = StrengthView.groupLabel(primary)
         if !block.secondaryMuscles.isEmpty {
-            text += " · " + String(localized: "also \(block.secondaryMuscles.map(\.label).joined(separator: ", "))")
+            let secondary = block.secondaryMuscles.map(StrengthView.groupLabel).joined(separator: ", ")
+            text += " · " + String(localized: "also \(secondary)")
         }
         return text
     }

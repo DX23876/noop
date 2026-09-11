@@ -225,12 +225,25 @@ extension StrengthView {
     static func groupLabel(_ group: HevyMuscleGroup) -> String {
         switch group {
         case .abdominals: return String(localized: "Abdominals")
+        case .shoulders:  return String(localized: "Shoulders")
+        case .biceps:     return String(localized: "Biceps")
+        case .triceps:    return String(localized: "Triceps")
+        case .forearms:   return String(localized: "Forearms")
+        case .quadriceps: return String(localized: "Quadriceps")
+        case .hamstrings: return String(localized: "Hamstrings")
+        case .calves:     return String(localized: "Calves")
+        case .glutes:     return String(localized: "Glutes")
+        case .abductors:  return String(localized: "Abductors")
+        case .adductors:  return String(localized: "Adductors")
+        case .lats:       return String(localized: "Lats")
+        case .upperBack:  return String(localized: "Upper back")
+        case .traps:      return String(localized: "Traps")
         case .lowerBack:  return String(localized: "Lower back")
+        case .chest:      return String(localized: "Chest")
         case .neck:       return String(localized: "Neck")
         case .cardio:     return String(localized: "Cardio")
         case .fullBody:   return String(localized: "Full body")
         case .other:      return String(localized: "Other")
-        default:          return group.label
         }
     }
 
