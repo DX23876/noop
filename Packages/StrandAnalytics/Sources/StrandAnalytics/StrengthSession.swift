@@ -424,6 +424,15 @@ public enum StrengthSession {
         return byDay
     }
 
+    /// Strength load pooled over every working set in `workouts`, for saying what the weighting rests on.
+    ///
+    /// `weightedSetsByDay` keeps only the weighted figure, which is right for the trend and silent about
+    /// how much of it is the unrated default. This is the same arithmetic over the same sets, pooled, so
+    /// the screen can report the rated count alongside the number it qualifies.
+    public static func strengthLoad(_ workouts: [HevyWorkout]) -> StrengthLoad {
+        TrainingLoad.strengthLoad(setRpes: workouts.flatMap { $0.exercises.flatMap(\.workingSets).map(\.rpe) })
+    }
+
     /// How this week's strength load compares with the wearer's own recent level.
     ///
     /// Returns `TrainingLoad`'s signed percentage rather than a bare ratio: "18 % above your usual" is

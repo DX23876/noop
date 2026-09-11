@@ -452,7 +452,6 @@
   "Formula": "Fórmula",
   "Formula predicts": "A fórmula prevê",
   "From a published formula": "De uma fórmula publicada",
-  "From logged working sets; unrated sets use the documented neutral weighting.": "Com base nas séries efetivas registadas; séries sem RPE usam a ponderação neutra documentada.",
   "From today onward. Days already scored keep the formula that applied then — this never rewrites history.": "A partir de hoje. Os dias já calculados mantêm a fórmula então em vigor: isto nunca reescreve o histórico.",
   "From what was recorded": "Do que foi registado",
   "From your data": "Dos seus dados",
@@ -510,7 +509,6 @@
   "No %@ photos yet.": "Ainda não há fotografias (%@).",
   "No cardio sessions yet": "Ainda não há sessões de cardio",
   "No site has two readings far enough apart yet. Measure again in a few weeks and this fills in.": "Nenhum ponto tem ainda duas medições suficientemente afastadas. Meça de novo dentro de algumas semanas e isto preenche-se.",
-  "No strength sessions yet": "Ainda não há sessões de força",
   "No tape measurements yet. Tap Measure to record a session.": "Ainda não há medidas com fita. Toque em Medir para registar uma sessão.",
   "Nobody can say how accurately a wearable measures a person's energy. Printing one maintenance figure would hide that behind a decimal point.\n\nSo you get three, from three independent routes: what a published formula predicts for a body like yours, what your wearable recorded, and what your intake and weight change imply. The last one is the only one that does not inherit the strap's conversion error, which makes it the check value rather than a third opinion.\n\nThe gap between them is the real output. A narrow corridor means the routes agree and you can plan against the middle. A wide one means you are guessing, and it is better to know that.": "Ninguém consegue dizer com que exatidão um dispositivo mede a energia de uma pessoa. Mostrar um único valor de manutenção esconderia isso atrás de uma casa decimal.\n\nPor isso recebe três, por três vias independentes: o que uma fórmula publicada prevê para um corpo como o seu, o que o seu dispositivo registou, e o que a sua ingestão e variação de peso implicam. A última é a única que não herda o erro de conversão da pulseira, o que a torna o valor de controlo e não uma terceira opinião.\n\nA diferença entre elas é o verdadeiro resultado. Um corredor estreito significa que as vias concordam e pode planear pelo meio. Um corredor largo significa que está a adivinhar — e é melhor sabê-lo.",
   "Not enough measured days": "Dias medidos insuficientes",
@@ -646,5 +644,9 @@
   "part measured, part modelled — %lld of %lld days": "em parte medido, em parte modelado — %lld de %lld dias",
   "predicted": "previsto",
   "×%@": "×%@",
-  "−1,0 kg/week": "−1,0 kg/semana"
+  "−1,0 kg/week": "−1,0 kg/semana",
+  "No working sets in the last 28 days": "Sem séries efetivas nos últimos 28 dias",
+  "All %lld working sets in the last 28 days carry an RPE": "As %lld séries efetivas dos últimos 28 dias têm RPE",
+  "Only %lld of %lld working sets in the last 28 days carry an RPE, so most of the weighting is the neutral default for unrated sets": "Apenas %lld de %lld séries efetivas dos últimos 28 dias têm RPE, por isso a ponderação é sobretudo o valor neutro por omissão para séries sem RPE",
+  "%lld of %lld working sets in the last 28 days carry an RPE; the rest use the neutral default": "%lld de %lld séries efetivas dos últimos 28 dias têm RPE; as restantes usam o valor neutro por omissão"
 }

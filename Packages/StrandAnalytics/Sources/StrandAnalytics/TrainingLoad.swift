@@ -32,6 +32,9 @@ public struct StrengthLoad: Equatable, Sendable {
     public let weightedSets: Double
     /// Working sets before weighting, so the screen can show what it rests on.
     public let workingSets: Int
+    /// Working sets that carried an RPE. Kept as a count beside the share, because "31 of 40 sets" is
+    /// what a screen should say; a percentage alone hides how few sets it may rest on.
+    public let ratedSets: Int
     /// Share of those sets that carried an RPE. Below `TrainingLoad.trustedRatedShare` the weighting is
     /// mostly the unrated default, which the caller should say out loud rather than imply precision.
     public let ratedShare: Double
@@ -92,6 +95,7 @@ public enum TrainingLoad {
         return StrengthLoad(
             weightedSets: weighted,
             workingSets: setRpes.count,
+            ratedSets: rated,
             ratedShare: setRpes.isEmpty ? 0 : Double(rated) / Double(setRpes.count))
     }
 

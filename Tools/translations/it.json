@@ -303,7 +303,6 @@
  "Formula predicts": "La formula prevede",
  "Fresh": "Fresco",
  "From a published formula": "Da una formula pubblicata",
- "From logged working sets; unrated sets use the documented neutral weighting.": "Dalle serie allenanti registrate; quelle senza RPE usano la ponderazione neutra documentata.",
  "From today onward. Days already scored keep the formula that applied then — this never rewrites history.": "Da oggi in poi. I giorni già calcolati mantengono la formula allora in vigore: questo non riscrive mai lo storico.",
  "From what was recorded": "Da quanto registrato",
  "From your data": "Dai tuoi dati",
@@ -392,7 +391,6 @@
  "No site has two readings far enough apart yet. Measure again in a few weeks and this fills in.": "Nessun punto ha ancora due misurazioni abbastanza distanziate. Misura di nuovo tra qualche settimana e questo si riempirà.",
  "No strap data covers this session — Hevy records the sets, not your heart rate.": "Nessun dato del cinturino copre questa sessione: Hevy registra le serie, non la frequenza cardiaca.",
  "No strength sessions in the last %lld days.": "Nessuna sessione di potenziamento negli ultimi %lld giorni.",
- "No strength sessions yet": "Nessuna sessione di forza",
  "No tape measurements yet. Tap Measure to record a session.": "Ancora nessuna misura con il metro. Tocca Misura per registrare una sessione.",
  "Nobody can say how accurately a wearable measures a person's energy. Printing one maintenance figure would hide that behind a decimal point.\n\nSo you get three, from three independent routes: what a published formula predicts for a body like yours, what your wearable recorded, and what your intake and weight change imply. The last one is the only one that does not inherit the strap's conversion error, which makes it the check value rather than a third opinion.\n\nThe gap between them is the real output. A narrow corridor means the routes agree and you can plan against the middle. A wide one means you are guessing, and it is better to know that.": "Nessuno può dire con quanta precisione un dispositivo misuri l'energia di una persona. Mostrare un unico valore di mantenimento nasconderebbe tutto questo dietro un decimale.\n\nQuindi ne ottieni tre, per tre vie indipendenti: quanto una formula pubblicata prevede per un corpo come il tuo, quanto ha registrato il tuo dispositivo, e quanto implicano il tuo introito e la tua variazione di peso. L'ultima è l'unica che non eredita l'errore di conversione del braccialetto, il che la rende il valore di controllo e non una terza opinione.\n\nLa distanza tra loro è il vero risultato. Un corridoio stretto significa che le vie concordano e puoi pianificare sul valore centrale. Uno largo significa che stai tirando a indovinare, ed è meglio saperlo.",
  "Not enough measured days": "Giorni misurati insufficienti",
@@ -621,5 +619,9 @@
  "· your usual %.2f–%.2f": "· il tuo solito %.2f–%.2f",
  "×%@": "×%@",
  "−1,0 kg/week": "−1,0 kg/settimana",
- "≈%lld": "≈%lld"
+ "≈%lld": "≈%lld",
+ "No working sets in the last 28 days": "Nessuna serie allenante negli ultimi 28 giorni",
+ "All %lld working sets in the last 28 days carry an RPE": "Tutte le %lld serie allenanti degli ultimi 28 giorni hanno un RPE",
+ "Only %lld of %lld working sets in the last 28 days carry an RPE, so most of the weighting is the neutral default for unrated sets": "Solo %lld serie allenanti su %lld degli ultimi 28 giorni hanno un RPE, quindi la ponderazione è per lo più il valore neutro predefinito per le serie senza RPE",
+ "%lld of %lld working sets in the last 28 days carry an RPE; the rest use the neutral default": "%lld serie allenanti su %lld degli ultimi 28 giorni hanno un RPE; le altre usano il valore neutro predefinito"
 }

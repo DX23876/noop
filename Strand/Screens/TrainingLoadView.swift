@@ -15,6 +15,8 @@ final class TrainingLoadModel: ObservableObject {
     struct Lane: Sendable {
         let sevenDayTotal: Double
         let trend: LoadTrend?
+        /// What the lane's figure rests on over the last 28 days, in the lane's own unit: RPE-rated
+        /// working sets for Strength, sessions carrying Effort for Cardio, rated sessions for Session.
         let measuredCount: Int
         let possibleCount: Int
     }
@@ -72,6 +74,7 @@ final class TrainingLoadModel: ObservableObject {
                 let day = AnalyticsEngine.dayString($0.startTs, offsetSec: offset)
                 return day >= cutoff && day <= today
             }
+            let pooledStrength = StrengthSession.strengthLoad(recentStrength)
             let recentCardio = cardioSessions.filter { $0.day >= cutoff && $0.day <= today }
             let uniqueSessions = Set(rows.map(\.startTs) + strengthWorkouts.map(\.startTs))
             let possible = uniqueSessions.filter {
@@ -86,7 +89,8 @@ final class TrainingLoadModel: ObservableObject {
             return (
                 Lane(sevenDayTotal: Self.lastSeven(strengthByDay, through: today),
                      trend: TrainingLoad.trend(dailyByDay: strengthByDay, through: today),
-                     measuredCount: recentStrength.count, possibleCount: recentStrength.count),
+                     measuredCount: pooledStrength.ratedSets,
+                     possibleCount: pooledStrength.workingSets),
                 Lane(sevenDayTotal: Self.lastSeven(cardioByDay, through: today),
                      trend: TrainingLoad.trend(dailyByDay: cardioByDay, through: today),
                      measuredCount: recentCardio.filter { $0.strain != nil }.count,
@@ -252,9 +256,21 @@ struct TrainingLoadView: View {
         return String(localized: "\(Int(lane.sevenDayTotal.rounded())) AU")
     }
 
+    /// How much of the effort weighting is measured rather than the unrated default. Counted, not a
+    /// percentage, so a share that rests on a handful of sets reads as a handful of sets.
     private func strengthCoverage(_ lane: TrainingLoadModel.Lane?) -> String {
-        guard let lane, lane.possibleCount > 0 else { return String(localized: "No strength sessions yet") }
-        return String(localized: "From logged working sets; unrated sets use the documented neutral weighting.")
+        guard let lane, lane.possibleCount > 0 else {
+            return String(localized: "No working sets in the last 28 days")
+        }
+        let rated = lane.measuredCount
+        let total = lane.possibleCount
+        if rated == total {
+            return String(localized: "All \(total) working sets in the last 28 days carry an RPE")
+        }
+        if Double(rated) / Double(total) < TrainingLoad.trustedRatedShare {
+            return String(localized: "Only \(rated) of \(total) working sets in the last 28 days carry an RPE, so most of the weighting is the neutral default for unrated sets")
+        }
+        return String(localized: "\(rated) of \(total) working sets in the last 28 days carry an RPE; the rest use the neutral default")
     }
 
     private func cardioCoverage(_ lane: TrainingLoadModel.Lane?) -> String {

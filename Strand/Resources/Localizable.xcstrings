@@ -331685,64 +331685,6 @@
         }
       }
     },
-    "From logged working sets; unrated sets use the documented neutral weighting." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Aus protokollierten Arbeitssätzen; unbewertete Sätze erhalten die dokumentierte neutrale Gewichtung."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "A partir de series efectivas registradas; las series sin RPE usan la ponderación neutra documentada."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "D'après les séries effectives consignées ; les séries sans RPE utilisent la pondération neutre documentée."
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Dalle serie allenanti registrate; quelle senza RPE usano la ponderazione neutra documentata."
-          }
-        },
-        "pl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Na podstawie zapisanych serii roboczych; serie bez RPE mają udokumentowaną neutralną wagę."
-          }
-        },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Com base nas séries efetivas registadas; séries sem RPE usam a ponderação neutra documentada."
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "По записанным рабочим подходам; подходы без RPE получают документированный нейтральный вес."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "基于已记录的工作组；未评 RPE 的组使用说明中的中性权重。"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "基於已記錄的工作組；未評 RPE 的組使用說明中的中性權重。"
-          }
-        }
-      }
-    },
     "From today onward. Days already scored keep the formula that applied then — this never rewrites history." : {
       "localizations" : {
         "de" : {
@@ -335289,64 +335231,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "還沒有任何部位擁有間隔足夠遠的兩次測量。過幾周再測一次，這裡就會填上。"
-          }
-        }
-      }
-    },
-    "No strength sessions yet" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Noch keine Krafteinheiten"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Aún no hay sesiones de fuerza"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Pas encore de séance de force"
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Nessuna sessione di forza"
-          }
-        },
-        "pl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Brak sesji siłowych"
-          }
-        },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ainda não há sessões de força"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Силовых тренировок пока нет"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "暂无力量训练"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "暫無力量訓練"
           }
         }
       }
@@ -342725,6 +342609,238 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "−1,0 公斤/周"
+          }
+        }
+      }
+    },
+    "No working sets in the last 28 days" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keine Arbeitssätze in den letzten 28 Tagen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sin series efectivas en los últimos 28 días"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucune série effective sur les 28 derniers jours"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nessuna serie allenante negli ultimi 28 giorni"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Brak serii roboczych w ostatnich 28 dniach"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sem séries efetivas nos últimos 28 dias"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Нет рабочих подходов за последние 28 дней"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最近 28 天没有工作组"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最近 28 天沒有工作組"
+          }
+        }
+      }
+    },
+    "All %lld working sets in the last 28 days carry an RPE" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alle %lld Arbeitssätze der letzten 28 Tage tragen ein RPE"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Las %lld series efectivas de los últimos 28 días llevan RPE"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Les %lld séries effectives des 28 derniers jours portent un RPE"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tutte le %lld serie allenanti degli ultimi 28 giorni hanno un RPE"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wszystkie serie robocze z ostatnich 28 dni (%lld) mają RPE"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "As %lld séries efetivas dos últimos 28 dias têm RPE"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "У всех рабочих подходов за последние 28 дней (%lld) есть RPE"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最近 28 天的全部 %lld 个工作组都记录了 RPE"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最近 28 天的全部 %lld 個工作組都記錄了 RPE"
+          }
+        }
+      }
+    },
+    "Only %lld of %lld working sets in the last 28 days carry an RPE, so most of the weighting is the neutral default for unrated sets" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nur %lld von %lld Arbeitssätzen der letzten 28 Tage tragen ein RPE, die Gewichtung ist deshalb überwiegend der neutrale Standard für unbewertete Sätze"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Solo %lld de %lld series efectivas de los últimos 28 días llevan RPE, así que la ponderación es sobre todo el valor neutro por defecto para las series sin RPE"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Seules %lld séries effectives sur %lld des 28 derniers jours portent un RPE : la pondération repose donc surtout sur la valeur neutre par défaut des séries sans RPE"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Solo %lld serie allenanti su %lld degli ultimi 28 giorni hanno un RPE, quindi la ponderazione è per lo più il valore neutro predefinito per le serie senza RPE"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tylko %lld z %lld serii roboczych z ostatnich 28 dni ma RPE, więc ważenie to w większości neutralna wartość domyślna dla serii bez oceny"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apenas %lld de %lld séries efetivas dos últimos 28 dias têm RPE, por isso a ponderação é sobretudo o valor neutro por omissão para séries sem RPE"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Только у %lld из %lld рабочих подходов за последние 28 дней есть RPE, поэтому вес в основном нейтральный по умолчанию для подходов без оценки"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最近 28 天仅 %lld/%lld 个工作组记录了 RPE，因此权重大多采用未评分组的中性默认值"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最近 28 天僅 %lld/%lld 個工作組記錄了 RPE，因此權重大多採用未評分組的中性預設值"
+          }
+        }
+      }
+    },
+    "%lld of %lld working sets in the last 28 days carry an RPE; the rest use the neutral default" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld von %lld Arbeitssätzen der letzten 28 Tage tragen ein RPE; der Rest nutzt den neutralen Standard"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld de %lld series efectivas de los últimos 28 días llevan RPE; el resto usa el valor neutro por defecto"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld séries effectives sur %lld des 28 derniers jours portent un RPE ; les autres utilisent la valeur neutre par défaut"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld serie allenanti su %lld degli ultimi 28 giorni hanno un RPE; le altre usano il valore neutro predefinito"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld z %lld serii roboczych z ostatnich 28 dni ma RPE; pozostałe mają neutralną wartość domyślną"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld de %lld séries efetivas dos últimos 28 dias têm RPE; as restantes usam o valor neutro por omissão"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "У %lld из %lld рабочих подходов за последние 28 дней есть RPE; остальные получают нейтральный вес по умолчанию"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最近 28 天有 %lld/%lld 个工作组记录了 RPE；其余采用中性默认值"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最近 28 天有 %lld/%lld 個工作組記錄了 RPE；其餘採用中性預設值"
           }
         }
       }

@@ -449,7 +449,6 @@
   "Formula": "Formel",
   "Formula predicts": "Formel sagt voraus",
   "From a published formula": "Aus einer publizierten Formel",
-  "From logged working sets; unrated sets use the documented neutral weighting.": "Aus protokollierten Arbeitssätzen; unbewertete Sätze erhalten die dokumentierte neutrale Gewichtung.",
   "From today onward. Days already scored keep the formula that applied then — this never rewrites history.": "Ab heute. Bereits bewertete Tage behalten die damals gültige Formel — das schreibt nie Historie um.",
   "From what was recorded": "Aus dem Aufgezeichneten",
   "From your data": "Aus deinen Daten",
@@ -507,7 +506,6 @@
   "No %@ photos yet.": "Noch keine Fotos (%@).",
   "No cardio sessions yet": "Noch keine Cardio-Einheiten",
   "No site has two readings far enough apart yet. Measure again in a few weeks and this fills in.": "Noch hat keine Stelle zwei Messungen mit genug Abstand. Miss in ein paar Wochen erneut, dann füllt sich das hier.",
-  "No strength sessions yet": "Noch keine Krafteinheiten",
   "No tape measurements yet. Tap Measure to record a session.": "Noch keine Bandmessungen. Tippe auf Messen, um eine Sitzung zu erfassen.",
   "Nobody can say how accurately a wearable measures a person's energy. Printing one maintenance figure would hide that behind a decimal point.\n\nSo you get three, from three independent routes: what a published formula predicts for a body like yours, what your wearable recorded, and what your intake and weight change imply. The last one is the only one that does not inherit the strap's conversion error, which makes it the check value rather than a third opinion.\n\nThe gap between them is the real output. A narrow corridor means the routes agree and you can plan against the middle. A wide one means you are guessing, and it is better to know that.": "Niemand kann sagen, wie genau ein Wearable die Energie eines Menschen misst. Eine einzelne Erhaltungszahl auszugeben würde das hinter einer Nachkommastelle verstecken.\n\nAlso bekommst du drei, aus drei unabhängigen Wegen: was eine publizierte Formel für einen Körper wie deinen vorhersagt, was dein Wearable aufgezeichnet hat, und was deine Zufuhr und Gewichtsveränderung ergeben. Der letzte ist der einzige, der den Umrechnungsfehler des Bandes nicht erbt — das macht ihn zum Prüfwert und nicht zur dritten Meinung.\n\nDie Lücke zwischen ihnen ist das eigentliche Ergebnis. Ein enger Korridor heißt, die Wege stimmen überein und du kannst gegen die Mitte planen. Ein weiter heißt, du rätst — und das zu wissen ist besser.",
   "Not enough measured days": "Zu wenige gemessene Tage",
@@ -644,5 +642,9 @@
   "part measured, part modelled — %lld of %lld days": "teils gemessen, teils modelliert — %lld von %lld Tagen",
   "predicted": "vorhergesagt",
   "×%@": "×%@",
-  "−1,0 kg/week": "−1,0 kg/Woche"
+  "−1,0 kg/week": "−1,0 kg/Woche",
+  "No working sets in the last 28 days": "Keine Arbeitssätze in den letzten 28 Tagen",
+  "All %lld working sets in the last 28 days carry an RPE": "Alle %lld Arbeitssätze der letzten 28 Tage tragen ein RPE",
+  "Only %lld of %lld working sets in the last 28 days carry an RPE, so most of the weighting is the neutral default for unrated sets": "Nur %lld von %lld Arbeitssätzen der letzten 28 Tage tragen ein RPE, die Gewichtung ist deshalb überwiegend der neutrale Standard für unbewertete Sätze",
+  "%lld of %lld working sets in the last 28 days carry an RPE; the rest use the neutral default": "%lld von %lld Arbeitssätzen der letzten 28 Tage tragen ein RPE; der Rest nutzt den neutralen Standard"
 }

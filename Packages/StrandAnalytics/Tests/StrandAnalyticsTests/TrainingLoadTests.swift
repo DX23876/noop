@@ -1,4 +1,5 @@
 import XCTest
+import WhoopStore
 @testable import StrandAnalytics
 
 /// Pins the three training-load figures and the comparison that reads them.
@@ -56,6 +57,42 @@ final class TrainingLoadTests: XCTestCase {
         XCTAssertEqual(mixed.ratedShare, 0.5, accuracy: 1e-9)
         XCTAssertFalse(mixed.isMostlyUnrated)
         XCTAssertTrue(TrainingLoad.strengthLoad(setRpes: [8, nil, nil, nil]).isMostlyUnrated)
+    }
+
+    /// The rated COUNT travels with the share, so a screen can say "3 of 4 sets" rather than a
+    /// percentage that hides how few sets it rests on.
+    func testRatedSetsAreCounted() {
+        let mixed = TrainingLoad.strengthLoad(setRpes: [8, nil, 9, 7])
+        XCTAssertEqual(mixed.ratedSets, 3)
+        XCTAssertEqual(mixed.workingSets, 4)
+        XCTAssertEqual(TrainingLoad.strengthLoad(setRpes: []).ratedSets, 0)
+    }
+
+    /// Pooling over workouts is the same arithmetic as the daily series the trend reads: warm-ups
+    /// excluded, and the weighted total equal to what `weightedSetsByDay` sums to.
+    func testPooledStrengthLoadMatchesTheDailySeries() {
+        func makeSet(_ index: Int, _ type: HevySetType, rpe: Double?) -> HevySet {
+            HevySet(index: index, type: type, weightKg: 100, reps: 5,
+                    distanceM: nil, durationS: nil, rpe: rpe, customMetric: nil)
+        }
+        func makeWorkout(_ id: String, _ startTs: Int, _ sets: [HevySet]) -> HevyWorkout {
+            let squat = HevyExercise(index: 0, title: "Squat", templateId: nil,
+                                     supersetId: nil, notes: nil, sets: sets)
+            return HevyWorkout(id: id, title: "", routineId: nil, notes: nil,
+                               startTs: startTs, endTs: startTs + 3600,
+                               updatedAtTs: startTs, createdAtTs: startTs, exercises: [squat])
+        }
+        let firstSets: [HevySet] = [makeSet(0, .warmup, rpe: nil), makeSet(1, .normal, rpe: 9),
+                                    makeSet(2, .normal, rpe: nil)]
+        let secondSets: [HevySet] = [makeSet(0, .normal, rpe: 8), makeSet(1, .failure, rpe: 10)]
+        let day = 86_400
+        let workouts: [HevyWorkout] = [makeWorkout("a", 1_788_282_000, firstSets),
+                                       makeWorkout("b", 1_788_282_000 + 2 * day, secondSets)]
+        let pooled = StrengthSession.strengthLoad(workouts)
+        XCTAssertEqual(pooled.workingSets, 4)
+        XCTAssertEqual(pooled.ratedSets, 3)
+        let daily = StrengthSession.weightedSetsByDay(workouts).values.reduce(0, +)
+        XCTAssertEqual(pooled.weightedSets, daily, accuracy: 1e-12)
     }
 
     // MARK: - Session load

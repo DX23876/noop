@@ -452,7 +452,6 @@
   "Formula": "Formule",
   "Formula predicts": "La formule prédit",
   "From a published formula": "D'une formule publiée",
-  "From logged working sets; unrated sets use the documented neutral weighting.": "D'après les séries effectives consignées ; les séries sans RPE utilisent la pondération neutre documentée.",
   "From today onward. Days already scored keep the formula that applied then — this never rewrites history.": "À partir d'aujourd'hui. Les jours déjà calculés conservent la formule alors en vigueur : cela ne réécrit jamais l'historique.",
   "From what was recorded": "D'après l'enregistré",
   "From your data": "D'après vos données",
@@ -510,7 +509,6 @@
   "No %@ photos yet.": "Pas encore de photos (%@).",
   "No cardio sessions yet": "Pas encore de séance cardio",
   "No site has two readings far enough apart yet. Measure again in a few weeks and this fills in.": "Aucun point n'a encore deux mesures suffisamment espacées. Mesurez à nouveau dans quelques semaines et ceci se remplira.",
-  "No strength sessions yet": "Pas encore de séance de force",
   "No tape measurements yet. Tap Measure to record a session.": "Pas encore de mesures au mètre. Touchez Mesurer pour enregistrer une séance.",
   "Nobody can say how accurately a wearable measures a person's energy. Printing one maintenance figure would hide that behind a decimal point.\n\nSo you get three, from three independent routes: what a published formula predicts for a body like yours, what your wearable recorded, and what your intake and weight change imply. The last one is the only one that does not inherit the strap's conversion error, which makes it the check value rather than a third opinion.\n\nThe gap between them is the real output. A narrow corridor means the routes agree and you can plan against the middle. A wide one means you are guessing, and it is better to know that.": "Personne ne peut dire avec quelle exactitude un bracelet mesure l'énergie d'une personne. Afficher un seul chiffre de maintenance cacherait cela derrière une décimale.\n\nVous en obtenez donc trois, par trois voies indépendantes : ce qu'une formule publiée prédit pour un corps comme le vôtre, ce que votre bracelet a enregistré, et ce qu'impliquent votre apport et votre variation de poids. La dernière est la seule qui n'hérite pas de l'erreur de conversion du bracelet, ce qui en fait la valeur de contrôle plutôt qu'un troisième avis.\n\nL'écart entre elles est le vrai résultat. Un couloir étroit signifie que les voies concordent et que vous pouvez planifier sur le milieu. Un couloir large signifie que vous devinez, et il vaut mieux le savoir.",
   "Not enough measured days": "Pas assez de jours mesurés",
@@ -646,5 +644,9 @@
   "part measured, part modelled — %lld of %lld days": "en partie mesuré, en partie modélisé — %lld jours sur %lld",
   "predicted": "prédit",
   "×%@": "×%@",
-  "−1,0 kg/week": "−1,0 kg/semaine"
+  "−1,0 kg/week": "−1,0 kg/semaine",
+  "No working sets in the last 28 days": "Aucune série effective sur les 28 derniers jours",
+  "All %lld working sets in the last 28 days carry an RPE": "Les %lld séries effectives des 28 derniers jours portent un RPE",
+  "Only %lld of %lld working sets in the last 28 days carry an RPE, so most of the weighting is the neutral default for unrated sets": "Seules %lld séries effectives sur %lld des 28 derniers jours portent un RPE : la pondération repose donc surtout sur la valeur neutre par défaut des séries sans RPE",
+  "%lld of %lld working sets in the last 28 days carry an RPE; the rest use the neutral default": "%lld séries effectives sur %lld des 28 derniers jours portent un RPE ; les autres utilisent la valeur neutre par défaut"
 }

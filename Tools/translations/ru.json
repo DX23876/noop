@@ -304,7 +304,6 @@
  "Formula predicts": "Формула прогнозирует",
  "Fresh": "Свежий",
  "From a published formula": "Из опубликованной формулы",
- "From logged working sets; unrated sets use the documented neutral weighting.": "По записанным рабочим подходам; подходы без RPE получают документированный нейтральный вес.",
  "From today onward. Days already scored keep the formula that applied then — this never rewrites history.": "С сегодняшнего дня. Уже рассчитанные дни сохраняют действовавшую тогда формулу: это никогда не переписывает историю.",
  "From what was recorded": "Из записанного",
  "From your data": "Из ваших данных",
@@ -393,7 +392,6 @@
  "No site has two readings far enough apart yet. Measure again in a few weeks and this fills in.": "Пока ни в одной точке нет двух достаточно удалённых измерений. Измерьте снова через пару недель, и это заполнится.",
  "No strap data covers this session — Hevy records the sets, not your heart rate.": "Никакие данные о ремнях не охватывают эту тренировку — Хеви записывает подходы, а не частоту вашего пульса.",
  "No strength sessions in the last %lld days.": "За последние %lld дней не было силовых тренировок.",
- "No strength sessions yet": "Силовых тренировок пока нет",
  "No tape measurements yet. Tap Measure to record a session.": "Пока нет замеров лентой. Нажмите «Измерить», чтобы записать сессию.",
  "Nobody can say how accurately a wearable measures a person's energy. Printing one maintenance figure would hide that behind a decimal point.\n\nSo you get three, from three independent routes: what a published formula predicts for a body like yours, what your wearable recorded, and what your intake and weight change imply. The last one is the only one that does not inherit the strap's conversion error, which makes it the check value rather than a third opinion.\n\nThe gap between them is the real output. A narrow corridor means the routes agree and you can plan against the middle. A wide one means you are guessing, and it is better to know that.": "Никто не может сказать, насколько точно устройство измеряет энергию человека. Вывод одного числа поддержания спрятал бы это за десятичным знаком.\n\nПоэтому вы получаете три — из трёх независимых путей: что опубликованная формула прогнозирует для тела вроде вашего, что записало ваше устройство и что следует из вашего потребления и изменения веса. Последний — единственный, кто не наследует ошибку пересчёта браслета, что делает его контрольным значением, а не третьим мнением.\n\nРазрыв между ними и есть настоящий результат. Узкий коридор означает, что пути сходятся и можно планировать по середине. Широкий означает, что вы гадаете, — и лучше это знать.",
  "Not enough measured days": "Недостаточно измеренных дней",
@@ -622,5 +620,9 @@
  "· your usual %.2f–%.2f": "· ваш обычный %.2f–%.2f",
  "×%@": "×%@",
  "−1,0 kg/week": "−1,0 кг/неделю",
- "≈%lld": "≈%lld"
+ "≈%lld": "≈%lld",
+ "No working sets in the last 28 days": "Нет рабочих подходов за последние 28 дней",
+ "All %lld working sets in the last 28 days carry an RPE": "У всех рабочих подходов за последние 28 дней (%lld) есть RPE",
+ "Only %lld of %lld working sets in the last 28 days carry an RPE, so most of the weighting is the neutral default for unrated sets": "Только у %lld из %lld рабочих подходов за последние 28 дней есть RPE, поэтому вес в основном нейтральный по умолчанию для подходов без оценки",
+ "%lld of %lld working sets in the last 28 days carry an RPE; the rest use the neutral default": "У %lld из %lld рабочих подходов за последние 28 дней есть RPE; остальные получают нейтральный вес по умолчанию"
 }

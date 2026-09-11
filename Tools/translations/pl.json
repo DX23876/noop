@@ -1464,7 +1464,6 @@
   "Formula predicts": "Formuła przewiduje",
   "Fresh": "Świeży",
   "From a published formula": "Z opublikowanej formuły",
-  "From logged working sets; unrated sets use the documented neutral weighting.": "Na podstawie zapisanych serii roboczych; serie bez RPE mają udokumentowaną neutralną wagę.",
   "From today onward. Days already scored keep the formula that applied then — this never rewrites history.": "Od dziś. Dni już policzone zachowują obowiązującą wtedy formułę — to nigdy nie przepisuje historii.",
   "From what was recorded": "Z tego, co zapisano",
   "From your data": "Z twoich danych",
@@ -1553,7 +1552,6 @@
   "No site has two readings far enough apart yet. Measure again in a few weeks and this fills in.": "Żadne miejsce nie ma jeszcze dwóch pomiarów wystarczająco odległych. Zmierz ponownie za kilka tygodni, a to się wypełni.",
   "No strap data covers this session — Hevy records the sets, not your heart rate.": "Żadne dane paska nie obejmują tej sesji — Hevy rejestruje serie, a nie Twoje tętno.",
   "No strength sessions in the last %lld days.": "Brak sesji siłowych w ciągu ostatnich %lld dni.",
-  "No strength sessions yet": "Brak sesji siłowych",
   "No tape measurements yet. Tap Measure to record a session.": "Brak pomiarów taśmą. Dotknij Zmierz, aby zapisać sesję.",
   "Nobody can say how accurately a wearable measures a person's energy. Printing one maintenance figure would hide that behind a decimal point.\n\nSo you get three, from three independent routes: what a published formula predicts for a body like yours, what your wearable recorded, and what your intake and weight change imply. The last one is the only one that does not inherit the strap's conversion error, which makes it the check value rather than a third opinion.\n\nThe gap between them is the real output. A narrow corridor means the routes agree and you can plan against the middle. A wide one means you are guessing, and it is better to know that.": "Nikt nie potrafi powiedzieć, jak dokładnie urządzenie mierzy energię człowieka. Podanie jednej liczby zapotrzebowania ukryłoby to za miejscem po przecinku.\n\nDlatego dostajesz trzy, z trzech niezależnych dróg: co opublikowana formuła przewiduje dla ciała takiego jak twoje, co zapisało twoje urządzenie i co wynika z twojego spożycia oraz zmiany wagi. Ta ostatnia jako jedyna nie dziedziczy błędu przeliczeniowego opaski, co czyni ją wartością kontrolną, a nie trzecią opinią.\n\nRóżnica między nimi jest prawdziwym wynikiem. Wąski korytarz oznacza, że drogi się zgadzają i możesz planować wokół środka. Szeroki oznacza, że zgadujesz — i lepiej o tym wiedzieć.",
   "Not enough measured days": "Za mało zmierzonych dni",
@@ -1782,5 +1780,9 @@
   "· your usual %.2f–%.2f": "· Twój zwykły %.2f–%.2f",
   "×%@": "×%@",
   "−1,0 kg/week": "−1,0 kg/tydzień",
-  "≈%lld": "≈%lld"
+  "≈%lld": "≈%lld",
+  "No working sets in the last 28 days": "Brak serii roboczych w ostatnich 28 dniach",
+  "All %lld working sets in the last 28 days carry an RPE": "Wszystkie serie robocze z ostatnich 28 dni (%lld) mają RPE",
+  "Only %lld of %lld working sets in the last 28 days carry an RPE, so most of the weighting is the neutral default for unrated sets": "Tylko %lld z %lld serii roboczych z ostatnich 28 dni ma RPE, więc ważenie to w większości neutralna wartość domyślna dla serii bez oceny",
+  "%lld of %lld working sets in the last 28 days carry an RPE; the rest use the neutral default": "%lld z %lld serii roboczych z ostatnich 28 dni ma RPE; pozostałe mają neutralną wartość domyślną"
 }
