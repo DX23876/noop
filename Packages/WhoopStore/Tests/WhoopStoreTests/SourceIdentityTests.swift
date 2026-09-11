@@ -75,4 +75,38 @@ final class SourceIdentityTests: XCTestCase {
         XCTAssertEqual(SourceIdentity.resolve(address: "AA:BB:CC:DD:EE:03",
                                               rows: [legacy], currentId: "oura-abc"), "my-whoop")
     }
+
+    /// A strap removed and re-added keeps its peripheral address, so the ARCHIVED legacy row and the new
+    /// active row carry the same `peripheralId`. The archived row sorts first by `addedAt` and used to win:
+    /// every reconnect re-pointed the Collector at a device the analyze scan never reads, and the strap's
+    /// nights scored as empty.
+    func testArchivedTwinSharingTheAddressNeverClaimsTheLink() {
+        var legacy = row("my-whoop", "WHOOP", "AA:BB:CC:DD:EE:04")
+        legacy.status = .archived
+        var readded = row("whoop-5AG", "WHOOP", "AA:BB:CC:DD:EE:04")
+        readded.status = .active
+        XCTAssertNil(SourceIdentity.resolve(address: "AA:BB:CC:DD:EE:04",
+                                            rows: [legacy, readded], currentId: "whoop-5AG"))
+        XCTAssertEqual(SourceIdentity.resolve(address: "AA:BB:CC:DD:EE:04",
+                                              rows: [legacy, readded], currentId: "my-whoop"), "whoop-5AG")
+    }
+
+    /// Archive means "stop connecting, keep data": an address that only an archived row carries is not a
+    /// device to file new samples under, so the id stays where it is.
+    func testAddressOnlyAnArchivedRowCarriesLeavesTheIdAlone() {
+        var legacy = row("my-whoop", "WHOOP", "AA:BB:CC:DD:EE:05")
+        legacy.status = .archived
+        XCTAssertNil(SourceIdentity.resolve(address: "AA:BB:CC:DD:EE:05",
+                                            rows: [legacy], currentId: "oura-abc"))
+    }
+
+    /// Two live rows with one address (a duplicate that was never archived): the active one is the device
+    /// the user chose, whatever the registry order.
+    func testActiveRowWinsWhenLiveRowsShareTheAddress() {
+        let spare = row("whoop-old", "WHOOP", "AA:BB:CC:DD:EE:06")
+        var chosen = row("whoop-new", "WHOOP", "AA:BB:CC:DD:EE:06")
+        chosen.status = .active
+        XCTAssertEqual(SourceIdentity.resolve(address: "AA:BB:CC:DD:EE:06",
+                                              rows: [spare, chosen], currentId: "oura-abc"), "whoop-new")
+    }
 }

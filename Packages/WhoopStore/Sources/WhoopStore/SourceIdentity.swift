@@ -21,6 +21,11 @@ public enum SourceIdentity {
     ///   • the matched row is not a WHOOP → nil. Nothing else should be arriving on the WHOOP delegate, and
     ///     if it does, re-pointing the strap's id at it would be the very bug this prevents.
     ///   • the matched row is already the current id → nil, so there is no write on the common path.
+    ///   • an ARCHIVED row never matches. Archive means "stop connecting, keep data", and a strap that was
+    ///     removed and re-added keeps its address, so its archived legacy row and its new row share one
+    ///     `peripheralId`. Taking the first match by `addedAt` picked the archived one, and the analyze scan
+    ///     does not read archived devices — every night the strap recorded scored as empty.
+    ///   • two live rows with one address → the ACTIVE row, the device the user chose.
     ///
     /// Matching is case-insensitive because the two platforms disagree about case: Apple stores an uppercase
     /// `CBPeripheral.identifier.uuidString`, Android an uppercase MAC — but neither is guaranteed by the OS,
@@ -31,10 +36,11 @@ public enum SourceIdentity {
         guard let address, !address.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             return nil
         }
-        guard let row = rows.first(where: {
-            guard let pid = $0.peripheralId else { return false }
+        let matches = rows.filter {
+            guard $0.status != .archived, let pid = $0.peripheralId else { return false }
             return pid.caseInsensitiveCompare(address) == .orderedSame
-        }) else { return nil }
+        }
+        guard let row = matches.first(where: { $0.status == .active }) ?? matches.first else { return nil }
         guard isWhoop(row), row.id != currentId else { return nil }
         return row.id
     }

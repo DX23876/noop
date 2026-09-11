@@ -2641,6 +2641,17 @@ public final class BLEManager: NSObject, ObservableObject {
                                                           family: bf.family) {
                 log(diag)
             }
+            // #1881 follow-up: the analyze scan does not read ARCHIVED devices, so rows written under one
+            // score as an empty night with no other symptom. Always-on: a rare event costing one registry
+            // read per productive offload, and exactly the evidence that was missing when a re-added
+            // strap's nights went blank. It names the writer id only — not how many rows reached it, since
+            // a mid-session re-point could have split them.
+            if let registry = registryStore,
+               let writer = (try? registry.all())?.first(where: { $0.id == bf.deviceId }),
+               writer.status == .archived {
+                log("Backfill: WARNING the offload writer id \(bf.deviceId) is ARCHIVED in the registry; "
+                    + "samples filed under it are not read by the analyze scan (#1881)")
+            }
         }
         // Connection test mode: the offload OUTCOME the readout's lastOffloadResult id binds. Gated
         // zero-cost (the .connection bool is read before any string is built). Diagnostic only - it reads
