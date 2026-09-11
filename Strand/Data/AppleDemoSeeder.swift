@@ -1,5 +1,6 @@
 #if DEBUG
 import Foundation
+import StrandImport
 import WhoopStore
 
 // MARK: - DEBUG-only demo seed (Apple parity with Android's DemoSeeder)
@@ -22,10 +23,26 @@ enum AppleDemoSeeder {
     /// Effort rescale factor: the old 0–21 strain scale → the new 0–100 Effort scale.
     private static let STRAIN_SCALE = 100.0 / 21.0
 
+    /// Conditioning as an elite strength athlete actually does it — weighted toward the low-intensity
+    /// work that supports recovery without competing with the lifting for it. No marathon volume: a
+    /// 21 km run in the same week as a 210 kg squat block is a demo nobody at this level recognises.
+    /// The repeats are the weighting; `Cycling` and `Walking` come up most, `Running` rarely.
     private static let SPORTS = [
-        "Running", "Cycling", "Strength", "HIIT", "Swimming", "Yoga", "Walking", "Rowing",
+        "Cycling", "Cycling", "Cycling", "Walking", "Walking", "Walking",
+        "Rowing", "Rowing", "HIIT", "Running", "Yoga",
     ]
-    private static let DISTANCE_SPORTS: Set<String> = ["Running", "Cycling", "Walking", "Swimming", "Rowing"]
+    /// Typical conditioning distance per sport, in metres, and how much it varies. Kept per sport
+    /// because one shared 6.5 km draw produced a 6.5 km "walk" and a 6.5 km "row" — the row roughly a
+    /// world-class 2 k eight times over, and the kind of number that makes every derived pace absurd.
+    private static func conditioningDistanceM(_ sport: String, _ rng: inout SplitMix64) -> Double? {
+        switch sport {
+        case "Cycling": return round1(gauss(&rng, 22_000, 6_000).atLeast(6_000))
+        case "Walking": return round1(gauss(&rng, 4_200, 1_200).atLeast(1_500))
+        case "Rowing":  return round1(gauss(&rng, 5_000, 1_500).atLeast(2_000))
+        case "Running": return round1(gauss(&rng, 6_500, 1_800).atLeast(2_500))
+        default:        return nil
+        }
+    }
 
     /// True when the process was launched asking for the demo seed (Xcode scheme arg or `simctl
     /// launch … --demo-seed`).
@@ -116,7 +133,10 @@ enum AppleDemoSeeder {
         var workouts: [WorkoutRow] = []
         var journal: [JournalEntry] = []
 
-        var weight = 79.5
+        // An elite strength athlete's frame: ~98 kg at 181 cm, in a slow accumulation phase rather
+        // than a cut. The seeded body has to agree with the loads below — a 210 kg squat on a 79 kg
+        // frame is not a demo, it is a bug report waiting to be filed.
+        var weight = 97.5
         var fitness = 0.0  // slow upward drift: HRV rises, resting-HR falls, VO2max climbs
 
         let isoFmt = DateFormatter()
@@ -217,24 +237,30 @@ enum AppleDemoSeeder {
             // --- workouts on training days ---
             for k in 0..<nWorkouts {
                 let sport = SPORTS[rng.nextInt(0, SPORTS.count)]
-                let durSec = gauss(&rng, 48.0, 16.0).clamped(18.0, 110.0) * 60
+                // Conditioning sessions, not endurance training: 25–60 minutes, sitting alongside six
+                // lifting days rather than competing with them.
+                let durSec = gauss(&rng, 38.0, 11.0).clamped(20.0, 65.0) * 60
                 let hour = weekend ? 9 : 18
                 let dayStart = cal.startOfDay(for: date)
                 let start = Int(dayStart.timeIntervalSince1970) + hour * 3600 + rng.nextInt(0, 50) * 60 + k * 3600
-                let avg = Int(gauss(&rng, 138.0, 12.0))
+                // Mostly zone 2. A lifter's conditioning is deliberately easy — the hard work is under
+                // a bar — so the average heart rate sits well below a runner's tempo session.
+                let avg = Int(gauss(&rng, 124.0, 11.0))
                 let src = rng.nextDouble() < 0.7 ? whoop : apple
                 let zonesJSON: String? = src == whoop ? {
-                    let z = [gauss(&rng, 15.0, 5.0), gauss(&rng, 30.0, 8.0), gauss(&rng, 28.0, 8.0),
-                             gauss(&rng, 15.0, 6.0), gauss(&rng, 6.0, 3.0)].map { $0.clamped(0.0, 100.0) }
+                    // Weighted toward zones 1–2, which is what "conditioning that supports lifting"
+                    // looks like in a zone split.
+                    let z = [gauss(&rng, 24.0, 6.0), gauss(&rng, 44.0, 9.0), gauss(&rng, 20.0, 7.0),
+                             gauss(&rng, 8.0, 4.0), gauss(&rng, 3.0, 2.0)].map { $0.clamped(0.0, 100.0) }
                     return "{\"zone1\":\(round1(z[0])),\"zone2\":\(round1(z[1])),\"zone3\":\(round1(z[2])),\"zone4\":\(round1(z[3])),\"zone5\":\(round1(z[4]))}"
                 }() : nil
                 workouts.append(WorkoutRow(
                     startTs: start, endTs: start + Int(durSec), sport: sport, source: src,
                     durationS: round1(durSec),
-                    energyKcal: round1((durSec / 60) * gauss(&rng, 9.0, 2.0)),
+                    energyKcal: round1((durSec / 60) * gauss(&rng, 11.5, 2.0)),
                     avgHr: avg, maxHr: avg + Int(gauss(&rng, 22.0, 6.0)),
                     strain: round1((strain * gauss(&rng, 0.6, 0.1)).clamped(4.0 * STRAIN_SCALE, 100.0)),
-                    distanceM: DISTANCE_SPORTS.contains(sport) ? round1(gauss(&rng, 6500.0, 2500.0).atLeast(500.0)) : nil,
+                    distanceM: conditioningDistanceM(sport, &rng),
                     zonesJSON: zonesJSON, notes: nil, steps: nil))
             }
 
@@ -279,7 +305,105 @@ enum AppleDemoSeeder {
         if !workouts.isEmpty { _ = try await store.upsertWorkouts(workouts, deviceId: whoop) }
         if !journal.isEmpty { _ = try await store.upsertJournal(journal, deviceId: whoop) }
         let lifts = try await seedStrength(into: store, startDay: startDay, cal: cal, isoFmt: isoFmt)
-        NSLog("AppleDemoSeeder: seeded \(daily.count) days, \(workouts.count) workouts, \(lifts) lifting sessions.")
+        let body = try await seedBody(into: store, startDay: startDay, cal: cal, isoFmt: isoFmt)
+        NSLog("AppleDemoSeeder: seeded \(daily.count) days, \(workouts.count) workouts, \(lifts) lifting sessions, \(body) body readings.")
+    }
+
+    // MARK: - The body & energy lane
+    //
+    // The same gap the strength lane above was added to close, one screen over: without seeded tape
+    // measurements, body-fat readings and logged intake, the Body page shows nothing but its empty
+    // state and the Energy page can never reach its balance tier — so neither the charts, the
+    // same-site progress comparison, the Navy estimate nor the three-way corridor could be looked at without a
+    // real account and months of logging.
+    //
+    // Its own RNG, for the reason `seedStrength` documents: drawing from the shared one would shift
+    // every later draw and silently change the whole demo dataset.
+    //
+    // The programme is a slow recomposition — waist down, body fat down, arms and thighs slightly up
+    // against a nearly flat weight. That is the case the comparison chart exists for ("am I losing fat
+    // or water?"), and a flat series would leave every trend rendering its "not enough to say" state.
+    private static func seedBody(into store: WhoopStore, startDay: Date,
+                                 cal: Calendar, isoFmt: DateFormatter) async throws -> Int {
+        var rng = SplitMix64(seed: 0xB0D_1E5)
+        var rows: [LabMarkerRow] = []
+        var intake: [MetricPoint] = []
+
+        // Height is a single standing reading; everything else moves.
+        if let date = cal.date(byAdding: .day, value: 0, to: startDay) {
+            rows.append(marker("height", 181, on: date, isoFmt: isoFmt, source: "manual"))
+        }
+
+        // Tape measurements every 7 days, which is the cadence the reminder suggests and the spread the
+        // method actually supports.
+        for week in stride(from: 0, through: DAYS - 1, by: 7) {
+            guard let date = cal.date(byAdding: .day, value: week, to: startDay) else { continue }
+            let t = Double(week) / Double(max(1, DAYS - 1))   // 0 → 1 across the window
+            let sites: [(String, Double)] = [
+                ("neck", 43.5 + 0.3 * t + gauss(&rng, 0, 0.15)),
+                ("shoulders", 133.0 + 2.2 * t + gauss(&rng, 0, 0.4)),
+                ("chest", 118.0 + 1.8 * t + gauss(&rng, 0, 0.35)),
+                // A gaining phase, so the waist creeps UP a little while everything trained goes up
+                // more. That is the honest shape of an accumulation block, and it gives the
+                // development card both directions to report instead of a one-way story.
+                ("waist", 86.0 + 1.2 * t + gauss(&rng, 0, 0.4)),
+                ("abdomen", 89.0 + 1.4 * t + gauss(&rng, 0, 0.45)),
+                ("hips", 107.0 + 0.8 * t + gauss(&rng, 0, 0.3)),
+                // Keep both measurement sites believable. The UI treats each as its own timeline; it
+                // never frames the current left and right values as the point of the feature.
+                ("biceps_l", 43.4 + 1.1 * t + gauss(&rng, 0, 0.2)),
+                ("biceps_r", 44.3 + 1.2 * t + gauss(&rng, 0, 0.2)),
+                ("forearm_l", 33.8 + 0.4 * t + gauss(&rng, 0, 0.15)),
+                ("forearm_r", 34.4 + 0.4 * t + gauss(&rng, 0, 0.15)),
+                ("thigh_l", 68.5 + 1.6 * t + gauss(&rng, 0, 0.3)),
+                ("thigh_r", 69.0 + 1.6 * t + gauss(&rng, 0, 0.3)),
+                ("calf_l", 43.2 + 0.5 * t + gauss(&rng, 0, 0.2)),
+                ("calf_r", 43.5 + 0.5 * t + gauss(&rng, 0, 0.2)),
+            ]
+            for (key, value) in sites {
+                rows.append(marker(key, round1(value), on: date, isoFmt: isoFmt, source: "manual"))
+            }
+        }
+
+        // Body fat from two DIFFERENT methods on purpose. A DEXA scan at each end and a monthly caliper
+        // reading between them is exactly the case the chart must keep on separate series — averaging a
+        // scan and a pinch into one line would report a number nobody measured.
+        for (offset, value, source) in [(2, 19.4, "dexa"), (30, 18.6, "caliper"),
+                                        (60, 17.9, "caliper"), (90, 17.2, "caliper"),
+                                        (DAYS - 3, 16.4, "dexa")] {
+            guard let date = cal.date(byAdding: .day, value: offset, to: startDay) else { continue }
+            rows.append(marker("body_fat", value, on: date, isoFmt: isoFmt, source: source))
+        }
+
+        // Intake for the last 40 days only, so the Energy page shows a balance tier that has genuinely
+        // just become answerable rather than one that has always been there.
+        for offset in stride(from: max(0, DAYS - 40), through: DAYS - 1, by: 1) {
+            guard let date = cal.date(byAdding: .day, value: offset, to: startDay) else { continue }
+            // A mild deficit with ordinary day-to-day scatter and the occasional big day.
+            let base = 2_250.0 + gauss(&rng, 0, 180)
+            let feast = (rng.next() % 9 == 0) ? 600.0 : 0
+            intake.append(MetricPoint(day: isoFmt.string(from: date),
+                                      key: "calories_in", value: (base + feast).rounded()))
+        }
+
+        if !rows.isEmpty { _ = try await store.upsertLabMarkers(rows) }
+        if !intake.isEmpty {
+            _ = try await store.upsertMetricSeries(intake, deviceId: EnergyPlanStore.manualIntakeSource)
+        }
+        return rows.count + intake.count
+    }
+
+    /// One dated body reading, in the shape the Body page reads.
+    private static func marker(_ key: String, _ value: Double, on date: Date,
+                               isoFmt: DateFormatter, source: String) -> LabMarkerRow {
+        let day = isoFmt.string(from: date)
+        return LabMarkerRow(
+            id: "demo-\(key)-\(day)", deviceId: apple, markerKey: key,
+            category: "bodyMeasurement", day: day,
+            takenAt: Int(date.timeIntervalSince1970) + 27_000,   // 07:30, before the day's food and water
+            value: value, valueText: nil,
+            unit: MarkerCatalog.definition(for: key)?.canonicalUnit ?? "cm",
+            source: source, note: nil, referenceText: nil)
     }
 
     // MARK: - The strength lane
@@ -306,17 +430,27 @@ enum AppleDemoSeeder {
 
         /// templateId → the working weight this block starts at. Bodyweight and timed movements carry
         /// nil, so the seeded data exercises the "no weight logged" paths too.
+        // Elite working weights. A competitive raw lifter at ~98 kg: a 145 kg bench, a 210 kg squat,
+        // a 180 kg Romanian deadlift. The weighted dip and pull-up carry real added load, which is
+        // also what makes the bodyweight-plus-load path worth exercising in the demo.
         let openingWeight: [String: Double?] = [
-            "demo-bench": 72.5, "demo-ohp": 45.0, "demo-pushdown": 32.5, "demo-dip": 10.0,
-            "demo-pullup": nil, "demo-row": 65.0, "demo-curl": 16.0,
-            "demo-squat": 95.0, "demo-rdl": 85.0, "demo-legpress": 160.0, "demo-plank": nil,
+            "demo-bench": 145.0, "demo-ohp": 85.0, "demo-pushdown": 65.0, "demo-dip": 55.0,
+            "demo-pullup": nil, "demo-row": 130.0, "demo-curl": 35.0,
+            "demo-squat": 210.0, "demo-rdl": 180.0, "demo-legpress": 420.0, "demo-plank": nil,
         ]
-        // Monday push, Wednesday pull, Friday legs. Each entry is (templateId, working sets).
+        // Push / Pull / Legs run TWICE a week — six training days, which is the frequency and weekly
+        // volume an advanced lifter actually accumulates. The second rotation is the lighter one, so
+        // the week has a heavy and a volume day per movement rather than six identical sessions.
         let split: [Int: (title: String, plan: [(String, Int)])] = [
-            2: ("Push", [("demo-bench", 4), ("demo-ohp", 3), ("demo-dip", 3), ("demo-pushdown", 3)]),
-            4: ("Pull", [("demo-row", 4), ("demo-pullup", 3), ("demo-curl", 3), ("demo-plank", 2)]),
-            6: ("Legs", [("demo-squat", 4), ("demo-rdl", 3), ("demo-legpress", 3), ("demo-plank", 2)]),
+            2: ("Push (heavy)", [("demo-bench", 5), ("demo-ohp", 4), ("demo-dip", 4), ("demo-pushdown", 3)]),
+            3: ("Pull (heavy)", [("demo-row", 5), ("demo-pullup", 4), ("demo-curl", 3), ("demo-plank", 2)]),
+            4: ("Legs (heavy)", [("demo-squat", 5), ("demo-rdl", 4), ("demo-legpress", 4), ("demo-plank", 2)]),
+            6: ("Push (volume)", [("demo-bench", 4), ("demo-ohp", 4), ("demo-dip", 3), ("demo-pushdown", 4)]),
+            7: ("Pull (volume)", [("demo-row", 4), ("demo-pullup", 4), ("demo-curl", 4), ("demo-plank", 2)]),
+            1: ("Legs (volume)", [("demo-squat", 4), ("demo-rdl", 4), ("demo-legpress", 4), ("demo-plank", 2)]),
         ]
+        /// Days that run the lighter rotation, at a fraction of the day's top weight.
+        let volumeDays: Set<Int> = [6, 7, 1]
 
         var sessions: [HevyWorkout] = []
         var mirrored: [WorkoutRow] = []
@@ -325,8 +459,9 @@ enum AppleDemoSeeder {
             let date = cal.date(byAdding: .day, value: i, to: startDay)!
             let weekday = cal.component(.weekday, from: date)   // 1=Sun … 7=Sat
             guard let day = split[weekday] else { continue }
-            // One missed session in ten, so the weekly bands have something to be a range OF.
-            guard rng.nextDouble() > 0.10 else { continue }
+            // One missed session in twenty. An athlete at this level trains through most weeks, and the
+            // weekly bands still get a range from the heavy/volume alternation rather than from gaps.
+            guard rng.nextDouble() > 0.05 else { continue }
 
             let weeks = Double(i) / 7.0
             let start = Int(cal.startOfDay(for: date).timeIntervalSince1970) + 18 * 3600 + rng.nextInt(0, 40) * 60
@@ -338,9 +473,13 @@ enum AppleDemoSeeder {
                 var sets: [HevySet] = []
                 var setIndex = 0
 
-                // Progressive overload: ~0.4 % a week off the opening weight, with a little noise, so
-                // the trend line has a direction and the records move a few times across the window.
-                let base = (openingWeight[templateId] ?? nil).map { $0 * (1 + 0.004 * weeks) }
+                // Progressive overload at an ADVANCED rate: ~0.12 % a week. A novice adds 2.5 kg to the
+                // bar every session; someone benching 145 kg fights for a couple of kilos a month, and
+                // seeding a beginner's slope onto elite numbers would draw a curve nobody at this level
+                // recognises. The volume rotation runs at 82 % of the day's top weight.
+                let dayFactor = volumeDays.contains(weekday) ? 0.82 : 1.0
+                let base = (openingWeight[templateId] ?? nil)
+                    .map { $0 * (1 + 0.0012 * weeks) * dayFactor }
 
                 // A warmup on the first movement of the day — the one the detail view dims and every
                 // figure excludes.
@@ -355,14 +494,18 @@ enum AppleDemoSeeder {
                     // RPE on roughly two sets in three: the map's rated-share caption only says
                     // something when the coverage is partial.
                     let rpe: Double? = rng.nextDouble() < 0.66
-                        ? (7.0 + Double(setNumber) * 0.5 + (rng.nextDouble() < 0.3 ? 0.5 : 0)).clamped(6.0, 10.0)
+                        ? (7.5 + Double(setNumber) * 0.4 + (rng.nextDouble() < 0.35 ? 0.5 : 0)).clamped(6.5, 10.0)
                         : nil
                     if templateId == "demo-plank" {
                         sets.append(HevySet(index: setIndex, type: .normal, weightKg: nil, reps: nil,
                                             distanceM: nil, durationS: 45 + Double(rng.nextInt(0, 30)),
                                             rpe: rpe, customMetric: nil))
                     } else if let base {
-                        let reps = 5 + rng.nextInt(0, 4)
+                        // Heavy days sit at 3–5, volume days at 8–12 — the two rep worlds an advanced
+                        // programme actually alternates between, and what gives the rep-band records
+                        // (1–3, 4–6, 7–12) something to fill on both ends.
+                        let reps = volumeDays.contains(weekday) ? 8 + rng.nextInt(0, 5)
+                                                                : 3 + rng.nextInt(0, 3)
                         let weight = round1(base * (1 - Double(setNumber) * 0.025) + gauss(&rng, 0, 1.2))
                         sets.append(HevySet(index: setIndex, type: setNumber == workingSets - 1 && rng.nextDouble() < 0.15 ? .failure : .normal,
                                             weightKg: weight, reps: reps,
@@ -385,7 +528,8 @@ enum AppleDemoSeeder {
                     notes: nil, sets: sets))
             }
 
-            let duration = 3300 + rng.nextInt(0, 1500)
+            // 75–105 minutes. Five heavy compound sets with real rest do not fit in an hour.
+            let duration = 4500 + rng.nextInt(0, 1800)
             sessions.append(HevyWorkout(
                 id: "demo-\(isoFmt.string(from: date))", title: day.title, routineId: nil,
                 notes: nil, startTs: start, endTs: start + duration,
@@ -402,6 +546,20 @@ enum AppleDemoSeeder {
         guard !sessions.isEmpty else { return 0 }
         _ = try await store.upsertStrengthWorkouts(sessions)
         _ = try await store.upsertWorkouts(mirrored, deviceId: "hevy")
+        // Whole-session RPE is a separate observation from the set ratings above. Seed most, not all,
+        // so the Training Load screen demonstrates both a real sRPE×duration series and honest missing
+        // coverage. These rows use the same sidecar the detail screen writes.
+        let sessionRatings = sessions.enumerated().compactMap { index, workout -> LabMarkerRow? in
+            guard !index.isMultiple(of: 5) else { return nil }
+            let rpe = workout.title.contains("heavy") ? 8.5 : 7.5
+            return LabMarkerRow(
+                id: "session-rpe-\(workout.startTs)", deviceId: Repository.sessionRPEDeviceId,
+                markerKey: Repository.sessionRPEMarkerKey, category: Repository.sessionRPECategory,
+                day: isoFmt.string(from: Date(timeIntervalSince1970: TimeInterval(workout.startTs))),
+                takenAt: workout.startTs, value: rpe, valueText: nil, unit: "RPE",
+                source: Repository.sessionRPESource, note: workout.title, referenceText: nil)
+        }
+        _ = try await store.upsertLabMarkers(sessionRatings)
         return sessions.count
     }
 
