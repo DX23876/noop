@@ -608,6 +608,13 @@ enum DemoScreens {
         case "live":     return AnyView(LiveView())
         case "stress":   return AnyView(StressView())
         case "workouts": return AnyView(WorkoutsView())
+        case "strength": return AnyView(StrengthView())
+        case "cardio": return AnyView(CardioView())
+        case "trainingload": return AnyView(TrainingLoadView())
+        case "body": return AnyView(BodyView())
+        case "bodysite": return AnyView(BodySiteDemoHost())
+        case "strengthsession": return AnyView(StrengthSessionDemoHost())
+        case "energyplan": return AnyView(EnergyPlanView())
         case "health":   return AnyView(HealthView())
         case "insights": return AnyView(InsightsView())
         case "explore":  return AnyView(MetricExplorerView())
@@ -654,6 +661,43 @@ private struct OuraOnboardingDemoHost: View {
     @EnvironmentObject var live: LiveState
     var body: some View {
         AddDeviceWizard(live: live, onClose: {}, startAt: (.oura, .prep))
+    }
+}
+
+/// DEBUG-only host for the same-site circumference history the Body overview links to.
+private struct BodySiteDemoHost: View {
+    @EnvironmentObject private var repo: Repository
+    @StateObject private var model = BodyModel()
+
+    var body: some View {
+        NavigationStack {
+            if model.loaded {
+                BodySiteDetailView(siteKey: "biceps_l", model: model)
+            } else {
+                ProgressView()
+            }
+        }
+        .task { await model.load(repo: repo) }
+    }
+}
+
+/// DEBUG-only host for the complete latest seeded strength session, including its Session RPE card.
+private struct StrengthSessionDemoHost: View {
+    @EnvironmentObject private var repo: Repository
+    @StateObject private var model = StrengthModel()
+
+    var body: some View {
+        Group {
+            if let summary = model.summaries.first,
+               let breakdown = model.breakdown(for: summary.workoutId) {
+                StrengthSessionDetailView(
+                    breakdown: breakdown,
+                    matchedRow: model.matchedRow(for: breakdown.summary))
+            } else {
+                ProgressView()
+            }
+        }
+        .task { await model.load(repo: repo) }
     }
 }
 #endif

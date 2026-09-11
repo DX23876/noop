@@ -107,6 +107,19 @@ enum MoreCatalog {
             MoreEntry("Cardio", "figure.run.circle.fill", .cardio,
                       keywords: ["running", "cycling", "swimming", "pace", "distance", "endurance",
                                  "km", "speed", "rowing"]),
+            MoreEntry("Training Load", "chart.bar.xaxis", .trainingLoad,
+                      keywords: ["strength load", "cardio load", "session RPE", "sRPE", "acute",
+                                 "chronic", "training stress", "effort"]),
+            // Where every body measurement now lives. Next to Health because it answers the adjacent
+            // question: Health is what the body is doing, Body is what it currently is.
+            MoreEntry("Body", "figure.stand", .body,
+                      keywords: ["weight", "body fat", "waist", "measurements", "tape", "navy",
+                                 "circumference", "composition", "scale"]),
+            // Directly after Body, because it consumes what Body records: the basal formula reads a
+            // body-fat figure, and the balance check reads weigh-ins.
+            MoreEntry("Energy", "flame.fill", .energyPlan,
+                      keywords: ["calories", "tdee", "maintenance", "deficit", "intake", "bmr",
+                                 "planning", "kcal", "diet", "surplus"]),
             MoreEntry("Health", "heart.text.square.fill", .health,
                       keywords: ["biometrics", "fitness age", "vitality", "skin temperature"]),
             // Renamed from "Lab Book": names the content directly (blood/BP/body numbers), not the

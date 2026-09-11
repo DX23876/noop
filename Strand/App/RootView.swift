@@ -21,6 +21,9 @@ enum NavItem: String, CaseIterable, Identifiable, Hashable {
     case workouts = "Workouts"
     case strength = "Strength"
     case cardio = "Cardio"
+    case trainingLoad = "Training Load"
+    case body = "Body"
+    case energyPlan = "Energy"
     case health = "Health"
     case stress = "Stress"
     case labBook = "Lab Book"
@@ -62,6 +65,9 @@ enum NavItem: String, CaseIterable, Identifiable, Hashable {
         case .workouts: return "Workouts"
         case .strength: return "Strength"
         case .cardio: return "Cardio"
+        case .trainingLoad: return "Training Load"
+        case .body: return "Body"
+        case .energyPlan: return "Energy"
         case .health: return "Health"
         case .stress: return "Stress"
         case .labBook: return "Lab Book"
@@ -110,6 +116,9 @@ enum NavItem: String, CaseIterable, Identifiable, Hashable {
         case .workouts: return String(localized: "Workouts")
         case .strength: return String(localized: "Strength")
         case .cardio: return String(localized: "Cardio")
+        case .trainingLoad: return String(localized: "Training Load")
+        case .body: return String(localized: "Body")
+        case .energyPlan: return String(localized: "Energy")
         case .health: return String(localized: "Health")
         case .stress: return String(localized: "Stress")
         case .labBook: return String(localized: "Lab Book")
@@ -150,6 +159,9 @@ enum NavItem: String, CaseIterable, Identifiable, Hashable {
         case .workouts: return "figure.run"
         case .strength: return "dumbbell.fill"
         case .cardio: return "figure.run.circle.fill"
+        case .trainingLoad: return "chart.bar.xaxis"
+        case .body: return "figure.stand"
+        case .energyPlan: return "flame.fill"
         case .health: return "heart.text.square.fill"
         case .stress: return "gauge.with.dots.needle.50percent"
         case .labBook: return "books.vertical.fill"
@@ -193,7 +205,8 @@ struct NavGroup: Identifiable {
             // Workouts lists the sessions; Strength and Cardio say what those sessions were made of.
             // Both were previously reachable on macOS only through a Today card's push, which meant a
             // whole analysis screen existed with no way to open it from the sidebar.
-            .workouts, .strength, .cardio, .live, .health, .stress, .intervals, .breathe,
+            .workouts, .strength, .cardio, .trainingLoad, .body, .energyPlan, .live, .health, .stress, .intervals,
+            .breathe,
         ]),
         // S6: the overlapping insight surfaces (Intelligence / What Moves You / Insights / Insights Hub)
         // all collapse under this single Insights group rather than scattering across the flat list.
@@ -482,6 +495,9 @@ struct RootView: View {
         case .workouts: WorkoutsView()
         case .strength: StrengthView()
         case .cardio: CardioView()
+        case .trainingLoad: TrainingLoadView()
+        case .body: BodyView()
+        case .energyPlan: EnergyPlanView()
         case .health: HealthView()
         case .stress: StressView()
         case .labBook: LabBookView()
