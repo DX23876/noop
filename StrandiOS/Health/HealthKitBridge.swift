@@ -192,10 +192,19 @@ final class HealthKitBridge: ObservableObject {
         // a later, user-requested reversal of this file's original "never write these back" stance,
         // scoped to weight only. All four still import under the apple-health source as before.
         .bodyMass, .bodyFatPercentage, .leanBodyMass, .bodyMassIndex,
+        // Waist is the ONLY circumference HealthKit models. Chest, thigh, biceps and the rest have no
+        // HK type at all and stay NOOP-local — the Body page says so, or their absence from Health
+        // reads as a sync fault rather than as a gap in Apple's own schema.
+        .waistCircumference,
         // Water — READ-ONLY (#949), so drinks logged in a dedicated hydration app (or by a smart bottle)
         // show up without being typed in twice. Lands in the hydration source rather than apple-health,
         // because the hydration screen is what consumes it. Never written back.
         .dietaryWater,
+        // Nutrition — READ-ONLY. NOOP deliberately ships no food diary (that is a separate app and
+        // would need a server this project does not have), but a wearer logging in one that syncs to
+        // Health should not have to retype it here. These feed the energy-balance check, which for a
+        // strap-only setup is the only remaining way to validate the daily figure at all.
+        .dietaryEnergyConsumed, .dietaryProtein, .dietaryCarbohydrates, .dietaryFatTotal,
         // Caffeine — READ-ONLY (#949). Feeds the caffeine window's decay estimate, which already stores
         // time + optional mg per intake, so a Health sample maps onto it directly. Apple exposes this as
         // its own narrow type; Health Connect has no caffeine-only scope (caffeine is a field on
@@ -225,7 +234,12 @@ final class HealthKitBridge: ObservableObject {
     // Weight write-back: the user's own PROFILE edit, not strap-derived data — see `writeWeight` below.
     // Kept as its own array for the same reason as `highResQuantityWriteIds`: `legacyCoreWriteTypes`
     // must stay exactly what pre-update users granted, or a returning user regresses to unauthorized.
-    private static let bodyMassWriteIds: [HKQuantityTypeIdentifier] = [.bodyMass]
+    private static let bodyMassWriteIds: [HKQuantityTypeIdentifier] = [.bodyMass, .waistCircumference]
+
+    /// Opt-in switch for writing waist measurements back to Health. Default off, like every other
+    /// outbound write in this file: requesting the permission is not the same as using it, and a
+    /// measurement leaving the device is the user's decision to make.
+    static let waistWriteEnabledKey = "health.write.waist.enabled"
 
     // MARK: - Authorization
 
@@ -646,6 +660,14 @@ final class HealthKitBridge: ObservableObject {
         await collect(.bodyMassIndex, unit: .count(), start: bodyStart, end: end, op: .discreteMostRecent) { day, v in
             var a = agg(day); a.bmi = v; byDay[day] = a
         }
+        // Waist becomes a `LabMarkerRow` rather than a daily-metric cell, because that is where every
+        // other body measurement lives and where the Body page reads it. Latest-of-day, like the
+        // point-in-time readings above.
+        var waistByDay: [String: Double] = [:]
+        await collect(.waistCircumference, unit: .meterUnit(with: .centi), start: bodyStart, end: end,
+                      op: .discreteMostRecent) { day, v in
+            waistByDay[day] = v
+        }
         progress(0.60)
         guard !Task.isCancelled else { return false }
 
@@ -664,6 +686,23 @@ final class HealthKitBridge: ObservableObject {
         let waterReadOk = await collect(.dietaryWater, unit: .literUnit(with: .milli),
                                         start: start, end: end, op: .cumulativeSum) { day, v in
             var a = agg(day); a.waterMl = v; byDay[day] = a
+        }
+
+        // Nutrition, as a day SUM like water above — Health re-adds every sample in the day on each
+        // sync, so what this produces is a full replacement rather than a delta. Written under the
+        // apple-health source so the balance tier can tell an imported day from a typed one.
+        var nutritionByDay: [String: [String: Double]] = [:]
+        let nutritionSpecs: [(HKQuantityTypeIdentifier, HKUnit, String)] = [
+            (.dietaryEnergyConsumed, .kilocalorie(), "calories_in"),
+            (.dietaryProtein, .gramUnit(with: .none), "protein_g"),
+            (.dietaryCarbohydrates, .gramUnit(with: .none), "carbs_g"),
+            (.dietaryFatTotal, .gramUnit(with: .none), "fat_g"),
+        ]
+        for (identifier, unit, key) in nutritionSpecs {
+            await collect(identifier, unit: unit, start: start, end: end, op: .cumulativeSum) { day, v in
+                guard v > 0 else { return }
+                nutritionByDay[day, default: [:]][key] = v
+            }
         }
 
         // Sleep minutes per day (asleep stages summed; attributed to wake day).
@@ -738,8 +777,31 @@ final class HealthKitBridge: ObservableObject {
         // from @vulnix0x4's PR #375.)
         do {
             try await store.upsertAppleDaily(appleRows, deviceId: appleDeviceId)
+            // Apple's waist readings, under the apple-health source so the Body page can tell them from
+            // a tape measurement typed into NOOP. The id is derived from the day rather than random, so
+            // re-importing a window replaces its rows instead of stacking duplicates.
+            if !waistByDay.isEmpty {
+                let waistRows = waistByDay.compactMap { day, cm -> LabMarkerRow? in
+                    guard cm > 20, cm < 250, let date = HealthKitBridge.date(from: day) else {
+                        return nil
+                    }
+                    return LabMarkerRow(
+                        id: "waist-apple-\(day)", deviceId: appleDeviceId, markerKey: "waist",
+                        category: LabMarkerCategory.bodyMeasurement.rawValue, day: day,
+                        takenAt: Int(date.timeIntervalSince1970) + 43_200, value: cm,
+                        valueText: nil, unit: "cm", source: appleDeviceId, note: nil,
+                        referenceText: nil)
+                }
+                if !waistRows.isEmpty { _ = try await store.upsertLabMarkers(waistRows) }
+            }
             try await store.upsertDailyMetrics(dmRows, deviceId: appleDeviceId)
             try await store.upsertMetricSeries(points, deviceId: appleDeviceId)
+            let nutritionPoints = nutritionByDay.flatMap { day, values in
+                values.map { MetricPoint(day: day, key: $0.key, value: $0.value) }
+            }
+            if !nutritionPoints.isEmpty {
+                try await store.upsertMetricSeries(nutritionPoints, deviceId: appleDeviceId)
+            }
             try await store.deleteHealthEnergyBuckets(
                 deviceId: appleDeviceId, from: Int(start.timeIntervalSince1970),
                 to: Int(end.timeIntervalSince1970) + HealthEnergyBucketRow.durationSeconds)
@@ -1209,6 +1271,35 @@ final class HealthKitBridge: ObservableObject {
         )
         let bySource = HKQuery.predicateForObjects(from: HKSource.default())
         let byKey = HKQuery.predicateForObjects(withMetadataKey: HKMetadataKeyExternalUUID, allowedValues: [key])
+        let pred = NSCompoundPredicate(andPredicateWithSubpredicates: [bySource, byKey])
+        _ = try? await store.deleteObjects(of: type, predicate: pred)
+        try await store.save(sample)
+    }
+
+    /// Writes one waist measurement back to Health, replacing NOOP's own earlier sample for that day.
+    ///
+    /// Same shape as `writeWeight`: keyed by an external UUID so a corrected measurement replaces its
+    /// predecessor instead of stacking a second reading on the same day. Gated on the opt-in above AND
+    /// on the share authorisation, so neither alone is enough.
+    func writeWaist(cm: Double, day: String = HealthKitBridge.dayString(Date())) async throws {
+        guard cm > 20, cm < 250,
+              UserDefaults.standard.bool(forKey: Self.waistWriteEnabledKey),
+              let type = HKQuantityType.quantityType(forIdentifier: .waistCircumference),
+              store.authorizationStatus(for: type) == .sharingAuthorized,
+              let date = HealthKitBridge.date(from: day) else { return }
+        let cal = Calendar.current
+        let at = cal.date(bySettingHour: 12, minute: 0, second: 0, of: date) ?? date
+        let key = "noop:\(noopDeviceId):waist:\(day)"
+        let sample = HKQuantitySample(
+            type: type,
+            quantity: .init(unit: .meterUnit(with: .centi), doubleValue: cm),
+            start: at, end: at,
+            metadata: [HKMetadataKeyExternalUUID: key,
+                       Self.originMetadataKey: Self.originMetadataValue]
+        )
+        let bySource = HKQuery.predicateForObjects(from: HKSource.default())
+        let byKey = HKQuery.predicateForObjects(withMetadataKey: HKMetadataKeyExternalUUID,
+                                                allowedValues: [key])
         let pred = NSCompoundPredicate(andPredicateWithSubpredicates: [bySource, byKey])
         _ = try? await store.deleteObjects(of: type, predicate: pred)
         try await store.save(sample)
