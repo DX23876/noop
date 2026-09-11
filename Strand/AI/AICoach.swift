@@ -43,6 +43,7 @@ struct ChatMessage: Identifiable, Equatable, Codable {
         case semanticMemory
         case keywordMemory
         case longTermHistory
+        case bodyMetrics
     }
 
     /// Why this message exists. Everything the coach says looks identical in the transcript, so a
@@ -3328,6 +3329,10 @@ final class AICoachEngine: ObservableObject {
                                                      exercise: nil, limit: 6))
             categories.append(.recentWorkouts)
         }
+        if sections.contains(.body), toolConsent.allows(.bodyMetrics) {
+            blocks.append(await bodyAndEnergyBlock())
+            categories.append(.bodyMetrics)
+        }
         if sections.contains(.planning), toolConsent.allows(.planAdherence) {
             let profile = ProfileStore()
             if let goals = goalsBlock(profile: profile) { blocks.append(goals) }
@@ -4981,6 +4986,58 @@ final class AICoachEngine: ObservableObject {
             lines.append(parts.joined(separator: ", "))
         }
         return lines.joined(separator: "\n")
+    }
+
+    /// Body measurements and the energy corridor, for a coach that is asked about weight or calories.
+    ///
+    /// Every figure carries its provenance, and the corridor is handed over as a corridor rather than
+    /// collapsed to one number. A coach told "you burn 2 480" will say it back with a confidence the
+    /// underlying data does not support; one told three figures and their sources can say what is
+    /// actually known — which is the difference between advice and a guess with a decimal point.
+    func bodyAndEnergyBlock() async -> String {
+        let metrics = await repo.bodyMetrics()
+        let today = Repository.localDayKey(Date())
+        var lines: [String] = []
+
+        var body: [String] = []
+        for key in ["weight", "body_fat", "waist"] {
+            if let reading = metrics.asOf(key, day: today) {
+                let age = reading.ageDays(on: today)
+                body.append("\(key) \(reading.value.formatted(.number.precision(.fractionLength(1))))"
+                            + " (\(reading.source), \(age)d ago)")
+            }
+        }
+        lines.append(body.isEmpty
+                     ? "Body: nothing recorded."
+                     : "Body: " + body.joined(separator: "; "))
+
+        let profile = Repository.analyticsProfile(ProfileStore())
+        let summaries = await repo.energySummaries(days: 30, profile: profile)
+        let days = summaries.filter { $0.day < today }.compactMap { summary -> BurnDay? in
+            guard let total = summary.totalBurnedSoFar else { return nil }
+            return BurnDay(day: summary.day, totalKcal: total, source: summary.source,
+                           coverage: summary.coverage.energy)
+        }
+        let burn = EnergyPlanning.measuredBurn(days: days)
+        if let measured = burn.measuredMeanKcal ?? burn.allDaysMeanKcal {
+            lines.append("Measured burn: \(Int(measured.rounded())) kcal/day"
+                         + " (\(burn.quality.rawValue), \(burn.measuredDays)/\(burn.totalDays) days measured)")
+        }
+        if let balance = await repo.adaptiveExpenditureEstimate() {
+            lines.append("Energy balance: \(Int(balance.estimatedDailyKcal.rounded())) kcal/day"
+                         + " (\(Int(balance.lowerBoundKcal.rounded()))–\(Int(balance.upperBoundKcal.rounded()))),"
+                         + " from \(balance.intakeDays) intake days. Self-reported intake runs low, which biases this figure DOWN.")
+        }
+        let formula = EnergyPlanStore.formulaLog.formula(onDay: today)
+        if let basal = BasalRate.kcalPerDay(formula,
+                                            weightKg: metrics.value("weight", on: today) ?? profile.weightKg,
+                                            heightCm: metrics.value("height", on: today) ?? profile.heightCm,
+                                            age: profile.age, sex: profile.sex,
+                                            bodyFatPercent: metrics.value("body_fat", on: today)) {
+            lines.append("Basal rate: \(Int(basal.rounded())) kcal/day by \(formula.rawValue).")
+        }
+        lines.append("These are separate estimates, never averaged. Report the spread, not a single figure.")
+        return "Body & energy:\n" + lines.joined(separator: "\n")
     }
 
     func strengthHistoryBlock(days: Int = 365, exercise: String? = nil, limit: Int = 6) async -> String {

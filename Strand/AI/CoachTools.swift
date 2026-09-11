@@ -17,6 +17,8 @@ enum CoachTool: String, CaseIterable {
     case recentWorkouts = "get_recent_workouts"
     /// Detailed lifting history down to exercises and sets, across API and offline imports.
     case strengthHistory = "get_strength_history"
+    /// Dated body measurements plus the three-route energy corridor, each with its provenance.
+    case bodyMetrics = "get_body_metrics"
     /// Today's derived Baevsky Stress Index (autonomic-balance proxy over today's R-R).
     case stressIndex = "get_stress_index"
     /// The user's strongest n-of-1 patterns + Lab Book roll-up. Only offered when the second opt-in is on.
@@ -98,6 +100,11 @@ enum CoachTool: String, CaseIterable {
                 + "and counts but no readings. Pass the user's essential topic words in query so the app "
                 + "filters locally; omit query only for a genuinely broad inventory. Then use "
                 + "get_metric_history for the one relevant analysis."
+        case .bodyMetrics:
+            return "Get the user's dated body measurements (weight, body fat, waist) with the source and "
+                + "age of each reading, plus the three independent daily-energy estimates and their "
+                + "provenance. The three are never averaged: report the spread and say which routes "
+                + "were available, rather than quoting one figure as the user's maintenance calories."
         case .biometricSummary:
             return "Get the user's recent daily wearable metrics (last ~14 days plus 30-day averages): "
                 + "charge/recovery, effort/strain, rest/sleep hours, HRV, resting HR, SpO2, respiration, "
@@ -1140,6 +1147,8 @@ extension AICoachEngine {
         switch tool {
         case .dataCatalog:
             return await dataCatalogTool(query: input["query"] as? String)
+        case .bodyMetrics:
+            return await bodyAndEnergyBlock()
         case .biometricSummary:
             var block = buildContext()
             if let confidence = await chargeConfidenceBlock() { block += "\n\n" + confidence }

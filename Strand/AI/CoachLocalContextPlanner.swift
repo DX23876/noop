@@ -10,6 +10,7 @@ struct CoachLocalContextPlanner {
         case readiness
         case workouts
         case strength
+        case body
         case planning
         case trainingPreferences
         case stress
@@ -48,6 +49,17 @@ struct CoachLocalContextPlanner {
         }
         if intersects(words, ["plan", "schedule", "tomorrow", "week", "goal", "swap", "skip", "decline", "planned", "morgen", "woche", "ziel", "tauschen", "auslassen", "ablehnen", "geplant"]) {
             result.insert(.planning)
+        }
+        // Body measurements and the energy corridor. Calorie and body-fat questions are exactly where a
+        // coach is most tempted to state one confident figure, so this section exists to hand it the
+        // spread and the provenance instead.
+        if intersects(words, ["calorie", "calories", "kcal", "deficit", "surplus", "maintenance",
+                              "tdee", "bmr", "intake", "eat", "eating", "diet", "cut", "bulk",
+                              "bodyfat", "fat", "lean", "waist", "measurement", "measurements",
+                              "kalorien", "defizit", "uberschuss", "erhaltung", "grundumsatz",
+                              "essen", "ernahrung", "korperfett", "taille", "umfang", "abnehmen",
+                              "zunehmen"]) {
+            result.formUnion([.body, .detailedBiometrics])
         }
         if intersects(words, ["stress", "stressed", "anxious", "pressure", "gestresst", "stressig", "anspannung"]) {
             result.insert(.stress)

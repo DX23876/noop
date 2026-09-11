@@ -91,11 +91,17 @@ final class CoachMyLogsAndZonesTests: XCTestCase {
         // to retype what the app already holds — and `propose_hevy_workout` is the write side of the
         // same lane, a single session drafted for review rather than the whole routine
         // `propose_hevy_routine` covers.
-        XCTAssertEqual(engine.coachTools.count, 34,
+        //
+        // 34 → 35: `get_body_metrics`, from the body-and-energy work. Reviewed and intended. It earns
+        // the round for the same reason `get_strength_history` did — without it a calorie question is
+        // answered from nothing, and the failure mode is specific: the model states one confident
+        // maintenance figure. The tool returns three estimates it is told never to average, each with
+        // its provenance, so the honest answer (a spread) is the easy one to give.
+        XCTAssertEqual(engine.coachTools.count, 35,
                        "tool count changed — confirm the added per-round cost is intended")
 
         engine.toolConsent.enabled.insert(.patterns)
-        XCTAssertEqual(engine.coachTools.count, 36,
+        XCTAssertEqual(engine.coachTools.count, 37,
                        "the second opt-in adds personal patterns and training preferences")
     }
 

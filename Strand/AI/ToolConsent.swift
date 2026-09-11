@@ -50,8 +50,12 @@ extension CoachTool {
         switch self {
         // A card is the same data the metric tools already return, drawn instead of described, so it
         // rides `.coreBiometrics` with `plot_metric` rather than inventing a purpose for one tool.
+        // `bodyMetrics` rides here rather than gaining a purpose of its own: it returns the same class
+        // of reading the biometric tools already do, and the energy corridor it carries is the same
+        // question `energyBalance` answers. A separate switch in Settings for "body measurements"
+        // would split one consent decision into two that nobody would expect to have to make.
         case .biometricSummary, .readiness, .chargeDrivers, .sleepDetail, .plotMetric, .energyBalance,
-             .showCard:
+             .showCard, .bodyMetrics:
             return .coreBiometrics
         case .dataCatalog, .metricHistory:
             return .longHistory
