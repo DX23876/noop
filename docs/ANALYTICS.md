@@ -528,8 +528,121 @@ The percentage is presented as “above / about / below your usual” rather tha
 score. Existing Readiness training-load calculations remain unchanged. Recovery interaction is shown
 through Charge, HRV, resting HR and Rest rather than an invented combined-load total.
 
+### Training status — is it too much, too little, or about right?
+
+Source: `TrainingStatus.swift` (`TrainingStatusModel`), tests in `TrainingStatusTests.swift`. The ratio
+used throughout is the lane's own `LoadTrend.ratio`: the seven-day mean over the baseline mean (up to 28
+days). Polar calls the same construction Strain / Tolerance. The two lanes get a status by different
+rules, because the evidence behind them is different.
+
+**Cardio — Polar's Cardio Load Status, unchanged.** NOOP's cardio lane is the same construction as
+Polar's (seven-day vs 28-day mean of TRIMP-derived daily load, rest days as zeros), so Polar's published
+thresholds apply directly:
+
+| Ratio | Status |
+|---|---|
+| < 0.8 | Detraining — or **Recovering** when the ratio stood at ≥ 1.0 on at least half of the 14 days before (NOOP's rule; Polar distinguishes the two but does not publish how). A single day at 1.0 is ordinary steady training, so a week off after regular training reads as recovering and a second week as detraining |
+| 0.8 – < 1.0 | Maintaining |
+| 1.0 – 1.3 | Productive |
+| > 1.3 | Overreaching |
+
+**Strength — load, the lifts' response, and recovery.** No wearable publishes a validated strength
+status, and the ACWR literature contains no resistance-training study (2025 meta-analysis of 22
+studies; its authors also decline to call 0.8–1.3 reliably safe for the sports it does cover). So the
+ratio alone may not call a lifting block productive. Following Garmin's idea — "productive" needs load
+*and* an improving fitness marker — the strength status also asks whether the lifts are improving:
+
+- **Response.** Each lift trained in the last 42 days gets the exercise card's own e1RM line
+  (`StrengthProgress.e1rmTrend`, Theil–Sen over session bests) through the in-window sessions only. It
+  *rises* when the middle half of its pairwise slopes is entirely above zero, *falls* when entirely below,
+  and is *unclear* otherwise — a direction is claimed only when the sessions agree, with no added
+  threshold. Lifts with fewer than four estimable sessions in the window, and movements without an e1RM,
+  are left out. The block rises when at least a third of the evaluated lifts rise and more rise than fall
+  (falling likewise); fewer than two evaluable lifts is *unknown*.
+- **Recovery.** `ReadinessEngine.evaluate` for each of the last three nights, reading only HRV, resting HR
+  and respiratory rate (its load signal is itself a heart-rate ratio and would double-count the cardio
+  lane). A night is strained on one `.bad` or two `.watch` signals; recovery is *strained* on two such
+  nights, *unknown* with fewer than two nights of data, otherwise *holding*.
+
+| Band | rising | unclear | falling | unknown (fallback = Polar) |
+|---|---|---|---|---|
+| < 0.8 | Maintaining | Maintaining → Detraining after 21 days | Detraining | Maintaining → Detraining after 21 days |
+| 0.8 – < 1.0 | Productive | Maintaining | Detraining | Maintaining |
+| 1.0 – 1.3 | Productive | Maintaining | **Unproductive** | Productive |
+| > 1.3, recovery holding | Productive | Unproductive | Unproductive | Overreaching |
+| > 1.3, recovery strained or unknown | Overreaching | Overreaching | Overreaching | Overreaching |
+
+Below 0.8 after such a productive or overreaching phase (ratio ≥ 1.0 on at least half of the 14 days
+before) is **Recovering** whatever the lifts do (a deload). Without such a phase and without clearly
+falling lifts, strength stays **Maintaining** until the lane has been below 0.8 for 21 consecutive
+days: Bosquet et al. (2013, meta-analysis of training cessation) find maximal force significantly lower
+only from the third week of inactivity, so an earlier "detraining" would describe a loss the lifter has
+not yet had. Clearly falling lifts are detraining at once. Cardio keeps Polar's verdict (below 0.8 is
+detraining) — the lane is Polar's construction and its threshold was not derived for this rule. "Unclear"
+at the usual load is deliberately *Maintaining*, not *Unproductive*: an advanced lifter gaining a
+fraction of a per cent a week is progressing below what six weeks of e1RM can resolve.
+
+The session lane (sRPE × minutes) keeps its comparison with the usual level and gets no status; Polar
+gives Perceived Load none either.
+
+What the status is not: a measurement or an injury prediction. The thresholds are Polar's convention,
+the strength table and the recovering rule are NOOP's, and the screen names which inputs a verdict used
+(`LaneStatus.usedStrengthResponse`, `usedRecovery`) so a fallback to load alone is visible. Supporting
+evidence for the strength inputs: weekly set volume raises both hypertrophy and strength with
+diminishing returns, more pronounced for strength (Pelland et al., 67 studies); proximity to failure
+raises hypertrophy with the slope flattening past about 2 RIR but barely changes strength gains
+(Robinson et al. 2024) — which is why the load is effort-weighted sets but "productive" is judged on the
+lifts themselves.
+
+The screen also shows how many evaluated lifts rise, stay unclear or fall (each lift's own line stays
+on the Strength screen), how long a lane has been below 0.8 (`LaneStatus.daysBelowUsual`), and an eight-week
+strip (`TrainingStatusModel.weeklyHistory`) in which every week is recomputed as of its own last day —
+its load, its lifts' lines and its recovery nights — rather than today's inputs painted backwards.
+
+**Cardio development — VO₂max.** Garmin calls a training load "productive" only while VO₂max rises;
+`TrainingStatusModel.vo2maxResponse` is that marker, shown beside Polar's load status rather than
+changing it. It reads Apple Watch's measured Cardio Fitness when there are at least four readings in the
+last 56 days (it comes from real outdoor effort), otherwise NOOP's weekly `vo2max_est` (Nes 2011 with a
+waist, Uth 2004 without), each reading tagged with the estimator that produced it. The line is the same
+Theil–Sen estimator and agreement rule as a lift, drawn through the most recent segment only: readings
+from another source or estimator earlier in the window are left out and `segmentBreak` says so, because
+a change of method moves the number without any change in fitness. The screen shows the latest value,
+the direction with the change the line implies, a sparkline and the source.
+
+**Lasting overreaching — a warning, not a seventh state.** The ECSS/ACSM consensus (Meeusen et al.
+2013) separates functional overreaching (a planned hard block, recovered from in days, followed by
+better performance — what the ordinary *Overreaching* status means) from non-functional overreaching
+(a performance decrement taking weeks to months to recover from) and the overtraining syndrome, which
+it says can only be diagnosed clinically, over months and by excluding other causes, with no single
+marker qualifying. `TrainingStatusModel.sustainedOverreaching` therefore raises a warning only when a
+lane has been *Overreaching* at three consecutive week-ends of the history strip, that lane's
+performance is falling (lifts falling for strength; VO₂max falling for cardio) **and**
+recovery is strained now. A missing performance reading never raises it. The screen calls it "signs of
+lasting overreaching", recommends several easy or rest days, and says outright that it is not a
+diagnosis of overtraining and to see a doctor if performance and wellbeing stay down for weeks.
+
+**Considered and not adopted.**
+
+- *EWMA instead of rolling means* (Williams et al. 2017). EWMA-based ratios associate somewhat more
+  closely with health problems in team-sport data, but Polar's thresholds were set on rolling 7- and
+  28-day means. Swapping the averaging while keeping the thresholds would silently change what 1.3
+  means; the cardio lane stays Polar's construction.
+- *Uncoupled ratio* (acute week over the three weeks before it). Lolli et al. show the coupled ratio's
+  spurious correlation, but a systematic comparison found coupled and uncoupled ratios produce a similar
+  share of significant associations. Coupled is kept, again because it is the construction the
+  thresholds belong to.
+- *RIR-adjusted e1RM* (Epley on reps + reps in reserve). Attractive for sessions rated at different
+  RPEs, but Helms et al. (2016) present their RPE/%1RM table as conceptual, "not an absolute conversion
+  tool"; estimated reps to failure are off by more than two reps when a set ends 7–10 reps short, and
+  novices under-predict by four to five. `OneRepMax` also feeds records, the muscle map's intensity and
+  the coach, so the change would move figures app-wide on thin evidence. Epley stays.
+- *Weight-dependent 1RM equation* (arXiv 2603.17495, 2026; fitted on 303,494 near-failure app sets).
+  A preprint with no directly measured maxima in its data; not a basis for replacing a published
+  formula.
+
 **Analysis migration required: no.** These are read-time summaries and a new explicit log. No stored
-score, source precedence, aggregation used by existing analysis or invalidation rule changes.
+score, source precedence, aggregation used by existing analysis or invalidation rule changes. The status
+is a read-time label over figures the screen already shows; nothing is persisted.
 
 ---
 
