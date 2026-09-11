@@ -250,9 +250,20 @@ struct StrengthView: View {
                          value: volumeText(week.volumeLoadKg), tint: DomainTheme.effort.color)
                     bodyweightTile
                     strengthLoadTile
-                    cardioLoadTile
-                    chargeTile
+                    effortTile
                 }
+                // Charge sits OUTSIDE the grid, as a full-width strip.
+                //
+                // Seven tiles in a three-column grid leaves the seventh stranded beside two empty
+                // cells, which reads as a layout that ran out rather than one that was chosen.
+                // `gridCellColumns` is the obvious fix and does nothing here — it belongs to SwiftUI's
+                // `Grid`, not to `LazyVGrid`, so it compiles, changes nothing, and looks like it
+                // worked. Moving the tile out is what actually spans the row.
+                //
+                // Charge is the right one to move: it is the week's CONTEXT rather than another
+                // training-volume figure, so reading it as a footer under the six is also truer to
+                // what it is.
+                chargeStrip
             }
             if let progress = weekProgressText {
                 Label(progress, systemImage: "hourglass")
@@ -442,26 +453,60 @@ struct StrengthView: View {
     /// The week's cardiovascular Effort, stated beside the strength figure precisely so the two read as
     /// SEPARATE things. Lifting volume never becomes Effort, and a screen that showed only one number
     /// would invite exactly that conflation.
+    ///
+    /// It is called EFFORT, not "Cardio load", and that distinction was a real bug rather than a
+    /// wording preference. "Cardio load" on the Cardio screen is a PERCENTAGE against the wearer's own
+    /// recent level. This tile is a weekly Effort SUM — 208, on no such scale. Under one name they were
+    /// two different quantities in two different units, and moving between the screens showed
+    /// "Cardio load 208" and "Cardio load +18 %" as though something were broken. The Cardio
+    /// screen already calls this figure Effort; now both do.
     @ViewBuilder
-    private var cardioLoadTile: some View {
+    private var effortTile: some View {
         tile(icon: "heart.fill",
-             label: String(localized: "Cardio load"),
+             label: String(localized: "Effort"),
              value: weekEffort.map { String(format: "%.0f", $0) } ?? "—",
              tint: StrandPalette.effortColor,
-             caption: String(localized: "Effort"),
+             caption: String(localized: "this week"),
              info: .cardioLoad)
     }
 
     /// Mean Charge for the week, named as Charge. The mockup called this "Recovery Capacity"; a fourth
     /// word for a number the app already has would be one more thing to learn and nothing more to know.
     @ViewBuilder
-    private var chargeTile: some View {
-        tile(icon: "battery.100percent",
-             label: String(localized: "Charge"),
-             value: weekCharge.map { "\(Int($0.rounded()))" } ?? "—",
-             tint: StrandPalette.chargeColor,
-             caption: String(localized: "average"),
-             info: .charge)
+    /// The week's average Charge, as a full-width strip under the tile grid. One line rather than a
+    /// 112-point tile: a single number in a full-width card is mostly empty space.
+    private var chargeStrip: some View {
+        HStack(spacing: 10) {
+            ZStack {
+                Circle().fill(StrandPalette.chargeColor.opacity(0.13))
+                    .frame(width: 26, height: 26)
+                Image(systemName: "battery.100percent")
+                    .font(StrandFont.caption)
+                    .foregroundStyle(StrandPalette.chargeColor)
+            }
+            .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 1) {
+                Text("Charge").font(StrandFont.subhead)
+                    .foregroundStyle(StrandPalette.textSecondary)
+                Text("average").font(StrandFont.caption)
+                    .foregroundStyle(StrandPalette.textTertiary)
+            }
+            Spacer(minLength: 0)
+            Text(weekCharge.map { "\(Int($0.rounded()))" } ?? "—")
+                .font(StrandFont.number(24))
+                .foregroundStyle(StrandPalette.textPrimary)
+            Button { infoTopic = .charge } label: {
+                Image(systemName: "info.circle")
+                    .font(StrandFont.caption)
+                    .foregroundStyle(StrandPalette.textTertiary)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("About Charge")
+        }
+        .padding(NoopMetrics.space2)
+        .frame(maxWidth: .infinity)
+        .background(TodayCardSurface(tint: StrandPalette.chargeColor,
+                                     cornerRadius: NoopMetrics.groupedRadius))
     }
 
     // MARK: - Muscle groups
@@ -1130,22 +1175,28 @@ struct StrengthView: View {
 
     // MARK: - Actions
 
-    /// Three ways on, all into paths that already exist. The middle one names the muscle group that is
-    /// furthest below its own band — and is hidden entirely when there isn't one, because a question
-    /// about a problem nobody has is worse than no button.
+    /// Two ways on, both into paths that already exist.
+    ///
+    /// There was a third — "Why is <muscle> low?", naming whichever group sat furthest below its band.
+    /// It was removed, and it is worth saying why so it does not come back:
+    ///
+    ///   • It was a QUESTION where its neighbours were actions, so the row read as two buttons and a
+    ///     prompt.
+    ///   • It RENAMED ITSELF week to week, following whichever muscle happened to be low. A control
+    ///     whose label changes is one nobody can learn or look for.
+    ///   • It never fitted. A muscle name pushed the title past the third-of-a-row it had, so what
+    ///     actually shipped was "Why is quadriceps ni…" — an action nobody could read.
+    ///   • And it restated one row of the muscle-load card directly above it, where the same fact
+    ///     already sits WITH the context that makes it meaningful.
+    ///
+    /// Two cards also means each gets half the row instead of a third, which is what makes the titles
+    /// legible at all.
     private var actionRow: some View {
         HStack(spacing: 8) {
             actionButton(icon: "chart.bar.fill",
                          title: String(localized: "Analyse training"),
                          subtitle: String(localized: "your data in full")) {
                 showingAllSessions = true
-            }
-            if let laggard = groupBelowItsBand {
-                actionButton(icon: "questionmark.circle.fill",
-                             title: String(localized: "Why is \(laggard.label.lowercased()) low?"),
-                             subtitle: String(localized: "ask the coach")) {
-                    askCoach(about: laggard)
-                }
             }
             actionButton(icon: "list.bullet",
                          title: String(localized: "Adjust routine"),
@@ -1221,7 +1272,7 @@ struct StrengthView: View {
     private func infoTitle(_ topic: InfoTopic) -> String {
         switch topic {
         case .strengthLoad: return String(localized: "Strength load")
-        case .cardioLoad:   return String(localized: "Cardio load")
+        case .cardioLoad:   return String(localized: "Effort")
         case .charge:       return String(localized: "Charge")
         case .muscleBands:  return String(localized: "Working sets / your usual")
         case .balance:      return String(localized: "Balance")
@@ -1452,17 +1503,6 @@ struct StrengthView: View {
         }.joined(separator: ", ")
     }
 
-    /// The group furthest BELOW its own band, if any. Drives the middle action button.
-    private var groupBelowItsBand: HevyMuscleGroup? {
-        muscleRows
-            .compactMap { row -> (HevyMuscleGroup, Double)? in
-                guard let band = typicalBands[row.group], band.lowerBound > 0,
-                      Double(row.sets) < band.lowerBound else { return nil }
-                return (row.group, band.lowerBound - Double(row.sets))
-            }
-            .max { $0.1 < $1.1 }?.0
-    }
-
     /// The charted series: estimated 1RM where the movement defines one, session volume where it does
     /// not. A bodyweight row or a plank used to draw an empty chart under a "1RM" caption — the axis was
     /// blank because the estimate is undefined, which reads as missing data rather than as a movement
@@ -1612,15 +1652,6 @@ struct StrengthView: View {
                 String(localized: "Which muscle group am I neglecting?"),
                 String(localized: "How is my strength progressing?"),
             ])
-    }
-
-    private func askCoach(about group: HevyMuscleGroup) {
-        guard var context = coachContext else { return }
-        context = CoachCardContext(
-            title: String(localized: "Strength"),
-            summary: context.summary,
-            suggestions: [String(localized: "Why is my \(group.label.lowercased()) volume below my usual?")])
-        openCoach(with: context)
     }
 
     private func askCoachForRoutine() {
