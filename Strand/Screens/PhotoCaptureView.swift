@@ -50,9 +50,11 @@ struct PhotoCaptureView: UIViewControllerRepresentable {
         view.backgroundColor = .clear
         view.isUserInteractionEnabled = false
 
+        // Inside the camera's preview, not the screen — see `previewRect`.
+        let preview = previewRect(in: bounds)
         let inset = bounds.width * 0.18
-        let top = bounds.height * 0.14
-        let bottom = bounds.height * 0.80
+        let top = preview.minY + preview.height * 0.16   // leaves room above the head mark for the hint
+        let bottom = preview.maxY - preview.height * 0.04
         let frame = CGRect(x: inset, y: top, width: bounds.width - inset * 2, height: bottom - top)
 
         let outline = CAShapeLayer()
@@ -99,6 +101,18 @@ struct PhotoCaptureView: UIViewControllerRepresentable {
         view.addSubview(hint)
 
         return view
+    }
+
+    /// Where the system camera draws its 4:3 preview, in the overlay's own coordinates — which are the
+    /// picker's, not the screen's: SwiftUI lays the picker out inside the safe area, and the camera puts
+    /// a 32 pt control bar above the preview and the shutter below it. An outline laid out against the
+    /// full screen height put the feet mark in the black control area, outside the photo it was meant to
+    /// frame (seen on an iPhone 17 Pro under iOS 27: a 402 × 536 pt preview 32 pt below the picker's
+    /// top). The system does not publish this rect, so it is derived from the sensor's 4:3 aspect rather
+    /// than guessed as a fraction of the screen height.
+    private static func previewRect(in bounds: CGRect) -> CGRect {
+        let height = min(bounds.width * 4 / 3, bounds.height)
+        return CGRect(x: bounds.minX, y: 32, width: bounds.width, height: height)
     }
 
     final class Coordinator: NSObject, UIImagePickerControllerDelegate, UINavigationControllerDelegate {

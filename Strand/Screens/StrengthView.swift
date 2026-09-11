@@ -434,7 +434,10 @@ struct StrengthView: View {
     }
 
     private func signedPercent(_ value: Double) -> String {
-        "\(value >= 0 ? "+" : "−")\(Int(abs(value).rounded())) %"
+        let magnitude = Int(abs(value).rounded())
+        // A change that rounds to zero has no direction; "+0 %" or "−0 %" would imply one.
+        guard magnitude > 0 else { return "0 %" }
+        return "\(value > 0 ? "+" : "−")\(magnitude) %"
     }
 
     /// Neither direction is coloured as good. More than usual is what a build phase looks like and

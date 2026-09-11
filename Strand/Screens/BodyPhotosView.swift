@@ -77,9 +77,8 @@ struct BodyPhotosView: View {
             VStack(alignment: .leading, spacing: NoopMetrics.space2) {
                 Text("No \(pose.label.lowercased()) photos yet.")
                     .font(StrandFont.headline).foregroundStyle(StrandPalette.textPrimary)
-                Text(pose.guidance)
-                    .font(StrandFont.subhead).foregroundStyle(StrandPalette.textSecondary)
-                    .fixedSize(horizontal: false, vertical: true)
+                // The pose guidance is not repeated here: the capture card directly below carries it,
+                // next to the button it is guidance for.
             }
         }
     }

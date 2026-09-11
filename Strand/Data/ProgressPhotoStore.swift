@@ -32,7 +32,8 @@ enum PhotoPose: String, CaseIterable, Codable, Sendable, Identifiable {
         switch self {
         case .front: return String(localized: "Front")
         case .side:  return String(localized: "Side")
-        case .back:  return String(localized: "Back")
+        // Its own key: plain "Back" is the navigation button, translated as "Zurück", "Retour", "返回".
+        case .back:  return String(localized: "pose.back", defaultValue: "Back")
         }
     }
 

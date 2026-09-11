@@ -212,11 +212,13 @@ struct TrainingLoadView: View {
             SectionHeader("What each number means", overline: "Transparent by design")
             NoopCard {
                 VStack(alignment: .leading, spacing: NoopMetrics.space3) {
-                    methodRow("Strength", "Working sets weighted by proximity to failure. Tonnage remains a training statistic, not the load.")
+                    // The lane titles, not bare "Strength/Cardio/Session": the method rows explain the three
+                    // cards above and have to name them the same way in every language.
+                    methodRow("Strength load", "Working sets weighted by proximity to failure. Tonnage remains a training statistic, not the load.")
                     Divider().overlay(StrandPalette.hairline)
-                    methodRow("Cardio", "Session Effort from heart rate and intensity over time, derived from TRIMP.")
+                    methodRow("Cardio load", "Session Effort from heart rate and intensity over time, derived from TRIMP.")
                     Divider().overlay(StrandPalette.hairline)
-                    methodRow("Session", "Your whole-session RPE × duration. Add it from any workout detail; missing ratings are never guessed.")
+                    methodRow("Session load", "Your whole-session RPE × duration. Add it from any workout detail; missing ratings are never guessed.")
                 }
             }
         }
@@ -231,7 +233,10 @@ struct TrainingLoadView: View {
     }
 
     private func signedPercent(_ value: Double) -> String {
-        "\(value >= 0 ? "+" : "−")\(Int(abs(value).rounded())) %"
+        let magnitude = Int(abs(value).rounded())
+        // A change that rounds to zero has no direction; "+0 %" or "−0 %" would imply one.
+        guard magnitude > 0 else { return "0 %" }
+        return "\(value > 0 ? "+" : "−")\(magnitude) %"
     }
 
     private func comparisonText(_ value: Double) -> String {

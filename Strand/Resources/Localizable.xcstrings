@@ -320846,13 +320846,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "脖子"
+            "value" : "颈部"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "脖子"
+            "value" : "頸部"
           }
         }
       }
@@ -325060,13 +325060,13 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%lld Effort"
+            "value" : "%lld Belastung"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%lld Effort"
+            "value" : "%lld Esfuerzo"
           }
         },
         "fr" : {
@@ -325078,37 +325078,37 @@
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%lld Effort"
+            "value" : "%lld Sforzo"
           }
         },
         "pl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%lld Effort"
+            "value" : "%lld Wysiłek"
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%lld Effort"
+            "value" : "%lld Esforço"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%lld Effort"
+            "value" : "%lld Усилие"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%lld Effort"
+            "value" : "%lld 消耗"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%lld Effort"
+            "value" : "%lld 消耗"
           }
         }
       }
@@ -325234,13 +325234,13 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%lld von %lld Cardio-Einheiten haben Effort"
+            "value" : "%lld von %lld Cardio-Einheiten haben einen Belastungswert"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%lld de %lld sesiones de cardio tienen Effort"
+            "value" : "%lld de %lld sesiones de cardio tienen Esfuerzo"
           }
         },
         "fr" : {
@@ -325252,37 +325252,37 @@
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%lld sessioni cardio su %lld hanno Effort"
+            "value" : "%lld sessioni cardio su %lld hanno lo Sforzo"
           }
         },
         "pl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%lld z %lld sesji cardio ma wartość Effort"
+            "value" : "%lld z %lld sesji cardio ma wartość Wysiłek"
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%lld de %lld sessões de cardio têm Effort"
+            "value" : "%lld de %lld sessões de cardio têm Esforço"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%lld из %lld кардиосессий имеют Effort"
+            "value" : "%lld из %lld кардиосессий имеют Усилие"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%lld/%lld 次有氧训练有 Effort"
+            "value" : "%lld/%lld 次有氧训练有消耗值"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%lld/%lld 次有氧訓練有 Effort"
+            "value" : "%lld/%lld 次有氧訓練有消耗值"
           }
         }
       }
@@ -326598,7 +326598,7 @@
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Abdômen"
+            "value" : "Abdómen"
           }
         },
         "ru" : {
@@ -326800,13 +326800,13 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Über Charge"
+            "value" : "Über Energie"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Sobre Charge"
+            "value" : "Sobre la Carga"
           }
         },
         "fr" : {
@@ -326818,37 +326818,37 @@
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Informazioni su Charge"
+            "value" : "Informazioni sulla Carica"
           }
         },
         "pl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "O Charge"
+            "value" : "O Energii"
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Sobre a Charge"
+            "value" : "Sobre a Carga"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "О Charge"
+            "value" : "О Заряде"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "关于 Charge"
+            "value" : "关于能量"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "關於 Charge"
+            "value" : "關於能量"
           }
         }
       }
@@ -328436,37 +328436,37 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Bíceps (izquierda)"
+            "value" : "Bíceps (izquierdo)"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Biceps (à gauche)"
+            "value" : "Biceps (gauche)"
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Bicipiti (a sinistra)"
+            "value" : "Bicipite (sinistro)"
           }
         },
         "pl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Biceps (po lewej)"
+            "value" : "Biceps (lewy)"
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Bíceps (esquerda)"
+            "value" : "Bíceps (esquerdo)"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Бицепс (слева)"
+            "value" : "Бицепс (левый)"
           }
         },
         "zh-Hans" : {
@@ -328494,37 +328494,37 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Bíceps (derecha)"
+            "value" : "Bíceps (derecho)"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Biceps (à droite)"
+            "value" : "Biceps (droit)"
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Bicipiti (a destra)"
+            "value" : "Bicipite (destro)"
           }
         },
         "pl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Biceps (po prawej)"
+            "value" : "Biceps (prawy)"
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Bíceps (direita)"
+            "value" : "Bíceps (direito)"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Бицепс (справа)"
+            "value" : "Бицепс (правый)"
           }
         },
         "zh-Hans" : {
@@ -328894,7 +328894,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Kalb (links)"
+            "value" : "Wade (links)"
           }
         },
         "es" : {
@@ -328906,43 +328906,43 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Veau (à gauche)"
+            "value" : "Mollet (gauche)"
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Vitello (a sinistra)"
+            "value" : "Polpaccio (sinistro)"
           }
         },
         "pl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Łydka (po lewej)"
+            "value" : "Łydka (lewa)"
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Vitelo (esquerda)"
+            "value" : "Barriga da perna (esquerda)"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Теленок (слева)"
+            "value" : "Икра (левая)"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "小牛（左）"
+            "value" : "小腿（左）"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "小牛（左）"
+            "value" : "小腿（左）"
           }
         }
       }
@@ -328952,7 +328952,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Kalb (rechts)"
+            "value" : "Wade (rechts)"
           }
         },
         "es" : {
@@ -328964,43 +328964,43 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Veau (à droite)"
+            "value" : "Mollet (droit)"
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Vitello (a destra)"
+            "value" : "Polpaccio (destro)"
           }
         },
         "pl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Łydka (po prawej)"
+            "value" : "Łydka (prawa)"
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Vitelo (direita)"
+            "value" : "Barriga da perna (direita)"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Теленок (справа)"
+            "value" : "Икра (правая)"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "小牛（右）"
+            "value" : "小腿（右）"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "小牛（右）"
+            "value" : "小腿（右）"
           }
         }
       }
@@ -329474,13 +329474,13 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Charge liefert den Kontext"
+            "value" : "Energie liefert den Kontext"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Charge aporta el contexto"
+            "value" : "La Carga aporta el contexto"
           }
         },
         "fr" : {
@@ -329492,37 +329492,37 @@
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Charge aggiunge il contesto"
+            "value" : "La Carica aggiunge il contesto"
           }
         },
         "pl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Charge dodaje kontekst"
+            "value" : "Energia dodaje kontekst"
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Charge acrescenta o contexto"
+            "value" : "A Carga acrescenta o contexto"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Charge добавляет контекст"
+            "value" : "Заряд добавляет контекст"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Charge 提供恢复背景"
+            "value" : "能量提供恢复背景"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Charge 提供恢復背景"
+            "value" : "能量提供恢復背景"
           }
         }
       }
@@ -330530,13 +330530,13 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Effort im Zeitverlauf"
+            "value" : "Belastung im Zeitverlauf"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Effort a lo largo del tiempo"
+            "value" : "Esfuerzo a lo largo del tiempo"
           }
         },
         "fr" : {
@@ -330548,37 +330548,37 @@
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Effort nel tempo"
+            "value" : "Sforzo nel tempo"
           }
         },
         "pl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Effort w czasie"
+            "value" : "Wysiłek w czasie"
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Effort ao longo do tempo"
+            "value" : "Esforço ao longo do tempo"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Effort во времени"
+            "value" : "Усилие во времени"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Effort 趋势"
+            "value" : "消耗趋势"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Effort 趨勢"
+            "value" : "消耗趨勢"
           }
         }
       }
@@ -330588,13 +330588,13 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Effort im Zeitverlauf: Basis gegenüber zuletzt"
+            "value" : "Belastung im Zeitverlauf: Basis gegenüber zuletzt"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Effort a lo largo del tiempo: base frente a reciente"
+            "value" : "Esfuerzo a lo largo del tiempo: base frente a reciente"
           }
         },
         "fr" : {
@@ -330606,37 +330606,37 @@
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Effort nel tempo: base e periodo recente"
+            "value" : "Sforzo nel tempo: base e periodo recente"
           }
         },
         "pl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Effort w czasie: poziom bazowy i ostatni okres"
+            "value" : "Wysiłek w czasie: poziom bazowy i ostatni okres"
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Effort ao longo do tempo: base vs. recente"
+            "value" : "Esforço ao longo do tempo: base vs. recente"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Effort во времени: база и недавний период"
+            "value" : "Усилие во времени: база и недавний период"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Effort 趋势：基线与近期"
+            "value" : "消耗趋势：基线与近期"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Effort 趨勢：基準與近期"
+            "value" : "消耗趨勢：基準與近期"
           }
         }
       }
@@ -331348,7 +331348,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Antebrazo (izquierda)"
+            "value" : "Antebrazo (izquierdo)"
           }
         },
         "fr" : {
@@ -332514,7 +332514,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Les hanches"
+            "value" : "Hanches"
           }
         },
         "it" : {
@@ -332538,7 +332538,7 @@
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Бедра"
+            "value" : "Бёдра"
           }
         },
         "zh-Hans" : {
@@ -332850,13 +332850,13 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Wie viel Herz-Kreislauf-Arbeit die letzten 7 Tage im Vergleich zu deinem eigenen 28-Tage-Niveau verlangt haben. Es ist ein Prozentsatz, kein Score: +18 % bedeutet, dass die letzte Woche etwa ein Fünftel über deinem üblichen Niveau lag.\n\nDas Signal ist Effort, aus Herzfrequenz und Zeit in Intensitätszonen mittels TRIMP abgeleitet. Bewegungszeit bleibt getrennt, weil 60 lockere Minuten und 60 Minuten an der Schwelle gleich lang, aber kardiovaskulär sehr verschieden sind.\n\nRuhetage zählen als Null. Keine Richtung ist allein gut oder schlecht: Eine höhere Woche kann geplanter Aufbau oder zu viel sein. Charge und deine Einheitsbewertung liefern diesen Kontext. Die Anzeige bleibt leer, bis zwei Wochen Verlauf vorliegen."
+            "value" : "Wie viel Herz-Kreislauf-Arbeit die letzten 7 Tage im Vergleich zu deinem eigenen 28-Tage-Niveau verlangt haben. Es ist ein Prozentsatz, kein Score: +18 % bedeutet, dass die letzte Woche etwa ein Fünftel über deinem üblichen Niveau lag.\n\nDas Signal ist die Belastung, aus Herzfrequenz und Zeit in Intensitätszonen mittels TRIMP abgeleitet. Bewegungszeit bleibt getrennt, weil 60 lockere Minuten und 60 Minuten an der Schwelle gleich lang, aber kardiovaskulär sehr verschieden sind.\n\nRuhetage zählen als Null. Keine Richtung ist allein gut oder schlecht: Eine höhere Woche kann geplanter Aufbau oder zu viel sein. Energie und deine Einheitsbewertung liefern diesen Kontext. Die Anzeige bleibt leer, bis zwei Wochen Verlauf vorliegen."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Cuánto trabajo cardiovascular te exigieron los últimos 7 días frente a tu propio nivel de 28 días. Es un porcentaje, no una puntuación: +18 % significa que la última semana estuvo aproximadamente una quinta parte por encima de lo habitual.\n\nLa señal es Effort, derivada de la frecuencia cardíaca y el tiempo en zonas de intensidad mediante TRIMP. El tiempo en movimiento queda aparte porque 60 minutos suaves y 60 al umbral duran lo mismo, pero su carga cardiovascular es muy distinta.\n\nLos días de descanso cuentan como cero. Ninguna dirección es buena o mala por sí sola: una semana alta puede ser una progresión planificada o demasiado. Charge y tu valoración de la sesión aportan ese contexto. La cifra queda vacía hasta disponer de dos semanas de historial."
+            "value" : "Cuánto trabajo cardiovascular te exigieron los últimos 7 días frente a tu propio nivel de 28 días. Es un porcentaje, no una puntuación: +18 % significa que la última semana estuvo aproximadamente una quinta parte por encima de lo habitual.\n\nLa señal es el Esfuerzo, derivado de la frecuencia cardíaca y el tiempo en zonas de intensidad mediante TRIMP. El tiempo en movimiento queda aparte porque 60 minutos suaves y 60 al umbral duran lo mismo, pero su carga cardiovascular es muy distinta.\n\nLos días de descanso cuentan como cero. Ninguna dirección es buena o mala por sí sola: una semana alta puede ser una progresión planificada o demasiado. La Carga y tu valoración de la sesión aportan ese contexto. La cifra queda vacía hasta disponer de dos semanas de historial."
           }
         },
         "fr" : {
@@ -332868,37 +332868,37 @@
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Quanto lavoro cardiovascolare hanno richiesto gli ultimi 7 giorni rispetto al tuo livello di 28 giorni. È una percentuale, non un punteggio: +18 % indica che l'ultima settimana è stata circa un quinto sopra il solito.\n\nIl segnale è Effort, derivato dalla frequenza cardiaca e dal tempo nelle zone di intensità tramite TRIMP. Il tempo in movimento resta separato perché 60 minuti facili e 60 alla soglia durano uguale ma hanno carichi cardio molto diversi.\n\nI giorni di riposo valgono zero. Nessuna direzione è buona o cattiva da sola: una settimana alta può essere una crescita programmata o troppo. Charge e la valutazione della sessione danno il contesto. Il valore resta vuoto finché non ci sono due settimane di dati."
+            "value" : "Quanto lavoro cardiovascolare hanno richiesto gli ultimi 7 giorni rispetto al tuo livello di 28 giorni. È una percentuale, non un punteggio: +18 % indica che l'ultima settimana è stata circa un quinto sopra il solito.\n\nIl segnale è lo Sforzo, derivato dalla frequenza cardiaca e dal tempo nelle zone di intensità tramite TRIMP. Il tempo in movimento resta separato perché 60 minuti facili e 60 alla soglia durano uguale ma hanno carichi cardio molto diversi.\n\nI giorni di riposo valgono zero. Nessuna direzione è buona o cattiva da sola: una settimana alta può essere una crescita programmata o troppo. La Carica e la valutazione della sessione danno il contesto. Il valore resta vuoto finché non ci sono due settimane di dati."
           }
         },
         "pl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Ile pracy układu krążenia wymagało ostatnie 7 dni względem własnego poziomu z 28 dni. To procent, nie wynik: +18 % oznacza, że ostatni tydzień był mniej więcej o jedną piątą powyżej zwykłego poziomu.\n\nSygnałem jest Effort, wyliczony z tętna i czasu w strefach intensywności metodą TRIMP. Czas ruchu pozostaje osobno, bo 60 łatwych minut i 60 minut progowych trwa tyle samo, lecz stanowi zupełnie inne obciążenie cardio.\n\nDni odpoczynku liczą się jako zero. Żaden kierunek sam w sobie nie jest dobry ani zły: wyższy tydzień może być planowaną progresją albo przesadą. Charge i ocena sesji dają kontekst. Wartość pozostaje pusta do zebrania dwóch tygodni historii."
+            "value" : "Ile pracy układu krążenia wymagało ostatnie 7 dni względem własnego poziomu z 28 dni. To procent, nie wynik: +18 % oznacza, że ostatni tydzień był mniej więcej o jedną piątą powyżej zwykłego poziomu.\n\nSygnałem jest Wysiłek, wyliczony z tętna i czasu w strefach intensywności metodą TRIMP. Czas ruchu pozostaje osobno, bo 60 łatwych minut i 60 minut progowych trwa tyle samo, lecz stanowi zupełnie inne obciążenie cardio.\n\nDni odpoczynku liczą się jako zero. Żaden kierunek sam w sobie nie jest dobry ani zły: wyższy tydzień może być planowaną progresją albo przesadą. Energia i ocena sesji dają kontekst. Wartość pozostaje pusta do zebrania dwóch tygodni historii."
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Quanto trabalho cardiovascular os últimos 7 dias exigiram, comparado com o teu nível de 28 dias. É uma percentagem, não uma pontuação: +18 % significa que a última semana ficou cerca de um quinto acima do habitual.\n\nO sinal é Effort, derivado da frequência cardíaca e do tempo em zonas de intensidade através do TRIMP. O tempo em movimento fica separado porque 60 minutos leves e 60 minutos no limiar duram o mesmo, mas têm cargas cardiovasculares muito diferentes.\n\nOs dias de descanso contam como zero. Nenhuma direção é boa ou má por si só: uma semana alta pode ser uma progressão planeada ou excesso. Charge e a tua avaliação da sessão dão esse contexto. A indicação fica vazia até existirem duas semanas de histórico."
+            "value" : "Quanto trabalho cardiovascular os últimos 7 dias exigiram, comparado com o teu nível de 28 dias. É uma percentagem, não uma pontuação: +18 % significa que a última semana ficou cerca de um quinto acima do habitual.\n\nO sinal é o Esforço, derivado da frequência cardíaca e do tempo em zonas de intensidade através do TRIMP. O tempo em movimento fica separado porque 60 minutos leves e 60 minutos no limiar duram o mesmo, mas têm cargas cardiovasculares muito diferentes.\n\nOs dias de descanso contam como zero. Nenhuma direção é boa ou má por si só: uma semana alta pode ser uma progressão planeada ou excesso. A Carga e a tua avaliação da sessão dão esse contexto. A indicação fica vazia até existirem duas semanas de histórico."
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Какой объём сердечно-сосудистой работы потребовали последние 7 дней относительно вашего уровня за 28 дней. Это процент, а не балл: +18 % означает примерно на пятую часть выше обычного.\n\nОснова — Effort, рассчитанный по ЧСС и времени в зонах интенсивности через TRIMP. Время движения показано отдельно: 60 лёгких минут и 60 минут на пороге одинаковы по длительности, но очень различны по кардионагрузке.\n\nДни отдыха считаются нулями. Направление само по себе не хорошее и не плохое: высокий показатель может означать плановый рост или перебор. Контекст дают Charge и оценка сессии. Значение не показывается до двух недель истории."
+            "value" : "Какой объём сердечно-сосудистой работы потребовали последние 7 дней относительно вашего уровня за 28 дней. Это процент, а не балл: +18 % означает примерно на пятую часть выше обычного.\n\nОснова — Усилие, рассчитанное по ЧСС и времени в зонах интенсивности через TRIMP. Время движения показано отдельно: 60 лёгких минут и 60 минут на пороге одинаковы по длительности, но очень различны по кардионагрузке.\n\nДни отдыха считаются нулями. Направление само по себе не хорошее и не плохое: высокий показатель может означать плановый рост или перебор. Контекст дают Заряд и оценка сессии. Значение не показывается до двух недель истории."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "过去 7 天的心血管工作量相对于你自己的 28 天水平。它是百分比，不是分数：+18 % 表示最近一周比平时高约五分之一。\n\n基础信号是 Effort，由心率和强度区间时长通过 TRIMP 得出。运动时长单独显示，因为 60 分钟轻松训练与 60 分钟阈值训练时长相同，但心血管负荷差异很大。\n\n休息日计为零。升高或降低本身并无好坏：较高的一周可能是计划中的提升，也可能过量。Charge 和整场评分提供背景。积累两周历史前不显示比较。"
+            "value" : "过去 7 天的心血管工作量相对于你自己的 28 天水平。它是百分比，不是分数：+18 % 表示最近一周比平时高约五分之一。\n\n基础信号是消耗，由心率和强度区间时长通过 TRIMP 得出。运动时长单独显示，因为 60 分钟轻松训练与 60 分钟阈值训练时长相同，但心血管负荷差异很大。\n\n休息日计为零。升高或降低本身并无好坏：较高的一周可能是计划中的提升，也可能过量。能量和整场评分提供背景。积累两周历史前不显示比较。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "過去 7 天的心血管工作量相對於你自己的 28 天水準。它是百分比，不是分數：+18 % 表示最近一週比平時高約五分之一。\n\n基礎訊號是 Effort，由心率和強度區間時長透過 TRIMP 得出。運動時長單獨顯示，因為 60 分鐘輕鬆訓練與 60 分鐘閾值訓練時長相同，但心血管負荷差異很大。\n\n休息日計為零。升高或降低本身並無好壞：較高的一週可能是計畫中的提升，也可能過量。Charge 和整場評分提供背景。累積兩週歷史前不顯示比較。"
+            "value" : "過去 7 天的心血管工作量相對於你自己的 28 天水準。它是百分比，不是分數：+18 % 表示最近一週比平時高約五分之一。\n\n基礎訊號是消耗，由心率和強度區間時長透過 TRIMP 得出。運動時長單獨顯示，因為 60 分鐘輕鬆訓練與 60 分鐘閾值訓練時長相同，但心血管負荷差異很大。\n\n休息日計為零。升高或降低本身並無好壞：較高的一週可能是計畫中的提升，也可能過量。能量和整場評分提供背景。累積兩週歷史前不顯示比較。"
           }
         }
       }
@@ -332908,13 +332908,13 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Wie viel Krafttraining diese Woche im Vergleich zu deinem eigenen Niveau der letzten vier Wochen verlangt hat. Es ist ein Prozentsatz, kein Score: +18 % bedeutet etwa ein Fünftel über deinem üblichen Niveau.\n\nGrundlage sind ARBEITSSÄTZE, gewichtet nach Nähe zum Muskelversagen – dieselbe Gewichtung wie in der Muskelkarte. Zehn lockere Sätze sind nicht zehn harte.\n\nBewusst keine Tonnage: Sätze × Wiederholungen × Kilo bewertet 4 × 10 mit 100 kg höher als 5 × 3 mit 180 kg, obwohl die Dreier schwerer, näher am Limit und erholungsintensiver sein können. Tonnage bleibt daher eine Statistik.\n\nKeine Richtung ist allein gut oder schlecht. Mehr als üblich kann Aufbau oder Überlastung sein; die Last allein unterscheidet das nicht. Charge liefert den Kontext."
+            "value" : "Wie viel Krafttraining diese Woche im Vergleich zu deinem eigenen Niveau der letzten vier Wochen verlangt hat. Es ist ein Prozentsatz, kein Score: +18 % bedeutet etwa ein Fünftel über deinem üblichen Niveau.\n\nGrundlage sind ARBEITSSÄTZE, gewichtet nach Nähe zum Muskelversagen – dieselbe Gewichtung wie in der Muskelkarte. Zehn lockere Sätze sind nicht zehn harte.\n\nBewusst keine Tonnage: Sätze × Wiederholungen × Kilo bewertet 4 × 10 mit 100 kg höher als 5 × 3 mit 180 kg, obwohl die Dreier schwerer, näher am Limit und erholungsintensiver sein können. Tonnage bleibt daher eine Statistik.\n\nKeine Richtung ist allein gut oder schlecht. Mehr als üblich kann Aufbau oder Überlastung sein; die Last allein unterscheidet das nicht. Energie liefert den Kontext."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Cuánto te exigió el entrenamiento de fuerza esta semana frente a tu nivel de las cuatro anteriores. Es un porcentaje, no una puntuación: +18 % significa aproximadamente una quinta parte por encima de lo habitual.\n\nLa base son las SERIES EFECTIVAS, ponderadas por proximidad al fallo, igual que en el mapa muscular. Diez series suaves no son diez series duras.\n\nNo usa tonelaje: series × repeticiones × kilos coloca 4 × 10 con 100 kg por encima de 5 × 3 con 180 kg, aunque los triples pueden ser más duros y costar más recuperación. El tonelaje queda como estadística.\n\nNinguna dirección es buena o mala por sí sola. Más de lo habitual puede ser una progresión o un exceso; la carga no lo distingue. Charge aporta el contexto."
+            "value" : "Cuánto te exigió el entrenamiento de fuerza esta semana frente a tu nivel de las cuatro anteriores. Es un porcentaje, no una puntuación: +18 % significa aproximadamente una quinta parte por encima de lo habitual.\n\nLa base son las SERIES EFECTIVAS, ponderadas por proximidad al fallo, igual que en el mapa muscular. Diez series suaves no son diez series duras.\n\nNo usa tonelaje: series × repeticiones × kilos coloca 4 × 10 con 100 kg por encima de 5 × 3 con 180 kg, aunque los triples pueden ser más duros y costar más recuperación. El tonelaje queda como estadística.\n\nNinguna dirección es buena o mala por sí sola. Más de lo habitual puede ser una progresión o un exceso; la carga no lo distingue. La Carga aporta el contexto."
           }
         },
         "fr" : {
@@ -332926,37 +332926,37 @@
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Quanto ha richiesto il lavoro di forza questa settimana rispetto al tuo livello delle quattro settimane precedenti. È una percentuale, non un punteggio: +18 % significa circa un quinto sopra il solito.\n\nLa base sono le SERIE ALLENANTI, ponderate per vicinanza al cedimento, come nella mappa muscolare. Dieci serie facili non sono dieci serie dure.\n\nNon usa il tonnellaggio: serie × ripetizioni × chili mette 4 × 10 con 100 kg sopra 5 × 3 con 180 kg, anche se le triple possono essere più dure e richiedere più recupero. Il tonnellaggio resta una statistica.\n\nNessuna direzione è buona o cattiva da sola. Più del solito può essere crescita programmata o eccesso; il carico non li distingue. Charge aggiunge il contesto."
+            "value" : "Quanto ha richiesto il lavoro di forza questa settimana rispetto al tuo livello delle quattro settimane precedenti. È una percentuale, non un punteggio: +18 % significa circa un quinto sopra il solito.\n\nLa base sono le SERIE ALLENANTI, ponderate per vicinanza al cedimento, come nella mappa muscolare. Dieci serie facili non sono dieci serie dure.\n\nNon usa il tonnellaggio: serie × ripetizioni × chili mette 4 × 10 con 100 kg sopra 5 × 3 con 180 kg, anche se le triple possono essere più dure e richiedere più recupero. Il tonnellaggio resta una statistica.\n\nNessuna direzione è buona o cattiva da sola. Più del solito può essere crescita programmata o eccesso; il carico non li distingue. La Carica aggiunge il contesto."
           }
         },
         "pl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Ile trening siłowy wymagał w tym tygodniu względem własnego poziomu z czterech poprzednich tygodni. To procent, nie wynik: +18 % oznacza około jedną piątą powyżej zwykłego poziomu.\n\nPodstawą są SERIE ROBOCZE ważone bliskością upadku mięśniowego — tak samo jak na mapie mięśni. Dziesięć łatwych serii to nie dziesięć ciężkich.\n\nCelowo nie używa tonażu: serie × powtórzenia × kilogramy stawiają 4 × 10 ze 100 kg ponad 5 × 3 ze 180 kg, choć trójki mogą być cięższe i wymagać większej regeneracji. Tonaż pozostaje statystyką.\n\nŻaden kierunek sam w sobie nie jest dobry ani zły. Więcej niż zwykle może oznaczać progresję albo przeciążenie; sam wskaźnik tego nie rozróżnia. Charge daje kontekst."
+            "value" : "Ile trening siłowy wymagał w tym tygodniu względem własnego poziomu z czterech poprzednich tygodni. To procent, nie wynik: +18 % oznacza około jedną piątą powyżej zwykłego poziomu.\n\nPodstawą są SERIE ROBOCZE ważone bliskością upadku mięśniowego — tak samo jak na mapie mięśni. Dziesięć łatwych serii to nie dziesięć ciężkich.\n\nCelowo nie używa tonażu: serie × powtórzenia × kilogramy stawiają 4 × 10 ze 100 kg ponad 5 × 3 ze 180 kg, choć trójki mogą być cięższe i wymagać większej regeneracji. Tonaż pozostaje statystyką.\n\nŻaden kierunek sam w sobie nie jest dobry ani zły. Więcej niż zwykle może oznaczać progresję albo przeciążenie; sam wskaźnik tego nie rozróżnia. Energia daje kontekst."
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Quanto o treino de força exigiu esta semana, comparado com o teu nível das últimas quatro semanas. É uma percentagem, não uma pontuação: +18 % significa cerca de um quinto acima do habitual.\n\nA base são as SÉRIES EFETIVAS, ponderadas pela proximidade à falha, como no mapa muscular. Dez séries leves não equivalem a dez séries exigentes.\n\nNão usa tonelagem de propósito: séries × repetições × quilos coloca 4 × 10 com 100 kg acima de 5 × 3 com 180 kg, embora os triplos possam ser mais difíceis e exigir mais recuperação. A tonelagem fica como estatística.\n\nNenhuma direção é boa ou má por si só. Mais do que o habitual pode ser progressão ou excesso; a carga sozinha não distingue. Charge dá o contexto."
+            "value" : "Quanto o treino de força exigiu esta semana, comparado com o teu nível das últimas quatro semanas. É uma percentagem, não uma pontuação: +18 % significa cerca de um quinto acima do habitual.\n\nA base são as SÉRIES EFETIVAS, ponderadas pela proximidade à falha, como no mapa muscular. Dez séries leves não equivalem a dez séries exigentes.\n\nNão usa tonelagem de propósito: séries × repetições × quilos coloca 4 × 10 com 100 kg acima de 5 × 3 com 180 kg, embora os triplos possam ser mais difíceis e exigir mais recuperação. A tonelagem fica como estatística.\n\nNenhuma direção é boa ou má por si só. Mais do que o habitual pode ser progressão ou excesso; a carga sozinha não distingue. A Carga dá o contexto."
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Какой силовой нагрузки потребовала эта неделя относительно вашего уровня за четыре предыдущие недели. Это процент, а не балл: +18 % означает примерно на пятую часть выше обычного.\n\nОснова — РАБОЧИЕ ПОДХОДЫ с весом по близости к отказу, тем же, что на карте мышц. Десять лёгких подходов не равны десяти тяжёлым.\n\nТоннаж намеренно не используется: подходы × повторы × килограммы ставят 4 × 10 со 100 кг выше 5 × 3 со 180 кг, хотя тройки могут быть тяжелее и требовать больше восстановления. Тоннаж остаётся статистикой.\n\nНаправление само по себе не хорошее и не плохое. Выше обычного может быть плановым ростом или перегрузкой; нагрузка этого не различает. Контекст даёт Charge."
+            "value" : "Какой силовой нагрузки потребовала эта неделя относительно вашего уровня за четыре предыдущие недели. Это процент, а не балл: +18 % означает примерно на пятую часть выше обычного.\n\nОснова — РАБОЧИЕ ПОДХОДЫ с весом по близости к отказу, тем же, что на карте мышц. Десять лёгких подходов не равны десяти тяжёлым.\n\nТоннаж намеренно не используется: подходы × повторы × килограммы ставят 4 × 10 со 100 кг выше 5 × 3 со 180 кг, хотя тройки могут быть тяжелее и требовать больше восстановления. Тоннаж остаётся статистикой.\n\nНаправление само по себе не хорошее и не плохое. Выше обычного может быть плановым ростом или перегрузкой; нагрузка этого не различает. Контекст даёт Заряд."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "本周力量训练需求相对于你过去四周的水平。它是百分比，不是分数：+18 % 表示本周比平时高约五分之一。\n\n基础是工作组，并按每组接近力竭的程度加权，与肌肉图使用相同规则。十组轻松训练不等于十组高强度训练。\n\n它刻意不采用总吨位。组数 × 次数 × 重量会把 100 kg 的 4 × 10 排在 180 kg 的 5 × 3 之上，但后者可能更重、更接近极限且恢复成本更高。因此总吨位仅作为统计。\n\n升高或降低本身并无好坏。高于平时可能是计划中的提升，也可能是过度训练；仅靠负荷无法区分，Charge 可提供背景。"
+            "value" : "本周力量训练需求相对于你过去四周的水平。它是百分比，不是分数：+18 % 表示本周比平时高约五分之一。\n\n基础是工作组，并按每组接近力竭的程度加权，与肌肉图使用相同规则。十组轻松训练不等于十组高强度训练。\n\n它刻意不采用总吨位。组数 × 次数 × 重量会把 100 kg 的 4 × 10 排在 180 kg 的 5 × 3 之上，但后者可能更重、更接近极限且恢复成本更高。因此总吨位仅作为统计。\n\n升高或降低本身并无好坏。高于平时可能是计划中的提升，也可能是过度训练；仅靠负荷无法区分，能量可提供背景。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "本週力量訓練需求相對於你過去四週的水準。它是百分比，不是分數：+18 % 表示本週比平時高約五分之一。\n\n基礎是工作組，並按每組接近力竭的程度加權，與肌肉圖使用相同規則。十組輕鬆訓練不等於十組高強度訓練。\n\n它刻意不採用總噸位。組數 × 次數 × 重量會把 100 kg 的 4 × 10 排在 180 kg 的 5 × 3 之上，但後者可能更重、更接近極限且恢復成本更高。因此總噸位僅作為統計。\n\n升高或降低本身並無好壞。高於平時可能是計畫中的提升，也可能是過度訓練；僅靠負荷無法區分，Charge 可提供背景。"
+            "value" : "本週力量訓練需求相對於你過去四週的水準。它是百分比，不是分數：+18 % 表示本週比平時高約五分之一。\n\n基礎是工作組，並按每組接近力竭的程度加權，與肌肉圖使用相同規則。十組輕鬆訓練不等於十組高強度訓練。\n\n它刻意不採用總噸位。組數 × 次數 × 重量會把 100 kg 的 4 × 10 排在 180 kg 的 5 × 3 之上，但後者可能更重、更接近極限且恢復成本更高。因此總噸位僅作為統計。\n\n升高或降低本身並無好壞。高於平時可能是計畫中的提升，也可能是過度訓練；僅靠負荷無法區分，能量可提供背景。"
           }
         }
       }
@@ -337862,13 +337862,13 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Einheits-Effort aus Herzfrequenz und Intensität im Zeitverlauf, abgeleitet aus TRIMP."
+            "value" : "Belastung der Einheit aus Herzfrequenz und Intensität im Zeitverlauf, abgeleitet aus TRIMP."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Effort de la sesión según la frecuencia cardíaca y la intensidad a lo largo del tiempo, derivado de TRIMP."
+            "value" : "Esfuerzo de la sesión según la frecuencia cardíaca y la intensidad a lo largo del tiempo, derivado de TRIMP."
           }
         },
         "fr" : {
@@ -337880,37 +337880,37 @@
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Effort della sessione da frequenza cardiaca e intensità nel tempo, derivato dal TRIMP."
+            "value" : "Sforzo della sessione da frequenza cardiaca e intensità nel tempo, derivato dal TRIMP."
           }
         },
         "pl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Effort sesji z tętna i intensywności w czasie, wyprowadzony z TRIMP."
+            "value" : "Wysiłek sesji z tętna i intensywności w czasie, wyprowadzony z TRIMP."
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Effort da sessão com base na frequência cardíaca e intensidade ao longo do tempo, derivado do TRIMP."
+            "value" : "Esforço da sessão com base na frequência cardíaca e intensidade ao longo do tempo, derivado do TRIMP."
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Effort сессии по ЧСС и интенсивности во времени, рассчитанный на основе TRIMP."
+            "value" : "Усилие сессии по ЧСС и интенсивности во времени, рассчитанное на основе TRIMP."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "根据心率和随时间变化的强度得出的训练 Effort，基于 TRIMP。"
+            "value" : "根据心率和随时间变化的强度得出的训练消耗，基于 TRIMP。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "根據心率和隨時間變化的強度得出的訓練 Effort，基於 TRIMP。"
+            "value" : "根據心率和隨時間變化的強度得出的訓練消耗，基於 TRIMP。"
           }
         }
       }
@@ -337984,7 +337984,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Espalda"
+            "value" : "Hombros"
           }
         },
         "fr" : {
@@ -338002,7 +338002,7 @@
         "pl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Plecy"
+            "value" : "Barki"
           }
         },
         "pt-PT" : {
@@ -339028,7 +339028,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Muslo (izquierda)"
+            "value" : "Muslo (izquierdo)"
           }
         },
         "fr" : {
@@ -339046,7 +339046,7 @@
         "pl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Udo (po lewej)"
+            "value" : "Udo (lewe)"
           }
         },
         "pt-PT" : {
@@ -339104,7 +339104,7 @@
         "pl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Udo (po prawej)"
+            "value" : "Udo (prawe)"
           }
         },
         "pt-PT" : {
@@ -340188,7 +340188,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "circunferencia de la cintura"
+            "value" : "Circunferencia de la cintura"
           }
         },
         "fr" : {
@@ -343073,6 +343073,70 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "最常見的原因是戒指未在 Oura App 中完全重設，或 Oura App 仍在執行。請再次重設戒指，強制結束 Oura，然後重試。如果仍然失敗，你的戒指可能屬於 NOOP 暫時無法接管的世代。戒指並未損壞：在 Oura App 中重新配對即可復原。你仍可使用檔案匯入。"
+          }
+        }
+      }
+    },
+    "pose.back" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hinten"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Back"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Espalda"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dos"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Schiena"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tył"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Costas"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Сзади"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "背面"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "背面"
           }
         }
       }

@@ -485,7 +485,7 @@ enum AppleDemoSeeder {
                 // figure excludes.
                 if index == 0, let base {
                     sets.append(HevySet(index: setIndex, type: .warmup,
-                                        weightKg: round1(base * 0.55), reps: 8,
+                                        weightKg: plate(base * 0.55), reps: 8,
                                         distanceM: nil, durationS: nil, rpe: nil, customMetric: nil))
                     setIndex += 1
                 }
@@ -506,7 +506,7 @@ enum AppleDemoSeeder {
                         // (1–3, 4–6, 7–12) something to fill on both ends.
                         let reps = volumeDays.contains(weekday) ? 8 + rng.nextInt(0, 5)
                                                                 : 3 + rng.nextInt(0, 3)
-                        let weight = round1(base * (1 - Double(setNumber) * 0.025) + gauss(&rng, 0, 1.2))
+                        let weight = plate(base * (1 - Double(setNumber) * 0.025) + gauss(&rng, 0, 1.2))
                         sets.append(HevySet(index: setIndex, type: setNumber == workingSets - 1 && rng.nextDouble() < 0.15 ? .failure : .normal,
                                             weightKg: weight, reps: reps,
                                             distanceM: nil, durationS: nil, rpe: rpe, customMetric: nil))
@@ -594,6 +594,14 @@ enum AppleDemoSeeder {
     // MARK: - helpers
 
     private static func round1(_ x: Double) -> Double { (x * 10).rounded() / 10 }
+
+    /// A weight someone could actually load: 2.5 kg steps on a bar or stack, 1 kg on light dumbbells.
+    /// The slow progression above moves in fractions of a kilo, and "119.6 kg × 8" on a session screen
+    /// reads as generated data rather than a training log.
+    private static func plate(_ x: Double) -> Double {
+        let step = x >= 20 ? 2.5 : 1.0
+        return (x / step).rounded() * step
+    }
     private static func round2(_ x: Double) -> Double { (x * 100).rounded() / 100 }
 
     /// Box–Muller normal sample, matching DemoSeeder.gauss exactly.
