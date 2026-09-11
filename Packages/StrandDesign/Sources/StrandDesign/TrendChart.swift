@@ -85,6 +85,15 @@ public struct TrendChart: View {
     /// "5:00, 6:40, 8:20" is immediately legible.
     public var yAxisLabel: ((Double) -> String)?
 
+    /// A colour per `TrendPoint.segment`, for charts that draw SEVERAL series at once.
+    ///
+    /// nil (the default) keeps the value gradient for every line, so every existing caller is
+    /// unchanged. It exists because segments already split a chart into separate lines but left them
+    /// all the same colour — fine when the segments are one metric's incompatible methods, useless
+    /// when they are three different measurements, where the reader cannot tell which line is which.
+    /// A segment with no entry here falls back to the gradient.
+    public var segmentColors: [String: Color]?
+
     /// Mean of all point values, computed once in `init` so the area fill's gradient
     /// stop doesn't run an O(n) reduce for every mark on every render.
     private let averageValue: Double
@@ -107,9 +116,11 @@ public struct TrendChart: View {
         yDomain: ClosedRange<Double>? = nil,
         overlayPoints: [TrendPoint] = [],
         overlayColor: Color = StrandPalette.textSecondary,
-        yAxisLabel: ((Double) -> String)? = nil
+        yAxisLabel: ((Double) -> String)? = nil,
+        segmentColors: [String: Color]? = nil
     ) {
         self.yAxisLabel = yAxisLabel
+        self.segmentColors = segmentColors
         let sorted = points.sorted { $0.date < $1.date }
         self.overlayPoints = overlayPoints.sorted { $0.date < $1.date }
         self.overlayColor = overlayColor
@@ -204,6 +215,13 @@ public struct TrendChart: View {
     }
 
     // A vertical gradient keyed to the value axis so the stroke color tracks value.
+    /// This segment's stroke: its own colour when the caller named one, the value gradient otherwise.
+    /// Returning `AnyShapeStyle` keeps both branches assignable to one `foregroundStyle`.
+    private func color(for segment: String) -> AnyShapeStyle {
+        if let color = segmentColors?[segment] { return AnyShapeStyle(color) }
+        return AnyShapeStyle(valueGradient)
+    }
+
     private var valueGradient: LinearGradient {
         LinearGradient(gradient: gradient, startPoint: .bottom, endPoint: .top)
     }
@@ -250,7 +268,9 @@ public struct TrendChart: View {
                         .foregroundStyle(
                             LinearGradient(
                                 colors: [
-                                    StrandPalette.sample(stops: gradient.toStops(), at: unit(averageValue)).opacity(0.28),
+                                    (segmentColors?[p.segment]
+                                     ?? StrandPalette.sample(stops: gradient.toStops(),
+                                                             at: unit(averageValue))).opacity(0.28),
                                     Color.clear
                                 ],
                                 startPoint: .top, endPoint: .bottom
@@ -266,7 +286,7 @@ public struct TrendChart: View {
                     )
                     .interpolationMethod(.catmullRom)
                     .lineStyle(StrokeStyle(lineWidth: 2.5, lineCap: .round, lineJoin: .round))
-                    .foregroundStyle(valueGradient)
+                    .foregroundStyle(color(for: p.segment))
                 }
                 // The overlay line. `series:` is LOAD-BEARING: Swift Charts groups marks by their
                 // series identity, and without a distinct one it would join the last primary point to

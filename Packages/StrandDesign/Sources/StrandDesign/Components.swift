@@ -190,9 +190,17 @@ public struct SectionHeader: View {
                 if let overline { Text(overline).strandOverline() }
                 Text(title).font(StrandFont.title2).foregroundStyle(StrandPalette.textPrimary)
             }
-            Spacer()
+            // The title wins the space contest. Without this the trailing text — usually a date range,
+            // which is the secondary half — squeezed the heading until SwiftUI hyphenated it, and a
+            // German compound broke mid-word: "Arbeits-sätze". A truncated date is a much smaller loss
+            // than an unreadable heading.
+            .layoutPriority(1)
+            Spacer(minLength: 8)
             if let trailing {
                 Text(trailing).font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    .layoutPriority(0)
             }
         }
     }
