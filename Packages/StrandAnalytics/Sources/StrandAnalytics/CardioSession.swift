@@ -14,8 +14,8 @@ import WhoopStore
 //   • beats per km    — average heart rate spent per kilometre covered. Also arithmetic, and the one
 //                       figure here that is genuinely comparable across weeks for the same sport.
 //   • weekly totals   — sessions, moving time, distance, calories, Effort.
-//   • a load ratio    — acute over chronic MINUTES, on the same windows and bands `ReadinessEngine`
-//                       already uses, read from it rather than copied.
+//   • cardio load     — the session Effort values, compared with the wearer's own recent baseline.
+//                       Effort is derived from heart-rate TRIMP; moving time remains a separate total.
 //   • bests           — longest, farthest, fastest average pace within a band of session lengths.
 //
 // ## What is deliberately not here
@@ -322,21 +322,6 @@ public struct CardioBests: Equatable, Sendable {
     public var isEmpty: Bool { farthest == nil && longest == nil && fastestPaceByBand.isEmpty }
 }
 
-/// The acute-versus-chronic ratio of cardio MINUTES.
-public struct CardioLoadRatio: Equatable, Sendable {
-    public let acute: Double
-    public let chronic: Double
-    public let ratio: Double
-    public let band: ReadinessEngine.LoadBand
-
-    public init(acute: Double, chronic: Double, ratio: Double, band: ReadinessEngine.LoadBand) {
-        self.acute = acute
-        self.chronic = chronic
-        self.ratio = ratio
-        self.band = band
-    }
-}
-
 public enum CardioSession {
 
     // MARK: - One session
@@ -430,40 +415,25 @@ public enum CardioSession {
 
     // MARK: - Load
 
-    /// The acute:chronic ratio of cardio MINUTES, on `ReadinessEngine`'s windows and bands.
+    /// Heart-rate-derived cardio load over seven days against the wearer's own 28-day level.
     ///
-    /// Minutes rather than Effort, deliberately: Effort already exists as its own number on the same
-    /// screen, and a ratio of it would be a second opinion about the same quantity. Minutes answer a
-    /// different question — how much MORE time than usual — which is the one a training week is planned
-    /// in. The zero-filled dense series is what makes rest days count as rest, exactly as in
-    /// `StrengthSession.setLoadRatio`.
+    /// Each session contributes its stored Effort, which is NOOP's TRIMP-derived cardiovascular signal.
+    /// Moving time is deliberately kept beside this rather than used as load: sixty easy minutes and
+    /// sixty threshold minutes are equal duration and very different cardiovascular work. Strength rows
+    /// have already been removed by `sessions(_:)`, so lifting does not leak into this comparison.
     ///
-    /// Nil below `ReadinessEngine.minChronic` days of history.
-    public static func minuteLoadRatio(_ sessions: [CardioSessionMetrics],
+    /// The daily series is dense and zero-filled. Rest days therefore remain real zeros, and the result
+    /// uses `TrainingLoad`'s signed percentage instead of importing team-sport ACWR colour bands.
+    public static func cardioLoadTrend(_ sessions: [CardioSessionMetrics],
                                        asOf now: Date = Date(),
-                                       tzOffsetSeconds: Int = 0) -> CardioLoadRatio? {
-        let (minutesByDay, _) = dailyTotals(sessions)
-        let today = AnalyticsEngine.dayString(Int(now.timeIntervalSince1970), offsetSec: tzOffsetSeconds)
-
-        func meanPerDay(_ span: Int) -> Double? {
-            var days: [Double] = []
-            var day = today
-            for _ in 0..<span {
-                days.append(minutesByDay[day] ?? 0)
-                day = WeeklyDigestEngine.addDays(day, -1)
-            }
-            guard !days.isEmpty else { return nil }
-            return days.reduce(0, +) / Double(days.count)
+                                       tzOffsetSeconds: Int = 0) -> LoadTrend? {
+        var effortByDay: [String: Double] = [:]
+        for session in sessions {
+            guard let effort = session.strain, effort.isFinite, effort >= 0 else { continue }
+            effortByDay[session.day, default: 0] += effort
         }
-
-        guard let firstDay = minutesByDay.keys.min(),
-              StrengthSession.daysBetween(firstDay, and: today) >= ReadinessEngine.minChronic,
-              let acute = meanPerDay(ReadinessEngine.acuteWindow),
-              let chronic = meanPerDay(ReadinessEngine.chronicWindow),
-              chronic > 0 else { return nil }
-        let ratio = acute / chronic
-        return CardioLoadRatio(acute: acute, chronic: chronic, ratio: ratio,
-                               band: ReadinessEngine.LoadBand.of(ratio: ratio))
+        let today = AnalyticsEngine.dayString(Int(now.timeIntervalSince1970), offsetSec: tzOffsetSeconds)
+        return TrainingLoad.trend(dailyByDay: effortByDay, through: today)
     }
 
     // MARK: - One sport over time

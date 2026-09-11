@@ -546,6 +546,19 @@ measurement per instant-per-source, so re-importing/re-logging the same reading 
 duplicates; `idx_bodyWeightEntry_device_takenAt` on `(deviceId, takenAt)` for ordered history reads.
 Additive only — a new table, no existing row touched.
 
+### Whole-session RPE rows in `labMarker` *(v17, no schema change)*
+
+Training Load stores an athlete-entered whole-session RPE in the existing `labMarker` table rather
+than creating a second timestamped scalar store. The row is isolated from body and clinical readings
+by `deviceId = "training-load"`, `category = "trainingLoad"`, `markerKey = "session_rpe"` and
+`source = "manual-session-rpe"`; its stable id is `session-rpe-{workoutStartTs}`. `takenAt` is the
+workout start, `value` is the explicit 1–10 rating and `note` retains the sport label. The workout owns
+duration; Session Load joins by exact start timestamp and computes `RPE × minutes` at read time.
+
+These rows inherit `labMarker` edit/delete and `.noopbak` behavior. They are not projected into body
+metrics, and a missing rating stays missing. **Analysis migration required: no** — this adds log rows
+under an existing schema and does not alter any previously derived value.
+
 ### `metricSeries` *(v9)*
 
 A generic **long-format / EAV** metric store (`MetricSeriesStore.swift`, `struct MetricPoint`).

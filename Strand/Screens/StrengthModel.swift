@@ -82,7 +82,7 @@ final class StrengthModel: ObservableObject {
         mondayKey: "", sessionCount: 0, workingSetCount: 0, volumeLoadKg: 0,
         setsByMuscle: [:], secondarySetsByMuscle: [:], unattributedSetCount: 0)
     @Published private(set) var typicalBands: [HevyMuscleGroup: ClosedRange<Double>] = [:]
-    @Published private(set) var strengthLoad: StrengthSession.SetLoadRatio?
+    @Published private(set) var strengthLoad: LoadTrend?
     @Published private(set) var weekStimulus: [HevyMuscleGroup: Double] = [:]
     @Published private(set) var typicalWeek: [HevyMuscleGroup: Double] = [:]
     @Published private(set) var weekCharge: Double?
@@ -128,7 +128,7 @@ final class StrengthModel: ObservableObject {
     private struct WeekBundle: Sendable {
         let week: StrengthSession.WeekSummary
         let bands: [HevyMuscleGroup: ClosedRange<Double>]
-        let load: StrengthSession.SetLoadRatio?
+        let load: LoadTrend?
         let stimulus: [HevyMuscleGroup: Double]
         let typical: [HevyMuscleGroup: Double]
         let balance: [StrengthBalance.Reading]
@@ -313,7 +313,7 @@ final class StrengthModel: ObservableObject {
                 week: week,
                 bands: StrengthSession.typicalWeeklySets(sessions, templates: catalogue,
                                                           endingBefore: anchor, tzOffsetSeconds: offset),
-                load: StrengthSession.setLoadRatio(sessions, asOf: endDate, tzOffsetSeconds: offset),
+                load: StrengthSession.strengthLoadTrend(sessions, asOf: endDate, tzOffsetSeconds: offset),
                 stimulus: index.week(containing: anchor).byMuscle,
                 typical: MuscleStimulus.typicalWeeklyStimulus(index: index, endingBefore: anchor),
                 balance: StrengthBalance.readings(setsByMuscle: week.setsByMuscle),

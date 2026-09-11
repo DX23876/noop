@@ -46,6 +46,8 @@ struct StrengthSessionDetailView: View {
                     statStrip
                     heartRateCard
                     zonesCard
+                    SessionRPECard(startTs: breakdown.startTs, sport: title,
+                                   durationS: breakdown.durationS)
                     exercisesSection
                     if let notes = breakdown.notes, !notes.isEmpty { notesCard(notes) }
                     provenance

@@ -503,6 +503,36 @@ Per-second blend of **Keytel (2005)** active expenditure and **revised Harris–
 
 ---
 
+## Training Load — three separate observations
+
+Source: `TrainingLoad.swift`, `StrengthSession.swift` and `CardioSession.swift`. The dedicated Training
+Load screen does not convert strength work, cardiovascular work and perceived demand into one score:
+there is no measured exchange rate between those units. Each lane instead shows its rolling seven-day
+total and compares its daily average with the wearer's available recent level, up to 28 days. Rest days are explicit zeroes;
+averaging training days alone would hide the difference between training twice and training six times.
+A comparison is withheld until at least 14 calendar days and a non-zero personal baseline exist.
+
+- **Strength Load** is the sum of completed working sets after the existing
+  `MuscleStimulus.proximityFactor` has weighted each set by its logged RPE/RIR proximity to failure.
+  An unrated set receives that function's documented neutral weight. Tonnage stays visible as a
+  descriptive lifting statistic, but is not used as load: high-rep volume can outweigh substantially
+  harder low-rep work in kilograms without representing greater training demand.
+- **Cardio Load** sums each qualifying cardio session's existing HR/intensity-derived **Effort** value.
+  It therefore retains the current TRIMP-derived cardiovascular model and its source provenance. Moving
+  time, distance and pace remain separate descriptive metrics.
+- **Session Load** is the athlete's deliberately entered whole-session RPE multiplied by session minutes
+  (`sRPE × duration`, arbitrary units). It is an independent observation of how the complete session
+  felt. Missing ratings are reported as missing and are never inferred from set RPE or heart rate.
+
+The percentage is presented as “above / about / below your usual” rather than exposing ACWR as a new
+score. Existing Readiness training-load calculations remain unchanged. Recovery interaction is shown
+through Charge, HRV, resting HR and Rest rather than an invented combined-load total.
+
+**Analysis migration required: no.** These are read-time summaries and a new explicit log. No stored
+score, source precedence, aggregation used by existing analysis or invalidation rule changes.
+
+---
+
 ## Daily energy — `EnergyEngine`, `WhoopEnergyModel`, Watch calibration, adaptive TDEE
 
 Source: `Packages/StrandAnalytics/Sources/StrandAnalytics/{EnergyEngine,WhoopEnergyModel,EnergyCalibrationEngine,EnergyValidation,AdaptiveExpenditureEngine}.swift`, all pure and DB-free. Together they answer "how much did I burn today?" (the **ENERGY** card in Control Center / Today, `Strand/Screens/EnergyCard.swift`) without ever silently adding two devices' measurements for the same body.

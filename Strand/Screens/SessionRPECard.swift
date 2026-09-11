@@ -1,0 +1,159 @@
+import SwiftUI
+import StrandDesign
+
+// MARK: - Whole-session perceived load
+//
+// This is deliberately a user input. Set-level RPE describes individual lifts; heart-rate Effort
+// describes cardiovascular work. Neither is the athlete's answer to "how demanding was the whole
+// session?". Asking once, on the session detail, keeps that third signal explicit and reviewable.
+
+struct SessionRPECard: View {
+    let startTs: Int
+    let sport: String
+    let durationS: Double?
+
+    @EnvironmentObject private var repo: Repository
+    @State private var saved: SessionRPEEntry?
+    @State private var draft = 7.0
+    @State private var editing = false
+    @State private var saving = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: NoopMetrics.gap) {
+            SectionHeader("Session load", overline: "Your perception",
+                          trailing: saved.flatMap(loadText))
+            NoopCard(tint: StrandPalette.metricCyan) {
+                VStack(alignment: .leading, spacing: NoopMetrics.space2) {
+                    if editing {
+                        editor
+                    } else if let saved {
+                        savedState(saved)
+                    } else {
+                        emptyState
+                    }
+                }
+            }
+        }
+        .task(id: startTs) {
+            saved = await repo.sessionRPE(at: startTs)
+            if let saved { draft = saved.rpe }
+        }
+    }
+
+    private var emptyState: some View {
+        VStack(alignment: .leading, spacing: NoopMetrics.space2) {
+            Text("How demanding did the whole session feel?")
+                .font(StrandFont.headline)
+                .foregroundStyle(StrandPalette.textPrimary)
+            Text("Rate it from 1 to 10. NOOP multiplies your rating by the session duration and keeps it separate from heart-rate and strength load.")
+                .font(StrandFont.subhead)
+                .foregroundStyle(StrandPalette.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+            Button("Rate this session") {
+                draft = 7
+                editing = true
+            }
+            .buttonStyle(NoopButtonStyle(.secondary, fullWidth: true))
+        }
+    }
+
+    private func savedState(_ entry: SessionRPEEntry) -> some View {
+        HStack(alignment: .center, spacing: NoopMetrics.space3) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(String(localized: "RPE \(rpeNumber(entry.rpe))"))
+                    .font(StrandFont.number(26))
+                    .foregroundStyle(StrandPalette.textPrimary)
+                Text(loadExplanation(entry.rpe))
+                    .font(StrandFont.caption)
+                    .foregroundStyle(StrandPalette.textTertiary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 8)
+            Button("Edit") {
+                draft = entry.rpe
+                editing = true
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(StrandPalette.accent)
+        }
+    }
+
+    private var editor: some View {
+        VStack(alignment: .leading, spacing: NoopMetrics.space3) {
+            HStack(alignment: .firstTextBaseline) {
+                Text("Whole-session RPE")
+                    .font(StrandFont.headline)
+                    .foregroundStyle(StrandPalette.textPrimary)
+                Spacer()
+                Text(String(localized: "\(rpeNumber(draft)) / 10"))
+                    .font(StrandFont.number(22))
+                    .foregroundStyle(StrandPalette.metricCyan)
+                    .monospacedDigit()
+            }
+            Slider(value: $draft, in: 1...10, step: 0.5)
+                .tint(StrandPalette.metricCyan)
+                .accessibilityLabel("Whole-session RPE")
+                .accessibilityValue(String(localized: "\(rpeNumber(draft)) out of 10"))
+            HStack {
+                Text("1")
+                Spacer()
+                Text("How the complete workout felt")
+                Spacer()
+                Text("10")
+            }
+            .font(StrandFont.caption)
+            .foregroundStyle(StrandPalette.textTertiary)
+            HStack(spacing: NoopMetrics.space2) {
+                if saved != nil {
+                    Button("Remove") { Task { await remove() } }
+                        .buttonStyle(NoopButtonStyle(.secondary, fullWidth: true))
+                        .disabled(saving)
+                }
+                Button("Save rating") { Task { await save() } }
+                    .buttonStyle(NoopButtonStyle(.primary, fullWidth: true))
+                    .disabled(saving)
+            }
+        }
+    }
+
+    private func loadText(_ entry: SessionRPEEntry) -> String? {
+        guard let minutes = durationMinutes else { return nil }
+        return String(localized: "\(Int((entry.rpe * minutes).rounded())) AU")
+    }
+
+    private func loadExplanation(_ rpe: Double) -> String {
+        guard let minutes = durationMinutes else {
+            return String(localized: "Rating saved · duration unavailable")
+        }
+        return String(localized: "RPE \(rpeNumber(rpe)) × \(Int(minutes.rounded())) min · sRPE load")
+    }
+
+    private func rpeNumber(_ value: Double) -> String {
+        value.formatted(.number.precision(.fractionLength(1)))
+    }
+
+    private var durationMinutes: Double? {
+        guard let durationS, durationS > 0 else { return nil }
+        return durationS / 60
+    }
+
+    @MainActor
+    private func save() async {
+        saving = true
+        if await repo.recordSessionRPE(draft, startTs: startTs, sport: sport) {
+            saved = await repo.sessionRPE(at: startTs)
+            editing = false
+        }
+        saving = false
+    }
+
+    @MainActor
+    private func remove() async {
+        saving = true
+        if await repo.deleteSessionRPE(at: startTs) {
+            saved = nil
+            editing = false
+        }
+        saving = false
+    }
+}

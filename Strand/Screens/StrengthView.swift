@@ -405,19 +405,38 @@ struct StrengthView: View {
         }
     }
 
-    /// The acute:chronic ratio of working sets, AS OF the selected week rather than as of today.
+    /// This week's strength load against the wearer's own recent level.
     ///
-    /// That distinction is the whole point of the stepper: reading a past week while the load figure
-    /// silently describes the present would put two different weeks on one card and label them the same.
-    @ViewBuilder
+    /// Shows a SIGNED PERCENTAGE, not the acute:chronic ratio it is computed from. "+18 %" is a
+    /// sentence; "1.18" is a number that has to be looked up against 0.8–1.3 bands taken from
+    /// team-sport distance research that never covered set counts. The ratio is still there on
+    /// `LoadTrend` for anything that needs it.
     private var strengthLoadTile: some View {
         let load = model.strengthLoad
-        tile(icon: "chart.bar.fill",
-             label: String(localized: "Strength load"),
-             value: load.map { String(format: "%.2f", $0.ratio) } ?? "—",
-             tint: load.map { bandColor($0.band) } ?? StrandPalette.textTertiary,
-             caption: load.map { bandLabel($0.band) } ?? String(localized: "needs 4 weeks"),
-             info: .strengthLoad)
+        return tile(icon: "chart.bar.fill",
+                    label: String(localized: "Strength load"),
+                    value: load.map { signedPercent($0.percentChange) } ?? "—",
+                    tint: load.map { loadTint($0.percentChange) } ?? StrandPalette.textTertiary,
+                    caption: load.map { loadCaption($0.percentChange) }
+                        ?? String(localized: "needs 2 weeks"),
+                    info: .strengthLoad)
+    }
+
+    private func signedPercent(_ value: Double) -> String {
+        "\(value >= 0 ? "+" : "−")\(Int(abs(value).rounded())) %"
+    }
+
+    /// Neither direction is coloured as good. More than usual is what a build phase looks like and
+    /// what an overreach looks like; NOOP cannot tell those apart from the load alone, and Charge is
+    /// where that question is actually answered.
+    private func loadTint(_ percent: Double) -> Color {
+        abs(percent) < 15 ? StrandPalette.textSecondary : StrandPalette.metricCyan
+    }
+
+    private func loadCaption(_ percent: Double) -> String {
+        if percent >= 15 { return String(localized: "above your usual") }
+        if percent <= -15 { return String(localized: "below your usual") }
+        return String(localized: "about your usual")
     }
 
     /// The week's cardiovascular Effort, stated beside the strength figure precisely so the two read as
@@ -456,7 +475,7 @@ struct StrengthView: View {
             // each set's primary muscle. So the map's totals are larger than the sets performed, and
             // the two will never agree. One shared heading over both would quietly tell the reader
             // that a shaded region and a bar were the same number seen twice.
-            SectionHeader("Muscle load", overline: "Estimated")
+            SectionHeader("Muscle stimulus", overline: "Estimated")
             bodyMapCard
 
             if !unmappedExercises.isEmpty {
@@ -643,7 +662,7 @@ struct StrengthView: View {
                 .padding(NoopMetrics.screenPadding)
             }
             .background(StrandPalette.surfaceBase)
-            .navigationTitle(Text("Muscle load"))
+            .navigationTitle(Text("Muscle stimulus"))
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") { showingFullScreenMap = false }
@@ -1213,11 +1232,11 @@ struct StrengthView: View {
     private func infoBody(_ topic: InfoTopic) -> String {
         switch topic {
         case .strengthLoad:
-            return String(localized: "Your working sets over the last 7 days, divided by your average over the last 28. Around 1.0 means this week looks like your usual weeks; well above means you are ramping up faster than your body has been prepared for, well below means you are doing less than usual.\n\nIt is the same comparison NOOP makes for heart-rate load, in sets instead — the same windows, the same bands. It is a ratio, not a score: there is no scale to memorise, and you can check it against what you did.\n\nIt stays blank until there are four weeks of history, because a ratio taken from a fortnight mostly describes how little data there is.")
+            return String(localized: "How much lifting this week asked of you, against your own level over the last four weeks. It is a percentage, not a score: +18 % means this week ran about a fifth above your usual.\n\nThe underlying figure is WORKING SETS, weighted by how close each one went to failure — the same weighting the muscle map uses. Ten easy sets are not ten hard ones.\n\nIt is deliberately not tonnage. Sets × reps × kilos ranks four sets of ten at 100 kg above five triples at 180 kg, and the triples are the harder session — heavier, closer to your limit, and costlier to recover from. Tonnage rewards high-rep work and offers a precision it does not have, so it stays a statistic here and never the load.\n\nNeither direction is good or bad on its own. More than usual is what a build phase looks like and also what overreaching looks like; the load alone cannot tell those apart. Charge can.")
         case .cardioLoad:
-            return String(localized: "The Effort your heart rate earned this week — the cardiovascular side, kept deliberately separate from your lifting.\n\nLifting volume never becomes Effort. A heavy session raises your heart rate and that heart rate is already in this number; the sets and kilos are not added on top. Showing the two figures side by side is how you can see which kind of load a week actually carried.")
+            return String(localized: "The Effort your heart rate earned this week — the cardiovascular side, kept deliberately separate from your lifting.\n\nLifting volume never becomes Effort. A heavy session raises your heart rate and that heart rate is already in this number; the sets and kilos are not added on top.\n\nThey are not added because there is no honest exchange rate between them. Tonnes moved and heart-rate minutes measure different things on different tissue, and combining them into one training-load number would require inventing the conversion. What they DO share is one recovery budget — and NOOP already has the figure for that. Charge is where the two meet, because it is measured from what your body reported back after carrying both.")
         case .charge:
-            return String(localized: "Your average Charge across this week — the same Charge as everywhere else in NOOP, not a new score.\n\nRead it beside the two load figures: a week of high load and falling Charge is a different week from one of high load and steady Charge, and that comparison is the reason all three sit together.")
+            return String(localized: "Your average Charge across this week — the same Charge as everywhere else in NOOP, not a new score.\n\nRead it beside the strength and Effort figures. Those two cannot be added together — there is no shared unit between tonnes lifted and heart-rate minutes — but they are carried by one body with one recovery budget, and this is the number that reflects both. A week of high load and falling Charge is a different week from one of high load and steady Charge, and that comparison is the reason all three sit together.")
         case .muscleBands:
             return String(localized: "The bar is this week's working sets for that muscle. The shaded band behind it is what YOU usually do — the middle half of your last eight training weeks.\n\nIt is not a target. NOOP has no way of knowing what your right weekly volume is, and a number from a textbook presented as your goal would be a guess wearing a uniform. What it can tell you is when a week is unusual for you, and that is what the band shows.\n\nWeeks with no training are left out, so a holiday does not drag the band down and then make your return look excessive.")
         case .balance:
@@ -1498,24 +1517,6 @@ struct StrengthView: View {
         kg >= 1000 ? String(format: "%.1f t", kg / 1000) : "\(HevySource.groupedKg(kg)) kg"
     }
 
-    private func bandLabel(_ band: ReadinessEngine.LoadBand) -> String {
-        switch band {
-        case .rampingDown:  return String(localized: "ramping down")
-        case .steady:       return String(localized: "steady")
-        case .buildingFast: return String(localized: "building fast")
-        case .spiking:      return String(localized: "spiking")
-        }
-    }
-
-    private func bandColor(_ band: ReadinessEngine.LoadBand) -> Color {
-        switch band {
-        case .rampingDown:  return StrandPalette.textSecondary
-        case .steady:       return StrandPalette.statusPositive
-        case .buildingFast: return StrandPalette.statusWarning
-        case .spiking:      return StrandPalette.statusCritical
-        }
-    }
-
     private func exerciseTitle(_ id: String) -> String {
         templates[id]?.title
             ?? workouts.lazy.flatMap(\.exercises).first { $0.templateId == id }?.title
@@ -1586,8 +1587,11 @@ struct StrengthView: View {
             .joined(separator: ", ")
         if !muscles.isEmpty { parts.append("hard sets — " + muscles) }
         if let load = model.strengthLoad {
-            parts.append(String(format: "set load acute:chronic %.2f (%@)", load.ratio,
-                                bandLabel(load.band)))
+            // The coach gets the same framing the tile shows: effort-weighted sets against this
+            // person's own recent level, as a percentage. Handing it a bare ratio invited it to
+            // quote 0.8–1.3 bands that were never validated on set counts.
+            parts.append(String(format: "strength load %+.0f%% vs own 28-day level (effort-weighted working sets)",
+                                load.percentChange))
         }
         if let line = model.trendLine, let id = model.selectedTemplateId {
             parts.append(String(format: "%@ trend %+.1f kg/week%@", exerciseTitle(id),

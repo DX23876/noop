@@ -116,30 +116,37 @@ final class CardioSessionTests: XCTestCase {
 
     // MARK: - Load
 
-    /// The ratio is built on a DENSE, zero-filled series: rest days are real zeros, so someone who
-    /// trained twice in a week cannot read the same as someone who trained six times.
-    func testTheLoadRatioCountsRestDaysAsZero() throws {
+    /// Cardio load follows HR-derived Effort rather than duration: two equal-duration weeks separate
+    /// when the recent one asked more of the cardiovascular system. Rest days remain real zeros.
+    func testCardioLoadUsesEffortAndCountsRestDaysAsZero() throws {
         var rows: [WorkoutRow] = []
         var day = Self.ts("2026-04-01")
-        // Ten weeks of one 60-minute session every other day, then a week of daily sessions.
-        for i in 0..<35 { rows.append(row("Running", at: day + i * 2 * 86_400, minutes: 60)) }
-        day = Self.ts("2026-04-01") + 70 * 86_400
-        for i in 0..<7 { rows.append(row("Running", at: day + i * 86_400, minutes: 60)) }
+        // Four weeks of three equally long, moderate sessions; the final week keeps the duration but
+        // doubles the measured Effort. A minutes-based implementation would report no change.
+        for i in 0..<21 {
+            rows.append(row("Running", at: day + i * 86_400, minutes: 60,
+                            strain: i % 2 == 0 ? 10 : nil))
+        }
+        day += 21 * 86_400
+        for i in 0..<7 {
+            rows.append(row("Running", at: day + i * 86_400, minutes: 60,
+                            strain: i % 2 == 0 ? 20 : nil))
+        }
         let sessions = CardioSession.sessions(rows)
         let asOf = Date(timeIntervalSince1970: TimeInterval(day + 6 * 86_400))
-        let ratio = try XCTUnwrap(CardioSession.minuteLoadRatio(sessions, asOf: asOf))
-        XCTAssertGreaterThan(ratio.ratio, 1.2, "a daily week against an every-other-day base")
-        XCTAssertEqual(ratio.acute, 60, accuracy: 1e-6)
+        let trend = try XCTUnwrap(CardioSession.cardioLoadTrend(sessions, asOf: asOf))
+        XCTAssertGreaterThan(trend.percentChange, 40)
+        XCTAssertEqual(trend.recentPerDay, 80.0 / 7.0, accuracy: 1e-6)
     }
 
     /// Under four weeks of history there is no ratio — a figure from a fortnight is mostly a statement
     /// about how little data there is.
-    func testAThinHistoryYieldsNoRatio() {
+    func testAThinHistoryYieldsNoCardioLoadTrend() {
         let sessions = CardioSession.sessions([
-            row("Running", at: Self.ts("2026-07-01"), minutes: 40),
-            row("Running", at: Self.ts("2026-07-03"), minutes: 40),
+            row("Running", at: Self.ts("2026-07-01"), minutes: 40, strain: 12),
+            row("Running", at: Self.ts("2026-07-03"), minutes: 40, strain: 12),
         ])
-        XCTAssertNil(CardioSession.minuteLoadRatio(
+        XCTAssertNil(CardioSession.cardioLoadTrend(
             sessions, asOf: Date(timeIntervalSince1970: TimeInterval(Self.ts("2026-07-05")))))
     }
 

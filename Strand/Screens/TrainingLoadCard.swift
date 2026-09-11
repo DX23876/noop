@@ -5,15 +5,15 @@ import StrandDesign
 import StrandAnalytics
 import WhoopStore
 
-// MARK: - Training Load card (CTL / ATL / TSB)
+// MARK: - Effort history card (CTL / ATL / TSB)
 //
-// The first UI surface for the long-horizon training-load model (TrainingLoadEngine, added with the
+// The long-horizon view of daily cardiovascular Effort (TrainingLoadEngine, added with the
 // paired `ReadinessEngine.evaluateWithTrainingLoad`). It overlays chronic load (CTL, the 42-day
 // fitness proxy) and acute load (ATL, the 7-day fatigue proxy); the gap between the two lines IS the
 // TSB / "form" (CTL − ATL), surfaced as the headline number and a footer stat.
 //
-// Descriptive only: CTL/ATL/TSB never feed the Readiness level or any score, and the loads are NOOP's
-// daily Effort/strain — NOT TRIMP. Long-horizon by nature, so the card models the full history rather
+// Descriptive only: CTL/ATL/TSB never feed the Readiness level or any score, and the input is NOOP's
+// daily Effort/strain. It is not the three-lane Training Load screen. Long-horizon by nature, so the card models the full history rather
 // than the Trends range window (14+ contiguous days are needed before anything is drawn).
 //
 // Isolated in its own file on purpose: TrendsView already sits near the iOS type-check budget, so this
@@ -65,7 +65,7 @@ struct TrainingLoadCard: View {
         } else {
             let latest = tl.points.last
             ChartCard(
-                title: "Training Load",
+                title: "Effort over time",
                 subtitle: subtitle(for: tl),
                 trailing: latest.map { signed($0.balance) },
                 height: NoopMetrics.chartHeight,
@@ -77,9 +77,9 @@ struct TrainingLoadCard: View {
                 },
                 footer: {
                     ChartFooter([
-                        ("CTL", latest.map { fmt($0.chronicLoad) } ?? "—"),
-                        ("ATL", latest.map { fmt($0.acuteLoad) } ?? "—"),
-                        ("Form", latest.map { signed($0.balance) } ?? "—"),
+                        ("Baseline", latest.map { fmt($0.chronicLoad) } ?? "—"),
+                        ("Recent", latest.map { fmt($0.acuteLoad) } ?? "—"),
+                        ("Balance", latest.map { signed($0.balance) } ?? "—"),
                         ("Days", "\(tl.contiguousDays)"),
                     ])
                 }
@@ -108,13 +108,13 @@ struct TrainingLoadCard: View {
         }
         .chartYScale(domain: 0...(maxY * 1.08))
         .chartYAxis { AxisMarks(position: .leading) }
-        .accessibilityLabel(Text("Training load: chronic vs acute"))
+        .accessibilityLabel(Text("Effort over time: baseline versus recent"))
     }
 
     private var legend: some View {
         HStack(spacing: NoopMetrics.space2 * 2) {
-            legendDot(color: StrandPalette.gold, label: "CTL · Fitness")
-            legendDot(color: StrandPalette.strain100, label: "ATL · Fatigue")
+            legendDot(color: StrandPalette.gold, label: "42-day baseline")
+            legendDot(color: StrandPalette.strain100, label: "7-day recent")
             Spacer()
         }
     }
@@ -140,8 +140,8 @@ struct TrainingLoadCard: View {
     // Honest empty state: name exactly how many consecutive Effort days are still needed.
     private func unavailableCard(contiguousDays: Int) -> some View {
         ChartCard(
-            title: "Training Load",
-            subtitle: String(localized: "Chronic vs acute load"),
+            title: "Effort over time",
+            subtitle: String(localized: "42-day baseline vs 7-day recent load"),
             chart: {
                 VStack(spacing: NoopMetrics.space2) {
                     Text("Needs \(Self.minimum)+ consecutive days of Effort to begin. \(contiguousDays) so far.")

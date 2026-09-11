@@ -407,67 +407,34 @@ public enum StrengthSession {
             unattributedSetCount: tally.unattributed)
     }
 
-    /// The acute-versus-chronic ratio of WORKING SETS, and the band it falls in.
+    /// Effort-weighted working sets per day, for the load comparison.
     ///
-    /// The same arithmetic `ReadinessEngine` runs over heart-rate strain, in set units instead — and
-    /// deliberately the same windows and the same band cut points, read from that engine rather than
-    /// copied, so the app cannot end up holding two definitions of "acute load".
-    ///
-    /// A RATIO is what this reports, never a score. "1.05" says something checkable — a fifth more than
-    /// usual — where a "72" would be a number with no unit, no model behind it and nothing a reader
-    /// could disagree with.
-    ///
-    /// Returns nil below `ReadinessEngine.minChronic` days of history: a ratio computed from a fortnight
-    /// is mostly a statement about how little data there is.
-    public struct SetLoadRatio: Equatable, Sendable {
-        /// Mean working sets per day over the acute window.
-        public let acute: Double
-        /// Mean working sets per day over the chronic window.
-        public let chronic: Double
-        public let ratio: Double
-        public let band: ReadinessEngine.LoadBand
-
-        public init(acute: Double, chronic: Double, ratio: Double, band: ReadinessEngine.LoadBand) {
-            self.acute = acute
-            self.chronic = chronic
-            self.ratio = ratio
-            self.band = band
+    /// Weighted, not counted. A plain set count is a decent proxy for weekly fatigue — better than
+    /// tonnage, which ranks four sets of ten at 100 kg above five triples at 180 kg and gets the harder
+    /// session wrong — but it still treats an easy set and a set to failure alike. `TrainingLoad`
+    /// prices each set by how close it went to failure, on the same curve the muscle map uses.
+    public static func weightedSetsByDay(_ workouts: [HevyWorkout],
+                                         tzOffsetSeconds: Int = 0) -> [String: Double] {
+        var byDay: [String: Double] = [:]
+        for workout in workouts {
+            let day = AnalyticsEngine.dayString(workout.startTs, offsetSec: tzOffsetSeconds)
+            let rpes = workout.exercises.flatMap(\.workingSets).map(\.rpe)
+            byDay[day, default: 0] += TrainingLoad.strengthLoad(setRpes: rpes).weightedSets
         }
+        return byDay
     }
 
-    public static func setLoadRatio(_ workouts: [HevyWorkout],
-                                    asOf now: Date = Date(),
-                                    tzOffsetSeconds: Int = 0) -> SetLoadRatio? {
-        let (setsByDay, _) = dailyTotals(workouts, tzOffsetSeconds: tzOffsetSeconds)
+    /// How this week's strength load compares with the wearer's own recent level.
+    ///
+    /// Returns `TrainingLoad`'s signed percentage rather than a bare ratio: "18 % above your usual" is
+    /// a sentence someone can act on, where "1.18" has to be looked up against bands borrowed from
+    /// team-sport distance research that never covered set counts.
+    public static func strengthLoadTrend(_ workouts: [HevyWorkout],
+                                         asOf now: Date = Date(),
+                                         tzOffsetSeconds: Int = 0) -> LoadTrend? {
+        let byDay = weightedSetsByDay(workouts, tzOffsetSeconds: tzOffsetSeconds)
         let today = AnalyticsEngine.dayString(Int(now.timeIntervalSince1970), offsetSec: tzOffsetSeconds)
-
-        // A DENSE series, zero-filled: a rest day is a real zero, and averaging only the days that
-        // happened to have sessions would make someone who trained twice look identical to someone who
-        // trained six times. That is the whole difference between "load" and "how hard were the days I
-        // trained".
-        func meanPerDay(_ span: Int) -> Double? {
-            var days: [Double] = []
-            var day = today
-            for _ in 0..<span {
-                days.append(Double(setsByDay[day] ?? 0))
-                day = WeeklyDigestEngine.addDays(day, -1)
-            }
-            guard !days.isEmpty else { return nil }
-            return days.reduce(0, +) / Double(days.count)
-        }
-
-        // Enough history to compare against, measured from the FIRST session rather than from the
-        // window: someone three weeks into using Hevy has no chronic load to speak of.
-        let firstDay = setsByDay.keys.min()
-        guard let firstDay,
-              daysBetween(firstDay, and: today) >= ReadinessEngine.minChronic else { return nil }
-
-        guard let acute = meanPerDay(ReadinessEngine.acuteWindow),
-              let chronic = meanPerDay(ReadinessEngine.chronicWindow),
-              chronic > 0 else { return nil }
-        let ratio = acute / chronic
-        return SetLoadRatio(acute: acute, chronic: chronic, ratio: ratio,
-                            band: ReadinessEngine.LoadBand.of(ratio: ratio))
+        return TrainingLoad.trend(dailyByDay: byDay, through: today)
     }
 
     /// Whole days between two "yyyy-MM-dd" keys, or 0 when either is unparseable.

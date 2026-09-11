@@ -50,7 +50,7 @@ final class CardioModel: ObservableObject {
                                                           distanceM: 0, energyKcal: 0, effort: nil,
                                                           sessionsWithDistance: 0, bySport: [])
     @Published private(set) var typicalMinutes: ClosedRange<Double>?
-    @Published private(set) var load: CardioLoadRatio?
+    @Published private(set) var load: LoadTrend?
     @Published private(set) var weekCharge: Double?
 
     // The selected sport
@@ -76,7 +76,7 @@ final class CardioModel: ObservableObject {
     private struct WeekBundle: Sendable {
         let week: CardioWeekSummary
         let typical: ClosedRange<Double>?
-        let load: CardioLoadRatio?
+        let load: LoadTrend?
     }
 
     // MARK: - Load
@@ -142,7 +142,7 @@ final class CardioModel: ObservableObject {
         let bundle = await Task.detached(priority: .userInitiated) { () -> WeekBundle in
             return WeekBundle(week: CardioSession.week(containing: anchor, sessions: all),
                               typical: CardioSession.typicalWeeklyMinutes(all, endingBefore: anchor),
-                              load: CardioSession.minuteLoadRatio(all, asOf: endDate,
+                              load: CardioSession.cardioLoadTrend(all, asOf: endDate,
                                                                   tzOffsetSeconds: offset))
         }.value
 

@@ -298,8 +298,8 @@ struct TrendsView: View {
                             .staggeredAppear(index: 3)
                         smallMultiples(hrv: hrv, rhr: rhr, strain: strain)
                             .staggeredAppear(index: 4)
-                        // Long-horizon training load (CTL/ATL/TSB). Uses the FULL history, not the
-                        // range window — chronic load is inherently a 42-day horizon. Self-hides its
+                        // Long-horizon Effort history (CTL/ATL/TSB). Uses the FULL history, not the
+                        // range window — its baseline is inherently a 42-day horizon. Self-hides its
                         // chart behind an honest "needs N more days" state until enough history exists.
                         TrainingLoadCard(days: repo.days)
                             .staggeredAppear(index: 5)

@@ -15,8 +15,8 @@ import StrandAnalytics
 //   • the SAME Monday-anchored week stepper, the same history-window control,
 //   • a week that adds up (sessions, moving time, distance, calories, Effort) with the wearer's OWN
 //     usual week behind the headline figure rather than a target,
-//   • the same acute-versus-chronic load question, in MINUTES — `ReadinessEngine`'s windows and bands,
-//     read from it, so "spiking" means the same thing on both screens,
+//   • cardiovascular load from the session Effort values, shown as the last seven days against the
+//     wearer's own 28-day level rather than as a borrowed acute:chronic category,
 //   • per-sport progression in that sport's own unit, with measured bests beside the modelled line,
 //   • and beats per kilometre, the one figure that says whether the same run is costing less.
 //
@@ -188,10 +188,26 @@ struct CardioView: View {
         let load = model.load
         tile(icon: "chart.bar.fill",
              label: String(localized: "Cardio load"),
-             value: load.map { String(format: "%.2f", $0.ratio) } ?? "—",
-             tint: load.map { bandColor($0.band) } ?? StrandPalette.textTertiary,
-             caption: load.map { bandLabel($0.band) } ?? String(localized: "needs 4 weeks"),
+             value: load.map { signedPercent($0.percentChange) } ?? "—",
+             tint: load.map { loadTint($0.percentChange) } ?? StrandPalette.textTertiary,
+             caption: load.map { loadCaption($0.percentChange) } ?? String(localized: "needs 2 weeks"),
              info: .cardioLoad)
+    }
+
+    private func signedPercent(_ value: Double) -> String {
+        "\(value >= 0 ? "+" : "−")\(Int(abs(value).rounded())) %"
+    }
+
+    /// A load change is context, not a grade. A larger week can be intentional or excessive; Charge
+    /// and the athlete's own perception are what distinguish those cases.
+    private func loadTint(_ percent: Double) -> Color {
+        abs(percent) < 15 ? StrandPalette.textSecondary : StrandPalette.metricCyan
+    }
+
+    private func loadCaption(_ percent: Double) -> String {
+        if percent >= 15 { return String(localized: "above your usual") }
+        if percent <= -15 { return String(localized: "below your usual") }
+        return String(localized: "about your usual")
     }
 
     private var weekNavBar: some View {
@@ -725,24 +741,6 @@ struct CardioView: View {
         return "\(start.formatted(format)) – \(end.formatted(format))"
     }
 
-    private func bandLabel(_ band: ReadinessEngine.LoadBand) -> String {
-        switch band {
-        case .rampingDown:  return String(localized: "ramping down")
-        case .steady:       return String(localized: "steady")
-        case .buildingFast: return String(localized: "building fast")
-        case .spiking:      return String(localized: "spiking")
-        }
-    }
-
-    private func bandColor(_ band: ReadinessEngine.LoadBand) -> Color {
-        switch band {
-        case .rampingDown:  return StrandPalette.textSecondary
-        case .steady:       return StrandPalette.statusPositive
-        case .buildingFast: return StrandPalette.statusWarning
-        case .spiking:      return StrandPalette.statusCritical
-        }
-    }
-
     // MARK: - Info
 
     enum InfoTopic: String, Identifiable {
@@ -780,7 +778,7 @@ struct CardioView: View {
     private func infoBody(_ topic: InfoTopic) -> String {
         switch topic {
         case .cardioLoad:
-            return String(localized: "Your cardio minutes over the last 7 days, divided by your average over the last 28. Around 1.0 means this week looks like your usual weeks; well above means you are ramping up faster than your body has been prepared for.\n\nMinutes rather than Effort, because Effort is already on this screen as its own number and a ratio of it would be a second opinion about the same thing. Minutes answer the question a training week is actually planned in: how much more time than usual.\n\nRest days count as zeros, so training twice in a week cannot read the same as training six times. It stays blank until there are four weeks of history.")
+            return String(localized: "How much cardiovascular work the last 7 days asked of you, against your own level over the last 28 days. It is a percentage, not a score: +18 % means the recent week ran about a fifth above your usual.\n\nThe underlying signal is Effort, derived from heart rate and time in intensity zones using TRIMP. Moving time stays separate because sixty easy minutes and sixty threshold minutes are equal duration but very different cardiovascular loads.\n\nRest days count as zeros. Neither direction is good or bad on its own: a higher week can be a planned build or too much, and the load alone cannot tell those apart. Charge and your own session rating add that context. It stays blank until there are two weeks of history.")
         case .bests:
             return String(localized: "Measured bests for this sport: the farthest you went, the longest you were out, and your fastest AVERAGE pace within each band of session length.\n\nThe bands matter. A fast 3 km and a fast half marathon are different achievements, so they are kept apart rather than competing for one 'fastest' line.\n\nThese are averages over a whole session, never splits. NOOP stores one distance and one duration per session, so 'your fastest 5 km' inside a longer run is a claim the data cannot support and is deliberately not offered.")
         }
@@ -796,8 +794,7 @@ struct CardioView: View {
             parts.append(String(format: "%.1f km", model.week.distanceM / 1000))
         }
         if let load = model.load {
-            parts.append(String(format: "minute load acute:chronic %.2f (%@)", load.ratio,
-                                bandLabel(load.band)))
+            parts.append(String(format: "cardio load %+.0f%% vs own 28-day level", load.percentChange))
         }
         if let sport = model.selectedSport, let line = model.paceTrend {
             parts.append(String(format: "%@ pace trend %+.0f s/km per week%@", sport,

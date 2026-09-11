@@ -92,6 +92,8 @@ struct WorkoutDetailView: View {
             if let strain = row.strain {
                 effortCard(strain: strain)
             }
+            SessionRPECard(startTs: row.startTs, sport: row.sport,
+                           durationS: row.durationS ?? Double(row.endTs - row.startTs))
         }
         .toolbar {
             // A Done affordance for the sheet on both platforms (iOS gets the grabber too).

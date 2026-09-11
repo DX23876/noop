@@ -311,12 +311,13 @@ final class StrengthSessionTests: XCTestCase {
         return Int((f.date(from: day) ?? Date(timeIntervalSince1970: 0)).timeIntervalSince1970) + 43_200
     }
 
-    private func dayWorkout(_ day: String, sets: Int, templateId: String = "T1") -> HevyWorkout {
+    private func dayWorkout(_ day: String, sets: Int, templateId: String = "T1",
+                            rpe: Double? = nil) -> HevyWorkout {
         HevyWorkout(id: "\(day)-\(templateId)", title: "", routineId: nil, notes: nil,
                     startTs: ts(day), endTs: ts(day) + 3600, updatedAtTs: ts(day),
                     createdAtTs: ts(day),
                     exercises: [exercise(0, templateId: templateId,
-                                         sets: (0..<sets).map { set($0, kg: 100, reps: 5) })])
+                                         sets: (0..<sets).map { set($0, kg: 100, reps: 5, rpe: rpe) })])
     }
 
     /// The week is Monday–Sunday and anchored the same way `WeeklyDigestEngine` anchors it. Two
@@ -339,10 +340,10 @@ final class StrengthSessionTests: XCTestCase {
 
     // MARK: - Acute vs chronic
 
-    /// THE reason this is a ratio and not a score: it says something checkable. A steady routine sits
-    /// near 1.0 whatever the absolute volume, so the figure means the same thing for someone doing four
-    /// sets a week and someone doing forty.
-    func testASteadyRoutineSitsNearOne() throws {
+    /// THE reason this is a comparison and not a score: it says something checkable. A steady routine
+    /// reads near zero percent change whatever the absolute volume, so the figure means the same thing
+    /// for someone doing four sets a week and someone doing forty.
+    func testASteadyRoutineReadsNearZeroChange() throws {
         var workouts: [HevyWorkout] = []
         var day = "2026-04-01"
         for index in 0..<60 {
@@ -350,13 +351,32 @@ final class StrengthSessionTests: XCTestCase {
             day = WeeklyDigestEngine.addDays(day, 1)
         }
         let now = Self.date("2026-05-30")
-        let load = try XCTUnwrap(StrengthSession.setLoadRatio(workouts, asOf: now))
+        let load = try XCTUnwrap(StrengthSession.strengthLoadTrend(workouts, asOf: now))
+        XCTAssertEqual(load.percentChange, 0, accuracy: 15)
         XCTAssertEqual(load.ratio, 1.0, accuracy: 0.15)
-        XCTAssertEqual(load.band, .steady)
     }
 
-    /// A genuine ramp is reported as one, in the band the literature uses.
-    func testARampIsReportedAsBuildingOrSpiking() throws {
+    /// A ramp reads positive, and it reads positive because the WORK went up — not because more sets
+    /// were logged. Same set count, harder sets.
+    func testHarderSetsRaiseTheLoadAtEqualSetCount() throws {
+        func block(_ start: String, days: Int, rpe: Double) -> [HevyWorkout] {
+            var out: [HevyWorkout] = []
+            var day = start
+            for index in 0..<days {
+                if index % 2 == 0 { out.append(dayWorkout(day, sets: 10, rpe: rpe)) }
+                day = WeeklyDigestEngine.addDays(day, 1)
+            }
+            return out
+        }
+        let easy = block("2026-04-01", days: 52, rpe: 6)
+        let hard = block(WeeklyDigestEngine.addDays("2026-04-01", 52), days: 8, rpe: 10)
+        let load = try XCTUnwrap(StrengthSession.strengthLoadTrend(easy + hard,
+                                                                   asOf: Self.date("2026-05-30")))
+        XCTAssertGreaterThan(load.percentChange, 10)
+    }
+
+    /// A genuine ramp is reported as one, as a percentage rather than a borrowed band.
+    func testARampIsReportedAsAClearRise() throws {
         var workouts: [HevyWorkout] = []
         var day = "2026-04-01"
         for index in 0..<60 {
@@ -365,9 +385,9 @@ final class StrengthSessionTests: XCTestCase {
             if index % 2 == 0 { workouts.append(dayWorkout(day, sets: sets)) }
             day = WeeklyDigestEngine.addDays(day, 1)
         }
-        let load = try XCTUnwrap(StrengthSession.setLoadRatio(workouts, asOf: Self.date("2026-05-30")))
-        XCTAssertGreaterThan(load.ratio, 1.5)
-        XCTAssertEqual(load.band, .spiking)
+        let load = try XCTUnwrap(StrengthSession.strengthLoadTrend(workouts,
+                                                                    asOf: Self.date("2026-05-30")))
+        XCTAssertGreaterThan(load.percentChange, 50)
     }
 
     /// Rest days are ZEROS, not gaps. Averaging only the days that held a session would make someone who
@@ -382,23 +402,27 @@ final class StrengthSessionTests: XCTestCase {
             if trains { workouts.append(dayWorkout(day, sets: 10)) }
             day = WeeklyDigestEngine.addDays(day, 1)
         }
-        let load = try XCTUnwrap(StrengthSession.setLoadRatio(workouts, asOf: Self.date("2026-05-30")))
-        XCTAssertLessThan(load.ratio, 0.8, "a week that was mostly rest is a ramp DOWN")
-        XCTAssertEqual(load.band, .rampingDown)
+        let load = try XCTUnwrap(StrengthSession.strengthLoadTrend(workouts,
+                                                                    asOf: Self.date("2026-05-30")))
+        XCTAssertLessThan(load.percentChange, -20, "a week that was mostly rest is a ramp DOWN")
     }
 
-    /// Too little history means NO ratio. One computed from a fortnight is mostly a statement about how
-    /// little data there is.
-    func testTooLittleHistoryYieldsNoRatio() {
+    /// Too little history means NO comparison. One computed from a few days is mostly a statement
+    /// about how little data there is.
+    func testTooLittleHistoryYieldsNoComparison() {
         let workouts = (0..<4).map { dayWorkout(WeeklyDigestEngine.addDays("2026-05-20", $0), sets: 10) }
-        XCTAssertNil(StrengthSession.setLoadRatio(workouts, asOf: Self.date("2026-05-24")))
+        XCTAssertNil(StrengthSession.strengthLoadTrend(workouts, asOf: Self.date("2026-05-24")))
     }
 
-    /// The windows and the bands are READ from `ReadinessEngine`, never copied — so the app cannot hold
-    /// two definitions of "acute load", one for heart rate and one for sets.
-    func testTheWindowsComeFromTheOneDefinition() {
+    /// `ReadinessEngine` keeps its OWN acute:chronic ratio for the recovery score, and this display
+    /// comparison no longer borrows its bands — those came from team-sport distance research and were
+    /// never validated on set counts. The two are now deliberately separate, which is why the recovery
+    /// score is untouched by this change.
+    func testTheRecoveryEngineKeepsItsOwnWindows() {
         XCTAssertEqual(ReadinessEngine.acuteWindow, 7)
         XCTAssertEqual(ReadinessEngine.chronicWindow, 28)
+        XCTAssertEqual(TrainingLoad.recentWindow, 7)
+        XCTAssertEqual(TrainingLoad.baselineWindow, 28)
         XCTAssertEqual(ReadinessEngine.LoadBand.of(ratio: 0.5), .rampingDown)
         XCTAssertEqual(ReadinessEngine.LoadBand.of(ratio: 1.0), .steady)
         XCTAssertEqual(ReadinessEngine.LoadBand.of(ratio: 1.4), .buildingFast)
