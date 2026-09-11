@@ -93,10 +93,14 @@ public struct WhoopEnergyBucketResult: Equatable, Sendable {
 }
 
 public struct WhoopDailyEnergyEstimate: Equatable, Sendable {
+    /// v6 (2026-09-10): the cadence branch of `movementMET` prices steps with the wearer's own
+    /// measured step length instead of a 0.75 m population average. Bumped because the same day's
+    /// inputs now yield a different figure; days with no measurement keep the old value exactly.
+    ///
     /// v5 (2026-08-29): heart rate without independently confirmed movement or a workout contributes
     /// no active energy. Locomotion is charged only for its observed movement seconds rather than the
     /// entire five-minute bucket. Bumped so every v4 physiological allowance is recomputed away.
-    public static let modelVersion = "whoop-bucket-v5"
+    public static let modelVersion = "whoop-bucket-v6"
 
     public let totalKcal: Double
     public let observedSeconds: Int
@@ -284,12 +288,12 @@ public enum WhoopEnergyModel {
             met = metForSpeed(speedKmh)
         } else if let steps = bucket.steps, steps > 0 {
             let cadence = Double(steps) / minutes
-            // No measured stride wired in yet (`strideM` already exists on the reference stream but
-            // isn't connected to this model — a separate, later step). Until then: a population-
-            // average adult stride, to fold cadence onto the SAME curve rather than maintaining a
-            // second, independently-tuned table that can drift away from it again.
-            let assumedStrideM = 0.75
-            met = metForSpeed(cadence * assumedStrideM * 60 / 1_000)
+            // Step length folds cadence onto the SAME curve the distance branch uses, rather than
+            // maintaining a second, independently-tuned table that can drift away from it again.
+            // It is the wearer's OWN measured step when one is available and the population average
+            // otherwise — and that fallback is the exact 0.75 m this branch has always used, so a
+            // wearer the phone never measured is priced today the way they were yesterday.
+            met = metForSpeed(cadence * StrideLength.metersPerStep(bucket.strideM) * 60 / 1_000)
         } else {
             met = motionMET(bucket)
         }

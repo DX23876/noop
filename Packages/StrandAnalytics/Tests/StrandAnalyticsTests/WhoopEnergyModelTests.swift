@@ -67,6 +67,49 @@ final class WhoopEnergyModelTests: XCTestCase {
         XCTAssertEqual(byCadence, byDistance, accuracy: 0.05)
     }
 
+    /// v6: the wearer's own measured step length reprices the SAME cadence. A longer step at equal
+    /// cadence is a faster walk, and must cost more — the entire point of wiring the measurement in.
+    func testMeasuredStepLengthRepricesTheSameCadence() throws {
+        let assumed = try inferredActive(.init(start: 0, steps: 650))
+        let longStep = try inferredActive(.init(start: 0, steps: 650, strideM: 0.90))
+        let shortStep = try inferredActive(.init(start: 0, steps: 650, strideM: 0.60))
+        XCTAssertGreaterThan(longStep, assumed)
+        XCTAssertLessThan(shortStep, assumed)
+    }
+
+    /// The measured step length must reach the curve through the same door distance does: a cadence
+    /// bucket carrying a measured step and a distance bucket at the speed that step implies are two
+    /// descriptions of one walk, so they must cost the same. This is the direct proof the value is
+    /// actually applied, rather than merely changing the answer by some amount.
+    func testAMeasuredStepAgreesWithTheDistanceItImplies() throws {
+        // 130 steps/min @ 0.90 m == 7.02 km/h == 585 m over a five-minute bucket.
+        let byCadence = try inferredActive(.init(start: 0, steps: 650, strideM: 0.90))
+        let byDistance = try inferredActive(.init(start: 0, distanceM: 585))
+        XCTAssertEqual(byCadence, byDistance, accuracy: 0.05)
+    }
+
+    /// The v5 → v6 promise for anyone the phone never measured: with no step length on the bucket the
+    /// figure is bit-for-bit what it was, because the fallback IS the old constant. Pinned against the
+    /// literal 0.75 m arithmetic rather than against the other branch, so a change to either one of
+    /// them cannot quietly cancel out here.
+    func testAbsentStepLengthPricesExactlyAsItDidAtV5() throws {
+        let active = try inferredActive(.init(start: 0, steps: 650))
+        // 650 steps / 5 min = 130/min; × 0.75 m × 60 / 1000 = 5.85 km/h.
+        // The Compendium table brackets that between (5.6, 4.3) and (6.4, 5.0):
+        let met = 4.3 + (5.85 - 5.6) / (6.4 - 5.6) * (5.0 - 4.3)
+        XCTAssertEqual(active, (met - 1) * 3.5 * profile.weightKg / 200 * 5, accuracy: 0.001)
+    }
+
+    /// An implausible stored step length must not be trusted just because it arrived on the bucket.
+    /// The database validates on write, but this path cannot depend on that having happened.
+    func testAnImplausibleStoredStepLengthFallsBackToTheAverage() throws {
+        let assumed = try inferredActive(.init(start: 0, steps: 650))
+        XCTAssertEqual(try inferredActive(.init(start: 0, steps: 650, strideM: 0.02)),
+                       assumed, accuracy: 0.001)
+        XCTAssertEqual(try inferredActive(.init(start: 0, steps: 650, strideM: 2.8)),
+                       assumed, accuracy: 0.001)
+    }
+
     /// The piecewise curve must be monotonic across its whole span, not just at the four points the
     /// old tables happened to define — walking through running, spanning every table breakpoint.
     func testSpeedToEnergyIsMonotonicAcrossTheWholeCurve() throws {
@@ -248,7 +291,7 @@ final class WhoopEnergyModelTests: XCTestCase {
     /// to this exact string, so a silent revert would resurrect pre-movement-corroboration (v1) rows
     /// into a chart that should only ever show one model generation at a time.
     func testModelVersionIsTheContextFirstGeneration() {
-        XCTAssertEqual(WhoopDailyEnergyEstimate.modelVersion, "whoop-bucket-v5")
+        XCTAssertEqual(WhoopDailyEnergyEstimate.modelVersion, "whoop-bucket-v6")
     }
 
     func testInvalidBucketsAndProfileDoNotInventEnergy() {

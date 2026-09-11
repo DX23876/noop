@@ -292,6 +292,26 @@ extension Repository {
         let sleepIntervals = await energySleepIntervals(store: store, from: from, to: to)
         let offWristIntervals = await energyOffWristIntervals(store: store, from: from, to: to)
         let workoutIntervals = await energyWorkoutIntervals(store: store, from: from, to: to)
+
+        // The wearer's own step length, from Apple's iPhone-measured walking-step-length reading.
+        // This is an INPUT to the model, not an energy figure: no Apple kcal is read here, the source
+        // is the phone rather than a watch, and the Watch calibration path below is untouched. Any day
+        // this cannot answer keeps `movementMET`'s documented population average, which is exactly the
+        // behaviour every day had before v6.
+        //
+        // Read further back than the refresh window: a measurement carries forward, so the earliest
+        // days of the window need the readings that precede them or they would fall back to the
+        // average while every later day used a measurement.
+        let strideFrom = from - StepLengthTimeline.carryForwardDays * 86_400
+        let strideRows = (try? await store.healthEnergyBuckets(
+            deviceId: Self.appleHealthSource, from: strideFrom, to: to)) ?? []
+        var strideSamplesByDay: [String: [Double]] = [:]
+        for row in strideRows {
+            guard let stride = row.strideM else { continue }
+            let day = Self.localDayKey(Date(timeIntervalSince1970: TimeInterval(row.bucketStart)))
+            strideSamplesByDay[day, default: []].append(stride)
+        }
+        let strideTimeline = StepLengthTimeline(samplesByDay: strideSamplesByDay)
         var bucketResults: [Int: WhoopEnergyBucketResult] = [:]
         var bucketInputs: [Int: WhoopEnergyBucket] = [:]
         var pendingWindow: [WhoopEnergyWindowDay] = []
@@ -326,6 +346,10 @@ extension Repository {
                                         to: calendar.startOfDay(for: dayStartDate)) ?? dayStartDate
             let dayTo = min(to, Int(nextDay.timeIntervalSince1970))
             let movement = await stepMovementByBucket(from: dayFrom, to: dayTo, profile: profile)
+            // Resolved once per day, never per bucket: the readings are per walking bout, so most
+            // buckets hold none and a per-bucket lookup would jitter between measured and assumed
+            // depending on where a sample happened to fall.
+            let dayStrideM = strideTimeline.estimate(onDay: day)?.metersPerStep
             let hrByStart = Dictionary(rows.map { ($0.ts, $0) }, uniquingKeysWith: { a, _ in a })
             let bucketStarts = Set(hrByStart.keys).union(movement.keys).sorted()
             let inputs = bucketStarts.compactMap { start -> WhoopEnergyBucket? in
@@ -339,6 +363,7 @@ extension Repository {
                     start: start, durationSeconds: wallSeconds,
                     hrCoverageSeconds: min(wallSeconds, max(0, hrRow?.sampleSeconds ?? 0)),
                     averageHR: hrRow?.bpm, steps: move?.steps,
+                    strideM: dayStrideM,
                     activityClass: move?.activityClass,
                     isWorkout: workout != nil, workoutKind: workout?.kind ?? .other,
                     isSleep: Self.contains(midpoint, in: sleepIntervals),

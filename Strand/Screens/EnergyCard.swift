@@ -445,6 +445,14 @@ struct EnergyDetailView: View {
         }
     }
 
+    /// The model generation, read back out of the version string rather than restated. The literal
+    /// "v5" that used to sit in the row below outlived the v6 bump and would have gone on claiming a
+    /// generation the app no longer runs — on the one screen whose whole job is saying what produced
+    /// the number.
+    private static var modelGeneration: String {
+        WhoopDailyEnergyEstimate.modelVersion.split(separator: "-").last.map(String.init) ?? ""
+    }
+
     @ViewBuilder private func provenanceRows(_ s: DailyEnergySummary) -> some View {
         row("Source", sourceLabel(s.source))
         if let energy = s.coverage.energy { row("Energy coverage", percent(energy)) }
@@ -457,7 +465,9 @@ struct EnergyDetailView: View {
                 ? String(localized: "weight history") : String(localized: "profile")
             row("Body weight used", "\(weight.formatted(.number.precision(.fractionLength(1)))) kg · \(source)")
         }
-        if let raw = s.rawWhoopTotalKcal { row("Model", "WHOOP v5 · \(Int(raw.rounded())) kcal") }
+        if let raw = s.rawWhoopTotalKcal {
+            row("Model", "WHOOP \(Self.modelGeneration) · \(Int(raw.rounded())) kcal")
+        }
         if let uncertainty = s.uncertaintyFraction {
             row("Confidence", "±\(Int((uncertainty * 100).rounded())) %")
         }

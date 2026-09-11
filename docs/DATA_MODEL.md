@@ -637,7 +637,7 @@ WhoopDailyEnergyRow`) — `WhoopEnergyModel`'s output with its evidence mix, kep
 | `deviceId` | TEXT NOT NULL | Part of PK. |
 | `day` | TEXT NOT NULL | `YYYY-MM-DD`. Part of PK. |
 | `rawTotalKcal` | DOUBLE NOT NULL | Model output **before** Watch calibration/basal top-up. |
-| `modelVersion` | TEXT NOT NULL | Currently `"whoop-bucket-v5"` (`WhoopDailyEnergyEstimate.modelVersion`). Reads filter on it, so a superseded row is ignored rather than mixed into a trend. |
+| `modelVersion` | TEXT NOT NULL | Currently `"whoop-bucket-v6"` (`WhoopDailyEnergyEstimate.modelVersion`). Reads filter on it, so a superseded row is ignored rather than mixed into a trend. |
 | `observedSeconds` | INTEGER NOT NULL | Seconds backed by a valid HR sample. |
 | `inferredSeconds` | INTEGER NOT NULL | Seconds backed by movement without HR. |
 | `modeledSeconds` | INTEGER NOT NULL | Seconds that are pure basal fill (off-wrist/sleep/no signal). |
