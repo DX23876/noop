@@ -39,6 +39,7 @@ struct StrengthSessionDetailView: View {
 
     var body: some View {
         NavigationStack {
+            ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: NoopMetrics.sectionGap) {
                     header
@@ -50,6 +51,7 @@ struct StrengthSessionDetailView: View {
                     provenance
                 }
                 .padding(NoopMetrics.screenPadding)
+                DemoScrollBottomAnchor()
             }
             .background(StrandPalette.surfaceBase.ignoresSafeArea())
             .navigationTitle(Text(title))
@@ -59,7 +61,11 @@ struct StrengthSessionDetailView: View {
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
             }
-            .task { await loadHeartRate() }
+            .task {
+                await loadHeartRate()
+                await scrollToDemoBottom(proxy)
+            }
+            }
         }
     }
 

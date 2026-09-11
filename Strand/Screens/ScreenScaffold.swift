@@ -64,6 +64,7 @@ struct ScreenScaffold<Content: View, Trailing: View>: View {
             .padding(28)
             .frame(maxWidth: .infinity, alignment: .leading)
             #endif
+            DemoScrollBottomAnchor()
         }
         #if os(iOS)
         // #697: stop a vertical scroll from drifting/bouncing the screen left-right. `.basedOnSize` only
@@ -83,6 +84,11 @@ struct ScreenScaffold<Content: View, Trailing: View>: View {
             .ignoresSafeArea()
         }
         .modifier(RefreshableIfNeeded(onRefresh: onRefresh))
+        #if DEBUG
+        .task {
+            await scrollToDemoBottom(proxy)
+        }
+        #endif
         #if os(macOS)
         // The mac window toolbar's default vibrant material washed the top of the liquid day-of-sky WHITE
         // (the scroll-under-titlebar blend). Hide it so the sky reads edge-to-edge and dark, like iOS.
@@ -136,6 +142,30 @@ struct ScreenScaffold<Content: View, Trailing: View>: View {
             trailing()
         }
     }
+}
+
+/// Shared, DEBUG-only end marker for full-screen screenshot QA. Screens with their own `ScrollView`
+/// use the same marker and launch argument as `ScreenScaffold`, so the visual pass can inspect every
+/// final card even when Simulator touch forwarding is unavailable.
+struct DemoScrollBottomAnchor: View {
+    var body: some View {
+        #if DEBUG
+        Color.clear.frame(height: 0).id(screenScaffoldBottomAnchorID)
+        #else
+        EmptyView()
+        #endif
+    }
+}
+
+/// Scrolls only under the explicit screenshot launch argument. The delay lets asynchronous screen
+/// models publish their rows before the reader resolves the end marker; production builds are a no-op.
+@MainActor
+func scrollToDemoBottom(_ proxy: ScrollViewProxy) async {
+    #if DEBUG
+    guard CommandLine.arguments.contains("--demo-scroll-bottom") else { return }
+    try? await Task.sleep(nanoseconds: 250_000_000)
+    proxy.scrollTo(screenScaffoldBottomAnchorID, anchor: .bottom)
+    #endif
 }
 
 extension ScreenScaffold where Trailing == EmptyView {
@@ -352,6 +382,9 @@ struct DataPendingNote: View {
 /// Zero-height scroll-to-top target id. File scope, not a `static` on `ScreenScaffold` — the latter is
 /// generic (`<Content, Trailing>`) and Swift forbids stored static properties on generic types.
 private let screenScaffoldTopAnchorID = "screenScaffold.top"
+#if DEBUG
+private let screenScaffoldBottomAnchorID = "screenScaffold.bottom"
+#endif
 
 private struct ScrollToTopSignalKey: EnvironmentKey {
     static let defaultValue: Int = 0

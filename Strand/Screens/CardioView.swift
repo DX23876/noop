@@ -46,6 +46,7 @@ struct CardioView: View {
     }
 
     var body: some View {
+        ScrollViewReader { proxy in
         ScrollView {
             LazyVStack(alignment: .leading, spacing: NoopMetrics.sectionGap) {
                 if !model.loaded {
@@ -61,6 +62,7 @@ struct CardioView: View {
                 }
             }
             .padding(NoopMetrics.screenPadding)
+            DemoScrollBottomAnchor()
         }
         .navigationTitle(Text("Cardio"))
         .toolbar {
@@ -78,11 +80,15 @@ struct CardioView: View {
                 }
             }
         }
-        .task(id: repo.refreshSeq) { await model.load(repo: repo) }
+        .task(id: repo.refreshSeq) {
+            await model.load(repo: repo)
+            await scrollToDemoBottom(proxy)
+        }
         // `onChange`, not a second `.task(id:)` — that also fires on first appearance, which would load
         // the whole workout history twice on every visit.
         .onChangeCompat(of: model.range) { _ in
             Task { await model.load(repo: repo) }
+        }
         }
     }
 

@@ -124,6 +124,7 @@ struct StrengthView: View {
     }
 
     private var strengthContent: some View {
+        ScrollViewReader { proxy in
         ScrollView {
             LazyVStack(alignment: .leading, spacing: NoopMetrics.sectionGap) {
                 if !loaded {
@@ -140,6 +141,7 @@ struct StrengthView: View {
                 }
             }
             .padding(NoopMetrics.screenPadding)
+            DemoScrollBottomAnchor()
         }
         .navigationTitle(Text("Strength"))
         .safeAreaInset(edge: .top) { syncStatusBar }
@@ -152,11 +154,15 @@ struct StrengthView: View {
         .sheet(isPresented: $showingAllSessions) { allSessionsSheet }
         .sheet(item: $mappingExercise) { exercise in exerciseMappingSheet(exercise.name) }
         .sheet(item: $openSession) { target in detailSheet(workoutId: target.id) }
-        .task(id: repo.refreshSeq) { await model.load(repo: repo) }
+        .task(id: repo.refreshSeq) {
+            await model.load(repo: repo)
+            await scrollToDemoBottom(proxy)
+        }
         // `onChange`, not a second `.task(id:)`: a `.task(id:)` also fires on first appearance, so two
         // of them meant every launch of this screen loaded the whole history twice.
         .onChangeCompat(of: model.range) { _ in
             Task { await model.load(repo: repo) }
+        }
         }
     }
 
