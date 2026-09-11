@@ -31,17 +31,22 @@ enum AppleDemoSeeder {
         "Cycling", "Cycling", "Cycling", "Walking", "Walking", "Walking",
         "Rowing", "Rowing", "HIIT", "Running", "Yoga",
     ]
-    /// Typical conditioning distance per sport, in metres, and how much it varies. Kept per sport
-    /// because one shared 6.5 km draw produced a 6.5 km "walk" and a 6.5 km "row" — the row roughly a
-    /// world-class 2 k eight times over, and the kind of number that makes every derived pace absurd.
-    private static func conditioningDistanceM(_ sport: String, _ rng: inout SplitMix64) -> Double? {
+    /// Conditioning distance per sport, in metres: the session's DURATION at a typical easy pace for
+    /// that sport, ±6 %. Kept per sport because one shared 6.5 km draw produced a 6.5 km "walk" and a
+    /// 6.5 km "row". And derived from the duration because drawing distance and duration independently
+    /// made pace — and heart beats per kilometre with it — a coin toss from session to session, which
+    /// Training Load's cardio development then read as a "+254 beats/km per week" trend.
+    private static func conditioningDistanceM(_ sport: String, durationS: Double,
+                                              _ rng: inout SplitMix64) -> Double? {
+        let metresPerSecond: Double
         switch sport {
-        case "Cycling": return round1(gauss(&rng, 22_000, 6_000).atLeast(6_000))
-        case "Walking": return round1(gauss(&rng, 4_200, 1_200).atLeast(1_500))
-        case "Rowing":  return round1(gauss(&rng, 5_000, 1_500).atLeast(2_000))
-        case "Running": return round1(gauss(&rng, 6_500, 1_800).atLeast(2_500))
+        case "Cycling": metresPerSecond = 6.4    // ~23 km/h, an easy spin
+        case "Walking": metresPerSecond = 1.55   // ~5.6 km/h
+        case "Rowing":  metresPerSecond = 3.5    // ~2:23 per 500 m
+        case "Running": metresPerSecond = 2.8    // ~6:00 per km
         default:        return nil
         }
+        return round1(durationS * metresPerSecond * gauss(&rng, 1.0, 0.06).clamped(0.85, 1.15))
     }
 
     /// True when the process was launched asking for the demo seed (Xcode scheme arg or `simctl
@@ -244,8 +249,10 @@ enum AppleDemoSeeder {
                 let dayStart = cal.startOfDay(for: date)
                 let start = Int(dayStart.timeIntervalSince1970) + hour * 3600 + rng.nextInt(0, 50) * 60 + k * 3600
                 // Mostly zone 2. A lifter's conditioning is deliberately easy — the hard work is under
-                // a bar — so the average heart rate sits well below a runner's tempo session.
-                let avg = Int(gauss(&rng, 124.0, 11.0))
+                // a bar — so the average heart rate sits well below a runner's tempo session. It drifts
+                // down as the demo fitness climbs: the same easy pace costing fewer beats, which is
+                // what Training Load's cardio development is built to show.
+                let avg = Int(gauss(&rng, 128.0 - fitness * 0.45, 5.0))
                 let src = rng.nextDouble() < 0.7 ? whoop : apple
                 let zonesJSON: String? = src == whoop ? {
                     // Weighted toward zones 1–2, which is what "conditioning that supports lifting"
@@ -260,7 +267,7 @@ enum AppleDemoSeeder {
                     energyKcal: round1((durSec / 60) * gauss(&rng, 11.5, 2.0)),
                     avgHr: avg, maxHr: avg + Int(gauss(&rng, 22.0, 6.0)),
                     strain: round1((strain * gauss(&rng, 0.6, 0.1)).clamped(4.0 * STRAIN_SCALE, 100.0)),
-                    distanceM: conditioningDistanceM(sport, &rng),
+                    distanceM: conditioningDistanceM(sport, durationS: durSec, &rng),
                     zonesJSON: zonesJSON, notes: nil, steps: nil))
             }
 
