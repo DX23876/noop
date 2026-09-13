@@ -31,6 +31,21 @@ import WhoopProtocol
 
 public enum StrainScorer {
 
+    /// Additive cardiovascular work and its existing user-facing compression, from one HR series.
+    public struct CardioLoadResult: Equatable, Sendable {
+        public let trimp: Double
+        public let effort: Double
+        public let sampleCount: Int
+        public let spanSeconds: Int
+
+        public init(trimp: Double, effort: Double, sampleCount: Int, spanSeconds: Int) {
+            self.trimp = trimp
+            self.effort = effort
+            self.sampleCount = sampleCount
+            self.spanSeconds = spanSeconds
+        }
+    }
+
     // MARK: - Constants (strain.py)
 
     /// Minimum HR readings before computing strain on a DENSE stream (≈10 min at 1 Hz).
@@ -390,6 +405,31 @@ public enum StrainScorer {
             strainUncached(hr, maxHR: maxHR, restingHR: restingHR, method: method, sex: sex,
                            denominator: resolvedDenominator, diag: nil, day: day)
         }
+    }
+
+    /// Raw TRIMP for aggregation plus the existing 0...100 Effort view of the same work.
+    /// Callers sum `trimp`; logarithmic `effort` is intentionally non-additive.
+    public static func cardioLoad(_ hr: [HRSample], maxHR: Double? = nil,
+                                  restingHR: Double = defaultRestingHR,
+                                  method: Method = .edwards, sex: String = "male") -> CardioLoadResult? {
+        let effMax = maxHR ?? Double(defaultMaxHR())
+        let span = max(0, (hr.map(\.ts).max() ?? 0) - (hr.map(\.ts).min() ?? 0))
+        let enough = hr.count >= minReadings || (hr.count >= minSparseReadings && span >= minSpanSeconds)
+        guard enough, effMax > restingHR else { return nil }
+        let durations = sampleDurationsMinutes(hr)
+        let reserve = effMax - restingHR
+        let trimp: Double
+        let denominator = logMapDenominator(method: method, sex: sex)
+        switch method {
+        case .edwards:
+            trimp = edwardsTRIMP(hr, restingHR: restingHR, hrReserve: reserve, durations: durations)
+        case .banister:
+            let b = sex.lowercased().hasPrefix("f") ? banisterBWomen : banisterBMen
+            trimp = banisterTRIMP(hr, restingHR: restingHR, hrReserve: reserve, durations: durations,
+                                  b: b, floorRatePerMinute: banisterBaselineRatePerMinute(b: b))
+        }
+        return CardioLoadResult(trimp: trimp, effort: trimpToStrain(trimp, denominator: denominator),
+                                sampleCount: hr.count, spanSeconds: span)
     }
 
     /// One line naming what an Effort score was computed FROM, or why it could not be computed.

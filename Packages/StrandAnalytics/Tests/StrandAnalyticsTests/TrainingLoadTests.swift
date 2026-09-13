@@ -117,19 +117,26 @@ final class TrainingLoadTests: XCTestCase {
 
     /// The headline is a signed percentage, not a ratio to look up.
     func testTheTrendReportsASignedPercentage() throws {
-        // 21 quiet days at 2.0, then 7 days at 3.0.
-        let daily = Array(repeating: 2.0, count: 21) + Array(repeating: 3.0, count: 7)
+        // 28 quiet baseline days at 2.0, then 7 recent days at 3.0.
+        let daily = Array(repeating: 2.0, count: 28) + Array(repeating: 3.0, count: 7)
         let trend = try XCTUnwrap(TrainingLoad.trend(daily: daily))
         XCTAssertEqual(trend.recentPerDay, 3.0, accuracy: 1e-9)
-        XCTAssertEqual(trend.baselinePerDay, 2.25, accuracy: 1e-9)
-        XCTAssertEqual(trend.percentChange, 33.333, accuracy: 0.01)
+        XCTAssertEqual(trend.baselinePerDay, 2.0, accuracy: 1e-9)
+        XCTAssertEqual(trend.percentChange, 50, accuracy: 0.01)
         // The ratio is still available for callers that need it.
-        XCTAssertEqual(trend.ratio, 3.0 / 2.25, accuracy: 1e-9)
+        XCTAssertEqual(trend.ratio, 1.5, accuracy: 1e-9)
+    }
+
+    /// The recent week must not dilute its own comparator. This is the coupled-ratio failure mode:
+    /// including the seven high days in the 28-day mean would produce 1.33 instead of 1.5.
+    func testRecentWeekIsExcludedFromItsBaseline() throws {
+        let daily = Array(repeating: 2.0, count: 28) + Array(repeating: 3.0, count: 7)
+        XCTAssertEqual(try XCTUnwrap(TrainingLoad.trend(daily: daily)).ratio, 1.5, accuracy: 1e-9)
     }
 
     /// A quiet week reads negative.
     func testAQuietWeekReadsNegative() throws {
-        let daily = Array(repeating: 4.0, count: 21) + Array(repeating: 1.0, count: 7)
+        let daily = Array(repeating: 4.0, count: 28) + Array(repeating: 1.0, count: 7)
         let trend = try XCTUnwrap(TrainingLoad.trend(daily: daily))
         XCTAssertLessThan(trend.percentChange, 0)
     }
@@ -137,10 +144,10 @@ final class TrainingLoadTests: XCTestCase {
     /// Rest days are real zeros. Someone who trained twice must not look like someone who trained six
     /// times — that is the whole difference between load and session intensity.
     func testRestDaysCountAsZero() throws {
-        let twice = Array(repeating: 0.0, count: 28).enumerated().map { i, _ in
+        let twice = Array(repeating: 0.0, count: 35).enumerated().map { i, _ in
             [5, 12].contains(i % 14) ? 6.0 : 0.0
         }
-        let often = Array(repeating: 0.0, count: 28).enumerated().map { i, _ in
+        let often = Array(repeating: 0.0, count: 35).enumerated().map { i, _ in
             i % 14 < 6 ? 6.0 : 0.0
         }
         XCTAssertLessThan(try XCTUnwrap(TrainingLoad.trend(daily: twice)).baselinePerDay,
@@ -149,32 +156,126 @@ final class TrainingLoadTests: XCTestCase {
 
     /// Too little history produces nothing, and a first fortnight is not "infinitely above usual".
     func testThinHistoryProducesNothing() {
-        XCTAssertNil(TrainingLoad.trend(daily: Array(repeating: 3.0, count: 9)))
-        XCTAssertNil(TrainingLoad.trend(daily: Array(repeating: 0.0, count: 28)))
+        XCTAssertNil(TrainingLoad.trend(daily: Array(repeating: 3.0, count: 20)))
+        XCTAssertNil(TrainingLoad.trend(daily: Array(repeating: 0.0, count: 35)))
     }
 
     func testSparseDatedTrendFillsRestDaysWithZero() throws {
         var values: [String: Double] = [:]
         var day = "2026-08-01"
-        for index in 0..<28 {
-            if index.isMultiple(of: 2) { values[day] = index < 21 ? 10 : 20 }
+        for index in 0..<35 {
+            if index.isMultiple(of: 2) { values[day] = index < 28 ? 10 : 20 }
             day = WeeklyDigestEngine.addDays(day, 1)
         }
-        let trend = try XCTUnwrap(TrainingLoad.trend(dailyByDay: values, through: "2026-08-28"))
-        // Aug 22, 24 and 26 are the three even-indexed training days in the final seven-day window.
-        XCTAssertEqual(trend.recentPerDay, 60.0 / 7.0, accuracy: 1e-9)
+        let trend = try XCTUnwrap(TrainingLoad.trend(dailyByDay: values, through: "2026-09-04"))
+        // Four even-indexed training days fall in the final seven-day window.
+        XCTAssertEqual(trend.recentPerDay, 80.0 / 7.0, accuracy: 1e-9)
     }
 
-    func testTwoWeeksOfHistoryDoesNotInventEarlierRestDays() throws {
+    func testTwoBaselineWeeksPlusARecentWeekDoNotInventEarlierRestDays() throws {
         var values: [String: Double] = [:]
         var day = "2026-08-01"
-        for _ in 0..<14 {
+        for _ in 0..<21 {
             values[day] = 10
             day = WeeklyDigestEngine.addDays(day, 1)
         }
-        let trend = try XCTUnwrap(TrainingLoad.trend(dailyByDay: values, through: "2026-08-14"))
+        let trend = try XCTUnwrap(TrainingLoad.trend(dailyByDay: values, through: "2026-08-21"))
         XCTAssertEqual(trend.recentPerDay, 10, accuracy: 1e-9)
         XCTAssertEqual(trend.baselinePerDay, 10, accuracy: 1e-9)
         XCTAssertEqual(trend.percentChange, 0, accuracy: 1e-9)
+        XCTAssertNil(TrainingLoad.trend(dailyByDay: values, through: "2026-08-14"))
+    }
+
+    // MARK: - Unrated sets take the athlete's own median
+
+    /// Rating MORE sets must not, on its own, move the weekly load. An unrated set is priced at the
+    /// median of the sets this athlete DID rate, so starting to log easy sets changes the figure only
+    /// if the training changed. With a fixed 0.75 default, the habit moved the number by itself.
+    func testRatingHabitAloneDoesNotMoveTheLoad() {
+        let allRated = TrainingLoad.strengthLoad(setRpes: [8, 8, 8, 8, 8, 8])
+        let halfLogged = TrainingLoad.strengthLoad(setRpes: [8, 8, 8, nil, nil, nil])
+        XCTAssertEqual(halfLogged.weightedSets, allRated.weightedSets, accuracy: 1e-9)
+    }
+
+    /// The borrowed weight follows the athlete: someone whose logged sets are easy has easy unrated
+    /// sets, and someone who grinds every set has hard ones.
+    func testTheBorrowedWeightFollowsTheAthlete() {
+        let easyLogger = TrainingLoad.strengthLoad(setRpes: [6, 6, nil, nil])
+        let hardLogger = TrainingLoad.strengthLoad(setRpes: [10, 10, nil, nil])
+        XCTAssertLessThan(easyLogger.weightedSets, hardLogger.weightedSets)
+        XCTAssertEqual(easyLogger.ratedShare, hardLogger.ratedShare, accuracy: 1e-12)
+    }
+
+    /// With nothing rated there is no median to borrow, and the documented default stands.
+    func testTheFixedDefaultOnlyAppliesWhenNothingIsRated() {
+        XCTAssertEqual(TrainingLoad.strengthLoad(setRpes: [nil, nil]).weightedSets,
+                       2 * MuscleStimulus.unratedProximity, accuracy: 1e-12)
+    }
+
+    // MARK: - Days the data cannot speak for
+
+    /// A day that could not be priced is not a rest day. Scoring it zero is the difference between
+    /// "you trained less" and "we could not measure what you did" — and only the second is true.
+    func testUnmeasuredDaysAreNotRestDays() throws {
+        var withGaps: [Double?] = Array(repeating: 4.0, count: 35).map { Optional($0) }
+        for index in 28..<32 { withGaps[index] = nil }
+        XCTAssertEqual(try XCTUnwrap(TrainingLoad.trend(daily: withGaps)).percentChange, 0, accuracy: 1e-9)
+
+        var asZeros = Array(repeating: 4.0, count: 35)
+        for index in 28..<32 { asZeros[index] = 0 }
+        XCTAssertLessThan(try XCTUnwrap(TrainingLoad.trend(daily: asZeros)).percentChange, -40)
+    }
+
+    /// The dated form drops the days it is given by name — and only those. A day nobody named is still
+    /// a rest day, because a rest day is real training information.
+    func testDatedUnknownDaysDropOutAndOthersStayZero() throws {
+        var values: [String: Double] = [:]
+        var unmeasured: Set<String> = []
+        var day = "2026-08-01"
+        for index in 0..<35 {
+            values[day] = 4
+            if (31...33).contains(index) { unmeasured.insert(day) }
+            day = WeeklyDigestEngine.addDays(day, 1)
+        }
+        let measured = values.filter { !unmeasured.contains($0.key) }
+        let dropped = try XCTUnwrap(TrainingLoad.trend(dailyByDay: measured, through: "2026-09-04",
+                                                       unknownDays: unmeasured))
+        XCTAssertEqual(dropped.recentPerDay, 4, accuracy: 1e-9)
+        XCTAssertLessThan(try XCTUnwrap(TrainingLoad.trend(dailyByDay: measured, through: "2026-09-04")).recentPerDay, 4)
+    }
+
+    // MARK: - The shape of a week
+
+    /// Two weeks can carry the same total and feel nothing alike. Monotony separates one huge session
+    /// from the same load spread across the week — higher means flatter and more repetitive.
+    func testMonotonySeparatesSpikesFromEvenWeeks() throws {
+        let spiky = try XCTUnwrap(TrainingLoad.distribution(daily: [600, 0, 0, 0, 0, 0, 0]))
+        let even = try XCTUnwrap(TrainingLoad.distribution(daily: [120, 90, 100, 80, 110, 60, 40]))
+        XCTAssertEqual(spiky.total, 600, accuracy: 1e-9)
+        XCTAssertEqual(even.total, 600, accuracy: 1e-9)
+        XCTAssertGreaterThan(even.monotony, spiky.monotony)
+        XCTAssertEqual(even.strain, even.total * even.monotony, accuracy: 1e-9)
+    }
+
+    /// A week with no spread at all makes monotony infinite. "Infinitely repetitive" is a division
+    /// artefact, not a description of a week, so nothing is reported — as with too few known days.
+    func testNoDistributionWithoutSpreadOrEnoughDays() {
+        XCTAssertNil(TrainingLoad.distribution(daily: Array(repeating: Optional(80.0), count: 7)))
+        XCTAssertNil(TrainingLoad.distribution(daily: [100, nil, nil, nil, 90, nil, 80]))
+    }
+
+    // MARK: - Week over week
+
+    /// The plain companion to the ratio: two weeks that do not overlap, and no threshold to look up.
+    func testWeekOverWeekComparesTwoDistinctWeeks() throws {
+        let daily: [Double?] = Array(repeating: 10.0, count: 7) + Array(repeating: 13.0, count: 7)
+        XCTAssertEqual(try XCTUnwrap(TrainingLoad.weekOverWeek(daily: daily)), 30, accuracy: 1e-9)
+    }
+
+    /// Nothing to compare against produces nothing: one week of history, or a first week from zero.
+    func testWeekOverWeekWithholdsWhatItCannotCompare() {
+        XCTAssertNil(TrainingLoad.weekOverWeek(daily: Array(repeating: Optional(10.0), count: 7)))
+        let fromNothing: [Double?] = Array(repeating: 0.0, count: 7) + Array(repeating: 5.0, count: 7)
+        XCTAssertNil(TrainingLoad.weekOverWeek(daily: fromNothing))
     }
 }

@@ -60,6 +60,29 @@ final class StrengthSessionTests: XCTestCase {
         XCTAssertEqual(f, 80 * (1 + 10.0 / 30.0), accuracy: 1e-9)
     }
 
+    /// Two sets with the same weight and completed reps are not equivalent when one stopped with
+    /// repetitions left. Logged RPE supplies that missing reserve without changing unrated history.
+    func testLoggedRPEAdjustsE1RMForRepsInReserve() throws {
+        let toFailure = try XCTUnwrap(OneRepMax.forSet(set(0, kg: 100, reps: 5, rpe: 10), template: bench["T1"]))
+        let threeInReserve = try XCTUnwrap(OneRepMax.forSet(set(0, kg: 100, reps: 5, rpe: 7), template: bench["T1"]))
+        XCTAssertEqual(toFailure, 100 * (1 + 5.0 / 30.0), accuracy: 1e-9)
+        XCTAssertEqual(threeInReserve, 100 * (1 + 8.0 / 30.0), accuracy: 1e-9)
+        XCTAssertGreaterThan(threeInReserve, toFailure)
+    }
+
+    /// Without RPE/RIR the old completed-repetition estimate remains exactly unchanged.
+    func testMissingRPELeavesE1RMUnadjusted() {
+        XCTAssertEqual(OneRepMax.forSet(set(0, kg: 100, reps: 5), template: bench["T1"]),
+                       OneRepMax.epley(weightKg: 100, reps: 5))
+    }
+
+    /// Reserve can move an otherwise valid set outside the formula's range. Withholding the estimate
+    /// is safer than extending Epley into the high-repetition range through the back door.
+    func testRIRAdjustedEstimateKeepsTheTwelveRepBoundary() {
+        XCTAssertNil(OneRepMax.forSet(set(0, kg: 80, reps: 10, rpe: 7), template: bench["T1"]))
+        XCTAssertNotNil(OneRepMax.forSet(set(0, kg: 80, reps: 10, rpe: 9), template: bench["T1"]))
+    }
+
     /// THE restraint test. Past twelve reps the rep-max formulas disagree with each other by more than
     /// the trend anyone is trying to read, so no number is offered. Returning one anyway is how a set
     /// of twenty at 60 kg becomes a fake 100 kg "personal record".

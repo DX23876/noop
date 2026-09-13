@@ -2,17 +2,18 @@ import XCTest
 import WhoopStore
 @testable import StrandAnalytics
 
-/// Pins the Training Load status: Polar's scale for cardio, the outcome-aware table for strength.
+/// Pins the Training Load status: the conventional load scale for cardio, the outcome-aware table for
+/// strength.
 ///
-/// The cardio tests are about FIDELITY — Polar's published thresholds, boundaries included. The strength
+/// The cardio tests are about FIDELITY — the published thresholds, boundaries included. The strength
 /// tests are about RESTRAINT: a ratio alone must never call a lifting block productive when the lifts are
 /// falling, an unclear e1RM must not be called unproductive at the usual load, and a missing input must
-/// fall back to Polar's mapping rather than invent a response.
+/// fall back to the load-only mapping rather than invent a response.
 final class TrainingStatusTests: XCTestCase {
 
     // MARK: - The scale
 
-    func testPolarBandBoundaries() {
+    func testBandBoundaries() {
         XCTAssertEqual(TrainingStatusModel.band(ratio: 0.79), .below)
         XCTAssertEqual(TrainingStatusModel.band(ratio: 0.8), .maintaining)
         XCTAssertEqual(TrainingStatusModel.band(ratio: 0.999), .maintaining)
@@ -21,13 +22,27 @@ final class TrainingStatusTests: XCTestCase {
         XCTAssertEqual(TrainingStatusModel.band(ratio: 1.3001), .above)
     }
 
-    // MARK: - Cardio: Polar, unchanged
+    // MARK: - Cardio: the four load states
 
-    func testCardioFollowsPolarsFourStates() {
-        XCTAssertEqual(TrainingStatusModel.cardioStatus(ratio: 0.6, followsRecentHighPhase: false), .detraining)
+    func testCardioFollowsTheFourLoadStates() {
+        XCTAssertEqual(TrainingStatusModel.cardioStatus(ratio: 0.6, followsRecentHighPhase: false,
+                                                        daysBelowUsual: 20), .detraining)
         XCTAssertEqual(TrainingStatusModel.cardioStatus(ratio: 0.9, followsRecentHighPhase: false), .maintaining)
         XCTAssertEqual(TrainingStatusModel.cardioStatus(ratio: 1.15, followsRecentHighPhase: false), .productive)
         XCTAssertEqual(TrainingStatusModel.cardioStatus(ratio: 1.4, followsRecentHighPhase: false), .overreaching)
+    }
+
+    /// One quiet week is a quiet week. Aerobic capacity holds through roughly the first fortnight of
+    /// reduced training, so calling day one of a deload "detraining" would name a loss the athlete has
+    /// not had — and the athlete cannot tell that verdict apart from a real decline.
+    func testAShortSpellBelowUsualIsNotYetDetraining() {
+        for days in [0, 6, 13] {
+            XCTAssertEqual(TrainingStatusModel.cardioStatus(ratio: 0.6, followsRecentHighPhase: false,
+                                                            daysBelowUsual: days), .maintaining)
+        }
+        XCTAssertEqual(TrainingStatusModel.cardioStatus(ratio: 0.6, followsRecentHighPhase: false,
+                                                        daysBelowUsual: TrainingStatusModel.cardioDetrainingAfterDays),
+                       .detraining)
     }
 
     /// Below 0.8 right after a hard phase is a deload, not a decline.
@@ -61,16 +76,67 @@ final class TrainingStatusTests: XCTestCase {
         XCTAssertEqual(lane!.status, .recovering)
     }
 
-    /// A break after ordinary steady training is recovering for its first week and detraining once it
-    /// runs longer: steady training sits at exactly 1.0, so the fortnight before a 10-day break holds
-    /// only four such days — no longer a phase.
-    func testALongerBreakAfterSteadyWeeksIsDetraining() {
+    /// A break after ordinary steady training is no longer read as a phase to recover from — steady
+    /// training sits at exactly 1.0, so the fortnight before a 10-day break holds only four such days.
+    /// It is not detraining either: ten days below usual is a break, and the lane says so plainly.
+    func testATenDayBreakAfterSteadyWeeksIsNeitherRecoveringNorDetraining() {
         let s = series([(35, 10), (10, 0.5)], startingAt: "2026-06-01")
         let lane = TrainingStatusModel.cardio(dailyByDay: s.daily, through: s.last)
         XCTAssertNotNil(lane)
         XCTAssertLessThan(lane!.ratio, 0.8)
         XCTAssertFalse(lane!.followsRecentHighPhase)
+        XCTAssertLessThan(lane!.daysBelowUsual, TrainingStatusModel.cardioDetrainingAfterDays)
+        XCTAssertEqual(lane!.status, .maintaining)
+    }
+
+    /// Once the break outlasts the fortnight, the verdict changes on its own — the run is what decides.
+    func testABreakPastTheFortnightIsDetraining() {
+        let s = series([(35, 10), (24, 0.5)], startingAt: "2026-06-01")
+        let lane = TrainingStatusModel.cardio(dailyByDay: s.daily, through: s.last)
+        XCTAssertNotNil(lane)
+        XCTAssertLessThan(lane!.ratio, 0.8)
+        XCTAssertFalse(lane!.followsRecentHighPhase)
+        XCTAssertGreaterThanOrEqual(lane!.daysBelowUsual, TrainingStatusModel.cardioDetrainingAfterDays)
         XCTAssertEqual(lane!.status, .detraining)
+    }
+
+    /// Forty-two steady days, four of the last seven trained but not priceable.
+    private func steadyDaysWithUnpriced(_ unpricedIndices: ClosedRange<Int>)
+    -> (measured: [String: Double], unmeasured: Set<String>, last: String) {
+        var daily: [String: Double] = [:]
+        var unmeasured: Set<String> = []
+        var cursor = "2026-06-01"
+        var last = cursor
+        for index in 0..<42 {
+            if unpricedIndices.contains(index) { unmeasured.insert(cursor) } else { daily[cursor] = 10 }
+            last = cursor
+            cursor = WeeklyDigestEngine.addDays(cursor, 1)
+        }
+        return (daily, unmeasured, last)
+    }
+
+    /// Days the data cannot price are not rest days. Four unpriceable sessions in the last week must not
+    /// turn a lane that trained exactly as usual into one that fell below usual — the athlete would read
+    /// a gap in our measurement as a drop in their training.
+    func testUnpriceableCardioDaysDoNotReadAsABreak() throws {
+        let s = steadyDaysWithUnpriced(35...38)
+        let honest = try XCTUnwrap(TrainingStatusModel.cardio(dailyByDay: s.measured, through: s.last,
+                                                              unknownDays: s.unmeasured))
+        XCTAssertEqual(honest.ratio, 1, accuracy: 1e-9)
+        XCTAssertNotEqual(honest.band, .below)
+        XCTAssertEqual(honest.daysBelowUsual, 0)
+
+        // The same four days counted as rest is the failure this rule exists to prevent.
+        let asRest = try XCTUnwrap(TrainingStatusModel.cardio(dailyByDay: s.measured, through: s.last))
+        XCTAssertEqual(asRest.band, .below)
+    }
+
+    /// When the WHOLE recent week is unpriceable there is nothing to compare, and the lane withholds the
+    /// comparison rather than inventing one from the days it happens to have.
+    func testAFullyUnpriceableWeekWithholdsTheComparison() {
+        let s = steadyDaysWithUnpriced(35...41)
+        XCTAssertNil(TrainingStatusModel.cardio(dailyByDay: s.measured, through: s.last,
+                                                unknownDays: s.unmeasured))
     }
 
     /// The run of below-usual days is counted from the day the ratio first dropped under 0.8. With ten
@@ -150,8 +216,8 @@ final class TrainingStatusTests: XCTestCase {
         XCTAssertEqual(strength(0.6, .rising, recentHigh: true), .recovering)
     }
 
-    /// Well above usual: recovery decides. Strained or unknown recovery is overreaching (Polar's verdict);
-    /// holding recovery lets the lifts decide.
+    /// Well above usual: recovery decides. Strained or unknown recovery is overreaching (the conventional
+    /// verdict); holding recovery lets the lifts decide.
     func testWellAboveUsualAsksRecovery() {
         XCTAssertEqual(strength(1.45, .rising, recovery: .strained), .overreaching)
         XCTAssertEqual(strength(1.45, .rising, recovery: .unknown), .overreaching)
@@ -160,9 +226,9 @@ final class TrainingStatusTests: XCTestCase {
         XCTAssertEqual(strength(1.45, .falling, recovery: .holding), .unproductive)
     }
 
-    /// With too few lifts to judge, strength falls back to Polar's own mapping — never an invented
+    /// With too few lifts to judge, strength falls back to the load-only mapping — never an invented
     /// response.
-    func testUnknownResponseFallsBackToPolar() {
+    func testUnknownResponseFallsBackToLoadOnly() {
         XCTAssertEqual(strength(0.6, .unknown, daysBelow: 30), .detraining)
         XCTAssertEqual(strength(0.9, .unknown), .maintaining)
         XCTAssertEqual(strength(1.15, .unknown), .productive)
@@ -277,12 +343,23 @@ final class TrainingStatusTests: XCTestCase {
     /// A switch of estimator inside the window is never read as fitness: only the latest segment counts.
     func testAnEstimatorSwitchIsNotATrend() {
         let older = vo2([40, 40, 40], segment: "uth2004", endingOn: "2026-08-20")
-        let newer = vo2([47, 47.1, 47.3, 47.4], segment: "nes2011")
+        let newer = vo2([46, 46.9, 47.6, 48.4], segment: "nes2011")
         let response = TrainingStatusModel.vo2maxResponse(readings: older + newer, through: "2026-09-10")
         XCTAssertTrue(response.segmentBreak)
         XCTAssertEqual(response.readings.count, 4)
         XCTAssertTrue(response.readings.allSatisfy { $0.segment == "nes2011" })
         XCTAssertEqual(response.direction, .improving)
+    }
+
+    /// An estimated VO₂max carries about a point of error, so a line that agrees on a half-point drift
+    /// is describing the estimator, not the athlete. The direction is withheld until the change clears
+    /// that floor — the readings still climb, and the line is still consistent.
+    func testADriftSmallerThanTheEstimatorsErrorIsUnclear() {
+        let response = TrainingStatusModel.vo2maxResponse(readings: vo2([45.0, 45.1, 45.2, 45.3, 45.4, 45.5]),
+                                                          through: "2026-09-10")
+        XCTAssertEqual(response.direction, .unclear)
+        XCTAssertEqual(response.readings.count, 6)
+        XCTAssertLessThan(abs(response.changeOverSpan ?? 0), TrainingStatusModel.vo2maxMinimumChange)
     }
 
     /// Three readings are not a line.
@@ -361,19 +438,38 @@ final class TrainingStatusTests: XCTestCase {
         return (rows, last)
     }
 
-    func testTwoSuppressedNightsAreStrained() {
-        let n = nights(final: [(60, 52), (35, 64), (34, 65)])
+    /// Half a week of suppressed nights is a strained week.
+    func testHalfAWeekOfSuppressedNightsIsStrained() {
+        let n = nights(final: [(60, 52), (35, 64), (34, 65), (33, 66), (35, 64)])
         let reading = TrainingStatusModel.recovery(days: n.days, through: n.last)
         XCTAssertEqual(reading.state, .strained)
-        XCTAssertEqual(reading.nightsRead, 3)
-        XCTAssertGreaterThanOrEqual(reading.strainedNights, 2)
+        XCTAssertEqual(reading.nightsRead, TrainingStatusModel.recoveryNights)
+        XCTAssertGreaterThanOrEqual(reading.strainedNights,
+                                    TrainingStatusModel.strainedNightsNeeded(ofNightsRead: reading.nightsRead))
         XCTAssertTrue(reading.flaggingOnLatestNight.contains("hrv"))
+    }
+
+    /// Two poor nights inside a week are a poor couple of nights. This reading gates the strength lane's
+    /// top band, so it must describe the week rather than the weekend.
+    func testTwoBadNightsInAWeekIsStillHolding() {
+        let n = nights(final: [(60, 52), (35, 64), (34, 65)])
+        let reading = TrainingStatusModel.recovery(days: n.days, through: n.last)
+        XCTAssertEqual(reading.nightsRead, TrainingStatusModel.recoveryNights)
+        XCTAssertEqual(reading.state, .holding)
     }
 
     /// One bad night is noise, not a trend.
     func testOneBadNightIsStillHolding() {
         let n = nights(final: [(60, 52), (61, 51), (34, 65)])
         XCTAssertEqual(TrainingStatusModel.recovery(days: n.days, through: n.last).state, .holding)
+    }
+
+    /// The bar scales with what was actually read, and never falls below two nights however thin the
+    /// week's data is.
+    func testTheStrainedBarIsProportionalWithAFloor() {
+        XCTAssertEqual(TrainingStatusModel.strainedNightsNeeded(ofNightsRead: 7), 4)
+        XCTAssertEqual(TrainingStatusModel.strainedNightsNeeded(ofNightsRead: 3), 2)
+        XCTAssertEqual(TrainingStatusModel.strainedNightsNeeded(ofNightsRead: 2), 2)
     }
 
     func testNoRecentNightsIsUnknown() {

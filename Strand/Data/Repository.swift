@@ -277,6 +277,11 @@ final class Repository: ObservableObject {
     struct StrainProfile: Sendable { let hrMax: Double; let sex: String }
     var strainProfile: StrainProfile?
 
+    /// Memo for `cardioLoads(for:)`, keyed by canonical session id and window. Pricing one session is an
+    /// indexed heart-rate range read, and Training Load, Cardio and the workout detail all ask about
+    /// overlapping windows; without this, every visit repeats the same reads.
+    var cardioLoadMemo: [String: TrainingCardioLoad] = [:]
+
     /// Emit one Workouts & GPS test-mode line iff the mode is on and a sink is wired. The cheap
     /// `TestCentre.active(.workouts)` gate is checked BEFORE `build()` runs, so the string is never
     /// constructed when the mode is off (the @autoclosure defers it).
@@ -3154,35 +3159,10 @@ final class Repository: ObservableObject {
     /// values in memory), so skipping it costs only the displayed-vs-stored HR distinction it exists for.
     func workoutRows(days: Int = 4000, reconcileHrCap: Int? = nil) async -> [WorkoutRow] {
         guard let store = await ensureStore() else { return [] }
-        let now = Int(Date().timeIntervalSince1970)
-        let lo = now - days * 86_400, hi = now + 86_400
-        // UNION every registered WHOOP + canonical (and computed siblings) so workouts banked before a
-        // re-add remain visible alongside every retained strap's live workouts.
-        // De-dup identical same-source rows that appear under both union ids by natural key (the cross-SOURCE
-        // dedup below only collapses strap-vs-Apple twins, not a row present in two strap namespaces).
-        var rows: [WorkoutRow] = []
-        let rawIds = rawPhysiologyReadIds(store: store)
-        for id in rawIds { rows += (try? await store.workouts(deviceId: id, from: lo, to: hi, limit: 5000)) ?? [] }
-        for id in rawIds.map({ $0.hasSuffix("-noop") ? $0 : $0 + "-noop" }) {
-            rows += (try? await store.workouts(deviceId: id, from: lo, to: hi, limit: 5000)) ?? []
-        }
-        rows += (try? await store.workouts(deviceId: "apple-health", from: lo, to: hi, limit: 5000)) ?? []
-        // Imported lifting sessions (Hevy / Liftosaur) live under their own "lifting" source.
-        rows += (try? await store.workouts(deviceId: "lifting", from: lo, to: hi, limit: 5000)) ?? []
-        // #29: imported activity FILES (FIT / GPX / TCX) live under their own "activity-file" source — read
-        // them too, or a successful file import never appears in the Workouts list (Data Sources counts it,
-        // the load didn't). HR is reconciled from the strap trace at the end like every other row.
-        rows += (try? await store.workouts(deviceId: "activity-file", from: lo, to: hi, limit: 5000)) ?? []
-        rows = Self.dedupWorkoutsByNaturalKey(rows)
-        let spans = WorkoutSource.parseDismissedSpans(dismissedDetectedSpans)
+        let filtered = await rawWorkoutRows(days: days)
         // #687: collapse the SAME activity tracked live under the strap AND imported from Health Connect /
         // Apple Health into one richer entry , they sit under different sources so without this they show
         // as two sessions. Dedup runs on the dismissed-filtered set, before the final newest-first sort.
-        let filtered = rows.filter { !WorkoutSource.isDismissed($0, spans: spans) }
-        // Workouts & GPS test mode: when on, run the dedup twin which returns the BYTE-IDENTICAL kept list
-        // plus a trace line per collapsed cross-source pair, tagged `.workouts`. Zero-cost when off (the gate
-        // is one UserDefaults bool read inside emitWorkouts), and the kept list equals dedupCrossSource(...)
-        // exactly, so the workout list the screen shows is unchanged.
         let deduped: [WorkoutRow]
         if TestCentre.active(.workouts), workoutsLog != nil {
             let (kept, trace) = WorkoutSource.dedupCrossSourceTrace(filtered)
@@ -3199,6 +3179,44 @@ final class Repository: ObservableObject {
             out = await reconcileWorkoutHrWithTrace(visible, store: store)
         }
         return out
+    }
+
+    /// Source-preserving workout rows for the training-session fusion layer. Natural-key duplicates and
+    /// dismissed detector rows are removed, but cross-source twins deliberately remain as components.
+    func rawWorkoutRows(days: Int = 4000) async -> [WorkoutRow] {
+        let now = Int(Date().timeIntervalSince1970)
+        return await rawWorkoutRows(from: now - days * 86_400, to: now + 86_400)
+    }
+
+    /// The same source-preserving read over an EXPLICIT window. A screen that needs the canonical
+    /// session for ONE workout fuses the hours around it instead of the whole library: the fusion is
+    /// quadratic in the rows it is handed, so "which session is this?" must not cost a full-history pass.
+    func rawWorkoutRows(from lo: Int, to hi: Int) async -> [WorkoutRow] {
+        guard let store = await ensureStore() else { return [] }
+        // UNION every registered WHOOP + canonical (and computed siblings) so workouts banked before a
+        // re-add remain visible alongside every retained strap's live workouts.
+        // De-dup identical same-source rows that appear under both union ids by natural key (the cross-SOURCE
+        // dedup below only collapses strap-vs-Apple twins, not a row present in two strap namespaces).
+        var rows: [WorkoutRow] = []
+        let rawIds = rawPhysiologyReadIds(store: store)
+        for id in rawIds { rows += (try? await store.workouts(deviceId: id, from: lo, to: hi, limit: 5000)) ?? [] }
+        for id in rawIds.map({ $0.hasSuffix("-noop") ? $0 : $0 + "-noop" }) {
+            rows += (try? await store.workouts(deviceId: id, from: lo, to: hi, limit: 5000)) ?? []
+        }
+        rows += (try? await store.workouts(deviceId: "apple-health", from: lo, to: hi, limit: 5000)) ?? []
+        // File-imported lifting sessions (Hevy / Liftosaur exports) live under "lifting". API-synced
+        // Hevy sessions deliberately use their own source so an export and its API twin can be fused
+        // instead of one silently overwriting the other.
+        rows += (try? await store.workouts(deviceId: "lifting", from: lo, to: hi, limit: 5000)) ?? []
+        rows += (try? await store.workouts(deviceId: "hevy", from: lo, to: hi, limit: 5000)) ?? []
+        // #29: imported activity FILES (FIT / GPX / TCX) live under their own "activity-file" source — read
+        // them too, or a successful file import never appears in the Workouts list (Data Sources counts it,
+        // the load didn't). HR is reconciled from the strap trace at the end like every other row.
+        rows += (try? await store.workouts(deviceId: "activity-file", from: lo, to: hi, limit: 5000)) ?? []
+        rows = Self.dedupWorkoutsByNaturalKey(rows)
+        let spans = WorkoutSource.parseDismissedSpans(dismissedDetectedSpans)
+        let filtered = rows.filter { !WorkoutSource.isDismissed($0, spans: spans) }
+        return filtered.sorted { $0.startTs > $1.startTs }
     }
 
     /// DISPLAY-ONLY: reconcile each workout's shown Avg/Max HR with the strap trace that actually drives

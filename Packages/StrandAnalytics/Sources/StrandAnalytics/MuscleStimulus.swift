@@ -58,12 +58,16 @@ public enum MuscleStimulus {
 
     /// How much proximity to failure contributes. RPE 10 is full; the ramp bottoms out at 0.2, because
     /// an easy set is not zero work — it is just not much.
+    ///
+    /// The ramp is CONTINUOUS at its foot. It used to return 0.2 at RPE 5 and 0.3 immediately above it,
+    /// so half a point of perceived effort — well inside the noise of the scale — moved a set's weight
+    /// by 50 %, and two lifters rating the same set 5 and 5.5 got materially different weekly loads.
+    /// The straight line now runs 0.2 at RPE 5 to 1.0 at RPE 10 with no step in it.
     public static func proximityFactor(rpe: Double?) -> Double {
         guard let rpe else { return unratedProximity }
         if rpe >= 10 { return 1 }
         if rpe <= 5 { return 0.2 }
-        // 5 -> 0.3, 10 -> 1.0, straight line between.
-        return 0.3 + (rpe - 5) / 5 * 0.7
+        return 0.2 + (rpe - 5) / 5 * 0.8
     }
 
     // MARK: - Strength reference

@@ -21,7 +21,7 @@ struct CoachGoal: Codable, Identifiable, Equatable {
         case consistency  // sessions per week
         case sleep        // average nightly hours
         case strength     // strength ACTIVITY TIME — minutes per week, from the workout log
-        /// Hard sets per week, from the strength lane (Hevy / an imported lifting log).
+        /// Logged working sets per week, from the strength lane (Hevy / an imported lifting log).
         ///
         /// A KIND OF ITS OWN rather than a new unit on `.strength`. An existing strength goal holds a
         /// target in minutes per week; reading that same number as sets would silently turn "120
@@ -41,7 +41,7 @@ struct CoachGoal: Codable, Identifiable, Equatable {
             case .consistency: return "Train regularly"
             case .sleep:       return "Sleep better"
             case .strength:    return "Build strength"
-            case .hardSets:    return "Weekly hard sets"
+            case .hardSets:    return "Weekly working sets"
             case .weight:      return "Body weight"
             case .stress:      return "Reduce stress"
             case .recovery:    return "Recover better"

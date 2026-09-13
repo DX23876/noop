@@ -82,6 +82,7 @@ struct StrengthView: View {
     @State private var showingFullScreenMap = false
     /// The session the detail sheet is showing, by Hevy workout id.
     @State private var openSession: SessionTarget?
+    @State private var genericSession: StrengthModel.GenericStrengthSession?
     struct SessionTarget: Identifiable, Equatable { let id: String }
     private struct ExerciseMappingTarget: Identifiable { let name: String; var id: String { name } }
     @State private var mappingExercise: ExerciseMappingTarget?
@@ -129,13 +130,16 @@ struct StrengthView: View {
             LazyVStack(alignment: .leading, spacing: NoopMetrics.sectionGap) {
                 if !loaded {
                     ProgressView().frame(maxWidth: .infinity)
-                } else if workouts.isEmpty {
+                } else if workouts.isEmpty && model.genericSessions.isEmpty {
                     emptyState
                 } else {
                     thisWeek
-                    muscleGroups
+                    // Named for `--demo-scroll-to` screenshot QA (DEBUG only; the id is inert otherwise),
+                    // so the weekly set range in the middle of this screen can be captured too.
+                    muscleGroups.id("volume")
                     balanceCard
                     exerciseProgress
+                    genericStrengthSessions
                     recentSessions
                     actionRow
                 }
@@ -154,6 +158,13 @@ struct StrengthView: View {
         .sheet(isPresented: $showingAllSessions) { allSessionsSheet }
         .sheet(item: $mappingExercise) { exercise in exerciseMappingSheet(exercise.name) }
         .sheet(item: $openSession) { target in detailSheet(workoutId: target.id) }
+        .sheet(item: $genericSession) { entry in
+            GenericStrengthDetailsSheet(session: entry.session, existing: entry.manual,
+                                        templates: model.templates) {
+                await model.refreshAfterManualDetails(repo: repo)
+            }
+            .environmentObject(repo)
+        }
         .task(id: repo.refreshSeq) {
             await model.load(repo: repo)
             await scrollToDemoBottom(proxy)
@@ -164,6 +175,41 @@ struct StrengthView: View {
             Task { await model.load(repo: repo) }
         }
         }
+    }
+
+    @ViewBuilder private var genericStrengthSessions: some View {
+        if !model.genericSessions.isEmpty {
+            VStack(alignment: .leading, spacing: NoopMetrics.gap) {
+                SectionHeader("Needs details", overline: "Imported strength")
+                ForEach(model.genericSessions.prefix(6)) { entry in
+                    NoopCard {
+                        HStack(spacing: NoopMetrics.space3) {
+                            Image(systemName: "figure.strengthtraining.traditional")
+                                .foregroundStyle(DomainTheme.effort.color)
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text(strengthSportName(entry.session.row.sport)).font(StrandFont.headline)
+                                Text(entry.manual == nil
+                                     ? "Exercise and set details are unavailable from Apple Health."
+                                     : "Your exercises and work sets are saved with this session.")
+                                    .font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                            Spacer(minLength: 8)
+                            Button(entry.manual == nil ? "Add details" : "Edit details") {
+                                genericSession = entry
+                            }
+                            .font(StrandFont.footnote).buttonStyle(.bordered)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /// Apple Health stores stable English workout labels. Localize its two strength categories for
+    /// display while leaving user-entered and unknown sport names exactly as they were recorded.
+    private func strengthSportName(_ sport: String) -> String {
+        WorkoutSource.localizedDisplaySport(sport)
     }
 
     /// The session detail, however it was reached.
@@ -244,7 +290,7 @@ struct StrengthView: View {
                           spacing: 10) {
                     tile(icon: "dumbbell.fill", label: String(localized: "Sessions"),
                          value: "\(week.sessionCount)", tint: DomainTheme.effort.color)
-                    tile(icon: "square.3.layers.3d", label: String(localized: "Hard sets"),
+                    tile(icon: "square.3.layers.3d", label: String(localized: "Working sets"),
                          value: "\(week.workingSetCount)", tint: DomainTheme.effort.color)
                     tile(icon: "scalemass.fill", label: String(localized: "Volume"),
                          value: volumeText(week.volumeLoadKg), tint: DomainTheme.effort.color)
@@ -579,6 +625,7 @@ struct StrengthView: View {
                                 .foregroundStyle(StrandPalette.textTertiary)
                                 .fixedSize(horizontal: false, vertical: true)
                         }
+                        volumeRangeLine
                         Text("Counted sets: each one counts once, on its exercise's primary muscle. The map above is a different figure — an estimate that also weighs how heavy the set was for you and credits indirect work, so its totals are larger than the sets you did.")
                             .font(StrandFont.caption)
                             .foregroundStyle(StrandPalette.textTertiary)
@@ -1329,6 +1376,51 @@ struct StrengthView: View {
 
     private var week: StrengthSession.WeekSummary { model.week }
 
+    /// This week's trained muscles against the span the hypertrophy research supports — the one
+    /// EXTERNAL reference on a screen that otherwise compares the wearer only with their own habit.
+    ///
+    /// A sentence, deliberately, and not a second band on every bar. The band beside each muscle is
+    /// that person's own history; painting a research range into the same shape would put two different
+    /// claims in one bar, and the reader could not tell which of them a short bar had fallen short of.
+    ///
+    /// Only for COMPLETE weeks. On a Tuesday every muscle is below ten sets, and a range that calls a
+    /// half-finished week a shortfall teaches the reader to ignore it by Wednesday.
+    @ViewBuilder private var volumeRangeLine: some View {
+        let summary = StrengthVolume.summary(setsByMuscle: week.setsByMuscle)
+        if summary.trained > 0 {
+            VStack(alignment: .leading, spacing: 3) {
+                Divider().overlay(StrandPalette.hairline)
+                if weekProgressText != nil {
+                    Text("Weekly sets are judged against the researched range once the week is complete.")
+                        .font(StrandFont.caption)
+                        .foregroundStyle(StrandPalette.textTertiary)
+                        .fixedSize(horizontal: false, vertical: true)
+                } else {
+                    Text(volumeRangeText(summary))
+                        .font(StrandFont.caption)
+                        .foregroundStyle(StrandPalette.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Text("The 10–20 set range comes from hypertrophy research on challenging sets. NOOP counts logged working sets and cannot confirm proximity to failure when RPE is missing, so this is rough context — not a target, safety limit, or range for strength or power work.")
+                        .font(StrandFont.caption)
+                        .foregroundStyle(StrandPalette.textTertiary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+        }
+    }
+
+    private func volumeRangeText(_ summary: (below: Int, inside: Int, above: Int, trained: Int)) -> String {
+        if summary.inside == summary.trained {
+            return String(localized: "All \(summary.trained) muscles you trained this week sit inside 10–20 sets.")
+        }
+        var parts: [String] = []
+        if summary.inside > 0 { parts.append(String(localized: "\(summary.inside) inside 10–20")) }
+        if summary.below > 0 { parts.append(String(localized: "\(summary.below) below")) }
+        if summary.above > 0 { parts.append(String(localized: "\(summary.above) above")) }
+        let list = parts.joined(separator: ", ")
+        return String(localized: "Of the \(summary.trained) muscles you trained this week: \(list).")
+    }
+
     private var typicalBands: [HevyMuscleGroup: ClosedRange<Double>] { model.typicalBands }
 
     /// Rows, busiest first. The bar's scale is the busiest group OR the top of its own band, whichever
@@ -1531,7 +1623,7 @@ struct StrengthView: View {
         if model.trendIsVolume {
             return String(localized: "Volume load per session (weight × reps). This movement has no one-rep-max estimate — the estimate is only defined for weight-and-reps exercises — so the honest progression question is whether you are doing more of it.")
         }
-        return String(localized: "Estimated 1RM (Epley) from each session's best working set — a projection, not a lift you performed. Sets above 12 reps are left out, because the estimate stops being reliable there. The trend beside it is the median of every pairwise slope, so one bad session cannot flip it.")
+        return String(localized: "Estimated 1RM (Epley) from each session's best working set — a projection, not a lift you performed. When you logged RPE or RIR, remaining reps are included; without a rating, completed reps are used. Sets whose completed plus remaining reps exceed 12 are left out. The trend beside it is the median of every pairwise slope, so one bad session cannot flip it.")
     }
 
     private func bestSetText(_ kg: Double) -> String {
@@ -1628,7 +1720,7 @@ struct StrengthView: View {
             .map { row in row.usualText.map { "\(row.group.label) \(row.sets) (\($0))" }
                        ?? "\(row.group.label) \(row.sets)" }
             .joined(separator: ", ")
-        if !muscles.isEmpty { parts.append("hard sets — " + muscles) }
+        if !muscles.isEmpty { parts.append("working sets — " + muscles) }
         if let load = model.strengthLoad {
             // The coach gets the same framing the tile shows: effort-weighted sets against this
             // person's own recent level, as a percentage. Handing it a bare ratio invited it to

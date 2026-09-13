@@ -609,6 +609,7 @@ enum DemoScreens {
         case "stress":   return AnyView(StressView())
         case "workouts": return AnyView(WorkoutsView())
         case "strength": return AnyView(StrengthView())
+        case "strengthdetails": return AnyView(GenericStrengthDetailsDemoHost())
         case "cardio": return AnyView(CardioView())
         case "trainingload": return AnyView(TrainingLoadView())
         case "body": return AnyView(BodyView())

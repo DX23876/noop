@@ -23,8 +23,10 @@ import WhoopStore
 
 /// The estimated one-rep maximum for a set.
 ///
-/// **Epley**: `1RM = w · (1 + r/30)`. One published formula, named, rather than a blend — a blend
-/// would have no source to check it against.
+/// **Epley**: `1RM = w · (1 + r/30)`. When a valid set RPE exists, `r` is completed reps plus the
+/// corresponding reps in reserve (`10 − RPE`). This keeps two equally weighted sets from receiving
+/// the same estimate when one stopped several repetitions earlier. Without a rating the published
+/// completed-rep formula remains unchanged rather than guessing reserve.
 ///
 /// It is an ESTIMATE and the surrounding UI must say so. Two guards keep it from pretending otherwise:
 /// a single rep returns the weight itself (the formula's own +3.3% at r=1 is nonsense — a 1-rep max IS
@@ -44,6 +46,16 @@ public enum OneRepMax {
         return weightKg * (1.0 + Double(reps) / 30.0)
     }
 
+    /// Epley adjusted for a logged number of repetitions in reserve. The effective repetition count
+    /// must remain inside the same 12-rep validity boundary as the unadjusted estimate.
+    public static func epley(weightKg: Double, reps: Int, rir: Double) -> Double? {
+        guard weightKg > 0, reps >= 1, rir.isFinite, (0...4).contains(rir) else { return nil }
+        let effectiveReps = Double(reps) + rir
+        guard effectiveReps <= Double(maxRepsForEstimate) else { return nil }
+        if effectiveReps == 1 { return weightKg }
+        return weightKg * (1.0 + effectiveReps / 30.0)
+    }
+
     /// The estimate for one logged set, honouring the exercise's own type.
     ///
     /// A known template that is NOT `weight_reps` (a plank, a distance row) gets no estimate — a 1RM
@@ -54,6 +66,9 @@ public enum OneRepMax {
         guard set.type.countsAsWork else { return nil }
         if let template, !template.isWeightAndReps { return nil }
         guard let w = set.weightKg, let r = set.reps else { return nil }
+        if let rpe = set.rpe, rpe.isFinite, (6...10).contains(rpe) {
+            return epley(weightKg: w, reps: r, rir: 10 - rpe)
+        }
         return epley(weightKg: w, reps: r)
     }
 }
@@ -266,8 +281,9 @@ public enum StrengthSession {
 
     /// Working sets per PRIMARY muscle group over a set of sessions, plus what could not be attributed.
     ///
-    /// This is the number the training literature actually uses for volume prescription — hard sets per
-    /// muscle per week — rather than tonnage, which conflates a heavy triple with a light set of twenty.
+    /// This is a count of logged working sets, with warm-ups excluded. It is useful for volume context
+    /// but must not be described as verified hard sets when proximity-to-failure data is missing.
+    /// Tonnage is kept separate because it conflates a heavy triple with a light set of twenty.
     public static func hardSetsByMuscle(_ workouts: [HevyWorkout],
                                         templates: [String: HevyExerciseTemplate])
         -> (primary: [HevyMuscleGroup: Int], secondary: [HevyMuscleGroup: Int], unattributed: Int) {

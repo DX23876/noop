@@ -116,10 +116,14 @@ public struct CardioSessionMetrics: Equatable, Sendable {
     public let energyKcal: Double?
     public let strain: Double?
     public let steps: Int?
+    /// Additive cardiovascular load (raw TRIMP). Kept separate from `strain`, the compressed Effort
+    /// presentation, because logarithmic Effort values cannot be summed across sessions.
+    public let cardioLoad: Double?
 
     public init(startTs: Int, endTs: Int, day: String, sport: String, source: String,
                 modality: CardioModality, durationS: Double?, distanceM: Double?,
-                avgHr: Int?, maxHr: Int?, energyKcal: Double?, strain: Double?, steps: Int?) {
+                avgHr: Int?, maxHr: Int?, energyKcal: Double?, strain: Double?, steps: Int?,
+                cardioLoad: Double? = nil) {
         self.startTs = startTs
         self.endTs = endTs
         self.day = day
@@ -133,6 +137,7 @@ public struct CardioSessionMetrics: Equatable, Sendable {
         self.energyKcal = energyKcal
         self.strain = strain
         self.steps = steps
+        self.cardioLoad = cardioLoad
     }
 
     /// Minimum distance before a pace or a speed is offered at all. Below 100 m the figure is dominated
@@ -210,8 +215,9 @@ public struct CardioWeekSummary: Equatable, Sendable {
     public let minutes: Double
     public let distanceM: Double
     public let energyKcal: Double
-    /// Summed Effort over the sessions that carry one. Nil when none did — never 0, which would read
-    /// as "an easy week" rather than "not scored".
+    /// Summed additive Cardio Load over the sessions that carry one, on ONE axis: raw TRIMP where the
+    /// history has it, stored Effort where it has none (`CardioSession.totalsUseCardioLoad`). Nil means
+    /// unmeasured rather than an easy week.
     public let effort: Double?
     /// How many of the sessions carried a distance. Reported for the same reason `volumeSetCount` is:
     /// a weekly distance is a different claim when half the sessions had none.
@@ -328,7 +334,8 @@ public enum CardioSession {
 
     /// Derive one session's figures. Rows of any source are accepted; the caller decides what to feed
     /// in, and `metrics.modality.isCardio` is how a strength row is dropped.
-    public static func metrics(for row: WorkoutRow, tzOffsetSeconds: Int = 0) -> CardioSessionMetrics {
+    public static func metrics(for row: WorkoutRow, tzOffsetSeconds: Int = 0,
+                               cardioLoad: Double? = nil) -> CardioSessionMetrics {
         CardioSessionMetrics(
             startTs: row.startTs, endTs: row.endTs,
             day: AnalyticsEngine.dayString(row.startTs, offsetSec: tzOffsetSeconds),
@@ -336,12 +343,14 @@ public enum CardioSession {
             modality: CardioModality.of(sport: row.sport),
             durationS: row.durationS, distanceM: row.distanceM,
             avgHr: row.avgHr, maxHr: row.maxHr, energyKcal: row.energyKcal,
-            strain: row.strain, steps: row.steps)
+            strain: row.strain, steps: row.steps, cardioLoad: cardioLoad)
     }
 
     /// Every cardio session in `rows`, newest first, strength rows dropped.
-    public static func sessions(_ rows: [WorkoutRow], tzOffsetSeconds: Int = 0) -> [CardioSessionMetrics] {
-        rows.map { metrics(for: $0, tzOffsetSeconds: tzOffsetSeconds) }
+    public static func sessions(_ rows: [WorkoutRow], tzOffsetSeconds: Int = 0,
+                                cardioLoadByStart: [Int: Double] = [:]) -> [CardioSessionMetrics] {
+        rows.map { metrics(for: $0, tzOffsetSeconds: tzOffsetSeconds,
+                           cardioLoad: cardioLoadByStart[$0.startTs]) }
             .filter { $0.modality.isCardio }
             .sorted { $0.startTs > $1.startTs }
     }
@@ -364,6 +373,9 @@ public enum CardioSession {
         var minutes = 0.0, distance = 0.0, kcal = 0.0
         var effort: Double?
         var withDistance = 0
+        // Decided over the WHOLE input, not this week's slice, so two weeks of the same history can
+        // never be totalled on different axes.
+        let usesCardioLoad = totalsUseCardioLoad(sessions)
         // A named accumulator rather than a tuple in a dictionary: the tuple version type-checked so
         // slowly the compiler gave up on it.
         struct Accumulator {
@@ -378,7 +390,7 @@ public enum CardioSession {
             minutes += session.minutes
             if let d = session.distanceM, d > 0 { distance += d; withDistance += 1 }
             if let k = session.energyKcal { kcal += k }
-            if let s = session.strain { effort = (effort ?? 0) + s }
+            if let s = additiveLoad(session, usingCardioLoad: usesCardioLoad) { effort = (effort ?? 0) + s }
             var entry = bySport[session.sport] ?? Accumulator(modality: session.modality)
             entry.sessionCount += 1
             entry.minutes += session.minutes
@@ -415,12 +427,31 @@ public enum CardioSession {
 
     // MARK: - Load
 
+    /// Whether a set of sessions is totalled in raw TRIMP.
+    ///
+    /// TRIMP and Effort are different axes — a threshold hour is around 130 TRIMP and around 14 Effort —
+    /// so adding one to the other yields a number in no unit at all. That is exactly what a part-measured
+    /// history would produce while some sessions carry a measured trace and others only a stored Effort.
+    /// The axis is therefore chosen ONCE per set: if any session carries TRIMP the totals are TRIMP and
+    /// the unmeasured sessions are left out (they are missing data, not easy sessions); with no TRIMP at
+    /// all every session falls back to its stored Effort, which keeps an older history readable.
+    public static func totalsUseCardioLoad(_ sessions: [CardioSessionMetrics]) -> Bool {
+        sessions.contains { $0.cardioLoad != nil }
+    }
+
+    /// The one additive figure for a session under that decision, or nil when it carries none.
+    public static func additiveLoad(_ session: CardioSessionMetrics, usingCardioLoad: Bool) -> Double? {
+        usingCardioLoad ? session.cardioLoad : session.strain
+    }
+
     /// Heart-rate-derived cardio load over seven days against the wearer's own 28-day level.
     ///
-    /// Each session contributes its stored Effort, which is NOOP's TRIMP-derived cardiovascular signal.
-    /// Moving time is deliberately kept beside this rather than used as load: sixty easy minutes and
-    /// sixty threshold minutes are equal duration and very different cardiovascular work. Strength rows
-    /// have already been removed by `sessions(_:)`, so lifting does not leak into this comparison.
+    /// Each session contributes raw TRIMP where the window was measured; a history recorded before the
+    /// measured lane existed falls back to stored Effort for ALL of its sessions rather than mixing the
+    /// two axes (see `totalsUseCardioLoad`). Moving time is deliberately kept beside this rather than
+    /// used as load: sixty easy minutes and sixty threshold minutes are equal duration and very
+    /// different cardiovascular work. Strength rows have already been removed by `sessions(_:)`, so
+    /// lifting does not leak into this comparison.
     ///
     /// The daily series is dense and zero-filled. Rest days therefore remain real zeros, and the result
     /// uses `TrainingLoad`'s signed percentage instead of importing team-sport ACWR colour bands.
@@ -428,8 +459,10 @@ public enum CardioSession {
                                        asOf now: Date = Date(),
                                        tzOffsetSeconds: Int = 0) -> LoadTrend? {
         var effortByDay: [String: Double] = [:]
+        let usesCardioLoad = totalsUseCardioLoad(sessions)
         for session in sessions {
-            guard let effort = session.strain, effort.isFinite, effort >= 0 else { continue }
+            guard let effort = additiveLoad(session, usingCardioLoad: usesCardioLoad),
+                  effort.isFinite, effort >= 0 else { continue }
             effortByDay[session.day, default: 0] += effort
         }
         let today = AnalyticsEngine.dayString(Int(now.timeIntervalSince1970), offsetSec: tzOffsetSeconds)

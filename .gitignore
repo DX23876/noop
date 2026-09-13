@@ -26,6 +26,7 @@ Strand.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/*
 !Strand.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
 build/
 DerivedData/
+BuildCheck/
 .build/
 Packages/*/.build/
 Tools/*/.build/

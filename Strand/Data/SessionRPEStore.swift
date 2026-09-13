@@ -14,6 +14,7 @@ import WhoopStore
 
 struct SessionRPEEntry: Equatable, Sendable {
     let id: String
+    let sessionId: String?
     let startTs: Int
     let rpe: Double
     let sport: String?
@@ -34,7 +35,8 @@ extension Repository {
             guard row.markerKey == Self.sessionRPEMarkerKey,
                   row.takenAt >= from, row.takenAt <= to,
                   let value = row.value, (1...10).contains(value) else { return nil }
-            return SessionRPEEntry(id: row.id, startTs: row.takenAt, rpe: value, sport: row.note)
+            return SessionRPEEntry(id: row.id, sessionId: row.valueText,
+                                   startTs: row.takenAt, rpe: value, sport: row.note)
         }
     }
 
@@ -43,15 +45,20 @@ extension Repository {
         await sessionRPEEntries(from: startTs, to: startTs).last
     }
 
+    func sessionRPE(sessionId: String) async -> SessionRPEEntry? {
+        await sessionRPEEntries(from: 0, to: Int.max).last { $0.sessionId == sessionId }
+    }
+
     /// Store or replace one whole-session RPE. Values use the conventional 1–10 session scale.
     @discardableResult
-    func recordSessionRPE(_ rpe: Double, startTs: Int, sport: String) async -> Bool {
+    func recordSessionRPE(_ rpe: Double, startTs: Int, sport: String,
+                          sessionId: String? = nil) async -> Bool {
         guard rpe.isFinite, (1...10).contains(rpe), let store = await storeHandle() else { return false }
         let row = LabMarkerRow(
             id: "session-rpe-\(startTs)", deviceId: Self.sessionRPEDeviceId,
             markerKey: Self.sessionRPEMarkerKey, category: Self.sessionRPECategory,
             day: Self.localDayKey(Date(timeIntervalSince1970: TimeInterval(startTs))),
-            takenAt: startTs, value: rpe, valueText: nil, unit: "RPE",
+            takenAt: startTs, value: rpe, valueText: sessionId, unit: "RPE",
             source: Self.sessionRPESource, note: sport, referenceText: nil)
         return (try? await store.upsertLabMarkers([row])) != nil
     }
@@ -63,5 +70,11 @@ extension Repository {
             return false
         }
         return (try? await store.deleteLabMarker(id: entry.id)) == true
+    }
+
+    @discardableResult
+    func deleteSessionRPE(id: String) async -> Bool {
+        guard let store = await storeHandle() else { return false }
+        return (try? await store.deleteLabMarker(id: id)) == true
     }
 }

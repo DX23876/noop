@@ -17,6 +17,100 @@ approximate; downloads are on the [Releases](https://github.com/NoopApp/noop/rel
 
 ---
 
+## Unreleased: One training session across NOOP, Apple Health and Hevy (Apple platforms)
+
+**Training sources now cooperate**
+
+- **One real workout appears as one canonical session.** NOOP keeps each source record intact, then
+  automatically links clear Apple Health / Hevy / NOOP twins by time and activity family. Ambiguous
+  matches stay separate until the wearer reviews them on Training Load.
+- **Every current Apple Health workout activity remains importable and keeps a stable activity family.**
+  Endurance sessions and intermittent conditioning are presented separately; mobility, recreation,
+  multisport and future unknown activities remain available without being relabelled as running.
+- **Cardio Load is additive TRIMP.** A sufficiently complete NOOP-band heart-rate trace wins. Heart rate
+  explicitly attached to the imported HealthKit workout is used only when that trace is incomplete;
+  the two sources are never stitched or added together. The compressed 0–21 Effort remains a session
+  presentation and is never totalled. One physical bout is priced once: while a suspected duplicate is
+  still awaiting review both records stay visible, but only one of them contributes its minutes of heart
+  rate. Totals also stay on ONE axis — a part-measured history reports TRIMP and leaves unmeasured
+  sessions out rather than adding a compressed Effort to a raw TRIMP. A library with no measured trace
+  at all — recorded through Apple Health, or with the strap left off — reports its stored session Effort
+  instead of reading zero, and says which of the two it is showing.
+- **Cardio keeps every session it used to show.** Endurance and intermittent conditioning have their own
+  sections, and multisport, recreation and still-unclassified activities are listed beside them instead
+  of disappearing from the screen because their family is new.
+- **The page's statement now knows both lanes.** It used to stop at the first rule that matched and
+  name a single lane, so a block of heavy cardio beside strength work that was falling away was
+  reported as cardio alone — and strength building beside cardio falling away read as "your build is
+  working". Every pair of verdicts is now resolved together: when the lanes point in opposite
+  directions the card names both and runs from the colour of the lane that is behind to the colour of
+  the one ahead.
+- **Imported strength sessions can be completed without logging them twice.** Apple Health supplies the
+  time envelope and any associated heart rate; the Strength screen asks only for exercises, work sets,
+  primary muscle and optional RPE or RIR. The entry stays editable: the session keeps its card, and
+  re-opening it starts from what was saved instead of a blank form. Strength Load remains effort-weighted
+  working sets, while whole-session load remains the wearer's independent `RPE × minutes` entry — counted
+  once per canonical session even when the same workout was rated from two of its source records.
+
+**Training Load only claims what it measured**
+
+- **A gap in our measurement is no longer reported as a drop in your training.** A day that held a real
+  session nobody could price — no usable heart-rate trace, and nothing else that day to cover it — now
+  leaves the comparison instead of counting as a rest day. Sessions too short to be priced, and
+  duplicates whose twin already described the same minutes, stay ordinary days. When a whole recent week
+  is unmeasurable, no comparison is offered at all rather than one made from the days that happen to
+  remain.
+- **One quiet week is a quiet week.** Cardio used to be called detraining the first day it dropped below
+  your usual level. It now waits a fortnight, which is roughly how long aerobic capacity holds through
+  reduced training; strength keeps its three weeks, because maximal force decays more slowly. A deload,
+  a work trip or a cold no longer reads as lost fitness.
+- **Half a point of effort no longer moves a set by half.** The weighting from RPE to load ran as a step
+  at RPE 5 — two people rating the same set 5 and 5.5 got materially different weekly loads. It is now a
+  straight line with no step in it.
+- **Rating more of your sets no longer changes your load on its own.** An unrated set is now priced at
+  the median of the sets you did rate, so starting to log your easy sets no longer makes your training
+  look lighter. The fixed default applies only when nothing at all is rated.
+- **The week no longer helps define its own baseline.** The recent seven days are compared with up to
+  28 days immediately before them. This removes the coupled ratio's built-in correlation; the familiar
+  bands remain explicitly labelled as monitoring conventions rather than safety limits.
+- **e1RM uses logged reserve.** When a set has RPE or RIR, Epley uses completed repetitions plus the
+  recorded repetitions in reserve. Unrated sets retain the previous completed-repetition estimate, and
+  any adjusted set beyond the 12-repetition validity boundary is withheld.
+- **A VO₂max direction needs a change worth naming.** An estimate carries about a point of error, so a
+  half-point drift over eight weeks described the estimator rather than you. Below that floor the
+  direction stays unclear and the readings are still shown.
+- **Recovery is read over a week, not a weekend.** Three nights meant one poor night beside one mediocre
+  one already counted as strained — and that reading decides whether a heavy strength week is called
+  productive or overreaching. It now reads seven nights, and needs half of the nights it could read.
+- **How much of a verdict was measured is said at the verdict.** When a lane rests mostly on unrated sets
+  or on stored Effort rather than a measured trace, the ring says so, instead of leaving that in a card
+  further down the page.
+
+**Three new figures, none of them a verdict**
+
+- **The shape of a week, beside its size.** Monotony and strain (Foster) describe how evenly a week was
+  spread — 600 units in one session is not 100 units on six days — and a plain week-over-week percentage
+  sits next to the ratio, with no threshold to look up and no overlap between the two weeks compared.
+- **Weekly working sets with qualified research context.** The Strength screen compared each muscle
+  with your own habit, which is honest and also circular. Complete weeks now also show logged working
+  sets beside the 10–20 range studied for challenging hypertrophy sets. When RPE is missing NOOP cannot
+  verify proximity to failure, so the range is explicitly rough context, not a target, safety limit, or
+  range for strength or power work.
+- **Where the week's intensity actually sat.** The Cardio screen shows time in each heart-rate zone for
+  the displayed week, using your own zone settings, and states how many sessions it could read — and
+  when part of the split comes from Apple Health's one averaged reading per minute, which cannot resolve
+  shorter intervals. No ideal distribution is implied.
+
+These seven corrections and three figures change displayed numbers but nothing stored, and need no
+rescore of their own.
+
+**Analysis migration required: yes.** Recipe v5 performs the existing resumable 21-day maintenance pass
+before advancing its cursor. Raw workouts, source metadata, heart-rate samples, manual strength details
+and session-RPE entries are preserved. Canonical links are idempotent and are built from retained source
+rows, so opening the expanded history safely enriches older sessions as well.
+
+---
+
 ## 11.1.0: A clock you choose, sleep without motion, and logs that report instead of assuming (all platforms)
 
 **Choose how you read times**

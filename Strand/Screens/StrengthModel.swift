@@ -58,11 +58,23 @@ final class StrengthModel: ObservableObject {
     @Published private(set) var workouts: [HevyWorkout] = []
     @Published private(set) var templates: [String: HevyExerciseTemplate] = [:]
     @Published private(set) var summaries: [StrengthSessionSummary] = []
-    /// The mirrored `WorkoutRow`s — where the strap's heart rate lands, filled read-side by the
-    /// repository from the trace. The "Hevy says what, WHOOP says how the body answered" half.
+    /// One row per canonical strength session — the envelope the strap's heart rate lands on, filled
+    /// read-side by the repository from the trace. The "Hevy says what, WHOOP says how the body
+    /// answered" half, now also covering a session whose envelope came from Apple Health.
     @Published private(set) var rows: [WorkoutRow] = []
     /// Imported exercises the catalogue could not match, offered for a one-time manual mapping.
     @Published private(set) var unmappedExercises: [String] = []
+    /// A strength session known only as a workout envelope, together with the manual entry the wearer
+    /// has already added to it. Keeping the entry here is what makes the editor re-openable: the card
+    /// stays after a save, and the sheet starts from what was stored instead of a blank form.
+    struct GenericStrengthSession: Identifiable, Equatable {
+        let session: UnifiedTrainingSession
+        let manual: HevyWorkout?
+        var id: String { session.id }
+    }
+    /// Strength sessions known only as a workout envelope. They count as sessions and can receive
+    /// compact exercise/set details without pretending HealthKit supplied them.
+    @Published private(set) var genericSessions: [GenericStrengthSession] = []
 
     // MARK: - The muscle map
 
@@ -147,6 +159,7 @@ final class StrengthModel: ObservableObject {
         let offset = tzOffset
 
         let sessions = (try? await store.strengthWorkouts(from: from, to: now + 86_400)) ?? []
+        let fused = await repo.trainingSessions(days: range.days)
         let catalogue = (try? await store.strengthExerciseTemplates()) ?? [:]
         let observations = ((try? await store.muscleRecoveryFeedback()) ?? []).compactMap { row in
             MuscleRecovery.Feeling(rawValue: row.feeling).map {
@@ -191,6 +204,19 @@ final class StrengthModel: ObservableObject {
         weekCache.removeAll()
 
         workouts = sessions
+        genericSessions = fused.sessions.compactMap { session -> GenericStrengthSession? in
+            guard session.kind == .strength else { return nil }
+            let overlapping = sessions.filter { detail in
+                let overlap = max(0, min(detail.endTs, session.row.endTs) - max(detail.startTs, session.row.startTs))
+                let shorter = max(1, min(detail.endTs - detail.startTs, session.row.endTs - session.row.startTs))
+                return Double(overlap) / Double(shorter) > 0.8
+            }
+            // A session logged in Hevy or imported from a file already carries its exercises. Only an
+            // envelope with nothing at all, or one the wearer completed by hand, belongs here — and the
+            // completed one stays listed so its entry can be corrected later.
+            guard overlapping.allSatisfy({ $0.source == .manual }) else { return nil }
+            return GenericStrengthSession(session: session, manual: overlapping.first)
+        }
         templates = catalogue
         summaries = prepared.summaries
         unmappedExercises = prepared.unmapped
@@ -203,8 +229,10 @@ final class StrengthModel: ObservableObject {
         ratedShare = prepared.ratedShare
         exerciseChoices = prepared.choices
 
-        rows = (try? await store.workouts(deviceId: HevySource.id, from: from, to: now + 86_400,
-                                          limit: 500)) ?? []
+        // Keep the canonical envelope beside the detailed set log. This is what lets a manual detail
+        // entry retain the Apple Health duration (and a Hevy + Health twin retain whichever source had
+        // the richer envelope) instead of falling back to a synthetic one-hour matching window.
+        rows = fused.sessions.filter { $0.kind == .strength }.map(\.row)
 
         // Re-clamp the week stepper: shortening the history window can leave the offset pointing at a
         // week that is no longer loaded, and the stepper would then sit on an empty week with its
@@ -227,6 +255,8 @@ final class StrengthModel: ObservableObject {
         await refreshWeek(repo: repo)
         loaded = true
     }
+
+    func refreshAfterManualDetails(repo: Repository) async { await load(repo: repo) }
 
     /// The most-trained movement with something to draw, searched over the busiest candidates only —
     /// the list is frequency-ordered, so the answer is almost always the first or second entry, and a

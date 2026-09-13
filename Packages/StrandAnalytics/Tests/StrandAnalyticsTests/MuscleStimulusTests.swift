@@ -105,6 +105,23 @@ final class MuscleStimulusTests: XCTestCase {
         XCTAssertEqual(MuscleStimulus.proximityFactor(rpe: 4), 0.2, "an easy set is not zero work")
     }
 
+    /// The ramp has NO STEP in it. It used to jump from 0.2 at RPE 5 to 0.3 just above, so half a point
+    /// of perceived effort — well inside the noise of the scale — moved a set's weight by half, and two
+    /// lifters rating the same set 5 and 5.5 got materially different weekly loads.
+    func testTheEffortRampIsContinuous() {
+        var previous = MuscleStimulus.proximityFactor(rpe: 4.5)
+        for tenths in stride(from: 4.6, through: 10.5, by: 0.1) {
+            let factor = MuscleStimulus.proximityFactor(rpe: tenths)
+            XCTAssertGreaterThanOrEqual(factor, previous, "the ramp never falls as effort rises")
+            XCTAssertLessThan(factor - previous, 0.05,
+                              "no step at RPE \(tenths): a tenth of a point must not move the weight far")
+            previous = factor
+        }
+        XCTAssertEqual(MuscleStimulus.proximityFactor(rpe: 5), 0.2, accuracy: 1e-12)
+        XCTAssertEqual(MuscleStimulus.proximityFactor(rpe: 7.5), 0.6, accuracy: 1e-12)
+        XCTAssertEqual(MuscleStimulus.proximityFactor(rpe: 10), 1, accuracy: 1e-12)
+    }
+
     // MARK: - The fallbacks
 
     /// A plank, a bodyweight pull-up, a machine on its own scale: no weight means no relative load, and

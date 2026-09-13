@@ -56,6 +56,31 @@ enum WorkoutSource: Equatable {
         return splitCamelCase(sport)
     }
 
+    /// Localized display for stable system/import labels. Unknown and user-entered names pass through
+    /// unchanged so presentation can never rewrite a locale-stable stored sport.
+    static func localizedDisplaySport(_ sport: String) -> String {
+        let display = displaySport(sport)
+        switch display.lowercased() {
+        case "running":                     return String(localized: "Running")
+        case "walking":                     return String(localized: "Walking")
+        case "hiking":                      return String(localized: "Hiking")
+        case "cycling":                     return String(localized: "Cycling")
+        case "open-water swim":             return String(localized: "Open-water swim")
+        case "rowing":                      return String(localized: "Rowing")
+        case "treadmill run":               return String(localized: "Treadmill run")
+        case "treadmill walk":              return String(localized: "Treadmill walk")
+        case "indoor cycle":                return String(localized: "Indoor cycle")
+        case "pool swim":                   return String(localized: "Pool swim")
+        case "row machine":                 return String(localized: "Row machine")
+        case "elliptical":                  return String(localized: "Elliptical")
+        case "hiit":                        return String(localized: "HIIT")
+        case "yoga":                        return String(localized: "Yoga")
+        case "functional strength training": return String(localized: "Functional strength training")
+        case "strength training":            return String(localized: "Strength Training")
+        default:                              return display
+        }
+    }
+
     /// The camelCase splitter shared by the display and KEY paths. Deliberately NOT localized: the
     /// key path below must be locale-stable.
     private static func splitCamelCase(_ sport: String) -> String {

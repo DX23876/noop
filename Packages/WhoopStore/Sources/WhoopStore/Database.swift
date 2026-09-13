@@ -1386,6 +1386,58 @@ extension WhoopStore {
                 try WhoopStore.markAnalysisInputsChanged(db, deviceId: archivedId, timestamps: dayStarts)
             }
         }
+        // v60: provenance and durable fusion for one physical training session arriving through several
+        // sources (for example Hevy set detail plus the generic workout Hevy writes to Apple Health).
+        // Raw workout and strength rows remain untouched; these additive sidecars identify components,
+        // preserve user decisions and retain workout-associated HealthKit HR without polluting strap HR.
+        migrator.registerMigration("v60-training-session-fusion") { db in
+            try db.create(table: "workoutSourceMetadata") { t in
+                t.column("componentKey", .text).primaryKey()
+                t.column("source", .text).notNull()
+                t.column("startTs", .integer).notNull()
+                t.column("sport", .text).notNull()
+                t.column("externalId", .text)
+                t.column("sourceBundleId", .text)
+                t.column("rawActivityType", .integer)
+                t.column("activitiesJSON", .text)
+                t.column("updatedAtTs", .integer).notNull()
+            }
+            try db.create(index: "idx_workoutSourceMetadata_window",
+                          on: "workoutSourceMetadata", columns: ["startTs", "source"])
+
+            try db.create(table: "workoutHeartRateBucket") { t in
+                t.column("componentKey", .text).notNull()
+                    .references("workoutSourceMetadata", onDelete: .cascade)
+                t.column("bucketStart", .integer).notNull()
+                t.column("bpm", .double).notNull()
+                t.column("sourceBundleId", .text)
+                t.primaryKey(["componentKey", "bucketStart"])
+            }
+
+            try db.create(table: "trainingSessionLink") { t in
+                t.column("componentKey", .text).primaryKey()
+                t.column("sessionId", .text).notNull()
+                t.column("origin", .text).notNull()
+                t.column("updatedAtTs", .integer).notNull()
+            }
+            try db.create(index: "idx_trainingSessionLink_session",
+                          on: "trainingSessionLink", columns: ["sessionId"])
+
+            try db.create(table: "trainingSessionPairDecision") { t in
+                t.column("leftKey", .text).notNull()
+                t.column("rightKey", .text).notNull()
+                t.column("decision", .text).notNull()
+                t.column("updatedAtTs", .integer).notNull()
+                t.primaryKey(["leftKey", "rightKey"])
+            }
+
+            try db.create(table: "trainingSessionPreference") { t in
+                t.column("sessionId", .text).primaryKey()
+                t.column("activityKind", .text)
+                t.column("primaryComponentKey", .text)
+                t.column("updatedAtTs", .integer).notNull()
+            }
+        }
         return migrator
     }
 }

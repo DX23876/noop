@@ -283,6 +283,13 @@ actor HevySyncCoordinator {
         }
         guard !rows.isEmpty else { return }
         try await store.upsertWorkouts(rows, deviceId: HevySource.id)
+        let now = Int(Date().timeIntervalSince1970)
+        try await store.upsertWorkoutSourceMetadata(workouts.map {
+            WorkoutSourceMetadataRow(componentKey: "hevy|\($0.id)", source: HevySource.id,
+                                     startTs: $0.startTs, sport: HevySource.sport,
+                                     externalId: $0.id, sourceBundleId: nil,
+                                     rawActivityType: nil, activitiesJSON: nil, updatedAtTs: now)
+        })
     }
 
     /// Remove the mirrored rows for deleted Hevy workouts.

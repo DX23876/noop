@@ -1,6 +1,6 @@
 #if os(iOS)
 import XCTest
-@testable import StrandiOS
+@testable import NOOP_Staging
 
 final class HealthEnergySourceTests: XCTestCase {
     func testAppleWatchClassificationUsesProductOrSourceName() {

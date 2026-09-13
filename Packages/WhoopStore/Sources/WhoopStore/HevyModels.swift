@@ -6,6 +6,7 @@ public enum StrengthDataSource: String, Codable, Sendable, CaseIterable {
     case hevyAPI = "hevy_api"
     case hevyCSV = "hevy_csv"
     case liftosaur
+    case manual
 }
 
 public struct StrengthExerciseMapping: Equatable, Codable, Sendable {

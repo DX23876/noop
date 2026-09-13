@@ -7,19 +7,17 @@ import WhoopStore
 // actually ask of that number: is it too much, too little, or about right. It does so in the terms the
 // two lanes can honestly support, and the two lanes are NOT treated alike.
 //
-// CARDIO follows Polar's Cardio Load Status, unchanged. Polar compares Strain (the rolling seven-day mean
-// of daily cardio load) with Tolerance (the rolling 28-day mean) and names four states by the ratio:
-// below 0.8 detraining/recovering, 0.8–1.0 maintaining, 1.0–1.3 productive, above 1.3 overreaching
-// (Polar Training Load Pro white paper; Polar support). NOOP's cardio lane is the same construction —
-// a seven-day mean of TRIMP-derived Effort against a mean of up to 28 days, rest days as zeros — so the
-// thresholds transfer without re-interpretation. Polar computes the status from cardio load ONLY.
+// CARDIO uses a seven-day mean of daily load against the PRECEDING 28 days. The windows are disjoint,
+// avoiding the mathematical coupling that appears when the acute week is also part of its own baseline.
+// The familiar 0.8 / 1.0 / 1.3 bands remain a monitoring convention for readable states, not measured
+// safety limits or a validated injury predictor. The cardio status is computed from cardio load ONLY.
 //
-// STRENGTH is where nobody has published a validated status. Polar has no set-based strength load at
-// all (its Muscle Load needs running or cycling power); Garmin's load is heart-rate EPOC; WHOOP folds an
-// unvalidated wrist-motion estimate into Strain; Apple asks for a manual effort rating. The 2025
+// STRENGTH is where nobody has published a validated status. The established load models are all
+// cardiovascular: heart-rate EPOC and power-based muscle load need running or cycling, WHOOP folds an
+// unvalidated wrist-motion estimate into Strain, and Apple asks for a manual effort rating. The 2025
 // ACWR meta-analysis (22 studies) contains no resistance-training study, and even for the sports it
 // covers it does not call 0.8–1.3 reliably safe. So the ratio alone is not allowed to call a strength
-// block "productive". The status also asks whether anything improved — the idea Garmin uses, where
+// block "productive". The status also asks whether anything improved — the established idea that
 // "productive" needs load AND a rising VO2max. For lifting, the improvement that can be measured is the
 // estimated one-rep max of the lifts being trained: `StrengthProgress.e1rmTrend`, the same robust line
 // the exercise card draws, restricted to the last six weeks. And above 1.3 it asks the body, through the
@@ -27,13 +25,13 @@ import WhoopStore
 //
 // Two rules here are NOOP's own and are named as such wherever they are shown:
 //   • "Recovering" rather than "detraining" when the ratio has dropped below 0.8 within two weeks of a
-//     productive or overreaching phase. Polar distinguishes the two but does not publish how.
+//     productive or overreaching phase. The published scales distinguish the two but not how.
 //   • The strength decision table below, and the aggregation of several lifts into one direction.
 //
 // Nothing here is stored or feeds a score. It is a read-time label over figures the screen already
 // shows, so every input is available to the wearer beside the verdict.
 
-/// What a lane's recent training is doing, in the vocabulary Polar made familiar.
+/// What a lane's recent training is doing, in the vocabulary load monitoring has made familiar.
 public enum TrainingStatus: String, Sendable, CaseIterable, Codable {
     /// Well below the wearer's usual, with no hard phase just before it.
     case detraining
@@ -49,7 +47,7 @@ public enum TrainingStatus: String, Sendable, CaseIterable, Codable {
     case overreaching
 }
 
-/// Where the ratio sits on Polar's scale.
+/// Where the ratio sits on the load scale.
 public enum TrainingLoadBand: String, Sendable, CaseIterable {
     /// Below 0.8.
     case below
@@ -213,7 +211,7 @@ public struct SustainedOverreaching: Equatable, Sendable {
 /// One lane's verdict and what it rests on.
 public struct LaneStatus: Equatable, Sendable {
     public let status: TrainingStatus
-    /// Seven-day mean over baseline mean — the figure Polar calls Strain / Tolerance.
+    /// Seven-day mean over the preceding baseline mean — an uncoupled load ratio.
     public let ratio: Double
     public let band: TrainingLoadBand
     /// True when the ratio stood at or above 1.0 on at least half of the previous fourteen days.
@@ -240,13 +238,13 @@ public struct LaneStatus: Equatable, Sendable {
 
 public enum TrainingStatusModel {
 
-    // MARK: Polar's published thresholds
+    // MARK: The conventional published thresholds
 
-    /// Below this, Polar reports detraining or recovering.
+    /// Below this, the scale reports detraining or recovering.
     public static let detrainingBelow = 0.8
-    /// From this (inclusive), Polar reports productive.
+    /// From this (inclusive), the scale reports productive.
     public static let productiveFrom = 1.0
-    /// Above this, Polar reports overreaching.
+    /// Above this, the scale reports overreaching.
     public static let overreachingAbove = 1.3
 
     // MARK: NOOP's own choices, each named where it is shown
@@ -265,9 +263,24 @@ public enum TrainingStatusModel {
     /// Fewer evaluable lifts than this and the strength verdict falls back to load alone.
     public static let minimumLiftsForResponse = 2
     /// Recent nights read for the recovery state.
-    public static let recoveryNights = 3
-    /// Nights, of those read, that must flag before recovery counts as strained. One night is noise.
-    public static let strainedNightsNeeded = 2
+    ///
+    /// A WEEK, so the reading describes a period rather than a weekend. Over three nights one poor night
+    /// beside one mediocre one was already "your recovery is strained" — and this state is not decorative:
+    /// it gates the strength lane's top band, where it decides between `productive` and `overreaching`.
+    /// Seven nights is also the window every other acute figure on the screen uses.
+    public static let recoveryNights = 7
+    /// Share of the nights ACTUALLY READ that must flag before recovery counts as strained.
+    public static let strainedNightShare = 0.5
+    /// Nights that must flag however the share works out. One night is noise.
+    public static let strainedNightsFloor = 2
+    /// Days below 0.8 before a CARDIO lane is called detraining rather than simply quiet.
+    ///
+    /// Short-term detraining research (Mujika & Padilla 2000) finds aerobic capacity largely held through
+    /// roughly the first fortnight of stopped or reduced training, and measurably lower after it. Before
+    /// that, a quiet week is a quiet week, and "detraining" would name a loss the athlete has not had.
+    /// The strength lane waits longer (`strengthDetrainingAfterDays`): maximal force decays more slowly
+    /// than aerobic capacity, and the two lanes should not borrow each other's timing.
+    public static let cardioDetrainingAfterDays = 14
     /// Days below 0.8 before a strength lane whose lifts are not visibly falling is called detraining.
     /// From Bosquet et al. 2013 (meta-analysis of training cessation): the loss of maximal force becomes
     /// significant from the THIRD week of inactivity. Before that, strength is still being held, and
@@ -290,12 +303,14 @@ public enum TrainingStatusModel {
     ///
     /// Each earlier day's ratio is the same `TrainingLoad.trend` comparison, evaluated as of that day, so
     /// "recovering" is judged against what the screen would have shown then.
-    public static func followsRecentHighPhase(dailyByDay: [String: Double], through day: String) -> Bool {
+    public static func followsRecentHighPhase(dailyByDay: [String: Double], through day: String,
+                                              unknownDays: Set<String> = []) -> Bool {
         var cursor = day
         var highDays = 0
         for _ in 0..<recentHighLookbackDays {
             cursor = WeeklyDigestEngine.addDays(cursor, -1)
-            if let trend = TrainingLoad.trend(dailyByDay: dailyByDay, through: cursor),
+            if let trend = TrainingLoad.trend(dailyByDay: dailyByDay, through: cursor,
+                                              unknownDays: unknownDays),
                trend.ratio >= productiveFrom {
                 highDays += 1
             }
@@ -305,11 +320,13 @@ public enum TrainingStatusModel {
 
     /// Consecutive days, ending on `day`, on which the ratio stood below 0.8 — how long the lane has been
     /// training well under its usual level. A day without a comparison ends the run.
-    public static func daysBelowUsual(dailyByDay: [String: Double], through day: String) -> Int {
+    public static func daysBelowUsual(dailyByDay: [String: Double], through day: String,
+                                      unknownDays: Set<String> = []) -> Int {
         var run = 0
         var cursor = day
         for _ in 0..<belowRunLookbackDays {
-            guard let trend = TrainingLoad.trend(dailyByDay: dailyByDay, through: cursor),
+            guard let trend = TrainingLoad.trend(dailyByDay: dailyByDay, through: cursor,
+                                                 unknownDays: unknownDays),
                   trend.ratio < detrainingBelow else { break }
             run += 1
             cursor = WeeklyDigestEngine.addDays(cursor, -1)
@@ -317,12 +334,20 @@ public enum TrainingStatusModel {
         return run
     }
 
-    // MARK: - Cardio: Polar's Cardio Load Status
+    // MARK: - Cardio: the four load states
 
-    /// Polar's four states from the ratio, with NOOP's recovering rule below 0.8.
-    public static func cardioStatus(ratio: Double, followsRecentHighPhase: Bool) -> TrainingStatus {
+    /// The four states from the ratio, with NOOP's recovering rule below 0.8.
+    ///
+    /// Below 0.8 is `detraining` only once the lane has been there for `cardioDetrainingAfterDays`; until
+    /// then it is `maintaining`. A single quiet week is the most ordinary thing in a training year — a
+    /// deload, a work trip, a cold — and reporting it as a loss of fitness on day one told the athlete
+    /// something untrue about their body while the number only described their calendar.
+    public static func cardioStatus(ratio: Double, followsRecentHighPhase: Bool,
+                                    daysBelowUsual: Int = 0) -> TrainingStatus {
         switch band(ratio: ratio) {
-        case .below:       return followsRecentHighPhase ? .recovering : .detraining
+        case .below:
+            if followsRecentHighPhase { return .recovering }
+            return daysBelowUsual >= cardioDetrainingAfterDays ? .detraining : .maintaining
         case .maintaining: return .maintaining
         case .productive:  return .productive
         case .above:       return .overreaching
@@ -330,15 +355,24 @@ public enum TrainingStatusModel {
     }
 
     /// The cardio lane's status, or nil while `TrainingLoad.trend` withholds a comparison.
-    public static func cardio(dailyByDay: [String: Double], through day: String) -> LaneStatus? {
-        guard let trend = TrainingLoad.trend(dailyByDay: dailyByDay, through: day) else { return nil }
-        let recentHigh = followsRecentHighPhase(dailyByDay: dailyByDay, through: day)
+    ///
+    /// `unknownDays` are days whose cardio the data cannot price at all — not rest days. They drop out of
+    /// both comparison windows here and in every helper below, so the phase test and the below-usual run
+    /// are read from the same series as the ratio itself.
+    public static func cardio(dailyByDay: [String: Double], through day: String,
+                              unknownDays: Set<String> = []) -> LaneStatus? {
+        guard let trend = TrainingLoad.trend(dailyByDay: dailyByDay, through: day,
+                                             unknownDays: unknownDays) else { return nil }
+        let recentHigh = followsRecentHighPhase(dailyByDay: dailyByDay, through: day,
+                                                unknownDays: unknownDays)
         let laneBand = band(ratio: trend.ratio)
-        return LaneStatus(status: cardioStatus(ratio: trend.ratio, followsRecentHighPhase: recentHigh),
+        let belowRun = laneBand == .below
+            ? daysBelowUsual(dailyByDay: dailyByDay, through: day, unknownDays: unknownDays) : 0
+        return LaneStatus(status: cardioStatus(ratio: trend.ratio, followsRecentHighPhase: recentHigh,
+                                               daysBelowUsual: belowRun),
                           ratio: trend.ratio, band: laneBand,
                           followsRecentHighPhase: recentHigh,
-                          daysBelowUsual: laneBand == .below
-                            ? daysBelowUsual(dailyByDay: dailyByDay, through: day) : 0,
+                          daysBelowUsual: belowRun,
                           usedStrengthResponse: false, usedRecovery: false)
     }
 
@@ -357,9 +391,9 @@ public enum TrainingStatusModel {
     /// `detraining` once the lane has been below 0.8 for `strengthDetrainingAfterDays` (21) days — the
     /// point from which Bosquet et al. find maximal force measurably lower. Above 1.3 the starred cells
     /// apply only while recovery is holding; strained or unknown recovery makes it `overreaching`, which
-    /// is also Polar's verdict for that band. Apart from the Bosquet rule, the "unknown" column is
-    /// Polar's own mapping, used whenever too few lifts can be judged — the fallback never invents a
-    /// response.
+    /// is also the conventional verdict for that band. Apart from the Bosquet rule, the "unknown" column
+    /// is the conventional load-only mapping, used whenever too few lifts can be judged — the fallback
+    /// never invents a response.
     ///
     /// "Unclear" at the usual load is `maintaining`, not `unproductive`: an advanced lifter gaining a
     /// fraction of a per cent a week is genuinely progressing below what six weeks of e1RM can resolve,
@@ -417,6 +451,102 @@ public enum TrainingStatusModel {
                           usedRecovery: laneBand == .above && recovery.state != .unknown)
     }
 
+    // MARK: - One statement for both lanes
+
+    public enum TrainingStatementLane: String, Sendable, CaseIterable { case strength, cardio }
+    public enum TrainingStatementSeverity: String, Sendable { case mild, sharp }
+
+    /// What the two lanes say TOGETHER — the page's single statement.
+    ///
+    /// It is a mapping, not a fourth score: every case names the lanes it speaks for, and no case
+    /// merges the two verdicts into a third one.
+    public enum TrainingStatement: Equatable, Sendable {
+        case noHistory
+        /// Only one lane has a comparison yet; the other is not yet measurable.
+        case laneOnly(TrainingStatementLane, TrainingStatus)
+        case aligned(TrainingStatus)
+        /// One lane below its usual while the other merely holds — not yet a split, but not "both low".
+        case oneBehind(TrainingStatementLane)
+        /// The lanes point in opposite directions: one below usual, the other building or overreaching.
+        case split(low: TrainingStatementLane, high: TrainingStatementLane,
+                   severity: TrainingStatementSeverity)
+        case excessive(TrainingStatementLane, recoveryStrained: Bool)
+        case bothExcessive(recoveryStrained: Bool)
+        case spinning(cardioAlsoHigh: Bool)
+        case strainedRecovery
+    }
+
+    /// Which way a lane is pointing. Derived from the verdict rather than from a second threshold, so a
+    /// split is decided by the rules that already priced each lane — including strength's own
+    /// exceptions (the lifts' response, recovery above 1.3, the 21-day detraining rule).
+    private enum Tendency { case behind, holding, building, spinning, excessive }
+
+    private static func tendency(_ status: TrainingStatus) -> Tendency {
+        switch status {
+        case .detraining, .recovering: return .behind
+        case .maintaining:             return .holding
+        case .productive:              return .building
+        case .unproductive:            return .spinning
+        case .overreaching:            return .excessive
+        }
+    }
+
+    /// The statement for one pair of verdicts.
+    ///
+    /// The old read-time ladder stopped at its first hit and therefore named ONE lane: a wearer whose
+    /// lifting was falling away while their cardio ran well above usual was told only about the cardio.
+    /// This resolves the pair instead, so a lane that is losing ground is never silently dropped from
+    /// the sentence.
+    ///
+    /// Strained recovery is applied AFTER the pair is resolved, and only where it changes the advice:
+    /// it sharpens an overreaching statement and displaces a quiet one, but it never overrides a split
+    /// or a lane that is falling behind — the recovery card sits directly beneath either way.
+    public static func statement(strength: TrainingStatus?, cardio: TrainingStatus?,
+                                 recovery: RecoveryState) -> TrainingStatement {
+        let strained = recovery == .strained
+        switch (strength, cardio) {
+        case (nil, nil):                     return .noHistory
+        case let (value?, nil):              return .laneOnly(.strength, value)
+        case let (nil, value?):              return .laneOnly(.cardio, value)
+        case let (strengthStatus?, cardioStatus?):
+            let lifting = tendency(strengthStatus)
+            let running = tendency(cardioStatus)
+            switch (lifting, running) {
+            case (.spinning, .excessive):    return .spinning(cardioAlsoHigh: true)
+            case (.spinning, _):             return .spinning(cardioAlsoHigh: false)
+            case (.excessive, .excessive):   return .bothExcessive(recoveryStrained: strained)
+            case (.excessive, .behind):
+                return .split(low: .cardio, high: .strength, severity: .sharp)
+            case (.behind, .excessive):
+                return .split(low: .strength, high: .cardio, severity: .sharp)
+            case (.excessive, _):            return .excessive(.strength, recoveryStrained: strained)
+            case (_, .excessive):            return .excessive(.cardio, recoveryStrained: strained)
+            case (.behind, .building):
+                return .split(low: .strength, high: .cardio, severity: .mild)
+            case (.building, .behind):
+                return .split(low: .cardio, high: .strength, severity: .mild)
+            case (.behind, .behind):
+                // The graver of the two claims wins: a deload beside a genuine decline is a decline.
+                return .aligned(strengthStatus == .detraining || cardioStatus == .detraining
+                                ? .detraining : .recovering)
+            case (.behind, .holding):        return .oneBehind(.strength)
+            case (.holding, .behind):        return .oneBehind(.cardio)
+            // `cardioStatus` never returns `unproductive`, so these two pairs cannot occur today. They
+            // are spelled out rather than swept into a `default`, which would also swallow a genuine
+            // gap the day the matrix grows: load without return is still load at or above usual, so
+            // cardio in that state is treated exactly like a building cardio lane.
+            case (.behind, .spinning):
+                return .split(low: .strength, high: .cardio, severity: .mild)
+            case (.holding, .spinning):
+                return strained ? .strainedRecovery : .aligned(.productive)
+            case (.building, _), (_, .building):
+                return strained ? .strainedRecovery : .aligned(.productive)
+            case (.holding, .holding):
+                return strained ? .strainedRecovery : .aligned(.maintaining)
+            }
+        }
+    }
+
     // MARK: - History
 
     /// One week-end's verdict per lane, for the history strip.
@@ -434,6 +564,7 @@ public enum TrainingStatusModel {
     /// backwards over old weeks.
     public static func weeklyHistory(weeks: Int, through day: String,
                                      strengthDaily: [String: Double], cardioDaily: [String: Double],
+                                     cardioUnknownDays: Set<String> = [],
                                      workouts: [HevyWorkout], templates: [String: HevyExerciseTemplate],
                                      days: [DailyMetric], tzOffsetSeconds: Int = 0) -> [WeeklyStatus] {
         guard weeks > 0 else { return [] }
@@ -446,7 +577,8 @@ public enum TrainingStatusModel {
                 day: asOf,
                 strength: strength(dailyByDay: strengthDaily, through: asOf,
                                    response: response, recovery: recoveryReading)?.status,
-                cardio: cardio(dailyByDay: cardioDaily, through: asOf)?.status)
+                cardio: cardio(dailyByDay: cardioDaily, through: asOf,
+                               unknownDays: cardioUnknownDays)?.status)
         }
     }
 
@@ -510,10 +642,21 @@ public enum TrainingStatusModel {
     /// — twice the minimum a direction may be claimed from.
     public static let vo2maxWindowDays = 56
 
+    /// How much VO₂max must have moved across the window before a direction is claimed, in ml/kg/min.
+    ///
+    /// An estimated VO₂max is not a measured one: it is inferred from heart rate and pace, and its
+    /// typical error is around a point — comfortably larger than the drift a Theil–Sen line can call
+    /// consistent. Without a floor, eight weeks of readings wobbling by half a point in one direction
+    /// read as "your fitness is improving", which is a claim about the estimator rather than the
+    /// athlete. Below this the direction is `unclear`: the line agreed, the change was too small to mean
+    /// anything.
+    public static let vo2maxMinimumChange = 1.0
+
     /// Which way VO₂max has moved over the last `vo2maxWindowDays` — cardio's answer to "is it working".
     ///
-    /// Garmin calls a training load "productive" only while VO₂max rises; this is that marker, shown
-    /// beside Polar's load status rather than changing it. The line is the same Theil–Sen estimator and
+    /// The established status models call a training load "productive" only while VO₂max rises; this is
+    /// that marker, shown beside the load status rather than changing it. The line is the same estimator
+    /// and
     /// agreement rule as a lift (a direction only when the middle half of the pairwise slopes excludes
     /// zero; at least `StrengthProgress.minimumTrendPoints` readings), drawn through the most recent
     /// SEGMENT only: readings from another source or estimator earlier in the window are left out and
@@ -541,7 +684,11 @@ public enum TrainingStatusModel {
         let line = StrengthProgress.e1rmTrend(points)
         let direction: FitnessDirection
         if let line {
-            direction = line.directionIsUnclear ? .unclear : (line.slopePerWeek > 0 ? .improving : .worsening)
+            if line.directionIsUnclear || abs(line.changeOverSpan) < vo2maxMinimumChange {
+                direction = .unclear
+            } else {
+                direction = line.slopePerWeek > 0 ? .improving : .worsening
+            }
         } else {
             direction = .unknown
         }
@@ -601,14 +748,23 @@ public enum TrainingStatusModel {
 
     // MARK: - Recovery
 
+    /// How many of the nights actually read must flag before recovery counts as strained.
+    ///
+    /// Proportional rather than fixed, because the window is a week: two flagged nights out of seven is
+    /// an ordinary week with a bad Tuesday, while two out of three was most of what was read. The floor
+    /// keeps a single night from ever deciding it, however few nights carried a signal.
+    public static func strainedNightsNeeded(ofNightsRead nightsRead: Int) -> Int {
+        max(strainedNightsFloor, Int((Double(nightsRead) * strainedNightShare).rounded(.up)))
+    }
+
     /// How recovery has held up over the `recoveryNights` nights ending on `day`.
     ///
     /// Each night is `ReadinessEngine.evaluate` as of that day, reading only the three RECOVERY signals —
     /// HRV, resting HR, respiratory rate. Its training-load signal is deliberately ignored: it is itself
     /// a heart-rate load ratio, and letting it vote here would count the cardio lane twice. A night is
     /// strained when a recovery signal is `.bad` or two are `.watch`; recovery is strained when
-    /// `strainedNightsNeeded` of the nights read are. Fewer than two nights with any recovery signal is
-    /// `unknown`, because one night cannot tell a trend from a bad night's sleep.
+    /// `strainedNightsNeeded(ofNightsRead:)` of the nights read are. Fewer than two nights with any
+    /// recovery signal is `unknown`, because one night cannot tell a trend from a bad night's sleep.
     public static func recovery(days: [DailyMetric], through day: String) -> RecoveryReading {
         let recoveryKeys: Set<String> = ["hrv", "rhr", "respRate"]
         var strainedNights = 0
@@ -633,7 +789,7 @@ public enum TrainingStatusModel {
         }
         let state: RecoveryState
         if nightsRead < 2 { state = .unknown }
-        else if strainedNights >= strainedNightsNeeded { state = .strained }
+        else if strainedNights >= strainedNightsNeeded(ofNightsRead: nightsRead) { state = .strained }
         else { state = .holding }
         return RecoveryReading(state: state, strainedNights: strainedNights, nightsRead: nightsRead,
                                flaggingOnLatestNight: latestFlagging ?? [], readOnLatestNight: latestRead)

@@ -41,6 +41,14 @@ final class CardioModel: ObservableObject {
 
     /// Every cardio session in the window, newest first. Strength rows are already dropped.
     @Published private(set) var sessions: [CardioSessionMetrics] = []
+    /// Endurance and multisport: the sessions a pace or a speed actually describes.
+    @Published private(set) var enduranceSessions: [CardioSessionMetrics] = []
+    /// Intermittent/team sessions stay visible beside endurance, but in their own section because pace
+    /// and distance trends do not describe them well.
+    @Published private(set) var conditioningSessions: [CardioSessionMetrics] = []
+    /// Mobility, recreation and anything still unclassified. Listed rather than dropped: the wearer
+    /// recorded the session, and the totals above already counted it.
+    @Published private(set) var otherSessions: [CardioSessionMetrics] = []
     @Published private(set) var sportChoices: [SportChoice] = []
     @Published var selectedSport: String?
 
@@ -52,6 +60,22 @@ final class CardioModel: ObservableObject {
     @Published private(set) var typicalMinutes: ClosedRange<Double>?
     @Published private(set) var load: LoadTrend?
     @Published private(set) var weekCharge: Double?
+    /// The displayed week's time in each heart-rate zone. Nil when no zone set is known yet, or when
+    /// nothing that week carried a trace complete enough to bin.
+    @Published private(set) var zoneSplit: CardioZoneSplit?
+
+    /// The zone definitions to bin against, set by the view from `ProfileStore.hrZoneSet`.
+    ///
+    /// Passed in rather than derived here: the app has ONE zone resolver, which carries the wearer's own
+    /// bands and any HR-max override. Deriving a second set here would let the same heart rate read Zone
+    /// 2 on this screen and Zone 3 in a session's detail.
+    var zoneSet: HRZoneSet?
+
+    /// The fused sessions behind `sessions`, kept because only they carry the COMPONENTS a HealthKit
+    /// minute trace is looked up by — `CardioSessionMetrics` is a flattened view with no component keys.
+    private var fusedVisible: [UnifiedTrainingSession] = []
+    /// Sessions another record already described, so the zone split counts those minutes once.
+    private var duplicateSessionIds: Set<String> = []
 
     // The selected sport
     @Published private(set) var sportHistory: [CardioSessionMetrics] = []
@@ -77,18 +101,34 @@ final class CardioModel: ObservableObject {
         let week: CardioWeekSummary
         let typical: ClosedRange<Double>?
         let load: LoadTrend?
+        let zones: CardioZoneSplit?
     }
 
     // MARK: - Load
 
     func load(repo: Repository) async {
         let offset = tzOffset
-        // The same rows the Workouts list shows. The HR reconcile is capped at what this screen can
-        // actually display — see `Repository.workoutRows` for why an uncapped reconcile is expensive.
-        let rows = await repo.workoutRows(days: range.days, reconcileHrCap: 60)
+        let fusion = await repo.trainingSessions(days: range.days)
+        // Every family except strength. A recorded session must not vanish from Cardio because it is a
+        // triathlon, a round of golf or a yoga class: `CardioSession.sessions` still drops what has no
+        // cardiovascular reading to show, and the sections below keep the families that are READ
+        // differently apart instead of hiding them.
+        let visible = fusion.sessions.filter { $0.kind != .strength }
+        let cardio = await repo.cardioLoads(for: visible)
+        fusedVisible = visible
+        duplicateSessionIds = cardio.duplicateSessionIds
+        let rows = visible.map(\.row)
+        var loadByStart: [Int: Double] = [:]
+        for session in visible {
+            if let value = cardio.loads[session.id]?.trimp { loadByStart[session.row.startTs] = value }
+        }
+        let conditioningStarts = Set(visible.filter { $0.kind == .conditioning }.map { $0.row.startTs })
+        let enduranceStarts = Set(visible.filter { $0.kind == .endurance || $0.kind == .multisport }
+            .map { $0.row.startTs })
 
         let prepared = await Task.detached(priority: .userInitiated) { () -> ([CardioSessionMetrics], [SportChoice]) in
-            let sessions = CardioSession.sessions(rows, tzOffsetSeconds: offset)
+            let sessions = CardioSession.sessions(rows, tzOffsetSeconds: offset,
+                                                   cardioLoadByStart: loadByStart)
             let choices = CardioSession.sportFrequency(sessions).map {
                 SportChoice(sport: $0.sport, sessions: $0.sessions,
                             modality: CardioModality.of(sport: $0.sport))
@@ -97,6 +137,11 @@ final class CardioModel: ObservableObject {
         }.value
 
         sessions = prepared.0
+        enduranceSessions = prepared.0.filter { enduranceStarts.contains($0.startTs) }
+        conditioningSessions = prepared.0.filter { conditioningStarts.contains($0.startTs) }
+        otherSessions = prepared.0.filter {
+            !enduranceStarts.contains($0.startTs) && !conditioningStarts.contains($0.startTs)
+        }
         sportChoices = prepared.1
         weekCache.removeAll()
 
@@ -139,11 +184,15 @@ final class CardioModel: ObservableObject {
         let all = sessions
         let offset = tzOffset
 
+        // Outside the detached task: binning zones is an async read on the repository, and its result
+        // travels into the bundle as a finished value so the week's cache holds it too.
+        let zones = await weekZoneSplit(repo: repo, monday: monday, sunday: sunday)
         let bundle = await Task.detached(priority: .userInitiated) { () -> WeekBundle in
             return WeekBundle(week: CardioSession.week(containing: anchor, sessions: all),
                               typical: CardioSession.typicalWeeklyMinutes(all, endingBefore: anchor),
                               load: CardioSession.cardioLoadTrend(all, asOf: endDate,
-                                                                  tzOffsetSeconds: offset))
+                                                                  tzOffsetSeconds: offset),
+                              zones: zones)
         }.value
 
         guard !Task.isCancelled else { return }
@@ -151,10 +200,27 @@ final class CardioModel: ObservableObject {
         apply(bundle)
     }
 
+    /// The displayed week's time in zone, from the fused sessions of that week only.
+    ///
+    /// The week rather than the whole history window, so the split describes the same seven days as
+    /// every other figure in the week grid above it.
+    private func weekZoneSplit(repo: Repository, monday: String, sunday: String) async -> CardioZoneSplit? {
+        guard let zoneSet else { return nil }
+        let offset = tzOffset
+        let inWeek = fusedVisible.filter { session in
+            let day = AnalyticsEngine.dayString(session.row.startTs, offsetSec: offset)
+            return day >= monday && day <= sunday
+        }
+        guard !inWeek.isEmpty else { return nil }
+        return await repo.sessionZoneMinutes(for: inWeek, zoneSet: zoneSet,
+                                             duplicates: duplicateSessionIds)
+    }
+
     private func apply(_ bundle: WeekBundle) {
         week = bundle.week
         typicalMinutes = bundle.typical
         load = bundle.load
+        zoneSplit = bundle.zones
     }
 
     // MARK: - The sport

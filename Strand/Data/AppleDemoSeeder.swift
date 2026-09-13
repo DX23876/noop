@@ -1,6 +1,7 @@
 #if DEBUG
 import Foundation
 import StrandImport
+import WhoopProtocol
 import WhoopStore
 
 // MARK: - DEBUG-only demo seed (Apple parity with Android's DemoSeeder)
@@ -136,6 +137,7 @@ enum AppleDemoSeeder {
         var appleSeries: [MetricPoint] = []
         var appleRows: [AppleDaily] = []
         var workouts: [WorkoutRow] = []
+        var workoutHeartRate: [HRSample] = []
         var journal: [JournalEntry] = []
 
         // An elite strength athlete's frame: ~98 kg at 181 cm, in a slow accumulation phase rather
@@ -269,6 +271,13 @@ enum AppleDemoSeeder {
                     strain: round1((strain * gauss(&rng, 0.6, 0.1)).clamped(4.0 * STRAIN_SCALE, 100.0)),
                     distanceM: conditioningDistanceM(sport, durationS: durSec, &rng),
                     zonesJSON: zonesJSON, notes: nil, steps: nil))
+                // The Cardio page now derives both additive load and time-in-zone from the stored trace.
+                // A demo row carrying only avg/max HR leaves that production path blank, so screenshot QA
+                // cannot see the card at all. Bank a deterministic 30-second trace under the demo strap:
+                // dense enough for the real coverage gate, with warm-up/cool-down and a sport-specific
+                // wave, but no extra RNG draws that would shift every later seeded value.
+                workoutHeartRate += conditioningHeartRateTrace(
+                    start: start, durationS: Int(durSec), averageBPM: avg, sport: sport)
             }
 
             // --- journal answers for the recent 40 days (real catalog strings → Insights light up) ---
@@ -310,10 +319,33 @@ enum AppleDemoSeeder {
         _ = try await store.upsertMetricSeries(appleSeries, deviceId: apple)
         _ = try await store.upsertAppleDaily(appleRows, deviceId: apple)
         if !workouts.isEmpty { _ = try await store.upsertWorkouts(workouts, deviceId: whoop) }
+        if !workoutHeartRate.isEmpty {
+            _ = try await store.insert(Streams(hr: workoutHeartRate), deviceId: whoop)
+        }
         if !journal.isEmpty { _ = try await store.upsertJournal(journal, deviceId: whoop) }
         let lifts = try await seedStrength(into: store, startDay: startDay, cal: cal, isoFmt: isoFmt)
         let body = try await seedBody(into: store, startDay: startDay, cal: cal, isoFmt: isoFmt)
         NSLog("AppleDemoSeeder: seeded \(daily.count) days, \(workouts.count) workouts, \(lifts) lifting sessions, \(body) body readings.")
+    }
+
+    /// A deterministic workout-shaped trace for the screenshot dataset.
+    ///
+    /// The stored workout's average remains the centre of the curve. HIIT gets broad intervals; steady
+    /// endurance gets a small breathing-sized wave. The first and last tenth ramp toward an easy HR so
+    /// the resulting zone distribution looks like a session rather than a flat synthetic line.
+    private static func conditioningHeartRateTrace(start: Int, durationS: Int,
+                                                   averageBPM: Int, sport: String) -> [HRSample] {
+        guard durationS >= 60 else { return [] }
+        let intervalAmplitude: Double = sport == "HIIT" ? 24 : (sport == "Running" ? 11 : 7)
+        let easyBPM = max(82.0, Double(averageBPM) - 24)
+        return stride(from: 0, through: durationS, by: 30).map { elapsed in
+            let progress = Double(elapsed) / Double(durationS)
+            let ramp = min(1.0, min(progress / 0.10, (1.0 - progress) / 0.10))
+            let wave = sin(Double(elapsed) / (sport == "HIIT" ? 75.0 : 210.0) * 2.0 * .pi)
+            let working = Double(averageBPM) + intervalAmplitude * wave
+            let bpm = easyBPM + max(0, ramp) * (working - easyBPM)
+            return HRSample(ts: start + elapsed, bpm: min(210, max(45, Int(bpm.rounded()))))
+        }
     }
 
     // MARK: - The body & energy lane
@@ -553,6 +585,17 @@ enum AppleDemoSeeder {
         guard !sessions.isEmpty else { return 0 }
         _ = try await store.upsertStrengthWorkouts(sessions)
         _ = try await store.upsertWorkouts(mirrored, deviceId: "hevy")
+        // One Health-only strength envelope demonstrates the honest incomplete state and compact
+        // enrichment editor. HealthKit knows its time and duration, but no exercises or sets.
+        if let date = cal.date(byAdding: .day, value: DAYS - 2, to: startDay) {
+            let start = Int(cal.startOfDay(for: date).timeIntervalSince1970) + 12 * 3_600
+            let row = WorkoutRow(startTs: start, endTs: start + 2_700,
+                                 sport: "Functional strength training", source: "apple-health",
+                                 durationS: 2_700, energyKcal: 260, avgHr: 118, maxHr: 157,
+                                 strain: nil, distanceM: nil, zonesJSON: nil, notes: nil, steps: nil)
+            _ = try await store.upsertWorkouts([row], deviceId: "apple-health")
+        }
+        try await seedCrossSourceRides(into: store, startDay: startDay, cal: cal)
         // Whole-session RPE is a separate observation from the set ratings above. Seed most, not all,
         // so the Training Load screen demonstrates both a real sRPE×duration series and honest missing
         // coverage. These rows use the same sidecar the detail screen writes.
@@ -568,6 +611,36 @@ enum AppleDemoSeeder {
         }
         _ = try await store.upsertLabMarkers(sessionRatings)
         return sessions.count
+    }
+
+    /// Two cross-source rides, because the rest of the seeded history cannot show what fusion is for.
+    ///
+    /// Every other seeded workout is written under the strap OR Apple Health, never both, so automatic
+    /// linking and the duplicate review had no example to render. These give each rule exactly one: a
+    /// pair recorded a minute apart, which is linked without asking, and a pair seven minutes apart —
+    /// close enough to suspect, too far to assume — which waits for the wearer's decision instead.
+    private static func seedCrossSourceRides(into store: WhoopStore, startDay: Date,
+                                             cal: Calendar) async throws {
+        func ride(_ dayOffset: Int, hour: Int, minute: Int, minutes: Int, source: String,
+                  avgHr: Int, distanceKm: Double) -> WorkoutRow? {
+            guard let date = cal.date(byAdding: .day, value: dayOffset, to: startDay) else { return nil }
+            let start = Int(cal.startOfDay(for: date).timeIntervalSince1970) + hour * 3_600 + minute * 60
+            return WorkoutRow(startTs: start, endTs: start + minutes * 60, sport: "Cycling",
+                              source: source, durationS: Double(minutes * 60),
+                              energyKcal: Double(minutes) * 8.5, avgHr: avgHr, maxHr: avgHr + 24,
+                              strain: nil, distanceM: distanceKm * 1_000, zonesJSON: nil,
+                              notes: nil, steps: nil)
+        }
+        let healthRows = [ride(DAYS - 5, hour: 10, minute: 0, minutes: 62, source: apple,
+                               avgHr: 131, distanceKm: 28.4),
+                          ride(DAYS - 4, hour: 9, minute: 0, minutes: 60, source: apple,
+                               avgHr: 128, distanceKm: 26.0)].compactMap { $0 }
+        let fileRows = [ride(DAYS - 5, hour: 10, minute: 1, minutes: 60, source: "activity-file",
+                             avgHr: 133, distanceKm: 28.6),
+                        ride(DAYS - 4, hour: 9, minute: 7, minutes: 58, source: "activity-file",
+                             avgHr: 126, distanceKm: 25.2)].compactMap { $0 }
+        if !healthRows.isEmpty { _ = try await store.upsertWorkouts(healthRows, deviceId: apple) }
+        if !fileRows.isEmpty { _ = try await store.upsertWorkouts(fileRows, deviceId: "activity-file") }
     }
 
     /// The demo exercise catalogue.

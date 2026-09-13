@@ -7,8 +7,9 @@ import WhoopStore
 //
 // A single combined score would need an invented exchange rate between a hard set, a heart-rate load
 // and the athlete's own perception. This screen keeps all three visible in their real units and gives
-// each the same useful comparison: the rolling seven days against the person's recent level. That
-// level grows with the history available and tops out at 28 days.
+// each the same useful comparison: the rolling seven days against the person's preceding level. That
+// baseline grows with the history available and tops out at 28 days, without containing the week it
+// is being used to judge.
 //
 // On top of that comparison, strength and cardio each get a STATUS — detraining, recovering,
 // maintaining, productive, unproductive, overreaching — decided in `TrainingStatusModel`: Polar's scale
@@ -20,11 +21,16 @@ final class TrainingLoadModel: ObservableObject {
     struct Lane: Sendable {
         let sevenDayTotal: Double
         let trend: LoadTrend?
+        /// How evenly the last seven days were loaded (Foster 1998). Nil below five known days, and when
+        /// every known day carried exactly the same load — an undefined figure, not a flat week.
+        let distribution: LoadDistribution?
+        /// This week's total against the week before it, as a signed percentage. Nil without two weeks.
+        let weekOverWeek: Double?
         /// What the lane's figure rests on over the last 28 days, in the lane's own unit: RPE-rated
-        /// working sets for Strength, sessions carrying Effort for Cardio, rated sessions for Session.
+        /// working sets for Strength, sessions with adequate HR for Cardio, rated sessions for Session.
         let measuredCount: Int
         let possibleCount: Int
-        /// Polar-style status (`TrainingStatusModel`). Nil for the session lane, which has none, and
+        /// The lane's status (`TrainingStatusModel`). Nil for the session lane, which has none, and
         /// while the comparison itself is withheld.
         let status: LaneStatus?
     }
@@ -47,6 +53,7 @@ final class TrainingLoadModel: ObservableObject {
         let history: [TrainingStatusModel.WeeklyStatus]
         let ratios: [RatioPoint]
         let sustained: SustainedOverreaching?
+        let cardioMeasured: Bool
     }
 
     /// Days of history read. The oldest week of the eight-week strip is judged as of 56 days ago, and
@@ -70,13 +77,18 @@ final class TrainingLoadModel: ObservableObject {
     /// Each of the last 56 days' ratio per lane — the same comparison the dials show, day by day.
     @Published private(set) var ratios: [RatioPoint] = []
     @Published private(set) var loaded = false
+    @Published private(set) var ambiguousSessions: [[TrainingSessionComponent]] = []
+    /// True when the cardio lane is priced from measured heart rate. False when nothing in the window
+    /// carried a usable trace and the lane fell back to the stored per-session Effort, which the lane's
+    /// own figure and coverage line then say in as many words.
+    @Published private(set) var cardioMeasured = false
 
     func load(repo: Repository) async {
         let now = Int(Date().timeIntervalSince1970)
         let from = now - Self.historyDays * 86_400
         let offset = TimeZone.current.secondsFromGMT()
 
-        async let workoutRows = repo.workoutRows(days: Self.historyDays, reconcileHrCap: 0)
+        async let fusedSessions = repo.trainingSessions(days: Self.historyDays)
         async let ratings = repo.sessionRPEEntries(from: from, to: now + 86_400)
         let strengthWorkouts: [HevyWorkout]
         let templates: [String: HevyExerciseTemplate]
@@ -87,7 +99,10 @@ final class TrainingLoadModel: ObservableObject {
             strengthWorkouts = []
             templates = [:]
         }
-        let rows = await workoutRows
+        let fusion = await fusedSessions
+        let unified = fusion.sessions
+        let cardioResolution = await repo.cardioLoads(for: unified)
+        let cardioLoads = cardioResolution.loads
         let rpeEntries = await ratings
         let dailyRows = repo.days
         let vo2 = await Self.vo2maxReadings(repo: repo)
@@ -96,24 +111,33 @@ final class TrainingLoadModel: ObservableObject {
         let prepared = await Task.detached(priority: .userInitiated) { () -> Prepared in
             let strengthByDay = StrengthSession.weightedSetsByDay(strengthWorkouts,
                                                                   tzOffsetSeconds: offset)
-            let cardioSessions = CardioSession.sessions(rows, tzOffsetSeconds: offset)
-            var cardioByDay: [String: Double] = [:]
-            for workout in cardioSessions {
-                guard let effort = workout.strain, effort.isFinite, effort >= 0 else { continue }
-                cardioByDay[workout.day, default: 0] += effort
-            }
+            let cardioSeries = Self.cardioDailyLoad(sessions: unified, loads: cardioLoads,
+                                                    duplicates: cardioResolution.duplicateSessionIds,
+                                                    tzOffsetSeconds: offset)
+            let cardioByDay = cardioSeries.byDay
+            // Days that held real training the data could not price. They leave BOTH comparison
+            // windows rather than counting as rest, so a gap in our measurement is never reported as
+            // a drop in the wearer's training.
+            let cardioUnknown = cardioSeries.unknownDays
 
             var durationByStart: [Int: Double] = [:]
-            for row in rows {
-                let seconds = row.durationS ?? Double(row.endTs - row.startTs)
-                if seconds > 0 { durationByStart[row.startTs] = seconds }
+            var canonicalIdByStart: [Int: String] = [:]
+            for session in unified {
+                let seconds = session.row.durationS ?? Double(session.row.endTs - session.row.startTs)
+                if seconds > 0 {
+                    durationByStart[session.row.startTs] = seconds
+                    for component in session.components { durationByStart[component.row.startTs] = seconds }
+                }
+                canonicalIdByStart[session.row.startTs] = session.id
+                for component in session.components { canonicalIdByStart[component.row.startTs] = session.id }
             }
             for workout in strengthWorkouts where durationByStart[workout.startTs] == nil {
                 if let seconds = workout.durationS { durationByStart[workout.startTs] = seconds }
             }
 
+            let ratings = Self.canonicalRatings(entries: rpeEntries, canonicalIdByStart: canonicalIdByStart)
             var sessionByDay: [String: Double] = [:]
-            for entry in rpeEntries {
+            for entry in ratings {
                 guard let seconds = durationByStart[entry.startTs], seconds > 0 else { continue }
                 let day = AnalyticsEngine.dayString(entry.startTs, offsetSec: offset)
                 sessionByDay[day, default: 0] += entry.rpe * seconds / 60
@@ -125,13 +149,20 @@ final class TrainingLoadModel: ObservableObject {
                 return day >= cutoff && day <= today
             }
             let pooledStrength = StrengthSession.strengthLoad(recentStrength)
-            let recentCardio = cardioSessions.filter { $0.day >= cutoff && $0.day <= today }
-            let uniqueSessions = Set(rows.map(\.startTs) + strengthWorkouts.map(\.startTs))
+            // A session skipped because another one already priced the same minutes is NOT a session
+            // with missing heart rate, so it must not widen the coverage denominator.
+            let recentCardio = unified.filter {
+                let day = AnalyticsEngine.dayString($0.row.startTs, offsetSec: offset)
+                return day >= cutoff && day <= today
+                    && ($0.row.endTs - $0.row.startTs) >= Repository.cardioLoadMinimumSeconds
+                    && !cardioResolution.duplicateSessionIds.contains($0.id)
+            }
+            let uniqueSessions = Set(unified.map { $0.row.startTs } + strengthWorkouts.map(\.startTs))
             let possible = uniqueSessions.filter {
                 let day = AnalyticsEngine.dayString($0, offsetSec: offset)
                 return day >= cutoff && day <= today
             }.count
-            let measured = rpeEntries.filter {
+            let measured = ratings.filter {
                 let day = AnalyticsEngine.dayString($0.startTs, offsetSec: offset)
                 return day >= cutoff && day <= today && durationByStart[$0.startTs] != nil
             }.count
@@ -145,6 +176,7 @@ final class TrainingLoadModel: ObservableObject {
             let history = TrainingStatusModel.weeklyHistory(weeks: 8, through: today,
                                                             strengthDaily: strengthByDay,
                                                             cardioDaily: cardioByDay,
+                                                            cardioUnknownDays: cardioUnknown,
                                                             workouts: strengthWorkouts, templates: templates,
                                                             days: dailyRows, tzOffsetSeconds: offset)
             var ratios: [RatioPoint] = []
@@ -152,7 +184,8 @@ final class TrainingLoadModel: ObservableObject {
             for _ in 0..<56 {
                 ratios.append(RatioPoint(day: ratioDay,
                                          strength: TrainingLoad.trend(dailyByDay: strengthByDay, through: ratioDay)?.ratio,
-                                         cardio: TrainingLoad.trend(dailyByDay: cardioByDay, through: ratioDay)?.ratio))
+                                         cardio: TrainingLoad.trend(dailyByDay: cardioByDay, through: ratioDay,
+                                                                    unknownDays: cardioUnknown)?.ratio))
                 ratioDay = WeeklyDigestEngine.addDays(ratioDay, 1)
             }
             let vo2max = TrainingStatusModel.vo2maxResponse(readings: vo2, through: today)
@@ -163,24 +196,37 @@ final class TrainingLoadModel: ObservableObject {
             return Prepared(
                 strength: Lane(sevenDayTotal: Self.lastSeven(strengthByDay, through: today),
                                trend: TrainingLoad.trend(dailyByDay: strengthByDay, through: today),
+                               distribution: TrainingLoad.distribution(dailyByDay: strengthByDay, through: today),
+                               weekOverWeek: TrainingLoad.weekOverWeek(dailyByDay: strengthByDay, through: today),
                                measuredCount: pooledStrength.ratedSets,
                                possibleCount: pooledStrength.workingSets,
                                status: TrainingStatusModel.strength(dailyByDay: strengthByDay, through: today,
                                                                     response: response, recovery: recovery)),
                 cardio: Lane(sevenDayTotal: Self.lastSeven(cardioByDay, through: today),
-                             trend: TrainingLoad.trend(dailyByDay: cardioByDay, through: today),
-                             measuredCount: recentCardio.filter { $0.strain != nil }.count,
+                             trend: TrainingLoad.trend(dailyByDay: cardioByDay, through: today,
+                                                       unknownDays: cardioUnknown),
+                             distribution: TrainingLoad.distribution(dailyByDay: cardioByDay, through: today,
+                                                                     unknownDays: cardioUnknown),
+                             weekOverWeek: TrainingLoad.weekOverWeek(dailyByDay: cardioByDay, through: today,
+                                                                     unknownDays: cardioUnknown),
+                             measuredCount: recentCardio.filter {
+                                 cardioSeries.measured ? cardioLoads[$0.id] != nil : $0.row.strain != nil
+                             }.count,
                              possibleCount: recentCardio.count,
-                             status: TrainingStatusModel.cardio(dailyByDay: cardioByDay, through: today)),
+                             status: TrainingStatusModel.cardio(dailyByDay: cardioByDay, through: today,
+                                                                unknownDays: cardioUnknown)),
                 session: Lane(sevenDayTotal: Self.lastSeven(sessionByDay, through: today),
                               trend: TrainingLoad.trend(dailyByDay: sessionByDay, through: today),
+                              distribution: TrainingLoad.distribution(dailyByDay: sessionByDay, through: today),
+                              weekOverWeek: TrainingLoad.weekOverWeek(dailyByDay: sessionByDay, through: today),
                               measuredCount: measured, possibleCount: possible, status: nil),
                 response: response,
                 vo2max: vo2max,
                 recovery: recovery,
                 history: history,
                 ratios: ratios,
-                sustained: sustained)
+                sustained: sustained,
+                cardioMeasured: cardioSeries.measured)
         }.value
 
         guard !Task.isCancelled else { return }
@@ -193,7 +239,112 @@ final class TrainingLoadModel: ObservableObject {
         recovery = prepared.recovery
         history = prepared.history
         ratios = prepared.ratios
+        ambiguousSessions = fusion.ambiguous
+        cardioMeasured = prepared.cardioMeasured
+        #if DEBUG
+        applyDemoStatusOverride()
+        #endif
         loaded = true
+    }
+
+    func resolve(_ components: [TrainingSessionComponent], merge: Bool, repo: Repository) async {
+        await repo.decideTrainingSessionPair(components, merge: merge)
+        await load(repo: repo)
+    }
+
+    #if DEBUG
+    /// Screenshot QA for the statement matrix. The seeded demo history cannot produce a split — both
+    /// lanes sit near 0.8 — so `--demo-status split-sharp|split-mild|both-high` overrides the two
+    /// verdicts after a normal load. Display only: nothing is stored, and every figure beneath the
+    /// statement still comes from the seeded data.
+    private func applyDemoStatusOverride() {
+        let args = CommandLine.arguments
+        guard let index = args.firstIndex(of: "--demo-status"), index + 1 < args.count else { return }
+        func laneStatus(_ status: TrainingStatus, _ ratio: Double) -> LaneStatus {
+            LaneStatus(status: status, ratio: ratio, band: TrainingStatusModel.band(ratio: ratio),
+                       followsRecentHighPhase: false,
+                       daysBelowUsual: status == .detraining ? 24 : 0,
+                       usedStrengthResponse: true, usedRecovery: false)
+        }
+        let pair: (strength: LaneStatus, cardio: LaneStatus)
+        switch args[index + 1] {
+        case "split-sharp": pair = (laneStatus(.detraining, 0.58), laneStatus(.overreaching, 1.52))
+        case "split-mild":  pair = (laneStatus(.productive, 1.14), laneStatus(.detraining, 0.62))
+        case "both-high":   pair = (laneStatus(.overreaching, 1.44), laneStatus(.overreaching, 1.51))
+        default: return
+        }
+        if let lane = strength {
+            strength = Lane(sevenDayTotal: lane.sevenDayTotal, trend: lane.trend,
+                            distribution: lane.distribution, weekOverWeek: lane.weekOverWeek,
+                            measuredCount: lane.measuredCount, possibleCount: lane.possibleCount,
+                            status: pair.strength)
+        }
+        if let lane = cardio {
+            cardio = Lane(sevenDayTotal: lane.sevenDayTotal, trend: lane.trend,
+                          distribution: lane.distribution, weekOverWeek: lane.weekOverWeek,
+                          measuredCount: lane.measuredCount, possibleCount: lane.possibleCount,
+                          status: pair.cardio)
+        }
+    }
+    #endif
+
+    /// The cardio lane's daily series, on ONE axis.
+    ///
+    /// Measured TRIMP wherever the window has it. A library with no dense band trace — HealthKit-only,
+    /// or a strap that was not worn — would otherwise watch this lane fall silently to zero while the
+    /// Cardio screen still reports the same week from stored Effort, so with nothing measured the lane
+    /// falls back to that stored Effort for ALL of its sessions. The two are never mixed: Effort is the
+    /// compressed axis, and adding it to a TRIMP would produce a figure in no unit at all.
+    nonisolated static func cardioDailyLoad(sessions: [UnifiedTrainingSession],
+                                            loads: [String: TrainingCardioLoad],
+                                            duplicates: Set<String>,
+                                            tzOffsetSeconds: Int)
+    -> (byDay: [String: Double], measured: Bool, unknownDays: Set<String>) {
+        let measured = !loads.isEmpty
+        var byDay: [String: Double] = [:]
+        var unpriceable: Set<String> = []
+        for session in sessions {
+            // On the fallback axis a duplicate still awaiting review has to be skipped for the same
+            // reason it is skipped when priced: both records describe the same minutes, and its twin
+            // has already spoken for them. It is not a gap in the data.
+            if duplicates.contains(session.id) { continue }
+            let day = AnalyticsEngine.dayString(session.row.startTs, offsetSec: tzOffsetSeconds)
+            let value = measured ? loads[session.id]?.trimp : session.row.strain
+            guard let value, value.isFinite, value >= 0 else {
+                // A session long enough to have been priced, that carries no usable figure, is a day
+                // the data cannot speak for — not a rest day. Only sessions past the pricing threshold
+                // count: a five-minute walk was never going to be priced, and calling its day
+                // unmeasurable would drop an ordinary day out of the comparison.
+                if session.row.endTs - session.row.startTs >= Repository.cardioLoadMinimumSeconds {
+                    unpriceable.insert(day)
+                }
+                continue
+            }
+            byDay[day, default: 0] += value
+        }
+        // A day that also holds a priced session is measured: the gap is covered by what we do know.
+        return (byDay, measured, unpriceable.subtracting(byDay.keys))
+    }
+
+    /// One rating per canonical session, so Session Load counts a workout once.
+    ///
+    /// A rating is stored against the component the wearer opened, so the same physical session can be
+    /// rated twice — once from its Hevy detail, once from its Apple Health row — under two different
+    /// start seconds. Summing both would report training nobody did. A rating that names its canonical
+    /// session is grouped by that name; an older entry falls back to the session its start belongs to,
+    /// which is how ratings written before fusion keep working. Where one session has several ratings
+    /// the latest start wins, and the id breaks a tie so the choice never depends on read order.
+    nonisolated static func canonicalRatings(entries: [SessionRPEEntry],
+                                             canonicalIdByStart: [Int: String]) -> [SessionRPEEntry] {
+        var chosen: [String: SessionRPEEntry] = [:]
+        for entry in entries {
+            let key = entry.sessionId ?? canonicalIdByStart[entry.startTs] ?? "start|\(entry.startTs)"
+            if let existing = chosen[key], (existing.startTs, existing.id) >= (entry.startTs, entry.id) {
+                continue
+            }
+            chosen[key] = entry
+        }
+        return chosen.values.sorted { ($0.startTs, $0.id) < ($1.startTs, $1.id) }
     }
 
     nonisolated private static func lastSeven(_ values: [String: Double], through day: String) -> Double {
@@ -245,14 +396,16 @@ struct TrainingLoadView: View {
                 ProgressView().frame(maxWidth: .infinity)
             } else {
                 hero
+                duplicateReviewCard
                 sustainedCard
-                adviceCard.trainingCardEntrance()
+                adviceCard.trainingCardEntrance().id("statement")
                 recoveryCard.trainingCardEntrance()
                 // Named sections for `--demo-scroll-to` screenshot QA (DEBUG only; ids are inert otherwise).
                 historyCard.trainingCardEntrance().id("history")
                 strengthSummaryCard.trainingCardEntrance().id("lifts")
                 vo2maxCard.trainingCardEntrance().id("cardio")
                 sessionCard.trainingCardEntrance()
+                shapeCard.trainingCardEntrance().id("shape")
                 basisCard.trainingCardEntrance()
                 legendCard.trainingCardEntrance()
                 methodCard.trainingCardEntrance()
@@ -261,25 +414,152 @@ struct TrainingLoadView: View {
         .task(id: repo.refreshSeq) { await model.load(repo: repo) }
     }
 
-    // MARK: - The two dials
-
-    /// The two dials on a surface lit by their own status colours.
-    private var hero: some View {
-        VStack(spacing: NoopMetrics.space4) {
-            HStack(alignment: .top, spacing: NoopMetrics.space2) {
-                LoadStatusRing(title: "Strength", symbol: "figure.strengthtraining.traditional",
-                               lane: model.strength?.status, figure: strengthFigure,
-                               evidence: strengthEvidence)
-                LoadStatusRing(title: "Cardio", symbol: "heart.fill",
-                               lane: model.cardio?.status, figure: cardioFigure,
-                               evidence: cardioEvidence)
+    @ViewBuilder private var duplicateReviewCard: some View {
+        if let candidates = model.ambiguousSessions.first, candidates.count >= 2 {
+            TrainingWashCard(color: StrandPalette.statusWarning, watermark: "rectangle.on.rectangle") {
+                VStack(alignment: .leading, spacing: NoopMetrics.space3) {
+                    Text("Are these the same session?")
+                        .font(StrandFont.headline).foregroundStyle(StrandPalette.textPrimary)
+                    VStack(alignment: .leading, spacing: 5) {
+                        ForEach(candidates) { component in
+                            HStack(spacing: 8) {
+                                Circle().fill(StrandPalette.statusWarning.opacity(0.75))
+                                    .frame(width: 6, height: 6)
+                                Text(WorkoutSource.localizedDisplaySport(component.row.sport))
+                                    .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
+                                // The start time is what makes this answerable: two records of one ride
+                                // begin minutes apart, two genuine rides do not. Without it the card asks
+                                // the wearer to choose between two identical lines.
+                                Text(Date(timeIntervalSince1970: TimeInterval(component.row.startTs)),
+                                     format: .dateTime.hour().minute())
+                                    .font(StrandFont.captionNumber)
+                                    .foregroundStyle(StrandPalette.textSecondary)
+                                Spacer(minLength: 8)
+                                Text(sourceName(component.row.source))
+                                    .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+                            }
+                        }
+                    }
+                    HStack {
+                        Button("Keep separate") {
+                            Task { await model.resolve(candidates, merge: false, repo: repo) }
+                        }.buttonStyle(.bordered)
+                        Button("Merge") {
+                            Task { await model.resolve(candidates, merge: true, repo: repo) }
+                        }.buttonStyle(.borderedProminent)
+                    }
+                }
             }
+        }
+    }
+
+    private func sourceName(_ source: String) -> String {
+        switch WorkoutSource.classify(source) {
+        case .apple: return String(localized: "Apple Health")
+        case .hevy: return "Hevy"
+        case .lifting: return String(localized: "Imported file")
+        case .activityFile: return String(localized: "Activity file")
+        case .manual: return "NOOP"
+        case .detected, .whoop: return String(localized: "NOOP band")
+        }
+    }
+
+    // MARK: - The instrument
+
+    /// One instrument for both lanes: strength on the outer arc, cardio on the inner one, each with its
+    /// own knob and its own verdict underneath.
+    ///
+    /// Deliberately NOT one combined ring with one word in the middle. The two lanes are measured in
+    /// different units and the fork's decision log is explicit that they are never blended into a single
+    /// score — so the ring shares a scale, and everything that could be mistaken for a joint verdict
+    /// stays split in two.
+    private var hero: some View {
+        VStack(spacing: NoopMetrics.space3) {
+            LoadDualRing(strength: model.strength?.status, cardio: model.cardio?.status)
+            laneSummary(symbol: "figure.strengthtraining.traditional", title: "Strength",
+                        lane: model.strength?.status, figure: strengthFigure, evidence: strengthEvidence,
+                        caveat: strengthCaveat)
+            Divider().overlay(StrandPalette.hairline)
+            laneSummary(symbol: "heart.fill", title: "Cardio",
+                        lane: model.cardio?.status, figure: cardioFigure, evidence: cardioEvidence,
+                        caveat: cardioCaveat)
             LoadZoneLegend()
         }
         .padding(NoopMetrics.cardPadding)
         .frame(maxWidth: .infinity)
         .background(TrainingHeroSurface(leading: model.strength?.status?.status.color ?? StrandPalette.textTertiary,
                                         trailing: model.cardio?.status?.status.color ?? StrandPalette.textTertiary))
+    }
+
+    /// One lane under the ring: the same symbol its knob carries, its verdict, its figure and what the
+    /// verdict rests on. The symbol is what maps a row to an arc, so it is never dropped.
+    private func laneSummary(symbol: String, title: LocalizedStringKey, lane: LaneStatus?,
+                             figure: String?, evidence: String?, caveat: String? = nil) -> some View {
+        HStack(alignment: .top, spacing: NoopMetrics.space3) {
+            StatusBadge(symbol: symbol, color: lane?.status.color ?? StrandPalette.textTertiary, size: 30)
+            // The ratio rides on the TITLE line, not in a column of its own: as a third column it
+            // squeezed the figure so hard that "43,6 gewichtete Sätze · −21 %" broke after the minus.
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    Text(title)
+                        .font(StrandFont.subhead.weight(.semibold))
+                        .foregroundStyle(StrandPalette.textPrimary)
+                    if let lane {
+                        Text(lane.status.label)
+                            .font(StrandFont.caption.weight(.semibold))
+                            .foregroundStyle(lane.status.color)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.7)
+                    }
+                    Spacer(minLength: 6)
+                    Text(lane.map { LoadScale.ratioText($0.ratio, band: $0.band) } ?? "—")
+                        .font(StrandFont.number(15, weight: .semibold))
+                        .foregroundStyle(lane?.status.color ?? StrandPalette.textTertiary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.65)
+                }
+                if let figure {
+                    Text(figure)
+                        .font(StrandFont.captionNumber)
+                        .foregroundStyle(StrandPalette.textPrimary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                if let evidence {
+                    Text(evidence)
+                        .font(StrandFont.caption)
+                        .foregroundStyle(StrandPalette.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                if let caveat {
+                    Label(caveat, systemImage: "exclamationmark.triangle.fill")
+                        .font(StrandFont.caption)
+                        .foregroundStyle(StrandPalette.statusWarning)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    /// How thin the measurement under a verdict is — carried WITH the verdict rather than in a card
+    /// below the fold.
+    ///
+    /// Shown only when coverage is poor. A well-measured lane says nothing extra, so the warning keeps
+    /// its meaning instead of becoming furniture the reader learns to skip; and it is a sentence, not a
+    /// percentage the reader has to turn into doubt themselves.
+    private var strengthCaveat: String? {
+        guard let lane = model.strength, let share = coverageShare(lane),
+              share < TrainingLoad.trustedRatedShare else { return nil }
+        return String(localized: "Only \(lane.measuredCount) of \(lane.possibleCount) sets carry an RPE, so most of this rests on the default weighting")
+    }
+
+    private var cardioCaveat: String? {
+        guard let lane = model.cardio, lane.possibleCount > 0 else { return nil }
+        if !model.cardioMeasured {
+            return String(localized: "No usable heart-rate trace in this window, so this rests on stored Effort")
+        }
+        guard let share = coverageShare(lane), share < TrainingLoad.trustedRatedShare else { return nil }
+        return String(localized: "Only \(lane.measuredCount) of \(lane.possibleCount) sessions have enough heart-rate data")
     }
 
     private var strengthFigure: String? {
@@ -311,7 +591,7 @@ struct TrainingLoadView: View {
     private var cardioEvidence: String? {
         guard let status = model.cardio?.status else { return nil }
         if status.band == .below, status.daysBelowUsual > 0 { return belowSinceText(status.daysBelowUsual) }
-        return String(localized: "From heart rate, on Polar's scale")
+        return String(localized: "From heart rate, against your own recent level")
     }
 
     /// "Below your usual since 3 Sep" — a date rather than "N days", which needs no plural forms and
@@ -327,64 +607,157 @@ struct TrainingLoadView: View {
         let symbol: String
         let color: Color
         let text: String
+        /// A second colour for a statement that speaks about BOTH lanes at once — the card then runs
+        /// from the lane that is falling behind to the one that is ahead.
+        var secondary: Color? = nil
+        /// Whether the card may be painted in the colour itself rather than washed with it. Yellow is
+        /// the exception: white text on it fails to read, and darkening the fill would turn a warning
+        /// into a different colour, so that state keeps the lighter treatment.
+        var filled = true
     }
 
-    /// One sentence for the whole screen, in order of what matters most: too much first, then work
-    /// without return, then recovery, then the good news, then the quiet states.
+    /// The page's one statement, dressed. The DECISION is pure and lives in
+    /// `TrainingStatusModel.statement(strength:cardio:recovery:)`, where every pair of verdicts is
+    /// resolved and covered by tests; this only chooses the words, the glyph and the colours.
+    ///
+    /// It replaced a read-time ladder that stopped at its first hit and therefore named one lane: a
+    /// wearer whose lifting was falling away while their cardio ran well above usual was told only
+    /// about the cardio.
     private var advice: Advice {
-        let strength = model.strength?.status?.status
-        let cardio = model.cardio?.status?.status
-        let recovery = model.recovery?.state
-        if strength == .overreaching {
-            return Advice(symbol: TrainingStatus.overreaching.symbol, color: TrainingStatus.overreaching.color,
-                          text: recovery == .strained
-                            ? String(localized: "Much more strength work than usual, and your recovery is dropping. Take a few easier days before adding more.")
-                            : String(localized: "Much more strength work than usual. Hold here until your usual level catches up."))
-        }
-        if cardio == .overreaching {
-            return Advice(symbol: TrainingStatus.overreaching.symbol, color: TrainingStatus.overreaching.color,
-                          text: String(localized: "Much more cardio than usual. Hold here until your usual level catches up."))
-        }
-        if strength == .unproductive {
-            return Advice(symbol: TrainingStatus.unproductive.symbol, color: TrainingStatus.unproductive.color,
-                          text: String(localized: "Plenty of strength work, but your lifts are not improving. More volume will not fix that: look at sleep, recovery or the programme."))
-        }
-        if recovery == .strained {
+        switch TrainingStatusModel.statement(strength: model.strength?.status?.status,
+                                             cardio: model.cardio?.status?.status,
+                                             recovery: model.recovery?.state ?? .unknown) {
+        case .noHistory:
+            return Advice(symbol: "hourglass", color: StrandPalette.textTertiary,
+                          text: String(localized: "After two weeks of training this shows whether it is building, holding or too much."),
+                          filled: false)
+
+        case let .laneOnly(lane, status):
+            return Advice(symbol: status.symbol, color: status.color,
+                          text: sentence(for: status, lane: lane) + " "
+                              + String(localized: "The other lane needs two more weeks of measured history."),
+                          filled: status != .unproductive)
+
+        case let .aligned(status):
+            return Advice(symbol: status.symbol, color: status.color,
+                          text: sentence(for: status, lane: nil),
+                          filled: status != .unproductive)
+
+        case let .oneBehind(lane):
+            let color = laneColor(lane)
+            return Advice(symbol: TrainingStatus.detraining.symbol, color: color,
+                          text: lane == .strength
+                            ? String(localized: "Your strength work is below your usual while your cardio holds steady.")
+                            : String(localized: "Your cardio is below your usual while your strength work holds steady."))
+
+        case let .split(low, high, severity):
+            let text: String
+            switch (low, severity) {
+            case (.strength, .mild):
+                text = String(localized: "Plenty of cardio, little strength: your endurance is carrying this block while your lifting loses ground.")
+            case (.strength, .sharp):
+                text = String(localized: "Much more cardio than usual while your strength work has fallen away. Bring the lifting back before the cardio goes higher.")
+            case (.cardio, .mild):
+                text = String(localized: "Plenty of strength work, little cardio: your lifting is carrying this block while your endurance loses ground.")
+            case (.cardio, .sharp):
+                text = String(localized: "Much more strength work than usual while your cardio has fallen away. Bring the cardio back before the lifting goes higher.")
+            }
+            // The surface itself splits: it runs from the lane that is behind to the one that is ahead.
+            return Advice(symbol: "arrow.left.arrow.right", color: laneColor(high), text: text,
+                          secondary: laneColor(low))
+
+        case let .excessive(lane, strained):
+            let text: String
+            if lane == .strength {
+                text = strained
+                    ? String(localized: "Much more strength work than usual, and your recovery is dropping. Take a few easier days before adding more.")
+                    : String(localized: "Much more strength work than usual. Hold here until your usual level catches up.")
+            } else {
+                text = String(localized: "Much more cardio than usual. Hold here until your usual level catches up.")
+            }
+            return Advice(symbol: TrainingStatus.overreaching.symbol,
+                          color: TrainingStatus.overreaching.color, text: text)
+
+        case .bothExcessive:
+            return Advice(symbol: TrainingStatus.overreaching.symbol,
+                          color: TrainingStatus.overreaching.color,
+                          text: String(localized: "Both lanes are well above your usual. Fine for a short block, but not both at once for long."))
+
+        case let .spinning(cardioAlsoHigh):
+            // Both facts, side by side. That the cardio block is what costs the lifts their progress is
+            // plausible and unmeasured, so the card does not say it.
+            return Advice(symbol: TrainingStatus.unproductive.symbol,
+                          color: TrainingStatus.unproductive.color,
+                          text: cardioAlsoHigh
+                            ? String(localized: "Plenty of strength work without the lifts improving, and your cardio is well above your usual too. Decide which of the two to ease first.")
+                            : String(localized: "Plenty of strength work, but your lifts are not improving. More volume will not fix that: look at sleep, recovery or the programme."),
+                          filled: false)
+
+        case .strainedRecovery:
             return Advice(symbol: "moon.zzz.fill", color: TrainingStatus.unproductive.color,
-                          text: String(localized: "Your recovery signals flagged on several recent nights. Hold your load rather than raising it."))
+                          text: String(localized: "Your recovery signals flagged on several recent nights. Hold your load rather than raising it."),
+                          filled: false)
         }
-        if strength == .productive || cardio == .productive {
-            return Advice(symbol: TrainingStatus.productive.symbol, color: TrainingStatus.productive.color,
-                          text: recovery == .holding
-                            ? String(localized: "Your build is working: load at or above your usual, and your recovery is keeping up.")
-                            : String(localized: "Your build is working: load at or above your usual, and it is paying off."))
+    }
+
+    /// The lane's own colour — the same one its arc and its row carry.
+    private func laneColor(_ lane: TrainingStatusModel.TrainingStatementLane) -> Color {
+        let status = lane == .strength ? model.strength?.status?.status : model.cardio?.status?.status
+        return status?.color ?? StrandPalette.textTertiary
+    }
+
+    /// One verdict in a sentence, for the cases that speak about a single state.
+    private func sentence(for status: TrainingStatus,
+                          lane: TrainingStatusModel.TrainingStatementLane?) -> String {
+        switch status {
+        case .detraining:
+            return String(localized: "You have been training well below your usual level. If this is not a planned break, restart with a few easy sessions.")
+        case .recovering:
+            return String(localized: "A lighter stretch after a hard phase. Good timing to let strength and fitness settle.")
+        case .maintaining:
+            return String(localized: "You are holding your level. To build, raise the load in small steps.")
+        case .productive:
+            return model.recovery?.state == .holding
+                ? String(localized: "Your build is working: load at or above your usual, and your recovery is keeping up.")
+                : String(localized: "Your build is working: load at or above your usual, and it is paying off.")
+        case .unproductive:
+            return String(localized: "Plenty of strength work, but your lifts are not improving. More volume will not fix that: look at sleep, recovery or the programme.")
+        case .overreaching:
+            return lane == .cardio
+                ? String(localized: "Much more cardio than usual. Hold here until your usual level catches up.")
+                : String(localized: "Much more strength work than usual. Hold here until your usual level catches up.")
         }
-        if strength == .recovering || cardio == .recovering {
-            return Advice(symbol: TrainingStatus.recovering.symbol, color: TrainingStatus.recovering.color,
-                          text: String(localized: "A lighter stretch after a hard phase. Good timing to let strength and fitness settle."))
-        }
-        if strength == .detraining || cardio == .detraining {
-            return Advice(symbol: TrainingStatus.detraining.symbol, color: TrainingStatus.detraining.color,
-                          text: String(localized: "You have been training well below your usual level. If this is not a planned break, restart with a few easy sessions."))
-        }
-        if strength != nil || cardio != nil {
-            return Advice(symbol: TrainingStatus.maintaining.symbol, color: TrainingStatus.maintaining.color,
-                          text: String(localized: "You are holding your level. To build, raise the load in small steps."))
-        }
-        return Advice(symbol: "hourglass", color: StrandPalette.textTertiary,
-                      text: String(localized: "After two weeks of training this shows whether it is building, holding or too much."))
     }
 
     private var adviceCard: some View {
         let advice = advice
-        return TrainingWashCard(color: advice.color, watermark: advice.symbol) {
-            HStack(alignment: .center, spacing: NoopMetrics.space3) {
-                StatusBadge(symbol: advice.symbol, color: advice.color, size: 44, bounceTrigger: adviceBounce)
-                Text(advice.text)
-                    .font(StrandFont.subhead.weight(.medium))
-                    .foregroundStyle(StrandPalette.textPrimary)
-                    .fixedSize(horizontal: false, vertical: true)
-                Spacer(minLength: 0)
+        let ink = advice.filled ? StrandPalette.onDarkPrimary : StrandPalette.textPrimary
+        return TrainingWashCard(color: advice.color, watermark: advice.symbol, filled: advice.filled,
+                                secondary: advice.secondary) {
+            VStack(alignment: .leading, spacing: NoopMetrics.space3) {
+                HStack(alignment: .top, spacing: NoopMetrics.space3) {
+                    // On a filled card the glyph stands on its own: a coloured badge on the same colour
+                    // would disappear into it.
+                    if advice.filled {
+                        Image(systemName: advice.symbol)
+                            .font(StrandFont.rounded(30, weight: .bold))
+                            .foregroundStyle(ink)
+                            .trainingSymbolBounce(trigger: adviceBounce)
+                            .accessibilityHidden(true)
+                    } else {
+                        StatusBadge(symbol: advice.symbol, color: advice.color, size: 44,
+                                    bounceTrigger: adviceBounce)
+                    }
+                    Text(advice.text)
+                        .font(StrandFont.headline)
+                        .foregroundStyle(ink)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Spacer(minLength: 0)
+                }
+                HStack(spacing: NoopMetrics.space2) {
+                    stageTile("Strength", lane: model.strength?.status, filled: advice.filled)
+                    stageTile("Cardio", lane: model.cardio?.status, filled: advice.filled)
+                }
             }
         }
         .task(id: advice.text) {
@@ -392,6 +765,27 @@ struct TrainingLoadView: View {
             try? await Task.sleep(nanoseconds: 900_000_000)
             adviceBounce += 1
         }
+    }
+
+    /// One lane's ratio inside the statement card, so the sentence above it is answerable without
+    /// scrolling back to the ring.
+    private func stageTile(_ title: LocalizedStringKey, lane: LaneStatus?, filled: Bool) -> some View {
+        VStack(alignment: .leading, spacing: 1) {
+            Text(title)
+                .font(StrandFont.caption)
+                .foregroundStyle(filled ? StrandPalette.onDarkSecondary : StrandPalette.textSecondary)
+            Text(lane.map { LoadScale.ratioText($0.ratio, band: $0.band) } ?? "—")
+                .font(StrandFont.number(17, weight: .semibold))
+                .foregroundStyle(filled ? StrandPalette.onDarkPrimary : StrandPalette.textPrimary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.6)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 9)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: 14, style: .continuous)
+            .fill(filled ? StrandPalette.onDarkPrimary.opacity(0.18) : StrandPalette.surfaceInset))
+        .accessibilityElement(children: .combine)
     }
 
     // MARK: - Lasting overreaching
@@ -437,7 +831,7 @@ struct TrainingLoadView: View {
 
     private var recoveryCard: some View {
         VStack(alignment: .leading, spacing: NoopMetrics.gap) {
-            SectionHeader("Recovery", overline: "Last three nights")
+            SectionHeader("Recovery", overline: "Last seven nights")
             NoopCard {
                 VStack(alignment: .leading, spacing: NoopMetrics.space3) {
                     HStack(spacing: NoopMetrics.space2) {
@@ -701,6 +1095,71 @@ struct TrainingLoadView: View {
         }
     }
 
+    /// Two things the seven-day mean throws away on purpose: how the week was DISTRIBUTED, and how it
+    /// compares with the week before rather than with a 28-day baseline.
+    ///
+    /// Neither is a verdict, and the card says so in as many words. Monotony and strain (Foster 1998)
+    /// describe a week's shape — 600 units in one session is not 100 units on six days — and week over
+    /// week is the comparison a training plan is actually written in: no threshold to look up, and no
+    /// overlap between the two windows it compares, which the load ratio cannot say of itself.
+    @ViewBuilder private var shapeCard: some View {
+        if hasShapeData {
+            VStack(alignment: .leading, spacing: NoopMetrics.gap) {
+                SectionHeader("Shape of the week", overline: "Spread and ramp")
+                NoopCard {
+                    VStack(alignment: .leading, spacing: NoopMetrics.space3) {
+                        shapeRow(symbol: "figure.strengthtraining.traditional", title: "Strength",
+                                 lane: model.strength)
+                        Divider().overlay(StrandPalette.hairline)
+                        shapeRow(symbol: "heart.fill", title: "Cardio", lane: model.cardio)
+                        Text("Monotony is how evenly the week was spread — higher means flatter, much the same load every day. Strain is the week's total multiplied by it. Both describe the shape of a week; neither judges it.")
+                            .font(StrandFont.caption)
+                            .foregroundStyle(StrandPalette.textTertiary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+            }
+        }
+    }
+
+    private var hasShapeData: Bool {
+        [model.strength, model.cardio].contains { $0?.distribution != nil || $0?.weekOverWeek != nil }
+    }
+
+    private func shapeRow(symbol: String, title: LocalizedStringKey,
+                          lane: TrainingLoadModel.Lane?) -> some View {
+        HStack(alignment: .top, spacing: NoopMetrics.space3) {
+            StatusBadge(symbol: symbol, color: lane?.status?.status.color ?? StrandPalette.textTertiary,
+                        size: 26)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(StrandFont.subhead.weight(.semibold))
+                    .foregroundStyle(StrandPalette.textPrimary)
+                Text(shapeText(lane))
+                    .font(StrandFont.caption)
+                    .foregroundStyle(StrandPalette.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    private func shapeText(_ lane: TrainingLoadModel.Lane?) -> String {
+        guard let lane else { return String(localized: "Nothing recorded yet") }
+        var parts: [String] = []
+        if let ramp = lane.weekOverWeek {
+            parts.append(String(localized: "\(signedPercent(ramp)) against last week"))
+        }
+        if let shape = lane.distribution {
+            let monotony = String(format: "%.1f", shape.monotony)
+            let strain = String(format: "%.0f", shape.strain)
+            parts.append(String(localized: "Monotony \(monotony) · Strain \(strain)"))
+        }
+        return parts.isEmpty
+            ? String(localized: "Not enough known days yet to describe this week's shape")
+            : parts.joined(separator: " · ")
+    }
+
     private var basisCard: some View {
         VStack(alignment: .leading, spacing: NoopMetrics.gap) {
             SectionHeader("What it rests on", overline: "Data coverage")
@@ -804,13 +1263,13 @@ struct TrainingLoadView: View {
                     // cards above and have to name them the same way in every language.
                     methodRow("Strength load", "Working sets weighted by proximity to failure. Tonnage remains a training statistic, not the load.")
                     Divider().overlay(StrandPalette.hairline)
-                    methodRow("Cardio load", "Session Effort from heart rate and intensity over time, derived from TRIMP.")
+                    methodRow("Cardio load", "Additive TRIMP from heart rate and intensity over time. NOOP band data wins; workout-associated Health data fills only when the band trace is incomplete.")
                     Divider().overlay(StrandPalette.hairline)
                     methodRow("Session load", "Your whole-session RPE × duration. Add it from any workout detail; missing ratings are never guessed.")
                     Divider().overlay(StrandPalette.hairline)
-                    methodRow("How the status is set", "Cardio uses Polar's cardio load status: the last 7 days against your level over up to 28 days, with Polar's thresholds 0.8, 1.0 and 1.3. Strength also asks whether your lifts are improving, and above 1.3 whether your recovery holds. It counts as detraining only after three weeks below your usual or with falling lifts, because maximal strength drops measurably only from the third week without training. The thresholds are a convention, not a measurement.")
+                    methodRow("How the status is set", "Cardio compares the last 7 days with the preceding 28 days; the two windows do not overlap. The bands at 0.8, 1.0 and 1.3 are a monitoring convention, not measured safety limits. A day whose training could not be measured leaves the comparison instead of counting as rest. Strength also asks whether your lifts are improving, and above 1.3 whether your recovery over the last week holds. Below your usual counts as detraining after two weeks for cardio and three for strength — aerobic fitness fades faster than maximal strength — or at once when your lifts are clearly falling.")
                     Divider().overlay(StrandPalette.hairline)
-                    methodRow("Sources", "Polar Training Load Pro · Garmin Training Status · Bosquet et al. 2013 · Pelland et al. 2024 · Robinson et al. 2024 · Foster 2001")
+                    methodRow("Sources", "Edwards 1993 · Banister 1991 · Foster 2001 · Bosquet et al. 2013 · Meeusen et al. 2013 · Pelland et al. 2024 · Robinson et al. 2024")
                 }
             }
         }
@@ -845,7 +1304,9 @@ struct TrainingLoadView: View {
     }
 
     private func effortText(_ lane: TrainingLoadModel.Lane) -> String {
-        String(localized: "\(Int(lane.sevenDayTotal.rounded())) Effort")
+        let total = Int(lane.sevenDayTotal.rounded())
+        return model.cardioMeasured ? String(localized: "\(total) TRIMP")
+                                    : String(localized: "\(total) Effort")
     }
 
     private func sessionText(_ lane: TrainingLoadModel.Lane?) -> String {
@@ -865,14 +1326,16 @@ struct TrainingLoadView: View {
             return String(localized: "All \(total) working sets in the last 28 days carry an RPE")
         }
         if Double(rated) / Double(total) < TrainingLoad.trustedRatedShare {
-            return String(localized: "Only \(rated) of \(total) working sets in the last 28 days carry an RPE, so most of the weighting is the neutral default for unrated sets")
+            return String(localized: "Only \(rated) of \(total) working sets in the last 28 days carry an RPE, so most of the weighting is borrowed from the sets you did rate")
         }
-        return String(localized: "\(rated) of \(total) working sets in the last 28 days carry an RPE; the rest use the neutral default")
+        return String(localized: "\(rated) of \(total) working sets in the last 28 days carry an RPE; the rest are priced at the median of those you rated")
     }
 
     private func cardioCoverage(_ lane: TrainingLoadModel.Lane?) -> String {
         guard let lane, lane.possibleCount > 0 else { return String(localized: "No cardio sessions yet") }
-        return String(localized: "\(lane.measuredCount) of \(lane.possibleCount) cardio sessions carry Effort")
+        return model.cardioMeasured
+            ? String(localized: "\(lane.measuredCount) of \(lane.possibleCount) sessions have enough heart-rate data")
+            : String(localized: "\(lane.measuredCount) of \(lane.possibleCount) cardio sessions carry Effort")
     }
 
     private func sessionCoverage(_ lane: TrainingLoadModel.Lane?) -> String {

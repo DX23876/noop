@@ -2,7 +2,15 @@
   "sourceLanguage" : "en",
   "strings" : {
     "" : {
-      "shouldTranslate" : false
+      "shouldTranslate" : false,
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : ""
+          }
+        }
+      }
     },
     "%@" : {
       "localizations" : {
@@ -157,6 +165,30 @@
             "state" : "translated",
             "value" : "%lld"
           }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld"
+          }
         }
       }
     },
@@ -202,6 +234,24 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%lld дн. назад"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld giorni fa"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld 天前"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld 天前"
           }
         }
       }
@@ -312,6 +362,24 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%lld минут"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld minuti"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld 分钟"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld 分鐘"
           }
         }
       }
@@ -450,6 +518,60 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%lld тренировок"
+          }
+        },
+        "it" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld allenamento"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld allenamenti"
+                }
+              }
+            }
+          }
+        },
+        "zh-Hans" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld 次训练"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld 次训练"
+                }
+              }
+            }
+          }
+        },
+        "zh-Hant" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld 次訓練"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld 次訓練"
+                }
+              }
+            }
           }
         }
       }
@@ -798,6 +920,24 @@
             "state" : "translated",
             "value" : "1 тренировка"
           }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 allenamento"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1次训练"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 次訓練"
+          }
         }
       }
     },
@@ -831,7 +971,13 @@
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "7h 42m a dormir · 92% de eficiência"
+            "value" : "7h 42m dormindo · 92% eeficiência"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "7 ч. 42 мин. спят · 92 % eэффективность"
           }
         }
       }
@@ -868,6 +1014,12 @@
             "state" : "translated",
             "value" : "51 bpm"
           }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "51 удар в минуту"
+          }
         }
       }
     },
@@ -903,6 +1055,12 @@
             "state" : "translated",
             "value" : "87% · streaming"
           }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "87% · стриминг"
+          }
         }
       }
     },
@@ -931,6 +1089,36 @@
             "state" : "translated",
             "value" : "Abdominais"
           }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Brzuch"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Addominali"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Брюшной живот"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "腹部"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "腹部"
+          }
         }
       }
     },
@@ -958,6 +1146,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "perto do teu habitual"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "w okolicach Twojej normy"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "riguardo al tuo solito"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "о твоем обычном"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "关于你平时的"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "關於你平常的"
           }
         }
       }
@@ -1000,6 +1218,24 @@
             "state" : "translated",
             "value" : "添加"
           }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aggiungi"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Добавить"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "新增"
+          }
         }
       }
     },
@@ -1027,6 +1263,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Adutores"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Przywodziciele"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Adduttori"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Приводящие мышцы"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "髋内收肌"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "髖內收肌"
           }
         }
       }
@@ -1062,6 +1328,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Adoptado via NoopButtonStyle"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Принято через стиль кнопки NOOP"
           }
         }
       }
@@ -1409,6 +1681,36 @@
             "state" : "translated",
             "value" : "Costas"
           }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wstecz"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Indietro"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Назад"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "返回"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "返回"
+          }
         }
       }
     },
@@ -1444,6 +1746,12 @@
             "state" : "translated",
             "value" : "Apenas barra"
           }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ток со штангой"
+          }
         }
       }
     },
@@ -1471,6 +1779,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Bíceps"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bicepsy"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bicipiti"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Бицепсы"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "肱二头肌"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "肱二頭肌"
           }
         }
       }
@@ -1716,6 +2054,12 @@
             "state" : "translated",
             "value" : "Noite calma"
           }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Спокойная ночь"
+          }
         }
       }
     },
@@ -1743,6 +2087,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Gémeos"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Łydki"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Polpacci"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Икры"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "小腿"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "小腿"
           }
         }
       }
@@ -1779,6 +2153,12 @@
             "state" : "translated",
             "value" : "Legenda 12"
           }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Описание тренировки 12"
+          }
         }
       }
     },
@@ -1814,6 +2194,12 @@
             "state" : "translated",
             "value" : "Cartão %lld"
           }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Кард %lld"
+          }
         }
       }
     },
@@ -1841,6 +2227,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Peito"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Klatka piersiowa"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Petto"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Грудь"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "胸部"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "胸部"
           }
         }
       }
@@ -1887,6 +2303,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Классический"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Classico"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "经典"
           }
         }
       }
@@ -1986,6 +2414,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "COUNT-UP SCORE"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "РЕКОМЕНДОВАНОЕ СЧЁТНОЕ ЗНАЧЕНИЕ"
           }
         }
       }
@@ -2370,6 +2804,24 @@
             "state" : "translated",
             "value" : "完成"
           }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fatto"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Готово"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "完成"
+          }
         }
       }
     },
@@ -2650,6 +3102,12 @@
             "state" : "translated",
             "value" : "Nota de rodapé 11"
           }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Примечания 11"
+          }
         }
       }
     },
@@ -2677,6 +3135,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Antebraços"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Przedramiona"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Avambracci"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Предплечья"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "前臂"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "前臂"
           }
         }
       }
@@ -2763,6 +3251,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Frente"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Przód"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fronte"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Спереди"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正面"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正面"
           }
         }
       }
@@ -2914,6 +3432,36 @@
             "state" : "translated",
             "value" : "Glúteos"
           }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pośladki"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Glutei"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ягодичные"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "臀肌"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "臀肌"
+          }
         }
       }
     },
@@ -2941,6 +3489,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Isquiotibiais"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mięśnie dwugłowe uda"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Femorali"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Задняя поверхность бедра"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "腘绳肌"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "腿後肌群"
           }
         }
       }
@@ -2977,6 +3555,12 @@
             "state" : "translated",
             "value" : "Título/Seminegrito 17"
           }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Заголовок / подчеркнутый текст 17"
+          }
         }
       }
     },
@@ -3010,6 +3594,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Frequência cardíaca, 24 horas"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Пример пульса, сутки"
           }
         }
       }
@@ -3109,6 +3699,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "hora %lld"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "часы %lld"
           }
         }
       }
@@ -3320,6 +3916,12 @@
             "state" : "translated",
             "value" : "Passe as cartas para ver o elevador."
           }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Перетащите карточки, чтобы увидеть ресницы."
+          }
         }
       }
     },
@@ -3425,6 +4027,12 @@
             "state" : "translated",
             "value" : "VFC (ms) – 30 dias"
           }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "HRV (мс) — 30 дней"
+          }
         }
       }
     },
@@ -3459,6 +4067,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Num cartão"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "На карте"
           }
         }
       }
@@ -3558,6 +4172,30 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Noite passada"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La scorsa notte"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Последняя ночь"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "昨晚"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "昨晚"
           }
         }
       }
@@ -3819,6 +4457,36 @@
             "state" : "translated",
             "value" : "Zona lombar"
           }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dolna część pleców"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Parte bassa della schiena"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Нижняя часть спины"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "下背部"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "下背部"
+          }
         }
       }
     },
@@ -4015,6 +4683,12 @@
             "state" : "translated",
             "value" : "Movimento durante o sono"
           }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Движение во сне"
+          }
         }
       }
     },
@@ -4042,6 +4716,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Pescoço"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Szyja"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Collo"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Шея"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "颈部"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "頸部"
           }
         }
       }
@@ -4297,6 +5001,18 @@
             "state" : "translated",
             "value" : "não treinado"
           }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "nie trenowany"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "не тренирован"
+          }
         }
       }
     },
@@ -4390,6 +5106,12 @@
             "state" : "translated",
             "value" : "Sobrelinha"
           }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Подчеркивание"
+          }
         }
       }
     },
@@ -4424,6 +5146,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Visão geral dos RH"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Обзор пульса"
           }
         }
       }
@@ -4679,6 +5407,36 @@
             "state" : "translated",
             "value" : "Quadríceps"
           }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mięśnie czworogłowe"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quadricipiti"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Квадрицепсы"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "股四头肌"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "股四頭肌"
+          }
         }
       }
     },
@@ -4818,6 +5576,12 @@
             "state" : "translated",
             "value" : "Recuperação – 30 dias"
           }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Восстановление — 30 дней"
+          }
         }
       }
     },
@@ -4852,6 +5616,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Recuperação – no ano passado"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Восстановление — прошлый год"
           }
         }
       }
@@ -4980,6 +5750,12 @@
             "state" : "translated",
             "value" : "GRADIENTE DE RECUPERAÇÃO"
           }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "УМЕСТИТЕЛЬСТВО ВОЗВРАЩЕНИЯ"
+          }
         }
       }
     },
@@ -5056,6 +5832,24 @@
             "state" : "translated",
             "value" : "移除"
           }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rimuovi"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Удалить"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "移除"
+          }
         }
       }
     },
@@ -5090,6 +5884,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Revelação de repetição"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Повторная демонстрация"
           }
         }
       }
@@ -5132,6 +5932,24 @@
             "state" : "translated",
             "value" : "静息心率"
           }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FC a riposo"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Пульс в покое"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "靜息心率"
+          }
         }
       }
     },
@@ -5166,6 +5984,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Noite agitada"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Неприятная ночь"
           }
         }
       }
@@ -5265,6 +6089,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Role o número"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Поворачивайте число"
           }
         }
       }
@@ -5435,6 +6265,24 @@
             "state" : "translated",
             "value" : "保存"
           }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Salva"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Сохранить"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "儲存"
+          }
         }
       }
     },
@@ -5462,6 +6310,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Segmento"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Segment."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Segmento"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Сегмент."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "段落。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "節段"
           }
         }
       }
@@ -5498,6 +6376,12 @@
             "state" : "translated",
             "value" : "Contagens e alturas dos segmentos"
           }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Количество сегментов и высоты"
+          }
         }
       }
     },
@@ -5526,6 +6410,36 @@
             "state" : "translated",
             "value" : "Série"
           }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Seria."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Serie"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Серия."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "系列"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "系列"
+          }
         }
       }
     },
@@ -5553,6 +6467,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Ombros"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Barki"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Spalle"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Плечи"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "肩膀"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "肩膀"
           }
         }
       }
@@ -5705,6 +6649,30 @@
             "state" : "translated",
             "value" : "Desempenho do sono"
           }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Prestazione del sonno"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Результат сна"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "睡眠表现"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "睡眠表現"
+          }
         }
       }
     },
@@ -5802,6 +6770,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Estágios do sono"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "этапы сна"
           }
         }
       }
@@ -5988,6 +6962,12 @@
             "state" : "translated",
             "value" : "TRANSIÇÃO DO CARTÃO SOFT"
           }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "МЯГКИЙ ПЕРЕХОД КАРДИАЧЕСКОЙ ЦЕЛЬНОСТИ"
+          }
         }
       }
     },
@@ -6145,6 +7125,12 @@
             "state" : "translated",
             "value" : "APARÊNCIA ESTAGIADA"
           }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "НЕСТАНДАРТНЫЕ ПРЕДСТАВЛЕНИЯ"
+          }
         }
       }
     },
@@ -6179,6 +7165,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "RAMPA DE TENSÃO"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "УМЕНЬЕНИЕ НАГРУЗКИ"
           }
         }
       }
@@ -6253,6 +7245,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Stress"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stres"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stress"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Стресс"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "压力"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "壓力"
           }
         }
       }
@@ -6346,6 +7368,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Subtítulo 13"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Подзаголовок 13"
           }
         }
       }
@@ -6724,6 +7752,12 @@
             "state" : "translated",
             "value" : "Título 1 / Negrito 28"
           }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Название тренировки 1 /Жирный текст 28"
+          }
         }
       }
     },
@@ -6758,6 +7792,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Título 2 / Seminegrito 22"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Название уровня 2 / подчеркнутый текст 22"
           }
         }
       }
@@ -6858,6 +7898,12 @@
             "state" : "translated",
             "value" : "Alternar mola suave"
           }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Переключайте мягкий сильный импульс"
+          }
         }
       }
     },
@@ -6885,6 +7931,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Trapézios"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mięśnie czworoboczne"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trapezi"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Трапеции"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "斜方肌"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "斜方肌"
           }
         }
       }
@@ -7024,6 +8100,36 @@
             "state" : "translated",
             "value" : "Tríceps"
           }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tricepsy"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tricipiti"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Трицепсы"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "肱三头肌"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "肱三頭肌"
+          }
         }
       }
     },
@@ -7052,6 +8158,18 @@
             "state" : "translated",
             "value" : "abaixo do teu habitual"
           }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "pod standardem zwykłym"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "поддерживается вашей обычной тренировкой"
+          }
         }
       }
     },
@@ -7079,6 +8197,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Costas superiores"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Górna część pleców"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Parte alta della schiena"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Верх спины"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "上背部"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "上背部"
           }
         }
       }
@@ -7173,6 +8321,12 @@
             "state" : "translated",
             "value" : "Valores"
           }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Значения"
+          }
         }
       }
     },
@@ -7259,6 +8413,18 @@
             "state" : "translated",
             "value" : "bem acima do teu habitual"
           }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "znacznie powyżej standardu zwykłego"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "выще всего обычного"
+          }
         }
       }
     },
@@ -7286,6 +8452,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "bem abaixo do teu habitual"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "znacznie poniżej standardu zwykłego"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "хорошо ниже вашего обычного уровня"
           }
         }
       }
@@ -7321,6 +8499,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Uau 4.0"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Уип 4.0"
           }
         }
       }

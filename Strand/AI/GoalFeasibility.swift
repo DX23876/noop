@@ -195,7 +195,7 @@ enum GoalFeasibility {
             suggestion: nil)
     }
 
-    /// Weekly hard sets, judged against what the wearer is already doing.
+    /// Weekly working sets, judged against what the wearer is already doing.
     ///
     /// The same shape as the consistency check and deliberately so: both are "can you hold this many a
     /// week", and the failure mode is the same one — the calendar, not the tissue. What is NOT claimed

@@ -13,9 +13,9 @@ import StrandAnalytics
 // This is the counterpart to the Strength screen, built to the same grammar so the two read as one app:
 //
 //   • the SAME Monday-anchored week stepper, the same history-window control,
-//   • a week that adds up (sessions, moving time, distance, calories, Effort) with the wearer's OWN
+//   • a week that adds up (sessions, moving time, distance, calories, TRIMP) with the wearer's OWN
 //     usual week behind the headline figure rather than a target,
-//   • cardiovascular load from the session Effort values, shown as the last seven days against the
+//   • cardiovascular load from additive session TRIMP, shown as the last seven days against the
 //     wearer's own 28-day level rather than as a borrowed acute:chronic category,
 //   • per-sport progression in that sport's own unit, with measured bests beside the modelled line,
 //   • and beats per kilometre, the one figure that says whether the same run is costing less.
@@ -26,6 +26,8 @@ import StrandAnalytics
 struct CardioView: View {
     @EnvironmentObject var repo: Repository
     @EnvironmentObject private var coach: AICoachEngine
+    /// The wearer's own zone definitions — the same resolver every other zone display reads.
+    @EnvironmentObject private var profile: ProfileStore
 
     @StateObject private var model = CardioModel()
 
@@ -55,6 +57,7 @@ struct CardioView: View {
                     emptyState
                 } else {
                     thisWeek
+                    intensityCard
                     sportMix
                     sportProgress
                     bestsCard
@@ -81,6 +84,7 @@ struct CardioView: View {
             }
         }
         .task(id: repo.refreshSeq) {
+            model.zoneSet = profile.hrZoneSet
             await model.load(repo: repo)
             await scrollToDemoBottom(proxy)
         }
@@ -137,7 +141,7 @@ struct CardioView: View {
                                 ? grouped(model.week.energyKcal) : "—",
                              tint: StrandPalette.metricAmber,
                              caption: model.week.energyKcal > 0 ? "kcal" : nil)
-                        tile(icon: "heart.fill", label: String(localized: "Effort"),
+                        tile(icon: "heart.fill", label: String(localized: "Cardio load"),
                              value: model.week.effort.map { String(format: "%.0f", $0) } ?? "—",
                              tint: StrandPalette.effortColor,
                              caption: String(localized: "this week"))
@@ -187,7 +191,7 @@ struct CardioView: View {
     private var loadTile: some View {
         let load = model.load
         tile(icon: "chart.bar.fill",
-             label: String(localized: "Cardio load"),
+             label: String(localized: "Load trend"),
              value: load.map { signedPercent($0.percentChange) } ?? "—",
              tint: load.map { loadTint($0.percentChange) } ?? StrandPalette.textTertiary,
              caption: load.map { loadCaption($0.percentChange) } ?? String(localized: "needs 2 weeks"),
@@ -321,6 +325,90 @@ struct CardioView: View {
         .background(TodayCardSurface(tint: tint, cornerRadius: NoopMetrics.groupedRadius))
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(label): \(value)\(caption.map { ", " + $0 } ?? "")")
+    }
+
+    // MARK: - Intensity distribution
+
+    /// Where this week's training time actually sat, by heart-rate zone.
+    ///
+    /// The question a weekly total cannot answer: five hours of cardio is a different week depending on
+    /// whether it was all easy or half of it hard. It is reported as MEASURED TIME and nothing else —
+    /// no ideal shape is implied, because the polarised and threshold models disagree about what that
+    /// shape should be, and which applies depends on the sport, the phase and the athlete.
+    @ViewBuilder private var intensityCard: some View {
+        if let split = model.zoneSplit, split.total > 0 {
+            let minutes = split.minutes
+            let total = split.total
+            VStack(alignment: .leading, spacing: NoopMetrics.gap) {
+                SectionHeader("Intensity", overline: "Time in zone",
+                              trailing: durationText(total * 60))
+                NoopCard(tint: StrandPalette.effortColor) {
+                    VStack(alignment: .leading, spacing: 12) {
+                        GeometryReader { geo in
+                            // Five segments leave four 2-point gaps. Subtract them before distributing
+                            // the measured time so the bar ends exactly at the card edge.
+                            let barWidth = max(0, geo.size.width - 8)
+                            HStack(spacing: 2) {
+                                ForEach(0..<5, id: \.self) { index in
+                                    Rectangle()
+                                        .fill(StrandPalette.hrZoneColor(index + 1))
+                                        .frame(width: max(0, CGFloat(minutes[index] / total) * barWidth))
+                                }
+                            }
+                        }
+                        .frame(height: 34)
+                        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel(zoneSplitAccessibilityLabel(minutes, total: total))
+                        Divider().overlay(StrandPalette.hairline)
+                        HStack(spacing: 0) {
+                            ForEach(0..<5, id: \.self) { index in
+                                zoneStat(index + 1, minutes: minutes[index], total: total)
+                            }
+                        }
+                        Text(zoneProvenanceText(split))
+                            .font(StrandFont.footnote)
+                            .foregroundStyle(StrandPalette.textTertiary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+            }
+        }
+    }
+
+    private func zoneStat(_ zone: Int, minutes: Double, total: Double) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            HStack(spacing: 5) {
+                RoundedRectangle(cornerRadius: 2, style: .continuous)
+                    .fill(StrandPalette.hrZoneColor(zone))
+                    .frame(width: 9, height: 9)
+                Text("Z\(zone)" as String).strandOverline()
+            }
+            Text("\(Int((minutes / max(total, 0.001) * 100).rounded()))%")
+                .font(StrandFont.number(15))
+                .foregroundStyle(StrandPalette.textPrimary)
+            Text(durationText(minutes * 60))
+                .font(StrandFont.footnote)
+                .foregroundStyle(StrandPalette.textTertiary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func zoneSplitAccessibilityLabel(_ minutes: [Double], total: Double) -> String {
+        let parts = (1...5).map { zone in
+            String(localized: "zone \(zone) \(Int((minutes[zone - 1] / total * 100).rounded())) percent")
+        }
+        return String(localized: "Heart-rate zone split: \(parts.joined(separator: ", "))")
+    }
+
+    /// What the split rests on — said plainly, because a five-bar chart looks equally precise whether it
+    /// came from a dense trace or from one averaged value per minute.
+    private func zoneProvenanceText(_ split: CardioZoneSplit) -> String {
+        let base = split.sessionsRead == split.sessionsPossible
+            ? String(localized: "Measured across all \(split.sessionsRead) sessions this week.")
+            : String(localized: "Measured across \(split.sessionsRead) of \(split.sessionsPossible) sessions this week; the rest had no heart-rate trace complete enough to bin.")
+        guard split.usedMinuteBuckets else { return base }
+        return base + " " + String(localized: "Part of it comes from Apple Health, which stores one averaged heart rate per minute — enough for time in zone, not enough to resolve intervals shorter than a minute.")
     }
 
     // MARK: - What the week was made of
@@ -632,17 +720,31 @@ struct CardioView: View {
 
     private var recentSessions: some View {
         VStack(alignment: .leading, spacing: NoopMetrics.gap) {
-            SectionHeader("Recent sessions", overline: "Log")
-            VStack(spacing: 8) {
-                ForEach(model.sessions.prefix(8), id: \.startTs) { session in
-                    Button {
-                        openDetail = DetailTarget(startTs: session.startTs, sport: session.sport)
-                    } label: {
-                        sessionRow(session)
-                    }
-                    .buttonStyle(.plain)
-                    .strandPressable()
+            if !model.enduranceSessions.isEmpty {
+                SectionHeader("Endurance", overline: "Recent sessions")
+                sessionButtons(Array(model.enduranceSessions.prefix(8)))
+            }
+            if !model.conditioningSessions.isEmpty {
+                SectionHeader("Conditioning", overline: "Team, interval and mixed sports")
+                sessionButtons(Array(model.conditioningSessions.prefix(8)))
+            }
+            if !model.otherSessions.isEmpty {
+                SectionHeader("Other", overline: "Recent sessions")
+                sessionButtons(Array(model.otherSessions.prefix(8)))
+            }
+        }
+    }
+
+    private func sessionButtons(_ sessions: [CardioSessionMetrics]) -> some View {
+        VStack(spacing: 8) {
+            ForEach(sessions, id: \.startTs) { session in
+                Button {
+                    openDetail = DetailTarget(startTs: session.startTs, sport: session.sport)
+                } label: {
+                    sessionRow(session)
                 }
+                .buttonStyle(.plain)
+                .strandPressable()
             }
         }
     }
@@ -704,24 +806,7 @@ struct CardioView: View {
     /// Localized display for the common cardio labels while the stored sport stays locale-stable for
     /// imports, deduplication and export. Unknown/free-text labels pass through exactly as entered.
     private func sportName(_ sport: String) -> String {
-        let display = WorkoutSource.displaySport(sport)
-        switch display.lowercased() {
-        case "running":          return String(localized: "Running")
-        case "walking":          return String(localized: "Walking")
-        case "hiking":           return String(localized: "Hiking")
-        case "cycling":          return String(localized: "Cycling")
-        case "open-water swim":  return String(localized: "Open-water swim")
-        case "rowing":           return String(localized: "Rowing")
-        case "treadmill run":    return String(localized: "Treadmill run")
-        case "treadmill walk":   return String(localized: "Treadmill walk")
-        case "indoor cycle":     return String(localized: "Indoor cycle")
-        case "pool swim":        return String(localized: "Pool swim")
-        case "row machine":      return String(localized: "Row machine")
-        case "elliptical":       return String(localized: "Elliptical")
-        case "hiit":             return String(localized: "HIIT")
-        case "yoga":             return String(localized: "Yoga")
-        default:                 return display
-        }
+        WorkoutSource.localizedDisplaySport(sport)
     }
 
     private func sportSymbol(_ session: CardioSessionMetrics) -> String {
@@ -804,7 +889,7 @@ struct CardioView: View {
     private func infoBody(_ topic: InfoTopic) -> String {
         switch topic {
         case .cardioLoad:
-            return String(localized: "How much cardiovascular work the last 7 days asked of you, against your own level over the last 28 days. It is a percentage, not a score: +18 % means the recent week ran about a fifth above your usual.\n\nThe underlying signal is Effort, derived from heart rate and time in intensity zones using TRIMP. Moving time stays separate because sixty easy minutes and sixty threshold minutes are equal duration but very different cardiovascular loads.\n\nRest days count as zeros. Neither direction is good or bad on its own: a higher week can be a planned build or too much, and the load alone cannot tell those apart. Charge and your own session rating add that context. It stays blank until there are two weeks of history.")
+            return String(localized: "How much cardiovascular work the last 7 days asked of you, against your own level over the last 28 days. It is a percentage, not a score: +18 % means the recent week ran about a fifth above your usual.\n\nThe underlying signal is additive TRIMP, derived from heart rate and time in intensity zones. Moving time stays separate because sixty easy minutes and sixty threshold minutes are equal duration but very different cardiovascular loads.\n\nRest days count as zeros. Neither direction is good or bad on its own: a higher week can be a planned build or too much, and the load alone cannot tell those apart. Charge and your own session rating add that context. It stays blank until there are two weeks of history.")
         case .bests:
             return String(localized: "Measured bests for this sport: the farthest you went, the longest you were out, and your fastest AVERAGE pace within each band of session length.\n\nThe bands matter. A fast 3 km and a fast half marathon are different achievements, so they are kept apart rather than competing for one 'fastest' line.\n\nThese are averages over a whole session, never splits. NOOP stores one distance and one duration per session, so 'your fastest 5 km' inside a longer run is a claim the data cannot support and is deliberately not offered.")
         }

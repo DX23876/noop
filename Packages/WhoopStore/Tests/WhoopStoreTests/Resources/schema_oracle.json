@@ -60,7 +60,8 @@
   "v56-strength-sources",
   "v57-ppg-waveform-base-code",
   "v58-rr-transport",
-  "v59-reattribute-archived-strap-samples"
+  "v59-reattribute-archived-strap-samples",
+  "v60-training-session-fusion"
  ],
  "divergenceReasons": {
   "android-orphan-synced-column": "REAL COLUMN DRIFT: `synced` exists on Android only. GRDB's v10 note is explicit that stepSample gets no `synced` column ('unused; see StreamStore'), and v12's ppgHrSample never had one either; the Room entities copied the flag from the older per-second entities. Nothing reads it on Android — the per-row upload flag belongs to an upload path that does not exist there — so it is dead width, not divergent data. Removing it needs a Room table rebuild.",
@@ -2840,6 +2841,225 @@
    ],
    "primaryKey": [
     "normalizedTitle"
+   ],
+   "indices": []
+  },
+  "workoutSourceMetadata": {
+   "platform": "ios_only",
+   "reason": "Training-session source provenance and durable fusion sidecars (GRDB v60). This Apple-only checkout has no Room twin; raw workouts remain in the existing shared table.",
+   "columns": [
+    {
+     "name": "componentKey",
+     "affinity": "TEXT",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "source",
+     "affinity": "TEXT",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "startTs",
+     "affinity": "INTEGER",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "sport",
+     "affinity": "TEXT",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "externalId",
+     "affinity": "TEXT",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "sourceBundleId",
+     "affinity": "TEXT",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "rawActivityType",
+     "affinity": "INTEGER",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "activitiesJSON",
+     "affinity": "TEXT",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "updatedAtTs",
+     "affinity": "INTEGER",
+     "notNull": true,
+     "default": null
+    }
+   ],
+   "primaryKey": [
+    "componentKey"
+   ],
+   "indices": [
+    {
+     "name": "idx_workoutSourceMetadata_window",
+     "unique": false,
+     "columns": [
+      "startTs",
+      "source"
+     ]
+    }
+   ]
+  },
+  "workoutHeartRateBucket": {
+   "platform": "ios_only",
+   "reason": "Training-session source provenance and durable fusion sidecars (GRDB v60). This Apple-only checkout has no Room twin; raw workouts remain in the existing shared table.",
+   "columns": [
+    {
+     "name": "componentKey",
+     "affinity": "TEXT",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "bucketStart",
+     "affinity": "INTEGER",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "bpm",
+     "affinity": "REAL",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "sourceBundleId",
+     "affinity": "TEXT",
+     "notNull": false,
+     "default": null
+    }
+   ],
+   "primaryKey": [
+    "componentKey",
+    "bucketStart"
+   ],
+   "indices": []
+  },
+  "trainingSessionLink": {
+   "platform": "ios_only",
+   "reason": "Training-session source provenance and durable fusion sidecars (GRDB v60). This Apple-only checkout has no Room twin; raw workouts remain in the existing shared table.",
+   "columns": [
+    {
+     "name": "componentKey",
+     "affinity": "TEXT",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "sessionId",
+     "affinity": "TEXT",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "origin",
+     "affinity": "TEXT",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "updatedAtTs",
+     "affinity": "INTEGER",
+     "notNull": true,
+     "default": null
+    }
+   ],
+   "primaryKey": [
+    "componentKey"
+   ],
+   "indices": [
+    {
+     "name": "idx_trainingSessionLink_session",
+     "unique": false,
+     "columns": [
+      "sessionId"
+     ]
+    }
+   ]
+  },
+  "trainingSessionPairDecision": {
+   "platform": "ios_only",
+   "reason": "Training-session source provenance and durable fusion sidecars (GRDB v60). This Apple-only checkout has no Room twin; raw workouts remain in the existing shared table.",
+   "columns": [
+    {
+     "name": "leftKey",
+     "affinity": "TEXT",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "rightKey",
+     "affinity": "TEXT",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "decision",
+     "affinity": "TEXT",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "updatedAtTs",
+     "affinity": "INTEGER",
+     "notNull": true,
+     "default": null
+    }
+   ],
+   "primaryKey": [
+    "leftKey",
+    "rightKey"
+   ],
+   "indices": []
+  },
+  "trainingSessionPreference": {
+   "platform": "ios_only",
+   "reason": "Training-session source provenance and durable fusion sidecars (GRDB v60). This Apple-only checkout has no Room twin; raw workouts remain in the existing shared table.",
+   "columns": [
+    {
+     "name": "sessionId",
+     "affinity": "TEXT",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "activityKind",
+     "affinity": "TEXT",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "primaryComponentKey",
+     "affinity": "TEXT",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "updatedAtTs",
+     "affinity": "INTEGER",
+     "notNull": true,
+     "default": null
+    }
+   ],
+   "primaryKey": [
+    "sessionId"
    ],
    "indices": []
   }

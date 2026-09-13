@@ -17,6 +17,7 @@ struct SessionRPECard: View {
     @State private var draft = 7.0
     @State private var editing = false
     @State private var saving = false
+    @State private var canonicalSessionId: String?
 
     var body: some View {
         VStack(alignment: .leading, spacing: NoopMetrics.gap) {
@@ -35,7 +36,12 @@ struct SessionRPECard: View {
             }
         }
         .task(id: startTs) {
-            saved = await repo.sessionRPE(at: startTs)
+            canonicalSessionId = await repo.canonicalTrainingSession(containingStartTs: startTs)?.id
+            if let canonicalSessionId, let byId = await repo.sessionRPE(sessionId: canonicalSessionId) {
+                saved = byId
+            } else {
+                saved = await repo.sessionRPE(at: startTs)
+            }
             if let saved { draft = saved.rpe }
         }
     }
@@ -140,8 +146,13 @@ struct SessionRPECard: View {
     @MainActor
     private func save() async {
         saving = true
-        if await repo.recordSessionRPE(draft, startTs: startTs, sport: sport) {
-            saved = await repo.sessionRPE(at: startTs)
+        if await repo.recordSessionRPE(draft, startTs: startTs, sport: sport,
+                                       sessionId: canonicalSessionId) {
+            if let canonicalSessionId {
+                saved = await repo.sessionRPE(sessionId: canonicalSessionId)
+            } else {
+                saved = await repo.sessionRPE(at: startTs)
+            }
             editing = false
         }
         saving = false
@@ -150,7 +161,7 @@ struct SessionRPECard: View {
     @MainActor
     private func remove() async {
         saving = true
-        if await repo.deleteSessionRPE(at: startTs) {
+        if let entry = saved, await repo.deleteSessionRPE(id: entry.id) {
             saved = nil
             editing = false
         }

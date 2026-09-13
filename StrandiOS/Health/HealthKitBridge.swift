@@ -766,7 +766,8 @@ final class HealthKitBridge: ObservableObject {
         // imports these from a static Health export and Android reads them from Health Connect; iOS now
         // reads them live on-device too, so the platforms reach parity. ON-DEVICE ONLY: this is a plain
         // HealthKit read of workouts NOOP did NOT author, never any cloud/3rd-party API. (#835)
-        let workoutRows = await collectWorkouts(start: start, end: end)
+        let workoutImport = await collectWorkouts(start: start, end: end)
+        let workoutRows = workoutImport.rows
         progress(0.85)
         guard !Task.isCancelled else { return false }
 
@@ -807,6 +808,10 @@ final class HealthKitBridge: ObservableObject {
                 to: Int(end.timeIntervalSince1970) + HealthEnergyBucketRow.durationSeconds)
             try await store.upsertHealthEnergyBuckets(energyReferenceRows)
             if !workoutRows.isEmpty { try await store.upsertWorkouts(workoutRows, deviceId: appleDeviceId) }
+            try await store.upsertWorkoutSourceMetadata(workoutImport.metadata)
+            for (componentKey, buckets) in workoutImport.heartRateBuckets {
+                try await store.replaceWorkoutHeartRateBuckets(componentKey: componentKey, rows: buckets)
+            }
             // Imported water (#949) goes to the hydration source, not apple-health, because the hydration
             // screen is what reads it. Every day in the window is written — including the ones with no
             // water at all, as 0 — so deleting a drink in the source app takes it away here on the next
@@ -2412,7 +2417,13 @@ final class HealthKitBridge: ObservableObject {
         }
     }
 
-    private func collectWorkouts(start: Date, end: Date) async -> [WorkoutRow] {
+    private struct WorkoutImportBatch {
+        var rows: [WorkoutRow] = []
+        var metadata: [WorkoutSourceMetadataRow] = []
+        var heartRateBuckets: [String: [WorkoutHeartRateBucketRow]] = [:]
+    }
+
+    private func collectWorkouts(start: Date, end: Date) async -> WorkoutImportBatch {
         let predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [
             HKQuery.predicateForSamples(withStart: start, end: end, options: .strictStartDate),
             Self.notNoopAuthored,
@@ -2434,10 +2445,11 @@ final class HealthKitBridge: ObservableObject {
                     let startTs = Int(workout.startDate.timeIntervalSince1970)
                     let endTs = max(Int(workout.endDate.timeIntervalSince1970), startTs)
                     let duration = workout.duration > 0 ? workout.duration : Double(endTs - startTs)
+                    let descriptor = HealthWorkoutActivityCatalog.descriptor(for: workout.workoutActivityType)
                     pairs.append((workout, WorkoutRow(
                         startTs: startTs,
                         endTs: endTs,
-                        sport: Self.sportName(workout.workoutActivityType),
+                        sport: descriptor.storedName,
                         source: HealthKitBridge.appleWorkoutSource,
                         durationS: duration,
                         energyKcal: workout.totalEnergyBurned?.doubleValue(for: .kilocalorie()),
@@ -2471,7 +2483,61 @@ final class HealthKitBridge: ObservableObject {
             }
         }
         RouteStore.storeAll(importedRoutes)
-        return workoutsAndRows.map { $0.1 }
+        var batch = WorkoutImportBatch()
+        batch.rows = workoutsAndRows.map { $0.1 }
+        let nowTs = Int(Date().timeIntervalSince1970)
+        for (workout, row) in workoutsAndRows {
+            let componentKey = "apple-health|\(workout.uuid.uuidString.lowercased())"
+            let sourceBundle = workout.sourceRevision.source.bundleIdentifier
+            let activities: [[String: Any]] = workout.workoutActivities.map {
+                let descriptor = HealthWorkoutActivityCatalog.descriptor(for: $0.workoutConfiguration.activityType)
+                return ["id": descriptor.id, "type": $0.workoutConfiguration.activityType.rawValue,
+                        "startTs": Int($0.startDate.timeIntervalSince1970),
+                        "endTs": Int(($0.endDate ?? $0.startDate).timeIntervalSince1970)]
+            }
+            let activitiesJSON = activities.isEmpty ? nil : (try? JSONSerialization.data(withJSONObject: activities))
+                .flatMap { String(data: $0, encoding: .utf8) }
+            batch.metadata.append(.init(componentKey: componentKey, source: Self.appleWorkoutSource,
+                                        startTs: row.startTs, sport: row.sport,
+                                        externalId: workout.uuid.uuidString.lowercased(),
+                                        sourceBundleId: sourceBundle,
+                                        rawActivityType: Int(workout.workoutActivityType.rawValue),
+                                        activitiesJSON: activitiesJSON, updatedAtTs: nowTs))
+            batch.heartRateBuckets[componentKey] = await workoutHeartRateBuckets(
+                for: workout, componentKey: componentKey)
+        }
+        return batch
+    }
+
+    /// External HR explicitly associated with one workout. Own NOOP write-back is excluded so the direct
+    /// strap stream remains the only NOOP source and cannot return through HealthKit as a duplicate.
+    private func workoutHeartRateBuckets(for workout: HKWorkout,
+                                         componentKey: String) async -> [WorkoutHeartRateBucketRow] {
+        guard let type = HKQuantityType.quantityType(forIdentifier: .heartRate) else { return [] }
+        let predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [
+            HKQuery.predicateForObjects(from: workout), Self.notNoopAuthored,
+        ])
+        let samples: [HKQuantitySample] = await withCheckedContinuation { cont in
+            let query = HKSampleQuery(sampleType: type, predicate: predicate,
+                                      limit: HKObjectQueryNoLimit, sortDescriptors: nil) { _, values, _ in
+                cont.resume(returning: (values as? [HKQuantitySample]) ?? [])
+            }
+            store.execute(query)
+        }
+        let unit = HKUnit.count().unitDivided(by: .minute())
+        var bins: [Int: (sum: Double, count: Int, source: String?)] = [:]
+        for sample in samples where !Self.isNoopAuthored(sample) {
+            let bpm = sample.quantity.doubleValue(for: unit)
+            guard bpm.isFinite, bpm >= 25, bpm <= 250 else { continue }
+            let bucket = Int(sample.startDate.timeIntervalSince1970) / 60 * 60
+            let old = bins[bucket] ?? (0, 0, sample.sourceRevision.source.bundleIdentifier)
+            bins[bucket] = (old.sum + bpm, old.count + 1, old.source)
+        }
+        return bins.keys.sorted().compactMap { ts in
+            guard let bin = bins[ts], bin.count > 0 else { return nil }
+            return .init(componentKey: componentKey, bucketStart: ts,
+                         bpm: bin.sum / Double(bin.count), sourceBundleId: bin.source)
+        }
     }
 
     /// #1205: fetch the GPS route (list of `RouteMath.LatLng`) for a single `HKWorkout`.
@@ -2513,48 +2579,6 @@ final class HealthKitBridge: ObservableObject {
     /// `WorkoutSource.appleHealthSource` ("apple-health") and `appleDeviceId`, so the workout list and
     /// source filters treat an iOS-read workout exactly like a macOS-imported one.
     static let appleWorkoutSource = "apple-health"
-
-    /// Map an `HKWorkoutActivityType` to NOOP's human sport label. Strength training routes to the
-    /// shared lifting sport so a gym session lands in the Lifting lane; anything we don't name explicitly
-    /// falls back to a generic "Workout" rather than an opaque numeric type.
-    private static func sportName(_ type: HKWorkoutActivityType) -> String {
-        switch type {
-        case .running:                    return "Running"
-        case .walking:                    return "Walking"
-        case .hiking:                     return "Hiking"
-        case .cycling:                    return "Cycling"
-        case .traditionalStrengthTraining,
-             .functionalStrengthTraining: return LiftingImporter.sport
-        case .highIntensityIntervalTraining: return "HIIT"
-        case .coreTraining:               return "Core training"
-        case .yoga:                       return "Yoga"
-        case .pilates:                    return "Pilates"
-        case .rowing:                     return "Rowing"
-        case .elliptical:                 return "Elliptical"
-        case .stairClimbing, .stairs:     return "Stairs"
-        case .jumpRope:                   return "Jump rope"
-        case .boxing, .kickboxing:        return "Boxing"
-        case .basketball:                 return "Basketball"
-        case .soccer:                     return "Soccer"
-        case .americanFootball:           return "Football"
-        case .baseball:                   return "Baseball"
-        case .badminton:                  return "Badminton"
-        case .tennis:                     return "Tennis"
-        case .tableTennis:                return "Table tennis"
-        case .volleyball:                 return "Volleyball"
-        case .squash, .racquetball:       return "Squash"
-        case .martialArts, .taiChi:       return "Martial arts"
-        case .dance, .cardioDance, .socialDance: return "Dancing"
-        case .golf:                       return "Golf"
-        case .climbing:                   return "Climbing"
-        case .downhillSkiing, .crossCountrySkiing: return "Skiing"
-        case .snowboarding:               return "Snowboarding"
-        case .swimming:                   return "Swimming"
-        case .surfingSports:              return "Surfing"
-        case .paddleSports:               return "Paddling"
-        default:                          return "Workout"
-        }
-    }
 
     // MARK: - Entitlement detection (#348)
 

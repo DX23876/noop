@@ -89,7 +89,8 @@ public struct StrengthSetLine: Equatable, Sendable {
     public let durationS: Double?
     public let distanceM: Double?
     public let rpe: Double?
-    /// Epley, where it is defined for this set. Nil elsewhere — including above 12 reps.
+    /// Epley, adjusted by logged RPE/RIR where available. Nil elsewhere — including when completed
+    /// reps plus reserve exceed the 12-rep validity boundary.
     public let e1rmKg: Double?
     /// Body weight + added − assisted, for a movement that carries the body. Nil when the movement does
     /// not, or when no measured body weight was available for that day.

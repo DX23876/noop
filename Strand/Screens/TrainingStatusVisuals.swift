@@ -95,6 +95,25 @@ enum LoadScale {
         min(max((ratio - low) / (high - low), 0), 1)
     }
 
+    static func ratioText(_ ratio: Double, band: TrainingLoadBand) -> String {
+        let shown = displayRatio(ratio, band: band)
+        return String(localized: "\(shown.formatted(.number.precision(.fractionLength(2)))) × usual")
+    }
+
+    /// The ratio rounded TOWARD its own zone, so the number never contradicts the word beside it. Plain
+    /// rounding showed 0.7996 as "0.80" under "Recovering", although 0.80 is where maintaining begins;
+    /// here it reads 0.79. Above 1.3 rounds up (1.3004 → 1.31), and inside a zone the value is kept
+    /// within that zone's bounds (0.996 → 0.99, not 1.00).
+    static func displayRatio(_ ratio: Double, band: TrainingLoadBand) -> Double {
+        let hundredths = ratio * 100
+        switch band {
+        case .below:       return floor(hundredths) / 100
+        case .above:       return ceil(hundredths) / 100
+        case .maintaining: return min(max(hundredths.rounded() / 100, 0.8), 0.99)
+        case .productive:  return min(max(hundredths.rounded() / 100, 1.0), 1.3)
+        }
+    }
+
     /// The four zone colours as one ramp, with a short blend at each threshold: the ring reads as one
     /// instrument rather than four pieces stuck together, and every zone still keeps its own colour.
     /// An orange lift just past 1.3 is the ramp heating up into the red.
@@ -117,104 +136,75 @@ enum LoadScale {
     }
 }
 
-// MARK: - The dial
+// MARK: - The instrument
 
-/// A 240° dial on Polar's scale: the ramp as a faint rail, lit up to the lane's ratio, with a knob at
-/// the ratio and the status in the middle.
+/// Both lanes on one 240° scale: strength on the outer arc, cardio on the inner one.
 ///
-/// The lit part is "how much you did compared with your usual": at 0.79 only the cool end glows, at
-/// 1.2 the ring glows through to green. Gaps at 0.8 / 1.0 / 1.3 keep the zones countable. The scale
-/// runs from 0.5 to 1.6: wide enough for every zone to have room, and a ratio beyond it parks the knob
-/// at the end — the number in the centre is always the exact one.
-struct LoadStatusRing: View {
-    let title: LocalizedStringKey
-    let symbol: String
-    let lane: LaneStatus?
-    /// The lane's own figure, e.g. "66.4 weighted sets · +12 %".
-    let figure: String?
-    /// What the verdict rests on, e.g. "4 of 6 lifts rising".
-    let evidence: String?
-    var diameter: CGFloat = 156
+/// Sharing the scale is the point — "further round" means the same thing on both arcs, so the two lanes
+/// can be compared at a glance instead of by reading two separate dials. What the ring deliberately does
+/// NOT do is merge them: each arc keeps its own knob, its own lit length and its own word in the middle,
+/// because a lifting week and a running week are measured in different units and this fork's decision log
+/// rules out a single blended score.
+///
+/// Each knob carries its lane's own symbol, and the rows beneath the ring repeat that symbol — that is
+/// what maps an arc to a lane without a legend. Gaps at 0.8 / 1.0 / 1.3 keep the zones countable, and a
+/// ratio past either end parks the knob there while the number beside it stays exact.
+struct LoadDualRing: View {
+    let strength: LaneStatus?
+    let cardio: LaneStatus?
+    var diameter: CGFloat = 252
 
-    @State private var shownFraction: Double = 0
-    @State private var shownRatio: Double = 0
+    @State private var shownStrength: Double = 0
+    @State private var shownCardio: Double = 0
     @State private var bounce = 0
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    private let lineWidth: CGFloat = 14
-    /// Room outside the ring for the 0.8 / 1.0 / 1.3 labels.
-    private let labelInset: CGFloat = 15
+    private let outerWidth: CGFloat = 15
+    private let innerWidth: CGFloat = 12
+    /// Wide enough that the two knobs never fuse into one blob when both lanes sit at the same ratio.
+    private let ringGap: CGFloat = 10
+    /// Room outside the outer ring for the 0.8 / 1.0 / 1.3 labels.
+    private let labelInset: CGFloat = 16
     private let startDegrees = 150.0
     private let spanDegrees = 240.0
 
-    static func fraction(for ratio: Double) -> Double { LoadScale.fraction(for: ratio) }
-
-    static func ratioText(_ ratio: Double, band: TrainingLoadBand) -> String {
-        let shown = displayRatio(ratio, band: band)
-        return String(localized: "\(shown.formatted(.number.precision(.fractionLength(2)))) × usual")
+    private var thresholds: [Double] {
+        [TrainingStatusModel.detrainingBelow, TrainingStatusModel.productiveFrom,
+         TrainingStatusModel.overreachingAbove]
     }
 
-    /// The ratio rounded TOWARD its own zone, so the number never contradicts the word beside it. Plain
-    /// rounding showed 0.7996 as "0.80" under "Recovering", although 0.80 is where maintaining begins;
-    /// here it reads 0.79. Above 1.3 rounds up (1.3004 → 1.31), and inside a zone the value is kept
-    /// within that zone's bounds (0.996 → 0.99, not 1.00).
-    static func displayRatio(_ ratio: Double, band: TrainingLoadBand) -> Double {
-        let hundredths = ratio * 100
-        switch band {
-        case .below:       return floor(hundredths) / 100
-        case .above:       return ceil(hundredths) / 100
-        case .maintaining: return min(max(hundredths.rounded() / 100, 0.8), 0.99)
-        case .productive:  return min(max(hundredths.rounded() / 100, 1.0), 1.3)
-        }
-    }
-
-    private var ringRadius: CGFloat { (diameter - 2 * labelInset - lineWidth) / 2 }
-    private var statusColor: Color { lane?.status.color ?? StrandPalette.textTertiary }
+    private var outerRadius: CGFloat { (diameter - 2 * labelInset - outerWidth) / 2 }
+    private var innerRadius: CGFloat { outerRadius - outerWidth / 2 - ringGap - innerWidth / 2 }
+    /// The padding that puts `RecoveryArc` on the inner radius, given it insets by half its own width.
+    private var innerPadding: CGFloat { (diameter - innerWidth) / 2 - innerRadius }
 
     var body: some View {
-        VStack(spacing: NoopMetrics.space2) {
-            Label { Text(title) } icon: { Image(systemName: symbol) }
-                .font(StrandFont.subhead.weight(.semibold))
-                .foregroundStyle(StrandPalette.textSecondary)
-            ZStack {
-                dial
-                centre
-            }
-            .frame(width: diameter, height: diameter)
-            // The 240° arc leaves the bottom sixth of its square empty; pull the figures up into it
-            // rather than leaving a gap under every dial.
-            .padding(.bottom, -diameter * 0.14)
-            if let figure {
-                Text(figure)
-                    .font(StrandFont.captionNumber)
-                    .foregroundStyle(StrandPalette.textPrimary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.75)
-            }
-            if let evidence {
-                Text(evidence)
-                    .font(StrandFont.caption)
-                    .foregroundStyle(StrandPalette.textSecondary)
-                    .multilineTextAlignment(.center)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
+        ZStack {
+            glow
+            rings
+            ticks
+            knobs
+            centre
         }
-        .frame(maxWidth: .infinity)
+        .frame(width: diameter, height: diameter)
+        // The 240° arc leaves the bottom sixth of its square empty; pull what follows up into it rather
+        // than leaving a gap under the instrument.
+        .padding(.bottom, -diameter * 0.13)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(Text(title))
+        .accessibilityLabel(Text("Training Load"))
         .accessibilityValue(Text(accessibilityValue))
-        .task(id: lane?.ratio) {
-            let target = lane.map { Self.fraction(for: $0.ratio) } ?? 0
-            let ratio = lane?.ratio ?? 0
+        .task(id: "\(strength?.ratio ?? -1)|\(cardio?.ratio ?? -1)") {
+            let outer = strength.map { LoadScale.fraction(for: $0.ratio) } ?? 0
+            let inner = cardio.map { LoadScale.fraction(for: $0.ratio) } ?? 0
             if reduceMotion {
-                shownFraction = target
-                shownRatio = ratio
+                shownStrength = outer
+                shownCardio = inner
             } else {
                 withAnimation(StrandMotion.drawIn) {
-                    shownFraction = target
-                    shownRatio = ratio
+                    shownStrength = outer
+                    shownCardio = inner
                 }
-                // The glyph lands with a small bounce once the ring has filled.
+                // The glyphs land once both arcs have filled.
                 try? await Task.sleep(nanoseconds: 650_000_000)
                 bounce += 1
             }
@@ -222,8 +212,17 @@ struct LoadStatusRing: View {
     }
 
     private var accessibilityValue: String {
-        guard let lane else { return String(localized: "Needs two weeks of measured history") }
-        return "\(lane.status.label), \(Self.ratioText(lane.ratio, band: lane.band))"
+        var parts: [String] = []
+        if let strength {
+            parts.append("\(String(localized: "Strength")): \(strength.status.label), "
+                         + LoadScale.ratioText(strength.ratio, band: strength.band))
+        }
+        if let cardio {
+            parts.append("\(String(localized: "Cardio")): \(cardio.status.label), "
+                         + LoadScale.ratioText(cardio.ratio, band: cardio.band))
+        }
+        return parts.isEmpty ? String(localized: "Needs two weeks of measured history")
+                             : parts.joined(separator: ", ")
     }
 
     // MARK: Layers
@@ -233,155 +232,177 @@ struct LoadStatusRing: View {
                         startAngle: .degrees(startDegrees), endAngle: .degrees(startDegrees + spanDegrees))
     }
 
-    private var dial: some View {
+    /// Light pooling in the middle, in whichever verdicts exist. Two lanes means two washes, which is
+    /// what gives the centre its colour without printing a third, invented status there.
+    private var glow: some View {
         ZStack {
-            // Light from the ring pooling in the middle, in the status colour.
-            Circle()
-                .fill(RadialGradient(colors: [statusColor.opacity(0.20), statusColor.opacity(0)],
-                                     center: .center, startRadius: 0, endRadius: diameter * 0.34))
-                .padding(labelInset + lineWidth)
-            rings
-            ticks
-            if lane != nil { knob }
+            if let strength {
+                Circle().fill(RadialGradient(
+                    colors: [strength.status.color.opacity(0.26), strength.status.color.opacity(0)],
+                    center: .center, startRadius: 0, endRadius: diameter * 0.38))
+            }
+            if let cardio {
+                Circle().fill(RadialGradient(
+                    colors: [cardio.status.color.opacity(0.22), cardio.status.color.opacity(0)],
+                    center: .center, startRadius: 0, endRadius: diameter * 0.28))
+            }
         }
+        .padding(labelInset + outerWidth)
     }
 
-    /// Rail, glow and lit arc, with real gaps cut at the thresholds so whatever sits behind the card
+    /// Rail, glow and lit arc per lane, with real gaps cut at the thresholds so the card's own surface
     /// shows through them.
     private var rings: some View {
         ZStack {
-            arc(from: 0, to: 1)
-                .stroke(StrandPalette.surfaceInset,
-                        style: StrokeStyle(lineWidth: lineWidth, lineCap: .round,
-                                           dash: lane == nil ? [2, 5] : []))
-            if lane != nil {
-                arc(from: 0, to: 1)
-                    .stroke(ramp, style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
-                    .opacity(0.24)
-                arc(from: 0, to: shownFraction)
-                    .stroke(ramp, style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
-                    .blur(radius: 7)
-                    .opacity(0.6)
-                arc(from: 0, to: shownFraction)
-                    .stroke(ramp, style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
-            }
+            laneArcs(lane: strength, fraction: shownStrength, width: outerWidth, padding: labelInset)
+            laneArcs(lane: cardio, fraction: shownCardio, width: innerWidth, padding: innerPadding)
             separators.blendMode(.destinationOut)
         }
-        .padding(labelInset)
         .compositingGroup()
     }
 
+    private func laneArcs(lane: LaneStatus?, fraction: Double,
+                          width: CGFloat, padding: CGFloat) -> some View {
+        ZStack {
+            arc(from: 0, to: 1, width: width)
+                .stroke(StrandPalette.surfaceInset,
+                        style: StrokeStyle(lineWidth: width, lineCap: .round,
+                                           dash: lane == nil ? [2, 5] : []))
+            if lane != nil {
+                arc(from: 0, to: 1, width: width)
+                    .stroke(ramp, style: StrokeStyle(lineWidth: width, lineCap: .round))
+                    .opacity(0.26)
+                arc(from: 0, to: fraction, width: width)
+                    .stroke(ramp, style: StrokeStyle(lineWidth: width, lineCap: .round))
+                    .blur(radius: 8)
+                    .opacity(0.7)
+                arc(from: 0, to: fraction, width: width)
+                    .stroke(ramp, style: StrokeStyle(lineWidth: width, lineCap: .round))
+            }
+        }
+        .padding(padding)
+    }
+
     private var separators: some View {
-        let inner = ringRadius - lineWidth / 2 - 2
-        let outer = ringRadius + lineWidth / 2 + 2
+        let from = innerRadius - innerWidth / 2 - 2
+        let to = outerRadius + outerWidth / 2 + 2
         return Path { path in
-            for value in [TrainingStatusModel.detrainingBelow, TrainingStatusModel.productiveFrom,
-                          TrainingStatusModel.overreachingAbove] {
-                let angle = radians(Self.fraction(for: value))
-                path.move(to: point(angle, radius: inner, inset: labelInset))
-                path.addLine(to: point(angle, radius: outer, inset: labelInset))
+            for value in thresholds {
+                let angle = radians(LoadScale.fraction(for: value))
+                path.move(to: point(angle, radius: from))
+                path.addLine(to: point(angle, radius: to))
             }
         }
         // A mask: `destinationOut` only reads the stroke's coverage, so any opaque colour cuts the gap.
         .stroke(StrandPalette.textPrimary, lineWidth: 2.5)
+        .frame(width: diameter, height: diameter)
     }
 
-    /// Labels at Polar's three thresholds, outside the ring. A label the knob is sitting on steps
+    /// Labels at Polar's three thresholds, outside the outer ring. A label a knob is sitting on steps
     /// aside rather than being drawn under it.
     private var ticks: some View {
         ZStack {
-            ForEach([TrainingStatusModel.detrainingBelow, TrainingStatusModel.productiveFrom,
-                     TrainingStatusModel.overreachingAbove], id: \.self) { value in
-                let fraction = Self.fraction(for: value)
+            ForEach(thresholds, id: \.self) { value in
+                let fraction = LoadScale.fraction(for: value)
                 Text(value, format: .number.precision(.fractionLength(1)))
-                    .font(StrandFont.rounded(8.5, weight: .semibold))
+                    .font(StrandFont.rounded(9, weight: .semibold))
                     .foregroundStyle(StrandPalette.textTertiary)
-                    .position(point(radians(fraction), radius: ringRadius + lineWidth / 2 + 8))
-                    .opacity(lane != nil && abs(shownFraction - fraction) < 0.05 ? 0 : 1)
+                    .position(point(radians(fraction), radius: outerRadius + outerWidth / 2 + 9))
+                    .opacity(coveredByKnob(fraction) ? 0 : 1)
             }
         }
         .frame(width: diameter, height: diameter)
         .accessibilityHidden(true)
     }
 
-    /// The ratio's position: a light knob with the status colour at its core, the way the Activity
-    /// rings mark their end.
-    private var knob: some View {
-        Circle()
-            .fill(StrandPalette.onDarkPrimary)
-            .frame(width: lineWidth + 8, height: lineWidth + 8)
-            .overlay(Circle().fill(statusColor.gradient).padding(4.5))
-            .shadow(color: statusColor.opacity(0.8), radius: 7)
-            .position(point(radians(shownFraction), radius: ringRadius))
-            .frame(width: diameter, height: diameter)
+    private func coveredByKnob(_ fraction: Double) -> Bool {
+        (strength != nil && abs(shownStrength - fraction) < 0.05)
+            || (cardio != nil && abs(shownCardio - fraction) < 0.05)
     }
 
-    private var centre: some View {
-        VStack(spacing: 3) {
-            if let lane {
-                StatusBadge(symbol: lane.status.symbol, color: lane.status.color, size: diameter * 0.26,
-                            bounceTrigger: bounce)
-                Text(lane.status.label)
-                    .font(StrandFont.rounded(diameter * 0.1, weight: .bold))
-                    .foregroundStyle(StrandPalette.textPrimary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.6)
-                    // Narrower than the ring's opening, so a long word shrinks instead of touching it.
-                    .frame(maxWidth: diameter * 0.52)
-                RatioReadout(value: shownRatio, band: lane.band)
-                    .font(StrandFont.captionNumber)
-                    .foregroundStyle(StrandPalette.textSecondary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
-            } else {
-                Image(systemName: "hourglass")
-                    .font(StrandFont.rounded(diameter * 0.12, weight: .semibold))
-                    .foregroundStyle(StrandPalette.textTertiary)
-                Text("Needs two weeks of measured history")
-                    .font(StrandFont.caption)
-                    .foregroundStyle(StrandPalette.textSecondary)
-                    .multilineTextAlignment(.center)
+    /// Each lane's position, carrying that lane's own symbol — the thing that says which arc is which.
+    private var knobs: some View {
+        ZStack {
+            if let strength {
+                knob(color: strength.status.color, symbol: "figure.strengthtraining.traditional",
+                     fraction: shownStrength, radius: outerRadius, size: outerWidth + 6)
+            }
+            if let cardio {
+                knob(color: cardio.status.color, symbol: "heart.fill",
+                     fraction: shownCardio, radius: innerRadius, size: innerWidth + 6)
             }
         }
-        .frame(maxWidth: diameter * 0.6)
+    }
+
+    private func knob(color: Color, symbol: String, fraction: Double,
+                      radius: CGFloat, size: CGFloat) -> some View {
+        ZStack {
+            Circle().fill(StrandPalette.onDarkPrimary)
+            Circle().fill(color.gradient).padding(2.5)
+            Image(systemName: symbol)
+                .font(StrandFont.rounded(size * 0.4, weight: .bold))
+                .foregroundStyle(StrandPalette.onDarkPrimary)
+        }
+        .frame(width: size, height: size)
+        .shadow(color: color.opacity(0.75), radius: 7)
+        .position(point(radians(fraction), radius: radius))
+        .frame(width: diameter, height: diameter)
+    }
+
+    /// Both verdicts, one per line, each next to its lane's symbol. Two lines rather than one word:
+    /// there is no combined status to print, and inventing one is exactly what this page must not do.
+    ///
+    /// The ratio deliberately does NOT repeat here. The opening between the arcs is barely wider than
+    /// "Восстановление", and a second line under each word pushed the block into the rings; the rows
+    /// beneath the instrument carry every ratio already.
+    private var centre: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            centreRow(symbol: "figure.strengthtraining.traditional", lane: strength)
+            centreRow(symbol: "heart.fill", lane: cardio)
+        }
+        // The 240° arc is open at the bottom, so the instrument's optical centre sits above its
+        // geometric one; without the nudge the block reads as having slipped downwards.
+        .offset(y: -diameter * 0.04)
+    }
+
+    private func centreRow(symbol: String, lane: LaneStatus?) -> some View {
+        // No trailing spacer: each row sizes to its own content so the pair is CENTRED in the opening
+        // rather than pinned to its left edge.
+        HStack(spacing: 6) {
+            Image(systemName: symbol)
+                .font(StrandFont.rounded(13, weight: .bold))
+                .foregroundStyle(lane?.status.color ?? StrandPalette.textTertiary)
+                .frame(width: 16)
+                .trainingSymbolBounce(trigger: bounce)
+            Text(lane?.status.label ?? "—")
+                .font(StrandFont.rounded(15, weight: .bold))
+                .foregroundStyle(StrandPalette.textPrimary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.5)
+                .frame(maxWidth: diameter * 0.46, alignment: .leading)
+                .fixedSize(horizontal: false, vertical: true)
+        }
     }
 
     // MARK: Geometry
 
-    private func arc(from: Double, to: Double) -> RecoveryArc {
+    private func arc(from: Double, to: Double, width: CGFloat) -> RecoveryArc {
         RecoveryArc(startAngle: .degrees(startDegrees + spanDegrees * from),
-                    spanDegrees: spanDegrees * max(to - from, 0), fraction: 1, lineWidth: lineWidth)
+                    spanDegrees: spanDegrees * max(to - from, 0), fraction: 1, lineWidth: width)
     }
 
     private func radians(_ fraction: Double) -> Double {
         (startDegrees + spanDegrees * fraction) * .pi / 180
     }
 
-    private func point(_ angle: Double, radius: CGFloat, inset: CGFloat = 0) -> CGPoint {
-        let centre = diameter / 2 - inset
-        return CGPoint(x: centre + radius * cos(angle), y: centre + radius * sin(angle))
-    }
-}
-
-/// The ratio as a number that rolls to its value, rounded toward its zone at every frame so even the
-/// numbers passed on the way never contradict the word above them.
-private struct RatioReadout: View, Animatable {
-    var value: Double
-    let band: TrainingLoadBand
-
-    var animatableData: Double {
-        get { value }
-        set { value = newValue }
-    }
-
-    var body: some View {
-        Text(verbatim: LoadStatusRing.ratioText(value, band: band))
-            .monospacedDigit()
+    private func point(_ angle: Double, radius: CGFloat) -> CGPoint {
+        CGPoint(x: diameter / 2 + radius * cos(angle), y: diameter / 2 + radius * sin(angle))
     }
 }
 
 /// A number that rolls to its value, in the wearer's locale. (The Liquid `CountUpNumber` always prints
 /// a full stop, which reads wrong in German.)
+@MainActor
 struct TrainingCountUp: View, Animatable {
     var value: Double
     var decimals: Int = 0
@@ -445,9 +466,9 @@ private struct StatusGlow: View {
             }
         } else {
             ZStack {
-                RadialGradient(colors: [leading.opacity(0.38), leading.opacity(0)],
+                RadialGradient(colors: [leading.opacity(0.5), leading.opacity(0)],
                                center: .topLeading, startRadius: 0, endRadius: 300)
-                RadialGradient(colors: [trailing.opacity(0.38), trailing.opacity(0)],
+                RadialGradient(colors: [trailing.opacity(0.5), trailing.opacity(0)],
                                center: .topTrailing, startRadius: 0, endRadius: 300)
             }
         }
@@ -470,8 +491,8 @@ private struct MeshGlow: View {
             [0, 1], [0.5, 1], [1, 1],
         ]
         let colors: [Color] = [
-            leading.opacity(0.46), clear, trailing.opacity(0.46),
-            leading.opacity(0.16), clear, trailing.opacity(0.16),
+            leading.opacity(0.58), clear, trailing.opacity(0.58),
+            leading.opacity(0.24), clear, trailing.opacity(0.24),
             clear, clear, clear,
         ]
         return MeshGradient(width: 3, height: 3, points: points, colors: colors)
@@ -483,7 +504,21 @@ private struct MeshGlow: View {
 struct TrainingWashCard<Content: View>: View {
     let color: Color
     var watermark: String? = nil
+    /// Paint the card IN the colour rather than washing it. Reserved for the page's one statement, and
+    /// refused for yellow by the caller, where white text on the fill would not read.
+    var filled = false
+    /// A second colour for a card that speaks about TWO lanes at once: the fill then runs from the
+    /// lane that is falling behind to the one that is ahead, so the split is visible as a surface
+    /// before a word of it is read.
+    var secondary: Color? = nil
     @ViewBuilder let content: () -> Content
+
+    private var fillColours: [Color] {
+        guard let secondary else {
+            return filled ? [color, color.opacity(0.78)] : [color.opacity(0.28), color.opacity(0.06)]
+        }
+        return filled ? [secondary, color] : [secondary.opacity(0.26), color.opacity(0.26)]
+    }
 
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: NoopMetrics.cardRadius, style: .continuous)
@@ -495,22 +530,24 @@ struct TrainingWashCard<Content: View>: View {
                 // ZStack the large symbol grew the background past the content and over its neighbours.
                 ZStack {
                     shape.fill(StrandPalette.surfaceRaised)
-                    shape.fill(LinearGradient(colors: [color.opacity(0.28), color.opacity(0.06)],
-                                              startPoint: .topLeading, endPoint: .bottomTrailing))
+                    shape.fill(LinearGradient(
+                        colors: fillColours, startPoint: .topLeading, endPoint: .bottomTrailing))
                 }
                 .overlay(alignment: .topTrailing) {
                     if let watermark {
                         Image(systemName: watermark)
                             .font(StrandFont.rounded(92, weight: .bold))
-                            .foregroundStyle(color.opacity(0.14))
+                            .foregroundStyle(filled ? StrandPalette.onDarkPrimary.opacity(0.16)
+                                                    : color.opacity(0.14))
                             .rotationEffect(.degrees(-12))
                             .offset(x: 20, y: -16)
                             .accessibilityHidden(true)
                     }
                 }
                 .clipShape(shape)
-                .overlay(shape.strokeBorder(color.opacity(0.35), lineWidth: 1))
-                .shadow(color: color.opacity(0.14), radius: 12, y: 6)
+                .overlay(shape.strokeBorder(filled ? StrandPalette.onDarkPrimary.opacity(0.2)
+                                                   : color.opacity(0.35), lineWidth: 1))
+                .shadow(color: color.opacity(filled ? 0.3 : 0.14), radius: filled ? 16 : 12, y: 6)
             }
     }
 }
@@ -554,21 +591,34 @@ struct StatusBadge: View {
 
 /// The four zones of the dial, one dot each.
 struct LoadZoneLegend: View {
+    private let statuses: [TrainingStatus] = [.detraining, .maintaining, .productive, .overreaching]
+
     var body: some View {
-        HStack(spacing: NoopMetrics.space3) {
-            ForEach([TrainingStatus.detraining, .maintaining, .productive, .overreaching], id: \.self) { status in
-                HStack(spacing: 4) {
-                    Circle().fill(status.color.gradient).frame(width: 9, height: 9)
-                    Text(status.label)
-                        .font(StrandFont.caption)
-                        .foregroundStyle(StrandPalette.textSecondary)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.8)
-                }
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: NoopMetrics.space3) {
+                ForEach(statuses, id: \.self) { legendItem($0) }
+            }
+            .fixedSize(horizontal: true, vertical: false)
+
+            LazyVGrid(columns: [GridItem(.flexible(), alignment: .leading),
+                                GridItem(.flexible(), alignment: .leading)],
+                      alignment: .leading, spacing: NoopMetrics.space2) {
+                ForEach(statuses, id: \.self) { legendItem($0) }
             }
         }
         .frame(maxWidth: .infinity)
         .accessibilityElement(children: .combine)
+    }
+
+    private func legendItem(_ status: TrainingStatus) -> some View {
+        HStack(spacing: 4) {
+            Circle().fill(status.color.gradient).frame(width: 9, height: 9)
+            Text(status.label)
+                .font(StrandFont.caption)
+                .foregroundStyle(StrandPalette.textSecondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+        }
     }
 }
 
@@ -700,7 +750,7 @@ struct LoadRatioChart: View {
             if let focus {
                 let band = TrainingStatusModel.band(ratio: focus.value)
                 VStack(alignment: .trailing, spacing: 1) {
-                    Text(verbatim: LoadStatusRing.ratioText(focus.value, band: band))
+                    Text(verbatim: LoadScale.ratioText(focus.value, band: band))
                         .font(StrandFont.number(17, weight: .bold))
                         .foregroundStyle(band.color)
                         .contentTransition(.numericText())

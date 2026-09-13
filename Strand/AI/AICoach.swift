@@ -5124,7 +5124,7 @@ final class AICoachEngine: ObservableObject {
                 .map { "\($0.key.label) \($0.value)" }
                 .joined(separator: ", ")
             if !byMuscle.isEmpty {
-                lines.append("Hard sets per primary muscle, last 28 days: \(byMuscle)."
+                lines.append("Working sets per primary muscle, last 28 days: \(byMuscle)."
                     + (tally.unattributed > 0 ? " \(tally.unattributed) sets could not be attributed to a muscle." : ""))
             }
             let readings = StrengthBalance.readings(setsByMuscle: tally.primary).filter { $0.total > 0 }

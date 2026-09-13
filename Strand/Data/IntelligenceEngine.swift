@@ -114,7 +114,10 @@ final class IntelligenceEngine: ObservableObject {
     // explicitly unverified, while new tagged data is reconciled before scoring and remains gated if it is
     // still physically impossible. The bounded 21-day pass restores the same affected window; raw samples
     // and manual sleep corrections are untouched.
-    static let currentAnalysisRecipeVersion = 4
+    // v5 changes workout-source precedence from winner-takes-all rows to canonical fused sessions and
+    // makes Cardio Load additive in raw TRIMP. The standard resumable 21-day pass refreshes recent
+    // workout-derived daily outputs; fusion links and raw source rows are additive and never erased.
+    static let currentAnalysisRecipeVersion = 5
     static let analysisRecipeCursor = "analysis:recipeVersion"
     static let analysisLastRunKey = "noop.analysisMaintenance.lastRun"
 
