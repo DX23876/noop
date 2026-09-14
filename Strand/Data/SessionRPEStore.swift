@@ -18,6 +18,19 @@ struct SessionRPEEntry: Equatable, Sendable {
     let startTs: Int
     let rpe: Double
     let sport: String?
+    let ratedAtTs: Int?
+    let source: String
+
+    init(id: String, sessionId: String?, startTs: Int, rpe: Double, sport: String?,
+         ratedAtTs: Int? = nil, source: String = Repository.sessionRPESource) {
+        self.id = id
+        self.sessionId = sessionId
+        self.startTs = startTs
+        self.rpe = rpe
+        self.sport = sport
+        self.ratedAtTs = ratedAtTs
+        self.source = source
+    }
 }
 
 extension Repository {
@@ -29,14 +42,11 @@ extension Repository {
     /// Every whole-session rating in the requested time range, oldest first.
     func sessionRPEEntries(from: Int, to: Int) async -> [SessionRPEEntry] {
         guard let store = await storeHandle() else { return [] }
-        let rows = (try? await store.labMarkers(deviceId: Self.sessionRPEDeviceId,
-                                                category: Self.sessionRPECategory)) ?? []
-        return rows.compactMap { row in
-            guard row.markerKey == Self.sessionRPEMarkerKey,
-                  row.takenAt >= from, row.takenAt <= to,
-                  let value = row.value, (1...10).contains(value) else { return nil }
-            return SessionRPEEntry(id: row.id, sessionId: row.valueText,
-                                   startTs: row.takenAt, rpe: value, sport: row.note)
+        let rows = (try? await store.trainingSessionRatings(from: from, to: to)) ?? []
+        return rows.map { row in
+            SessionRPEEntry(id: row.id, sessionId: row.sessionId,
+                            startTs: row.workoutStartTs, rpe: row.rpe, sport: row.sport,
+                            ratedAtTs: row.ratedAtTs, source: row.source)
         }
     }
 
@@ -52,15 +62,14 @@ extension Repository {
     /// Store or replace one whole-session RPE. Values use the conventional 1–10 session scale.
     @discardableResult
     func recordSessionRPE(_ rpe: Double, startTs: Int, sport: String,
-                          sessionId: String? = nil) async -> Bool {
+                          sessionId: String? = nil,
+                          ratedAtTs: Int = Int(Date().timeIntervalSince1970)) async -> Bool {
         guard rpe.isFinite, (1...10).contains(rpe), let store = await storeHandle() else { return false }
-        let row = LabMarkerRow(
-            id: "session-rpe-\(startTs)", deviceId: Self.sessionRPEDeviceId,
-            markerKey: Self.sessionRPEMarkerKey, category: Self.sessionRPECategory,
-            day: Self.localDayKey(Date(timeIntervalSince1970: TimeInterval(startTs))),
-            takenAt: startTs, value: rpe, valueText: sessionId, unit: "RPE",
-            source: Self.sessionRPESource, note: sport, referenceText: nil)
-        return (try? await store.upsertLabMarkers([row])) != nil
+        let row = TrainingSessionRating(id: "session-rpe-\(startTs)", sessionId: sessionId,
+                                        workoutStartTs: startTs, ratedAtTs: ratedAtTs,
+                                        rpe: rpe, sport: sport, source: Self.sessionRPESource)
+        do { try await store.upsertTrainingSessionRating(row); return true }
+        catch { return false }
     }
 
     /// Remove only NOOP's rating for this workout; the workout itself is untouched.
@@ -69,12 +78,12 @@ extension Repository {
         guard let entry = await sessionRPE(at: startTs), let store = await storeHandle() else {
             return false
         }
-        return (try? await store.deleteLabMarker(id: entry.id)) == true
+        return (try? await store.deleteTrainingSessionRating(id: entry.id)) == true
     }
 
     @discardableResult
     func deleteSessionRPE(id: String) async -> Bool {
         guard let store = await storeHandle() else { return false }
-        return (try? await store.deleteLabMarker(id: id)) == true
+        return (try? await store.deleteTrainingSessionRating(id: id)) == true
     }
 }

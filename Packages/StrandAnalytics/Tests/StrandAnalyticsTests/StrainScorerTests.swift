@@ -9,6 +9,27 @@ final class StrainScorerTests: XCTestCase {
         (0..<n).map { HRSample(ts: start + $0, bpm: bpm) }
     }
 
+    func testClassicEdwardsTrainingLoadUsesPercentOfMaximumHeartRate() throws {
+        // Ten minutes in each Edwards zone at exactly 50/60/70/80/90 % HRmax.
+        // The independent worked result is 10 × (1 + 2 + 3 + 4 + 5) = 150 TRIMP.
+        let maxHR = 200.0
+        var samples: [HRSample] = []
+        for (zone, bpm) in [100, 120, 140, 160, 180].enumerated() {
+            samples += hr(bpm, 600, start: zone * 600)
+        }
+        let load = try XCTUnwrap(StrainScorer.edwardsTrainingLoad(samples, maxHR: maxHR))
+        XCTAssertEqual(load.trimp, 150, accuracy: 0.05)
+        XCTAssertEqual(load.sampleCount, 3_000)
+    }
+
+    func testClassicEdwardsTrainingLoadDoesNotPriceARecordingGap() throws {
+        let first = hr(150, 600, start: 0)
+        let second = hr(150, 600, start: 4_200) // one hour is unobserved
+        let load = try XCTUnwrap(StrainScorer.edwardsTrainingLoad(first + second, maxHR: 200))
+        // 20 measured minutes in zone 3. The hour between islands contributes nothing.
+        XCTAssertEqual(load.trimp, 59.95, accuracy: 0.001)
+    }
+
     func testTanakaAndDefaultMax() {
         XCTAssertEqual(StrainScorer.tanakaHRmax(age: 30), 187.0, accuracy: 1e-9)
         XCTAssertEqual(StrainScorer.defaultMaxHR(age: 30), 190)

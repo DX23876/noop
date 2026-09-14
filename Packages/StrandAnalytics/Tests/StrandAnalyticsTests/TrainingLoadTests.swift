@@ -8,6 +8,54 @@ import WhoopStore
 /// heavy top-end one is worse than no metric, because it points training in the wrong direction.
 final class TrainingLoadTests: XCTestCase {
 
+    func testRelativeLoadMaturesWithoutHidingTheFirstEightWeeks() throws {
+        let immediate = TrainingLoad.relativeLoad(daily: Array(repeating: Optional(10.0), count: 20))
+        XCTAssertEqual(immediate.maturity, .immediate)
+        XCTAssertNil(immediate.trend)
+
+        let early = TrainingLoad.relativeLoad(
+            daily: Array(repeating: Optional(10.0), count: 14)
+                + Array(repeating: Optional(15.0), count: 7))
+        XCTAssertEqual(early.maturity, .earlyEstimate)
+        XCTAssertEqual(try XCTUnwrap(early.trend).ratio, 1.5, accuracy: 1e-9)
+        XCTAssertNil(early.band)
+
+        let growing = TrainingLoad.relativeLoad(
+            daily: Array(repeating: Optional(10.0), count: 28)
+                + Array(repeating: Optional(12.0), count: 7))
+        XCTAssertEqual(growing.maturity, .baselineGrowing)
+        XCTAssertNotNil(growing.trend)
+        XCTAssertNil(growing.band)
+    }
+
+    func testPersonalBaselineUsesRobustWeeklyVariation() throws {
+        // Seven previous complete weeks around 70, then a current week at 105.
+        let weekly = [68.0, 70, 72, 69, 71, 70, 73, 105]
+        let daily: [Double?] = weekly.flatMap { week in
+            Array(repeating: Optional(week / 7), count: 7)
+        }
+        let reading = TrainingLoad.relativeLoad(daily: daily)
+        XCTAssertEqual(reading.maturity, .personalBaseline)
+        XCTAssertEqual(reading.band, .muchHigher)
+        XCTAssertNotNil(reading.personalRange)
+    }
+
+    func testEightFlatWeeksKeepGrowingUntilVariationCanBeEstimated() {
+        let reading = TrainingLoad.relativeLoad(daily: Array(repeating: Optional(10.0), count: 56))
+        XCTAssertEqual(reading.maturity, .baselineGrowing)
+        XCTAssertNil(reading.personalRange)
+        XCTAssertNil(reading.band)
+    }
+
+    func testIncompleteDayPreventsComparisonAndMaturity() {
+        var daily: [Double?] = Array(repeating: Optional(10.0), count: 56)
+        daily[52] = nil
+        let reading = TrainingLoad.relativeLoad(daily: daily)
+        XCTAssertEqual(reading.maturity, .baselineGrowing)
+        XCTAssertNil(reading.trend, "a partial day must not be averaged away as if it were complete")
+        XCTAssertNil(reading.band)
+    }
+
     // MARK: - Strength load
 
     /// THE case tonnage gets wrong. Four sets of ten at 100 kg is 4 000 kg of tonnage; five triples at
@@ -68,9 +116,9 @@ final class TrainingLoadTests: XCTestCase {
         XCTAssertEqual(TrainingLoad.strengthLoad(setRpes: []).ratedSets, 0)
     }
 
-    /// Pooling over workouts is the same arithmetic as the daily series the trend reads: warm-ups
-    /// excluded, and the weighted total equal to what `weightedSetsByDay` sums to.
-    func testPooledStrengthLoadMatchesTheDailySeries() {
+    /// The daily series may only borrow ratings that existed before that day. Pooling the whole query
+    /// would leak future ratings backwards and rewrite an earlier unknown set.
+    func testDailyStrengthLoadDoesNotBorrowFutureRatings() {
         func makeSet(_ index: Int, _ type: HevySetType, rpe: Double?) -> HevySet {
             HevySet(index: index, type: type, weightKg: 100, reps: 5,
                     distanceM: nil, durationS: nil, rpe: rpe, customMetric: nil)
@@ -92,7 +140,8 @@ final class TrainingLoadTests: XCTestCase {
         XCTAssertEqual(pooled.workingSets, 4)
         XCTAssertEqual(pooled.ratedSets, 3)
         let daily = StrengthSession.weightedSetsByDay(workouts).values.reduce(0, +)
-        XCTAssertEqual(pooled.weightedSets, daily, accuracy: 1e-12)
+        XCTAssertEqual(daily, 3.12, accuracy: 1e-12)
+        XCTAssertNotEqual(pooled.weightedSets, daily)
     }
 
     // MARK: - Session load
@@ -188,28 +237,37 @@ final class TrainingLoadTests: XCTestCase {
 
     // MARK: - Unrated sets take the athlete's own median
 
-    /// Rating MORE sets must not, on its own, move the weekly load. An unrated set is priced at the
-    /// median of the sets this athlete DID rate, so starting to log easy sets changes the figure only
-    /// if the training changed. With a fixed 0.75 default, the habit moved the number by itself.
+    /// Rating MORE sets must not, on its own, move the weekly load once the athlete has a usable
+    /// historical median. Current-set ratings are not borrowed to fill their neighbours.
     func testRatingHabitAloneDoesNotMoveTheLoad() {
-        let allRated = TrainingLoad.strengthLoad(setRpes: [8, 8, 8, 8, 8, 8])
-        let halfLogged = TrainingLoad.strengthLoad(setRpes: [8, 8, 8, nil, nil, nil])
+        let history = [8.0, 8, 8]
+        let allRated = TrainingLoad.strengthLoad(setRpes: [8, 8, 8, 8, 8, 8], historicalRpes: history)
+        let halfLogged = TrainingLoad.strengthLoad(setRpes: [8, 8, 8, nil, nil, nil], historicalRpes: history)
         XCTAssertEqual(halfLogged.weightedSets, allRated.weightedSets, accuracy: 1e-9)
     }
 
-    /// The borrowed weight follows the athlete: someone whose logged sets are easy has easy unrated
+    func testUnratedSetsUseTheSeparateTwentyEightDayHistoryPool() {
+        let current = TrainingLoad.strengthLoad(setRpes: [nil, nil], historicalRpes: [6, 6, 6])
+        XCTAssertEqual(current.weightedSets,
+                       2 * MuscleStimulus.proximityFactor(rpe: 6), accuracy: 1e-12)
+        XCTAssertTrue(current.usedPersonalUnratedEstimate)
+    }
+
+    /// The borrowed historical weight follows the athlete: someone whose logged sets are easy has easy unrated
     /// sets, and someone who grinds every set has hard ones.
     func testTheBorrowedWeightFollowsTheAthlete() {
-        let easyLogger = TrainingLoad.strengthLoad(setRpes: [6, 6, nil, nil])
-        let hardLogger = TrainingLoad.strengthLoad(setRpes: [10, 10, nil, nil])
+        let easyLogger = TrainingLoad.strengthLoad(setRpes: [nil, nil], historicalRpes: [6, 6, 6])
+        let hardLogger = TrainingLoad.strengthLoad(setRpes: [nil, nil], historicalRpes: [10, 10, 10])
         XCTAssertLessThan(easyLogger.weightedSets, hardLogger.weightedSets)
         XCTAssertEqual(easyLogger.ratedShare, hardLogger.ratedShare, accuracy: 1e-12)
     }
 
-    /// With nothing rated there is no median to borrow, and the documented default stands.
-    func testTheFixedDefaultOnlyAppliesWhenNothingIsRated() {
-        XCTAssertEqual(TrainingLoad.strengthLoad(setRpes: [nil, nil]).weightedSets,
-                       2 * MuscleStimulus.unratedProximity, accuracy: 1e-12)
+    /// Too little prior history keeps the neutral start estimate, even when the current session has a
+    /// rated set. This prevents one unusually hard set from filling every unknown set as hard.
+    func testTheNeutralDefaultAppliesUntilHistoryIsSufficient() {
+        let load = TrainingLoad.strengthLoad(setRpes: [10, nil], historicalRpes: [10, 10])
+        XCTAssertEqual(load.weightedSets, 1 + TrainingLoad.neutralUnratedWeight, accuracy: 1e-12)
+        XCTAssertFalse(load.usedPersonalUnratedEstimate)
     }
 
     // MARK: - Days the data cannot speak for

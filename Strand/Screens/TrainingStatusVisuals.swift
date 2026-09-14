@@ -23,12 +23,12 @@ extension TrainingStatus {
     /// The word on the dial.
     var label: String {
         switch self {
-        case .detraining:   return String(localized: "Detraining")
-        case .recovering:   return String(localized: "Recovering")
-        case .maintaining:  return String(localized: "Maintaining")
-        case .productive:   return String(localized: "Productive")
-        case .unproductive: return String(localized: "Unproductive")
-        case .overreaching: return String(localized: "Overreaching")
+        case .detraining:   return String(localized: "Below usual")
+        case .recovering:   return String(localized: "Lighter phase")
+        case .maintaining:  return String(localized: "Within usual")
+        case .productive:   return String(localized: "Higher than usual")
+        case .unproductive: return String(localized: "Adaptation unclear")
+        case .overreaching: return String(localized: "Well above usual")
         }
     }
 
@@ -36,17 +36,17 @@ extension TrainingStatus {
     var meaning: String {
         switch self {
         case .detraining:
-            return String(localized: "Well below your usual load for a while. Fitness starts to slip.")
+            return String(localized: "The recent load is below your own comparison level.")
         case .recovering:
-            return String(localized: "A lighter stretch right after a hard phase. A deload, not a decline.")
+            return String(localized: "A lighter stretch after a higher-load phase.")
         case .maintaining:
-            return String(localized: "About your usual load. You are holding your level.")
+            return String(localized: "The recent load is within your usual variation.")
         case .productive:
-            return String(localized: "At or a little above your usual load, and it is working.")
+            return String(localized: "The recent load is higher than your usual variation.")
         case .unproductive:
-            return String(localized: "Strength only: plenty of load, but your lifts are not improving.")
+            return String(localized: "The available performance data has no clear direction.")
         case .overreaching:
-            return String(localized: "Well above your usual load. Fine for a short block, risky if it lasts.")
+            return String(localized: "The recent load is well above your usual variation.")
         }
     }
 
@@ -64,10 +64,10 @@ extension TrainingStatus {
     var color: Color {
         switch self {
         case .detraining, .recovering: return StrandPalette.restColor
-        case .maintaining:             return StrandPalette.metricCyan
-        case .productive:              return StrandPalette.statusPositive
+        case .maintaining:             return StrandPalette.statusPositive
+        case .productive:              return StrandPalette.metricCyan
         case .unproductive:            return StrandPalette.statusWarning
-        case .overreaching:            return StrandPalette.statusCritical
+        case .overreaching:            return StrandPalette.metricAmber
         }
     }
 }
@@ -96,8 +96,7 @@ enum LoadScale {
     }
 
     static func ratioText(_ ratio: Double, band: TrainingLoadBand) -> String {
-        let shown = displayRatio(ratio, band: band)
-        return String(localized: "\(shown.formatted(.number.precision(.fractionLength(2)))) × usual")
+        String(localized: "\(ratio.formatted(.number.precision(.fractionLength(2)))) × usual")
     }
 
     /// The ratio rounded TOWARD its own zone, so the number never contradicts the word beside it. Plain
@@ -147,8 +146,8 @@ enum LoadScale {
 /// rules out a single blended score.
 ///
 /// Each knob carries its lane's own symbol, and the rows beneath the ring repeat that symbol — that is
-/// what maps an arc to a lane without a legend. Gaps at 0.8 / 1.0 / 1.3 keep the zones countable, and a
-/// ratio past either end parks the knob there while the number beside it stays exact.
+/// what maps an arc to a lane without a legend. Arc length shows the uncoupled 7-day comparison; colour
+/// comes from that lane's current personal classification rather than fixed population thresholds.
 struct LoadDualRing: View {
     let strength: LaneStatus?
     let cardio: LaneStatus?
@@ -163,15 +162,9 @@ struct LoadDualRing: View {
     private let innerWidth: CGFloat = 12
     /// Wide enough that the two knobs never fuse into one blob when both lanes sit at the same ratio.
     private let ringGap: CGFloat = 10
-    /// Room outside the outer ring for the 0.8 / 1.0 / 1.3 labels.
-    private let labelInset: CGFloat = 16
+    private let labelInset: CGFloat = 8
     private let startDegrees = 150.0
     private let spanDegrees = 240.0
-
-    private var thresholds: [Double] {
-        [TrainingStatusModel.detrainingBelow, TrainingStatusModel.productiveFrom,
-         TrainingStatusModel.overreachingAbove]
-    }
 
     private var outerRadius: CGFloat { (diameter - 2 * labelInset - outerWidth) / 2 }
     private var innerRadius: CGFloat { outerRadius - outerWidth / 2 - ringGap - innerWidth / 2 }
@@ -182,7 +175,6 @@ struct LoadDualRing: View {
         ZStack {
             glow
             rings
-            ticks
             knobs
             centre
         }
@@ -227,11 +219,6 @@ struct LoadDualRing: View {
 
     // MARK: Layers
 
-    private var ramp: AngularGradient {
-        AngularGradient(stops: LoadScale.rampStops, center: .center,
-                        startAngle: .degrees(startDegrees), endAngle: .degrees(startDegrees + spanDegrees))
-    }
-
     /// Light pooling in the middle, in whichever verdicts exist. Two lanes means two washes, which is
     /// what gives the centre its colour without printing a third, invented status there.
     private var glow: some View {
@@ -250,15 +237,12 @@ struct LoadDualRing: View {
         .padding(labelInset + outerWidth)
     }
 
-    /// Rail, glow and lit arc per lane, with real gaps cut at the thresholds so the card's own surface
-    /// shows through them.
+    /// Rail, glow and lit arc per lane. The tint is the lane's own personal relative-load reading.
     private var rings: some View {
         ZStack {
             laneArcs(lane: strength, fraction: shownStrength, width: outerWidth, padding: labelInset)
             laneArcs(lane: cardio, fraction: shownCardio, width: innerWidth, padding: innerPadding)
-            separators.blendMode(.destinationOut)
         }
-        .compositingGroup()
     }
 
     private func laneArcs(lane: LaneStatus?, fraction: Double,
@@ -268,56 +252,21 @@ struct LoadDualRing: View {
                 .stroke(StrandPalette.surfaceInset,
                         style: StrokeStyle(lineWidth: width, lineCap: .round,
                                            dash: lane == nil ? [2, 5] : []))
-            if lane != nil {
+            if let lane {
                 arc(from: 0, to: 1, width: width)
-                    .stroke(ramp, style: StrokeStyle(lineWidth: width, lineCap: .round))
-                    .opacity(0.26)
+                    .stroke(lane.status.color.opacity(0.28),
+                            style: StrokeStyle(lineWidth: width, lineCap: .round))
                 arc(from: 0, to: fraction, width: width)
-                    .stroke(ramp, style: StrokeStyle(lineWidth: width, lineCap: .round))
+                    .stroke(lane.status.color,
+                            style: StrokeStyle(lineWidth: width, lineCap: .round))
                     .blur(radius: 8)
                     .opacity(0.7)
                 arc(from: 0, to: fraction, width: width)
-                    .stroke(ramp, style: StrokeStyle(lineWidth: width, lineCap: .round))
+                    .stroke(lane.status.color,
+                            style: StrokeStyle(lineWidth: width, lineCap: .round))
             }
         }
         .padding(padding)
-    }
-
-    private var separators: some View {
-        let from = innerRadius - innerWidth / 2 - 2
-        let to = outerRadius + outerWidth / 2 + 2
-        return Path { path in
-            for value in thresholds {
-                let angle = radians(LoadScale.fraction(for: value))
-                path.move(to: point(angle, radius: from))
-                path.addLine(to: point(angle, radius: to))
-            }
-        }
-        // A mask: `destinationOut` only reads the stroke's coverage, so any opaque colour cuts the gap.
-        .stroke(StrandPalette.textPrimary, lineWidth: 2.5)
-        .frame(width: diameter, height: diameter)
-    }
-
-    /// Labels at Polar's three thresholds, outside the outer ring. A label a knob is sitting on steps
-    /// aside rather than being drawn under it.
-    private var ticks: some View {
-        ZStack {
-            ForEach(thresholds, id: \.self) { value in
-                let fraction = LoadScale.fraction(for: value)
-                Text(value, format: .number.precision(.fractionLength(1)))
-                    .font(StrandFont.rounded(9, weight: .semibold))
-                    .foregroundStyle(StrandPalette.textTertiary)
-                    .position(point(radians(fraction), radius: outerRadius + outerWidth / 2 + 9))
-                    .opacity(coveredByKnob(fraction) ? 0 : 1)
-            }
-        }
-        .frame(width: diameter, height: diameter)
-        .accessibilityHidden(true)
-    }
-
-    private func coveredByKnob(_ fraction: Double) -> Bool {
-        (strength != nil && abs(shownStrength - fraction) < 0.05)
-            || (cardio != nil && abs(shownCardio - fraction) < 0.05)
     }
 
     /// Each lane's position, carrying that lane's own symbol — the thing that says which arc is which.
@@ -727,7 +676,7 @@ struct LoadRatioChart: View {
             header(focus)
             Picker("Load against your usual", selection: $lane) {
                 Text("Strength").tag(Lane.strength)
-                Text("Cardio").tag(Lane.cardio)
+                Text("Cardiovascular").tag(Lane.cardio)
             }
             .pickerStyle(.segmented)
             .labelsHidden()
@@ -748,11 +697,10 @@ struct LoadRatioChart: View {
                 .foregroundStyle(StrandPalette.textPrimary)
             Spacer(minLength: NoopMetrics.space2)
             if let focus {
-                let band = TrainingStatusModel.band(ratio: focus.value)
                 VStack(alignment: .trailing, spacing: 1) {
-                    Text(verbatim: LoadScale.ratioText(focus.value, band: band))
+                    Text(verbatim: LoadScale.ratioText(focus.value, band: .maintaining))
                         .font(StrandFont.number(17, weight: .bold))
-                        .foregroundStyle(band.color)
+                        .foregroundStyle(lane == .strength ? StrandPalette.effortColor : StrandPalette.metricCyan)
                         .contentTransition(.numericText())
                     Text(focus.date, format: .dateTime.day().month(.abbreviated))
                         .font(StrandFont.caption)
@@ -765,13 +713,9 @@ struct LoadRatioChart: View {
 
     private func clamped(_ value: Double) -> Double { min(max(value, Self.floor), Self.ceiling) }
 
-    private func chart(samples: [Sample], segments: [Segment], focus: Sample?) -> some View {
-        let tint = samples.last.map { TrainingStatusModel.band(ratio: $0.value).color } ?? StrandPalette.textTertiary
+    private func chart(samples: [Sample], segments _: [Segment], focus: Sample?) -> some View {
+        let tint = lane == .strength ? StrandPalette.effortColor : StrandPalette.metricCyan
         return Chart {
-            band(Self.floor, TrainingStatusModel.detrainingBelow, TrainingLoadBand.below.color)
-            band(TrainingStatusModel.detrainingBelow, TrainingStatusModel.productiveFrom, TrainingLoadBand.maintaining.color)
-            band(TrainingStatusModel.productiveFrom, TrainingStatusModel.overreachingAbove, TrainingLoadBand.productive.color)
-            band(TrainingStatusModel.overreachingAbove, Self.ceiling, TrainingLoadBand.above.color)
             RuleMark(y: .value("Usual", 1.0))
                 .foregroundStyle(StrandPalette.textSecondary.opacity(0.7))
                 .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
@@ -782,24 +726,11 @@ struct LoadRatioChart: View {
                                                     startPoint: .top, endPoint: .bottom))
                     .interpolationMethod(.monotone)
             }
-            // A soft wide stroke under the line first, then the line, both in the zone's colour.
-            ForEach(segments) { segment in
-                ForEach(Array(segment.samples.enumerated()), id: \.offset) { _, sample in
-                    LineMark(x: .value("Day", sample.date), y: .value("Ratio", clamped(sample.value)),
-                             series: .value("Zone", "glow-\(segment.id)"))
-                        .foregroundStyle(segment.band.color.opacity(0.22))
-                        .lineStyle(StrokeStyle(lineWidth: 9, lineCap: .round, lineJoin: .round))
-                        .interpolationMethod(.monotone)
-                }
-            }
-            ForEach(segments) { segment in
-                ForEach(Array(segment.samples.enumerated()), id: \.offset) { _, sample in
-                    LineMark(x: .value("Day", sample.date), y: .value("Ratio", clamped(sample.value)),
-                             series: .value("Zone", "line-\(segment.id)"))
-                        .foregroundStyle(segment.band.color)
-                        .lineStyle(StrokeStyle(lineWidth: 3, lineCap: .round, lineJoin: .round))
-                        .interpolationMethod(.monotone)
-                }
+            ForEach(Array(samples.enumerated()), id: \.offset) { _, sample in
+                LineMark(x: .value("Day", sample.date), y: .value("Ratio", clamped(sample.value)))
+                    .foregroundStyle(tint)
+                    .lineStyle(StrokeStyle(lineWidth: 3, lineCap: .round, lineJoin: .round))
+                    .interpolationMethod(.monotone)
             }
             if let focus {
                 if selection != nil {
@@ -809,7 +740,7 @@ struct LoadRatioChart: View {
                 }
                 PointMark(x: .value("Day", focus.date), y: .value("Ratio", clamped(focus.value)))
                     .symbol {
-                        FocusDot(color: TrainingStatusModel.band(ratio: focus.value).color)
+                        FocusDot(color: tint)
                     }
             }
         }
@@ -817,9 +748,7 @@ struct LoadRatioChart: View {
         // Room at the trailing edge so the last date label and the focus dot are not cut off.
         .chartXScale(range: .plotDimension(startPadding: 4, endPadding: 18))
         .chartYAxis {
-            AxisMarks(position: .leading, values: [TrainingStatusModel.detrainingBelow,
-                                                   TrainingStatusModel.productiveFrom,
-                                                   TrainingStatusModel.overreachingAbove]) { value in
+            AxisMarks(position: .leading, values: [0.5, 1.0, 1.5]) { value in
                 AxisGridLine().foregroundStyle(StrandPalette.hairline)
                 AxisValueLabel {
                     if let number = value.as(Double.self) {
@@ -845,10 +774,6 @@ struct LoadRatioChart: View {
         .accessibilityLabel(Text("Load against your usual"))
     }
 
-    private func band(_ from: Double, _ to: Double, _ color: Color) -> some ChartContent {
-        RectangleMark(yStart: .value("From", from), yEnd: .value("To", to))
-            .foregroundStyle(color.opacity(0.08))
-    }
 }
 
 /// The focused point on a line: the colour with a rim in the card colour and a soft halo.

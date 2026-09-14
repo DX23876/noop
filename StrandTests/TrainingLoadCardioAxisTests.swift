@@ -4,8 +4,7 @@ import WhoopStore
 @testable import Strand
 
 /// The cardio lane's daily series. Two rules meet here: the lane is priced from measured heart rate
-/// where the window has it, and a library with no measured trace at all must not silently read zero —
-/// it falls back to the stored per-session Effort, on that axis alone.
+/// where the window has it. Stored Effort belongs to another axis and is never substituted for TRIMP.
 final class TrainingLoadCardioAxisTests: XCTestCase {
     /// Midday UTC, so a second session two hours later still lands on the same local day.
     private static let noon = 1_699_963_200
@@ -36,16 +35,16 @@ final class TrainingLoadCardioAxisTests: XCTestCase {
         XCTAssertEqual(result.byDay[day], 130)
     }
 
-    /// The case every demo run and every strapless library hits: no session has a usable trace. Reading
-    /// zero here would tell the wearer they did nothing, while the Cardio screen reports the same week
-    /// from the very same stored figures.
-    func testALibraryWithNoMeasuredTraceFallsBackToStoredEffort() {
+    func testALibraryWithNoMeasuredTraceStaysUnknown() {
         let result = TrainingLoadModel.cardioDailyLoad(
             sessions: [session("a", strain: 12),
                        session("b", start: Self.noon + 7_200, strain: 8)],
             loads: [:], duplicates: [], tzOffsetSeconds: 0)
         XCTAssertFalse(result.measured)
-        XCTAssertEqual(result.byDay[day], 20)
+        XCTAssertNil(result.byDay[day])
+        XCTAssertEqual(result.unknownDays, [day])
+        XCTAssertEqual(result.measuredByDay[day] ?? 0, 0)
+        XCTAssertEqual(result.possibleByDay[day], 2)
     }
 
     /// Once anything is measured the lane is on the TRIMP axis, and an unmeasured session is missing
@@ -65,8 +64,8 @@ final class TrainingLoadCardioAxisTests: XCTestCase {
         let result = TrainingLoadModel.cardioDailyLoad(
             sessions: [session("a", strain: 12),
                        session("twin", start: Self.noon + 300, strain: 11)],
-            loads: [:], duplicates: ["twin"], tzOffsetSeconds: 0)
-        XCTAssertEqual(result.byDay[day], 12)
+            loads: ["a": measured("a", trimp: 130)], duplicates: ["twin"], tzOffsetSeconds: 0)
+        XCTAssertEqual(result.byDay[day], 130)
     }
 
     /// An hour of training that carries no usable figure adds nothing to the day — and says so, rather
@@ -88,15 +87,17 @@ final class TrainingLoadCardioAxisTests: XCTestCase {
         XCTAssertTrue(result.unknownDays.isEmpty)
     }
 
-    /// One priced session covers the day: what we know outweighs the record we could not price, and the
-    /// day keeps its measured figure rather than vanishing from the comparison.
-    func testADayThatAlsoHoldsAPricedSessionIsNotUnknown() {
+    /// The measured part remains visible as a lower bound, but the day cannot enter a comparison while
+    /// another eligible session is unpriced.
+    func testAPartiallyMeasuredDayIsALowerBoundAndStaysUnknown() {
         let result = TrainingLoadModel.cardioDailyLoad(
             sessions: [session("a", strain: 12),
                        session("b", start: Self.noon + 7_200, strain: nil)],
             loads: ["a": measured("a", trimp: 130)], duplicates: [], tzOffsetSeconds: 0)
         XCTAssertEqual(result.byDay[day], 130)
-        XCTAssertTrue(result.unknownDays.isEmpty)
+        XCTAssertEqual(result.unknownDays, [day])
+        XCTAssertEqual(result.measuredByDay[day], 1)
+        XCTAssertEqual(result.possibleByDay[day], 2)
     }
 
     /// A duplicate awaiting review is skipped on purpose, not for want of data. Counting it as a gap
@@ -105,8 +106,8 @@ final class TrainingLoadCardioAxisTests: XCTestCase {
         let result = TrainingLoadModel.cardioDailyLoad(
             sessions: [session("a", strain: 12),
                        session("twin", start: Self.noon + 300, strain: nil)],
-            loads: [:], duplicates: ["twin"], tzOffsetSeconds: 0)
-        XCTAssertEqual(result.byDay[day], 12)
+            loads: ["a": measured("a", trimp: 130)], duplicates: ["twin"], tzOffsetSeconds: 0)
+        XCTAssertEqual(result.byDay[day], 130)
         XCTAssertTrue(result.unknownDays.isEmpty)
     }
 }

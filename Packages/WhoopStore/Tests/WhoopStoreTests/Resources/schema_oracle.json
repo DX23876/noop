@@ -62,7 +62,8 @@
   "v58-rr-transport",
   "v59-reattribute-archived-strap-samples",
   "v60-training-session-fusion",
-  "v61-native-training"
+  "v61-native-training",
+  "v62-training-session-rating"
  ],
  "divergenceReasons": {
   "android-orphan-synced-column": "REAL COLUMN DRIFT: `synced` exists on Android only. GRDB's v10 note is explicit that stepSample gets no `synced` column ('unused; see StreamStore'), and v12's ppgHrSample never had one either; the Room entities copied the flag from the older per-second entities. Nothing reads it on Android — the per-row upload flag belongs to an upload path that does not exist there — so it is dead width, not divergent data. Removing it needs a Room table rebuild.",
@@ -3741,6 +3742,66 @@
      "unique": false,
      "columns": [
       "day"
+     ]
+    }
+   ]
+  },
+  "trainingSessionRating": {
+   "platform": "ios_only",
+   "reason": "Whole-session RPE ratings with separate workout and rating timestamps (GRDB v62). This Apple-only checkout has no Room twin.",
+   "columns": [
+    {
+     "name": "id",
+     "affinity": "TEXT",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "sessionId",
+     "affinity": "TEXT",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "workoutStartTs",
+     "affinity": "INTEGER",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "ratedAtTs",
+     "affinity": "INTEGER",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "rpe",
+     "affinity": "REAL",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "sport",
+     "affinity": "TEXT",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "source",
+     "affinity": "TEXT",
+     "notNull": true,
+     "default": null
+    }
+   ],
+   "primaryKey": [
+    "id"
+   ],
+   "indices": [
+    {
+     "name": "idx_trainingSessionRating_start",
+     "unique": false,
+     "columns": [
+      "workoutStartTs"
      ]
     }
    ]

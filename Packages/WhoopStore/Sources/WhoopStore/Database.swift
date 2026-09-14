@@ -1582,6 +1582,30 @@ extension WhoopStore {
             try db.create(index: "idx_trainingDayOverride_day",
                           on: "trainingDayOverride", columns: ["day"])
         }
+        // v62: whole-session RPE with separate workout and answer timestamps. Existing ratings lived in
+        // the Lab Book sidecar with `takenAt` occupied by the workout start, so their true answer time is
+        // unknown and remains NULL rather than being guessed during migration.
+        migrator.registerMigration("v62-training-session-rating") { db in
+            try db.create(table: "trainingSessionRating") { t in
+                t.column("id", .text).primaryKey()
+                t.column("sessionId", .text)
+                t.column("workoutStartTs", .integer).notNull()
+                t.column("ratedAtTs", .integer)
+                t.column("rpe", .double).notNull()
+                t.column("sport", .text)
+                t.column("source", .text).notNull()
+            }
+            try db.create(index: "idx_trainingSessionRating_start",
+                          on: "trainingSessionRating", columns: ["workoutStartTs"])
+            try db.execute(sql: """
+                INSERT OR IGNORE INTO trainingSessionRating
+                  (id, sessionId, workoutStartTs, ratedAtTs, rpe, sport, source)
+                SELECT id, valueText, takenAt, NULL, value, note, source
+                FROM labMarker
+                WHERE deviceId = 'training-load' AND category = 'trainingLoad'
+                  AND markerKey = 'session_rpe' AND value BETWEEN 1 AND 10
+                """)
+        }
         return migrator
     }
 }

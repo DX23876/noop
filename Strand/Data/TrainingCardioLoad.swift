@@ -51,6 +51,9 @@ struct CardioZoneSplit: Equatable, Sendable {
 }
 
 extension Repository {
+    /// Bump whenever the read-time Training Load recipe changes. It is part of the in-memory memo key,
+    /// so a new build cannot reuse a result produced by different zone or gap semantics.
+    nonisolated static let cardiovascularLoadRecipeVersion = 1
     /// Sessions shorter than this are not priced: a TRIMP over a couple of minutes is dominated by the
     /// ramp in and out, and the coverage rule below could not tell a real trace from two stray samples.
     nonisolated static let cardioLoadMinimumSeconds = 600
@@ -71,7 +74,6 @@ extension Repository {
         // other unprofiled Effort path uses, and the figure is a comparison against the wearer's own
         // recent level rather than an absolute claim.
         let maxHR = strainProfile?.hrMax ?? Double(StrainScorer.defaultMaxHR())
-        let sex = strainProfile?.sex ?? "male"
         let store = await storeHandle()
         var resolution = TrainingCardioLoadResolution()
 
@@ -102,7 +104,8 @@ extension Repository {
                 resolution.deferredSessionIds.insert(session.id)
                 continue
             }
-            let memoKey = "\(session.id)|\(start)|\(end)"
+            let memoKey = Self.cardioLoadMemoKey(session: session, maxHR: maxHR,
+                                                 dataRevision: refreshSeq)
             if let memo = cardioLoadMemo[memoKey] {
                 resolution.loads[session.id] = memo
                 priced.append((start, end))
@@ -113,12 +116,12 @@ extension Repository {
             let band = await hrSamples(from: start, to: end, limit: 20_000)
             var load = Self.makeCardioLoad(sessionId: session.id, samples: band,
                                            start: start, end: end, source: .noopBand,
-                                           maxHR: maxHR, sex: sex)
+                                           maxHR: maxHR)
             if load == nil, let store {
                 let samples = await Self.healthKitMinuteTrace(for: session, store: store)
                 load = Self.makeCardioLoad(sessionId: session.id, samples: samples,
                                            start: start, end: end, source: .healthKitWorkout,
-                                           maxHR: maxHR, sex: sex)
+                                           maxHR: maxHR)
             }
             guard let load else { continue }
             resolution.loads[session.id] = load
@@ -126,6 +129,18 @@ extension Repository {
             priced.append((start, end))
         }
         return resolution
+    }
+
+    /// Every input that can change a session's Edwards result. Keeping the key builder testable makes
+    /// stale reuse after an HR-max edit, source switch, fusion change or data refresh detectable.
+    nonisolated static func cardioLoadMemoKey(session: UnifiedTrainingSession, maxHR: Double,
+                                              dataRevision: Int,
+                                              recipeVersion: Int = cardiovascularLoadRecipeVersion) -> String {
+        let components = session.components.map {
+            "\($0.id):\($0.row.source):\($0.row.startTs):\($0.row.endTs)"
+        }.sorted().joined(separator: ",")
+        return "v\(recipeVersion)|r\(dataRevision)|hr\(maxHR)|\(session.id)|"
+            + "\(session.row.startTs)|\(session.row.endTs)|\(components)"
     }
 
     /// True when two windows are the same bout: they overlap by more than half of the shorter one —
@@ -231,10 +246,10 @@ extension Repository {
     nonisolated private static func makeCardioLoad(sessionId: String, samples: [HRSample],
                                                    start: Int, end: Int,
                                                    source: TrainingCardioLoad.Source,
-                                                   maxHR: Double, sex: String) -> TrainingCardioLoad? {
+                                                   maxHR: Double) -> TrainingCardioLoad? {
         let coverage = traceCoverage(samples, start: start, end: end)
         guard hasUsableCoverage(samples, start: start, end: end),
-              let load = StrainScorer.cardioLoad(samples, maxHR: maxHR, sex: sex) else { return nil }
+              let load = StrainScorer.edwardsTrainingLoad(samples, maxHR: maxHR) else { return nil }
         return TrainingCardioLoad(sessionId: sessionId, trimp: load.trimp, effort: load.effort,
                                   source: source, coveredMinutes: coverage.covered,
                                   possibleMinutes: coverage.possible)

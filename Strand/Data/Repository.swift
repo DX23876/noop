@@ -941,6 +941,14 @@ final class Repository: ObservableObject {
     func finishNativeWorkout(_ workout: NativeWorkout) async throws {
         guard let store = await ensureStore() else { throw RepositoryTrainingError.storeUnavailable }
         try await store.completeNativeWorkout(workout)
+        if let rpe = workout.sessionRPE {
+            _ = await recordSessionRPE(rpe, startTs: workout.startedAt, sport: workout.title,
+                                       ratedAtTs: Int(Date().timeIntervalSince1970))
+        } else {
+            await SessionRPEReminder.schedule(startTs: workout.startedAt,
+                                              durationS: Double(workout.endedAt - workout.startedAt),
+                                              sport: workout.title)
+        }
         await refresh()
     }
 

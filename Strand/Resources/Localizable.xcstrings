@@ -5162,7 +5162,6 @@
       }
     },
     "%@ br/min" : {
-      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -6426,13 +6425,13 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%@ is still open"
+            "value" : "%@ est toujours en attente"
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%@ is still open"
+            "value" : "%@ è ancora in sospeso"
           }
         },
         "pl" : {
@@ -23798,8 +23797,7 @@
       }
     },
     "0" : {
-      "shouldTranslate" : false,
-      "localizations" : {}
+      "shouldTranslate" : false
     },
     "0 pts" : {
       "localizations" : {
@@ -52450,7 +52448,8 @@
             "value" : "ATL · 疲勞"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Attach this to a bug report." : {
       "localizations" : {
@@ -65301,7 +65300,8 @@
             "value" : "快速建設"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "building fast (acute:chronic %@) - watch fatigue" : {
       "localizations" : {
@@ -77455,7 +77455,8 @@
             "value" : "慢性負荷與急性負荷"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Classic" : {
       "localizations" : {
@@ -90127,7 +90128,8 @@
             "value" : "CTL · 體能"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Cues sent" : {
       "localizations" : {
@@ -122556,7 +122558,8 @@
             "value" : "狀態"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Found %lld readings to review. Nothing has been saved yet." : {
       "localizations" : {
@@ -129070,7 +129073,8 @@
             "value" : "硬套"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Hard to read right now" : {
       "localizations" : {
@@ -177384,7 +177388,8 @@
             "value" : "肌肉負載"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Mute wrist alerts overnight." : {
       "localizations" : {
@@ -178451,7 +178456,8 @@
             "value" : "需要 4 週"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Needs a connected provider and data access, so the coach has something to suggest from." : {
       "localizations" : {
@@ -222417,7 +222423,8 @@
             "value" : "逐漸下降"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "ramping down (acute:chronic %@) - room to build" : {
       "localizations" : {
@@ -242980,8 +242987,7 @@
       }
     },
     "RPE" : {
-      "shouldTranslate" : false,
-      "localizations" : {}
+      "shouldTranslate" : false
     },
     "RPE %@" : {
       "localizations" : {
@@ -264023,7 +264029,8 @@
             "value" : "尖峰"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "spiking (acute:chronic %@) - higher injury risk" : {
       "localizations" : {
@@ -282870,7 +282877,8 @@
             "value" : "L'effort que votre fréquence cardiaque a généré cette semaine — la partie cardiovasculaire, maintenue intentionnellement distincte de votre entraînement de force.\n\nLa charge de travail ne devient jamais un effort. Une séance intense augmente votre fréquence cardiaque et cette valeur est déjà incluse dans ce chiffre ; les séries et les kilos ne sont pas ajoutés. Afficher les deux valeurs côte à côte vous aide à voir quel type de charge a été portée cette semaine."
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "The exercises in your Hevy catalogue" : {
       "localizations" : {
@@ -297582,8 +297590,7 @@
       }
     },
     "Training Load" : {
-      "shouldTranslate" : false,
-      "localizations" : {}
+      "shouldTranslate" : false
     },
     "Training load: chronic vs acute" : {
       "localizations" : {
@@ -297641,7 +297648,8 @@
             "value" : "訓練負荷：慢性與急性"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Training preferences" : {
       "localizations" : {
@@ -327422,7 +327430,8 @@
             "value" : "Dein durchschnittlicher Charge-Wert in dieser Woche — dieselbe Charge wie überall bei NOOP, kein neuer Wert.\n\nLies ihn neben den beiden Belastungszahlen: Eine Woche mit hoher Belastung und fallender Charge unterscheidet sich von einer mit hoher Belastung und konstanter Charge, und diese Verknüpfung ist der Grund, warum alle drei zusammengehören."
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "YOUR BANDS" : {
       "localizations" : {
@@ -334052,7 +334061,8 @@
             "value" : "Tus conjuntos de trabajo de las últimas 7 jornadas, divididos por tu promedio de las últimas 28. Alrededor de 1.0 significa que esta semana es como las semanas habituales; por encima de lo normal indica que estás aumentando más rápido de lo que tu cuerpo está preparado, y por debajo indica que estás entrenando menos de lo habitual.\n\nEs la misma comparación que NOOP realiza para la carga de frecuencia cardíaca, pero con conjuntos en lugar de intervalos —las mismas ventanas, las mismas bandas. Es una proporción, no una puntuación: no hay escala que memorizar, y puedes compararla con lo que hiciste.\n\nSe mantiene vacío hasta que haya cuatro semanas de historial, porque una proporción tomada de una semana indica principalmente qué poco datos hay."
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "yrs" : {
       "localizations" : {
@@ -339344,7 +339354,8 @@
             "value" : "過去 7 天的心肺訓練分鐘，除以過去 28 天的平均值。約 1.0 表示本週的訓練模式與往常一致；若值超過 1.0，表示訓練強度超出身體適應範圍。\n\n以分鐘而非強度計算，因為強度已在該螢幕內提供，重複計算將會重複資訊。分鐘數反映訓練週的實際安排：本週比平常多花的時間。\n\n休息日計為零，因此本週兩次訓練與六次訓練的結果無法混淆。此欄位將在有 4 週歷史資料後才顯示。"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Measured bests for this sport: the farthest you went, the longest you were out, and your fastest AVERAGE pace within each band of session length.\n\nThe bands matter. A fast 3 km and a fast half marathon are different achievements, so they are kept apart rather than competing for one 'fastest' line.\n\nThese are averages over a whole session, never splits. NOOP stores one distance and one duration per session, so 'your fastest 5 km' inside a longer run is a claim the data cannot support and is deliberately not offered." : {
       "localizations" : {
@@ -343581,7 +343592,8 @@
             "value" : "根據每次訓練的最佳訓練組估計 1RM (Epley)——一個預測，而不是您執行的舉重。重複次數超過 12 次的組別被排除在外，因為那裡的估計不再可靠。它旁邊的趨勢是每個成對斜率的中位數，因此一個糟糕的交易時段無法翻轉它。"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Volume trend" : {
       "localizations" : {
@@ -344997,7 +345009,8 @@
             "value" : "%@%@ cm"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "%lld AU" : {
       "localizations" : {
@@ -345171,7 +345184,8 @@
             "value" : "%lld 消耗"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "%lld grew" : {
       "localizations" : {
@@ -345345,7 +345359,8 @@
             "value" : "%lld/%lld 次有氧訓練有消耗值"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "%lld of %lld sessions rated in the last 28 days" : {
       "localizations" : {
@@ -345403,7 +345418,8 @@
             "value" : "過去 28 天已評價 %lld/%lld 次訓練"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "+0,5 kg/week" : {
       "localizations" : {
@@ -346273,7 +346289,8 @@
             "value" : "這是變化的合計，不是測量值——腰圍和大腿圍加起來並不構成任何物理量。只有變化超過你自身皮尺離散度的部位才計入。"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "A tape estimate of %@ %%, which carries about ±4 percentage points. On a number that uncertain, this formula is not reliably better than the one it replaces — it is a different kind of wrong, not a smaller one." : {
       "localizations" : {
@@ -346447,7 +346464,8 @@
             "value" : "皮尺的重複精度大約在半釐米上下，取決於你握得多穩、每次是否找到同一位置。所以 +0.2 釐米不是增長——那是皮尺。\n\nNOOP 不去斷言一個固定數值，而是從你自己的序列中讀出它：你在該部位連續兩次測量之間的典型步長。小於你自身典型步長的變化會以灰色顯示。這不代表什麼都沒發生——而是說這組讀數還無法把發生的變化與握尺方式區分開，而這是更有用的資訊。\n\n合計只統計超過自身離散度的部位。把十三個部位的噪聲加起來會憑空產生一個看似可信的數字，而且幾乎總會落在討喜的一側。"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "A target" : {
       "localizations" : {
@@ -347085,7 +347103,8 @@
             "value" : "共 %lld 個部位"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Activity multipliers" : {
       "localizations" : {
@@ -347317,7 +347336,8 @@
             "value" : "與你自己的 28 天水準相比"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Against your own recent level" : {
       "localizations" : {
@@ -347375,7 +347395,8 @@
             "value" : "與你自己近期的水準相比"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Aim for" : {
       "localizations" : {
@@ -349585,7 +349606,8 @@
             "value" : "能量提供恢復背景"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Chest" : {
       "localizations" : {
@@ -352961,7 +352983,8 @@
             "value" : "過去 7 天的心血管工作量相對於你自己的 28 天水準。它是百分比，不是分數：+18 % 表示最近一週比平時高約五分之一。\n\n基礎訊號是消耗，由心率和強度區間時長透過 TRIMP 得出。運動時長單獨顯示，因為 60 分鐘輕鬆訓練與 60 分鐘閾值訓練時長相同，但心血管負荷差異很大。\n\n休息日計為零。升高或降低本身並無好壞：較高的一週可能是計畫中的提升，也可能過量。能量和整場評分提供背景。累積兩週歷史前不顯示比較。"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "How much lifting this week asked of you, against your own level over the last four weeks. It is a percentage, not a score: +18 % means this week ran about a fifth above your usual.\n\nThe underlying figure is WORKING SETS, weighted by how close each one went to failure — the same weighting the muscle map uses. Ten easy sets are not ten hard ones.\n\nIt is deliberately not tonnage. Sets × reps × kilos ranks four sets of ten at 100 kg above five triples at 180 kg, and the triples are the harder session — heavier, closer to your limit, and costlier to recover from. Tonnage rewards high-rep work and offers a precision it does not have, so it stays a statistic here and never the load.\n\nNeither direction is good or bad on its own. More than usual is what a build phase looks like and also what overreaching looks like; the load alone cannot tell those apart. Charge can." : {
       "localizations" : {
@@ -355235,7 +355258,8 @@
             "value" : "暫無有氧訓練"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "No site has two readings far enough apart yet. Measure again in a few weeks and this fills in." : {
       "localizations" : {
@@ -357335,7 +357359,8 @@
             "value" : "恢復背景"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Reminders" : {
       "localizations" : {
@@ -357973,7 +357998,8 @@
             "value" : "根據心率和隨時間變化的強度得出的訓練消耗，基於 TRIMP。"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Session load" : {
       "localizations" : {
@@ -358321,7 +358347,8 @@
             "value" : "力量、有氧和主觀負荷保持分開，因為高強度一組、心率工作量與整次訓練感受之間沒有經過測量的換算關係。它們仍透過恢復相互作用：睡眠、HRV 和靜息心率反映身體如何應對綜合需求。"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Take a photo" : {
       "localizations" : {
@@ -361047,7 +361074,8 @@
             "value" : "它們如何關聯"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Which basal formula" : {
       "localizations" : {
@@ -362729,7 +362757,8 @@
             "value" : "最近 28 天沒有工作組"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "All %lld working sets in the last 28 days carry an RPE" : {
       "localizations" : {
@@ -362787,7 +362816,8 @@
             "value" : "最近 28 天的全部 %lld 個工作組都記錄了 RPE"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Only %lld of %lld working sets in the last 28 days carry an RPE, so most of the weighting is the neutral default for unrated sets" : {
       "localizations" : {
@@ -362845,7 +362875,8 @@
             "value" : "最近 28 天僅 %lld/%lld 個工作組記錄了 RPE，因此權重大多採用未評分組的中性預設值"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "%lld of %lld working sets in the last 28 days carry an RPE; the rest use the neutral default" : {
       "localizations" : {
@@ -362903,7 +362934,8 @@
             "value" : "最近 28 天有 %lld/%lld 個工作組記錄了 RPE；其餘採用中性預設值"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Choose a signal" : {
       "localizations" : {
@@ -363315,7 +363347,8 @@
             "value" : "動作太少，無法判斷，僅按負荷評估"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "%lld of %lld lifts rising" : {
       "localizations" : {
@@ -363373,7 +363406,8 @@
             "value" : "%lld/%lld 個動作在提升"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "%lld of %lld lifts falling" : {
       "localizations" : {
@@ -363431,7 +363465,8 @@
             "value" : "%lld/%lld 個動作在下降"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "No clear direction across %lld lifts" : {
       "localizations" : {
@@ -363489,7 +363524,8 @@
             "value" : "%lld 個動作沒有明確方向"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "From heart rate, on Polar's scale" : {
       "localizations" : {
@@ -363547,7 +363583,8 @@
             "value" : "基於心率，採用 Polar 標尺"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Much more strength work than usual, and your recovery is dropping. Take a few easier days before adding more." : {
       "localizations" : {
@@ -364243,7 +364280,8 @@
             "value" : "最近三晚"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Breathing" : {
       "localizations" : {
@@ -364475,7 +364513,8 @@
             "value" : "緊張：%lld/%lld 晚有訊號異常。負荷超過常規 1.3 倍時，力量狀態將變為負荷過高。"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Holding: a signal flagged on %lld of %lld nights." : {
       "localizations" : {
@@ -364997,7 +365036,8 @@
             "value" : "%@ %@/週"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Your own rating" : {
       "localizations" : {
@@ -365345,7 +365385,8 @@
             "value" : "狀態如何確定"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Cardio uses Polar's cardio load status: the last 7 days against your level over up to 28 days, with Polar's thresholds 0.8, 1.0 and 1.3. Strength also asks whether your lifts are improving, and above 1.3 whether your recovery holds. It counts as detraining only after three weeks below your usual or with falling lifts, because maximal strength drops measurably only from the third week without training. The thresholds are a convention, not a measurement." : {
       "localizations" : {
@@ -365403,7 +365444,8 @@
             "value" : "有氧採用 Polar 的有氧負荷狀態：最近 7 天與你最多 28 天的水準比較，閾值為 Polar 的 0.8、1.0 和 1.3。力量還會看動作是否在進步，並在 1.3 以上看恢復是否跟得上。只有低於常規水準三週或動作在下降時，才算體能下降，因為停訓後最大力量要到第三週才會明顯下降。這些閾值是約定，而非測量。"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Sources" : {
       "localizations" : {
@@ -365519,7 +365561,8 @@
             "value" : "體能下降"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Recovering" : {
       "localizations" : {
@@ -365577,7 +365620,8 @@
             "value" : "恢復中"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Maintaining" : {
       "localizations" : {
@@ -365635,7 +365679,8 @@
             "value" : "維持"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Productive" : {
       "localizations" : {
@@ -365693,7 +365738,8 @@
             "value" : "有效提升"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Unproductive" : {
       "localizations" : {
@@ -365751,7 +365797,8 @@
             "value" : "收效甚微"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Overreaching" : {
       "localizations" : {
@@ -365809,7 +365856,8 @@
             "value" : "負荷過高"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Well below your usual load for a while. Fitness starts to slip." : {
       "localizations" : {
@@ -365867,7 +365915,8 @@
             "value" : "一段時間以來負荷明顯低於平時，體能開始下滑。"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "A lighter stretch right after a hard phase. A deload, not a decline." : {
       "localizations" : {
@@ -365925,7 +365974,8 @@
             "value" : "高強度階段後緊接的輕鬆期。是減載，不是退步。"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "About your usual load. You are holding your level." : {
       "localizations" : {
@@ -365983,7 +366033,8 @@
             "value" : "負荷與平時相當，你在維持現有水準。"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "At or a little above your usual load, and it is working." : {
       "localizations" : {
@@ -366041,7 +366092,8 @@
             "value" : "負荷等於或略高於平時，並且有效。"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Strength only: plenty of load, but your lifts are not improving." : {
       "localizations" : {
@@ -366099,7 +366151,8 @@
             "value" : "僅限力量：負荷很多，但動作沒有進步。"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Well above your usual load. Fine for a short block, risky if it lasts." : {
       "localizations" : {
@@ -366157,7 +366210,8 @@
             "value" : "負荷明顯高於平時。短期訓練塊尚可，持續下去有風險。"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "%@ × usual" : {
       "localizations" : {
@@ -366216,10 +366270,6 @@
           }
         }
       }
-    },
-    "Polar Training Load Pro · Garmin Training Status · Bosquet et al. 2013 · Pelland et al. 2024 · Robinson et al. 2024 · Foster 2001" : {
-      "shouldTranslate" : false,
-      "localizations" : {}
     },
     "Unclear" : {
       "localizations" : {
@@ -366335,7 +366385,8 @@
             "value" : "持續負荷過高的跡象"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "This is not a diagnosis of overtraining. That can only be made by a doctor, over months and after ruling out other causes. If your performance and how you feel stay down for weeks, get checked." : {
       "localizations" : {
@@ -366509,7 +366560,8 @@
             "value" : "已連續 %lld 週負荷過高（%@），且表現下降、恢復緊張。現在就安排幾天輕鬆訓練或休息。"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Cardio development" : {
       "localizations" : {
@@ -367449,7 +367501,8 @@
             "value" : "%lld/%lld 次訓練有足夠的心率資料"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "%lld work sets" : {
       "localizations" : {
@@ -367833,7 +367886,8 @@
             "value" : "根據心率和各強度區間的持續時間計算可累加的 TRIMP。優先使用 NOOP 手環資料；僅在手環記錄不完整時，才使用與訓練相關的「健康」資料。"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Apple Health tells NOOP when this strength session happened. Add only the exercises and work sets; heart rate and duration stay attached to the imported session." : {
       "localizations" : {
@@ -369797,7 +369851,8 @@
             "value" : "基於心率，與你自己的水準比較"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Cardio compares the last 7 days with your level over up to 28 days, at the conventional thresholds 0.8, 1.0 and 1.3. Strength also asks whether your lifts are improving, and above 1.3 whether your recovery holds. It counts as detraining only after three weeks below your usual or with falling lifts, because maximal strength drops measurably only from the third week without training. The thresholds are a convention, not a measurement." : {
       "localizations" : {
@@ -369855,11 +369910,11 @@
             "value" : "有氧把最近 7 天與你最多 28 天的水準比較，閾值沿用常見的 0.8、1.0 和 1.3。力量還會看動作是否在進步，並在 1.3 以上看恢復是否跟得上。只有低於常規水準三週或動作在下降時，才算體能下降，因為停訓後最大力量要到第三週才會明顯下降。這些閾值是約定，而非測量。"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Edwards 1993 · Banister 1991 · Foster 2001 · Bosquet et al. 2013 · Meeusen et al. 2013 · Pelland et al. 2024 · Robinson et al. 2024" : {
-      "shouldTranslate" : false,
-      "localizations" : {}
+      "shouldTranslate" : false
     },
     "%@ against last week" : {
       "localizations" : {
@@ -370627,7 +370682,8 @@
             "value" : "此期間沒有可用的心率記錄，因此依據已保存的消耗值"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Not enough known days yet to describe this week's shape" : {
       "localizations" : {
@@ -370883,7 +370939,8 @@
             "value" : "只有 %lld/%lld 次訓練有足夠的心率數據"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Only %lld of %lld sets carry an RPE, so most of this rests on the default weighting" : {
       "localizations" : {
@@ -371203,7 +371260,8 @@
             "value" : "最近 28 天有 %lld/%lld 個工作組記錄了 RPE；其餘按你已評分組的中位數計算"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Cardio compares the last 7 days with your level over up to 28 days, at the conventional thresholds 0.8, 1.0 and 1.3. A day whose training could not be measured leaves the comparison instead of counting as rest. Strength also asks whether your lifts are improving, and above 1.3 whether your recovery over the last week holds. Below your usual counts as detraining after two weeks for cardio and three for strength — aerobic fitness fades faster than maximal strength — or at once when your lifts are clearly falling. The thresholds are a convention, not a measurement." : {
       "localizations" : {
@@ -371267,7 +371325,8 @@
             "value" : "有氧把最近 7 天與你最多 28 天的水準比較，採用 0.8、1.0 和 1.3 這三個通用閾值。當天的訓練若無法測量，會退出比較，而不是算作休息。力量還會問你的動作是否在變強，超過 1.3 時還會問你最近一週的恢復是否穩住。低於你的常態後，有氧滿兩週、力量滿三週才算作能力回落——有氧能力比最大力量掉得更快——若你的動作明顯下滑則立即判定。這些閾值是一種約定，不是測量。"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Last seven nights" : {
       "localizations" : {
@@ -371395,7 +371454,8 @@
             "value" : "最近 28 天只有 %lld/%lld 個工作組記錄了 RPE，因此權重大多借自你已評分的組"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Spread and ramp" : {
       "localizations" : {
@@ -371651,7 +371711,8 @@
             "value" : "%@ 活動消耗"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "%@ calibrating" : {
       "localizations" : {
@@ -371715,7 +371776,8 @@
             "value" : "%@校準"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "%@ out of %lld" : {
       "localizations" : {
@@ -371779,7 +371841,8 @@
             "value" : "%@，滿分 %lld"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "%@ unavailable" : {
       "localizations" : {
@@ -371843,7 +371906,8 @@
             "value" : "%@無"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "%@ · guided" : {
       "localizations" : {
@@ -371907,7 +371971,8 @@
             "value" : "%@ · 引導"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "%@ · recovery %lld" : {
       "localizations" : {
@@ -371971,7 +372036,8 @@
             "value" : "%1$@ · 恢復 %2$lld"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "%lld breaths · %@/%@" : {
       "localizations" : {
@@ -372035,7 +372101,8 @@
             "value" : "%lld 次呼吸 · %@/%@"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "%lld points, mean %@, range %@ to %@" : {
       "localizations" : {
@@ -372099,7 +372166,8 @@
             "value" : "%lld點,表示%@範圍%@改為:%@"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "%lld readings" : {
       "localizations" : {
@@ -372163,7 +372231,8 @@
             "value" : "%lld讀數"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "%lldd ago" : {
       "localizations" : {
@@ -372355,7 +372424,8 @@
             "value" : "0xAA 41 00 1c crc32=f3a1 單 13"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "1 minute" : {
       "localizations" : {
@@ -372419,7 +372489,8 @@
             "value" : "1分鐘"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "10m" : {
       "localizations" : {
@@ -372483,7 +372554,8 @@
             "value" : "10分"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "15m" : {
       "localizations" : {
@@ -372547,7 +372619,8 @@
             "value" : "15分"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "4-7-8" : {
       "localizations" : {
@@ -372611,7 +372684,8 @@
             "value" : "4-7-8"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "51 bpm" : {
       "localizations" : {
@@ -372675,7 +372749,8 @@
             "value" : "下午51点"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "5m" : {
       "localizations" : {
@@ -372739,7 +372814,8 @@
             "value" : "5分"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "6-6" : {
       "localizations" : {
@@ -372803,7 +372879,8 @@
             "value" : "6-6 (中文(简体) )."
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "62" : {
       "localizations" : {
@@ -372867,7 +372944,8 @@
             "value" : "62国"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "64" : {
       "localizations" : {
@@ -372931,7 +373009,8 @@
             "value" : "64个"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "7h 42m asleep · 92% efficiency" : {
       "localizations" : {
@@ -372995,7 +373074,8 @@
             "value" : "7h 42m 睡眠 效率 92%"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "87" : {
       "localizations" : {
@@ -373059,7 +373139,8 @@
             "value" : "第87条"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "87% · streaming" : {
       "localizations" : {
@@ -373123,7 +373204,8 @@
             "value" : "87% 流動"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "88" : {
       "localizations" : {
@@ -373187,7 +373269,8 @@
             "value" : "88号"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "ALL-OUT" : {
       "localizations" : {
@@ -373251,7 +373334,8 @@
             "value" : "通關"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Adopted via NoopButtonStyle" : {
       "localizations" : {
@@ -373315,7 +373399,8 @@
             "value" : "由諾普頓施蒂爾透過"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Aurora" : {
       "localizations" : {
@@ -373379,7 +373464,8 @@
             "value" : "極光"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Bar only" : {
       "localizations" : {
@@ -373507,7 +373593,8 @@
             "value" : "電池 14%"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Body / Regular 15 — the thread of you, read in full." : {
       "localizations" : {
@@ -373571,7 +373658,8 @@
             "value" : "體 / 常規 15 —— 你身上的線條,全讀."
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "COUNT-UP SCORE" : {
       "localizations" : {
@@ -373635,7 +373723,8 @@
             "value" : "冷卻沙雷"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Calm night" : {
       "localizations" : {
@@ -373699,7 +373788,8 @@
             "value" : "冷靜的夜晚"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Caption 12" : {
       "localizations" : {
@@ -373763,7 +373853,8 @@
             "value" : "說明12"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Card %lld" : {
       "localizations" : {
@@ -373827,7 +373918,8 @@
             "value" : "紙牌%lld"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Cardio compares the last 7 days with the preceding 28 days; the two windows do not overlap. The bands at 0.8, 1.0 and 1.3 are a monitoring convention, not measured safety limits. A day whose training could not be measured leaves the comparison instead of counting as rest. Strength also asks whether your lifts are improving, and above 1.3 whether your recovery over the last week holds. Below your usual counts as detraining after two weeks for cardio and three for strength — aerobic fitness fades faster than maximal strength — or at once when your lifts are clearly falling." : {
       "localizations" : {
@@ -373891,7 +373983,8 @@
             "value" : "有氧把最近 7 天與此前 28 天比較；兩個時段互不重疊。0.8、1.0 和 1.3 是用於監測的約定閾值，不是實測的安全界線。當天的訓練若無法測量，會退出比較，而不是算作休息。力量還會問你的動作是否在變強，超過 1.3 時還會問你最近一週的恢復是否穩住。低於你的常態後，有氧滿兩週、力量滿三週才算作能力回落——有氧能力比最大力量掉得更快——若你的動作明顯下滑則立即判定。"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Charge %lld out of 100" : {
       "localizations" : {
@@ -373955,7 +374048,8 @@
             "value" : "充電%lld在100箇中"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Charge %lld · %lld bpm%@" : {
       "localizations" : {
@@ -374019,7 +374113,8 @@
             "value" : "充電%lld* 婦女%lld頁:1%@"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Charge %lld%@" : {
       "localizations" : {
@@ -374083,7 +374178,8 @@
             "value" : "充電%lld%@"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Charge calibrating" : {
       "localizations" : {
@@ -374147,7 +374243,8 @@
             "value" : "電荷校準"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Charge calibrating, needs more data" : {
       "localizations" : {
@@ -374211,7 +374308,8 @@
             "value" : "電荷校準, 需要更多資料"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Charge out of date, last synced %@. Open NOOP on iPhone." : {
       "localizations" : {
@@ -374275,7 +374373,8 @@
             "value" : "充電已過期, 上次同步%@在iPhone上開啟NOOP."
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Charge stale · %@" : {
       "localizations" : {
@@ -374339,7 +374438,8 @@
             "value" : "充電停止%@"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Charge unavailable" : {
       "localizations" : {
@@ -374403,7 +374503,8 @@
             "value" : "無法充電"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Charge · %@" : {
       "localizations" : {
@@ -374467,7 +374568,8 @@
             "value" : "充電%@"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Charge · cal" : {
       "localizations" : {
@@ -374531,7 +374633,8 @@
             "value" : "充電 口徑"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Charge –" : {
       "localizations" : {
@@ -374595,7 +374698,8 @@
             "value" : "充電"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Charge, Effort and Rest as score rings, plus live HR and strap battery at a glance." : {
       "localizations" : {
@@ -374659,7 +374763,8 @@
             "value" : "以圓環顯示能量、消耗和休息，並一眼看到即時心率和手環電量。"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "DEPLETED" : {
       "localizations" : {
@@ -374723,7 +374828,8 @@
             "value" : "已刪除"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Dark" : {
       "localizations" : {
@@ -374787,7 +374893,8 @@
             "value" : "Scuro"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Delete recording" : {
       "localizations" : {
@@ -374851,7 +374958,8 @@
             "value" : "刪除記錄"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Disabled" : {
       "localizations" : {
@@ -374915,7 +375023,8 @@
             "value" : "已禁用"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Estimated 1RM (Epley) from each session's best working set — a projection, not a lift you performed. When you logged RPE or RIR, remaining reps are included; without a rating, completed reps are used. Sets whose completed plus remaining reps exceed 12 are left out. The trend beside it is the median of every pairwise slope, so one bad session cannot flip it." : {
       "localizations" : {
@@ -375043,7 +375152,8 @@
             "value" : "填滿"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Fit" : {
       "localizations" : {
@@ -375107,7 +375217,8 @@
             "value" : "適應"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Floor" : {
       "localizations" : {
@@ -375235,7 +375346,8 @@
             "value" : "跟隨提示"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Follow the guided cue" : {
       "localizations" : {
@@ -375299,7 +375411,8 @@
             "value" : "跟隨引導提示"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Footnote 11" : {
       "localizations" : {
@@ -375363,7 +375476,8 @@
             "value" : "腳註11"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Forest" : {
       "localizations" : {
@@ -375427,7 +375541,8 @@
             "value" : "森林"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Frosted" : {
       "localizations" : {
@@ -375491,7 +375606,8 @@
             "value" : "Frosted"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Full-width primary" : {
       "localizations" : {
@@ -375555,7 +375671,8 @@
             "value" : "全程小學"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Full-width secondary" : {
       "localizations" : {
@@ -375619,7 +375736,8 @@
             "value" : "全程中學"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Garmin Fill" : {
       "localizations" : {
@@ -375683,7 +375801,8 @@
             "value" : "Garmin 填滿"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "HRV (ms) — 30 days" : {
       "localizations" : {
@@ -375747,7 +375866,8 @@
             "value" : "HRV(ms) - 30天"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Headline / Semibold 17" : {
       "localizations" : {
@@ -375811,7 +375931,8 @@
             "value" : "標題 / 半粗體 17"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Heart rate, 24 hours" : {
       "localizations" : {
@@ -375875,7 +375996,8 @@
             "value" : "24小時心率"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Hold" : {
       "localizations" : {
@@ -375939,7 +376061,8 @@
             "value" : "屏息"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Hold for %lld seconds" : {
       "localizations" : {
@@ -376003,7 +376126,8 @@
             "value" : "屏息 %lld 秒"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Hover a band: stage name, clock start–end and duration." : {
       "localizations" : {
@@ -376067,7 +376191,8 @@
             "value" : "Hover a band:藝名,時鐘開始-結束和持續時間."
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Hover a cell: ring + date, score and recovery-state tooltip." : {
       "localizations" : {
@@ -376131,7 +376256,8 @@
             "value" : "繞行一個單元格:環+日期,得分和恢復狀態工具提示."
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Hover a gauge for a strain + load-word tooltip." : {
       "localizations" : {
@@ -376195,7 +376321,8 @@
             "value" : "壓軸+負載字工具提示"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Hover a ring for a recovery + state-word tooltip." : {
       "localizations" : {
@@ -376259,7 +376386,8 @@
             "value" : "翻過一個環表示恢復 + 狀態字工具提示."
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Hover any sparkline to read the exact sample under the cursor." : {
       "localizations" : {
@@ -376323,7 +376451,8 @@
             "value" : "瀏覽游標下的確切樣本"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Hover the cards to see the lift." : {
       "localizations" : {
@@ -376387,7 +376516,8 @@
             "value" : "翻牌看電梯."
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Hover the line: crosshair + dot + date/value tooltip." : {
       "localizations" : {
@@ -376451,7 +376581,8 @@
             "value" : "橫線:橫線+點+日期/值工具提示."
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Hover to read each day's HRV in ms." : {
       "localizations" : {
@@ -376515,7 +376646,8 @@
             "value" : "習慣閱讀 每天的HRV以ms。"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "In a card" : {
       "localizations" : {
@@ -376579,7 +376711,8 @@
             "value" : "在一張牌上"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "LIGHT" : {
       "localizations" : {
@@ -376643,7 +376776,8 @@
             "value" : "光线"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Live heart rate with the last three hours as a trace." : {
       "localizations" : {
@@ -376707,7 +376841,8 @@
             "value" : "即時心率，並以曲線顯示最近三小時。"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "MODERATE" : {
       "localizations" : {
@@ -376771,7 +376906,8 @@
             "value" : "模擬"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Mid" : {
       "localizations" : {
@@ -376835,7 +376971,8 @@
             "value" : "中速"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Midnight" : {
       "localizations" : {
@@ -376899,7 +377036,8 @@
             "value" : "Midnight"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Mint" : {
       "localizations" : {
@@ -376963,7 +377101,8 @@
             "value" : "Mint"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Movement during sleep" : {
       "localizations" : {
@@ -377027,7 +377166,8 @@
             "value" : "睡覺時的動作"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "NOOP Energy" : {
       "localizations" : {
@@ -377091,7 +377231,8 @@
             "value" : "NOOP 能量"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "NOOP · open on iPhone" : {
       "localizations" : {
@@ -377155,7 +377296,8 @@
             "value" : "開啟 iPhone"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "NOOP. %@, %@, %@." : {
       "localizations" : {
@@ -377219,7 +377361,8 @@
             "value" : "沒有。%@, (中文).%@, (中文).%@。 。 。"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "NOOP. No data yet, open NOOP on your iPhone to sync." : {
       "localizations" : {
@@ -377283,7 +377426,8 @@
             "value" : "沒有。 尚未找到資料, 請開啟您的iPhone上的 NOOP 以同步 。"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "NOOP. Scores out of date, last synced %@. Open NOOP on iPhone to refresh." : {
       "localizations" : {
@@ -377347,7 +377491,8 @@
             "value" : "沒有。 分數已過期, 上次同步%@開啟 iPhone 上的 NOOP 以重新整理 。"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "No data, open NOOP on iPhone" : {
       "localizations" : {
@@ -377411,7 +377556,8 @@
             "value" : "沒有資料, 在 iPhone 上開啟 NOOP"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "No energy data today" : {
       "localizations" : {
@@ -377475,7 +377621,8 @@
             "value" : "今天暫無能量資料"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "No heart-rate data" : {
       "localizations" : {
@@ -377539,7 +377686,8 @@
             "value" : "沒有心率資料"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Ocean" : {
       "localizations" : {
@@ -377603,7 +377751,8 @@
             "value" : "Ocean"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Open NOOP" : {
       "localizations" : {
@@ -377667,7 +377816,8 @@
             "value" : "開啟NOOP"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Overline" : {
       "localizations" : {
@@ -377731,7 +377881,8 @@
             "value" : "超線"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Overview HR" : {
       "localizations" : {
@@ -377795,7 +377946,8 @@
             "value" : "人力資源概覽"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "PRIMED" : {
       "localizations" : {
@@ -377859,7 +378011,8 @@
             "value" : "私營"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Pick a date" : {
       "localizations" : {
@@ -377923,7 +378076,8 @@
             "value" : "選擇日期"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Primary action" : {
       "localizations" : {
@@ -377987,7 +378141,8 @@
             "value" : "主要行動"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Projected today" : {
       "localizations" : {
@@ -378051,7 +378206,8 @@
             "value" : "今日預測"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "RECOVERY GRADIENT" : {
       "localizations" : {
@@ -378115,7 +378271,8 @@
             "value" : "追尋者"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Ratio" : {
       "localizations" : {
@@ -378243,7 +378400,8 @@
             "value" : "恢復日曆,%lld平均天數%lld低調%lld高階%lld"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Recovery calendar, no data" : {
       "localizations" : {
@@ -378307,7 +378465,8 @@
             "value" : "恢復日曆, 無資料"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Recovery — 30 days" : {
       "localizations" : {
@@ -378371,7 +378530,8 @@
             "value" : "恢復——30天"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Recovery — past year" : {
       "localizations" : {
@@ -378435,7 +378595,8 @@
             "value" : "復原——去年"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Reduce Motion renders static at the final frame." : {
       "localizations" : {
@@ -378499,7 +378660,8 @@
             "value" : "減少運動使靜態在最後幀。"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Regular" : {
       "localizations" : {
@@ -378563,7 +378725,8 @@
             "value" : "常規"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Replay reveal" : {
       "localizations" : {
@@ -378627,7 +378790,8 @@
             "value" : "重播顯示"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Restless night" : {
       "localizations" : {
@@ -378691,7 +378855,8 @@
             "value" : "無休息之夜"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Ribbon" : {
       "localizations" : {
@@ -378755,7 +378920,8 @@
             "value" : "色帶"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Roll the number" : {
       "localizations" : {
@@ -378819,7 +378985,8 @@
             "value" : "滾動數字"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "SOFT CARD TRANSITION" : {
       "localizations" : {
@@ -378883,7 +379050,8 @@
             "value" : "軟體轉換"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "STAGGERED APPEAR" : {
       "localizations" : {
@@ -378947,7 +379115,8 @@
             "value" : "申請"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "STRAIN RAMP" : {
       "localizations" : {
@@ -379011,7 +379180,8 @@
             "value" : "強暴"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "STRENUOUS" : {
       "localizations" : {
@@ -379075,7 +379245,8 @@
             "value" : "嚴肅"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Sample" : {
       "localizations" : {
@@ -379139,7 +379310,8 @@
             "value" : "取樣點"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Secondary action" : {
       "localizations" : {
@@ -379203,7 +379375,8 @@
             "value" : "次要行動"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Segment counts & heights" : {
       "localizations" : {
@@ -379267,7 +379440,8 @@
             "value" : "段數高度( H)"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Signature" : {
       "localizations" : {
@@ -379331,7 +379505,8 @@
             "value" : "標誌性"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Sleep end" : {
       "localizations" : {
@@ -379395,7 +379570,8 @@
             "value" : "睡眠結束"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Sleep stage" : {
       "localizations" : {
@@ -379459,7 +379635,8 @@
             "value" : "睡眠階段"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Sleep stages" : {
       "localizations" : {
@@ -379523,7 +379700,8 @@
             "value" : "睡眠階段"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Sleep stages, %@" : {
       "localizations" : {
@@ -379587,7 +379765,8 @@
             "value" : "睡眠階段,%@"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Sleep stages, no data" : {
       "localizations" : {
@@ -379651,7 +379830,8 @@
             "value" : "睡眠階段, 沒有資料"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Sleep start" : {
       "localizations" : {
@@ -379715,7 +379895,8 @@
             "value" : "入睡時間"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Sparkline" : {
       "localizations" : {
@@ -379779,7 +379960,8 @@
             "value" : "迷你圖"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Stretch" : {
       "localizations" : {
@@ -379843,7 +380025,8 @@
             "value" : "拉伸"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Subhead 13" : {
       "localizations" : {
@@ -379907,7 +380090,8 @@
             "value" : "第13項"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Sunset" : {
       "localizations" : {
@@ -379971,7 +380155,8 @@
             "value" : "日落"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "System" : {
       "localizations" : {
@@ -380035,7 +380220,8 @@
             "value" : "系統"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Tertiary action" : {
       "localizations" : {
@@ -380099,7 +380285,8 @@
             "value" : "第三級行動"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Tile" : {
       "localizations" : {
@@ -380163,7 +380350,8 @@
             "value" : "平鋪"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Titanium" : {
       "localizations" : {
@@ -380227,7 +380415,8 @@
             "value" : "鈦金屬"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Title 1 / Bold 28" : {
       "localizations" : {
@@ -380291,7 +380480,8 @@
             "value" : "標題1/粗體28"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Title 2 / Semibold 22" : {
       "localizations" : {
@@ -380355,7 +380545,8 @@
             "value" : "標題2 / 半粗體22"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Today's coaching brief at a glance. Tap to open Coach." : {
       "localizations" : {
@@ -380419,7 +380610,8 @@
             "value" : "一眼看到今天的教練簡報。輕點開啟教練。"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Toggle gentle spring" : {
       "localizations" : {
@@ -380483,7 +380675,8 @@
             "value" : "切換溫柔的春天"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Total, active and basal calories for today, with an honest projection." : {
       "localizations" : {
@@ -380547,7 +380740,8 @@
             "value" : "今天的總消耗、活動消耗和基礎消耗，並提供如實預測。"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Trend, %lld points, latest %@, low %@, high %@" : {
       "localizations" : {
@@ -380611,7 +380805,8 @@
             "value" : "趨勢,%lld點,最近%@低調%@高階%@"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Updated" : {
       "localizations" : {
@@ -380675,7 +380870,8 @@
             "value" : "已更新"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Usual" : {
       "localizations" : {
@@ -380867,7 +381063,8 @@
             "value" : "數值"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "WHOOP Blue" : {
       "localizations" : {
@@ -380931,7 +381128,8 @@
             "value" : "WHOOP Blue"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Whoop 4.0" : {
       "localizations" : {
@@ -380995,7 +381193,8 @@
             "value" : "低聲4.0"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "a while ago" : {
       "localizations" : {
@@ -381059,7 +381258,8 @@
             "value" : "剛才"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "asleep %@" : {
       "localizations" : {
@@ -381123,7 +381323,8 @@
             "value" : "睡著了%@"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "average %@ bpm" : {
       "localizations" : {
@@ -381187,7 +381388,8 @@
             "value" : "平均數%@頁:1"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "hour %lld" : {
       "localizations" : {
@@ -381251,7 +381453,8 @@
             "value" : "小時%lld"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "kcal total so far" : {
       "localizations" : {
@@ -381315,7 +381518,8 @@
             "value" : "目前總計千卡"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "ms" : {
       "localizations" : {
@@ -381443,7 +381647,8 @@
             "value" : "未培訓"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "old" : {
       "localizations" : {
@@ -381571,7 +381776,8 @@
             "value" : "開啟 iPhone"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "range %@ to %@" : {
       "localizations" : {
@@ -381635,7 +381841,8 @@
             "value" : "範圍%@改為:%@"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "sample %lld" : {
       "localizations" : {
@@ -381699,7 +381906,8 @@
             "value" : "第 %lld 個取樣點"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "stale" : {
       "localizations" : {
@@ -381763,7 +381971,8 @@
             "value" : "暂停"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "unavailable" : {
       "localizations" : {
@@ -381827,7 +382036,8 @@
             "value" : "無法使用"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "under your usual" : {
       "localizations" : {
@@ -381891,7 +382101,8 @@
             "value" : "照舊"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "well above your usual" : {
       "localizations" : {
@@ -381955,7 +382166,8 @@
             "value" : "比你平常還好"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "well under your usual" : {
       "localizations" : {
@@ -382019,7 +382231,8 @@
             "value" : "在你的習慣下"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "~%@ projected" : {
       "localizations" : {
@@ -382083,7 +382296,8 @@
             "value" : "預計約 %@"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "🔥 %@ kcal today" : {
       "localizations" : {
@@ -382147,7 +382361,8 @@
             "value" : "🔥 今日 %@ 千卡"
           }
         }
-      }
+      },
+      "extractionState" : "stale"
     },
     "Functional strength training" : {
       "localizations" : {
@@ -395649,6 +395864,3718 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "該計畫中可能缺少哪些肌肉群？"
+          }
+        }
+      }
+    },
+    "%lld of %lld sessions complete · compared only with your cardiovascular history" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld von %lld Einheiten vollständig · nur mit deiner Herz-Kreislauf-Historie verglichen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld of %lld sessions complete · compared only with your cardiovascular history"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld de %lld sesiones completas · comparación solo con tu historial cardiovascular"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld séances sur %lld complètes · comparaison uniquement avec votre historique cardiovasculaire"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld sessioni su %lld complete · confronto solo con la tua cronologia cardiovascolare"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld z %lld sesji kompletnych · porównanie tylko z Twoją historią obciążenia sercowo-naczyniowego"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld de %lld sessões completas · comparação apenas com o seu histórico cardiovascular"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld из %lld тренировок полностью учтены · сравнение только с вашей историей сердечно-сосудистой нагрузки"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld/%lld 次训练完整 · 仅与你的心血管训练历史比较"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld/%lld 次訓練完整 · 僅與你的心血管訓練歷史比較"
+          }
+        }
+      }
+    },
+    "%lld of %lld sessions complete · comparison available after 21 complete days" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld von %lld Einheiten vollständig · Vergleich nach 21 vollständigen Tagen verfügbar"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld of %lld sessions complete · comparison available after 21 complete days"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld de %lld sesiones completas · comparación disponible tras 21 días completos"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld séances sur %lld complètes · comparaison disponible après 21 jours complets"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld sessioni su %lld complete · confronto disponibile dopo 21 giorni completi"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld z %lld sesji kompletnych · porównanie dostępne po 21 pełnych dniach"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld de %lld sessões completas · comparação disponível após 21 dias completos"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld из %lld тренировок полностью учтены · сравнение станет доступно после 21 полного дня"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld/%lld 次训练完整 · 满 21 个完整日后可进行比较"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld/%lld 次訓練完整 · 滿 21 個完整日後可進行比較"
+          }
+        }
+      }
+    },
+    "%lld of %lld sessions fully measured; partial days do not enter your comparison" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld von %lld Einheiten vollständig gemessen; teilweise gemessene Tage fließen nicht in deinen Vergleich ein"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld of %lld sessions fully measured; partial days do not enter your comparison"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld de %lld sesiones medidas por completo; los días parciales no entran en la comparación"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld séances sur %lld entièrement mesurées ; les jours partiels sont exclus de votre comparaison"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld sessioni su %lld misurate interamente; i giorni parziali non entrano nel confronto"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld z %lld sesji w pełni zmierzonych; dni częściowe nie są uwzględniane w porównaniu"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld de %lld sessões totalmente medidas; os dias parciais não entram na comparação"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld из %lld тренировок измерены полностью; частично измеренные дни не участвуют в сравнении"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld/%lld 次训练完整测量；部分测量日不计入比较"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld/%lld 次訓練完整測量；部分測量日不計入比較"
+          }
+        }
+      }
+    },
+    "%lld of %lld sessions rated in the last 7 days" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld von %lld Einheiten in den letzten 7 Tagen bewertet"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld of %lld sessions rated in the last 7 days"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld de %lld sesiones valoradas en los últimos 7 días"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld séances sur %lld évaluées au cours des 7 derniers jours"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld sessioni su %lld valutate negli ultimi 7 giorni"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld z %lld sesji ocenionych w ciągu ostatnich 7 dni"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld de %lld sessões avaliadas nos últimos 7 dias"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld из %lld тренировок оценены за последние 7 дней"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "过去 7 天已评价 %lld/%lld 次训练"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "過去 7 天已評價 %lld/%lld 次訓練"
+          }
+        }
+      }
+    },
+    "%lld of %lld working sets in the last 7 days carry an RPE; the rest use your recent median when available" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld von %lld Arbeitssätzen in den letzten 7 Tagen haben eine RPE; für den Rest wird, wenn möglich, dein aktueller Median verwendet"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld of %lld working sets in the last 7 days carry an RPE; the rest use your recent median when available"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld de %lld series de trabajo de los últimos 7 días tienen RPE; para el resto se usa tu mediana reciente cuando está disponible"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld séries de travail sur %lld au cours des 7 derniers jours ont une RPE ; les autres utilisent votre médiane récente lorsqu’elle est disponible"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld serie allenanti su %lld negli ultimi 7 giorni hanno un RPE; per le altre viene usata la tua mediana recente quando disponibile"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld z %lld serii roboczych z ostatnich 7 dni ma RPE; dla pozostałych używana jest ostatnia mediana, gdy jest dostępna"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld de %lld séries de trabalho nos últimos 7 dias têm RPE; as restantes usam a sua mediana recente quando disponível"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld из %lld рабочих подходов за последние 7 дней имеют RPE; для остальных по возможности используется ваша недавняя медиана"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "过去 7 天 %lld/%lld 个有效组有 RPE；其余组在可用时采用你近期的中位数"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "過去 7 天 %lld/%lld 個有效組有 RPE；其餘組在可用時採用你近期的中位數"
+          }
+        }
+      }
+    },
+    "%lld of %lld working sets rated · compared only with your strength history" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld von %lld Arbeitssätzen bewertet · nur mit deiner Kraft-Historie verglichen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld of %lld working sets rated · compared only with your strength history"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld de %lld series de trabajo valoradas · comparación solo con tu historial de fuerza"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld séries de travail sur %lld évaluées · comparaison uniquement avec votre historique de force"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld serie allenanti su %lld valutate · confronto solo con la tua cronologia di forza"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld z %lld serii roboczych ocenionych · porównanie tylko z Twoją historią siłową"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld de %lld séries de trabalho avaliadas · comparação apenas com o seu histórico de força"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld из %lld рабочих подходов оценены · сравнение только с вашей историей силовых тренировок"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已评价 %lld/%lld 个有效组 · 仅与你的力量训练历史比较"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已評價 %lld/%lld 個有效組 · 僅與你的力量訓練歷史比較"
+          }
+        }
+      }
+    },
+    "%lld of %lld working sets rated · comparison available after 21 complete days" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld von %lld Arbeitssätzen bewertet · Vergleich nach 21 vollständigen Tagen verfügbar"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld of %lld working sets rated · comparison available after 21 complete days"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld de %lld series de trabajo valoradas · comparación disponible tras 21 días completos"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld séries de travail sur %lld évaluées · comparaison disponible après 21 jours complets"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld serie allenanti su %lld valutate · confronto disponibile dopo 21 giorni completi"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld z %lld serii roboczych ocenionych · porównanie dostępne po 21 pełnych dniach"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld de %lld séries de trabalho avaliadas · comparação disponível após 21 dias completos"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld из %lld рабочих подходов оценены · сравнение станет доступно после 21 полного дня"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已评价 %lld/%lld 个有效组 · 满 21 个完整日后可进行比较"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已評價 %lld/%lld 個有效組 · 滿 21 個完整日後可進行比較"
+          }
+        }
+      }
+    },
+    "A lighter stretch after a higher-load phase." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eine leichtere Phase nach einer Phase mit höherer Last."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A lighter stretch after a higher-load phase."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un tramo más ligero después de una fase de mayor carga."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Une période plus légère après une phase de charge élevée."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un periodo più leggero dopo una fase di carico elevato."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lżejszy okres po fazie większego obciążenia."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Um período mais leve após uma fase de carga elevada."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Более лёгкий период после фазы высокой нагрузки."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "高负荷阶段后的较轻阶段。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "高負荷階段後的較輕階段。"
+          }
+        }
+      }
+    },
+    "Adaptation" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Anpassung"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Adaptation"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Adaptación"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Réponse adaptative"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Adattamento"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Adaptacja"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Adaptação"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Адаптация"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "适应"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "適應"
+          }
+        }
+      }
+    },
+    "Adaptation not assessable yet" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Anpassung noch nicht beurteilbar"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Adaptation not assessable yet"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La adaptación aún no se puede evaluar"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Adaptation pas encore évaluable"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Adattamento non ancora valutabile"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Adaptacji nie można jeszcze ocenić"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Adaptação ainda não avaliável"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Адаптацию пока нельзя оценить"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "暂时无法评估适应"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "暫時無法評估適應"
+          }
+        }
+      }
+    },
+    "Adaptation unclear" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Anpassung unklar"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Adaptation unclear"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Adaptación incierta"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Adaptation incertaine"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Adattamento incerto"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Adaptacja niejasna"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Adaptação incerta"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Адаптация неясна"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "适应趋势不明确"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "適應趨勢不明確"
+          }
+        }
+      }
+    },
+    "All %lld sessions have enough heart-rate data" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alle %lld Einheiten haben ausreichend Herzfrequenzdaten"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "All %lld sessions have enough heart-rate data"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Las %lld sesiones tienen suficientes datos de frecuencia cardíaca"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Les %lld séances disposent de suffisamment de données de fréquence cardiaque"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tutte le %lld sessioni hanno dati sufficienti sulla frequenza cardiaca"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wszystkie %lld sesje mają wystarczające dane tętna"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Todas as %lld sessões têm dados de frequência cardíaca suficientes"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Для всех %lld тренировок достаточно данных о пульсе"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "全部 %lld 次训练都有足够的心率数据"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "全部 %lld 次訓練都有足夠的心率資料"
+          }
+        }
+      }
+    },
+    "All %lld working sets in the last 7 days carry an RPE" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alle %lld Arbeitssätze in den letzten 7 Tagen haben eine RPE"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "All %lld working sets in the last 7 days carry an RPE"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Las %lld series de trabajo de los últimos 7 días tienen RPE"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Les %lld séries de travail des 7 derniers jours ont une RPE"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tutte le %lld serie allenanti degli ultimi 7 giorni hanno un RPE"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wszystkie %lld serie robocze z ostatnich 7 dni mają RPE"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Todas as %lld séries de trabalho dos últimos 7 dias têm RPE"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Все %lld рабочих подхода за последние 7 дней имеют RPE"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "过去 7 天的全部 %lld 个有效组都有 RPE"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "過去 7 天的全部 %lld 個有效組都有 RPE"
+          }
+        }
+      }
+    },
+    "at least %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "mindestens %@"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "at least %@"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "al menos %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "au moins %@"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "almeno %@"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "co najmniej %@"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "pelo menos %@"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "не менее %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "至少 %@"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "至少 %@"
+          }
+        }
+      }
+    },
+    "Baseline growing" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Basis wächst"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Baseline growing"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La base está creciendo"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Référence en cours de constitution"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La base è in crescita"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Baza wciąż rośnie"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A base está a crescer"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "База формируется"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "基线正在建立"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "基準正在建立"
+          }
+        }
+      }
+    },
+    "Below usual" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unter deinem üblichen Niveau"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Below usual"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Por debajo de lo habitual"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sous votre niveau habituel"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sotto il livello abituale"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Poniżej zwykłego poziomu"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abaixo do habitual"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ниже обычного уровня"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "低于平常水平"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "低於平常水平"
+          }
+        }
+      }
+    },
+    "Cardiovascular" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Herz-Kreislauf"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cardiovascular"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cardiovascular"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cardiovasculaire"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cardiovascolare"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sercowo-naczyniowe"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cardiovascular"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Сердечно-сосудистая"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "心血管"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "心血管"
+          }
+        }
+      }
+    },
+    "Cardiovascular load" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Herz-Kreislauf-Last"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cardiovascular load"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Carga cardiovascular"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Charge cardiovasculaire"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Carico cardiovascolare"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Obciążenie sercowo-naczyniowe"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Carga cardiovascular"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Сердечно-сосудистая нагрузка"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "心血管负荷"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "心血管負荷"
+          }
+        }
+      }
+    },
+    "Classic Edwards TRIMP from time in percentages of your maximum heart rate. NOOP band data wins; workout-associated Health data fills only when the band trace is incomplete." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Klassischer Edwards-TRIMP aus der Zeit in Prozentbereichen deiner maximalen Herzfrequenz. Daten des NOOP-Bands haben Vorrang; workoutbezogene Health-Daten ergänzen nur, wenn die Bandaufzeichnung unvollständig ist."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Classic Edwards TRIMP from time in percentages of your maximum heart rate. NOOP band data wins; workout-associated Health data fills only when the band trace is incomplete."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "TRIMP clásico de Edwards según el tiempo en porcentajes de tu frecuencia cardíaca máxima. Los datos de la banda NOOP tienen prioridad; los datos de Health asociados al entrenamiento solo completan cuando el registro de la banda está incompleto."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "TRIMP classique d’Edwards calculé à partir du temps passé dans les pourcentages de votre fréquence cardiaque maximale. Les données du bracelet NOOP sont prioritaires ; les données Santé associées à l’entraînement ne complètent que si le tracé du bracelet est incomplet."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "TRIMP classico di Edwards calcolato dal tempo trascorso nelle percentuali della tua frequenza cardiaca massima. I dati della fascia NOOP hanno la priorità; i dati Salute associati all’allenamento completano solo quando la traccia della fascia è incompleta."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Klasyczny TRIMP Edwardsa obliczony na podstawie czasu w zakresach procentowych tętna maksymalnego. Dane opaski NOOP mają pierwszeństwo; dane Zdrowie powiązane z treningiem uzupełniają je tylko wtedy, gdy zapis opaski jest niepełny."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "TRIMP clássico de Edwards calculado pelo tempo em percentagens da sua frequência cardíaca máxima. Os dados da pulseira NOOP têm prioridade; os dados de Saúde associados ao treino apenas completam quando o registo da pulseira está incompleto."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Классический TRIMP Эдвардса по времени в процентных зонах от максимального пульса. Данные браслета NOOP имеют приоритет; связанные с тренировкой данные Здоровья дополняют их только при неполной записи браслета."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "经典 Edwards TRIMP，根据你在最大心率各百分比区间内的时间计算。NOOP 手环数据优先；仅当手环记录不完整时，才使用与训练相关的“健康”数据补充。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "經典 Edwards TRIMP，根據你在最大心率各百分比區間內的時間計算。NOOP 手環資料優先；僅當手環記錄不完整時，才使用與訓練相關的「健康」資料補充。"
+          }
+        }
+      }
+    },
+    "Current load" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aktuelle Last"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Current load"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Carga actual"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Charge actuelle"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Carico attuale"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bieżące obciążenie"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Carga atual"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Текущая нагрузка"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "当前负荷"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "目前負荷"
+          }
+        }
+      }
+    },
+    "Early estimate" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Frühe Schätzung"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Early estimate"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Estimación inicial"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Estimation précoce"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stima iniziale"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wczesne oszacowanie"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Estimativa inicial"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ранняя оценка"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "早期估计"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "早期估計"
+          }
+        }
+      }
+    },
+    "Higher than usual" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Höher als üblich"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Higher than usual"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Más alta de lo habitual"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Plus élevée que d’habitude"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Più alto del solito"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wyżej niż zwykle"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Acima do habitual"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Выше обычного"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "高于平常"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "高於平常"
+          }
+        }
+      }
+    },
+    "How comparison works" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "So funktioniert der Vergleich"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "How comparison works"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cómo funciona la comparación"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fonctionnement de la comparaison"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Come funziona il confronto"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jak działa porównanie"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Como funciona a comparação"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Как работает сравнение"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "比较方式"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "比較方式"
+          }
+        }
+      }
+    },
+    "How did the session feel?" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wie hat sich die Einheit angefühlt?"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "How did the session feel?"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "¿Cómo se sintió la sesión?"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Comment avez-vous ressenti la séance ?"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Come ti è sembrata la sessione?"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jak odczuwałeś tę sesję?"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Como sentiu a sessão?"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Как ощущалась тренировка?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这次训练感觉如何？"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "這次訓練感覺如何？"
+          }
+        }
+      }
+    },
+    "Lighter phase" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Leichtere Phase"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lighter phase"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fase más ligera"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Phase plus légère"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fase più leggera"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lżejsza faza"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fase mais leve"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Более лёгкая фаза"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "较轻阶段"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "較輕階段"
+          }
+        }
+      }
+    },
+    "Load and adaptation" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Last und Anpassung"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Load and adaptation"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Carga y adaptación"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Charge et adaptation"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Carico e adattamento"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Obciążenie i adaptacja"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Carga e adaptação"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Нагрузка и адаптация"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "负荷与适应"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "負荷與適應"
+          }
+        }
+      }
+    },
+    "Load describes how much you trained. Adaptation is shown only when performance data supports a direction." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Last beschreibt, wie viel du trainiert hast. Die Anpassung wird nur angezeigt, wenn Leistungsdaten eine Richtung stützen."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Load describes how much you trained. Adaptation is shown only when performance data supports a direction."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La carga describe cuánto entrenaste. La adaptación solo se muestra cuando los datos de rendimiento respaldan una dirección."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La charge décrit la quantité d’entraînement. L’adaptation n’est affichée que lorsque les données de performance indiquent une direction."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il carico descrive quanto ti sei allenato. L’adattamento viene mostrato solo quando i dati sulle prestazioni indicano una direzione."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Obciążenie opisuje ilość treningu. Adaptacja jest wyświetlana tylko wtedy, gdy dane o wynikach wskazują kierunek."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A carga descreve quanto treinou. A adaptação só é apresentada quando os dados de desempenho sustentam uma direção."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Нагрузка описывает объём тренировки. Адаптация показывается только тогда, когда данные о результативности указывают направление."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "负荷描述你的训练量。只有表现数据支持明确方向时，才显示适应情况。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "負荷描述你的訓練量。只有表現資料支持明確方向時，才顯示適應情況。"
+          }
+        }
+      }
+    },
+    "Load was repeatedly well above usual for %lld weeks (%@), while performance fell and recovery signals were strained. Plan several easy or rest days now." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Last lag %lld Wochen lang wiederholt deutlich über dem üblichen Niveau (%@), während die Leistung sank und die Erholungssignale auffällig waren. Plane jetzt mehrere leichte Tage oder Ruhetage."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Load was repeatedly well above usual for %lld weeks (%@), while performance fell and recovery signals were strained. Plan several easy or rest days now."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La carga estuvo repetidamente muy por encima de lo habitual durante %lld semanas (%@), mientras el rendimiento bajó y las señales de recuperación fueron desfavorables. Planifica ahora varios días suaves o de descanso."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La charge est restée nettement supérieure à votre niveau habituel pendant %lld semaines (%@), tandis que les performances baissaient et que les signaux de récupération étaient défavorables. Prévoyez maintenant plusieurs jours faciles ou de repos."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il carico è rimasto ripetutamente molto sopra il solito per %lld settimane (%@), mentre le prestazioni diminuivano e i segnali di recupero erano sfavorevoli. Pianifica ora diversi giorni facili o di riposo."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Obciążenie przez %lld tygodni (%@) wielokrotnie znacznie przekraczało zwykły poziom, podczas gdy wyniki spadały, a sygnały regeneracji były niekorzystne. Zaplanuj teraz kilka lekkich dni lub dni odpoczynku."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A carga esteve repetidamente muito acima do habitual durante %lld semanas (%@), enquanto o desempenho diminuiu e os sinais de recuperação estavam desfavoráveis. Planeie agora vários dias leves ou de descanso."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Нагрузка в течение %lld недель (%@) неоднократно была значительно выше обычной, при этом результативность снижалась, а показатели восстановления были неблагоприятными. Запланируйте несколько лёгких дней или дней отдыха."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "负荷连续 %lld 周（%@）反复远高于平常，同时表现下降且恢复信号不佳。现在请安排数个轻松日或休息日。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "負荷連續 %lld 週（%@）反覆遠高於平常，同時表現下降且恢復訊號不佳。現在請安排數個輕鬆日或休息日。"
+          }
+        }
+      }
+    },
+    "No cardiovascular sessions yet" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Noch keine Herz-Kreislauf-Einheiten"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No cardiovascular sessions yet"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aún no hay sesiones cardiovasculares"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucune séance cardiovasculaire pour le moment"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nessuna sessione cardiovascolare per ora"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Brak sesji sercowo-naczyniowych"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ainda não existem sessões cardiovasculares"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Сердечно-сосудистых тренировок пока нет"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "还没有心血管训练"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "還沒有心血管訓練"
+          }
+        }
+      }
+    },
+    "No usable heart-rate trace in this window, so cardiovascular load is not estimated" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In diesem Zeitraum gibt es keine verwertbare Herzfrequenzaufzeichnung; daher wird die Herz-Kreislauf-Last nicht geschätzt"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No usable heart-rate trace in this window, so cardiovascular load is not estimated"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No hay un registro de frecuencia cardíaca utilizable en este periodo, por lo que no se estima la carga cardiovascular"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucun tracé de fréquence cardiaque exploitable sur cette période ; la charge cardiovasculaire n’est donc pas estimée"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nessuna traccia di frequenza cardiaca utilizzabile in questo periodo, quindi il carico cardiovascolare non viene stimato"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "W tym okresie nie ma użytecznego zapisu tętna, dlatego obciążenie sercowo-naczyniowe nie jest szacowane"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Não existe um registo de frequência cardíaca utilizável neste período, pelo que a carga cardiovascular não é estimada"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "В этом периоде нет пригодной записи пульса, поэтому сердечно-сосудистая нагрузка не оценивается"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此时间段没有可用的心率记录，因此不估算心血管负荷"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此時間範圍沒有可用的心率記錄，因此不估算心血管負荷"
+          }
+        }
+      }
+    },
+    "No working sets in the last 7 days" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keine Arbeitssätze in den letzten 7 Tagen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No working sets in the last 7 days"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No hay series de trabajo en los últimos 7 días"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucune série de travail au cours des 7 derniers jours"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nessuna serie allenante negli ultimi 7 giorni"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Brak serii roboczych w ciągu ostatnich 7 dni"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sem séries de trabalho nos últimos 7 dias"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Нет рабочих подходов за последние 7 дней"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "过去 7 天没有有效组"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "過去 7 天沒有有效組"
+          }
+        }
+      }
+    },
+    "NOOP compares the last 7 days with an earlier, non-overlapping baseline. A partial training day stays visible as a lower bound but leaves the comparison. After eight complete weeks, robust personal variation replaces fixed population-style bands." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP vergleicht die letzten 7 Tage mit einer früheren, nicht überlappenden Basis. Ein teilweise gemessener Trainingstag bleibt als Untergrenze sichtbar, fließt aber nicht in den Vergleich ein. Nach acht vollständigen Wochen ersetzen robuste persönliche Schwankungen feste, bevölkerungsbezogene Bereiche."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP compares the last 7 days with an earlier, non-overlapping baseline. A partial training day stays visible as a lower bound but leaves the comparison. After eight complete weeks, robust personal variation replaces fixed population-style bands."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP compara los últimos 7 días con una base anterior que no se solapa. Un día de entrenamiento medido parcialmente sigue visible como límite inferior, pero queda fuera de la comparación. Tras ocho semanas completas, la variación personal robusta sustituye a los intervalos fijos poblacionales."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP compare les 7 derniers jours à une référence antérieure sans chevauchement. Une journée d’entraînement partiellement mesurée reste visible comme limite inférieure, mais est exclue de la comparaison. Après huit semaines complètes, une variation personnelle robuste remplace les plages fixes issues de la population."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP confronta gli ultimi 7 giorni con una base precedente non sovrapposta. Un giorno di allenamento misurato solo in parte resta visibile come limite inferiore, ma è escluso dal confronto. Dopo otto settimane complete, una variazione personale robusta sostituisce gli intervalli fissi basati sulla popolazione."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP porównuje ostatnie 7 dni z wcześniejszą, niepokrywającą się bazą. Częściowo zmierzony dzień treningowy pozostaje widoczny jako dolna granica, ale nie wchodzi do porównania. Po ośmiu pełnych tygodniach odporna zmienność osobista zastępuje stałe zakresy populacyjne."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O NOOP compara os últimos 7 dias com uma base anterior sem sobreposição. Um dia de treino parcialmente medido continua visível como limite inferior, mas fica fora da comparação. Após oito semanas completas, a variação pessoal robusta substitui os intervalos fixos populacionais."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP сравнивает последние 7 дней с более ранней, непересекающейся базой. Частично измеренный тренировочный день остаётся видимым как нижняя граница, но исключается из сравнения. После восьми полных недель устойчивый личный разброс заменяет фиксированные популяционные диапазоны."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP 将最近 7 天与更早且不重叠的基线比较。部分测量的训练日仍会显示为下限，但不参与比较。满八个完整周后，将使用稳健的个人波动范围代替固定的人群区间。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP 將最近 7 天與更早且不重疊的基準比較。部分測量的訓練日仍會顯示為下限，但不參與比較。滿八個完整週後，將使用穩健的個人波動範圍取代固定的人群區間。"
+          }
+        }
+      }
+    },
+    "Only %lld of %lld sessions are complete; the measured total is a lower bound" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nur %lld von %lld Einheiten sind vollständig; die gemessene Summe ist eine Untergrenze"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Only %lld of %lld sessions are complete; the measured total is a lower bound"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Solo %lld de %lld sesiones están completas; el total medido es un límite inferior"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Seules %lld séances sur %lld sont complètes ; le total mesuré constitue une limite inférieure"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Solo %lld sessioni su %lld sono complete; il totale misurato è un limite inferiore"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tylko %lld z %lld sesji jest kompletnych; zmierzona suma jest dolną granicą"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apenas %lld de %lld sessões estão completas; o total medido é um limite inferior"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Полностью учтены только %lld из %lld тренировок; измеренная сумма является нижней границей"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "仅 %lld/%lld 次训练完整；测得的总量只是下限"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "僅 %lld/%lld 次訓練完整；測得的總量只是下限"
+          }
+        }
+      }
+    },
+    "Only %lld of %lld working sets in the last 7 days carry an RPE, so most of the weighting is estimated" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nur %lld von %lld Arbeitssätzen in den letzten 7 Tagen haben eine RPE; daher ist der Großteil der Gewichtung geschätzt"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Only %lld of %lld working sets in the last 7 days carry an RPE, so most of the weighting is estimated"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Solo %lld de %lld series de trabajo de los últimos 7 días tienen RPE, por lo que la mayor parte de la ponderación es estimada"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Seules %lld séries de travail sur %lld au cours des 7 derniers jours ont une RPE ; la majeure partie de la pondération est donc estimée"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Solo %lld serie allenanti su %lld negli ultimi 7 giorni hanno un RPE, quindi gran parte della ponderazione è stimata"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tylko %lld z %lld serii roboczych z ostatnich 7 dni ma RPE, więc większość ważenia jest szacowana"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apenas %lld de %lld séries de trabalho nos últimos 7 dias têm RPE, pelo que a maior parte da ponderação é estimada"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Только %lld из %lld рабочих подходов за последние 7 дней имеют RPE, поэтому большая часть взвешивания является оценочной"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "过去 7 天仅 %lld/%lld 个有效组有 RPE，因此大部分加权值为估计值"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "過去 7 天僅 %lld/%lld 個有效組有 RPE，因此大部分加權值為估計值"
+          }
+        }
+      }
+    },
+    "Performance evidence" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Leistungsnachweis"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Performance evidence"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Evidencia de rendimiento"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Données de performance"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dati sulle prestazioni"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dane o wynikach"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Evidência de desempenho"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Данные о результативности"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "表现依据"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "表現依據"
+          }
+        }
+      }
+    },
+    "Performance stable" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Leistung stabil"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Performance stable"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rendimiento estable"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Performances stables"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Prestazioni stabili"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wyniki stabilne"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Desempenho estável"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Результативность стабильна"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "表现稳定"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "表現穩定"
+          }
+        }
+      }
+    },
+    "Performance trending down" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Leistung mit fallender Tendenz"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Performance trending down"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rendimiento con tendencia descendente"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Performance en baisse"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Prestazioni in calo"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tendencja spadkowa wyników"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Desempenho com tendência descendente"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Результативность снижается"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "表现呈下降趋势"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "表現呈下降趨勢"
+          }
+        }
+      }
+    },
+    "Persistent overload pattern" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Anhaltendes Überlastungsmuster"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Persistent overload pattern"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Patrón persistente de sobrecarga"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Profil de surcharge persistant"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Schema persistente di sovraccarico"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Utrzymujący się wzorzec przeciążenia"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Padrão persistente de sobrecarga"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Устойчивый паттерн перегрузки"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "持续过载模式"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "持續過載模式"
+          }
+        }
+      }
+    },
+    "Personal baseline" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Persönliche Basis"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Personal baseline"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Base personal"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Référence personnelle"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Base personale"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Baza osobista"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Base pessoal"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Личная база"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "个人基线"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "個人基準"
+          }
+        }
+      }
+    },
+    "Productive development" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Produktive Entwicklung"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Productive development"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Evolución productiva"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Évolution productive"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Evoluzione produttiva"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Produktywny rozwój"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Evolução produtiva"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Продуктивное развитие"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "有效进展"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "有效進展"
+          }
+        }
+      }
+    },
+    "Rate %@ from 1 to 10 for your Session Load." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bewerte %@ für deine Session Load von 1 bis 10."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rate %@ from 1 to 10 for your Session Load."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Valora %@ del 1 al 10 para tu carga de sesión."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Évaluez %@ de 1 à 10 pour votre charge de séance."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Valuta %@ da 1 a 10 per il carico della sessione."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Oceń %@ w skali od 1 do 10 dla obciążenia sesji."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Avalie %@ de 1 a 10 para a sua carga da sessão."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Оцените %@ от 1 до 10 для нагрузки тренировки."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请为 %@ 的训练负荷按 1 至 10 分评分。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "請為 %@ 的訓練負荷按 1 至 10 分評分。"
+          }
+        }
+      }
+    },
+    "Rated about 30 minutes after training" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Etwa 30 Minuten nach dem Training bewertet"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rated about 30 minutes after training"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Valorado unos 30 minutos después de entrenar"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Évalué environ 30 minutes après l’entraînement"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Valutato circa 30 minuti dopo l’allenamento"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ocena około 30 minut po treningu"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Avaliado cerca de 30 minutos após o treino"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Оценено примерно через 30 минут после тренировки"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "训练后约 30 分钟评价"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "訓練後約 30 分鐘評價"
+          }
+        }
+      }
+    },
+    "Rated immediately after training" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Direkt nach dem Training bewertet"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rated immediately after training"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Valorado justo después de entrenar"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Évalué juste après l’entraînement"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Valutato subito dopo l’allenamento"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ocena bezpośrednio po treningu"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Avaliado imediatamente após o treino"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Оценено сразу после тренировки"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "训练后立即评价"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "訓練後立即評價"
+          }
+        }
+      }
+    },
+    "Rated later" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Später bewertet"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rated later"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Valorado más tarde"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Évalué plus tard"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Valutato più tardi"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ocena później"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Avaliado mais tarde"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Оценено позже"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "稍后评价"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "稍後評價"
+          }
+        }
+      }
+    },
+    "Rating time unknown" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bewertungszeitpunkt unbekannt"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rating time unknown"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hora de valoración desconocida"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Heure d’évaluation inconnue"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ora della valutazione sconosciuta"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Czas oceny nieznany"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hora da avaliação desconhecida"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Время оценки неизвестно"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "评价时间未知"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "評價時間未知"
+          }
+        }
+      }
+    },
+    "Recovery signals were strained on %lld of %lld measured nights." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Erholungssignale waren in %lld von %lld gemessenen Nächten auffällig."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recovery signals were strained on %lld of %lld measured nights."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Las señales de recuperación fueron desfavorables en %lld de %lld noches medidas."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Les signaux de récupération étaient défavorables pendant %lld nuits mesurées sur %lld."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "I segnali di recupero erano sfavorevoli in %lld notti misurate su %lld."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sygnały regeneracji były niekorzystne podczas %lld z %lld zmierzonych nocy."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Os sinais de recuperação estavam desfavoráveis em %lld de %lld noites medidas."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Показатели восстановления были неблагоприятными в %lld из %lld измеренных ночей."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld/%lld 个已测夜晚的恢复信号不佳。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld/%lld 個已測夜晚的恢復訊號不佳。"
+          }
+        }
+      }
+    },
+    "Relative load is descriptive. Productive development requires a clear performance trend: estimated one-rep max for strength or VO₂max within one consistent measurement method for cardiovascular training." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die relative Last ist beschreibend. Eine produktive Entwicklung erfordert einen klaren Leistungstrend: das geschätzte Einer-Wiederholungsmaximum bei Krafttraining oder VO₂max innerhalb einer einheitlichen Messmethode beim Herz-Kreislauf-Training."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Relative load is descriptive. Productive development requires a clear performance trend: estimated one-rep max for strength or VO₂max within one consistent measurement method for cardiovascular training."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La carga relativa es descriptiva. Una evolución productiva requiere una tendencia clara del rendimiento: máximo estimado de una repetición para fuerza o VO₂max con un único método de medición coherente para entrenamiento cardiovascular."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La charge relative est descriptive. Une évolution productive exige une tendance nette des performances : maximum estimé sur une répétition pour la force ou VO₂max avec une même méthode d’estimation pour l’entraînement cardiovasculaire."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il carico relativo è descrittivo. Un’evoluzione produttiva richiede una chiara tendenza delle prestazioni: massimale stimato per una ripetizione nella forza o VO₂max con un metodo di misurazione coerente nell’allenamento cardiovascolare."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Obciążenie względne ma charakter opisowy. Produktywny rozwój wymaga wyraźnego trendu wyników: szacowanego maksimum jednego powtórzenia dla siły lub VO₂max mierzonego spójną metodą w treningu sercowo-naczyniowym."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A carga relativa é descritiva. Uma evolução produtiva exige uma tendência clara de desempenho: máximo estimado de uma repetição para força ou VO₂max dentro de um único método de medição consistente para treino cardiovascular."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Относительная нагрузка носит описательный характер. Для продуктивного развития нужен ясный тренд результативности: расчётный одноповторный максимум для силы или VO₂max, полученный одним последовательным методом при сердечно-сосудистых тренировках."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "相对负荷仅用于描述。有效进展需要明确的表现趋势：力量训练采用估算单次最大重量，心血管训练采用同一测量方法下的 VO₂max。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "相對負荷僅用於描述。有效進展需要明確的表現趨勢：力量訓練採用估算單次最大重量，心血管訓練採用同一測量方法下的 VO₂max。"
+          }
+        }
+      }
+    },
+    "The available performance data has no clear direction." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die verfügbaren Leistungsdaten zeigen keine klare Richtung."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The available performance data has no clear direction."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Los datos de rendimiento disponibles no muestran una dirección clara."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Les données de performance disponibles n’indiquent aucune direction claire."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "I dati disponibili sulle prestazioni non mostrano una direzione chiara."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dostępne dane o wynikach nie pokazują wyraźnego kierunku."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Os dados de desempenho disponíveis não apresentam uma direção clara."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Доступные данные о результативности не показывают ясного направления."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "现有表现数据没有明确方向。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "現有表現資料沒有明確方向。"
+          }
+        }
+      }
+    },
+    "The last 7 days are compared with the preceding 14. Treat this as an early estimate while your baseline grows." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die letzten 7 Tage werden mit den vorherigen 14 verglichen. Betrachte dies als frühe Schätzung, während deine Basis wächst."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The last 7 days are compared with the preceding 14. Treat this as an early estimate while your baseline grows."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Los últimos 7 días se comparan con los 14 anteriores. Trátalo como una estimación inicial mientras crece tu base."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Les 7 derniers jours sont comparés aux 14 précédents. Considérez ceci comme une estimation précoce pendant la constitution de votre référence."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gli ultimi 7 giorni vengono confrontati con i 14 precedenti. Considerala una stima iniziale mentre la tua base cresce."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ostatnie 7 dni jest porównywane z poprzednimi 14. Traktuj to jako wczesne oszacowanie, gdy Twoja baza rośnie."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Os últimos 7 dias são comparados com os 14 anteriores. Considere isto uma estimativa inicial enquanto a sua base cresce."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Последние 7 дней сравниваются с предыдущими 14. Считайте это ранней оценкой, пока формируется ваша база."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最近 7 天与之前 14 天比较。在个人基线建立期间，请将其视为早期估计。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最近 7 天與之前 14 天比較。在個人基準建立期間，請將其視為早期估計。"
+          }
+        }
+      }
+    },
+    "The last 7 days are compared with the preceding 28. Personal variation bands need eight complete weeks." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die letzten 7 Tage werden mit den vorherigen 28 verglichen. Persönliche Schwankungsbereiche benötigen acht vollständige Wochen."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The last 7 days are compared with the preceding 28. Personal variation bands need eight complete weeks."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Los últimos 7 días se comparan con los 28 anteriores. Los intervalos de variación personal necesitan ocho semanas completas."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Les 7 derniers jours sont comparés aux 28 précédents. Les plages de variation personnelles nécessitent huit semaines complètes."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gli ultimi 7 giorni vengono confrontati con i 28 precedenti. Gli intervalli di variazione personale richiedono otto settimane complete."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ostatnie 7 dni jest porównywane z poprzednimi 28. Osobiste zakresy zmienności wymagają ośmiu pełnych tygodni."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Os últimos 7 dias são comparados com os 28 anteriores. Os intervalos de variação pessoal exigem oito semanas completas."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Последние 7 дней сравниваются с предыдущими 28. Для личных диапазонов вариативности нужны восемь полных недель."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最近 7 天与之前 28 天比较。个人波动范围需要八个完整周的数据。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最近 7 天與之前 28 天比較。個人波動範圍需要八個完整週的資料。"
+          }
+        }
+      }
+    },
+    "The recent load is below your own comparison level." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die aktuelle Last liegt unter deinem eigenen Vergleichsniveau."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The recent load is below your own comparison level."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La carga reciente está por debajo de tu propio nivel de comparación."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La charge récente est inférieure à votre propre niveau de comparaison."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il carico recente è sotto il tuo livello di confronto."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ostatnie obciążenie jest poniżej Twojego poziomu porównawczego."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A carga recente está abaixo do seu próprio nível de comparação."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Недавняя нагрузка ниже вашего собственного уровня сравнения."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "近期负荷低于你自己的比较水平。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "近期負荷低於你自己的比較水平。"
+          }
+        }
+      }
+    },
+    "The recent load is higher than your usual variation." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die aktuelle Last liegt über deiner üblichen Schwankung."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The recent load is higher than your usual variation."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La carga reciente supera tu variación habitual."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La charge récente dépasse votre variation habituelle."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il carico recente supera la tua variazione abituale."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ostatnie obciążenie przekracza Twoją zwykłą zmienność."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A carga recente está acima da sua variação habitual."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Недавняя нагрузка выше вашего обычного диапазона."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "近期负荷高于你的平常波动范围。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "近期負荷高於你的平常波動範圍。"
+          }
+        }
+      }
+    },
+    "The recent load is well above your usual variation." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die aktuelle Last liegt deutlich über deiner üblichen Schwankung."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The recent load is well above your usual variation."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La carga reciente supera ampliamente tu variación habitual."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La charge récente dépasse nettement votre variation habituelle."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il carico recente supera nettamente la tua variazione abituale."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ostatnie obciążenie znacznie przekracza Twoją zwykłą zmienność."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A carga recente está muito acima da sua variação habitual."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Недавняя нагрузка значительно выше вашего обычного диапазона."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "近期负荷远高于你的平常波动范围。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "近期負荷遠高於你的平常波動範圍。"
+          }
+        }
+      }
+    },
+    "The recent load is within your usual variation." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die aktuelle Last liegt innerhalb deiner üblichen Schwankung."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The recent load is within your usual variation."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La carga reciente está dentro de tu variación habitual."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La charge récente se situe dans votre variation habituelle."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il carico recente rientra nella tua variazione abituale."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ostatnie obciążenie mieści się w Twojej zwykłej zmienności."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A carga recente está dentro da sua variação habitual."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Недавняя нагрузка находится в вашем обычном диапазоне."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "近期负荷处于你的平常波动范围内。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "近期負荷處於你的平常波動範圍內。"
+          }
+        }
+      }
+    },
+    "Well above usual" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deutlich höher als üblich"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Well above usual"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Muy por encima de lo habitual"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nettement au-dessus de l’habitude"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Molto sopra il solito"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Znacznie powyżej zwykłego poziomu"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Muito acima do habitual"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Значительно выше обычного"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "远高于平常"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "遠高於平常"
+          }
+        }
+      }
+    },
+    "Within usual" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Im üblichen Bereich"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Within usual"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dentro de lo habitual"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dans la plage habituelle"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nella norma"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "W zwykłym zakresie"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dentro do habitual"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "В обычном диапазоне"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "处于平常范围"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "處於平常範圍"
+          }
+        }
+      }
+    },
+    "Your measured load is available now. A first personal comparison appears after 21 complete days." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deine gemessene Last ist sofort verfügbar. Ein erster persönlicher Vergleich erscheint nach 21 vollständigen Tagen."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your measured load is available now. A first personal comparison appears after 21 complete days."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tu carga medida está disponible desde ahora. La primera comparación personal aparece tras 21 días completos."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Votre charge mesurée est disponible dès maintenant. Une première comparaison personnelle apparaît après 21 jours complets."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il carico misurato è disponibile da subito. Il primo confronto personale appare dopo 21 giorni completi."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zmierzone obciążenie jest dostępne od razu. Pierwsze osobiste porównanie pojawi się po 21 pełnych dniach."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A sua carga medida está disponível desde já. A primeira comparação pessoal aparece após 21 dias completos."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Измеренная нагрузка доступна сразу. Первое личное сравнение появится после 21 полного дня."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "测得的负荷会立即显示。满 21 个完整日后会出现首次个人比较。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "測得的負荷會立即顯示。滿 21 個完整日後會出現首次個人比較。"
+          }
+        }
+      }
+    },
+    "Your usual range is based on the robust variation in your own complete training weeks." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dein üblicher Bereich basiert auf der robusten Schwankung deiner eigenen vollständigen Trainingswochen."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your usual range is based on the robust variation in your own complete training weeks."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tu intervalo habitual se basa en la variación robusta de tus propias semanas de entrenamiento completas."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Votre plage habituelle repose sur la variation robuste de vos propres semaines d’entraînement complètes."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il tuo intervallo abituale si basa sulla variazione robusta delle tue settimane di allenamento complete."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Twój zwykły zakres opiera się na odpornej zmienności własnych pełnych tygodni treningowych."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O seu intervalo habitual baseia-se na variação robusta das suas próprias semanas de treino completas."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ваш обычный диапазон основан на устойчивом разбросе ваших собственных полных тренировочных недель."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你的平常范围基于你自己完整训练周的稳健波动。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你的平常範圍基於你自己完整訓練週的穩健波動。"
           }
         }
       }

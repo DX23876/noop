@@ -5,8 +5,10 @@ import XCTest
 /// against the component that was open when it was given, which means one physical session can carry a
 /// rating from its Hevy detail AND one from its Apple Health row, under different start seconds.
 final class TrainingLoadRatingsTests: XCTestCase {
-    private func entry(_ id: String, sessionId: String?, startTs: Int, rpe: Double) -> SessionRPEEntry {
-        SessionRPEEntry(id: id, sessionId: sessionId, startTs: startTs, rpe: rpe, sport: "Strength Training")
+    private func entry(_ id: String, sessionId: String?, startTs: Int, rpe: Double,
+                       ratedAtTs: Int? = nil) -> SessionRPEEntry {
+        SessionRPEEntry(id: id, sessionId: sessionId, startTs: startTs, rpe: rpe,
+                        sport: "Strength Training", ratedAtTs: ratedAtTs)
     }
 
     func testTwoRatingsOfOneCanonicalSessionCollapseToTheLatest() {
@@ -52,5 +54,15 @@ final class TrainingLoadRatingsTests: XCTestCase {
         let forwards = TrainingLoadModel.canonicalRatings(entries: [first, second], canonicalIdByStart: [:])
         let backwards = TrainingLoadModel.canonicalRatings(entries: [second, first], canonicalIdByStart: [:])
         XCTAssertEqual(forwards.map(\.id), backwards.map(\.id))
+    }
+
+    func testLatestAnswerWinsEvenWhenItBelongsToTheEarlierComponent() {
+        let laterComponent = entry("health", sessionId: "session|abc", startTs: 1_030, rpe: 6,
+                                   ratedAtTs: 2_000)
+        let latestAnswer = entry("hevy", sessionId: "session|abc", startTs: 1_000, rpe: 8,
+                                 ratedAtTs: 3_000)
+        let chosen = TrainingLoadModel.canonicalRatings(entries: [laterComponent, latestAnswer],
+                                                        canonicalIdByStart: [:])
+        XCTAssertEqual(chosen.map(\.id), ["hevy"])
     }
 }

@@ -194,6 +194,33 @@ public struct VO2maxResponse: Equatable, Sendable {
     public var latest: VO2maxReading? { readings.last }
 }
 
+/// Adaptation is reported separately from load: it requires a measured performance response.
+public enum TrainingAdaptationState: String, Equatable, Sendable, Codable {
+    case improving
+    case stable
+    case declining
+    case unclear
+    case notEnoughData
+}
+
+public enum TrainingAdaptationEvidence: String, Equatable, Sendable, Codable {
+    case estimatedOneRepMax
+    case vo2max
+}
+
+public struct TrainingAdaptationReading: Equatable, Sendable {
+    public let state: TrainingAdaptationState
+    public let evidence: TrainingAdaptationEvidence
+    public let observations: Int
+
+    public init(state: TrainingAdaptationState, evidence: TrainingAdaptationEvidence,
+                observations: Int) {
+        self.state = state
+        self.evidence = evidence
+        self.observations = observations
+    }
+}
+
 /// The warning above the six states: overreaching that has lasted, with the lane's performance falling
 /// and recovery strained. Not a diagnosis — see `TrainingStatusModel.sustainedOverreaching`.
 public struct SustainedOverreaching: Equatable, Sendable {
@@ -262,6 +289,8 @@ public enum TrainingStatusModel {
     public static let responseWindowDays = 42
     /// Fewer evaluable lifts than this and the strength verdict falls back to load alone.
     public static let minimumLiftsForResponse = 2
+    /// Recovery context needs most of a week, not one or two noisy nights.
+    public static let minimumRecoveryNights = 4
     /// Recent nights read for the recovery state.
     ///
     /// A WEEK, so the reading describes a period rather than a weekend. Over three nights one poor night
@@ -650,7 +679,31 @@ public enum TrainingStatusModel {
     /// read as "your fitness is improving", which is a claim about the estimator rather than the
     /// athlete. Below this the direction is `unclear`: the line agreed, the change was too small to mean
     /// anything.
-    public static let vo2maxMinimumChange = 1.0
+    public static let vo2maxMinimumChange = 1.5
+
+    public static func strengthAdaptation(_ response: StrengthResponseReading) -> TrainingAdaptationReading {
+        let state: TrainingAdaptationState
+        switch response.direction {
+        case .rising: state = .improving
+        case .falling: state = .declining
+        case .unclear: state = .unclear
+        case .unknown: state = .notEnoughData
+        }
+        return TrainingAdaptationReading(state: state, evidence: .estimatedOneRepMax,
+                                         observations: response.evaluated)
+    }
+
+    public static func cardiovascularAdaptation(_ response: VO2maxResponse) -> TrainingAdaptationReading {
+        let state: TrainingAdaptationState
+        switch response.direction {
+        case .improving: state = .improving
+        case .worsening: state = .declining
+        case .unclear: state = .unclear
+        case .unknown: state = .notEnoughData
+        }
+        return TrainingAdaptationReading(state: state, evidence: .vo2max,
+                                         observations: response.readings.count)
+    }
 
     /// Which way VO₂max has moved over the last `vo2maxWindowDays` — cardio's answer to "is it working".
     ///
@@ -763,8 +816,8 @@ public enum TrainingStatusModel {
     /// HRV, resting HR, respiratory rate. Its training-load signal is deliberately ignored: it is itself
     /// a heart-rate load ratio, and letting it vote here would count the cardio lane twice. A night is
     /// strained when a recovery signal is `.bad` or two are `.watch`; recovery is strained when
-    /// `strainedNightsNeeded(ofNightsRead:)` of the nights read are. Fewer than two nights with any
-    /// recovery signal is `unknown`, because one night cannot tell a trend from a bad night's sleep.
+    /// `strainedNightsNeeded(ofNightsRead:)` of the nights read are. Fewer than four nights with any
+    /// recovery signal is `unknown`, because a few noisy nights cannot establish a week-level pattern.
     public static func recovery(days: [DailyMetric], through day: String) -> RecoveryReading {
         let recoveryKeys: Set<String> = ["hrv", "rhr", "respRate"]
         var strainedNights = 0
@@ -788,7 +841,7 @@ public enum TrainingStatusModel {
             cursor = WeeklyDigestEngine.addDays(cursor, -1)
         }
         let state: RecoveryState
-        if nightsRead < 2 { state = .unknown }
+        if nightsRead < minimumRecoveryNights { state = .unknown }
         else if strainedNights >= strainedNightsNeeded(ofNightsRead: nightsRead) { state = .strained }
         else { state = .holding }
         return RecoveryReading(state: state, strainedNights: strainedNights, nightsRead: nightsRead,

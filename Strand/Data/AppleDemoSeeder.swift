@@ -599,17 +599,15 @@ enum AppleDemoSeeder {
         // Whole-session RPE is a separate observation from the set ratings above. Seed most, not all,
         // so the Training Load screen demonstrates both a real sRPE×duration series and honest missing
         // coverage. These rows use the same sidecar the detail screen writes.
-        let sessionRatings = sessions.enumerated().compactMap { index, workout -> LabMarkerRow? in
+        let sessionRatings = sessions.enumerated().compactMap { index, workout -> TrainingSessionRating? in
             guard !index.isMultiple(of: 5) else { return nil }
             let rpe = workout.title.contains("heavy") ? 8.5 : 7.5
-            return LabMarkerRow(
-                id: "session-rpe-\(workout.startTs)", deviceId: Repository.sessionRPEDeviceId,
-                markerKey: Repository.sessionRPEMarkerKey, category: Repository.sessionRPECategory,
-                day: isoFmt.string(from: Date(timeIntervalSince1970: TimeInterval(workout.startTs))),
-                takenAt: workout.startTs, value: rpe, valueText: nil, unit: "RPE",
-                source: Repository.sessionRPESource, note: workout.title, referenceText: nil)
+            return TrainingSessionRating(
+                id: "session-rpe-\(workout.startTs)", sessionId: nil,
+                workoutStartTs: workout.startTs, ratedAtTs: workout.endTs + 30 * 60,
+                rpe: rpe, sport: workout.title, source: Repository.sessionRPESource)
         }
-        _ = try await store.upsertLabMarkers(sessionRatings)
+        for rating in sessionRatings { try await store.upsertTrainingSessionRating(rating) }
         return sessions.count
     }
 

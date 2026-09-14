@@ -432,6 +432,46 @@ public enum StrainScorer {
                                 sampleCount: hr.count, spanSeconds: span)
     }
 
+    /// Classic Edwards TRIMP for the Training Load screen, based on percentage of HRmax.
+    ///
+    /// This is intentionally separate from NOOP's daily Effort recipe, which uses heart-rate reserve.
+    /// Recording gaps longer than two minutes contribute no duration; pricing the gap would invent work
+    /// while the sensor was silent.
+    public static func edwardsTrainingLoad(_ hr: [HRSample], maxHR: Double? = nil) -> CardioLoadResult? {
+        let effectiveMax = maxHR ?? Double(defaultMaxHR())
+        guard effectiveMax > 0 else { return nil }
+        let ordered = hr.sorted { $0.ts < $1.ts }
+        let span = max(0, (ordered.last?.ts ?? 0) - (ordered.first?.ts ?? 0))
+        let enough = ordered.count >= minReadings
+            || (ordered.count >= minSparseReadings && span >= minSpanSeconds)
+        guard enough else { return nil }
+
+        var durations = [Double](repeating: fallbackSampleMin, count: ordered.count)
+        if ordered.count > 1 {
+            for index in 0..<(ordered.count - 1) {
+                let gap = ordered[index + 1].ts - ordered[index].ts
+                durations[index] = gap > 0 && Double(gap) <= maxSampleGapMin * 60
+                    ? Double(gap) / 60 : 0
+            }
+            durations[ordered.count - 1] = durations.dropLast().last(where: { $0 > 0 }) ?? fallbackSampleMin
+        }
+
+        var trimp = 0.0
+        for index in ordered.indices {
+            let percentage = Double(ordered[index].bpm) / effectiveMax
+            let weight: Double
+            if percentage >= 0.90 { weight = 5 }
+            else if percentage >= 0.80 { weight = 4 }
+            else if percentage >= 0.70 { weight = 3 }
+            else if percentage >= 0.60 { weight = 2 }
+            else if percentage >= 0.50 { weight = 1 }
+            else { weight = 0 }
+            trimp += weight * durations[index]
+        }
+        return CardioLoadResult(trimp: trimp, effort: trimpToStrain(trimp),
+                                sampleCount: ordered.count, spanSeconds: span)
+    }
+
     /// One line naming what an Effort score was computed FROM, or why it could not be computed.
     ///
     /// The gap this closes: `strain` is the only score in the app with no trace at all. WorkoutDetector,

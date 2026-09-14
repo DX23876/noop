@@ -1,5 +1,8 @@
 import SwiftUI
 import StrandDesign
+#if canImport(UserNotifications)
+import UserNotifications
+#endif
 
 // MARK: - Whole-session perceived load
 //
@@ -43,6 +46,9 @@ struct SessionRPECard: View {
                 saved = await repo.sessionRPE(at: startTs)
             }
             if let saved { draft = saved.rpe }
+            if saved == nil, let durationS {
+                await SessionRPEReminder.schedule(startTs: startTs, durationS: durationS, sport: sport)
+            }
         }
     }
 
@@ -73,6 +79,9 @@ struct SessionRPECard: View {
                     .font(StrandFont.caption)
                     .foregroundStyle(StrandPalette.textTertiary)
                     .fixedSize(horizontal: false, vertical: true)
+                Text(ratingTiming(entry))
+                    .font(StrandFont.caption)
+                    .foregroundStyle(StrandPalette.textTertiary)
             }
             Spacer(minLength: 8)
             Button("Edit") {
@@ -154,6 +163,7 @@ struct SessionRPECard: View {
                 saved = await repo.sessionRPE(at: startTs)
             }
             editing = false
+            SessionRPEReminder.cancel(startTs: startTs)
         }
         saving = false
     }
@@ -168,3 +178,47 @@ struct SessionRPECard: View {
         saving = false
     }
 }
+
+private extension SessionRPECard {
+    func ratingTiming(_ entry: SessionRPEEntry) -> String {
+        guard let ratedAt = entry.ratedAtTs else { return String(localized: "Rating time unknown") }
+        let end = startTs + Int(durationS ?? 0)
+        let delayMinutes = Int((Double(ratedAt - end) / 60).rounded())
+        if (20...45).contains(delayMinutes) { return String(localized: "Rated about 30 minutes after training") }
+        if delayMinutes < 20 { return String(localized: "Rated immediately after training") }
+        return String(localized: "Rated later")
+    }
+}
+
+#if canImport(UserNotifications)
+enum SessionRPEReminder {
+    static func id(_ startTs: Int) -> String { "session-rpe-reminder-\(startTs)" }
+
+    static func schedule(startTs: Int, durationS: Double, sport: String) async {
+        let centre = UNUserNotificationCenter.current()
+        let settings = await centre.notificationSettings()
+        guard settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional else {
+            return
+        }
+        let end = Date(timeIntervalSince1970: TimeInterval(startTs) + durationS)
+        let fire = end.addingTimeInterval(30 * 60)
+        guard fire > Date() else { return }
+        let content = UNMutableNotificationContent()
+        content.title = String(localized: "How did the session feel?")
+        content.body = String(localized: "Rate \(sport) from 1 to 10 for your Session Load.")
+        content.sound = .default
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: fire.timeIntervalSinceNow, repeats: false)
+        centre.removePendingNotificationRequests(withIdentifiers: [id(startTs)])
+        try? await centre.add(UNNotificationRequest(identifier: id(startTs), content: content, trigger: trigger))
+    }
+
+    static func cancel(startTs: Int) {
+        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [id(startTs)])
+    }
+}
+#else
+enum SessionRPEReminder {
+    static func schedule(startTs: Int, durationS: Double, sport: String) async {}
+    static func cancel(startTs: Int) {}
+}
+#endif

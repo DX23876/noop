@@ -9,7 +9,7 @@ import Foundation
 //
 // So there are three figures, deliberately separate:
 //
-//   • CARDIO LOAD — heart-rate derived. NOOP already has it as Effort.
+//   • CARDIOVASCULAR LOAD — classic Edwards TRIMP, kept separate from Effort.
 //   • STRENGTH LOAD — working sets, weighted by how close each went to failure.
 //   • SESSION LOAD — session RPE × duration (Foster 1998), the athlete's own verdict on the whole
 //     session. Not a fallback for the other two: a different question, answerable on days the set
@@ -38,6 +38,11 @@ public struct StrengthLoad: Equatable, Sendable {
     /// Share of those sets that carried an RPE. Below `TrainingLoad.trustedRatedShare` the weighting is
     /// mostly the unrated default, which the caller should say out loud rather than imply precision.
     public let ratedShare: Double
+
+    /// True when unrated sets used the athlete's recent ratings instead of the neutral start value.
+    public let usedPersonalUnratedEstimate: Bool
+    /// Weight assigned to each unrated set. Exposed so the UI can explain the estimate.
+    public let unratedWeight: Double
 
     public var isMostlyUnrated: Bool { ratedShare < TrainingLoad.trustedRatedShare }
 }
@@ -87,6 +92,41 @@ public struct LoadDistribution: Equatable, Sendable {
     public let knownDays: Int
 }
 
+/// How much personal history is available for interpreting a load.
+public enum TrainingLoadMaturity: String, Equatable, Sendable, Codable {
+    case immediate
+    case earlyEstimate
+    case baselineGrowing
+    case personalBaseline
+}
+
+/// A neutral description of the current week relative to the athlete's own history.
+public enum RelativeLoadBand: String, Equatable, Sendable, Codable {
+    case below
+    case usual
+    case higher
+    case muchHigher
+}
+
+/// The robust weekly range used once a personal baseline is established.
+public struct PersonalLoadRange: Equatable, Sendable {
+    public let median: Double
+    public let medianAbsoluteDeviation: Double
+    public let usualLowerBound: Double
+    public let usualUpperBound: Double
+    public let muchHigherBound: Double
+}
+
+/// Relative load, its precision state and the personal evidence behind it.
+public struct RelativeLoadReading: Equatable, Sendable {
+    public let maturity: TrainingLoadMaturity
+    public let trend: LoadTrend?
+    public let band: RelativeLoadBand?
+    public let completeDays: Int
+    public let completeWeeks: Int
+    public let personalRange: PersonalLoadRange?
+}
+
 public enum TrainingLoad {
 
     /// Recent window, in days.
@@ -102,7 +142,19 @@ public enum TrainingLoad {
     public static let trustedRatedShare = 0.5
     /// Known days a distribution needs before monotony is reported. A standard deviation over three
     /// days describes the three days, not the week.
-    public static let minimumDistributionDays = 5
+    public static let minimumDistributionDays = recentWindow
+    /// Complete calendar days required for a provisional 7-versus-14-day comparison.
+    public static let earlyComparisonDays = 21
+    /// Complete calendar days required for the standard disjoint 7-versus-28-day comparison.
+    public static let growingBaselineDays = comparisonWindow
+    /// Complete weeks required before personal variability is interpreted.
+    public static let personalBaselineWeeks = 8
+    /// Enough recent ratings to describe an unrated set as the athlete's own typical set.
+    public static let minimumPersonalRPERatings = 3
+    /// Neutral start value for an unrated set before the athlete has a usable 28-day rating history.
+    /// This is the continuous RPE curve at 7.5 (0.6), rather than the muscle-map fallback of 0.75,
+    /// which would assume an unreported set was close to RPE 8.5.
+    public static let neutralUnratedWeight = 0.6
 
     /// Effort-weighted working sets.
     ///
@@ -117,9 +169,13 @@ public enum TrainingLoad {
     /// worse, a change in rating habit moved the weekly figure on its own: start rating your easy sets
     /// and the load appears to fall. Borrowing the athlete's own median keeps an unrated set looking
     /// like their typical rated one, which is the honest guess when the set itself says nothing.
-    public static func strengthLoad(setRpes: [Double?]) -> StrengthLoad {
+    public static func strengthLoad(setRpes: [Double?], historicalRpes: [Double] = []) -> StrengthLoad {
         let ratedWeights = setRpes.compactMap { $0 }.map { MuscleStimulus.proximityFactor(rpe: $0) }
-        let unratedWeight = median(ratedWeights) ?? MuscleStimulus.unratedProximity
+        let historyWeights = historicalRpes.filter { $0.isFinite && (1...10).contains($0) }
+            .map { MuscleStimulus.proximityFactor(rpe: $0) }
+        let usesPersonal = historyWeights.count >= minimumPersonalRPERatings
+        let unratedWeight = usesPersonal ? (median(historyWeights) ?? neutralUnratedWeight)
+                                         : neutralUnratedWeight
         let weighted = setRpes.reduce(0.0) { total, rpe in
             total + (rpe == nil ? unratedWeight : MuscleStimulus.proximityFactor(rpe: rpe))
         }
@@ -128,7 +184,98 @@ public enum TrainingLoad {
             weightedSets: weighted,
             workingSets: setRpes.count,
             ratedSets: rated,
-            ratedShare: setRpes.isEmpty ? 0 : Double(rated) / Double(setRpes.count))
+            ratedShare: setRpes.isEmpty ? 0 : Double(rated) / Double(setRpes.count),
+            usedPersonalUnratedEstimate: usesPersonal,
+            unratedWeight: unratedWeight)
+    }
+
+    /// Builds the staged personal comparison without hiding the first eight weeks of data.
+    ///
+    /// A comparison window is all-or-nothing. Nil means an observed training day was incomplete; it is
+    /// never averaged away and never turned into a rest-day zero. Personal ranges use the preceding
+    /// seven complete weekly totals, leaving the current week out of its own comparator.
+    public static func relativeLoad(daily: [Double?]) -> RelativeLoadReading {
+        let completeDays = daily.compactMap { $0 }.count
+        let completeWeeks = stride(from: 0, to: daily.count, by: recentWindow).reduce(0) { count, start in
+            let end = min(start + recentWindow, daily.count)
+            return count + (end - start == recentWindow && daily[start..<end].allSatisfy { $0 != nil } ? 1 : 0)
+        }
+
+        var maturity: TrainingLoadMaturity
+        if daily.count >= personalBaselineWeeks * recentWindow,
+           daily.suffix(personalBaselineWeeks * recentWindow).allSatisfy({ $0 != nil }) {
+            maturity = .personalBaseline
+        } else if completeDays >= growingBaselineDays {
+            maturity = .baselineGrowing
+        } else if completeDays >= earlyComparisonDays {
+            maturity = .earlyEstimate
+        } else {
+            maturity = .immediate
+        }
+
+        let comparison: LoadTrend?
+        if maturity == .earlyEstimate {
+            comparison = strictTrend(daily: daily, recent: recentWindow, baseline: 14)
+        } else if maturity == .baselineGrowing || maturity == .personalBaseline {
+            comparison = strictTrend(daily: daily, recent: recentWindow, baseline: baselineWindow)
+        } else {
+            comparison = nil
+        }
+
+        var range: PersonalLoadRange?
+        var relativeBand: RelativeLoadBand?
+        if maturity == .personalBaseline {
+            let window = Array(daily.suffix(personalBaselineWeeks * recentWindow)).compactMap { $0 }
+            let totals = stride(from: 0, to: window.count, by: recentWindow).map {
+                window[$0..<($0 + recentWindow)].reduce(0, +)
+            }
+            if let current = totals.last, totals.count == personalBaselineWeeks,
+               let centre = median(Array(totals.dropLast())), centre > 0 {
+                let deviations = totals.dropLast().map { abs($0 - centre) }
+                if let mad = median(deviations), mad > 0 {
+                    let robustSpread = 1.4826 * mad
+                    let lower = max(0, centre - robustSpread)
+                    let upper = centre + robustSpread
+                    let high = centre + 2 * robustSpread
+                    range = PersonalLoadRange(median: centre, medianAbsoluteDeviation: mad,
+                                              usualLowerBound: lower, usualUpperBound: upper,
+                                              muchHigherBound: high)
+                    if current < lower { relativeBand = .below }
+                    else if current <= upper { relativeBand = .usual }
+                    else if current <= high { relativeBand = .higher }
+                    else { relativeBand = .muchHigher }
+                } else {
+                    // Eight flat weeks do not define personal variation bands. Keep the comparison,
+                    // but do not present arbitrary decimal boundaries as a mature baseline.
+                    maturity = .baselineGrowing
+                }
+            } else {
+                maturity = .baselineGrowing
+            }
+        }
+
+        return RelativeLoadReading(maturity: maturity, trend: comparison, band: relativeBand,
+                                   completeDays: completeDays, completeWeeks: completeWeeks,
+                                   personalRange: range)
+    }
+
+    /// Dated convenience form. Missing keys are known rest days; `unknownDays` are incomplete training
+    /// days. History starts with the first load or explicitly unknown training day, whichever came first.
+    public static func relativeLoad(dailyByDay: [String: Double], through day: String,
+                                    unknownDays: Set<String> = []) -> RelativeLoadReading {
+        guard let firstDay = (Set(dailyByDay.keys).union(unknownDays)).min() else {
+            return relativeLoad(daily: [])
+        }
+        let available = max(0, StrengthSession.daysBetween(firstDay, and: day)) + 1
+        let count = min(personalBaselineWeeks * recentWindow, available)
+        var cursor = WeeklyDigestEngine.addDays(day, -(count - 1))
+        var daily: [Double?] = []
+        daily.reserveCapacity(count)
+        for _ in 0..<count {
+            daily.append(unknownDays.contains(cursor) ? nil : (dailyByDay[cursor] ?? 0))
+            cursor = WeeklyDigestEngine.addDays(cursor, 1)
+        }
+        return relativeLoad(daily: daily)
     }
 
     /// Foster's session-RPE load: the session's own RPE times its duration in minutes.
@@ -234,9 +381,11 @@ public enum TrainingLoad {
     /// earlier week was empty (there is no percentage change from nothing).
     public static func weekOverWeek(daily: [Double?], week: Int = recentWindow) -> Double? {
         guard daily.count >= week * 2 else { return nil }
-        let thisWeek = daily.suffix(week).compactMap { $0 }
-        let lastWeek = daily.suffix(week * 2).prefix(week).compactMap { $0 }
-        guard !thisWeek.isEmpty, !lastWeek.isEmpty else { return nil }
+        let thisSlice = daily.suffix(week)
+        let lastSlice = daily.suffix(week * 2).prefix(week)
+        guard thisSlice.allSatisfy({ $0 != nil }), lastSlice.allSatisfy({ $0 != nil }) else { return nil }
+        let thisWeek = thisSlice.compactMap { $0 }
+        let lastWeek = lastSlice.compactMap { $0 }
         let previous = lastWeek.reduce(0, +)
         guard previous > 0 else { return nil }
         return (thisWeek.reduce(0, +) - previous) / previous * 100
@@ -279,5 +428,19 @@ public enum TrainingLoad {
         let sorted = values.sorted()
         let middle = sorted.count / 2
         return sorted.count.isMultiple(of: 2) ? (sorted[middle - 1] + sorted[middle]) / 2 : sorted[middle]
+    }
+
+    private static func strictTrend(daily: [Double?], recent: Int, baseline: Int) -> LoadTrend? {
+        guard daily.count >= recent + baseline else { return nil }
+        let recentSlice = daily.suffix(recent)
+        let baselineSlice = daily.dropLast(recent).suffix(baseline)
+        guard recentSlice.allSatisfy({ $0 != nil }), baselineSlice.allSatisfy({ $0 != nil }) else { return nil }
+        let recentValues = recentSlice.compactMap { $0 }
+        let baselineValues = baselineSlice.compactMap { $0 }
+        let recentMean = recentValues.reduce(0, +) / Double(recent)
+        let baselineMean = baselineValues.reduce(0, +) / Double(baseline)
+        guard baselineMean > 0 else { return nil }
+        return LoadTrend(recentPerDay: recentMean, baselinePerDay: baselineMean,
+                         percentChange: (recentMean - baselineMean) / baselineMean * 100)
     }
 }

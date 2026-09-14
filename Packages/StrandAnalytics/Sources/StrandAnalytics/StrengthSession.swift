@@ -431,11 +431,22 @@ public enum StrengthSession {
     /// prices each set by how close it went to failure, on the same curve the muscle map uses.
     public static func weightedSetsByDay(_ workouts: [HevyWorkout],
                                          tzOffsetSeconds: Int = 0) -> [String: Double] {
+        let grouped = Dictionary(grouping: workouts) {
+            AnalyticsEngine.dayString($0.startTs, offsetSec: tzOffsetSeconds)
+        }
         var byDay: [String: Double] = [:]
-        for workout in workouts {
-            let day = AnalyticsEngine.dayString(workout.startTs, offsetSec: tzOffsetSeconds)
-            let rpes = workout.exercises.flatMap(\.workingSets).map(\.rpe)
-            byDay[day, default: 0] += TrainingLoad.strengthLoad(setRpes: rpes).weightedSets
+        for day in grouped.keys.sorted() {
+            let firstHistoryDay = WeeklyDigestEngine.addDays(day, -28)
+            let historyRPEs = workouts.compactMap { workout -> [Double]? in
+                let workoutDay = AnalyticsEngine.dayString(workout.startTs, offsetSec: tzOffsetSeconds)
+                guard workoutDay >= firstHistoryDay, workoutDay < day else { return nil }
+                return workout.exercises.flatMap(\.workingSets).compactMap(\.rpe)
+            }.flatMap { $0 }
+            let currentRPEs = (grouped[day] ?? []).flatMap { workout in
+                workout.exercises.flatMap(\.workingSets).map(\.rpe)
+            }
+            byDay[day] = TrainingLoad.strengthLoad(setRpes: currentRPEs,
+                                                   historicalRpes: historyRPEs).weightedSets
         }
         return byDay
     }
@@ -446,7 +457,8 @@ public enum StrengthSession {
     /// how much of it is the unrated default. This is the same arithmetic over the same sets, pooled, so
     /// the screen can report the rated count alongside the number it qualifies.
     public static func strengthLoad(_ workouts: [HevyWorkout]) -> StrengthLoad {
-        TrainingLoad.strengthLoad(setRpes: workouts.flatMap { $0.exercises.flatMap(\.workingSets).map(\.rpe) })
+        let rpes = workouts.flatMap { $0.exercises.flatMap(\.workingSets).map(\.rpe) }
+        return TrainingLoad.strengthLoad(setRpes: rpes, historicalRpes: rpes.compactMap { $0 })
     }
 
     /// How this week's strength load compares with the wearer's own recent level.

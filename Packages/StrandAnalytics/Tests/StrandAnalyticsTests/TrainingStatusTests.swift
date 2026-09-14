@@ -10,6 +10,16 @@ import WhoopStore
 /// falling, an unclear e1RM must not be called unproductive at the usual load, and a missing input must
 /// fall back to the load-only mapping rather than invent a response.
 final class TrainingStatusTests: XCTestCase {
+    func testMissingPerformanceEvidenceNeverClaimsAdaptation() {
+        let strength = TrainingStatusModel.strengthAdaptation(
+            StrengthResponseReading(direction: .unknown, rising: 0, falling: 0, unclear: 0))
+        let cardio = TrainingStatusModel.cardiovascularAdaptation(
+            VO2maxResponse(direction: .unknown, readings: [], slopePerWeek: nil,
+                           changeOverSpan: nil, spanDays: 0, segmentBreak: false))
+        XCTAssertEqual(strength.state, .notEnoughData)
+        XCTAssertEqual(cardio.state, .notEnoughData)
+    }
+
 
     // MARK: - The scale
 

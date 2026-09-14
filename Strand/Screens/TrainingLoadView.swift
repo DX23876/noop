@@ -11,16 +11,18 @@ import WhoopStore
 // baseline grows with the history available and tops out at 28 days, without containing the week it
 // is being used to judge.
 //
-// On top of that comparison, strength and cardio each get a STATUS — detraining, recovering,
-// maintaining, productive, unproductive, overreaching — decided in `TrainingStatusModel`: Polar's scale
-// for cardio, and for strength the same scale read together with the lifts' own e1RM lines and recent
-// recovery. The session lane keeps its comparison and gets no status (Polar gives Perceived Load none).
+// Relative load remains descriptive. Adaptation is a separate reading and needs performance evidence:
+// e1RM for strength, VO₂max for cardiovascular training. Session Load remains the athlete's own view.
 
 @MainActor
 final class TrainingLoadModel: ObservableObject {
     struct Lane: Sendable {
         let sevenDayTotal: Double
+        let sevenDayWorkingSets: Int
         let trend: LoadTrend?
+        let relative: RelativeLoadReading
+        /// The visible total is only the measured part of at least one incomplete day.
+        let isLowerBound: Bool
         /// How evenly the last seven days were loaded (Foster 1998). Nil below five known days, and when
         /// every known day carried exactly the same load — an undefined figure, not a flat week.
         let distribution: LoadDistribution?
@@ -54,6 +56,8 @@ final class TrainingLoadModel: ObservableObject {
         let ratios: [RatioPoint]
         let sustained: SustainedOverreaching?
         let cardioMeasured: Bool
+        let strengthAdaptation: TrainingAdaptationReading
+        let cardiovascularAdaptation: TrainingAdaptationReading
     }
 
     /// Days of history read. The oldest week of the eight-week strip is judged as of 56 days ago, and
@@ -63,14 +67,14 @@ final class TrainingLoadModel: ObservableObject {
     @Published private(set) var strength: Lane?
     @Published private(set) var cardio: Lane?
     @Published private(set) var session: Lane?
-    /// Which way the lifts of the last six weeks are moving — one input to the strength status.
+    /// Which way the lifts of the last six weeks are moving — strength adaptation evidence.
     @Published private(set) var strengthResponse: StrengthResponseReading?
-    /// VO₂max over the last eight weeks — cardio's "is it working". Shown, and one input to the
-    /// sustained-overreaching warning; the cardio status itself stays Polar's load-only scale.
+    /// VO₂max over the last eight weeks — cardiovascular adaptation evidence and one input to the
+    /// sustained-overload pattern.
     @Published private(set) var vo2max: VO2maxResponse?
     /// Overreaching that has lasted with performance falling and recovery strained, if present.
     @Published private(set) var sustainedOverreaching: SustainedOverreaching?
-    /// How recovery has held over the last three nights — the other input above 1.3.
+    /// How recovery has held over the last seven nights.
     @Published private(set) var recovery: RecoveryReading?
     /// The status at the end of each of the last eight weeks, oldest first.
     @Published private(set) var history: [TrainingStatusModel.WeeklyStatus] = []
@@ -78,10 +82,10 @@ final class TrainingLoadModel: ObservableObject {
     @Published private(set) var ratios: [RatioPoint] = []
     @Published private(set) var loaded = false
     @Published private(set) var ambiguousSessions: [[TrainingSessionComponent]] = []
-    /// True when the cardio lane is priced from measured heart rate. False when nothing in the window
-    /// carried a usable trace and the lane fell back to the stored per-session Effort, which the lane's
-    /// own figure and coverage line then say in as many words.
+    /// True when the cardiovascular lane has at least one session priced from measured heart rate.
     @Published private(set) var cardioMeasured = false
+    @Published private(set) var strengthAdaptation: TrainingAdaptationReading?
+    @Published private(set) var cardiovascularAdaptation: TrainingAdaptationReading?
 
     func load(repo: Repository) async {
         let now = Int(Date().timeIntervalSince1970)
@@ -137,13 +141,30 @@ final class TrainingLoadModel: ObservableObject {
 
             let ratings = Self.canonicalRatings(entries: rpeEntries, canonicalIdByStart: canonicalIdByStart)
             var sessionByDay: [String: Double] = [:]
+            var possibleSessionKeysByDay: [String: Set<String>] = [:]
+            for session in unified {
+                let day = AnalyticsEngine.dayString(session.row.startTs, offsetSec: offset)
+                possibleSessionKeysByDay[day, default: []].insert(session.id)
+            }
+            for workout in strengthWorkouts {
+                let day = AnalyticsEngine.dayString(workout.startTs, offsetSec: offset)
+                let key = canonicalIdByStart[workout.startTs] ?? "start|\(workout.startTs)"
+                possibleSessionKeysByDay[day, default: []].insert(key)
+            }
+            var ratedSessionKeysByDay: [String: Set<String>] = [:]
             for entry in ratings {
                 guard let seconds = durationByStart[entry.startTs], seconds > 0 else { continue }
                 let day = AnalyticsEngine.dayString(entry.startTs, offsetSec: offset)
                 sessionByDay[day, default: 0] += entry.rpe * seconds / 60
+                let key = entry.sessionId ?? canonicalIdByStart[entry.startTs] ?? "start|\(entry.startTs)"
+                ratedSessionKeysByDay[day, default: []].insert(key)
             }
+            let sessionUnknown = Set(possibleSessionKeysByDay.compactMap { day, possibleKeys in
+                let ratedKeys = ratedSessionKeysByDay[day] ?? []
+                return possibleKeys.isSubset(of: ratedKeys) ? nil : day
+            })
 
-            let cutoff = WeeklyDigestEngine.addDays(today, -27)
+            let cutoff = WeeklyDigestEngine.addDays(today, -6)
             let recentStrength = strengthWorkouts.filter {
                 let day = AnalyticsEngine.dayString($0.startTs, offsetSec: offset)
                 return day >= cutoff && day <= today
@@ -157,22 +178,22 @@ final class TrainingLoadModel: ObservableObject {
                     && ($0.row.endTs - $0.row.startTs) >= Repository.cardioLoadMinimumSeconds
                     && !cardioResolution.duplicateSessionIds.contains($0.id)
             }
-            let uniqueSessions = Set(unified.map { $0.row.startTs } + strengthWorkouts.map(\.startTs))
-            let possible = uniqueSessions.filter {
-                let day = AnalyticsEngine.dayString($0, offsetSec: offset)
-                return day >= cutoff && day <= today
-            }.count
-            let measured = ratings.filter {
-                let day = AnalyticsEngine.dayString($0.startTs, offsetSec: offset)
-                return day >= cutoff && day <= today && durationByStart[$0.startTs] != nil
-            }.count
+            let possible = possibleSessionKeysByDay.filter { $0.key >= cutoff && $0.key <= today }
+                .values.reduce(0) { $0 + $1.count }
+            let measured = ratedSessionKeysByDay.filter { $0.key >= cutoff && $0.key <= today }
+                .values.reduce(0) { $0 + $1.count }
 
-            // The status inputs. Strength asks the lifts and, above 1.3, recovery; cardio is Polar's
-            // ratio scale alone. See `TrainingStatusModel` for the tables.
+            // Load, adaptation and recovery stay separate. The latter two may provide context, but do
+            // not turn a high load into a positive or medical verdict.
             let response = TrainingStatusModel.strengthResponse(workouts: strengthWorkouts,
                                                                 templates: templates, through: today,
                                                                 tzOffsetSeconds: offset)
             let recovery = TrainingStatusModel.recovery(days: dailyRows, through: today)
+            let strengthRelative = TrainingLoad.relativeLoad(dailyByDay: strengthByDay, through: today)
+            let cardioRelative = TrainingLoad.relativeLoad(dailyByDay: cardioByDay, through: today,
+                                                           unknownDays: cardioUnknown)
+            let sessionRelative = TrainingLoad.relativeLoad(dailyByDay: sessionByDay, through: today,
+                                                            unknownDays: sessionUnknown)
             let history = TrainingStatusModel.weeklyHistory(weeks: 8, through: today,
                                                             strengthDaily: strengthByDay,
                                                             cardioDaily: cardioByDay,
@@ -189,36 +210,48 @@ final class TrainingLoadModel: ObservableObject {
                 ratioDay = WeeklyDigestEngine.addDays(ratioDay, 1)
             }
             let vo2max = TrainingStatusModel.vo2maxResponse(readings: vo2, through: today)
+            let strengthAdaptation = TrainingStatusModel.strengthAdaptation(response)
+            let cardiovascularAdaptation = TrainingStatusModel.cardiovascularAdaptation(vo2max)
             let sustained = TrainingStatusModel.sustainedOverreaching(history: history, strengthResponse: response,
                                                                       cardioDirection: vo2max.direction,
                                                                       recovery: recovery)
 
             return Prepared(
                 strength: Lane(sevenDayTotal: Self.lastSeven(strengthByDay, through: today),
-                               trend: TrainingLoad.trend(dailyByDay: strengthByDay, through: today),
+                               sevenDayWorkingSets: recentStrength.flatMap {
+                                   $0.exercises.flatMap(\.workingSets)
+                               }.count,
+                               trend: strengthRelative.trend,
+                               relative: strengthRelative,
+                               isLowerBound: false,
                                distribution: TrainingLoad.distribution(dailyByDay: strengthByDay, through: today),
                                weekOverWeek: TrainingLoad.weekOverWeek(dailyByDay: strengthByDay, through: today),
                                measuredCount: pooledStrength.ratedSets,
                                possibleCount: pooledStrength.workingSets,
-                               status: TrainingStatusModel.strength(dailyByDay: strengthByDay, through: today,
-                                                                    response: response, recovery: recovery)),
+                               status: Self.relativeStatus(strengthRelative)),
                 cardio: Lane(sevenDayTotal: Self.lastSeven(cardioByDay, through: today),
-                             trend: TrainingLoad.trend(dailyByDay: cardioByDay, through: today,
-                                                       unknownDays: cardioUnknown),
+                             sevenDayWorkingSets: 0,
+                             trend: cardioRelative.trend,
+                             relative: cardioRelative,
+                             isLowerBound: Self.lastSevenContainsUnknown(cardioUnknown, through: today),
                              distribution: TrainingLoad.distribution(dailyByDay: cardioByDay, through: today,
                                                                      unknownDays: cardioUnknown),
                              weekOverWeek: TrainingLoad.weekOverWeek(dailyByDay: cardioByDay, through: today,
                                                                      unknownDays: cardioUnknown),
                              measuredCount: recentCardio.filter {
-                                 cardioSeries.measured ? cardioLoads[$0.id] != nil : $0.row.strain != nil
+                                 cardioLoads[$0.id] != nil
                              }.count,
                              possibleCount: recentCardio.count,
-                             status: TrainingStatusModel.cardio(dailyByDay: cardioByDay, through: today,
-                                                                unknownDays: cardioUnknown)),
+                             status: Self.relativeStatus(cardioRelative)),
                 session: Lane(sevenDayTotal: Self.lastSeven(sessionByDay, through: today),
-                              trend: TrainingLoad.trend(dailyByDay: sessionByDay, through: today),
-                              distribution: TrainingLoad.distribution(dailyByDay: sessionByDay, through: today),
-                              weekOverWeek: TrainingLoad.weekOverWeek(dailyByDay: sessionByDay, through: today),
+                              sevenDayWorkingSets: 0,
+                              trend: sessionRelative.trend,
+                              relative: sessionRelative,
+                              isLowerBound: Self.lastSevenContainsUnknown(sessionUnknown, through: today),
+                              distribution: TrainingLoad.distribution(dailyByDay: sessionByDay, through: today,
+                                                                      unknownDays: sessionUnknown),
+                              weekOverWeek: TrainingLoad.weekOverWeek(dailyByDay: sessionByDay, through: today,
+                                                                      unknownDays: sessionUnknown),
                               measuredCount: measured, possibleCount: possible, status: nil),
                 response: response,
                 vo2max: vo2max,
@@ -226,10 +259,29 @@ final class TrainingLoadModel: ObservableObject {
                 history: history,
                 ratios: ratios,
                 sustained: sustained,
-                cardioMeasured: cardioSeries.measured)
+                cardioMeasured: cardioSeries.measured,
+                strengthAdaptation: strengthAdaptation,
+                cardiovascularAdaptation: cardiovascularAdaptation)
         }.value
 
         guard !Task.isCancelled else { return }
+        // Imported workouts do not pass through `finishNativeWorkout`. If one has just ended and has
+        // no rating on any of its canonical components, schedule the same single delayed prompt. The
+        // stable request id makes repeated refreshes idempotent.
+        let ratedIds = Set(rpeEntries.compactMap(\.sessionId))
+        let ratedStarts = Set(rpeEntries.map(\.startTs))
+        for workout in unified {
+            let end = workout.row.endTs
+            let componentStarts = Set(workout.components.map { $0.row.startTs })
+            let alreadyRated = ratedIds.contains(workout.id)
+                || ratedStarts.contains(workout.row.startTs)
+                || !ratedStarts.isDisjoint(with: componentStarts)
+            guard !alreadyRated, end <= now, end + 30 * 60 > now else { continue }
+            await SessionRPEReminder.schedule(
+                startTs: workout.row.startTs,
+                durationS: Double(max(0, end - workout.row.startTs)),
+                sport: workout.row.sport)
+        }
         strength = prepared.strength
         cardio = prepared.cardio
         session = prepared.session
@@ -241,6 +293,8 @@ final class TrainingLoadModel: ObservableObject {
         ratios = prepared.ratios
         ambiguousSessions = fusion.ambiguous
         cardioMeasured = prepared.cardioMeasured
+        strengthAdaptation = prepared.strengthAdaptation
+        cardiovascularAdaptation = prepared.cardiovascularAdaptation
         #if DEBUG
         applyDemoStatusOverride()
         #endif
@@ -274,13 +328,17 @@ final class TrainingLoadModel: ObservableObject {
         default: return
         }
         if let lane = strength {
-            strength = Lane(sevenDayTotal: lane.sevenDayTotal, trend: lane.trend,
+            strength = Lane(sevenDayTotal: lane.sevenDayTotal,
+                            sevenDayWorkingSets: lane.sevenDayWorkingSets, trend: lane.trend,
+                            relative: lane.relative, isLowerBound: lane.isLowerBound,
                             distribution: lane.distribution, weekOverWeek: lane.weekOverWeek,
                             measuredCount: lane.measuredCount, possibleCount: lane.possibleCount,
                             status: pair.strength)
         }
         if let lane = cardio {
-            cardio = Lane(sevenDayTotal: lane.sevenDayTotal, trend: lane.trend,
+            cardio = Lane(sevenDayTotal: lane.sevenDayTotal,
+                          sevenDayWorkingSets: lane.sevenDayWorkingSets, trend: lane.trend,
+                          relative: lane.relative, isLowerBound: lane.isLowerBound,
                           distribution: lane.distribution, weekOverWeek: lane.weekOverWeek,
                           measuredCount: lane.measuredCount, possibleCount: lane.possibleCount,
                           status: pair.cardio)
@@ -290,40 +348,42 @@ final class TrainingLoadModel: ObservableObject {
 
     /// The cardio lane's daily series, on ONE axis.
     ///
-    /// Measured TRIMP wherever the window has it. A library with no dense band trace — HealthKit-only,
-    /// or a strap that was not worn — would otherwise watch this lane fall silently to zero while the
-    /// Cardio screen still reports the same week from stored Effort, so with nothing measured the lane
-    /// falls back to that stored Effort for ALL of its sessions. The two are never mixed: Effort is the
-    /// compressed axis, and adding it to a TRIMP would produce a figure in no unit at all.
+    /// Measured Edwards TRIMP wherever the window has it. Stored Effort is a different recipe and never
+    /// substitutes for a missing trace; an unpriced training day remains unknown.
     nonisolated static func cardioDailyLoad(sessions: [UnifiedTrainingSession],
                                             loads: [String: TrainingCardioLoad],
                                             duplicates: Set<String>,
                                             tzOffsetSeconds: Int)
-    -> (byDay: [String: Double], measured: Bool, unknownDays: Set<String>) {
+    -> (byDay: [String: Double], measured: Bool, unknownDays: Set<String>,
+        measuredByDay: [String: Int], possibleByDay: [String: Int]) {
         let measured = !loads.isEmpty
         var byDay: [String: Double] = [:]
         var unpriceable: Set<String> = []
+        var measuredByDay: [String: Int] = [:]
+        var possibleByDay: [String: Int] = [:]
         for session in sessions {
             // On the fallback axis a duplicate still awaiting review has to be skipped for the same
             // reason it is skipped when priced: both records describe the same minutes, and its twin
             // has already spoken for them. It is not a gap in the data.
             if duplicates.contains(session.id) { continue }
             let day = AnalyticsEngine.dayString(session.row.startTs, offsetSec: tzOffsetSeconds)
-            let value = measured ? loads[session.id]?.trimp : session.row.strain
+            guard session.row.endTs - session.row.startTs >= Repository.cardioLoadMinimumSeconds else {
+                continue
+            }
+            possibleByDay[day, default: 0] += 1
+            let value = loads[session.id]?.trimp
             guard let value, value.isFinite, value >= 0 else {
                 // A session long enough to have been priced, that carries no usable figure, is a day
                 // the data cannot speak for — not a rest day. Only sessions past the pricing threshold
                 // count: a five-minute walk was never going to be priced, and calling its day
                 // unmeasurable would drop an ordinary day out of the comparison.
-                if session.row.endTs - session.row.startTs >= Repository.cardioLoadMinimumSeconds {
-                    unpriceable.insert(day)
-                }
+                unpriceable.insert(day)
                 continue
             }
             byDay[day, default: 0] += value
+            measuredByDay[day, default: 0] += 1
         }
-        // A day that also holds a priced session is measured: the gap is covered by what we do know.
-        return (byDay, measured, unpriceable.subtracting(byDay.keys))
+        return (byDay, measured, unpriceable, measuredByDay, possibleByDay)
     }
 
     /// One rating per canonical session, so Session Load counts a workout once.
@@ -332,14 +392,17 @@ final class TrainingLoadModel: ObservableObject {
     /// rated twice — once from its Hevy detail, once from its Apple Health row — under two different
     /// start seconds. Summing both would report training nobody did. A rating that names its canonical
     /// session is grouped by that name; an older entry falls back to the session its start belongs to,
-    /// which is how ratings written before fusion keep working. Where one session has several ratings
-    /// the latest start wins, and the id breaks a tie so the choice never depends on read order.
+    /// which is how ratings written before fusion keep working. Where one session has several ratings,
+    /// the latest answer wins. Legacy answers without a separate answer timestamp fall back to their
+    /// workout start; the id breaks a tie so the choice never depends on read order.
     nonisolated static func canonicalRatings(entries: [SessionRPEEntry],
                                              canonicalIdByStart: [Int: String]) -> [SessionRPEEntry] {
         var chosen: [String: SessionRPEEntry] = [:]
         for entry in entries {
             let key = entry.sessionId ?? canonicalIdByStart[entry.startTs] ?? "start|\(entry.startTs)"
-            if let existing = chosen[key], (existing.startTs, existing.id) >= (entry.startTs, entry.id) {
+            let candidateOrder = (entry.ratedAtTs ?? entry.startTs, entry.id)
+            if let existing = chosen[key],
+               (existing.ratedAtTs ?? existing.startTs, existing.id) >= candidateOrder {
                 continue
             }
             chosen[key] = entry
@@ -355,6 +418,39 @@ final class TrainingLoadModel: ObservableObject {
             cursor = WeeklyDigestEngine.addDays(cursor, -1)
         }
         return total
+    }
+
+    nonisolated private static func lastSevenContainsUnknown(_ unknownDays: Set<String>,
+                                                             through day: String) -> Bool {
+        var cursor = day
+        for _ in 0..<7 {
+            if unknownDays.contains(cursor) { return true }
+            cursor = WeeklyDigestEngine.addDays(cursor, -1)
+        }
+        return false
+    }
+
+    /// Adapts the new neutral relative-load reading to the existing ring renderer. The legacy case names
+    /// are not presented to the wearer; `TrainingStatusVisuals` labels these as relative-load bands.
+    nonisolated private static func relativeStatus(_ reading: RelativeLoadReading) -> LaneStatus? {
+        guard let trend = reading.trend else { return nil }
+        let relativeBand: RelativeLoadBand = reading.band ?? {
+            if trend.percentChange < -15 { return .below }
+            if trend.percentChange <= 15 { return .usual }
+            if trend.percentChange <= 30 { return .higher }
+            return .muchHigher
+        }()
+        let legacyStatus: TrainingStatus
+        let legacyBand: TrainingLoadBand
+        switch relativeBand {
+        case .below: legacyStatus = .detraining; legacyBand = .below
+        case .usual: legacyStatus = .maintaining; legacyBand = .maintaining
+        case .higher: legacyStatus = .productive; legacyBand = .productive
+        case .muchHigher: legacyStatus = .overreaching; legacyBand = .above
+        }
+        return LaneStatus(status: legacyStatus, ratio: trend.ratio, band: legacyBand,
+                          followsRecentHighPhase: false, usedStrengthResponse: false,
+                          usedRecovery: false)
     }
 
     /// The VO₂max readings the cardio lane reads.
@@ -396,9 +492,10 @@ struct TrainingLoadView: View {
                 ProgressView().frame(maxWidth: .infinity)
             } else {
                 hero
+                precisionCard.trainingCardEntrance()
                 duplicateReviewCard
                 sustainedCard
-                adviceCard.trainingCardEntrance().id("statement")
+                adaptationCard.trainingCardEntrance().id("statement")
                 recoveryCard.trainingCardEntrance()
                 // Named sections for `--demo-scroll-to` screenshot QA (DEBUG only; ids are inert otherwise).
                 historyCard.trainingCardEntrance().id("history")
@@ -407,7 +504,6 @@ struct TrainingLoadView: View {
                 sessionCard.trainingCardEntrance()
                 shapeCard.trainingCardEntrance().id("shape")
                 basisCard.trainingCardEntrance()
-                legendCard.trainingCardEntrance()
                 methodCard.trainingCardEntrance()
             }
         }
@@ -480,10 +576,9 @@ struct TrainingLoadView: View {
                         lane: model.strength?.status, figure: strengthFigure, evidence: strengthEvidence,
                         caveat: strengthCaveat)
             Divider().overlay(StrandPalette.hairline)
-            laneSummary(symbol: "heart.fill", title: "Cardio",
+            laneSummary(symbol: "heart.fill", title: "Cardiovascular",
                         lane: model.cardio?.status, figure: cardioFigure, evidence: cardioEvidence,
                         caveat: cardioCaveat)
-            LoadZoneLegend()
         }
         .padding(NoopMetrics.cardPadding)
         .frame(maxWidth: .infinity)
@@ -556,42 +651,143 @@ struct TrainingLoadView: View {
     private var cardioCaveat: String? {
         guard let lane = model.cardio, lane.possibleCount > 0 else { return nil }
         if !model.cardioMeasured {
-            return String(localized: "No usable heart-rate trace in this window, so this rests on stored Effort")
+            return String(localized: "No usable heart-rate trace in this window, so cardiovascular load is not estimated")
         }
         guard let share = coverageShare(lane), share < TrainingLoad.trustedRatedShare else { return nil }
-        return String(localized: "Only \(lane.measuredCount) of \(lane.possibleCount) sessions have enough heart-rate data")
+        return String(localized: "Only \(lane.measuredCount) of \(lane.possibleCount) sessions are complete; the measured total is a lower bound")
     }
 
     private var strengthFigure: String? {
         guard let lane = model.strength else { return nil }
-        guard let trend = lane.trend else { return weightedSetText(lane) }
-        return "\(weightedSetText(lane)) · \(signedPercent(trend.percentChange))"
+        let raw = String(localized: "\(lane.sevenDayWorkingSets) working sets")
+        let estimated = weightedSetText(lane)
+        guard let trend = lane.trend else { return "\(raw) · \(estimated)" }
+        return "\(raw) · \(estimated) · \(signedPercent(trend.percentChange))"
     }
 
     private var cardioFigure: String? {
         guard let lane = model.cardio else { return nil }
-        guard let trend = lane.trend else { return effortText(lane) }
-        return "\(effortText(lane)) · \(signedPercent(trend.percentChange))"
+        let total = lane.isLowerBound ? String(localized: "at least \(effortText(lane))") : effortText(lane)
+        guard let trend = lane.trend else { return total }
+        return "\(total) · \(signedPercent(trend.percentChange))"
     }
 
     /// What the strength verdict rests on — a below-usual run, the lifts, or an honest "load only".
     private var strengthEvidence: String? {
-        guard let status = model.strength?.status else { return nil }
+        guard let lane = model.strength else { return nil }
+        guard let status = lane.status else {
+            return String(localized: "\(lane.measuredCount) of \(lane.possibleCount) working sets rated · comparison available after 21 complete days")
+        }
         if status.band == .below, status.daysBelowUsual > 0 { return belowSinceText(status.daysBelowUsual) }
-        guard let response = model.strengthResponse, response.direction != .unknown else {
-            return String(localized: "Too few lifts to judge, so rated on load alone")
-        }
-        switch response.direction {
-        case .rising:  return String(localized: "\(response.rising) of \(response.evaluated) lifts rising")
-        case .falling: return String(localized: "\(response.falling) of \(response.evaluated) lifts falling")
-        default:       return String(localized: "No clear direction across \(response.evaluated) lifts")
-        }
+        return String(localized: "\(lane.measuredCount) of \(lane.possibleCount) working sets rated · compared only with your strength history")
     }
 
     private var cardioEvidence: String? {
-        guard let status = model.cardio?.status else { return nil }
+        guard let lane = model.cardio else { return nil }
+        guard let status = lane.status else {
+            return String(localized: "\(lane.measuredCount) of \(lane.possibleCount) sessions complete · comparison available after 21 complete days")
+        }
         if status.band == .below, status.daysBelowUsual > 0 { return belowSinceText(status.daysBelowUsual) }
-        return String(localized: "From heart rate, against your own recent level")
+        return String(localized: "\(lane.measuredCount) of \(lane.possibleCount) sessions complete · compared only with your cardiovascular history")
+    }
+
+    private var precisionCard: some View {
+        NoopCard(tint: StrandPalette.metricCyan) {
+            HStack(alignment: .top, spacing: NoopMetrics.space3) {
+                StatusBadge(symbol: maturitySymbol, color: StrandPalette.metricCyan, size: 36)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(maturityTitle)
+                        .font(StrandFont.headline).foregroundStyle(StrandPalette.textPrimary)
+                    Text(maturityDetail)
+                        .font(StrandFont.subhead).foregroundStyle(StrandPalette.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+        }
+    }
+
+    private var currentMaturity: TrainingLoadMaturity {
+        let values = [model.strength?.relative.maturity, model.cardio?.relative.maturity].compactMap { $0 }
+        if values.contains(.immediate) { return .immediate }
+        if values.contains(.earlyEstimate) { return .earlyEstimate }
+        if values.contains(.baselineGrowing) { return .baselineGrowing }
+        return values.isEmpty ? .immediate : .personalBaseline
+    }
+
+    private var maturitySymbol: String {
+        switch currentMaturity {
+        case .immediate: return "chart.bar.fill"
+        case .earlyEstimate: return "sparkles"
+        case .baselineGrowing: return "chart.line.uptrend.xyaxis"
+        case .personalBaseline: return "person.crop.circle.badge.checkmark"
+        }
+    }
+
+    private var maturityTitle: String {
+        switch currentMaturity {
+        case .immediate: return String(localized: "Current load")
+        case .earlyEstimate: return String(localized: "Early estimate")
+        case .baselineGrowing: return String(localized: "Baseline growing")
+        case .personalBaseline: return String(localized: "Personal baseline")
+        }
+    }
+
+    private var maturityDetail: String {
+        switch currentMaturity {
+        case .immediate:
+            return String(localized: "Your measured load is available now. A first personal comparison appears after 21 complete days.")
+        case .earlyEstimate:
+            return String(localized: "The last 7 days are compared with the preceding 14. Treat this as an early estimate while your baseline grows.")
+        case .baselineGrowing:
+            return String(localized: "The last 7 days are compared with the preceding 28. Personal variation bands need eight complete weeks.")
+        case .personalBaseline:
+            return String(localized: "Your usual range is based on the robust variation in your own complete training weeks.")
+        }
+    }
+
+    private var adaptationCard: some View {
+        VStack(alignment: .leading, spacing: NoopMetrics.gap) {
+            SectionHeader("Adaptation", overline: "Performance evidence")
+            NoopCard {
+                VStack(alignment: .leading, spacing: NoopMetrics.space3) {
+                    adaptationRow(symbol: "figure.strengthtraining.traditional", title: "Strength",
+                                  reading: model.strengthAdaptation)
+                    Divider().overlay(StrandPalette.hairline)
+                    adaptationRow(symbol: "heart.fill", title: "Cardiovascular",
+                                  reading: model.cardiovascularAdaptation)
+                    Text("Load describes how much you trained. Adaptation is shown only when performance data supports a direction.")
+                        .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+        }
+    }
+
+    private func adaptationRow(symbol: String, title: LocalizedStringKey,
+                               reading: TrainingAdaptationReading?) -> some View {
+        let state = reading?.state ?? .notEnoughData
+        let presentation: (String, String, Color)
+        switch state {
+        case .improving:
+            presentation = ("arrow.up.right", String(localized: "Productive development"), StrandPalette.statusPositive)
+        case .declining:
+            presentation = ("arrow.down.right", String(localized: "Performance trending down"), StrandPalette.statusWarning)
+        case .stable:
+            presentation = ("equal", String(localized: "Performance stable"), StrandPalette.metricCyan)
+        case .unclear:
+            presentation = ("minus", String(localized: "No clear direction"), StrandPalette.textSecondary)
+        case .notEnoughData:
+            presentation = ("hourglass", String(localized: "Adaptation not assessable yet"), StrandPalette.textTertiary)
+        }
+        return HStack(spacing: NoopMetrics.space3) {
+            StatusBadge(symbol: symbol, color: presentation.2, size: 30)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title).font(StrandFont.subhead.weight(.semibold)).foregroundStyle(StrandPalette.textPrimary)
+                Label(presentation.1, systemImage: presentation.0)
+                    .font(StrandFont.caption).foregroundStyle(presentation.2)
+            }
+        }
+        .accessibilityElement(children: .combine)
     }
 
     /// "Below your usual since 3 Sep" — a date rather than "N days", which needs no plural forms and
@@ -800,7 +996,7 @@ struct TrainingLoadView: View {
                     HStack(spacing: NoopMetrics.space2) {
                         StatusBadge(symbol: "exclamationmark.octagon.fill", color: TrainingStatus.overreaching.color,
                                     size: 34, pulses: !reduceMotion)
-                        Text("Signs of lasting overreaching")
+                        Text("Persistent overload pattern")
                             .font(StrandFont.headline)
                             .foregroundStyle(StrandPalette.textPrimary)
                     }
@@ -824,7 +1020,7 @@ struct TrainingLoadView: View {
         case (true, false): lanes = String(localized: "Strength")
         default: lanes = String(localized: "Cardio")
         }
-        return String(localized: "Overreaching for \(warning.weeks) weeks in a row (\(lanes)), with falling performance and strained recovery. Plan several easy or rest days now.")
+        return String(localized: "Load was repeatedly well above usual for \(warning.weeks) weeks (\(lanes)), while performance fell and recovery signals were strained. Plan several easy or rest days now.")
     }
 
     // MARK: - Recovery
@@ -894,7 +1090,7 @@ struct TrainingLoadView: View {
             return String(localized: "Too few nights with recovery data to judge yet.")
         }
         return reading.state == .strained
-            ? String(localized: "Strained: a signal flagged on \(reading.strainedNights) of \(reading.nightsRead) nights. Above 1.3 × usual this turns strength into overreaching.")
+            ? String(localized: "Recovery signals were strained on \(reading.strainedNights) of \(reading.nightsRead) measured nights.")
             : String(localized: "Holding: a signal flagged on \(reading.strainedNights) of \(reading.nightsRead) nights.")
     }
 
@@ -1111,7 +1307,7 @@ struct TrainingLoadView: View {
                         shapeRow(symbol: "figure.strengthtraining.traditional", title: "Strength",
                                  lane: model.strength)
                         Divider().overlay(StrandPalette.hairline)
-                        shapeRow(symbol: "heart.fill", title: "Cardio", lane: model.cardio)
+                        shapeRow(symbol: "heart.fill", title: "Cardiovascular", lane: model.cardio)
                         Text("Monotony is how evenly the week was spread — higher means flatter, much the same load every day. Strain is the week's total multiplied by it. Both describe the shape of a week; neither judges it.")
                             .font(StrandFont.caption)
                             .foregroundStyle(StrandPalette.textTertiary)
@@ -1263,11 +1459,13 @@ struct TrainingLoadView: View {
                     // cards above and have to name them the same way in every language.
                     methodRow("Strength load", "Working sets weighted by proximity to failure. Tonnage remains a training statistic, not the load.")
                     Divider().overlay(StrandPalette.hairline)
-                    methodRow("Cardio load", "Additive TRIMP from heart rate and intensity over time. NOOP band data wins; workout-associated Health data fills only when the band trace is incomplete.")
+                    methodRow("Cardiovascular load", "Classic Edwards TRIMP from time in percentages of your maximum heart rate. NOOP band data wins; workout-associated Health data fills only when the band trace is incomplete.")
                     Divider().overlay(StrandPalette.hairline)
                     methodRow("Session load", "Your whole-session RPE × duration. Add it from any workout detail; missing ratings are never guessed.")
                     Divider().overlay(StrandPalette.hairline)
-                    methodRow("How the status is set", "Cardio compares the last 7 days with the preceding 28 days; the two windows do not overlap. The bands at 0.8, 1.0 and 1.3 are a monitoring convention, not measured safety limits. A day whose training could not be measured leaves the comparison instead of counting as rest. Strength also asks whether your lifts are improving, and above 1.3 whether your recovery over the last week holds. Below your usual counts as detraining after two weeks for cardio and three for strength — aerobic fitness fades faster than maximal strength — or at once when your lifts are clearly falling.")
+                    methodRow("How comparison works", "NOOP compares the last 7 days with an earlier, non-overlapping baseline. A partial training day stays visible as a lower bound but leaves the comparison. After eight complete weeks, robust personal variation replaces fixed population-style bands.")
+                    Divider().overlay(StrandPalette.hairline)
+                    methodRow("Load and adaptation", "Relative load is descriptive. Productive development requires a clear performance trend: estimated one-rep max for strength or VO₂max within one consistent measurement method for cardiovascular training.")
                     Divider().overlay(StrandPalette.hairline)
                     methodRow("Sources", "Edwards 1993 · Banister 1991 · Foster 2001 · Bosquet et al. 2013 · Meeusen et al. 2013 · Pelland et al. 2024 · Robinson et al. 2024")
                 }
@@ -1305,8 +1503,7 @@ struct TrainingLoadView: View {
 
     private func effortText(_ lane: TrainingLoadModel.Lane) -> String {
         let total = Int(lane.sevenDayTotal.rounded())
-        return model.cardioMeasured ? String(localized: "\(total) TRIMP")
-                                    : String(localized: "\(total) Effort")
+        return String(localized: "\(total) TRIMP")
     }
 
     private func sessionText(_ lane: TrainingLoadModel.Lane?) -> String {
@@ -1318,28 +1515,29 @@ struct TrainingLoadView: View {
     /// percentage, so a share that rests on a handful of sets reads as a handful of sets.
     private func strengthCoverage(_ lane: TrainingLoadModel.Lane?) -> String {
         guard let lane, lane.possibleCount > 0 else {
-            return String(localized: "No working sets in the last 28 days")
+            return String(localized: "No working sets in the last 7 days")
         }
         let rated = lane.measuredCount
         let total = lane.possibleCount
         if rated == total {
-            return String(localized: "All \(total) working sets in the last 28 days carry an RPE")
+            return String(localized: "All \(total) working sets in the last 7 days carry an RPE")
         }
         if Double(rated) / Double(total) < TrainingLoad.trustedRatedShare {
-            return String(localized: "Only \(rated) of \(total) working sets in the last 28 days carry an RPE, so most of the weighting is borrowed from the sets you did rate")
+            return String(localized: "Only \(rated) of \(total) working sets in the last 7 days carry an RPE, so most of the weighting is estimated")
         }
-        return String(localized: "\(rated) of \(total) working sets in the last 28 days carry an RPE; the rest are priced at the median of those you rated")
+        return String(localized: "\(rated) of \(total) working sets in the last 7 days carry an RPE; the rest use your recent median when available")
     }
 
     private func cardioCoverage(_ lane: TrainingLoadModel.Lane?) -> String {
-        guard let lane, lane.possibleCount > 0 else { return String(localized: "No cardio sessions yet") }
-        return model.cardioMeasured
-            ? String(localized: "\(lane.measuredCount) of \(lane.possibleCount) sessions have enough heart-rate data")
-            : String(localized: "\(lane.measuredCount) of \(lane.possibleCount) cardio sessions carry Effort")
+        guard let lane, lane.possibleCount > 0 else { return String(localized: "No cardiovascular sessions yet") }
+        if lane.measuredCount < lane.possibleCount {
+            return String(localized: "\(lane.measuredCount) of \(lane.possibleCount) sessions fully measured; partial days do not enter your comparison")
+        }
+        return String(localized: "All \(lane.possibleCount) sessions have enough heart-rate data")
     }
 
     private func sessionCoverage(_ lane: TrainingLoadModel.Lane?) -> String {
         guard let lane, lane.possibleCount > 0 else { return String(localized: "Open a workout to add your first session rating") }
-        return String(localized: "\(lane.measuredCount) of \(lane.possibleCount) sessions rated in the last 28 days")
+        return String(localized: "\(lane.measuredCount) of \(lane.possibleCount) sessions rated in the last 7 days")
     }
 }
