@@ -1,5 +1,15 @@
 {
- "Fit": "Вписать",
- "Stretch": "Растянуть",
- "Tile": "Замостить"
+  "0xAA 41 00 1c crc32=f3a1  mono 13": "0xAA 41 00 1c crc32=f3a1  mono 13",
+  "Body / Regular 15 — the thread of you, read in full.": "Тело / Регулярный 15 — линия вашего здоровья, прочитайте полностью.",
+  "Fit": "Вписать",
+  "Hover a band: stage name, clock start–end and duration.": "Перетащите ремень: название этапа, время начала–окончания и продолжительность.",
+  "Hover a cell: ring + date, score and recovery-state tooltip.": "Перетащите ячейку: кольцо + дата, балл и всплывающая подсказка о состоянии.",
+  "Hover a gauge for a strain + load-word tooltip.": "Перетащите показатель нагрузки для всплывающей подсказки о нагрузке + состоянии.",
+  "Hover a ring for a recovery + state-word tooltip.": "Перетащите кольцо для всплывающей подсказки о восстановлении + состоянии.",
+  "Hover any sparkline to read the exact sample under the cursor.": "Перетащите любой график, чтобы увидеть точное значение под указанием.",
+  "Hover the line: crosshair + dot + date/value tooltip.": "Перетащите линию: точка + дата/значение + всплывающая подсказка.",
+  "Hover to read each day's HRV in ms.": "Перетащите, чтобы прочитать HRV за день в миллисекундах.",
+  "Reduce Motion renders static at the final frame.": "Сокращение движения фиксирует положение на последнем кадре.",
+  "Stretch": "Растянуть",
+  "Tile": "Замостить"
 }

@@ -10,14 +10,14 @@ unit". That is exactly what this does — additively, idempotently, and for any 
 Rules, deliberately narrow:
   • A key that already has a localization for that language is left ALONE. Existing translations are
     never touched, so a re-run after a hand correction cannot silently revert it.
-  • A key that is not in the catalog at all is SKIPPED and reported. The catalog's key set comes from
-    the compiler's extraction, not from this file — inventing keys here would produce entries that no
-    call site ever looks up, which reads as "translated" while showing English on device.
+  • A key that is not in the current catalog is SKIPPED. Translation tables may be shared by several
+    catalogs, so it is reported only when it is absent from every catalog that uses that table prefix.
+    The catalog's key set still comes from compiler extraction; this tool never invents catalog keys.
   • Printf specifiers must match the key's, or the entry is refused. A translation that drops a `%@`
     crashes formatting at runtime and is what `Tools/i18n_audit.py`'s format check exists to catch.
 
 Usage:
-  python3 Tools/fill-missing-translations.py                    # every language, both catalogs
+  python3 Tools/fill-missing-translations.py                    # every language and supported catalog
   python3 Tools/fill-missing-translations.py --check            # report only, write nothing
 """
 from __future__ import annotations
@@ -35,6 +35,7 @@ TRANSLATIONS = ROOT / "Tools/translations"
 CATALOGS = [
     (ROOT / "Strand/Resources/Localizable.xcstrings", ""),
     (ROOT / "Packages/StrandDesign/Sources/StrandDesign/Resources/Localizable.xcstrings", "design-"),
+    (ROOT / "NOOPWatchComplications/Localizable.xcstrings", "complication-"),
     (ROOT / "StrandiOSWidgets/Localizable.xcstrings", ""),
 ]
 
@@ -64,7 +65,6 @@ def fill(catalog_path: Path, prefix: str, *, write: bool) -> tuple[int, list[str
         for key, value in table.items():
             entry = strings.get(key)
             if entry is None:
-                problems.append(f"{lang}: key not in catalog, skipped — {key[:70]!r}")
                 continue
             localizations = entry.setdefault("localizations", {})
             if lang in localizations:
@@ -89,12 +89,34 @@ def main() -> int:
 
     total = 0
     all_problems: list[str] = []
+    known_keys_by_prefix: dict[str, set[str]] = {}
+    for catalog_path, prefix in CATALOGS:
+        if not catalog_path.exists():
+            continue
+        catalog = json.loads(catalog_path.read_text(encoding="utf-8"))
+        known_keys_by_prefix.setdefault(prefix, set()).update(catalog.get("strings", {}))
+
     for catalog_path, prefix in CATALOGS:
         added, problems = fill(catalog_path, prefix, write=not args.check)
         total += added
         all_problems += problems
         print(f"{catalog_path.relative_to(ROOT)}: {added} unit(s) "
               f"{'would be added' if args.check else 'added'}")
+
+    for prefix, known_keys in known_keys_by_prefix.items():
+        for lang in LANGS:
+            source = TRANSLATIONS / f"{prefix}{lang}.json"
+            if not source.exists():
+                continue
+            table = json.loads(source.read_text(encoding="utf-8"))
+            stale = set(table) - known_keys
+            if stale:
+                label = prefix.removesuffix("-") or "shared"
+                print(
+                    f"  ~ {label}/{lang}: {len(stale)} translation-table key(s) are no longer "
+                    "present in a matching catalog; skipped",
+                    file=sys.stderr,
+                )
 
     for problem in all_problems:
         print("  ! " + problem, file=sys.stderr)

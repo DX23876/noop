@@ -8406,6 +8406,12 @@
             "state" : "translated",
             "value" : "%@ votre moyenne sur %lld jours de %@"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ưμ㼯A%lld- 平均天数%@"
+          }
         }
       }
     },
@@ -9971,6 +9977,18 @@
             "state" : "translated",
             "value" : "%@: %@ kg dépasse votre estimation de la charge maximale d’un seul mouvement de %@ kg. Cette estimation est une projection, pas une répétition réelle — vérifiez le chiffre."
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@数字 :%@千克高于您估计的最多一分之一%@用于此运动。 估计是投影,而不是你搭的电梯——但请检查数字。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@數字 :%@千克高於您估計的最多一分之一%@用於此運動。 估計是投影,而不是你搭的電梯——但請檢查數字。"
+          }
         }
       }
     },
@@ -11171,6 +11189,18 @@
             "state" : "translated",
             "value" : "%@: %lld séries de travail par semaine, contre votre moyenne récente de %@. C’est un grand pas — la concentration est clé, mais une augmentation imprévue mérite une attention particulière."
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@数字 :%lld工作周期为一周, 相对于您最近的平均值%@这是向前迈出的一大步——故意是好的,偶然是值得一看的。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@數字 :%lld工作週期為一週, 相對於您最近的平均值%@這是向前邁出的一大步——故意是好的,偶然是值得一看的。"
+          }
         }
       }
     },
@@ -11718,6 +11748,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%@. Логируется на отметку устройства при каждом подключении, чтобы отчет о багере при Polar показал модель NOOP, которая устранила проблему с отметками."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@。将此记录到每个连接上的带状日志上,所以极地错误报告显示模型NOOP解析了您的带状。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@。將此記錄到每個連線上的帶狀日誌上,所以極地錯誤報告顯示模型NOOP解析了您的帶狀。"
           }
         }
       }
@@ -14369,6 +14411,18 @@
             "state" : "translated",
             "value" : "%lld jours de suite"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld连续几天"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld連續幾天"
+          }
         }
       }
     },
@@ -16281,6 +16335,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%lld min · %.1f wysiłek"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld分钟 :% 1f 努力"
           }
         }
       }
@@ -23738,7 +23798,8 @@
       }
     },
     "0" : {
-      "shouldTranslate" : false
+      "shouldTranslate" : false,
+      "localizations" : {}
     },
     "0 pts" : {
       "localizations" : {
@@ -57486,6 +57547,24 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Электрический напряжение %.2f вольт"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tensione della batteria: %.2f volt"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "电池电压%.2f伏特"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "電池電壓%.2f伏特"
           }
         }
       }
@@ -139615,6 +139694,12 @@
             "state" : "translated",
             "value" : "Интерполирование задержки __HR__ из данных PPG (версия v26 — заполнение пропусков)"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "HR-從PPG子基插值(v26空隙填充)"
+          }
         }
       }
     },
@@ -139853,6 +139938,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "HRV (RMSSD)"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "HRV (RMSD) (中文(簡體) )."
           }
         }
       }
@@ -140382,6 +140473,12 @@
             "state" : "translated",
             "value" : "Preparazione HRV (esperimentale)"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "HRV準備(實驗)"
+          }
         }
       }
     },
@@ -140434,6 +140531,12 @@
             "state" : "translated",
             "value" : "HRV准备度（实验）：%@"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "HRV準備(實驗):%@"
+          }
         }
       }
     },
@@ -140485,6 +140588,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Готовность HRV (Полес/Альтини)"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "HRV準備狀態(普盧斯/阿爾蒂尼)"
           }
         }
       }
@@ -140712,6 +140821,12 @@
             "state" : "translated",
             "value" : "Intervallo HRV"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "HRV 視窗"
+          }
         }
       }
     },
@@ -140763,6 +140878,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "HRV, fréquence cardiaque de repos, respiration et oxygénation sanguine."
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "HRV,休息心率,呼吸和血氧."
           }
         }
       }
@@ -142091,6 +142212,12 @@
             "state" : "translated",
             "value" : "Culteur iCloud."
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "iCloud 驅動器"
+          }
         }
       }
     },
@@ -142142,6 +142269,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Culteur iCloud › %@."
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "iCloud 驅動器%@"
           }
         }
       }
@@ -143195,6 +143328,12 @@
             "state" : "translated",
             "value" : "Загрузить снова."
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "再次匯入"
+          }
         }
       }
     },
@@ -143432,6 +143571,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "导入Apple Health数据？"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "匯入蘋果健康資料?"
           }
         }
       }
@@ -144623,6 +144768,12 @@
             "state" : "translated",
             "value" : "Sessions importées (%lld)."
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已匯入%lld屆會"
+          }
         }
       }
     },
@@ -144732,6 +144883,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Загружено 1 сессию."
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "匯入 1 會話"
           }
         }
       }
@@ -145094,6 +145251,12 @@
             "state" : "translated",
             "value" : "Chargement de votre historique d’entraînement…"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在匯入您的訓練歷史..."
+          }
         }
       }
     },
@@ -145442,6 +145605,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "按顺序"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "符合"
           }
         }
       }
@@ -146261,6 +146430,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Indipendente: non affiliato a WHOOP"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "獨立:不屬於衛生組織業務方案"
           }
         }
       }
@@ -149458,6 +149633,12 @@
             "state" : "translated",
             "value" : "Уведомление о дневном плане."
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "日記提醒"
+          }
         }
       }
     },
@@ -149930,6 +150111,12 @@
             "state" : "translated",
             "value" : "Держите все простыми и короткими."
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "保持簡單和短。"
+          }
         }
       }
     },
@@ -150097,6 +150284,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Conservare l’ultimo punto di riferimento"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "保留上次的快照"
           }
         }
       }
@@ -150917,6 +151110,12 @@
             "state" : "translated",
             "value" : "Les clés enregistrent chaque nuit de sommeil Oura sur leur début stable 0x49 et empêchent les récharges doubles inutiles à la source, au lieu de la persistance finale (#1284). Désactivé par défaut — une option de validation matérielle. Surveillez le journal de la montre pour les lignes « début-clé (#1284) »."
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每個Oura在穩定0x49發作時的睡眠之夜按鍵,在源頭壓制重複的備用裝置,而不是運輸的末端焦慮持續(# 1284)。 預設關閉——硬體驗證切換. 注意“安裝鑰匙(# 1284) ” 線路的帶狀日誌 。"
+          }
         }
       }
     },
@@ -151032,6 +151231,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Начало с ремчатого аккумулятора"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "踢進(拖帶電池)"
           }
         }
       }
@@ -154100,6 +154305,12 @@
             "state" : "translated",
             "value" : "最后 %@ 秒"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最後一個步驟%@剛才"
+          }
         }
       }
     },
@@ -154215,6 +154426,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "最后同步 %@ · %lld 节"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "上次同步%@* 婦女%lld屆會"
           }
         }
       }
@@ -157406,6 +157623,12 @@
             "state" : "translated",
             "value" : "生活"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "生活方式"
+          }
         }
       }
     },
@@ -157999,6 +158222,12 @@
             "state" : "translated",
             "value" : "有限"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "有限"
+          }
         }
       }
     },
@@ -158225,6 +158454,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "今天液体（原型）"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "今天液體(原型)"
           }
         }
       }
@@ -159176,6 +159411,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "La fréquence cardiaque en direct est transmise, mais votre montre n’est pas complètement connectée. La connexion cryptée transmet l’activité, la température de la peau, la saturation en oxygène et le rythme respiratoire — sans elle, le sommeil est estimé uniquement à partir de la fréquence cardiaque. Les notifications, les alarmes et le syncrétisme des données nécessitent cette connexion."
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "活的心率在上升 但你的帶子還沒有完全對齊 加密的配對是攜帶運動,皮膚溫度,SpO2和呼吸速率的——沒有它,睡眠就由心率單獨進行. 巴斯,警報和歷史同步也需要它。"
           }
         }
       }
@@ -161911,6 +162152,12 @@
             "state" : "translated",
             "value" : "Живые сессии (бета)"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "現場會議(β)"
+          }
         }
       }
     },
@@ -162091,6 +162338,12 @@
             "state" : "translated",
             "value" : "Die Belastung war hoch, ohne echte Pause."
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "負載一直很高,沒有真正休息。"
+          }
         }
       }
     },
@@ -162142,6 +162395,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Chargement de l’énergie…"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在裝入能量..."
           }
         }
       }
@@ -162252,6 +162511,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Chargement de la liste d’exercices…"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在裝入練習列表..."
           }
         }
       }
@@ -162368,6 +162633,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Chargement de vos routines…"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在裝入常規..."
           }
         }
       }
@@ -164268,6 +164539,12 @@
             "state" : "translated",
             "value" : "Registro della giornata"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "日誌今天的日記"
+          }
         }
       }
     },
@@ -164622,6 +164899,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Mit NOOP angemeldet"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在NOOP中登入"
           }
         }
       }
@@ -165448,6 +165731,12 @@
             "state" : "translated",
             "value" : "Длинные диапазоны открываются при наконечении истории."
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "隨著更多歷史的積累,更長的距離解鎖。"
+          }
         }
       }
     },
@@ -165506,6 +165795,12 @@
             "state" : "translated",
             "value" : "Самая продолжительность: %lld дней…"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最長 :%lld天數"
+          }
         }
       }
     },
@@ -165563,6 +165858,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Самая продолжительность: 1 день…"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最長:1天"
           }
         }
       }
@@ -173961,6 +174262,12 @@
             "state" : "translated",
             "value" : "Un entraînement modéré convient aujourd’hui."
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "今天的訓練服很溫和"
+          }
         }
       }
     },
@@ -174012,6 +174319,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Un travail modéré est bien évalué."
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "對中度工作的評價很好。"
           }
         }
       }
@@ -174245,6 +174558,12 @@
             "state" : "translated",
             "value" : "Momentum — ouvrez toutes les informations (%lld)."
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "時刻——全部開啟%lld見解"
+          }
         }
       }
     },
@@ -174296,6 +174615,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Der Antrieb geht während des Tages auf dieses Ziel zurück"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "一天裡,這個時刻都到此為止"
           }
         }
       }
@@ -184947,6 +185272,12 @@
             "state" : "translated",
             "value" : "Aucune charge enregistrée."
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "尚未記錄負載"
+          }
         }
       }
     },
@@ -186308,6 +186639,12 @@
             "state" : "translated",
             "value" : "无照片 → person.crop.circle 备用"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "沒有照片 ~ person.crop.crop.circle 後退"
+          }
         }
       }
     },
@@ -186539,6 +186876,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Aucun progrès pour (%@)."
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "無進展%@"
           }
         }
       }
@@ -187428,6 +187771,12 @@
             "state" : "translated",
             "value" : "Brak wyniku"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "還沒有得分"
+          }
         }
       }
     },
@@ -187777,6 +188126,12 @@
             "state" : "translated",
             "value" : "Brak zarejestrowanego snu"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "沒有記錄睡眠"
+          }
         }
       }
     },
@@ -187828,6 +188183,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Nessun riposo registrato ieri notte"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "昨晚沒有跟蹤睡眠"
           }
         }
       }
@@ -188416,6 +188777,12 @@
             "state" : "translated",
             "value" : "Brak celu"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "無目標"
+          }
         }
       }
     },
@@ -188899,6 +189266,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Nessuna garanzia; responsabilità limitata"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "無擔保;責任有限"
           }
         }
       }
@@ -194033,6 +194406,12 @@
             "state" : "translated",
             "value" : "Non è un dispositivo medico, non è un consiglio medico"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "不是醫療裝置也不是醫療建議"
+          }
         }
       }
     },
@@ -198352,6 +198731,12 @@
             "state" : "translated",
             "value" : "Rien à signaler pour l’instant."
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "現在沒什麼好掛的"
+          }
         }
       }
     },
@@ -199141,6 +199526,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Notifica quando viene raggiunto lo sforzo ottimale"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "達到最佳壓力時通知"
           }
         }
       }
@@ -203942,6 +204333,12 @@
             "state" : "translated",
             "value" : "Une nuit précédente, pas l’intégralité du déficit."
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "一個更早的夜晚, 不是全部債務一次。"
+          }
         }
       }
     },
@@ -203993,6 +204390,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Une valeur personnelle, affichée sous forme de carte."
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你自己的一個數字,顯示為一張牌"
           }
         }
       }
@@ -204103,6 +204506,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Une ou deux choses nécessitent une attention particulière."
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "一兩件事情需要注意"
           }
         }
       }
@@ -204219,6 +204628,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Une séance manquée par rapport à votre semaine."
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "少了一週時間"
           }
         }
       }
@@ -205236,6 +205651,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Diario aperto"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "開啟日記"
           }
         }
       }
@@ -239158,6 +239579,12 @@
             "state" : "translated",
             "value" : "РЕГУЛЯТИВНЫЙ СНЁМ"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "報復性睡眠"
+          }
         }
       }
     },
@@ -242553,7 +242980,8 @@
       }
     },
     "RPE" : {
-      "shouldTranslate" : false
+      "shouldTranslate" : false,
+      "localizations" : {}
     },
     "RPE %@" : {
       "localizations" : {
@@ -245608,6 +246036,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Punktzahlen speichern — neu abgeleitete %lld von %lld Tagen"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "保存分数——重新生成%lld页:1%lld天数"
           }
         }
       }
@@ -263106,6 +263540,12 @@
             "state" : "translated",
             "value" : "数据源从Hevy同步"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "原始碼同步自Hevy"
+          }
         }
       }
     },
@@ -265020,6 +265460,12 @@
             "state" : "translated",
             "value" : "开始训练"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "開始會話"
+          }
         }
       }
     },
@@ -266881,6 +267327,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "步数目标达成"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "實現的階段目標"
           }
         }
       }
@@ -269387,6 +269839,12 @@
             "state" : "translated",
             "value" : "疲劳目标"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "線性目標"
+          }
         }
       }
     },
@@ -271555,6 +272013,12 @@
             "state" : "translated",
             "value" : "连续训练"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "斷層"
+          }
         }
       }
     },
@@ -273009,6 +273473,12 @@
             "state" : "translated",
             "value" : "压力：个人日常基准"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "壓力:個人日間基線"
+          }
         }
       }
     },
@@ -274049,6 +274519,12 @@
             "state" : "translated",
             "value" : "组合训练%lld"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "超級集%lld"
+          }
         }
       }
     },
@@ -274100,6 +274576,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "补充剂"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "補編"
           }
         }
       }
@@ -275915,6 +276397,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Synchronisez votre entraînement de force depuis Hevy : chaque série, répétition, poids et RPE, ainsi que la liste des exercices. NOOP enregistre les données et ne modifie jamais votre journalisation Hevy. La charge de travail est reportée séparément et ne devient jamais un effort cardio. Nécessite Hevy Pro — la clé est disponible à hevy.com/settings?developer."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "与Hevy的强度训练同步:每集,代表,重量和RTE,加上锻炼清单. NOOP读它,从来没有写到你的Hevy日志。 升降音量被单独报告,从未成为心电图努力. 需要Hevy Pro-关键在于hevy.com/sings? 开发者。"
           }
         }
       }
@@ -278112,6 +278600,12 @@
             "state" : "translated",
             "value" : "让我帮你看看你准备的草稿"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "說說你準備的草稿"
+          }
         }
       }
     },
@@ -278221,6 +278715,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Seleziona una giornata per recuperare ciò che hai perso."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "打一天来追赶"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "打一天來追趕"
           }
         }
       }
@@ -284703,6 +285209,12 @@
             "state" : "translated",
             "value" : "Устройство показывает время иначе, чем отправляет NOOP, поэтому его будильник не срабатывает в момент пробуждения — обычно это устройство, чья система или будильник сброс. Сбросьте устройство через официальное приложение WHOOP (или полностью зарядите его и подключите снова) и используйте будильник телефона «Часы» как свой будильник, пока это не изменится."
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "綁帶持續報告的時間與NOOP傳送的時間不同,因此它的韌體警報不會在你的醒悟時間開火——通常是一條其時鐘或警報重設的綁帶. 重置WHOOP官方app中的綁帶(或充電後重新連線),並保持手機的時鐘警鐘作為你的警鐘,直到需要."
+          }
         }
       }
     },
@@ -285185,6 +285697,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "的重啟流程尚未確認——正常重啟將被忽略（編號 #235）。請對每個候選方案進行測試，並同時監控錶帶日誌與實際錶帶狀態。「12 秒內無斷開」表示錶帶忽略了此流程。若顯示「連線斷開」，表示流程已傳達給錶帶——但單純斷開連線並非重啟：真正的重啟會使錶帶感測器燈在幾秒鐘內熄滅，因此若燈光保持亮著，則僅為連線暫停，非重啟。此操作不損壞數據。請分享日誌，以便我們確認正確流程。"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Рамка перезагрузки WHOOP 4.0 не подтверждена — обычный перезапуск игнорируется (#235). Отправьте каждого кандидата и посмотрите как бревно ремня, так и сам ремень. «Отключение в пределах 12» означает, что ремешок игнорирует раму. Линия «ссылка упала» означает, что рама достигла ремня — но одна только выпадающая ссылка не является перезагрузкой: настоящая перезагрузка также выключает датчик ремня на несколько секунд, поэтому, если свет оставался на нем, это было просто выпадающее соединение, а не перезагрузка. Неразрушающий — ваши данные хранятся. Пожалуйста, поделитесь журналом, чтобы мы могли закрепить реальный кадр."
           }
         }
       }
@@ -286435,6 +286953,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Ces données proviennent de la vérification interne de NOOP sur votre entraînement récent, pas du coach. Vous pouvez les envoyer quand même."
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "這些來自NOOP自己的檢查 你最近的訓練,而不是教練。 你還是可以寄出去的"
           }
         }
       }
@@ -290816,6 +291340,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Cette période a enregistré une fréquence cardiaque élevée sans mouvement confirmé ou séance. NOOP ne la compte pas comme une activité et élargit l'intervalle d'incertitude."
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "這一次,在未經證實的行動或鍛鍊的情況下,心率上升。 NOOP不將其算作活動,並擴大了不確定性範圍."
           }
         }
       }
@@ -297052,7 +297582,8 @@
       }
     },
     "Training Load" : {
-      "shouldTranslate" : false
+      "shouldTranslate" : false,
+      "localizations" : {}
     },
     "Training load: chronic vs acute" : {
       "localizations" : {
@@ -299839,6 +300370,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Attivare le notifiche per NOOP nelle Impostazioni per ricevere il promemoria per la discesa."
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "開啟設定中的 NOOP 通知以獲取您的關閉提醒 。"
           }
         }
       }
@@ -333205,6 +333742,24 @@
             "state" : "translated",
             "value" : "WHOOP 5.0/MG каждую секунду передаёт рассчитанный браслетом процент SpO₂ (предполагаемый байт @82). В независимой проверке за восемь ночей корреляция с приложением WHOOP составила +0,99, однако в две ночи на первом тестовом устройстве показатель изменялся в противоположном направлении. Поэтому различия между устройствами и версиями прошивки пока не выяснены. Собственное значение SpO₂ кольца Oura в необработанном потоке завышено: в чистую ночь от одной пятой до половины отсчётов превышают 100%. NOOP вместо этого показывает среднее значение кольца, предварительно ограничивая каждый отсчёт уровнем 100%. Во всех проверенных полных ночах оно совпало со значением в приложении Oura, хотя таких ночей пока немного. Если включить эту опцию без калиброванного импорта, подходящее для устройства значение появится на карточке кислорода в крови как «оценка браслета (не проверена)». Оно никогда не влияет на оценки восстановления или болезни. У WHOOP 4.0 нет потока @82, поэтому на нём эта опция ничего не меняет."
           }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il tuo WHOOP 5.0/MG invia ogni secondo una percentuale di SpO₂ calcolata dalla fascia (il byte candidato @82). In una validazione indipendente di 8 notti ha mostrato una correlazione di +0,99 con l’app WHOOP, ma in due notti sul dispositivo di prova originale si è mossa nella direzione OPPOSTA: le differenze tra dispositivo e firmware restano quindi irrisolte. Anche la lettura SpO₂ dell’anello Oura risulta elevata nei dati grezzi, superando il 100% in una quota dei campioni. NOOP mostra invece la media dell’anello dopo aver limitato ogni campione al 100%; nelle poche notti complete verificate finora, il valore ha coinciso con quello mostrato dall’app Oura. Attivando questa opzione, quando non esiste un’importazione calibrata, la tessera Ossigeno nel sangue mostra il valore disponibile per il dispositivo come “stima della fascia (non verificata)”. Il valore non influisce mai sul recupero né sul rilevamento delle malattie. WHOOP 4.0 non dispone del flusso @82, quindi l’opzione non ha effetto su quel modello."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "您的WHOP 5.0/MG每秒发送一个带带状computing SpO2百分比(@82候选字节)——8晚的独立验证在corr + 0.99对WHOOP app进行跟踪,但原测试设备上的两晚移动了OPPOSITE方向,因此设备/软件差异尚未解决. Oura 环本身的 SpO2 读数在线上很高(在清洁的夜晚的五分之一到一半的样本上超过100%);这相反地显示环的平均值,每个样本先封顶100%,这与Oura 应用在迄今为止每整夜的显示值相匹配,尽管只有几晚。 在不存在校准导入时, 将此选项转换到表面, 以“ 陷阱估计值( 未验证) ” 。 它从不给康复或疾病评分。 WHOOP 4.0没有@82流,所以这里没有任何作用."
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "您的WHOP 5.0/MG每秒傳送一個帶帶狀computing SpO2百分比(@82候選位元組)——8晚的獨立驗證在corr + 0.99對WHOOP app進行跟蹤,但原測試裝置上的兩晚移動了OPPOSITE方向,因此裝置/軟體差異尚未解決. Oura 環本身的 SpO2 讀數線上上很高(在清潔的夜晚的五分之一到一半的樣本上超過100%);這相反地顯示環的平均值,每個樣本先封頂100%,這與Oura 應用在迄今為止每整夜的顯示值相匹配,儘管只有幾晚。 在不存在校準匯入時, 將此選項轉換到表面, 以“ 陷阱估計值( 未驗證) ” 。 它從不給康復或疾病評分。 WHOOP 4.0沒有@82流,所以這裡沒有任何作用."
+          }
         }
       }
     },
@@ -334415,6 +334970,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "區間 %lld：%lld-%lld bpm（%lld-%lld% 最大心率）"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zona %lld: %lld–%lld bpm (%lld–%lld%% della FC max)"
           }
         }
       }
@@ -365657,7 +366218,8 @@
       }
     },
     "Polar Training Load Pro · Garmin Training Status · Bosquet et al. 2013 · Pelland et al. 2024 · Robinson et al. 2024 · Foster 2001" : {
-      "shouldTranslate" : false
+      "shouldTranslate" : false,
+      "localizations" : {}
     },
     "Unclear" : {
       "localizations" : {
@@ -369296,7 +369858,8 @@
       }
     },
     "Edwards 1993 · Banister 1991 · Foster 2001 · Bosquet et al. 2013 · Meeusen et al. 2013 · Pelland et al. 2024 · Robinson et al. 2024" : {
-      "shouldTranslate" : false
+      "shouldTranslate" : false,
+      "localizations" : {}
     },
     "%@ against last week" : {
       "localizations" : {
@@ -371005,6 +371568,24 @@
             "state" : "translated",
             "value" : "%@ %lld"
           }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ %lld"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ %lld"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ %lld"
+          }
         }
       }
     },
@@ -371115,6 +371696,24 @@
             "state" : "translated",
             "value" : "%@ калибруется"
           }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ in calibrazione"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@校准"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@校準"
+          }
         }
       }
     },
@@ -371224,6 +371823,24 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%@ недоступно"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ non disponibile"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@无"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@無"
           }
         }
       }
@@ -371463,6 +372080,24 @@
             "state" : "translated",
             "value" : "%lld точек, среднее %@, диапазон от %@ до %@"
           }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld punti, media %@, intervallo da %@ a %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld点,表示%@范围%@改为:%@"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld點,表示%@範圍%@改為:%@"
+          }
         }
       }
     },
@@ -371508,6 +372143,24 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%lld измерений"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld letture"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld读数"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld讀數"
           }
         }
       }
@@ -371555,6 +372208,24 @@
             "state" : "translated",
             "value" : "%lldд назад"
           }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld g fa"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld刚才"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld剛才"
+          }
         }
       }
     },
@@ -371600,6 +372271,24 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%lldм назад"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld min fa"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld刚才"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld剛才"
           }
         }
       }
@@ -371647,6 +372336,24 @@
             "state" : "translated",
             "value" : "0xAA 41 00 1c crc32=f3a1  mono 13"
           }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "0xAA 41 00 1c crc32=f3a1 mono 13"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "0xAA 41 00 1c crc32=f3a1 单 13"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "0xAA 41 00 1c crc32=f3a1 單 13"
+          }
         }
       }
     },
@@ -371692,6 +372399,24 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "1 минута"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 minuto"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1分钟"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1分鐘"
           }
         }
       }
@@ -371937,6 +372662,18 @@
             "state" : "translated",
             "value" : "51 次/分鐘"
           }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "51 bpm"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "下午51点"
+          }
         }
       }
     },
@@ -372053,6 +372790,18 @@
             "state" : "translated",
             "value" : "6 à 6 jours"
           }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "6-6"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "6-6 (中文(简体) )."
+          }
         }
       }
     },
@@ -372104,6 +372853,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "62"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "62"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "62国"
           }
         }
       }
@@ -372157,6 +372918,18 @@
             "state" : "translated",
             "value" : "64"
           }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "64"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "64个"
+          }
         }
       }
     },
@@ -372202,6 +372975,24 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "7 ч 42 мин сна · эффективность 92%"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "7 h 42 min di sonno · efficienza 92%"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "7h 42m 睡眠 效率 92%"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "7h 42m 睡眠 效率 92%"
           }
         }
       }
@@ -372255,6 +373046,18 @@
             "state" : "translated",
             "value" : "87"
           }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "87"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "第87条"
+          }
         }
       }
     },
@@ -372300,6 +373103,24 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "87% · стриминг"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "87% · in streaming"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "87% 流动"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "87% 流動"
           }
         }
       }
@@ -372353,6 +373174,18 @@
             "state" : "translated",
             "value" : "88"
           }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "88"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "88号"
+          }
         }
       }
     },
@@ -372399,6 +373232,24 @@
             "state" : "translated",
             "value" : "НА ПРЕДЕЛЕ"
           }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MASSIMO SFORZO"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "通关"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "通關"
+          }
         }
       }
     },
@@ -372444,6 +373295,24 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Принято через стиль кнопки NOOP"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Adottato tramite NoopButtonStyle"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "由诺普顿施蒂尔通过"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "由諾普頓施蒂爾透過"
           }
         }
       }
@@ -372555,6 +373424,24 @@
             "state" : "translated",
             "value" : "Ток со штангой"
           }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Solo barra"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "仅栏"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "僅欄"
+          }
         }
       }
     },
@@ -372600,6 +373487,24 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Bateria 14%"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Batteria 14%"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "电池 14%"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "電池 14%"
           }
         }
       }
@@ -372647,6 +373552,24 @@
             "state" : "translated",
             "value" : "Тело / Регулярный 15 — линия вашего здоровья, прочитайте полностью."
           }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Corpo / Regolare 15 — il filo del racconto, letto per intero."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "体 / 常规 15 —— 你身上的线条,全读."
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "體 / 常規 15 —— 你身上的線條,全讀."
+          }
         }
       }
     },
@@ -372692,6 +373615,24 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "ЧИСТОЙ ЦЕЛЬНЫЙ РЕЗУЛЬТАТ"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "PUNTEGGIO CRESCENTE"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "冷却沙雷"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "冷卻沙雷"
           }
         }
       }
@@ -372739,6 +373680,24 @@
             "state" : "translated",
             "value" : "Спокойная ночь"
           }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Notte tranquilla"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "冷静的夜晚"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "冷靜的夜晚"
+          }
         }
       }
     },
@@ -372785,6 +373744,24 @@
             "state" : "translated",
             "value" : "Заголовок 12"
           }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Didascalia 12"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "说明12"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "說明12"
+          }
         }
       }
     },
@@ -372830,6 +373807,24 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Карта тренировок %lld"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scheda %lld"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "纸牌%lld"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "紙牌%lld"
           }
         }
       }
@@ -372941,6 +373936,24 @@
             "state" : "translated",
             "value" : "Заряд %lld из 100"
           }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Carica %lld su 100"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "充电%lld在100个中"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "充電%lld在100箇中"
+          }
         }
       }
     },
@@ -372986,6 +373999,24 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Заряд %lld · %lld уд/мин%@"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Carica %lld · %lld bpm%@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "充电%lld* 妇女%lld页:1%@"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "充電%lld* 婦女%lld頁:1%@"
           }
         }
       }
@@ -373033,6 +374064,24 @@
             "state" : "translated",
             "value" : "Заряд %lld%@"
           }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Carica %lld%@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "充电%lld%@"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "充電%lld%@"
+          }
         }
       }
     },
@@ -373078,6 +374127,24 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Заряд калибруется"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Carica in calibrazione"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "电荷校准"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "電荷校準"
           }
         }
       }
@@ -373125,6 +374192,24 @@
             "state" : "translated",
             "value" : "Заряд калибруется, нужно больше данных"
           }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Carica in calibrazione, servono più dati"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "电荷校准, 需要更多数据"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "電荷校準, 需要更多資料"
+          }
         }
       }
     },
@@ -373170,6 +374255,24 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Заряд устарел, последняя синхронизация %@. Откройте NOOP на iPhone."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Carica non aggiornata, ultima sincronizzazione %@. Apri NOOP su iPhone."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "充电已过期, 上次同步%@在iPhone上打开NOOP."
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "充電已過期, 上次同步%@在iPhone上開啟NOOP."
           }
         }
       }
@@ -373217,6 +374320,24 @@
             "state" : "translated",
             "value" : "Заряд устарел · %@"
           }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Carica non aggiornata · %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "充电停止%@"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "充電停止%@"
+          }
         }
       }
     },
@@ -373262,6 +374383,24 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Заряд недоступен"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Carica non disponibile"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法充电"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "無法充電"
           }
         }
       }
@@ -373309,6 +374448,24 @@
             "state" : "translated",
             "value" : "Заряд · %@"
           }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Carica · %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "充电%@"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "充電%@"
+          }
         }
       }
     },
@@ -373355,6 +374512,24 @@
             "state" : "translated",
             "value" : "Заряд · кал"
           }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Carica · cal"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "充电 口径"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "充電 口徑"
+          }
         }
       }
     },
@@ -373400,6 +374575,24 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Заряд –"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Carica –"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "充电"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "充電"
           }
         }
       }
@@ -373511,6 +374704,24 @@
             "state" : "translated",
             "value" : "РАЗРЯЖЕН"
           }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ESAURITO"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已删除"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已刪除"
+          }
         }
       }
     },
@@ -373569,6 +374780,12 @@
             "state" : "translated",
             "value" : "深色"
           }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scuro"
+          }
         }
       }
     },
@@ -373614,6 +374831,24 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Excluir registo"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cancella la registrazione"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "删除记录"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "刪除記錄"
           }
         }
       }
@@ -373661,6 +374896,24 @@
             "state" : "translated",
             "value" : "Desactivado"
           }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Disattivato"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已禁用"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已禁用"
+          }
         }
       }
     },
@@ -373706,6 +374959,24 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Расчётный 1ПМ по формуле Эпли на основе лучшего рабочего подхода каждой тренировки — это прогноз, а не фактически выполненный подъём. Если указаны RPE или RIR, учитываются оставшиеся повторы; без оценки используются только выполненные повторы. Подходы, где сумма выполненных и оставшихся повторов превышает 12, исключаются. Линия тренда строится по медиане всех попарных наклонов, поэтому одна неудачная тренировка не меняет её направление."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1RM stimato (Epley) dal miglior set allenante di ogni sessione: è una proiezione, non un sollevamento eseguito. Se hai registrato RPE o RIR, vengono incluse le ripetizioni rimanenti; altrimenti si usano solo quelle completate. I set con più di 12 ripetizioni totali, completate e rimanenti, vengono esclusi. La tendenza usa la mediana di tutte le pendenze a coppie, così una singola sessione negativa non può invertirla."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "估计每场会议最佳工作组合的1RM(Epley)——一个预测,而不是你完成的搭载. 登录的RTE或RIR时,包括剩余的代表;没有评分,则使用已完成的代表. 其余代表超过12人的部分被排除在外。 旁边的趋势是每个双向斜坡的中位数,因此一个坏会话不能翻转."
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "估計每場會議最佳工作組合的1RM(Epley)——一個預測,而不是你完成的搭載. 登入的RTE或RIR時,包括剩餘的代表;沒有評分,則使用已完成的代表. 其餘代表超過12人的部分被排除在外。 旁邊的趨勢是每個雙向斜坡的中位數,因此一個壞會話不能翻轉."
           }
         }
       }
@@ -373887,6 +375158,18 @@
             "state" : "translated",
             "value" : "Sol"
           }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Limite inferiore"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "楼层"
+          }
         }
       }
     },
@@ -374060,6 +375343,24 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Примечания 11"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nota 11"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "脚注11"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "腳註11"
           }
         }
       }
@@ -374235,6 +375536,24 @@
             "state" : "translated",
             "value" : "Intervalo principal completo"
           }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Primario a tutta larghezza"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "全程小学"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "全程小學"
+          }
         }
       }
     },
@@ -374280,6 +375599,24 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Drugorzędny przycisk na pełną szerokość"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Secondario a tutta larghezza"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "全程中学"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "全程中學"
           }
         }
       }
@@ -374391,6 +375728,24 @@
             "state" : "translated",
             "value" : "__HRV__ (мс) — 30 дней"
           }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "HRV (ms) — 30 giorni"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "HRV(ms) - 30天"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "HRV(ms) - 30天"
+          }
         }
       }
     },
@@ -374437,6 +375792,24 @@
             "state" : "translated",
             "value" : "Заголовок / подчеркнутый текст 17"
           }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Titolo / Semigrassetto 17"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "标题 / 半粗体 17"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "標題 / 半粗體 17"
+          }
         }
       }
     },
@@ -374482,6 +375855,24 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "частота сердечных сокращений, 24 часа"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Frequenza cardiaca, 24 ore"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "24小时心率"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "24小時心率"
           }
         }
       }
@@ -374657,6 +376048,24 @@
             "state" : "translated",
             "value" : "Перетащите ремень: название этапа, время начала–окончания и продолжительность."
           }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Passa il puntatore su una fascia: fase, orario di inizio e fine e durata."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hover a band:艺名,时钟开始-结束和持续时间."
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hover a band:藝名,時鐘開始-結束和持續時間."
+          }
         }
       }
     },
@@ -374702,6 +376111,24 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Перетащите ячейку: кольцо + дата, балл и всплывающая подсказка о состоянии."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Passa il puntatore su una cella: anello, data, punteggio e stato di recupero."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "绕行一个单元格:环+日期,得分和恢复状态工具提示."
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "繞行一個單元格:環+日期,得分和恢復狀態工具提示."
           }
         }
       }
@@ -374749,6 +376176,24 @@
             "state" : "translated",
             "value" : "Перетащите показатель нагрузки для всплывающей подсказки о нагрузке + состоянии."
           }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Passa il puntatore sull'indicatore per vedere sforzo e livello di carico."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "压轴+负载字工具提示"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "壓軸+負載字工具提示"
+          }
         }
       }
     },
@@ -374794,6 +376239,24 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Перетащите кольцо для всплывающей подсказки о восстановлении + состоянии."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Passa il puntatore su un anello per vedere recupero e stato."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "翻过一个环表示恢复 + 状态字工具提示."
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "翻過一個環表示恢復 + 狀態字工具提示."
           }
         }
       }
@@ -374841,6 +376304,24 @@
             "state" : "translated",
             "value" : "Перетащите любой график, чтобы увидеть точное значение под указанием."
           }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Passa il puntatore su un minigrafico per leggere il campione esatto."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "浏览光标下的确切样本"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "瀏覽游標下的確切樣本"
+          }
         }
       }
     },
@@ -374886,6 +376367,24 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Перетащите карточки, чтобы увидеть результат."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Passa il puntatore sulle schede per vedere il sollevamento."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "翻牌看电梯."
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "翻牌看電梯."
           }
         }
       }
@@ -374933,6 +376432,24 @@
             "state" : "translated",
             "value" : "Перетащите линию: точка + дата/значение + всплывающая подсказка."
           }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Passa il puntatore sulla linea: mirino, punto, data e valore."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "横线:横线+点+日期/值工具提示."
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "橫線:橫線+點+日期/值工具提示."
+          }
         }
       }
     },
@@ -374979,6 +376496,24 @@
             "state" : "translated",
             "value" : "Перетащите, чтобы прочитать HRV за день в миллисекундах."
           }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Passa il puntatore per leggere l'HRV giornaliera in ms."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "习惯阅读 每天的HRV以ms。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "習慣閱讀 每天的HRV以ms。"
+          }
         }
       }
     },
@@ -375024,6 +376559,24 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "На карте."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In una scheda"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在一张牌上"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在一張牌上"
           }
         }
       }
@@ -375076,6 +376629,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "輕"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "LEGGERO"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "光线"
           }
         }
       }
@@ -375186,6 +376751,24 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "УМЕРЕННЫЙ"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MODERATO"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "模拟"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "模擬"
           }
         }
       }
@@ -375425,6 +377008,24 @@
             "state" : "translated",
             "value" : "Движение во сне"
           }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Movimento durante il sonno"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "睡觉时的动作"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "睡覺時的動作"
+          }
         }
       }
     },
@@ -375535,6 +377136,24 @@
             "state" : "translated",
             "value" : "NOOP · откройте на iPhone"
           }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP · apri su iPhone"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "打开 iPhone"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "開啟 iPhone"
+          }
         }
       }
     },
@@ -375580,6 +377199,24 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "NOOP. %@, %@, %@."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP. %@, %@, %@."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "没有。%@, (中文).%@, (中文).%@。 。 。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "沒有。%@, (中文).%@, (中文).%@。 。 。"
           }
         }
       }
@@ -375627,6 +377264,24 @@
             "state" : "translated",
             "value" : "NOOP. Данных пока нет, откройте NOOP на iPhone для синхронизации."
           }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP. Ancora nessun dato: apri NOOP sul tuo iPhone per sincronizzare."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "没有。 尚未找到数据, 请打开您的iPhone上的 NOOP 以同步 。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "沒有。 尚未找到資料, 請開啟您的iPhone上的 NOOP 以同步 。"
+          }
         }
       }
     },
@@ -375673,6 +377328,24 @@
             "state" : "translated",
             "value" : "NOOP. Показатели устарели, последняя синхронизация %@. Откройте NOOP на iPhone, чтобы обновить."
           }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP. Punteggi non aggiornati, ultima sincronizzazione %@. Apri NOOP su iPhone per aggiornare."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "没有。 分数已过期, 上次同步%@打开 iPhone 上的 NOOP 以刷新 。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "沒有。 分數已過期, 上次同步%@開啟 iPhone 上的 NOOP 以重新整理 。"
+          }
         }
       }
     },
@@ -375718,6 +377391,24 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Нет данных, откройте NOOP на iPhone"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nessun dato, apri NOOP su iPhone"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "没有数据, 在 iPhone 上打开 NOOP"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "沒有資料, 在 iPhone 上開啟 NOOP"
           }
         }
       }
@@ -375829,6 +377520,24 @@
             "state" : "translated",
             "value" : "Нет данных о пульсе"
           }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nessun dato sulla frequenza cardiaca"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "没有心率数据"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "沒有心率資料"
+          }
         }
       }
     },
@@ -375939,6 +377648,24 @@
             "state" : "translated",
             "value" : "Открыть NOOP"
           }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apri NOOP"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "打开NOOP"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "開啟NOOP"
+          }
         }
       }
     },
@@ -375984,6 +377711,24 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Выскрашенный"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sopratitolo"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "超线"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "超線"
           }
         }
       }
@@ -376031,6 +377776,24 @@
             "state" : "translated",
             "value" : "Обзор частоты пульса"
           }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Panoramica FC"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "人力资源概览"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "人力資源概覽"
+          }
         }
       }
     },
@@ -376076,6 +377839,24 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "ЗАРЯЖЕН"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "PRONTO"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "私营"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "私營"
           }
         }
       }
@@ -376187,6 +377968,24 @@
             "state" : "translated",
             "value" : "Основная операция"
           }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Azione primaria"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "主要行动"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "主要行動"
+          }
         }
       }
     },
@@ -376297,6 +378096,24 @@
             "state" : "translated",
             "value" : "ГРАДЕНЬ ВОЗВРАЩЕНИЯ"
           }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "GRADIENTE DI RECUPERO"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "追寻者"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "追尋者"
+          }
         }
       }
     },
@@ -376349,6 +378166,18 @@
             "state" : "translated",
             "value" : "Ratio"
           }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rapporto"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "比率"
+          }
         }
       }
     },
@@ -376394,6 +378223,24 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Календарь восстановления, %lld дней, среднее %lld, минимум %lld, максимум %lld"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Calendario del recupero: %lld giorni, media %lld, minimo %lld, massimo %lld"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "恢复日历,%lld平均天数%lld低调%lld高级%lld"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "恢復日曆,%lld平均天數%lld低調%lld高階%lld"
           }
         }
       }
@@ -376441,6 +378288,24 @@
             "state" : "translated",
             "value" : "Календарь восстановления, нет данных"
           }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Calendario del recupero, nessun dato"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "恢复日历, 无数据"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "恢復日曆, 無資料"
+          }
         }
       }
     },
@@ -376486,6 +378351,24 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Восстановление — 30 дней"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recupero — 30 giorni"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "恢复——30天"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "恢復——30天"
           }
         }
       }
@@ -376533,6 +378416,24 @@
             "state" : "translated",
             "value" : "Восстановление — прошлый год"
           }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recupero — ultimo anno"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "复原——去年"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "復原——去年"
+          }
         }
       }
     },
@@ -376578,6 +378479,24 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Сокращение движения фиксирует положение на последнем кадре."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Riduci movimento mostra l'ultimo fotogramma senza animazione."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "减少运动使静态在最后帧。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "減少運動使靜態在最後幀。"
           }
         }
       }
@@ -376689,6 +378608,24 @@
             "state" : "translated",
             "value" : "Повторная демонстрация"
           }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ripeti animazione"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重播显示"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重播顯示"
+          }
         }
       }
     },
@@ -376734,6 +378671,24 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Неприятный сон"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Notte agitata"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无休息之夜"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "無休息之夜"
           }
         }
       }
@@ -376845,6 +378800,24 @@
             "state" : "translated",
             "value" : "Поворачиваем число"
           }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Anima il numero"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "滚动数字"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "滾動數字"
+          }
         }
       }
     },
@@ -376890,6 +378863,24 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "МЯГКАЯ ПЕРЕХОДЬ"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "TRANSIZIONE MORBIDA DELLA SCHEDA"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "软件转换"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "軟體轉換"
           }
         }
       }
@@ -376937,6 +378928,24 @@
             "state" : "translated",
             "value" : "МЕЖДУСТАНДАРТНЫЙ ИЗМЕНЕНИЕ"
           }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "COMPARSA SCAGLIONATA"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "申请"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "申請"
+          }
         }
       }
     },
@@ -376983,6 +378992,24 @@
             "state" : "translated",
             "value" : "УСТРОЙСТВО ИНТИМЕННОСТИ"
           }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "RAMPA DELLO SFORZO"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "强暴"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "強暴"
+          }
         }
       }
     },
@@ -377028,6 +379055,24 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "ИНТЕНСИВНЫЙ"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "INTENSO"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "严肃"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "嚴肅"
           }
         }
       }
@@ -377139,6 +379184,24 @@
             "state" : "translated",
             "value" : "Acción secundaria"
           }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Azione secondaria"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "次要行动"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "次要行動"
+          }
         }
       }
     },
@@ -377184,6 +379247,24 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Количество сегментов и высота"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Numero e altezza dei segmenti"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "段数高度( H)"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "段數高度( H)"
           }
         }
       }
@@ -377423,6 +379504,24 @@
             "state" : "translated",
             "value" : "этапы сна"
           }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fasi del sonno"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "睡眠阶段"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "睡眠階段"
+          }
         }
       }
     },
@@ -377469,6 +379568,24 @@
             "state" : "translated",
             "value" : "Стадии сна, %@"
           }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fasi del sonno, %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "睡眠阶段,%@"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "睡眠階段,%@"
+          }
         }
       }
     },
@@ -377514,6 +379631,24 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Стадии сна, нет данных"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fasi del sonno, nessun dato"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "睡眠阶段, 没有数据"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "睡眠階段, 沒有資料"
           }
         }
       }
@@ -377753,6 +379888,24 @@
             "state" : "translated",
             "value" : "Подзаголовок 13"
           }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sottotitolo 13"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "第13项"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "第13項"
+          }
         }
       }
     },
@@ -377863,6 +380016,24 @@
             "state" : "translated",
             "value" : "Системная"
           }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sistema"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "系统"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "系統"
+          }
         }
       }
     },
@@ -377908,6 +380079,24 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Acción terciaria"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Azione terziaria"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "第三级行动"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "第三級行動"
           }
         }
       }
@@ -378083,6 +380272,24 @@
             "state" : "translated",
             "value" : "Заголовок 1 / Букв.  28"
           }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Titolo 1 / Grassetto 28"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "标题1/粗体28"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "標題1/粗體28"
+          }
         }
       }
     },
@@ -378128,6 +380335,24 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Заголовок 2 / Полубукв.  22"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Titolo 2 / Semigrassetto 22"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "标题2 / 半粗体22"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "標題2 / 半粗體22"
           }
         }
       }
@@ -378239,6 +380464,24 @@
             "state" : "translated",
             "value" : "Переключайте мягкий рельеф"
           }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Attiva l'animazione elastica leggera"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "切换温柔的春天"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "切換溫柔的春天"
+          }
         }
       }
     },
@@ -378348,6 +380591,24 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Тренд, %lld точек, последнее %@, минимум %@, максимум %@"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Andamento: %lld punti, ultimo %@, minimo %@, massimo %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "趋势,%lld点,最近%@低调%@高级%@"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "趨勢,%lld點,最近%@低調%@高階%@"
           }
         }
       }
@@ -378465,6 +380726,18 @@
             "state" : "translated",
             "value" : "Normalement"
           }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abituale"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "常用"
+          }
         }
       }
     },
@@ -378511,6 +380784,24 @@
             "state" : "translated",
             "value" : "VO₂máximo"
           }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "VO2max"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "VO2马克"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "VO2馬克"
+          }
         }
       }
     },
@@ -378556,6 +380847,24 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Значения"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Valori"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "数值"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "數值"
           }
         }
       }
@@ -378667,6 +380976,24 @@
             "state" : "translated",
             "value" : "WHOOP 4.0"
           }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Whoop 4.0"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "低声4.0"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "低聲4.0"
+          }
         }
       }
     },
@@ -378712,6 +381039,24 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "некоторое время назад"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "tempo fa"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "刚才"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "剛才"
           }
         }
       }
@@ -378759,6 +381104,24 @@
             "state" : "translated",
             "value" : "во сне %@"
           }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "sonno %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "睡着了%@"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "睡著了%@"
+          }
         }
       }
     },
@@ -378805,6 +381168,24 @@
             "state" : "translated",
             "value" : "среднее %@ уд/мин"
           }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "media %@ bpm"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "平均数%@页:1"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "平均數%@頁:1"
+          }
         }
       }
     },
@@ -378850,6 +381231,24 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "часы %lld"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ora %lld"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "小时%lld"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "小時%lld"
           }
         }
       }
@@ -378967,6 +381366,18 @@
             "state" : "translated",
             "value" : "minutes"
           }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ms"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "分钟"
+          }
         }
       }
     },
@@ -379012,6 +381423,24 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "не тренирован"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "non allenato"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未培训"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未培訓"
           }
         }
       }
@@ -379065,6 +381494,18 @@
             "state" : "translated",
             "value" : "年老"
           }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "vecchio"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "旧"
+          }
         }
       }
     },
@@ -379111,6 +381552,24 @@
             "state" : "translated",
             "value" : "открыть iPhone"
           }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "apri iPhone"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "打开 iPhone"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "開啟 iPhone"
+          }
         }
       }
     },
@@ -379156,6 +381615,24 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "диапазон от %@ до %@"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "intervallo da %@ a %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "范围%@改为:%@"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "範圍%@改為:%@"
           }
         }
       }
@@ -379273,6 +381750,18 @@
             "state" : "translated",
             "value" : "過期"
           }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "non aggiornato"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "暂停"
+          }
         }
       }
     },
@@ -379383,6 +381872,24 @@
             "state" : "translated",
             "value" : "поддерживайте свой режим"
           }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "sotto il tuo livello abituale"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "照旧"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "照舊"
+          }
         }
       }
     },
@@ -379429,6 +381936,24 @@
             "state" : "translated",
             "value" : "выще всего обычного"
           }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "molto sopra il tuo livello abituale"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "比你平常还好"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "比你平常還好"
+          }
         }
       }
     },
@@ -379474,6 +381999,24 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "хорошо ниже вашего обычного уровня"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "molto sotto il tuo livello abituale"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在你的习惯下"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在你的習慣下"
           }
         }
       }
