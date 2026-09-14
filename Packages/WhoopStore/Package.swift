@@ -8,6 +8,7 @@ let package = Package(
     dependencies: [
         .package(path: "../WhoopProtocol"),
         .package(path: "../OuraProtocol"),
+        .package(path: "../StrandTraining"),
         // Supply-chain: pinned EXACT (not `from:`) so a clean resolve can't auto-pull a newer —
         // potentially compromised — upstream release. Must match the same exact version in the
         // other Packages/*/Package.swift and project.yml, or SPM resolution fails. Bump deliberately.
@@ -19,6 +20,7 @@ let package = Package(
             dependencies: [
                 "WhoopProtocol",
                 "OuraProtocol",
+                "StrandTraining",
                 .product(name: "GRDB", package: "GRDB.swift"),
             ],
             // Optimised even in Debug — see the note on StrandAnalytics's target. Xcode compiles SPM

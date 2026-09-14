@@ -6,6 +6,7 @@ import UIKit
 import WhoopStore
 import StrandAnalytics
 import StrandImport
+import StrandTraining
 
 /// Two-way Apple Health bridge for the iOS app.
 ///
@@ -1879,8 +1880,10 @@ final class HealthKitBridge: ObservableObject {
         guard store.authorizationStatus(for: .workoutType()) == .sharingAuthorized else { return 0 }
         let mine = (try? await whoopStore.workouts(deviceId: noopDeviceId, from: fromTs, to: toTs, limit: 500)) ?? []
         let computed = (try? await whoopStore.workouts(deviceId: computedDeviceId, from: fromTs, to: toTs, limit: 500)) ?? []
+        let native = ((try? await whoopStore.nativeWorkouts(from: fromTs, to: toTs, limit: 500)) ?? [])
+            .map(NativeTrainingProjection.workoutRow)
         var byKey: [String: WorkoutRow] = [:]
-        for w in computed + mine where w.source != HealthKitBridge.appleWorkoutSource {
+        for w in computed + mine + native where w.source != HealthKitBridge.appleWorkoutSource {
             byKey["\(w.startTs):\(w.sport)"] = w
         }
         let rows = byKey.values.sorted { $0.startTs < $1.startTs }

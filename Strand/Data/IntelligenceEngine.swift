@@ -117,7 +117,10 @@ final class IntelligenceEngine: ObservableObject {
     // v5 changes workout-source precedence from winner-takes-all rows to canonical fused sessions and
     // makes Cardio Load additive in raw TRIMP. The standard resumable 21-day pass refreshes recent
     // workout-derived daily outputs; fusion links and raw source rows are additive and never erased.
-    static let currentAnalysisRecipeVersion = 5
+    // v6 admits the source-neutral native strength log into the canonical workout spine. Existing v5
+    // installs must revisit the bounded workout window so a session first logged in NOOP contributes
+    // exactly once after its Apple Health mirror is fused. Native sets and source rows are never erased.
+    static let currentAnalysisRecipeVersion = 6
     static let analysisRecipeCursor = "analysis:recipeVersion"
     static let analysisLastRunKey = "noop.analysisMaintenance.lastRun"
 

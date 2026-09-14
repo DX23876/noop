@@ -61,7 +61,8 @@
   "v57-ppg-waveform-base-code",
   "v58-rr-transport",
   "v59-reattribute-archived-strap-samples",
-  "v60-training-session-fusion"
+  "v60-training-session-fusion",
+  "v61-native-training"
  ],
  "divergenceReasons": {
   "android-orphan-synced-column": "REAL COLUMN DRIFT: `synced` exists on Android only. GRDB's v10 note is explicit that stepSample gets no `synced` column ('unused; see StreamStore'), and v12's ppgHrSample never had one either; the Room entities copied the flag from the older per-second entities. Nothing reads it on Android — the per-row upload flag belongs to an upload path that does not exist there — so it is dead width, not divergent data. Removing it needs a Room table rebuild.",
@@ -3062,6 +3063,687 @@
     "sessionId"
    ],
    "indices": []
+  },
+  "trainingExerciseDefinition": {
+   "platform": "ios_only",
+   "reason": "Native source-neutral training plans, exercise definitions, compact completed sets, schedules, and one transient workout draft (GRDB v61). This Apple-only checkout has no Room twin.",
+   "columns": [
+    {
+     "name": "id",
+     "affinity": "TEXT",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "title",
+     "affinity": "TEXT",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "mode",
+     "affinity": "TEXT",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "primaryMuscleId",
+     "affinity": "TEXT",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "secondaryMuscleIdsJSON",
+     "affinity": "TEXT",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "equipmentIdsJSON",
+     "affinity": "TEXT",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "instructionsJSON",
+     "affinity": "TEXT",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "isUnilateral",
+     "affinity": "NUMERIC",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "source",
+     "affinity": "TEXT",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "sourceId",
+     "affinity": "TEXT",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "mediaId",
+     "affinity": "TEXT",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "updatedAtTs",
+     "affinity": "INTEGER",
+     "notNull": true,
+     "default": null
+    }
+   ],
+   "primaryKey": [
+    "id"
+   ],
+   "indices": [
+    {
+     "name": "idx_trainingExerciseDefinition_source",
+     "unique": false,
+     "columns": [
+      "source",
+      "sourceId"
+     ]
+    }
+   ]
+  },
+  "trainingRoutineNative": {
+   "platform": "ios_only",
+   "reason": "Native source-neutral training plans, exercise definitions, compact completed sets, schedules, and one transient workout draft (GRDB v61). This Apple-only checkout has no Room twin.",
+   "columns": [
+    {
+     "name": "id",
+     "affinity": "TEXT",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "title",
+     "affinity": "TEXT",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "notes",
+     "affinity": "TEXT",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "defaultProgressionJSON",
+     "affinity": "TEXT",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "excludeFromProgression",
+     "affinity": "NUMERIC",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "createdAtTs",
+     "affinity": "INTEGER",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "updatedAtTs",
+     "affinity": "INTEGER",
+     "notNull": true,
+     "default": null
+    }
+   ],
+   "primaryKey": [
+    "id"
+   ],
+   "indices": [
+    {
+     "name": "idx_trainingRoutineNative_updated",
+     "unique": false,
+     "columns": [
+      "updatedAtTs"
+     ]
+    }
+   ]
+  },
+  "trainingRoutineExercise": {
+   "platform": "ios_only",
+   "reason": "Native source-neutral training plans, exercise definitions, compact completed sets, schedules, and one transient workout draft (GRDB v61). This Apple-only checkout has no Room twin.",
+   "columns": [
+    {
+     "name": "id",
+     "affinity": "TEXT",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "routineId",
+     "affinity": "TEXT",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "idx",
+     "affinity": "INTEGER",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "exerciseId",
+     "affinity": "TEXT",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "restSeconds",
+     "affinity": "INTEGER",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "supersetId",
+     "affinity": "TEXT",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "progressionJSON",
+     "affinity": "TEXT",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "barWeightKg",
+     "affinity": "REAL",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "note",
+     "affinity": "TEXT",
+     "notNull": false,
+     "default": null
+    }
+   ],
+   "primaryKey": [
+    "id"
+   ],
+   "indices": [
+    {
+     "name": "idx_trainingRoutineExercise_routine",
+     "unique": false,
+     "columns": [
+      "routineId",
+      "idx"
+     ]
+    }
+   ]
+  },
+  "trainingRoutineSetPlan": {
+   "platform": "ios_only",
+   "reason": "Native source-neutral training plans, exercise definitions, compact completed sets, schedules, and one transient workout draft (GRDB v61). This Apple-only checkout has no Room twin.",
+   "columns": [
+    {
+     "name": "id",
+     "affinity": "TEXT",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "routineExerciseId",
+     "affinity": "TEXT",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "idx",
+     "affinity": "INTEGER",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "phase",
+     "affinity": "TEXT",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "intensifier",
+     "affinity": "TEXT",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "targetWeightKg",
+     "affinity": "REAL",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "repsMin",
+     "affinity": "INTEGER",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "repsMax",
+     "affinity": "INTEGER",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "targetDurationS",
+     "affinity": "INTEGER",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "targetDistanceM",
+     "affinity": "REAL",
+     "notNull": false,
+     "default": null
+    }
+   ],
+   "primaryKey": [
+    "id"
+   ],
+   "indices": [
+    {
+     "name": "idx_trainingRoutineSetPlan_exercise",
+     "unique": false,
+     "columns": [
+      "routineExerciseId",
+      "idx"
+     ]
+    }
+   ]
+  },
+  "trainingWorkoutNative": {
+   "platform": "ios_only",
+   "reason": "Native source-neutral training plans, exercise definitions, compact completed sets, schedules, and one transient workout draft (GRDB v61). This Apple-only checkout has no Room twin.",
+   "columns": [
+    {
+     "name": "id",
+     "affinity": "TEXT",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "title",
+     "affinity": "TEXT",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "startedAtTs",
+     "affinity": "INTEGER",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "endedAtTs",
+     "affinity": "INTEGER",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "plannedDay",
+     "affinity": "TEXT",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "routineIdsJSON",
+     "affinity": "TEXT",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "trackerJSON",
+     "affinity": "TEXT",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "sessionRPE",
+     "affinity": "REAL",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "note",
+     "affinity": "TEXT",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "source",
+     "affinity": "TEXT",
+     "notNull": true,
+     "default": null
+    }
+   ],
+   "primaryKey": [
+    "id"
+   ],
+   "indices": [
+    {
+     "name": "idx_trainingWorkoutNative_source_started",
+     "unique": false,
+     "columns": [
+      "source",
+      "startedAtTs"
+     ]
+    },
+    {
+     "name": "idx_trainingWorkoutNative_started",
+     "unique": false,
+     "columns": [
+      "startedAtTs"
+     ]
+    }
+   ]
+  },
+  "trainingWorkoutExercise": {
+   "platform": "ios_only",
+   "reason": "Native source-neutral training plans, exercise definitions, compact completed sets, schedules, and one transient workout draft (GRDB v61). This Apple-only checkout has no Room twin.",
+   "columns": [
+    {
+     "name": "id",
+     "affinity": "TEXT",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "workoutId",
+     "affinity": "TEXT",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "idx",
+     "affinity": "INTEGER",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "exerciseId",
+     "affinity": "TEXT",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "routineId",
+     "affinity": "TEXT",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "restSeconds",
+     "affinity": "INTEGER",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "supersetId",
+     "affinity": "TEXT",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "excludeFromProgression",
+     "affinity": "NUMERIC",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "note",
+     "affinity": "TEXT",
+     "notNull": false,
+     "default": null
+    }
+   ],
+   "primaryKey": [
+    "id"
+   ],
+   "indices": [
+    {
+     "name": "idx_trainingWorkoutExercise_exercise",
+     "unique": false,
+     "columns": [
+      "exerciseId",
+      "workoutId"
+     ]
+    },
+    {
+     "name": "idx_trainingWorkoutExercise_workout",
+     "unique": false,
+     "columns": [
+      "workoutId",
+      "idx"
+     ]
+    }
+   ]
+  },
+  "trainingWorkoutSet": {
+   "platform": "ios_only",
+   "reason": "Native source-neutral training plans, exercise definitions, compact completed sets, schedules, and one transient workout draft (GRDB v61). This Apple-only checkout has no Room twin.",
+   "columns": [
+    {
+     "name": "id",
+     "affinity": "TEXT",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "workoutExerciseId",
+     "affinity": "TEXT",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "idx",
+     "affinity": "INTEGER",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "phase",
+     "affinity": "TEXT",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "intensifier",
+     "affinity": "TEXT",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "weightKg",
+     "affinity": "REAL",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "reps",
+     "affinity": "INTEGER",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "leftReps",
+     "affinity": "INTEGER",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "rightReps",
+     "affinity": "INTEGER",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "durationS",
+     "affinity": "INTEGER",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "distanceM",
+     "affinity": "REAL",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "effortScale",
+     "affinity": "TEXT",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "effortValue",
+     "affinity": "REAL",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "isCompleted",
+     "affinity": "NUMERIC",
+     "notNull": true,
+     "default": null
+    }
+   ],
+   "primaryKey": [
+    "id"
+   ],
+   "indices": [
+    {
+     "name": "idx_trainingWorkoutSet_exercise",
+     "unique": false,
+     "columns": [
+      "workoutExerciseId",
+      "idx"
+     ]
+    }
+   ]
+  },
+  "trainingWorkoutDraft": {
+   "platform": "ios_only",
+   "reason": "Native source-neutral training plans, exercise definitions, compact completed sets, schedules, and one transient workout draft (GRDB v61). This Apple-only checkout has no Room twin.",
+   "columns": [
+    {
+     "name": "id",
+     "affinity": "TEXT",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "updatedAtTs",
+     "affinity": "INTEGER",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "payload",
+     "affinity": "BLOB",
+     "notNull": true,
+     "default": null
+    }
+   ],
+   "primaryKey": [
+    "id"
+   ],
+   "indices": [
+    {
+     "name": "idx_trainingWorkoutDraft_updated",
+     "unique": false,
+     "columns": [
+      "updatedAtTs"
+     ]
+    }
+   ]
+  },
+  "trainingSchedule": {
+   "platform": "ios_only",
+   "reason": "Native source-neutral training plans, exercise definitions, compact completed sets, schedules, and one transient workout draft (GRDB v61). This Apple-only checkout has no Room twin.",
+   "columns": [
+    {
+     "name": "weekday",
+     "affinity": "INTEGER",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "idx",
+     "affinity": "INTEGER",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "routineId",
+     "affinity": "TEXT",
+     "notNull": true,
+     "default": null
+    }
+   ],
+   "primaryKey": [
+    "weekday",
+    "idx"
+   ],
+   "indices": []
+  },
+  "trainingDayOverride": {
+   "platform": "ios_only",
+   "reason": "Native source-neutral training plans, exercise definitions, compact completed sets, schedules, and one transient workout draft (GRDB v61). This Apple-only checkout has no Room twin.",
+   "columns": [
+    {
+     "name": "day",
+     "affinity": "TEXT",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "idx",
+     "affinity": "INTEGER",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "routineId",
+     "affinity": "TEXT",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "isRest",
+     "affinity": "NUMERIC",
+     "notNull": true,
+     "default": null
+    }
+   ],
+   "primaryKey": [
+    "day",
+    "idx"
+   ],
+   "indices": [
+    {
+     "name": "idx_trainingDayOverride_day",
+     "unique": false,
+     "columns": [
+      "day"
+     ]
+    }
+   ]
   }
  }
 }

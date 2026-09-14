@@ -19,6 +19,7 @@ enum NavItem: String, CaseIterable, Identifiable, Hashable {
     case sleep = "Sleep"
     case trends = "Trends"
     case workouts = "Workouts"
+    case training = "Training"
     case strength = "Strength"
     case cardio = "Cardio"
     case trainingLoad = "Training Load"
@@ -63,6 +64,7 @@ enum NavItem: String, CaseIterable, Identifiable, Hashable {
         case .sleep: return "Sleep"
         case .trends: return "Trends"
         case .workouts: return "Workouts"
+        case .training: return "Training"
         case .strength: return "Strength"
         case .cardio: return "Cardio"
         case .trainingLoad: return "Training Load"
@@ -114,6 +116,7 @@ enum NavItem: String, CaseIterable, Identifiable, Hashable {
         case .sleep: return String(localized: "Sleep")
         case .trends: return String(localized: "Trends")
         case .workouts: return String(localized: "Workouts")
+        case .training: return String(localized: "Training")
         case .strength: return String(localized: "Strength")
         case .cardio: return String(localized: "Cardio")
         case .trainingLoad: return String(localized: "Training Load")
@@ -157,6 +160,7 @@ enum NavItem: String, CaseIterable, Identifiable, Hashable {
         case .sleep: return "moon.stars.fill"
         case .trends: return "chart.xyaxis.line"
         case .workouts: return "figure.run"
+        case .training: return "dumbbell.fill"
         case .strength: return "dumbbell.fill"
         case .cardio: return "figure.run.circle.fill"
         case .trainingLoad: return "chart.bar.xaxis"
@@ -205,7 +209,7 @@ struct NavGroup: Identifiable {
             // Workouts lists the sessions; Strength and Cardio say what those sessions were made of.
             // Both were previously reachable on macOS only through a Today card's push, which meant a
             // whole analysis screen existed with no way to open it from the sidebar.
-            .workouts, .strength, .cardio, .trainingLoad, .body, .energyPlan, .live, .health, .stress, .intervals,
+            .training, .workouts, .strength, .cardio, .trainingLoad, .body, .energyPlan, .live, .health, .stress, .intervals,
             .breathe,
         ]),
         // S6: the overlapping insight surfaces (Intelligence / What Moves You / Insights / Insights Hub)
@@ -493,6 +497,7 @@ struct RootView: View {
         case .sleep: SleepView()
         case .trends: TrendsView()
         case .workouts: WorkoutsView()
+        case .training: TrainingHubView()
         case .strength: StrengthView()
         case .cardio: CardioView()
         case .trainingLoad: TrainingLoadView()

@@ -10,6 +10,14 @@ import XCTest
 /// computed strap id "<base>-noop") can key on their own strap here; MANUAL/IMPORTED rows reconcile against the
 /// active strap. This mirrors the Kotlin fix for the dominant (detected) multi-WHOOP case.
 final class WorkoutHrDeviceKeyTests: XCTestCase {
+    func testNativeWorkoutUsesTheTrackerSelectedForThatSession() {
+        XCTAssertEqual(
+            Repository.workoutHrDeviceIds(source: "native-training:whoop-gym",
+                                          activeStrapId: "whoop-daily",
+                                          importedIds: ["whoop-daily", "my-whoop"]),
+            ["whoop-gym"])
+    }
+
 
     /// A bout detected on a 2nd WHOOP lives under "whoop-aabbcc-noop"; its HR is banked under "whoop-aabbcc".
     /// The active strap being something else must NOT redirect the read to an empty window.

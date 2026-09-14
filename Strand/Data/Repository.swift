@@ -3,6 +3,7 @@ import Combine
 import WhoopStore
 import WhoopProtocol
 import StrandAnalytics
+import StrandTraining
 import StrandDesign   // TrendPoint , the shared chart point type the Deep Timeline series uses
 
 /// Per-day sleep figures the WHOOP export carried verbatim (metricSeries rows written by
@@ -838,6 +839,119 @@ final class Repository: ObservableObject {
 
     /// Expose the shared store handle (used by the importer to persist mapped rows).
     func storeHandle() async -> WhoopStore? { await ensureStore() }
+
+    // MARK: - Native training
+
+    /// Seeds only NOOP-owned exercise metadata. Routines remain an explicit user choice so opening
+    /// Training cannot silently add a programme to someone's schedule.
+    func prepareNativeTraining() async {
+        guard let store = await ensureStore() else { return }
+        try? await store.upsertTrainingExercises(TrainingStarterCatalog.exercises,
+                                                 nowTs: Int(Date().timeIntervalSince1970))
+        _ = try? await store.pruneWorkoutDrafts(
+            olderThan: Int(Date().timeIntervalSince1970) - 7 * 86_400)
+    }
+
+    func nativeTrainingExercises() async -> [TrainingExercise] {
+        guard let store = await ensureStore() else { return [] }
+        return (try? await store.trainingExercises()) ?? []
+    }
+
+    func saveNativeTrainingExercise(_ exercise: TrainingExercise) async throws {
+        guard let store = await ensureStore() else { throw RepositoryTrainingError.storeUnavailable }
+        try await store.upsertTrainingExercises([exercise], nowTs: Int(Date().timeIntervalSince1970))
+    }
+
+    func nativeTrainingTrackers() async -> [SessionTrackerAttribution] {
+        guard let store = await ensureStore() else { return [] }
+        let devices = (try? DeviceRegistryStore(dbQueue: store.registryWriter).all()) ?? []
+        return devices.filter { $0.status != .archived && !$0.isImportSource }.map { device in
+            var capabilities: TrainingSourceCapabilities = [.workoutEnvelope]
+            if device.capabilities.contains(.hr) { capabilities.insert(.heartRate) }
+            if device.capabilities.contains(.steps) { capabilities.insert(.steps) }
+            return SessionTrackerAttribution(
+                trackerId: device.id, manufacturer: device.brand, model: device.displayName,
+                confidence: .userSelected, capabilities: capabilities)
+        }
+    }
+
+    func nativeTrainingPlan(weekStartsOn: TrainingWeekStart = .monday) async -> TrainingPlan {
+        guard let store = await ensureStore() else { return .init(weekStartsOn: weekStartsOn) }
+        return (try? await store.trainingPlan(weekStartsOn: weekStartsOn))
+            ?? .init(weekStartsOn: weekStartsOn)
+    }
+
+    func saveNativeTrainingRoutine(_ routine: TrainingRoutine) async throws {
+        guard let store = await ensureStore() else { throw RepositoryTrainingError.storeUnavailable }
+        try await store.upsertTrainingRoutine(routine)
+    }
+
+    func importNativeTrainingPlan(_ archive: TrainingPlanArchive) async throws {
+        guard let store = await ensureStore() else { throw RepositoryTrainingError.storeUnavailable }
+        let now = Int(Date().timeIntervalSince1970)
+        try await store.upsertTrainingExercises(archive.exercises, nowTs: now)
+        for routine in archive.routines { try await store.upsertTrainingRoutine(routine) }
+        let current = (try? await store.trainingPlan(weekStartsOn: archive.weekStartsOn)) ?? .init()
+        var merged = current.schedule
+        for weekday in TrainingWeekday.allCases {
+            var ids = merged[weekday] ?? []
+            for id in archive.schedule[weekday] ?? [] where !ids.contains(id) { ids.append(id) }
+            merged[weekday] = ids
+        }
+        try await store.replaceTrainingSchedule(merged)
+    }
+
+    func importNativeTrainingHistory(_ result: TrainingHistoryImport) async throws {
+        guard let store = await ensureStore() else { throw RepositoryTrainingError.storeUnavailable }
+        try await store.upsertTrainingExercises(result.exercises, nowTs: Int(Date().timeIntervalSince1970))
+        try await store.upsertNativeWorkouts(result.workouts)
+        await refresh()
+    }
+
+    func deleteNativeTrainingRoutine(_ id: UUID) async throws {
+        guard let store = await ensureStore() else { throw RepositoryTrainingError.storeUnavailable }
+        try await store.deleteTrainingRoutine(id: id)
+    }
+
+    func saveNativeTrainingSchedule(_ schedule: [TrainingWeekday: [UUID]]) async throws {
+        guard let store = await ensureStore() else { throw RepositoryTrainingError.storeUnavailable }
+        try await store.replaceTrainingSchedule(schedule)
+    }
+
+    func saveNativeTrainingOverride(_ override: TrainingDayOverride) async throws {
+        guard let store = await ensureStore() else { throw RepositoryTrainingError.storeUnavailable }
+        try await store.replaceTrainingDayOverride(override)
+    }
+
+    func deleteNativeTrainingOverride(day: String) async throws {
+        guard let store = await ensureStore() else { throw RepositoryTrainingError.storeUnavailable }
+        try await store.deleteTrainingDayOverride(day: day)
+    }
+
+    func nativeWorkoutDraft() async -> WorkoutDraft? {
+        guard let store = await ensureStore() else { return nil }
+        return try? await store.workoutDraft()
+    }
+
+    func saveNativeWorkoutDraft(_ draft: WorkoutDraft) async throws {
+        guard let store = await ensureStore() else { throw RepositoryTrainingError.storeUnavailable }
+        try await store.saveWorkoutDraft(draft)
+    }
+
+    func finishNativeWorkout(_ workout: NativeWorkout) async throws {
+        guard let store = await ensureStore() else { throw RepositoryTrainingError.storeUnavailable }
+        try await store.completeNativeWorkout(workout)
+        await refresh()
+    }
+
+    func nativeWorkouts(days: Int = 4_000) async -> [NativeWorkout] {
+        guard let store = await ensureStore() else { return [] }
+        let now = Int(Date().timeIntervalSince1970)
+        return (try? await store.nativeWorkouts(from: now - max(1, days) * 86_400,
+                                                to: now + 86_400)) ?? []
+    }
+
+    enum RepositoryTrainingError: Error { case storeUnavailable }
 
     /// CAPTURE-D (#797): the on-device DATA VOLUME read FRESH from the STORE (never the `@Published`
     /// dashboard caches), for the Display & Performance test mode's `dataVolume` line. dbRows is the raw
@@ -3209,6 +3323,10 @@ final class Repository: ObservableObject {
         // instead of one silently overwriting the other.
         rows += (try? await store.workouts(deviceId: "lifting", from: lo, to: hi, limit: 5000)) ?? []
         rows += (try? await store.workouts(deviceId: "hevy", from: lo, to: hi, limit: 5000)) ?? []
+        // Native sessions remain normalized in the training tables. Their read-time envelope makes
+        // them visible to Workouts and session fusion without persisting a duplicate workout row.
+        let native = (try? await store.nativeWorkouts(from: lo, to: hi, limit: 5000)) ?? []
+        rows += native.map(NativeTrainingProjection.workoutRow)
         // #29: imported activity FILES (FIT / GPX / TCX) live under their own "activity-file" source — read
         // them too, or a successful file import never appears in the Workouts list (Data Sources counts it,
         // the load didn't). HR is reconciled from the strap trace at the end like every other row.
@@ -3380,6 +3498,11 @@ final class Repository: ObservableObject {
     /// install collapses to one in both branches — so every existing number is unchanged.
     nonisolated static func workoutHrDeviceIds(source: String, activeStrapId: String,
                                                importedIds: [String]) -> [String] {
+        if source.hasPrefix("native-training:"),
+           let trackerId = source.split(separator: ":", maxSplits: 1).last.map(String.init),
+           !trackerId.isEmpty {
+            return [trackerId]
+        }
         guard WorkoutSource.classify(source) == .detected else { return importedIds }
         return [source.hasSuffix("-noop") ? String(source.dropLast(5)) : source]
     }

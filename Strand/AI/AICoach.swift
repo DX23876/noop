@@ -7,9 +7,9 @@ import StrandImport
 import StrandDesign
 import SemanticMemory
 
-// MARK: - AI Coach (the one networked feature, strictly opt-in, bring-your-own-key)
+// MARK: - AI Coach (strictly opt-in, bring-your-own-key)
 //
-// NOOP is offline by design. This file is the single exception: when the user pastes their OWN
+// NOOP is offline by design. This is the only feature that may send health context: when the user pastes their OWN
 // API key for a provider they choose, NOOP can send a compact text summary of their metrics plus
 // their question to that provider and surface coaching advice. Nothing leaves the device until a
 // key is set AND a question is asked. We never embed our own key, never auto-send, and only ever
@@ -5044,8 +5044,16 @@ final class AICoachEngine: ObservableObject {
         guard let store = await repo.storeHandle() else { return "Strength history: local store unavailable." }
         let now = Int(Date().timeIntervalSince1970)
         let window = max(1, min(days, 3_650))
-        let all = (try? await store.strengthWorkouts(from: now - window * 86_400,
-                                                     to: now + 86_400, limit: 4_000)) ?? []
+        let stored = (try? await store.strengthWorkouts(from: now - window * 86_400,
+                                                        to: now + 86_400, limit: 4_000)) ?? []
+        let native = await repo.nativeWorkouts(days: window)
+        let nativeDefinitions = await repo.nativeTrainingExercises()
+        let nativeProjection = NativeTrainingProjection.strength(workouts: native,
+                                                                  exercises: nativeDefinitions)
+        var seenWorkoutIds = Set<String>()
+        let all = (stored + nativeProjection.workouts)
+            .sorted { $0.startTs > $1.startTs }
+            .filter { seenWorkoutIds.insert($0.id).inserted }
         let needle = exercise?.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current)
             .trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         let sessions = all.compactMap { workout -> HevyWorkout? in
@@ -5115,7 +5123,8 @@ final class AICoachEngine: ObservableObject {
 
         // What the sessions were made of, per muscle and per axis. Without this the coach could name
         // every lift and still not answer "am I neglecting anything" — the question it is asked most.
-        let templates = (try? await store.strengthExerciseTemplates()) ?? [:]
+        var templates = (try? await store.strengthExerciseTemplates()) ?? [:]
+        templates.merge(nativeProjection.templates) { current, _ in current }
         let fourWeeks = sessions.filter { $0.startTs >= now - 28 * 86_400 }
         if !fourWeeks.isEmpty {
             let tally = StrengthSession.hardSetsByMuscle(fourWeeks, templates: templates)

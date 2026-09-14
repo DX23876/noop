@@ -158,9 +158,14 @@ final class StrengthModel: ObservableObject {
         let from = now - range.days * 86_400
         let offset = tzOffset
 
-        let sessions = (try? await store.strengthWorkouts(from: from, to: now + 86_400)) ?? []
+        let importedSessions = (try? await store.strengthWorkouts(from: from, to: now + 86_400)) ?? []
+        let nativeWorkouts = (try? await store.nativeWorkouts(from: from, to: now + 86_400)) ?? []
+        let nativeExercises = (try? await store.trainingExercises()) ?? []
+        let native = NativeTrainingProjection.strength(workouts: nativeWorkouts, exercises: nativeExercises)
+        let sessions = (importedSessions + native.workouts).sorted { $0.startTs > $1.startTs }
         let fused = await repo.trainingSessions(days: range.days)
-        let catalogue = (try? await store.strengthExerciseTemplates()) ?? [:]
+        var catalogue = (try? await store.strengthExerciseTemplates()) ?? [:]
+        catalogue.merge(native.templates) { imported, _ in imported }
         let observations = ((try? await store.muscleRecoveryFeedback()) ?? []).compactMap { row in
             MuscleRecovery.Feeling(rawValue: row.feeling).map {
                 MuscleRecovery.Observation(group: row.muscleGroup, ts: row.ts, feeling: $0)

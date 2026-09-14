@@ -75,6 +75,10 @@ packages:
     path: Packages/WhoopStore
   StrandAnalytics:
     path: Packages/StrandAnalytics
+  StrandTraining:
+    path: Packages/StrandTraining
+  MuscleMap:
+    path: Packages/MuscleMap
   StrandImport:
     path: Packages/StrandImport
   StrandDesign:
@@ -152,7 +156,9 @@ targets:
         com.apple.security.app-sandbox: true
         com.apple.security.device.bluetooth: true
         com.apple.security.files.user-selected.read-write: true
-        # Outbound client access — used ONLY by the opt-in, consent-gated, BYOK AI Coach.
+        # Outbound client access — used by the opt-in, consent-gated BYOK AI Coach and by the
+        # wearer-invoked ExerciseDB-compatible exercise-library source. Neither runs in the
+        # background or sends health/workout data.
         # The ad-hoc distributed build applies NO entitlements (unsigned build + ad-hoc
         # re-sign), so this matters only for a SIGNED/sandboxed build (where the sandbox
         # otherwise blocks the Coach's request — #128). Data path stays network-free.
@@ -180,6 +186,8 @@ targets:
       - package: WhoopProtocol
       - package: WhoopStore
       - package: StrandAnalytics
+      - package: StrandTraining
+      - package: MuscleMap
       - package: StrandImport
       - package: StrandDesign
       - package: SemanticMemory
@@ -212,6 +220,7 @@ targets:
       - target: Strand
       - package: WhoopProtocol
       - package: WhoopStore
+      - package: StrandTraining
       - package: OuraProtocol
       - package: SemanticMemory
     settings:
@@ -399,6 +408,8 @@ targets:
       - package: WhoopProtocol
       - package: WhoopStore
       - package: StrandAnalytics
+      - package: StrandTraining
+      - package: MuscleMap
       - package: StrandImport
       - package: StrandDesign
       - package: SemanticMemory

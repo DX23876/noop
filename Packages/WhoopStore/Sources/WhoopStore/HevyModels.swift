@@ -3,6 +3,7 @@ import Foundation
 /// Provenance for a detailed strength session. API and file imports share the same model so every
 /// consumer can work offline without losing exercise/set detail.
 public enum StrengthDataSource: String, Codable, Sendable, CaseIterable {
+    case noopNative = "noop_native"
     case hevyAPI = "hevy_api"
     case hevyCSV = "hevy_csv"
     case liftosaur

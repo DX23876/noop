@@ -1438,6 +1438,150 @@ extension WhoopStore {
                 t.column("updatedAtTs", .integer).notNull()
             }
         }
+        // v61: source-neutral native training storage. Detailed workouts are normalized down to sets so
+        // long histories remain queryable without repeating exercise metadata or storing one JSON document
+        // per session. The single draft is the only JSON blob: it is transient, rewritten atomically and
+        // deliberately excluded from analytics until completion.
+        migrator.registerMigration("v61-native-training") { db in
+            try db.create(table: "trainingExerciseDefinition") { t in
+                t.column("id", .text).primaryKey()
+                t.column("title", .text).notNull()
+                t.column("mode", .text).notNull()
+                t.column("primaryMuscleId", .text)
+                t.column("secondaryMuscleIdsJSON", .text).notNull()
+                t.column("equipmentIdsJSON", .text).notNull()
+                t.column("instructionsJSON", .text).notNull()
+                t.column("isUnilateral", .boolean).notNull()
+                t.column("source", .text).notNull()
+                t.column("sourceId", .text)
+                t.column("mediaId", .text)
+                t.column("updatedAtTs", .integer).notNull()
+            }
+            try db.create(index: "idx_trainingExerciseDefinition_source",
+                          on: "trainingExerciseDefinition", columns: ["source", "sourceId"])
+
+            try db.create(table: "trainingRoutineNative") { t in
+                t.column("id", .text).primaryKey()
+                t.column("title", .text).notNull()
+                t.column("notes", .text)
+                t.column("defaultProgressionJSON", .text).notNull()
+                t.column("excludeFromProgression", .boolean).notNull()
+                t.column("createdAtTs", .integer).notNull()
+                t.column("updatedAtTs", .integer).notNull()
+            }
+            try db.create(index: "idx_trainingRoutineNative_updated",
+                          on: "trainingRoutineNative", columns: ["updatedAtTs"])
+
+            try db.create(table: "trainingRoutineExercise") { t in
+                t.column("id", .text).primaryKey()
+                t.column("routineId", .text).notNull()
+                    .references("trainingRoutineNative", onDelete: .cascade)
+                t.column("idx", .integer).notNull()
+                t.column("exerciseId", .text).notNull()
+                t.column("restSeconds", .integer).notNull()
+                t.column("supersetId", .text)
+                t.column("progressionJSON", .text)
+                t.column("barWeightKg", .double)
+                t.column("note", .text)
+            }
+            try db.create(index: "idx_trainingRoutineExercise_routine",
+                          on: "trainingRoutineExercise", columns: ["routineId", "idx"])
+
+            try db.create(table: "trainingRoutineSetPlan") { t in
+                t.column("id", .text).primaryKey()
+                t.column("routineExerciseId", .text).notNull()
+                    .references("trainingRoutineExercise", onDelete: .cascade)
+                t.column("idx", .integer).notNull()
+                t.column("phase", .text).notNull()
+                t.column("intensifier", .text).notNull()
+                t.column("targetWeightKg", .double)
+                t.column("repsMin", .integer)
+                t.column("repsMax", .integer)
+                t.column("targetDurationS", .integer)
+                t.column("targetDistanceM", .double)
+            }
+            try db.create(index: "idx_trainingRoutineSetPlan_exercise",
+                          on: "trainingRoutineSetPlan", columns: ["routineExerciseId", "idx"])
+
+            try db.create(table: "trainingWorkoutNative") { t in
+                t.column("id", .text).primaryKey()
+                t.column("title", .text).notNull()
+                t.column("startedAtTs", .integer).notNull()
+                t.column("endedAtTs", .integer).notNull()
+                t.column("plannedDay", .text).notNull()
+                t.column("routineIdsJSON", .text).notNull()
+                t.column("trackerJSON", .text)
+                t.column("sessionRPE", .double)
+                t.column("note", .text)
+                t.column("source", .text).notNull()
+            }
+            try db.create(index: "idx_trainingWorkoutNative_started",
+                          on: "trainingWorkoutNative", columns: ["startedAtTs"])
+            try db.create(index: "idx_trainingWorkoutNative_source_started",
+                          on: "trainingWorkoutNative", columns: ["source", "startedAtTs"])
+
+            try db.create(table: "trainingWorkoutExercise") { t in
+                t.column("id", .text).primaryKey()
+                t.column("workoutId", .text).notNull()
+                    .references("trainingWorkoutNative", onDelete: .cascade)
+                t.column("idx", .integer).notNull()
+                t.column("exerciseId", .text).notNull()
+                t.column("routineId", .text)
+                t.column("restSeconds", .integer).notNull()
+                t.column("supersetId", .text)
+                t.column("excludeFromProgression", .boolean).notNull()
+                t.column("note", .text)
+            }
+            try db.create(index: "idx_trainingWorkoutExercise_workout",
+                          on: "trainingWorkoutExercise", columns: ["workoutId", "idx"])
+            try db.create(index: "idx_trainingWorkoutExercise_exercise",
+                          on: "trainingWorkoutExercise", columns: ["exerciseId", "workoutId"])
+
+            try db.create(table: "trainingWorkoutSet") { t in
+                t.column("id", .text).primaryKey()
+                t.column("workoutExerciseId", .text).notNull()
+                    .references("trainingWorkoutExercise", onDelete: .cascade)
+                t.column("idx", .integer).notNull()
+                t.column("phase", .text).notNull()
+                t.column("intensifier", .text).notNull()
+                t.column("weightKg", .double)
+                t.column("reps", .integer)
+                t.column("leftReps", .integer)
+                t.column("rightReps", .integer)
+                t.column("durationS", .integer)
+                t.column("distanceM", .double)
+                t.column("effortScale", .text)
+                t.column("effortValue", .double)
+                t.column("isCompleted", .boolean).notNull()
+            }
+            try db.create(index: "idx_trainingWorkoutSet_exercise",
+                          on: "trainingWorkoutSet", columns: ["workoutExerciseId", "idx"])
+
+            try db.create(table: "trainingWorkoutDraft") { t in
+                t.column("id", .text).primaryKey()
+                t.column("updatedAtTs", .integer).notNull()
+                t.column("payload", .blob).notNull()
+            }
+            try db.create(index: "idx_trainingWorkoutDraft_updated",
+                          on: "trainingWorkoutDraft", columns: ["updatedAtTs"])
+
+            try db.create(table: "trainingSchedule") { t in
+                t.column("weekday", .integer).notNull()
+                t.column("idx", .integer).notNull()
+                t.column("routineId", .text).notNull()
+                    .references("trainingRoutineNative", onDelete: .cascade)
+                t.primaryKey(["weekday", "idx"])
+            }
+            try db.create(table: "trainingDayOverride") { t in
+                t.column("day", .text).notNull()
+                t.column("idx", .integer).notNull()
+                t.column("routineId", .text)
+                t.column("isRest", .boolean).notNull()
+                t.primaryKey(["day", "idx"])
+            }
+            try db.create(index: "idx_trainingDayOverride_day",
+                          on: "trainingDayOverride", columns: ["day"])
+        }
         return migrator
     }
 }

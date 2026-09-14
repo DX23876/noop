@@ -187,8 +187,9 @@ struct RootTabView: View {
             TabView(selection: nativeTabSelection) {
                 tab(todayTabRoot, "Today", "square.grid.2x2", path: $tabPaths[0], scrollSignal: scrollTop[0]).environment(\.dashboardIsActive, selectedTab == 0).tag(0)
                 tab(TrendsView(), "Trends", "chart.line.uptrend.xyaxis", path: $tabPaths[1], scrollSignal: scrollTop[1]).environment(\.dashboardIsActive, selectedTab == 1).tag(1)
-                tab(SleepView(), "Sleep", "bed.double", path: $tabPaths[2], scrollSignal: scrollTop[2]).environment(\.dashboardIsActive, selectedTab == 2).tag(2)
-                moreTab(path: $tabPaths[3], scrollSignal: scrollTop[3]).environment(\.dashboardIsActive, selectedTab == 3).tag(3)
+                tab(TrainingHubView(), "Training", "dumbbell.fill", path: $tabPaths[2], scrollSignal: scrollTop[2]).environment(\.dashboardIsActive, selectedTab == 2).tag(2)
+                tab(SleepView(), "Sleep", "bed.double", path: $tabPaths[3], scrollSignal: scrollTop[3]).environment(\.dashboardIsActive, selectedTab == 3).tag(3)
+                moreTab(path: $tabPaths[4], scrollSignal: scrollTop[4]).environment(\.dashboardIsActive, selectedTab == 4).tag(4)
             }
             // Overview Dashboard mockup fidelity (2026-08-31): the active tab reads green, not the
             // configurable Accent colour. `.tint()` colours the whole bar uniformly — there is no native
@@ -272,7 +273,7 @@ struct RootTabView: View {
             case .coach:
                 // K3: Coach is now a top-level tab (tag 3) — switch to it directly instead of
                 // presenting it as a pillar sheet.
-                withAnimation(.timingCurve(0.22, 1, 0.36, 1, duration: 0.24)) { selectedTab = 3 }
+                withAnimation(.timingCurve(0.22, 1, 0.36, 1, duration: 0.24)) { selectedTab = 4 }
                 router.requestedDestination = nil
             case .trends:
                 // Trends is a primary tab on iPhone (not a pillar sheet) — switch to it.
@@ -281,7 +282,7 @@ struct RootTabView: View {
             case .sleep:
                 // Sleep is a primary tab too. Raised by the morning card's "Fix it" when last night's
                 // wake time looks truncated, so the editor is one tap away rather than a hunt.
-                withAnimation(.timingCurve(0.22, 1, 0.36, 1, duration: 0.24)) { selectedTab = 2 }
+                withAnimation(.timingCurve(0.22, 1, 0.36, 1, duration: 0.24)) { selectedTab = 3 }
                 router.requestedDestination = nil
             case .energy:
                 // Widget deep link: land on Today and push the same detail route the in-app card uses.
@@ -319,12 +320,12 @@ struct RootTabView: View {
                 // Raised by the empty states' "Open Data Sources" button. Pushed onto the More tab's
                 // own stack — the same MoreDestination the More row uses — so Back returns the reader
                 // to where they were rather than stranding them in a tab they did not choose.
-                withAnimation(.timingCurve(0.22, 1, 0.36, 1, duration: 0.24)) { selectedTab = 3 }
+                withAnimation(.timingCurve(0.22, 1, 0.36, 1, duration: 0.24)) { selectedTab = 4 }
                 // Appended rather than assigned (the Coach deep links REPLACE the More stack): if the
                 // reader was already somewhere under More, Back should return them there instead of
                 // dropping them at the index. From any other tab the stack is at its root, so this
                 // behaves exactly like a replace.
-                tabPaths[3].append(MoreDestination.dataSources)
+                tabPaths[4].append(MoreDestination.dataSources)
                 router.requestedDestination = nil
             case nil:
                 break
@@ -334,15 +335,15 @@ struct RootTabView: View {
         // CoachView refreshes the brief itself — it observes the same event.
         .onReceive(NotificationCenter.default.publisher(for: .noopOpenCoachCheckIn)) { _ in
             guard coachFeatureEnabled else { return }
-            withAnimation(.timingCurve(0.22, 1, 0.36, 1, duration: 0.24)) { selectedTab = 3 }
-            tabPaths[3] = NavigationPath([MoreDestination.coach])
+            withAnimation(.timingCurve(0.22, 1, 0.36, 1, duration: 0.24)) { selectedTab = 4 }
+            tabPaths[4] = NavigationPath([MoreDestination.coach])
         }
         // "Ask coach" tapped on a metric card (#P11): same jump — open Coach on top of the More tab; it
         // reads the pending card context and gives a short read of that metric.
         .onReceive(NotificationCenter.default.publisher(for: .noopOpenCoachCard)) { _ in
             guard coachFeatureEnabled else { return }
-            withAnimation(.timingCurve(0.22, 1, 0.36, 1, duration: 0.24)) { selectedTab = 3 }
-            tabPaths[3] = NavigationPath([MoreDestination.coach])
+            withAnimation(.timingCurve(0.22, 1, 0.36, 1, duration: 0.24)) { selectedTab = 4 }
+            tabPaths[4] = NavigationPath([MoreDestination.coach])
         }
         .onChange(of: coachFeatureEnabled) { enabled in
             // A cover can remain on screen while the switch is changed from a second window or a

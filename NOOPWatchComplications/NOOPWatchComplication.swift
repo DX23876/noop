@@ -455,11 +455,16 @@ struct NOOPChargeComplication: Widget {
         }
         .configurationDisplayName("NOOP Charge")
         .description("Your Charge (recovery) on the watch face, with Effort and Rest in the rectangular card.")
-        .supportedFamilies([
-            .accessoryCircular,
-            .accessoryCorner,
-            .accessoryInline,
-            .accessoryRectangular
-        ])
+        .supportedFamilies(supportedFamilies)
+    }
+
+    private var supportedFamilies: [WidgetFamily] {
+        #if os(watchOS)
+        [.accessoryCircular, .accessoryCorner, .accessoryInline, .accessoryRectangular]
+        #else
+        // Xcode also type-checks embedded watch extensions while resolving the iPhone scheme.
+        // accessoryCorner is unavailable in that compiler slice.
+        [.accessoryCircular, .accessoryInline, .accessoryRectangular]
+        #endif
     }
 }

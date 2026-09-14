@@ -1,0 +1,67 @@
+//
+//  MuscleIntensity.swift
+//  MuscleMap
+//
+//  Created by Melih Colpan on 2026-02-09.
+//  Copyright © 2026 Melih Colpan. All rights reserved.
+//  Licensed under the MIT License.
+//
+
+import SwiftUI
+
+/// Represents the intensity level for a specific muscle.
+public struct MuscleIntensity: Sendable {
+    public let muscle: Muscle
+    public let intensity: Double
+    public let side: MuscleSide
+    public let color: Color?
+
+    /// Creates a muscle intensity entry.
+    /// - Parameters:
+    ///   - muscle: The target muscle.
+    ///   - intensity: Intensity value from 0.0 (none) to 1.0 (maximum).
+    ///   - side: Which side of the body (default: both).
+    ///   - color: Optional override color. If nil, the heatmap color scale is used.
+    public init(
+        muscle: Muscle,
+        intensity: Double,
+        side: MuscleSide = .both,
+        color: Color? = nil
+    ) {
+        self.muscle = muscle
+        self.intensity = min(max(intensity, 0), 1)
+        self.side = side
+        self.color = color
+    }
+}
+
+/// Data model for a highlighted muscle with color and opacity.
+public struct MuscleHighlight: Sendable, Equatable {
+    public let muscle: Muscle
+    public let color: Color
+    public let opacity: Double
+    public let fill: MuscleFill
+
+    /// Creates a highlight with a solid color.
+    public init(muscle: Muscle, color: Color, opacity: Double = 1.0) {
+        self.muscle = muscle
+        self.color = color
+        self.opacity = opacity
+        self.fill = .color(color)
+    }
+
+    /// Creates a highlight with a custom fill (gradient or color).
+    public init(muscle: Muscle, fill: MuscleFill, opacity: Double = 1.0) {
+        self.muscle = muscle
+        self.fill = fill
+        self.opacity = opacity
+        switch fill {
+        case .color(let color):
+            self.color = color
+        case .linearGradient(let colors, _, _):
+            self.color = colors.first ?? .clear
+        case .radialGradient(let colors, _, _, _):
+            self.color = colors.first ?? .clear
+        }
+    }
+}

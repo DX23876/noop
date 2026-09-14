@@ -54,6 +54,8 @@ jobs:
           - PolarProtocol
           - WhoopStore
           - StrandAnalytics
+          - StrandTraining
+          - MuscleMap
           - StrandImport
           - StrandDesign
           - NoopLocalAccess

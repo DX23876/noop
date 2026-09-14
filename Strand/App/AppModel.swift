@@ -73,7 +73,8 @@ final class AppModel: ObservableObject {
     /// On-device WHOOP-style recovery/strain/sleep computation from raw strap streams.
     let intelligence: IntelligenceEngine
 
-    /// Opt-in AI coach (bring-your-own-key) , the one networked feature, off until the user enables it.
+    /// Opt-in AI coach (bring-your-own-key), off until the user enables it. The optional exercise
+    /// library provider is the only other user-invoked network surface and never receives health data.
     let coach: AICoachEngine
 
     /// Observable cache over the paired-device registry; `activeDeviceId` drives the source coordinator.

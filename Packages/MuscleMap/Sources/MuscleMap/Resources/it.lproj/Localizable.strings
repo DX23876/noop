@@ -1,0 +1,59 @@
+/* Muscle names */
+"muscle.abs" = "Addominali";
+"muscle.adductors" = "Adduttori";
+"muscle.ankles" = "Caviglie";
+"muscle.biceps" = "Bicipiti";
+"muscle.calves" = "Polpacci";
+"muscle.chest" = "Petto";
+"muscle.deltoids" = "Deltoidi";
+"muscle.feet" = "Piedi";
+"muscle.forearm" = "Avambracci";
+"muscle.gluteal" = "Glutei";
+"muscle.hamstring" = "Ischiocrurali";
+"muscle.hands" = "Mani";
+"muscle.head" = "Testa";
+"muscle.knees" = "Ginocchia";
+"muscle.lowerBack" = "Zona lombare";
+"muscle.neck" = "Collo";
+"muscle.obliques" = "Obliqui";
+"muscle.quadriceps" = "Quadricipiti";
+"muscle.tibialis" = "Tibiale";
+"muscle.trapezius" = "Trapezio";
+"muscle.triceps" = "Tricipiti";
+"muscle.upperBack" = "Parte alta della schiena";
+"muscle.rotatorCuff" = "Cuffia dei rotatori";
+"muscle.hipFlexors" = "Flessori dell’anca";
+"muscle.serratus" = "Dentato anteriore";
+"muscle.rhomboids" = "Romboidi";
+"muscle.upperChest" = "Parte alta del petto";
+"muscle.lowerChest" = "Parte bassa del petto";
+"muscle.innerQuad" = "Quadricipite interno";
+"muscle.outerQuad" = "Quadricipite esterno";
+"muscle.upperAbs" = "Addominali superiori";
+"muscle.lowerAbs" = "Addominali inferiori";
+"muscle.frontDeltoid" = "Deltoide anteriore";
+"muscle.rearDeltoid" = "Deltoide posteriore";
+"muscle.upperTrapezius" = "Trapezio superiore";
+"muscle.lowerTrapezius" = "Trapezio inferiore";
+
+/* Enum display names */
+"side.left" = "Sinistra";
+"side.right" = "Destra";
+"side.both" = "Entrambi";
+"bodySide.front" = "Fronte";
+"bodySide.back" = "Retro";
+"gender.male" = "Maschile";
+"gender.female" = "Femminile";
+
+/* Accessibility */
+"accessibility.selected" = "Selezionato";
+"accessibility.notSelected" = "Non selezionato";
+"accessibility.hint.tap" = "Tocca due volte per selezionare";
+"accessibility.hint.longPress" = "Tieni premuto per i dettagli";
+"accessibility.bodyMap" = "Mappa muscolare del corpo";
+"accessibility.muscleRegion" = "Regione muscolare";
+"accessibility.heatmapLegend" = "Legenda dell’intensità della mappa";
+
+/* Legend */
+"legend.low" = "Bassa";
+"legend.high" = "Alta";

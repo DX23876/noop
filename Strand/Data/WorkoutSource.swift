@@ -23,6 +23,7 @@ enum WorkoutSource: Equatable {
 
     static func classify(_ source: String) -> WorkoutSource {
         let s = source.lowercased()
+        if s.hasPrefix("native-training") { return .manual }
         if s.hasSuffix("-noop") { return .detected }   // BEFORE whoop: "my-whoop-noop" contains "whoop"
         if s == "manual" { return .manual }
         if s == "lifting" { return .lifting }          // imported Hevy / Liftosaur strength CSV/JSON

@@ -1,0 +1,59 @@
+/* Muscle names */
+"muscle.abs" = "Mięśnie brzucha";
+"muscle.adductors" = "Przywodziciele";
+"muscle.ankles" = "Kostki";
+"muscle.biceps" = "Bicepsy";
+"muscle.calves" = "Łydki";
+"muscle.chest" = "Klatka piersiowa";
+"muscle.deltoids" = "Mięśnie naramienne";
+"muscle.feet" = "Stopy";
+"muscle.forearm" = "Przedramiona";
+"muscle.gluteal" = "Pośladki";
+"muscle.hamstring" = "Mięśnie dwugłowe uda";
+"muscle.hands" = "Dłonie";
+"muscle.head" = "Głowa";
+"muscle.knees" = "Kolana";
+"muscle.lowerBack" = "Dolna część pleców";
+"muscle.neck" = "Szyja";
+"muscle.obliques" = "Mięśnie skośne brzucha";
+"muscle.quadriceps" = "Mięśnie czworogłowe uda";
+"muscle.tibialis" = "Mięsień piszczelowy";
+"muscle.trapezius" = "Mięsień czworoboczny";
+"muscle.triceps" = "Tricepsy";
+"muscle.upperBack" = "Górna część pleców";
+"muscle.rotatorCuff" = "Stożek rotatorów";
+"muscle.hipFlexors" = "Zginacze bioder";
+"muscle.serratus" = "Mięsień zębaty przedni";
+"muscle.rhomboids" = "Mięśnie równoległoboczne";
+"muscle.upperChest" = "Górna część klatki";
+"muscle.lowerChest" = "Dolna część klatki";
+"muscle.innerQuad" = "Wewnętrzna część uda";
+"muscle.outerQuad" = "Zewnętrzna część uda";
+"muscle.upperAbs" = "Górne mięśnie brzucha";
+"muscle.lowerAbs" = "Dolne mięśnie brzucha";
+"muscle.frontDeltoid" = "Przedni mięsień naramienny";
+"muscle.rearDeltoid" = "Tylny mięsień naramienny";
+"muscle.upperTrapezius" = "Górna część mięśnia czworobocznego";
+"muscle.lowerTrapezius" = "Dolna część mięśnia czworobocznego";
+
+/* Enum display names */
+"side.left" = "Lewa";
+"side.right" = "Prawa";
+"side.both" = "Obie";
+"bodySide.front" = "Przód";
+"bodySide.back" = "Tył";
+"gender.male" = "Mężczyzna";
+"gender.female" = "Kobieta";
+
+/* Accessibility */
+"accessibility.selected" = "Wybrano";
+"accessibility.notSelected" = "Nie wybrano";
+"accessibility.hint.tap" = "Stuknij dwukrotnie, aby wybrać";
+"accessibility.hint.longPress" = "Przytrzymaj, aby zobaczyć szczegóły";
+"accessibility.bodyMap" = "Mapa mięśni ciała";
+"accessibility.muscleRegion" = "Obszar mięśni";
+"accessibility.heatmapLegend" = "Legenda intensywności mapy";
+
+/* Legend */
+"legend.low" = "Niska";
+"legend.high" = "Wysoka";
