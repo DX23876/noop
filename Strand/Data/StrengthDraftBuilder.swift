@@ -39,6 +39,14 @@ enum StrengthDraftBuilder {
         return draft
     }
 
+    /// The exercises a routine contributes when it is added to a session already running: prefilled and
+    /// progressed exactly as if the session had started with it.
+    static func exercises(adding routine: TrainingRoutine, to draft: WorkoutDraft,
+                          context: TrainingStartContext) -> [NativeWorkoutExercise] {
+        let date = Date(timeIntervalSince1970: TimeInterval(draft.startedAt))
+        return Self.draft(routines: [routine], tracker: draft.tracker, context: context, date: date).exercises
+    }
+
     static func dayString(_ date: Date) -> String { dayFormatter.string(from: date) }
 
     private static let dayFormatter: DateFormatter = {
@@ -85,6 +93,7 @@ enum StrengthDraftBuilder {
                 currentReps: currentWork.compactMap(completedReps).min(),
                 currentSets: currentWork.count,
                 currentDurationS: currentWork.compactMap(\.durationS).max())
+            draft.exercises[index].progressionReason = next.reason
             for setIndex in draft.exercises[index].sets.indices
                 where draft.exercises[index].sets[setIndex].phase == .work {
                 if let weight = next.weightKg { draft.exercises[index].sets[setIndex].weightKg = weight }

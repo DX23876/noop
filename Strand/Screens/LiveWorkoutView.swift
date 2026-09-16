@@ -190,21 +190,11 @@ struct LiveWorkoutView: View {
 
     /// Centered live HR stack — bpm unit sits under the value; the zone capsule moved to `zoneSection`.
     private var heartRateBlock: some View {
-        let tint = zone >= 1 ? StrandPalette.hrZoneColor(zone) : StrandPalette.effortColor
-        return VStack(spacing: NoopMetrics.space1) {
+        VStack(spacing: NoopMetrics.space1) {
             Text("HEART RATE")
                 .font(StrandFont.overline).tracking(StrandFont.overlineTracking)
                 .foregroundStyle(StrandPalette.textSecondary)
-            if let bpm = model.bpm {
-                CountUpText(value: Double(bpm),
-                            format: { "\(Int($0.rounded()))" },
-                            font: StrandFont.rounded(72, weight: .semibold),
-                            color: tint)
-            } else {
-                Text("—")
-                    .font(StrandFont.rounded(72, weight: .semibold))
-                    .foregroundStyle(tint)
-            }
+            LiveHeartRateValue(bpm: model.bpm, zone: zone, size: 72)
             Text("bpm")
                 .font(StrandFont.subhead)
                 .foregroundStyle(StrandPalette.textSecondary)
@@ -257,7 +247,7 @@ struct LiveWorkoutView: View {
                     .font(StrandFont.overline).tracking(StrandFont.overlineTracking)
                     .foregroundStyle(StrandPalette.textSecondary)
                 Spacer()
-                Text(zone >= 1 ? "Zone \(zone) · \(Self.zoneName(zone))" : "Below Zone 1")
+                Text(LiveHeartRateStyle.zoneTitle(zone))
                     .font(StrandFont.captionNumber)
                     .foregroundStyle(tint)
                     .multilineTextAlignment(.trailing)
@@ -265,29 +255,7 @@ struct LiveWorkoutView: View {
                     .padding(.vertical, NoopMetrics.space1)
                     .background(tint.opacity(0.12), in: Capsule())
             }
-            HStack(spacing: 6) {
-                ForEach(1...5, id: \.self) { z in
-                    let active = z == zone
-                    let target = z == model.activeWorkout?.targetZone
-                    let color = StrandPalette.hrZoneColor(z)
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .fill(active ? color : color.opacity(0.18))
-                        .frame(height: active ? 44 : 34)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                .strokeBorder(active ? color : StrandPalette.hairline, lineWidth: 1)
-                        )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                .strokeBorder(target ? StrandPalette.accent : .clear, lineWidth: 3)
-                        )
-                        .overlay(
-                            Text("Z\(z)")
-                                .font(StrandFont.captionNumber)
-                                .foregroundStyle(active ? StrandPalette.surfaceBase : StrandPalette.textTertiary)
-                        )
-                }
-            }
+            HeartRateZoneRail(zone: zone, targetZone: model.activeWorkout?.targetZone)
             if let target = model.activeWorkout?.targetZone {
                 HStack(spacing: NoopMetrics.space1) {
                     Image(systemName: "waveform.path.ecg")
@@ -501,16 +469,6 @@ struct LiveWorkoutView: View {
         ActiveWorkoutClock.clock(Int(seconds))
     }
 
-    private static func zoneName(_ zone: Int) -> String {
-        switch zone {
-        case 1: return String(localized: "Recovery")
-        case 2: return String(localized: "Fat burn")
-        case 3: return String(localized: "Aerobic")
-        case 4: return String(localized: "Threshold")
-        case 5: return String(localized: "Maximum")
-        default: return ""
-        }
-    }
 }
 
 // MARK: - Native Liquid Glass workout controls

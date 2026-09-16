@@ -105,6 +105,32 @@ final class NativeWorkoutSessionModel: ObservableObject, Identifiable {
         touchAndPersist()
     }
 
+    /// Appends a routine's exercises to the running session, prefilled like a fresh start.
+    func addRoutine(_ routine: TrainingRoutine, context: TrainingStartContext) {
+        let added = StrengthDraftBuilder.exercises(adding: routine, to: draft, context: context)
+        guard !added.isEmpty else { return }
+        draft.exercises.append(contentsOf: added)
+        if !draft.routineIds.contains(routine.id) { draft.routineIds.append(routine.id) }
+        touchAndPersist(immediate: true)
+    }
+
+    var completedSetCount: Int { draft.exercises.reduce(0) { $0 + $1.sets.filter(\.isCompleted).count } }
+    var totalSetCount: Int { draft.exercises.reduce(0) { $0 + $1.sets.count } }
+
+    /// Active seconds so far: wall time since the start without the time spent paused.
+    func activeSeconds(now: Int = Int(Date().timeIntervalSince1970)) -> Int {
+        let end = draft.plannedEndTs.map { min($0, now) } ?? now
+        let pauses = (draft.pauseIntervals ?? []).map { ($0.startedAtTs, $0.endedAtTs ?? end) }
+        return StrengthSessionHeartRate.activeSeconds(start: draft.startedAt, end: end, pauses: pauses)
+    }
+
+    func clearEffort(exerciseIndex: Int, setIndex: Int) {
+        guard draft.exercises.indices.contains(exerciseIndex),
+              draft.exercises[exerciseIndex].sets.indices.contains(setIndex) else { return }
+        draft.exercises[exerciseIndex].sets[setIndex].effort = nil
+        touchAndPersist()
+    }
+
     func addSet(to exerciseId: UUID) {
         try? NativeWorkoutEngine.appendSet(to: exerciseId, in: &draft)
         touchAndPersist()

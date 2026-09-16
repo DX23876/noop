@@ -418,13 +418,16 @@ public struct NativeWorkoutExercise: Identifiable, Codable, Equatable, Sendable 
     public var excludeFromProgression: Bool
     public var equipmentSnapshot: EquipmentSnapshot?
     public var note: String?
+    /// Why the prefilled targets are what they are, shown beside the exercise while logging. Draft-only
+    /// context: optional so older drafts decode, and not part of the finished workout's stored rows.
+    public var progressionReason: ProgressionReason?
 
     public init(id: UUID = UUID(), exerciseId: String, routineId: UUID? = nil,
                 sets: [NativeWorkoutSet] = [], restSeconds: Int = 120,
                 warmupRestSeconds: Int? = nil, supersetId: UUID? = nil,
                 excludeFromProgression: Bool = false,
                 equipmentSnapshot: EquipmentSnapshot? = nil,
-                note: String? = nil) {
+                note: String? = nil, progressionReason: ProgressionReason? = nil) {
         self.id = id
         self.exerciseId = exerciseId
         self.routineId = routineId
@@ -435,6 +438,7 @@ public struct NativeWorkoutExercise: Identifiable, Codable, Equatable, Sendable 
         self.excludeFromProgression = excludeFromProgression
         self.equipmentSnapshot = equipmentSnapshot
         self.note = note
+        self.progressionReason = progressionReason
     }
 }
 

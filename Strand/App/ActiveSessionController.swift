@@ -69,6 +69,9 @@ final class ActiveSessionController: ObservableObject {
 
     private unowned let app: AppModel
     private var repo: Repository { app.repo }
+    /// For session views that need the store or profile without observing `AppModel` (1 Hz).
+    var repository: Repository { app.repo }
+    var profile: ProfileStore { app.profile }
     private var cancellables: Set<AnyCancellable> = []
     private var handledWatchOperations: Set<UUID> = []
     private var contextLoad: Task<Void, Never>?
@@ -326,6 +329,9 @@ final class ActiveSessionController: ObservableObject {
         restoring = true
         defer { restoring = false }
         guard let draft = await repo.nativeWorkoutDraft() else { return }
+        // The logger names exercises and shows last time from the context; restoring before it is loaded
+        // showed raw ids until something else happened to load it.
+        await loadContextIfNeeded()
         retireLegacyRecording(for: draft)
         if Self.isStale(draft, now: now) {
             staleDraft = draft

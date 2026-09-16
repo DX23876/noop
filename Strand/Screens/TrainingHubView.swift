@@ -929,26 +929,20 @@ private enum ActiveWorkoutLayout: String, CaseIterable, Identifiable {
 
     var id: String { rawValue }
 
+    var title: String {
+        switch self {
+        case .focus: String(localized: "One exercise")
+        case .list: String(localized: "All exercises")
+        case .compact: String(localized: "Compact")
+        }
+    }
+
     var symbol: String {
         switch self {
         case .focus: "viewfinder"
         case .list: "list.bullet"
         case .compact: "rectangle.compress.vertical"
         }
-    }
-}
-
-private struct WorkoutLayoutPicker: View {
-    @Binding var layoutRaw: String
-
-    var body: some View {
-        Picker("View", selection: $layoutRaw) {
-            ForEach(ActiveWorkoutLayout.allCases) { layout in
-                Image(systemName: layout.symbol).tag(layout.rawValue)
-            }
-        }
-        .pickerStyle(.segmented)
-        .accessibilityLabel(Text("View"))
     }
 }
 
@@ -969,6 +963,9 @@ struct NativeWorkoutLoggerView: View {
     @State private var confirmingDiscard = false
     @FocusState private var focusedSetField: TrainingSetField?
     @State private var historyRequest: TrainingHistoryRequest?
+    @State private var effortRequest: EffortPickerRequest?
+    @State private var showingRoutinePicker = false
+    @StateObject private var liveEffort = StrengthLiveEffort()
     @AppStorage("training.activeWorkout.layout") private var layoutRaw = ActiveWorkoutLayout.focus.rawValue
     @AppStorage("workoutKeepScreenOn") private var keepScreenOn = false
     @AppStorage(TrainingPreferences.effortKey) private var effortRaw = TrainingEffortPreference.rpe.rawValue
@@ -989,10 +986,8 @@ struct NativeWorkoutLoggerView: View {
         NavigationStack {
             ScrollView {
                 LazyVStack(spacing: 14) {
-                    sessionHeader
-                    physiologyCard
-                    if let timer = model.activeTimer { workoutTimer(timer) }
-                    WorkoutLayoutPicker(layoutRaw: $layoutRaw)
+                    WorkoutLoggerHeader(model: model)
+                    if !model.isRetrospective { physiologyCard }
                     workoutContent
                     Button { showingExercises = true } label: {
                         Label("Add exercise", systemImage: "plus.circle.fill")
@@ -1002,6 +997,12 @@ struct NativeWorkoutLoggerView: View {
                 }.padding(NoopMetrics.screenPadding)
             }
             .background(StrandPalette.surfaceBase.ignoresSafeArea())
+            // The rest countdown stays in view while scrolling through sets.
+            .safeAreaInset(edge: .bottom) {
+                if let timer = model.activeTimer {
+                    WorkoutRestDock(timer: timer, model: model, onFinished: timerFinishedFeedback)
+                }
+            }
             .navigationTitle(model.draft.title)
             .trainingInlineNavigationTitle()
             .toolbar {
@@ -1009,12 +1010,28 @@ struct NativeWorkoutLoggerView: View {
                     // Minimizes. The session keeps running and stays one tap away.
                     Button { session.minimize() } label: { Label("Back", systemImage: "chevron.down") }
                 }
+                ToolbarItem(placement: .primaryAction) { sessionMenu }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Finish") { requestFinish() }.fontWeight(.semibold)
+                }
             }
             .trainingKeyboardDoneButton { focusedSetField = nil }
             .sheet(isPresented: $showingExercises) { exercisePicker }
             .sheet(item: $plateRequest) { request in
                 NavigationStack { TrainingPlateCalculatorView(targetKg: request.targetKg) }
             }
+            .sheet(item: $effortRequest) { request in
+                EffortPickerSheet(request: request) { value in
+                    if let value {
+                        model.setEffort(exerciseIndex: request.exerciseIndex, setIndex: request.setIndex,
+                                        scale: request.scale, value: value)
+                    } else {
+                        model.clearEffort(exerciseIndex: request.exerciseIndex, setIndex: request.setIndex)
+                    }
+                }
+                .presentationDetents([.medium, .large])
+            }
+            .sheet(isPresented: $showingRoutinePicker) { routinePicker }
             .sheet(item: $historyRequest) { request in
                 NavigationStack {
                     TrainingExerciseHistorySheet(
@@ -1049,8 +1066,16 @@ struct NativeWorkoutLoggerView: View {
             }
             // Live heart rate is only worth streaming while someone is looking at it; the session's
             // stored heart rate does not depend on it.
-            .onAppear { if !model.isRetrospective { session.startLiveHeartRate() } }
-            .onDisappear { if !model.isRetrospective { session.stopLiveHeartRate() }
+            .onAppear {
+                guard !model.isRetrospective else { return }
+                session.startLiveHeartRate()
+                liveEffort.start(repo: session.repository, draft: { [model] in model.draft },
+                                 profile: session.profile)
+            }
+            .onDisappear {
+                guard !model.isRetrospective else { return }
+                session.stopLiveHeartRate()
+                liveEffort.stop()
             }
             #if os(iOS)
             .onAppear { UIApplication.shared.isIdleTimerDisabled = keepScreenOn }
@@ -1116,36 +1141,57 @@ struct NativeWorkoutLoggerView: View {
         .font(StrandFont.caption.weight(.semibold))
     }
 
-    private var sessionHeader: some View {
-        NoopCard {
-            HStack {
-                Label {
-                    Text(Date(timeIntervalSince1970: TimeInterval(model.draft.startedAt)), style: .time)
-                } icon: {
-                    Image(systemName: "clock.fill")
+    private var physiologyCard: some View {
+        StrengthLiveHeartRatePanel(provider: model.draft.physiologyProvider ?? .none,
+                                   sourceText: physiologySource,
+                                   watchFeed: session.watchHeartRate, effort: liveEffort)
+    }
+
+    /// Session-wide actions, kept out of the logging surface.
+    private var sessionMenu: some View {
+        Menu {
+            Button { showingExercises = true } label: { Label("Add exercise", systemImage: "plus") }
+            if !session.context.plan.routines.isEmpty {
+                Button { showingRoutinePicker = true } label: {
+                    Label("Add routine", systemImage: "list.bullet.rectangle")
                 }
-                .font(StrandFont.subhead).foregroundStyle(StrandPalette.textSecondary)
-                Spacer()
-                Button {
-                    model.toggleWorkoutPause()
-                } label: {
-                    Label(model.draft.state == .active ? "Pause" : "Resume",
-                          systemImage: model.draft.state == .active ? "pause.fill" : "play.fill")
-                        .labelStyle(.iconOnly)
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(Text(model.draft.state == .active ? "Pause" : "Resume"))
-                Text(model.draft.tracker?.model ?? String(localized: "No tracker"))
-                    .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
             }
+            Picker(selection: $layoutRaw) {
+                ForEach(ActiveWorkoutLayout.allCases) { layout in
+                    Label(layout.title, systemImage: layout.symbol).tag(layout.rawValue)
+                }
+            } label: {
+                Label("Layout", systemImage: ActiveWorkoutLayout(rawValue: layoutRaw)?.symbol ?? "viewfinder")
+            }
+            .pickerStyle(.menu)
+            Divider()
+            Button(role: .destructive) { confirmingDiscard = true } label: {
+                Label("Discard workout", systemImage: "trash")
+            }
+        } label: {
+            Image(systemName: "ellipsis.circle").accessibilityLabel(Text("Workout options"))
         }
     }
 
-    private var physiologyCard: some View {
-        StrengthLiveHeartRateCard(provider: model.draft.physiologyProvider ?? .none,
-                                  sourceText: physiologySource,
-                                  paused: model.draft.state != .active,
-                                  watchFeed: session.watchHeartRate)
+    private var routinePicker: some View {
+        NavigationStack {
+            List(session.context.plan.routines, id: \.id) { routine in
+                Button {
+                    model.addRoutine(routine, context: session.context)
+                    showingRoutinePicker = false
+                } label: {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(routine.title).font(StrandFont.headline).foregroundStyle(StrandPalette.textPrimary)
+                        Text("\(routine.exercises.count) exercises")
+                            .font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
+                    }
+                }
+            }
+            .navigationTitle(Text("Add routine"))
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { showingRoutinePicker = false } }
+            }
+        }
     }
 
     private var physiologySource: String {
@@ -1154,39 +1200,6 @@ struct NativeWorkoutLoggerView: View {
         case .appleWatch: String(localized: "Apple Watch")
         case .externalTracker: model.draft.tracker?.model ?? String(localized: "Tracker")
         case .none: String(localized: "Workout continues without heart rate")
-        }
-    }
-
-    private func workoutTimer(_ timer: WorkoutTimerState) -> some View {
-        TimelineView(.periodic(from: .now, by: 1)) { context in
-            let seconds = WorkoutTimerCoordinator.remaining(timer, now: Int(context.date.timeIntervalSince1970))
-            HStack {
-                Label(timer.kind == .timedSet ? "Time" : "Rest", systemImage: "timer")
-                    .font(StrandFont.subhead.weight(.semibold))
-                Spacer()
-                Text("\(seconds / 60):\(String(format: "%02d", seconds % 60))")
-                    .font(StrandFont.number(24)).monospacedDigit()
-                    .accessibilityLabel(Text(timer.kind == .timedSet ? "Time remaining" : "Rest remaining"))
-                    .accessibilityValue(Text(Duration.seconds(seconds)
-                        .formatted(.units(allowed: [.minutes, .seconds], width: .wide))))
-                if timer.pausedRemainingSeconds == nil {
-                    Button("Pause") { model.pauseTimer() }.font(StrandFont.caption)
-                } else {
-                    Button("Resume") { model.resumeTimer() }.font(StrandFont.caption)
-                }
-                Button("−15") { model.adjustTimer(by: -15) }.font(StrandFont.caption)
-                    .accessibilityLabel(Text("Subtract 15 seconds"))
-                Button("+15") { model.adjustTimer(by: 15) }.font(StrandFont.caption)
-                    .accessibilityLabel(Text("Add 15 seconds"))
-                Button(timer.kind == .timedSet ? "Finish" : "Skip") {
-                    if timer.kind == .timedSet { model.finishTimedSet() } else { model.skipRest() }
-                }.font(StrandFont.caption)
-            }
-            .padding().background(StrandPalette.accent.opacity(0.12), in: RoundedRectangle(cornerRadius: 16))
-            // The notification covers a backgrounded app; this covers the timer reaching zero on screen.
-            .onChange(of: seconds == 0) { finished in
-                if finished, timer.pausedRemainingSeconds == nil { timerFinishedFeedback() }
-            }
         }
     }
 
@@ -1265,6 +1278,11 @@ struct NativeWorkoutLoggerView: View {
                     }
                     .padding(.vertical, NoopMetrics.space1)
                 }
+                if let reason = exercise.progressionReason, let text = ProgressionReasonText.text(reason) {
+                    Label(text, systemImage: "arrow.up.right")
+                        .font(StrandFont.caption.weight(.semibold))
+                        .foregroundStyle(StrandPalette.chargeColor)
+                }
                 setHeader(definition?.mode ?? .weightReps, unilateral: definition?.isUnilateral == true)
                 ForEach(Array(exercise.sets.enumerated()), id: \.element.id) { setIndex, set in
                     setRow(exerciseIndex, setIndex, set, mode: definition?.mode ?? .weightReps,
@@ -1305,9 +1323,11 @@ struct NativeWorkoutLoggerView: View {
     private func previousPerformance(for exercise: NativeWorkoutExercise,
                                      mode: TrainingMeasurementMode,
                                      unilateral: Bool) -> String? {
-        guard let entry = performance.latest(for: exercise.exerciseId) else { return nil }
+        // The latest session that actually had working sets: a warm-up-only entry says nothing about
+        // what to lift now and used to hide the useful one behind it.
+        guard let entry = performance.entries(for: exercise.exerciseId).last(where: { !$0.workingSets.isEmpty })
+        else { return nil }
         let sets = entry.workingSets
-        guard !sets.isEmpty else { return nil }
         let summaries = sets.prefix(4).map { previousSetSummary($0, mode: mode, unilateral: unilateral) }
         let date = Date(timeIntervalSince1970: TimeInterval(entry.startTs))
             .formatted(date: .abbreviated, time: .omitted)
@@ -1341,6 +1361,8 @@ struct NativeWorkoutLoggerView: View {
             Color.clear.frame(width: 30)
         }
         .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+        // Column labels stay on one line in longer languages instead of breaking mid-word.
+        .lineLimit(1).minimumScaleFactor(0.6)
     }
 
     @ViewBuilder private func repsHeader(unilateral: Bool) -> some View {
@@ -1358,20 +1380,17 @@ struct NativeWorkoutLoggerView: View {
             setKindMenu(exerciseIndex, setIndex, set)
             metricControls(exerciseIndex, setIndex, set, mode: mode, unilateral: unilateral)
             if effortPreference != .off {
-                Menu {
-                    let scale: TrainingEffortScale = effortPreference == .rir ? .rir : .rpe
-                    let values: [Double] = scale == .rir ? [0, 1, 2, 3, 4, 5] : [5, 6, 7, 8, 9, 10]
-                    ForEach(values, id: \.self) { value in
-                        Button(value.formatted()) {
-                            model.setEffort(exerciseIndex: exerciseIndex, setIndex: setIndex,
-                                            scale: scale, value: value)
-                        }
-                    }
+                Button {
+                    effortRequest = EffortPickerRequest(
+                        exerciseIndex: exerciseIndex, setIndex: setIndex,
+                        scale: effortPreference == .rir ? .rir : .rpe, current: set.effort)
                 } label: {
                     let prefix = set.effort?.scale == .rir ? "R" : ""
-                    Text(prefix + (set.effort?.value.formatted(.number.precision(.fractionLength(0...1))) ?? "—"))
-                        .frame(width: 50).foregroundStyle(StrandPalette.textPrimary)
+                    EffortBadge(text: prefix + (set.effort?.value.formatted(.number.precision(.fractionLength(0...1))) ?? "—"),
+                                color: set.effort.map { EffortChoice.color(for: $0) })
+                        .frame(width: 50, height: 32)
                 }
+                .buttonStyle(.plain)
                 .accessibilityLabel(Text(effortPreference == .rir ? "Repetitions in reserve" : "RPE"))
                 .accessibilityValue(Text(set.effort.map { $0.value.formatted(.number.precision(.fractionLength(0...1))) }
                                          ?? String(localized: "Not rated")))
@@ -1556,7 +1575,7 @@ struct NativeWorkoutLoggerView: View {
                                               phase: .warmup, intensifier: .none) }
             Divider()
             if set.phase == .work && set.parentSetId == nil {
-                Button("drop") { model.addTechniqueSegment(exerciseIndex: exerciseIndex,
+                Button("Drop set") { model.addTechniqueSegment(exerciseIndex: exerciseIndex,
                     setIndex: setIndex, intensifier: .dropSet) }
                 Button("Rest-pause") { model.addTechniqueSegment(exerciseIndex: exerciseIndex,
                     setIndex: setIndex, intensifier: .restPause) }
@@ -1566,10 +1585,10 @@ struct NativeWorkoutLoggerView: View {
             Button("To failure") { model.setKind(exerciseIndex: exerciseIndex, setIndex: setIndex,
                                                  phase: .work, intensifier: .failure) }
             Divider()
-            Button("Add set") {
+            Button("Duplicate set") {
                 model.duplicateSet(exerciseIndex: exerciseIndex, setIndex: setIndex)
             }
-            Button("Delete set", role: .destructive) {
+            Button("Remove this set", role: .destructive) {
                 model.removeSet(exerciseIndex: exerciseIndex, setIndex: setIndex)
             }
         } label: {
@@ -1655,14 +1674,6 @@ struct NativeWorkoutLoggerView: View {
                 } label: {
                     Text("Finish workout").frame(maxWidth: .infinity).padding(.vertical, 11)
                 }.buttonStyle(.borderedProminent).tint(StrandPalette.chargeColor)
-                Button(role: .destructive) {
-                    confirmingDiscard = true
-                } label: {
-                    Text("Discard workout").frame(maxWidth: .infinity).padding(.vertical, 9)
-                }
-                .buttonStyle(.bordered)
-                .tint(StrandPalette.statusCritical)
-                .accessibilityHint(Text("Deletes this session without saving it."))
             }
         }
     }
@@ -2533,41 +2544,5 @@ private extension TrainingWeekday {
         case .saturday: return "Saturday"
         case .sunday: return "Sunday"
         }
-    }
-}
-
-/// Live heart rate for the strength logger, isolated in its own view: it observes the 1 Hz heart-rate
-/// sources, so a new sample redraws this card only and not the sets beneath it.
-private struct StrengthLiveHeartRateCard: View {
-    let provider: WorkoutPhysiologyProvider
-    let sourceText: String
-    let paused: Bool
-    @ObservedObject var watchFeed: WatchHeartRateFeed
-    @EnvironmentObject private var app: AppModel
-
-    private var bpm: Int? {
-        switch provider {
-        case .appleWatch: watchFeed.bpm
-        case .noopBand, .externalTracker: app.bpm
-        case .none: app.bpm
-        }
-    }
-
-    var body: some View {
-        HStack(spacing: NoopMetrics.space2) {
-            Image(systemName: bpm == nil ? "heart.slash" : "heart.fill")
-                .foregroundStyle(bpm == nil ? StrandPalette.textTertiary : StrandPalette.metricRose)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(bpm.map { "\($0) bpm" } ?? String(localized: "Heart rate not available"))
-                    .font(StrandFont.headline.monospacedDigit())
-                Text(sourceText)
-                    .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
-            }
-            Spacer()
-            if paused {
-                Text("PAUSED").font(StrandFont.overline).foregroundStyle(StrandPalette.statusWarning)
-            }
-        }
-        .padding().background(StrandPalette.surfaceRaised, in: RoundedRectangle(cornerRadius: 16))
     }
 }
