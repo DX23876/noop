@@ -137,6 +137,18 @@ final class MuscleStimulusTests: XCTestCase {
         XCTAssertEqual(abs ?? 0, 2 * MuscleStimulus.proximityFactor(rpe: 9), accuracy: 1e-9)
     }
 
+    /// A stretch falls back to the same "no strength reference" path as the plank above (no weight,
+    /// often no RPE either), but it is not hard work — it should score zero, unlike the plank.
+    func testAStretchContributesNoStimulusEvenWhenRated() {
+        let templates = ["STRETCH": template("STRETCH", primary: .hamstrings, type: "duration")]
+        let session = workout("s", at: Self.ts("2026-07-08"), [
+            exercise("STRETCH", [set(0, rpe: 9), set(1, rpe: 9)]),
+        ])
+        let reference = MuscleStimulus.StrengthReference(workouts: [session], templates: templates)
+        let out = MuscleStimulus.stimulus(for: [session], templates: templates, reference: reference)
+        XCTAssertTrue(out.byMuscle.isEmpty)
+    }
+
     /// Warmups are not work, at any weight.
     func testWarmupSetsContributeNothing() {
         let session = workout("s", at: Self.ts("2026-07-08"), [

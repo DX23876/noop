@@ -124,12 +124,20 @@ public enum MuscleStimulus {
     /// set falls back to counting as ONE hard set, still scaled by proximity to failure. Falling back
     /// to the old behaviour is honest; scoring it zero would silently erase whole exercises from the
     /// map, and inventing an intensity would be worse.
+    ///
+    /// A stretch is the one exception to that fallback: it has no strength reference for the same
+    /// reason a plank doesn't (no weight, often no RPE), but unlike a plank it isn't hard work the
+    /// muscle map should credit — a passive hold and an isometric one would otherwise score identically.
+    /// There is no `category` field to test instead; the catalogue only marks a stretch by name (the
+    /// same heuristic `Tools/build_exercise_catalog.py` uses to pick `duration` mode), so this matches
+    /// the title rather than leave every stretch silently counted as a hard set.
     public static func setStimulus(_ set: HevySet,
                                    templateId: String?,
                                    template: HevyExerciseTemplate?,
                                    at ts: Int,
                                    reference: StrengthReference) -> Double {
         guard set.type.countsAsWork else { return 0 }
+        guard template?.title.localizedCaseInsensitiveContains("stretch") != true else { return 0 }
         let proximity = proximityFactor(rpe: set.rpe)
         guard let templateId,
               let weight = set.weightKg, weight > 0,
