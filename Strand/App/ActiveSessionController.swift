@@ -41,7 +41,11 @@ final class ActiveSessionController: ObservableObject {
     static let staleAfterSeconds = 4 * 3_600
 
     /// The running strength session, or a retrospective one being filled in.
-    @Published private(set) var strength: NativeWorkoutSessionModel?
+    @Published private(set) var strength: NativeWorkoutSessionModel? {
+        // Every way a strength session appears or goes — start, restore, finish, discard — reaches the
+        // system surfaces, not only later edits.
+        didSet { if oldValue !== strength { publishActivity() } }
+    }
     /// Whether the full-screen session is showing. False with a session running means minimized.
     @Published var isPresented = false
     @Published var pendingStart: PendingStart?
@@ -95,8 +99,19 @@ final class ActiveSessionController: ObservableObject {
                 // A cardio session records live samples, so the session — not whichever screen is open —
                 // keeps the strap's realtime stream armed until it ends. Minimizing no longer starves it.
                 if active { self.holdCardioHeartRate() } else { self.releaseCardioHeartRate() }
+                self.publishActivity()
                 if !active, self.strength == nil { self.isPresented = false }
                 self.objectWillChange.send()
+            }
+            .store(in: &cancellables)
+        // The system surfaces follow the live values, at most every two seconds: heart rate for both kinds,
+        // distance for a GPS session. Elapsed time and rest countdowns are rendered by the system itself.
+        app.$bpm.map { _ in () }
+            .merge(with: app.gpsRecorder.$distanceM.map { _ in () })
+            .throttle(for: .seconds(2), scheduler: RunLoop.main, latest: true)
+            .sink { [weak self] in
+                guard let self, self.hasLiveSession else { return }
+                self.publishActivity()
             }
             .store(in: &cancellables)
     }
@@ -264,6 +279,7 @@ final class ActiveSessionController: ObservableObject {
     func strengthFinished(_ workout: NativeWorkout) {
         if let draft = strength?.draft { retireLegacyRecording(for: draft) }
         strength = nil
+        publishActivity()
         isPresented = false
         watchHeartRate.reset()
         app.strengthWorkoutWatchStateSink?(nil)
@@ -275,6 +291,7 @@ final class ActiveSessionController: ObservableObject {
     func strengthDiscarded() {
         if let draft = strength?.draft { retireLegacyRecording(for: draft) }
         strength = nil
+        publishActivity()
         isPresented = false
         watchHeartRate.reset()
         app.strengthWorkoutWatchStateSink?(nil)
@@ -372,6 +389,7 @@ final class ActiveSessionController: ObservableObject {
     // MARK: - Watch companion
 
     func publishCompanion(_ draft: WorkoutDraft, exerciseTitle: String?, setNumber: Int?) {
+        publishActivity()
         guard draft.physiologyProvider == .appleWatch, let sessionId = draft.trainingSessionId else {
             app.strengthWorkoutWatchStateSink?(nil)
             return
@@ -389,6 +407,55 @@ final class ActiveSessionController: ObservableObject {
             exerciseTitle: exerciseTitle, setNumber: setNumber,
             setCount: draft.exercises.flatMap(\.sets).count, startedAtTs: draft.startedAt,
             bpm: bpm, heartRateZone: zone, restEndsAtTs: draft.timer?.endsAtTs, phase: phase))
+    }
+
+    // MARK: - System surfaces
+
+    /// Sends the running session to the Lock Screen / Dynamic Island, or nil when none runs.
+    func publishActivity() {
+        app.liveWorkoutActivitySink?(activitySnapshot())
+    }
+
+    func activitySnapshot(now: Date = Date()) -> LiveWorkoutActivitySnapshot? {
+        let zoneSet = app.profile.hrZoneSet
+        func zone(_ bpm: Int?) -> Int? {
+            bpm.map { zoneSet.zoneNumber(forBPM: Double($0)) }.flatMap { $0 > 0 ? $0 : nil }
+        }
+        if let strength, !strength.isRetrospective {
+            let draft = strength.draft
+            let nowTs = Int(now.timeIntervalSince1970)
+            let intervals = draft.pauseIntervals ?? []
+            let open = intervals.last.flatMap { $0.endedAtTs == nil ? $0.startedAtTs : nil }
+            let closedPaused = intervals.reduce(0) { total, interval in
+                guard let end = interval.endedAtTs else { return total }
+                return total + max(0, end - interval.startedAtTs)
+            }
+            let sets = draft.exercises.flatMap(\.sets)
+            let bpm = draft.physiologyProvider == .appleWatch ? watchHeartRate.bpm : app.bpm
+            var restEnds: Date?
+            if let timer = draft.timer, timer.kind != .timedSet, timer.pausedRemainingSeconds == nil,
+               timer.endsAtTs > nowTs {
+                restEnds = Date(timeIntervalSince1970: TimeInterval(timer.endsAtTs))
+            }
+            return LiveWorkoutActivitySnapshot(
+                kind: .strength, title: draft.title,
+                startedAt: Date(timeIntervalSince1970: TimeInterval(draft.startedAt)),
+                pausedAt: open.map { Date(timeIntervalSince1970: TimeInterval($0)) },
+                pausedSeconds: TimeInterval(closedPaused), bpm: bpm, zone: zone(bpm),
+                distanceM: nil, paceSecPerKm: nil,
+                setsDone: sets.filter(\.isCompleted).count, setsTotal: sets.count, restEndsAt: restEnds)
+        }
+        if let workout = app.activeWorkout {
+            let gps = app.gpsRecorder
+            let hasRoute = gps.pointCount > 1
+            return LiveWorkoutActivitySnapshot(
+                kind: .cardio, title: workout.sport, startedAt: workout.start,
+                pausedAt: workout.pausedAt, pausedSeconds: workout.pausedDuration,
+                bpm: app.bpm, zone: zone(app.bpm),
+                distanceM: hasRoute ? gps.distanceM : nil, paceSecPerKm: hasRoute ? gps.paceSecPerKm : nil,
+                setsDone: nil, setsTotal: nil, restEndsAt: nil)
+        }
+        return nil
     }
 
     // MARK: - Live heart rate

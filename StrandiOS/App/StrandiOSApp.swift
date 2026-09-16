@@ -326,7 +326,10 @@ struct StrandiOSApp: App {
                 // HealthKit-free payload. Filter on the host so other future schemes don't trip the
                 // importer; macOS never registers the scheme so this stays iOS-only.
                 .onOpenURL { url in
-                    if url.host == "import-health" {
+                    if url.scheme == "noop", url.host == "workout" {
+                        // Tapping the workout Live Activity or Dynamic Island returns to the running session.
+                        router.openActiveWorkout()
+                    } else if url.host == "import-health" {
                         model.handleHealthImportURL(url)
                     } else if url.scheme == "noop", url.host == "energy" {
                         router.openEnergy()
@@ -339,6 +342,12 @@ struct StrandiOSApp: App {
                 // push the first snapshot so a watch that's already on-wrist gets current scores without
                 // waiting for the next foreground. activate() is idempotent + a no-op where WC isn't
                 // supported, so this is safe on every device/simulator combination.
+                // The running workout drives the Lock Screen / Dynamic Island. Wired here rather than in `init`
+                // because the controller is `@State`, which only has storage once the body is installed.
+                .task {
+                    model.liveWorkoutActivitySink = { snapshot in liveActivity.updateWorkout(snapshot) }
+                    model.session.publishActivity()
+                }
                 .task {
                     watch.activate()
                     await watch.pushLatest(from: model)
@@ -355,6 +364,7 @@ struct StrandiOSApp: App {
         .onChange(of: scenePhase) { _, phase in
             if phase == .active {
                 model.traceAppState("foreground")
+                model.session.publishActivity()
                 model.drainPendingIntents(router: router)
                 // iOS grants a background refresh when it feels like it, and often not at all. Catch up
                 // on foreground so an enabled brief still lands on the day it was due instead of

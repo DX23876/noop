@@ -57,6 +57,9 @@ final class AppModel: ObservableObject {
     /// Told when a live cardio session could not get a system workout session, so the UI can explain it.
     var onSystemWorkoutSessionResult: ((SystemWorkoutSessionStart) -> Void)?
 
+    /// Receives the running session for the Lock Screen / Dynamic Island. Wired by the iOS app; nil elsewhere.
+    var liveWorkoutActivitySink: ((LiveWorkoutActivitySnapshot?) -> Void)?
+
     /// The single active training session. Created lazily so it can hold an unowned reference back here.
     lazy var session = ActiveSessionController(app: self)
 

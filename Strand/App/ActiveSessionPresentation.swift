@@ -215,6 +215,10 @@ private struct StrengthMiniBarContent: View {
                             .font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
                     }
                     Spacer()
+                    if model.draft.state != .active {
+                        Text("Paused").font(StrandFont.caption.weight(.semibold))
+                            .foregroundStyle(StrandPalette.statusWarning)
+                    }
                     Text(ActiveSessionMiniBar.clock(activeSeconds(now: now)))
                         .font(StrandFont.headline.monospacedDigit())
                     Image(systemName: "chevron.up").foregroundStyle(StrandPalette.textTertiary)
@@ -243,6 +247,10 @@ private struct CardioMiniBarContent: View {
                 Image(systemName: "figure.run").foregroundStyle(StrandPalette.accent)
                 Text(app.activeWorkout?.sport ?? "").font(StrandFont.subhead.weight(.semibold)).lineLimit(1)
                 Spacer()
+                if app.activeWorkout?.isPaused == true {
+                    Text("Paused").font(StrandFont.caption.weight(.semibold))
+                        .foregroundStyle(StrandPalette.statusWarning)
+                }
                 if let workout = app.activeWorkout {
                     Text(ActiveSessionMiniBar.clock(Int(workout.elapsed(at: context.date))))
                         .font(StrandFont.headline.monospacedDigit())

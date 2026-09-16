@@ -1,6 +1,7 @@
 #if os(iOS)
 import Foundation
 import ActivityKit
+import UIKit
 
 /// Starts, updates, and ends the live-HR Live Activity. The activity appears on the Lock Screen and
 /// in the Dynamic Island while the strap is bonded and streaming heart rate.
@@ -28,6 +29,8 @@ final class LiveActivityController {
     /// drops. Throttled to ~once every 2 s so we stay well under the Live Activity update budget.
     func update(bpm: Int?, recovery: Int?, connected: Bool, effort: Int? = nil) {
         guard authInfo.areActivitiesEnabled else { return }
+        // A running workout owns the activity; the plain live-HR summary resumes after it ends.
+        guard currentWorkout == nil else { return }
 
         // Re-adopt an activity that outlived a previous app session. ActivityKit keeps Live Activities
         // alive across launches/relaunches, but a fresh controller starts with `activity == nil`, so
@@ -81,6 +84,80 @@ final class LiveActivityController {
         }
     }
 
+    // MARK: - Workout
+
+    /// The workout the activity currently shows, or nil when it shows live HR (or nothing).
+    private var currentWorkout: NOOPActivityAttributes.Workout?
+
+    /// Shows the running workout, or ends the workout activity when `snapshot` is nil. A workout activity
+    /// lives as long as the session, not as long as the strap connection. Structural changes (pause, a rest
+    /// starting or ending, a set completed) are pushed at once; heart rate and distance at most every 2 s.
+    func updateWorkout(_ snapshot: LiveWorkoutActivitySnapshot?, now: Date = Date()) {
+        guard let snapshot else {
+            guard currentWorkout != nil else { return }
+            currentWorkout = nil
+            Task { await end() }
+            return
+        }
+        guard authInfo.areActivitiesEnabled, UnitPrefs.liveActivityEnabled() else { return }
+        let workout = Self.workoutState(snapshot, now: now)
+        let state = NOOPActivityAttributes.ContentState(bpm: snapshot.bpm, recovery: nil, bonded: true,
+                                                        effort: nil, workout: workout)
+        let content = ActivityContent(state: state, staleDate: nil)
+        if activity == nil { activity = Activity<NOOPActivityAttributes>.activities.first }
+
+        let showsWorkout = currentWorkout != nil && activity?.attributes.title == Self.workoutTitle
+        if let activity, showsWorkout {
+            let structural = Self.isStructuralChange(from: currentWorkout, to: workout)
+            guard structural || Date().timeIntervalSince(lastPush) > 2 else { return }
+            currentWorkout = workout
+            lastPush = Date()
+            Task { await activity.update(content) }
+            return
+        }
+        // ActivityKit only accepts a new activity from the foreground app. Leave `currentWorkout` unset so the
+        // next publish after returning to the app starts it.
+        guard UIApplication.shared.applicationState == .active else { return }
+        guard !isStarting else { return }
+        isStarting = true
+        currentWorkout = workout
+        Task {
+            // A live-HR activity was requested with a different title; replace it with the workout one.
+            await end()
+            do {
+                activity = try Activity.request(attributes: NOOPActivityAttributes(title: Self.workoutTitle),
+                                                content: content, pushType: nil)
+                lastPush = Date()
+            } catch {
+                activity = nil
+            }
+            isStarting = false
+        }
+    }
+
+    /// Distinguishes a workout activity from the live-HR one without a second attributes type.
+    static let workoutTitle = "workout"
+
+    static func workoutState(_ snapshot: LiveWorkoutActivitySnapshot, now: Date) -> NOOPActivityAttributes.Workout {
+        .init(kind: snapshot.kind == .strength ? .strength : .cardio, title: snapshot.title,
+              elapsedAnchor: snapshot.elapsedAnchor,
+              pausedElapsedSeconds: snapshot.pausedAt == nil ? nil : snapshot.activeSeconds(at: now),
+              zone: snapshot.zone, distanceM: snapshot.distanceM, paceSecPerKm: snapshot.paceSecPerKm,
+              setsDone: snapshot.setsDone, setsTotal: snapshot.setsTotal, restEndsAt: snapshot.restEndsAt)
+    }
+
+    /// Changes the Lock Screen must reflect immediately rather than on the next throttled push.
+    static func isStructuralChange(from old: NOOPActivityAttributes.Workout?,
+                                   to new: NOOPActivityAttributes.Workout) -> Bool {
+        guard let old else { return true }
+        return (old.pausedElapsedSeconds == nil) != (new.pausedElapsedSeconds == nil)
+            || old.restEndsAt != new.restEndsAt
+            || old.setsDone != new.setsDone
+            || old.setsTotal != new.setsTotal
+            || old.title != new.title
+            || old.elapsedAnchor != new.elapsedAnchor
+    }
+
     func end() async {
         // End every NOOP Live Activity, not just our cached handle — covers a straggler from a prior
         // session we never re-adopted (#341) and any rare duplicate. Iterating the live list is the
@@ -89,6 +166,7 @@ final class LiveActivityController {
             await act.end(nil, dismissalPolicy: .immediate)
         }
         self.activity = nil
+        if currentWorkout == nil { lastPush = .distantPast }
     }
 }
 #endif
