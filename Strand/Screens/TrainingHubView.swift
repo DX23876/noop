@@ -1001,7 +1001,7 @@ struct NativeWorkoutLoggerView: View {
     @AppStorage("training.activeWorkout.layout") private var layoutRaw = ActiveWorkoutLayout.focus.rawValue
     @AppStorage("workoutKeepScreenOn") private var keepScreenOn = false
     @AppStorage(TrainingPreferences.effortKey) private var effortRaw = TrainingEffortPreference.rpe.rawValue
-    @AppStorage(TrainingPreferences.mediaPresentationKey) private var mediaPresentationRaw = TrainingMediaPresentation.small.rawValue
+    @AppStorage(TrainingPreferences.mediaPresentationKey) private var mediaPresentationRaw = TrainingMediaPresentation.large.rawValue
     @AppStorage(TrainingPreferences.hapticsKey) private var hapticsEnabled = true
     #if os(macOS)
     @State private var macActivity: NSObjectProtocol?
@@ -1450,7 +1450,7 @@ struct NativeWorkoutLoggerView: View {
     /// The exercise's animation above its sets. Only the exercise being logged animates; the others
     /// show a still, so a list of exercises never decodes several animations at once.
     @ViewBuilder private func workoutMedia(_ exercise: TrainingExercise, animated: Bool) -> some View {
-        let presentation = TrainingMediaPresentation(rawValue: mediaPresentationRaw) ?? .small
+        let presentation = TrainingMediaPresentation(rawValue: mediaPresentationRaw) ?? .large
         if presentation != .hidden, media.isAvailable,
            let item = ExerciseMediaRegistry.shared.media(for: exercise, variant: animated ? .animation : .still) {
             VStack(alignment: .trailing, spacing: 2) {

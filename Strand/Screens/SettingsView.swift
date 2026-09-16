@@ -231,7 +231,7 @@ struct SettingsView: View {
     @AppStorage(TrainingPreferences.warmupRestKey) private var trainingWarmupRestSeconds = TrainingPreferences.defaultWarmupRestSeconds
     @AppStorage(TrainingPreferences.restPauseKey) private var trainingRestPauseSeconds = TrainingPreferences.defaultRestPauseSeconds
     @AppStorage(TrainingPreferences.weightIncrementKey) private var trainingWeightIncrement = TrainingPreferences.defaultWeightIncrementKg
-    @AppStorage(TrainingPreferences.mediaPresentationKey) private var trainingMediaRaw = TrainingMediaPresentation.small.rawValue
+    @AppStorage(TrainingPreferences.mediaPresentationKey) private var trainingMediaRaw = TrainingMediaPresentation.large.rawValue
     @AppStorage(TrainingPreferences.soundKey) private var trainingSound = true
     @AppStorage(TrainingPreferences.hapticsKey) private var trainingHaptics = true
     @AppStorage(TrainingPreferences.timerFeedbackKey) private var trainingTimerFeedback = true
