@@ -44,4 +44,18 @@ final class MuscleLoadMapTests: XCTestCase {
             XCTAssertFalse(level.label.isEmpty, "\(level) has no label")
         }
     }
+
+    /// Every region the map can be asked to shade has artwork, on at least one face — a region with no
+    /// outline would silently draw nothing for work that was done. Obliques and shins are drawn on the
+    /// front, from shapes the source artwork always had but that used to be filed as plain silhouette.
+    func testEveryRegionHasArtwork() {
+        var drawn = Set<MuscleLoadMap.Region>()
+        for face in MuscleLoadMap.Face.allCases {
+            drawn.formUnion(MuscleMapArt.shared[face].regions.map(\.region))
+        }
+        XCTAssertEqual(drawn, Set(MuscleLoadMap.Region.allCases))
+        let front = MuscleMapArt.shared[.front].regions.map(\.region)
+        XCTAssertEqual(front.filter { $0 == .obliques }.count, 16)
+        XCTAssertEqual(front.filter { $0 == .shins }.count, 2)
+    }
 }

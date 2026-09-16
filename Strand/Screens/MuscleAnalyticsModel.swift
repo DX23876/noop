@@ -42,7 +42,7 @@ final class MuscleAnalyticsModel: ObservableObject {
             var tauByMuscle: [String: Double] = [:]
             var fittedMuscles = Set<String>()
             for muscle in TrainingMuscleCatalog.all {
-                let group = MuscleAnalyticsModel.coarseGroup(for: muscle.id)
+                let group = HevyMuscleGroup.forTrainingMuscle(muscle.id)
                 tauByMuscle[muscle.id] = tauByGroup[group]
                     ?? MuscleRecovery.defaultTauSeconds(for: group)
                 if fittedGroups.contains(group) { fittedMuscles.insert(muscle.id) }
@@ -65,27 +65,5 @@ final class MuscleAnalyticsModel: ObservableObject {
         let balance: MuscleBalanceResult
         let fatigue: MuscleFatigueResult
         let strength: MuscleStrengthResult
-    }
-
-    private nonisolated static func coarseGroup(for id: String) -> HevyMuscleGroup {
-        switch id {
-        case "chest", "upper_chest", "lower_chest": return .chest
-        case "front_delts", "side_delts", "rear_delts", "rotator_cuff": return .shoulders
-        case "triceps": return .triceps
-        case "biceps": return .biceps
-        case "forearms": return .forearms
-        case "lats": return .lats
-        case "upper_back", "rhomboids": return .upperBack
-        case "traps", "upper_traps", "lower_traps": return .traps
-        case "lower_back": return .lowerBack
-        case "quadriceps", "inner_quadriceps", "outer_quadriceps": return .quadriceps
-        case "hamstrings": return .hamstrings
-        case "glutes": return .glutes
-        case "adductors": return .adductors
-        case "abductors", "hip_flexors": return .abductors
-        case "calves", "tibialis": return .calves
-        case "neck": return .neck
-        default: return .abdominals
-        }
     }
 }

@@ -67,15 +67,83 @@ public enum HevySetType: String, Codable, Sendable, CaseIterable {
     public var countsAsWork: Bool { self != .warmup }
 }
 
-/// The muscle a movement trains, per Hevy's `MuscleGroup` enum (20 values as of this writing).
+/// The muscle a movement trains: Hevy's `MuscleGroup` enum (20 values as of this writing), plus
+/// `serratus`, `obliques`, `hipFlexors` and `shins`, which NOOP's own anatomy distinguishes and Hevy
+/// does not. An import from Hevy never produces those four; they come from `forTrainingMuscle`.
 public enum HevyMuscleGroup: String, Codable, Sendable, CaseIterable {
     case abdominals, shoulders, biceps, triceps, forearms, quadriceps, hamstrings, calves
     case glutes, abductors, adductors, lats, upperBack = "upper_back", traps
     case lowerBack = "lower_back", chest, cardio, neck, fullBody = "full_body", other
+    case serratus, obliques, hipFlexors = "hip_flexors", shins
 
     public static func parse(_ raw: String?) -> HevyMuscleGroup {
         guard let raw = raw?.lowercased() else { return .other }
         return HevyMuscleGroup(rawValue: raw) ?? .other
+    }
+
+    /// The groups Hevy itself uses — what a search of a synced Hevy catalogue can actually match.
+    public static let hevyGroups: [HevyMuscleGroup] = allCases.filter {
+        ![.serratus, .obliques, .hipFlexors, .shins].contains($0)
+    }
+
+    /// The group one of NOOP's muscle ids (`TrainingMuscleCatalog`) is counted under. The only place
+    /// that mapping is written: the Strength analytics, the muscle model and the native-workout
+    /// projection all read it, so a muscle cannot land in one group on one screen and another elsewhere.
+    public static func forTrainingMuscle(_ id: String?) -> HevyMuscleGroup {
+        switch id {
+        case "chest", "upper_chest", "lower_chest": return .chest
+        case "front_delts", "side_delts", "rear_delts", "rotator_cuff", "shoulders": return .shoulders
+        case "serratus": return .serratus
+        case "triceps": return .triceps
+        case "biceps": return .biceps
+        case "forearms": return .forearms
+        case "lats": return .lats
+        case "upper_back", "rhomboids": return .upperBack
+        case "traps", "upper_traps", "lower_traps": return .traps
+        case "neck": return .neck
+        case "lower_back": return .lowerBack
+        case "abdominals", "upper_abs", "lower_abs", "core": return .abdominals
+        case "obliques": return .obliques
+        case "quadriceps", "inner_quadriceps", "outer_quadriceps": return .quadriceps
+        case "hamstrings": return .hamstrings
+        case "glutes": return .glutes
+        case "abductors": return .abductors
+        case "adductors": return .adductors
+        case "hip_flexors": return .hipFlexors
+        case "calves": return .calves
+        case "tibialis": return .shins
+        default: return .other
+        }
+    }
+
+    /// The muscle ids a group stands for when only the group is known — a Hevy template or a mapping the
+    /// wearer chose. Deliberately the main heads only (no rotator cuff under shoulders): attributing a
+    /// group-level set to every small muscle in it would claim detail the source never had.
+    public var trainingMuscleIds: [String] {
+        switch self {
+        case .abdominals: return ["abdominals"]
+        case .shoulders: return ["front_delts", "side_delts", "rear_delts"]
+        case .biceps: return ["biceps"]
+        case .triceps: return ["triceps"]
+        case .forearms: return ["forearms"]
+        case .quadriceps: return ["quadriceps"]
+        case .hamstrings: return ["hamstrings"]
+        case .calves: return ["calves"]
+        case .glutes: return ["glutes"]
+        case .abductors: return ["abductors"]
+        case .adductors: return ["adductors"]
+        case .lats: return ["lats"]
+        case .upperBack: return ["upper_back"]
+        case .traps: return ["traps"]
+        case .lowerBack: return ["lower_back"]
+        case .chest: return ["chest"]
+        case .neck: return ["neck"]
+        case .serratus: return ["serratus"]
+        case .obliques: return ["obliques"]
+        case .hipFlexors: return ["hip_flexors"]
+        case .shins: return ["tibialis"]
+        case .cardio, .fullBody, .other: return []
+        }
     }
 
     /// A human label. Deliberately NOT localized here: this is a storage/analytics type, and the
@@ -83,10 +151,11 @@ public enum HevyMuscleGroup: String, Codable, Sendable, CaseIterable {
     /// the user's language, which is what a grouping key must guarantee.
     public var label: String {
         switch self {
-        case .upperBack: return "Upper back"
-        case .lowerBack: return "Lower back"
-        case .fullBody:  return "Full body"
-        default:         return rawValue.prefix(1).uppercased() + rawValue.dropFirst()
+        case .upperBack:  return "Upper back"
+        case .lowerBack:  return "Lower back"
+        case .fullBody:   return "Full body"
+        case .hipFlexors: return "Hip flexors"
+        default:          return rawValue.prefix(1).uppercased() + rawValue.dropFirst()
         }
     }
 }

@@ -231,9 +231,9 @@ REGION = {
     "neck": "neck", "trapezius": "traps", "deltoids": "shoulders", "adductors": "adductors",
     "quadriceps": "quadriceps", "calves": "calves", "forearm": "forearms",
     "upper-back": "upperBack", "lower-back": "lowerBack", "gluteal": "glutes",
-    "hamstring": "hamstrings",
+    "hamstring": "hamstrings", "obliques": "obliques", "tibialis": "shins",
 }
-SILHOUETTE = {"head", "hair", "hands", "feet", "ankles", "knees", "obliques", "tibialis"}
+SILHOUETTE = {"head", "hair", "hands", "feet", "ankles", "knees"}
 
 def fmt(v):
     return f"{v:.4f}".rstrip("0").rstrip(".")

@@ -5,8 +5,12 @@ import StrandTraining
 /// The muscle groups a wearer picks on the body to find exercises. Each group is a set of NOOP muscle
 /// ids, so it matches exercises the same way the muscle analytics count them, and each draws on the body
 /// through the one existing id-to-artwork mapping (`TrainingMuscleMapAppearance.muscle`).
+///
+/// A group here never splits one analytics group (`HevyMuscleGroup.forTrainingMuscle`) across two chips.
+/// It may join two — upper back takes the lats, glutes take the abductors — exactly as the load map draws
+/// them on one shape.
 enum ExerciseMuscleGroup: String, CaseIterable, Identifiable, Sendable {
-    case traps, shoulders, chest, upperBack, serratus, biceps, triceps, forearms
+    case neck, traps, shoulders, chest, upperBack, serratus, biceps, triceps, forearms
     case abs, obliques, lowerBack, glutes, quads, hamstrings, adductors, hipFlexors, calves, shins
 
     var id: String { rawValue }
@@ -20,7 +24,8 @@ enum ExerciseMuscleGroup: String, CaseIterable, Identifiable, Sendable {
 
     var muscleIds: Set<String> {
         switch self {
-        case .traps: return ["traps", "upper_traps", "lower_traps", "neck"]
+        case .neck: return ["neck"]
+        case .traps: return ["traps", "upper_traps", "lower_traps"]
         case .shoulders: return ["front_delts", "side_delts", "rear_delts", "rotator_cuff"]
         case .chest: return ["chest", "upper_chest", "lower_chest"]
         case .upperBack: return ["lats", "upper_back", "rhomboids"]
@@ -43,6 +48,7 @@ enum ExerciseMuscleGroup: String, CaseIterable, Identifiable, Sendable {
 
     var title: String {
         switch self {
+        case .neck: return String(localized: "Neck")
         case .traps: return String(localized: "Traps")
         case .shoulders: return String(localized: "Shoulders")
         case .chest: return String(localized: "Chest")

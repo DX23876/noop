@@ -53,6 +53,17 @@ final class StrengthBalanceTests: XCTestCase {
         XCTAssertEqual(try XCTUnwrap(pushPull.shareA), 12.0 / 21.0, accuracy: 1e-9)
     }
 
+    /// Hip flexors and shins count as lower body, where their sets landed before they had their own
+    /// groups (under abductors and calves). Serratus and obliques stay off every axis, as abdominal work
+    /// did.
+    func testTheFinerLowerBodyGroupsStayOnTheLowerSide() throws {
+        let readings = StrengthBalance.readings(setsByMuscle: [.chest: 4, .hipFlexors: 2, .shins: 3,
+                                                              .serratus: 5, .obliques: 5])
+        let upperLower = try XCTUnwrap(readings.first { $0.axis == .upperLower })
+        XCTAssertEqual(upperLower.setsA, 4)
+        XCTAssertEqual(upperLower.setsB, 5)
+    }
+
     /// A side with no sets yields NO ratio. "Infinity : 1" is not a large imbalance, it is an
     /// undefined quantity, and the caller is expected to say "no pulling logged" instead.
     func testAnEmptySideYieldsNoRatio() throws {

@@ -896,8 +896,8 @@ struct StrengthView: View {
             secondaryMuscleGroups: mappingSecondary.sorted { $0.rawValue < $1.rawValue })
         try? await store.upsertStrengthExerciseMapping(mapping)
         let normalized = ExerciseAnatomyCatalog.normalize(exercise)
-        let primary = detailedMuscleIds(mappingPrimary)
-        let secondary = mappingSecondary.flatMap(detailedMuscleIds)
+        let primary = mappingPrimary.trainingMuscleIds
+        let secondary = mappingSecondary.flatMap(\.trainingMuscleIds)
             .filter { !primary.contains($0) }
         if !primary.isEmpty {
             let anatomy = ExerciseAnatomy(
@@ -910,29 +910,6 @@ struct StrengthView: View {
         }
         mappingExercise = nil
         await model.load(repo: repo)
-    }
-
-    private func detailedMuscleIds(_ group: HevyMuscleGroup) -> [String] {
-        switch group {
-        case .abdominals: return ["abdominals"]
-        case .shoulders: return ["front_delts", "side_delts", "rear_delts"]
-        case .biceps: return ["biceps"]
-        case .triceps: return ["triceps"]
-        case .forearms: return ["forearms"]
-        case .quadriceps: return ["quadriceps"]
-        case .hamstrings: return ["hamstrings"]
-        case .calves: return ["calves"]
-        case .glutes: return ["glutes"]
-        case .abductors: return ["abductors"]
-        case .adductors: return ["adductors"]
-        case .lats: return ["lats"]
-        case .upperBack: return ["upper_back"]
-        case .traps: return ["traps"]
-        case .lowerBack: return ["lower_back"]
-        case .chest: return ["chest"]
-        case .neck: return ["neck"]
-        case .cardio, .fullBody, .other: return []
-        }
     }
 
     /// What the colours mean, spelled out. Without this the ramp is read as a health verdict.
@@ -1572,8 +1549,10 @@ struct StrengthView: View {
     ///   • `abductors` shade the GLUTES, because gluteus medius and minimus are the hip abductors.
     ///
     /// `cardio`, `fullBody` and `other` map to NOTHING on purpose — there is no honest place to shade
-    /// for them, and colouring a nearby muscle instead would put work on one that never did it. They
-    /// stay visible in the list below the map, which is where their sets are counted.
+    /// for them, and colouring a nearby muscle instead would put work on one that never did it. The
+    /// same holds for `serratus` and `hipFlexors`: the artwork has no shape for either, and the nearest
+    /// shapes (chest, quadriceps) are different muscles. All of them stay visible in the list below the
+    /// map, which is where their sets are counted.
     private static func region(for group: HevyMuscleGroup) -> MuscleLoadMap.Region? {
         switch group {
         case .neck:        return .neck
@@ -1593,7 +1572,9 @@ struct StrengthView: View {
         case .hamstrings:  return .hamstrings
         case .calves:      return .calves
         case .adductors:   return .adductors
-        case .cardio, .fullBody, .other: return nil
+        case .obliques:    return .obliques
+        case .shins:       return .shins
+        case .serratus, .hipFlexors, .cardio, .fullBody, .other: return nil
         }
     }
 

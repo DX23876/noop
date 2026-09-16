@@ -58,8 +58,8 @@ enum NativeTrainingProjection {
     private static func template(_ exercise: TrainingExercise) -> HevyExerciseTemplate {
         HevyExerciseTemplate(
             id: exercise.id, title: exercise.title, type: measurementType(exercise.mode),
-            primaryMuscleGroup: muscle(exercise.primaryMuscleId),
-            secondaryMuscleGroups: Array(Set(exercise.secondaryMuscleIds.map(muscle)))
+            primaryMuscleGroup: HevyMuscleGroup.forTrainingMuscle(exercise.primaryMuscleId),
+            secondaryMuscleGroups: Array(Set(exercise.secondaryMuscleIds.map(HevyMuscleGroup.forTrainingMuscle)))
                 .sorted { $0.rawValue < $1.rawValue },
             equipment: equipment(exercise.equipmentIds), isCustom: exercise.source == .user)
     }
@@ -73,29 +73,6 @@ enum NativeTrainingProjection {
         case .repetitions: return "reps_only"
         case .duration: return "duration"
         case .distanceDuration: return "distance_duration"
-        }
-    }
-
-    private static func muscle(_ id: String?) -> HevyMuscleGroup {
-        switch id {
-        case "upper_chest", "lower_chest", "chest": return .chest
-        case "front_delts", "side_delts", "rear_delts", "shoulders": return .shoulders
-        case "upper_back": return .upperBack
-        case "lower_back": return .lowerBack
-        case "abdominals", "obliques", "core": return .abdominals
-        case "quadriceps": return .quadriceps
-        case "hamstrings": return .hamstrings
-        case "glutes": return .glutes
-        case "adductors": return .adductors
-        case "abductors": return .abductors
-        case "calves", "tibialis": return .calves
-        case "lats": return .lats
-        case "traps": return .traps
-        case "triceps": return .triceps
-        case "biceps": return .biceps
-        case "forearms": return .forearms
-        case "neck": return .neck
-        default: return .other
         }
     }
 

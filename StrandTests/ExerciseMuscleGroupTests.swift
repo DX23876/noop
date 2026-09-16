@@ -1,6 +1,7 @@
 import XCTest
 import MuscleMap
 import StrandTraining
+import WhoopStore
 @testable import Strand
 
 /// The body picker's groups cover every muscle NOOP knows exactly once, draw where they are tapped, and
@@ -32,5 +33,31 @@ final class ExerciseMuscleGroupTests: XCTestCase {
         XCTAssertEqual(counts[.chest], 1)
         XCTAssertEqual(counts[.triceps], 1)
         XCTAssertNil(counts[.calves])
+    }
+}
+
+/// The picker, the Strength analytics and the load map use one muscle vocabulary.
+final class MuscleTaxonomyConsistencyTests: XCTestCase {
+    func testEveryNoopMuscleHasAnAnalyticsGroup() {
+        for muscle in TrainingMuscleCatalog.all {
+            XCTAssertNotEqual(HevyMuscleGroup.forTrainingMuscle(muscle.id), .other, muscle.id)
+        }
+    }
+
+    /// A picker chip may join two analytics groups (upper back takes the lats) but never splits one,
+    /// so a chip and the analytics can never disagree about where a muscle belongs.
+    func testNoAnalyticsGroupIsSplitAcrossTwoPickerGroups() {
+        var owner: [HevyMuscleGroup: ExerciseMuscleGroup] = [:]
+        for group in ExerciseMuscleGroup.allCases {
+            for id in group.muscleIds {
+                let analytics = HevyMuscleGroup.forTrainingMuscle(id)
+                if let existing = owner[analytics] {
+                    XCTAssertEqual(existing, group, "\(analytics) is in both \(existing) and \(group)")
+                }
+                owner[analytics] = group
+            }
+        }
+        XCTAssertEqual(ExerciseMuscleGroup.allCases.count, 19)
+        XCTAssertEqual(ExerciseMuscleGroup.neck.muscleIds, ["neck"])
     }
 }

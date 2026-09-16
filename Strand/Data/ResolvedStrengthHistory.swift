@@ -297,9 +297,9 @@ extension Repository {
     /// the map while its title is absent from the reviewed detailed catalogue, and carries the lower
     /// confidence so the app can still ask once for genuinely custom content.
     private nonisolated static func fallbackAnatomy(_ template: HevyExerciseTemplate) -> ExerciseAnatomy? {
-        let primary = detailedIds(template.primaryMuscleGroup)
+        let primary = template.primaryMuscleGroup.trainingMuscleIds
         guard !primary.isEmpty else { return nil }
-        let secondary = template.secondaryMuscleGroups.flatMap(detailedIds)
+        let secondary = template.secondaryMuscleGroups.flatMap(\.trainingMuscleIds)
         return ExerciseAnatomy(
             id: "source:\(template.id)", title: template.title,
             mode: measurementMode(template.type) ?? .weightReps,
@@ -308,28 +308,5 @@ extension Repository {
             equipmentIds: equipmentIds(template.equipment),
             providerIds: [TrainingRecordSource.hevyAPI.rawValue: template.id],
             confidence: .sourceFallback)
-    }
-
-    private nonisolated static func detailedIds(_ group: HevyMuscleGroup) -> [String] {
-        switch group {
-        case .abdominals: return ["abdominals"]
-        case .shoulders: return ["front_delts", "side_delts", "rear_delts"]
-        case .biceps: return ["biceps"]
-        case .triceps: return ["triceps"]
-        case .forearms: return ["forearms"]
-        case .quadriceps: return ["quadriceps"]
-        case .hamstrings: return ["hamstrings"]
-        case .calves: return ["calves"]
-        case .glutes: return ["glutes"]
-        case .abductors: return ["abductors"]
-        case .adductors: return ["adductors"]
-        case .lats: return ["lats"]
-        case .upperBack: return ["upper_back"]
-        case .traps: return ["traps"]
-        case .lowerBack: return ["lower_back"]
-        case .chest: return ["chest"]
-        case .neck: return ["neck"]
-        case .cardio, .fullBody, .other: return []
-        }
     }
 }

@@ -626,7 +626,7 @@ enum CoachTool: String, CaseIterable {
                     "query": ["type": "string",
                               "description": "Words from the movement's name, e.g. \"bench press\" or \"romanian deadlift\". All words must appear."],
                     "muscle_group": ["type": "string",
-                                     "enum": HevyMuscleGroup.allCases.map(\.rawValue),
+                                     "enum": HevyMuscleGroup.hevyGroups.map(\.rawValue),
                                      "description": "Restrict to movements training this muscle, primary or secondary."],
                     "equipment": ["type": "string",
                                   "enum": HevyEquipment.allCases.map(\.rawValue),

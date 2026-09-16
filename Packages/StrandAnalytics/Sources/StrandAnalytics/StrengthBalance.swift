@@ -46,7 +46,8 @@ public enum StrengthBalance {
                         [.lats, .upperBack, .biceps])
             case .upperLower:
                 return ([.chest, .shoulders, .triceps, .biceps, .lats, .upperBack, .traps, .forearms],
-                        [.quadriceps, .hamstrings, .glutes, .calves, .abductors, .adductors])
+                        [.quadriceps, .hamstrings, .glutes, .calves, .abductors, .adductors,
+                         .hipFlexors, .shins])
             case .quadsPosterior:
                 return ([.quadriceps],
                         [.hamstrings, .glutes])

@@ -48,11 +48,12 @@ public struct MuscleLoadMap: View {
     /// Named for the body rather than for any one data source, so the design package stays free of
     /// `WhoopStore` (it has no dependencies, deliberately) and the app does the mapping. The set is
     /// exactly what the artwork can draw: there is no `lats` or `abductors` shape, so those map onto
-    /// `upperBack` and `glutes` at the call site, where the reasoning belongs.
+    /// `upperBack` and `glutes` at the call site, where the reasoning belongs, and no serratus or hip
+    /// flexor shape at all.
     public enum Region: String, Sendable, CaseIterable, Codable {
-        case neck, traps, shoulders, chest, biceps, triceps, forearms, abdominals
+        case neck, traps, shoulders, chest, biceps, triceps, forearms, abdominals, obliques
         case upperBack, lowerBack
-        case glutes, quadriceps, hamstrings, calves, adductors
+        case glutes, quadriceps, hamstrings, calves, shins, adductors
     }
 
     /// Which way the body faces. A muscle only visible from behind simply is not drawn on the front —
@@ -215,12 +216,14 @@ public struct MuscleLoadMap: View {
         case .triceps:     return String(localized: "Triceps", bundle: .module)
         case .forearms:    return String(localized: "Forearms", bundle: .module)
         case .abdominals:  return String(localized: "Abdominals", bundle: .module)
+        case .obliques:    return String(localized: "Obliques", bundle: .module)
         case .upperBack:   return String(localized: "Upper back", bundle: .module)
         case .lowerBack:   return String(localized: "Lower back", bundle: .module)
         case .glutes:      return String(localized: "Glutes", bundle: .module)
         case .quadriceps:  return String(localized: "Quadriceps", bundle: .module)
         case .hamstrings:  return String(localized: "Hamstrings", bundle: .module)
         case .calves:      return String(localized: "Calves", bundle: .module)
+        case .shins:       return String(localized: "Shins", bundle: .module)
         case .adductors:   return String(localized: "Adductors", bundle: .module)
         }
     }

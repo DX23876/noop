@@ -37,6 +37,25 @@ final class NativeTrainingProjectionTests: XCTestCase {
         XCTAssertEqual(row.durationS, 3_000)
     }
 
+    /// Native exercises use the same muscle-to-group mapping as the muscle model. This projection used to
+    /// keep its own shorter copy, so a rhomboid or lower-ab exercise fell to `.other` and never reached
+    /// the load map.
+    func testNativeMusclesProjectThroughTheSharedTaxonomy() {
+        let exercises = [
+            TrainingExercise(id: "user:row", title: "Face pull", mode: .weightReps,
+                             primaryMuscleId: "rhomboids", secondaryMuscleIds: ["rear_delts"]),
+            TrainingExercise(id: "user:tib", title: "Tib raise", mode: .bodyweightReps,
+                             primaryMuscleId: "tibialis"),
+            TrainingExercise(id: "user:raise", title: "Leg raise", mode: .bodyweightReps,
+                             primaryMuscleId: "lower_abs", secondaryMuscleIds: ["hip_flexors"]),
+        ]
+        let result = NativeTrainingProjection.strength(workouts: [], exercises: exercises)
+        XCTAssertEqual(result.templates["user:row"]?.primaryMuscleGroup, .upperBack)
+        XCTAssertEqual(result.templates["user:tib"]?.primaryMuscleGroup, .shins)
+        XCTAssertEqual(result.templates["user:raise"]?.primaryMuscleGroup, .abdominals)
+        XCTAssertEqual(result.templates["user:raise"]?.secondaryMuscleGroups, [.hipFlexors])
+    }
+
     func testImportedNativeTablesKeepTheirOriginalProviderSource() {
         let exercise = TrainingExercise(id: "import:bench", title: "Bench Press", mode: .weightReps)
         let workout = NativeWorkout(id: UUID(), title: "Push", startedAt: 100, endedAt: 200,
