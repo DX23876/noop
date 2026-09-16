@@ -70,6 +70,27 @@ class MuscleMappingTests(unittest.TestCase):
         mapped = generator.secondary_muscles({"secondary_muscles": ["core", "wrists", "ankles"]}, "chest")
         self.assertEqual(mapped, ["abdominals"])
 
+    def test_upstream_shins_credit_the_tibialis(self):
+        self.assertEqual(generator.secondary_muscles({"secondary_muscles": ["shins", "ankles"]}, "calves"),
+                         ["tibialis"])
+
+    def test_rotational_core_work_targets_the_obliques(self):
+        self.assertEqual(generator.refine_core("abdominals", ["obliques", "lower_back"], "russian twist"),
+                         ("obliques", ["abdominals", "lower_back"]))
+        self.assertEqual(generator.refine_core("abdominals", ["obliques"], "dumbbell side bend"),
+                         ("obliques", ["abdominals"]))
+
+    def test_a_name_alone_never_moves_work_onto_the_obliques(self):
+        # Upstream does not credit the obliques here, so neither does the catalogue.
+        self.assertEqual(generator.refine_core("abdominals", ["glutes"], "lunge with twist"),
+                         ("abdominals", ["glutes"]))
+        # A twisting press is still a press.
+        self.assertEqual(generator.refine_core("chest", ["obliques"], "band one arm twisting chest press"),
+                         ("chest", ["obliques"]))
+        # An ordinary crunch keeps the abdominals.
+        self.assertEqual(generator.refine_core("abdominals", ["obliques"], "crunch floor"),
+                         ("abdominals", ["obliques"]))
+
     def test_an_unmapped_secondary_muscle_is_surfaced_rather_than_guessed(self):
         mapped = generator.secondary_muscles({"secondary_muscles": ["spleen"]}, "chest")
         self.assertTrue(mapped and mapped[0].startswith("__unknown__"))

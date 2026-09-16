@@ -61,6 +61,12 @@ final class BundledExerciseCatalogTests: XCTestCase {
         XCTAssertEqual(ballCrunch.mode, .bodyweightReps)
         XCTAssertTrue(ballCrunch.equipmentIds.contains("stability-ball"))
         XCTAssertFalse(TrainingEquipmentCatalog.carriesExternalLoad(ballCrunch.equipmentIds))
+
+        // Upstream files rotational core work under "abs"; the obliques are its main target.
+        let twist = try XCTUnwrap(byTitle["Russian Twist"])
+        XCTAssertEqual(twist.primaryMuscleId, "obliques")
+        XCTAssertEqual(twist.secondaryMuscleIds, ["abdominals"])
+        XCTAssertEqual(try XCTUnwrap(byTitle["Crunch (On Stability Ball)"]).primaryMuscleId, "abdominals")
     }
 
     /// Every entry with a muscle has to reach the muscle map, or the catalogue would grow the library

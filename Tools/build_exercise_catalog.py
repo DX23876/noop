@@ -37,7 +37,8 @@ ATTRIBUTION = ("Exercise data: ExerciseDB v1 via hasaneyldrm/exercises-dataset, 
                "Exercise media is not included and is not covered by that licence.")
 # Bumped whenever the normalization changes what a stored definition means, so the app can re-seed.
 # 2: titles are title-cased instead of shipping upstream's all-lowercase names verbatim.
-CONTENT_VERSION = 2
+# 3: lateral/rotational core work targets the obliques; upstream "shins" credits the tibialis.
+CONTENT_VERSION = 3
 
 # NOOP's muscle vocabulary is `TrainingMuscleCatalog`; every id below must exist there.
 KNOWN_MUSCLES = {
@@ -92,9 +93,10 @@ SECONDARY_TO_MUSCLE = {
     "brachialis": "biceps", "rotator cuff": "rotator_cuff", "soleus": "calves",
     "sternocleidomastoid": "neck", "groin": "adductors", "inner thighs": "adductors",
     "serratus anterior": "serratus", "spine": "lower_back",
+    "shins": "tibialis",
     # Deliberately unmapped: NOOP's catalogue has no muscle for these, and a stabilizer the app cannot
     # draw is better dropped than forced onto a neighbouring muscle.
-    "ankles": None, "feet": None, "hands": None, "wrists": None, "shins": None,
+    "ankles": None, "feet": None, "hands": None, "wrists": None,
     "grip muscles": None, "ankle stabilizers": None, "wrist flexors": None, "wrist extensors": None,
 }
 
@@ -174,6 +176,23 @@ def primary_muscle(target: str, name: str) -> str | None:
     if any(word in lowered for word in ("rear", "reverse", "face pull")):
         return "rear_delts"
     return "front_delts"
+
+
+# Upstream has no oblique target: side bends, twists and oblique crunches all arrive as "abs". Where the
+# name says the movement is lateral or rotational AND upstream itself lists the obliques as involved, the
+# obliques are the main target and the rest of the abdominals the secondary one. Requiring upstream's own
+# oblique credit keeps a name match alone ("lunge with twist") from moving work onto a muscle upstream
+# never named.
+OBLIQUE_NAME_HINTS = ("oblique", "twist", "side bend", "side crunch", "windmill", "heel touch",
+                      "side plank")
+
+
+def refine_core(primary: str | None, secondary: list[str], name: str) -> tuple[str | None, list[str]]:
+    if primary != "abdominals" or "obliques" not in secondary:
+        return primary, secondary
+    if not any(hint in name.lower() for hint in OBLIQUE_NAME_HINTS):
+        return primary, secondary
+    return "obliques", ["abdominals" if muscle == "obliques" else muscle for muscle in secondary]
 
 
 def secondary_muscles(record: dict, primary: str | None) -> list[str]:
@@ -279,6 +298,7 @@ def build(records: list[dict]) -> tuple[list[dict], list[str]]:
         if unknown_secondary:
             issues.append(f"{identifier}: unmapped secondary muscle '{unknown_secondary[0].split(':', 1)[1]}'")
             continue
+        primary, secondary = refine_core(primary, secondary, name)
 
         mode = measurement_mode(name, equipment_raw, body_part)
         if mode == "bodyweight_reps" and any(item in LOAD_BEARING for item in equipment_ids):
@@ -366,7 +386,7 @@ def main() -> int:
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(archive, ensure_ascii=False, separators=(",", ":")) + "\n",
                       encoding="utf-8")
-    print(f"wrote {output.relative_to(ROOT)} ({output.stat().st_size} bytes)")
+    print(f"wrote {output} ({output.stat().st_size} bytes)")
     print(f"upstream sha256 {checksum}")
     return 0
 
