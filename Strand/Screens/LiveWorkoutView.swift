@@ -134,6 +134,19 @@ struct LiveWorkoutView: View {
 
     private var header: some View {
         HStack(alignment: .center) {
+            // Minimizes: the workout keeps recording and stays one tap away from the bar on every tab.
+            // End (the × below) is the only control that stops it.
+            Button(action: onClose) {
+                Image(systemName: "chevron.down")
+                    .font(StrandFont.headline)
+                    .frame(width: 36, height: 36)
+                    .background(NoopPanelSurface(tint: StrandPalette.textSecondary, cornerRadius: 18))
+                    .clipShape(Circle())
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(StrandPalette.textPrimary)
+            .accessibilityLabel(Text("Back"))
+            .accessibilityHint(Text("The workout keeps recording"))
             HStack(spacing: NoopMetrics.space1) {
                 Circle()
                     .fill(StrandPalette.metricRose)
@@ -152,8 +165,6 @@ struct LiveWorkoutView: View {
             .clipShape(Capsule())
             Spacer(minLength: 0)
         }
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(Text("Recording workout"))
     }
 
     /// Centered elapsed-time stack — same TimelineView source as before; card chrome removed so

@@ -1947,7 +1947,7 @@ final class HealthKitBridge: ObservableObject {
     /// Reverse of `sportName`: NOOP's sport label → the `HKWorkoutActivityType` written to Health.
     /// Labels the forward map collapses (e.g. boxing/kickboxing → "Boxing") reverse to the first
     /// member; unknown labels fall back to `.other`, never dropped.
-    private static func activityType(forSport sport: String) -> HKWorkoutActivityType {
+    static func activityType(forSport sport: String) -> HKWorkoutActivityType {
         if sport == LiftingImporter.sport { return .traditionalStrengthTraining }
         switch sport.lowercased() {
         case "running":       return .running

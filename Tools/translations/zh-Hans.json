@@ -1458,5 +1458,8 @@
   "Opens the running workout": "打开进行中的训练",
   "Return to %@": "返回 %@",
   "Strength workout": "力量训练",
-  "Unfinished workout": "未完成的训练"
+  "Unfinished workout": "未完成的训练",
+  "Keep tracking in the background": "在后台继续记录",
+  "Your workout is recording. Allowing NOOP to share workouts with Apple Health lets iOS treat it as a running workout while you use other apps.": "正在记录你的训练。允许 NOOP 与 Apple 健康共享体能训练后，你使用其他 App 时 iOS 会将其视为进行中的训练。",
+  "The workout keeps recording": "训练会继续记录"
 }

@@ -126,6 +126,10 @@ struct StrandiOSApp: App {
         model.isStrengthCompanionReachable = { [weak services] in
             services?.watch.isWatchReachable == true
         }
+        // Live cardio runs as a system workout session where the OS offers one (iOS 26+). Reattach one the
+        // system kept alive across a relaunch, or end it if NOOP restored no workout to go with it.
+        model.systemWorkoutSession = PhoneWorkoutSession()
+        Task { @MainActor in await model.recoverSystemWorkoutSession() }
         // Tapping a scheduled morning-brief notification routes to Coach through the SAME NavRouter the
         // shell observes — the services box owns it, so the closure captures that one rather than
         // building a second router nothing is listening to.
@@ -350,6 +354,7 @@ struct StrandiOSApp: App {
         // safe no-op until the user opts in.
         .onChange(of: scenePhase) { _, phase in
             if phase == .active {
+                model.traceAppState("foreground")
                 model.drainPendingIntents(router: router)
                 // iOS grants a background refresh when it feels like it, and often not at all. Catch up
                 // on foreground so an enabled brief still lands on the day it was due instead of
@@ -416,6 +421,7 @@ struct StrandiOSApp: App {
                 }
             } else if phase == .background {
                 // Leaving the app never loses a running session's latest state.
+                model.traceAppState("background")
                 model.persistActiveWorkoutNow()
                 model.session.strength?.appMovedToBackground()
                 SemanticMemoryBackgroundTask.schedule()

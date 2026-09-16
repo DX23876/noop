@@ -99,3 +99,19 @@ final class AutoWorkoutDetectorTraceTests: XCTestCase {
         XCTAssertNil(WorkoutsReadout.lastSessionSummary(taggedTail: []))
     }
 }
+
+/// Pins the background-tracking diagnostics added for live sessions: fixed keys, counts only, no names.
+final class WorkoutsBackgroundTraceTests: XCTestCase {
+    func testBackgroundTrackingLinesHaveStableShapes() {
+        XCTAssertEqual(WorkoutsTrace.appStateLine(event: "background", kind: "cardio"),
+                       "appState event=background session=cardio")
+        XCTAssertEqual(WorkoutsTrace.systemSessionLine(result: "notAuthorized"),
+                       "systemSession result=notAuthorized")
+        XCTAssertEqual(WorkoutsTrace.locationDeliveryLine(event: "paused"), "location event=paused by=system")
+        XCTAssertEqual(WorkoutsTrace.restoreLine(sportKey: "walking", hrSamples: 120, routePoints: 48),
+                       "session event=restored sport=walking hrSamples=120 routePoints=48")
+        XCTAssertEqual(WorkoutsTrace.gapLine(stream: "gps", gapSec: 42), "gap stream=gps seconds=42")
+        XCTAssertEqual(WorkoutsTrace.sourceLine(metric: "heartRate", source: "strap"),
+                       "source metric=heartRate from=strap")
+    }
+}

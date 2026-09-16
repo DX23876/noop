@@ -416525,6 +416525,198 @@
           }
         }
       }
+    },
+    "Keep tracking in the background" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Im Hintergrund weiter aufzeichnen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keep tracking in the background"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Seguir registrando en segundo plano"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Continuer l’enregistrement en arrière-plan"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Continua a registrare in background"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nagrywaj dalej w tle"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Continuar a registar em segundo plano"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Продолжать запись в фоне"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在后台继续记录"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在背景繼續記錄"
+          }
+        }
+      }
+    },
+    "Your workout is recording. Allowing NOOP to share workouts with Apple Health lets iOS treat it as a running workout while you use other apps." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dein Training wird aufgezeichnet. Wenn du NOOP erlaubst, Trainings mit Apple Health zu teilen, behandelt iOS es als laufendes Training, während du andere Apps nutzt."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your workout is recording. Allowing NOOP to share workouts with Apple Health lets iOS treat it as a running workout while you use other apps."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tu entrenamiento se está registrando. Si permites que NOOP comparta entrenamientos con Apple Salud, iOS lo tratará como un entrenamiento en curso mientras usas otras apps."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Votre entraînement est enregistré. Autoriser NOOP à partager les entraînements avec Apple Santé permet à iOS de le traiter comme un entraînement en cours pendant que vous utilisez d’autres apps."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L’allenamento viene registrato. Consentendo a NOOP di condividere gli allenamenti con Apple Salute, iOS lo tratta come un allenamento in corso mentre usi altre app."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trening jest nagrywany. Jeśli pozwolisz NOOP udostępniać treningi w Apple Zdrowie, iOS będzie traktować go jako trwający trening, gdy korzystasz z innych aplikacji."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O treino está a ser registado. Permitir que o NOOP partilhe treinos com a app Saúde da Apple faz com que o iOS o trate como um treino em curso enquanto usa outras apps."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Тренировка записывается. Если разрешить NOOP передавать тренировки в Apple Здоровье, iOS будет считать её идущей тренировкой, пока вы пользуетесь другими приложениями."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在记录你的训练。允许 NOOP 与 Apple 健康共享体能训练后，你使用其他 App 时 iOS 会将其视为进行中的训练。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在記錄你的訓練。允許 NOOP 與 Apple 健康共享體能訓練後，你使用其他 App 時 iOS 會將其視為進行中的訓練。"
+          }
+        }
+      }
+    },
+    "The workout keeps recording" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das Training wird weiter aufgezeichnet"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The workout keeps recording"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El entrenamiento se sigue registrando"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L’entraînement continue d’être enregistré"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L’allenamento continua a essere registrato"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trening jest nadal nagrywany"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O treino continua a ser registado"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Тренировка продолжает записываться"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "训练会继续记录"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "訓練會繼續記錄"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

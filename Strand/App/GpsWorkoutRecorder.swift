@@ -330,6 +330,21 @@ final class GpsWorkoutRecorder: NSObject, ObservableObject {
     private let manager = CLLocationManager()
     private var filter = TrackFilter()
     private var track: [RouteMath.LatLng] = []
+    /// Accepted points not yet written to the route journal.
+    private var unjournaledPoints: [RouteMath.LatLng] = []
+    private var lastJournalFlush = Date.distantPast
+    /// Time of the newest fix seen, for the Workouts trace's gap line.
+    private var lastFixMs: Int64 = 0
+    /// Seconds between route-journal writes; a relaunch loses at most this much of the route.
+    static let journalFlushIntervalSeconds: TimeInterval = 10
+    /// Where the in-flight route is appended so an OS kill does not lose it. Injectable for tests.
+    var journal = ActiveRouteJournal()
+    #if os(iOS)
+    /// iOS 17+: tells the system a session is live, which lets location updates be (re)started while the
+    /// app is in the background — e.g. resuming after a pause with the phone locked — and keeps the
+    /// location indicator honest. Held only while a route is being recorded.
+    private var backgroundActivity: AnyObject?
+    #endif
     private var startMs: Int64 = 0
     private var pausedAtMs: Int64?
     private var pausedDurationMs: Int64 = 0
@@ -363,6 +378,8 @@ final class GpsWorkoutRecorder: NSObject, ObservableObject {
     /// When-In-Use if not yet decided; fails safe (records nothing) if denied / restricted / unavailable.
     /// A re-arm resets the track. Returns immediately — fixes arrive asynchronously via the delegate.
     func start(startMs: Int64) {
+        journal.clear()
+        unjournaledPoints.removeAll()
         track.removeAll()
         filter = TrackFilter()
         self.startMs = startMs
@@ -372,6 +389,7 @@ final class GpsWorkoutRecorder: NSObject, ObservableObject {
         paceSecPerKm = nil
         pointCount = 0
         rawFixCount = 0
+        lastFixMs = 0
         isRecording = true
 
         switch manager.authorizationStatus {
@@ -392,7 +410,15 @@ final class GpsWorkoutRecorder: NSObject, ObservableObject {
     /// persisted mid-session, but the original clock and pause accounting must survive so subsequent
     /// live pace excludes all time the workout spent paused before and across the relaunch.
     func restore(startMs: Int64, pausedAtMs: Int64?, pausedDurationMs: Int64) {
+        // Read the journal BEFORE `start`, which clears it for a fresh session.
+        let saved = journal.load()
         start(startMs: startMs)
+        if saved.count > 0 {
+            track = saved
+            journal.append(saved)
+            pointCount = track.count
+            distanceM = RouteMath.totalMeters(track)
+        }
         self.pausedDurationMs = max(0, pausedDurationMs)
         if let pausedAtMs {
             self.pausedAtMs = pausedAtMs
@@ -407,8 +433,20 @@ final class GpsWorkoutRecorder: NSObject, ObservableObject {
     func stop() -> [RouteMath.LatLng] {
         manager.stopUpdatingLocation()
         isRecording = false
+        endBackgroundActivity()
         let final = track
+        journal.clear()
+        unjournaledPoints.removeAll()
         return final
+    }
+
+    /// Writes accepted points that are not yet journaled. Called on a timer from `ingest` and when the
+    /// app moves to the background.
+    func flushJournal() {
+        guard !unjournaledPoints.isEmpty else { return }
+        journal.append(unjournaledPoints)
+        unjournaledPoints.removeAll(keepingCapacity: true)
+        lastJournalFlush = Date()
     }
 
     func pause() {
@@ -448,7 +486,21 @@ final class GpsWorkoutRecorder: NSObject, ObservableObject {
         // Wrapped: a Mac with no location services, or an OEM quirk, must never crash the app — just
         // record nothing. Mirrors Android's try/catch around requestLocationUpdates (#101).
         guard CLLocationManager.locationServicesEnabled() else { return }
+        beginBackgroundActivity()
         manager.startUpdatingLocation()
+    }
+
+    private func beginBackgroundActivity() {
+        #if os(iOS)
+        if backgroundActivity == nil { backgroundActivity = CLBackgroundActivitySession() }
+        #endif
+    }
+
+    private func endBackgroundActivity() {
+        #if os(iOS)
+        (backgroundActivity as? CLBackgroundActivitySession)?.invalidate()
+        backgroundActivity = nil
+        #endif
     }
 
     /// Fold a batch of (already bound-checked at the source) fixes into the route, updating live
@@ -457,15 +509,26 @@ final class GpsWorkoutRecorder: NSObject, ObservableObject {
         guard isRecording else { return }
         rawFixCount += fixes.count
         var changed = false
+        var added = 0.0
+        if let first = fixes.first, lastFixMs > 0, first.tMs - lastFixMs > 10_000,
+           TestCentre.active(.workouts), let workoutsLog {
+            workoutsLog(WorkoutsTrace.gapLine(stream: "gps", gapSec: Int((first.tMs - lastFixMs) / 1000)))
+        }
+        if let last = fixes.last { lastFixMs = max(lastFixMs, last.tMs) }
         for fix in fixes {
             if let pt = filter.accept(fix) {
+                // Distance grows by the new leg only; summing the whole route on every fix made a long
+                // session steadily more expensive, and that work runs in the background too.
+                if let last = track.last { added += RouteMath.haversineMeters(last, pt) }
                 track.append(pt)
+                unjournaledPoints.append(pt)
                 changed = true
             }
         }
         guard changed else { return }
         pointCount = track.count
-        distanceM = RouteMath.totalMeters(track)
+        distanceM += added
+        if Date().timeIntervalSince(lastJournalFlush) >= Self.journalFlushIntervalSeconds { flushJournal() }
         let elapsed = RouteMath.activeElapsedSeconds(
             startMs: startMs,
             nowMs: Int64(Date().timeIntervalSince1970 * 1000),
@@ -514,6 +577,20 @@ extension GpsWorkoutRecorder: @preconcurrency CLLocationManagerDelegate {
                    tMs: Int64($0.timestamp.timeIntervalSince1970 * 1000))
         }
         ingest(fixes)
+    }
+
+    /// CoreLocation decided on its own to stop delivering (it should not with
+    /// `pausesLocationUpdatesAutomatically = false`, which is exactly why it is worth seeing if it does).
+    func locationManagerDidPauseLocationUpdates(_ manager: CLLocationManager) {
+        if TestCentre.active(.workouts), let workoutsLog {
+            workoutsLog(WorkoutsTrace.locationDeliveryLine(event: "paused"))
+        }
+    }
+
+    func locationManagerDidResumeLocationUpdates(_ manager: CLLocationManager) {
+        if TestCentre.active(.workouts), let workoutsLog {
+            workoutsLog(WorkoutsTrace.locationDeliveryLine(event: "resumed"))
+        }
     }
 
     func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {

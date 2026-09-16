@@ -54,6 +54,10 @@ final class ActiveSessionController: ObservableObject {
     @Published private(set) var context = TrainingStartContext()
     @Published private(set) var contextLoaded = false
     @Published var errorMessage: String?
+    /// Shown once when a live cardio session could not run as a system workout because Health does not
+    /// allow NOOP to share workouts. The workout itself keeps recording either way.
+    @Published var showsHealthBackgroundHint = false
+    static let healthBackgroundHintShownKey = "training.healthBackgroundHint.shown"
 
     /// Heart rate a Watch reports for the running session. Kept in its own object so a 1 Hz Watch sample
     /// re-renders the heart-rate leaf, not every view that observes the session.
@@ -75,6 +79,12 @@ final class ActiveSessionController: ObservableObject {
         app.strengthWorkoutWatchTelemetryHandler = { [weak self] telemetry in
             guard let self, telemetry.sessionId == self.strength?.draft.trainingSessionId else { return }
             self.watchHeartRate.record(bpm: telemetry.bpm, sampleCount: telemetry.sampleCount)
+        }
+        app.onSystemWorkoutSessionResult = { [weak self] result in
+            guard let self, result == .notAuthorized,
+                  !UserDefaults.standard.bool(forKey: Self.healthBackgroundHintShownKey) else { return }
+            UserDefaults.standard.set(true, forKey: Self.healthBackgroundHintShownKey)
+            self.showsHealthBackgroundHint = true
         }
         // Republish only on the edge of a cardio session starting or ending, never per heart-rate sample.
         app.$activeWorkout

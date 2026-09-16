@@ -1,4 +1,7 @@
 import SwiftUI
+#if os(iOS)
+import UIKit
+#endif
 import StrandDesign
 import StrandTraining
 
@@ -53,6 +56,16 @@ struct ActiveSessionPresentation: ViewModifier {
             } message: { draft in
                 let started = Date(timeIntervalSince1970: TimeInterval(draft.startedAt))
                 Text("\(draft.title) from \(started.formatted(date: .abbreviated, time: .shortened)) was never finished. Saving ends it at its last logged change.")
+            }
+            .alert(Text("Keep tracking in the background"), isPresented: $session.showsHealthBackgroundHint) {
+                #if os(iOS)
+                Button("Open Settings") {
+                    if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) }
+                }
+                #endif
+                Button("Not now", role: .cancel) {}
+            } message: {
+                Text("Your workout is recording. Allowing NOOP to share workouts with Apple Health lets iOS treat it as a running workout while you use other apps.")
             }
             .alert(Text("Workout"),
                    isPresented: Binding(get: { session.errorMessage != nil },

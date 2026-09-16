@@ -1357,5 +1357,8 @@
   "Opens the running workout": "Abre el entrenamiento en curso",
   "Return to %@": "Volver a %@",
   "Strength workout": "Entrenamiento de fuerza",
-  "Unfinished workout": "Entrenamiento sin terminar"
+  "Unfinished workout": "Entrenamiento sin terminar",
+  "Keep tracking in the background": "Seguir registrando en segundo plano",
+  "Your workout is recording. Allowing NOOP to share workouts with Apple Health lets iOS treat it as a running workout while you use other apps.": "Tu entrenamiento se está registrando. Si permites que NOOP comparta entrenamientos con Apple Salud, iOS lo tratará como un entrenamiento en curso mientras usas otras apps.",
+  "The workout keeps recording": "El entrenamiento se sigue registrando"
 }

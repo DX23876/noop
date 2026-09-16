@@ -152,6 +152,40 @@ public enum WorkoutsTrace {
         return line
     }
 
+    /// The app moved between foreground and background while a session ran. `event` is "background" /
+    /// "foreground"; `kind` is "cardio" / "strength". Lets an export show whether a gap coincides with
+    /// leaving the app. Apple-only line: the fork does not carry the Kotlin twin.
+    public static func appStateLine(event: String, kind: String) -> String {
+        "appState event=\(event) session=\(kind)"
+    }
+
+    /// Outcome of asking the system to treat a cardio session as a workout. `result` is "started" /
+    /// "unavailable" (OS too old) / "notAuthorized" / "failed" / "recovered" / "ended".
+    public static func systemSessionLine(result: String) -> String {
+        "systemSession result=\(result)"
+    }
+
+    /// CoreLocation paused or resumed delivery on its own (not a user pause). `event` is "paused" / "resumed".
+    public static func locationDeliveryLine(event: String) -> String {
+        "location event=\(event) by=system"
+    }
+
+    /// A running session restored after the app was relaunched, with what survived the relaunch.
+    public static func restoreLine(sportKey: String, hrSamples: Int, routePoints: Int) -> String {
+        "session event=restored sport=\(sportKey) hrSamples=\(hrSamples) routePoints=\(routePoints)"
+    }
+
+    /// A gap longer than the threshold between consecutive samples of one live stream. `stream` is "hr" /
+    /// "gps"; `gapSec` is whole seconds.
+    public static func gapLine(stream: String, gapSec: Int) -> String {
+        "gap stream=\(stream) seconds=\(gapSec)"
+    }
+
+    /// Which source supplies a metric for the running session. Source is a fixed label, never a device name.
+    public static func sourceLine(metric: String, source: String) -> String {
+        "source metric=\(metric) from=\(source)"
+    }
+
     /// A GPS-fix-progress line: the raw fixes seen, how many the accuracy / speed filter accepted, and the
     /// running distance. So a route that under-records (a weak signal, a denied permission) is visible.
     ///

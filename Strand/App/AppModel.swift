@@ -52,6 +52,11 @@ final class AppModel: ObservableObject {
     /// app; nil on macOS.
     var isStrengthCompanionReachable: (() -> Bool)?
 
+    /// The OS workout session for live cardio (iOS 26+). Wired by the iOS app; nil elsewhere.
+    var systemWorkoutSession: SystemWorkoutSession?
+    /// Told when a live cardio session could not get a system workout session, so the UI can explain it.
+    var onSystemWorkoutSessionResult: ((SystemWorkoutSessionStart) -> Void)?
+
     /// The single active training session. Created lazily so it can hold an unowned reference back here.
     lazy var session = ActiveSessionController(app: self)
 
@@ -887,6 +892,9 @@ final class AppModel: ObservableObject {
         // Make the session durable from the first instant (#529): persist it now so an OS kill right
         // after Start , before any HR sample lands , can still be rehydrated + ended on relaunch.
         persistActiveWorkout()
+        beginSystemWorkoutSession(sport: resolved, start: started)
+        emitWorkoutsTrace(WorkoutsTrace.sourceLine(metric: "heartRate", source: live.connected ? "strap" : "none"))
+        if activeWorkoutIsGps { emitWorkoutsTrace(WorkoutsTrace.sourceLine(metric: "location", source: "phone")) }
         // Workouts & GPS test mode (Test Centre): one session-start line tagged `.workouts`. Zero-cost when
         // off (the gate is one UserDefaults bool read), so the lifecycle of a missing workout is visible.
         emitWorkoutsTrace(WorkoutsTrace.sessionLine(
@@ -983,6 +991,9 @@ final class AppModel: ObservableObject {
         zoneTrainingTargetZone = snap.targetZone
         zoneTrainingEngine.reset()
         zoneTrainingState = nil
+        emitWorkoutsTrace(WorkoutsTrace.restoreLine(
+            sportKey: WorkoutSource.traceSportKey(snap.sport), hrSamples: snap.samples.count,
+            routePoints: activeWorkoutIsGps ? gpsRecorder.pointCount : 0))
     }
 
     func toggleWorkoutPause() {
@@ -991,9 +1002,11 @@ final class AppModel: ObservableObject {
             w.pausedDuration += Date().timeIntervalSince(pausedAt)
             w.pausedAt = nil
             if activeWorkoutIsGps { gpsRecorder.resume() }
+            systemWorkoutSession?.resume()
         } else {
             w.pausedAt = Date()
             if activeWorkoutIsGps { gpsRecorder.pause() }
+            systemWorkoutSession?.pause()
         }
         activeWorkout = w
         persistActiveWorkout()
@@ -1002,6 +1015,7 @@ final class AppModel: ObservableObject {
     /// Abort the active session without saving a workout.
     func discardWorkout() {
         guard activeWorkout != nil else { return }
+        systemWorkoutSession?.end()
         activeWorkout = nil
         if activeWorkoutIsGps { gpsRecorder.stop() }
         activeWorkoutIsGps = false
@@ -1018,6 +1032,7 @@ final class AppModel: ObservableObject {
     func endWorkout() {
         guard let w = activeWorkout else { return }
         endZoneTraining()
+        systemWorkoutSession?.end()
         activeWorkout = nil
         let wasGps = activeWorkoutIsGps
         activeWorkoutIsGps = false
@@ -1108,6 +1123,9 @@ final class AppModel: ObservableObject {
     private func captureWorkoutSample() {
         guard var w = activeWorkout, !w.isPaused, let hr = bpm else { return }
         let now = Int(Date().timeIntervalSince1970)
+        if let last = w.samples.last?.ts, now - last > Self.liveGapThresholdSeconds {
+            emitWorkoutsTrace(WorkoutsTrace.gapLine(stream: "hr", gapSec: now - last))
+        }
         w.samples.append(HRSample(ts: now, bpm: hr))
         w.peakHr = max(w.peakHr, hr)
         workoutBpmSum += hr
@@ -1128,13 +1146,48 @@ final class AppModel: ObservableObject {
 
     /// Seconds between live Effort recomputations and between durable snapshots of a running workout.
     static let liveStrainIntervalSeconds = 5
+    /// A pause in a live stream longer than this is written to the Workouts trace.
+    static let liveGapThresholdSeconds = 10
     static let workoutPersistIntervalSeconds = 10
     private var lastLiveStrainTs = 0
     private var lastWorkoutPersistTs = 0
     private var workoutBpmSum = 0
 
-    /// Writes the running workout's snapshot now, e.g. when the app moves to the background.
-    func persistActiveWorkoutNow() { persistActiveWorkout() }
+    /// Writes the running workout's snapshot and the route journal now, e.g. when the app moves to the
+    /// background.
+    func persistActiveWorkoutNow() {
+        persistActiveWorkout()
+        if activeWorkoutIsGps { gpsRecorder.flushJournal() }
+    }
+
+    /// Asks the OS to treat the live cardio session as a workout. Never blocks or fails the session.
+    private func beginSystemWorkoutSession(sport: String, start: Date) {
+        guard let system = systemWorkoutSession else { return }
+        let outdoor = WorkoutCatalog.sport(named: sport)?.isDistanceSport ?? false
+        Task { @MainActor in
+            let result = await system.begin(sport: sport, isOutdoor: outdoor, start: start)
+            emitWorkoutsTrace(WorkoutsTrace.systemSessionLine(result: result.rawValue))
+            onSystemWorkoutSessionResult?(result)
+        }
+    }
+
+    /// Reattaches the OS workout session after a relaunch, or ends a stale one. Called once the iOS app has
+    /// wired `systemWorkoutSession`.
+    func recoverSystemWorkoutSession() async {
+        guard let system = systemWorkoutSession else { return }
+        if await system.recover(keepRunning: activeWorkout != nil) {
+            emitWorkoutsTrace(WorkoutsTrace.systemSessionLine(result: "recovered"))
+        }
+    }
+
+    /// Diagnostic only: records leaving or returning to the app while a session runs.
+    func traceAppState(_ event: String) {
+        let kind: String
+        if activeWorkout != nil { kind = "cardio" }
+        else if session.strength != nil { kind = "strength" }
+        else { return }
+        emitWorkoutsTrace(WorkoutsTrace.appStateLine(event: event, kind: kind))
+    }
 
     /// Drop the smoothing window and blank the hero number so a resume / re-attach shows ","
     /// until a genuinely fresh sample arrives, instead of republishing the stale pre-gap median.
