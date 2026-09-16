@@ -213,9 +213,12 @@ struct ExerciseMusclePickerView: View {
         return (primary, secondary)
     }
 
+    // Equipment is dropped here (unlike `ExerciseLibraryRow.metadata`, used by the plain library list):
+    // "Main target · Chest · Barbell" was the one line most likely to truncate, and equipment is the
+    // least relevant part of it once a muscle filter is already narrowing the list.
     private func row(_ exercise: TrainingExercise, involvement: String) -> some View {
         ExerciseLibraryRow(exercise: exercise,
-                           subtitle: "\(involvement) · \(ExerciseLibraryRow.metadata(exercise))",
+                           subtitle: "\(involvement) · \(TrainingDisplayNames.muscle(exercise.primaryMuscleId))",
                            isFavorite: false, mode: mode,
                            onOpen: { onOpen(exercise) },
                            onAction: onPick.map { pick in { pick(exercise) } })
