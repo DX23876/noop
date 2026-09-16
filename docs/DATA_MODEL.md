@@ -546,18 +546,71 @@ measurement per instant-per-source, so re-importing/re-logging the same reading 
 duplicates; `idx_bodyWeightEntry_device_takenAt` on `(deviceId, takenAt)` for ordered history reads.
 Additive only — a new table, no existing row touched.
 
-### Whole-session RPE rows in `labMarker` *(v17, no schema change)*
+### `trainingSessionRating` *(v62)*
 
-Training Load stores an athlete-entered whole-session RPE in the existing `labMarker` table rather
-than creating a second timestamped scalar store. The row is isolated from body and clinical readings
-by `deviceId = "training-load"`, `category = "trainingLoad"`, `markerKey = "session_rpe"` and
-`source = "manual-session-rpe"`; its stable id is `session-rpe-{workoutStartTs}`. `takenAt` is the
-workout start, `value` is the explicit 1–10 rating and `note` retains the sport label. The workout owns
-duration; Session Load joins by exact start timestamp and computes `RPE × minutes` at read time.
+Whole-session RPE has its own compact row with `id`, optional canonical `sessionId`,
+`workoutStartTs`, optional `ratedAtTs`, `rpe`, optional `sport` and `source`. Separating the workout
+time from the answer time supports the delayed post-workout prompt without rewriting history. Legacy
+ratings are copied from the former `labMarker` sidecar; their unknown answer time remains `NULL`.
+Session Load joins by canonical session or start time and computes `RPE × minutes` at read time.
 
-These rows inherit `labMarker` edit/delete and `.noopbak` behavior. They are not projected into body
-metrics, and a missing rating stays missing. **Analysis migration required: no** — this adds log rows
-under an existing schema and does not alter any previously derived value.
+### `trainingExerciseAnatomyAlias` *(v63)*
+
+Stores only provider identities and wearer corrections to the code-owned anatomy catalogue. The row
+contains a stable key, source/provider id, normalized title, optional equipment key, canonical
+exercise id, primary/secondary/stabilizer id arrays, origin, confidence and update time. One compact
+mapping can therefore correct every historical occurrence without changing or repeating completed
+sets. Provider and title indexes support the resolver's precedence order.
+
+This is additive storage only. The reviewed catalogue ships in `StrandTraining`; workout rows never
+embed its instructions, translations or media. **Analysis migration required: no**.
+
+### Native workout semantics *(v64)*
+
+Migration v64 extends the normalized native-training tables without adding a second workout or set
+store. `trainingRoutineExercise` gains an optional warm-up rest duration and an encoded load meaning;
+`trainingRoutineSetPlan` gains optional intensifier configuration. A workout snapshots those equipment
+facts in `trainingWorkoutExercise`, so editing a routine or exercise definition later cannot reinterpret
+whether 20 kg meant total load, one dumbbell, added bodyweight, assistance, or a machine value.
+
+`trainingWorkoutSet` keeps actual duration separate from the optional planned duration and links
+drop-set/rest-pause segments through `clusterId`, `parentSetId`, and `segmentIndex`. These links identify
+one logical effort while preserving every performed segment and left/right repetition value. Warm-ups
+remain in history but are excluded by the established `countsAsWork` boundary. Draft JSON can also carry
+the active exercise cursor, a rest/rest-pause/timed-set timer, interruption reason, and lifecycle version;
+all fields are optional so pre-v64 drafts still decode.
+
+`trainingWorkoutNative.sessionRPEOrigin` records whether an optional rating was supplied at completion,
+later, or predates provenance tracking. Migration v64 labels existing non-null ratings
+`legacy_unknown` without changing their values. New workouts do not invent a default rating.
+
+This migration adds semantics and provenance but does not alter stored or derived load values.
+**Analysis migration required: no**.
+
+### Native workout physiology lifecycle *(v65)*
+
+Migration v65 links a completed native set log to the one physiological recording selected when the
+workout starts. `trainingWorkoutNative` gains nullable `trainingSessionId`, `physiologyProvider`,
+`physiologyComponentKey`, `hrCoverage`, and `lifecycleVersion` columns. A partial unique index on a
+non-null `trainingSessionId` prevents two native set logs from claiming the same real session while
+leaving every historical row untouched.
+
+Drafts carry the same stable session id, fixed provider, pause intervals, lifecycle version and last
+confirmed Watch revision in their existing JSON payload. The NOOP band and other selected trackers
+reuse the existing live-session recorder. An Apple Watch records through its existing
+`HKWorkoutSession` and writes the stable session id as HealthKit metadata; the next Health sync links
+that component to the native set log instead of copying heart-rate samples into the training tables.
+Missing heart rate remains `NULL`, and an Apple-Watch-backed native workout is not written back as a
+second HealthKit workout. **Analysis migration required: no**.
+
+### Native workout summary pauses *(v66)*
+
+Migration v66 adds nullable `pauseIntervalsJSON` to `trainingWorkoutNative`. Completion copies the
+already-recorded lifecycle pauses from the draft once, so a saved session can show elapsed and active
+duration after relaunch. The summary derives completed warm-up/work sets and loaded external volume
+from the canonical native set rows; it does not create another workout, timer or load history.
+Historical workouts keep a null value and therefore show elapsed duration only. **Analysis migration
+required: no**.
 
 ### `metricSeries` *(v9)*
 

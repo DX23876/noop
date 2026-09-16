@@ -120,6 +120,9 @@ struct StrandiOSApp: App {
         )
         let services = StrandiOSServices(model: model, health: bridge)
         _services = StateObject(wrappedValue: services)
+        model.strengthWorkoutWatchStateSink = { [weak services] state in
+            services?.watch.sendStrengthWorkoutState(state)
+        }
         // Tapping a scheduled morning-brief notification routes to Coach through the SAME NavRouter the
         // shell observes — the services box owns it, so the closure captures that one rather than
         // building a second router nothing is listening to.
@@ -693,7 +696,8 @@ private struct StrengthSessionDemoHost: View {
                let breakdown = model.breakdown(for: summary.workoutId) {
                 StrengthSessionDetailView(
                     breakdown: breakdown,
-                    matchedRow: model.matchedRow(for: breakdown.summary))
+                    matchedRow: model.matchedRow(for: breakdown.summary),
+                    source: model.source(for: breakdown.workoutId))
             } else {
                 ProgressView()
             }

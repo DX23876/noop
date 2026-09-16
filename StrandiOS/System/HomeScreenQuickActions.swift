@@ -63,6 +63,18 @@ final class HomeScreenQuickActionAppDelegate: NSObject, UIApplicationDelegate {
         return true
     }
 
+    /// The system relaunched the app because a background transfer finished. The handler must be
+    /// called once the session has delivered its events, or iOS records the app as unresponsive.
+    func application(
+        _ application: UIApplication,
+        handleEventsForBackgroundURLSession identifier: String,
+        completionHandler: @escaping () -> Void
+    ) {
+        ExerciseMediaDownloader.backgroundCompletionHandler = { @Sendable in
+            DispatchQueue.main.async { completionHandler() }
+        }
+    }
+
     func application(
         _ application: UIApplication,
         configurationForConnecting connectingSceneSession: UISceneSession,

@@ -10,20 +10,26 @@ extension WhoopStore {
                 try db.execute(sql: """
                     INSERT INTO trainingExerciseDefinition
                       (id, title, mode, primaryMuscleId, secondaryMuscleIdsJSON, equipmentIdsJSON,
-                       instructionsJSON, isUnilateral, source, sourceId, mediaId, updatedAtTs)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                       instructionsJSON, isUnilateral, source, sourceId, mediaId, updatedAtTs,
+                       canonicalId, aliasesJSON, contentVersion, attribution, loadSemantics)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ON CONFLICT(id) DO UPDATE SET
                       title=excluded.title, mode=excluded.mode, primaryMuscleId=excluded.primaryMuscleId,
                       secondaryMuscleIdsJSON=excluded.secondaryMuscleIdsJSON,
                       equipmentIdsJSON=excluded.equipmentIdsJSON,
                       instructionsJSON=excluded.instructionsJSON,
                       isUnilateral=excluded.isUnilateral, source=excluded.source,
-                      sourceId=excluded.sourceId, mediaId=excluded.mediaId, updatedAtTs=excluded.updatedAtTs
+                      sourceId=excluded.sourceId, mediaId=excluded.mediaId, updatedAtTs=excluded.updatedAtTs,
+                      canonicalId=excluded.canonicalId, aliasesJSON=excluded.aliasesJSON,
+                      contentVersion=excluded.contentVersion, attribution=excluded.attribution,
+                      loadSemantics=excluded.loadSemantics
                     """, arguments: [exercise.id, exercise.title, exercise.mode.rawValue,
                                       exercise.primaryMuscleId, try Self.json(exercise.secondaryMuscleIds),
                                       try Self.json(exercise.equipmentIds), try Self.json(exercise.instructions),
                                       exercise.isUnilateral, exercise.source.rawValue, exercise.sourceId,
-                                      exercise.mediaId, nowTs])
+                                      exercise.mediaId, nowTs, exercise.canonicalId,
+                                      try Self.json(exercise.aliases), exercise.contentVersion,
+                                      exercise.attribution, exercise.loadSemantics?.rawValue])
             }
         }
     }
@@ -40,7 +46,14 @@ extension WhoopStore {
                         instructions: try Self.decode([String].self, row["instructionsJSON"]),
                         isUnilateral: row["isUnilateral"],
                         source: TrainingContentSource(rawValue: row["source"]) ?? .imported,
-                        sourceId: row["sourceId"], mediaId: row["mediaId"])
+                        sourceId: row["sourceId"], mediaId: row["mediaId"],
+                        canonicalId: row["canonicalId"],
+                        aliases: try (row["aliasesJSON"] as String?)
+                            .map { try Self.decode([String].self, $0) } ?? [],
+                        contentVersion: row["contentVersion"] ?? 0,
+                        attribution: row["attribution"],
+                        loadSemantics: (row["loadSemantics"] as String?)
+                            .flatMap(ExerciseLoadSemantics.init(rawValue:)))
                 }
         }
     }
@@ -62,20 +75,23 @@ extension WhoopStore {
             for (index, exercise) in routine.exercises.enumerated() {
                 try db.execute(sql: """
                     INSERT INTO trainingRoutineExercise
-                      (id, routineId, idx, exerciseId, restSeconds, supersetId, progressionJSON, barWeightKg, note)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                      (id, routineId, idx, exerciseId, restSeconds, supersetId, progressionJSON,
+                       barWeightKg, note, warmupRestSeconds, loadSemanticsJSON)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """, arguments: [exercise.id.uuidString, routine.id.uuidString, index,
                                       exercise.exerciseId, exercise.restSeconds, exercise.supersetId?.uuidString,
-                                      try exercise.progression.map(Self.json), exercise.barWeightKg, exercise.note])
+                                      try exercise.progression.map(Self.json), exercise.barWeightKg, exercise.note,
+                                      exercise.warmupRestSeconds, try exercise.loadSemantics.map(Self.json)])
                 for (setIndex, set) in exercise.sets.enumerated() {
                     try db.execute(sql: """
                         INSERT INTO trainingRoutineSetPlan
                           (id, routineExerciseId, idx, phase, intensifier, targetWeightKg,
-                           repsMin, repsMax, targetDurationS, targetDistanceM)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                           repsMin, repsMax, targetDurationS, targetDistanceM, intensifierConfigJSON)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                         """, arguments: [set.id.uuidString, exercise.id.uuidString, setIndex,
                                           set.phase.rawValue, set.intensifier.rawValue, set.targetWeightKg,
-                                          set.repsMin, set.repsMax, set.targetDurationS, set.targetDistanceM])
+                                          set.repsMin, set.repsMax, set.targetDurationS, set.targetDistanceM,
+                                          try set.intensifierConfiguration.map(Self.json)])
                 }
             }
         }
@@ -90,12 +106,16 @@ extension WhoopStore {
             for row in setRows {
                 let owner: String = row["routineExerciseId"]
                 guard let id = UUID(uuidString: row["id"]) else { continue }
+                let intensifierConfigRaw: String? = row["intensifierConfigJSON"]
                 sets[owner, default: []].append(RoutineSetPlan(
                     id: id, phase: TrainingSetPhase(rawValue: row["phase"]) ?? .work,
                     intensifier: TrainingSetIntensifier(rawValue: row["intensifier"]) ?? .none,
                     targetWeightKg: row["targetWeightKg"], repsMin: row["repsMin"],
                     repsMax: row["repsMax"], targetDurationS: row["targetDurationS"],
-                    targetDistanceM: row["targetDistanceM"]))
+                    targetDistanceM: row["targetDistanceM"],
+                    intensifierConfiguration: try intensifierConfigRaw.map {
+                        try Self.decode(SetIntensifierConfiguration.self, $0)
+                    }))
             }
             var exercises: [String: [RoutineExercise]] = [:]
             for row in exerciseRows {
@@ -103,12 +123,17 @@ extension WhoopStore {
                 let rawId: String = row["id"]
                 guard let id = UUID(uuidString: rawId) else { continue }
                 let progressionRaw: String? = row["progressionJSON"]
+                let loadSemanticsRaw: String? = row["loadSemanticsJSON"]
                 exercises[owner, default: []].append(RoutineExercise(
                     id: id, exerciseId: row["exerciseId"], sets: sets[rawId] ?? [],
                     restSeconds: row["restSeconds"],
+                    warmupRestSeconds: row["warmupRestSeconds"],
                     supersetId: (row["supersetId"] as String?).flatMap(UUID.init(uuidString:)),
                     progression: try progressionRaw.map { try Self.decode(ProgressionConfiguration.self, $0) },
-                    barWeightKg: row["barWeightKg"], note: row["note"]))
+                    barWeightKg: row["barWeightKg"],
+                    loadSemantics: try loadSemanticsRaw.map {
+                        try Self.decode(ExerciseLoadSemantics.self, $0)
+                    }, note: row["note"]))
             }
             return try heads.compactMap { row in
                 let rawId: String = row["id"]
@@ -215,6 +240,16 @@ extension WhoopStore {
         }
     }
 
+    /// Drops the draft the wearer abandoned. Scoped to one id rather than clearing the table, so a
+    /// discard can never take a draft that was started after it.
+    @discardableResult
+    public func deleteWorkoutDraft(id: UUID) async throws -> Bool {
+        try syncWrite { db in
+            try db.execute(sql: "DELETE FROM trainingWorkoutDraft WHERE id = ?", arguments: [id.uuidString])
+            return db.changesCount > 0
+        }
+    }
+
     public func completeNativeWorkout(_ workout: NativeWorkout) async throws {
         try syncWrite { db in
             try Self.write(workout, db: db)
@@ -231,12 +266,13 @@ extension WhoopStore {
         }
     }
 
-    public func nativeWorkouts(from: Int, to: Int, limit: Int = 2_000) async throws -> [NativeWorkout] {
+    public func nativeWorkouts(from: Int, to: Int, limit: Int = 2_000,
+                               offset: Int = 0) async throws -> [NativeWorkout] {
         try syncRead { db in
             let heads = try Row.fetchAll(db, sql: """
                 SELECT * FROM trainingWorkoutNative WHERE startedAtTs >= ? AND startedAtTs <= ?
-                ORDER BY startedAtTs DESC LIMIT ?
-                """, arguments: [from, to, max(1, limit)])
+                ORDER BY startedAtTs DESC LIMIT ? OFFSET ?
+                """, arguments: [from, to, max(1, limit), max(0, offset)])
             guard !heads.isEmpty else { return [] }
             let ids = heads.map { $0["id"] as String }
             let marks = databaseQuestionMarks(count: ids.count)
@@ -262,32 +298,52 @@ extension WhoopStore {
                     id: id, index: row["idx"], phase: TrainingSetPhase(rawValue: row["phase"]) ?? .work,
                     intensifier: TrainingSetIntensifier(rawValue: row["intensifier"]) ?? .none,
                     weightKg: row["weightKg"], reps: row["reps"], leftReps: row["leftReps"],
-                    rightReps: row["rightReps"], durationS: row["durationS"], distanceM: row["distanceM"],
-                    effort: effort, isCompleted: row["isCompleted"]))
+                    rightReps: row["rightReps"], targetDurationS: row["targetDurationS"],
+                    durationS: row["durationS"], distanceM: row["distanceM"],
+                    effort: effort, isCompleted: row["isCompleted"],
+                    clusterId: (row["clusterId"] as String?).flatMap(UUID.init(uuidString:)),
+                    parentSetId: (row["parentSetId"] as String?).flatMap(UUID.init(uuidString:)),
+                    segmentIndex: row["segmentIndex"]))
             }
             var exercises: [String: [NativeWorkoutExercise]] = [:]
             for row in exerciseRows {
                 let owner: String = row["workoutId"]
                 let rawId: String = row["id"]
                 guard let id = UUID(uuidString: rawId) else { continue }
+                let equipmentSnapshotRaw: String? = row["equipmentSnapshotJSON"]
                 exercises[owner, default: []].append(NativeWorkoutExercise(
                     id: id, exerciseId: row["exerciseId"],
                     routineId: (row["routineId"] as String?).flatMap(UUID.init(uuidString:)),
                     sets: sets[rawId] ?? [], restSeconds: row["restSeconds"],
+                    warmupRestSeconds: row["warmupRestSeconds"],
                     supersetId: (row["supersetId"] as String?).flatMap(UUID.init(uuidString:)),
-                    excludeFromProgression: row["excludeFromProgression"], note: row["note"]))
+                    excludeFromProgression: row["excludeFromProgression"],
+                    equipmentSnapshot: try equipmentSnapshotRaw.map {
+                        try Self.decode(EquipmentSnapshot.self, $0)
+                    }, note: row["note"]))
             }
             return try heads.compactMap { row in
                 let rawId: String = row["id"]
                 guard let id = UUID(uuidString: rawId) else { return nil }
                 let trackerRaw: String? = row["trackerJSON"]
+                let rpeOriginRaw: String? = row["sessionRPEOrigin"]
+                let sessionRaw: String? = row["trainingSessionId"]
+                let providerRaw: String? = row["physiologyProvider"]
+                let pausesRaw: String? = row["pauseIntervalsJSON"]
                 return NativeWorkout(id: id, title: row["title"], startedAt: row["startedAtTs"],
                     endedAt: row["endedAtTs"], plannedDay: row["plannedDay"],
                     routineIds: try Self.decode([UUID].self, row["routineIdsJSON"]),
                     exercises: exercises[rawId] ?? [],
                     tracker: try trackerRaw.map { try Self.decode(SessionTrackerAttribution.self, $0) },
-                    sessionRPE: row["sessionRPE"], note: row["note"],
-                    source: TrainingRecordSource(rawValue: row["source"]) ?? .imported)
+                    sessionRPE: row["sessionRPE"],
+                    sessionRPEOrigin: rpeOriginRaw.flatMap(SessionRPEOrigin.init(rawValue:)),
+                    note: row["note"],
+                    source: TrainingRecordSource(rawValue: row["source"]) ?? .imported,
+                    trainingSessionId: sessionRaw.flatMap(UUID.init(uuidString:)),
+                    physiologyProvider: providerRaw.flatMap(WorkoutPhysiologyProvider.init(rawValue:)),
+                    physiologyComponentKey: row["physiologyComponentKey"],
+                    hrCoverage: row["hrCoverage"], lifecycleVersion: row["lifecycleVersion"],
+                    pauseIntervals: try pausesRaw.map { try Self.decode([WorkoutPauseInterval].self, $0) })
             }
         }
     }
@@ -301,38 +357,56 @@ extension WhoopStore {
     private static func write(_ workout: NativeWorkout, db: Database) throws {
         try db.execute(sql: """
             INSERT INTO trainingWorkoutNative
-              (id, title, startedAtTs, endedAtTs, plannedDay, routineIdsJSON, trackerJSON, sessionRPE, note, source)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+              (id, title, startedAtTs, endedAtTs, plannedDay, routineIdsJSON, trackerJSON,
+               sessionRPE, note, source, sessionRPEOrigin, trainingSessionId, physiologyProvider,
+               physiologyComponentKey, hrCoverage, lifecycleVersion, pauseIntervalsJSON)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(id) DO UPDATE SET title=excluded.title, startedAtTs=excluded.startedAtTs,
               endedAtTs=excluded.endedAtTs, plannedDay=excluded.plannedDay,
               routineIdsJSON=excluded.routineIdsJSON, trackerJSON=excluded.trackerJSON,
-              sessionRPE=excluded.sessionRPE, note=excluded.note, source=excluded.source
+              sessionRPE=excluded.sessionRPE, note=excluded.note, source=excluded.source,
+              sessionRPEOrigin=excluded.sessionRPEOrigin,
+              trainingSessionId=excluded.trainingSessionId,
+              physiologyProvider=excluded.physiologyProvider,
+              physiologyComponentKey=excluded.physiologyComponentKey,
+              hrCoverage=excluded.hrCoverage, lifecycleVersion=excluded.lifecycleVersion,
+              pauseIntervalsJSON=excluded.pauseIntervalsJSON
             """, arguments: [workout.id.uuidString, workout.title, workout.startedAt, workout.endedAt,
                               workout.plannedDay, try json(workout.routineIds),
                               try workout.tracker.map(json), workout.sessionRPE, workout.note,
-                              workout.source.rawValue])
+                              workout.source.rawValue, workout.sessionRPEOrigin?.rawValue,
+                              workout.trainingSessionId?.uuidString,
+                              workout.physiologyProvider?.rawValue,
+                              workout.physiologyComponentKey, workout.hrCoverage,
+                              workout.lifecycleVersion,
+                              try workout.pauseIntervals.map(json)])
         try db.execute(sql: "DELETE FROM trainingWorkoutExercise WHERE workoutId = ?",
                        arguments: [workout.id.uuidString])
         for (index, exercise) in workout.exercises.enumerated() {
             try db.execute(sql: """
                 INSERT INTO trainingWorkoutExercise
                   (id, workoutId, idx, exerciseId, routineId, restSeconds, supersetId,
-                   excludeFromProgression, note)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                   excludeFromProgression, note, warmupRestSeconds, equipmentSnapshotJSON)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, arguments: [exercise.id.uuidString, workout.id.uuidString, index,
                                   exercise.exerciseId, exercise.routineId?.uuidString,
                                   exercise.restSeconds, exercise.supersetId?.uuidString,
-                                  exercise.excludeFromProgression, exercise.note])
+                                  exercise.excludeFromProgression, exercise.note,
+                                  exercise.warmupRestSeconds,
+                                  try exercise.equipmentSnapshot.map(json)])
             for (setIndex, set) in exercise.sets.enumerated() {
                 try db.execute(sql: """
                     INSERT INTO trainingWorkoutSet
                       (id, workoutExerciseId, idx, phase, intensifier, weightKg, reps, leftReps,
-                       rightReps, durationS, distanceM, effortScale, effortValue, isCompleted)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                       rightReps, durationS, distanceM, effortScale, effortValue, isCompleted,
+                       targetDurationS, clusterId, parentSetId, segmentIndex)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """, arguments: [set.id.uuidString, exercise.id.uuidString, setIndex,
                                       set.phase.rawValue, set.intensifier.rawValue, set.weightKg,
                                       set.reps, set.leftReps, set.rightReps, set.durationS, set.distanceM,
-                                      set.effort?.scale.rawValue, set.effort?.value, set.isCompleted])
+                                      set.effort?.scale.rawValue, set.effort?.value, set.isCompleted,
+                                      set.targetDurationS, set.clusterId?.uuidString,
+                                      set.parentSetId?.uuidString, set.segmentIndex])
             }
         }
     }

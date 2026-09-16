@@ -25,6 +25,9 @@ struct StrengthSessionDetailView: View {
     let breakdown: StrengthSessionBreakdown
     /// The mirrored `WorkoutRow`, when the strap covered this window. Nil is a normal case, not an error.
     let matchedRow: WorkoutRow?
+    /// Where this session was logged. Passed in rather than assumed: the same screen opens sessions
+    /// logged in NOOP, synced from Hevy and imported from four other apps.
+    let source: StrengthDataSource
 
     @EnvironmentObject private var repo: Repository
     @Environment(\.dismiss) private var dismiss
@@ -453,10 +456,15 @@ struct StrengthSessionDetailView: View {
     /// The heaviest working set, in the same notation its rows use.
     private func topSetText(_ kg: Double, kind: StrengthMovementKind) -> String {
         switch kind {
-        case .assistedBodyweight: return String(format: "−%.1f kg", kg)
-        case .weightedBodyweight, .bodyweightReps: return String(format: "+%.1f kg", kg)
-        default: return String(format: "%.1f kg", kg)
+        case .assistedBodyweight: return "−\(Self.oneDecimal(kg)) kg"
+        case .weightedBodyweight, .bodyweightReps: return "+\(Self.oneDecimal(kg)) kg"
+        default: return "\(Self.oneDecimal(kg)) kg"
         }
+    }
+
+    /// Locale-aware, so the decimal separator matches the reader's region.
+    private static func oneDecimal(_ value: Double) -> String {
+        value.formatted(.number.precision(.fractionLength(1)))
     }
 
     /// The set's number among the WORKING sets — what a lifter counts. Warmups carry a "W" instead.
@@ -469,9 +477,9 @@ struct StrengthSessionDetailView: View {
         var parts: [String] = []
         if let weight = line.weightKg, weight > 0 {
             switch kind {
-            case .assistedBodyweight: parts.append(String(format: "−%.1f kg", weight))
-            case .bodyweightReps, .weightedBodyweight: parts.append(String(format: "+%.1f kg", weight))
-            default: parts.append(String(format: "%.1f kg", weight))
+            case .assistedBodyweight: parts.append("−\(Self.oneDecimal(weight)) kg")
+            case .bodyweightReps, .weightedBodyweight: parts.append("+\(Self.oneDecimal(weight)) kg")
+            default: parts.append("\(Self.oneDecimal(weight)) kg")
             }
         } else if kind.carriesBodyweight, let load = line.bodyweightLoadKg {
             parts.append(String(format: "%.0f kg %@", load, String(localized: "bodyweight")))
@@ -511,7 +519,7 @@ struct StrengthSessionDetailView: View {
 
     private var provenance: some View {
         HStack(spacing: 6) {
-            SourceBadge("Hevy", tint: StrandPalette.zone2)
+            SourceBadge(verbatim: TrainingDisplayNames.strengthSource(source), tint: StrandPalette.zone2)
             if matchedRow?.avgHr != nil {
                 SourceBadge("Matched with WHOOP", tint: StrandPalette.statusPositive)
             }
@@ -520,6 +528,6 @@ struct StrengthSessionDetailView: View {
     }
 
     private func volumeText(_ kg: Double) -> String {
-        kg >= 1000 ? String(format: "%.1f t", kg / 1000) : "\(HevySource.groupedKg(kg)) kg"
+        kg >= 1000 ? "\(Self.oneDecimal(kg / 1000)) t" : "\(HevySource.groupedKg(kg)) kg"
     }
 }

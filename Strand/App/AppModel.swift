@@ -4,6 +4,7 @@ import WhoopProtocol
 import WhoopStore
 import StrandAnalytics
 import StrandImport
+import StrandDesign
 #if os(iOS)
 import UserNotifications
 #endif
@@ -41,6 +42,12 @@ final class AppModel: ObservableObject {
     /// up a dead second AppModel (which would start a duplicate BLE engine and never buzz). Set in
     /// init(); `weak` so an intent fired while NOOP is closed sees nil and asks the user to open it. (#42)
     static weak var shared: AppModel?
+
+    /// Optional WatchConnectivity seam for the native strength logger. The iOS app wires the existing
+    /// bridge; macOS leaves it nil. Commands always return to the one active draft owner.
+    var strengthWorkoutWatchStateSink: ((StrengthWorkoutCompanionState?) -> Void)?
+    var strengthWorkoutWatchCommandHandler: ((StrengthWorkoutCompanionCommand) -> Void)?
+    var strengthWorkoutWatchTelemetryHandler: ((StrengthWorkoutCompanionTelemetry) -> Void)?
 
     /// Timestamp formatter for the generic-HR strap-log lines routed through `straplog` into the shared
     /// log (issue #421). Mirrors `BLEManager.logTimeFormatter`'s `HH:mm:ss` so WHOOP and HR-strap lines

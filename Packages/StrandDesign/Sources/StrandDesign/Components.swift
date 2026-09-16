@@ -615,13 +615,29 @@ public struct SegmentedPillControl<T: Hashable>: View {
 // MARK: - Badges
 
 public struct SourceBadge: View {
-    let text: LocalizedStringKey; var tint: Color = StrandPalette.accent
-    public init(_ text: LocalizedStringKey, tint: Color = StrandPalette.accent) { self.text = text; self.tint = tint }
+    private enum Label { case key(LocalizedStringKey), verbatim(String) }
+    private let label: Label
+    var tint: Color = StrandPalette.accent
+    public init(_ text: LocalizedStringKey, tint: Color = StrandPalette.accent) {
+        self.label = .key(text); self.tint = tint
+    }
+    /// For a name that has ALREADY been localized by the caller — a data source resolved through a
+    /// switch, say. Passing such a string as a `LocalizedStringKey` would look it up a second time and
+    /// miss, leaving the caller's own translation on screen only by accident.
+    public init(verbatim text: String, tint: Color = StrandPalette.accent) {
+        self.label = .verbatim(text); self.tint = tint
+    }
+    private var content: Text {
+        switch label {
+        case .key(let key): return Text(key)
+        case .verbatim(let value): return Text(verbatim: value)
+        }
+    }
     public var body: some View {
         // `.frame(height:)` centres its content by default, so the label sits mid-capsule for free. Noted
         // because the Android twin pinned the same 18 with `heightIn` applied to the label itself, which
         // top-aligns — same number, different render. That one is matched to this, not the reverse.
-        Text(text).textCase(.uppercase).font(.system(size: 10, weight: .semibold, design: .rounded)).tracking(0.5)
+        content.textCase(.uppercase).font(.system(size: 10, weight: .semibold, design: .rounded)).tracking(0.5)
             .padding(.horizontal, 9).frame(height: NoopMetrics.sourceBadgeHeight)
             .background(tint.opacity(0.16), in: Capsule(style: .continuous))
             .foregroundStyle(tint)

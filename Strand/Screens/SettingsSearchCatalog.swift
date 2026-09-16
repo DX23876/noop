@@ -8,6 +8,7 @@ import Foundation
 enum SettingsSectionID: String, CaseIterable, Hashable, Sendable {
     case profile
     case units
+    case training
     case streak
     case appearance
     case strap
@@ -69,6 +70,14 @@ enum SettingsSearchCatalog {
             title: "Units",
             keywords: ["measurement system", "metric", "imperial", "temperature",
                        "celsius", "fahrenheit", "kilograms", "pounds", "effort scale"]
+        ),
+        SettingsSearchEntry(
+            id: .training,
+            title: "Training",
+            keywords: ["strength", "workout", "RPE", "RIR", "effort", "rest timer", "warm-up",
+                       "rest-pause", "timer sound", "haptics", "vibration", "keep screen on",
+                       "screen awake", "workout view", "exercise media", "download media",
+                       "week start", "equipment", "kilograms", "weight step", "plates"]
         ),
         SettingsSearchEntry(
             id: .streak,

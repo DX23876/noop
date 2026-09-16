@@ -25,6 +25,16 @@ use [RyanBR's upstream NOOP](https://github.com/ryanbr/noop) for Android.
 - [Scope and non-goals](SCOPE.md)
 - [GitHub and release safeguards](SAFEGUARDS.md)
 
+## Training and strength
+
+- [Native training](fork/opengym-integration.md) — routines, workout logger, resolved strength
+  history, long-term statistics, training settings and accessibility.
+- [Live strength workouts](fork/LIVE_STRENGTH_WORKOUTS.md) — workout lifecycle, trackers and resume.
+- [Muscle analytics methodology](fork/MUSCLE_ANALYTICS.md) — Balance, Fatigue and Strength with
+  their limits and import behaviour.
+- [Exercise content and media](fork/EXERCISE_CONTENT_AND_MEDIA.md) and
+  [third-party notices](fork/THIRD_PARTY_NOTICES.md).
+
 ## Protocol and device references
 
 - [WHOOP protocol](PROTOCOL.md)

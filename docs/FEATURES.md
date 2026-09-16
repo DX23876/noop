@@ -52,6 +52,62 @@ Screens are grouped below by whether they need a connected strap:
 Most of NOOP works the moment you import an export. The strap adds the *live* layer — real-time
 heart rate, haptic cues, and physical-input automations.
 
+### Training, Strength and Cardio
+
+The **Training** destination plans and logs strength sessions directly in NOOP: routines, weekly
+schedules, freestyle and past sessions, supersets, unilateral work, RPE/RIR, timers, progression,
+plate loading and resumable drafts. A session started by mistake can be discarded outright: the draft
+and its recording are deleted and nothing reaches your history. FitNotes and Strong CSV files show a review screen before import;
+Hevy and other detailed sources join the same history without copying overlapping set lists.
+
+During a native strength workout, NOOP can keep the selected physiological source beside the set
+logger. A connected NOOP band or another selected heart-rate tracker uses the existing live recorder;
+an optional Apple Watch companion runs a real HealthKit workout and shows the current exercise, set,
+elapsed time, live heart rate and controls. The set log remains canonical on the phone. Locking,
+backgrounding and relaunch preserve the draft and recorder state, and losing heart rate never prevents
+set entry or workout completion. The summary joins the chosen recording to the completed session once,
+with measured coverage rather than invented values.
+
+Training and Strength share one detailed body map with three views. **Balance** shows how effective
+working sets were distributed over the past 28 days and, once available, compares each muscle's share
+with the wearer's previous eight complete weeks. **Fatigue** estimates how much recent training
+stimulus may remain using NOOP's existing exponential-decay model. **Strength** combines robust,
+RIR-corrected e1RM trends only after normalizing every exercise to its own history.
+
+Reviewed offline exercise mappings credit primary muscles fully and secondary muscles by half.
+Warm-ups and stabilizers do not color the analytics map. Unknown work remains visible in coverage and
+is never assigned to an invented muscle. Each mode offers a muscle drilldown with its contributing
+sessions or exercises; none of the three views claims ideal symmetry, muscle growth, measured recovery
+or injury risk.
+
+**Training Load** keeps cardiovascular load, strength load and whole-session load in their own units.
+The Strength ring works after the first session using a clearly provisional seven-day amount, while
+the existing personal comparison still waits for 21 complete days. Provisional values never generate
+“× usual”, adaptation or overreaching claims. Cardio remains limited to endurance views and uses the
+canonical session's selected heart-rate source.
+
+NOOP ships 1,324 exercises offline — with muscles, equipment, how each one is measured and
+step-by-step instructions — so the library is useful on a phone in flight mode and without an
+account. Animations and images are not included: their rights holder licenses them separately.
+
+The exercise library filters by body region, muscle, type and equipment at the same time, and every
+exercise opens a detail with its instructions, muscle involvement, your own session history, your
+heaviest set and your best estimated one-rep maximum — with imported sessions counted once, beside
+native ones. During a workout, an exercise can be added from there directly.
+
+While a workout runs, weights and repetitions can be typed directly or stepped by the increment your
+equipment actually allows, an exercise can be ended early or annotated, and its earlier sessions are
+one tap away. The summary afterwards names new records, what moved against your last session, every
+logged set and your notes. Optional exercise media, if you choose to download it, plays as an
+animation or a video and holds still when Reduce Motion is on.
+
+Strength also summarises the selected range: sessions, weekly frequency, working sets, duration,
+volume, RPE coverage and average RPE, active weeks, the longest weekly streak and recent personal
+records, beside a past-year consistency heatmap that follows the chosen week start. Routines can be
+previewed with their muscle involvement and edited with exercise order, supersets, progression rules
+and scheduled weekdays. Settings › Training collects effort entry, rest timers, timer sound, haptics,
+keeping the screen awake, exercise-media display and download, equipment and the training week start.
+
 ---
 
 ## Connection states

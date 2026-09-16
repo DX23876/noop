@@ -206,8 +206,9 @@ extension AICoachEngine {
         // The gate runs HERE, on the draft, before it is stored — never in the prompt. Its verdict is
         // saved with the proposal so the review screen shows exactly what the gate decided rather than
         // re-deriving something that could differ.
-        let now = Int(Date().timeIntervalSince1970)
-        let workouts = (try? await store.hevyWorkouts(from: now - 28 * 86_400, to: now + 86_400)) ?? []
+        // Every detailed source, de-duplicated: native sets and file imports carry the same volume a
+        // Hevy row does, and a gate that cannot see them warns about a plan it has not measured.
+        let workouts = await repo.resolvedStrengthHistory(days: 28).workouts
         proposal.warnings = StrengthPlanGate.warnings(
             for: proposal, templates: catalogue,
             history: StrengthPlanGate.history(from: workouts, templates: catalogue),

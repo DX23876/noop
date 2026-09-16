@@ -8,20 +8,27 @@ import UniformTypeIdentifiers
 struct TrainingExerciseLibraryView: View {
     @Environment(\.dismiss) private var dismiss
     let exercises: [TrainingExercise]
+    var performance: TrainingPerformanceHistory = .empty
+    /// Present only while a workout is running, so the library can add straight into it.
+    var onAddToWorkout: ((TrainingExercise) -> Void)?
     let onSave: (TrainingExercise) -> Void
 
     @State private var query = ""
     @State private var equipment = "all"
+    @State private var region: TrainingBodyRegion?
+    @State private var measurement: TrainingMeasurementMode?
+    @State private var muscle: String?
     @State private var selected: TrainingExercise?
     @State private var showingNewExercise = false
     @State private var showingCatalogImporter = false
     @State private var showingExerciseDB = false
+    @State private var showingMediaManager = false
     @State private var message: String?
     @AppStorage("training.favoriteExerciseIds") private var favoritePayload = ""
 
     var body: some View {
         List {
-            if !favoriteExercises.isEmpty && query.isEmpty && equipment == "all" {
+            if !favoriteExercises.isEmpty && query.isEmpty && !hasActiveFilters {
                 Section("Favorites") {
                     ForEach(favoriteExercises) { row($0) }
                 }
@@ -55,17 +62,52 @@ struct TrainingExerciseLibraryView: View {
             ToolbarItem(placement: .cancellationAction) { Button("Done") { dismiss() } }
             ToolbarItem(placement: .primaryAction) {
                 Menu {
+                    Picker("Body region", selection: $region) {
+                        Text("Any body region").tag(TrainingBodyRegion?.none)
+                        ForEach(TrainingBodyRegion.allCases.filter { $0 != .other }) { value in
+                            Text(TrainingDisplayNames.region(value)).tag(TrainingBodyRegion?.some(value))
+                        }
+                    }
+                    Picker("Muscle", selection: $muscle) {
+                        Text("Any muscle").tag(String?.none)
+                        ForEach(TrainingMuscleCatalog.all) { item in
+                            Text(TrainingDisplayNames.muscle(item.id)).tag(String?.some(item.id))
+                        }
+                    }
+                    Picker("Type", selection: $measurement) {
+                        Text("Any type").tag(TrainingMeasurementMode?.none)
+                        ForEach(TrainingMeasurementMode.allCases, id: \.rawValue) { value in
+                            Text(TrainingDisplayNames.measurement(value)).tag(TrainingMeasurementMode?.some(value))
+                        }
+                    }
+                    if hasActiveFilters {
+                        Divider()
+                        Button("Clear filters") { clearFilters() }
+                    }
+                } label: {
+                    Label("Filter", systemImage: hasActiveFilters
+                          ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
+                }
+            }
+            ToolbarItem(placement: .primaryAction) {
+                Menu {
                     Button("New exercise") { showingNewExercise = true }
                     Button("ExerciseDB source") { showingExerciseDB = true }
                     Button("Import licensed catalog") { showingCatalogImporter = true }
+                    Button("Exercise media") { showingMediaManager = true }
                 } label: { Label("Add", systemImage: "plus") }
             }
         }
         .sheet(item: $selected) { exercise in
             NavigationStack {
-                TrainingExerciseDetailView(exercise: exercise, isFavorite: favorites.contains(exercise.id)) {
-                    toggleFavorite(exercise.id)
-                }
+                TrainingExerciseDetailView(
+                    exercise: exercise, isFavorite: favorites.contains(exercise.id),
+                    records: performance.records(for: exercise.id, mode: exercise.mode),
+                    recent: Array(performance.entries(for: exercise.id).reversed().prefix(5)),
+                    onAddToWorkout: onAddToWorkout.map { add in
+                        { add(exercise); selected = nil }
+                    },
+                    onToggleFavorite: { toggleFavorite(exercise.id) })
             }
         }
         .sheet(isPresented: $showingNewExercise) {
@@ -85,6 +127,9 @@ struct TrainingExerciseLibraryView: View {
                 }
             }
         }
+        .sheet(isPresented: $showingMediaManager) {
+            NavigationStack { ExerciseMediaManagementView() }
+        }
         .fileImporter(isPresented: $showingCatalogImporter, allowedContentTypes: [.json]) { result in
             importCatalog(result)
         }
@@ -96,9 +141,12 @@ struct TrainingExerciseLibraryView: View {
     private var equipmentFilter: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
-                filterChip("All", id: "all")
+                filterChip(String(localized: "All"), id: "all")
+                if !availableEquipment.isEmpty {
+                    filterChip(String(localized: "My equipment"), id: "available")
+                }
                 ForEach(equipmentOptions, id: \.self) { value in
-                    filterChip(value.replacingOccurrences(of: "-", with: " ").capitalized, id: value)
+                    filterChip(TrainingDisplayNames.equipment(value), id: value)
                 }
             }
             .padding(.horizontal, NoopMetrics.screenPadding)
@@ -145,21 +193,61 @@ struct TrainingExerciseLibraryView: View {
         .buttonStyle(.plain)
     }
 
+    private var hasActiveFilters: Bool {
+        region != nil || muscle != nil || measurement != nil || equipment != "all"
+    }
+
+    private func clearFilters() {
+        region = nil
+        muscle = nil
+        measurement = nil
+        equipment = "all"
+    }
+
+    /// The region comes from the reviewed anatomy where there is one, so a filter can never disagree
+    /// with the muscle map; an unmapped exercise falls back to its own primary muscle.
+    private func bodyRegion(_ exercise: TrainingExercise) -> TrainingBodyRegion {
+        if let anatomy = TrainingMuscleProjection.anatomy(for: exercise) { return anatomy.bodyRegion }
+        return TrainingBodyRegion.forMuscles([exercise.primaryMuscleId].compactMap { $0 })
+    }
+
+    private func matchesMuscle(_ exercise: TrainingExercise, _ muscleId: String) -> Bool {
+        if exercise.primaryMuscleId == muscleId { return true }
+        if exercise.secondaryMuscleIds.contains(muscleId) { return true }
+        guard let anatomy = TrainingMuscleProjection.anatomy(for: exercise) else { return false }
+        return anatomy.primaryMuscleIds.contains(muscleId) || anatomy.secondaryMuscleIds.contains(muscleId)
+    }
+
     private var filteredExercises: [TrainingExercise] {
         let needle = query.trimmingCharacters(in: .whitespacesAndNewlines)
         return exercises.filter { exercise in
-            let equipmentMatches = equipment == "all" || exercise.equipmentIds.contains(equipment)
+            let regionMatches = region == nil || bodyRegion(exercise) == region
+            let muscleMatches = muscle.map { matchesMuscle(exercise, $0) } ?? true
+            let measurementMatches = measurement == nil || exercise.mode == measurement
+            let equipmentMatches = equipment == "all"
+                || (equipment == "available" && matchesAvailableEquipment(exercise))
+                || exercise.equipmentIds.map(TrainingDisplayNames.canonicalEquipment).contains(equipment)
             let queryMatches = needle.isEmpty
                 || exercise.title.localizedCaseInsensitiveContains(needle)
                 || (exercise.primaryMuscleId?.localizedCaseInsensitiveContains(needle) ?? false)
+                || TrainingDisplayNames.muscle(exercise.primaryMuscleId).localizedCaseInsensitiveContains(needle)
+                || exercise.equipmentIds.contains { TrainingDisplayNames.equipment($0).localizedCaseInsensitiveContains(needle) }
                 || exercise.secondaryMuscleIds.contains { $0.localizedCaseInsensitiveContains(needle) }
                 || exercise.equipmentIds.contains { $0.localizedCaseInsensitiveContains(needle) }
-            return equipmentMatches && queryMatches
+            return regionMatches && muscleMatches && measurementMatches && equipmentMatches && queryMatches
         }
     }
 
     private var equipmentOptions: [String] {
-        Array(Set(exercises.flatMap(\.equipmentIds))).sorted()
+        Array(Set(exercises.flatMap(\.equipmentIds).map(TrainingDisplayNames.canonicalEquipment))).sorted()
+    }
+
+    private var availableEquipment: Set<String> {
+        TrainingPreferences.availableEquipment
+    }
+
+    private func matchesAvailableEquipment(_ exercise: TrainingExercise) -> Bool {
+        TrainingPreferences.exercise(exercise, matches: availableEquipment)
     }
 
     private var favorites: Set<String> {
@@ -194,9 +282,8 @@ struct TrainingExerciseLibraryView: View {
     }
 
     private func metadata(_ exercise: TrainingExercise) -> String {
-        let muscle = exercise.primaryMuscleId?.replacingOccurrences(of: "_", with: " ").capitalized
-            ?? String(localized: "Other")
-        let equipment = exercise.equipmentIds.first?.replacingOccurrences(of: "-", with: " ").capitalized
+        let muscle = TrainingDisplayNames.muscle(exercise.primaryMuscleId)
+        let equipment = exercise.equipmentIds.first.map(TrainingDisplayNames.equipment)
             ?? String(localized: "No equipment")
         return "\(muscle) · \(equipment)"
     }
@@ -215,7 +302,12 @@ private struct TrainingExerciseDetailView: View {
     @Environment(\.dismiss) private var dismiss
     let exercise: TrainingExercise
     let isFavorite: Bool
+    let records: TrainingPerformanceHistory.Records
+    let recent: [TrainingPerformanceHistory.Entry]
+    let onAddToWorkout: (() -> Void)?
     let onToggleFavorite: () -> Void
+    @ObservedObject private var media = ExerciseMediaStore.shared
+    @State private var showingMediaManager = false
 
     var body: some View {
         ScrollView {
@@ -242,18 +334,26 @@ private struct TrainingExerciseDetailView: View {
                         }
                         LabeledContent("Equipment", value: exercise.equipmentIds.isEmpty
                                        ? String(localized: "No equipment")
-                                       : exercise.equipmentIds.map(muscle).joined(separator: ", "))
+                                       : exercise.equipmentIds.map(TrainingDisplayNames.equipment).joined(separator: ", "))
                     }
                 }
 
-                if let raw = exercise.mediaId, let url = URL(string: raw), url.scheme == "https" {
+                if let item = ExerciseMediaRegistry.shared.media(for: exercise) {
                     NoopCard {
                         VStack(alignment: .leading, spacing: 8) {
                             Label("Exercise media", systemImage: "play.rectangle")
                                 .font(StrandFont.subhead.weight(.semibold))
-                            Text("Media stays with its provider and is opened only when you request it. It is not copied into workout history.")
+                            ExerciseMediaView(media: item, minHeight: 150, maxHeight: 280)
+                        }
+                    }
+                } else if exercise.mediaId != nil {
+                    NoopCard {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Label("Exercise media", systemImage: "play.rectangle")
+                                .font(StrandFont.subhead.weight(.semibold))
+                            Text("Optional exercise media has not been downloaded. Logging works without it and media is never copied into workout history.")
                                 .font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
-                            Link("Open provider media", destination: url)
+                            Button("Manage exercise media") { showingMediaManager = true }
                                 .font(StrandFont.subhead.weight(.semibold))
                         }
                     }
@@ -281,6 +381,8 @@ private struct TrainingExerciseDetailView: View {
                     }
                 }
 
+                yourHistory
+
                 NoopCard {
                     VStack(alignment: .leading, spacing: 5) {
                         Text("Content source").font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
@@ -292,12 +394,90 @@ private struct TrainingExerciseDetailView: View {
             .padding(NoopMetrics.screenPadding)
         }
         .navigationTitle(Text("Exercise"))
+        .safeAreaInset(edge: .bottom) {
+            if let onAddToWorkout {
+                Button(action: onAddToWorkout) {
+                    Label("Add to workout", systemImage: "plus.circle.fill")
+                        .frame(maxWidth: .infinity).padding(.vertical, 11)
+                }
+                .buttonStyle(.borderedProminent).tint(StrandPalette.accent)
+                .padding(NoopMetrics.screenPadding)
+                .background(.ultraThinMaterial)
+            }
+        }
         .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
+        .sheet(isPresented: $showingMediaManager) {
+            NavigationStack { ExerciseMediaManagementView() }
+        }
+    }
+
+    /// Everything this exercise has produced so far, from native and resolved imported sessions alike.
+    @ViewBuilder private var yourHistory: some View {
+        VStack(alignment: .leading, spacing: NoopMetrics.gap) {
+            SectionHeader("Your history", overline: "This exercise")
+            NoopCard {
+                if records.sessionCount == 0 {
+                    Text("No sessions with this exercise yet. Once you log one, its records and history appear here.")
+                        .font(StrandFont.subhead).foregroundStyle(StrandPalette.textSecondary)
+                } else {
+                    VStack(alignment: .leading, spacing: NoopMetrics.space3) {
+                        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: 3),
+                                  spacing: 10) {
+                            historyFact(String(localized: "Sessions"), records.sessionCount.formatted())
+                            historyFact(String(localized: "Heaviest"), records.heaviestSetKg
+                                .map { "\($0.formatted(.number.precision(.fractionLength(0...1)))) kg" } ?? "—")
+                            historyFact(String(localized: "Best 1RM · est."), records.bestEstimatedOneRepMaxKg
+                                .map { "\($0.formatted(.number.precision(.fractionLength(0...1)))) kg" } ?? "—")
+                        }
+                        if !recent.isEmpty {
+                            Divider().overlay(StrandPalette.hairline)
+                            ForEach(Array(recent.enumerated()), id: \.offset) { _, entry in
+                                HStack(alignment: .firstTextBaseline) {
+                                    Text(Date(timeIntervalSince1970: TimeInterval(entry.startTs)), style: .date)
+                                        .font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
+                                    if !entry.isNative {
+                                        Text("Imported").font(StrandFont.caption)
+                                            .foregroundStyle(StrandPalette.textTertiary)
+                                    }
+                                    Spacer()
+                                    Text(sessionSummary(entry)).font(StrandFont.caption.monospacedDigit())
+                                        .foregroundStyle(StrandPalette.textSecondary)
+                                }
+                                .accessibilityElement(children: .combine)
+                            }
+                        }
+                        if records.bestEstimatedOneRepMaxKg != nil {
+                            Text("The estimated one-rep maximum is a projection from your logged sets, not a lift you performed.")
+                                .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private func historyFact(_ label: String, _ value: String) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(value).font(StrandFont.number(18)).foregroundStyle(StrandPalette.textPrimary)
+                .lineLimit(1).minimumScaleFactor(0.7)
+            Text(label).font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
+                .lineLimit(1).minimumScaleFactor(0.7)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .combine)
+    }
+
+    private func sessionSummary(_ entry: TrainingPerformanceHistory.Entry) -> String {
+        let working = entry.workingSets
+        let best = working.compactMap(\.weightKg).filter { $0 > 0 }.max()
+        let sets = String(localized: "\(working.count) sets")
+        guard let best else { return sets }
+        return "\(sets) · \(best.formatted(.number.precision(.fractionLength(0...1)))) kg"
     }
 
     private func muscle(_ value: String?) -> String {
-        guard let value else { return String(localized: "Other") }
-        return value.replacingOccurrences(of: "_", with: " ").capitalized
+        TrainingDisplayNames.muscle(value)
     }
 
     private func modeTitle(_ mode: TrainingMeasurementMode) -> String {
@@ -327,6 +507,117 @@ private struct TrainingExerciseDetailView: View {
         case .user: return String(localized: "Stored locally with your training data.")
         case .exerciseDB: return String(localized: "Provider content is shown only under the provider's applicable rights.")
         case .imported: return String(localized: "Imported metadata keeps its original source reference.")
+        }
+    }
+}
+
+struct ExerciseMediaManagementView: View {
+    @Environment(\.dismiss) private var dismiss
+    @ObservedObject private var media = ExerciseMediaStore.shared
+    @State private var showingDisclosure = false
+    @State private var manifest: MediaManifest?
+
+    var body: some View {
+        Form {
+            Section("Optional exercise media") {
+                Text("Exercise logging, routines and analytics work without media. NOOP does not bundle, host or mirror these files.")
+                    .font(StrandFont.subhead).foregroundStyle(StrandPalette.textSecondary)
+                stateRow
+            }
+            Section("Source and rights") {
+                LabeledContent("Source", value: media.provider.source.host ?? media.provider.source.absoluteString)
+                LabeledContent("Rights holder", value: media.provider.rightsHolder)
+                if let manifest {
+                    LabeledContent("Downloaded files", value: manifest.fileCount.formatted())
+                    LabeledContent("Archive checksum", value: String(manifest.archiveSHA256.prefix(16)))
+                }
+                Text(media.provider.attribution).font(StrandFont.caption)
+                Text(media.provider.rightsStatus).font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
+                Text("A user-initiated download does not create any additional licence through NOOP.")
+                    .font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
+            }
+            Section("Controls") {
+                if media.isWithdrawn {
+                    Label("NOOP has withdrawn this media provider. Exercises, routines and analytics are unaffected.",
+                          systemImage: "nosign")
+                        .font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
+                } else {
+                    Toggle("Disable this media provider", isOn: Binding(get: { media.isDisabled }, set: { media.setDisabled($0) }))
+                }
+                if media.isAvailable {
+                    Button("Delete downloaded media", role: .destructive) { media.deleteMedia() }
+                } else if !media.isDisabled {
+                    Button(media.canResumeDownload ? "Resume download" : "Download media") {
+                        showingDisclosure = true
+                    }
+                }
+                if case .downloading = media.state { Button("Cancel download", role: .cancel) { media.cancel() } }
+            }
+        }
+        .navigationTitle(Text("Exercise media"))
+        .task(id: media.state) { manifest = media.installedManifest() }
+        .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
+        .sheet(isPresented: $showingDisclosure) {
+            NavigationStack {
+                ExerciseMediaDisclosureView(provider: media.provider) {
+                    showingDisclosure = false
+                    media.download()
+                }
+            }
+        }
+    }
+
+    @ViewBuilder private var stateRow: some View {
+        switch media.state {
+        case .unavailable: Label("Not downloaded", systemImage: "arrow.down.circle")
+        case .ready(let bytes): Label(ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file), systemImage: "checkmark.circle")
+        case .downloading(let progress): ProgressView("Downloading", value: progress)
+        case .installing: ProgressView { Text("Checking and installing") }
+        case .failed(let message): Label(message, systemImage: "exclamationmark.triangle").foregroundStyle(.red)
+        case .disabled: Label("Provider disabled", systemImage: "nosign")
+        }
+    }
+}
+
+/// Everything the wearer must see before an external media download starts. The download begins only
+/// from this screen's explicit confirmation.
+private struct ExerciseMediaDisclosureView: View {
+    @Environment(\.dismiss) private var dismiss
+    let provider: ExerciseMediaStore.Provider
+    let onDownload: () -> Void
+
+    var body: some View {
+        Form {
+            Section("Source and rights") {
+                LabeledContent("Download endpoint") {
+                    Text(provider.source.absoluteString)
+                        .font(StrandFont.caption)
+                        .multilineTextAlignment(.trailing)
+                        .textSelection(.enabled)
+                }
+                LabeledContent("Rights holder", value: provider.rightsHolder)
+                Text(provider.attribution).font(StrandFont.caption)
+                Text(provider.rightsStatus)
+                    .font(StrandFont.caption)
+                    .foregroundStyle(StrandPalette.statusWarning)
+            }
+            Section("Download") {
+                LabeledContent("Approximate size",
+                               value: ByteCountFormatter.string(fromByteCount: provider.approximateBytes,
+                                                                countStyle: .file))
+                Text("The files are downloaded directly from this external source into private storage on this device and are excluded from backups. A network connection is required.")
+                Text("NOOP does not bundle, host, mirror or proxy these files. A download you start does not create any additional licence through NOOP.")
+                Text("Training, routines, workout logging and analytics work fully without media. You can delete the downloaded files at any time.")
+            }
+            .font(StrandFont.caption)
+            .foregroundStyle(StrandPalette.textSecondary)
+        }
+        .navigationTitle(Text("Download external media?"))
+        .toolbar {
+            ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
+            ToolbarItem(placement: .confirmationAction) {
+                Button("Download from external source", action: onDownload)
+            }
         }
     }
 }
@@ -381,7 +672,7 @@ private struct ExerciseDBSourceView: View {
                         })) {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(exercise.title)
-                                Text(exercise.primaryMuscleId?.replacingOccurrences(of: "_", with: " ").capitalized
+                                Text(exercise.primaryMuscleId.map(TrainingDisplayNames.muscle)
                                      ?? String(localized: "Muscle not mapped"))
                                     .font(.caption).foregroundStyle(.secondary)
                             }
@@ -463,7 +754,7 @@ private struct TrainingCustomExerciseEditor: View {
             }
             Section("Muscle and equipment") {
                 Picker("Primary muscle", selection: $primaryMuscle) {
-                    ForEach(TrainingMuscleCatalog.all) { muscle in Text(muscle.name).tag(muscle.id) }
+                    ForEach(TrainingMuscleCatalog.all) { muscle in Text(TrainingDisplayNames.muscle(muscle.id)).tag(muscle.id) }
                 }
                 TextField("Equipment, optional", text: $equipment)
             }

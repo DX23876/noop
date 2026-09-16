@@ -10,6 +10,7 @@ import PhotosUI
 import StrandDesign
 import StrandAnalytics
 import WhoopStore
+import StrandTraining
 // #174: the R22 card reads the flag COUNT off `Whoop5Config.enableR22Sequence` rather than restating it —
 // the hardcoded "15" outlived the sequence growing to 16 and declared success a flag early.
 import WhoopProtocol
@@ -225,6 +226,17 @@ struct SettingsView: View {
     // it's shown on NOOP's 0–100 axis or WHOOP's 0–21 Day Strain axis.
     @AppStorage(UnitPrefs.effortScaleKey) private var effortScaleRaw = EffortScale.hundred.rawValue
     @AppStorage(UnitPrefs.trendChartStyleKey) private var trendChartStyleRaw = TrendChartStyle.line.rawValue
+    @AppStorage(TrainingPreferences.effortKey) private var trainingEffortRaw = TrainingEffortPreference.rpe.rawValue
+    @AppStorage(TrainingPreferences.defaultRestKey) private var trainingRestSeconds = TrainingPreferences.defaultRestSeconds
+    @AppStorage(TrainingPreferences.warmupRestKey) private var trainingWarmupRestSeconds = TrainingPreferences.defaultWarmupRestSeconds
+    @AppStorage(TrainingPreferences.restPauseKey) private var trainingRestPauseSeconds = TrainingPreferences.defaultRestPauseSeconds
+    @AppStorage(TrainingPreferences.weightIncrementKey) private var trainingWeightIncrement = TrainingPreferences.defaultWeightIncrementKg
+    @AppStorage(TrainingPreferences.mediaPresentationKey) private var trainingMediaRaw = TrainingMediaPresentation.small.rawValue
+    @AppStorage(TrainingPreferences.soundKey) private var trainingSound = true
+    @AppStorage(TrainingPreferences.hapticsKey) private var trainingHaptics = true
+    @AppStorage(TrainingPreferences.timerFeedbackKey) private var trainingTimerFeedback = true
+    @AppStorage(TrainingPreferences.weekStartKey) private var trainingWeekStartRaw = TrainingWeekStart.monday.rawValue
+    @AppStorage(TrainingPreferences.activeLayoutKey) private var trainingLayoutRaw = "focus"
     @AppStorage(UnitPrefs.hrvWindowKey) private var hrvWindowRaw = HrvWindow.whole.rawValue
     // Live-HR Live Activity (Lock Screen + Dynamic Island), iOS only (#336). Default on.
     @AppStorage(UnitPrefs.liveActivityKey) private var liveActivityEnabled = true
@@ -392,10 +404,11 @@ struct SettingsView: View {
                 // Everyday sections stay expanded (S3): the ones a first-run user actually needs.
                 if shows(.profile) { profileCard.staggeredAppear(index: 0) }
                 if shows(.units) { unitsCard.staggeredAppear(index: 1) }
-                if shows(.appearance) { appearanceCard.staggeredAppear(index: 2) }
-                if shows(.strap) { strapCard.staggeredAppear(index: 3) }
-                if shows(.streak) { streakCard.staggeredAppear(index: 4) }
-                if shows(.features) { featuresCard.staggeredAppear(index: 5) }
+                if shows(.training) { trainingCard.staggeredAppear(index: 2) }
+                if shows(.appearance) { appearanceCard.staggeredAppear(index: 3) }
+                if shows(.strap) { strapCard.staggeredAppear(index: 4) }
+                if shows(.streak) { streakCard.staggeredAppear(index: 5) }
+                if shows(.features) { featuresCard.staggeredAppear(index: 6) }
 
                 // Lower-frequency sections collapse behind a single default-closed disclosure so the
                 // screen opens at ~6 sections instead of 11. Nothing is removed; every section here
@@ -423,11 +436,11 @@ struct SettingsView: View {
                         experimentalCard
                         if shows(.backup) { backupCard }
                     }
-                    .staggeredAppear(index: 6)
+                    .staggeredAppear(index: 7)
                 }
 
                 // About stays expanded at the foot (version, links and the help sheets people return to).
-                if shows(.about) { aboutCard.staggeredAppear(index: 7) }
+                if shows(.about) { aboutCard.staggeredAppear(index: 8) }
 
                 if isSearching && !anySectionMatches {
                     VStack(alignment: .leading, spacing: 6) {
@@ -1192,6 +1205,102 @@ struct SettingsView: View {
     }
 
     // MARK: - Units
+
+    private var trainingCard: some View {
+        SettingsSection(icon: "dumbbell.fill", title: "Training",
+                        blurb: "Choose how workout entry, rest timers and optional exercise media behave.") {
+            VStack(spacing: 0) {
+                FormRow(label: "Set effort") {
+                    Picker("Set effort", selection: $trainingEffortRaw) {
+                        Text("Off").tag(TrainingEffortPreference.off.rawValue)
+                        Text("RIR").tag(TrainingEffortPreference.rir.rawValue)
+                        Text("RPE").tag(TrainingEffortPreference.rpe.rawValue)
+                    }.labelsHidden().pickerStyle(.menu)
+                }
+                Text("RIR counts the repetitions left in reserve; RPE rates the set from 1 to 10. Off hides per-set effort entry and keeps ratings you already logged.")
+                    .font(StrandFont.caption)
+                    .foregroundStyle(StrandPalette.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                rowDivider
+                Stepper("Default rest: \(trainingRestSeconds) sec", value: $trainingRestSeconds,
+                        in: 0...600, step: 15).font(StrandFont.subhead)
+                rowDivider
+                Stepper("Warm-up rest: \(trainingWarmupRestSeconds) sec",
+                        value: $trainingWarmupRestSeconds, in: 0...300, step: 15).font(StrandFont.subhead)
+                rowDivider
+                Stepper("Rest-pause: \(trainingRestPauseSeconds) sec",
+                        value: $trainingRestPauseSeconds, in: 5...60, step: 5).font(StrandFont.subhead)
+                rowDivider
+                FormRow(label: "Weight step") {
+                    Picker("Weight step", selection: $trainingWeightIncrement) {
+                        ForEach(TrainingPreferences.weightIncrementChoices, id: \.self) { value in
+                            Text("\(value.formatted(.number.precision(.fractionLength(0...2)))) kg").tag(value)
+                        }
+                    }.labelsHidden().pickerStyle(.menu)
+                }
+                Text("Used by the − and + buttons for dumbbells, machines and cables. Barbell exercises step by two of the smallest plates saved in the plate calculator. You can also type any weight directly.")
+                    .font(StrandFont.caption)
+                    .foregroundStyle(StrandPalette.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                rowDivider
+                FormRow(label: "Workout view") {
+                    Picker("Workout view", selection: $trainingLayoutRaw) {
+                        Text("Focus").tag("focus"); Text("List").tag("list"); Text("Compact").tag("compact")
+                    }.labelsHidden().pickerStyle(.menu)
+                }
+                rowDivider
+                FormRow(label: "Exercise media") {
+                    Picker("Exercise media", selection: $trainingMediaRaw) {
+                        Text("Large").tag(TrainingMediaPresentation.large.rawValue)
+                        Text("Small").tag(TrainingMediaPresentation.small.rawValue)
+                        Text("Hidden").tag(TrainingMediaPresentation.hidden.rawValue)
+                    }.labelsHidden().pickerStyle(.menu)
+                }
+                NavigationLink { ExerciseMediaManagementView() } label: {
+                    Label("Manage offline exercise media", systemImage: "arrow.down.circle")
+                        .font(StrandFont.subhead)
+                }
+                .buttonStyle(.plain).foregroundStyle(StrandPalette.accent)
+                rowDivider
+                NavigationLink { TrainingEquipmentSettingsView() } label: {
+                    Label("Available equipment", systemImage: "dumbbell")
+                        .font(StrandFont.subhead)
+                }
+                .buttonStyle(.plain).foregroundStyle(StrandPalette.accent)
+                rowDivider
+                FormRow(label: "Week starts") {
+                    Picker("Week starts", selection: $trainingWeekStartRaw) {
+                        Text("Monday").tag(TrainingWeekStart.monday.rawValue)
+                        Text("Sunday").tag(TrainingWeekStart.sunday.rawValue)
+                    }.labelsHidden().pickerStyle(.menu)
+                }
+                Text("Used by the training week, the weekly schedule, the consistency heatmap and active weeks in Strength.")
+                    .font(StrandFont.caption)
+                    .foregroundStyle(StrandPalette.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                rowDivider
+                Toggle("Timer feedback", isOn: $trainingTimerFeedback)
+                    .accessibilityHint(Text("Notifies you when rest or a timed set ends"))
+                Toggle("Timer sound", isOn: $trainingSound).disabled(!trainingTimerFeedback)
+                Toggle("Haptics", isOn: $trainingHaptics)
+                    .accessibilityHint(Text("Vibrates when you complete a set and, with timer feedback on, when a timer ends"))
+                rowDivider
+                Toggle("Keep screen on during a workout", isOn: $workoutKeepScreenOn)
+                    .accessibilityHint("Stops the screen dimming while a workout is recording")
+                Text("Holds the screen awake while you're recording a workout, so your live heart rate stays visible without the device dimming. Only applies during a recording. The screen sleeps normally the rest of the time. Leaving it on does use a bit more battery, and means your unlocked screen stays visible for the whole workout, so flip it off if that's a concern.")
+                    .font(StrandFont.caption)
+                    .foregroundStyle(StrandPalette.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                rowDivider
+                Text("Strength weights are logged and shown in kilograms. Body weight, distance and temperature follow the Units section.")
+                    .font(StrandFont.caption)
+                    .foregroundStyle(StrandPalette.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .toggleStyle(.switch)
+            .appleInspiredTint("settings.controls")
+        }
+    }
 
     /// Independent body and exercise-distance unit choices plus temperature and Effort overrides.
     /// Display-only — nothing stored changes; NOOP keeps everything in SI.
@@ -2020,21 +2129,6 @@ struct SettingsView: View {
                     .foregroundStyle(StrandPalette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
 
-                rowDivider
-
-                Toggle(isOn: $workoutKeepScreenOn) {
-                    Text("Keep screen on during a workout")
-                        .font(StrandFont.subhead)
-                        .foregroundStyle(StrandPalette.textPrimary)
-                }
-                .toggleStyle(.switch)
-                .appleInspiredTint("settings.controls")
-                .accessibilityHint("Stops the screen dimming while a workout is recording")
-
-                Text("Holds the screen awake while you're recording a workout, so your live heart rate stays visible without the device dimming. Only applies during a recording. The screen sleeps normally the rest of the time. Leaving it on does use a bit more battery, and means your unlocked screen stays visible for the whole workout, so flip it off if that's a concern.")
-                    .font(StrandFont.caption)
-                    .foregroundStyle(StrandPalette.textSecondary)
-                    .fixedSize(horizontal: false, vertical: true)
             }
         }
     }
@@ -4326,6 +4420,28 @@ struct StepsCalibrationSheet: View {
         guard let d = inF.date(from: key) else { return key }
         let outF = DateFormatter(); outF.dateFormat = "EEE d MMM"
         return outF.string(from: d)
+    }
+}
+
+private struct TrainingEquipmentSettingsView: View {
+    @State private var selected = TrainingPreferences.availableEquipment
+
+    var body: some View {
+        List {
+            Section {
+                ForEach(TrainingPreferences.knownEquipment, id: \.self) { equipment in
+                    Toggle(TrainingDisplayNames.equipment(equipment), isOn: Binding(
+                        get: { selected.contains(equipment) },
+                        set: { enabled in
+                            if enabled { selected.insert(equipment) } else { selected.remove(equipment) }
+                            TrainingPreferences.setEquipment(selected)
+                        }))
+                }
+            } footer: {
+                Text("Choose the equipment you can use. The exercise library can then show matching exercises. If nothing is selected, every exercise remains available.")
+            }
+        }
+        .navigationTitle(Text("Available equipment"))
     }
 }
 

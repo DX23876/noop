@@ -24,7 +24,7 @@ final class CardioModel: ObservableObject {
             switch self {
             case .quarter: return 120
             case .year:    return 365
-            case .all:     return 4000
+            case .all:     return TrainingHistoryWindow.allDays
             }
         }
         var label: String {

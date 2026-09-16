@@ -6,7 +6,11 @@ let package = Package(
     platforms: [.iOS(.v16), .macOS(.v13)],
     products: [.library(name: "StrandTraining", targets: ["StrandTraining"])],
     targets: [
-        .target(name: "StrandTraining", swiftSettings: [.unsafeFlags(["-O"])]),
+        .target(
+            name: "StrandTraining",
+            // The shipped offline exercise catalogue (MIT data, no media — see BundledExerciseCatalog).
+            resources: [.process("Resources")],
+            swiftSettings: [.unsafeFlags(["-O"])]),
         .testTarget(name: "StrandTrainingTests", dependencies: ["StrandTraining"]),
     ]
 )

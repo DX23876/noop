@@ -204,7 +204,7 @@ extension WhoopStore {
 
     /// Complete strength history across API and offline imports. Exact duplicate sessions are
     /// collapsed for analysis, preferring API data and then the record with more set detail.
-    public func strengthWorkouts(from: Int, to: Int, limit: Int = 2000,
+    public func strengthWorkouts(from: Int, to: Int, limit: Int = 2000, offset: Int = 0,
                                  sources: Set<StrengthDataSource> = Set(StrengthDataSource.allCases)) async throws -> [HevyWorkout] {
         guard !sources.isEmpty else { return [] }
         return try syncRead { db in
@@ -213,12 +213,13 @@ extension WhoopStore {
             var arguments: [DatabaseValueConvertible?] = [from, to]
             arguments.append(contentsOf: sourceValues)
             arguments.append(limit)
+            arguments.append(max(0, offset))
             let heads = try Row.fetchAll(db, sql: """
                 SELECT id, title, routineId, notes, startTs, endTs, updatedAtTs, createdAtTs, source
                 FROM hevyWorkout
                 WHERE startTs >= ? AND startTs <= ? AND source IN (\(sourceMarks))
                 ORDER BY startTs DESC
-                LIMIT ?
+                LIMIT ? OFFSET ?
                 """, arguments: StatementArguments(arguments))
             guard !heads.isEmpty else { return [] }
             let ids = heads.map { $0["id"] as String }

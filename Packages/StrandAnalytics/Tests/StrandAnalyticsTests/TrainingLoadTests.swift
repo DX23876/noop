@@ -7,6 +7,34 @@ import WhoopStore
 /// The defining property is the ORDERING: a load metric that ranks an easy high-rep session above a
 /// heavy top-end one is worse than no metric, because it points training in the wrong direction.
 final class TrainingLoadTests: XCTestCase {
+    func testProvisionalStrengthRingUsesCompleteSessionLoadWindow() {
+        let reading = TrainingLoad.provisionalStrengthRing(
+            sessionLoads: [840, 840, 840], weightedMuscleSets: ["chest": 2])
+
+        XCTAssertEqual(reading?.source, .provisionalSessionLoad)
+        XCTAssertEqual(reading?.band, .veryHigh)
+        XCTAssertEqual(reading?.value, 2_520)
+        XCTAssertEqual(reading?.fraction, 1)
+        XCTAssertFalse(reading?.isLowerBound ?? true)
+    }
+
+    func testMissingOneSessionRatingSwitchesWholeWindowToMuscleSets() {
+        let reading = TrainingLoad.provisionalStrengthRing(
+            sessionLoads: [420, nil, 350],
+            weightedMuscleSets: ["chest": 12, "triceps": 6], hasUnmappedSets: true)
+
+        XCTAssertEqual(reading?.source, .provisionalWeightedSets)
+        XCTAssertEqual(reading?.band, .high)
+        XCTAssertEqual(reading?.value, 12)
+        XCTAssertTrue(reading?.isLowerBound ?? false)
+    }
+
+    func testProvisionalStrengthRingRequiresARealSessionAndPositiveEvidence() {
+        XCTAssertNil(TrainingLoad.provisionalStrengthRing(sessionLoads: [],
+                                                           weightedMuscleSets: ["chest": 20]))
+        XCTAssertNil(TrainingLoad.provisionalStrengthRing(sessionLoads: [nil],
+                                                           weightedMuscleSets: [:]))
+    }
 
     func testRelativeLoadMaturesWithoutHidingTheFirstEightWeeks() throws {
         let immediate = TrainingLoad.relativeLoad(daily: Array(repeating: Optional(10.0), count: 20))

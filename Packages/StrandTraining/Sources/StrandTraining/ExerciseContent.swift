@@ -61,13 +61,21 @@ public enum ExerciseContentLimits {
 public struct ExerciseCatalogArchive: Codable, Equatable, Sendable {
     public var formatVersion: Int
     public var provider: String
+    /// Where the content came from, exactly enough to re-derive it: repository, immutable revision and
+    /// file. Optional, because a wearer-supplied catalogue need not have one.
+    public var sourceRevision: String?
+    /// SHA-256 of the upstream file this catalogue was generated from.
+    public var sourceChecksum: String?
     public var rights: ExerciseContentRights
     public var exercises: [TrainingExercise]
 
     public init(formatVersion: Int = 1, provider: String,
+                sourceRevision: String? = nil, sourceChecksum: String? = nil,
                 rights: ExerciseContentRights, exercises: [TrainingExercise]) {
         self.formatVersion = formatVersion
         self.provider = provider
+        self.sourceRevision = sourceRevision
+        self.sourceChecksum = sourceChecksum
         self.rights = rights
         self.exercises = exercises
     }

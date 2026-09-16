@@ -137,6 +137,50 @@ enum LoadScale {
 
 // MARK: - The instrument
 
+/// Rendering-only reading for one arc. A provisional amount can occupy the same instrument without
+/// being promoted to `LaneStatus`, which is reserved for personal comparison and adaptation logic.
+struct LoadRingReading: Equatable {
+    let fraction: Double
+    let color: Color
+    let label: String
+    let source: LoadRingSource
+    let ratio: Double?
+    let ratioBand: TrainingLoadBand?
+    let isProvisional: Bool
+
+    init(_ status: LaneStatus) {
+        fraction = LoadScale.fraction(for: status.ratio)
+        color = status.status.color
+        label = status.status.label
+        source = .personalRelativeLoad
+        ratio = status.ratio
+        ratioBand = status.band
+        isProvisional = false
+    }
+
+    init(_ reading: ProvisionalStrengthRingReading) {
+        fraction = reading.fraction
+        source = reading.source
+        ratio = nil
+        ratioBand = nil
+        isProvisional = true
+        switch reading.band {
+        case .low:
+            label = String(localized: "Low")
+            color = StrandPalette.restColor
+        case .moderate:
+            label = String(localized: "Moderate")
+            color = StrandPalette.statusPositive
+        case .high:
+            label = String(localized: "High")
+            color = StrandPalette.metricCyan
+        case .veryHigh:
+            label = String(localized: "Very high")
+            color = StrandPalette.metricAmber
+        }
+    }
+}
+
 /// Both lanes on one 240° scale: strength on the outer arc, cardio on the inner one.
 ///
 /// Sharing the scale is the point — "further round" means the same thing on both arcs, so the two lanes
@@ -149,8 +193,8 @@ enum LoadScale {
 /// what maps an arc to a lane without a legend. Arc length shows the uncoupled 7-day comparison; colour
 /// comes from that lane's current personal classification rather than fixed population thresholds.
 struct LoadDualRing: View {
-    let strength: LaneStatus?
-    let cardio: LaneStatus?
+    let strength: LoadRingReading?
+    let cardio: LoadRingReading?
     var diameter: CGFloat = 252
 
     @State private var shownStrength: Double = 0
@@ -185,9 +229,9 @@ struct LoadDualRing: View {
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text("Training Load"))
         .accessibilityValue(Text(accessibilityValue))
-        .task(id: "\(strength?.ratio ?? -1)|\(cardio?.ratio ?? -1)") {
-            let outer = strength.map { LoadScale.fraction(for: $0.ratio) } ?? 0
-            let inner = cardio.map { LoadScale.fraction(for: $0.ratio) } ?? 0
+        .task(id: "\(strength?.fraction ?? -1)|\(cardio?.fraction ?? -1)") {
+            let outer = strength?.fraction ?? 0
+            let inner = cardio?.fraction ?? 0
             if reduceMotion {
                 shownStrength = outer
                 shownCardio = inner
@@ -206,15 +250,20 @@ struct LoadDualRing: View {
     private var accessibilityValue: String {
         var parts: [String] = []
         if let strength {
-            parts.append("\(String(localized: "Strength")): \(strength.status.label), "
-                         + LoadScale.ratioText(strength.ratio, band: strength.band))
+            parts.append(accessibilityPart(title: String(localized: "Strength"), lane: strength))
         }
         if let cardio {
-            parts.append("\(String(localized: "Cardio")): \(cardio.status.label), "
-                         + LoadScale.ratioText(cardio.ratio, band: cardio.band))
+            parts.append(accessibilityPart(title: String(localized: "Cardio"), lane: cardio))
         }
         return parts.isEmpty ? String(localized: "Needs two weeks of measured history")
                              : parts.joined(separator: ", ")
+    }
+
+    private func accessibilityPart(title: String, lane: LoadRingReading) -> String {
+        if let ratio = lane.ratio, let band = lane.ratioBand {
+            return "\(title): \(lane.label), \(LoadScale.ratioText(ratio, band: band))"
+        }
+        return "\(title): \(lane.label), \(String(localized: "provisional seven-day amount"))"
     }
 
     // MARK: Layers
@@ -225,12 +274,12 @@ struct LoadDualRing: View {
         ZStack {
             if let strength {
                 Circle().fill(RadialGradient(
-                    colors: [strength.status.color.opacity(0.26), strength.status.color.opacity(0)],
+                    colors: [strength.color.opacity(0.26), strength.color.opacity(0)],
                     center: .center, startRadius: 0, endRadius: diameter * 0.38))
             }
             if let cardio {
                 Circle().fill(RadialGradient(
-                    colors: [cardio.status.color.opacity(0.22), cardio.status.color.opacity(0)],
+                    colors: [cardio.color.opacity(0.22), cardio.color.opacity(0)],
                     center: .center, startRadius: 0, endRadius: diameter * 0.28))
             }
         }
@@ -245,7 +294,7 @@ struct LoadDualRing: View {
         }
     }
 
-    private func laneArcs(lane: LaneStatus?, fraction: Double,
+    private func laneArcs(lane: LoadRingReading?, fraction: Double,
                           width: CGFloat, padding: CGFloat) -> some View {
         ZStack {
             arc(from: 0, to: 1, width: width)
@@ -254,15 +303,15 @@ struct LoadDualRing: View {
                                            dash: lane == nil ? [2, 5] : []))
             if let lane {
                 arc(from: 0, to: 1, width: width)
-                    .stroke(lane.status.color.opacity(0.28),
+                    .stroke(lane.color.opacity(0.28),
                             style: StrokeStyle(lineWidth: width, lineCap: .round))
                 arc(from: 0, to: fraction, width: width)
-                    .stroke(lane.status.color,
+                    .stroke(lane.color,
                             style: StrokeStyle(lineWidth: width, lineCap: .round))
                     .blur(radius: 8)
                     .opacity(0.7)
                 arc(from: 0, to: fraction, width: width)
-                    .stroke(lane.status.color,
+                    .stroke(lane.color,
                             style: StrokeStyle(lineWidth: width, lineCap: .round))
             }
         }
@@ -273,11 +322,11 @@ struct LoadDualRing: View {
     private var knobs: some View {
         ZStack {
             if let strength {
-                knob(color: strength.status.color, symbol: "figure.strengthtraining.traditional",
+                knob(color: strength.color, symbol: "figure.strengthtraining.traditional",
                      fraction: shownStrength, radius: outerRadius, size: outerWidth + 6)
             }
             if let cardio {
-                knob(color: cardio.status.color, symbol: "heart.fill",
+                knob(color: cardio.color, symbol: "heart.fill",
                      fraction: shownCardio, radius: innerRadius, size: innerWidth + 6)
             }
         }
@@ -314,16 +363,16 @@ struct LoadDualRing: View {
         .offset(y: -diameter * 0.04)
     }
 
-    private func centreRow(symbol: String, lane: LaneStatus?) -> some View {
+    private func centreRow(symbol: String, lane: LoadRingReading?) -> some View {
         // No trailing spacer: each row sizes to its own content so the pair is CENTRED in the opening
         // rather than pinned to its left edge.
         HStack(spacing: 6) {
             Image(systemName: symbol)
                 .font(StrandFont.rounded(13, weight: .bold))
-                .foregroundStyle(lane?.status.color ?? StrandPalette.textTertiary)
+                .foregroundStyle(lane?.color ?? StrandPalette.textTertiary)
                 .frame(width: 16)
                 .trainingSymbolBounce(trigger: bounce)
-            Text(lane?.status.label ?? "—")
+            Text(lane?.label ?? "—")
                 .font(StrandFont.rounded(15, weight: .bold))
                 .foregroundStyle(StrandPalette.textPrimary)
                 .lineLimit(1)

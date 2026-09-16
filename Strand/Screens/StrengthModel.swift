@@ -2,6 +2,7 @@ import Foundation
 import SwiftUI
 import WhoopStore
 import StrandAnalytics
+import StrandTraining
 
 // MARK: - Everything the Strength screen knows, and where it is worked out
 //
@@ -37,7 +38,7 @@ final class StrengthModel: ObservableObject {
             switch self {
             case .quarter: return 120
             case .year:    return 365
-            case .all:     return 4000
+            case .all:     return ResolvedStrengthHistory.allHistoryDays
             }
         }
         var label: String {
@@ -57,7 +58,11 @@ final class StrengthModel: ObservableObject {
     /// Every session in the window, newest first.
     @Published private(set) var workouts: [HevyWorkout] = []
     @Published private(set) var templates: [String: HevyExerciseTemplate] = [:]
+    @Published private(set) var resolvedHistory = ResolvedStrengthHistory(
+        sessions: [], workouts: [], templates: [:])
     @Published private(set) var summaries: [StrengthSessionSummary] = []
+    @Published private(set) var overview = StrengthOverview.calculate(
+        workouts: [], templates: [:], from: 0, to: 1)
     /// One row per canonical strength session — the envelope the strap's heart rate lands on, filled
     /// read-side by the repository from the trace. The "Hevy says what, WHOOP says how the body
     /// answered" half, now also covering a session whose envelope came from Apple Health.
@@ -155,17 +160,16 @@ final class StrengthModel: ObservableObject {
     func load(repo: Repository) async {
         guard let store = await repo.storeHandle() else { loaded = true; return }
         let now = Int(Date().timeIntervalSince1970)
-        let from = now - range.days * 86_400
         let offset = tzOffset
+        let historyDays = range.days
+        let firstWeekday = TrainingPreferences.firstWeekday
 
-        let importedSessions = (try? await store.strengthWorkouts(from: from, to: now + 86_400)) ?? []
-        let nativeWorkouts = (try? await store.nativeWorkouts(from: from, to: now + 86_400)) ?? []
-        let nativeExercises = (try? await store.trainingExercises()) ?? []
-        let native = NativeTrainingProjection.strength(workouts: nativeWorkouts, exercises: nativeExercises)
-        let sessions = (importedSessions + native.workouts).sorted { $0.startTs > $1.startTs }
-        let fused = await repo.trainingSessions(days: range.days)
-        var catalogue = (try? await store.strengthExerciseTemplates()) ?? [:]
-        catalogue.merge(native.templates) { imported, _ in imported }
+        async let historyRead = repo.resolvedStrengthHistory(days: historyDays)
+        async let fusedRead = repo.trainingSessions(days: historyDays)
+        let history = await historyRead
+        let sessions = history.workouts
+        let catalogue = history.templates
+        let fused = await fusedRead
         let observations = ((try? await store.muscleRecoveryFeedback()) ?? []).compactMap { row in
             MuscleRecovery.Feeling(rawValue: row.feeling).map {
                 MuscleRecovery.Observation(group: row.muscleGroup, ts: row.ts, feeling: $0)
@@ -173,7 +177,7 @@ final class StrengthModel: ObservableObject {
         }
         // Weigh-ins over the same window plus the gap the timeline is allowed to bridge, so a session at
         // the very start of the window can still be priced by a measurement just before it.
-        let weighInDays = range.days + BodyweightTimeline.maximumGapDays
+        let weighInDays = historyDays + BodyweightTimeline.maximumGapDays
         let weighIns = await repo.weightDailyValues(days: weighInDays)
             .map { (day: $0.day, kg: $0.value) }
 
@@ -188,6 +192,10 @@ final class StrengthModel: ObservableObject {
             }
             return Prepared(
                 index: index,
+                overview: StrengthOverview.calculate(
+                    workouts: sessions, templates: catalogue,
+                    from: now - historyDays * 86_400, to: now,
+                    tzOffsetSeconds: offset, firstWeekday: firstWeekday),
                 summaries: sessions.map { StrengthSession.summarize($0, templates: catalogue) },
                 recentSets: StrengthSession.recentSetsByMuscle(sessions, templates: catalogue,
                                                                days: 7, now: now),
@@ -200,8 +208,7 @@ final class StrengthModel: ObservableObject {
                 ratedShare: index.total().ratedShare,
                 choices: StrengthSession.exerciseFrequency(sessions)
                     .map { ExerciseChoice(templateId: $0.templateId, sessions: $0.sessions) },
-                unmapped: Array(Set(sessions.flatMap(\.exercises)
-                    .filter { $0.templateId == nil }.map(\.title))).sorted())
+                unmapped: history.unmappedExerciseTitles)
         }.value
 
         index = prepared.index
@@ -209,6 +216,7 @@ final class StrengthModel: ObservableObject {
         weekCache.removeAll()
 
         workouts = sessions
+        resolvedHistory = history
         genericSessions = fused.sessions.compactMap { session -> GenericStrengthSession? in
             guard session.kind == .strength else { return nil }
             let overlapping = sessions.filter { detail in
@@ -224,6 +232,7 @@ final class StrengthModel: ObservableObject {
         }
         templates = catalogue
         summaries = prepared.summaries
+        overview = prepared.overview
         unmappedExercises = prepared.unmapped
         recentSets = prepared.recentSets
         lastWorked = prepared.lastWorked
@@ -282,6 +291,7 @@ final class StrengthModel: ObservableObject {
 
     private struct Prepared: Sendable {
         let index: MuscleStimulus.SessionStimulusIndex
+        let overview: StrengthOverview
         let summaries: [StrengthSessionSummary]
         let recentSets: [HevyMuscleGroup: Int]
         let lastWorked: [HevyMuscleGroup: (day: String, startTs: Int, exercise: String)]
@@ -456,6 +466,12 @@ final class StrengthModel: ObservableObject {
     ///
     /// Computed on demand rather than for every session at load: one session is a handful of sets, and
     /// the detail sheet is opened for one at a time.
+    /// Where a session in this screen's list came from. Unknown ids fall back to the Hevy lane, which is
+    /// the only way a summary can exist without its workout still being loaded.
+    func source(for workoutId: String) -> StrengthDataSource {
+        workouts.first { $0.id == workoutId }?.source ?? .hevyAPI
+    }
+
     func breakdown(for workoutId: String) -> StrengthSessionBreakdown? {
         guard let workout = workouts.first(where: { $0.id == workoutId }) else { return nil }
         let offset = tzOffset

@@ -43,6 +43,10 @@ final class SettingsSearchCatalogTests: XCTestCase {
         XCTAssertTrue(SettingsSearchCatalog.section(.backup, matches: "restore"))
         XCTAssertTrue(SettingsSearchCatalog.section(.experimentalWhoop5, matches: "ecg"))
         XCTAssertTrue(SettingsSearchCatalog.section(.features, matches: "hydration"))
+        XCTAssertTrue(SettingsSearchCatalog.section(.training, matches: "rest timer"))
+        XCTAssertTrue(SettingsSearchCatalog.section(.training, matches: "keep screen on"))
+        XCTAssertTrue(SettingsSearchCatalog.section(.training, matches: "exercise media"))
+        XCTAssertTrue(SettingsSearchCatalog.section(.training, matches: "week start"))
     }
 
     func testAQueryNarrowsRatherThanReturningTheWholeScreen() {

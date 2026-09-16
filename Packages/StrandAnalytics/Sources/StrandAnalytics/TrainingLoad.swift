@@ -127,6 +127,45 @@ public struct RelativeLoadReading: Equatable, Sendable {
     public let personalRange: PersonalLoadRange?
 }
 
+/// The four deliberately broad bands used only while a personal strength baseline is unavailable.
+/// They describe the amount logged in the last seven days, not adaptation, safety or injury risk.
+public enum ProvisionalStrengthLoadBand: String, Equatable, Sendable, Codable {
+    case low
+    case moderate
+    case high
+    case veryHigh
+}
+
+/// What placed the strength marker on the Training Load ring.
+public enum LoadRingSource: String, Equatable, Sendable, Codable {
+    case personalRelativeLoad
+    case provisionalSessionLoad
+    case provisionalWeightedSets
+}
+
+/// A pre-baseline strength-ring position. This type intentionally cannot become a `LaneStatus`:
+/// callers therefore cannot accidentally feed a population convention into personal comparisons,
+/// adaptation or sustained-overload logic.
+public struct ProvisionalStrengthRingReading: Equatable, Sendable {
+    public let band: ProvisionalStrengthLoadBand
+    /// Position on the visual ring, from empty to full.
+    public let fraction: Double
+    public let source: LoadRingSource
+    /// The seven-day amount in the source's own unit (AU or weighted muscle sets).
+    public let value: Double
+    /// True when some working sets had no reliable detailed muscle assignment.
+    public let isLowerBound: Bool
+
+    public init(band: ProvisionalStrengthLoadBand, fraction: Double, source: LoadRingSource,
+                value: Double, isLowerBound: Bool = false) {
+        self.band = band
+        self.fraction = min(1, max(0, fraction))
+        self.source = source
+        self.value = max(0, value)
+        self.isLowerBound = isLowerBound
+    }
+}
+
 public enum TrainingLoad {
 
     /// Recent window, in days.
@@ -155,6 +194,41 @@ public enum TrainingLoad {
     /// This is the continuous RPE curve at 7.5 (0.6), rather than the muscle-map fallback of 0.75,
     /// which would assume an unreported set was close to RPE 8.5.
     public static let neutralUnratedWeight = 0.6
+
+    /// Fills only the strength ring before personal comparison is available.
+    ///
+    /// Session Load is preferred only when EVERY canonical strength session in the seven-day window
+    /// has a rating. If one is missing, the whole window switches to the maximum reliably mapped
+    /// muscle stimulus. The two units are never added or averaged.
+    public static func provisionalStrengthRing(sessionLoads: [Double?],
+                                               weightedMuscleSets: [String: Double],
+                                               hasUnmappedSets: Bool = false)
+    -> ProvisionalStrengthRingReading? {
+        guard !sessionLoads.isEmpty else { return nil }
+        if sessionLoads.allSatisfy({ $0 != nil }) {
+            let total = sessionLoads.compactMap { $0 }.reduce(0, +)
+            guard total > 0 else { return nil }
+            return provisionalReading(value: total, thresholds: [300, 900, 1_500], cap: 2_400,
+                                      source: .provisionalSessionLoad, isLowerBound: false)
+        }
+        guard let maximum = weightedMuscleSets.values.max(), maximum > 0 else { return nil }
+        return provisionalReading(value: maximum, thresholds: [5, 10, 20], cap: 30,
+                                  source: .provisionalWeightedSets,
+                                  isLowerBound: hasUnmappedSets)
+    }
+
+    private static func provisionalReading(value: Double, thresholds: [Double], cap: Double,
+                                           source: LoadRingSource, isLowerBound: Bool)
+    -> ProvisionalStrengthRingReading {
+        let band: ProvisionalStrengthLoadBand
+        if value < thresholds[0] { band = .low }
+        else if value < thresholds[1] { band = .moderate }
+        else if value < thresholds[2] { band = .high }
+        else { band = .veryHigh }
+        return ProvisionalStrengthRingReading(band: band, fraction: min(1, value / cap),
+                                              source: source, value: value,
+                                              isLowerBound: isLowerBound)
+    }
 
     /// Effort-weighted working sets.
     ///

@@ -155,13 +155,14 @@ struct CoachView: View {
             context.chargeBaseline = recent.reduce(0, +) / Double(recent.count)
         }
         context.hevyConnected = HevyCredentials.isConnected
-        if context.hevyConnected, let store = await coach.repo.storeHandle() {
-            let dayStart = Int(Calendar.current.startOfDay(for: Date()).timeIntervalSince1970)
-            let sessions = (try? await store.hevyWorkouts(from: dayStart,
-                                                          to: dayStart + 86_400, limit: 10)) ?? []
-            context.strengthToday = !sessions.isEmpty
-            if !sessions.isEmpty { context.trainedToday = true }
-        }
+        // Whether strength was trained today is a fact about the wearer, not about Hevy. The canonical
+        // read model answers it for a native log, an import or both, and counts one session once — so a
+        // wearer who logs in NOOP no longer reads as not having trained.
+        let dayStart = Int(Calendar.current.startOfDay(for: Date()).timeIntervalSince1970)
+        let strengthToday = await coach.repo.resolvedStrengthHistory(days: 2).workouts
+            .contains { $0.startTs >= dayStart && $0.startTs < dayStart + 86_400 }
+        context.strengthToday = strengthToday
+        if strengthToday { context.trainedToday = true }
         context.hasPendingDraft = !goalSetupStore.pending.isEmpty || !hevyRoutineStore.pending.isEmpty
             || !hevyWorkoutStore.pending.isEmpty
         promptContext = context

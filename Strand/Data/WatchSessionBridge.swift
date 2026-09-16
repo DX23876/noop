@@ -39,6 +39,7 @@ final class WatchSessionBridge: NSObject, ObservableObject {
     @Published private(set) var isWatchReachable = false
 
     private let session: WCSession?
+    private var strengthWorkoutState: StrengthWorkoutCompanionState?
 
     override init() {
         // WCSession is only meaningful where the framework is supported (a real device, not every
@@ -56,6 +57,18 @@ final class WatchSessionBridge: NSObject, ObservableObject {
         if session.activationState != .activated {
             session.activate()
         }
+    }
+
+    func sendStrengthWorkoutState(_ state: StrengthWorkoutCompanionState?) {
+        strengthWorkoutState = state
+        guard let session, session.activationState == .activated else { return }
+        var context = session.applicationContext
+        if let state, let data = try? JSONEncoder().encode(state) {
+            context[StrengthWorkoutCompanionState.contextKey] = data
+        } else {
+            context.removeValue(forKey: StrengthWorkoutCompanionState.contextKey)
+        }
+        try? session.updateApplicationContext(context)
     }
 
     // MARK: - Sending
@@ -220,7 +233,9 @@ final class WatchSessionBridge: NSObject, ObservableObject {
             let data = try JSONEncoder().encode(snap)
             // updateApplicationContext replaces any previous context, so the watch always gets exactly
             // the latest snapshot and never a queued backlog.
-            try session.updateApplicationContext([WatchScoreSnapshot.contextKey: data])
+            var context = session.applicationContext
+            context[WatchScoreSnapshot.contextKey] = data
+            try session.updateApplicationContext(context)
         } catch {
             // A failed context update is non-fatal: the app-group mirror above still carries the latest
             // value, and the next dashboard refresh will try again.
@@ -259,16 +274,38 @@ extension WatchSessionBridge: WCSessionDelegate {
     nonisolated func session(_ session: WCSession,
                              didReceiveMessage message: [String: Any],
                              replyHandler: @escaping ([String: Any]) -> Void) {
+        if let data = message[StrengthWorkoutCompanionState.commandKey] as? Data,
+           let command = try? JSONDecoder().decode(StrengthWorkoutCompanionCommand.self, from: data) {
+            Task { @MainActor in
+                AppModel.shared?.strengthWorkoutWatchCommandHandler?(command)
+                replyHandler(["accepted": true])
+            }
+            return
+        }
+        if let data = message[StrengthWorkoutCompanionTelemetry.messageKey] as? Data,
+           let telemetry = try? JSONDecoder().decode(StrengthWorkoutCompanionTelemetry.self, from: data) {
+            Task { @MainActor in
+                AppModel.shared?.strengthWorkoutWatchTelemetryHandler?(telemetry)
+                replyHandler(["accepted": true])
+            }
+            return
+        }
         guard message[WatchScoreSnapshot.requestLatestKey] != nil else {
             replyHandler([:])
             return
         }
         // Read the last value we mirrored into the shared group and hand it straight back. Done off the
         // main actor since the request arrives on WC's queue; the app-group read is process-safe.
+        var reply: [String: Any] = [:]
         if let snap = WatchScoreSnapshot.load(), let data = try? JSONEncoder().encode(snap) {
-            replyHandler([WatchScoreSnapshot.contextKey: data])
-        } else {
-            replyHandler([:])
+            reply[WatchScoreSnapshot.contextKey] = data
+        }
+        Task { @MainActor in
+            if let state = self.strengthWorkoutState,
+               let data = try? JSONEncoder().encode(state) {
+                reply[StrengthWorkoutCompanionState.contextKey] = data
+            }
+            replyHandler(reply)
         }
     }
 }

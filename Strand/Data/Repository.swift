@@ -844,12 +844,19 @@ final class Repository: ObservableObject {
 
     /// Seeds only NOOP-owned exercise metadata. Routines remain an explicit user choice so opening
     /// Training cannot silently add a programme to someone's schedule.
+    /// Seeds the shipped catalogue once per content version. 1,300 definitions are not worth an upsert
+    /// on every launch, and re-seeding on a version bump is what lets a corrected mapping reach a wearer
+    /// who already holds the old rows. A wearer's own exercises are never touched: their ids differ.
     func prepareNativeTraining() async {
         guard let store = await ensureStore() else { return }
-        try? await store.upsertTrainingExercises(TrainingStarterCatalog.exercises,
-                                                 nowTs: Int(Date().timeIntervalSince1970))
-        _ = try? await store.pruneWorkoutDrafts(
-            olderThan: Int(Date().timeIntervalSince1970) - 7 * 86_400)
+        let now = Int(Date().timeIntervalSince1970)
+        let seededVersionKey = "training.catalog.seededContentVersion"
+        if UserDefaults.standard.integer(forKey: seededVersionKey) < BundledExerciseCatalog.contentVersion {
+            try? await store.upsertTrainingExercises(
+                TrainingStarterCatalog.exercises + BundledExerciseCatalog.exercises, nowTs: now)
+            UserDefaults.standard.set(BundledExerciseCatalog.contentVersion, forKey: seededVersionKey)
+        }
+        _ = try? await store.pruneWorkoutDrafts(olderThan: now - 7 * 86_400)
     }
 
     func nativeTrainingExercises() async -> [TrainingExercise] {
@@ -936,6 +943,13 @@ final class Repository: ObservableObject {
     func saveNativeWorkoutDraft(_ draft: WorkoutDraft) async throws {
         guard let store = await ensureStore() else { throw RepositoryTrainingError.storeUnavailable }
         try await store.saveWorkoutDraft(draft)
+    }
+
+    /// Discards an abandoned draft. Nothing is written to history: a workout the wearer threw away is
+    /// not a workout, and the strap's own recorded samples are untouched either way.
+    func discardNativeWorkoutDraft(_ draft: WorkoutDraft) async throws {
+        guard let store = await ensureStore() else { throw RepositoryTrainingError.storeUnavailable }
+        try await store.deleteWorkoutDraft(id: draft.id)
     }
 
     func finishNativeWorkout(_ workout: NativeWorkout) async throws {
@@ -3321,28 +3335,58 @@ final class Repository: ObservableObject {
         // dedup below only collapses strap-vs-Apple twins, not a row present in two strap namespaces).
         var rows: [WorkoutRow] = []
         let rawIds = rawPhysiologyReadIds(store: store)
-        for id in rawIds { rows += (try? await store.workouts(deviceId: id, from: lo, to: hi, limit: 5000)) ?? [] }
+        for id in rawIds { rows += await pagedWorkoutRows(store: store, deviceId: id, from: lo, to: hi) }
         for id in rawIds.map({ $0.hasSuffix("-noop") ? $0 : $0 + "-noop" }) {
-            rows += (try? await store.workouts(deviceId: id, from: lo, to: hi, limit: 5000)) ?? []
+            rows += await pagedWorkoutRows(store: store, deviceId: id, from: lo, to: hi)
         }
-        rows += (try? await store.workouts(deviceId: "apple-health", from: lo, to: hi, limit: 5000)) ?? []
+        rows += await pagedWorkoutRows(store: store, deviceId: "apple-health", from: lo, to: hi)
         // File-imported lifting sessions (Hevy / Liftosaur exports) live under "lifting". API-synced
         // Hevy sessions deliberately use their own source so an export and its API twin can be fused
         // instead of one silently overwriting the other.
-        rows += (try? await store.workouts(deviceId: "lifting", from: lo, to: hi, limit: 5000)) ?? []
-        rows += (try? await store.workouts(deviceId: "hevy", from: lo, to: hi, limit: 5000)) ?? []
+        rows += await pagedWorkoutRows(store: store, deviceId: "lifting", from: lo, to: hi)
+        rows += await pagedWorkoutRows(store: store, deviceId: "hevy", from: lo, to: hi)
         // Native sessions remain normalized in the training tables. Their read-time envelope makes
         // them visible to Workouts and session fusion without persisting a duplicate workout row.
-        let native = (try? await store.nativeWorkouts(from: lo, to: hi, limit: 5000)) ?? []
+        let native = await pagedNativeWorkoutRows(store: store, from: lo, to: hi)
         rows += native.map(NativeTrainingProjection.workoutRow)
         // #29: imported activity FILES (FIT / GPX / TCX) live under their own "activity-file" source — read
         // them too, or a successful file import never appears in the Workouts list (Data Sources counts it,
         // the load didn't). HR is reconciled from the strap trace at the end like every other row.
-        rows += (try? await store.workouts(deviceId: "activity-file", from: lo, to: hi, limit: 5000)) ?? []
+        rows += await pagedWorkoutRows(store: store, deviceId: "activity-file", from: lo, to: hi)
         rows = Self.dedupWorkoutsByNaturalKey(rows)
         let spans = WorkoutSource.parseDismissedSpans(dismissedDetectedSpans)
         let filtered = rows.filter { !WorkoutSource.isDismissed($0, spans: spans) }
         return filtered.sorted { $0.startTs > $1.startTs }
+    }
+
+    private func pagedWorkoutRows(store: WhoopStore, deviceId: String,
+                                  from: Int, to: Int) async -> [WorkoutRow] {
+        let pageSize = 500
+        var offset = 0
+        var values: [WorkoutRow] = []
+        while true {
+            let page = (try? await store.workouts(deviceId: deviceId, from: from, to: to,
+                                                  limit: pageSize, offset: offset)) ?? []
+            values.append(contentsOf: page)
+            guard page.count == pageSize else { break }
+            offset += pageSize
+        }
+        return values
+    }
+
+    private func pagedNativeWorkoutRows(store: WhoopStore, from: Int,
+                                        to: Int) async -> [NativeWorkout] {
+        let pageSize = 500
+        var offset = 0
+        var values: [NativeWorkout] = []
+        while true {
+            let page = (try? await store.nativeWorkouts(from: from, to: to,
+                                                        limit: pageSize, offset: offset)) ?? []
+            values.append(contentsOf: page)
+            guard page.count == pageSize else { break }
+            offset += pageSize
+        }
+        return values
     }
 
     /// DISPLAY-ONLY: reconcile each workout's shown Avg/Max HR with the strap trace that actually drives

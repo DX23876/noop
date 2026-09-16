@@ -7,6 +7,9 @@ public enum StrengthDataSource: String, Codable, Sendable, CaseIterable {
     case hevyAPI = "hevy_api"
     case hevyCSV = "hevy_csv"
     case liftosaur
+    case fitNotes = "fitnotes"
+    case strong
+    case imported
     case manual
 }
 
@@ -48,6 +51,8 @@ public struct StrengthExerciseMapping: Equatable, Codable, Sendable {
 /// softer, so dropping them would understate the session.
 public enum HevySetType: String, Codable, Sendable, CaseIterable {
     case normal, warmup, dropset, failure
+    case restPause = "rest_pause"
+    case amrap
     /// A type this build does not know. Counted AS WORK, deliberately: the only type that must not
     /// count is `warmup`, and guessing that an unrecognised label means "not real work" would silently
     /// shrink a session. An unknown type is far more likely to be a new kind of working set.
@@ -112,9 +117,15 @@ public struct HevySet: Equatable, Codable, Sendable {
     public let rpe: Double?
     /// Hevy's catch-all numeric slot (floors/steps on stair machines today).
     public let customMetric: Double?
+    /// Optional native relationship metadata. Imported providers leave these nil. The analytics layer
+    /// can identify technique segments without treating them as unrelated ordinary sets.
+    public let clusterId: String?
+    public let parentSetId: String?
+    public let segmentIndex: Int?
 
     public init(index: Int, type: HevySetType, weightKg: Double?, reps: Int?,
-                distanceM: Double?, durationS: Double?, rpe: Double?, customMetric: Double?) {
+                distanceM: Double?, durationS: Double?, rpe: Double?, customMetric: Double?,
+                clusterId: String? = nil, parentSetId: String? = nil, segmentIndex: Int? = nil) {
         self.index = index
         self.type = type
         self.weightKg = weightKg
@@ -123,7 +134,12 @@ public struct HevySet: Equatable, Codable, Sendable {
         self.durationS = durationS
         self.rpe = rpe
         self.customMetric = customMetric
+        self.clusterId = clusterId
+        self.parentSetId = parentSetId
+        self.segmentIndex = segmentIndex
     }
+
+    public var isTechniqueSegment: Bool { parentSetId != nil }
 
     /// The set's contribution to volume load, in kilogram-reps, or nil when it has no weight×reps to
     /// contribute (a warmup, a bodyweight set, a timed hold). Nil rather than 0 so a caller can tell

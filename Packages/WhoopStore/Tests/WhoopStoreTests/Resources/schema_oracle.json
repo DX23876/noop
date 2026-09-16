@@ -63,7 +63,12 @@
   "v59-reattribute-archived-strap-samples",
   "v60-training-session-fusion",
   "v61-native-training",
-  "v62-training-session-rating"
+  "v62-training-session-rating",
+  "v63-training-exercise-anatomy-alias",
+  "v64-complete-strength-workout-domain",
+  "v65-strength-physiology-lifecycle",
+  "v66-strength-workout-summary-pauses",
+  "v67-training-exercise-canonical-identity"
  ],
  "divergenceReasons": {
   "android-orphan-synced-column": "REAL COLUMN DRIFT: `synced` exists on Android only. GRDB's v10 note is explicit that stepSample gets no `synced` column ('unused; see StreamStore'), and v12's ppgHrSample never had one either; the Room entities copied the flag from the older per-second entities. Nothing reads it on Android — the per-row upload flag belongs to an upload path that does not exist there — so it is dead width, not divergent data. Removing it needs a Room table rebuild.",
@@ -3065,6 +3070,104 @@
    ],
    "indices": []
   },
+  "trainingExerciseAnatomyAlias": {
+   "platform": "ios_only",
+   "reason": "Compact user corrections and provider identities for the reviewed detailed exercise-anatomy catalogue (GRDB v63). This Apple-only checkout has no Room twin.",
+   "columns": [
+    {
+     "name": "key",
+     "affinity": "TEXT",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "source",
+     "affinity": "TEXT",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "sourceExerciseId",
+     "affinity": "TEXT",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "normalizedTitle",
+     "affinity": "TEXT",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "equipmentKey",
+     "affinity": "TEXT",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "canonicalExerciseId",
+     "affinity": "TEXT",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "primaryMuscleIdsJSON",
+     "affinity": "TEXT",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "secondaryMuscleIdsJSON",
+     "affinity": "TEXT",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "stabilizerMuscleIdsJSON",
+     "affinity": "TEXT",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "origin",
+     "affinity": "TEXT",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "confidence",
+     "affinity": "TEXT",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "updatedAtTs",
+     "affinity": "INTEGER",
+     "notNull": true,
+     "default": null
+    }
+   ],
+   "primaryKey": [
+    "key"
+   ],
+   "indices": [
+    {
+     "name": "idx_trainingExerciseAnatomyAlias_provider",
+     "unique": false,
+     "columns": [
+      "source",
+      "sourceExerciseId"
+     ]
+    },
+    {
+     "name": "idx_trainingExerciseAnatomyAlias_title",
+     "unique": false,
+     "columns": [
+      "normalizedTitle"
+     ]
+    }
+   ]
+  },
   "trainingExerciseDefinition": {
    "platform": "ios_only",
    "reason": "Native source-neutral training plans, exercise definitions, compact completed sets, schedules, and one transient workout draft (GRDB v61). This Apple-only checkout has no Room twin.",
@@ -3140,12 +3243,49 @@
      "affinity": "INTEGER",
      "notNull": true,
      "default": null
+    },
+    {
+     "name": "canonicalId",
+     "affinity": "TEXT",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "aliasesJSON",
+     "affinity": "TEXT",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "contentVersion",
+     "affinity": "INTEGER",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "attribution",
+     "affinity": "TEXT",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "loadSemantics",
+     "affinity": "TEXT",
+     "notNull": false,
+     "default": null
     }
    ],
    "primaryKey": [
     "id"
    ],
    "indices": [
+    {
+     "name": "idx_trainingExerciseDefinition_canonical",
+     "unique": false,
+     "columns": [
+      "canonicalId"
+     ]
+    },
     {
      "name": "idx_trainingExerciseDefinition_source",
      "unique": false,
@@ -3273,6 +3413,18 @@
      "affinity": "TEXT",
      "notNull": false,
      "default": null
+    },
+    {
+     "name": "warmupRestSeconds",
+     "affinity": "INTEGER",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "loadSemanticsJSON",
+     "affinity": "TEXT",
+     "notNull": false,
+     "default": null
     }
    ],
    "primaryKey": [
@@ -3350,6 +3502,12 @@
     {
      "name": "targetDistanceM",
      "affinity": "REAL",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "intensifierConfigJSON",
+     "affinity": "TEXT",
      "notNull": false,
      "default": null
     }
@@ -3431,12 +3589,61 @@
      "affinity": "TEXT",
      "notNull": true,
      "default": null
+    },
+    {
+     "name": "sessionRPEOrigin",
+     "affinity": "TEXT",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "trainingSessionId",
+     "affinity": "TEXT",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "physiologyProvider",
+     "affinity": "TEXT",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "physiologyComponentKey",
+     "affinity": "TEXT",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "hrCoverage",
+     "affinity": "REAL",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "lifecycleVersion",
+     "affinity": "INTEGER",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "pauseIntervalsJSON",
+     "affinity": "TEXT",
+     "notNull": false,
+     "default": null
     }
    ],
    "primaryKey": [
     "id"
    ],
    "indices": [
+    {
+     "name": "idx_trainingWorkoutNative_session",
+     "unique": true,
+     "columns": [
+      "trainingSessionId"
+     ]
+    },
     {
      "name": "idx_trainingWorkoutNative_source_started",
      "unique": false,
@@ -3508,6 +3715,18 @@
     },
     {
      "name": "note",
+     "affinity": "TEXT",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "warmupRestSeconds",
+     "affinity": "INTEGER",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "equipmentSnapshotJSON",
      "affinity": "TEXT",
      "notNull": false,
      "default": null
@@ -3621,6 +3840,30 @@
      "name": "isCompleted",
      "affinity": "NUMERIC",
      "notNull": true,
+     "default": null
+    },
+    {
+     "name": "targetDurationS",
+     "affinity": "INTEGER",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "clusterId",
+     "affinity": "TEXT",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "parentSetId",
+     "affinity": "TEXT",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "segmentIndex",
+     "affinity": "INTEGER",
+     "notNull": false,
      "default": null
     }
    ],

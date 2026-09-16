@@ -7,16 +7,19 @@ public struct ProgressionSession: Codable, Equatable, Sendable {
     public let durationS: Int?
     public let targetDurationS: Int?
     public let workSetCount: Int
+    /// Used only when a routine explicitly requests an effort target.
+    public let efforts: [TrainingEffortRating]
 
     public init(weightKg: Double?, completedReps: [Int], targetReps: [Int],
                 durationS: Int? = nil, targetDurationS: Int? = nil,
-                workSetCount: Int? = nil) {
+                workSetCount: Int? = nil, efforts: [TrainingEffortRating] = []) {
         self.weightKg = weightKg
         self.completedReps = completedReps
         self.targetReps = targetReps
         self.durationS = durationS
         self.targetDurationS = targetDurationS
         self.workSetCount = workSetCount ?? completedReps.count
+        self.efforts = efforts
     }
 
     public var succeeded: Bool {
@@ -71,16 +74,16 @@ public enum TrainingProgressionEngine {
                          durationS: currentDurationS, reason: .firstSession)
         }
 
-        let failures = history.reversed().prefix { !$0.succeeded }.count
+        let failures = history.reversed().prefix { !succeeded($0, configuration: c) }.count
         if failures >= c.failuresBeforeDeload, let weight = last.weightKg ?? currentWeightKg {
-            return .init(weightKg: snap(weight * c.deloadFactor, step: c.weightIncrementKg),
+            return .init(weightKg: min(weight, snap(weight * c.deloadFactor, step: c.weightIncrementKg)),
                          reps: c.repsMin, setCount: currentSets, reason: .stalledDeload)
         }
 
         if mode == .bodyweightReps {
             let reps = last.completedReps.min() ?? currentReps ?? c.repsMin
             let sets = max(1, last.workSetCount)
-            guard last.succeeded else {
+            guard succeeded(last, configuration: c) else {
                 return .init(reps: reps, setCount: sets, reason: .repeatTarget)
             }
             if reps < c.repsMax {
@@ -97,31 +100,31 @@ public enum TrainingProgressionEngine {
             return .init(reason: .disabled)
         case .time:
             let duration = last.durationS ?? currentDurationS ?? 0
-            return last.succeeded
+            return succeeded(last, configuration: c)
                 ? .init(durationS: duration + c.durationIncrementS, reason: .addTime)
                 : .init(durationS: duration, reason: .repeatTarget)
         case .linear:
             let weight = last.weightKg ?? currentWeightKg
-            return last.succeeded
-                ? .init(weightKg: weight.map { snap($0 + c.weightIncrementKg, step: c.weightIncrementKg) },
+            return succeeded(last, configuration: c)
+                ? .init(weightKg: weight.map { addingIncrement($0, increment: c.weightIncrementKg) },
                         reps: currentReps, setCount: currentSets, reason: .successfulSession)
                 : .init(weightKg: weight, reps: currentReps, setCount: currentSets, reason: .repeatTarget)
         case .doubleProgression:
             let reps = last.completedReps.min() ?? currentReps ?? c.repsMin
             let weight = last.weightKg ?? currentWeightKg
-            guard last.succeeded else {
+            guard succeeded(last, configuration: c) else {
                 return .init(weightKg: weight, reps: max(c.repsMin, reps), setCount: currentSets,
                              reason: .repeatTarget)
             }
             if reps >= c.repsMax {
-                return .init(weightKg: weight.map { snap($0 + c.weightIncrementKg, step: c.weightIncrementKg) },
+                return .init(weightKg: weight.map { addingIncrement($0, increment: c.weightIncrementKg) },
                              reps: c.repsMin, setCount: currentSets, reason: .topOfRepRange)
             }
             return .init(weightKg: weight, reps: reps + 1, setCount: currentSets,
                          reason: .addRepetition)
         case .greyskullLP:
             let weight = last.weightKg ?? currentWeightKg
-            guard last.succeeded else {
+            guard succeeded(last, configuration: c) else {
                 return .init(weightKg: weight, reps: currentReps, setCount: currentSets,
                              reason: .repeatTarget)
             }
@@ -129,7 +132,7 @@ public enum TrainingProgressionEngine {
             let target = last.targetReps.last ?? c.repsMin
             let multiplier = amrap >= target + 5 ? 2.0 : 1.0
             return .init(weightKg: weight.map {
-                snap($0 + c.weightIncrementKg * multiplier, step: c.weightIncrementKg)
+                addingIncrement($0, increment: c.weightIncrementKg * multiplier)
             }, reps: currentReps, setCount: currentSets,
                          reason: multiplier > 1 ? .exceptionalAMRAP : .successfulSession)
         }
@@ -138,5 +141,24 @@ public enum TrainingProgressionEngine {
     public static func snap(_ value: Double, step: Double) -> Double {
         guard value.isFinite, step.isFinite, step > 0 else { return value }
         return max(0, (value / step).rounded() * step)
+    }
+
+    /// Preserve the actual offset of a machine or improvised load instead of rounding it to a grid the
+    /// athlete did not use.
+    public static func addingIncrement(_ weight: Double, increment: Double) -> Double {
+        guard weight.isFinite, increment.isFinite, increment > 0 else { return weight }
+        return max(0, weight + increment)
+    }
+
+    public static func succeeded(_ session: ProgressionSession,
+                                 configuration: ProgressionConfiguration) -> Bool {
+        guard session.succeeded else { return false }
+        guard let target = configuration.targetEffort else { return true }
+        let matching = session.efforts.filter { $0.scale == target.scale }
+        guard !matching.isEmpty else { return true }
+        switch target.scale {
+        case .rpe: return matching.allSatisfy { $0.value <= target.value }
+        case .rir: return matching.allSatisfy { $0.value >= target.value }
+        }
     }
 }

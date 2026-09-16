@@ -36,4 +36,15 @@ final class NativeTrainingProjectionTests: XCTestCase {
         XCTAssertEqual(row.sport, "Strength Training")
         XCTAssertEqual(row.durationS, 3_000)
     }
+
+    func testImportedNativeTablesKeepTheirOriginalProviderSource() {
+        let exercise = TrainingExercise(id: "import:bench", title: "Bench Press", mode: .weightReps)
+        let workout = NativeWorkout(id: UUID(), title: "Push", startedAt: 100, endedAt: 200,
+            plannedDay: "1970-01-01", routineIds: [], exercises: [], tracker: nil,
+            source: .strong)
+
+        let result = NativeTrainingProjection.strength(workouts: [workout], exercises: [exercise])
+
+        XCTAssertEqual(result.workouts.first?.source, .strong)
+    }
 }

@@ -7,21 +7,31 @@ public enum TrainingMuscleCatalog {
         .init(id: "chest", name: "Chest"),
         .init(id: "upper_chest", name: "Upper chest", parentId: "chest"),
         .init(id: "lower_chest", name: "Lower chest", parentId: "chest"),
+        .init(id: "serratus", name: "Serratus", parentId: "core"),
         .init(id: "front_delts", name: "Front delts", parentId: "shoulders"),
         .init(id: "side_delts", name: "Side delts", parentId: "shoulders"),
         .init(id: "rear_delts", name: "Rear delts", parentId: "shoulders"),
+        .init(id: "rotator_cuff", name: "Rotator cuff", parentId: "shoulders"),
         .init(id: "triceps", name: "Triceps"),
         .init(id: "biceps", name: "Biceps"),
         .init(id: "forearms", name: "Forearms"),
         .init(id: "lats", name: "Lats", parentId: "back"),
         .init(id: "upper_back", name: "Upper back", parentId: "back"),
+        .init(id: "rhomboids", name: "Rhomboids", parentId: "back"),
         .init(id: "traps", name: "Traps", parentId: "back"),
+        .init(id: "upper_traps", name: "Upper traps", parentId: "traps"),
+        .init(id: "lower_traps", name: "Lower traps", parentId: "traps"),
         .init(id: "lower_back", name: "Lower back", parentId: "back"),
         .init(id: "abdominals", name: "Abdominals", parentId: "core"),
+        .init(id: "upper_abs", name: "Upper abs", parentId: "abdominals"),
+        .init(id: "lower_abs", name: "Lower abs", parentId: "abdominals"),
         .init(id: "obliques", name: "Obliques", parentId: "core"),
         .init(id: "quadriceps", name: "Quadriceps", parentId: "legs"),
+        .init(id: "inner_quadriceps", name: "Inner quadriceps", parentId: "quadriceps"),
+        .init(id: "outer_quadriceps", name: "Outer quadriceps", parentId: "quadriceps"),
         .init(id: "hamstrings", name: "Hamstrings", parentId: "legs"),
         .init(id: "glutes", name: "Glutes", parentId: "legs"),
+        .init(id: "hip_flexors", name: "Hip flexors", parentId: "legs"),
         .init(id: "adductors", name: "Adductors", parentId: "legs"),
         .init(id: "abductors", name: "Abductors", parentId: "legs"),
         .init(id: "calves", name: "Calves", parentId: "legs"),
@@ -70,12 +80,18 @@ public enum TrainingStarterCatalog {
         ]
     }
 
+    /// The shipped starter definitions are NOOP's own text. Their canonical id is the reviewed
+    /// anatomy entry where one exists, so an import of the same movement resolves to one exercise.
     private static func exercise(_ id: String, _ title: String, _ mode: TrainingMeasurementMode,
                                  _ primary: String, _ secondary: [String], _ equipment: [String],
                                  unilateral: Bool = false) -> TrainingExercise {
-        TrainingExercise(id: "noop:\(id)", title: title, mode: mode, primaryMuscleId: primary,
-                         secondaryMuscleIds: secondary, equipmentIds: equipment,
-                         isUnilateral: unilateral, source: .noop)
+        let canonical = ExerciseAnatomyCatalog.resolve(title: title, equipmentIds: equipment, mode: mode)?.id
+        return TrainingExercise(id: "noop:\(id)", title: title, mode: mode, primaryMuscleId: primary,
+                                secondaryMuscleIds: secondary, equipmentIds: equipment,
+                                isUnilateral: unilateral, source: .noop,
+                                canonicalId: canonical, contentVersion: ExerciseAnatomyCatalog.version,
+                                attribution: "NOOP",
+                                loadSemantics: .defaultValue(for: mode, equipmentIds: equipment))
     }
 
     private static func routine(_ title: String, _ ids: [String], now: Int) -> TrainingRoutine {

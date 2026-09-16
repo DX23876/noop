@@ -529,12 +529,19 @@ final class GoalTrackingStore: ObservableObject {
     private func hardSetsPerWeek(repo: Repository, now: Date) async -> Double? {
         guard let store = await repo.storeHandle() else { return nil }
         let end = Int(now.timeIntervalSince1970)
-        let from = end - GoalMeasure.hardSetWindowDays * 86_400
-        guard let sessions = try? await store.strengthWorkouts(from: from, to: end + 86_400),
-              (try? await store.hevyWorkoutCount()).map({ $0 > 0 }) == true else { return nil }
-        let templates = (try? await store.strengthExerciseTemplates()) ?? [:]
-        let sets = sessions
-            .map { StrengthSession.summarize($0, templates: templates).workingSetCount }
+        // "Is a lifting log connected at all" has to include NOOP's own log and every file import, or a
+        // wearer who never connected Hevy reads as unmeasured instead of as the sets they performed.
+        // Both probes are LIMIT 1 existence checks, not a history read.
+        let hasImportedLog = !(((try? await store.strengthWorkouts(from: 0, to: end + 86_400,
+                                                                   limit: 1)) ?? []).isEmpty)
+        let hasNativeLog = !(((try? await store.nativeWorkouts(from: 0, to: end + 86_400,
+                                                               limit: 1)) ?? []).isEmpty)
+        guard hasImportedLog || hasNativeLog else { return nil }
+        // The window itself comes from the canonical read model, so a session logged natively and
+        // imported is counted once.
+        let history = await repo.resolvedStrengthHistory(days: GoalMeasure.hardSetWindowDays)
+        let sets = history.workouts
+            .map { StrengthSession.summarize($0, templates: history.templates).workingSetCount }
             .reduce(0, +)
         return GoalMeasure.perWeek(count: sets, overDays: GoalMeasure.hardSetWindowDays)
     }

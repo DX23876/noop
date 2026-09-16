@@ -1,6 +1,7 @@
 #if DEBUG
 import Foundation
 import StrandImport
+import StrandTraining
 import WhoopProtocol
 import WhoopStore
 
@@ -324,8 +325,219 @@ enum AppleDemoSeeder {
         }
         if !journal.isEmpty { _ = try await store.upsertJournal(journal, deviceId: whoop) }
         let lifts = try await seedStrength(into: store, startDay: startDay, cal: cal, isoFmt: isoFmt)
+        let native = try await seedNativeTraining(into: store, startDay: startDay, cal: cal, isoFmt: isoFmt)
         let body = try await seedBody(into: store, startDay: startDay, cal: cal, isoFmt: isoFmt)
-        NSLog("AppleDemoSeeder: seeded \(daily.count) days, \(workouts.count) workouts, \(lifts) lifting sessions, \(body) body readings.")
+        NSLog("AppleDemoSeeder: seeded \(daily.count) days, \(workouts.count) workouts, \(lifts) lifting sessions, \(native) native training sessions, \(body) body readings.")
+    }
+
+    // MARK: - The native training lane
+    //
+    // The strength lane above seeds sessions that ARRIVED from Hevy. NOOP's own Training destination —
+    // routines, the weekly plan, the set logger's own history — stayed empty under `--demo-seed`, so
+    // every screen built on native records (the hub, exercise history, per-exercise records, the
+    // post-workout summary, the discard path) could only be seen by logging a session by hand. That is
+    // the same gap the strength lane was added to close, one lane over.
+    //
+    // It deliberately spans the shapes the logger handles and the Hevy import cannot express: warm-up
+    // sets ramping to a top set, RIR beside RPE, a superset pair that rests once per round, a timed
+    // hold, a unilateral movement with its own left/right counts, per-exercise notes and a session
+    // note. Weights climb across the block so progression, records and the muscle map have something
+    // true to show.
+    //
+    // Native sessions are seeded on THURSDAY mornings — the one weekday the Hevy split above leaves
+    // free, at a time of day that cannot overlap its 18:00 sessions. The canonical read model picks ONE
+    // detailed provider per fused session, so seeding both lanes into the same window would hide one of
+    // them behind the other and misrepresent what the screen does.
+    @discardableResult
+    private static func seedNativeTraining(into store: WhoopStore, startDay: Date,
+                                           cal: Calendar, isoFmt: DateFormatter) async throws -> Int {
+        var rng = SplitMix64(seed: 0x5EED_7241)
+        _ = try? await store.upsertTrainingExercises(TrainingStarterCatalog.exercises,
+                                                     nowTs: Int(Date().timeIntervalSince1970))
+
+        let now = Int(Date().timeIntervalSince1970)
+        // Fixed ids: a re-seed updates these routines rather than stacking duplicates beside them.
+        func fixedId(_ suffix: String) -> UUID { UUID(uuidString: "0000A11E-0000-4000-8000-\(suffix)")! }
+        let supersetGroup = fixedId("00000000FEED")
+
+        func plan(_ phase: TrainingSetPhase, _ weight: Double?, _ low: Int?, _ high: Int?,
+                  seconds: Int? = nil) -> RoutineSetPlan {
+            RoutineSetPlan(phase: phase, targetWeightKg: weight, repsMin: low, repsMax: high,
+                           targetDurationS: seconds)
+        }
+
+        let push = TrainingRoutine(
+            id: fixedId("000000000001"), title: "Push",
+            notes: "Bench leads. Two reps left in the tank until the last working set.",
+            exercises: [
+                RoutineExercise(exerciseId: "noop:barbell-bench-press",
+                                sets: [plan(.warmup, 60, 8, 8), plan(.warmup, 100, 5, 5),
+                                       plan(.work, 140, 4, 6), plan(.work, 140, 4, 6), plan(.work, 140, 4, 6)],
+                                restSeconds: 180, warmupRestSeconds: 60, barWeightKg: 20,
+                                note: "Feet planted, elbows tucked to 45°."),
+                RoutineExercise(exerciseId: "noop:overhead-press",
+                                sets: [plan(.warmup, 40, 8, 8), plan(.work, 82.5, 5, 8),
+                                       plan(.work, 82.5, 5, 8), plan(.work, 82.5, 5, 8)],
+                                restSeconds: 150, warmupRestSeconds: 60, barWeightKg: 20),
+                RoutineExercise(exerciseId: "noop:incline-dumbbell-press",
+                                sets: [plan(.work, 44, 8, 12), plan(.work, 44, 8, 12), plan(.work, 44, 8, 12)],
+                                restSeconds: 120),
+                // A superset: the pair rests once, after the round rather than after each exercise.
+                RoutineExercise(exerciseId: "noop:lateral-raise",
+                                sets: [plan(.work, 14, 12, 15), plan(.work, 14, 12, 15), plan(.work, 14, 12, 15)],
+                                restSeconds: 90, supersetId: supersetGroup),
+                RoutineExercise(exerciseId: "noop:triceps-pushdown",
+                                sets: [plan(.work, 60, 10, 14), plan(.work, 60, 10, 14), plan(.work, 60, 10, 14)],
+                                restSeconds: 90, supersetId: supersetGroup),
+            ],
+            defaultProgression: .init(policy: .doubleProgression),
+            createdAt: now - 80 * 86_400, updatedAt: now - 7 * 86_400)
+
+        let pull = TrainingRoutine(
+            id: fixedId("000000000002"), title: "Pull",
+            notes: "Row heavy first, then chase the stretch.",
+            exercises: [
+                RoutineExercise(exerciseId: "noop:barbell-row",
+                                sets: [plan(.warmup, 60, 8, 8), plan(.work, 125, 6, 9),
+                                       plan(.work, 125, 6, 9), plan(.work, 125, 6, 9)],
+                                restSeconds: 150, warmupRestSeconds: 60, barWeightKg: 20),
+                RoutineExercise(exerciseId: "noop:weighted-pull-up",
+                                sets: [plan(.warmup, 0, 5, 5), plan(.work, 30, 5, 8),
+                                       plan(.work, 30, 5, 8), plan(.work, 30, 5, 8)],
+                                restSeconds: 180, warmupRestSeconds: 60,
+                                note: "Belt weight only — the body is priced separately."),
+                RoutineExercise(exerciseId: "noop:seated-cable-row",
+                                sets: [plan(.work, 95, 10, 12), plan(.work, 95, 10, 12), plan(.work, 95, 10, 12)],
+                                restSeconds: 120),
+                RoutineExercise(exerciseId: "noop:face-pull",
+                                sets: [plan(.work, 32.5, 15, 20), plan(.work, 32.5, 15, 20), plan(.work, 32.5, 15, 20)],
+                                restSeconds: 75),
+                RoutineExercise(exerciseId: "noop:barbell-curl",
+                                sets: [plan(.work, 45, 8, 12), plan(.work, 45, 8, 12), plan(.work, 45, 8, 12)],
+                                restSeconds: 90, barWeightKg: 10),
+            ],
+            defaultProgression: .init(policy: .doubleProgression),
+            createdAt: now - 80 * 86_400, updatedAt: now - 9 * 86_400)
+
+        let legs = TrainingRoutine(
+            id: fixedId("000000000003"), title: "Legs & Core",
+            exercises: [
+                RoutineExercise(exerciseId: "noop:back-squat",
+                                sets: [plan(.warmup, 60, 8, 8), plan(.warmup, 140, 5, 5),
+                                       plan(.work, 200, 3, 5), plan(.work, 200, 3, 5), plan(.work, 200, 3, 5)],
+                                restSeconds: 240, warmupRestSeconds: 90,
+                                progression: .init(policy: .linear), barWeightKg: 20,
+                                note: "Belt from the second working set."),
+                RoutineExercise(exerciseId: "noop:romanian-deadlift",
+                                sets: [plan(.work, 170, 6, 8), plan(.work, 170, 6, 8), plan(.work, 170, 6, 8)],
+                                restSeconds: 180, barWeightKg: 20),
+                // Unilateral: each side carries its own count.
+                RoutineExercise(exerciseId: "noop:bulgarian-split-squat",
+                                sets: [plan(.work, 36, 8, 10), plan(.work, 36, 8, 10), plan(.work, 36, 8, 10)],
+                                restSeconds: 120),
+                RoutineExercise(exerciseId: "noop:leg-curl",
+                                sets: [plan(.work, 75, 10, 12), plan(.work, 75, 10, 12), plan(.work, 75, 10, 12)],
+                                restSeconds: 90),
+                // Timed work: measured in seconds and never given an invented weight.
+                RoutineExercise(exerciseId: "noop:plank",
+                                sets: [plan(.work, nil, nil, nil, seconds: 75),
+                                       plan(.work, nil, nil, nil, seconds: 75),
+                                       plan(.work, nil, nil, nil, seconds: 75)],
+                                restSeconds: 60),
+            ],
+            defaultProgression: .init(policy: .doubleProgression),
+            createdAt: now - 80 * 86_400, updatedAt: now - 12 * 86_400)
+
+        let routines = [push, pull, legs]
+        for routine in routines { try await store.upsertTrainingRoutine(routine) }
+        // A plain three-day week, plus the rest days that make a plan readable.
+        try await store.replaceTrainingSchedule([
+            .tuesday: [push.id], .thursday: [pull.id], .saturday: [legs.id],
+        ])
+
+        let tracker = SessionTrackerAttribution(
+            trackerId: whoop, manufacturer: "WHOOP", model: "WHOOP 4.0",
+            confidence: .userSelected, capabilities: [.heartRate, .workoutEnvelope])
+
+        var workouts: [NativeWorkout] = []
+        var mirrored: [WorkoutRow] = []
+
+        for i in 0..<DAYS {
+            let date = cal.date(byAdding: .day, value: i, to: startDay)!
+            guard cal.component(.weekday, from: date) == 5 else { continue }   // 5 = Thursday
+            let routine = routines[(i / 7) % routines.count]
+            let weeks = Double(i) / 7.0
+            // Advanced overload: a couple of kilos a month, not a novice's 2.5 kg a session.
+            let growth = 1.0 + 0.0016 * weeks
+            let start = Int(cal.startOfDay(for: date).timeIntervalSince1970) + 7 * 3_600
+                + rng.nextInt(0, 45) * 60
+
+            var exercises: [NativeWorkoutExercise] = []
+            for planned in routine.exercises {
+                var sets: [NativeWorkoutSet] = []
+                for (index, setPlan) in planned.sets.enumerated() {
+                    let isTop = setPlan.phase == .work && index == planned.sets.count - 1
+                    var set = NativeWorkoutSet(index: index, phase: setPlan.phase)
+                    if let seconds = setPlan.targetDurationS {
+                        set.targetDurationS = seconds
+                        set.durationS = seconds + rng.nextInt(-5, 12)
+                    } else if planned.exerciseId == "noop:bulgarian-split-squat" {
+                        set.weightKg = plate((setPlan.targetWeightKg ?? 0) * growth)
+                        set.leftReps = (setPlan.repsMin ?? 8) + rng.nextInt(0, 3)
+                        set.rightReps = (set.leftReps ?? 8) - (rng.nextDouble() < 0.35 ? 1 : 0)
+                    } else {
+                        set.weightKg = plate((setPlan.targetWeightKg ?? 0) * growth)
+                        let low = setPlan.repsMin ?? 5
+                        let high = setPlan.repsMax ?? low
+                        set.reps = setPlan.phase == .warmup ? low : low + rng.nextInt(0, max(1, high - low + 1))
+                    }
+                    // Effort is rated on working sets only, and the top set is rated on the RPE scale
+                    // the athlete actually uses for it — both scales exist, so both are shown.
+                    if setPlan.phase == .work {
+                        set.effort = isTop
+                            ? TrainingEffortRating(scale: .rpe, value: [8.5, 9.0, 9.5][rng.nextInt(0, 3)])
+                            : TrainingEffortRating(scale: .rir, value: Double(rng.nextInt(1, 4)))
+                    }
+                    set.isCompleted = true
+                    sets.append(set)
+                }
+                exercises.append(NativeWorkoutExercise(
+                    exerciseId: planned.exerciseId, routineId: routine.id, sets: sets,
+                    restSeconds: planned.restSeconds, warmupRestSeconds: planned.warmupRestSeconds,
+                    supersetId: planned.supersetId, note: planned.note))
+            }
+
+            let duration = 3_900 + rng.nextInt(0, 1_500)
+            var workout = NativeWorkout(
+                id: UUID(uuidString: String(format: "0000%@-0000-4000-8000-%012d",
+                                            "5E55", 100_000 + i))!,
+                title: routine.title, startedAt: start, endedAt: start + duration,
+                plannedDay: isoFmt.string(from: date), routineIds: [routine.id],
+                exercises: exercises, tracker: tracker,
+                sessionRPE: rng.nextDouble() < 0.75 ? Double(rng.nextInt(6, 10)) : nil,
+                sessionRPEOrigin: .workoutCompletion,
+                note: rng.nextDouble() < 0.3 ? "Felt strong. Bar speed held to the last single." : nil)
+            workout.trainingSessionId = UUID()
+            workout.physiologyProvider = .noopBand
+            workout.physiologyComponentKey = "manual|\(start)|strength training"
+            workout.hrCoverage = round2(0.88 + rng.nextDouble() * 0.1)
+            workout.lifecycleVersion = 2
+            workouts.append(workout)
+
+            // The envelope the live recorder would have written. Without it the fused session has no
+            // row to resolve against and the logged session would not reach the history screens at all.
+            let averageHR = 118 + rng.nextInt(0, 14)
+            mirrored.append(WorkoutRow(
+                startTs: start, endTs: start + duration, sport: "Strength Training", source: "manual",
+                durationS: Double(duration), energyKcal: Double(520 + rng.nextInt(0, 180)),
+                avgHr: averageHR, maxHr: averageHR + 32 + rng.nextInt(0, 14),
+                strain: nil, distanceM: nil, zonesJSON: nil, notes: nil, steps: nil))
+        }
+
+        guard !workouts.isEmpty else { return 0 }
+        try await store.upsertNativeWorkouts(workouts)
+        _ = try await store.upsertWorkouts(mirrored, deviceId: whoop)
+        return workouts.count
     }
 
     /// A deterministic workout-shaped trace for the screenshot dataset.

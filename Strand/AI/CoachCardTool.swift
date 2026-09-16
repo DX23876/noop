@@ -122,25 +122,38 @@ extension AICoachEngine {
 
         // The strength half, when there is one: what was actually lifted.
         var headline = WorkoutSource.displaySport(workout.sport)
-        if let store = await repo.storeHandle(),
-           let session = (try? await store.hevyWorkouts(from: workout.startTs - 3600,
-                                                        to: workout.startTs + 3600, limit: 5))?
-            .min(by: { abs($0.startTs - workout.startTs) < abs($1.startTs - workout.startTs) }) {
-            let templates = (try? await store.hevyExerciseTemplates()) ?? [:]
-            let summary = StrengthSession.summarize(session, templates: templates)
-            if !session.title.isEmpty { headline = session.title }
-            detailRows.insert(.init(label: String(localized: "Working sets"),
-                                    value: "\(summary.workingSetCount) · \(summary.exerciseCount) exercises"),
-                              at: 0)
-            if summary.volumeLoadKg > 0 {
-                detailRows.insert(.init(label: String(localized: "Volume"),
-                                        value: "\(HevySource.groupedKg(summary.volumeLoadKg)) kg"),
-                                  at: 1)
-            }
-            if let rpe = summary.meanRpe {
-                detailRows.append(.init(label: String(localized: "RPE"),
-                                        value: String(format: "%.1f", rpe)
-                                            + " (\(summary.rpeSetCount)/\(summary.workingSetCount))"))
+        // Every detailed source around this workout, not just Hevy: a session logged in NOOP itself, or
+        // imported from Strong, FitNotes or Liftosaur, describes the lifting just as well. Native comes
+        // first in the candidate list, which is the source precedence the resolved history applies when
+        // one real session exists in two places.
+        if let store = await repo.storeHandle() {
+            let from = workout.startTs - 3_600
+            let to = workout.startTs + 3_600
+            let imported = (try? await store.strengthWorkouts(from: from, to: to, limit: 5)) ?? []
+            let nativeRows = (try? await store.nativeWorkouts(from: from, to: to, limit: 5)) ?? []
+            let native = NativeTrainingProjection.strength(
+                workouts: nativeRows, exercises: await repo.nativeTrainingExercises())
+            var templates = (try? await store.strengthExerciseTemplates()) ?? [:]
+            templates.merge(native.templates) { current, _ in current }
+            // Native first: the source precedence the resolved history applies when one real session
+            // exists in two places, so a session logged in NOOP is described by its own set log.
+            if let session = (native.workouts + imported)
+                .min(by: { abs($0.startTs - workout.startTs) < abs($1.startTs - workout.startTs) }) {
+                let summary = StrengthSession.summarize(session, templates: templates)
+                if !session.title.isEmpty { headline = session.title }
+                detailRows.insert(.init(label: String(localized: "Working sets"),
+                                        value: "\(summary.workingSetCount) · \(summary.exerciseCount) exercises"),
+                                  at: 0)
+                if summary.volumeLoadKg > 0 {
+                    detailRows.insert(.init(label: String(localized: "Volume"),
+                                            value: "\(HevySource.groupedKg(summary.volumeLoadKg)) kg"),
+                                      at: 1)
+                }
+                if let rpe = summary.meanRpe {
+                    detailRows.append(.init(label: String(localized: "RPE"),
+                                            value: String(format: "%.1f", rpe)
+                                                + " (\(summary.rpeSetCount)/\(summary.workingSetCount))"))
+                }
             }
         }
 

@@ -264,14 +264,15 @@ extension WhoopStore {
     }
 
     /// Workouts overlapping [from, to] (by startTs), oldest first.
-    public nonisolated func workouts(deviceId: String, from: Int, to: Int, limit: Int) async throws -> [WorkoutRow] {
+    public nonisolated func workouts(deviceId: String, from: Int, to: Int,
+                                     limit: Int, offset: Int = 0) async throws -> [WorkoutRow] {
         try await asyncRead { db in
             try Row.fetchAll(db, sql: """
                 SELECT startTs, endTs, sport, source, durationS, energyKcal, avgHr, maxHr,
                        strain, distanceM, zonesJSON, notes, steps FROM workout
                 WHERE deviceId = ? AND startTs >= ? AND startTs <= ?
-                ORDER BY startTs ASC LIMIT ?
-                """, arguments: [deviceId, from, to, limit])
+                ORDER BY startTs ASC LIMIT ? OFFSET ?
+                """, arguments: [deviceId, from, to, max(1, limit), max(0, offset)])
                 .map {
                     WorkoutRow(startTs: $0["startTs"], endTs: $0["endTs"], sport: $0["sport"],
                                source: $0["source"], durationS: $0["durationS"],

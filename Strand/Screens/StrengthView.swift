@@ -2,6 +2,7 @@ import SwiftUI
 import WhoopStore
 import StrandAnalytics
 import StrandDesign
+import StrandTraining
 
 // MARK: - Strength — what the Hevy log says, and nothing it doesn't
 //
@@ -134,6 +135,8 @@ struct StrengthView: View {
                     emptyState
                 } else {
                     thisWeek
+                    selectedRangeOverview
+                    TrainingActivityHeatmap(sessions: model.resolvedHistory.sessions)
                     // Named for `--demo-scroll-to` screenshot QA (DEBUG only; the id is inert otherwise),
                     // so the weekly set range in the middle of this screen can be captured too.
                     muscleGroups.id("volume")
@@ -177,6 +180,85 @@ struct StrengthView: View {
         }
     }
 
+    private var selectedRangeOverview: some View {
+        let value = model.overview
+        return VStack(alignment: .leading, spacing: NoopMetrics.gap) {
+            SectionHeader("Your strength history", overline: LocalizedStringKey(model.range.label))
+            NoopCard {
+                VStack(alignment: .leading, spacing: NoopMetrics.space3) {
+                    LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: 3),
+                              spacing: 10) {
+                        overviewFact(String(localized: "Sessions"), value.sessionCount.formatted())
+                        overviewFact(String(localized: "Per week"),
+                                     value.sessionsPerWeek.formatted(.number.precision(.fractionLength(1))))
+                        overviewFact(String(localized: "Working sets"), value.workingSetCount.formatted())
+                        overviewFact(String(localized: "Duration"), durationText(value.durationSeconds))
+                        overviewFact(String(localized: "Volume"), volumeText(value.volumeLoadKg))
+                        overviewFact(String(localized: "RPE coverage"),
+                                     value.workingSetCount == 0 ? "—" : value.rpeCoverage.formatted(.percent.precision(.fractionLength(0))))
+                        overviewFact(String(localized: "Average RPE"),
+                                     value.averageRPE.map { $0.formatted(.number.precision(.fractionLength(1))) } ?? "—")
+                        overviewFact(String(localized: "Active weeks"),
+                                     value.observedWeekCount == 0 ? "—"
+                                        : "\(value.activeWeekCount.formatted()) / \(value.observedWeekCount.formatted())")
+                        overviewFact(String(localized: "Longest streak"),
+                                     value.longestActiveWeekStreak == 0 ? "—"
+                                        : Duration.seconds(value.longestActiveWeekStreak * 604_800)
+                                            .formatted(.units(allowed: [.weeks], width: .abbreviated)))
+                    }
+                    if !value.personalRecords.isEmpty {
+                        Divider().overlay(StrandPalette.hairline)
+                        Text("Recent personal records").font(StrandFont.headline)
+                        ForEach(value.personalRecords.prefix(4)) { record in
+                            HStack {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(record.exerciseTitle).font(StrandFont.subhead.weight(.semibold))
+                                    Text(Date(timeIntervalSince1970: TimeInterval(record.timestamp)), style: .date)
+                                        .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+                                }
+                                Spacer()
+                                Text("\(record.estimatedOneRepMaxKg.formatted(.number.precision(.fractionLength(1)))) kg e1RM")
+                                    .font(StrandFont.bodyNumber).foregroundStyle(StrandPalette.textPrimary)
+                            }
+                            .accessibilityElement(children: .combine)
+                        }
+                    } else {
+                        Text("Personal records appear after comparable weight-and-repetition sets are logged.")
+                            .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+                    }
+                    if value.durationCoverage < 1, value.sessionCount > 0 {
+                        Text("Duration is available for \(value.durationSessionCount) of \(value.sessionCount) sessions.")
+                            .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+                    }
+                    if value.averageRPE != nil, value.rpeCoverage < 1 {
+                        Text("Average RPE uses only the \(value.ratedSetCount) of \(value.workingSetCount) working sets that carry a rating.")
+                            .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+                    }
+                    if value.observedWeekCount > 0 {
+                        Text("Active weeks count calendar weeks with at least one session, from your first session in this range. The week start follows Settings › Training.")
+                            .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+                    }
+                }
+            }
+        }
+    }
+
+    private func overviewFact(_ label: String, _ value: String) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(value).font(StrandFont.number(22)).foregroundStyle(StrandPalette.textPrimary)
+                .lineLimit(1).minimumScaleFactor(0.65)
+            Text(label).font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
+                .lineLimit(1).minimumScaleFactor(0.7)
+        }
+        .frame(maxWidth: .infinity, minHeight: 52, alignment: .leading)
+        .accessibilityElement(children: .combine)
+    }
+
+    private func durationText(_ seconds: Int) -> String {
+        guard seconds > 0 else { return "—" }
+        return Duration.seconds(seconds).formatted(.units(allowed: [.hours, .minutes], width: .abbreviated))
+    }
+
     @ViewBuilder private var genericStrengthSessions: some View {
         if !model.genericSessions.isEmpty {
             VStack(alignment: .leading, spacing: NoopMetrics.gap) {
@@ -217,7 +299,8 @@ struct StrengthView: View {
     private func detailSheet(workoutId: String) -> some View {
         if let breakdown = model.breakdown(for: workoutId) {
             StrengthSessionDetailView(breakdown: breakdown,
-                                      matchedRow: model.matchedRow(for: breakdown.summary))
+                                      matchedRow: model.matchedRow(for: breakdown.summary),
+                                      source: model.source(for: workoutId))
         }
     }
 
@@ -569,8 +652,7 @@ struct StrengthView: View {
             // each set's primary muscle. So the map's totals are larger than the sets performed, and
             // the two will never agree. One shared heading over both would quietly tell the reader
             // that a shaded region and a bar were the same number seen twice.
-            SectionHeader("Muscle stimulus", overline: "Estimated")
-            bodyMapCard
+            TrainingMuscleMapCard(history: model.resolvedHistory)
 
             if !unmappedExercises.isEmpty {
                 NoopCard {
@@ -813,8 +895,44 @@ struct StrengthView: View {
             primaryMuscleGroup: mappingPrimary,
             secondaryMuscleGroups: mappingSecondary.sorted { $0.rawValue < $1.rawValue })
         try? await store.upsertStrengthExerciseMapping(mapping)
+        let normalized = ExerciseAnatomyCatalog.normalize(exercise)
+        let primary = detailedMuscleIds(mappingPrimary)
+        let secondary = mappingSecondary.flatMap(detailedMuscleIds)
+            .filter { !primary.contains($0) }
+        if !primary.isEmpty {
+            let anatomy = ExerciseAnatomy(
+                id: "user:\(normalized)", title: exercise, mode: .weightReps,
+                movementPattern: .other, primaryMuscleIds: primary,
+                secondaryMuscleIds: secondary, confidence: .userConfirmed)
+            try? await store.upsertTrainingExerciseAnatomyAlias(.init(
+                key: "user|\(normalized)", source: .imported,
+                normalizedTitle: normalized, anatomy: anatomy, origin: "user"))
+        }
         mappingExercise = nil
         await model.load(repo: repo)
+    }
+
+    private func detailedMuscleIds(_ group: HevyMuscleGroup) -> [String] {
+        switch group {
+        case .abdominals: return ["abdominals"]
+        case .shoulders: return ["front_delts", "side_delts", "rear_delts"]
+        case .biceps: return ["biceps"]
+        case .triceps: return ["triceps"]
+        case .forearms: return ["forearms"]
+        case .quadriceps: return ["quadriceps"]
+        case .hamstrings: return ["hamstrings"]
+        case .calves: return ["calves"]
+        case .glutes: return ["glutes"]
+        case .abductors: return ["abductors"]
+        case .adductors: return ["adductors"]
+        case .lats: return ["lats"]
+        case .upperBack: return ["upper_back"]
+        case .traps: return ["traps"]
+        case .lowerBack: return ["lower_back"]
+        case .chest: return ["chest"]
+        case .neck: return ["neck"]
+        case .cardio, .fullBody, .other: return []
+        }
     }
 
     /// What the colours mean, spelled out. Without this the ramp is read as a health verdict.
@@ -1146,7 +1264,8 @@ struct StrengthView: View {
                     .font(StrandFont.subhead).foregroundStyle(StrandPalette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
                 HStack(spacing: 6) {
-                    SourceBadge("Hevy", tint: StrandPalette.zone2)
+                    SourceBadge(verbatim: TrainingDisplayNames.strengthSource(model.source(for: s.workoutId)),
+                                tint: StrandPalette.zone2)
                     // Only when the strap actually covered the window. The badge is a claim about
                     // evidence, so it appears when there IS evidence and not because the row exists.
                     if matchedRow(s)?.avgHr != nil {
@@ -1628,8 +1747,8 @@ struct StrengthView: View {
 
     private func bestSetText(_ kg: Double) -> String {
         guard let point = trend.first(where: { $0.heaviestSetKg == kg }),
-              point.workingSetCount > 0 else { return String(format: "%.1f kg", kg) }
-        return String(format: "%.1f kg × %d", kg, point.totalReps / point.workingSetCount)
+              point.workingSetCount > 0 else { return "\(kg.formatted(.number.precision(.fractionLength(1)))) kg" }
+        return "\(kg.formatted(.number.precision(.fractionLength(1)))) kg × \(point.totalReps / point.workingSetCount)"
     }
 
     /// Rising / steady / easing, or an honest note when RPE was rarely logged. Compares the mean RPE of
@@ -1649,7 +1768,7 @@ struct StrengthView: View {
     // MARK: - Wording
 
     func volumeText(_ kg: Double) -> String {
-        kg >= 1000 ? String(format: "%.1f t", kg / 1000) : "\(HevySource.groupedKg(kg)) kg"
+        kg >= 1000 ? "\((kg / 1000).formatted(.number.precision(.fractionLength(1)))) t" : "\(HevySource.groupedKg(kg)) kg"
     }
 
     private func exerciseTitle(_ id: String) -> String {

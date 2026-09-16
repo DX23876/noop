@@ -4101,18 +4101,15 @@ final class AICoachEngine: ObservableObject {
         // Working sets per week, over the same window goal tracking measures a set goal in. Nil rather
         // than zero when no lifting log is connected: "I can't see one" and "you did none" are different
         // answers, and only the second one deserves a verdict.
-        if let store = await repo.storeHandle() {
-            let now = Int(Date().timeIntervalSince1970)
-            let from = now - GoalMeasure.hardSetWindowDays * 86_400
-            let sessions = (try? await store.strengthWorkouts(from: from, to: now + 86_400)) ?? []
-            if !sessions.isEmpty {
-                let templates = (try? await store.strengthExerciseTemplates()) ?? [:]
-                let sets = sessions
-                    .map { StrengthSession.summarize($0, templates: templates).workingSetCount }
-                    .reduce(0, +)
-                evidence.hardSetsPerWeek = GoalMeasure.perWeek(count: sets,
-                                                               overDays: GoalMeasure.hardSetWindowDays)
-            }
+        // The canonical read model, not one source: a wearer who logs only in NOOP must not read as
+        // "no lifting log", and a session recorded natively AND imported must not count twice.
+        let strengthHistory = await repo.resolvedStrengthHistory(days: GoalMeasure.hardSetWindowDays)
+        if !strengthHistory.workouts.isEmpty {
+            let sets = strengthHistory.workouts
+                .map { StrengthSession.summarize($0, templates: strengthHistory.templates).workingSetCount }
+                .reduce(0, +)
+            evidence.hardSetsPerWeek = GoalMeasure.perWeek(count: sets,
+                                                           overDays: GoalMeasure.hardSetWindowDays)
         }
         return evidence
     }
@@ -5041,19 +5038,11 @@ final class AICoachEngine: ObservableObject {
     }
 
     func strengthHistoryBlock(days: Int = 365, exercise: String? = nil, limit: Int = 6) async -> String {
-        guard let store = await repo.storeHandle() else { return "Strength history: local store unavailable." }
-        let now = Int(Date().timeIntervalSince1970)
         let window = max(1, min(days, 3_650))
-        let stored = (try? await store.strengthWorkouts(from: now - window * 86_400,
-                                                        to: now + 86_400, limit: 4_000)) ?? []
-        let native = await repo.nativeWorkouts(days: window)
-        let nativeDefinitions = await repo.nativeTrainingExercises()
-        let nativeProjection = NativeTrainingProjection.strength(workouts: native,
-                                                                  exercises: nativeDefinitions)
-        var seenWorkoutIds = Set<String>()
-        let all = (stored + nativeProjection.workouts)
-            .sorted { $0.startTs > $1.startTs }
-            .filter { seenWorkoutIds.insert($0.id).inserted }
+        // One detailed set log per real session. The resolved history has already chosen between a
+        // native log and an import of the same workout, so the coach cannot see one session twice.
+        let history = await repo.resolvedStrengthHistory(days: window)
+        let all = history.workouts.sorted { $0.startTs > $1.startTs }
         let needle = exercise?.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current)
             .trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         let sessions = all.compactMap { workout -> HevyWorkout? in
@@ -5123,9 +5112,11 @@ final class AICoachEngine: ObservableObject {
 
         // What the sessions were made of, per muscle and per axis. Without this the coach could name
         // every lift and still not answer "am I neglecting anything" — the question it is asked most.
-        var templates = (try? await store.strengthExerciseTemplates()) ?? [:]
-        templates.merge(nativeProjection.templates) { current, _ in current }
-        let fourWeeks = sessions.filter { $0.startTs >= now - 28 * 86_400 }
+        // The resolved history already merges native and imported templates, so one exercise carries one
+        // name and one muscle mapping here. The type is spelled out to keep this body cheap to check.
+        let templates: [String: HevyExerciseTemplate] = history.templates
+        let windowStart = Int(Date().timeIntervalSince1970) - 28 * 86_400
+        let fourWeeks = sessions.filter { $0.startTs >= windowStart }
         if !fourWeeks.isEmpty {
             let tally = StrengthSession.hardSetsByMuscle(fourWeeks, templates: templates)
             let byMuscle = tally.primary

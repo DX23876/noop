@@ -6,8 +6,9 @@ import HealthKit
 
 // MARK: - WatchWorkoutView — record a workout ON the wrist (M3)
 //
-// This is the one ACTIVE feature where the watch is the brain, not the phone. The phone owns SCORES; this
-// screen owns a real HKWorkoutSession + HKLiveWorkoutBuilder running on the watch's own sensors, so the
+// This screen owns a real HKWorkoutSession + HKLiveWorkoutBuilder running on the watch's own sensors. For
+// a native strength session the phone remains the set-log authority while the Watch owns only its
+// physiological recording, so the
 // heart rate here is the higher-fidelity in-workout stream (not the foregrounded anchored-query readout the
 // glance uses), and the energy is the watch's own activeEnergyBurned. On End we save the finished workout
 // to HealthKit so it shows up in Activity / Fitness like any other.
@@ -21,7 +22,9 @@ import HealthKit
 // "Grant Health access" state instead of a dead Start button. StrandHaptic (real WatchKit path now) marks
 // the start / pause / resume / end landings so the wrist confirms each state change without looking.
 struct WatchWorkoutView: View {
+    @EnvironmentObject private var companion: WatchScoreStore
     @StateObject private var workout = WatchWorkoutSession()
+    @State private var confirmingFinish = false
 
     var body: some View {
         // One screen, no scrolling. A GeometryReader hands each state the real space it has to live in so
@@ -47,6 +50,32 @@ struct WatchWorkoutView: View {
             .padding(.horizontal, 4)
         }
         .background(StrandPalette.surfaceBase.ignoresSafeArea())
+        .onAppear { synchronizeCompanion(companion.strengthWorkout) }
+        .onChange(of: companion.strengthWorkout) { synchronizeCompanion($0) }
+        .onChange(of: workout.bpm) { companion.sendTelemetry(bpm: $0, sampleCount: workout.sampleCount) }
+        .alert("End workout", isPresented: $confirmingFinish) {
+            Button("End", role: .destructive) {
+                if companion.strengthWorkout == nil { workout.end() }
+                else { companion.send(.finish) }
+            }
+            Button("Cancel", role: .cancel) {}
+        }
+    }
+
+    private func synchronizeCompanion(_ state: StrengthWorkoutCompanionState?) {
+        guard let state else { return }
+        if workout.phase == .saved, workout.strengthSessionId != state.sessionId {
+            workout.reset()
+        }
+        switch state.phase {
+        case .active:
+            if workout.phase == .idle { workout.start(strengthSessionId: state.sessionId) }
+            else if workout.phase == .paused, workout.strengthSessionId == state.sessionId { workout.resume() }
+        case .paused:
+            if workout.phase == .active, workout.strengthSessionId == state.sessionId { workout.pause() }
+        case .finishing, .completed:
+            workout.endStrengthSession(state.sessionId)
+        }
     }
 
     // MARK: Pre-flight states
@@ -137,6 +166,11 @@ struct WatchWorkoutView: View {
                 .tracking(StrandFont.overlineTracking)
                 .foregroundStyle(workout.phase == .paused ? StrandPalette.statusWarning : StrandPalette.metricRose)
             Spacer()
+            if let state = companion.strengthWorkout,
+               let exercise = state.exerciseTitle, let set = state.setNumber {
+                Text(verbatim: "\(exercise) · \(set)")
+                    .font(StrandFont.overlineScaled(8)).lineLimit(1)
+            }
             // Elapsed time ticks itself off the session start via a TimelineView, so we never run a manual
             // Timer. While paused we freeze the readout at the accumulated duration the session reports.
             elapsed
@@ -182,9 +216,26 @@ struct WatchWorkoutView: View {
                     .minimumScaleFactor(0.7)
                     .lineLimit(1)
             }
-            Text("bpm")
-                .font(StrandFont.caption)
-                .foregroundStyle(StrandPalette.textTertiary)
+            HStack(spacing: 4) {
+                Text("bpm")
+                if let zone = companion.strengthWorkout?.heartRateZone {
+                    Text(verbatim: "·")
+                    Text("Zone")
+                    Text(zone, format: .number)
+                }
+                if let restEndsAtTs = companion.strengthWorkout?.restEndsAtTs {
+                    Text(verbatim: "·")
+                    TimelineView(.periodic(from: .now, by: 1)) { context in
+                        let remaining = max(0, TimeInterval(restEndsAtTs) - context.date.timeIntervalSince1970)
+                        Text("Rest")
+                        Text(verbatim: Self.clock(remaining))
+                    }
+                }
+            }
+            .font(StrandFont.caption)
+            .foregroundStyle(StrandPalette.textTertiary)
+            .lineLimit(1)
+            .minimumScaleFactor(0.7)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(StrandPalette.surfaceRaised, in: RoundedRectangle(cornerRadius: 14))
@@ -226,9 +277,22 @@ struct WatchWorkoutView: View {
     /// pause/resume, critical-red End).
     private var controls: some View {
         HStack(spacing: 8) {
+            if companion.strengthWorkout != nil {
+                Button {
+                    companion.send(.completeSet)
+                } label: {
+                    Label("Done", systemImage: "checkmark")
+                        .labelStyle(.iconOnly)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
+                .accessibilityLabel("Done")
+                .tint(StrandPalette.chargeColor)
+                .buttonStyle(.borderedProminent)
+            }
             if workout.phase == .paused {
                 Button {
                     workout.resume()
+                    companion.send(.resume)
                 } label: {
                     Label("Resume", systemImage: "play.fill")
                         .labelStyle(.iconOnly)
@@ -241,6 +305,7 @@ struct WatchWorkoutView: View {
             } else {
                 Button {
                     workout.pause()
+                    companion.send(.pause)
                 } label: {
                     Label("Pause", systemImage: "pause.fill")
                         .labelStyle(.iconOnly)
@@ -253,7 +318,7 @@ struct WatchWorkoutView: View {
             }
 
             Button(role: .destructive) {
-                workout.end()
+                confirmingFinish = true
             } label: {
                 Label("End", systemImage: "stop.fill")
                     .labelStyle(.iconOnly)
@@ -330,6 +395,10 @@ final class WatchWorkoutSession: NSObject, ObservableObject {
     @Published private(set) var activeKcal: Int?
     /// Accumulated session duration. Read live by the view's TimelineView while active.
     @Published private(set) var elapsed: TimeInterval = 0
+    @Published private(set) var sampleCount = 0
+    /// Non-nil only when this HealthKit session was started for the phone's native strength logger.
+    /// A separately started watch workout therefore cannot be paused or ended by a phone command.
+    @Published private(set) var strengthSessionId: UUID?
 
     #if canImport(HealthKit) && os(watchOS)
     private let store = HKHealthStore()
@@ -374,7 +443,7 @@ final class WatchWorkoutSession: NSObject, ObservableObject {
     }
 
     /// Explicit auth request (the "Allow access" button). Idempotent; HealthKit no-ops if already decided.
-    func requestAuthorization(then start: Bool = false) {
+    func requestAuthorization(then start: Bool = false, strengthSessionId: UUID? = nil) {
         #if canImport(HealthKit) && os(watchOS)
         guard HKHealthStore.isHealthDataAvailable() else { phase = .unavailable; return }
         phase = .requesting
@@ -388,7 +457,7 @@ final class WatchWorkoutSession: NSObject, ObservableObject {
                     self.phase = .denied
                 } else {
                     self.phase = .idle
-                    if start { self.start() }
+                    if start { self.start(strengthSessionId: strengthSessionId) }
                 }
             }
         }
@@ -399,12 +468,12 @@ final class WatchWorkoutSession: NSObject, ObservableObject {
 
     /// Begin recording a generic functional-strength workout indoors. If we have not been authorized yet,
     /// route through the auth prompt first and auto-start on grant.
-    func start() {
+    func start(strengthSessionId: UUID? = nil) {
         #if canImport(HealthKit) && os(watchOS)
         guard HKHealthStore.isHealthDataAvailable() else { phase = .unavailable; return }
         let status = store.authorizationStatus(for: HKQuantityType.workoutType())
         guard status == .sharingAuthorized else {
-            requestAuthorization(then: true)
+            requestAuthorization(then: true, strengthSessionId: strengthSessionId)
             return
         }
 
@@ -421,14 +490,24 @@ final class WatchWorkoutSession: NSObject, ObservableObject {
 
             self.session = session
             self.builder = builder
+            self.strengthSessionId = strengthSessionId
 
-            let begin = Date()
-            session.startActivity(with: begin)
-            builder.beginCollection(withStart: begin) { [weak self] _, _ in
-                // Collection started (or failed silently); the delegate callbacks drive the UI from here.
-                DispatchQueue.main.async { self?.phase = .active }
+            let beginCollection = {
+                let begin = Date()
+                session.startActivity(with: begin)
+                builder.beginCollection(withStart: begin) { [weak self] _, _ in
+                    // Collection started (or failed silently); the delegate callbacks drive the UI from here.
+                    DispatchQueue.main.async { self?.phase = .active }
+                }
+                StrandHaptic.commit.play()
             }
-            StrandHaptic.commit.play()  // a firm tap confirms the session is live without looking
+            if let strengthSessionId {
+                builder.addMetadata([
+                    StrengthWorkoutCompanionState.healthKitSessionMetadataKey: strengthSessionId.uuidString,
+                ]) { _, _ in beginCollection() }
+            } else {
+                beginCollection()
+            }
         } catch {
             // Could not create the session (rare). Fall back to idle so Start can be tried again.
             phase = .idle
@@ -491,12 +570,21 @@ final class WatchWorkoutSession: NSObject, ObservableObject {
         #endif
     }
 
+    /// Ends only the companion-owned workout. A generic NOOP Watch workout or a session owned by
+    /// another app is never adopted merely because a phone state arrived.
+    func endStrengthSession(_ sessionId: UUID) {
+        guard strengthSessionId == sessionId else { return }
+        end()
+    }
+
     /// Clear the recap and return to idle so another workout can be started.
     func reset() {
         bpm = nil
         avgBpm = nil
         activeKcal = nil
         elapsed = 0
+        sampleCount = 0
+        strengthSessionId = nil
         refreshAvailability()
     }
 }
@@ -530,6 +618,7 @@ extension WatchWorkoutSession: HKWorkoutSessionDelegate {
             self?.phase = .idle
             self?.session = nil
             self?.builder = nil
+            self?.strengthSessionId = nil
         }
     }
 }
@@ -575,6 +664,7 @@ extension WatchWorkoutSession: HKLiveWorkoutBuilderDelegate {
             if let newAvg { self.avgBpm = newAvg }
             if let newKcal { self.activeKcal = newKcal }
             self.elapsed = elapsedNow
+            if newBpm != nil { self.sampleCount += 1 }
         }
     }
 }

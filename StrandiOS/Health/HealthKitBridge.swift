@@ -7,6 +7,7 @@ import WhoopStore
 import StrandAnalytics
 import StrandImport
 import StrandTraining
+import StrandDesign
 
 /// Two-way Apple Health bridge for the iOS app.
 ///
@@ -810,6 +811,7 @@ final class HealthKitBridge: ObservableObject {
             try await store.upsertHealthEnergyBuckets(energyReferenceRows)
             if !workoutRows.isEmpty { try await store.upsertWorkouts(workoutRows, deviceId: appleDeviceId) }
             try await store.upsertWorkoutSourceMetadata(workoutImport.metadata)
+            try await store.upsertTrainingSessionLinks(workoutImport.sessionLinks)
             for (componentKey, buckets) in workoutImport.heartRateBuckets {
                 try await store.replaceWorkoutHeartRateBuckets(componentKey: componentKey, rows: buckets)
             }
@@ -1881,6 +1883,9 @@ final class HealthKitBridge: ObservableObject {
         let mine = (try? await whoopStore.workouts(deviceId: noopDeviceId, from: fromTs, to: toTs, limit: 500)) ?? []
         let computed = (try? await whoopStore.workouts(deviceId: computedDeviceId, from: fromTs, to: toTs, limit: 500)) ?? []
         let native = ((try? await whoopStore.nativeWorkouts(from: fromTs, to: toTs, limit: 500)) ?? [])
+            // The Watch provider already saves the real physiological workout. Writing the native set
+            // envelope as a second HealthKit workout would duplicate it in Fitness.
+            .filter { $0.physiologyProvider != .appleWatch }
             .map(NativeTrainingProjection.workoutRow)
         var byKey: [String: WorkoutRow] = [:]
         for w in computed + mine + native where w.source != HealthKitBridge.appleWorkoutSource {
@@ -2424,6 +2429,7 @@ final class HealthKitBridge: ObservableObject {
         var rows: [WorkoutRow] = []
         var metadata: [WorkoutSourceMetadataRow] = []
         var heartRateBuckets: [String: [WorkoutHeartRateBucketRow]] = [:]
+        var sessionLinks: [TrainingSessionLinkRow] = []
     }
 
     private func collectWorkouts(start: Date, end: Date) async -> WorkoutImportBatch {
@@ -2506,6 +2512,12 @@ final class HealthKitBridge: ObservableObject {
                                         sourceBundleId: sourceBundle,
                                         rawActivityType: Int(workout.workoutActivityType.rawValue),
                                         activitiesJSON: activitiesJSON, updatedAtTs: nowTs))
+            if let rawSessionId = workout.metadata?[StrengthWorkoutCompanionState.healthKitSessionMetadataKey] as? String,
+               let sessionId = UUID(uuidString: rawSessionId) {
+                batch.sessionLinks.append(.init(
+                    componentKey: componentKey, sessionId: sessionId.uuidString,
+                    origin: "watch-workout-metadata", updatedAtTs: nowTs))
+            }
             batch.heartRateBuckets[componentKey] = await workoutHeartRateBuckets(
                 for: workout, componentKey: componentKey)
         }

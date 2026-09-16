@@ -1040,13 +1040,18 @@ struct WorkoutsView: View {
     // row here is where someone actually stands when that question occurs to them.
 
     private var analysisRow: some View {
-        HStack(spacing: NoopMetrics.rowSpacing) {
-            analysisLink(title: String(localized: "Strength"),
-                         subtitle: String(localized: "sets, muscles, records"),
-                         icon: "dumbbell.fill") { StrengthView() }
-            analysisLink(title: String(localized: "Cardio"),
-                         subtitle: String(localized: "pace, distance, load"),
-                         icon: "figure.run.circle.fill") { CardioView() }
+        VStack(spacing: NoopMetrics.rowSpacing) {
+            HStack(spacing: NoopMetrics.rowSpacing) {
+                analysisLink(title: String(localized: "Strength"),
+                             subtitle: String(localized: "sets, muscles, records"),
+                             icon: "dumbbell.fill") { StrengthView() }
+                analysisLink(title: String(localized: "Cardio"),
+                             subtitle: String(localized: "pace, distance, load"),
+                             icon: "figure.run.circle.fill") { CardioView() }
+            }
+            analysisLink(title: String(localized: "Training Load"),
+                         subtitle: String(localized: "strength and cardio vs your baseline"),
+                         icon: "gauge.with.dots.needle.67percent") { TrainingLoadView() }
         }
     }
 

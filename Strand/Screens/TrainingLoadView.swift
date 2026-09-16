@@ -58,6 +58,7 @@ final class TrainingLoadModel: ObservableObject {
         let cardioMeasured: Bool
         let strengthAdaptation: TrainingAdaptationReading
         let cardiovascularAdaptation: TrainingAdaptationReading
+        let provisionalStrengthRing: ProvisionalStrengthRingReading?
     }
 
     /// Days of history read. The oldest week of the eight-week strip is judged as of 56 days ago, and
@@ -86,6 +87,8 @@ final class TrainingLoadModel: ObservableObject {
     @Published private(set) var cardioMeasured = false
     @Published private(set) var strengthAdaptation: TrainingAdaptationReading?
     @Published private(set) var cardiovascularAdaptation: TrainingAdaptationReading?
+    /// Ring-only estimate used before a personal comparison exists. It never becomes a lane status.
+    @Published private(set) var provisionalStrengthRing: ProvisionalStrengthRingReading?
 
     func load(repo: Repository) async {
         let now = Int(Date().timeIntervalSince1970)
@@ -94,15 +97,10 @@ final class TrainingLoadModel: ObservableObject {
 
         async let fusedSessions = repo.trainingSessions(days: Self.historyDays)
         async let ratings = repo.sessionRPEEntries(from: from, to: now + 86_400)
-        let strengthWorkouts: [HevyWorkout]
-        let templates: [String: HevyExerciseTemplate]
-        if let store = await repo.storeHandle() {
-            strengthWorkouts = (try? await store.strengthWorkouts(from: from, to: now + 86_400)) ?? []
-            templates = (try? await store.strengthExerciseTemplates()) ?? [:]
-        } else {
-            strengthWorkouts = []
-            templates = [:]
-        }
+        async let strengthHistoryRead = repo.resolvedStrengthHistory(days: Self.historyDays)
+        let strengthHistory = await strengthHistoryRead
+        let strengthWorkouts = strengthHistory.workouts
+        let templates = strengthHistory.templates
         let fusion = await fusedSessions
         let unified = fusion.sessions
         let cardioResolution = await repo.cardioLoads(for: unified)
@@ -140,6 +138,10 @@ final class TrainingLoadModel: ObservableObject {
             }
 
             let ratings = Self.canonicalRatings(entries: rpeEntries, canonicalIdByStart: canonicalIdByStart)
+            let ratingBySession = Dictionary(ratings.map { entry in
+                let key = entry.sessionId ?? canonicalIdByStart[entry.startTs] ?? "start|\(entry.startTs)"
+                return (key, entry)
+            }, uniquingKeysWith: { _, newest in newest })
             var sessionByDay: [String: Double] = [:]
             var possibleSessionKeysByDay: [String: Set<String>] = [:]
             for session in unified {
@@ -215,6 +217,32 @@ final class TrainingLoadModel: ObservableObject {
             let sustained = TrainingStatusModel.sustainedOverreaching(history: history, strengthResponse: response,
                                                                       cardioDirection: vo2max.direction,
                                                                       recovery: recovery)
+            let provisionalStrengthRing: ProvisionalStrengthRingReading?
+            if strengthRelative.trend == nil {
+                let recentResolved = strengthHistory.sessions.filter {
+                    let day = AnalyticsEngine.dayString($0.startTs, offsetSec: offset)
+                    return day >= cutoff && day <= today
+                }
+                let loads: [Double?] = recentResolved.map { session in
+                    let canonicalKey = canonicalIdByStart[session.startTs]
+                    let rating = ratingBySession[session.id]
+                        ?? canonicalKey.flatMap { ratingBySession[$0] }
+                        ?? ratingBySession["start|\(session.startTs)"]
+                    guard let rpe = rating?.rpe, session.durationS > 0 else { return nil }
+                    return rpe * session.durationS / 60
+                }
+                let start = Int(Calendar(identifier: .gregorian).date(
+                    byAdding: .day, value: -6,
+                    to: Calendar(identifier: .gregorian).startOfDay(for: Date(timeIntervalSince1970: TimeInterval(now))))?
+                    .timeIntervalSince1970 ?? Double(now - 6 * 86_400))
+                let muscle = DetailedMuscleLoadSnapshot.volume(history: strengthHistory,
+                                                               from: start, to: now)
+                provisionalStrengthRing = TrainingLoad.provisionalStrengthRing(
+                    sessionLoads: loads, weightedMuscleSets: muscle.byMuscle,
+                    hasUnmappedSets: muscle.hasUnmappedSets)
+            } else {
+                provisionalStrengthRing = nil
+            }
 
             return Prepared(
                 strength: Lane(sevenDayTotal: Self.lastSeven(strengthByDay, through: today),
@@ -261,7 +289,8 @@ final class TrainingLoadModel: ObservableObject {
                 sustained: sustained,
                 cardioMeasured: cardioSeries.measured,
                 strengthAdaptation: strengthAdaptation,
-                cardiovascularAdaptation: cardiovascularAdaptation)
+                cardiovascularAdaptation: cardiovascularAdaptation,
+                provisionalStrengthRing: provisionalStrengthRing)
         }.value
 
         guard !Task.isCancelled else { return }
@@ -295,6 +324,7 @@ final class TrainingLoadModel: ObservableObject {
         cardioMeasured = prepared.cardioMeasured
         strengthAdaptation = prepared.strengthAdaptation
         cardiovascularAdaptation = prepared.cardiovascularAdaptation
+        provisionalStrengthRing = prepared.provisionalStrengthRing
         #if DEBUG
         applyDemoStatusOverride()
         #endif
@@ -571,7 +601,7 @@ struct TrainingLoadView: View {
     /// stays split in two.
     private var hero: some View {
         VStack(spacing: NoopMetrics.space3) {
-            LoadDualRing(strength: model.strength?.status, cardio: model.cardio?.status)
+            LoadDualRing(strength: strengthRingReading, cardio: cardioRingReading)
             laneSummary(symbol: "figure.strengthtraining.traditional", title: "Strength",
                         lane: model.strength?.status, figure: strengthFigure, evidence: strengthEvidence,
                         caveat: strengthCaveat)
@@ -584,6 +614,15 @@ struct TrainingLoadView: View {
         .frame(maxWidth: .infinity)
         .background(TrainingHeroSurface(leading: model.strength?.status?.status.color ?? StrandPalette.textTertiary,
                                         trailing: model.cardio?.status?.status.color ?? StrandPalette.textTertiary))
+    }
+
+    private var strengthRingReading: LoadRingReading? {
+        if let status = model.strength?.status { return LoadRingReading(status) }
+        return model.provisionalStrengthRing.map(LoadRingReading.init)
+    }
+
+    private var cardioRingReading: LoadRingReading? {
+        model.cardio?.status.map(LoadRingReading.init)
     }
 
     /// One lane under the ring: the same symbol its knob carries, its verdict, its figure and what the

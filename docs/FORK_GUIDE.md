@@ -225,6 +225,12 @@ Fork-only docs, under [`fork/`](fork/):
 | [`fork/design/design-spec.md`](fork/design/design-spec.md) | How it looks (colour, spacing, animation) |
 | [`fork/design/mockup-today.html`](fork/design/mockup-today.html) | Binding visual reference where text and image disagree |
 | [`fork/redesign-briefing.md`](fork/redesign-briefing.md) | Redesign specs |
+| [`fork/opengym-integration.md`](fork/opengym-integration.md) | Native training: routines, logger, resolved strength history, long-term statistics, settings and accessibility |
+| [`fork/LIVE_STRENGTH_WORKOUTS.md`](fork/LIVE_STRENGTH_WORKOUTS.md) | Active-workout lifecycle, tracker selection, Apple Watch and resume |
+| [`fork/MUSCLE_ANALYTICS.md`](fork/MUSCLE_ANALYTICS.md) | Public methodology for Muscle Balance, Fatigue and Strength, including limits and imports |
+| [`fork/MUSCLE_BALANCE.md`](fork/MUSCLE_BALANCE.md), [`fork/MUSCLE_FATIGUE.md`](fork/MUSCLE_FATIGUE.md), [`fork/MUSCLE_STRENGTH.md`](fork/MUSCLE_STRENGTH.md) | One-page summaries of each muscle view |
+| [`fork/EXERCISE_CONTENT_AND_MEDIA.md`](fork/EXERCISE_CONTENT_AND_MEDIA.md) | Exercise identity, instructions and the optional user-initiated media download |
+| [`fork/THIRD_PARTY_NOTICES.md`](fork/THIRD_PARTY_NOTICES.md) | Provenance and rights status of exercise geometry, metadata and media |
 | [`fork/releases/`](fork/releases/) | Release notes — `publish-ios-release.yml` reads `fork/releases/v<VERSION>.md` and refuses to publish without it. NOT tag-named: `Tools/appchangelog-gen.py` derives the in-app "What's New" version from the filename |
 
 When you add a doc, file it into the matching group in the same change — this map stays current

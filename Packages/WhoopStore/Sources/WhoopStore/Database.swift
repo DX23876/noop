@@ -1606,6 +1606,95 @@ extension WhoopStore {
                   AND markerKey = 'session_rpe' AND value BETWEEN 1 AND 10
                 """)
         }
+        // v63: detailed exercise anatomy overrides and provider identities. The reviewed catalogue
+        // remains code-owned; this compact table stores only a user's correction or a provider mapping,
+        // so years of sets do not repeat muscle metadata on every workout row.
+        migrator.registerMigration("v63-training-exercise-anatomy-alias") { db in
+            try db.create(table: "trainingExerciseAnatomyAlias") { t in
+                t.column("key", .text).primaryKey()
+                t.column("source", .text).notNull()
+                t.column("sourceExerciseId", .text)
+                t.column("normalizedTitle", .text).notNull()
+                t.column("equipmentKey", .text)
+                t.column("canonicalExerciseId", .text).notNull()
+                t.column("primaryMuscleIdsJSON", .text).notNull()
+                t.column("secondaryMuscleIdsJSON", .text).notNull()
+                t.column("stabilizerMuscleIdsJSON", .text).notNull()
+                t.column("origin", .text).notNull()
+                t.column("confidence", .text).notNull()
+                t.column("updatedAtTs", .integer).notNull()
+            }
+            try db.create(index: "idx_trainingExerciseAnatomyAlias_provider",
+                          on: "trainingExerciseAnatomyAlias", columns: ["source", "sourceExerciseId"])
+            try db.create(index: "idx_trainingExerciseAnatomyAlias_title",
+                          on: "trainingExerciseAnatomyAlias", columns: ["normalizedTitle"])
+        }
+        // v64: additive workout-domain semantics for warm-ups, intensifier segments, timed sets,
+        // equipment snapshots, and session-RPE provenance. Historical analysis is unchanged; the
+        // added facts let later consumers distinguish rows without rewriting old workout values.
+        migrator.registerMigration("v64-complete-strength-workout-domain") { db in
+            try db.alter(table: "trainingRoutineExercise") { t in
+                t.add(column: "warmupRestSeconds", .integer)
+                t.add(column: "loadSemanticsJSON", .text)
+            }
+            try db.alter(table: "trainingRoutineSetPlan") { t in
+                t.add(column: "intensifierConfigJSON", .text)
+            }
+            try db.alter(table: "trainingWorkoutNative") { t in
+                t.add(column: "sessionRPEOrigin", .text)
+            }
+            try db.alter(table: "trainingWorkoutExercise") { t in
+                t.add(column: "warmupRestSeconds", .integer)
+                t.add(column: "equipmentSnapshotJSON", .text)
+            }
+            try db.alter(table: "trainingWorkoutSet") { t in
+                t.add(column: "targetDurationS", .integer)
+                t.add(column: "clusterId", .text)
+                t.add(column: "parentSetId", .text)
+                t.add(column: "segmentIndex", .integer)
+            }
+            try db.execute(sql: """
+                UPDATE trainingWorkoutNative
+                SET sessionRPEOrigin = 'legacy_unknown'
+                WHERE sessionRPE IS NOT NULL AND sessionRPEOrigin IS NULL
+                """)
+        }
+        // v65: links a native set log to its single physiological recording. Heart-rate samples remain
+        // in the existing source-aware workout storage; this table only keeps provenance and coverage.
+        migrator.registerMigration("v65-strength-physiology-lifecycle") { db in
+            try db.alter(table: "trainingWorkoutNative") { t in
+                t.add(column: "trainingSessionId", .text)
+                t.add(column: "physiologyProvider", .text)
+                t.add(column: "physiologyComponentKey", .text)
+                t.add(column: "hrCoverage", .double)
+                t.add(column: "lifecycleVersion", .integer)
+            }
+            try db.execute(sql: """
+                CREATE UNIQUE INDEX idx_trainingWorkoutNative_session
+                ON trainingWorkoutNative(trainingSessionId)
+                WHERE trainingSessionId IS NOT NULL
+                """)
+        }
+        // v66: completed sessions retain their recorded pause intervals. This is additive lifecycle
+        // metadata used only to show active duration beside elapsed duration in a session summary.
+        migrator.registerMigration("v66-strength-workout-summary-pauses") { db in
+            try db.alter(table: "trainingWorkoutNative") { t in
+                t.add(column: "pauseIntervalsJSON", .text)
+            }
+        }
+        // v67: canonical exercise identity. Additive columns only; an exercise without them behaves
+        // exactly as before, and no workout, routine or analysis value changes.
+        migrator.registerMigration("v67-training-exercise-canonical-identity") { db in
+            try db.alter(table: "trainingExerciseDefinition") { t in
+                t.add(column: "canonicalId", .text)
+                t.add(column: "aliasesJSON", .text)
+                t.add(column: "contentVersion", .integer)
+                t.add(column: "attribution", .text)
+                t.add(column: "loadSemantics", .text)
+            }
+            try db.create(index: "idx_trainingExerciseDefinition_canonical",
+                          on: "trainingExerciseDefinition", columns: ["canonicalId"])
+        }
         return migrator
     }
 }

@@ -19,6 +19,7 @@ final class WatchScoreStore: NSObject, ObservableObject, WCSessionDelegate {
 
     /// The latest snapshot the watch knows about. nil = nothing has ever synced (fresh install).
     @Published private(set) var snapshot: WatchScoreSnapshot?
+    @Published private(set) var strengthWorkout: StrengthWorkoutCompanionState?
 
     /// The shared App Group suite the watch app + its complication both read/write. `Bundle.main` is
     /// process-global, so this is exactly the lookup `WatchScoreSnapshot.appGroupId` itself performs —
@@ -85,6 +86,31 @@ final class WatchScoreStore: NSObject, ObservableObject, WCSessionDelegate {
         return try? JSONDecoder().decode(WatchScoreSnapshot.self, from: data)
     }
 
+    private func applyStrengthWorkout(from payload: [String: Any]) {
+        let state = (payload[StrengthWorkoutCompanionState.contextKey] as? Data)
+            .flatMap { try? JSONDecoder().decode(StrengthWorkoutCompanionState.self, from: $0) }
+        DispatchQueue.main.async { self.strengthWorkout = state }
+    }
+
+    func send(_ kind: StrengthWorkoutCompanionCommand.Kind) {
+        guard let state = strengthWorkout, WCSession.isSupported() else { return }
+        let command = StrengthWorkoutCompanionCommand(
+            sessionId: state.sessionId, expectedRevision: state.revision, kind: kind)
+        guard let data = try? JSONEncoder().encode(command) else { return }
+        WCSession.default.sendMessage([StrengthWorkoutCompanionState.commandKey: data],
+                                      replyHandler: nil, errorHandler: nil)
+    }
+
+    func sendTelemetry(bpm: Int?, sampleCount: Int) {
+        guard let state = strengthWorkout, WCSession.isSupported() else { return }
+        let value = StrengthWorkoutCompanionTelemetry(
+            sessionId: state.sessionId, bpm: bpm, sampleCount: sampleCount,
+            recordedAtTs: Int(Date().timeIntervalSince1970))
+        guard let data = try? JSONEncoder().encode(value) else { return }
+        WCSession.default.sendMessage([StrengthWorkoutCompanionTelemetry.messageKey: data],
+                                      replyHandler: nil, errorHandler: nil)
+    }
+
     /// Ask the companion for its cached latest state. `updateApplicationContext` remains the durable
     /// background path; this immediate request closes the fresh-install/relaunch gap when both apps are
     /// reachable and avoids waiting for the phone's next dashboard refresh.
@@ -93,8 +119,9 @@ final class WatchScoreStore: NSObject, ObservableObject, WCSessionDelegate {
               !requestedLatestForCurrentReachability else { return }
         requestedLatestForCurrentReachability = true
         session.sendMessage([WatchScoreSnapshot.requestLatestKey: true]) { [weak self] reply in
-            guard let self, let snap = self.decode(from: reply) else { return }
-            self.apply(snap)
+            guard let self else { return }
+            if let snap = self.decode(from: reply) { self.apply(snap) }
+            self.applyStrengthWorkout(from: reply)
         } errorHandler: { [weak self] _ in
             // A later reachability transition may retry; application context still provides fallback.
             self?.requestedLatestForCurrentReachability = false
@@ -111,6 +138,7 @@ final class WatchScoreStore: NSObject, ObservableObject, WCSessionDelegate {
         if let snap = decode(from: session.receivedApplicationContext) {
             apply(snap)
         }
+        applyStrengthWorkout(from: session.receivedApplicationContext)
         requestLatestIfReachable(session)
     }
 
@@ -120,6 +148,7 @@ final class WatchScoreStore: NSObject, ObservableObject, WCSessionDelegate {
         if let snap = decode(from: applicationContext) {
             apply(snap)
         }
+        applyStrengthWorkout(from: applicationContext)
     }
 
     func sessionReachabilityDidChange(_ session: WCSession) {
