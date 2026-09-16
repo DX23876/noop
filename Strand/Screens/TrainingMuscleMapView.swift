@@ -114,9 +114,6 @@ struct TrainingMuscleMapCard: View {
                                kind: .secondary) {
                         showingDetails = true
                     }
-                    Link("Body geometry: MuscleMap · MIT License",
-                         destination: URL(string: "https://github.com/melihcolpan/MuscleMap")!)
-                        .font(StrandFont.caption)
                 }
             }
         }

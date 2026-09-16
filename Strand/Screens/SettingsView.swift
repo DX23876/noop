@@ -355,6 +355,9 @@ struct SettingsView: View {
     /// recording means, and where the provenance badges come from.
     @State private var showHowNoopWorks = false
 
+    /// Third-party licence acknowledgements, reachable any time from About.
+    @State private var showAcknowledgements = false
+
     /// "Set up Apple Watch" sheet: the honest watch onboarding flow (what it's great at, where
     /// it's lighter, then the Health permission request). Presented from the About page's primary
     /// action. iOS does the real HealthKit request; macOS reads as an iPhone-only step.
@@ -503,6 +506,9 @@ struct SettingsView: View {
         }
         .sheet(isPresented: $showScoringGuide) {
             ScoringGuideView(onClose: { showScoringGuide = false })
+        }
+        .sheet(isPresented: $showAcknowledgements) {
+            AcknowledgementsView(onClose: { showAcknowledgements = false })
         }
         .sheet(isPresented: $showHowNoopWorks) {
             HowNoopWorksView(onClose: { showHowNoopWorks = false })
@@ -3293,6 +3299,35 @@ struct SettingsView: View {
                 }
                 .buttonStyle(LiquidPressStyle())
                 .accessibilityLabel("How your scores work")
+
+                // Third-party licence acknowledgements, moved here from an inline link on the
+                // Muscle Map screen so every credited source lives in one place.
+                Button {
+                    showAcknowledgements = true
+                } label: {
+                    HStack(spacing: 10) {
+                        Image(systemName: "doc.text.magnifyingglass")
+                            .appleInspiredMenuIcon("intelligence")
+                            .accessibilityHidden(true)
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text("Acknowledgements")
+                                .font(StrandFont.body)
+                                .foregroundStyle(StrandPalette.textPrimary)
+                            Text("Third-party content NOOP uses under its own licence.")
+                                .font(StrandFont.footnote)
+                                .foregroundStyle(StrandPalette.textSecondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(StrandPalette.textTertiary)
+                            .accessibilityHidden(true)
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(LiquidPressStyle())
+                .accessibilityLabel("Acknowledgements")
 
                 // About Apple Watch data: the honest capability/confidence page for running NOOP off
                 // just an Apple Watch (what it's great at, where it's lighter than a strap, why recovery

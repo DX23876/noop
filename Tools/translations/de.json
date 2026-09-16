@@ -1408,5 +1408,9 @@
   "No exercises match.": "Keine passenden Übungen.",
   "Shins": "Schienbein",
   "body.region.back": "Rücken",
-  "body.side.back": "Rückseite"
+  "body.side.back": "Rückseite",
+  "NOOP uses the following third-party content under its own licence. A licence in one domain (code, data, media) is not treated as a licence in another.": "NOOP verwendet die folgenden Inhalte Dritter unter deren eigener Lizenz. Eine Lizenz in einem Bereich (Code, Daten, Medien) gilt nicht automatisch auch für einen anderen.",
+  "Import & export": "Import und Export",
+  "Third-party content NOOP uses under its own licence.": "Inhalte Dritter, die NOOP unter deren eigener Lizenz verwendet.",
+  "Acknowledgements": "Danksagungen"
 }

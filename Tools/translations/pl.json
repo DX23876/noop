@@ -2545,5 +2545,9 @@
   "No exercises match.": "Brak pasujących ćwiczeń.",
   "Shins": "Piszczele",
   "body.region.back": "Plecy",
-  "body.side.back": "Tył"
+  "body.side.back": "Tył",
+  "NOOP uses the following third-party content under its own licence. A licence in one domain (code, data, media) is not treated as a licence in another.": "NOOP korzysta z poniższych treści innych firm na podstawie ich własnej licencji. Licencja w jednym obszarze (kod, dane, multimedia) nie jest traktowana jako licencja w innym.",
+  "Import & export": "Import i eksport",
+  "Third-party content NOOP uses under its own licence.": "Treści innych firm, z których NOOP korzysta na podstawie ich własnej licencji.",
+  "Acknowledgements": "Podziękowania"
 }

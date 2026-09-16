@@ -1564,5 +1564,9 @@
   "No exercises match.": "沒有符合的動作。",
   "Shins": "脛骨前肌",
   "body.region.back": "背部",
-  "body.side.back": "背面"
+  "body.side.back": "背面",
+  "NOOP uses the following third-party content under its own licence. A licence in one domain (code, data, media) is not treated as a licence in another.": "NOOP 在其自身授權下使用以下第三方內容。一個領域(程式碼、資料、媒體)的授權並不代表其他領域的授權。",
+  "Import & export": "匯入與匯出",
+  "Third-party content NOOP uses under its own licence.": "NOOP 在其自身授權下使用的第三方內容。",
+  "Acknowledgements": "鳴謝"
 }
