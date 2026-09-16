@@ -58,6 +58,8 @@ final class StrengthModel: ObservableObject {
     /// Every session in the window, newest first.
     @Published private(set) var workouts: [HevyWorkout] = []
     @Published private(set) var templates: [String: HevyExerciseTemplate] = [:]
+    /// Consistency heatmap days, computed with the history instead of in the view body.
+    @Published private(set) var activityDays: [TrainingActivityDay] = []
     @Published private(set) var resolvedHistory = ResolvedStrengthHistory(
         sessions: [], workouts: [], templates: [:])
     @Published private(set) var summaries: [StrengthSessionSummary] = []
@@ -217,6 +219,10 @@ final class StrengthModel: ObservableObject {
 
         workouts = sessions
         resolvedHistory = history
+        activityDays = TrainingActivityDay.pastYear(
+            sessions: history.sessions,
+            weekStart: TrainingWeekStart(rawValue: UserDefaults.standard.string(
+                forKey: TrainingPreferences.weekStartKey) ?? "") ?? .monday)
         genericSessions = fused.sessions.compactMap { session -> GenericStrengthSession? in
             guard session.kind == .strength else { return nil }
             let overlapping = sessions.filter { detail in

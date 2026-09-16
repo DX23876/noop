@@ -136,7 +136,7 @@ struct StrengthView: View {
                 } else {
                     thisWeek
                     selectedRangeOverview
-                    TrainingActivityHeatmap(sessions: model.resolvedHistory.sessions)
+                    TrainingActivityHeatmap(days: model.activityDays)
                     // Named for `--demo-scroll-to` screenshot QA (DEBUG only; the id is inert otherwise),
                     // so the weekly set range in the middle of this screen can be captured too.
                     muscleGroups.id("volume")

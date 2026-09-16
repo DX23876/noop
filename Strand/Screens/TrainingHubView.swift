@@ -11,17 +11,17 @@ import UIKit
 /// Native training home inspired by OpenGym's useful structure while keeping NOOP's own visual system,
 /// source provenance, analytics and data model. No OpenGym source, strings or assets are included.
 struct TrainingHubView: View {
-    @EnvironmentObject private var app: AppModel
+    // Deliberately not `AppModel`: it republishes on every heart-rate tick, and this screen's body is the
+    // most expensive in the app. The session controller changes only when a session starts or ends.
+    @EnvironmentObject private var session: ActiveSessionController
     @EnvironmentObject private var repo: Repository
     @StateObject private var model = TrainingHubModel()
-    @State private var selectedTrackerId: String?
     @State private var showingStarterPlans = false
     @State private var showingSchedule = false
     @State private var showingLibrary = false
     @State private var showingPlanImporter = false
     @State private var showingHistoryImporter = false
     @State private var showingPastWorkout = false
-    @State private var completedWorkout: NativeWorkout?
     @State private var editingDay: TrainingDaySelection?
     @State private var editingRoutine: TrainingRoutine?
     @State private var previewRoutine: TrainingRoutine?
@@ -37,7 +37,7 @@ struct TrainingHubView: View {
                     startCard
                     weekCard
                     routinesCard
-                    TrainingActivityHeatmap(sessions: model.resolvedHistory.sessions)
+                    TrainingActivityHeatmap(days: model.activityDays)
                     TrainingMuscleMapCard(history: model.resolvedHistory)
                     analysisCard
                     recentCard
@@ -48,29 +48,17 @@ struct TrainingHubView: View {
         }
         .navigationTitle(Text("Training"))
         .task(id: "\(repo.refreshSeq)|\(weekStartRaw)") {
-            await model.load(repo: repo, weekStartsOn: weekStart)
+            await model.load(repo: repo, session: session, weekStartsOn: weekStart)
         }
-        .sheet(item: $model.draft) { draft in
-            NativeWorkoutLoggerView(
-                draft: draft, exercises: model.exercises,
-                performance: model.performanceHistory, repo: repo, app: app,
-                onFinish: { workout in
-                    Task {
-                        await model.workoutFinished(repo: repo)
-                        try? await Task.sleep(for: .milliseconds(250))
-                        completedWorkout = workout
-                    }
-                },
-                onDiscard: { Task { await model.workoutDiscarded(repo: repo) } })
+        // A finished session changes history; reload once it is over rather than on every refresh during it.
+        .onChange(of: session.hasLiveSession) { live in
+            guard !live else { return }
+            Task { await model.load(repo: repo, session: session, weekStartsOn: weekStart, force: true) }
         }
         .sheet(item: $model.historyImportPreview) { preview in
             TrainingHistoryImportPreviewView(preview: preview,
                 onCancel: { model.historyImportPreview = nil },
                 onImport: { Task { await model.confirmHistoryImport(repo: repo) } })
-        }
-        .sheet(item: $completedWorkout) { workout in
-            StrengthWorkoutSummaryView(workout: workout, exercises: model.exercises,
-                                       performance: model.performanceHistory)
         }
         .sheet(isPresented: $showingStarterPlans) {
             NavigationStack { starterPlans }
@@ -87,8 +75,8 @@ struct TrainingHubView: View {
                 TrainingExerciseLibraryView(
                     exercises: model.exercises,
                     performance: model.performanceHistory,
-                    onAddToWorkout: model.draft == nil ? nil : { exercise in
-                        Task { await model.addExerciseToDraft(exercise, repo: repo) }
+                    onAddToWorkout: session.strength.map { strength in
+                        { exercise in strength.addExercise(exercise) }
                     },
                     onSave: { exercise in
                         Task { await model.saveExercise(exercise, repo: repo) }
@@ -118,7 +106,7 @@ struct TrainingHubView: View {
                 TrainingRoutinePreviewView(routine: routine, exercises: model.exerciseById,
                     weekdays: RoutineEditing.weekdays(of: routine.id, in: model.plan.schedule)) {
                     previewRoutine = nil
-                    start([routine], tracker: selectedTracker)
+                    start([routine])
                 }
             }
         }
@@ -129,8 +117,8 @@ struct TrainingHubView: View {
                     showingPastWorkout = false
                     Task {
                         try? await Task.sleep(nanoseconds: 250_000_000)
-                        await model.start(routines: routines, tracker: tracker, repo: repo,
-                                          date: date, pastDurationS: duration)
+                        await session.startRetrospective(routines: routines, tracker: tracker,
+                                                         date: date, durationS: duration)
                     }
                 }
             }
@@ -156,7 +144,7 @@ struct TrainingHubView: View {
             if let coachContext {
                 CoachCardButton(context: coachContext)
             }
-            Button { start([], tracker: selectedTracker) } label: {
+            Button { start([]) } label: {
                 Label("Freestyle", systemImage: "plus.circle.fill")
                     .font(StrandFont.subhead.weight(.semibold))
             }
@@ -169,11 +157,11 @@ struct TrainingHubView: View {
             VStack(alignment: .leading, spacing: NoopMetrics.space3) {
                 HStack {
                     VStack(alignment: .leading, spacing: 3) {
-                        Text(model.draft == nil ? "Ready to train?" : "Workout in progress")
+                        Text(session.hasLiveSession ? "Workout in progress" : "Ready to train?")
                             .font(StrandFont.headline).foregroundStyle(StrandPalette.textPrimary)
-                        Text(model.draft == nil
-                            ? String(localized: "Log every set locally and keep its source.")
-                            : model.draft?.title ?? "")
+                        Text(session.hasLiveSession
+                            ? session.runningTitle
+                            : String(localized: "Log every set locally and keep its source."))
                             .font(StrandFont.subhead).foregroundStyle(StrandPalette.textSecondary)
                     }
                     Spacer()
@@ -181,24 +169,22 @@ struct TrainingHubView: View {
                         .font(.title2).foregroundStyle(StrandPalette.accent)
                 }
 
-                trackerPicker
-
-                if let draft = model.draft {
-                    Button { model.draft = draft } label: {
+                if session.hasLiveSession {
+                    Button { session.present() } label: {
                         Label("Resume workout", systemImage: "play.fill")
                             .frame(maxWidth: .infinity).padding(.vertical, 11)
                     }
                     .buttonStyle(.borderedProminent).tint(StrandPalette.accent)
                 } else if !model.routines(on: Date()).isEmpty {
                     let today = model.routines(on: Date())
-                    Button { start(today, tracker: selectedTracker) } label: {
+                    Button { start(today) } label: {
                         Label("Start today's plan", systemImage: "play.fill")
                             .frame(maxWidth: .infinity).padding(.vertical, 11)
                     }
                     .buttonStyle(.borderedProminent).tint(StrandPalette.accent)
                 } else {
                     HStack(spacing: 10) {
-                        Button { start([], tracker: selectedTracker) } label: {
+                        Button { start([]) } label: {
                             Label("Freestyle", systemImage: "play.fill").frame(maxWidth: .infinity)
                         }
                         .buttonStyle(.borderedProminent).tint(StrandPalette.accent)
@@ -208,26 +194,6 @@ struct TrainingHubView: View {
                         .buttonStyle(.bordered)
                     }
                 }
-            }
-        }
-    }
-
-    @ViewBuilder private var trackerPicker: some View {
-        if model.trackers.isEmpty {
-            Label("No tracker assigned — you can still log every set.", systemImage: "waveform.slash")
-                .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
-        } else {
-            HStack {
-                Label("Tracker for this workout", systemImage: "sensor.tag.radiowaves.forward.fill")
-                    .font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
-                Spacer()
-                Picker("Tracker", selection: $selectedTrackerId) {
-                    Text("None").tag(String?.none)
-                    ForEach(model.trackers, id: \.trackerId) { tracker in
-                        Text(tracker.model ?? tracker.manufacturer ?? "Tracker").tag(tracker.trackerId)
-                    }
-                }
-                .labelsHidden().pickerStyle(.menu)
             }
         }
     }
@@ -314,7 +280,7 @@ struct TrainingHubView: View {
                                     .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
                             }
                             Spacer()
-                            Button { start([routine], tracker: selectedTracker) } label: {
+                            Button { start([routine]) } label: {
                                 Image(systemName: "play.fill")
                             }.buttonStyle(.borderedProminent).tint(StrandPalette.accent)
                             .accessibilityLabel(Text("Start \(routine.title)"))
@@ -428,11 +394,6 @@ struct TrainingHubView: View {
         .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { showingStarterPlans = false } } }
     }
 
-    private var selectedTracker: SessionTrackerAttribution? {
-        guard let selectedTrackerId else { return nil }
-        return model.trackers.first { $0.trackerId == selectedTrackerId }
-    }
-
     private var weekStart: TrainingWeekStart {
         TrainingWeekStart(rawValue: weekStartRaw) ?? .monday
     }
@@ -484,8 +445,10 @@ struct TrainingHubView: View {
         return (0..<7).compactMap { calendar.date(byAdding: .day, value: $0, to: start) }
     }
 
-    private func start(_ routines: [TrainingRoutine], tracker: SessionTrackerAttribution?) {
-        Task { await model.start(routines: routines, tracker: tracker, repo: repo) }
+    /// Every start goes through the one session controller, so the Training tab and Today build the
+    /// same session and a running one is never replaced without asking.
+    private func start(_ routines: [TrainingRoutine]) {
+        session.requestStrength(routines: routines)
     }
 
     private func exportPlan() {
@@ -567,7 +530,7 @@ private struct TrainingHistoryImportPreviewView: View {
     }
 }
 
-private struct StrengthWorkoutSummaryView: View {
+struct StrengthWorkoutSummaryView: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var repo: Repository
     @StateObject private var profile = ProfileStore()
@@ -989,15 +952,15 @@ private struct WorkoutLayoutPicker: View {
     }
 }
 
-private struct NativeWorkoutLoggerView: View {
-    @Environment(\.dismiss) private var dismiss
+/// The strength logger. It edits the controller's session model and never owns the session: closing it
+/// minimizes, and only Finish or Discard end the workout.
+struct NativeWorkoutLoggerView: View {
     @Environment(\.scenePhase) private var scenePhase
-    @StateObject private var model: NativeWorkoutSessionModel
+    @EnvironmentObject private var session: ActiveSessionController
+    @ObservedObject private var model: NativeWorkoutSessionModel
     @ObservedObject private var media = ExerciseMediaStore.shared
     let exercises: [TrainingExercise]
     let performance: TrainingPerformanceHistory
-    let onFinish: (NativeWorkout) -> Void
-    let onDiscard: () -> Void
     @State private var showingExercises = false
     @State private var exerciseQuery = ""
     @State private var plateRequest: TrainingPlateRequest?
@@ -1015,16 +978,11 @@ private struct NativeWorkoutLoggerView: View {
     @State private var macActivity: NSObjectProtocol?
     #endif
 
-    init(draft: WorkoutDraft, exercises: [TrainingExercise], performance: TrainingPerformanceHistory, repo: Repository,
-         app: AppModel,
-         onFinish: @escaping (NativeWorkout) -> Void,
-         onDiscard: @escaping () -> Void) {
-        _model = StateObject(wrappedValue: NativeWorkoutSessionModel(
-            draft: draft, repo: repo, app: app, exercises: exercises))
+    init(model: NativeWorkoutSessionModel, exercises: [TrainingExercise],
+         performance: TrainingPerformanceHistory) {
+        self.model = model
         self.exercises = exercises
         self.performance = performance
-        self.onFinish = onFinish
-        self.onDiscard = onDiscard
     }
 
     var body: some View {
@@ -1047,7 +1005,10 @@ private struct NativeWorkoutLoggerView: View {
             .navigationTitle(model.draft.title)
             .trainingInlineNavigationTitle()
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Close") { dismiss() } }
+                ToolbarItem(placement: .cancellationAction) {
+                    // Minimizes. The session keeps running and stays one tap away.
+                    Button { session.minimize() } label: { Label("Back", systemImage: "chevron.down") }
+                }
             }
             .trainingKeyboardDoneButton { focusedSetField = nil }
             .sheet(isPresented: $showingExercises) { exercisePicker }
@@ -1078,9 +1039,6 @@ private struct NativeWorkoutLoggerView: View {
             } message: {
                 Text("Every set logged in this session is deleted and nothing is added to your history. This cannot be undone.")
             }
-            #if os(iOS)
-            .interactiveDismissDisabled()
-            #endif
             .onChange(of: model.watchFinishRequested) { requested in
                 guard requested else { return }
                 requestFinish()
@@ -1088,6 +1046,11 @@ private struct NativeWorkoutLoggerView: View {
             .onChange(of: scenePhase) { phase in
                 if phase == .active { model.appReturnedToForeground() }
                 else if phase == .background { model.appMovedToBackground() }
+            }
+            // Live heart rate is only worth streaming while someone is looking at it; the session's
+            // stored heart rate does not depend on it.
+            .onAppear { if !model.isRetrospective { session.startLiveHeartRate() } }
+            .onDisappear { if !model.isRetrospective { session.stopLiveHeartRate() }
             }
             #if os(iOS)
             .onAppear { UIApplication.shared.isIdleTimerDisabled = keepScreenOn }
@@ -1179,21 +1142,10 @@ private struct NativeWorkoutLoggerView: View {
     }
 
     private var physiologyCard: some View {
-        HStack(spacing: NoopMetrics.space2) {
-            Image(systemName: model.liveBPM == nil ? "heart.slash" : "heart.fill")
-                .foregroundStyle(model.liveBPM == nil ? StrandPalette.textTertiary : StrandPalette.metricRose)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(model.liveBPM.map { "\($0) bpm" } ?? String(localized: "Heart rate not available"))
-                    .font(StrandFont.headline.monospacedDigit())
-                Text(physiologySource)
-                    .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
-            }
-            Spacer()
-            if model.draft.state != .active {
-                Text("PAUSED").font(StrandFont.overline).foregroundStyle(StrandPalette.statusWarning)
-            }
-        }
-        .padding().background(StrandPalette.surfaceRaised, in: RoundedRectangle(cornerRadius: 16))
+        StrengthLiveHeartRateCard(provider: model.draft.physiologyProvider ?? .none,
+                                  sourceText: physiologySource,
+                                  paused: model.draft.state != .active,
+                                  watchFeed: session.watchHeartRate)
     }
 
     private var physiologySource: String {
@@ -1727,8 +1679,7 @@ private struct NativeWorkoutLoggerView: View {
     private func finishNow() {
         Task {
             if let workout = await model.finish() {
-                onFinish(workout)
-                dismiss()
+                session.strengthFinished(workout)
             }
         }
     }
@@ -1738,8 +1689,7 @@ private struct NativeWorkoutLoggerView: View {
     private func discardNow() {
         Task {
             if await model.discard() {
-                onDiscard()
-                dismiss()
+                session.strengthDiscarded()
             }
         }
     }
@@ -2583,5 +2533,41 @@ private extension TrainingWeekday {
         case .saturday: return "Saturday"
         case .sunday: return "Sunday"
         }
+    }
+}
+
+/// Live heart rate for the strength logger, isolated in its own view: it observes the 1 Hz heart-rate
+/// sources, so a new sample redraws this card only and not the sets beneath it.
+private struct StrengthLiveHeartRateCard: View {
+    let provider: WorkoutPhysiologyProvider
+    let sourceText: String
+    let paused: Bool
+    @ObservedObject var watchFeed: WatchHeartRateFeed
+    @EnvironmentObject private var app: AppModel
+
+    private var bpm: Int? {
+        switch provider {
+        case .appleWatch: watchFeed.bpm
+        case .noopBand, .externalTracker: app.bpm
+        case .none: app.bpm
+        }
+    }
+
+    var body: some View {
+        HStack(spacing: NoopMetrics.space2) {
+            Image(systemName: bpm == nil ? "heart.slash" : "heart.fill")
+                .foregroundStyle(bpm == nil ? StrandPalette.textTertiary : StrandPalette.metricRose)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(bpm.map { "\($0) bpm" } ?? String(localized: "Heart rate not available"))
+                    .font(StrandFont.headline.monospacedDigit())
+                Text(sourceText)
+                    .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+            }
+            Spacer()
+            if paused {
+                Text("PAUSED").font(StrandFont.overline).foregroundStyle(StrandPalette.statusWarning)
+            }
+        }
+        .padding().background(StrandPalette.surfaceRaised, in: RoundedRectangle(cornerRadius: 16))
     }
 }

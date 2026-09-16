@@ -856,7 +856,8 @@ final class Repository: ObservableObject {
                 TrainingStarterCatalog.exercises + BundledExerciseCatalog.exercises, nowTs: now)
             UserDefaults.standard.set(BundledExerciseCatalog.contentVersion, forKey: seededVersionKey)
         }
-        _ = try? await store.pruneWorkoutDrafts(olderThan: now - 7 * 86_400)
+        // Unfinished drafts are no longer pruned after a week: they hold sets the wearer logged, and a
+        // forgotten session is offered back to them (`ActiveSessionController.restoreIfNeeded`) instead.
     }
 
     func nativeTrainingExercises() async -> [TrainingExercise] {
@@ -963,7 +964,8 @@ final class Repository: ObservableObject {
                                               durationS: Double(workout.endedAt - workout.startedAt),
                                               sport: workout.title)
         }
-        await refresh()
+        // The summary does not wait for a whole-app refresh; the saved workout is already authoritative.
+        Task { await refresh() }
     }
 
     func nativeWorkouts(days: Int = 4_000) async -> [NativeWorkout] {
@@ -3354,9 +3356,36 @@ final class Repository: ObservableObject {
         // the load didn't). HR is reconciled from the strap trace at the end like every other row.
         rows += await pagedWorkoutRows(store: store, deviceId: "activity-file", from: lo, to: hi)
         rows = Self.dedupWorkoutsByNaturalKey(rows)
+        let lifecycleLinks = ((try? await store.trainingSessionLinks()) ?? []).filter { $0.origin == "native-lifecycle" }
+        rows = Self.hidingLegacyStrengthRecordings(rows, links: lifecycleLinks)
         let spans = WorkoutSource.parseDismissedSpans(dismissedDetectedSpans)
         let filtered = rows.filter { !WorkoutSource.isDismissed($0, spans: spans) }
         return filtered.sorted { $0.startTs > $1.startTs }
+    }
+
+    /// Before the single active session, a native strength workout could be accompanied by a second,
+    /// manually recorded "Strength Training" row of the same session. Both are kept in storage; the list
+    /// shows the session once. A recording is hidden only when it is that twin: a strength row that is not
+    /// itself native, overlapping at least half of a native row that the lifecycle linked to a session.
+    nonisolated static func hidingLegacyStrengthRecordings(_ rows: [WorkoutRow],
+                                                           links: [TrainingSessionLinkRow]) -> [WorkoutRow] {
+        guard !links.isEmpty else { return rows }
+        let linkedKeys = Set(links.map(\.componentKey))
+        let strength = WorkoutSource.sportKey("Strength Training")
+        let natives = rows.filter { row in
+            row.source.hasPrefix("native-training")
+                && linkedKeys.contains("\(row.source)|\(row.startTs)|\(WorkoutSource.sportKey(row.sport))")
+        }
+        guard !natives.isEmpty else { return rows }
+        return rows.filter { row in
+            guard !row.source.hasPrefix("native-training"),
+                  WorkoutSource.sportKey(row.sport) == strength else { return true }
+            return !natives.contains { native in
+                let overlap = min(row.endTs, native.endTs) - max(row.startTs, native.startTs)
+                let shorter = min(row.endTs - row.startTs, native.endTs - native.startTs)
+                return shorter > 0 && overlap * 2 >= shorter
+            }
+        }
     }
 
     private func pagedWorkoutRows(store: WhoopStore, deviceId: String,

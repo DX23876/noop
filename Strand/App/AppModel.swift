@@ -48,6 +48,12 @@ final class AppModel: ObservableObject {
     var strengthWorkoutWatchStateSink: ((StrengthWorkoutCompanionState?) -> Void)?
     var strengthWorkoutWatchCommandHandler: ((StrengthWorkoutCompanionCommand) -> Void)?
     var strengthWorkoutWatchTelemetryHandler: ((StrengthWorkoutCompanionTelemetry) -> Void)?
+    /// Whether a Watch with the NOOP app can receive the strength companion right now. Wired by the iOS
+    /// app; nil on macOS.
+    var isStrengthCompanionReachable: (() -> Bool)?
+
+    /// The single active training session. Created lazily so it can hold an unowned reference back here.
+    lazy var session = ActiveSessionController(app: self)
 
     /// Timestamp formatter for the generic-HR strap-log lines routed through `straplog` into the shared
     /// log (issue #421). Mirrors `BLEManager.logTimeFormatter`'s `HH:mm:ss` so WHOOP and HR-strap lines
@@ -863,6 +869,8 @@ final class AppModel: ObservableObject {
         let started = Date()
         let validatedTarget = targetZone.flatMap { (1...5).contains($0) ? $0 : nil }
         activeWorkout = ActiveWorkout(start: started, sport: resolved, targetZone: validatedTarget)
+        workoutBpmSum = 0
+        lastLiveStrainTs = 0
         zoneTrainingTargetZone = validatedTarget
         zoneTrainingEngine.reset()
         zoneTrainingState = nil
@@ -927,6 +935,7 @@ final class AppModel: ObservableObject {
     /// the Apple analogue of Android's `persistNonGpsWorkout`.
     private func persistActiveWorkout() {
         guard let w = activeWorkout else { return }
+        lastWorkoutPersistTs = Int(Date().timeIntervalSince1970)
         ActiveWorkoutPersistence.store(
             ActiveWorkoutPersistence.Snapshot(
                 startSec: Int(w.start.timeIntervalSince1970),
@@ -949,6 +958,7 @@ final class AppModel: ObservableObject {
         var w = ActiveWorkout(start: Date(timeIntervalSince1970: TimeInterval(snap.startSec)),
                               sport: snap.sport)
         w.samples = snap.samples
+        workoutBpmSum = snap.samples.reduce(0) { $0 + $1.bpm }
         w.avgHr = snap.avgHr
         w.peakHr = snap.peakHr
         w.liveStrain = snap.liveStrain
@@ -1097,15 +1107,34 @@ final class AppModel: ObservableObject {
     /// over the growing window each sample is cheap at the ~1 Hz live-HR cadence.
     private func captureWorkoutSample() {
         guard var w = activeWorkout, !w.isPaused, let hr = bpm else { return }
-        w.samples.append(HRSample(ts: Int(Date().timeIntervalSince1970), bpm: hr))
+        let now = Int(Date().timeIntervalSince1970)
+        w.samples.append(HRSample(ts: now, bpm: hr))
         w.peakHr = max(w.peakHr, hr)
-        w.avgHr = Int((Double(w.samples.map(\.bpm).reduce(0, +)) / Double(w.samples.count)).rounded())
-        w.liveStrain = StrainScorer.strain(w.samples, maxHR: Double(profile.hrMax),
-                                              method: PuffinExperiment.effortMethod, sex: profile.sex) ?? 0
+        workoutBpmSum += hr
+        w.avgHr = Int((Double(workoutBpmSum) / Double(w.samples.count)).rounded())
+        // The live Effort integrates the whole window, so it is refreshed every few seconds rather than on
+        // every sample; the saved value is still scored once over the full window in `endWorkout`.
+        if now - lastLiveStrainTs >= Self.liveStrainIntervalSeconds {
+            lastLiveStrainTs = now
+            w.liveStrain = StrainScorer.strain(w.samples, maxHR: Double(profile.hrMax),
+                                               method: PuffinExperiment.effortMethod, sex: profile.sex) ?? 0
+        }
         activeWorkout = w
-        // Re-snapshot the durable session so a kill keeps the latest accumulated HR window (#529).
-        persistActiveWorkout()
+        // Re-snapshot the durable session so a kill keeps the accumulated HR window (#529). Encoding every
+        // sample of a long session each second was the costliest background work, so it is bounded to one
+        // write per interval; pause, backgrounding and ending still write at once.
+        if now - lastWorkoutPersistTs >= Self.workoutPersistIntervalSeconds { persistActiveWorkout() }
     }
+
+    /// Seconds between live Effort recomputations and between durable snapshots of a running workout.
+    static let liveStrainIntervalSeconds = 5
+    static let workoutPersistIntervalSeconds = 10
+    private var lastLiveStrainTs = 0
+    private var lastWorkoutPersistTs = 0
+    private var workoutBpmSum = 0
+
+    /// Writes the running workout's snapshot now, e.g. when the app moves to the background.
+    func persistActiveWorkoutNow() { persistActiveWorkout() }
 
     /// Drop the smoothing window and blank the hero number so a resume / re-attach shows ","
     /// until a genuinely fresh sample arrives, instead of republishing the stale pre-gap median.

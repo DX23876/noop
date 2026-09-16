@@ -62,6 +62,7 @@ struct StrandApp: App {
                 .environmentObject(model.ble)   // #334: Today pull-to-sync reads BLEManager (no HR churn)
                 .environmentObject(model.live)
                 .environmentObject(model.repo)
+                .environmentObject(model.session)
                 .dashboardPresentationScope(model: model)
                 .environmentObject(model.profile)
                 .environmentObject(model.behavior)

@@ -1320,5 +1320,19 @@
   "Every set logged in this session is deleted and nothing is added to your history. This cannot be undone.": "Все подходы, записанные в этой сессии, будут удалены, и в историю ничего не попадёт. Отменить это действие нельзя.",
   "Deletes this session without saving it.": "Удаляет эту сессию без сохранения.",
   "The workout could not be discarded.": "Не удалось удалить тренировку.",
-  "Entered by hand": "Введено вручную"
+  "Entered by hand": "Введено вручную",
+  "%@ from %@ was never finished. Saving ends it at its last logged change.": "%1$@ от %2$@ так и не был завершён. При сохранении он закончится последним записанным изменением.",
+  "%lld / %lld sets": "%1$lld / %2$lld подходов",
+  "A workout is already running": "Тренировка уже идёт",
+  "Add exercises as you go.": "Добавляйте упражнения по ходу.",
+  "Discard it and start": "Удалить и начать",
+  "Finish it and start": "Завершить и начать",
+  "Finish or discard the current workout first.": "Сначала завершите или удалите текущую тренировку.",
+  "Loading routines": "Загрузка программ",
+  "No routines yet. Create one in the Training tab.": "Программ пока нет. Создайте её на вкладке «Тренировки».",
+  "Only one workout can run at a time.": "Одновременно может идти только одна тренировка.",
+  "Opens the running workout": "Открывает текущую тренировку",
+  "Return to %@": "Вернуться к «%@»",
+  "Strength workout": "Силовая тренировка",
+  "Unfinished workout": "Незавершённая тренировка"
 }

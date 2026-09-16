@@ -1444,5 +1444,19 @@
   "Every set logged in this session is deleted and nothing is added to your history. This cannot be undone.": "本次训练记录的所有组都会被删除，历史记录中不会保留任何内容。此操作无法撤销。",
   "Deletes this session without saving it.": "删除本次训练且不保存。",
   "The workout could not be discarded.": "无法放弃本次训练。",
-  "Entered by hand": "手动输入"
+  "Entered by hand": "手动输入",
+  "%@ from %@ was never finished. Saving ends it at its last logged change.": "%2$@ 的 %1$@ 从未结束。保存后将以最后一次记录的更改作为结束。",
+  "%lld / %lld sets": "%1$lld / %2$lld 组",
+  "A workout is already running": "已有训练正在进行",
+  "Add exercises as you go.": "边练边添加动作。",
+  "Discard it and start": "放弃并开始",
+  "Finish it and start": "结束并开始",
+  "Finish or discard the current workout first.": "请先结束或放弃当前训练。",
+  "Loading routines": "正在载入训练计划",
+  "No routines yet. Create one in the Training tab.": "还没有训练计划。请在“训练”标签页中创建。",
+  "Only one workout can run at a time.": "同一时间只能进行一项训练。",
+  "Opens the running workout": "打开进行中的训练",
+  "Return to %@": "返回 %@",
+  "Strength workout": "力量训练",
+  "Unfinished workout": "未完成的训练"
 }

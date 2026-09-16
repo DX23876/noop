@@ -123,6 +123,9 @@ struct StrandiOSApp: App {
         model.strengthWorkoutWatchStateSink = { [weak services] state in
             services?.watch.sendStrengthWorkoutState(state)
         }
+        model.isStrengthCompanionReachable = { [weak services] in
+            services?.watch.isWatchReachable == true
+        }
         // Tapping a scheduled morning-brief notification routes to Coach through the SAME NavRouter the
         // shell observes — the services box owns it, so the closure captures that one rather than
         // building a second router nothing is listening to.
@@ -158,6 +161,7 @@ struct StrandiOSApp: App {
                 .environmentObject(model.ble)   // #334: Today pull-to-sync reads BLEManager (no HR churn)
                 .environmentObject(model.live)
                 .environmentObject(model.repo)
+                .environmentObject(model.session)
                 .dashboardPresentationScope(model: model)
                 .environmentObject(model.profile)
                 .environmentObject(model.behavior)
@@ -411,6 +415,9 @@ struct StrandiOSApp: App {
                     await watch.pushLatest(from: model)
                 }
             } else if phase == .background {
+                // Leaving the app never loses a running session's latest state.
+                model.persistActiveWorkoutNow()
+                model.session.strength?.appMovedToBackground()
                 SemanticMemoryBackgroundTask.schedule()
                 Task { await model.coach.unloadSemanticMemory() }
                 // Re-submit on every transition because iOS may discard an old best-effort request.

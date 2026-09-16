@@ -72,7 +72,6 @@ struct LiveView: View {
 
     /// Live workout mode (#238) — presents the full in-exercise screen while a manual workout is
     /// active. Auto-opens when a workout begins; closing just hides it (the workout keeps recording).
-    @State private var showLiveWorkout = false
     @State private var showStartSport = false
     @State private var confirmingEndWorkout = false
 
@@ -129,17 +128,12 @@ struct LiveView: View {
         .onChangeCompat(of: live.bonded) { _ in reconnectLiveSession() }
         .onChangeCompat(of: live.connected) { _ in reconnectLiveSession() }
         // Live workout mode (#238): open the in-exercise screen the moment a workout starts.
-        .onChangeCompat(of: model.activeWorkout != nil) { active in if active { showLiveWorkout = true } }
-        .sheet(isPresented: $showLiveWorkout) {
-            LiveWorkoutView(onClose: { showLiveWorkout = false })
-                .environmentObject(model)
-                .environmentObject(live)
-        }
+        // The running workout is presented by the app shell's session controller, from any entry.
         // Pick a named sport before starting (#519) — the live workout view then opens
         // off the activeWorkout change above, so no extra navigation is needed here.
         .workoutSelectionCover(isPresented: $showStartSport) {
             StartWorkoutSheet(offersZoneTraining: true) { name, targetZone in
-                model.startWorkout(sport: name, targetZone: targetZone)
+                model.session.requestCardio(sport: name, targetZone: targetZone)
             }
         }
         // Manual HRV snapshot (#127) — a still, seated 60s R-R reading.
@@ -395,7 +389,7 @@ struct LiveView: View {
                     // Re-open the full live workout screen (#238) after it's been dismissed.
                     NoopButton("Open live view", systemImage: "rectangle.expand.vertical",
                                kind: .secondary, fullWidth: true) {
-                        showLiveWorkout = true
+                        model.session.present()
                     }
                 }
                 NoopButton("End workout", systemImage: "stop.circle.fill",
@@ -691,7 +685,7 @@ struct LiveView: View {
     private func consumeActiveWorkoutRequest() {
         guard router.presentActiveWorkout else { return }
         router.presentActiveWorkout = false
-        if model.activeWorkout != nil { showLiveWorkout = true }
+        if model.activeWorkout != nil { model.session.present() }
     }
 
     /// A fresh bond/connection landed while the Live tab is up: re-arm the BLE stream (Apple re-sends

@@ -238,6 +238,7 @@ struct RootView: View {
     /// Cross-screen navigation requests (e.g. Live → "Manage devices"). Observed here so a screen can
     /// switch the sidebar selection without owning it — see `NavRouter`.
     @EnvironmentObject var router: NavRouter
+    @EnvironmentObject var session: ActiveSessionController
     /// The liquid Today (default) vs the classic Today, same flag the iOS shell + Settings toggle read.
     @AppStorage(TodayDashboardStyle.storageKey) private var todayDashboardStyleRaw = TodayDashboardStyle.liquid.rawValue
     private var todayDashboardStyle: TodayDashboardStyle {
@@ -352,6 +353,8 @@ struct RootView: View {
         }
         // Honour a cross-screen request to open a top-level destination (e.g. Live's "Manage devices"),
         // then clear it so the same tap can fire again later. Devices maps to the `.devices` sidebar item.
+        .activeSessionPresentation()
+        .task { await session.restoreIfNeeded() }
         .onChangeCompat(of: router.requestedDestination) { dest in
             switch dest {
             case .devices: selection = .devices
@@ -360,9 +363,10 @@ struct RootView: View {
             case .fusedRecord: selection = .fusedRecord
             case .rhythm: selection = .rhythm
             case .trends: selection = .trends
-            // The Today active-workout indicator routes to the Live surface; LiveView then consumes the
-            // one-shot `presentActiveWorkout` flag on appear to open the in-exercise screen.
-            case .activeWorkout: selection = .live
+            // The running session opens through its controller, whatever started it.
+            case .activeWorkout:
+                router.presentActiveWorkout = false
+                session.present()
             // Live Sessions is presented from Today's own Start entry (a cover, not a sidebar item), so a
             // deep-link lands the user on Today where that entry lives.
             case .liveSession: selection = .today

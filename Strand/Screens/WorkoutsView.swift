@@ -33,7 +33,6 @@ struct WorkoutsView: View {
     /// Quick-action FAB or the tab) had no way to begin one from the obvious place. Injected here so the
     /// header/empty-state can start a live session and present the in-exercise view directly.
     @EnvironmentObject var model: AppModel
-    @State private var showLiveWorkout = false
     @State private var showStartSport = false
 
     // Exercise-distance preference (#1913). Unset follows the original combined preference.
@@ -300,20 +299,11 @@ struct WorkoutsView: View {
             .frame(width: 620, height: 720)
             #endif
         }
-        // #459: the in-exercise view, presented when Start Workout is tapped here (same screen LiveView
-        // shows). activeWorkout is global on AppModel, so ending it from either surface stays in sync.
-        .sheet(isPresented: $showLiveWorkout) {
-            LiveWorkoutView(onClose: { showLiveWorkout = false })
-                // Inject the shared live snapshot so the in-exercise sensor readout (speed/cadence/power)
-                // resolves here too, matching how LiveView presents the same screen.
-                .environmentObject(model.live)
-        }
         // #519: name the sport before a live session starts, then open the in-exercise view directly
         // (same direct present as the button's already-active path — no cross-view auto-present race).
         .workoutSelectionCover(isPresented: $showStartSport) {
             StartWorkoutSheet(offersZoneTraining: true) { name, targetZone in
-                model.startWorkout(sport: name, targetZone: targetZone)
-                showLiveWorkout = true
+                model.session.requestCardio(sport: name, targetZone: targetZone)
             }
         }
         // #64: name the merged session when every selected row is a bare detected bout (there's no sport
@@ -651,7 +641,7 @@ struct WorkoutsView: View {
             // No active session → pick a named sport first (#519), then the sheet's onStart begins it
             // and opens the in-exercise view. Already active → jump straight back into the live view.
             if model.activeWorkout == nil { showStartSport = true }
-            else { showLiveWorkout = true }
+            else { model.session.present() }
         }
         .accessibilityLabel(model.activeWorkout == nil ? "Start a workout" : "View the active workout")
     }

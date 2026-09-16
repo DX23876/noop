@@ -103,7 +103,6 @@ struct HeuteRedesignView: View {
                 // Pinned above the suggestion cards so an active manual workout is immediately visible —
                 // same placement rationale as LiquidTodayView's ActiveWorkoutIndicatorSection. Renders
                 // nothing when no workout is active.
-                HeuteActiveWorkoutIndicatorSection()
                     .padding(.top, 18)
                 HeuteCardZoneView(status: dayStatus, readiness: readiness,
                                   calibrationNote: chargeDisplay.calibrationDetail,

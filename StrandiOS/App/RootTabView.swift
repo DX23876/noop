@@ -1,5 +1,6 @@
 #if os(iOS)
 import SwiftUI
+import Combine
 import UIKit
 import StrandDesign
 
@@ -26,6 +27,7 @@ struct RootTabView: View {
     /// either object publishes an unrelated value. Screens below still observe the exact stores they use.
     let model: AppModel
     private var repo: Repository { model.repo }
+    private var session: ActiveSessionController { model.session }
     private var coach: AICoachEngine { model.coach }
     /// Cross-screen navigation requests (e.g. Live → "Manage devices"). Devices isn't a tab — it lives
     /// behind the More list — so a request presents it as a sheet, matching the quick-action screens.
@@ -225,6 +227,8 @@ struct RootTabView: View {
                 tabSwipeGesture,
                 including: selectedTab != 0 && tabPaths[selectedTab].isEmpty ? .all : .subviews
             )
+            // The minimized running workout, above the tab bar on every tab.
+            .activeSessionMiniBar()
 
             // Draggable floating Coach button — an alternative entry to the Today banner, honouring the
             // user's Coach-entry preference. Floats over every tab; a tap opens the chat.
@@ -233,6 +237,29 @@ struct RootTabView: View {
             }
         }
         .coachCover(isPresented: $showCoach, coach: coach)
+        .activeSessionPresentation()
+        .task { await session.restoreIfNeeded() }
+        // A quick-action sheet (Live, Start workout) may still be up when a session asks to present.
+        // iOS cannot stack the session's cover or dialog on top of it, so close the sheet first and
+        // re-issue the request once it has gone.
+        .onReceive(session.$isPresented.removeDuplicates()) { presented in
+            guard presented, quickAction != nil else { return }
+            session.isPresented = false
+            quickAction = nil
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) { session.present() }
+        }
+        .onReceive(session.$isChoosingStrengthStart.removeDuplicates()) { choosing in
+            guard choosing, quickAction != nil else { return }
+            session.isChoosingStrengthStart = false
+            quickAction = nil
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) { session.isChoosingStrengthStart = true }
+        }
+        .onReceive(session.$pendingStart.map { $0 != nil }.removeDuplicates()) { pending in
+            guard pending, quickAction != nil, let request = session.pendingStart else { return }
+            session.pendingStart = nil
+            quickAction = nil
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) { session.pendingStart = request }
+        }
         .task {
             // Backup & Sync: on-launch catch-up (see RootView). Detached + utility priority so a
             // 100MB+ whole-DB ZIP never blocks startup; gated on the auto toggle (default OFF). (Must-fix #4.)
@@ -290,10 +317,9 @@ struct RootTabView: View {
                 tabPaths[0] = NavigationPath([TabRoute.energy])
                 router.requestedDestination = nil
             case .activeWorkout:
-                // The Today active-workout indicator opens Live through the quick-action Live sheet; once
-                // it's up, LiveView consumes the one-shot `presentActiveWorkout` flag and presents the
-                // in-exercise screen. Calm sheet easing, matching the other quick-action presents.
-                withAnimation(Self.sheetEase) { quickAction = .live }
+                // Whatever was started and wherever, the running session opens through its controller.
+                router.presentActiveWorkout = false
+                session.present()
                 router.requestedDestination = nil
             case .liveSession:
                 // The Start entry no longer lives on Today (it moved into the quick-action menu), so a

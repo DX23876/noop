@@ -1343,5 +1343,19 @@
   "Every set logged in this session is deleted and nothing is added to your history. This cannot be undone.": "Todas las series registradas en esta sesión se eliminan y no se añade nada a tu historial. Esto no se puede deshacer.",
   "Deletes this session without saving it.": "Elimina esta sesión sin guardarla.",
   "The workout could not be discarded.": "No se ha podido descartar el entrenamiento.",
-  "Entered by hand": "Introducido a mano"
+  "Entered by hand": "Introducido a mano",
+  "%@ from %@ was never finished. Saving ends it at its last logged change.": "%1$@ del %2$@ nunca se terminó. Al guardarlo, termina en su último cambio registrado.",
+  "%lld / %lld sets": "%1$lld / %2$lld series",
+  "A workout is already running": "Ya hay un entrenamiento en curso",
+  "Add exercises as you go.": "Añade ejercicios sobre la marcha.",
+  "Discard it and start": "Descartarlo y empezar",
+  "Finish it and start": "Terminarlo y empezar",
+  "Finish or discard the current workout first.": "Primero termina o descarta el entrenamiento actual.",
+  "Loading routines": "Cargando rutinas",
+  "No routines yet. Create one in the Training tab.": "Aún no hay rutinas. Crea una en la pestaña Entrenamiento.",
+  "Only one workout can run at a time.": "Solo puede haber un entrenamiento a la vez.",
+  "Opens the running workout": "Abre el entrenamiento en curso",
+  "Return to %@": "Volver a %@",
+  "Strength workout": "Entrenamiento de fuerza",
+  "Unfinished workout": "Entrenamiento sin terminar"
 }

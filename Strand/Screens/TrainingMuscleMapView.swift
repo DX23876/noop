@@ -126,9 +126,40 @@ struct TrainingMuscleMapCard: View {
     }
 }
 
+/// One day of the Consistency heatmap. Computed once per history load (`TrainingActivityDay.pastYear`),
+/// because the heatmap body is re-evaluated whenever its parent redraws and a year of date formatting per
+/// redraw is measurable while a workout is being logged.
+struct TrainingActivityDay: Hashable, Sendable {
+    let day: String
+    let minutes: Double
+
+    static func pastYear(sessions: [ResolvedStrengthSession], weekStart: TrainingWeekStart,
+                         now: Date = Date()) -> [TrainingActivityDay] {
+        var calendar = Calendar.current
+        calendar.firstWeekday = weekStart == .sunday ? 1 : 2
+        let today = calendar.startOfDay(for: now)
+        let earliest = calendar.date(byAdding: .day, value: -363, to: today) ?? today
+        let start = calendar.dateInterval(of: .weekOfYear, for: earliest)?.start ?? earliest
+        let count = (calendar.dateComponents([.day], from: start, to: today).day ?? 363) + 1
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.dateFormat = "yyyy-MM-dd"
+        var byDay: [String: Double] = [:]
+        for session in sessions {
+            let day = formatter.string(from: Date(timeIntervalSince1970: TimeInterval(session.startTs)))
+            byDay[day, default: 0] += Double(max(0, session.endTs - session.startTs)) / 60
+        }
+        return (0..<count).compactMap { offset in
+            guard let date = calendar.date(byAdding: .day, value: offset, to: start) else { return nil }
+            let day = formatter.string(from: date)
+            return TrainingActivityDay(day: day, minutes: byDay[day] ?? 0)
+        }
+    }
+}
+
 struct TrainingActivityHeatmap: View {
-    let sessions: [ResolvedStrengthSession]
-    @AppStorage(TrainingPreferences.weekStartKey) private var weekStartRaw = TrainingWeekStart.monday.rawValue
+    let days: [TrainingActivityDay]
     private let rows = Array(repeating: GridItem(.fixed(7), spacing: NoopMetrics.space1), count: 7)
 
     var body: some View {
@@ -141,14 +172,23 @@ struct TrainingActivityHeatmap: View {
                 VStack(alignment: .leading, spacing: 8) {
                     // Each column is one calendar week starting on the chosen training week start, so a
                     // row always holds the same weekday.
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        LazyHGrid(rows: rows, spacing: NoopMetrics.space1) {
-                            ForEach(values, id: \.day) { value in
-                                RoundedRectangle(cornerRadius: 2)
-                                    .fill(color(minutes: value.minutes))
-                                    .frame(width: 7, height: 7)
-                            }
-                        }.frame(height: 67)
+                    // Opens on the current week: the most recent training is what a glance is for, and a
+                    // year that starts at its oldest edge looked empty whenever history was shorter.
+                    ScrollViewReader { proxy in
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            LazyHGrid(rows: rows, spacing: NoopMetrics.space1) {
+                                ForEach(values, id: \.day) { value in
+                                    RoundedRectangle(cornerRadius: 2)
+                                        .fill(color(minutes: value.minutes))
+                                        .frame(width: 7, height: 7)
+                                        .id(value.day)
+                                }
+                            }.frame(height: 67)
+                        }
+                        .onAppear { if let last = values.last { proxy.scrollTo(last.day, anchor: .trailing) } }
+                        .onChange(of: values.count) { _ in
+                            if let last = values.last { proxy.scrollTo(last.day, anchor: .trailing) }
+                        }
                     }
                     // 370 unlabeled squares are not navigable with VoiceOver; one summary carries the facts.
                     .accessibilityElement(children: .ignore)
@@ -157,26 +197,6 @@ struct TrainingActivityHeatmap: View {
                         .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
                 }
             }
-        }
-    }
-
-    private var days: [(day: String, minutes: Double)] {
-        var calendar = Calendar.current
-        calendar.firstWeekday = TrainingWeekStart(rawValue: weekStartRaw) == .sunday ? 1 : 2
-        let today = calendar.startOfDay(for: Date())
-        let earliest = calendar.date(byAdding: .day, value: -363, to: today) ?? today
-        let start = calendar.dateInterval(of: .weekOfYear, for: earliest)?.start ?? earliest
-        let count = (calendar.dateComponents([.day], from: start, to: today).day ?? 363) + 1
-        var byDay: [String: Double] = [:]
-        for session in sessions {
-            let date = Date(timeIntervalSince1970: TimeInterval(session.startTs))
-            let day = Self.dayFormatter.string(from: date)
-            byDay[day, default: 0] += Double(max(0, session.endTs - session.startTs)) / 60
-        }
-        return (0..<count).compactMap { offset in
-            guard let date = calendar.date(byAdding: .day, value: offset, to: start) else { return nil }
-            let day = Self.dayFormatter.string(from: date)
-            return (day, byDay[day] ?? 0)
         }
     }
 
@@ -191,11 +211,4 @@ struct TrainingActivityHeatmap: View {
         return StrandPalette.accent.opacity(0.25 + fraction * 0.75)
     }
 
-    private static let dayFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.calendar = Calendar(identifier: .gregorian)
-        formatter.dateFormat = "yyyy-MM-dd"
-        return formatter
-    }()
 }

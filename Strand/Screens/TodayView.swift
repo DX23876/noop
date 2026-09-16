@@ -157,20 +157,45 @@ private struct ActiveWorkoutIndicatorCard: View {
 /// indicator (#105), and sharing one implementation keeps the two Today screens (and Android's
 /// `WorkoutInProgressCard`) from drifting. It carries its own `app`/`router` environment objects, so a caller
 /// only needs to place `ActiveWorkoutIndicatorSection()` in its body.
+///
+/// On iOS the running session is shown by the mini bar above the tab bar on every tab, so this card renders
+/// nothing there; a second indicator is exactly the kind of parallel state that used to drift. macOS has no
+/// tab bar, so the dashboard keeps the card, now fed by the one session controller for strength and cardio.
 struct ActiveWorkoutIndicatorSection: View {
+    var body: some View {
+        #if os(macOS)
+        MacActiveSessionIndicator()
+        #else
+        EmptyView()
+        #endif
+    }
+}
+
+#if os(macOS)
+private struct MacActiveSessionIndicator: View {
     @EnvironmentObject var app: AppModel
-    @EnvironmentObject var router: NavRouter
+    @EnvironmentObject var session: ActiveSessionController
 
     var body: some View {
-        if let model = ActiveWorkoutIndicatorModel.make(from: app.activeWorkout) {
+        if let model = indicatorModel {
             ActiveWorkoutIndicatorCard(model: model) {
                 StrandHaptic.selection.play()
-                router.openActiveWorkout()
+                session.present()
             }
             .transition(.opacity)
         }
     }
+
+    private var indicatorModel: ActiveWorkoutIndicatorModel? {
+        if let strength = session.strength, !strength.isRetrospective {
+            return ActiveWorkoutIndicatorModel(
+                sport: strength.draft.title,
+                startedAt: Date(timeIntervalSince1970: TimeInterval(strength.draft.startedAt)))
+        }
+        return ActiveWorkoutIndicatorModel.make(from: app.activeWorkout)
+    }
 }
+#endif
 
 struct TodayView: View {
     // Matches NoopMetrics.sectionGap, the same rhythm this file's own card-internal sub-sections already
