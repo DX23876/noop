@@ -25,6 +25,8 @@ struct TrainingHubView: View {
     @State private var editingDay: TrainingDaySelection?
     @State private var editingRoutine: TrainingRoutine?
     @State private var previewRoutine: TrainingRoutine?
+    @State private var showingAddRoutineSheet = false
+    @State private var routineActionsFor: TrainingRoutine?
     @AppStorage("training.weekStartsOn") private var weekStartRaw = TrainingWeekStart.monday.rawValue
 
     var body: some View {
@@ -99,6 +101,27 @@ struct TrainingHubView: View {
                         Task { await model.saveRoutine(updated, weekdays: weekdays, repo: repo) }
                     },
                     onDelete: { id in Task { await model.deleteRoutine(id, repo: repo) } })
+            }
+        }
+        .sheet(isPresented: $showingAddRoutineSheet) {
+            NavigationStack {
+                AddRoutineActionsSheet(
+                    onLibrary: { showingLibrary = true },
+                    onAddRoutine: { showingStarterPlans = true },
+                    onShare: { exportPlan() },
+                    onExportPDF: { exportPlanPDF() },
+                    onImportPlan: { showingPlanImporter = true },
+                    onImportHistory: { showingHistoryImporter = true },
+                    onLogPastWorkout: { showingPastWorkout = true })
+            }
+        }
+        .sheet(item: $routineActionsFor) { routine in
+            NavigationStack {
+                RoutineActionsSheet(
+                    routine: routine,
+                    onPreview: { previewRoutine = routine },
+                    onEdit: { editingRoutine = routine },
+                    onDuplicate: { Task { await model.duplicateRoutine(routine, repo: repo) } })
             }
         }
         .sheet(item: $previewRoutine) { routine in
@@ -232,16 +255,7 @@ struct TrainingHubView: View {
             HStack {
                 SectionHeader("Routines", overline: "Your training")
                 Spacer()
-                Menu {
-                    Button("Exercise library") { showingLibrary = true }
-                    Button("Add routine") { showingStarterPlans = true }
-                    Divider()
-                    Button("Share training plan") { exportPlan() }
-                    Button("Export plan as PDF") { exportPlanPDF() }
-                    Button("Import training plan") { showingPlanImporter = true }
-                    Button("Import FitNotes or Strong history") { showingHistoryImporter = true }
-                    Button("Log past workout") { showingPastWorkout = true }
-                } label: {
+                Button { showingAddRoutineSheet = true } label: {
                     Label("Add", systemImage: "plus")
                         .font(StrandFont.subhead.weight(.semibold))
                 }
@@ -279,13 +293,7 @@ struct TrainingHubView: View {
                                 Image(systemName: "play.fill")
                             }.buttonStyle(.borderedProminent).tint(StrandPalette.accent)
                             .accessibilityLabel(Text("Start \(routine.title)"))
-                            Menu {
-                                Button("Preview", systemImage: "eye") { previewRoutine = routine }
-                                Button("Edit", systemImage: "slider.horizontal.3") { editingRoutine = routine }
-                                Button("Duplicate", systemImage: "plus.square.on.square") {
-                                    Task { await model.duplicateRoutine(routine, repo: repo) }
-                                }
-                            } label: {
+                            Button { routineActionsFor = routine } label: {
                                 Image(systemName: "ellipsis.circle")
                                     .accessibilityLabel(Text("Routine options"))
                             }
@@ -2021,6 +2029,69 @@ private struct TrainingPlateCalculatorView: View {
         if let data = try? JSONEncoder().encode(values), let text = String(data: data, encoding: .utf8) {
             profilesRaw = text
         }
+    }
+}
+
+/// The routine list's "Add" actions, in the same sheet presentation as editing a routine — replaces a
+/// `Menu` popup so the two interactions feel like one component instead of two.
+private struct AddRoutineActionsSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    let onLibrary: () -> Void
+    let onAddRoutine: () -> Void
+    let onShare: () -> Void
+    let onExportPDF: () -> Void
+    let onImportPlan: () -> Void
+    let onImportHistory: () -> Void
+    let onLogPastWorkout: () -> Void
+
+    var body: some View {
+        List {
+            Section {
+                actionRow("Exercise library", systemImage: "books.vertical", action: onLibrary)
+                actionRow("Add routine", systemImage: "plus.rectangle.on.rectangle", action: onAddRoutine)
+            }
+            Section("Import & export") {
+                actionRow("Share training plan", systemImage: "square.and.arrow.up", action: onShare)
+                actionRow("Export plan as PDF", systemImage: "doc.richtext", action: onExportPDF)
+                actionRow("Import training plan", systemImage: "square.and.arrow.down", action: onImportPlan)
+                actionRow("Import FitNotes or Strong history", systemImage: "clock.arrow.circlepath",
+                          action: onImportHistory)
+                actionRow("Log past workout", systemImage: "calendar.badge.clock", action: onLogPastWorkout)
+            }
+        }
+        .navigationTitle(Text("Add"))
+        .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } } }
+    }
+
+    private func actionRow(_ title: LocalizedStringKey, systemImage: String,
+                           action: @escaping () -> Void) -> some View {
+        Button {
+            dismiss()
+            action()
+        } label: {
+            Label(title, systemImage: systemImage)
+        }
+    }
+}
+
+/// One routine's actions, in the same sheet presentation as editing it — replaces the "⋯" `Menu` popup.
+private struct RoutineActionsSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    let routine: TrainingRoutine
+    let onPreview: () -> Void
+    let onEdit: () -> Void
+    let onDuplicate: () -> Void
+
+    var body: some View {
+        List {
+            Button { dismiss(); onPreview() } label: { Label("Preview", systemImage: "eye") }
+            Button { dismiss(); onEdit() } label: { Label("Edit", systemImage: "slider.horizontal.3") }
+            Button { dismiss(); onDuplicate() } label: {
+                Label("Duplicate", systemImage: "plus.square.on.square")
+            }
+        }
+        .navigationTitle(Text(routine.title))
+        .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } } }
     }
 }
 
