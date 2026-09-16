@@ -75,6 +75,31 @@ class MuscleMappingTests(unittest.TestCase):
         self.assertTrue(mapped and mapped[0].startswith("__unknown__"))
 
 
+class TitleCaseTests(unittest.TestCase):
+    def test_ordinary_words_are_capitalized(self):
+        self.assertEqual(generator.title_case("barbell bench press"), "Barbell Bench Press")
+        self.assertEqual(generator.title_case("airbike"), "Airbike")
+
+    def test_minor_words_stay_lowercase_unless_first_or_last(self):
+        self.assertEqual(generator.title_case("chest and front of shoulder stretch"),
+                         "Chest and Front of Shoulder Stretch")
+        self.assertEqual(generator.title_case("with hands against wall"), "With Hands Against Wall")
+
+    def test_each_hyphenated_part_is_capitalized(self):
+        self.assertEqual(generator.title_case("sit-up"), "Sit-Up")
+        self.assertEqual(generator.title_case("assisted wide-grip chest dip"),
+                         "Assisted Wide-Grip Chest Dip")
+
+    def test_leading_punctuation_and_digits_are_left_in_place(self):
+        self.assertEqual(generator.title_case("arms overhead full sit-up (male)"),
+                         "Arms Overhead Full Sit-Up (Male)")
+        self.assertEqual(generator.title_case("3/4 sit-up"), "3/4 Sit-Up")
+
+    def test_a_known_upstream_typo_survives_unchanged(self):
+        # Casing only, never spelling — a mechanical fix must not also silently correct upstream data.
+        self.assertEqual(generator.title_case("all fours squad stretch"), "All Fours Squad Stretch")
+
+
 class BuildTests(unittest.TestCase):
     def test_a_clean_record_normalizes_into_noops_domain(self):
         exercises, issues = generator.build([record()])
@@ -84,6 +109,7 @@ class BuildTests(unittest.TestCase):
         self.assertEqual(entry["canonicalId"], "exdb:0001")
         self.assertEqual(entry["sourceId"], "0001")
         self.assertEqual(entry["source"], "exercise_db")
+        self.assertEqual(entry["title"], "Barbell Bench Press")
         self.assertEqual(entry["primaryMuscleId"], "chest")
         self.assertEqual(entry["equipmentIds"], ["barbell"])
         self.assertEqual(entry["mode"], "weight_reps")

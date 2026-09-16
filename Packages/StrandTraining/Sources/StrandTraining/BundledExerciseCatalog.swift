@@ -16,7 +16,9 @@ import Foundation
 /// so the app has one exercise-content format, not two.
 public enum BundledExerciseCatalog {
     /// Bumped when the normalization changes what a stored definition means, so the app re-seeds.
-    public static let contentVersion = 1
+    /// 2: titles are title-cased at build time (`Tools/build_exercise_catalog.py`) instead of shipping
+    /// upstream's all-lowercase names verbatim — display only, no id/muscle/mode change.
+    public static let contentVersion = 2
 
     public static let archive: ExerciseCatalogArchive = {
         guard let url = Bundle.module.url(forResource: "exercise-catalog", withExtension: "json"),

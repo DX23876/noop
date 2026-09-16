@@ -36,7 +36,8 @@ LICENCE = "MIT"
 ATTRIBUTION = ("Exercise data: ExerciseDB v1 via hasaneyldrm/exercises-dataset, MIT licence. "
                "Exercise media is not included and is not covered by that licence.")
 # Bumped whenever the normalization changes what a stored definition means, so the app can re-seed.
-CONTENT_VERSION = 1
+# 2: titles are title-cased instead of shipping upstream's all-lowercase names verbatim.
+CONTENT_VERSION = 2
 
 # NOOP's muscle vocabulary is `TrainingMuscleCatalog`; every id below must exist there.
 KNOWN_MUSCLES = {
@@ -198,6 +199,34 @@ def normalize_name(value: str) -> str:
     return folded.strip()
 
 
+# Common connector words stay lowercase unless they open or close the title — the usual title-case
+# convention, and the same list a human editor would apply by hand.
+MINOR_WORDS = {"a", "an", "and", "as", "at", "but", "by", "for", "in", "nor", "of", "on", "or",
+               "the", "to", "vs", "with"}
+
+
+def title_case(value: str) -> str:
+    """Upstream titles ship all-lowercase ("barbell bench press", "airbike"). `str.title()` is not used
+    here because it capitalizes the letter after ANY non-letter, mangling an apostrophe ("farmer's" ->
+    "Farmer'S"). This capitalizes only the first letter found in each hyphen-separated part, so digits,
+    parentheses and apostrophes are left exactly where they are, and "sit-up" -> "Sit-Up".
+    """
+    words = value.split(" ")
+    last = len(words) - 1
+
+    def capitalize_part(part: str) -> str:
+        return re.sub(r"[a-z]", lambda m: m.group(0).upper(), part, count=1)
+
+    out = []
+    for index, word in enumerate(words):
+        lower = word.lower()
+        if 0 < index < last and lower in MINOR_WORDS:
+            out.append(lower)
+        else:
+            out.append("-".join(capitalize_part(part) for part in lower.split("-")))
+    return " ".join(out)
+
+
 def build(records: list[dict]) -> tuple[list[dict], list[str]]:
     issues: list[str] = []
     exercises: list[dict] = []
@@ -274,7 +303,7 @@ def build(records: list[dict]) -> tuple[list[dict], list[str]]:
 
         exercises.append({
             "id": identifier,
-            "title": name,
+            "title": title_case(name),
             "mode": mode,
             "primaryMuscleId": primary,
             "secondaryMuscleIds": sorted(set(secondary)),
@@ -283,8 +312,8 @@ def build(records: list[dict]) -> tuple[list[dict], list[str]]:
             "isUnilateral": any(hint in name.lower() for hint in UNILATERAL_NAME_HINTS),
             "source": "exercise_db",
             "sourceId": upstream_id,
-            # An identifier only. No image or animation is copied, and the media provider that could
-            # resolve it stays withdrawn until a licence for the media exists.
+            # An identifier only. No image or animation is copied here; a wearer-triggered download
+            # resolves it later, gated behind the disclosure in `ExerciseMediaProvider`.
             "mediaId": media_id,
             "canonicalId": identifier,
             "aliases": aliases,

@@ -45,19 +45,19 @@ final class BundledExerciseCatalogTests: XCTestCase {
         let byTitle = Dictionary(BundledExerciseCatalog.exercises.map { ($0.title, $0) },
                                  uniquingKeysWith: { first, _ in first })
 
-        let bench = try XCTUnwrap(byTitle["barbell bench press"])
+        let bench = try XCTUnwrap(byTitle["Barbell Bench Press"])
         XCTAssertEqual(bench.mode, .weightReps)
         XCTAssertEqual(bench.primaryMuscleId, "chest")
         XCTAssertEqual(bench.equipmentIds, ["barbell"])
         XCTAssertEqual(bench.effectiveLoadSemantics, .totalExternalLoad)
         XCTAssertFalse(bench.instructions.isEmpty)
 
-        let pullUp = try XCTUnwrap(byTitle["pull-up"])
+        let pullUp = try XCTUnwrap(byTitle["Pull-Up"])
         XCTAssertEqual(pullUp.mode, .bodyweightReps)
         XCTAssertEqual(pullUp.primaryMuscleId, "lats")
 
         // A prop supports the body without loading it, so the body stays the load.
-        let ballCrunch = try XCTUnwrap(byTitle["crunch (on stability ball)"])
+        let ballCrunch = try XCTUnwrap(byTitle["Crunch (On Stability Ball)"])
         XCTAssertEqual(ballCrunch.mode, .bodyweightReps)
         XCTAssertTrue(ballCrunch.equipmentIds.contains("stability-ball"))
         XCTAssertFalse(TrainingEquipmentCatalog.carriesExternalLoad(ballCrunch.equipmentIds))
