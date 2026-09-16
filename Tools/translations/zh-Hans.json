@@ -1494,5 +1494,21 @@
   "Every exercise works without them. Download the optional pack once to see how each one is done.": "没有它们也能使用每个动作。下载一次可选资源包，即可查看每个动作的做法。",
   "Exercise animations": "动作动画",
   "Hide": "隐藏",
-  "The images and animations belong to Gym visual. Keep this attribution and use them only for personal, non-commercial purposes. NOOP does not grant any licence for these files.": "这些图片和动画归 Gym visual 所有。请保留此署名，仅用于个人非商业用途。NOOP 不授予这些文件的任何许可。"
+  "The images and animations belong to Gym visual. Keep this attribution and use them only for personal, non-commercial purposes. NOOP does not grant any licence for these files.": "这些图片和动画归 Gym visual 所有。请保留此署名，仅用于个人非商业用途。NOOP 不授予这些文件的任何许可。",
+  "Abs": "腹肌",
+  "Also trains": "同时训练",
+  "Any equipment": "任意器械",
+  "Back of body": "身体背面",
+  "Choose a muscle to see the exercises that train it.": "选择一块肌肉，查看训练它的动作。",
+  "Create your own exercise": "创建自定义动作",
+  "Exercise or equipment": "动作或器械",
+  "Exercises for %@": "%@的训练动作",
+  "Favorite": "收藏",
+  "Find by muscle": "按肌肉查找",
+  "Front of body": "身体正面",
+  "Main target": "主要目标",
+  "No exercises match.": "没有匹配的动作。",
+  "Shins": "胫骨前肌",
+  "body.region.back": "背部",
+  "body.side.back": "背面"
 }

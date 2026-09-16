@@ -24,7 +24,8 @@ enum TrainingDisplayNames {
     static func region(_ region: TrainingBodyRegion) -> String {
         switch region {
         case .chest: return String(localized: "Chest")
-        case .back: return String(localized: "Back")
+        // Its own key: plain "Back" is the navigation action and translates to "Zurück", "Retour", …
+        case .back: return String(localized: "body.region.back", defaultValue: "Back")
         case .shoulders: return String(localized: "Shoulders")
         case .arms: return String(localized: "Arms")
         case .core: return String(localized: "Core")

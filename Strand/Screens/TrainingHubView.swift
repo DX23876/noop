@@ -956,7 +956,6 @@ struct NativeWorkoutLoggerView: View {
     let exercises: [TrainingExercise]
     let performance: TrainingPerformanceHistory
     @State private var showingExercises = false
-    @State private var exerciseQuery = ""
     @State private var plateRequest: TrainingPlateRequest?
     @State private var replacementExerciseId: UUID?
     @State private var confirmingPartialFinish = false
@@ -1711,10 +1710,15 @@ struct NativeWorkoutLoggerView: View {
         }
     }
 
+    /// The one exercise library, in the mode this sheet was opened for: adding to the session or swapping
+    /// an exercise that is already in it.
     private var exercisePicker: some View {
         NavigationStack {
-            List(filteredExercises) { exercise in
-                Button {
+            TrainingExerciseLibraryView(
+                exercises: session.context.exercises.isEmpty ? exercises : session.context.exercises,
+                performance: performance,
+                mode: replacementExerciseId == nil ? .addToWorkout : .replace,
+                onPick: { exercise in
                     if let replacementExerciseId {
                         model.replaceExercise(replacementExerciseId, with: exercise)
                         self.replacementExerciseId = nil
@@ -1722,29 +1726,8 @@ struct NativeWorkoutLoggerView: View {
                         model.addExercise(exercise)
                     }
                     showingExercises = false
-                } label: {
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text(exercise.title)
-                        Text(TrainingDisplayNames.muscle(exercise.primaryMuscleId))
-                            .font(.caption).foregroundStyle(.secondary)
-                    }
-                }
-            }
-            .navigationTitle(Text(replacementExerciseId == nil ? "Exercises" : "Change"))
-            .searchable(text: $exerciseQuery, prompt: Text("Search exercises"))
-            .toolbar { ToolbarItem(placement: .cancellationAction) {
-                Button("Cancel") { replacementExerciseId = nil; showingExercises = false }
-            } }
-        }
-    }
-
-    private var filteredExercises: [TrainingExercise] {
-        let query = exerciseQuery.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !query.isEmpty else { return exercises }
-        return exercises.filter {
-            $0.title.localizedCaseInsensitiveContains(query)
-                || ($0.primaryMuscleId?.localizedCaseInsensitiveContains(query) ?? false)
-                || $0.equipmentIds.contains { $0.localizedCaseInsensitiveContains(query) }
+                },
+                onSave: { exercise in Task { await session.saveExercise(exercise) } })
         }
     }
 }
@@ -2164,13 +2147,11 @@ private struct RoutineEditorView: View {
         }
         .sheet(isPresented: $showingExercises) {
             NavigationStack {
-                List(exercises) { exercise in
-                    Button(exercise.title) {
-                        routine.exercises.append(.init(exerciseId: exercise.id,
-                            sets: (0..<3).map { _ in .init(repsMin: 8, repsMax: 12) }))
-                        showingExercises = false
-                    }
-                }.navigationTitle(Text("Exercises"))
+                TrainingExerciseLibraryView(exercises: exercises, mode: .addToRoutine, onPick: { exercise in
+                    routine.exercises.append(.init(exerciseId: exercise.id,
+                        sets: (0..<3).map { _ in .init(repsMin: 8, repsMax: 12) }))
+                    showingExercises = false
+                })
             }
         }
         .confirmationDialog("Delete this routine?", isPresented: $confirmingDelete, titleVisibility: .visible) {

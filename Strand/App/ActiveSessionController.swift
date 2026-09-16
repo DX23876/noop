@@ -168,6 +168,17 @@ final class ActiveSessionController: ObservableObject {
         contextLoad = nil
     }
 
+    /// Saves a new exercise from the library and makes it available to the running session at once.
+    func saveExercise(_ exercise: TrainingExercise) async {
+        do {
+            try await repo.saveNativeTrainingExercise(exercise)
+            context.exercises.removeAll { $0.id == exercise.id }
+            context.exercises.append(exercise)
+        } catch {
+            errorMessage = String(localized: "The exercise could not be saved.")
+        }
+    }
+
     func update(context: TrainingStartContext) {
         self.context = context
         contextLoaded = true

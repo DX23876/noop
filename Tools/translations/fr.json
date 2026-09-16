@@ -1394,5 +1394,21 @@
   "Every exercise works without them. Download the optional pack once to see how each one is done.": "Chaque exercice fonctionne sans elles. Téléchargez une fois le pack facultatif pour voir comment chacun s’exécute.",
   "Exercise animations": "Animations des exercices",
   "Hide": "Masquer",
-  "The images and animations belong to Gym visual. Keep this attribution and use them only for personal, non-commercial purposes. NOOP does not grant any licence for these files.": "Les images et animations appartiennent à Gym visual. Conservez cette attribution et utilisez-les uniquement à des fins personnelles et non commerciales. NOOP n’accorde aucune licence pour ces fichiers."
+  "The images and animations belong to Gym visual. Keep this attribution and use them only for personal, non-commercial purposes. NOOP does not grant any licence for these files.": "Les images et animations appartiennent à Gym visual. Conservez cette attribution et utilisez-les uniquement à des fins personnelles et non commerciales. NOOP n’accorde aucune licence pour ces fichiers.",
+  "Abs": "Abdominaux",
+  "Also trains": "Sollicite aussi",
+  "Any equipment": "Tout équipement",
+  "Back of body": "Arrière du corps",
+  "Choose a muscle to see the exercises that train it.": "Choisissez un muscle pour voir les exercices qui le travaillent.",
+  "Create your own exercise": "Créer votre propre exercice",
+  "Exercise or equipment": "Exercice ou équipement",
+  "Exercises for %@": "Exercices pour %@",
+  "Favorite": "Favori",
+  "Find by muscle": "Chercher par muscle",
+  "Front of body": "Avant du corps",
+  "Main target": "Cible principale",
+  "No exercises match.": "Aucun exercice ne correspond.",
+  "Shins": "Tibias",
+  "body.region.back": "Dos",
+  "body.side.back": "Dos"
 }

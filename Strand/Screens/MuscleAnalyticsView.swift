@@ -68,7 +68,7 @@ struct MuscleAnalyticsSurface: View {
             HStack(spacing: NoopMetrics.space2) {
                 Picker("Body side", selection: $side) {
                     Text("Front").tag(BodySide.front)
-                    Text("Back").tag(BodySide.back)
+                    Text(String(localized: "body.side.back", defaultValue: "Back")).tag(BodySide.back)
                 }
                 .pickerStyle(.segmented)
                 Menu {

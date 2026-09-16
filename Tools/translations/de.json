@@ -1392,5 +1392,21 @@
   "Every exercise works without them. Download the optional pack once to see how each one is done.": "Jede Übung funktioniert auch ohne. Lade das optionale Paket einmal, um zu sehen, wie jede Übung ausgeführt wird.",
   "Exercise animations": "Übungsanimationen",
   "Hide": "Ausblenden",
-  "The images and animations belong to Gym visual. Keep this attribution and use them only for personal, non-commercial purposes. NOOP does not grant any licence for these files.": "Die Bilder und Animationen gehören Gym visual. Behalte diese Namensnennung bei und nutze sie nur privat und nicht-kommerziell. NOOP vergibt keine Lizenz für diese Dateien."
+  "The images and animations belong to Gym visual. Keep this attribution and use them only for personal, non-commercial purposes. NOOP does not grant any licence for these files.": "Die Bilder und Animationen gehören Gym visual. Behalte diese Namensnennung bei und nutze sie nur privat und nicht-kommerziell. NOOP vergibt keine Lizenz für diese Dateien.",
+  "Abs": "Bauch",
+  "Also trains": "Trainiert auch",
+  "Any equipment": "Jede Ausrüstung",
+  "Back of body": "Körperrückseite",
+  "Choose a muscle to see the exercises that train it.": "Wähle einen Muskel, um die Übungen dafür zu sehen.",
+  "Create your own exercise": "Eigene Übung erstellen",
+  "Exercise or equipment": "Übung oder Ausrüstung",
+  "Exercises for %@": "Übungen für %@",
+  "Favorite": "Favorit",
+  "Find by muscle": "Nach Muskel suchen",
+  "Front of body": "Körpervorderseite",
+  "Main target": "Hauptziel",
+  "No exercises match.": "Keine passenden Übungen.",
+  "Shins": "Schienbein",
+  "body.region.back": "Rücken",
+  "body.side.back": "Rückseite"
 }

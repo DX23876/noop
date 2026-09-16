@@ -5,13 +5,36 @@ import UniformTypeIdentifiers
 
 /// Searchable, offline-first exercise library. Provider content is displayed with its source;
 /// user-created exercises remain fully local and can be edited without an account.
+/// What choosing an exercise does. One library serves browsing, adding to a running workout, adding to a
+/// routine and swapping an exercise, so every place looks and filters the same way.
+enum ExerciseLibraryMode: Equatable {
+    case browse
+    case addToWorkout
+    case addToRoutine
+    case replace
+
+    var actionTitle: String? {
+        switch self {
+        case .browse: return nil
+        case .addToWorkout, .addToRoutine: return String(localized: "Add")
+        case .replace: return String(localized: "Swap")
+        }
+    }
+
+    var actionSymbol: String { self == .replace ? "arrow.left.arrow.right" : "plus" }
+}
+
 struct TrainingExerciseLibraryView: View {
     @Environment(\.dismiss) private var dismiss
     let exercises: [TrainingExercise]
     var performance: TrainingPerformanceHistory = .empty
+    var mode: ExerciseLibraryMode = .browse
     /// Present only while a workout is running, so the library can add straight into it.
     var onAddToWorkout: ((TrainingExercise) -> Void)?
-    let onSave: (TrainingExercise) -> Void
+    /// The quick action for `mode` other than browsing.
+    var onPick: ((TrainingExercise) -> Void)?
+    /// Saving new or imported exercises; without it the library offers no creation or import.
+    var onSave: ((TrainingExercise) -> Void)?
 
     @State private var query = ""
     @State private var equipment = "all"
@@ -24,12 +47,26 @@ struct TrainingExerciseLibraryView: View {
     @State private var showingExerciseDB = false
     @State private var showingMediaManager = false
     @State private var message: String?
+    @State private var favoritesOnly = false
+    @State private var showingMusclePicker = false
     @AppStorage("training.favoriteExerciseIds") private var favoritePayload = ""
 
     var body: some View {
         List {
             ExerciseMediaDownloadCard(dismissible: true)
-            if !favoriteExercises.isEmpty && query.isEmpty && !hasActiveFilters {
+            Section {
+                Button { showingMusclePicker = true } label: {
+                    Label("Find by muscle", systemImage: "figure.stand")
+                        .font(StrandFont.subhead.weight(.semibold))
+                }
+                if onSave != nil {
+                    Button { showingNewExercise = true } label: {
+                        Label("Create your own exercise", systemImage: "plus.square.dashed")
+                            .font(StrandFont.subhead.weight(.semibold))
+                    }
+                }
+            }
+            if !favoritesOnly && !favoriteExercises.isEmpty && query.isEmpty && !hasActiveFilters {
                 Section("Favorites") {
                     ForEach(favoriteExercises) { row($0) }
                 }
@@ -58,9 +95,11 @@ struct TrainingExerciseLibraryView: View {
         }
         .navigationTitle(Text("Exercise library"))
         .searchable(text: $query, prompt: Text("Exercise, muscle or equipment"))
-        .safeAreaInset(edge: .top) { equipmentFilter }
+        .safeAreaInset(edge: .top) { filterChips }
         .toolbar {
-            ToolbarItem(placement: .cancellationAction) { Button("Done") { dismiss() } }
+            ToolbarItem(placement: .cancellationAction) {
+                Button(mode == .browse ? "Done" : "Cancel") { dismiss() }
+            }
             ToolbarItem(placement: .primaryAction) {
                 Menu {
                     Picker("Body region", selection: $region) {
@@ -92,11 +131,13 @@ struct TrainingExerciseLibraryView: View {
             }
             ToolbarItem(placement: .primaryAction) {
                 Menu {
-                    Button("New exercise") { showingNewExercise = true }
-                    Button("ExerciseDB source") { showingExerciseDB = true }
-                    Button("Import licensed catalog") { showingCatalogImporter = true }
+                    if onSave != nil {
+                        Button("New exercise") { showingNewExercise = true }
+                        Button("ExerciseDB source") { showingExerciseDB = true }
+                        Button("Import licensed catalog") { showingCatalogImporter = true }
+                    }
                     Button("Exercise media") { showingMediaManager = true }
-                } label: { Label("Add", systemImage: "plus") }
+                } label: { Label("More", systemImage: "ellipsis.circle") }
             }
         }
         .sheet(item: $selected) { exercise in
@@ -105,16 +146,17 @@ struct TrainingExerciseLibraryView: View {
                     exercise: exercise, isFavorite: favorites.contains(exercise.id),
                     records: performance.records(for: exercise.id, mode: exercise.mode),
                     recent: Array(performance.entries(for: exercise.id).reversed().prefix(5)),
-                    onAddToWorkout: onAddToWorkout.map { add in
-                        { add(exercise); selected = nil }
+                    onAddToWorkout: pickAction.map { pick in
+                        { pick(exercise); selected = nil }
                     },
+                    actionTitle: mode.actionTitle ?? String(localized: "Add to workout"),
                     onToggleFavorite: { toggleFavorite(exercise.id) })
             }
         }
         .sheet(isPresented: $showingNewExercise) {
             NavigationStack {
                 TrainingCustomExerciseEditor { exercise in
-                    onSave(exercise)
+                    onSave?(exercise)
                     showingNewExercise = false
                 }
             }
@@ -122,11 +164,15 @@ struct TrainingExerciseLibraryView: View {
         .sheet(isPresented: $showingExerciseDB) {
             NavigationStack {
                 ExerciseDBSourceView { values in
-                    values.forEach(onSave)
+                    values.forEach { onSave?($0) }
                     message = String(localized: "The selected exercises were added.")
                     showingExerciseDB = false
                 }
             }
+        }
+        .navigationDestination(isPresented: $showingMusclePicker) {
+            ExerciseMusclePickerView(exercises: exercises, mode: mode, onPick: pickAction,
+                                     onOpen: { selected = $0 })
         }
         .sheet(isPresented: $showingMediaManager) {
             NavigationStack { ExerciseMediaManagementView() }
@@ -139,63 +185,61 @@ struct TrainingExerciseLibraryView: View {
         } message: { Text(message ?? "") }
     }
 
-    private var equipmentFilter: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
-                filterChip(String(localized: "All"), id: "all")
-                if !availableEquipment.isEmpty {
-                    filterChip(String(localized: "My equipment"), id: "available")
+    private var filterChips: some View {
+        VStack(spacing: 0) {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ExerciseFilterChip(title: String(localized: "All"), selected: region == nil && !favoritesOnly) {
+                        region = nil; favoritesOnly = false
+                    }
+                    if !favorites.isEmpty {
+                        ExerciseFilterChip(title: String(localized: "Favorites"), systemImage: "star.fill",
+                                           selected: favoritesOnly) { favoritesOnly.toggle() }
+                    }
+                    ForEach(TrainingBodyRegion.allCases.filter { $0 != .other }) { value in
+                        ExerciseFilterChip(title: TrainingDisplayNames.region(value), selected: region == value) {
+                            region = region == value ? nil : value
+                        }
+                    }
                 }
-                ForEach(equipmentOptions, id: \.self) { value in
-                    filterChip(TrainingDisplayNames.equipment(value), id: value)
-                }
+                .padding(.horizontal, NoopMetrics.screenPadding)
+                .padding(.top, 8)
             }
-            .padding(.horizontal, NoopMetrics.screenPadding)
-            .padding(.vertical, 8)
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    filterChip(String(localized: "Any equipment"), id: "all")
+                    if !availableEquipment.isEmpty {
+                        filterChip(String(localized: "My equipment"), id: "available")
+                    }
+                    ForEach(equipmentOptions, id: \.self) { value in
+                        filterChip(TrainingDisplayNames.equipment(value), id: value)
+                    }
+                }
+                .padding(.horizontal, NoopMetrics.screenPadding)
+                .padding(.vertical, 8)
+            }
         }
         .background(.bar)
     }
 
     private func filterChip(_ title: String, id: String) -> some View {
-        Button(title) { equipment = id }
-            .font(StrandFont.caption.weight(.semibold))
-            .padding(.horizontal, 12)
-            .padding(.vertical, 7)
-            .foregroundStyle(equipment == id ? Color.white : StrandPalette.textSecondary)
-            .background(equipment == id ? StrandPalette.accent : StrandPalette.surfaceRaised,
-                        in: Capsule())
-            .buttonStyle(.plain)
+        ExerciseFilterChip(title: title, selected: equipment == id) { equipment = id }
     }
 
     private func row(_ exercise: TrainingExercise) -> some View {
-        Button { selected = exercise } label: {
-            HStack(spacing: 12) {
-                Image(systemName: modeIcon(exercise.mode))
-                    .frame(width: 30, height: 30)
-                    .foregroundStyle(StrandPalette.accent)
-                    .background(StrandPalette.accent.opacity(0.10), in: RoundedRectangle(cornerRadius: 9))
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(exercise.title)
-                        .font(StrandFont.subhead.weight(.semibold))
-                        .foregroundStyle(StrandPalette.textPrimary)
-                    Text(metadata(exercise))
-                        .font(StrandFont.caption)
-                        .foregroundStyle(StrandPalette.textTertiary)
-                        .lineLimit(1)
-                }
-                Spacer()
-                if favorites.contains(exercise.id) {
-                    Image(systemName: "star.fill").foregroundStyle(StrandPalette.metricAmber)
-                }
-                Image(systemName: "chevron.right").font(.caption).foregroundStyle(StrandPalette.textTertiary)
-            }
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
+        ExerciseLibraryRow(exercise: exercise, subtitle: ExerciseLibraryRow.metadata(exercise),
+                           isFavorite: favorites.contains(exercise.id), mode: mode,
+                           onOpen: { selected = exercise },
+                           onAction: pickAction.map { pick in { pick(exercise) } })
+    }
+
+    /// The row's quick action: the mode's pick, or adding to a running workout while browsing.
+    private var pickAction: ((TrainingExercise) -> Void)? {
+        mode == .browse ? onAddToWorkout : onPick
     }
 
     private var hasActiveFilters: Bool {
-        region != nil || muscle != nil || measurement != nil || equipment != "all"
+        region != nil || muscle != nil || measurement != nil || equipment != "all" || favoritesOnly
     }
 
     private func clearFilters() {
@@ -203,6 +247,7 @@ struct TrainingExerciseLibraryView: View {
         muscle = nil
         measurement = nil
         equipment = "all"
+        favoritesOnly = false
     }
 
     /// The region comes from the reviewed anatomy where there is one, so a filter can never disagree
@@ -235,7 +280,9 @@ struct TrainingExerciseLibraryView: View {
                 || exercise.equipmentIds.contains { TrainingDisplayNames.equipment($0).localizedCaseInsensitiveContains(needle) }
                 || exercise.secondaryMuscleIds.contains { $0.localizedCaseInsensitiveContains(needle) }
                 || exercise.equipmentIds.contains { $0.localizedCaseInsensitiveContains(needle) }
+            let favoriteMatches = !favoritesOnly || favorites.contains(exercise.id)
             return regionMatches && muscleMatches && measurementMatches && equipmentMatches && queryMatches
+                && favoriteMatches
         }
     }
 
@@ -275,26 +322,10 @@ struct TrainingExerciseLibraryView: View {
                 message = String(localized: "This catalog does not allow local storage.")
                 return
             }
-            archive.exercises.forEach(onSave)
+            archive.exercises.forEach { onSave?($0) }
             message = String(localized: "The exercise catalog was imported.")
         } catch {
             message = String(localized: "The exercise catalog could not be imported.")
-        }
-    }
-
-    private func metadata(_ exercise: TrainingExercise) -> String {
-        let muscle = TrainingDisplayNames.muscle(exercise.primaryMuscleId)
-        let equipment = exercise.equipmentIds.first.map(TrainingDisplayNames.equipment)
-            ?? String(localized: "No equipment")
-        return "\(muscle) · \(equipment)"
-    }
-
-    private func modeIcon(_ mode: TrainingMeasurementMode) -> String {
-        switch mode {
-        case .duration: return "timer"
-        case .distanceDuration: return "point.topleft.down.to.point.bottomright.curvepath"
-        case .bodyweightReps, .repetitions: return "figure.strengthtraining.traditional"
-        default: return "dumbbell.fill"
         }
     }
 }
@@ -306,6 +337,7 @@ private struct TrainingExerciseDetailView: View {
     let records: TrainingPerformanceHistory.Records
     let recent: [TrainingPerformanceHistory.Entry]
     let onAddToWorkout: (() -> Void)?
+    var actionTitle: String = String(localized: "Add to workout")
     let onToggleFavorite: () -> Void
     @ObservedObject private var media = ExerciseMediaStore.shared
     @State private var showingMediaManager = false
@@ -389,7 +421,7 @@ private struct TrainingExerciseDetailView: View {
         .safeAreaInset(edge: .bottom) {
             if let onAddToWorkout {
                 Button(action: onAddToWorkout) {
-                    Label("Add to workout", systemImage: "plus.circle.fill")
+                    Label(actionTitle, systemImage: "plus.circle.fill")
                         .frame(maxWidth: .infinity).padding(.vertical, 11)
                 }
                 .buttonStyle(.borderedProminent).tint(StrandPalette.accent)
