@@ -86,3 +86,18 @@ final class BundledExerciseCatalogTests: XCTestCase {
         }
     }
 }
+
+/// Starter exercises borrow media only from bundled entries that exist, and only for starter ids.
+final class StarterMediaReferenceTests: XCTestCase {
+    func testEveryStarterMediaReferencePointsAtABundledEntry() {
+        let bundledMedia = Set(BundledExerciseCatalog.exercises.compactMap(\.mediaId))
+        let starterIds = Set(TrainingStarterCatalog.exercises.map { String($0.id.dropFirst("noop:".count)) })
+        for (starter, media) in TrainingStarterCatalog.mediaReferences {
+            XCTAssertTrue(starterIds.contains(starter), starter)
+            XCTAssertTrue(bundledMedia.contains(media), "\(starter) -> \(media)")
+        }
+        XCTAssertNil(TrainingStarterCatalog.exercises.first { $0.id == "noop:plank" }?.mediaId)
+        XCTAssertEqual(TrainingStarterCatalog.exercises.first { $0.id == "noop:barbell-bench-press" }?.mediaId,
+                       "EIeI8Vf")
+    }
+}

@@ -1543,5 +1543,10 @@
   "Top of the rep range, load goes up": "達到次數上限，負重增加",
   "Two more reps": "還能做兩次",
   "Use %@": "使用 %@",
-  "Workout options": "訓練選項"
+  "Workout options": "訓練選項",
+  "Download · %@": "下載 · %@",
+  "Every exercise works without them. Download the optional pack once to see how each one is done.": "沒有它們也能使用每個動作。下載一次選用資源包，即可查看每個動作的做法。",
+  "Exercise animations": "動作動畫",
+  "Hide": "隱藏",
+  "The images and animations belong to Gym visual. Keep this attribution and use them only for personal, non-commercial purposes. NOOP does not grant any licence for these files.": "這些圖片和動畫歸 Gym visual 所有。請保留此署名，僅供個人非商業用途。NOOP 不授予這些檔案的任何授權。"
 }

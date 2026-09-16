@@ -33,10 +33,13 @@ final class ExerciseMediaStore: ObservableObject, ExerciseMediaProvider {
             id: "hasaneyldrm-exercises-dataset",
             version: "7455efae41b330c265e7cd4b78dfa848e7ce5ebd",
             source: URL(string: "https://github.com/hasaneyldrm/exercises-dataset/archive/7455efae41b330c265e7cd4b78dfa848e7ce5ebd.zip")!,
-            attribution: "Exercise media: Gym visual / ExerciseDB, distributed by hasaneyldrm/exercises-dataset.",
-            rightsStatus: String(localized: "Media ownership and redistribution rights are disputed. NOOP does not grant any licence for these files."),
-            approximateBytes: 140_000_000,
-            rightsHolder: String(localized: "The hasaneyldrm/exercises-dataset repository; the underlying media rights holders may differ."))
+            attribution: "© Gym visual — gymvisual.com. Distributed by hasaneyldrm/exercises-dataset (ExerciseDB).",
+            rightsStatus: String(localized: "The images and animations belong to Gym visual. Keep this attribution and use them only for personal, non-commercial purposes. NOOP does not grant any licence for these files."),
+            approximateBytes: 130_000_000,
+            rightsHolder: "Gym visual (gymvisual.com)")
+
+        /// Shown wherever the media is displayed.
+        static let displayCredit = "© Gym visual"
     }
 
     enum State: Equatable {
@@ -87,17 +90,18 @@ final class ExerciseMediaStore: ObservableObject, ExerciseMediaProvider {
     }
 
     /// A local lookup, deliberately without any network fallback: logging must never wait on media.
-    func media(for exercise: TrainingExercise) -> ExerciseMedia? {
-        mediaURL(for: exercise).map(ExerciseMedia.init(url:))
+    func media(for exercise: TrainingExercise, variant: ExerciseMediaVariant) -> ExerciseMedia? {
+        mediaURL(for: exercise, variant: variant).map(ExerciseMedia.init(url:))
     }
 
-    func mediaURL(for exercise: TrainingExercise) -> URL? {
+    func mediaURL(for exercise: TrainingExercise, variant: ExerciseMediaVariant = .animation) -> URL? {
         guard isAvailable, let mediaId = exercise.mediaId else { return nil }
         guard let allowed = Self.localFileName(from: mediaId) else { return nil }
-        // Videos first: where a pack ships both, the animation is the more useful of the two, and the
-        // still is the fallback the presentation already knows how to draw.
-        let roots = [versionDirectory.appendingPathComponent("videos"),
-                     versionDirectory.appendingPathComponent("images")]
+        // The requested rendition first, the other as fallback: an animation where one is wanted, a still
+        // for lists and thumbnails, which decode a fraction of the memory.
+        let videos = versionDirectory.appendingPathComponent("videos")
+        let images = versionDirectory.appendingPathComponent("images")
+        let roots = variant == .animation ? [videos, images] : [images, videos]
         for root in roots {
             let url = root.appendingPathComponent(allowed)
             if FileManager.default.fileExists(atPath: url.path) { return url }

@@ -28,6 +28,7 @@ struct TrainingExerciseLibraryView: View {
 
     var body: some View {
         List {
+            ExerciseMediaDownloadCard(dismissible: true)
             if !favoriteExercises.isEmpty && query.isEmpty && !hasActiveFilters {
                 Section("Favorites") {
                     ForEach(favoriteExercises) { row($0) }
@@ -341,22 +342,13 @@ private struct TrainingExerciseDetailView: View {
                 if let item = ExerciseMediaRegistry.shared.media(for: exercise) {
                     NoopCard {
                         VStack(alignment: .leading, spacing: 8) {
-                            Label("Exercise media", systemImage: "play.rectangle")
-                                .font(StrandFont.subhead.weight(.semibold))
                             ExerciseMediaView(media: item, minHeight: 150, maxHeight: 280)
+                            Text(ExerciseMediaStore.Provider.displayCredit)
+                                .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
                         }
                     }
                 } else if exercise.mediaId != nil {
-                    NoopCard {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Label("Exercise media", systemImage: "play.rectangle")
-                                .font(StrandFont.subhead.weight(.semibold))
-                            Text("Optional exercise media has not been downloaded. Logging works without it and media is never copied into workout history.")
-                                .font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
-                            Button("Manage exercise media") { showingMediaManager = true }
-                                .font(StrandFont.subhead.weight(.semibold))
-                        }
-                    }
+                    ExerciseMediaDownloadCard(dismissible: false)
                 }
 
                 VStack(alignment: .leading, spacing: NoopMetrics.gap) {
@@ -576,6 +568,68 @@ struct ExerciseMediaManagementView: View {
         case .failed(let message): Label(message, systemImage: "exclamationmark.triangle").foregroundStyle(.red)
         case .disabled: Label("Provider disabled", systemImage: "nosign")
         }
+    }
+}
+
+/// Offers the optional animation pack where it is useful — the top of the library, an exercise without
+/// its animation — and shows progress once started. Hidden once the pack is installed, while the provider
+/// is withdrawn or switched off, and (for the library banner) after the wearer dismisses it.
+struct ExerciseMediaDownloadCard: View {
+    let dismissible: Bool
+    @ObservedObject private var media = ExerciseMediaStore.shared
+    @AppStorage("training.exerciseMedia.bannerDismissed") private var dismissed = false
+    @State private var showingDisclosure = false
+
+    var body: some View {
+        if !media.isAvailable, !media.isDisabled, !(dismissible && dismissed) {
+            VStack(alignment: .leading, spacing: NoopMetrics.space2) {
+                HStack(alignment: .firstTextBaseline) {
+                    Label("Exercise animations", systemImage: "figure.strengthtraining.traditional")
+                        .font(StrandFont.subhead.weight(.semibold))
+                    Spacer()
+                    if dismissible {
+                        Button { dismissed = true } label: { Image(systemName: "xmark") }
+                            .buttonStyle(.plain).foregroundStyle(StrandPalette.textTertiary)
+                            .accessibilityLabel(Text("Hide"))
+                    }
+                }
+                switch media.state {
+                case .downloading(let progress):
+                    ProgressView(value: progress) { Text("Downloading") }
+                    Button("Cancel download", role: .cancel) { media.cancel() }.font(StrandFont.caption)
+                case .installing:
+                    ProgressView { Text("Checking and installing") }
+                case .failed(let message):
+                    Text(message).font(StrandFont.caption).foregroundStyle(StrandPalette.statusCritical)
+                    downloadButton
+                default:
+                    Text("Every exercise works without them. Download the optional pack once to see how each one is done.")
+                        .font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
+                    downloadButton
+                }
+            }
+            .padding(.vertical, NoopMetrics.space1)
+            .sheet(isPresented: $showingDisclosure) {
+                NavigationStack {
+                    ExerciseMediaDisclosureView(provider: media.provider) {
+                        showingDisclosure = false
+                        media.download()
+                    }
+                }
+            }
+        }
+    }
+
+    private var downloadButton: some View {
+        Button {
+            showingDisclosure = true
+        } label: {
+            Label(media.canResumeDownload
+                  ? String(localized: "Resume download")
+                  : String(localized: "Download · \(ByteCountFormatter.string(fromByteCount: media.provider.approximateBytes, countStyle: .file))"),
+                  systemImage: "arrow.down.circle")
+        }
+        .font(StrandFont.subhead.weight(.semibold))
     }
 }
 

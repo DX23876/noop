@@ -82,12 +82,107 @@ private struct AnimatedExerciseImage: View {
     }
 
     private func load() async {
+        if let cached = AnimatedFrameCache.frames(for: url) {
+            frames = cached
+            totalDuration = cached.reduce(0) { $0 + $1.duration }
+            failed = cached.isEmpty
+            return
+        }
         let decoded = await Task.detached(priority: .userInitiated) {
             AnimatedImageFrame.decode(url: url)
         }.value
+        AnimatedFrameCache.store(decoded, for: url)
         frames = decoded
         totalDuration = decoded.reduce(0) { $0 + $1.duration }
         failed = decoded.isEmpty
+    }
+}
+
+/// Decoded animations kept for reuse. Bounded by count and by decoded bytes, so moving between a few
+/// exercises does not decode the same file again while browsing a whole library cannot keep hundreds of
+/// animations in memory; the system also empties it under memory pressure.
+private enum AnimatedFrameCache {
+    private final class Box {
+        let frames: [AnimatedImageFrame]
+        init(_ frames: [AnimatedImageFrame]) { self.frames = frames }
+    }
+
+    private static let cache: NSCache<NSURL, Box> = {
+        let cache = NSCache<NSURL, Box>()
+        cache.countLimit = 6
+        cache.totalCostLimit = 48 * 1_024 * 1_024
+        return cache
+    }()
+
+    static func frames(for url: URL) -> [AnimatedImageFrame]? {
+        cache.object(forKey: url as NSURL)?.frames
+    }
+
+    static func store(_ frames: [AnimatedImageFrame], for url: URL) {
+        guard !frames.isEmpty else { return }
+        let bytes = frames.reduce(0) { $0 + $1.image.bytesPerRow * $1.image.height }
+        cache.setObject(Box(frames), forKey: url as NSURL, cost: bytes)
+    }
+}
+
+/// A small still of an exercise for lists: decoded straight to the displayed size off the main thread,
+/// so scrolling a library never decodes full images or animations.
+struct ExerciseMediaThumbnail: View {
+    let url: URL
+    let side: CGFloat
+    @Environment(\.displayScale) private var displayScale
+    @State private var image: CGImage?
+
+    var body: some View {
+        Group {
+            if let image {
+                Image(decorative: image, scale: displayScale).resizable().scaledToFit()
+            } else {
+                RoundedRectangle(cornerRadius: 10).fill(StrandPalette.surfaceRaised)
+            }
+        }
+        .frame(width: side, height: side)
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .task(id: url) {
+            let pixels = Int(side * displayScale)
+            if let cached = ThumbnailCache.image(for: url, pixels: pixels) { image = cached; return }
+            let decoded = await Task.detached(priority: .utility) {
+                ThumbnailCache.decode(url: url, pixels: pixels)
+            }.value
+            if let decoded { ThumbnailCache.store(decoded, for: url, pixels: pixels) }
+            image = decoded
+        }
+    }
+}
+
+private enum ThumbnailCache {
+    private final class Box {
+        let image: CGImage
+        init(_ image: CGImage) { self.image = image }
+    }
+
+    private static let cache: NSCache<NSString, Box> = {
+        let cache = NSCache<NSString, Box>()
+        cache.countLimit = 300
+        return cache
+    }()
+
+    private static func key(_ url: URL, _ pixels: Int) -> NSString { "\(pixels)|\(url.path)" as NSString }
+
+    static func image(for url: URL, pixels: Int) -> CGImage? { cache.object(forKey: key(url, pixels))?.image }
+
+    static func store(_ image: CGImage, for url: URL, pixels: Int) {
+        cache.setObject(Box(image), forKey: key(url, pixels))
+    }
+
+    static func decode(url: URL, pixels: Int) -> CGImage? {
+        guard let source = CGImageSourceCreateWithURL(url as CFURL, nil) else { return nil }
+        let options: [CFString: Any] = [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceCreateThumbnailWithTransform: true,
+            kCGImageSourceThumbnailMaxPixelSize: max(1, pixels),
+        ]
+        return CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary)
     }
 }
 

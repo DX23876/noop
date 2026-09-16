@@ -43,6 +43,10 @@ public enum TrainingMuscleCatalog {
 /// A compact, rights-clean starter catalog written for NOOP. It makes native logging useful offline;
 /// optional providers may add exercises later without replacing user-created definitions.
 public enum TrainingStarterCatalog {
+    /// Bumped when a starter definition changes in a way stored copies should pick up, so the app
+    /// re-seeds the starters. 2: media references.
+    public static let contentVersion = 2
+
     public static let exercises: [TrainingExercise] = [
         exercise("barbell-bench-press", "Barbell Bench Press", .weightReps, "chest", ["triceps", "front_delts"], ["barbell", "bench"]),
         exercise("incline-dumbbell-press", "Incline Dumbbell Press", .weightReps, "upper_chest", ["triceps", "front_delts"], ["dumbbell", "bench"]),
@@ -71,6 +75,37 @@ public enum TrainingStarterCatalog {
         exercise("farmer-carry", "Farmer Carry", .distanceDuration, "forearms", ["traps", "abdominals"], ["dumbbell"])
     ]
 
+    /// Media for the starter exercises, borrowed from the bundled catalogue entry that shows the same
+    /// movement (starter id → upstream media id). Reviewed by hand, one movement at a time; where the
+    /// catalogue has no faithful equivalent (a plain plank) the exercise keeps no media rather than a
+    /// misleading one. Only the media reference is shared — the starter text stays NOOP's own.
+    public static let mediaReferences: [String: String] = [
+        "barbell-bench-press": "EIeI8Vf",      // exdb:0025 barbell bench press
+        "incline-dumbbell-press": "ns0SIbU",   // exdb:0314 dumbbell incline bench press
+        "overhead-press": "wdRZISl",           // exdb:1456 barbell standing close grip military press
+        "lateral-raise": "DsgkuIt",            // exdb:0334 dumbbell lateral raise
+        "triceps-pushdown": "3ZflifB",         // exdb:0201 cable pushdown
+        "push-up": "I4hDWkc",                  // exdb:0662 push-up
+        "pull-up": "lBDjFxJ",                  // exdb:0652 pull-up
+        "weighted-pull-up": "HMzLjXx",         // exdb:0841 weighted pull-up
+        "lat-pulldown": "LEprlgG",             // exdb:2330 cable lat pulldown full range of motion
+        "barbell-row": "eZyBC3j",              // exdb:0027 barbell bent over row
+        "seated-cable-row": "fUBheHs",         // exdb:0861 cable seated row
+        "face-pull": "wqNPGCg",                // exdb:0203 cable rear delt row (with rope)
+        "barbell-curl": "25GPyDY",             // exdb:0031 barbell curl
+        "back-squat": "qXTaZnJ",               // exdb:0043 barbell full squat
+        "front-squat": "zG0zs85",              // exdb:0042 barbell front squat
+        "deadlift": "ila4NZS",                 // exdb:0032 barbell deadlift
+        "romanian-deadlift": "wQ2c4XD",        // exdb:0085 barbell romanian deadlift
+        "leg-press": "2Qh2J1e",                // exdb:1463 sled 45° leg press (side pov)
+        "leg-curl": "17lJ1kr",                 // exdb:0586 lever lying leg curl
+        "leg-extension": "my33uHU",            // exdb:0585 lever leg extension
+        "calf-raise": "8ozhUIZ",               // exdb:1372 barbell standing calf raise
+        "bulgarian-split-squat": "qx4fgX7",    // exdb:0410 dumbbell single leg split squat
+        "hip-thrust": "qKBpF7I",               // exdb:1409 barbell glute bridge
+        "farmer-carry": "qPEzJjA",             // exdb:2133 farmers walk
+    ]
+
     public static func starterRoutines(now: Int = Int(Date().timeIntervalSince1970)) -> [TrainingRoutine] {
         [
             routine("Full Body A", ["back-squat", "barbell-bench-press", "barbell-row", "plank"], now: now),
@@ -89,6 +124,7 @@ public enum TrainingStarterCatalog {
         return TrainingExercise(id: "noop:\(id)", title: title, mode: mode, primaryMuscleId: primary,
                                 secondaryMuscleIds: secondary, equipmentIds: equipment,
                                 isUnilateral: unilateral, source: .noop,
+                                mediaId: mediaReferences[id],
                                 canonicalId: canonical, contentVersion: ExerciseAnatomyCatalog.version,
                                 attribution: "NOOP",
                                 loadSemantics: .defaultValue(for: mode, equipmentIds: equipment))

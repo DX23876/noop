@@ -1264,7 +1264,7 @@ struct NativeWorkoutLoggerView: View {
                     Label("Superset", systemImage: "link")
                         .font(StrandFont.caption).foregroundStyle(StrandPalette.metricCyan)
                 }
-                if let definition { workoutMedia(definition) }
+                if let definition { workoutMedia(definition, animated: exerciseIndex == model.activeExerciseIndex) }
                 if let previous = previousPerformance(for: exercise, mode: definition?.mode ?? .weightReps,
                                                       unilateral: definition?.isUnilateral == true) {
                     HStack(alignment: .firstTextBaseline, spacing: NoopMetrics.space2) {
@@ -1411,14 +1411,20 @@ struct NativeWorkoutLoggerView: View {
         .accessibilityLabel(setAccessibilityLabel(set, mode: mode, unilateral: unilateral))
     }
 
-    @ViewBuilder private func workoutMedia(_ exercise: TrainingExercise) -> some View {
+    /// The exercise's animation above its sets. Only the exercise being logged animates; the others
+    /// show a still, so a list of exercises never decodes several animations at once.
+    @ViewBuilder private func workoutMedia(_ exercise: TrainingExercise, animated: Bool) -> some View {
         let presentation = TrainingMediaPresentation(rawValue: mediaPresentationRaw) ?? .small
         if presentation != .hidden, media.isAvailable,
-           let item = ExerciseMediaRegistry.shared.media(for: exercise) {
-            ExerciseMediaView(media: item,
-                              minHeight: presentation == .large ? 180 : 80,
-                              maxHeight: presentation == .large ? 260 : 110)
-                .accessibilityLabel(String(localized: "Exercise demonstration for \(exercise.title)"))
+           let item = ExerciseMediaRegistry.shared.media(for: exercise, variant: animated ? .animation : .still) {
+            VStack(alignment: .trailing, spacing: 2) {
+                ExerciseMediaView(media: item,
+                                  minHeight: presentation == .large ? 180 : 80,
+                                  maxHeight: presentation == .large ? 260 : 110)
+                    .accessibilityLabel(String(localized: "Exercise demonstration for \(exercise.title)"))
+                Text(ExerciseMediaStore.Provider.displayCredit)
+                    .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+            }
         }
     }
 

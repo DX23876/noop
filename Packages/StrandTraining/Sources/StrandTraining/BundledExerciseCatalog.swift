@@ -9,8 +9,8 @@ import Foundation
 ///
 /// **Media is not here and never will be through this path.** The same upstream states that the images
 /// and animations belong to Gym visual and that cloning the repository grants no licence to them. An
-/// entry therefore carries at most the upstream `mediaId` string; only a separately licensed media
-/// provider could ever resolve it, and the one that would is withdrawn.
+/// entry therefore carries at most the upstream `mediaId` string, which the optional media pack resolves
+/// only after the wearer chose to download it.
 ///
 /// The catalogue is an `ExerciseCatalogArchive` — the same envelope a wearer-supplied catalogue uses —
 /// so the app has one exercise-content format, not two.

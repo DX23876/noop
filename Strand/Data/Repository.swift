@@ -851,10 +851,16 @@ final class Repository: ObservableObject {
         guard let store = await ensureStore() else { return }
         let now = Int(Date().timeIntervalSince1970)
         let seededVersionKey = "training.catalog.seededContentVersion"
+        let seededStarterKey = "training.catalog.seededStarterVersion"
         if UserDefaults.standard.integer(forKey: seededVersionKey) < BundledExerciseCatalog.contentVersion {
             try? await store.upsertTrainingExercises(
                 TrainingStarterCatalog.exercises + BundledExerciseCatalog.exercises, nowTs: now)
             UserDefaults.standard.set(BundledExerciseCatalog.contentVersion, forKey: seededVersionKey)
+            UserDefaults.standard.set(TrainingStarterCatalog.contentVersion, forKey: seededStarterKey)
+        } else if UserDefaults.standard.integer(forKey: seededStarterKey) < TrainingStarterCatalog.contentVersion {
+            // Starter definitions changed on their own (e.g. gained media references).
+            try? await store.upsertTrainingExercises(TrainingStarterCatalog.exercises, nowTs: now)
+            UserDefaults.standard.set(TrainingStarterCatalog.contentVersion, forKey: seededStarterKey)
         }
         // Unfinished drafts are no longer pruned after a week: they hold sets the wearer logged, and a
         // forgotten session is offered back to them (`ActiveSessionController.restoreIfNeeded`) instead.

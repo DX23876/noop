@@ -185,6 +185,14 @@ a local file or nothing. The registry owns the central kill switch — a provide
 exercises, routines, logging and analytics continue unchanged. `NoMediaProvider` is always last, so
 "no media" is a normal state rather than an error.
 
+Media is requested as a rendition. Lists ask for the **still** (`images/*.jpg`), decoded straight to the
+displayed size by `ExerciseMediaThumbnail`; the exercise detail and the exercise currently being logged
+ask for the **animation** (`videos/*.gif`), and the other exercises of a running workout show their still.
+Decoded animations sit in a small `NSCache` bounded by count and decoded bytes, and nothing is decoded
+when a workout starts. The 25 starter exercises carry a hand-reviewed reference to the bundled entry that
+shows the same movement (`TrainingStarterCatalog.mediaReferences`); where no faithful equivalent exists,
+as for a plain plank, the exercise keeps no media rather than a misleading one.
+
 The transfer is a background `URLSession`: progress, cancel and resume are real, a cancelled or failed
 transfer keeps its resume data so continuing costs only the remaining bytes, and iOS hands a transfer
 that finished while the app was suspended back through the app delegate. Installation happens off the
@@ -260,8 +268,11 @@ place the exercise **data** — names, categories, body parts, equipment, target
 instruction text — under the **MIT licence**, which is what makes shipping 1,324 definitions offline
 legitimate; the attribution travels with the catalogue and with every definition. The same files state
 that the **media** in `images/` and `videos/` belongs to Gym visual and that cloning grants no licence
-to it. NOOP therefore ships no media, stores only the opaque upstream media identifier, and keeps that
-provider **withdrawn** in `ExerciseMediaRegistry.withdrawnProviderIds` until a licence exists.
+to it. NOOP therefore ships no media and stores only the opaque upstream media identifier. The media
+provider is available as a download the wearer starts: before it, the app names Gym visual as the rights
+holder and its conditions (keep the attribution, personal non-commercial use) and states that NOOP grants
+no licence; afterwards "© Gym visual" is shown under every image or animation. The provider can still be
+withdrawn for everyone by naming it in `ExerciseMediaRegistry.withdrawnProviderIds`.
 
 Normalization decisions worth stating, because they are judgements rather than copies:
 

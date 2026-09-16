@@ -70,6 +70,8 @@ final class ExerciseMediaStoreTests: XCTestCase {
         let resolved = try XCTUnwrap(store.mediaURL(for: exercise))
         XCTAssertEqual(resolved.lastPathComponent, "0001-2gPfomN.gif")
         XCTAssertEqual(ExerciseMedia(url: resolved).kind, .animation)
+        // Lists ask for the still, which the pack also ships.
+        XCTAssertEqual(store.mediaURL(for: exercise, variant: .still)?.lastPathComponent, "0001-2gPfomN.jpg")
 
         // An id that names no file stays unresolved rather than matching a neighbour.
         XCTAssertNil(store.mediaURL(for: .init(id: "exdb:9999", title: "Unknown",

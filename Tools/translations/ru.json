@@ -1365,5 +1365,10 @@
   "Top of the rep range, load goes up": "Верх диапазона повторений, вес растёт",
   "Two more reps": "Ещё два повторения",
   "Use %@": "Применить %@",
-  "Workout options": "Параметры тренировки"
+  "Workout options": "Параметры тренировки",
+  "Download · %@": "Загрузить · %@",
+  "Every exercise works without them. Download the optional pack once to see how each one is done.": "Все упражнения работают и без них. Загрузите необязательный пакет один раз, чтобы видеть технику каждого.",
+  "Exercise animations": "Анимации упражнений",
+  "Hide": "Скрыть",
+  "The images and animations belong to Gym visual. Keep this attribution and use them only for personal, non-commercial purposes. NOOP does not grant any licence for these files.": "Изображения и анимации принадлежат Gym visual. Сохраняйте указание авторства и используйте их только в личных некоммерческих целях. NOOP не предоставляет никакой лицензии на эти файлы."
 }

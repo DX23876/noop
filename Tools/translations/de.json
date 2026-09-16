@@ -1387,5 +1387,10 @@
   "Top of the rep range, load goes up": "Obere Grenze des Wiederholungsbereichs, Gewicht steigt",
   "Two more reps": "Noch zwei Wiederholungen",
   "Use %@": "%@ übernehmen",
-  "Workout options": "Trainingsoptionen"
+  "Workout options": "Trainingsoptionen",
+  "Download · %@": "Laden · %@",
+  "Every exercise works without them. Download the optional pack once to see how each one is done.": "Jede Übung funktioniert auch ohne. Lade das optionale Paket einmal, um zu sehen, wie jede Übung ausgeführt wird.",
+  "Exercise animations": "Übungsanimationen",
+  "Hide": "Ausblenden",
+  "The images and animations belong to Gym visual. Keep this attribution and use them only for personal, non-commercial purposes. NOOP does not grant any licence for these files.": "Die Bilder und Animationen gehören Gym visual. Behalte diese Namensnennung bei und nutze sie nur privat und nicht-kommerziell. NOOP vergibt keine Lizenz für diese Dateien."
 }
