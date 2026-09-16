@@ -144,11 +144,6 @@ struct TrainingHubView: View {
             if let coachContext {
                 CoachCardButton(context: coachContext)
             }
-            Button { start([]) } label: {
-                Label("Freestyle", systemImage: "plus.circle.fill")
-                    .font(StrandFont.subhead.weight(.semibold))
-            }
-            .buttonStyle(.plain).foregroundStyle(StrandPalette.accent)
         }
     }
 
