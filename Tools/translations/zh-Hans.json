@@ -1511,8 +1511,10 @@
   "Shins": "胫骨前肌",
   "body.region.back": "背部",
   "body.side.back": "背面",
-  "NOOP uses the following third-party content under its own licence. A licence in one domain (code, data, media) is not treated as a licence in another.": "NOOP 在其自身许可下使用以下第三方内容。一个领域(代码、数据、媒体)的许可并不等同于另一个领域的许可。",
+  "Acknowledgements": "鸣谢",
   "Import & export": "导入与导出",
+  "NOOP uses the following third-party content under its own licence. A licence in one domain (code, data, media) is not treated as a licence in another.": "NOOP 在其自身许可下使用以下第三方内容。一个领域(代码、数据、媒体)的许可并不等同于另一个领域的许可。",
   "Third-party content NOOP uses under its own licence.": "NOOP 在其自身许可下使用的第三方内容。",
-  "Acknowledgements": "鸣谢"
+  "Workout title": "训练标题",
+  "Workout title (optional)": "训练标题(可选)"
 }

@@ -419854,60 +419854,60 @@
         }
       }
     },
-    "NOOP uses the following third-party content under its own licence. A licence in one domain (code, data, media) is not treated as a licence in another." : {
+    "Acknowledgements" : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "NOOP verwendet die folgenden Inhalte Dritter unter deren eigener Lizenz. Eine Lizenz in einem Bereich (Code, Daten, Medien) gilt nicht automatisch auch für einen anderen."
+            "value" : "Danksagungen"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "NOOP utiliza el siguiente contenido de terceros bajo su propia licencia. Una licencia en un ámbito (código, datos, medios) no se considera una licencia en otro."
+            "value" : "Agradecimientos"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "NOOP utilise le contenu tiers suivant sous sa propre licence. Une licence dans un domaine (code, données, médias) n’est pas considérée comme une licence dans un autre."
+            "value" : "Remerciements"
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "NOOP utilizza i seguenti contenuti di terze parti secondo la loro licenza. Una licenza in un ambito (codice, dati, media) non vale automaticamente anche per un altro."
+            "value" : "Ringraziamenti"
           }
         },
         "pl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "NOOP korzysta z poniższych treści innych firm na podstawie ich własnej licencji. Licencja w jednym obszarze (kod, dane, multimedia) nie jest traktowana jako licencja w innym."
+            "value" : "Podziękowania"
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "A NOOP utiliza o seguinte conteúdo de terceiros ao abrigo da sua própria licença. Uma licença num domínio (código, dados, multimédia) não é considerada uma licença noutro."
+            "value" : "Agradecimentos"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "NOOP использует следующий сторонний контент на условиях его собственной лицензии. Лицензия в одной области (код, данные, медиа) не считается лицензией в другой."
+            "value" : "Благодарности"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "NOOP 在其自身许可下使用以下第三方内容。一个领域(代码、数据、媒体)的许可并不等同于另一个领域的许可。"
+            "value" : "鸣谢"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "NOOP 在其自身授權下使用以下第三方內容。一個領域(程式碼、資料、媒體)的授權並不代表其他領域的授權。"
+            "value" : "鳴謝"
           }
         }
       }
@@ -419970,6 +419970,64 @@
         }
       }
     },
+    "NOOP uses the following third-party content under its own licence. A licence in one domain (code, data, media) is not treated as a licence in another." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP verwendet die folgenden Inhalte Dritter unter deren eigener Lizenz. Eine Lizenz in einem Bereich (Code, Daten, Medien) gilt nicht automatisch auch für einen anderen."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP utiliza el siguiente contenido de terceros bajo su propia licencia. Una licencia en un ámbito (código, datos, medios) no se considera una licencia en otro."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP utilise le contenu tiers suivant sous sa propre licence. Une licence dans un domaine (code, données, médias) n’est pas considérée comme une licence dans un autre."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP utilizza i seguenti contenuti di terze parti secondo la loro licenza. Una licenza in un ambito (codice, dati, media) non vale automaticamente anche per un altro."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP korzysta z poniższych treści innych firm na podstawie ich własnej licencji. Licencja w jednym obszarze (kod, dane, multimedia) nie jest traktowana jako licencja w innym."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A NOOP utiliza o seguinte conteúdo de terceiros ao abrigo da sua própria licença. Uma licença num domínio (código, dados, multimédia) não é considerada uma licença noutro."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP использует следующий сторонний контент на условиях его собственной лицензии. Лицензия в одной области (код, данные, медиа) не считается лицензией в другой."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP 在其自身许可下使用以下第三方内容。一个领域(代码、数据、媒体)的许可并不等同于另一个领域的许可。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP 在其自身授權下使用以下第三方內容。一個領域(程式碼、資料、媒體)的授權並不代表其他領域的授權。"
+          }
+        }
+      }
+    },
     "Third-party content NOOP uses under its own licence." : {
       "localizations" : {
         "de" : {
@@ -420028,60 +420086,118 @@
         }
       }
     },
-    "Acknowledgements" : {
+    "Workout title" : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Danksagungen"
+            "value" : "Workout-Titel"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Agradecimientos"
+            "value" : "Título del entrenamiento"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Remerciements"
+            "value" : "Titre de l’entraînement"
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Ringraziamenti"
+            "value" : "Titolo dell’allenamento"
           }
         },
         "pl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Podziękowania"
+            "value" : "Tytuł treningu"
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Agradecimentos"
+            "value" : "Título do treino"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Благодарности"
+            "value" : "Название тренировки"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "鸣谢"
+            "value" : "训练标题"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "鳴謝"
+            "value" : "訓練標題"
+          }
+        }
+      }
+    },
+    "Workout title (optional)" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Workout-Titel (optional)"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Título del entrenamiento (opcional)"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Titre de l’entraînement (facultatif)"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Titolo dell’allenamento (facoltativo)"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tytuł treningu (opcjonalnie)"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Título do treino (opcional)"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Название тренировки (необязательно)"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "训练标题(可选)"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "訓練標題(選填)"
           }
         }
       }

@@ -974,6 +974,17 @@ final class Repository: ObservableObject {
         Task { await refresh() }
     }
 
+    /// Renames an already-finished workout from its summary screen. Re-upserts the whole record rather
+    /// than a single-column update: `NativeTrainingStore.write` replaces a workout's exercises/sets
+    /// wholesale keyed by its id, so the caller must pass the complete, unchanged struct with just the
+    /// title edited — never a partial one.
+    func renameNativeWorkout(_ workout: NativeWorkout, title: String) async throws {
+        guard let store = await ensureStore() else { throw RepositoryTrainingError.storeUnavailable }
+        var renamed = workout
+        renamed.title = title
+        try await store.upsertNativeWorkouts([renamed])
+    }
+
     func nativeWorkouts(days: Int = 4_000) async -> [NativeWorkout] {
         guard let store = await ensureStore() else { return [] }
         let now = Int(Date().timeIntervalSince1970)

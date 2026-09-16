@@ -1387,8 +1387,10 @@
   "Shins": "Голени",
   "body.region.back": "Спина",
   "body.side.back": "Сзади",
-  "NOOP uses the following third-party content under its own licence. A licence in one domain (code, data, media) is not treated as a licence in another.": "NOOP использует следующий сторонний контент на условиях его собственной лицензии. Лицензия в одной области (код, данные, медиа) не считается лицензией в другой.",
+  "Acknowledgements": "Благодарности",
   "Import & export": "Импорт и экспорт",
+  "NOOP uses the following third-party content under its own licence. A licence in one domain (code, data, media) is not treated as a licence in another.": "NOOP использует следующий сторонний контент на условиях его собственной лицензии. Лицензия в одной области (код, данные, медиа) не считается лицензией в другой.",
   "Third-party content NOOP uses under its own licence.": "Сторонний контент, который NOOP использует на условиях его собственной лицензии.",
-  "Acknowledgements": "Благодарности"
+  "Workout title": "Название тренировки",
+  "Workout title (optional)": "Название тренировки (необязательно)"
 }

@@ -1409,8 +1409,10 @@
   "Shins": "Schienbein",
   "body.region.back": "Rücken",
   "body.side.back": "Rückseite",
-  "NOOP uses the following third-party content under its own licence. A licence in one domain (code, data, media) is not treated as a licence in another.": "NOOP verwendet die folgenden Inhalte Dritter unter deren eigener Lizenz. Eine Lizenz in einem Bereich (Code, Daten, Medien) gilt nicht automatisch auch für einen anderen.",
+  "Acknowledgements": "Danksagungen",
   "Import & export": "Import und Export",
+  "NOOP uses the following third-party content under its own licence. A licence in one domain (code, data, media) is not treated as a licence in another.": "NOOP verwendet die folgenden Inhalte Dritter unter deren eigener Lizenz. Eine Lizenz in einem Bereich (Code, Daten, Medien) gilt nicht automatisch auch für einen anderen.",
   "Third-party content NOOP uses under its own licence.": "Inhalte Dritter, die NOOP unter deren eigener Lizenz verwendet.",
-  "Acknowledgements": "Danksagungen"
+  "Workout title": "Workout-Titel",
+  "Workout title (optional)": "Workout-Titel (optional)"
 }

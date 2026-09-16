@@ -1410,8 +1410,10 @@
   "Shins": "Tibiais",
   "body.region.back": "Costas",
   "body.side.back": "Costas",
-  "NOOP uses the following third-party content under its own licence. A licence in one domain (code, data, media) is not treated as a licence in another.": "A NOOP utiliza o seguinte conteúdo de terceiros ao abrigo da sua própria licença. Uma licença num domínio (código, dados, multimédia) não é considerada uma licença noutro.",
+  "Acknowledgements": "Agradecimentos",
   "Import & export": "Importar e exportar",
+  "NOOP uses the following third-party content under its own licence. A licence in one domain (code, data, media) is not treated as a licence in another.": "A NOOP utiliza o seguinte conteúdo de terceiros ao abrigo da sua própria licença. Uma licença num domínio (código, dados, multimédia) não é considerada uma licença noutro.",
   "Third-party content NOOP uses under its own licence.": "Conteúdo de terceiros que a NOOP utiliza ao abrigo da sua própria licença.",
-  "Acknowledgements": "Agradecimentos"
+  "Workout title": "Título do treino",
+  "Workout title (optional)": "Título do treino (opcional)"
 }

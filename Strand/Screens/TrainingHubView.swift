@@ -537,7 +537,7 @@ struct StrengthWorkoutSummaryView: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var repo: Repository
     @StateObject private var profile = ProfileStore()
-    let workout: NativeWorkout
+    @State private var workout: NativeWorkout
     let exercises: [TrainingExercise]
     let performance: TrainingPerformanceHistory
     @State private var highlights: StrengthSessionHighlights?
@@ -545,6 +545,13 @@ struct StrengthWorkoutSummaryView: View {
     @State private var hrPoints: [TrendPoint] = []
     @State private var zoneMinutes: [Double]?
     @State private var loadedPhysiology = false
+    @State private var titleSaveTask: Task<Void, Never>?
+
+    init(workout: NativeWorkout, exercises: [TrainingExercise], performance: TrainingPerformanceHistory) {
+        _workout = State(initialValue: workout)
+        self.exercises = exercises
+        self.performance = performance
+    }
 
     var body: some View {
         NavigationStack {
@@ -586,6 +593,7 @@ struct StrengthWorkoutSummaryView: View {
                     heartRate
                     zones
                     exerciseBreakdown
+                    titleCard
                     sessionNote
                     SessionRPECard(startTs: workout.startedAt, sport: workout.title,
                                    durationS: Double(summary.activeDurationS))
@@ -733,6 +741,28 @@ struct StrengthWorkoutSummaryView: View {
                         }
                     }
                 }
+            }
+        }
+    }
+
+    /// A default title ("Freestyle workout", or the routine names) is set at start; this lets a wearer
+    /// replace it once they know what the session turned out to be. Debounced like the in-session note,
+    /// since every keystroke would otherwise re-write the workout's exercises and sets in SQLite.
+    private var titleCard: some View {
+        NoopCard {
+            VStack(alignment: .leading, spacing: 5) {
+                Text("Workout title").font(StrandFont.subhead.weight(.semibold))
+                TextField("Workout title (optional)", text: Binding(
+                    get: { workout.title },
+                    set: { newTitle in
+                        workout.title = newTitle
+                        titleSaveTask?.cancel()
+                        titleSaveTask = Task {
+                            try? await Task.sleep(nanoseconds: 600_000_000)
+                            guard !Task.isCancelled else { return }
+                            try? await repo.renameNativeWorkout(workout, title: newTitle)
+                        }
+                    }))
             }
         }
     }
@@ -995,7 +1025,7 @@ struct NativeWorkoutLoggerView: View {
                         Label("Add exercise", systemImage: "plus.circle.fill")
                             .frame(maxWidth: .infinity).padding(.vertical, 10)
                     }.buttonStyle(.bordered).tint(StrandPalette.accent)
-                    finishCard
+                    noteCard
                 }.padding(NoopMetrics.screenPadding)
             }
             .background(StrandPalette.surfaceBase.ignoresSafeArea())
@@ -1014,7 +1044,11 @@ struct NativeWorkoutLoggerView: View {
                 }
                 ToolbarItem(placement: .primaryAction) { sessionMenu }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Finish") { requestFinish() }.fontWeight(.semibold)
+                    // The one, clearly primary way to end the workout — colored so it doesn't read
+                    // as an ordinary nav-bar action next to "Back" and the "..." menu.
+                    Button("Finish") { requestFinish() }
+                        .fontWeight(.semibold)
+                        .tint(StrandPalette.chargeColor)
                 }
             }
             .trainingKeyboardDoneButton { focusedSetField = nil }
@@ -1653,36 +1687,15 @@ struct NativeWorkoutLoggerView: View {
         }
     }
 
-    private var finishCard: some View {
+    // How demanding the WHOLE session felt only means something once it's over — that question is
+    // asked post-workout by `SessionRPECard`, already wired into `StrengthWorkoutSummaryView` below,
+    // with its own reminder if it's skipped there. Asking it again mid-session would be a second,
+    // unsynced answer to the same question, so this card is notes only while the workout is running.
+    private var noteCard: some View {
         NoopCard {
-            VStack(alignment: .leading, spacing: 10) {
-                Toggle("Session effort", isOn: Binding(
-                    get: { model.sessionRPE != nil },
-                    set: { model.sessionRPE = $0 ? 7 : nil }
-                ))
-                .font(StrandFont.subhead.weight(.semibold))
-                if let sessionRPE = model.sessionRPE {
-                    HStack {
-                        Text("RPE")
-                        Spacer()
-                        Text(sessionRPE.formatted(.number.precision(.fractionLength(1))))
-                            .font(StrandFont.subhead.monospacedDigit())
-                    }
-                    Slider(value: Binding(
-                        get: { model.sessionRPE ?? 7 },
-                        set: { model.sessionRPE = $0 }
-                    ), in: 1...10, step: 0.5)
-                    .tint(StrandPalette.accent)
-                }
-                TextField("Workout notes", text: Binding(
-                    get: { model.draft.note ?? "" },
-                    set: { model.setWorkoutNote($0) }), axis: .vertical)
-                Button {
-                    requestFinish()
-                } label: {
-                    Text("Finish workout").frame(maxWidth: .infinity).padding(.vertical, 11)
-                }.buttonStyle(.borderedProminent).tint(StrandPalette.chargeColor)
-            }
+            TextField("Workout notes", text: Binding(
+                get: { model.draft.note ?? "" },
+                set: { model.setWorkoutNote($0) }), axis: .vertical)
         }
     }
 
