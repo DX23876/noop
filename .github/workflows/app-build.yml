@@ -141,11 +141,25 @@ jobs:
       - name: Generate Xcode project
         run: xcodegen generate
 
+      # SWIFT_COMPILATION_MODE=wholemodule overrides project.yml's incremental (singlefile) Debug default
+      # for THIS invocation only — a command-line xcodebuild override, not a project.yml change, so a
+      # developer's local Xcode build of the same Debug configuration is untouched.
+      #
+      # Why: the x86_64 leg of the Strand build (450+ files in one module) started crashing the Swift
+      # frontend during module emission — a `swift-frontend -emit-module
+      # -experimental-skip-non-inlinable-function-bodies-without-types` process aborting with a stack
+      # dump, no source-level diagnostic, reproduced on two independent commits. That flag is injected
+      # automatically by Xcode 16's incremental-mode "emit module separately" optimization, which has
+      # known crash reports on large single-invocation module-emit jobs. Whole-module mode uses a
+      # different code path that doesn't take that optimization, sidestepping the crash. CI always does a
+      # clean build from a fresh checkout, so incremental mode's speed benefit doesn't apply here anyway —
+      # this costs nothing in CI and changes nothing for local incremental Xcode builds.
       - name: Build ${{ matrix.scheme }}
         run: >-
           xcodebuild -scheme '${{ matrix.scheme }}' -configuration Debug
           -destination '${{ matrix.destination }}' ${{ matrix.extra_args }}
           CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO
+          SWIFT_COMPILATION_MODE=wholemodule
           build
 
       # Run the app-target unit tests (StrandTests, wired into the Strand scheme's test action in
