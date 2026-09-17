@@ -1416,5 +1416,6 @@
   "NOOP uses the following third-party content under its own licence. A licence in one domain (code, data, media) is not treated as a licence in another.": "NOOP utilise le contenu tiers suivant sous sa propre licence. Une licence dans un domaine (code, données, médias) n’est pas considérée comme une licence dans un autre.",
   "Third-party content NOOP uses under its own licence.": "Contenu tiers que NOOP utilise sous sa propre licence.",
   "Workout title": "Titre de l’entraînement",
-  "Workout title (optional)": "Titre de l’entraînement (facultatif)"
+  "Workout title (optional)": "Titre de l’entraînement (facultatif)",
+  "Movement data was patchy this night, so the stages are a rough estimate.": "Les données de mouvement étaient incomplètes cette nuit, les phases sont donc une estimation approximative."
 }

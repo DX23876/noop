@@ -1516,5 +1516,6 @@
   "NOOP uses the following third-party content under its own licence. A licence in one domain (code, data, media) is not treated as a licence in another.": "NOOP 在其自身许可下使用以下第三方内容。一个领域(代码、数据、媒体)的许可并不等同于另一个领域的许可。",
   "Third-party content NOOP uses under its own licence.": "NOOP 在其自身许可下使用的第三方内容。",
   "Workout title": "训练标题",
-  "Workout title (optional)": "训练标题(可选)"
+  "Workout title (optional)": "训练标题(可选)",
+  "Movement data was patchy this night, so the stages are a rough estimate.": "这一晚的体动数据不完整,因此睡眠阶段只是粗略估计。"
 }

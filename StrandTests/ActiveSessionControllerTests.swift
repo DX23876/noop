@@ -111,4 +111,25 @@ final class ActiveSessionControllerTests: XCTestCase {
         XCTAssertFalse(visible.contains(twin))
         XCTAssertEqual(Repository.hidingLegacyStrengthRecordings([native, twin], links: []).count, 2)
     }
+
+    /// #2278: an accidental start/stop lands as a zero-length row ("0m"). Half of zero overlaps nothing,
+    /// so its twin used to stay visible and a delete of one copy left the other on screen.
+    func testAZeroLengthStrengthRecordingIsStillRecognisedAsTheTwin() {
+        func row(_ source: String, _ start: Int, _ end: Int) -> WorkoutRow {
+            WorkoutRow(startTs: start, endTs: end, sport: "Strength Training", source: source,
+                       durationS: Double(end - start), energyKcal: nil, avgHr: nil, maxHr: nil,
+                       strain: nil, distanceM: nil, zonesJSON: nil, notes: nil, steps: nil)
+        }
+        let native = row("native-training", 1_000, 1_000)
+        XCTAssertTrue(Repository.isLegacyStrengthTwin(row("manual", 1_000, 1_000), of: native))
+        XCTAssertTrue(Repository.isLegacyStrengthTwin(row("manual", 990, 1_040), of: native),
+                      "a zero-length native inside the recording's span is its twin")
+        XCTAssertFalse(Repository.isLegacyStrengthTwin(row("manual", 1_001, 1_001), of: native),
+                       "a different instant is a different session")
+        XCTAssertFalse(Repository.isLegacyStrengthTwin(row("manual", 2_000, 2_600), of: native))
+        // The non-degenerate rule is unchanged: half of the shorter span must overlap.
+        let long = row("native-training", 1_000, 2_000)
+        XCTAssertTrue(Repository.isLegacyStrengthTwin(row("manual", 1_400, 2_400), of: long))
+        XCTAssertFalse(Repository.isLegacyStrengthTwin(row("manual", 1_600, 2_600), of: long))
+    }
 }

@@ -319,6 +319,22 @@ extension SleepModel {
         return SleepView.isPreOnsetAwakeStub(spanMin: spanMin, asleepMin: asleepMin, refAsleepMin: refAsleepMin)
     }
 
+    /// A fragment's persisted motion, trimmed to the window the night now shows.
+    ///
+    /// `motionJSON` is gridded from the DETECTED start at the time of staging, and a sleep edit keeps it
+    /// as-is while moving `effectiveStartTs` / `endTs`. Appended untrimmed, a later onset or an earlier wake
+    /// left the trace wider than the stage timeline above it, so restless bursts drew under the wrong
+    /// stages. Drops the epochs before the corrected onset and after the corrected wake. An onset moved
+    /// EARLIER is left unpadded: there is no motion for that time, and zeros would draw a still sleeper.
+    nonisolated static func alignedMotion(_ epochs: [Double], detectedStartTs: Int, effectiveStartTs: Int,
+                                          endTs: Int) -> [Double] {
+        let epochS = Int(SleepStager.epochS)
+        let lead = max(0, effectiveStartTs - detectedStartTs) / epochS
+        guard lead < epochs.count, endTs > effectiveStartTs else { return [] }
+        let span = Int((Double(endTs - max(effectiveStartTs, detectedStartTs)) / Double(epochS)).rounded(.up))
+        return Array(epochs[lead ..< min(epochs.count, lead + span)])
+    }
+
     /// Build the hero `Night` for a day around its MAIN-night GROUP, bridged the way
     /// `AnalyticsEngine.analyzeDay` bridges it. Mirrors the former `SleepView.mergeDay`. Returns nil
     /// if the group decodes to no usable stages. (#170, #318, #518, #555, #561, #736, #364, #407)
@@ -344,7 +360,10 @@ extension SleepModel {
                 stages.awake += st.awake; stages.light += st.light
                 stages.deep  += st.deep;  stages.rem   += st.rem
             }
-            if let m = motionByStart[frag.startTs] { motion.append(contentsOf: m) }
+            if let m = motionByStart[frag.startTs] {
+                motion.append(contentsOf: alignedMotion(m, detectedStartTs: frag.startTs,
+                                                        effectiveStartTs: frag.effectiveStartTs, endTs: frag.endTs))
+            }
         }
         let orderedFrags = Array(group)
         for (prev, next) in zip(orderedFrags, orderedFrags.dropFirst()) {

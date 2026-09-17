@@ -49,6 +49,12 @@ struct SleepView: View {
     /// The Sleep tab's stage-chart shape (Settings → Appearance → Sleep chart). Display-only; Filled/Ribbon
     /// draw the WHOOP-style stepped hypnogram, Classic keeps the per-stage rows. Mirrors Android. (#sleep-chart-style)
     @AppStorage(SleepChartStyle.storageKey) private var sleepChartStyleRaw = SleepChartStyle.classic.rawValue
+    /// The Today dashboard style. Only `.liquid` keeps the liquid sleep gauge; every other style draws the
+    /// same ring Classic Today does, so turning Liquid off is not undone by the Sleep tab.
+    @AppStorage(TodayDashboardStyle.storageKey) private var todayDashboardStyleRaw = TodayDashboardStyle.liquid.rawValue
+    private var heroUsesLiquidStyle: Bool {
+        (TodayDashboardStyle.resolve(todayDashboardStyleRaw) ?? .liquid) == .liquid
+    }
     /// Which night the hero hypnogram shows: 0 = last night, N = N sleep-sessions back.
     /// Snaps back to 0 whenever the data key changes — a stale offset would silently point
     /// at a different session after a sync. The memoized trend `model` stays cached since
@@ -461,26 +467,28 @@ struct SleepView: View {
             // The sleep score is named ONCE here ("Sleep performance"); the old trailing "Rest" chip and the
             // duplicate "Rest" night-detail tile showed the same number under a second name (redesign bug §1).
             SectionHeader("Sleep performance", overline: nightRelativeLabel)
-            // A subtle night atmosphere sits behind the sleep hero ONLY (the Rest world's whisper:
-            // faint indigo wash + crescent moon over the near-black canvas, no glow), clipped to the
-            // card. Replaces the now-flat ScenicHeroBackground here.
-            VStack(spacing: NoopMetrics.space4) {
+            let content = VStack(spacing: NoopMetrics.space4) {
                 if let score {
-                    // The signature liquid gauge: a filling vessel tinted Rest, with the 0–100 score
-                    // counting up over it and a short state word beneath — the same `LiquidScoreGauge`
-                    // Today's HeroScoreCell draws, so both heroes fill and roll up identically. The
-                    // gauge drives its own count-up, which is why the screen no longer keeps a separate
-                    // `heroFraction` animation state.
                     VStack(spacing: NoopMetrics.space3) {
-                        LiquidScoreGauge(
-                            score: score,
-                            tint: StrandPalette.restColor,
-                            diameter: 184,
-                            animated: true,
-                            captionText: String(localized: "of 100"),
-                            numberColor: StrandPalette.textPrimary,
-                            captionColor: StrandPalette.textSecondary
-                        )
+                        if heroUsesLiquidStyle {
+                            // The signature liquid gauge: a filling vessel tinted Rest, with the 0–100
+                            // score counting up over it — the same `LiquidScoreGauge` Liquid Today's
+                            // HeroScoreCell draws, so both heroes fill and roll up identically.
+                            LiquidScoreGauge(
+                                score: score,
+                                tint: StrandPalette.restColor,
+                                diameter: 184,
+                                animated: true,
+                                captionText: String(localized: "of 100"),
+                                numberColor: StrandPalette.textPrimary,
+                                captionColor: StrandPalette.textSecondary
+                            )
+                        } else {
+                            // Classic, Trends and Overview draw Today's ring, not the liquid vessel: the
+                            // hero follows the one dashboard-style setting like every other screen.
+                            GlowRing(fraction: score / 100, value: score, format: { "\(Int($0.rounded()))" },
+                                     color: StrandPalette.restColor, diameter: 172, lineWidth: 17.2)
+                        }
                         Text(sleepScoreWord(score))
                             .font(StrandFont.subhead.weight(.semibold))
                             .foregroundStyle(StrandPalette.restColor)
@@ -507,10 +515,19 @@ struct SleepView: View {
                 }
                 SourceBadge(score != nil ? heroSource(for: night) : (repo.activeDeviceIsOura ? "Oura" : "On-device"), tint: StrandPalette.restColor)
             }
-            .padding(NoopMetrics.cardInnerPadding + NoopMetrics.space1)
-            .frame(maxWidth: .infinity)
-            .timeOfDayBackground(.night)
-            .clipShape(RoundedRectangle(cornerRadius: NoopMetrics.cardRadius, style: .continuous))
+            if heroUsesLiquidStyle {
+                // A subtle night atmosphere sits behind the liquid hero ONLY (faint indigo wash + crescent
+                // moon over the near-black canvas, no glow), clipped to the card.
+                content
+                    .padding(NoopMetrics.cardInnerPadding + NoopMetrics.space1)
+                    .frame(maxWidth: .infinity)
+                    .timeOfDayBackground(.night)
+                    .clipShape(RoundedRectangle(cornerRadius: NoopMetrics.cardRadius, style: .continuous))
+            } else {
+                NoopCard(padding: NoopMetrics.cardInnerPadding, tint: StrandPalette.restColor) {
+                    content.frame(maxWidth: .infinity)
+                }
+            }
         }
     }
 
@@ -741,7 +758,8 @@ struct SleepView: View {
             // (≥2-segment) hypnogram so the strip aligns with a genuine timeline; the proportional stage-bar
             // fallback has no timeline to anchor to. Placed OUTSIDE the fixed-height ChartCard so it doesn't
             // clip the hypnogram. Honest empty state inside `motionStrip` when no group fragment has motion.
-            if intervals.count >= 2 {
+            if intervals.count >= 2,
+               Self.showsMotionStrip(motionEpochCount: night.motionEpochs.count, blocks: night.sourceBlocks) {
                 motionStrip(night)
             }
             // H9 — when the engine's Rest confidence flags this night's staging as low-confidence (a
@@ -754,17 +772,25 @@ struct SleepView: View {
             }
             // #345 follow-up: when a night was staged on SPARSE motion coverage it can UNDER-detect — the
             // gravity-only spine fragments and the sub-60-min pieces are dropped, so a real ~8h night can
-            // collapse to a fraction ("slept 8h, app shows 1h"). Say so honestly so the short total isn't
-            // read as fact. Distinct from the H9 note above (a plausible-duration night with an off split).
-            if stageStagingIsSparse(night) {
-                stageIncompleteNote
+            // collapse to a fraction ("slept 8h, app shows 1h"). Sparse coverage alone is common, though, and
+            // most such nights come out at a normal length, so the warning is only prominent when the total
+            // actually reads short; otherwise a quiet footnote says the stages are rough. Distinct from the
+            // H9 note above (a plausible-duration night with an off split).
+            let coverage = stageCoverage(night)
+            let partialShown = coverage.map { $0 < HypnogramCoverage.minCoverage } ?? false
+            switch Self.sparseStagingNote(sparse: stageStagingIsSparse(night), asleepMin: s.asleep,
+                                          typicalAsleepMin: Self.typicalAsleepMin(repo.days),
+                                          partialTimelineShown: partialShown) {
+            case .prominent: stageIncompleteNote
+            case .subtle:    stageSparseFootnote
+            case .none:      EmptyView()
             }
             // #1716 — a device-provided hypnogram assembled from records that never all arrived leaves a
             // HOLE in the timeline while the session still spans the whole night, so a night we saw a
             // fraction of renders as a complete one. Say which fraction. This is the only place the
             // coverage guard becomes visible: the engine's matching Rest downgrade lands in a transient
             // `DayResult` field no screen reads, so the gate was otherwise correct and inert.
-            if let coverage = stageCoverage(night), coverage < HypnogramCoverage.minCoverage {
+            if let coverage, partialShown {
                 stagePartialNote(coverage)
             }
             // For an Oura-provided night, say plainly that this split is the ring's RAW on-device
@@ -909,6 +935,45 @@ struct SleepView: View {
         return HypnogramCoverage.groupFraction(group.isEmpty ? night.sourceBlocks : group)
     }
 
+    /// How loudly to caption a night staged on sparse motion coverage.
+    enum SparseStagingNote: Equatable { case none, subtle, prominent }
+
+    /// A sparse night reads as possibly cut short only below this share of the wearer's typical sleep.
+    static let sparseShortFraction = 0.70
+    /// With no typical yet (fewer than five scored nights), a sparse night under this many minutes asleep.
+    static let sparseShortFloorMin = 240.0
+
+    /// Pure gate for the sparse-coverage caveat. `stagingSparse` says the night was staged on patchy motion,
+    /// which can shorten a night but usually does not: on one wearer's history 35 of 56 computed nights were
+    /// sparse and 33 of those were a normal length. So the warning is PROMINENT only when the total really
+    /// reads short (below `sparseShortFraction` of the typical, or below `sparseShortFloorMin` without one),
+    /// and a quiet footnote otherwise. When the partial-timeline note is already on screen it states the
+    /// stronger, measured fact, so this steps down to the footnote rather than stacking a second warning.
+    nonisolated static func sparseStagingNote(sparse: Bool, asleepMin: Double, typicalAsleepMin: Double?,
+                                              partialTimelineShown: Bool) -> SparseStagingNote {
+        guard sparse else { return .none }
+        if partialTimelineShown { return .subtle }
+        let short = typicalAsleepMin.map { asleepMin < sparseShortFraction * $0 }
+            ?? (asleepMin < sparseShortFloorMin)
+        return short ? .prominent : .subtle
+    }
+
+    /// The typical minutes asleep the stage card prints as "typically …": the mean over the last 30 days
+    /// with a scored night, nil below five of them. Shared by both hosts so their warnings agree.
+    nonisolated static func typicalAsleepMin(_ days: [DailyMetric]) -> Double? {
+        let values = days.suffix(30).compactMap(\.totalSleepMin).filter { $0 > 0 }
+        guard values.count >= 5 else { return nil }
+        return values.reduce(0, +) / Double(values.count)
+    }
+
+    /// Whether the "Move" strip belongs under this night at all. A night NOOP staged itself always has an
+    /// answer about movement, so it shows the trace or says none was captured. An imported night (every
+    /// block has a nil `stagingSparse`) never carried per-epoch motion, and a permanent "no movement
+    /// detail" line under each one reads like a fault rather than a fact about where the night came from.
+    nonisolated static func showsMotionStrip(motionEpochCount: Int, blocks: [CachedSleepSession]) -> Bool {
+        motionEpochCount >= 2 || blocks.contains { $0.stagingSparse != nil }
+    }
+
     /// Pure H9 gate (unit-testable without a live view) — true when a night's staging is low-confidence:
     /// a high-efficiency night whose deep+REM share is below the restorative floor. Built on the engine's
     /// own `ScoreConfidence.rest(...)` so the UI flag and the persisted Rest confidence agree. `asleepMin`,
@@ -966,6 +1031,17 @@ struct SleepView: View {
         .padding(.horizontal, 2)
         // `.combine` builds the a11y label from the badge + body Text (no separate localized string).
         .accessibilityElement(children: .combine)
+    }
+
+    /// The quiet form of the sparse-coverage caveat: the night was staged on patchy motion but its total
+    /// reads at a normal length, so nothing suggests it was cut short. No badge, no call to action; it only
+    /// says the stage split is a rough estimate. See `sparseStagingNote`.
+    private var stageSparseFootnote: some View {
+        Text("Movement data was patchy this night, so the stages are a rough estimate.")
+            .font(StrandFont.footnote)
+            .foregroundStyle(StrandPalette.textTertiary)
+            .fixedSize(horizontal: false, vertical: true)
+            .padding(.horizontal, 2)
     }
 
     /// The PARTIAL-TIMELINE caveat (#1716): this night's stage segments account for less than

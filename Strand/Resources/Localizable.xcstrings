@@ -435589,6 +435589,70 @@
           }
         }
       }
+    },
+    "Movement data was patchy this night, so the stages are a rough estimate." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Bewegungsdaten waren diese Nacht lückenhaft, daher sind die Phasen nur grob geschätzt."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Movement data was patchy this night, so the stages are a rough estimate."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Los datos de movimiento fueron irregulares esta noche, así que las fases son una estimación aproximada."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Les données de mouvement étaient incomplètes cette nuit, les phases sont donc une estimation approximative."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "I dati di movimento sono stati discontinui questa notte, quindi le fasi sono una stima approssimativa."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dane o ruchu tej nocy były niepełne, więc fazy snu są jedynie przybliżonym oszacowaniem."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Os dados de movimento estiveram incompletos esta noite, pelo que as fases são uma estimativa aproximada."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Данные о движении в эту ночь были неполными, поэтому стадии сна — лишь приблизительная оценка."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这一晚的体动数据不完整,因此睡眠阶段只是粗略估计。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "這一晚的體動資料不完整,因此睡眠階段只是粗略估計。"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"
