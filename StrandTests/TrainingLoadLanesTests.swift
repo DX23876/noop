@@ -34,7 +34,7 @@ final class TrainingLoadLanesTests: XCTestCase {
                                       fusionOrigin: "automatic")
     }
 
-    /// Sixty days of history: lifting every third day with a mix of rated and unrated sets, running every
+    /// Training days are counted back from today, so a longer fixture only adds older days. Sixty days of history: lifting every third day with a mix of rated and unrated sets, running every
     /// second day with one long unpriced run (an unknown day), one duplicate awaiting review, and session
     /// ratings including a rated-twice session.
     struct Fixture {
@@ -46,14 +46,14 @@ final class TrainingLoadLanesTests: XCTestCase {
 
     static func fixture(days: Int = 60, unpricedDay: Int = -4) -> Fixture {
         var workouts: [HevyWorkout] = []
-        for day in stride(from: -(days - 1), through: 0, by: 3) {
+        for day in stride(from: -2, through: -(days - 1), by: -3).reversed() {
             let heavy = day > -10
             workouts.append(workout("w\(-day)", day: day,
                                     rpes: heavy ? [8, 9, nil, 9, 8] : [7, nil, 8]))
         }
         var sessions: [UnifiedTrainingSession] = []
         var resolution = TrainingCardioLoadResolution()
-        for day in stride(from: -(days - 2), through: 0, by: 2) {
+        for day in stride(from: 0, through: -(days - 2), by: -2).reversed() {
             let session = cardio("c\(-day)", day: day)
             sessions.append(session)
             guard day != unpricedDay else { continue }
@@ -136,5 +136,55 @@ final class TrainingLoadLanesTests: XCTestCase {
         let prepared = Self.prepared(Self.fixture(unpricedDay: -40))
         XCTAssertEqual(Self.describe(prepared.cardio),
                        "total=508.000000 sets=0 ratio=1.668309 pct=66.830870 maturity=baselineGrowing band=nil lower=false monotony=1.122291 strain=570.123789 wow=94.636015 measured=4/4 status=above")
+    }
+
+    static func strengthLane(_ fixture: Fixture, through day: String) -> TrainingLoadModel.Lane {
+        let workouts = fixture.strength.workouts
+        return TrainingLoadLanes.strengthLane(workouts: workouts,
+                                              byDay: TrainingLoadLanes.strengthByDay(workouts, tzOffsetSeconds: 0),
+                                              through: day, tzOffsetSeconds: 0)
+    }
+
+    static func cardioLane(_ fixture: Fixture, through day: String) -> TrainingLoadModel.Lane {
+        let series = TrainingLoadLanes.cardioSeries(sessions: fixture.sessions, resolution: fixture.cardio,
+                                                    tzOffsetSeconds: 0)
+        return TrainingLoadLanes.cardioLane(sessions: fixture.sessions, resolution: fixture.cardio, series: series,
+                                            through: day, tzOffsetSeconds: 0)
+    }
+
+    /// Cardio and Strength read a longer window than Training Load. Anything older than the lookback must
+    /// not move a reading, or the two screens would disagree with it.
+    func testHistoryBeyondTheLookbackDoesNotMoveTheReading() {
+        let shortest = Self.fixture(days: TrainingLoadLanes.lookbackDays + 1, unpricedDay: -40)
+        let long = Self.fixture(days: 200, unpricedDay: -40)
+        let prepared = Self.prepared(shortest)
+        XCTAssertEqual(Self.describe(Self.strengthLane(long, through: Self.today)), Self.describe(prepared.strength))
+        XCTAssertEqual(Self.describe(Self.cardioLane(long, through: Self.today)), Self.describe(prepared.cardio))
+    }
+
+    /// A past week is read through its own Sunday: training after that day must not reach its reading.
+    func testAPastWeekIgnoresEverythingAfterItsReadingDay() {
+        let fixture = Self.fixture(days: 120, unpricedDay: -12)
+        let day = WeeklyDigestEngine.addDays(Self.today, -9)
+        let endOfDay = Self.ts(-8) - 12 * 3_600
+        var truncatedLoads = TrainingCardioLoadResolution()
+        let sessions = fixture.sessions.filter { $0.row.startTs < endOfDay }
+        truncatedLoads.loads = fixture.cardio.loads.filter { id, _ in sessions.contains { $0.id == id } }
+        truncatedLoads.duplicateSessionIds = fixture.cardio.duplicateSessionIds
+        let truncated = Fixture(
+            strength: ResolvedStrengthHistory(sessions: [], workouts: fixture.strength.workouts.filter { $0.startTs < endOfDay },
+                                              templates: [:], historyAvailableFrom: nil),
+            sessions: sessions, cardio: truncatedLoads, ratings: [])
+
+        XCTAssertEqual(Self.describe(Self.strengthLane(fixture, through: day)),
+                       Self.describe(Self.strengthLane(truncated, through: day)))
+        let cardio = Self.cardioLane(fixture, through: day)
+        XCTAssertEqual(Self.describe(cardio), Self.describe(Self.cardioLane(truncated, through: day)))
+        XCTAssertTrue(cardio.isLowerBound, "the unpriced run on day -12 sits inside that week")
+    }
+
+    func testAWeekIsReadThroughItsSundayOrTodayWhileItRuns() {
+        XCTAssertEqual(TrainingLoadLanes.readingDay(monday: "2025-09-01", today: "2025-09-15"), "2025-09-07")
+        XCTAssertEqual(TrainingLoadLanes.readingDay(monday: "2025-09-15", today: "2025-09-17"), "2025-09-17")
     }
 }
