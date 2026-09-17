@@ -189,7 +189,7 @@ struct CardioView: View {
 
     @ViewBuilder
     private var loadTile: some View {
-        let load = model.load
+        let load = model.lane?.trend
         tile(icon: "chart.bar.fill",
              label: String(localized: "Load trend"),
              value: load.map { signedPercent($0.percentChange) } ?? "—",
@@ -904,7 +904,7 @@ struct CardioView: View {
         if model.week.distanceM > 0 {
             parts.append(String(format: "%.1f km", model.week.distanceM / 1000))
         }
-        if let load = model.load {
+        if let load = model.lane?.trend {
             parts.append(String(format: "cardio load %+.0f%% vs own 28-day level", load.percentChange))
         }
         if let sport = model.selectedSport, let line = model.paceTrend {

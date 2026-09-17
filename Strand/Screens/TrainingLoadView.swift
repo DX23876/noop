@@ -45,7 +45,7 @@ final class TrainingLoadModel: ObservableObject {
         var id: String { day }
     }
 
-    private struct Prepared: Sendable {
+    struct Prepared: Sendable {
         let strength: Lane
         let cardio: Lane
         let session: Lane
@@ -99,198 +99,18 @@ final class TrainingLoadModel: ObservableObject {
         async let ratings = repo.sessionRPEEntries(from: from, to: now + 86_400)
         async let strengthHistoryRead = repo.resolvedStrengthHistory(days: Self.historyDays)
         let strengthHistory = await strengthHistoryRead
-        let strengthWorkouts = strengthHistory.workouts
-        let templates = strengthHistory.templates
         let fusion = await fusedSessions
         let unified = fusion.sessions
         let cardioResolution = await repo.cardioLoads(for: unified)
-        let cardioLoads = cardioResolution.loads
         let rpeEntries = await ratings
         let dailyRows = repo.days
         let vo2 = await Self.vo2maxReadings(repo: repo)
 
         let today = Repository.localDayKey(Date())
         let prepared = await Task.detached(priority: .userInitiated) { () -> Prepared in
-            let strengthByDay = StrengthSession.weightedSetsByDay(strengthWorkouts,
-                                                                  tzOffsetSeconds: offset)
-            let cardioSeries = Self.cardioDailyLoad(sessions: unified, loads: cardioLoads,
-                                                    duplicates: cardioResolution.duplicateSessionIds,
-                                                    tzOffsetSeconds: offset)
-            let cardioByDay = cardioSeries.byDay
-            // Days that held real training the data could not price. They leave BOTH comparison
-            // windows rather than counting as rest, so a gap in our measurement is never reported as
-            // a drop in the wearer's training.
-            let cardioUnknown = cardioSeries.unknownDays
-
-            var durationByStart: [Int: Double] = [:]
-            var canonicalIdByStart: [Int: String] = [:]
-            for session in unified {
-                let seconds = session.row.durationS ?? Double(session.row.endTs - session.row.startTs)
-                if seconds > 0 {
-                    durationByStart[session.row.startTs] = seconds
-                    for component in session.components { durationByStart[component.row.startTs] = seconds }
-                }
-                canonicalIdByStart[session.row.startTs] = session.id
-                for component in session.components { canonicalIdByStart[component.row.startTs] = session.id }
-            }
-            for workout in strengthWorkouts where durationByStart[workout.startTs] == nil {
-                if let seconds = workout.durationS { durationByStart[workout.startTs] = seconds }
-            }
-
-            let ratings = Self.canonicalRatings(entries: rpeEntries, canonicalIdByStart: canonicalIdByStart)
-            let ratingBySession = Dictionary(ratings.map { entry in
-                let key = entry.sessionId ?? canonicalIdByStart[entry.startTs] ?? "start|\(entry.startTs)"
-                return (key, entry)
-            }, uniquingKeysWith: { _, newest in newest })
-            var sessionByDay: [String: Double] = [:]
-            var possibleSessionKeysByDay: [String: Set<String>] = [:]
-            for session in unified {
-                let day = AnalyticsEngine.dayString(session.row.startTs, offsetSec: offset)
-                possibleSessionKeysByDay[day, default: []].insert(session.id)
-            }
-            for workout in strengthWorkouts {
-                let day = AnalyticsEngine.dayString(workout.startTs, offsetSec: offset)
-                let key = canonicalIdByStart[workout.startTs] ?? "start|\(workout.startTs)"
-                possibleSessionKeysByDay[day, default: []].insert(key)
-            }
-            var ratedSessionKeysByDay: [String: Set<String>] = [:]
-            for entry in ratings {
-                guard let seconds = durationByStart[entry.startTs], seconds > 0 else { continue }
-                let day = AnalyticsEngine.dayString(entry.startTs, offsetSec: offset)
-                sessionByDay[day, default: 0] += entry.rpe * seconds / 60
-                let key = entry.sessionId ?? canonicalIdByStart[entry.startTs] ?? "start|\(entry.startTs)"
-                ratedSessionKeysByDay[day, default: []].insert(key)
-            }
-            let sessionUnknown = Set(possibleSessionKeysByDay.compactMap { day, possibleKeys in
-                let ratedKeys = ratedSessionKeysByDay[day] ?? []
-                return possibleKeys.isSubset(of: ratedKeys) ? nil : day
-            })
-
-            let cutoff = WeeklyDigestEngine.addDays(today, -6)
-            let recentStrength = strengthWorkouts.filter {
-                let day = AnalyticsEngine.dayString($0.startTs, offsetSec: offset)
-                return day >= cutoff && day <= today
-            }
-            let pooledStrength = StrengthSession.strengthLoad(recentStrength)
-            // A session skipped because another one already priced the same minutes is NOT a session
-            // with missing heart rate, so it must not widen the coverage denominator.
-            let recentCardio = unified.filter {
-                let day = AnalyticsEngine.dayString($0.row.startTs, offsetSec: offset)
-                return day >= cutoff && day <= today
-                    && ($0.row.endTs - $0.row.startTs) >= Repository.cardioLoadMinimumSeconds
-                    && !cardioResolution.duplicateSessionIds.contains($0.id)
-            }
-            let possible = possibleSessionKeysByDay.filter { $0.key >= cutoff && $0.key <= today }
-                .values.reduce(0) { $0 + $1.count }
-            let measured = ratedSessionKeysByDay.filter { $0.key >= cutoff && $0.key <= today }
-                .values.reduce(0) { $0 + $1.count }
-
-            // Load, adaptation and recovery stay separate. The latter two may provide context, but do
-            // not turn a high load into a positive or medical verdict.
-            let response = TrainingStatusModel.strengthResponse(workouts: strengthWorkouts,
-                                                                templates: templates, through: today,
-                                                                tzOffsetSeconds: offset)
-            let recovery = TrainingStatusModel.recovery(days: dailyRows, through: today)
-            let strengthRelative = TrainingLoad.relativeLoad(dailyByDay: strengthByDay, through: today)
-            let cardioRelative = TrainingLoad.relativeLoad(dailyByDay: cardioByDay, through: today,
-                                                           unknownDays: cardioUnknown)
-            let sessionRelative = TrainingLoad.relativeLoad(dailyByDay: sessionByDay, through: today,
-                                                            unknownDays: sessionUnknown)
-            let history = TrainingStatusModel.weeklyHistory(weeks: 8, through: today,
-                                                            strengthDaily: strengthByDay,
-                                                            cardioDaily: cardioByDay,
-                                                            cardioUnknownDays: cardioUnknown,
-                                                            workouts: strengthWorkouts, templates: templates,
-                                                            days: dailyRows, tzOffsetSeconds: offset)
-            var ratios: [RatioPoint] = []
-            var ratioDay = WeeklyDigestEngine.addDays(today, -55)
-            for _ in 0..<56 {
-                ratios.append(RatioPoint(day: ratioDay,
-                                         strength: TrainingLoad.trend(dailyByDay: strengthByDay, through: ratioDay)?.ratio,
-                                         cardio: TrainingLoad.trend(dailyByDay: cardioByDay, through: ratioDay,
-                                                                    unknownDays: cardioUnknown)?.ratio))
-                ratioDay = WeeklyDigestEngine.addDays(ratioDay, 1)
-            }
-            let vo2max = TrainingStatusModel.vo2maxResponse(readings: vo2, through: today)
-            let strengthAdaptation = TrainingStatusModel.strengthAdaptation(response)
-            let cardiovascularAdaptation = TrainingStatusModel.cardiovascularAdaptation(vo2max)
-            let sustained = TrainingStatusModel.sustainedOverreaching(history: history, strengthResponse: response,
-                                                                      cardioDirection: vo2max.direction,
-                                                                      recovery: recovery)
-            let provisionalStrengthRing: ProvisionalStrengthRingReading?
-            if strengthRelative.trend == nil {
-                let recentResolved = strengthHistory.sessions.filter {
-                    let day = AnalyticsEngine.dayString($0.startTs, offsetSec: offset)
-                    return day >= cutoff && day <= today
-                }
-                let loads: [Double?] = recentResolved.map { session in
-                    let canonicalKey = canonicalIdByStart[session.startTs]
-                    let rating = ratingBySession[session.id]
-                        ?? canonicalKey.flatMap { ratingBySession[$0] }
-                        ?? ratingBySession["start|\(session.startTs)"]
-                    guard let rpe = rating?.rpe, session.durationS > 0 else { return nil }
-                    return rpe * session.durationS / 60
-                }
-                let start = Int(Calendar(identifier: .gregorian).date(
-                    byAdding: .day, value: -6,
-                    to: Calendar(identifier: .gregorian).startOfDay(for: Date(timeIntervalSince1970: TimeInterval(now))))?
-                    .timeIntervalSince1970 ?? Double(now - 6 * 86_400))
-                let muscle = DetailedMuscleLoadSnapshot.volume(history: strengthHistory,
-                                                               from: start, to: now)
-                provisionalStrengthRing = TrainingLoad.provisionalStrengthRing(
-                    sessionLoads: loads, weightedMuscleSets: muscle.byMuscle,
-                    hasUnmappedSets: muscle.hasUnmappedSets)
-            } else {
-                provisionalStrengthRing = nil
-            }
-
-            return Prepared(
-                strength: Lane(sevenDayTotal: Self.lastSeven(strengthByDay, through: today),
-                               sevenDayWorkingSets: recentStrength.flatMap {
-                                   $0.exercises.flatMap(\.workingSets)
-                               }.count,
-                               trend: strengthRelative.trend,
-                               relative: strengthRelative,
-                               isLowerBound: false,
-                               distribution: TrainingLoad.distribution(dailyByDay: strengthByDay, through: today),
-                               weekOverWeek: TrainingLoad.weekOverWeek(dailyByDay: strengthByDay, through: today),
-                               measuredCount: pooledStrength.ratedSets,
-                               possibleCount: pooledStrength.workingSets,
-                               status: Self.relativeStatus(strengthRelative)),
-                cardio: Lane(sevenDayTotal: Self.lastSeven(cardioByDay, through: today),
-                             sevenDayWorkingSets: 0,
-                             trend: cardioRelative.trend,
-                             relative: cardioRelative,
-                             isLowerBound: Self.lastSevenContainsUnknown(cardioUnknown, through: today),
-                             distribution: TrainingLoad.distribution(dailyByDay: cardioByDay, through: today,
-                                                                     unknownDays: cardioUnknown),
-                             weekOverWeek: TrainingLoad.weekOverWeek(dailyByDay: cardioByDay, through: today,
-                                                                     unknownDays: cardioUnknown),
-                             measuredCount: recentCardio.filter {
-                                 cardioLoads[$0.id] != nil
-                             }.count,
-                             possibleCount: recentCardio.count,
-                             status: Self.relativeStatus(cardioRelative)),
-                session: Lane(sevenDayTotal: Self.lastSeven(sessionByDay, through: today),
-                              sevenDayWorkingSets: 0,
-                              trend: sessionRelative.trend,
-                              relative: sessionRelative,
-                              isLowerBound: Self.lastSevenContainsUnknown(sessionUnknown, through: today),
-                              distribution: TrainingLoad.distribution(dailyByDay: sessionByDay, through: today,
-                                                                      unknownDays: sessionUnknown),
-                              weekOverWeek: TrainingLoad.weekOverWeek(dailyByDay: sessionByDay, through: today,
-                                                                      unknownDays: sessionUnknown),
-                              measuredCount: measured, possibleCount: possible, status: nil),
-                response: response,
-                vo2max: vo2max,
-                recovery: recovery,
-                history: history,
-                ratios: ratios,
-                sustained: sustained,
-                cardioMeasured: cardioSeries.measured,
-                strengthAdaptation: strengthAdaptation,
-                cardiovascularAdaptation: cardiovascularAdaptation,
-                provisionalStrengthRing: provisionalStrengthRing)
+            Self.prepare(strengthHistory: strengthHistory, unified: unified,
+                         cardioResolution: cardioResolution, rpeEntries: rpeEntries,
+                         dailyRows: dailyRows, vo2: vo2, today: today, now: now, offset: offset)
         }.value
 
         guard !Task.isCancelled else { return }
@@ -329,6 +149,148 @@ final class TrainingLoadModel: ObservableObject {
         applyDemoStatusOverride()
         #endif
         loaded = true
+    }
+
+    nonisolated static func prepare(strengthHistory: ResolvedStrengthHistory,
+                                    unified: [UnifiedTrainingSession],
+                                    cardioResolution: TrainingCardioLoadResolution,
+                                    rpeEntries: [SessionRPEEntry], dailyRows: [DailyMetric],
+                                    vo2: [VO2maxReading], today: String, now: Int,
+                                    offset: Int) -> Prepared {
+        let strengthWorkouts = strengthHistory.workouts
+        let templates = strengthHistory.templates
+        let strengthByDay = TrainingLoadLanes.strengthByDay(strengthWorkouts, tzOffsetSeconds: offset)
+        let cardioSeries = TrainingLoadLanes.cardioSeries(sessions: unified, resolution: cardioResolution,
+                                                          tzOffsetSeconds: offset)
+        let cardioByDay = cardioSeries.byDay
+        let cardioUnknown = cardioSeries.unknownDays
+
+        var durationByStart: [Int: Double] = [:]
+        var canonicalIdByStart: [Int: String] = [:]
+        for session in unified {
+            let seconds = session.row.durationS ?? Double(session.row.endTs - session.row.startTs)
+            if seconds > 0 {
+                durationByStart[session.row.startTs] = seconds
+                for component in session.components { durationByStart[component.row.startTs] = seconds }
+            }
+            canonicalIdByStart[session.row.startTs] = session.id
+            for component in session.components { canonicalIdByStart[component.row.startTs] = session.id }
+        }
+        for workout in strengthWorkouts where durationByStart[workout.startTs] == nil {
+            if let seconds = workout.durationS { durationByStart[workout.startTs] = seconds }
+        }
+
+        let ratings = Self.canonicalRatings(entries: rpeEntries, canonicalIdByStart: canonicalIdByStart)
+        let ratingBySession = Dictionary(ratings.map { entry in
+            let key = entry.sessionId ?? canonicalIdByStart[entry.startTs] ?? "start|\(entry.startTs)"
+            return (key, entry)
+        }, uniquingKeysWith: { _, newest in newest })
+        var sessionByDay: [String: Double] = [:]
+        var possibleSessionKeysByDay: [String: Set<String>] = [:]
+        for session in unified {
+            let day = AnalyticsEngine.dayString(session.row.startTs, offsetSec: offset)
+            possibleSessionKeysByDay[day, default: []].insert(session.id)
+        }
+        for workout in strengthWorkouts {
+            let day = AnalyticsEngine.dayString(workout.startTs, offsetSec: offset)
+            let key = canonicalIdByStart[workout.startTs] ?? "start|\(workout.startTs)"
+            possibleSessionKeysByDay[day, default: []].insert(key)
+        }
+        var ratedSessionKeysByDay: [String: Set<String>] = [:]
+        for entry in ratings {
+            guard let seconds = durationByStart[entry.startTs], seconds > 0 else { continue }
+            let day = AnalyticsEngine.dayString(entry.startTs, offsetSec: offset)
+            sessionByDay[day, default: 0] += entry.rpe * seconds / 60
+            let key = entry.sessionId ?? canonicalIdByStart[entry.startTs] ?? "start|\(entry.startTs)"
+            ratedSessionKeysByDay[day, default: []].insert(key)
+        }
+        let sessionUnknown = Set(possibleSessionKeysByDay.compactMap { day, possibleKeys in
+            let ratedKeys = ratedSessionKeysByDay[day] ?? []
+            return possibleKeys.isSubset(of: ratedKeys) ? nil : day
+        })
+
+        let cutoff = WeeklyDigestEngine.addDays(today, -6)
+        let possible = possibleSessionKeysByDay.filter { $0.key >= cutoff && $0.key <= today }
+            .values.reduce(0) { $0 + $1.count }
+        let measured = ratedSessionKeysByDay.filter { $0.key >= cutoff && $0.key <= today }
+            .values.reduce(0) { $0 + $1.count }
+
+        // Load, adaptation and recovery stay separate. The latter two may provide context, but do
+        // not turn a high load into a positive or medical verdict.
+        let response = TrainingStatusModel.strengthResponse(workouts: strengthWorkouts,
+                                                            templates: templates, through: today,
+                                                            tzOffsetSeconds: offset)
+        let recovery = TrainingStatusModel.recovery(days: dailyRows, through: today)
+        let strengthLane = TrainingLoadLanes.strengthLane(workouts: strengthWorkouts, byDay: strengthByDay,
+                                                          through: today, tzOffsetSeconds: offset)
+        let cardioLane = TrainingLoadLanes.cardioLane(sessions: unified, resolution: cardioResolution,
+                                                      series: cardioSeries, through: today,
+                                                      tzOffsetSeconds: offset)
+        let sessionRelative = TrainingLoad.relativeLoad(dailyByDay: sessionByDay, through: today,
+                                                        unknownDays: sessionUnknown)
+        let history = TrainingStatusModel.weeklyHistory(weeks: 8, through: today,
+                                                        strengthDaily: strengthByDay,
+                                                        cardioDaily: cardioByDay,
+                                                        cardioUnknownDays: cardioUnknown,
+                                                        workouts: strengthWorkouts, templates: templates,
+                                                        days: dailyRows, tzOffsetSeconds: offset)
+        let ratios = TrainingLoadLanes.ratios(strengthByDay: strengthByDay, cardio: cardioSeries, through: today)
+        let vo2max = TrainingStatusModel.vo2maxResponse(readings: vo2, through: today)
+        let strengthAdaptation = TrainingStatusModel.strengthAdaptation(response)
+        let cardiovascularAdaptation = TrainingStatusModel.cardiovascularAdaptation(vo2max)
+        let sustained = TrainingStatusModel.sustainedOverreaching(history: history, strengthResponse: response,
+                                                                  cardioDirection: vo2max.direction,
+                                                                  recovery: recovery)
+        let provisionalStrengthRing: ProvisionalStrengthRingReading?
+        if strengthLane.trend == nil {
+            let recentResolved = strengthHistory.sessions.filter {
+                let day = AnalyticsEngine.dayString($0.startTs, offsetSec: offset)
+                return day >= cutoff && day <= today
+            }
+            let loads: [Double?] = recentResolved.map { session in
+                let canonicalKey = canonicalIdByStart[session.startTs]
+                let rating = ratingBySession[session.id]
+                    ?? canonicalKey.flatMap { ratingBySession[$0] }
+                    ?? ratingBySession["start|\(session.startTs)"]
+                guard let rpe = rating?.rpe, session.durationS > 0 else { return nil }
+                return rpe * session.durationS / 60
+            }
+            let start = Int(Calendar(identifier: .gregorian).date(
+                byAdding: .day, value: -6,
+                to: Calendar(identifier: .gregorian).startOfDay(for: Date(timeIntervalSince1970: TimeInterval(now))))?
+                .timeIntervalSince1970 ?? Double(now - 6 * 86_400))
+            let muscle = DetailedMuscleLoadSnapshot.volume(history: strengthHistory,
+                                                           from: start, to: now)
+            provisionalStrengthRing = TrainingLoad.provisionalStrengthRing(
+                sessionLoads: loads, weightedMuscleSets: muscle.byMuscle,
+                hasUnmappedSets: muscle.hasUnmappedSets)
+        } else {
+            provisionalStrengthRing = nil
+        }
+
+        return Prepared(
+            strength: strengthLane,
+            cardio: cardioLane,
+            session: Lane(sevenDayTotal: TrainingLoadLanes.lastSeven(sessionByDay, through: today),
+                          sevenDayWorkingSets: 0,
+                          trend: sessionRelative.trend,
+                          relative: sessionRelative,
+                          isLowerBound: TrainingLoadLanes.lastSevenContainsUnknown(sessionUnknown, through: today),
+                          distribution: TrainingLoad.distribution(dailyByDay: sessionByDay, through: today,
+                                                                  unknownDays: sessionUnknown),
+                          weekOverWeek: TrainingLoad.weekOverWeek(dailyByDay: sessionByDay, through: today,
+                                                                  unknownDays: sessionUnknown),
+                          measuredCount: measured, possibleCount: possible, status: nil),
+            response: response,
+            vo2max: vo2max,
+            recovery: recovery,
+            history: history,
+            ratios: ratios,
+            sustained: sustained,
+            cardioMeasured: cardioSeries.measured,
+            strengthAdaptation: strengthAdaptation,
+            cardiovascularAdaptation: cardiovascularAdaptation,
+            provisionalStrengthRing: provisionalStrengthRing)
     }
 
     func resolve(_ components: [TrainingSessionComponent], merge: Bool, repo: Repository) async {
@@ -438,49 +400,6 @@ final class TrainingLoadModel: ObservableObject {
             chosen[key] = entry
         }
         return chosen.values.sorted { ($0.startTs, $0.id) < ($1.startTs, $1.id) }
-    }
-
-    nonisolated private static func lastSeven(_ values: [String: Double], through day: String) -> Double {
-        var total = 0.0
-        var cursor = day
-        for _ in 0..<7 {
-            total += values[cursor] ?? 0
-            cursor = WeeklyDigestEngine.addDays(cursor, -1)
-        }
-        return total
-    }
-
-    nonisolated private static func lastSevenContainsUnknown(_ unknownDays: Set<String>,
-                                                             through day: String) -> Bool {
-        var cursor = day
-        for _ in 0..<7 {
-            if unknownDays.contains(cursor) { return true }
-            cursor = WeeklyDigestEngine.addDays(cursor, -1)
-        }
-        return false
-    }
-
-    /// Adapts the new neutral relative-load reading to the existing ring renderer. The legacy case names
-    /// are not presented to the wearer; `TrainingStatusVisuals` labels these as relative-load bands.
-    nonisolated private static func relativeStatus(_ reading: RelativeLoadReading) -> LaneStatus? {
-        guard let trend = reading.trend else { return nil }
-        let relativeBand: RelativeLoadBand = reading.band ?? {
-            if trend.percentChange < -15 { return .below }
-            if trend.percentChange <= 15 { return .usual }
-            if trend.percentChange <= 30 { return .higher }
-            return .muchHigher
-        }()
-        let legacyStatus: TrainingStatus
-        let legacyBand: TrainingLoadBand
-        switch relativeBand {
-        case .below: legacyStatus = .detraining; legacyBand = .below
-        case .usual: legacyStatus = .maintaining; legacyBand = .maintaining
-        case .higher: legacyStatus = .productive; legacyBand = .productive
-        case .muchHigher: legacyStatus = .overreaching; legacyBand = .above
-        }
-        return LaneStatus(status: legacyStatus, ratio: trend.ratio, band: legacyBand,
-                          followsRecentHighPhase: false, usedStrengthResponse: false,
-                          usedRecovery: false)
     }
 
     /// The VO₂max readings the cardio lane reads.

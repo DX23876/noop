@@ -58,7 +58,9 @@ final class CardioModel: ObservableObject {
                                                           distanceM: 0, energyKcal: 0, effort: nil,
                                                           sessionsWithDistance: 0, bySport: [])
     @Published private(set) var typicalMinutes: ClosedRange<Double>?
-    @Published private(set) var load: LoadTrend?
+    /// The selected week's cardio lane, read exactly as Training Load reads it.
+    @Published private(set) var lane: TrainingLoadModel.Lane?
+    @Published private(set) var laneRatios: [TrainingLoadModel.RatioPoint] = []
     @Published private(set) var weekCharge: Double?
     /// The displayed week's time in each heart-rate zone. Nil when no zone set is known yet, or when
     /// nothing that week carried a trace complete enough to bin.
@@ -76,6 +78,11 @@ final class CardioModel: ObservableObject {
     private var fusedVisible: [UnifiedTrainingSession] = []
     /// Sessions another record already described, so the zone split counts those minutes once.
     private var duplicateSessionIds: Set<String> = []
+    /// The lane reads every training session, strength included, over the history window plus the
+    /// lookback a reading needs, so the oldest selectable week still compares like Training Load does.
+    private var laneSessions: [UnifiedTrainingSession] = []
+    private var laneResolution = TrainingCardioLoadResolution()
+    private var laneSeries: TrainingLoadLanes.CardioSeries?
 
     // The selected sport
     @Published private(set) var sportHistory: [CardioSessionMetrics] = []
@@ -100,7 +107,8 @@ final class CardioModel: ObservableObject {
     private struct WeekBundle: Sendable {
         let week: CardioWeekSummary
         let typical: ClosedRange<Double>?
-        let load: LoadTrend?
+        let lane: TrainingLoadModel.Lane?
+        let laneRatios: [TrainingLoadModel.RatioPoint]
         let zones: CardioZoneSplit?
     }
 
@@ -115,6 +123,8 @@ final class CardioModel: ObservableObject {
         // differently apart instead of hiding them.
         let visible = fusion.sessions.filter { $0.kind != .strength }
         let cardio = await repo.cardioLoads(for: visible)
+        let laneFusion = await repo.trainingSessions(days: range.days + TrainingLoadLanes.lookbackDays)
+        let laneResolution = await repo.cardioLoads(for: laneFusion.sessions)
         fusedVisible = visible
         duplicateSessionIds = cardio.duplicateSessionIds
         let rows = visible.map(\.row)
@@ -125,6 +135,14 @@ final class CardioModel: ObservableObject {
         let conditioningStarts = Set(visible.filter { $0.kind == .conditioning }.map { $0.row.startTs })
         let enduranceStarts = Set(visible.filter { $0.kind == .endurance || $0.kind == .multisport }
             .map { $0.row.startTs })
+
+        let laneSeries = await Task.detached(priority: .userInitiated) {
+            TrainingLoadLanes.cardioSeries(sessions: laneFusion.sessions, resolution: laneResolution,
+                                           tzOffsetSeconds: offset)
+        }.value
+        self.laneSessions = laneFusion.sessions
+        self.laneResolution = laneResolution
+        self.laneSeries = laneSeries
 
         let prepared = await Task.detached(priority: .userInitiated) { () -> ([CardioSessionMetrics], [SportChoice]) in
             let sessions = CardioSession.sessions(rows, tzOffsetSeconds: offset,
@@ -180,18 +198,26 @@ final class CardioModel: ObservableObject {
         }
 
         let anchor = weekAnchorDay
-        let endDate = weekEndDate
         let all = sessions
         let offset = tzOffset
+        let laneDay = TrainingLoadLanes.readingDay(monday: monday, today: Repository.localDayKey(Date()))
+        let laneSessions = self.laneSessions
+        let laneResolution = self.laneResolution
+        let laneSeries = self.laneSeries
 
         // Outside the detached task: binning zones is an async read on the repository, and its result
         // travels into the bundle as a finished value so the week's cache holds it too.
         let zones = await weekZoneSplit(repo: repo, monday: monday, sunday: sunday)
         let bundle = await Task.detached(priority: .userInitiated) { () -> WeekBundle in
+            let lane = laneSeries.map {
+                TrainingLoadLanes.cardioLane(sessions: laneSessions, resolution: laneResolution, series: $0,
+                                             through: laneDay, tzOffsetSeconds: offset)
+            }
             return WeekBundle(week: CardioSession.week(containing: anchor, sessions: all),
                               typical: CardioSession.typicalWeeklyMinutes(all, endingBefore: anchor),
-                              load: CardioSession.cardioLoadTrend(all, asOf: endDate,
-                                                                  tzOffsetSeconds: offset),
+                              lane: lane,
+                              laneRatios: TrainingLoadLanes.ratios(strengthByDay: nil, cardio: laneSeries,
+                                                                   through: laneDay),
                               zones: zones)
         }.value
 
@@ -219,7 +245,8 @@ final class CardioModel: ObservableObject {
     private func apply(_ bundle: WeekBundle) {
         week = bundle.week
         typicalMinutes = bundle.typical
-        load = bundle.load
+        lane = bundle.lane
+        laneRatios = bundle.laneRatios
         zoneSplit = bundle.zones
     }
 
@@ -280,14 +307,6 @@ final class CardioModel: ObservableObject {
 
     var weekAnchorDay: String {
         WeeklyDigestEngine.addDays(Repository.localDayKey(Date()), weekOffset * 7)
-    }
-
-    var weekEndDate: Date {
-        guard let monday = WeeklyDigestEngine.mondayOfWeek(containing: weekAnchorDay),
-              let sunday = WeightSeries.date(forDay: WeeklyDigestEngine.addDays(monday, 6)) else {
-            return Date()
-        }
-        return min(sunday, Date())
     }
 
     var minWeekOffset: Int {

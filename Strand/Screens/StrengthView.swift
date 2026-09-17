@@ -552,7 +552,7 @@ struct StrengthView: View {
     /// team-sport distance research that never covered set counts. The ratio is still there on
     /// `LoadTrend` for anything that needs it.
     private var strengthLoadTile: some View {
-        let load = model.strengthLoad
+        let load = model.lane?.trend
         return tile(icon: "chart.bar.fill",
                     label: String(localized: "Strength load"),
                     value: load.map { signedPercent($0.percentChange) } ?? "—",
@@ -1821,7 +1821,7 @@ struct StrengthView: View {
                        ?? "\(row.group.label) \(row.sets)" }
             .joined(separator: ", ")
         if !muscles.isEmpty { parts.append("working sets — " + muscles) }
-        if let load = model.strengthLoad {
+        if let load = model.lane?.trend {
             // The coach gets the same framing the tile shows: effort-weighted sets against this
             // person's own recent level, as a percentage. Handing it a bare ratio invited it to
             // quote 0.8–1.3 bands that were never validated on set counts.
