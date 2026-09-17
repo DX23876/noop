@@ -1416,5 +1416,17 @@
   "NOOP uses the following third-party content under its own licence. A licence in one domain (code, data, media) is not treated as a licence in another.": "NOOP utilise le contenu tiers suivant sous sa propre licence. Une licence dans un domaine (code, données, médias) n’est pas considérée comme une licence dans un autre.",
   "Third-party content NOOP uses under its own licence.": "Contenu tiers que NOOP utilise sous sa propre licence.",
   "Workout title": "Titre de l’entraînement",
-  "Workout title (optional)": "Titre de l’entraînement (facultatif)"
+  "Workout title (optional)": "Titre de l’entraînement (facultatif)",
+  "e.g. Run 5k without stopping": "p. ex. Courir 5 km sans s'arrêter",
+  "e.g. Train three times a week": "p. ex. S'entraîner trois fois par semaine",
+  "e.g. Sleep 7.5 hours a night": "p. ex. Dormir 7,5 heures par nuit",
+  "e.g. Get back to full-body strength work": "p. ex. Reprendre la musculation full-body",
+  "e.g. 18 hard sets a week for legs": "p. ex. 18 séries intenses par semaine pour les jambes",
+  "e.g. Get to 78 kg": "p. ex. Atteindre 78 kg",
+  "e.g. Fewer high-stress days each week": "p. ex. Moins de jours très stressants par semaine",
+  "e.g. Wake up feeling more recovered": "p. ex. Se réveiller plus récupéré",
+  "e.g. Feel good on the hills again": "p. ex. Se sentir bien en côte à nouveau",
+  "%.0f / %.0fs": "%.0f / %.0fs",
+  "%@ → %@": "%@ → %@",
+  "%@ workout, %@": "entraînement %@, %@"
 }

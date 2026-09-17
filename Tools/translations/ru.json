@@ -1392,5 +1392,17 @@
   "NOOP uses the following third-party content under its own licence. A licence in one domain (code, data, media) is not treated as a licence in another.": "NOOP использует следующий сторонний контент на условиях его собственной лицензии. Лицензия в одной области (код, данные, медиа) не считается лицензией в другой.",
   "Third-party content NOOP uses under its own licence.": "Сторонний контент, который NOOP использует на условиях его собственной лицензии.",
   "Workout title": "Название тренировки",
-  "Workout title (optional)": "Название тренировки (необязательно)"
+  "Workout title (optional)": "Название тренировки (необязательно)",
+  "e.g. Run 5k without stopping": "напр., пробежать 5 км без остановки",
+  "e.g. Train three times a week": "напр., тренироваться три раза в неделю",
+  "e.g. Sleep 7.5 hours a night": "напр., спать 7,5 часов за ночь",
+  "e.g. Get back to full-body strength work": "напр., вернуться к силовым тренировкам всего тела",
+  "e.g. 18 hard sets a week for legs": "напр., 18 тяжёлых подходов в неделю на ноги",
+  "e.g. Get to 78 kg": "напр., достичь 78 кг",
+  "e.g. Fewer high-stress days each week": "напр., меньше дней с высоким стрессом в неделю",
+  "e.g. Wake up feeling more recovered": "напр., просыпаться более отдохнувшим",
+  "e.g. Feel good on the hills again": "напр., снова хорошо чувствовать себя на подъёмах",
+  "%.0f / %.0fs": "%.0f / %.0fс",
+  "%@ → %@": "%@ → %@",
+  "%@ workout, %@": "тренировка %@, %@"
 }

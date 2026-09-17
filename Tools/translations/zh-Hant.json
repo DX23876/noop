@@ -1570,5 +1570,17 @@
   "NOOP uses the following third-party content under its own licence. A licence in one domain (code, data, media) is not treated as a licence in another.": "NOOP 在其自身授權下使用以下第三方內容。一個領域(程式碼、資料、媒體)的授權並不代表其他領域的授權。",
   "Third-party content NOOP uses under its own licence.": "NOOP 在其自身授權下使用的第三方內容。",
   "Workout title": "訓練標題",
-  "Workout title (optional)": "訓練標題(選填)"
+  "Workout title (optional)": "訓練標題(選填)",
+  "e.g. Run 5k without stopping": "例如:不停跑完5公里",
+  "e.g. Train three times a week": "例如:每週訓練三次",
+  "e.g. Sleep 7.5 hours a night": "例如:每晚睡7.5小時",
+  "e.g. Get back to full-body strength work": "例如:恢復全身力量訓練",
+  "e.g. 18 hard sets a week for legs": "例如:每週18組高強度腿部訓練",
+  "e.g. Get to 78 kg": "例如:達到78公斤",
+  "e.g. Fewer high-stress days each week": "例如:每週減少高壓力的天數",
+  "e.g. Wake up feeling more recovered": "例如:醒來時感覺恢復得更好",
+  "e.g. Feel good on the hills again": "例如:在爬坡時重新感覺良好",
+  "%.0f / %.0fs": "%.0f / %.0fs",
+  "%@ → %@": "%@ → %@",
+  "%@ workout, %@": "%@ 鍛鍊，%@"
 }
