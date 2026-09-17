@@ -1412,5 +1412,12 @@
   "Most used activity": "Основная активность",
   "What counts as a best": "Что считается рекордом",
   "Where the zone split comes from": "Откуда берётся распределение по зонам",
-  "usual %lld bpm": "обычно %lld уд/мин"
+  "usual %lld bpm": "обычно %lld уд/мин",
+  "%lld of %lld working sets rated": "%1$lld из %2$lld рабочих подходов с оценкой",
+  "How the history counts weeks": "Как история считает недели",
+  "Pull-ups and push-ups priced at your own weight": "Подтягивания и отжимания по вашему весу",
+  "The recovery budget both share": "Общий ресурс восстановления",
+  "Why lifting and heart rate stay apart": "Почему силовые и пульс учитываются отдельно",
+  "Working sets weighted by how close they went to failure": "Рабочие подходы, взвешенные по близости к отказу",
+  "weighted sets": "взвешенные подходы"
 }
