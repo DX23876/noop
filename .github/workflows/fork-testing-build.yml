@@ -104,9 +104,12 @@ jobs:
           DRAFT=$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft -q .isDraft)
           [ "$DRAFT" = "false" ] || { echo "::error::$TAG is still a draft — testers cannot download it."; exit 1; }
 
+  # macos-26, not macos-15: macos-15's Xcode 16.4 (Swift 6.1.2) crashes swift-frontend compiling the
+  # Strand module (x86_64 module emission, then SILGen on the arm64 slice under whole-module mode). The
+  # macos-26 toolchain builds the same sources cleanly (matches app-build.yml's fix, ee8fd84f2).
   macos:
     needs: meta
-    runs-on: macos-15
+    runs-on: macos-26
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@v5

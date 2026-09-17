@@ -210,13 +210,18 @@ jobs:
 
   # 9.3.0 onwards the release carries a macOS build too — 9.2.1/9.2.2 were iOS-only, which left
   # Mac users with no artifact at all for a fork whose reference platform IS macOS. Runs AFTER `publish`
-  # so the release already exists and this job only has to upload into it. macos-15 is deliberate: the
-  # macOS app targets macOS 13+ and needs no iOS 26 SDK, so it does not have to wait for a macos-26
-  # runner. Steps mirror fork-release.yml's proven macOS job rather than inventing a second recipe.
+  # so the release already exists and this job only has to upload into it. Steps mirror
+  # fork-release.yml's proven macOS job rather than inventing a second recipe.
+  #
+  # macos-26, not macos-15: the macOS app targets macOS 13+ and needs no iOS 26 SDK, so macos-15 used
+  # to be enough — until its Xcode 16.4 (Swift 6.1.2) started crashing swift-frontend compiling the
+  # Strand module (x86_64 module emission, then SILGen on the arm64 slice under whole-module mode). The
+  # macos-26 toolchain builds the same sources cleanly (matches app-build.yml's fix, ee8fd84f2), so this
+  # now waits for a macos-26 runner like the iOS legs already did.
   macos:
     name: Build and attach macOS app
     needs: publish
-    runs-on: macos-15
+    runs-on: macos-26
     timeout-minutes: 40
     env:
       TAG: ${{ needs.publish.outputs.tag }}
