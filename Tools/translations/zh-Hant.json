@@ -1590,5 +1590,12 @@
   "Most used activity": "最常進行的運動",
   "What counts as a best": "什麼算作最佳成績",
   "Where the zone split comes from": "心率區間分佈的來源",
-  "usual %lld bpm": "平常 %lld 次/分"
+  "usual %lld bpm": "平常 %lld 次/分",
+  "%lld of %lld working sets rated": "%2$lld 組正式組中 %1$lld 組已評分",
+  "How the history counts weeks": "歷史記錄如何計算週數",
+  "Pull-ups and push-ups priced at your own weight": "引體向上和伏地挺身按你的體重計算",
+  "The recovery budget both share": "兩者共享的恢復預算",
+  "Why lifting and heart rate stay apart": "為什麼力量訓練與心率分開計算",
+  "Working sets weighted by how close they went to failure": "按接近力竭程度加權的正式組",
+  "weighted sets": "加權組數"
 }

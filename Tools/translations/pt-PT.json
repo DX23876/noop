@@ -1435,5 +1435,12 @@
   "Most used activity": "Atividade mais frequente",
   "What counts as a best": "O que conta como recorde",
   "Where the zone split comes from": "De onde vem a divisão por zonas",
-  "usual %lld bpm": "habitual %lld bpm"
+  "usual %lld bpm": "habitual %lld bpm",
+  "%lld of %lld working sets rated": "%1$lld de %2$lld séries de trabalho avaliadas",
+  "How the history counts weeks": "Como o histórico conta as semanas",
+  "Pull-ups and push-ups priced at your own weight": "Elevações e flexões avaliadas com o teu próprio peso",
+  "The recovery budget both share": "A margem de recuperação que ambos partilham",
+  "Why lifting and heart rate stay apart": "Porque é que força e frequência cardíaca ficam separadas",
+  "Working sets weighted by how close they went to failure": "Séries de trabalho ponderadas pela proximidade da falha",
+  "weighted sets": "séries ponderadas"
 }

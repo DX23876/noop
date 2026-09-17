@@ -104,6 +104,9 @@ final class StrengthModel: ObservableObject {
     /// The selected week's strength lane, read exactly as Training Load reads it.
     @Published private(set) var lane: TrainingLoadModel.Lane?
     @Published private(set) var laneRatios: [TrainingLoadModel.RatioPoint] = []
+    /// Weighted sets per day over the lane's window, and the day the selected week is read through.
+    @Published private(set) var laneByDay: [String: Double] = [:]
+    @Published private(set) var laneReadingDay = Repository.localDayKey(Date())
     @Published private(set) var weekStimulus: [HevyMuscleGroup: Double] = [:]
     @Published private(set) var typicalWeek: [HevyMuscleGroup: Double] = [:]
     @Published private(set) var weekCharge: Double?
@@ -140,9 +143,8 @@ final class StrengthModel: ObservableObject {
     private var index = MuscleStimulus.SessionStimulusIndex(workouts: [], templates: [:])
     /// The wearer's weigh-ins, for pricing bodyweight work at the body that performed it.
     private var bodyweight = BodyweightTimeline(points: [])
-    /// Workouts over the history window plus the lane lookback, and their weighted sets per day.
+    /// Workouts over the history window plus the lane lookback.
     private var laneWorkouts: [HevyWorkout] = []
-    private var laneByDay: [String: Double] = [:]
     /// Week-scoped results, keyed by the week's Monday. The bands and the usual week depend on nothing
     /// the stepper changes except this key, so stepping back and forward again is free.
     private var weekCache: [String: WeekBundle] = [:]
@@ -154,6 +156,7 @@ final class StrengthModel: ObservableObject {
         let bands: [HevyMuscleGroup: ClosedRange<Double>]
         let lane: TrainingLoadModel.Lane
         let laneRatios: [TrainingLoadModel.RatioPoint]
+        let laneDay: String
         let stimulus: [HevyMuscleGroup: Double]
         let typical: [HevyMuscleGroup: Double]
         let balance: [StrengthBalance.Reading]
@@ -381,6 +384,7 @@ final class StrengthModel: ObservableObject {
                 lane: TrainingLoadLanes.strengthLane(workouts: laneWorkouts, byDay: laneByDay, through: laneDay,
                                                      tzOffsetSeconds: offset),
                 laneRatios: TrainingLoadLanes.ratios(strengthByDay: laneByDay, cardio: nil, through: laneDay),
+                laneDay: laneDay,
                 stimulus: index.week(containing: anchor).byMuscle,
                 typical: MuscleStimulus.typicalWeeklyStimulus(index: index, endingBefore: anchor),
                 balance: StrengthBalance.readings(setsByMuscle: week.setsByMuscle),
@@ -401,6 +405,7 @@ final class StrengthModel: ObservableObject {
         typicalBands = bundle.bands
         lane = bundle.lane
         laneRatios = bundle.laneRatios
+        laneReadingDay = bundle.laneDay
         weekStimulus = bundle.stimulus
         typicalWeek = bundle.typical
         balance = bundle.balance
