@@ -730,6 +730,130 @@ public enum StrandPalette {
     /// 3-stop gauge ramp: calm → balanced → high.
     public static var stressGradient: Gradient { Gradient(colors: [stressDeep, stressColor, stressBright]) }
 
+    // MARK: - Lane colours — Strength / Cardio (redesign)
+    //
+    // Teal for Strength: orange, red and yellow are status colours and green is Charge, and a lane must
+    // never read as a status. `LaneColorTests` pins the hue and contrast margins.
+
+    /// The raw hex table backing the lane tokens below, keyed by `chartStyle`.
+    enum LaneColorTable {
+        /// A light/dark hex pair, kept as raw strings so `LaneColorTests` can parse them directly (a
+        /// SwiftUI `Color` built from a dynamic provider cannot be read back).
+        struct Hex {
+            let light: String
+            let dark: String
+        }
+
+        /// The six lane swatches for one chart style, each lane as deep → color → bright.
+        struct Style {
+            let strengthDeep: Hex
+            let strengthColor: Hex
+            let strengthBright: Hex
+            let cardioDeep: Hex
+            let cardioColor: Hex
+            let cardioBright: Hex
+        }
+
+        static let signature = Style(
+            strengthDeep: Hex(light: "#064E53", dark: "#086E74"),
+            strengthColor: Hex(light: "#0A8F97", dark: "#1ED6E0"),
+            strengthBright: Hex(light: "#0FB3BC", dark: "#7CEBF0"),
+            cardioDeep: Hex(light: "#291268", dark: "#3A1A93"),
+            cardioColor: Hex(light: "#440CDF", dark: "#7D51F6"),
+            cardioBright: Hex(light: "#622FEE", dark: "#A98CF8")
+        )
+        static let titanium = Style(
+            strengthDeep: Hex(light: "#064A50", dark: "#0A6A72"),
+            strengthColor: Hex(light: "#0B8791", dark: "#22C7D6"),
+            strengthBright: Hex(light: "#12A6B2", dark: "#7FE3EC"),
+            cardioDeep: Hex(light: "#2E1763", dark: "#41218C"),
+            cardioColor: Hex(light: "#4B1BBB", dark: "#7A4CE6"),
+            cardioBright: Hex(light: "#662FE4", dark: "#A788F2")
+        )
+        static let classic = Style(
+            strengthDeep: Hex(light: "#074A4E", dark: "#0B6B70"),
+            strengthColor: Hex(light: "#0D858C", dark: "#25C4CC"),
+            strengthBright: Hex(light: "#14A2AA", dark: "#83E0E5"),
+            cardioDeep: Hex(light: "#2A1763", dark: "#3C218C"),
+            cardioColor: Hex(light: "#431BBB", dark: "#734CE6"),
+            cardioBright: Hex(light: "#5D2FE4", dark: "#A288F2")
+        )
+        static let health = Style(
+            strengthDeep: Hex(light: "#064C52", dark: "#0A7078"),
+            strengthColor: Hex(light: "#0A8C96", dark: "#1FD3E0"),
+            strengthBright: Hex(light: "#0FAEB9", dark: "#7FEAF1"),
+            cardioDeep: Hex(light: "#211268", dark: "#2E1A93"),
+            cardioColor: Hex(light: "#2F0CDF", dark: "#6C51F6"),
+            cardioBright: Hex(light: "#4F2FEE", dark: "#9E8CF8")
+        )
+        static let aurora = Style(
+            strengthDeep: Hex(light: "#1F4648", dark: "#2E6466"),
+            strengthColor: Hex(light: "#3E8384", dark: "#5FB3B3"),
+            strengthBright: Hex(light: "#4F9FA0", dark: "#9ACFCE"),
+            cardioDeep: Hex(light: "#351F51", dark: "#4D2D76"),
+            cardioColor: Hex(light: "#5A3091", dark: "#8757C7"),
+            cardioBright: Hex(light: "#723EB6", dark: "#A883D8")
+        )
+        static let sunset = Style(
+            strengthDeep: Hex(light: "#074A50", dark: "#0B6C74"),
+            strengthColor: Hex(light: "#0C8891", dark: "#22C9D4"),
+            strengthBright: Hex(light: "#13A7B1", dark: "#82E4EA"),
+            cardioDeep: Hex(light: "#36156A", dark: "#4A1F8F"),
+            cardioColor: Hex(light: "#5A15C6", dark: "#7F48EE"),
+            cardioBright: Hex(light: "#7431EA", dark: "#A884F5")
+        )
+        static let forest = Style(
+            strengthDeep: Hex(light: "#1C4545", dark: "#2A6566"),
+            strengthColor: Hex(light: "#357B7A", dark: "#4FA9A8"),
+            strengthBright: Hex(light: "#449897", dark: "#8CC9C8"),
+            cardioDeep: Hex(light: "#311F51", dark: "#482D76"),
+            cardioColor: Hex(light: "#543091", dark: "#8057C7"),
+            cardioBright: Hex(light: "#6A3EB6", dark: "#A283D8")
+        )
+
+        static func style(_ chartStyle: ChartStyle) -> Style {
+            switch chartStyle {
+            case .signature: return signature
+            case .titanium: return titanium
+            case .classic: return classic
+            case .health: return health
+            case .aurora: return aurora
+            case .sunset: return sunset
+            case .forest: return forest
+            }
+        }
+    }
+
+    /// Strength lane identity: electric teal in every style.
+    public static var strengthDeep: Color {
+        let hex = LaneColorTable.style(chartStyle).strengthDeep
+        return Color(light: hex.light, dark: hex.dark)
+    }
+    public static var strengthColor: Color {
+        let hex = LaneColorTable.style(chartStyle).strengthColor
+        return Color(light: hex.light, dark: hex.dark)
+    }
+    public static var strengthBright: Color {
+        let hex = LaneColorTable.style(chartStyle).strengthBright
+        return Color(light: hex.light, dark: hex.dark)
+    }
+    public static var strengthGradient: Gradient { Gradient(colors: [strengthDeep, strengthBright]) }
+
+    /// Cardio lane identity: electric violet-indigo in every style.
+    public static var cardioDeep: Color {
+        let hex = LaneColorTable.style(chartStyle).cardioDeep
+        return Color(light: hex.light, dark: hex.dark)
+    }
+    public static var cardioColor: Color {
+        let hex = LaneColorTable.style(chartStyle).cardioColor
+        return Color(light: hex.light, dark: hex.dark)
+    }
+    public static var cardioBright: Color {
+        let hex = LaneColorTable.style(chartStyle).cardioBright
+        return Color(light: hex.light, dark: hex.dark)
+    }
+    public static var cardioGradient: Gradient { Gradient(colors: [cardioDeep, cardioBright]) }
+
     // MARK: Scenic background (NEW) — detail-screen hero gradient + starfield.
     /// Radial canvas: lit center → deep edge. Used by `ScenicHeroBackground` (warm-lit on light).
     public static let scenicCenter     = Color(light: "#FBF6EA", dark: "#1C2128")
