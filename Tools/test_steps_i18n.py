@@ -1,12 +1,11 @@
-"""Regression coverage for every shipped locale of the steps feature."""
+"""Regression coverage for every shipped locale of the steps feature (iOS — this fork ships no Android
+tree; see docs/FORK_GUIDE.md)."""
 import json
 import re
 import unittest
-import xml.etree.ElementTree as ET
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-RES = ROOT / "android/app/src/main/res"
 IOS_KEYS = [
     "3 weeks",
     "sparse, widened to %@",
@@ -57,33 +56,6 @@ def signature(value):
     return result
 
 class StepsTranslationsTests(unittest.TestCase):
-    def test_android_all_shipped_locales(self):
-        source = ET.parse(RES / "values/steps_view.xml").getroot()
-        keys = {entry.attrib["name"]: entry for entry in source}
-        directories = [RES / "values", *sorted(RES.glob("values-*"))]
-        for directory in directories:
-            if directory != RES / "values" and not (directory / "strings.xml").exists():
-                continue
-            with self.subTest(locale=directory.name):
-                entries = {}
-                for path in directory.glob("*.xml"):
-                    for entry in ET.parse(path).getroot():
-                        name = entry.get("name")
-                        if name not in keys:
-                            continue
-                        self.assertNotIn(name, entries, f"Duplicate {name} in {directory}")
-                        entries[name] = entry
-                self.assertEqual(set(entries), set(keys))
-                for name, original in keys.items():
-                    translated = entries[name]
-                    self.assertEqual(original.tag, translated.tag)
-                    if original.tag == "string-array":
-                        self.assertEqual(len(original), len(translated))
-                        self.assertTrue(all(item.text for item in translated))
-                    else:
-                        self.assertTrue(translated.text)
-                        self.assertEqual(signature(original.text), signature(translated.text), name)
-
     def test_ios_all_shipped_locales(self):
         catalog = json.loads(
             (ROOT / "Strand/Resources/Localizable.xcstrings").read_text(),

@@ -426,10 +426,15 @@ class EchoDetectionWordFilter(unittest.TestCase):
         # "%1$d%%" is pure format + literal percent — nothing to translate.
         self.assertFalse(ia._has_translatable_words("%1$d%%"))
 
-    def test_two_word_brand_is_flagged(self):
-        # Deliberately True: "Apple Health" IS caught, and the ratchet baseline absorbs it as an allowed
-        # legitimate echo — the gate's job is to block GROWTH, not to pre-judge every identical string.
-        self.assertTrue(ia._has_translatable_words("Apple Health"))
+    def test_two_word_brand_phrase_is_not(self):
+        # 0c18441e4 added "Apple Health" to BRAND_PHRASES: a multi-word brand is the same case as the
+        # single-word one above, one size up — an untranslated brand name is not a translation gap.
+        self.assertFalse(ia._has_translatable_words("Apple Health"))
+
+    def test_brand_phrase_with_a_real_word_is_still_flagged(self):
+        # Only a string that is ENTIRELY brand is exempted — "Apple Health sync" still has "sync" to
+        # translate, so an identical copy in another locale is a genuine echo, not a legitimate term.
+        self.assertTrue(ia._has_translatable_words("Apple Health sync"))
 
 
 if __name__ == "__main__":
