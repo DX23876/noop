@@ -89,15 +89,23 @@ enum AppleDemoSeeder {
         // Two KINDS on purpose, not two goals: the Today tile draws a different strip per kind
         // (a route under a weight goal, the week's days under a consistency one), and with a single
         // goal that difference — the whole point of the tile — cannot be seen.
+        // Numbers chosen to MATCH the seeded weight series, not picked freehand: `seed(into:)` drifts
+        // weight by about -0.02 kg/day from ~96 kg, so it reads ~93.4 kg today. A 100 -> 70 kg goal
+        // (what this used to say) is a 30 kg ask against a dataset that moves 2.4 kg in four months, so
+        // the Journey page correctly reported it "at risk, ~181 days late" — an honest verdict on a
+        // demo that had simply been given an impossible target. 96 -> 91 over the same window tracks
+        // the data the rest of the seeder writes, so the goal surfaces read like a real, kept goal.
+        // Titles are free text a user types, so they stay literal in every locale: English, matching
+        // the routine names ("Push", "Pull", "Legs & Core") this file already seeds.
         store.goals = [
             CoachGoal(kind: .weight,
-                      title: "Leichter werden",
-                      baseline: 100,
-                      target: 70,
+                      title: "Get leaner",
+                      baseline: 96,
+                      target: 91,
                       targetDate: now.addingTimeInterval(120 * 86_400),
                       createdAt: now.addingTimeInterval(-60 * 86_400)),
             CoachGoal(kind: .consistency,
-                      title: "Dreimal pro Woche",
+                      title: "Train three times a week",
                       baseline: 1,
                       target: 3,
                       targetDate: now.addingTimeInterval(90 * 86_400),
@@ -115,6 +123,23 @@ enum AppleDemoSeeder {
         guard let devices = try? registry.all() else { return }
         guard devices.allSatisfy({ $0.id == whoop }) else { return }  // only the seeded WHOOP present
         let now = Int(Date().timeIntervalSince1970)
+        // Register the strap the seeded rows are written under, and make it ACTIVE.
+        //
+        // Every table this seeder fills is keyed by `whoop` ("my-whoop"), but nothing used to put that
+        // id in the registry: on a fresh `--demo-seed` install the registry was empty and no device was
+        // active. Today reads through the registry's ACTIVE strap id (the house rule in CLAUDE.md), so
+        // it resolved to nothing, every section self-hid, and the screen rendered blank — while Training,
+        // which reads the device-agnostic native-training tables, showed its data and made it look like a
+        // Today-only rendering bug. A real install never hit this because pairing writes the row.
+        // Model "WHOOP 5.0" on purpose: the seeded days carry the step counter only a 5/MG banks.
+        if !devices.contains(where: { $0.id == whoop }) {
+            let strap = PairedDevice(
+                id: whoop, brand: "WHOOP", model: "WHOOP 5.0", nickname: nil,
+                sourceKind: .liveBLE, capabilities: [.hr, .hrv, .spo2, .skinTemp, .steps, .sleep, .strainLoad],
+                status: .active, addedAt: now - DAYS * 86_400, lastSeenAt: now - 600)
+            try? registry.add(strap)
+            try? registry.setActive(whoop)
+        }
         let polar = PairedDevice(
             id: "polar-h10-demo", brand: "Polar", model: "H10", nickname: nil,
             sourceKind: .liveBLE, capabilities: [.hr, .hrv], status: .paired,
