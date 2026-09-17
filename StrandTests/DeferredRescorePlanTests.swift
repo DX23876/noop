@@ -11,7 +11,8 @@ import XCTest
 ///
 ///  1. The strap offloads while the app is backgrounded — the normal case, it runs as a bluetooth-central.
 ///  2. `RescoreBackgroundPolicy.decide` defers, because the last completed pass on this library took
-///     longer than `backgroundBudgetSeconds`. Deferring records a debt.
+///     longer than the background budget it used to apply (replaced by CPU pacing in upstream #2296).
+///     Deferring records a debt.
 ///  3. The next foreground entry calls `runDeferredRescoreIfOwed`, which took `analyzeRecent()`'s
 ///     DEFAULTS — including `allowDayReuse: false`. So instead of the cheap fingerprint-gated pass the
 ///     deferral stood in for, it re-derived the whole window from raw.
@@ -58,24 +59,21 @@ final class DeferredRescorePlanTests: XCTestCase {
 
     // MARK: - The policy that produces the debt in the first place
 
-    /// The step-2 half of the loop, stated directly: on a library whose passes exceed the background
-    /// budget, every backgrounded trigger defers. That is correct behaviour — a pass killed mid-write is
-    /// the outcome worth avoiding — which is exactly why the SETTLEMENT has to be cheap.
-    func testALongLibraryDefersEveryBackgroundedTrigger() {
-        let decision = RescoreBackgroundPolicy.decide(
-            isBackground: true, rescoreAlreadyOwed: false,
-            lastCompletedPassSeconds: RescoreBackgroundPolicy.backgroundBudgetSeconds + 1)
+    /// The step-2 half of the loop, stated directly: once a re-score is outstanding, every backgrounded
+    /// trigger defers to the processing task instead of starting a second pass beside it. That is exactly
+    /// why the SETTLEMENT has to be cheap. (Upstream #2296 replaced the old pass-duration budget with CPU
+    /// pacing, so the outstanding debt is now the only thing that defers a real update.)
+    func testAnOutstandingDebtDefersEveryBackgroundedTrigger() {
+        let decision = RescoreBackgroundPolicy.decide(isBackground: true, rescoreAlreadyOwed: true)
         guard case .deferToBackgroundTask = decision else {
-            return XCTFail("a pass over the background budget must defer, got \(decision)")
+            return XCTFail("a backgrounded trigger with a debt outstanding must defer, got \(decision)")
         }
     }
 
     /// Foreground always runs — the settlement path is a foreground path, so it is never deferred back
     /// into the queue it is draining.
     func testForegroundNeverDefers() {
-        let decision = RescoreBackgroundPolicy.decide(
-            isBackground: false, rescoreAlreadyOwed: true,
-            lastCompletedPassSeconds: RescoreBackgroundPolicy.backgroundBudgetSeconds * 100)
+        let decision = RescoreBackgroundPolicy.decide(isBackground: false, rescoreAlreadyOwed: true)
         guard case .run = decision else {
             return XCTFail("foreground must run, got \(decision)")
         }

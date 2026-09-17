@@ -241,10 +241,11 @@ final class IntelligenceEngine: ObservableObject {
     ///
     /// Settling with `allowDayReuse: false` — the previous behaviour, inherited from the defaults — turned
     /// every foreground entry after a background sync into a full 21-day re-derivation, and on a library
-    /// where a pass exceeds `RescoreBackgroundPolicy.backgroundBudgetSeconds` that is self-sustaining: the
-    /// long pass keeps `lastCompletedPassSeconds` over budget, so the next background offload defers
-    /// again, records another debt, and the next foreground entry pays the full cost again. The wearer
-    /// sees the app re-analysing every single time they open it, with nothing having changed.
+    /// where a pass exceeded the background budget the policy then applied (replaced by CPU pacing in
+    /// upstream #2296) that was self-sustaining: the long pass kept `lastCompletedPassSeconds` over budget,
+    /// so the next background offload deferred again, recorded another debt, and the next foreground entry
+    /// paid the full cost again. The wearer saw the app re-analysing every single time they opened it, with
+    /// nothing having changed.
     nonisolated static func deferredRescorePlan()
         -> (force: Bool, skipIfUnchanged: Bool, allowDayReuse: Bool, reason: AnalysisReason) {
         (force: true, skipIfUnchanged: false, allowDayReuse: true, reason: .rawMutation)
