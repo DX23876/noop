@@ -430,8 +430,13 @@ struct TrainingLoadView: View {
     @EnvironmentObject private var repo: Repository
     @StateObject private var model = TrainingLoadModel()
     @State private var shownVO2: Double = 0
-    @State private var adviceBounce = 0
+    @State private var openSummary: SummaryDetail?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    private enum SummaryDetail: String, Identifiable {
+        case adaptation, recovery, history, session
+        var id: String { rawValue }
+    }
 
     var body: some View {
         ScreenScaffold(title: "Training Load",
@@ -440,23 +445,19 @@ struct TrainingLoadView: View {
             if !model.loaded {
                 ProgressView().frame(maxWidth: .infinity)
             } else {
-                hero
-                precisionCard.trainingCardEntrance()
+                // Named sections for `--demo-scroll-to` screenshot QA (DEBUG only; ids are inert otherwise).
+                hero.id("hero")
+                maturityLine
                 duplicateReviewCard
                 sustainedCard
-                adaptationCard.trainingCardEntrance().id("statement")
-                recoveryCard.trainingCardEntrance()
-                // Named sections for `--demo-scroll-to` screenshot QA (DEBUG only; ids are inert otherwise).
-                historyCard.trainingCardEntrance().id("history")
-                strengthSummaryCard.trainingCardEntrance().id("lifts")
-                vo2maxCard.trainingCardEntrance().id("cardio")
-                sessionCard.trainingCardEntrance()
+                summaryGrid.trainingCardEntrance().id("statement")
+                developmentCards.trainingCardEntrance().id("lifts")
                 shapeCard.trainingCardEntrance().id("shape")
-                basisCard.trainingCardEntrance()
-                methodCard.trainingCardEntrance()
+                explainers.trainingCardEntrance().id("method")
             }
         }
         .task(id: repo.refreshSeq) { await model.load(repo: repo) }
+        .sheet(item: $openSummary) { detail in summarySheet(detail) }
     }
 
     @ViewBuilder private var duplicateReviewCard: some View {
@@ -509,89 +510,226 @@ struct TrainingLoadView: View {
         }
     }
 
-    // MARK: - The instrument
+    // MARK: - The two lanes
 
-    /// One instrument for both lanes: strength on the outer arc, cardio on the inner one, each with its
-    /// own knob and its own verdict underneath.
-    ///
-    /// Deliberately NOT one combined ring with one word in the middle. The two lanes are measured in
-    /// different units and the fork's decision log is explicit that they are never blended into a single
-    /// score — so the ring shares a scale, and everything that could be mistaken for a joint verdict
-    /// stays split in two.
+    /// Strength and cardio side by side, each in its own unit and colour. Never one combined figure: the
+    /// two lanes are measured differently, and a blended score would need an invented exchange rate.
     private var hero: some View {
-        VStack(spacing: NoopMetrics.space3) {
-            LoadDualRing(strength: strengthRingReading, cardio: cardioRingReading)
-            laneSummary(symbol: "figure.strengthtraining.traditional", title: "Strength",
-                        lane: model.strength?.status, figure: strengthFigure, evidence: strengthEvidence,
-                        caveat: strengthCaveat)
-            Divider().overlay(StrandPalette.hairline)
-            laneSummary(symbol: "heart.fill", title: "Cardiovascular",
-                        lane: model.cardio?.status, figure: cardioFigure, evidence: cardioEvidence,
-                        caveat: cardioCaveat)
+        HStack(alignment: .top, spacing: NoopMetrics.gap) {
+            laneLink(to: .strength) {
+                LoadHeroCard(lane: .strength, percent: model.strength?.trend?.percentChange,
+                             state: LoadPillState.of(model.strength,
+                                                     provisional: model.provisionalStrengthRing != nil),
+                             figure: strengthFigure, trend: model.ratios.compactMap(\.strength),
+                             coverage: strengthEvidence, caveat: strengthCaveat, note: provisionalNote,
+                             compact: true)
+            }
+            laneLink(to: .cardio) {
+                LoadHeroCard(lane: .cardio, percent: model.cardio?.trend?.percentChange,
+                             state: LoadPillState.of(model.cardio), figure: cardioFigure,
+                             trend: model.ratios.compactMap(\.cardio), coverage: cardioEvidence,
+                             caveat: cardioCaveat, compact: true)
+            }
         }
-        .padding(NoopMetrics.cardPadding)
-        .frame(maxWidth: .infinity)
-        .background(TrainingHeroSurface(leading: model.strength?.status?.status.color ?? StrandPalette.textTertiary,
-                                        trailing: model.cardio?.status?.status.color ?? StrandPalette.textTertiary))
+        .fixedSize(horizontal: false, vertical: true)
     }
 
-    private var strengthRingReading: LoadRingReading? {
-        if let status = model.strength?.status { return LoadRingReading(status) }
-        return model.provisionalStrengthRing.map(LoadRingReading.init)
+    /// On iOS a lane opens its own screen. The macOS detail column has no navigation stack to push onto,
+    /// and both screens sit in its sidebar anyway.
+    @ViewBuilder private func laneLink<Label: View>(to lane: TrainingLane,
+                                                     @ViewBuilder label: () -> Label) -> some View {
+        #if os(iOS)
+        NavigationLink {
+            if lane == .strength { StrengthView() } else { CardioView() }
+        } label: {
+            label()
+        }
+        .buttonStyle(.plain)
+        .strandPressable()
+        #else
+        label()
+        #endif
     }
 
-    private var cardioRingReading: LoadRingReading? {
-        model.cardio?.status.map(LoadRingReading.init)
+    /// Before a personal comparison exists the strength lane can still say roughly how much the week was.
+    private var provisionalNote: String? {
+        guard model.strength?.status == nil, let reading = model.provisionalStrengthRing else { return nil }
+        let amount: String
+        switch reading.band {
+        case .low: amount = String(localized: "Low")
+        case .moderate: amount = String(localized: "Moderate")
+        case .high: amount = String(localized: "High")
+        case .veryHigh: amount = String(localized: "Very high")
+        }
+        return "\(amount) · \(String(localized: "provisional seven-day amount"))"
     }
 
-    /// One lane under the ring: the same symbol its knob carries, its verdict, its figure and what the
-    /// verdict rests on. The symbol is what maps a row to an arc, so it is never dropped.
-    private func laneSummary(symbol: String, title: LocalizedStringKey, lane: LaneStatus?,
-                             figure: String?, evidence: String?, caveat: String? = nil) -> some View {
-        HStack(alignment: .top, spacing: NoopMetrics.space3) {
-            StatusBadge(symbol: symbol, color: lane?.status.color ?? StrandPalette.textTertiary, size: 30)
-            // The ratio rides on the TITLE line, not in a column of its own: as a third column it
-            // squeezed the figure so hard that "43,6 gewichtete Sätze · −21 %" broke after the minus.
-            VStack(alignment: .leading, spacing: 2) {
-                HStack(alignment: .firstTextBaseline, spacing: 6) {
-                    Text(title)
-                        .font(StrandFont.subhead.weight(.semibold))
+    @ViewBuilder private var maturityLine: some View {
+        if currentMaturity != .personalBaseline {
+            HStack(alignment: .top, spacing: NoopMetrics.space2) {
+                Image(systemName: maturitySymbol)
+                    .font(StrandFont.caption.weight(.semibold))
+                    .foregroundStyle(StrandPalette.metricCyan)
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(maturityTitle)
+                        .font(StrandFont.caption.weight(.semibold))
                         .foregroundStyle(StrandPalette.textPrimary)
-                    if let lane {
-                        Text(lane.status.label)
-                            .font(StrandFont.caption.weight(.semibold))
-                            .foregroundStyle(lane.status.color)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.7)
-                    }
-                    Spacer(minLength: 6)
-                    Text(lane.map { LoadScale.ratioText($0.ratio, band: $0.band) } ?? "—")
-                        .font(StrandFont.number(15, weight: .semibold))
-                        .foregroundStyle(lane?.status.color ?? StrandPalette.textTertiary)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.65)
-                }
-                if let figure {
-                    Text(figure)
-                        .font(StrandFont.captionNumber)
-                        .foregroundStyle(StrandPalette.textPrimary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                if let evidence {
-                    Text(evidence)
+                    Text(maturityDetail)
                         .font(StrandFont.caption)
                         .foregroundStyle(StrandPalette.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
-                if let caveat {
-                    Label(caveat, systemImage: "exclamationmark.triangle.fill")
-                        .font(StrandFont.caption)
-                        .foregroundStyle(StrandPalette.statusWarning)
-                        .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(.horizontal, NoopMetrics.space1)
+            .accessibilityElement(children: .combine)
+        }
+    }
+
+    // MARK: - At a glance
+
+    private var summaryGrid: some View {
+        LazyVGrid(columns: [GridItem(.flexible(), spacing: NoopMetrics.gap),
+                            GridItem(.flexible(), spacing: NoopMetrics.gap)],
+                  spacing: NoopMetrics.gap) {
+            SummaryTile(symbol: "chart.line.uptrend.xyaxis", tint: StrandPalette.statusPositive,
+                        title: String(localized: "Adaptation"), headline: nil,
+                        action: { openSummary = .adaptation }) {
+                VStack(alignment: .leading, spacing: 6) {
+                    adaptationMini(.strength, model.strengthAdaptation)
+                    adaptationMini(.cardio, model.cardiovascularAdaptation)
                 }
             }
+            SummaryTile(symbol: "moon.zzz.fill", tint: recoveryTint, title: String(localized: "Recovery"),
+                        headline: nil, detail: recoverySummary, action: { openSummary = .recovery }) {
+                recoveryDots
+            }
+            SummaryTile(symbol: "calendar", tint: StrandPalette.metricCyan,
+                        title: String(localized: "Last 8 weeks"), headline: nil,
+                        action: { openSummary = .history }) {
+                VStack(alignment: .leading, spacing: 6) {
+                    historyStrip(.strength)
+                    historyStrip(.cardio)
+                }
+            }
+            SummaryTile(symbol: "person.fill.checkmark", tint: StrandPalette.metricCyan,
+                        title: String(localized: "Session load"), headline: sessionText(model.session),
+                        detail: model.session?.trend.map {
+                            "\(signedPercent($0.percentChange)) · \(comparisonText($0.percentChange))"
+                        } ?? String(localized: "Needs two weeks of measured history"),
+                        action: { openSummary = .session }) {
+                EmptyView()
+            }
         }
-        .accessibilityElement(children: .combine)
+    }
+
+    private func adaptationMini(_ lane: TrainingLane, _ reading: TrainingAdaptationReading?) -> some View {
+        let presentation = adaptationPresentation(reading)
+        return HStack(spacing: 6) {
+            Image(systemName: lane.symbol)
+                .font(StrandFont.caption)
+                .foregroundStyle(lane.color)
+                .frame(width: 14)
+            Label(presentation.1, systemImage: presentation.0)
+                .font(StrandFont.caption)
+                .foregroundStyle(presentation.2)
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private var recoveryTint: Color {
+        switch model.recovery?.state {
+        case .strained: return StrandPalette.statusWarning
+        case .holding: return StrandPalette.statusPositive
+        default: return StrandPalette.textTertiary
+        }
+    }
+
+    private var recoveryDots: some View {
+        HStack(spacing: NoopMetrics.space2) {
+            recoveryDot("HRV", key: "hrv")
+            recoveryDot("Resting HR", key: "rhr")
+            recoveryDot("Breathing", key: "respRate")
+        }
+    }
+
+    private func recoveryDot(_ title: LocalizedStringKey, key: String) -> some View {
+        let read = model.recovery?.readOnLatestNight.contains(key) ?? false
+        let flagging = model.recovery?.flaggingOnLatestNight.contains(key) ?? false
+        let color = !read ? StrandPalette.textTertiary
+            : (flagging ? StrandPalette.statusWarning : StrandPalette.statusPositive)
+        return HStack(spacing: 4) {
+            Circle().fill(color).frame(width: 7, height: 7)
+            Text(title).font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary).lineLimit(1)
+        }
+        .minimumScaleFactor(0.7)
+    }
+
+    /// Eight weeks for one lane, oldest first: stronger colour for a week further above that lane's usual.
+    private func historyStrip(_ lane: TrainingLane) -> some View {
+        let weeks = Array(model.history.suffix(8))
+        return HStack(spacing: 3) {
+            Image(systemName: lane.symbol)
+                .font(StrandFont.caption)
+                .foregroundStyle(lane.color)
+                .frame(width: 14)
+            ForEach(weeks.indices, id: \.self) { index in
+                let status = lane == .strength ? weeks[index].strength : weeks[index].cardio
+                RoundedRectangle(cornerRadius: 3, style: .continuous)
+                    .fill(status.map { lane.color.opacity(historyOpacity($0)) } ?? StrandPalette.surfaceInset)
+                    .frame(height: 14)
+            }
+        }
+        .accessibilityHidden(true)
+    }
+
+    private func historyOpacity(_ status: TrainingStatus) -> Double {
+        switch status {
+        case .detraining: return 0.3
+        case .recovering, .maintaining: return 0.55
+        case .productive, .unproductive: return 0.8
+        case .overreaching: return 1
+        }
+    }
+
+    private func summarySheet(_ detail: SummaryDetail) -> some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: NoopMetrics.gap) {
+                    switch detail {
+                    case .adaptation: adaptationCard
+                    case .recovery: recoveryCard
+                    case .history: historyCard
+                    case .session: sessionCard
+                    }
+                }
+                .padding(NoopMetrics.screenPadding)
+            }
+            .background(StrandPalette.surfaceBase.ignoresSafeArea())
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) { Button("Done") { openSummary = nil } }
+            }
+        }
+    }
+
+    private var developmentCards: some View {
+        AdaptiveTwoColumn {
+            strengthSummaryCard
+        } trailing: {
+            vo2maxCard
+        }
+    }
+
+    private var explainers: some View {
+        ExplainerRows(items: [
+            ExplainerItem(id: "maturity", symbol: maturitySymbol, title: maturityTitle,
+                          subtitle: maturityDetail, text: maturityDetail),
+            ExplainerItem(id: "basis", symbol: "checkmark.seal", title: String(localized: "What it rests on"),
+                          subtitle: String(localized: "Data coverage")) { basisRows },
+            ExplainerItem(id: "method", symbol: "function", title: String(localized: "What each number means"),
+                          subtitle: String(localized: "Transparent by design")) { methodRows },
+        ])
     }
 
     /// How thin the measurement under a verdict is — carried WITH the verdict rather than in a card
@@ -619,15 +757,12 @@ struct TrainingLoadView: View {
         guard let lane = model.strength else { return nil }
         let raw = String(localized: "\(lane.sevenDayWorkingSets) working sets")
         let estimated = weightedSetText(lane)
-        guard let trend = lane.trend else { return "\(raw) · \(estimated)" }
-        return "\(raw) · \(estimated) · \(signedPercent(trend.percentChange))"
+        return "\(raw) · \(estimated)"
     }
 
     private var cardioFigure: String? {
         guard let lane = model.cardio else { return nil }
-        let total = lane.isLowerBound ? String(localized: "at least \(effortText(lane))") : effortText(lane)
-        guard let trend = lane.trend else { return total }
-        return "\(total) · \(signedPercent(trend.percentChange))"
+        return lane.isLowerBound ? String(localized: "at least \(effortText(lane))") : effortText(lane)
     }
 
     /// What the strength verdict rests on — a below-usual run, the lifts, or an honest "load only".
@@ -647,21 +782,6 @@ struct TrainingLoadView: View {
         }
         if status.band == .below, status.daysBelowUsual > 0 { return belowSinceText(status.daysBelowUsual) }
         return String(localized: "\(lane.measuredCount) of \(lane.possibleCount) sessions complete · compared only with your cardiovascular history")
-    }
-
-    private var precisionCard: some View {
-        NoopCard(tint: StrandPalette.metricCyan) {
-            HStack(alignment: .top, spacing: NoopMetrics.space3) {
-                StatusBadge(symbol: maturitySymbol, color: StrandPalette.metricCyan, size: 36)
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(maturityTitle)
-                        .font(StrandFont.headline).foregroundStyle(StrandPalette.textPrimary)
-                    Text(maturityDetail)
-                        .font(StrandFont.subhead).foregroundStyle(StrandPalette.textSecondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-            }
-        }
     }
 
     private var currentMaturity: TrainingLoadMaturity {
@@ -721,22 +841,25 @@ struct TrainingLoadView: View {
         }
     }
 
+    /// Symbol, words and colour for one lane's adaptation reading.
+    private func adaptationPresentation(_ reading: TrainingAdaptationReading?) -> (String, String, Color) {
+        switch reading?.state ?? .notEnoughData {
+        case .improving:
+            return ("arrow.up.right", String(localized: "Productive development"), StrandPalette.statusPositive)
+        case .declining:
+            return ("arrow.down.right", String(localized: "Performance trending down"), StrandPalette.statusWarning)
+        case .stable:
+            return ("equal", String(localized: "Performance stable"), StrandPalette.metricCyan)
+        case .unclear:
+            return ("minus", String(localized: "No clear direction"), StrandPalette.textSecondary)
+        case .notEnoughData:
+            return ("hourglass", String(localized: "Adaptation not assessable yet"), StrandPalette.textTertiary)
+        }
+    }
+
     private func adaptationRow(symbol: String, title: LocalizedStringKey,
                                reading: TrainingAdaptationReading?) -> some View {
-        let state = reading?.state ?? .notEnoughData
-        let presentation: (String, String, Color)
-        switch state {
-        case .improving:
-            presentation = ("arrow.up.right", String(localized: "Productive development"), StrandPalette.statusPositive)
-        case .declining:
-            presentation = ("arrow.down.right", String(localized: "Performance trending down"), StrandPalette.statusWarning)
-        case .stable:
-            presentation = ("equal", String(localized: "Performance stable"), StrandPalette.metricCyan)
-        case .unclear:
-            presentation = ("minus", String(localized: "No clear direction"), StrandPalette.textSecondary)
-        case .notEnoughData:
-            presentation = ("hourglass", String(localized: "Adaptation not assessable yet"), StrandPalette.textTertiary)
-        }
+        let presentation = adaptationPresentation(reading)
         return HStack(spacing: NoopMetrics.space3) {
             StatusBadge(symbol: symbol, color: presentation.2, size: 30)
             VStack(alignment: .leading, spacing: 2) {
@@ -753,193 +876,6 @@ struct TrainingLoadView: View {
     private func belowSinceText(_ days: Int) -> String {
         let since = WeeklyDigestEngine.addDays(Repository.localDayKey(Date()), -(days - 1))
         return String(localized: "Below your usual since \(StatusHistoryStrip.shortDate(since))")
-    }
-
-    // MARK: - What to do
-
-    private struct Advice {
-        let symbol: String
-        let color: Color
-        let text: String
-        /// A second colour for a statement that speaks about BOTH lanes at once — the card then runs
-        /// from the lane that is falling behind to the one that is ahead.
-        var secondary: Color? = nil
-        /// Whether the card may be painted in the colour itself rather than washed with it. Yellow is
-        /// the exception: white text on it fails to read, and darkening the fill would turn a warning
-        /// into a different colour, so that state keeps the lighter treatment.
-        var filled = true
-    }
-
-    /// The page's one statement, dressed. The DECISION is pure and lives in
-    /// `TrainingStatusModel.statement(strength:cardio:recovery:)`, where every pair of verdicts is
-    /// resolved and covered by tests; this only chooses the words, the glyph and the colours.
-    ///
-    /// It replaced a read-time ladder that stopped at its first hit and therefore named one lane: a
-    /// wearer whose lifting was falling away while their cardio ran well above usual was told only
-    /// about the cardio.
-    private var advice: Advice {
-        switch TrainingStatusModel.statement(strength: model.strength?.status?.status,
-                                             cardio: model.cardio?.status?.status,
-                                             recovery: model.recovery?.state ?? .unknown) {
-        case .noHistory:
-            return Advice(symbol: "hourglass", color: StrandPalette.textTertiary,
-                          text: String(localized: "After two weeks of training this shows whether it is building, holding or too much."),
-                          filled: false)
-
-        case let .laneOnly(lane, status):
-            return Advice(symbol: status.symbol, color: status.color,
-                          text: sentence(for: status, lane: lane) + " "
-                              + String(localized: "The other lane needs two more weeks of measured history."),
-                          filled: status != .unproductive)
-
-        case let .aligned(status):
-            return Advice(symbol: status.symbol, color: status.color,
-                          text: sentence(for: status, lane: nil),
-                          filled: status != .unproductive)
-
-        case let .oneBehind(lane):
-            let color = laneColor(lane)
-            return Advice(symbol: TrainingStatus.detraining.symbol, color: color,
-                          text: lane == .strength
-                            ? String(localized: "Your strength work is below your usual while your cardio holds steady.")
-                            : String(localized: "Your cardio is below your usual while your strength work holds steady."))
-
-        case let .split(low, high, severity):
-            let text: String
-            switch (low, severity) {
-            case (.strength, .mild):
-                text = String(localized: "Plenty of cardio, little strength: your endurance is carrying this block while your lifting loses ground.")
-            case (.strength, .sharp):
-                text = String(localized: "Much more cardio than usual while your strength work has fallen away. Bring the lifting back before the cardio goes higher.")
-            case (.cardio, .mild):
-                text = String(localized: "Plenty of strength work, little cardio: your lifting is carrying this block while your endurance loses ground.")
-            case (.cardio, .sharp):
-                text = String(localized: "Much more strength work than usual while your cardio has fallen away. Bring the cardio back before the lifting goes higher.")
-            }
-            // The surface itself splits: it runs from the lane that is behind to the one that is ahead.
-            return Advice(symbol: "arrow.left.arrow.right", color: laneColor(high), text: text,
-                          secondary: laneColor(low))
-
-        case let .excessive(lane, strained):
-            let text: String
-            if lane == .strength {
-                text = strained
-                    ? String(localized: "Much more strength work than usual, and your recovery is dropping. Take a few easier days before adding more.")
-                    : String(localized: "Much more strength work than usual. Hold here until your usual level catches up.")
-            } else {
-                text = String(localized: "Much more cardio than usual. Hold here until your usual level catches up.")
-            }
-            return Advice(symbol: TrainingStatus.overreaching.symbol,
-                          color: TrainingStatus.overreaching.color, text: text)
-
-        case .bothExcessive:
-            return Advice(symbol: TrainingStatus.overreaching.symbol,
-                          color: TrainingStatus.overreaching.color,
-                          text: String(localized: "Both lanes are well above your usual. Fine for a short block, but not both at once for long."))
-
-        case let .spinning(cardioAlsoHigh):
-            // Both facts, side by side. That the cardio block is what costs the lifts their progress is
-            // plausible and unmeasured, so the card does not say it.
-            return Advice(symbol: TrainingStatus.unproductive.symbol,
-                          color: TrainingStatus.unproductive.color,
-                          text: cardioAlsoHigh
-                            ? String(localized: "Plenty of strength work without the lifts improving, and your cardio is well above your usual too. Decide which of the two to ease first.")
-                            : String(localized: "Plenty of strength work, but your lifts are not improving. More volume will not fix that: look at sleep, recovery or the programme."),
-                          filled: false)
-
-        case .strainedRecovery:
-            return Advice(symbol: "moon.zzz.fill", color: TrainingStatus.unproductive.color,
-                          text: String(localized: "Your recovery signals flagged on several recent nights. Hold your load rather than raising it."),
-                          filled: false)
-        }
-    }
-
-    /// The lane's own colour — the same one its arc and its row carry.
-    private func laneColor(_ lane: TrainingStatusModel.TrainingStatementLane) -> Color {
-        let status = lane == .strength ? model.strength?.status?.status : model.cardio?.status?.status
-        return status?.color ?? StrandPalette.textTertiary
-    }
-
-    /// One verdict in a sentence, for the cases that speak about a single state.
-    private func sentence(for status: TrainingStatus,
-                          lane: TrainingStatusModel.TrainingStatementLane?) -> String {
-        switch status {
-        case .detraining:
-            return String(localized: "You have been training well below your usual level. If this is not a planned break, restart with a few easy sessions.")
-        case .recovering:
-            return String(localized: "A lighter stretch after a hard phase. Good timing to let strength and fitness settle.")
-        case .maintaining:
-            return String(localized: "You are holding your level. To build, raise the load in small steps.")
-        case .productive:
-            return model.recovery?.state == .holding
-                ? String(localized: "Your build is working: load at or above your usual, and your recovery is keeping up.")
-                : String(localized: "Your build is working: load at or above your usual, and it is paying off.")
-        case .unproductive:
-            return String(localized: "Plenty of strength work, but your lifts are not improving. More volume will not fix that: look at sleep, recovery or the programme.")
-        case .overreaching:
-            return lane == .cardio
-                ? String(localized: "Much more cardio than usual. Hold here until your usual level catches up.")
-                : String(localized: "Much more strength work than usual. Hold here until your usual level catches up.")
-        }
-    }
-
-    private var adviceCard: some View {
-        let advice = advice
-        let ink = advice.filled ? StrandPalette.onDarkPrimary : StrandPalette.textPrimary
-        return TrainingWashCard(color: advice.color, watermark: advice.symbol, filled: advice.filled,
-                                secondary: advice.secondary) {
-            VStack(alignment: .leading, spacing: NoopMetrics.space3) {
-                HStack(alignment: .top, spacing: NoopMetrics.space3) {
-                    // On a filled card the glyph stands on its own: a coloured badge on the same colour
-                    // would disappear into it.
-                    if advice.filled {
-                        Image(systemName: advice.symbol)
-                            .font(StrandFont.rounded(30, weight: .bold))
-                            .foregroundStyle(ink)
-                            .trainingSymbolBounce(trigger: adviceBounce)
-                            .accessibilityHidden(true)
-                    } else {
-                        StatusBadge(symbol: advice.symbol, color: advice.color, size: 44,
-                                    bounceTrigger: adviceBounce)
-                    }
-                    Text(advice.text)
-                        .font(StrandFont.headline)
-                        .foregroundStyle(ink)
-                        .fixedSize(horizontal: false, vertical: true)
-                    Spacer(minLength: 0)
-                }
-                HStack(spacing: NoopMetrics.space2) {
-                    stageTile("Strength", lane: model.strength?.status, filled: advice.filled)
-                    stageTile("Cardio", lane: model.cardio?.status, filled: advice.filled)
-                }
-            }
-        }
-        .task(id: advice.text) {
-            guard !reduceMotion else { return }
-            try? await Task.sleep(nanoseconds: 900_000_000)
-            adviceBounce += 1
-        }
-    }
-
-    /// One lane's ratio inside the statement card, so the sentence above it is answerable without
-    /// scrolling back to the ring.
-    private func stageTile(_ title: LocalizedStringKey, lane: LaneStatus?, filled: Bool) -> some View {
-        VStack(alignment: .leading, spacing: 1) {
-            Text(title)
-                .font(StrandFont.caption)
-                .foregroundStyle(filled ? StrandPalette.onDarkSecondary : StrandPalette.textSecondary)
-            Text(lane.map { LoadScale.ratioText($0.ratio, band: $0.band) } ?? "—")
-                .font(StrandFont.number(17, weight: .semibold))
-                .foregroundStyle(filled ? StrandPalette.onDarkPrimary : StrandPalette.textPrimary)
-                .lineLimit(1)
-                .minimumScaleFactor(0.6)
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 9)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: 14, style: .continuous)
-            .fill(filled ? StrandPalette.onDarkPrimary.opacity(0.18) : StrandPalette.surfaceInset))
-        .accessibilityElement(children: .combine)
     }
 
     // MARK: - Lasting overreaching
@@ -1314,18 +1250,13 @@ struct TrainingLoadView: View {
             : parts.joined(separator: " · ")
     }
 
-    private var basisCard: some View {
-        VStack(alignment: .leading, spacing: NoopMetrics.gap) {
-            SectionHeader("What it rests on", overline: "Data coverage")
-            NoopCard {
-                VStack(alignment: .leading, spacing: NoopMetrics.space3) {
-                    basisRow(symbol: "figure.strengthtraining.traditional", share: coverageShare(model.strength),
-                             text: strengthCoverage(model.strength))
-                    Divider().overlay(StrandPalette.hairline)
-                    basisRow(symbol: "heart.fill", share: coverageShare(model.cardio),
-                             text: cardioCoverage(model.cardio))
-                }
-            }
+    private var basisRows: some View {
+        VStack(alignment: .leading, spacing: NoopMetrics.space3) {
+            basisRow(symbol: "figure.strengthtraining.traditional", share: coverageShare(model.strength),
+                     text: strengthCoverage(model.strength))
+            Divider().overlay(StrandPalette.hairline)
+            basisRow(symbol: "heart.fill", share: coverageShare(model.cardio),
+                     text: cardioCoverage(model.cardio))
         }
     }
 
@@ -1383,51 +1314,21 @@ struct TrainingLoadView: View {
 
     // MARK: - Legend and method
 
-    private var legendCard: some View {
-        VStack(alignment: .leading, spacing: NoopMetrics.gap) {
-            SectionHeader("The six states", overline: "Legend")
-            NoopCard {
-                VStack(alignment: .leading, spacing: NoopMetrics.space3) {
-                    ForEach(TrainingStatus.allCases, id: \.self) { status in
-                        HStack(alignment: .top, spacing: NoopMetrics.space3) {
-                            StatusBadge(symbol: status.symbol, color: status.color, size: 34, cornerRadius: 10)
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(status.label)
-                                    .font(StrandFont.subhead.weight(.semibold))
-                                    .foregroundStyle(StrandPalette.textPrimary)
-                                Text(status.meaning)
-                                    .font(StrandFont.caption)
-                                    .foregroundStyle(StrandPalette.textSecondary)
-                                    .fixedSize(horizontal: false, vertical: true)
-                            }
-                        }
-                        .accessibilityElement(children: .combine)
-                    }
-                }
-            }
-        }
-    }
-
-    private var methodCard: some View {
-        VStack(alignment: .leading, spacing: NoopMetrics.gap) {
-            SectionHeader("What each number means", overline: "Transparent by design")
-            NoopCard {
-                VStack(alignment: .leading, spacing: NoopMetrics.space3) {
-                    // The lane titles, not bare "Strength/Cardio/Session": the method rows explain the three
-                    // cards above and have to name them the same way in every language.
-                    methodRow("Strength load", "Working sets weighted by proximity to failure. Tonnage remains a training statistic, not the load.")
-                    Divider().overlay(StrandPalette.hairline)
-                    methodRow("Cardiovascular load", "Classic Edwards TRIMP from time in percentages of your maximum heart rate. NOOP band data wins; workout-associated Health data fills only when the band trace is incomplete.")
-                    Divider().overlay(StrandPalette.hairline)
-                    methodRow("Session load", "Your whole-session RPE × duration. Add it from any workout detail; missing ratings are never guessed.")
-                    Divider().overlay(StrandPalette.hairline)
-                    methodRow("How comparison works", "NOOP compares the last 7 days with an earlier, non-overlapping baseline. A partial training day stays visible as a lower bound but leaves the comparison. After eight complete weeks, robust personal variation replaces fixed population-style bands.")
-                    Divider().overlay(StrandPalette.hairline)
-                    methodRow("Load and adaptation", "Relative load is descriptive. Productive development requires a clear performance trend: estimated one-rep max for strength or VO₂max within one consistent measurement method for cardiovascular training.")
-                    Divider().overlay(StrandPalette.hairline)
-                    methodRow("Sources", "Edwards 1993 · Banister 1991 · Foster 2001 · Bosquet et al. 2013 · Meeusen et al. 2013 · Pelland et al. 2024 · Robinson et al. 2024")
-                }
-            }
+    private var methodRows: some View {
+        VStack(alignment: .leading, spacing: NoopMetrics.space3) {
+            // The lane titles, not bare "Strength/Cardio/Session": the method rows explain the three
+            // cards above and have to name them the same way in every language.
+            methodRow("Strength load", "Working sets weighted by proximity to failure. Tonnage remains a training statistic, not the load.")
+            Divider().overlay(StrandPalette.hairline)
+            methodRow("Cardiovascular load", "Classic Edwards TRIMP from time in percentages of your maximum heart rate. NOOP band data wins; workout-associated Health data fills only when the band trace is incomplete.")
+            Divider().overlay(StrandPalette.hairline)
+            methodRow("Session load", "Your whole-session RPE × duration. Add it from any workout detail; missing ratings are never guessed.")
+            Divider().overlay(StrandPalette.hairline)
+            methodRow("How comparison works", "NOOP compares the last 7 days with an earlier, non-overlapping baseline. A partial training day stays visible as a lower bound but leaves the comparison. After eight complete weeks, robust personal variation replaces fixed population-style bands.")
+            Divider().overlay(StrandPalette.hairline)
+            methodRow("Load and adaptation", "Relative load is descriptive. Productive development requires a clear performance trend: estimated one-rep max for strength or VO₂max within one consistent measurement method for cardiovascular training.")
+            Divider().overlay(StrandPalette.hairline)
+            methodRow("Sources", "Edwards 1993 · Banister 1991 · Foster 2001 · Bosquet et al. 2013 · Meeusen et al. 2013 · Pelland et al. 2024 · Robinson et al. 2024")
         }
     }
 
