@@ -39,12 +39,30 @@ on:
       - 'Packages/**'
       - 'project.yml'
       - '.github/workflows/app-build.yml'
-  # No `push: main` leg. Every change reaches main through a PR, which the trigger above already
-  # gates, so a push run rebuilt content that had just been built - on macOS runners, which GitHub
-  # bills at 10x Linux for a two-runner matrix (macos-26 for both the universal macOS leg and
-  # the iOS 26 SDK). A RELEASE pushes straight to main with no PR, but fork-release.yml builds both
-  # Strand and NOOPiOS itself, so that path keeps its own compile gate. The gap this leaves is a
-  # direct non-release push to main; `workflow_dispatch` below covers checking one on demand.
+  # Fork override of upstream's "no push:main leg" (#1028). Upstream lands every change through a PR,
+  # so a push run there only rebuilt what the PR gate had just built — wasted minutes on macOS runners,
+  # which GitHub bills at 10x Linux for this two-runner matrix. This fork does NOT work that way: it
+  # pushes straight to main (release commits, one-off fixes), and those commits reach users having met
+  # no gate at all. `workflow_dispatch` covered that only as far as someone remembered to dispatch it.
+  #
+  # The 11.8.1 release commit is the case in point: it went to main with no PR, and shipped with
+  # StrandTests unrun. The release pipeline does not close the gap — `publish-ios-release.yml` compiles
+  # both app targets but runs no tests, and the `Test Strand` step below is the ONLY place StrandTests
+  # runs. A merged PR now builds twice (branch, then main); that duplication is the deliberate price,
+  # so keep the path filter below as tight as the PR one.
+  push:
+    branches: [main]
+    paths:
+      - 'Strand/**'
+      - 'StrandTests/**'
+      - 'StrandiOS/**'
+      - 'StrandiOSShared/**'
+      - 'StrandiOSWidgets/**'
+      - 'NOOPWatch/**'
+      - 'NOOPWatchComplications/**'
+      - 'Packages/**'
+      - 'project.yml'
+      - '.github/workflows/app-build.yml'
   # `pr:` builds a PR's MERGE RESULT without pushing anything. Checking "does this PR compile once
   # merged?" used to mean creating a throwaway `ci/` branch holding main+PR and dispatching at it —
   # which left a "Compare & pull request" banner behind for every probe, because GitHub keys that
