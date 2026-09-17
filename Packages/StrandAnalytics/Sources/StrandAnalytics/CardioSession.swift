@@ -565,3 +565,81 @@ public enum CardioSession {
         }
     }
 }
+
+/// One sport's part of a week's measured cardio load.
+public struct CardioSportLoadShare: Equatable, Sendable {
+    public let sport: String
+    public let modality: CardioModality
+    public let load: Double
+    /// Of the week's measured load, 0…1.
+    public let share: Double
+}
+
+extension CardioSession {
+    private static func inWeek(containing anchorDay: String,
+                               _ sessions: [CardioSessionMetrics]) -> [CardioSessionMetrics] {
+        guard let monday = WeeklyDigestEngine.mondayOfWeek(containing: anchorDay) else { return [] }
+        let sunday = WeeklyDigestEngine.addDays(monday, 6)
+        return sessions.filter { $0.day >= monday && $0.day <= sunday }
+    }
+
+    /// Each sport's share of the week's measured load, largest first. Sessions without a measured load
+    /// are left out of both sides, so a share never mixes measured and unmeasured work.
+    public static func loadShareBySport(inWeekContaining anchorDay: String,
+                                        sessions: [CardioSessionMetrics]) -> [CardioSportLoadShare] {
+        var bySport: [String: (modality: CardioModality, load: Double)] = [:]
+        for session in inWeek(containing: anchorDay, sessions) {
+            guard let load = session.cardioLoad, load.isFinite, load > 0 else { continue }
+            bySport[session.sport, default: (session.modality, 0)].load += load
+        }
+        let total = bySport.values.reduce(0) { $0 + $1.load }
+        guard total > 0 else { return [] }
+        return bySport.map { CardioSportLoadShare(sport: $0.key, modality: $0.value.modality,
+                                                  load: $0.value.load, share: $0.value.load / total) }
+            .sorted { $0.load != $1.load ? $0.load > $1.load : $0.sport < $1.sport }
+    }
+
+    /// One sport's pace over the week: total moving time over total distance, in seconds per kilometre,
+    /// from the sessions that recorded both. Nil when none did.
+    public static func weeklyPaceSecPerKm(sport: String, inWeekContaining anchorDay: String,
+                                          sessions: [CardioSessionMetrics]) -> Double? {
+        var seconds = 0.0, metres = 0.0
+        for session in inWeek(containing: anchorDay, sessions)
+        where session.sport.caseInsensitiveCompare(sport) == .orderedSame {
+            guard let duration = session.durationS, duration > 0,
+                  let distance = session.distanceM, distance > 0 else { continue }
+            seconds += duration
+            metres += distance
+        }
+        guard metres > 0 else { return nil }
+        return seconds / (metres / 1000)
+    }
+
+    /// The week's average heart rate, weighted by each session's duration, over sessions carrying both.
+    public static func weeklyAverageHr(inWeekContaining anchorDay: String,
+                                       sessions: [CardioSessionMetrics]) -> Double? {
+        var beats = 0.0, seconds = 0.0
+        for session in inWeek(containing: anchorDay, sessions) {
+            guard let hr = session.avgHr, hr > 0, let duration = session.durationS, duration > 0 else { continue }
+            beats += Double(hr) * duration
+            seconds += duration
+        }
+        return seconds > 0 ? beats / seconds : nil
+    }
+
+    /// The median weekly average heart rate over the preceding `weeks` weeks that have one. Nil below
+    /// three such weeks, the same floor the usual weekly minutes use.
+    public static func typicalWeeklyAverageHr(_ sessions: [CardioSessionMetrics],
+                                              endingBefore anchorDay: String,
+                                              weeks: Int = 8) -> Double? {
+        guard let thisMonday = WeeklyDigestEngine.mondayOfWeek(containing: anchorDay) else { return nil }
+        var values: [Double] = []
+        var monday = WeeklyDigestEngine.addDays(thisMonday, -7)
+        for _ in 0..<max(weeks, 1) {
+            if let value = weeklyAverageHr(inWeekContaining: monday, sessions: sessions) { values.append(value) }
+            monday = WeeklyDigestEngine.addDays(monday, -7)
+        }
+        guard values.count >= 3 else { return nil }
+        return StrengthSession.percentile(values.sorted(), 0.5)
+    }
+}

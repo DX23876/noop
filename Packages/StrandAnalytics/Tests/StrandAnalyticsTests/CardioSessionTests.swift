@@ -219,3 +219,53 @@ final class CardioModalityUnitTests: XCTestCase {
         XCTAssertEqual(CardioModality.cycling.readout, .speed)
     }
 }
+
+extension CardioSessionTests {
+    // MARK: - Week summaries for the load screen
+
+    private func week(_ rows: [WorkoutRow], loads: [Int: Double] = [:]) -> [CardioSessionMetrics] {
+        CardioSession.sessions(rows, tzOffsetSeconds: 0, cardioLoadByStart: loads)
+    }
+
+    func testLoadShareCountsOnlyMeasuredLoadInTheWeek() {
+        let run1 = Self.ts("2026-09-14"), run2 = Self.ts("2026-09-16"), ride = Self.ts("2026-09-15")
+        let unmeasured = Self.ts("2026-09-17"), lastWeek = Self.ts("2026-09-10")
+        let sessions = week([row("Running", at: run1, km: 10), row("Running", at: run2, km: 8),
+                             row("Cycling", at: ride, km: 30), row("Rowing", at: unmeasured),
+                             row("Cycling", at: lastWeek, km: 40)],
+                            loads: [run1: 90, run2: 60, ride: 50, lastWeek: 500])
+        let shares = CardioSession.loadShareBySport(inWeekContaining: "2026-09-17", sessions: sessions)
+        XCTAssertEqual(shares.map(\.sport), ["Running", "Cycling"])
+        XCTAssertEqual(shares.map(\.load), [150, 50])
+        XCTAssertEqual(shares.map(\.share), [0.75, 0.25])
+        XCTAssertTrue(CardioSession.loadShareBySport(inWeekContaining: "2026-09-17",
+                                                     sessions: week([row("Rowing", at: unmeasured)])).isEmpty)
+    }
+
+    func testWeeklyPaceIsTotalTimeOverTotalDistanceForThatSport() {
+        let sessions = week([row("Running", at: Self.ts("2026-09-14"), minutes: 50, km: 10),
+                             row("Running", at: Self.ts("2026-09-16"), minutes: 30, km: 5),
+                             row("Running", at: Self.ts("2026-09-17"), minutes: 40, km: nil),
+                             row("Swimming", at: Self.ts("2026-09-15"), minutes: 40, km: 2)])
+        let run = CardioSession.weeklyPaceSecPerKm(sport: "running", inWeekContaining: "2026-09-17", sessions: sessions)
+        XCTAssertEqual(try XCTUnwrap(run), 80 * 60 / 15, accuracy: 1e-9, "the run without a distance is left out")
+        let swim = CardioSession.weeklyPaceSecPerKm(sport: "Swimming", inWeekContaining: "2026-09-17", sessions: sessions)
+        XCTAssertEqual(try XCTUnwrap(swim) / 10, 120, accuracy: 1e-9, "2:00 per 100 m")
+        XCTAssertNil(CardioSession.weeklyPaceSecPerKm(sport: "Cycling", inWeekContaining: "2026-09-17", sessions: sessions))
+    }
+
+    func testWeeklyHeartRateIsWeightedByDurationAndComparedWithEarlierWeeks() {
+        var rows = [row("Running", at: Self.ts("2026-09-14"), minutes: 60, avgHr: 150),
+                    row("Walking", at: Self.ts("2026-09-15"), minutes: 30, avgHr: 120),
+                    row("Cycling", at: Self.ts("2026-09-16"), minutes: 45, avgHr: nil)]
+        let current = CardioSession.weeklyAverageHr(inWeekContaining: "2026-09-16", sessions: week(rows))
+        XCTAssertEqual(try XCTUnwrap(current), 140, accuracy: 1e-9)
+        XCTAssertNil(CardioSession.typicalWeeklyAverageHr(week(rows), endingBefore: "2026-09-16"))
+
+        for (day, hr) in [("2026-09-07", 130), ("2026-08-31", 136), ("2026-08-24", 132)] {
+            rows.append(row("Running", at: Self.ts(day), minutes: 45, avgHr: hr))
+        }
+        let typical = CardioSession.typicalWeeklyAverageHr(week(rows), endingBefore: "2026-09-16")
+        XCTAssertEqual(try XCTUnwrap(typical), 132, accuracy: 1e-9)
+    }
+}
