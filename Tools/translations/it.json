@@ -1522,5 +1522,12 @@
   "Usual low": "Limite basso abituale",
   "Your usual range appears after eight complete weeks.": "Il tuo intervallo abituale compare dopo otto settimane complete.",
   "Your usual week": "La tua settimana abituale",
-  "vs. your usual": "rispetto al solito"
+  "vs. your usual": "rispetto al solito",
+  "%lld %% of cardio load": "%lld %% del carico cardio",
+  "%lld of %lld sessions complete": "%1$lld sessioni complete su %2$lld",
+  "How your cardio load is calculated": "Come viene calcolato il tuo carico cardio",
+  "Most used activity": "Attività più frequente",
+  "What counts as a best": "Cosa conta come record",
+  "Where the zone split comes from": "Da dove viene la ripartizione per zone",
+  "usual %lld bpm": "abituale %lld bpm"
 }

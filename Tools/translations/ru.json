@@ -1405,5 +1405,12 @@
   "Usual low": "Обычный минимум",
   "Your usual range appears after eight complete weeks.": "Ваш обычный диапазон появится после восьми полных недель.",
   "Your usual week": "Ваша обычная неделя",
-  "vs. your usual": "к вашему обычному"
+  "vs. your usual": "к вашему обычному",
+  "%lld %% of cardio load": "%lld %% кардионагрузки",
+  "%lld of %lld sessions complete": "%1$lld из %2$lld тренировок полные",
+  "How your cardio load is calculated": "Как рассчитывается кардионагрузка",
+  "Most used activity": "Основная активность",
+  "What counts as a best": "Что считается рекордом",
+  "Where the zone split comes from": "Откуда берётся распределение по зонам",
+  "usual %lld bpm": "обычно %lld уд/мин"
 }

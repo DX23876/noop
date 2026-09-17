@@ -1529,5 +1529,12 @@
   "Usual low": "平常下限",
   "Your usual range appears after eight complete weeks.": "满八个完整周后显示你的平常范围。",
   "Your usual week": "你的平常一周",
-  "vs. your usual": "对比平常"
+  "vs. your usual": "对比平常",
+  "%lld %% of cardio load": "占有氧负荷 %lld%%",
+  "%lld of %lld sessions complete": "%2$lld 次训练中 %1$lld 次完整",
+  "How your cardio load is calculated": "有氧负荷的计算方式",
+  "Most used activity": "最常进行的运动",
+  "What counts as a best": "什么算作最佳成绩",
+  "Where the zone split comes from": "心率区间分布的来源",
+  "usual %lld bpm": "平常 %lld 次/分"
 }

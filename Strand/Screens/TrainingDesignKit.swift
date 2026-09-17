@@ -233,10 +233,6 @@ struct LoadHeroCard: View {
                 .lineLimit(1)
                 .minimumScaleFactor(0.6)
                 .accessibilityLabel(Text(verbatim: LoadFormat.signedPercent(percent ?? 0)))
-        } else {
-            Text(verbatim: "—")
-                .font(StrandFont.number(compact ? 30 : 42, weight: .bold))
-                .foregroundStyle(StrandPalette.textTertiary)
         }
     }
 
@@ -260,58 +256,70 @@ struct KPIItem: Identifiable {
     var info: (() -> Void)? = nil
 }
 
-/// A row of a week's key figures. Up to four sit in one row; more wrap into rows of three.
+/// A week's key figures. Two per row on a phone, so a four-digit distance or a double-digit duration
+/// keeps its full size; all in one row only where the width allows it.
 struct KPIStrip: View {
     let lane: TrainingLane
     let items: [KPIItem]
 
     var body: some View {
-        let columns = items.count <= 4 ? max(items.count, 1) : 3
-        NoopCard(padding: NoopMetrics.space3) {
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: NoopMetrics.space2), count: columns),
-                      alignment: .leading, spacing: NoopMetrics.space3) {
-                ForEach(items) { item in cell(item) }
+        NoopCard(padding: NoopMetrics.cardPadding) {
+            ViewThatFits(in: .horizontal) {
+                grid(columns: min(items.count, 4))
+                    .frame(minWidth: CGFloat(min(items.count, 4)) * 150)
+                grid(columns: min(items.count, 2))
             }
         }
     }
 
+    private func grid(columns: Int) -> some View {
+        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: NoopMetrics.space4, alignment: .topLeading),
+                                 count: max(columns, 1)),
+                  alignment: .leading, spacing: NoopMetrics.space4) {
+            ForEach(items) { item in cell(item) }
+        }
+    }
+
     private func cell(_ item: KPIItem) -> some View {
-        VStack(alignment: .leading, spacing: 3) {
-            HStack(spacing: 0) {
-                ZStack {
-                    Circle().fill(lane.color.opacity(0.2))
-                    Image(systemName: item.icon)
-                        .font(StrandFont.rounded(11, weight: .semibold))
-                        .foregroundStyle(lane.color)
-                }
-                .frame(width: 24, height: 24)
-                .accessibilityHidden(true)
-                Spacer(minLength: 0)
-                if let info = item.info {
-                    Button(action: info) {
-                        Image(systemName: "info.circle")
-                            .font(StrandFont.caption)
-                            .foregroundStyle(StrandPalette.textTertiary)
+        HStack(alignment: .top, spacing: NoopMetrics.space2) {
+            ZStack {
+                Circle().fill(lane.color.opacity(0.2))
+                Image(systemName: item.icon)
+                    .font(StrandFont.rounded(13, weight: .semibold))
+                    .foregroundStyle(lane.color)
+            }
+            .frame(width: 30, height: 30)
+            .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 4) {
+                    Text(item.label)
+                        .font(StrandFont.caption)
+                        .foregroundStyle(StrandPalette.textSecondary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+                    if let info = item.info {
+                        Button(action: info) {
+                            Image(systemName: "info.circle")
+                                .font(StrandFont.caption)
+                                .foregroundStyle(StrandPalette.textTertiary)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(Text("What this means"))
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel(Text("What this means"))
+                }
+                Text(item.value)
+                    .font(StrandFont.number(22, weight: .bold))
+                    .foregroundStyle(StrandPalette.textPrimary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+                if let caption = item.caption {
+                    Text(caption)
+                        .font(StrandFont.caption)
+                        .foregroundStyle(lane.bright)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
                 }
             }
-            Text(item.value)
-                .font(StrandFont.number(20, weight: .bold))
-                .foregroundStyle(StrandPalette.textPrimary)
-                .lineLimit(1)
-                .minimumScaleFactor(0.55)
-            Text(item.label)
-                .font(StrandFont.caption)
-                .foregroundStyle(StrandPalette.textSecondary)
-                .lineLimit(1)
-                .minimumScaleFactor(0.7)
-            Text(item.caption ?? " ")
-                .font(StrandFont.caption)
-                .foregroundStyle(lane.bright)
-                .lineLimit(1)
-                .minimumScaleFactor(0.7)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .combine)
@@ -423,7 +431,7 @@ struct LoadHistoryChart: View {
                         .foregroundStyle(bar.isSelected
                                          ? AnyShapeStyle(LinearGradient(colors: [lane.bright, lane.deep],
                                                                         startPoint: .top, endPoint: .bottom))
-                                         : AnyShapeStyle(lane.color.opacity(bar.containsUnknown ? 0.3 : 0.55)))
+                                         : AnyShapeStyle(lane.color.opacity(bar.containsUnknown ? 0.35 : 0.7)))
                         .cornerRadius(5)
                 }
             }
@@ -451,20 +459,21 @@ struct LoadHistoryChart: View {
     }
 
     @ViewBuilder private func legend(_ bars: [LoadHistoryBuckets.Bar]) -> some View {
-        HStack(spacing: NoopMetrics.space4) {
-            legendDot(lane.color, title)
-            if span != .week {
-                if usualWeek != nil {
+        VStack(alignment: .leading, spacing: NoopMetrics.space2) {
+            HStack(spacing: NoopMetrics.space4) {
+                legendDot(lane.color, title)
+                if span != .week, usualWeek != nil {
                     legendDot(lane.color.opacity(0.3), String(localized: "Your usual week"))
-                } else {
-                    Text("Your usual range appears after eight complete weeks.")
-                        .font(StrandFont.caption)
-                        .foregroundStyle(StrandPalette.textTertiary)
-                        .fixedSize(horizontal: false, vertical: true)
+                }
+                if bars.contains(where: \.containsUnknown) {
+                    legendDot(lane.color.opacity(0.35), String(localized: "Partly unmeasured"))
                 }
             }
-            if bars.contains(where: \.containsUnknown) {
-                legendDot(lane.color.opacity(0.3), String(localized: "Partly unmeasured"))
+            if span != .week, usualWeek == nil {
+                Text("Your usual range appears after eight complete weeks.")
+                    .font(StrandFont.caption)
+                    .foregroundStyle(StrandPalette.textTertiary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
     }
@@ -509,8 +518,9 @@ struct SummaryTile<Mini: View>: View {
                     Text(title)
                         .font(StrandFont.caption.weight(.semibold))
                         .foregroundStyle(StrandPalette.textSecondary)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.7)
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.85)
+                        .fixedSize(horizontal: false, vertical: true)
                     Spacer(minLength: 0)
                     Image(systemName: "chevron.right")
                         .font(StrandFont.caption.weight(.semibold))

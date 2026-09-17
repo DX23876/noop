@@ -61,6 +61,14 @@ final class CardioModel: ObservableObject {
     /// The selected week's cardio lane, read exactly as Training Load reads it.
     @Published private(set) var lane: TrainingLoadModel.Lane?
     @Published private(set) var laneRatios: [TrainingLoadModel.RatioPoint] = []
+    /// The day the selected week is read through, for the load chart.
+    @Published private(set) var laneReadingDay = Repository.localDayKey(Date())
+    /// Each sport's share of the week's measured load, largest first.
+    @Published private(set) var loadShares: [CardioSportLoadShare] = []
+    /// Moving time over distance for the week's biggest sport, in seconds per kilometre.
+    @Published private(set) var topSportPace: Double?
+    @Published private(set) var weekAverageHr: Double?
+    @Published private(set) var typicalAverageHr: Double?
     @Published private(set) var weekCharge: Double?
     /// The displayed week's time in each heart-rate zone. Nil when no zone set is known yet, or when
     /// nothing that week carried a trace complete enough to bin.
@@ -82,7 +90,7 @@ final class CardioModel: ObservableObject {
     /// lookback a reading needs, so the oldest selectable week still compares like Training Load does.
     private var laneSessions: [UnifiedTrainingSession] = []
     private var laneResolution = TrainingCardioLoadResolution()
-    private var laneSeries: TrainingLoadLanes.CardioSeries?
+    @Published private(set) var laneSeries: TrainingLoadLanes.CardioSeries?
 
     // The selected sport
     @Published private(set) var sportHistory: [CardioSessionMetrics] = []
@@ -109,6 +117,11 @@ final class CardioModel: ObservableObject {
         let typical: ClosedRange<Double>?
         let lane: TrainingLoadModel.Lane?
         let laneRatios: [TrainingLoadModel.RatioPoint]
+        let laneDay: String
+        let shares: [CardioSportLoadShare]
+        let topSportPace: Double?
+        let averageHr: Double?
+        let typicalAverageHr: Double?
         let zones: CardioZoneSplit?
     }
 
@@ -209,6 +222,7 @@ final class CardioModel: ObservableObject {
         // travels into the bundle as a finished value so the week's cache holds it too.
         let zones = await weekZoneSplit(repo: repo, monday: monday, sunday: sunday)
         let bundle = await Task.detached(priority: .userInitiated) { () -> WeekBundle in
+            let shares = CardioSession.loadShareBySport(inWeekContaining: anchor, sessions: all)
             let lane = laneSeries.map {
                 TrainingLoadLanes.cardioLane(sessions: laneSessions, resolution: laneResolution, series: $0,
                                              through: laneDay, tzOffsetSeconds: offset)
@@ -218,6 +232,14 @@ final class CardioModel: ObservableObject {
                               lane: lane,
                               laneRatios: TrainingLoadLanes.ratios(strengthByDay: nil, cardio: laneSeries,
                                                                    through: laneDay),
+                              laneDay: laneDay,
+                              shares: shares,
+                              topSportPace: shares.first.flatMap {
+                                  CardioSession.weeklyPaceSecPerKm(sport: $0.sport, inWeekContaining: anchor,
+                                                                   sessions: all)
+                              },
+                              averageHr: CardioSession.weeklyAverageHr(inWeekContaining: anchor, sessions: all),
+                              typicalAverageHr: CardioSession.typicalWeeklyAverageHr(all, endingBefore: anchor),
                               zones: zones)
         }.value
 
@@ -247,6 +269,11 @@ final class CardioModel: ObservableObject {
         typicalMinutes = bundle.typical
         lane = bundle.lane
         laneRatios = bundle.laneRatios
+        laneReadingDay = bundle.laneDay
+        loadShares = bundle.shares
+        topSportPace = bundle.topSportPace
+        weekAverageHr = bundle.averageHr
+        typicalAverageHr = bundle.typicalAverageHr
         zoneSplit = bundle.zones
     }
 

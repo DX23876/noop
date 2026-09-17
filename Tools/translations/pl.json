@@ -2564,5 +2564,12 @@
   "Usual low": "Zwykła dolna granica",
   "Your usual range appears after eight complete weeks.": "Twój zwykły zakres pojawi się po ośmiu pełnych tygodniach.",
   "Your usual week": "Twój zwykły tydzień",
-  "vs. your usual": "wobec zwykłego"
+  "vs. your usual": "wobec zwykłego",
+  "%lld %% of cardio load": "%lld %% obciążenia cardio",
+  "%lld of %lld sessions complete": "%1$lld z %2$lld sesji kompletnych",
+  "How your cardio load is calculated": "Jak liczone jest Twoje obciążenie cardio",
+  "Most used activity": "Najczęstsza aktywność",
+  "What counts as a best": "Co liczy się jako rekord",
+  "Where the zone split comes from": "Skąd pochodzi podział na strefy",
+  "usual %lld bpm": "zwykle %lld bpm"
 }
