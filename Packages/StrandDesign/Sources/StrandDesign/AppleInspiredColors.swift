@@ -55,7 +55,8 @@ public enum AppleInspiredColors {
              "coach.goal.run": return .green
         case "stress", "settings.power": return .yellow
         case "breathe", "breathing": return .mint
-        case "intervals", "settings.features", "coach.settings.autoSummarize", "hrv": return .cyan
+        case "intervals", "settings.features", "coach.settings.autoSummarize", "hrv",
+             "exerciseMedia": return .cyan
         case "miBand", "settings.strap", "deviceSetup", "coach.settings.entry": return .green
         case "testCentre", "settings.testCentre", "coach.settings.privacy", "coach.persona.guardian": return .teal
         case "settings.liveSessions", "settings.experimental", "coach.settings.howItWorks",
