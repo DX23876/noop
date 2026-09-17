@@ -3518,12 +3518,20 @@ final class Repository: ObservableObject {
         return rows.filter { row in
             guard !row.source.hasPrefix("native-training"),
                   WorkoutSource.sportKey(row.sport) == strength else { return true }
-            return !natives.contains { native in
-                let overlap = min(row.endTs, native.endTs) - max(row.startTs, native.startTs)
-                let shorter = min(row.endTs - row.startTs, native.endTs - native.startTs)
-                return shorter > 0 && overlap * 2 >= shorter
-            }
+            return !natives.contains { isLegacyStrengthTwin(row, of: $0) }
         }
+    }
+
+    /// True when `recording` is the legacy manual twin of `native`: the two overlap by at least half of
+    /// the shorter one. A ZERO-LENGTH side (a start/stop inside the same second, listed as "0m") has no
+    /// half to overlap, so it counts as a twin when its instant falls inside the other span. Without that
+    /// fallback the twin of an accidental start was never hidden, the list showed the session twice, and
+    /// deleting one copy left the other on screen (#2278). Sport is the caller's check.
+    nonisolated static func isLegacyStrengthTwin(_ recording: WorkoutRow, of native: WorkoutRow) -> Bool {
+        let overlap = min(recording.endTs, native.endTs) - max(recording.startTs, native.startTs)
+        let shorter = min(recording.endTs - recording.startTs, native.endTs - native.startTs)
+        if shorter > 0 { return overlap * 2 >= shorter }
+        return overlap >= 0
     }
 
     private func pagedWorkoutRows(store: WhoopStore, deviceId: String,
@@ -3825,6 +3833,10 @@ final class Repository: ObservableObject {
     func deleteWorkout(_ row: WorkoutRow) async {
         if WorkoutSource.classify(row.source) == .detected { await dismissDetected(row); return }
         guard let store = await ensureStore() else { return }
+        if row.source.hasPrefix("native-training") {
+            await deleteNativeWorkoutRow(row, store: store)
+            return
+        }
         // Sweep every STRAP namespace, not just the active one. A manual row banked under a retained
         // strap or a computed sibling is shown by `workoutRows` and was previously undeletable: the
         // delete touched one namespace, the reload re-read the row from another, and it reappeared
@@ -3841,6 +3853,42 @@ final class Repository: ObservableObject {
             _ = try? await store.deleteWorkouts(deviceId: id, sport: row.sport,
                                                 from: row.startTs, to: row.startTs)
         }
+    }
+
+    /// Delete a native strength session shown in the Workouts list.
+    ///
+    /// A native row is a READ-TIME projection of `trainingWorkoutNative`; no `workout` row backs it, so the
+    /// natural-key sweep in `deleteWorkout` matched nothing and the session reappeared on reload. Classified
+    /// `.manual`, it was offered Delete all the same, so every native session was visible but undeletable.
+    ///
+    /// Removes, in order: the native workout (its exercises and sets cascade), the session link that
+    /// pointed at it, and the legacy manual "Strength Training" recording the list was hiding as its twin.
+    /// The last one matters: `hidingLegacyStrengthRecordings` only hides a twin while its native row exists,
+    /// so deleting the native alone would uncover the recording and the delete would again look ignored.
+    private func deleteNativeWorkoutRow(_ row: WorkoutRow, store: WhoopStore) async {
+        let natives = ((try? await store.nativeWorkouts(from: row.startTs, to: row.startTs)) ?? [])
+            .filter { NativeTrainingProjection.workoutRow($0).source == row.source }
+        guard !natives.isEmpty else { return }
+        let strength = WorkoutSource.sportKey("Strength Training")
+        let namespaces = Self.deletableWorkoutNamespaces(rawIds: rawPhysiologyReadIds(store: store))
+        var linkKeys: [String] = []
+        for native in natives {
+            let projected = NativeTrainingProjection.workoutRow(native)
+            linkKeys.append("\(projected.source)|\(projected.startTs)|\(WorkoutSource.sportKey(projected.sport))")
+            do { try await store.deleteNativeWorkout(id: native.id) } catch { continue }
+            for id in namespaces {
+                let candidates = (try? await store.workouts(deviceId: id, from: projected.startTs - 86_400,
+                                                            to: projected.endTs, limit: 500)) ?? []
+                for twin in candidates where WorkoutSource.sportKey(twin.sport) == strength
+                    && WorkoutSource.classify(twin.source) == .manual
+                    && Self.isLegacyStrengthTwin(twin, of: projected) {
+                    RouteStore.remove(startTs: twin.startTs, sport: twin.sport)
+                    _ = try? await store.deleteWorkouts(deviceId: id, sport: twin.sport,
+                                                        from: twin.startTs, to: twin.startTs)
+                }
+            }
+        }
+        _ = try? await store.deleteTrainingSessionLinks(componentKeys: linkKeys)
     }
 
     /// #64: merge two-or-more overlapping / adjacent MANUAL or DETECTED sessions into ONE manual session

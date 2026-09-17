@@ -139,6 +139,19 @@ extension WhoopStore {
         }
     }
 
+    /// Removes the links for exactly these component keys and nothing else. Used when the component
+    /// itself is deleted, so a link cannot outlive the row it pointed at. Returns the rows removed.
+    @discardableResult
+    public func deleteTrainingSessionLinks(componentKeys: [String]) async throws -> Int {
+        guard !componentKeys.isEmpty else { return 0 }
+        return try syncWrite { db in
+            try db.execute(sql: """
+                DELETE FROM trainingSessionLink WHERE componentKey IN (\(databaseQuestionMarks(count: componentKeys.count)))
+                """, arguments: StatementArguments(componentKeys))
+            return db.changesCount
+        }
+    }
+
     public func trainingSessionLinks() async throws -> [TrainingSessionLinkRow] {
         try syncRead { db in
             try Row.fetchAll(db, sql: "SELECT * FROM trainingSessionLink").map { row in

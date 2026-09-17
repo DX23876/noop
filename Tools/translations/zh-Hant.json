@@ -1625,5 +1625,6 @@
   "Requested": "已請求",
   "Connected live": "即時連線",
   "no PPG": "無 PPG",
-  "Baseline %@ · Recent %@": "基線 %@ · 近期 %@"
+  "Baseline %@ · Recent %@": "基線 %@ · 近期 %@",
+  "Movement data was patchy this night, so the stages are a rough estimate.": "這一晚的體動資料不完整,因此睡眠階段只是粗略估計。"
 }

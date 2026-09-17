@@ -1447,5 +1447,6 @@
   "Requested": "По запросу",
   "Connected live": "Подключено в реальном времени",
   "no PPG": "нет PPG",
-  "Baseline %@ · Recent %@": "База %@ · Недавно %@"
+  "Baseline %@ · Recent %@": "База %@ · Недавно %@",
+  "Movement data was patchy this night, so the stages are a rough estimate.": "Данные о движении в эту ночь были неполными, поэтому стадии сна — лишь приблизительная оценка."
 }

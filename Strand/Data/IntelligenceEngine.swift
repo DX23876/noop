@@ -461,6 +461,8 @@ final class IntelligenceEngine: ObservableObject {
     /// `AppModel` wires it to `live.append(log:domain:)`. Each line is a concise, counts-only summary,
     /// optionally tagged with the TestDomain so the Sleep/Battery emitters land under their profile tag.
     var diagnosticSink: ((String, TestDomain?) -> Void)?
+    /// Sessions already reported by the "sleep motion: none persisted" line this launch.
+    private var loggedMissingMotionStarts: Set<Int> = []
 
     init(repo: Repository, profile: ProfileStore, deviceId: String) {
         self.repo = repo; self.profile = profile; self.deviceId = deviceId
@@ -3406,6 +3408,19 @@ final class IntelligenceEngine: ObservableObject {
         }
         for (start, motion) in motionByStart {
             _ = try? await store.persistSessionMotion(deviceId: computedId, sessionStart: start, motionEpochs: motion)
+        }
+        // Always-on, rare-event evidence: a kept session that staged but got NO per-epoch motion shows
+        // "No movement detail" on the Sleep tab, and nothing in a report said why. States only what this
+        // pass observed (the engine's motion grid came back empty for that window) plus the two settings a
+        // reporter might suspect, and attributes no cause. Silent when every kept session has motion, and once
+        // per session per launch, so a re-score every few minutes does not repeat it.
+        let motionAwareWakeOn = PuffinExperiment.motionAwareWakeEnabled
+        for session in cachedSleepKept where motionByStart[session.startTs] == nil
+            && loggedMissingMotionStarts.insert(session.startTs).inserted {
+            let sparse = session.stagingSparse.map { $0 ? "yes" : "no" } ?? "unknown"
+            diagnosticSink?("sleep motion: none persisted for session start=\(session.startTs) "
+                + "dur=\((session.endTs - session.startTs) / 60)m (motion grid empty for its window) "
+                + "sparse=\(sparse) motionAwareWake=\(motionAwareWakeOn ? "on" : "off")", nil)
         }
         // ── Persist per-epoch BAND sleep_state (#175) beside each kept session's stagesJSON ──────────────
         // This is the source `sessionSleepStateJSON` lacked (v7.7.0 finding: the write path had no producer

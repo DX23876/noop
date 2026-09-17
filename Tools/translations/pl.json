@@ -2606,5 +2606,6 @@
   "Requested": "Na żądanie",
   "Connected live": "Połączono na żywo",
   "no PPG": "brak PPG",
-  "Baseline %@ · Recent %@": "Bazowy %@ · Ostatnio %@"
+  "Baseline %@ · Recent %@": "Bazowy %@ · Ostatnio %@",
+  "Movement data was patchy this night, so the stages are a rough estimate.": "Dane o ruchu tej nocy były niepełne, więc fazy snu są jedynie przybliżonym oszacowaniem."
 }

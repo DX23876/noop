@@ -36,6 +36,22 @@ final class TrainingSessionStoreTests: XCTestCase {
         XCTAssertEqual(readPreferences, [preference])
     }
 
+    func testDeletingLinksIsScopedToTheNamedComponents() async throws {
+        let store = try await WhoopStore.inMemory()
+        let links = ["native-training|1|strength", "manual|1|strength", "apple|2"].map {
+            TrainingSessionLinkRow(componentKey: $0, sessionId: "session|1", origin: "native-lifecycle",
+                                   updatedAtTs: 2_000)
+        }
+        try await store.upsertTrainingSessionLinks(links)
+        let removed = try await store.deleteTrainingSessionLinks(componentKeys: ["native-training|1|strength",
+                                                                                 "missing"])
+        XCTAssertEqual(removed, 1)
+        let remaining = try await store.trainingSessionLinks().map(\.componentKey).sorted()
+        XCTAssertEqual(remaining, ["apple|2", "manual|1|strength"])
+        let none = try await store.deleteTrainingSessionLinks(componentKeys: [])
+        XCTAssertEqual(none, 0)
+    }
+
     func testReplacingHeartRateBucketsIsScopedToOneComponent() async throws {
         let store = try await WhoopStore.inMemory()
         let metadata = ["a", "b"].map { key in

@@ -105,7 +105,8 @@ struct StageDetailView: View {
             // (≥2-segment) hypnogram so the strip aligns with a genuine timeline; the proportional stage-bar
             // fallback has no timeline to anchor to. Placed OUTSIDE the fixed-height ChartCard so it doesn't
             // clip the hypnogram. Honest empty state inside `motionStrip` when no group fragment has motion.
-            if intervals.count >= 2 {
+            if intervals.count >= 2,
+               SleepView.showsMotionStrip(motionEpochCount: night.motionEpochs.count, blocks: night.sourceBlocks) {
                 motionStrip(night)
             }
             // H9 — when the engine's Rest confidence flags this night's staging as low-confidence (a
@@ -116,17 +117,22 @@ struct StageDetailView: View {
             if stageStagingIsLowConfidence(night) {
                 stageLowConfidenceNote
             }
-            // #345 follow-up: when a night was staged on SPARSE motion coverage it can UNDER-detect — the
-            // gravity-only spine fragments and the sub-60-min pieces are dropped, so a real ~8h night can
-            // collapse to a fraction ("slept 8h, app shows 1h"). Say so honestly so the short total isn't
-            // read as fact. Distinct from the H9 note above (a plausible-duration night with an off split).
-            if stageStagingIsSparse(night) {
-                stageIncompleteNote
+            // #345 follow-up: a night staged on SPARSE motion can UNDER-detect, but usually does not. Same
+            // tiering as the Sleep tab (`SleepView.sparseStagingNote`): prominent only when the total reads
+            // short, a quiet footnote otherwise, and never a second warning beside the partial-timeline one.
+            let coverage = stageCoverage(night)
+            let partialShown = coverage.map { $0 < HypnogramCoverage.minCoverage } ?? false
+            switch SleepView.sparseStagingNote(sparse: stageStagingIsSparse(night), asleepMin: night.stages.asleep,
+                                               typicalAsleepMin: SleepView.typicalAsleepMin(repo.days),
+                                               partialTimelineShown: partialShown) {
+            case .prominent: stageIncompleteNote
+            case .subtle:    stageSparseFootnote
+            case .none:      EmptyView()
             }
             // #1716 — a device-provided hypnogram whose records never all arrived leaves a HOLE in the
             // timeline while the session still spans the whole night, so a night we saw a fraction of
             // renders as a complete one. Say which fraction, exactly as the Sleep tab does.
-            if let coverage = stageCoverage(night), coverage < HypnogramCoverage.minCoverage {
+            if let coverage, partialShown {
                 stagePartialNote(coverage)
             }
             // For an Oura-provided night, say plainly that this split is the ring's RAW on-device
@@ -292,6 +298,15 @@ struct StageDetailView: View {
         .padding(.horizontal, 2)
         // `.combine` builds the a11y label from the badge + body Text (no separate localized string).
         .accessibilityElement(children: .combine)
+    }
+
+    /// Twin of `SleepView.stageSparseFootnote`: the quiet caveat for a sparse night of normal length.
+    private var stageSparseFootnote: some View {
+        Text("Movement data was patchy this night, so the stages are a rough estimate.")
+            .font(StrandFont.footnote)
+            .foregroundStyle(StrandPalette.textTertiary)
+            .fixedSize(horizontal: false, vertical: true)
+            .padding(.horizontal, 2)
     }
 
     /// The PARTIAL-TIMELINE caveat (#1716) — twin of `SleepView.stagePartialNote(_:)`, same copy and same

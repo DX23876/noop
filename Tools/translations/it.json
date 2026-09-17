@@ -1564,5 +1564,6 @@
   "Requested": "Richiesto",
   "Connected live": "Connesso in tempo reale",
   "no PPG": "nessun PPG",
-  "Baseline %@ · Recent %@": "Base %@ · Recente %@"
+  "Baseline %@ · Recent %@": "Base %@ · Recente %@",
+  "Movement data was patchy this night, so the stages are a rough estimate.": "I dati di movimento sono stati discontinui questa notte, quindi le fasi sono una stima approssimativa."
 }

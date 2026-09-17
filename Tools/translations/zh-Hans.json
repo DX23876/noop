@@ -1571,5 +1571,6 @@
   "Requested": "已请求",
   "Connected live": "实时连接",
   "no PPG": "无 PPG",
-  "Baseline %@ · Recent %@": "基线 %@ · 近期 %@"
+  "Baseline %@ · Recent %@": "基线 %@ · 近期 %@",
+  "Movement data was patchy this night, so the stages are a rough estimate.": "这一晚的体动数据不完整,因此睡眠阶段只是粗略估计。"
 }
