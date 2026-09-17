@@ -83697,64 +83697,6 @@
         }
       }
     },
-    "Buzz your strap or mark a moment from Siri, Spotlight, the Shortcuts app, or a Back-Tap / automation. No setup needed." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Lass deinen Strap vibrieren oder markiere einen Moment über Siri, Spotlight, die Kurzbefehle-App oder ein Back-Tap/eine Automation. Keine Einrichtung nötig."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Haz vibrar tu pulsera o marca un momento desde Siri, Spotlight, la app Atajos o un Back-Tap / automatización. Sin configuración."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Faites vibrer votre bracelet ou marquez un moment depuis Siri, Spotlight, l'app Raccourcis, ou un Back Tap / une automatisation. Aucune configuration nécessaire."
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Fai vibrare la fascia o registra un momento da Siri, Spotlight, l'app Comandi o un Back-Tap / un'automazione, senza alcuna configurazione."
-          }
-        },
-        "pl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Włącz sygnał dźwiękowy na pasku lub zaznacz chwilę za pomocą Siri, Spotlight, aplikacji Skróty lub Back-Tap/automatyzacji. Nie jest wymagana żadna konfiguracja."
-          }
-        },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Toque na tua bracelete ou marque um momento no Siri, no Spotlight, na aplicação Shortcuts ou num Back-Tap/automação. Nenhuma configuração necessária."
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Вызовите вибрацию браслета или отметьте момент через Siri, Spotlight, приложение «Команды», Back Tap или автоматизацию. Настройка не требуется."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "通过 Siri、聚焦搜索、快捷指令应用，或轻点背面 / 自动化来震动你的手环或标记某个时刻，无需任何设置。"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "透過 Siri、Spotlight、捷徑應用程式，或輕點背面 / 自動化來震動你的手環或標記某個時刻，無需任何設定。"
-          }
-        }
-      }
-    },
     "Buzz your strap when these apps notify you. Everything runs on %@." : {
       "localizations" : {
         "de" : {
@@ -100374,6 +100316,470 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Coach 設定"
+          }
+        }
+      }
+    },
+    "NOOP is connecting to your strap and will sync as soon as it's ready." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP verbindet sich mit deinem Strap und synchronisiert, sobald er bereit ist."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP se está conectando a tu pulsera y sincronizará en cuanto esté lista."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP se connecte à votre bracelet et synchronisera dès qu'il sera prêt."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP si sta collegando alla fascia e sincronizzerà non appena sarà pronta."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O NOOP está a ligar-se à sua pulseira e sincronizará assim que estiver pronta."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP подключается к браслету и синхронизирует, как только он будет готов."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP 正在连接你的手环，准备就绪后会立即同步。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP 正在連接你的手環，準備就緒後會立即同步。"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP łączy się z paskiem i zsynchronizuje go, gdy tylko będzie gotowy."
+          }
+        }
+      }
+    },
+    "Shows Connecting… / Syncing… with the chunk count and elapsed time while NOOP pulls history from your strap, including a sync started by the Sync Strap shortcut. Independent of the live heart rate switch above." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zeigt „Verbinde…“ / „Synchronisiere…“ mit Chunk-Anzahl und verstrichener Zeit, während NOOP Daten von deinem Strap abruft – auch bei einer Synchronisierung über den Kurzbefehl „Strap synchronisieren“. Unabhängig vom Schalter für den Live-Puls oben."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Muestra Conectando… / Sincronizando… con el número de fragmentos y el tiempo transcurrido mientras NOOP descarga el historial de tu pulsera, incluida una sincronización iniciada con el atajo Sincronizar pulsera. Independiente del interruptor de frecuencia cardíaca en vivo de arriba."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Affiche Connexion… / Synchronisation… avec le nombre de blocs et le temps écoulé pendant que NOOP récupère l'historique de votre bracelet, y compris une synchronisation lancée par le raccourci Synchroniser le bracelet. Indépendant de l'interrupteur de fréquence cardiaque en direct ci-dessus."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mostra Connessione… / Sincronizzazione… con il numero di blocchi e il tempo trascorso mentre NOOP scarica la cronologia dalla fascia, anche per una sincronizzazione avviata dal comando rapido Sincronizza la fascia. Indipendente dall'interruttore della frequenza cardiaca in tempo reale qui sopra."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mostra A ligar… / A sincronizar… com o número de blocos e o tempo decorrido enquanto o NOOP transfere o histórico da sua pulseira, incluindo uma sincronização iniciada pelo atalho Sincronizar pulseira. Independente do interruptor de frequência cardíaca em direto acima."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Показывает «Подключение…» / «Синхронизация…» с числом блоков и прошедшим временем, пока NOOP загружает историю с браслета, в том числе при синхронизации через команду «Синхронизировать браслет». Не зависит от переключателя пульса в реальном времени выше."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP 从手环读取历史数据时显示“连接中…”/“同步中…”、数据块数量和已用时间，包括通过“同步手环”快捷指令启动的同步。与上方的实时心率开关无关。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP 從手環讀取歷史資料時顯示「連接中…」/「同步中…」、資料塊數量和已用時間，包括透過「同步手環」捷徑啟動的同步。與上方的即時心率開關無關。"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pokazuje Łączenie… / Synchronizowanie… z liczbą fragmentów i czasem trwania, gdy NOOP pobiera historię z paska, także przy synchronizacji uruchomionej skrótem Synchronizuj pasek. Niezależne od przełącznika tętna na żywo powyżej."
+          }
+        }
+      }
+    },
+    "Shows sync progress on the Lock Screen and in the Dynamic Island" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zeigt den Synchronisierungsfortschritt auf dem Sperrbildschirm und in der Dynamic Island"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Muestra el progreso de la sincronización en la pantalla de bloqueo y en la Dynamic Island"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Affiche la progression de la synchronisation sur l'écran verrouillé et dans la Dynamic Island"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mostra l'avanzamento della sincronizzazione nella schermata di blocco e nella Dynamic Island"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mostra o progresso da sincronização no ecrã bloqueado e na Dynamic Island"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Показывает ход синхронизации на экране блокировки и в Dynamic Island"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在锁定屏幕和灵动岛中显示同步进度"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在鎖定畫面和動態島中顯示同步進度"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pokazuje postęp synchronizacji na ekranie blokady i w Dynamic Island"
+          }
+        }
+      }
+    },
+    "Strap sync in Dynamic Island" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Strap-Synchronisierung in der Dynamic Island"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sincronización de la pulsera en la Dynamic Island"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Synchronisation du bracelet dans la Dynamic Island"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sincronizzazione della fascia nella Dynamic Island"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sincronização da pulseira na Dynamic Island"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Синхронизация браслета в Dynamic Island"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "灵动岛中显示手环同步"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "動態島中顯示手環同步"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Synchronizacja paska w Dynamic Island"
+          }
+        }
+      }
+    },
+    "Sync didn't start" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Synchronisierung nicht gestartet"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La sincronización no se inició"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La synchronisation n'a pas démarré"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La sincronizzazione non è partita"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A sincronização não começou"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Синхронизация не началась"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "同步未开始"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "同步未開始"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Synchronizacja się nie rozpoczęła"
+          }
+        }
+      }
+    },
+    "Sync interrupted" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Synchronisierung unterbrochen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sincronización interrumpida"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Synchronisation interrompue"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sincronizzazione interrotta"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sincronização interrompida"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Синхронизация прервана"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "同步中断"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "同步中斷"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Synchronizacja przerwana"
+          }
+        }
+      }
+    },
+    "Synced" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Synchronisiert"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sincronizado"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Synchronisé"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sincronizzato"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sincronizado"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Синхронизировано"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已同步"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已同步"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zsynchronizowano"
+          }
+        }
+      }
+    },
+    "Synced · %lld chunks" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Synchronisiert · %lld Chunks"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sincronizado · %lld fragmentos"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Synchronisé · %lld blocs"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sincronizzato · %lld blocchi"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sincronizado · %lld blocos"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Синхронизировано · %lld блоков"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已同步 · %lld 个数据块"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已同步 · %lld 個資料塊"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zsynchronizowano · %lld fragmentów"
           }
         }
       }
@@ -364116,6 +364522,180 @@
         }
       }
     },
+    "1m %lld" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 Min. %lld"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 min %lld"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 min %lld"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 min %lld"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 min %lld"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 min %lld"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 мин %lld"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 分钟 %lld"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 分鐘 %lld"
+          }
+        }
+      }
+    },
+    "2m %lld" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "2 Min. %lld"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "2 min %lld"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "2 min %lld"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "2 min %lld"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "2 min %lld"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "2 min %lld"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "2 мин %lld"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "2 分钟 %lld"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "2 分鐘 %lld"
+          }
+        }
+      }
+    },
+    "5m %lld" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "5 Min. %lld"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "5 min %lld"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "5 min %lld"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "5 min %lld"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "5 min %lld"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "5 min %lld"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "5 мин %lld"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "5 分钟 %lld"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "5 分鐘 %lld"
+          }
+        }
+      }
+    },
     "today" : {
       "localizations" : {
         "de" : {
@@ -399837,6 +400417,122 @@
         }
       }
     },
+    "Your strap is already syncing." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dein Strap wird bereits synchronisiert."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tu pulsera ya se está sincronizando."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Votre bracelet est déjà en cours de synchronisation."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La fascia è già in sincronizzazione."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A sua pulseira já está a sincronizar."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Браслет уже синхронизируется."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你的手环已在同步中。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你的手環已在同步中。"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pasek jest już synchronizowany."
+          }
+        }
+      }
+    },
+    "Your strap isn't connected to NOOP yet, so the sync didn't start." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dein Strap ist noch nicht mit NOOP verbunden, daher wurde die Synchronisierung nicht gestartet."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tu pulsera aún no está conectada a NOOP, así que la sincronización no se ha iniciado."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Votre bracelet n'est pas encore connecté à NOOP, la synchronisation n'a donc pas démarré."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La fascia non è ancora collegata a NOOP, quindi la sincronizzazione non è partita."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A sua pulseira ainda não está ligada ao NOOP, por isso a sincronização não começou."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Браслет ещё не подключён к NOOP, поэтому синхронизация не началась."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你的手环尚未连接到 NOOP，因此同步没有开始。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你的手環尚未連接到 NOOP，因此同步沒有開始。"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pasek nie jest jeszcze połączony z NOOP, więc synchronizacja się nie rozpoczęła."
+          }
+        }
+      }
+    },
     "Working sets / your usual" : {
       "localizations" : {
         "de" : {
@@ -422088,6 +422784,180 @@
         }
       }
     },
+    "Holds the screen awake while NOOP pulls stored history from your strap, so you can watch a long sync finish without the phone locking. Only applies while a sync is running and NOOP is open. The screen sleeps normally the rest of the time. It uses a bit more battery while the screen stays on." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hält den Bildschirm wach, während NOOP gespeicherte Daten von deinem Strap abruft, damit du eine lange Synchronisierung bis zum Ende verfolgen kannst, ohne dass sich das Telefon sperrt. Gilt nur, solange eine Synchronisierung läuft und NOOP geöffnet ist. Sonst schaltet sich der Bildschirm normal ab. Solange der Bildschirm an bleibt, verbraucht das etwas mehr Akku."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mantiene la pantalla activa mientras NOOP descarga el historial guardado de tu pulsera, para que puedas ver terminar una sincronización larga sin que el teléfono se bloquee. Solo se aplica mientras hay una sincronización en curso y NOOP está abierto. El resto del tiempo la pantalla se apaga con normalidad. Consume algo más de batería mientras la pantalla sigue encendida."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Garde l'écran allumé pendant que NOOP récupère l'historique enregistré de votre bracelet, pour suivre une longue synchronisation jusqu'au bout sans que le téléphone se verrouille. Ne s'applique que pendant une synchronisation, lorsque NOOP est ouvert. Le reste du temps, l'écran se met en veille normalement. Consomme un peu plus de batterie tant que l'écran reste allumé."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mantiene lo schermo attivo mentre NOOP scarica la cronologia salvata dalla fascia, così puoi seguire una sincronizzazione lunga fino alla fine senza che il telefono si blocchi. Vale solo mentre è in corso una sincronizzazione e NOOP è aperto. Per il resto del tempo lo schermo si spegne normalmente. Consuma un po' più di batteria finché lo schermo resta acceso."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mantém o ecrã ativo enquanto o NOOP transfere o histórico guardado da sua pulseira, para poder acompanhar uma sincronização longa até ao fim sem o telefone bloquear. Só se aplica enquanto decorre uma sincronização e o NOOP está aberto. No resto do tempo o ecrã desliga-se normalmente. Gasta um pouco mais de bateria enquanto o ecrã fica ligado."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Не даёт экрану погаснуть, пока NOOP загружает сохранённую историю с браслета, чтобы вы могли дождаться окончания долгой синхронизации без блокировки телефона. Действует только во время синхронизации при открытом NOOP. В остальное время экран гаснет как обычно. Пока экран включён, расход батареи немного выше."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP 从手环读取已存储的历史数据时保持屏幕常亮，这样你可以看着较长的同步完成，而手机不会锁定。仅在同步进行中且 NOOP 处于打开状态时生效，其余时间屏幕照常休眠。屏幕保持常亮期间会多耗一些电量。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP 從手環讀取已儲存的歷史資料時保持螢幕常亮，讓你可以看著較長的同步完成，而手機不會鎖定。僅在同步進行中且 NOOP 開啟時生效，其餘時間螢幕照常休眠。螢幕保持常亮期間會多耗一些電量。"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Utrzymuje ekran włączony, gdy NOOP pobiera zapisaną historię z paska, aby można było zobaczyć koniec długiej synchronizacji bez blokady telefonu. Działa tylko w trakcie synchronizacji, gdy NOOP jest otwarty. Poza tym ekran wygasa normalnie. Gdy ekran pozostaje włączony, zużywa nieco więcej baterii."
+          }
+        }
+      }
+    },
+    "How NOOP behaves while it pulls stored history from your strap." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wie sich NOOP verhält, während es gespeicherte Daten von deinem Strap abruft."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cómo se comporta NOOP mientras descarga el historial guardado de tu pulsera."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le comportement de NOOP pendant qu'il récupère l'historique enregistré de votre bracelet."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Come si comporta NOOP mentre scarica la cronologia salvata dalla fascia."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Como o NOOP se comporta enquanto transfere o histórico guardado da sua pulseira."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Как ведёт себя NOOP, пока загружает сохранённую историю с браслета."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP 从手环读取已存储的历史数据时的行为。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP 從手環讀取已儲存的歷史資料時的行為。"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jak NOOP działa podczas pobierania zapisanej historii z paska."
+          }
+        }
+      }
+    },
+    "Keep screen on while syncing" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bildschirm während der Synchronisierung anlassen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mantener la pantalla encendida durante la sincronización"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Garder l'écran allumé pendant la synchronisation"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mantieni lo schermo acceso durante la sincronizzazione"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Manter o ecrã ligado durante a sincronização"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Не выключать экран во время синхронизации"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "同步期间保持屏幕常亮"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "同步期間保持螢幕常亮"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trzymaj ekran włączony podczas synchronizacji"
+          }
+        }
+      }
+    },
     "Last 7 days · estimated" : {
       "localizations" : {
         "de" : {
@@ -422142,6 +423012,354 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "最近 7 天 · 估算"
+          }
+        }
+      }
+    },
+    "NOOP couldn't start the sync. Open NOOP to see the strap log." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP konnte die Synchronisierung nicht starten. Öffne NOOP, um das Strap-Protokoll zu sehen."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP no pudo iniciar la sincronización. Abre NOOP para ver el registro de la pulsera."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP n'a pas pu lancer la synchronisation. Ouvrez NOOP pour consulter le journal du bracelet."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP non è riuscito ad avviare la sincronizzazione. Apri NOOP per vedere il registro della fascia."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O NOOP não conseguiu iniciar a sincronização. Abra o NOOP para ver o registo da pulseira."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP не удалось начать синхронизацию. Откройте NOOP, чтобы посмотреть журнал браслета."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP 无法开始同步。打开 NOOP 查看手环日志。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP 無法開始同步。打開 NOOP 查看手環日誌。"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP nie mógł rozpocząć synchronizacji. Otwórz NOOP, aby zobaczyć dziennik paska."
+          }
+        }
+      }
+    },
+    "Pull your WHOOP strap's stored history into NOOP now." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die gespeicherten Daten deines WHOOP-Straps jetzt in NOOP übertragen."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trae ahora a NOOP el historial guardado de tu pulsera WHOOP."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Récupérer maintenant dans NOOP l'historique enregistré de votre bracelet WHOOP."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trasferisci ora in NOOP la cronologia salvata della tua fascia WHOOP."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Transferir agora para o NOOP o histórico guardado da sua pulseira WHOOP."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Загрузить в NOOP сохранённую историю браслета WHOOP сейчас."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "立即将 WHOOP 手环中保存的历史数据同步到 NOOP。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "立即將 WHOOP 手環中儲存的歷史資料同步到 NOOP。"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pobierz teraz do NOOP zapisaną historię z paska WHOOP."
+          }
+        }
+      }
+    },
+    "Stops the screen locking while your strap's history syncs" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verhindert, dass sich der Bildschirm sperrt, während der Verlauf deines Straps synchronisiert wird"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Evita que la pantalla se bloquee mientras se sincroniza el historial de tu pulsera"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Empêche l'écran de se verrouiller pendant la synchronisation de l'historique de votre bracelet"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impedisce il blocco dello schermo mentre si sincronizza la cronologia della fascia"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impede o bloqueio do ecrã enquanto o histórico da pulseira é sincronizado"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Не даёт экрану заблокироваться, пока синхронизируется история браслета"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "手环历史数据同步期间防止屏幕锁定"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "手環歷史資料同步期間防止螢幕鎖定"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zapobiega blokadzie ekranu podczas synchronizacji historii paska"
+          }
+        }
+      }
+    },
+    "Sync Strap" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Strap synchronisieren"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sincronizar pulsera"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Synchroniser le bracelet"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sincronizza la fascia"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sincronizar pulseira"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Синхронизировать браслет"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "同步手环"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "同步手環"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Synchronizuj pasek"
+          }
+        }
+      }
+    },
+    "Sync your strap, buzz it or mark a moment from Siri, Spotlight, the Shortcuts app, or a Back-Tap / automation. No setup needed." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Synchronisiere deinen Strap, lass ihn vibrieren oder markiere einen Moment – über Siri, Spotlight, die Kurzbefehle-App oder Back-Tap / eine Automation. Keine Einrichtung nötig."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sincroniza tu pulsera, hazla vibrar o marca un momento desde Siri, Spotlight, la app Atajos o con Back Tap / una automatización. Sin configuración."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Synchronisez votre bracelet, faites-le vibrer ou marquez un moment depuis Siri, Spotlight, l'app Raccourcis, ou via Toucher le dos / une automatisation. Aucune configuration requise."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sincronizza la fascia, falla vibrare o segna un momento da Siri, Spotlight, l'app Comandi Rapidi, oppure con Tocco posteriore / un'automazione. Nessuna configurazione."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sincronize a pulseira, faça-a vibrar ou marque um momento a partir da Siri, do Spotlight, da app Atalhos, ou com Toque posterior / uma automatização. Sem configuração."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Синхронизируйте браслет, включите вибрацию или отметьте момент через Siri, Spotlight, приложение «Команды», касание задней панели или автоматизацию. Настройка не нужна."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "通过 Siri、Spotlight、快捷指令 App，或轻点背面 / 自动化，同步手环、让它震动或标记时刻。无需设置。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "透過 Siri、Spotlight、捷徑 App，或背面輕點 / 自動化，同步手環、讓它震動或標記時刻。無需設定。"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Synchronizuj pasek, włącz wibrację lub zaznacz chwilę z Siri, Spotlight, aplikacji Skróty, stuknięcia w tył telefonu / automatyzacji. Bez konfiguracji."
+          }
+        }
+      }
+    },
+    "Syncing your strap." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dein Strap wird synchronisiert."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sincronizando tu pulsera."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Synchronisation de votre bracelet en cours."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sincronizzazione della fascia in corso."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A sincronizar a sua pulseira."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Синхронизация браслета запущена."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在同步你的手环。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在同步你的手環。"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trwa synchronizacja paska."
           }
         }
       }
@@ -438082,6 +439300,934 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%@ workout, %@"
+          }
+        }
+      }
+    },
+    "Oura history import" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Oura-Verlauf importieren"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Importar historial de Oura"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Importer l'historique Oura"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Importa cronologia Oura"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Import historii Oura"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Importar histórico da Oura"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Импорт истории Oura"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "导入 Oura 历史记录"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "匯入 Oura 歷史記錄"
+          }
+        }
+      }
+    },
+    "A one-time import of your own Oura history over the Oura API. Runs only when you tap it." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ein einmaliger Import deines eigenen Oura-Verlaufs über die Oura-API. Läuft nur, wenn du darauf tippst."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Una importación única de tu propio historial de Oura mediante la API de Oura. Solo se ejecuta cuando lo tocas."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Une importation unique de votre propre historique Oura via l'API Oura. Ne s'exécute que lorsque vous appuyez dessus."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un'importazione una tantum della tua cronologia Oura tramite l'API di Oura. Si avvia solo quando lo tocchi."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jednorazowy import Twojej historii Oura przez API Oura. Uruchamia się tylko po dotknięciu."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Uma importação única do teu próprio histórico da Oura através da API da Oura. Só é executada quando tocas nela."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Однократный импорт вашей истории Oura через API Oura. Запускается только по нажатию."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "通过 Oura API 一次性导入你自己的 Oura 历史记录。仅在你点按时运行。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "透過 Oura API 一次性匯入你自己的 Oura 歷史記錄。僅在你點按時執行。"
+          }
+        }
+      }
+    },
+    "At least 1 year younger than your age" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mindestens 1 Jahr jünger als dein Alter"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Al menos 1 año menos que tu edad"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Au moins 1 an de moins que votre âge"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Almeno 1 anno in meno della tua età"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Co najmniej 1 rok mniej niż Twój wiek"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pelo menos 1 ano mais novo do que a tua idade"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Как минимум на 1 год моложе вашего возраста"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "比你的实际年龄至少年轻 1 岁"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "比你的實際年齡至少年輕 1 歲"
+          }
+        }
+      }
+    },
+    "At least %lld years younger than your age" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mindestens %lld Jahre jünger als dein Alter"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Al menos %lld años menos que tu edad"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Au moins %lld ans de moins que votre âge"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Almeno %lld anni in meno della tua età"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Co najmniej %lld lat(a) mniej niż Twój wiek"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pelo menos %lld anos mais novo do que a tua idade"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Как минимум на %lld г. моложе вашего возраста"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "比你的实际年龄至少年轻 %lld 岁"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "比你的實際年齡至少年輕 %lld 歲"
+          }
+        }
+      }
+    },
+    "%lld or younger" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld oder jünger"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld o menos"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld ou moins"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld o meno"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld lub mniej"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld ou menos"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld или моложе"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld 岁或更年轻"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld 歲或更年輕"
+          }
+        }
+      }
+    },
+    "At least 1 year older than your age" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mindestens 1 Jahr älter als dein Alter"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Al menos 1 año más que tu edad"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Au moins 1 an de plus que votre âge"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Almeno 1 anno in più della tua età"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Co najmniej 1 rok więcej niż Twój wiek"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pelo menos 1 ano mais velho do que a tua idade"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Как минимум на 1 год старше вашего возраста"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "比你的实际年龄至少大 1 岁"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "比你的實際年齡至少大 1 歲"
+          }
+        }
+      }
+    },
+    "At least %lld years older than your age" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mindestens %lld Jahre älter als dein Alter"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Al menos %lld años más que tu edad"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Au moins %lld ans de plus que votre âge"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Almeno %lld anni in più della tua età"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Co najmniej %lld lat(a) więcej niż Twój wiek"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pelo menos %lld anos mais velho do que a tua idade"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Как минимум на %lld г. старше вашего возраста"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "比你的实际年龄至少大 %lld 岁"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "比你的實際年齡至少大 %lld 歲"
+          }
+        }
+      }
+    },
+    "%lld or older" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld oder älter"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld o más"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld ou plus"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld o più"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld lub więcej"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld ou mais"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld или старше"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld 岁或更大"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld 歲或更大"
+          }
+        }
+      }
+    },
+    "PDF text review isn't available in this build." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die PDF-Textprüfung ist in diesem Build nicht verfügbar."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La revisión de texto de PDF no está disponible en esta compilación."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La relecture du texte des PDF n'est pas disponible dans cette version."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La revisione del testo dei PDF non è disponibile in questa build."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Przegląd tekstu PDF nie jest dostępny w tej wersji."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A revisão de texto de PDF não está disponível nesta versão."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Проверка текста PDF недоступна в этой сборке."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此版本不支持 PDF 文本审阅。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此版本不支援 PDF 文字審閱。"
+          }
+        }
+      }
+    },
+    "Photo text review isn't available in this build." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Foto-Textprüfung ist in diesem Build nicht verfügbar."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La revisión de texto de fotos no está disponible en esta compilación."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La relecture du texte des photos n'est pas disponible dans cette version."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La revisione del testo delle foto non è disponibile in questa build."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Przegląd tekstu ze zdjęć nie jest dostępny w tej wersji."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A revisão de texto de fotografias não está disponível nesta versão."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Проверка текста на фото недоступна в этой сборке."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此版本不支持照片文本审阅。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此版本不支援照片文字審閱。"
+          }
+        }
+      }
+    },
+    "Set complete" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Satz abgeschlossen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Serie completada"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Série terminée"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Serie completata"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Seria ukończona"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Série concluída"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Подход завершён"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "本组完成"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "本組完成"
+          }
+        }
+      }
+    },
+    "Your timed set is ready to finish." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dein zeitgesteuerter Satz kann abgeschlossen werden."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tu serie cronometrada está lista para terminar."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Votre série chronométrée est prête à être terminée."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La tua serie a tempo è pronta per essere completata."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Twoja seria na czas jest gotowa do zakończenia."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A tua série cronometrada está pronta para terminar."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Подход на время можно завершить."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你的计时组可以结束了。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你的計時組可以結束了。"
+          }
+        }
+      }
+    },
+    "Requested" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Angefordert"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Solicitado"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Demandé"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Richiesto"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Na żądanie"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pedido"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "По запросу"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已请求"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已請求"
+          }
+        }
+      }
+    },
+    "Connected live" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Live verbunden"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Conectado en directo"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connecté en direct"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connesso in tempo reale"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Połączono na żywo"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ligado em direto"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Подключено в реальном времени"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "实时连接"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "即時連線"
+          }
+        }
+      }
+    },
+    "no PPG" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "kein PPG"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "sin PPG"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "pas de PPG"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "nessun PPG"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "brak PPG"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "sem PPG"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "нет PPG"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无 PPG"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "無 PPG"
+          }
+        }
+      }
+    },
+    "Baseline %@ · Recent %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Basis %@ · Zuletzt %@"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Base %@ · Reciente %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Référence %@ · Récent %@"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Base %@ · Recente %@"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bazowy %@ · Ostatnio %@"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Base %@ · Recente %@"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "База %@ · Недавно %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "基线 %@ · 近期 %@"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "基線 %@ · 近期 %@"
           }
         }
       }

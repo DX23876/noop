@@ -2745,9 +2745,12 @@ private struct SleepTimeEditor: View {
 
 #if DEBUG
 #Preview("Sleep") {
-    SleepView()
-        .environmentObject(Repository.previewSleep())
+    let repo = Repository.previewSleep()
+    return SleepView()
+        .environmentObject(repo)
         .environmentObject(LiveState())
+        .environmentObject(AppModel())
+        .environmentObject(IntelligenceEngine(repo: repo, profile: ProfileStore(), deviceId: "preview"))
         .frame(width: 980, height: 1180)
         .preferredColorScheme(.dark)
 }

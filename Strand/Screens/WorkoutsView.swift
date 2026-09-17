@@ -29,11 +29,17 @@ struct WorkoutsView: View {
     /// The empty state's "Open Data Sources" button routes through the shell (`NavRouter`), because
     /// neither shell exposes a selection this screen could set directly.
     @EnvironmentObject var router: NavRouter
-    /// #459: "Start Workout" used to live ONLY on the Live screen, so a user reaching Workouts (via the
-    /// Quick-action FAB or the tab) had no way to begin one from the obvious place. Injected here so the
-    /// header/empty-state can start a live session and present the in-exercise view directly.
-    @EnvironmentObject var model: AppModel
-    @State private var showStartSport = false
+    /// PERF (chart-invalidation): `AppModel` publishes `bpm` at ~1 Hz (AppModel.swift:202) via
+    /// `@Published`, and `@EnvironmentObject` subscribes to the WHOLE object's `objectWillChange` —
+    /// regardless of which properties `body` actually reads. Holding `model: AppModel` here re-ran this
+    /// screen's entire ~1900-line body (chart + grids + sorting) every tick. `hrMax` and `analyzeRecent()`
+    /// are the only two things this screen needs, and both live on sub-objects (`ProfileStore`,
+    /// `IntelligenceEngine`) injected separately at the app root (StrandApp.swift) — neither publishes at
+    /// live-tick frequency. The one genuinely `AppModel`-dependent piece ("Start Workout" / active-session
+    /// state, #459) is isolated into `WorkoutStartControl`, mirroring `HealthView`'s live-observing-leaf
+    /// pattern (HealthView.swift:17-22, 44-46), so a tick re-renders only that small leaf.
+    @EnvironmentObject var profile: ProfileStore
+    @EnvironmentObject var intelligence: IntelligenceEngine
 
     // Exercise-distance preference (#1913). Unset follows the original combined preference.
     @AppStorage(UnitPrefs.systemKey) private var unitSystemRaw = UnitSystem.metric.rawValue
@@ -177,7 +183,15 @@ struct WorkoutsView: View {
     }
 
     var body: some View {
-        ScreenScaffold(title: "Workouts", subtitle: "Every session, threaded together.",
+        // Compute the windowed (unscoped) rows ONCE per body evaluation and thread them into both the
+        // session list below AND the HR-recovery trend `.task(id:)` further down this modifier chain.
+        // SwiftUI re-runs `body` on hover/animation/1Hz HR ticks; `sessions(for:)` was independently
+        // re-derived by `windowRows` here AND by `recoveryTrendRows` (via `recoveryTrendInputKey`, read on
+        // every body pass as the `.task(id:)` argument) — the same unscoped filter run twice per pass.
+        let resolved = effectiveRange
+        let unscopedRows = sessions(for: resolved)
+        let trendRows = recoveryTrendRows(from: unscopedRows)
+        return ScreenScaffold(title: "Workouts", subtitle: "Every session, threaded together.",
                        onRefresh: { await repo.refresh() },
                        // PERF: the column ends in the full "All Sessions" log (the breakdown grid, the
                        // zones card, and a row-per-session table). On a large imported history the eager
@@ -200,17 +214,13 @@ struct WorkoutsView: View {
                     }
                 }
             } else {
-                // Compute the windowed rows and per-sport groups ONCE per body
-                // evaluation, then thread them into every section. SwiftUI re-runs
-                // `body` on hover/animation/1Hz HR ticks; the previous computed-
-                // property fan-out (rows → effectiveRange → sessions(_:), and
-                // sportGroups → rows → …) rebuilt the same filters/aggregations
-                // several times per render. Same windowing, same results.
-                let resolved = effectiveRange
-                // Current / Archived applies to what the LIST and its summaries show. `sessions(for:)`
+                // Compute the per-sport groups ONCE per body evaluation, then thread them into every
+                // section — same idea as `unscopedRows` above, applied to the rest of the fan-out
+                // (rows → sportGroups → …) that used to rebuild several times per render.
+                // Current / Archived applies to what the LIST and its summaries show. `unscopedRows`
                 // itself stays unscoped so the HR-recovery trend and the auto-widen probe keep seeing the
                 // whole window.
-                let windowRows = Self.scopedRows(sessions(for: resolved), scope: scope)
+                let windowRows = Self.scopedRows(unscopedRows, scope: scope)
                 let groups = sportGroups(from: windowRows)
                 let zonesSummary = WorkoutZones.summary(from: windowRows)
 
@@ -268,8 +278,8 @@ struct WorkoutsView: View {
         .onChange(of: range) { newRange in
             Task { await expandWindowIfNeeded(for: newRange == .all ? .all : effectiveRange) }
         }
-        .task(id: recoveryTrendInputKey) {
-            await loadRecoveryTrend()
+        .task(id: recoveryTrendInputKey(rows: trendRows)) {
+            await loadRecoveryTrend(rows: trendRows)
         }
         .sheet(item: $sheet) { target in
             ManualWorkoutSheet(editing: target.editing) { row, replacing in
@@ -285,7 +295,7 @@ struct WorkoutsView: View {
                     // because the analysis pass itself deletes and re-inserts DETECTED workouts in the window
                     // it just scored — marking there would have every pass invalidate its own output. So the
                     // day this edit touches has to be re-derived by saying so, not by the fingerprint noticing.
-                    await model.intelligence.analyzeRecent(allowDayReuse: false)
+                    await intelligence.analyzeRecent(allowDayReuse: false)
                     await reload()
                     // Post-log note (#439): if this sport now has a solid/building recovery-cost
                     // entry, surface its personal-pattern sentence as a transient caption.
@@ -307,13 +317,9 @@ struct WorkoutsView: View {
             .frame(width: 620, height: 720)
             #endif
         }
-        // #519: name the sport before a live session starts, then open the in-exercise view directly
-        // (same direct present as the button's already-active path — no cross-view auto-present race).
-        .workoutSelectionCover(isPresented: $showStartSport) {
-            StartWorkoutSheet(offersZoneTraining: true) { name, targetZone in
-                model.session.requestCardio(sport: name, targetZone: targetZone)
-            }
-        }
+        // #459 / PERF: the "Start Workout" button, its active-session sheet and the sport-picker cover all
+        // moved to `WorkoutStartControl`, which owns `AppModel` itself — see the comment on this screen's
+        // `profile`/`intelligence` properties above for why `model` can't live here.
         // #64: name the merged session when every selected row is a bare detected bout (there's no sport
         // to inherit). Reuses the "Start a workout" named-sport picker.
         .workoutSelectionCover(item: $mergeSportPrompt) { target in
@@ -338,19 +344,21 @@ struct WorkoutsView: View {
 
     // MARK: - Heart-rate recovery trend (#516)
 
-    /// Apply the screen's active filter + range, capped to the latest 90 days as promised by the feature.
-    private var recoveryTrendRows: [WorkoutRow] {
-        let visible = sessions(for: effectiveRange)
+    /// Apply the screen's 90-day cap to the already-`sessions(for:)`-filtered `unscopedRows` `body`
+    /// computes once. PERF: this used to re-derive `sessions(for: effectiveRange)` from scratch (the SAME
+    /// unscoped filter `body`'s `windowRows` already ran), so a body pass — routinely once per second on
+    /// a ~1 Hz HR tick before the `WorkoutStartControl` isolation above — filtered `allRows` twice.
+    /// Reusing the caller's rows removes the second pass; taking them as a parameter (rather than a
+    /// computed property reading `effectiveRange` again) is what makes the reuse possible.
+    private func recoveryTrendRows(from unscopedRows: [WorkoutRow]) -> [WorkoutRow] {
         guard let last = latestTs else { return [] }
         let cutoff = last - 90 * 86_400
-        return visible.filter { $0.startTs >= cutoff }.sorted { $0.startTs < $1.startTs }
+        return unscopedRows.filter { $0.startTs >= cutoff }.sorted { $0.startTs < $1.startTs }
     }
 
     /// Stable task identity: changing the range/filter/rows or HRmax cancels and rebuilds the trend.
-    private var recoveryTrendInputKey: String {
-        let rows = recoveryTrendRows
-        return "\(repo.refreshSeq)|\(model.profile.hrMax)|"
-            + rows.map { "\($0.startTs):\($0.endTs)" }.joined(separator: ",")
+    private func recoveryTrendInputKey(rows: [WorkoutRow]) -> String {
+        "\(repo.refreshSeq)|\(profile.hrMax)|" + rows.map { "\($0.startTs):\($0.endTs)" }.joined(separator: ",")
     }
 
     private var recoveryTrendCaption: String {
@@ -358,13 +366,13 @@ struct WorkoutsView: View {
         return String(localized: "last 90 days")
     }
 
-    private func loadRecoveryTrend() async {
+    private func loadRecoveryTrend(rows: [WorkoutRow]) async {
         guard !usesPreviewRows else { recoveryTrend = []; return }
         var built: [WorkoutRecoveryTrendPoint] = []
-        for row in recoveryTrendRows {
+        for row in rows {
             if Task.isCancelled { return }
             if let result = await repo.workoutHeartRateRecovery(
-                from: row.startTs, to: row.endTs, maxHR: Double(model.profile.hrMax),
+                from: row.startTs, to: row.endTs, maxHR: Double(profile.hrMax),
                 source: row.source) {
                 built.append(WorkoutRecoveryTrendPoint(startTs: row.startTs, result: result))
             }
@@ -500,7 +508,7 @@ struct WorkoutsView: View {
             // accident is gone — the day's fingerprint has not moved, since workout mutations deliberately
             // do not mark it (see the note on the manual-save path) — so the deletion has to say so itself,
             // or the day would keep scoring a workout that is no longer there.
-            await model.intelligence.analyzeRecent(allowDayReuse: false)
+            await intelligence.analyzeRecent(allowDayReuse: false)
             await reload()
         }
     }
@@ -652,26 +660,12 @@ struct WorkoutsView: View {
         .accessibilityLabel("Add a workout")
     }
 
-    /// #459: begin (or jump back into) a live, manually-tracked workout straight from Workouts — the
-    /// place people instinctively look — instead of only from the Live screen. Starts the session and
-    /// presents the in-exercise view directly (no cross-view auto-present race with LiveView's sheet).
-    private var startLiveWorkoutButton: some View {
-        NoopButton(model.activeWorkout == nil ? "Start workout" : "View active workout",
-                   systemImage: model.activeWorkout == nil ? "figure.run" : "timer",
-                   kind: .primary,
-                   fullWidth: true) {
-            // No active session → pick a named sport first (#519), then the sheet's onStart begins it
-            // and opens the in-exercise view. Already active → jump straight back into the live view.
-            if model.activeWorkout == nil { showStartSport = true }
-            else { model.session.present() }
-        }
-        .accessibilityLabel(model.activeWorkout == nil ? "Start a workout" : "View the active workout")
-    }
-
     /// Equal-width primary actions share the same content width as every card below them.
+    /// #459 / PERF: the live-workout button is `WorkoutStartControl`, a leaf that owns `AppModel` itself
+    /// so this screen doesn't have to — see the comment on `profile`/`intelligence` above.
     private var workoutActionRow: some View {
         HStack(spacing: NoopMetrics.rowSpacing) {
-            startLiveWorkoutButton
+            WorkoutStartControl()
                 .frame(maxWidth: .infinity)
             addWorkoutButton
                 .frame(maxWidth: .infinity)
@@ -1441,7 +1435,7 @@ struct WorkoutsView: View {
             await repo.mergeWorkouts(chosen, into: merged)
             // `allowDayReuse: false` — see the note on the manual-save path above: a workout mutation is
             // invisible to the per-day fingerprint, so the affected day must be re-derived explicitly.
-            await model.intelligence.analyzeRecent(allowDayReuse: false)
+            await intelligence.analyzeRecent(allowDayReuse: false)
             await reload()
         }
     }
@@ -1985,8 +1979,20 @@ struct WorkoutsView: View {
 /// Three raw-bpm HRR lines on one shared axis (#516). Unlike Compare's normalized overlay, these values
 /// share a unit and scale, so their vertical distance remains meaningful. Point marks keep a single eligible
 /// workout visible even when there is not yet enough history to draw a line.
+///
+/// PERF: an active period (multiple workouts/day over the 90-day window `recoveryTrendRows` caps to) can
+/// put several hundred points on this chart — up to 3 (1/2/5-min) per workout. `displayPlots` downsamples
+/// EACH interval's line independently with StrandDesign's `ChartDownsample.minMaxBucketed` (the same
+/// helper TrendChart/OverviewHRChart use, generalized to a date/value key-path form so it can be called
+/// from here); hover still reads the full-resolution `points`, never the downsampled draw set.
+///
+/// Hover/tooltip (previously missing): reuses the same `CrosshairRule`/`HighlightDot`/`PositionedTooltip`/
+/// `ChartTooltip` components `TrendChart`'s `chartOverlay` uses — no new mechanism.
 private struct WorkoutRecoveryTrendChart: View {
     let points: [WorkoutRecoveryTrendPoint]
+
+    /// The x-position the cursor is hovering, in chart-local coordinates.
+    @State private var hoverX: CGFloat? = nil
 
     private struct Plot: Identifiable {
         let startTs: Int
@@ -1996,17 +2002,21 @@ private struct WorkoutRecoveryTrendChart: View {
         var date: Date { Date(timeIntervalSince1970: TimeInterval(startTs)) }
     }
 
+    private static let oneLabel = String(localized: "1 min")
+    private static let twoLabel = String(localized: "2 min")
+    private static let fiveLabel = String(localized: "5 min")
+
     private var plots: [Plot] {
         points.flatMap { point in
             var out: [Plot] = []
             if let value = point.result.after1Minute {
-                out.append(Plot(startTs: point.startTs, interval: String(localized: "1 min"), value: value))
+                out.append(Plot(startTs: point.startTs, interval: Self.oneLabel, value: value))
             }
             if let value = point.result.after2Minutes {
-                out.append(Plot(startTs: point.startTs, interval: String(localized: "2 min"), value: value))
+                out.append(Plot(startTs: point.startTs, interval: Self.twoLabel, value: value))
             }
             if let value = point.result.after5Minutes {
-                out.append(Plot(startTs: point.startTs, interval: String(localized: "5 min"), value: value))
+                out.append(Plot(startTs: point.startTs, interval: Self.fiveLabel, value: value))
             }
             return out
         }
@@ -2014,11 +2024,46 @@ private struct WorkoutRecoveryTrendChart: View {
 
     @Environment(\.noopDifferentiateWithoutColor) private var differentiateWithoutColor
 
+    /// `plots`, min/max-bucketed per interval so a dense line downsamples on its OWN shape rather than
+    /// having one series' bucket choice clip another's peaks.
+    private var displayPlots: [Plot] {
+        let byInterval = Dictionary(grouping: plots, by: \.interval)
+        return [Self.oneLabel, Self.twoLabel, Self.fiveLabel].flatMap { key -> [Plot] in
+            let series = (byInterval[key] ?? []).sorted { $0.startTs < $1.startTs }
+            return ChartDownsample.minMaxBucketed(series, threshold: ChartDownsample.markThreshold,
+                                                   targetCount: ChartDownsample.targetVertices,
+                                                   date: { $0.date }, value: { Double($0.value) })
+        }
+    }
+
+    /// The full-resolution workout nearest a given chart-local x (not per-interval — one workout can carry
+    /// up to 3 values at the SAME x, so the tooltip names whichever are available together).
+    private func nearestPoint(toX x: CGFloat, proxy: ChartProxy, plot: CGRect) -> WorkoutRecoveryTrendPoint? {
+        guard !points.isEmpty else { return nil }
+        let relX = x - plot.minX
+        guard let date: Date = proxy.value(atX: relX) else { return nil }
+        return points.min(by: {
+            abs(TimeInterval($0.startTs) - date.timeIntervalSince1970)
+                < abs(TimeInterval($1.startTs) - date.timeIntervalSince1970)
+        })
+    }
+
+    private static let tooltipDateFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "d MMM yyyy"
+        return f
+    }()
+
+    private func tooltipValue(for point: WorkoutRecoveryTrendPoint) -> String {
+        var parts: [String] = []
+        if let v = point.result.after1Minute { parts.append(String(localized: "1m \(v)")) }
+        if let v = point.result.after2Minutes { parts.append(String(localized: "2m \(v)")) }
+        if let v = point.result.after5Minutes { parts.append(String(localized: "5m \(v)")) }
+        return parts.joined(separator: " · ")
+    }
+
     var body: some View {
-        let one = String(localized: "1 min")
-        let two = String(localized: "2 min")
-        let five = String(localized: "5 min")
-        Chart(plots) { point in
+        Chart(displayPlots) { point in
             LineMark(
                 x: .value("Workout", point.date),
                 y: .value("Recovery", point.value)
@@ -2030,7 +2075,7 @@ private struct WorkoutRecoveryTrendChart: View {
             .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round,
                                    dash: differentiateWithoutColor
                                        ? ChartDifferentiation.dashPattern(
-                                           seriesIndex: [one, two, five].firstIndex(of: point.interval) ?? 0)
+                                           seriesIndex: [Self.oneLabel, Self.twoLabel, Self.fiveLabel].firstIndex(of: point.interval) ?? 0)
                                        : []))
             .interpolationMethod(.catmullRom)
             PointMark(
@@ -2042,7 +2087,7 @@ private struct WorkoutRecoveryTrendChart: View {
             .symbolSize(28)
         }
         .chartForegroundStyleScale(
-            domain: [one, two, five],
+            domain: [Self.oneLabel, Self.twoLabel, Self.fiveLabel],
             range: [StrandPalette.metricRose, StrandPalette.metricCyan, StrandPalette.metricPurple]
         )
         .chartLegend(.hidden)
@@ -2060,6 +2105,43 @@ private struct WorkoutRecoveryTrendChart: View {
                     if let bpm = value.as(Int.self) { Text("\(bpm)") }
                 }
                 .foregroundStyle(StrandPalette.textTertiary)
+            }
+        }
+        .chartOverlay { proxy in
+            GeometryReader { geo in
+                let plot = proxy.plotRectCompat(in: geo)
+                ZStack(alignment: .topLeading) {
+                    if let hx = hoverX,
+                       let p = nearestPoint(toX: hx, proxy: proxy, plot: plot),
+                       let px = proxy.position(forX: Date(timeIntervalSince1970: TimeInterval(p.startTs))) {
+                        let cx = px + plot.minX
+                        CrosshairRule(x: cx, height: geo.size.height)
+                        PositionedTooltip(
+                            anchor: CGPoint(x: cx, y: plot.minY + 8),
+                            container: geo.size,
+                            tooltip: ChartTooltip(
+                                value: tooltipValue(for: p),
+                                label: Self.tooltipDateFormatter.string(
+                                    from: Date(timeIntervalSince1970: TimeInterval(p.startTs)))
+                            )
+                        )
+                    }
+                }
+                .animation(StrandMotion.fade, value: hoverX)
+                .frame(width: geo.size.width, height: geo.size.height, alignment: .topLeading)
+                .contentShape(Rectangle())
+                .onContinuousHover(coordinateSpace: .local) { phase in
+                    // Non-animating transaction: otherwise crossing the plot edge re-runs the line's
+                    // draw-on animation and flickers the curve (mirrors TrendChart #104).
+                    var tx = Transaction()
+                    tx.disablesAnimations = true
+                    withTransaction(tx) {
+                        switch phase {
+                        case .active(let location): hoverX = location.x
+                        case .ended: hoverX = nil
+                        }
+                    }
+                }
             }
         }
         .accessibilityLabel("Heart-rate recovery trend in beats per minute")
@@ -2101,15 +2183,23 @@ private func previewWorkoutRows() -> [WorkoutRow] {
 }
 
 #Preview("Workouts") {
-    WorkoutsView(previewRows: previewWorkoutRows())
-        .environmentObject(Repository(deviceId: "preview"))
+    let repo = Repository(deviceId: "preview")
+    return WorkoutsView(previewRows: previewWorkoutRows())
+        .environmentObject(repo)
+        .environmentObject(ProfileStore())
+        .environmentObject(AppModel())
+        .environmentObject(IntelligenceEngine(repo: repo, profile: ProfileStore(), deviceId: "preview"))
         .frame(width: 1040, height: 940)
         .preferredColorScheme(.dark)
 }
 
 #Preview("Workouts — empty") {
-    WorkoutsView(previewRows: [])
-        .environmentObject(Repository(deviceId: "preview"))
+    let repo = Repository(deviceId: "preview")
+    return WorkoutsView(previewRows: [])
+        .environmentObject(repo)
+        .environmentObject(ProfileStore())
+        .environmentObject(AppModel())
+        .environmentObject(IntelligenceEngine(repo: repo, profile: ProfileStore(), deviceId: "preview"))
         .frame(width: 1040, height: 600)
         .preferredColorScheme(.dark)
 }

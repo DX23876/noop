@@ -505,3 +505,105 @@ class CatalogSummaryPluralCoverage(unittest.TestCase):
     def test_should_translate_false_is_skipped(self):
         cat = {"strings": {"NOOP": {"shouldTranslate": False, "localizations": {}}}}
         self.assertIn("de missing=0", self._summary(cat))
+
+
+class SwiftReturnedCopyTests(unittest.TestCase):
+    """Copy a screen RETURNS as a String, not copy sitting inside a `Text(...)` argument.
+
+    The scanner used to look only inside localized SwiftUI calls, so a literal returned from a
+    `var label: String { ... }` was invisible. That is not a harmless miss: a bare literal returned that
+    way reaches `Text` already resolved and renders in English on every device forever. It shipped once
+    that way, a Workouts Current/Archived tab pair, while the gate passed, having flagged only the
+    accessibility key beside it.
+    """
+
+    def found(self, text: str) -> list[str]:
+        return [lit for _, lit in ia.swift_returned_copy_literals(text)]
+
+    def test_ternary_form_is_seen(self):
+        src = 'var label: String { self == .a ? "Alpha" : "Beta" }'
+        self.assertEqual(self.found(src), ["Alpha", "Beta"])
+
+    def test_switch_arm_is_seen(self):
+        # The shape this rule MUST cover, and the one its first draft missed: a `switch` opens a second
+        # brace level, so keying on brace depth silently skipped every case arm while the ternary above
+        # still passed. Switch is the commoner spelling in this repository.
+        src = (
+            'var label: String {\n'
+            '    switch self {\n'
+            '    case .a: return "Alpha"\n'
+            '    case .b: return "Beta"\n'
+            '    }\n'
+            '}'
+        )
+        self.assertEqual(self.found(src), ["Alpha", "Beta"])
+
+    def test_implicit_return_switch_arm_is_seen(self):
+        src = 'var title: String {\n    switch self {\n    case .a: "Alpha"\n    }\n}'
+        self.assertEqual(self.found(src), ["Alpha"])
+
+    def test_string_localized_is_left_to_the_normal_scan(self):
+        # The sanctioned spelling for a value that has to be a String. Flagging it would punish the
+        # convention this rule exists to protect.
+        src = 'var label: String {\n    switch self {\n    case .a: return String(localized: "Alpha")\n    }\n}'
+        self.assertEqual(self.found(src), [])
+
+    def test_argument_labels_are_not_mistaken_for_case_arms(self):
+        # `joined(separator: ", ")` ends in a colon exactly like `case .a:`, so a bare "ends with a
+        # colon" test reported the separator as untranslated UI.
+        src = 'var label: String {\n    let p = names.joined(separator: ", ")\n    return p\n}'
+        self.assertEqual(self.found(src), [])
+
+    def test_non_copy_property_names_are_ignored(self):
+        # Only names that ARE copy. A `var id: String` or a `var sportKey: String` returns an
+        # identifier, and sweeping those is what produced 71 findings in the first draft.
+        for src in (
+            'var id: String { "raw-token" }',
+            'var sportKey: String { return "running" }',
+        ):
+            self.assertEqual(self.found(src), [], src)
+
+    def test_nested_closure_literal_is_not_returned_copy(self):
+        src = (
+            'var label: String {\n'
+            '    let joined = items.map { $0.replacingOccurrences(of: "x", with: "y") }\n'
+            '    return joined.first ?? ""\n'
+            '}'
+        )
+        self.assertNotIn("x", self.found(src))
+
+
+class SwiftLocalizedStringScanning(unittest.TestCase):
+    """`String(localized:)` copy must reach the catalog-membership check.
+
+    The scanner keys off SWIFT_CALL_START_PATTERN, which listed the SwiftUI views and modifiers that
+    localize but not `String(localized:)`. So the sanctioned spelling for copy that has to be a `String`
+    was the one spelling nothing checked a key for. `swift_returned_copy_literals` deliberately skips it
+    and said so in a comment, delegating to "the normal scan" that in fact never looked, which is how the
+    hole stayed invisible: 242 such strings resolve to no catalog entry and render English in every
+    locale, the app's legal terms in `Strand/App/Terms.swift` among them.
+    """
+
+    def found(self, text: str) -> list[str]:
+        return [lit for _, lit in ia.swift_string_literals(text)]
+
+    def test_localized_string_is_seen(self):
+        self.assertEqual(self.found('let x = String(localized: "Alpha")'), ["Alpha"])
+
+    def test_interpolated_localized_string_is_seen(self):
+        # The shape that shipped unlocalized: a tooltip built as `String(localized: "1m \(v)")`.
+        self.assertEqual(self.found('let x = String(localized: "1m \\(v)")'), ["1m \\(v)"])
+
+    def test_string_format_is_not_copy(self):
+        # `String(format:)` carries a format spec, not user-facing copy.
+        self.assertEqual(self.found('let x = String(format: "%.1f", v)'), [])
+
+    def test_string_describing_is_not_copy(self):
+        self.assertEqual(self.found('let x = String(describing: "raw")'), [])
+
+    def test_spacing_variants_are_seen(self):
+        self.assertEqual(self.found('let x = String( localized: "Alpha")'), ["Alpha"])
+
+    def test_localized_alongside_a_view_literal(self):
+        src = 'Text("Shown")\nlet x = String(localized: "Also shown")'
+        self.assertEqual(self.found(src), ["Shown", "Also shown"])

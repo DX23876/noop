@@ -30,7 +30,8 @@ struct TrainingLoadCard: View {
         return f
     }()
 
-    private struct Row: Identifiable {
+    /// `internal` (not `private`): `TrainingLoadChart` (its own file) plots these.
+    struct Row: Identifiable {
         let date: Date
         let ctl: Double
         let atl: Double
@@ -38,18 +39,58 @@ struct TrainingLoadCard: View {
     }
 
     /// One modelled point per day of the contiguous suffix the engine returned.
-    private var rows: [Row] {
+    private func rows(from result: TrainingLoadEngine.Result) -> [Row] {
         result.points.compactMap { p in
             guard let d = Self.dayParser.date(from: p.day) else { return nil }
             return Row(date: d, ctl: p.chronicLoad, atl: p.acuteLoad)
         }
     }
 
+    /// PERF: `result` used to be a plain computed property re-running `TrainingLoadEngine.evaluate`
+    /// (a full-history EWMA scan) from scratch on every access — and `body` hit it TWICE per render
+    /// (`let tl = result` here, then again via the old `rows`/`chart` computed properties), so opening
+    /// this card ran the model twice per render, including on animation/hover frames and, before the
+    /// `WorkoutsView`/`HealthView` AppModel-isolation fixes elsewhere, on every ~1 Hz live-HR tick.
+    /// Mirrors the `modelCache`/`modelCacheKey` idiom `CompareView` already uses for its own memoized
+    /// chart model (CompareView.swift:741-742): cached value + fingerprint, refreshed via `onAppear`/
+    /// `onChange` rather than mutated mid-body.
+    @State private var resultCache: TrainingLoadEngine.Result = Self.computeResult(days: [])
+    @State private var resultCacheKey: String = ""
+
+    /// Fingerprint of `days`. `days` is `Repository.days` (TrendsView.swift) — the SAME live-updating
+    /// array `HealthView`/`TrendsView` observe, whose latest entry keeps accumulating strain through the
+    /// day. That's why this can't copy `CompareView.modelKey`'s count+endpoints idiom verbatim (a fixed
+    /// count/date range with a changing LAST value would never invalidate the cache): the key covers the
+    /// total count (so a backfill/import that lengthens history always invalidates) plus every
+    /// `(day, strain)` pair in the trailing `establishedDays` window the model actually weighs at anything
+    /// more than a couple of percent (42-day EWMA — older days are exponentially near-zero weight).
+    /// `internal` (not `private`), matching the MotionTrace-peak precedent (#2288) of the minimum a test
+    /// can reach, so `StrandTests` can pin it without rendering the chart.
+    static func modelKey(for days: [DailyMetric]) -> String {
+        let tail = days.suffix(TrainingLoadEngine.Configuration.standard.establishedDays)
+        return "\(days.count)|" + tail.map { "\($0.day):\($0.strain ?? -1)" }.joined(separator: ",")
+    }
+
     /// Model straight from the training-load engine — NOT the paired `evaluateWithTrainingLoad`, which
     /// would also run the full Readiness synthesis this card never uses. `DailyMetric.strain` is the load.
-    private var result: TrainingLoadEngine.Result {
+    private static func computeResult(days: [DailyMetric]) -> TrainingLoadEngine.Result {
         let loads = days.map { TrainingLoadEngine.DailyLoad(day: $0.day, load: $0.strain) }
         return TrainingLoadEngine.evaluate(days: loads)
+    }
+
+    /// Cached accessor used by `body`. Mirrors `CompareView.currentModel`: returns the memoized result
+    /// when the inputs match, else computes for THIS render (without mutating state mid-body); the
+    /// matching `.onAppear`/`.onChange` then persist it so subsequent hover/animation frames hit the cache.
+    private var result: TrainingLoadEngine.Result {
+        Self.modelKey(for: days) == resultCacheKey ? resultCache : Self.computeResult(days: days)
+    }
+
+    /// Rebuild the result cache if (and only if) the fingerprint changed.
+    private func refreshResult() {
+        let key = Self.modelKey(for: days)
+        guard key != resultCacheKey else { return }
+        resultCacheKey = key
+        resultCache = Self.computeResult(days: days)
     }
 
     private static let established = TrainingLoadEngine.Configuration.standard.establishedDays
@@ -60,55 +101,39 @@ struct TrainingLoadCard: View {
 
     var body: some View {
         let tl = result
-        if !tl.isAvailable {
-            unavailableCard(contiguousDays: tl.contiguousDays)
-        } else {
-            let latest = tl.points.last
-            ChartCard(
-                title: "Effort over time",
-                subtitle: subtitle(for: tl),
-                trailing: latest.map { signed($0.balance) },
-                height: NoopMetrics.chartHeight,
-                chart: {
-                    VStack(alignment: .leading, spacing: NoopMetrics.space2) {
-                        legend
-                        chart
+        Group {
+            if !tl.isAvailable {
+                unavailableCard(contiguousDays: tl.contiguousDays)
+            } else {
+                let latest = tl.points.last
+                let rows = rows(from: tl)
+                ChartCard(
+                    title: "Effort over time",
+                    subtitle: subtitle(for: tl),
+                    trailing: latest.map { signed($0.balance) },
+                    height: NoopMetrics.chartHeight,
+                    chart: {
+                        VStack(alignment: .leading, spacing: NoopMetrics.space2) {
+                            legend
+                            TrainingLoadChart(rows: rows)
+                        }
+                    },
+                    footer: {
+                        ChartFooter([
+                            ("Baseline", latest.map { fmt($0.chronicLoad) } ?? "—"),
+                            ("Recent", latest.map { fmt($0.acuteLoad) } ?? "—"),
+                            ("Balance", latest.map { signed($0.balance) } ?? "—"),
+                            ("Days", "\(tl.contiguousDays)"),
+                        ])
                     }
-                },
-                footer: {
-                    ChartFooter([
-                        ("Baseline", latest.map { fmt($0.chronicLoad) } ?? "—"),
-                        ("Recent", latest.map { fmt($0.acuteLoad) } ?? "—"),
-                        ("Balance", latest.map { signed($0.balance) } ?? "—"),
-                        ("Days", "\(tl.contiguousDays)"),
-                    ])
-                }
-            )
-        }
-    }
-
-    // Two overlaid lines: CTL (fitness) and ATL (fatigue). The vertical gap between them is the form.
-    private var chart: some View {
-        // Floor at 1 (matching the Android `fold(1.0)` twin): an all-rest window of zero loads would
-        // otherwise make the y-domain `0...0`, which Swift Charts renders as a degenerate/empty scale.
-        let maxY = max(rows.map { max($0.ctl, $0.atl) }.max() ?? 1, 1)
-        return Chart {
-            ForEach(rows) { r in
-                LineMark(x: .value("Day", r.date), y: .value("CTL", r.ctl),
-                         series: .value("Series", "CTL"))
-                    .foregroundStyle(StrandPalette.gold)
-                    .interpolationMethod(.catmullRom)
-            }
-            ForEach(rows) { r in
-                LineMark(x: .value("Day", r.date), y: .value("ATL", r.atl),
-                         series: .value("Series", "ATL"))
-                    .foregroundStyle(StrandPalette.strain100)
-                    .interpolationMethod(.catmullRom)
+                )
             }
         }
-        .chartYScale(domain: 0...(maxY * 1.08))
-        .chartYAxis { AxisMarks(position: .leading) }
-        .accessibilityLabel(Text("Effort over time: baseline versus recent"))
+        // Persist the memoized result into `@State` (mirrors `CompareView`'s `.onAppear { refreshModel() }`
+        // / `.onChangeCompat(of: modelKey)` pair) so the NEXT render's `result` access hits the cache
+        // instead of recomputing — `body` itself never mutates `@State` mid-evaluation.
+        .onAppear { refreshResult() }
+        .onChangeCompat(of: Self.modelKey(for: days)) { _ in refreshResult() }
     }
 
     private var legend: some View {

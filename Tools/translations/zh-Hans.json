@@ -1555,5 +1555,21 @@
   "e.g. Feel good on the hills again": "例如:在爬坡时重新感觉良好",
   "%.0f / %.0fs": "%.0f / %.0fs",
   "%@ → %@": "%@ → %@",
-  "%@ workout, %@": "%@ 锻炼，%@"
+  "%@ workout, %@": "%@ 锻炼，%@",
+  "Oura history import": "导入 Oura 历史记录",
+  "A one-time import of your own Oura history over the Oura API. Runs only when you tap it.": "通过 Oura API 一次性导入你自己的 Oura 历史记录。仅在你点按时运行。",
+  "At least 1 year younger than your age": "比你的实际年龄至少年轻 1 岁",
+  "At least %lld years younger than your age": "比你的实际年龄至少年轻 %lld 岁",
+  "%lld or younger": "%lld 岁或更年轻",
+  "At least 1 year older than your age": "比你的实际年龄至少大 1 岁",
+  "At least %lld years older than your age": "比你的实际年龄至少大 %lld 岁",
+  "%lld or older": "%lld 岁或更大",
+  "PDF text review isn't available in this build.": "此版本不支持 PDF 文本审阅。",
+  "Photo text review isn't available in this build.": "此版本不支持照片文本审阅。",
+  "Set complete": "本组完成",
+  "Your timed set is ready to finish.": "你的计时组可以结束了。",
+  "Requested": "已请求",
+  "Connected live": "实时连接",
+  "no PPG": "无 PPG",
+  "Baseline %@ · Recent %@": "基线 %@ · 近期 %@"
 }

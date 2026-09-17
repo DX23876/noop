@@ -415,10 +415,18 @@ struct LiveHRSample: Identifiable, Equatable {
 /// axis-less Sparkline on this hero (#198) — an iPhone user has no hover, so the visible
 /// clock axis is the fix. Built on Swift Charts; the strict rolling 3-minute window comes
 /// from the caller's 1 Hz-sampled, 180-capped buffer (HeartRateSection.hrHistory, #941).
+///
+/// Hover/tooltip (previously missing): reuses the same `CrosshairRule`/`HighlightDot`/`PositionedTooltip`/
+/// `ChartTooltip` components `TrendChart`'s `chartOverlay` uses — no new mechanism. No downsampling here:
+/// the buffer is already capped at 180 samples (#941) and this IS the live, in-progress trace, so every
+/// sample stays significant.
 private struct LiveTimeChart: View {
     var samples: [LiveHRSample]
     /// The gradient the line/area is stroked with (the current HR-zone band).
     var gradient: Gradient
+
+    /// The x-position the cursor is hovering, in chart-local coordinates.
+    @State private var hoverX: CGFloat? = nil
 
     /// Auto-fitted y bounds with a little headroom so the trace never kisses the edges.
     private var yDomain: ClosedRange<Double> {
@@ -437,6 +445,21 @@ private struct LiveTimeChart: View {
     /// The lightest stop of the zone gradient, used to tint the area wash.
     private var areaTint: Color {
         StrandPalette.sample(stops: gradient.stops, at: 0.85)
+    }
+
+    /// The sample nearest a given chart-local x, matching `TrendChart.nearestPoint`.
+    private func nearestSample(toX x: CGFloat, proxy: ChartProxy, plot: CGRect) -> LiveHRSample? {
+        guard !samples.isEmpty else { return nil }
+        let relX = x - plot.minX
+        guard let date: Date = proxy.value(atX: relX) else { return nil }
+        return samples.min(by: { abs($0.date.timeIntervalSince(date)) < abs($1.date.timeIntervalSince(date)) })
+    }
+
+    // Map a bpm value onto the unit interval for gradient sampling, same idiom as `TrendChart.unit`.
+    private func unit(_ value: Double) -> Double {
+        let lo = yDomain.lowerBound, hi = yDomain.upperBound
+        guard hi > lo else { return 0 }
+        return min(max((value - lo) / (hi - lo), 0), 1)
     }
 
     var body: some View {
@@ -478,6 +501,47 @@ private struct LiveTimeChart: View {
                 AxisGridLine().foregroundStyle(StrandPalette.hairline.opacity(0.4))
                 AxisValueLabel().foregroundStyle(StrandPalette.textTertiary)
                     .font(StrandFont.footnote)
+            }
+        }
+        .chartOverlay { proxy in
+            GeometryReader { geo in
+                let plot = proxy.plotRectCompat(in: geo)
+                ZStack(alignment: .topLeading) {
+                    if let hx = hoverX,
+                       let s = nearestSample(toX: hx, proxy: proxy, plot: plot),
+                       let px = proxy.position(forX: s.date),
+                       let py = proxy.position(forY: s.bpm) {
+                        let cx = px + plot.minX
+                        let cy = py + plot.minY
+                        let color = StrandPalette.sample(stops: gradient.stops, at: unit(s.bpm))
+                        CrosshairRule(x: cx, height: geo.size.height)
+                        HighlightDot(color: color).position(x: cx, y: cy)
+                        PositionedTooltip(
+                            anchor: CGPoint(x: cx, y: cy),
+                            container: geo.size,
+                            tooltip: ChartTooltip(
+                                value: String(localized: "\(Int(s.bpm.rounded())) bpm"),
+                                label: s.date.formatted(.dateTime.hour().minute().second()),
+                                accent: color
+                            )
+                        )
+                    }
+                }
+                .animation(StrandMotion.fade, value: hoverX)
+                .frame(width: geo.size.width, height: geo.size.height, alignment: .topLeading)
+                .contentShape(Rectangle())
+                .onContinuousHover(coordinateSpace: .local) { phase in
+                    // Non-animating transaction: otherwise crossing the plot edge re-runs the line's
+                    // draw-on animation and flickers the curve (mirrors TrendChart #104).
+                    var tx = Transaction()
+                    tx.disablesAnimations = true
+                    withTransaction(tx) {
+                        switch phase {
+                        case .active(let location): hoverX = location.x
+                        case .ended: hoverX = nil
+                        }
+                    }
+                }
             }
         }
         .clipped()

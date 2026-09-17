@@ -1376,7 +1376,10 @@ final class IntelligenceEngine: ObservableObject {
 
         // #1005: time the whole pass — the trigger line above records WHY; this records how many nights
         // and how long (the CPU cost per run), so a re-score STORM is visible in the strap log.
-        let reScoreStart = Date()
+        // Uptime, not `Date()`: the elapsed figure below is banked as what a pass COSTS, and a wall clock
+        // also counts every minute the process spent suspended mid-pass. One overnight pass suspended by a
+        // sleeping phone banked 19 003 s, which then deferred every background re-score after it.
+        let reScoreStart = DispatchTime.now().uptimeNanoseconds
         let owedToken = RescoreBackgroundScheduler.markRescoreOwed()
 
         let up = UserProfile(weightKg: profile.weightKg, heightCm: profile.heightCm,
@@ -1696,6 +1699,7 @@ final class IntelligenceEngine: ObservableObject {
             let skinAnchorScanTo = nowLocalMidnight + 18 * 3_600
             var skinAnchorByOwner: [String: Double] = [:]
             var skinAnchorResolvedOwners = Set<String>()
+            var paceMark = DispatchTime.now().uptimeNanoseconds
             for offset in 0..<maxDays {
                 // Cooperative hand-off between days (#goal-journey-freeze). Each day below is 10-18 s of
                 // uninterrupted array crunching on a library with a deep raw-HR history (~190 k HR +
@@ -1711,6 +1715,7 @@ final class IntelligenceEngine: ObservableObject {
                 // on the full path would look stalled through a run of reused days — exactly the case where
                 // the pass is moving fastest.
                 publishScanStep(offset, reusedDays.count)
+                if offset > 0 { await RescoreBackgroundScheduler.paceIfBackgrounded(since: &paceMark) }
                 let dayStart = nowLocalMidnight - offset * 86_400
                 let day = AnalyticsEngine.dayString(dayStart, offsetSec: tzOffset)
                 // Read a generous window around the night that ends on `day`; the stager finds the span.
@@ -2707,7 +2712,9 @@ final class IntelligenceEngine: ObservableObject {
         // the auto path produced NO trace at all (the "mode was on but produced NO trace" report), so an
         // "auto workout appeared then vanished" could not be explained from an export. Diagnostic only.
         let workoutsTraceActive = TestCentre.active(.workouts)
+        var paceMark = DispatchTime.now().uptimeNanoseconds
         for night in scoredNights {
+            await RescoreBackgroundScheduler.paceIfBackgrounded(since: &paceMark)
             // #299: scope the edits to THIS day before folding. A userEdited row / hand-logged nap belongs
             // to exactly ONE day — the day its night ENDS on, matching the daily's end-day bucket. `endTs`
             // is stable under a bedtime edit (only the onset/`startTsAdjusted` moves), so end-day is the
@@ -3557,7 +3564,7 @@ final class IntelligenceEngine: ObservableObject {
         // measurement is what lets `RescoreBackgroundPolicy` tell an install that finishes comfortably in a
         // background wake from one that never could, instead of guessing from a constant — the cost varies
         // by more than an order of magnitude with history size.
-        let elapsed = Date().timeIntervalSince(reScoreStart)
+        let elapsed = Double(DispatchTime.now().uptimeNanoseconds &- reScoreStart) / 1_000_000_000
         let settled = RescoreBackgroundScheduler.markRescoreCompleted(seconds: elapsed,
                                                                        owedToken: owedToken)
         if !settled {

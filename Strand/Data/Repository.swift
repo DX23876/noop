@@ -2581,6 +2581,17 @@ final class Repository: ObservableObject {
         return DeviceFamily.isWhoop5Registry(model: d?.model, brand: d?.brand)
     }
 
+    /// The active device's registry display name (nickname, else "Brand Model") for a screen that names
+    /// the source of what it plots — the Deep Timeline's source row. `nil` when the active id has no
+    /// registry row (the pre-registry seeded strap), so the caller keeps its legacy "My WHOOP" copy.
+    /// Reads the registry, not a brand string compare: an active Oura ring must read "Oura …", not the
+    /// hardcoded strap label it was shipped with. Twin of Android's `FullDayChartScreen` source pill.
+    func activeDeviceDisplayName() -> String? {
+        guard let store else { return nil }
+        let devices = (try? DeviceRegistryStore(dbQueue: store.registryWriter).all()) ?? []
+        return devices.first(where: { $0.id == deviceId })?.displayName
+    }
+
     /// Whether the active strap has EVER banked a sample of `metric` (#623) — distinguishes a strap that
     /// never produces it (honest "not supported on this strap" copy) from one with just an unsynced window.
     /// Only SpO₂/respiration are asked; any other metric returns true so the generic empty copy stands.

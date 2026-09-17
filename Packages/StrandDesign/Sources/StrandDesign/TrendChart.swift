@@ -577,16 +577,35 @@ public struct TrendChart: View {
 // survives and the rendered envelope is identical at normal chart widths. First and last points are
 // always kept so the line spans the full domain. Pure + deterministic — same input → same output.
 
-enum ChartDownsample {
+public enum ChartDownsample {
     /// Above this many points we downsample; at or below it the series is passed through untouched (so
     /// the common 7/30/90-day trends and the ≤60-point dotted series are byte-for-byte unchanged).
-    static let markThreshold = 120
+    public static let markThreshold = 120
     /// Target drawn-vertex budget — a touch above a typical ~360pt plot so the line stays crisp.
-    static let targetVertices = 400
+    public static let targetVertices = 400
 
     /// Min/max-bucketed copy of `points` when it exceeds `threshold`, else `points` unchanged.
     /// Assumes `points` is already sorted by date (both chart callers sort in their init).
-    static func minMaxBucketed(_ points: [TrendPoint], threshold: Int, targetCount: Int) -> [TrendPoint] {
+    public static func minMaxBucketed(_ points: [TrendPoint], threshold: Int, targetCount: Int) -> [TrendPoint] {
+        minMaxBucketed(points, threshold: threshold, targetCount: targetCount,
+                       date: { $0.date }, value: { $0.value })
+    }
+
+    /// Generic form of the same algorithm, keyed by caller-supplied `date`/`value` accessors instead of
+    /// `TrendPoint`'s own properties. `ChartDownsample` used to be internal-by-default and `TrendPoint`-only,
+    /// so a chart type living outside this package (an app-target screen) couldn't call it and instead
+    /// hand-duplicated the algorithm for its own point type (see `CompareView.Model.minMaxBucketed`, which
+    /// predates this generic form and documents the mirroring). This overload is `public` and generic so
+    /// new app-target chart types can share the ONE implementation instead of adding a third copy.
+    /// Pure + deterministic; identical behaviour to the `TrendPoint` overload when `date`/`value` project
+    /// the same fields it does.
+    public static func minMaxBucketed<Point>(
+        _ points: [Point],
+        threshold: Int,
+        targetCount: Int,
+        date: (Point) -> Date,
+        value: (Point) -> Double
+    ) -> [Point] {
         let n = points.count
         guard n > threshold, n > 2, targetCount >= 4 else { return points }
 
@@ -598,11 +617,11 @@ enum ChartDownsample {
         let bucketCount = max(1, (targetCount - 2) / 2)
         guard bucketCount < interior else { return points }
 
-        var out: [TrendPoint] = []
+        var out: [Point] = []
         out.reserveCapacity(targetCount)
         out.append(first)
 
-        var lastEmittedDate = first.date
+        var lastEmittedDate = date(first)
         for b in 0..<bucketCount {
             // Interior indices [1 ... n-2] split into `bucketCount` contiguous ranges.
             let lo = 1 + (b * interior) / bucketCount
@@ -613,8 +632,8 @@ enum ChartDownsample {
             var minIdx = lo, maxIdx = lo
             var i = lo + 1
             while i < hi {
-                if points[i].value < points[minIdx].value { minIdx = i }
-                if points[i].value > points[maxIdx].value { maxIdx = i }
+                if value(points[i]) < value(points[minIdx]) { minIdx = i }
+                if value(points[i]) > value(points[maxIdx]) { maxIdx = i }
                 i += 1
             }
 
@@ -625,14 +644,15 @@ enum ChartDownsample {
             let bIdx = lowFirst ? maxIdx : minIdx
             for idx in [aIdx, bIdx] {
                 let p = points[idx]
-                if p.date > lastEmittedDate {
+                let d = date(p)
+                if d > lastEmittedDate {
                     out.append(p)
-                    lastEmittedDate = p.date
+                    lastEmittedDate = d
                 }
             }
         }
 
-        if last.date > lastEmittedDate { out.append(last) }
+        if date(last) > lastEmittedDate { out.append(last) }
         return out
     }
 }

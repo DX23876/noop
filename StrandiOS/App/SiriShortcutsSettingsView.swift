@@ -4,7 +4,7 @@ import AppIntents
 import StrandDesign
 
 /// Surfaces NOOP's already-registered App Intents (see StrandiOS/System/NOOPAppIntents.swift) in the
-/// UI so users discover them. `NOOPShortcuts` auto-registers "Buzz Strap" and "Mark a Moment" with
+/// UI so users discover them. `NOOPShortcuts` auto-registers "Sync Strap", "Buzz Strap" and "Mark a Moment" with
 /// Siri/Spotlight/Shortcuts, but nothing in-app advertised them — this is the iOS analogue of the
 /// Mac's strap-double-tap-runs-a-Shortcut feature. Apple's `SiriTipView`/`ShortcutsLink` (iOS 16+)
 /// do exactly that: tip the user on the spoken phrase and deep-link into the Shortcuts app, scoped to
@@ -29,10 +29,12 @@ struct SiriShortcutsSettingsView: View {
                         .font(StrandFont.headline)
                         .foregroundStyle(StrandPalette.textPrimary)
                 }
-                Text("Buzz your strap or mark a moment from Siri, Spotlight, the Shortcuts app, or a Back-Tap / automation. No setup needed.")
+                Text("Sync your strap, buzz it or mark a moment from Siri, Spotlight, the Shortcuts app, or a Back-Tap / automation. No setup needed.")
                     .font(StrandFont.caption)
                     .foregroundStyle(StrandPalette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
+                SiriTipView(intent: SyncStrapIntent(), isVisible: .constant(true))
+                    .siriTipViewStyle(.dark)
                 SiriTipView(intent: BuzzStrapIntent(), isVisible: .constant(true))
                     .siriTipViewStyle(.dark)
                 SiriTipView(intent: MarkMomentIntent(), isVisible: .constant(true))

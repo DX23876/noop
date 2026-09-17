@@ -78,10 +78,35 @@ enum PlatformOpen {
 /// orb, the HIIT interval timer). iOS-only; a no-op on macOS, which has no idle-lock
 /// concern for these screens. Apple guidance: set `true` only while genuinely needed and
 /// reset to `false` the moment the session ends so the system idle timer resumes normally.
+///
+/// `isIdleTimerDisabled` is one process-wide flag, so independent holders are tracked by reason: a strap
+/// sync finishing must not let the screen lock under a breathing session that is still running.
 enum ScreenIdle {
+    enum Reason: Hashable {
+        /// A watched on-screen session (breathing, intervals, workout, HRV snapshot) via `keepAwake`.
+        case session
+        /// A strap history sync, while Settings → "Keep screen on while syncing" is on (iOS).
+        case strapSync
+    }
+
+    /// UserDefaults key for the "Keep screen on while syncing" toggle (default OFF). iOS-only behaviour;
+    /// declared here so the shared SettingsView and the iOS observer read one spelling.
+    static let strapSyncKeepAwakeKey = "syncKeepScreenOn"
+
+    @MainActor private static var holds: Set<Reason> = []
+
+    /// True while any reason holds the screen awake. Read by tests; the platform flag mirrors it.
+    @MainActor static var isHeld: Bool { !holds.isEmpty }
+
+    /// Existing single-session API: last writer wins among sessions, exactly as before reasons existed.
     @MainActor static func keepAwake(_ on: Bool) {
+        hold(.session, on)
+    }
+
+    @MainActor static func hold(_ reason: Reason, _ on: Bool) {
+        if on { holds.insert(reason) } else { holds.remove(reason) }
         #if os(iOS)
-        UIApplication.shared.isIdleTimerDisabled = on
+        UIApplication.shared.isIdleTimerDisabled = !holds.isEmpty
         #endif
     }
 }

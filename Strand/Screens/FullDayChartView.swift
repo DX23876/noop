@@ -45,9 +45,13 @@ struct FullDayChartView: View {
         let system = UnitSystem(rawValue: unitSystemRaw) ?? .metric
         return UnitPrefs.resolveTemperature(system: system, override: temperatureRaw)
     }
-    /// "Owned only" hides empty non-strap rows; "All sources" surfaces the disclosure (#574). The strap is
-    /// always the owned source, so this currently scopes the empty-state copy rather than swapping reads.
+    /// "Owned only" hides empty non-strap rows; "All sources" surfaces the disclosure (#574). The active
+    /// device is always the owned source, so this currently scopes the empty-state copy rather than swapping reads.
     @State private var ownedOnly = true
+    /// What the source row calls the owned source: the active device's registry display name (nickname,
+    /// else "Brand Model"), so an active Oura ring reads "Oura …" over the ring's own series instead of
+    /// the strap label this row shipped with. `nil` (no registry row) keeps the legacy "My WHOOP".
+    @State private var sourceName: String? = nil
     /// #623: true when the current SpO2/respiration metric is genuinely unsupported on the active strap —
     /// a 5.0-family strap that has NEVER produced it (4.0-only wire signals) — vs merely an empty window.
     @State private var metricUnsupported = false
@@ -93,6 +97,7 @@ struct FullDayChartView: View {
         .task(id: annotationKey) { await reloadAnnotations() }
         .task { await landOnLatestDayIfNeeded() }
         .task(id: metric) { await resolveMetricUnsupported() }   // #623
+        .task(id: repo.deviceId) { sourceName = repo.activeDeviceDisplayName() }
     }
 
     /// #623: a SpO2/respiration track is "unsupported on this strap" only when it's a 5.0-family strap that
@@ -139,11 +144,13 @@ struct FullDayChartView: View {
             Image(systemName: "dot.radiowaves.left.and.right")
                 .font(StrandFont.footnote.weight(.medium))
                 .foregroundStyle(StrandPalette.textTertiary)
-            Text("My WHOOP")
-                .font(StrandFont.footnote)
-                .foregroundStyle(StrandPalette.textSecondary)
+            Group {
+                if let sourceName { Text(verbatim: sourceName) } else { Text("My WHOOP") }
+            }
+            .font(StrandFont.footnote)
+            .foregroundStyle(StrandPalette.textSecondary)
             Spacer()
-            // #574 — owned-source scope. The strap is the owned source; "All sources" reveals the honest
+            // #574 — owned-source scope. The active device is the owned source; "All sources" reveals the honest
             // disclosure that other sources' raw per-second streams aren't offloaded on-device.
             SegmentedPillControl([true, false], selection: $ownedOnly) { $0 ? String(localized: "Owned") : String(localized: "All") }
                 .fixedSize()

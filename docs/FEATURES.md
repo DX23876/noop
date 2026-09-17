@@ -999,6 +999,23 @@ informational only, **not** a diagnosis.
   (Apple Health palette by default) and the day-cycle sky backdrop / "sky behind cards" (both off by
   default).
 - **Strap** — connection status, battery, and Re-scan / Disconnect controls.
+- **Sync (iOS)** — its own section with **Keep screen on while syncing**: opt-in (off by default). Holds
+  the screen awake for as long as a strap history sync runs while NOOP is open, then lets it sleep
+  normally.
+- **Siri & Shortcuts (iOS)** — a **Sync Strap** action ("Sync my NOOP strap") starts the same on-demand
+  history sync as the Sync now button, from Siri, Spotlight, the Shortcuts app, a Back Tap or an
+  automation, **without opening NOOP**. If the strap link is already up (NOOP in the background) the
+  sync starts at once and the reply says so. If NOOP had to be launched for the shortcut and is still
+  connecting, the request is parked and runs the moment the connect handshake settles, and the reply
+  says NOOP is connecting and will sync when ready.
+- **Strap-sync Live Activity (iOS)** — while history syncs, the Lock Screen and Dynamic Island show
+  the same read-out as the Today sync control: Connecting… / Syncing… with the chunk count, the elapsed
+  time, and the strap's connect-time backlog when it reported one; then "Synced · N chunks" or "Sync
+  interrupted" for a few seconds. No progress bar, because the strap never says how much is pending. A
+  sync started from the app or the Sync Strap shortcut shows it; an automatic background sync can only
+  update one that is already showing (iOS does not let a background app start a Live Activity). Its own
+  switch in Settings → Strap ("Strap sync in Dynamic Island", default on), independent of the live
+  heart rate one.
 - **Export for Shortcuts (iOS)** — a **HealthKit-free** path that hands your NOOP metrics to Apple
   Health via the Shortcuts app, so an anonymous build (with no HealthKit entitlement) can still get
   data into Health on your terms.

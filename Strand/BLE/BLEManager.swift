@@ -1672,7 +1672,29 @@ public final class BLEManager: NSObject, ObservableObject {
             central.connect(p, options: nil)
             return
         }
+        #if os(iOS)
+        // Off-screen, a scan is the wrong tool: iOS throttles background scanning so hard that a field log
+        // showed eight minutes of alternating 5.0/4.0 scans finding nothing, then the strap discovered eight
+        // seconds after the app came to the foreground — twice. A targeted connect to the last strap is what
+        // iOS honours in the background: it has no timeout and wakes the app when the strap advertises, the
+        // same call the pinned path above and the standing reconnect already make. Foreground behaviour is
+        // unchanged, so a scan still finds a strap the user has switched to.
+        if UIApplication.shared.applicationState != .active,
+           let last = Self.lastConnectedPeripheralUUID,
+           let p = central.retrievePeripherals(withIdentifiers: [last]).first {
+            log("Connecting to last strap \(last) — targeted (app not on screen; a background scan would not find it)")
+            preparePeripheral(p)
+            central.connect(p, options: nil)
+            return
+        }
+        #endif
         startScan(for: model, allowFallback: true)
+    }
+
+    /// The identifier of the strap the last successful connect landed on, for the background path above.
+    static let lastConnectedPeripheralKey = "ble.lastConnectedPeripheralUUID"
+    private static var lastConnectedPeripheralUUID: UUID? {
+        UserDefaults.standard.string(forKey: lastConnectedPeripheralKey).flatMap(UUID.init(uuidString:))
     }
 
     public func disconnect() {
@@ -1716,6 +1738,10 @@ public final class BLEManager: NSObject, ObservableObject {
         // so connect()/restoration can't re-target it.
         if target == nil || preferredPeripheralUUID == target { setPreferredPeripheral(nil) }
         if target == nil || restoredPeripheral?.identifier == target { restoredPeripheral = nil }
+        // The background targeted-connect must not re-grab a strap the user has released either.
+        if target == nil || Self.lastConnectedPeripheralUUID == target {
+            UserDefaults.standard.removeObject(forKey: Self.lastConnectedPeripheralKey)
+        }
         // Drop the live BLE link so the strap is free to enter pairing mode.
         if isCurrent, let p = peripheral {
             central.cancelPeripheralConnection(p)
@@ -4691,6 +4717,48 @@ public final class BLEManager: NSObject, ObservableObject {
         requestSync(.manual)
     }
 
+    /// When the iOS "Sync Strap" shortcut asked for a sync while no strap link was ready. The connect
+    /// handshake's own on-connect kick consumes it (`connectSyncTrigger`), so a request made while NOOP was
+    /// still launching and reconnecting in the background runs as soon as the link can serve, at the
+    /// un-floored `.manual` tier the user's tap deserves, instead of being lost. Bounded by
+    /// `pendingManualSyncTTL` so a stale request cannot fire an offload long after anyone asked.
+    ///
+    /// Persisted, not in-memory: iOS may end the background process the shortcut launched and relaunch
+    /// NOOP later through CoreBluetooth state restoration when the strap reconnects. A request held only in
+    /// memory would not survive that, and the relaunch is exactly the path that completes the connect.
+    private var pendingManualSyncRequestedAt: Date? {
+        get { (UserDefaults.standard.object(forKey: Self.pendingManualSyncKey) as? Double).map(Date.init(timeIntervalSince1970:)) }
+        set {
+            if let newValue { UserDefaults.standard.set(newValue.timeIntervalSince1970, forKey: Self.pendingManualSyncKey) }
+            else { UserDefaults.standard.removeObject(forKey: Self.pendingManualSyncKey) }
+        }
+    }
+    static let pendingManualSyncKey = "sync.pendingManualRequestedAt"
+    nonisolated static let pendingManualSyncTTL: TimeInterval = 600   // 10 min
+
+    /// Record that a manual sync was asked for before the link was ready.
+    public func armPendingManualSync() {
+        pendingManualSyncRequestedAt = Date()
+        log("Sync now: requested before the strap link was ready — will run once the connect handshake settles.")
+    }
+
+    /// Which trigger the on-connect kick should use. Pure so the TTL rule is unit-testable: a pending
+    /// request younger than the TTL upgrades the kick to `.manual` (always runs); anything else is the
+    /// ordinary `.connect` (90 s floor). Consumed either way.
+    nonisolated static func connectSyncTrigger(pendingManualRequestedAt: Date?, now: Date,
+                                               ttl: TimeInterval = pendingManualSyncTTL) -> BackfillTrigger {
+        guard let at = pendingManualRequestedAt, now.timeIntervalSince(at) < ttl, now >= at else { return .connect }
+        return .manual
+    }
+
+    /// The on-connect offload kick, shared by both families' handshakes. Consumes any pending shortcut request.
+    private func requestConnectSync() {
+        let trigger = Self.connectSyncTrigger(pendingManualRequestedAt: pendingManualSyncRequestedAt, now: Date())
+        pendingManualSyncRequestedAt = nil
+        if trigger == .manual { log("Sync now: running the sync requested before the link was ready.") }
+        requestSync(trigger)
+    }
+
     // MARK: Helpers
     private static let logTimeFormatter: DateFormatter = {
         let f = DateFormatter(); f.dateFormat = "HH:mm:ss"; return f
@@ -5616,6 +5684,9 @@ extension BLEManager: @preconcurrency CBCentralManagerDelegate {
         // registry device (it observes this and calls registry.setPeripheralId). Additive observation
         // only — BLEManager stays decoupled from the store and the connect flow below is unchanged.
         connectedPeripheralUUID = peripheral.identifier.uuidString
+        // Remembered across launches for `connectCore`'s background path: a process iOS launched off-screen
+        // (the Sync Strap shortcut, a state-restoration relaunch) reconnects by identifier, not by scan.
+        UserDefaults.standard.set(peripheral.identifier.uuidString, forKey: Self.lastConnectedPeripheralKey)
         state.connected = true
         // A connect succeeded → clear the stale-bond re-pair guide UNLESS we are in a known bond-loop
         // (#617). In that loop the strap "connects" every ~3 s before timing out again, so clearing here
@@ -6530,7 +6601,7 @@ extension BLEManager: @preconcurrency CBPeripheralDelegate {
                 // Deferred ~1.5s so the puffin notify subscriptions settle before SEND_HISTORICAL_DATA,
                 // mirroring the WHOOP4 kick. requestSync → beginBackfill is itself gated on
                 // connectHandshakeDone, so a racing foreground/restore trigger can't fire it early.
-                DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in self?.requestSync(.connect) }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in self?.requestConnectSync() }
                 startBackfillTimer()            // re-offload the type-47 store every backfillIntervalSeconds
                 // #34: signal settled directly (skip the cmd-notify gate `maybeSignalConnectSettled()`
                 // uses) — armStrapAlarm's 5/MG branch never sends GET_ALARM_TIME (log-only readback is
@@ -6600,7 +6671,7 @@ extension BLEManager: @preconcurrency CBPeripheralDelegate {
         // throttled by BackfillPolicy). Deferred ~1.5s so SET_CLOCK/GET_DATA_RANGE round-trip first and
         // SEND_HISTORICAL runs on a settled link, like the paced Mac prototype. beginBackfill is itself
         // gated on connectHandshakeDone so a racing foreground/restore trigger can't fire it early.
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in self?.requestSync(.connect) }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in self?.requestConnectSync() }
         startBackfillTimer()   // re-offload the type-47 store every backfillIntervalSeconds
         startKeepAlive()       // always-ping: re-arm realtime, poll battery, watchdog the link
         enableLiveNotifications(reason: "post-bond")   // includes 0x2A37 standard HR — the fallback path

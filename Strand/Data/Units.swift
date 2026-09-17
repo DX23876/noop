@@ -132,6 +132,15 @@ enum UnitPrefs {
             ? true : UserDefaults.standard.bool(forKey: liveActivityKey)
     }
 
+    /// Whether the strap-sync Live Activity may show, iOS only. Its own switch, deliberately separate from
+    /// the live-HR one above: wanting a sync readout says nothing about wanting a heart rate on the Lock
+    /// Screen, and the reverse. Defaults to ON, read default-true like its sibling.
+    static let syncLiveActivityKey = "liveActivity.sync.enabled"
+    static func syncLiveActivityEnabled() -> Bool {
+        UserDefaults.standard.object(forKey: syncLiveActivityKey) == nil
+            ? true : UserDefaults.standard.bool(forKey: syncLiveActivityKey)
+    }
+
     /// Resolve temperature, following body measurements when no explicit override is set.
     static func resolveTemperature(system: UnitSystem, override raw: String) -> TemperatureUnit {
         if let explicit = TemperatureUnit(rawValue: raw) { return explicit }

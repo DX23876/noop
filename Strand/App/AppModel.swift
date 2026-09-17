@@ -800,7 +800,9 @@ final class AppModel: ObservableObject {
     /// large library keeps the measured pass duration over the background budget and so guarantees the
     /// next offload defers too — the app re-analysing on every open, with nothing having changed.
     func runDeferredRescoreIfOwed() async {
-        guard RescoreBackgroundScheduler.isRescoreOwed else { return }
+        // A pass already running here holds the owed mark itself and settles it when it finishes; forcing
+        // another would only queue a second full pass behind it.
+        guard RescoreBackgroundScheduler.isRescoreOwed, !intelligence.computing else { return }
         // #2238: gate on the fingerprint only when the debt is PROVEN — a pass that completed and was merely
         // outvoted by a token recorded mid-pass advanced the watermark, so "nothing changed" is a real
         // answer and the only thing that lets a drain-every-few-minutes chain stop. An interrupted pass
@@ -817,6 +819,11 @@ final class AppModel: ObservableObject {
         // The deferred pass is the one that finally produces today's score, and it runs with no UI
         // attached — so publish the snapshot here too, for the same reason the post-offload path does.
         await WidgetSnapshot.publish(from: self)
+        // Apple Health too. The post-offload write-back ran BEFORE this pass (the offload deferred its
+        // re-score here), so it published the store as it stood then: last night's sleep and vitals were
+        // not scored yet and only reached Health on some later foreground. This is the first moment they
+        // exist. The bridge coalesces a call that lands during an in-flight write-back.
+        await healthWriteBack?()
         #endif
     }
 
@@ -842,12 +849,13 @@ final class AppModel: ObservableObject {
         // instead of churning it, which was surfacing as a Trends/streak "0 days" flicker. Only this
         // post-offload caller opts in; every other analyzeRecent path still forces unconditionally.
         // #1538: defer a background offload re-score when the current execution lease cannot finish it.
-        await RescoreBackgroundScheduler.run(log: { [live] line in live.append(log: line) }) {
+        await RescoreBackgroundScheduler.run(passInProgress: intelligence.computing,
+                                             log: { [live] line in live.append(log: line) }) {
             // `allowDayReuse: true` — the single most valuable place for it. A completed offload is a PURE
-        // raw-data change: new samples landed under a device id, in specific days. That is precisely what
-        // the per-day fingerprint resolves, so this pass re-derives the nights the sync actually brought
-        // and reuses the rest. Without it, every sync re-derived the full 21-day window from raw
-        // (~950 k rows per day) — the dominant recurring cost on a real library (#launch-rescore).
+            // raw-data change: new samples landed under a device id, in specific days. That is precisely what
+            // the per-day fingerprint resolves, so this pass re-derives the nights the sync actually brought
+            // and reuses the rest. Without it, every sync re-derived the full 21-day window from raw
+            // (~950 k rows per day) — the dominant recurring cost on a real library (#launch-rescore).
             await intelligence.analyzeRecent(skipIfUnchanged: true, allowDayReuse: true,
                                              reason: .rawMutation)
         }

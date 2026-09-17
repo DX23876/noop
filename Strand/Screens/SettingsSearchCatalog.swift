@@ -97,7 +97,8 @@ enum SettingsSearchCatalog {
             id: .strap,
             title: "Strap",
             keywords: ["bluetooth", "pairing", "strap log", "strap name", "rename",
-                       "live activity", "lock screen", "dynamic island"]
+                       "live activity", "lock screen", "dynamic island",
+                       "sync", "keep screen on"]
         ),
         SettingsSearchEntry(
             id: .hrv,

@@ -1454,5 +1454,21 @@
   "e.g. Feel good on the hills again": "p. ej. Volver a sentirte bien en las cuestas",
   "%.0f / %.0fs": "%.0f / %.0fs",
   "%@ → %@": "%@ → %@",
-  "%@ workout, %@": "entrenamiento %@, %@"
+  "%@ workout, %@": "entrenamiento %@, %@",
+  "Oura history import": "Importar historial de Oura",
+  "A one-time import of your own Oura history over the Oura API. Runs only when you tap it.": "Una importación única de tu propio historial de Oura mediante la API de Oura. Solo se ejecuta cuando lo tocas.",
+  "At least 1 year younger than your age": "Al menos 1 año menos que tu edad",
+  "At least %lld years younger than your age": "Al menos %lld años menos que tu edad",
+  "%lld or younger": "%lld o menos",
+  "At least 1 year older than your age": "Al menos 1 año más que tu edad",
+  "At least %lld years older than your age": "Al menos %lld años más que tu edad",
+  "%lld or older": "%lld o más",
+  "PDF text review isn't available in this build.": "La revisión de texto de PDF no está disponible en esta compilación.",
+  "Photo text review isn't available in this build.": "La revisión de texto de fotos no está disponible en esta compilación.",
+  "Set complete": "Serie completada",
+  "Your timed set is ready to finish.": "Tu serie cronometrada está lista para terminar.",
+  "Requested": "Solicitado",
+  "Connected live": "Conectado en directo",
+  "no PPG": "sin PPG",
+  "Baseline %@ · Recent %@": "Base %@ · Reciente %@"
 }

@@ -1431,5 +1431,21 @@
   "e.g. Feel good on the hills again": "напр., снова хорошо чувствовать себя на подъёмах",
   "%.0f / %.0fs": "%.0f / %.0fс",
   "%@ → %@": "%@ → %@",
-  "%@ workout, %@": "тренировка %@, %@"
+  "%@ workout, %@": "тренировка %@, %@",
+  "Oura history import": "Импорт истории Oura",
+  "A one-time import of your own Oura history over the Oura API. Runs only when you tap it.": "Однократный импорт вашей истории Oura через API Oura. Запускается только по нажатию.",
+  "At least 1 year younger than your age": "Как минимум на 1 год моложе вашего возраста",
+  "At least %lld years younger than your age": "Как минимум на %lld г. моложе вашего возраста",
+  "%lld or younger": "%lld или моложе",
+  "At least 1 year older than your age": "Как минимум на 1 год старше вашего возраста",
+  "At least %lld years older than your age": "Как минимум на %lld г. старше вашего возраста",
+  "%lld or older": "%lld или старше",
+  "PDF text review isn't available in this build.": "Проверка текста PDF недоступна в этой сборке.",
+  "Photo text review isn't available in this build.": "Проверка текста на фото недоступна в этой сборке.",
+  "Set complete": "Подход завершён",
+  "Your timed set is ready to finish.": "Подход на время можно завершить.",
+  "Requested": "По запросу",
+  "Connected live": "Подключено в реальном времени",
+  "no PPG": "нет PPG",
+  "Baseline %@ · Recent %@": "База %@ · Недавно %@"
 }

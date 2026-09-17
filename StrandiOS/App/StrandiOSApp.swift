@@ -103,6 +103,11 @@ struct StrandiOSApp: App {
         CoachBriefScheduler.register { [weak model] in
             await model?.coach.generateBriefText()
         }
+        // Settings → "Keep screen on while syncing". Wired once here, not as another modifier on `body`.
+        SyncKeepAwake.shared.attach(to: model.live)
+        // The strap-sync Live Activity (Lock Screen + Dynamic Island). Same placement, same reason — and
+        // it must also run in a process the Sync Strap shortcut launched with no scene.
+        SyncLiveActivityController.shared.attach(to: model.live)
         // #1538: a strap offload completes while the app is BACKGROUNDED — it stays alive as a
         // bluetooth-central to receive it — and the re-score it triggers took nearly eight minutes on the
         // reporter's install, far longer than that wake survives. The pass is all-or-nothing, so being
@@ -110,9 +115,11 @@ struct StrandiOSApp: App {
         // start the same doomed pass again. This processing task is where that work is escalated to; it is
         // the long, deferrable kind rather than the metered refresh kind the two schedulers above use.
         // Registered before launch finishes and permitted in project.yml, or iOS never delivers it.
-        RescoreBackgroundScheduler.register { [weak model] in
+        RescoreBackgroundScheduler.register(perform: { [weak model] in
             await model?.runDeferredRescoreIfOwed()
-        }
+        }, onExpire: { [weak model] in
+            model?.live.append(log: "re-score: background processing time expired before the pass finished (#1538)")
+        })
         let bridge = HealthKitBridge(
             repo: model.repo,
             appleDeviceId: model.appleDeviceId,
@@ -235,7 +242,8 @@ struct StrandiOSApp: App {
                     liveActivity.update(
                         bpm: model.live.connected ? (model.bpm ?? model.live.heartRate) : nil,
                         recovery: day?.recovery.map { Int($0.rounded()) },
-                        connected: model.live.connected,
+                        // While a sync runs its own activity is the useful banner; don't stack the HR one.
+                        connected: model.live.connected && !model.live.backfilling,
                         effort: day?.strain.map { Int($0.rounded()) }
                     )
                 }
@@ -248,7 +256,7 @@ struct StrandiOSApp: App {
                     liveActivity.update(
                         bpm: isConnected ? (model.bpm ?? model.live.heartRate) : nil,
                         recovery: day?.recovery.map { Int($0.rounded()) },
-                        connected: isConnected,
+                        connected: isConnected && !model.live.backfilling,
                         effort: day?.strain.map { Int($0.rounded()) }
                     )
                 }
@@ -380,6 +388,8 @@ struct StrandiOSApp: App {
                         model.coach.surfaceScheduledBrief(stored)
                     }
                 }
+                // End a "Connecting…" sync island whose sync never came, rather than leave it greyed.
+                SyncLiveActivityController.shared.reconcile(live: model.live)
                 // Re-arm the strap's smart alarm on foreground: the firmware alarm is a single instant
                 // and iOS can't re-arm it while suspended, so it would otherwise fire once and stop.
                 model.applySmartAlarm()

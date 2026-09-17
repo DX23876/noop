@@ -164,14 +164,18 @@ enum RescoreBackgroundScheduler {
     ///   would conjure a forced full pass for a processing task to run when very likely nothing changed,
     ///   which is the churn #1146 exists to avoid. A debt an earlier real pass already recorded is
     ///   untouched either way.
+    /// - Parameter passInProgress: a pass is already running in this process; see
+    ///   `RescoreBackgroundPolicy.decide`.
     static func run(isBackground: Bool? = nil,
                     owesOnDefer: Bool = true,
+                    passInProgress: Bool = false,
                     log: @escaping (String) -> Void,
                     work: () async -> Void) async {
         let decision = RescoreBackgroundPolicy.decide(
             isBackground: isBackground ?? isBackgrounded,
+            isRealUpdate: owesOnDefer,
             rescoreAlreadyOwed: isRescoreOwed,
-            lastCompletedPassSeconds: lastCompletedPassSeconds)
+            passInProgress: passInProgress)
 
         switch decision {
         case .deferToBackgroundTask(let reason):
@@ -215,6 +219,17 @@ enum RescoreBackgroundScheduler {
     private static var assertionHolders = 0
     #endif
 
+    /// Rest after a unit of re-score work when backgrounded, so the pass stays under iOS's background CPU
+    /// limit instead of being killed by it (`RescoreBackgroundPolicy.backgroundRestPerWorkSecond`). `mark` is
+    /// the uptime the unit started at, in nanoseconds; it is reset to the end of the rest for the next unit.
+    nonisolated static func paceIfBackgrounded(since mark: inout UInt64) async {
+        let workSeconds = Double(DispatchTime.now().uptimeNanoseconds &- mark) / 1_000_000_000
+        let background = await MainActor.run { isBackgrounded }
+        let rest = RescoreBackgroundPolicy.restSeconds(afterWorkSeconds: workSeconds, isBackground: background)
+        if rest > 0 { try? await Task.sleep(nanoseconds: UInt64(rest * 1_000_000_000)) }
+        mark = DispatchTime.now().uptimeNanoseconds
+    }
+
     /// Hold an execution assertion for the duration of `work` so a SHORT pass is not suspended halfway.
     /// A long one still outlives the grant; the assertion's expiry handler is where that becomes visible
     /// in the log and where the work is escalated, rather than the process simply vanishing.
@@ -249,7 +264,7 @@ enum RescoreBackgroundScheduler {
             // the owed mark is still set (only a completed pass clears it) and that is what the next
             // decision reads.
             MainActor.assumeIsolated {
-                log("re-score: background time expired before the pass finished — escalating (#1538)")
+                log("re-score: background time expired mid-pass — it resumes on the next wake (#1538)")
                 schedule()
                 assertion.end()
                 if sharedAssertion === assertion { sharedAssertion = nil }
@@ -279,7 +294,10 @@ enum RescoreBackgroundScheduler {
     /// Register the handler. MUST be called from `StrandiOSApp.init()` before launch finishes, and the
     /// identifier MUST be listed in `BGTaskSchedulerPermittedIdentifiers`, or iOS never delivers the task.
     /// Safe to leave uncalled: `schedule()` fails gracefully and the foreground path still scores.
-    static func register(perform operation: @escaping @MainActor () async -> Void) {
+    /// `onExpire` reports iOS reclaiming the processing time before the pass finished. The pass keeps no
+    /// record of it otherwise, so a strap log that simply stops mid-night cannot say why.
+    static func register(perform operation: @escaping @MainActor () async -> Void,
+                         onExpire: @escaping @MainActor () -> Void = {}) {
         BGTaskScheduler.shared.register(forTaskWithIdentifier: taskIdentifier, using: nil) { task in
             let completion = TaskCompletionGuard(task: task)
             let worker = Task { @MainActor in
@@ -293,6 +311,7 @@ enum RescoreBackgroundScheduler {
             }
             task.expirationHandler = {
                 worker.cancel()
+                Task { @MainActor in onExpire() }
                 // The pass did not finish inside the processing budget either. Ask for another rather
                 // than dropping the work, and report the failure so iOS's own scheduling heuristics see
                 // it honestly instead of being told this succeeded.
