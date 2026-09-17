@@ -440295,6 +440295,644 @@
           }
         }
       }
+    },
+    "A native training log, redesigned Training Load, and everything ryanbr/noop shipped since 10.1.2" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ein natives Trainingsprotokoll, überarbeitetes Training Load, und alles, was ryanbr/noop seit 10.1.2 veröffentlicht hat"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un registro de entrenamiento nativo, Training Load rediseñado, y todo lo que ryanbr/noop ha publicado desde la 10.1.2"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un journal d'entraînement natif, Training Load repensé, et tout ce que ryanbr/noop a publié depuis la 10.1.2"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un registro allenamenti nativo, Training Load ridisegnato, e tutto ciò che ryanbr/noop ha rilasciato dalla 10.1.2"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Natywny dziennik treningowy, przeprojektowany Training Load i wszystko, co ryanbr/noop wydał od wersji 10.1.2"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Um registo de treino nativo, o Training Load redesenhado, e tudo o que a ryanbr/noop lançou desde a 10.1.2"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Нативный журнал тренировок, переработанная нагрузка тренировок и всё, что ryanbr/noop выпустил с версии 10.1.2"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "原生训练日志、重新设计的训练负荷，以及 ryanbr/noop 自 10.1.2 以来发布的一切"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "原生訓練日誌、重新設計的訓練負荷，以及 ryanbr/noop 自 10.1.2 以來發布的一切"
+          }
+        }
+      }
+    },
+    "**Log strength and cardio natively — no import needed.** A built-in workout logger with a body-based muscle picker, one shared exercise catalogue, and optional downloadable form animations. Sets, muscle-group load and session media all stay on-device." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Kraft- und Cardiotraining nativ protokollieren — kein Import nötig.** Ein integriertes Trainingsprotokoll mit einer körperbasierten Muskelauswahl, einem gemeinsamen Übungskatalog und optionalen, herunterladbaren Bewegungsanimationen. Sätze, Muskelgruppenbelastung und Sitzungsmedien bleiben auf dem Gerät."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Registra fuerza y cardio de forma nativa, sin necesidad de importar.** Un registrador de entrenamientos integrado con un selector de músculos basado en el cuerpo, un catálogo de ejercicios compartido y animaciones de forma descargables opcionales. Las series, la carga por grupo muscular y los medios de la sesión permanecen en el dispositivo."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Enregistrez force et cardio nativement — aucun import nécessaire.** Un journal d'entraînement intégré avec un sélecteur de muscles basé sur le corps, un catalogue d'exercices partagé et des animations de mouvement téléchargeables en option. Séries, charge par groupe musculaire et médias de séance restent sur l'appareil."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Registra forza e cardio in modo nativo, senza bisogno di importare.** Un registratore di allenamenti integrato con un selettore di muscoli basato sul corpo, un catalogo di esercizi condiviso e animazioni del movimento scaricabili facoltative. Serie, carico per gruppo muscolare e media della sessione restano sul dispositivo."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Zapisuj siłę i cardio natywnie — bez importu.** Wbudowany rejestrator treningów z wyborem mięśni na sylwetce ciała, jednym wspólnym katalogiem ćwiczeń i opcjonalnymi animacjami techniki do pobrania. Serie, obciążenie grup mięśniowych i media sesji pozostają na urządzeniu."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Regista força e cardio de forma nativa — sem necessidade de importar.** Um registador de treinos integrado com um seletor de músculos baseado no corpo, um catálogo de exercícios partilhado e animações de execução opcionais para descarregar. Séries, carga por grupo muscular e multimédia da sessão permanecem no dispositivo."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Ведите силовые и кардиотренировки нативно — импорт не нужен.** Встроенный журнал тренировок с выбором мышц на модели тела, единым каталогом упражнений и необязательными анимациями техники для загрузки. Подходы, нагрузка по группам мышц и медиафайлы сессии остаются на устройстве."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**原生记录力量和有氧训练——无需导入。**内置训练记录器，配有基于身体部位的肌肉选择器、统一的动作目录，以及可选的下载式动作动画。组数、肌肉群负荷和训练媒体均保存在本机。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**原生記錄重量訓練和有氧訓練——無需匯入。**內建訓練記錄器，配有基於身體部位的肌肉選擇器、統一的動作目錄，以及可選的下載式動作動畫。組數、肌肉群負荷和訓練媒體均保存在本機。"
+          }
+        }
+      }
+    },
+    "**Training Load, Cardio and Strength, rebuilt.** All three screens now share one design kit and one way of reading load, with dedicated colour lanes so a glance tells you which is which." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Training Load, Cardio und Strength neu gebaut.** Alle drei Bildschirme teilen sich jetzt ein Design-Kit und eine Art, Belastung zu lesen, mit eigenen Farbspuren, sodass ein Blick genügt, um sie zu unterscheiden."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Training Load, Cardio y Strength, rediseñados.** Las tres pantallas comparten ahora un mismo kit de diseño y una misma forma de leer la carga, con carriles de color propios para que un vistazo baste para distinguirlas."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Training Load, Cardio et Strength, reconstruits.** Les trois écrans partagent désormais un même kit de conception et une même façon de lire la charge, avec des voies de couleur dédiées pour les distinguer d'un coup d'œil."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Training Load, Cardio e Strength, ricostruiti.** Le tre schermate condividono ora lo stesso kit di design e lo stesso modo di leggere il carico, con corsie di colore dedicate così un'occhiata basta per distinguerle."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Training Load, Cardio i Strength przebudowane.** Wszystkie trzy ekrany korzystają teraz z jednego zestawu projektowego i jednego sposobu odczytu obciążenia, z własnymi pasami kolorów, dzięki czemu jedno spojrzenie wystarczy, by je rozróżnić."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Training Load, Cardio e Strength, reconstruídos.** Os três ecrãs partilham agora o mesmo kit de design e a mesma forma de ler a carga, com faixas de cor próprias, para que um relance baste para os distinguir."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Training Load, Cardio и Strength — переработаны.** Все три экрана теперь используют один дизайн-кит и один способ чтения нагрузки, с отдельными цветовыми дорожками, чтобы отличить их с первого взгляда."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**训练负荷、有氧和力量界面全面重建。**三个界面现在共用同一套设计组件和统一的负荷读取方式，各自拥有专属色带，一眼即可分辨。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**訓練負荷、有氧和重量訓練介面全面重建。**三個介面現在共用同一套設計元件和統一的負荷讀取方式，各自擁有專屬色帶，一眼即可分辨。"
+          }
+        }
+      }
+    },
+    "**One active session, wherever you start it.** Starting a workout from Live, Workouts or a Quick Action now always resumes the same session — including a Lock Screen / Dynamic Island readout — and cardio keeps recording while NOOP is backgrounded." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Eine aktive Sitzung, egal wo du startest.** Ein Training über Live, Workouts oder eine Quick Action zu starten, nimmt jetzt immer dieselbe Sitzung wieder auf — inklusive Anzeige auf Sperrbildschirm/Dynamic Island — und Cardio zeichnet weiter auf, während NOOP im Hintergrund läuft."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Una sola sesión activa, empieces donde empieces.** Iniciar un entrenamiento desde Live, Workouts o una acción rápida ahora siempre retoma la misma sesión —incluida una lectura en la pantalla de bloqueo o Dynamic Island— y el cardio sigue grabando mientras NOOP está en segundo plano."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Une seule session active, quel que soit le point de départ.** Démarrer un entraînement depuis Live, Workouts ou une action rapide reprend désormais toujours la même session — avec un affichage sur l'écran verrouillé / la Dynamic Island — et le cardio continue d'enregistrer pendant que NOOP est en arrière-plan."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Un'unica sessione attiva, ovunque la avvii.** Avviare un allenamento da Live, Workouts o un'azione rapida ora riprende sempre la stessa sessione — con una lettura sulla schermata di blocco / Dynamic Island — e il cardio continua a registrare mentre NOOP è in background."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Jedna aktywna sesja, niezależnie od miejsca startu.** Rozpoczęcie treningu z Live, Workouts lub Szybkiej akcji zawsze wznawia teraz tę samą sesję — z odczytem na ekranie blokady / Dynamic Island — a cardio nadal się nagrywa, gdy NOOP działa w tle."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Uma única sessão ativa, onde quer que a inicies.** Iniciar um treino a partir de Live, Workouts ou de uma Ação Rápida retoma agora sempre a mesma sessão — com leitura no ecrã de bloqueio / Dynamic Island — e o cardio continua a gravar enquanto a NOOP está em segundo plano."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Одна активная сессия, независимо от того, где вы её начали.** Запуск тренировки из Live, Workouts или через Быстрое действие теперь всегда возобновляет ту же сессию — включая показ на экране блокировки / Dynamic Island, — а кардио продолжает записываться, пока NOOP работает в фоне."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**无论从哪里开始，都是同一个进行中的训练。**从 Live、训练或快捷操作启动锻炼现在都会恢复同一个训练——包括锁屏/灵动岛显示——而有氧训练在 NOOP 处于后台时也会持续记录。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**無論從哪裡開始，都是同一個進行中的訓練。**從 Live、訓練或快速動作啟動鍛鍊現在都會恢復同一個訓練——包括鎖定畫面/動態島顯示——而有氧訓練在 NOOP 處於背景時也會持續記錄。"
+          }
+        }
+      }
+    },
+    "**A reworked energy model.** Daily expenditure now blends NEAT, a personal forecast curve and active-only calibration, with an opt-in Apple Watch check and a retrospective estimate for days it had to guess. Weight history and trends get their own card, both feeding the coach." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Ein überarbeitetes Energiemodell.** Der Tagesverbrauch kombiniert jetzt NEAT, eine persönliche Prognosekurve und eine ausschließlich aktivitätsbasierte Kalibrierung, mit einer optionalen Apple-Watch-Prüfung und einer rückwirkenden Schätzung für Tage, an denen geraten werden musste. Gewichtsverlauf und -trends erhalten eine eigene Karte, beide fließen in den Coach ein."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Un modelo de energía renovado.** El gasto diario ahora combina NEAT, una curva de previsión personal y una calibración solo por actividad, con una comprobación opcional con Apple Watch y una estimación retrospectiva para los días en que hubo que suponer. El historial y las tendencias de peso tienen su propia tarjeta, y ambos alimentan al coach."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Un modèle énergétique repensé.** La dépense quotidienne combine désormais la NEAT, une courbe de prévision personnelle et un étalonnage limité à l'activité, avec une vérification facultative via l'Apple Watch et une estimation rétrospective pour les jours où il fallait deviner. L'historique et les tendances de poids ont leur propre carte, toutes deux alimentant le coach."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Un modello energetico rinnovato.** Il dispendio giornaliero ora combina il NEAT, una curva di previsione personale e una calibrazione solo attiva, con una verifica facoltativa con Apple Watch e una stima retrospettiva per i giorni in cui si doveva indovinare. Lo storico e le tendenze del peso hanno una propria scheda, entrambe utilizzate dal coach."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Przebudowany model energii.** Dzienny wydatek energetyczny łączy teraz NEAT, osobistą krzywą prognozy i kalibrację wyłącznie na podstawie aktywności, z opcjonalną kalibracją Apple Watch i retrospektywnym oszacowaniem dla dni, gdy trzeba było zgadywać. Historia i trendy wagi mają własną kartę, obie zasilają trenera."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Um modelo de energia renovado.** O gasto diário combina agora NEAT, uma curva de previsão pessoal e uma calibração apenas por atividade, com uma verificação opcional com o Apple Watch e uma estimativa retrospetiva para os dias em que foi preciso adivinhar. O histórico e as tendências de peso têm o seu próprio cartão, ambos a alimentar o coach."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Переработанная модель энергии.** Дневной расход теперь сочетает NEAT, персональную кривую прогноза и калибровку только по активности, с необязательной проверкой через Apple Watch и ретроспективной оценкой для дней, когда приходилось предполагать. История и тенденции веса получили собственную карточку, обе питают коуча."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**全新的能量消耗模型。**每日消耗现在结合了 NEAT（非运动性活动产热）、个性化预测曲线和仅基于活动的校准，并提供可选的 Apple Watch 校准以及对需要推测的日子的回溯估算。体重历史和趋势也有了自己的卡片，两者都会提供给教练使用。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**全新的能量消耗模型。**每日消耗現在結合了 NEAT（非運動性活動產熱）、個人化預測曲線和僅基於活動的校準，並提供可選的 Apple Watch 校準以及對需要推測的日子的回溯估算。體重歷史和趨勢也有了自己的卡片，兩者都會提供給教練使用。"
+          }
+        }
+      }
+    },
+    "**The coach can talk, listen and check in on its own.** Streaming replies, voice input, a scheduled morning brief, home-screen widgets and a Siri intent — the base coach ryanbr/noop maintains, which this fork extends with on-device semantic memory, 26 consent-gated tools, and Goals & Journey tracking." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Der Coach kann sprechen, zuhören und sich von selbst melden.** Gestreamte Antworten, Spracheingabe, ein geplanter Morgen-Kurzbericht, Homescreen-Widgets und ein Siri-Kurzbefehl — der Basis-Coach, den ryanbr/noop pflegt und den dieser Fork um lokales semantisches Gedächtnis, 26 zustimmungspflichtige Werkzeuge und Ziel-/Journey-Tracking erweitert."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**El coach ya puede hablar, escuchar y avisarte por su cuenta.** Respuestas en streaming, entrada de voz, un resumen matutino programado, widgets de pantalla de inicio y un intent de Siri: el coach base que mantiene ryanbr/noop, que este fork amplía con memoria semántica local, 26 herramientas con consentimiento y seguimiento de Objetivos y Trayecto."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Le coach peut désormais parler, écouter et prendre l'initiative.** Réponses en streaming, saisie vocale, un résumé matinal programmé, des widgets d'écran d'accueil et un raccourci Siri — le coach de base maintenu par ryanbr/noop, que ce fork étend avec une mémoire sémantique locale, 26 outils soumis à consentement et le suivi Objectifs & Parcours."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Il coach ora può parlare, ascoltare e farsi sentire da solo.** Risposte in streaming, input vocale, un riepilogo mattutino programmato, widget della schermata Home e un intent Siri — il coach di base mantenuto da ryanbr/noop, che questo fork estende con memoria semantica locale, 26 strumenti soggetti a consenso e monitoraggio di Obiettivi e Percorso."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Trener potrafi teraz mówić, słuchać i sam się odzywać.** Odpowiedzi strumieniowe, wprowadzanie głosowe, zaplanowane poranne podsumowanie, widżety na ekranie głównym i skrót Siri — bazowy trener utrzymywany przez ryanbr/noop, który ten fork rozszerza o lokalną pamięć semantyczną, 26 narzędzi wymagających zgody oraz śledzenie Celów i Podróży."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**O coach já consegue falar, ouvir e falar por iniciativa própria.** Respostas em streaming, entrada por voz, um resumo matinal agendado, widgets do ecrã principal e um intent da Siri — o coach base mantido pela ryanbr/noop, que este fork estende com memória semântica local, 26 ferramentas sujeitas a consentimento e o acompanhamento de Objetivos e Percurso."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Коуч теперь умеет говорить, слушать и сам выходить на связь.** Потоковые ответы, голосовой ввод, запланированная утренняя сводка, виджеты на главном экране и интент Siri — базовый коуч, который поддерживает ryanbr/noop, а этот форк расширяет локальной семантической памятью, 26 инструментами с согласием и отслеживанием Целей и Пути."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**教练现在能够对话、倾听，并主动联系你。**流式回复、语音输入、定时晨间简报、主屏幕小组件和 Siri 意图——这是 ryanbr/noop 维护的基础教练，本分支在此之上扩展了本机语义记忆、26 个需授权的工具，以及目标与历程追踪。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**教練現在能夠對話、傾聽，並主動聯繫你。**串流回覆、語音輸入、定時晨間簡報、主畫面小工具和 Siri 意圖——這是 ryanbr/noop 維護的基礎教練，本分支在此之上擴充了本機語意記憶、26 個需授權的工具，以及目標與歷程追蹤。"
+          }
+        }
+      }
+    },
+    "**A VO₂max without a tape measure, and training load as a Trends card (#1391, #1423).** If NOOP knows your resting heart rate it estimates VO₂max from age and sex, and names the method rather than presenting one number as the only possible one." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Ein VO₂max-Wert ohne Maßband, und Training Load als Trends-Karte (#1391, #1423).** Kennt NOOP deine Ruheherzfrequenz, schätzt es den VO₂max aus Alter und Geschlecht und nennt die verwendete Methode, statt eine Zahl als einzig mögliche darzustellen."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Un VO₂max sin cinta métrica, y la carga de entrenamiento como tarjeta de Tendencias (#1391, #1423).** Si NOOP conoce tu frecuencia cardíaca en reposo, estima el VO₂max a partir de la edad y el sexo, y nombra el método usado en lugar de presentar un número como si fuera el único posible."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Un VO₂max sans mètre ruban, et la charge d'entraînement en carte Tendances (#1391, #1423).** Si NOOP connaît votre fréquence cardiaque au repos, il estime le VO₂max à partir de l'âge et du sexe, et indique la méthode utilisée plutôt que de présenter un chiffre comme le seul possible."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Un VO₂max senza metro da sarta, e il carico di allenamento come scheda Tendenze (#1391, #1423).** Se NOOP conosce la tua frequenza cardiaca a riposo, stima il VO₂max da età e sesso, indicando il metodo usato invece di presentare un numero come l'unico possibile."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**VO₂max bez miary krawieckiej, i obciążenie treningowe jako karta Trendów (#1391, #1423).** Jeśli NOOP zna Twoje tętno spoczynkowe, szacuje VO₂max na podstawie wieku i płci, podając zastosowaną metodę zamiast prezentować jedną liczbę jako jedyną możliwą."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Um VO₂max sem fita métrica, e a carga de treino como cartão de Tendências (#1391, #1423).** Se a NOOP conhecer a tua frequência cardíaca em repouso, estima o VO₂max a partir da idade e do sexo, indicando o método usado em vez de apresentar um número como se fosse o único possível."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**VO₂max без сантиметровой ленты, и нагрузка тренировок как карточка Тенденций (#1391, #1423).** Если NOOP знает вашу пульс покоя, он оценивает VO₂max по возрасту и полу и указывает использованный метод, а не выдаёт число так, будто оно единственно возможное."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**无需皮尺即可估算 VO₂max，训练负荷成为趋势卡片（#1391、#1423）。**如果 NOOP 知道你的静息心率，就能根据年龄和性别估算 VO₂max，并说明所用方法，而不是把一个数字当作唯一可能的结果呈现。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**無需皮尺即可估算 VO₂max，訓練負荷成為趨勢卡片（#1391、#1423）。**如果 NOOP 知道你的靜息心率，就能根據年齡和性別估算 VO₂max，並說明所用方法，而不是把一個數字當作唯一可能的結果呈現。"
+          }
+        }
+      }
+    },
+    "**Apple Health write-back and hourly steps (#1432, #1429).** Workouts flow back into Health on their own, and iPhone steps import hour by hour with a 90-day backfill." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Rückschreiben zu Apple Health und stündliche Schritte (#1432, #1429).** Trainings fließen von selbst zurück in Health, und iPhone-Schritte werden stundenweise mit einem 90-Tage-Rückstand importiert."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Escritura en Apple Health y pasos por hora (#1432, #1429).** Los entrenamientos vuelven a Health por sí solos, y los pasos del iPhone se importan hora a hora con una recuperación de 90 días."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Réécriture vers Apple Santé et pas horaires (#1432, #1429).** Les entraînements reviennent d'eux-mêmes dans Santé, et les pas de l'iPhone sont importés heure par heure avec un rattrapage de 90 jours."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Scrittura su Apple Salute e passi orari (#1432, #1429).** Gli allenamenti tornano da soli su Salute, e i passi dell'iPhone vengono importati ora per ora con un recupero di 90 giorni."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Zapis zwrotny do Apple Zdrowie i godzinowe kroki (#1432, #1429).** Treningi wracają do Zdrowia samoczynnie, a kroki z iPhone'a są importowane godzina po godzinie z 90-dniowym uzupełnieniem."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Escrita de volta na Apple Saúde e passos por hora (#1432, #1429).** Os treinos regressam à Saúde por conta própria, e os passos do iPhone são importados hora a hora com uma recuperação de 90 dias."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Обратная запись в Apple Здоровье и почасовые шаги (#1432, #1429).** Тренировки самостоятельно возвращаются в Здоровье, а шаги с iPhone импортируются по часам с восполнением за 90 дней."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**回写 Apple 健康及按小时统计步数（#1432、#1429）。**锻炼记录会自动写回健康，iPhone 步数按小时导入，并支持 90 天回填。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**回寫 Apple 健康及按小時統計步數（#1432、#1429）。**鍛鍊記錄會自動寫回健康，iPhone 步數按小時匯入，並支援 90 天回填。"
+          }
+        }
+      }
+    },
+    "**Sleep reads more honestly.** A \"may be incomplete\" badge now reflects how short the night actually was rather than firing on thin motion data alone, and sleep-aware steps track your own day/night cycle instead of the clock's. Native strength sessions can finally be deleted, and the Sleep hero respects your Liquid Design setting." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Schlaf wird ehrlicher dargestellt.** Ein „Möglicherweise unvollständig“-Hinweis spiegelt jetzt wider, wie kurz die Nacht wirklich war, statt allein auf dünne Bewegungsdaten anzuspringen, und schlafbewusste Schritte folgen deinem eigenen Tag-Nacht-Zyklus statt der Uhr. Native Kraft-Sitzungen lassen sich endlich löschen, und der Schlaf-Titelbereich respektiert deine Liquid-Design-Einstellung."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**El sueño se muestra con más honestidad.** Un indicador de \"puede estar incompleto\" ahora refleja lo corta que fue realmente la noche, en lugar de activarse solo por datos de movimiento escasos, y los pasos con conciencia del sueño siguen tu propio ciclo de día y noche en vez del reloj. Las sesiones de fuerza nativas por fin se pueden eliminar, y la cabecera de Sueño respeta tu ajuste de Liquid Design."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Le sommeil s'affiche plus honnêtement.** Un badge « peut-être incomplet » reflète désormais la brièveté réelle de la nuit plutôt que de se déclencher sur de simples données de mouvement ténues, et les pas sensibles au sommeil suivent votre propre cycle jour/nuit plutôt que l'horloge. Les séances de force natives peuvent enfin être supprimées, et l'en-tête Sommeil respecte votre réglage Liquid Design."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Il sonno viene mostrato in modo più onesto.** Un badge \"potrebbe essere incompleto\" ora riflette quanto sia stata effettivamente breve la notte, invece di attivarsi solo per dati di movimento scarsi, e i passi sensibili al sonno seguono il tuo ciclo giorno/notte anziché l'orologio. Le sessioni di forza native possono finalmente essere eliminate, e l'intestazione del Sonno rispetta la tua impostazione Liquid Design."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Sen jest przedstawiany bardziej rzetelnie.** Odznaka „może być niepełna” odzwierciedla teraz, jak krótka faktycznie była noc, zamiast uruchamiać się wyłącznie przy skąpych danych o ruchu, a kroki uwzględniające sen podążają za Twoim własnym cyklem dnia i nocy, a nie za zegarem. Natywne sesje siłowe można wreszcie usuwać, a nagłówek Snu respektuje Twoje ustawienie Liquid Design."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**O sono é apresentado com mais honestidade.** Um selo \"pode estar incompleto\" reflete agora a duração real e curta da noite, em vez de surgir apenas por dados de movimento escassos, e os passos sensíveis ao sono seguem o teu próprio ciclo dia/noite em vez do relógio. As sessões de força nativas podem finalmente ser eliminadas, e o cabeçalho do Sono respeita a tua definição de Liquid Design."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Сон отображается честнее.** Значок «возможно, неполный» теперь отражает, насколько короткой была ночь на самом деле, а не срабатывает лишь при скудных данных о движении, а шаги с учётом сна следуют вашему собственному циклу день/ночь, а не часам. Нативные силовые сессии наконец можно удалять, а заголовок раздела Сна учитывает вашу настройку Liquid Design."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**睡眠数据显示得更加诚实。**「可能不完整」提示现在会根据这一晚实际有多短来判断，而不是仅因运动数据稀少就触发；感知睡眠的步数统计也会跟随你自己的昼夜周期，而非单纯按时钟计算。原生力量训练终于可以删除了，睡眠头部区域也会遵循你的 Liquid 设计设置。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**睡眠資料顯示得更加誠實。**「可能不完整」提示現在會根據這一晚實際有多短來判斷，而不是僅因運動資料稀少就觸發；感知睡眠的步數統計也會跟隨你自己的晝夜週期，而非單純按時鐘計算。原生重量訓練終於可以刪除了，睡眠頭部區域也會遵循你的 Liquid 設計設定。"
+          }
+        }
+      }
+    },
+    "**A strap that syncs itself.** A Sync Strap Shortcut, a keep-screen-on option and a sync Live Activity land alongside deeper Oura and Polar protocol work and a stable identity for 5.0/MG straps." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Ein Strap, der sich selbst synchronisiert.** Ein Sync-Strap-Kurzbefehl, eine Bildschirm-an-Option und eine Sync-Live-Aktivität kommen zusammen mit tieferer Oura- und Polar-Protokollarbeit und einer stabilen Identität für 5.0/MG-Straps."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Una correa que se sincroniza sola.** Un Atajo de sincronización, una opción para mantener la pantalla encendida y una actividad en directo de sincronización llegan junto con un trabajo más profundo en los protocolos Oura y Polar y una identidad estable para correas 5.0/MG."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Un bracelet qui se synchronise tout seul.** Un raccourci de synchronisation, une option pour garder l'écran allumé et une activité en direct de synchronisation arrivent avec un travail plus poussé sur les protocoles Oura et Polar et une identité stable pour les bracelets 5.0/MG."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Una fascia che si sincronizza da sola.** Uno shortcut di sincronizzazione, un'opzione per tenere lo schermo acceso e un'attività dal vivo di sincronizzazione arrivano insieme a un lavoro più approfondito sui protocolli Oura e Polar e a un'identità stabile per le fasce 5.0/MG."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Opaska, która synchronizuje się sama.** Skrót synchronizacji, opcja utrzymania włączonego ekranu i aktywność na żywo synchronizacji pojawiają się obok głębszej pracy nad protokołami Oura i Polar oraz stabilnej tożsamości dla opasek 5.0/MG."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Uma bracelete que se sincroniza sozinha.** Um Atalho de sincronização, uma opção para manter o ecrã ligado e uma Atividade ao Vivo de sincronização chegam juntamente com um trabalho mais profundo nos protocolos Oura e Polar e uma identidade estável para braceletes 5.0/MG."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Ремешок, который синхронизируется сам.** Ярлык синхронизации, опция «не выключать экран» и живая активность синхронизации появляются вместе с более глубокой доработкой протоколов Oura и Polar и стабильным идентификатором для ремешков 5.0/MG."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**手环可以自行同步。**同步手环快捷指令、保持屏幕常亮选项和同步实时活动，与更深入的 Oura 及 Polar 协议工作以及 5.0/MG 手环的稳定身份识别一同上线。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**手環可以自行同步。**同步手環快速指令、保持螢幕常亮選項和同步即時動態，與更深入的 Oura 及 Polar 協定工作以及 5.0/MG 手環的穩定身分識別一同上線。"
+          }
+        }
+      }
+    },
+    "**Workouts and charts, cleaned up.** The Workouts list splits into Current and Archived and discards sub-minute noise, and the live heart-rate tick no longer re-renders the Workouts or Sleep charts on every beat." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Workouts und Diagramme aufgeräumt.** Die Workout-Liste teilt sich in Aktuell und Archiviert und verwirft Rauschen unter einer Minute, und der Live-Herzfrequenz-Takt zeichnet die Workout- oder Schlaf-Diagramme nicht mehr bei jedem Schlag neu."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Entrenamientos y gráficos, más ordenados.** La lista de entrenamientos se divide en Actuales y Archivados y descarta el ruido de menos de un minuto, y el pulso de frecuencia cardíaca en directo ya no vuelve a dibujar los gráficos de Entrenamientos o Sueño en cada latido."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Entraînements et graphiques, nettoyés.** La liste des entraînements se divise en Actuels et Archivés et élimine le bruit de moins d'une minute, et le battement de fréquence cardiaque en direct ne redessine plus les graphiques Entraînements ou Sommeil à chaque pulsation."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Allenamenti e grafici, ripuliti.** L'elenco degli allenamenti si divide in Correnti e Archiviati e scarta il rumore sotto il minuto, e il battito della frequenza cardiaca dal vivo non ridisegna più i grafici di Allenamenti o Sonno a ogni battito."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Treningi i wykresy, uporządkowane.** Lista treningów dzieli się na Bieżące i Zarchiwizowane oraz odrzuca szum poniżej minuty, a bicie tętna na żywo nie odświeża już wykresów Treningów ani Snu przy każdym uderzeniu."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Treinos e gráficos, organizados.** A lista de treinos divide-se em Atuais e Arquivados e descarta o ruído com menos de um minuto, e o pulso da frequência cardíaca em direto deixa de redesenhar os gráficos de Treinos ou Sono a cada batimento."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Тренировки и графики приведены в порядок.** Список тренировок делится на Текущие и Архивные и отбрасывает шум короче минуты, а живой пульс больше не перерисовывает графики Тренировок или Сна при каждом ударе."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**锻炼记录和图表更整洁了。**锻炼列表拆分为「进行中」和「已归档」，并过滤掉不足一分钟的噪音记录；实时心率跳动也不再让锻炼或睡眠图表每次心跳都重新渲染。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**鍛鍊記錄和圖表更整潔了。**鍛鍊清單拆分為「進行中」和「已封存」，並過濾掉不足一分鐘的雜訊記錄；即時心率跳動也不再讓鍛鍊或睡眠圖表每次心跳都重新繪製。"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

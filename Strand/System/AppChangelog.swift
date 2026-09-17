@@ -7,7 +7,7 @@ enum AppChangelog {
 
     /// Bump this when you add a release below. The "What's New" sheet shows automatically when the
     /// stored last-seen version is behind this. (Decoupled from the bundle version on purpose.)
-    static let currentVersion = "11.8.0"
+    static let currentVersion = "11.8.1"
 
     struct Release: Identifiable {
         let version: String
@@ -19,6 +19,23 @@ enum AppChangelog {
 
     /// Newest first.
     static let releases: [Release] = [
+        Release(
+            version: "11.8.1",
+            title: "A native training log, redesigned Training Load, and everything ryanbr/noop shipped since 10.1.2",
+            date: "September 2026",
+            items: [
+                "**Log strength and cardio natively — no import needed.** A built-in workout logger with a body-based muscle picker, one shared exercise catalogue, and optional downloadable form animations. Sets, muscle-group load and session media all stay on-device.",
+                "**Training Load, Cardio and Strength, rebuilt.** All three screens now share one design kit and one way of reading load, with dedicated colour lanes so a glance tells you which is which.",
+                "**One active session, wherever you start it.** Starting a workout from Live, Workouts or a Quick Action now always resumes the same session — including a Lock Screen / Dynamic Island readout — and cardio keeps recording while NOOP is backgrounded.",
+                "**A reworked energy model.** Daily expenditure now blends NEAT, a personal forecast curve and active-only calibration, with an opt-in Apple Watch check and a retrospective estimate for days it had to guess. Weight history and trends get their own card, both feeding the coach.",
+                "**The coach can talk, listen and check in on its own.** Streaming replies, voice input, a scheduled morning brief, home-screen widgets and a Siri intent — the base coach ryanbr/noop maintains, which this fork extends with on-device semantic memory, 26 consent-gated tools, and Goals & Journey tracking.",
+                "**A VO₂max without a tape measure, and training load as a Trends card (#1391, #1423).** If NOOP knows your resting heart rate it estimates VO₂max from age and sex, and names the method rather than presenting one number as the only possible one.",
+                "**Apple Health write-back and hourly steps (#1432, #1429).** Workouts flow back into Health on their own, and iPhone steps import hour by hour with a 90-day backfill.",
+                "**Sleep reads more honestly.** A \"may be incomplete\" badge now reflects how short the night actually was rather than firing on thin motion data alone, and sleep-aware steps track your own day/night cycle instead of the clock's. Native strength sessions can finally be deleted, and the Sleep hero respects your Liquid Design setting.",
+                "**A strap that syncs itself.** A Sync Strap Shortcut, a keep-screen-on option and a sync Live Activity land alongside deeper Oura and Polar protocol work and a stable identity for 5.0/MG straps.",
+                "**Workouts and charts, cleaned up.** The Workouts list splits into Current and Archived and discards sub-minute noise, and the live heart-rate tick no longer re-renders the Workouts or Sleep charts on every beat.",
+            ]
+        ),
         Release(
             version: "11.8.0",
             title: "A gym log book on your wrist, a Coach you can switch off, and a Sync Strap shortcut",
