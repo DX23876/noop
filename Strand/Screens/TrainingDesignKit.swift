@@ -200,7 +200,7 @@ struct LoadHeroCard: View {
             }
         }
         .padding(compact ? NoopMetrics.space3 : NoopMetrics.cardPadding)
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(LaneHeroSurface(lane: lane))
         .accessibilityElement(children: .combine)
         .onChangeCompat(of: percent) { newValue in
@@ -496,7 +496,7 @@ struct SummaryTile<Mini: View>: View {
     let symbol: String
     let tint: Color
     let title: String
-    let headline: String
+    var headline: String? = nil
     var detail: String? = nil
     let action: () -> Void
     @ViewBuilder var mini: () -> Mini
@@ -510,21 +510,25 @@ struct SummaryTile<Mini: View>: View {
                         .font(StrandFont.caption.weight(.semibold))
                         .foregroundStyle(StrandPalette.textSecondary)
                         .lineLimit(1)
+                        .minimumScaleFactor(0.7)
                     Spacer(minLength: 0)
                     Image(systemName: "chevron.right")
                         .font(StrandFont.caption.weight(.semibold))
                         .foregroundStyle(StrandPalette.textTertiary)
                 }
-                Text(headline)
-                    .font(StrandFont.headline)
-                    .foregroundStyle(StrandPalette.textPrimary)
-                    .lineLimit(2)
-                    .minimumScaleFactor(0.8)
+                if let headline {
+                    Text(headline)
+                        .font(StrandFont.headline)
+                        .foregroundStyle(StrandPalette.textPrimary)
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.8)
+                }
                 if let detail {
                     Text(detail)
                         .font(StrandFont.caption)
                         .foregroundStyle(StrandPalette.textSecondary)
-                        .lineLimit(2)
+                        .lineLimit(3)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer(minLength: 0)
                 mini()
