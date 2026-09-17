@@ -41,7 +41,7 @@ on:
       - '.github/workflows/app-build.yml'
   # No `push: main` leg. Every change reaches main through a PR, which the trigger above already
   # gates, so a push run rebuilt content that had just been built - on macOS runners, which GitHub
-  # bills at 10x Linux for a two-runner matrix (macos-15 for the universal macOS leg, macos-26 for
+  # bills at 10x Linux for a two-runner matrix (macos-26 for both the universal macOS leg and
   # the iOS 26 SDK). A RELEASE pushes straight to main with no PR, but fork-release.yml builds both
   # Strand and NOOPiOS itself, so that path keeps its own compile gate. The gap this leaves is a
   # direct non-release push to main; `workflow_dispatch` below covers checking one on demand.
@@ -75,13 +75,17 @@ jobs:
           # #51: the macOS build must be universal — 'platform=macOS' on an Apple-Silicon runner thins to
           # arm64-only. Use the generic destination + explicit ARCHS so this CI verify catches an x86_64
           # break at PR time (matches the release/testing workflows).
+          # macos-26, not macos-15: macos-15's Xcode 16.4 (Swift 6.1.2) crashes swift-frontend compiling
+          # the Strand module — first in x86_64 module emission, then, with whole-module mode forced
+          # below, in SILGen (`emitRawApply`) on the arm64 slice. The macos-26 toolchain builds the same
+          # sources cleanly (its NOOPiOS leg compiles the shared Strand/ files).
           - scheme: Strand
             destination: 'generic/platform=macOS'
             extra_args: 'ARCHS="x86_64 arm64" ONLY_ACTIVE_ARCH=NO'
-            runner: macos-15
+            runner: macos-26
           # iOS needs the iOS 26 SDK (Liquid Glass's `glassEffect`, landed 2026-07-07) which macos-15's
           # default Xcode doesn't ship — matches the runner fork-testing-build.yml / fork-release.yml
-          # already use for their NOOPiOS legs. macos-15 stays correct for the macOS/Strand leg above.
+          # already use for their NOOPiOS legs.
           - scheme: NOOPiOS
             destination: 'generic/platform=iOS Simulator'
             extra_args: ''
