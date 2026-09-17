@@ -134,17 +134,20 @@ struct StrengthView: View {
                 } else if workouts.isEmpty && model.genericSessions.isEmpty {
                     emptyState
                 } else {
-                    thisWeek
-                    selectedRangeOverview
-                    TrainingActivityHeatmap(days: model.activityDays)
+                    weekControl
+                    loadHero
+                    weekFigures
                     // Named for `--demo-scroll-to` screenshot QA (DEBUG only; the id is inert otherwise),
                     // so the weekly set range in the middle of this screen can be captured too.
                     muscleGroups.id("volume")
+                    loadChart
                     balanceCard
+                    selectedRangeOverview
                     exerciseProgress
-                    genericStrengthSessions
+                    TrainingActivityHeatmap(days: model.activityDays)
                     recentSessions
                     actionRow
+                    explainers
                 }
             }
             .padding(NoopMetrics.screenPadding)
@@ -234,10 +237,6 @@ struct StrengthView: View {
                         Text("Average RPE uses only the \(value.ratedSetCount) of \(value.workingSetCount) working sets that carry a rating.")
                             .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
                     }
-                    if value.observedWeekCount > 0 {
-                        Text("Active weeks count calendar weeks with at least one session, from your first session in this range. The week start follows Settings › Training.")
-                            .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
-                    }
                 }
             }
         }
@@ -259,31 +258,27 @@ struct StrengthView: View {
         return Duration.seconds(seconds).formatted(.units(allowed: [.hours, .minutes], width: .abbreviated))
     }
 
-    @ViewBuilder private var genericStrengthSessions: some View {
-        if !model.genericSessions.isEmpty {
-            VStack(alignment: .leading, spacing: NoopMetrics.gap) {
-                SectionHeader("Needs details", overline: "Imported strength")
-                ForEach(model.genericSessions.prefix(6)) { entry in
-                    NoopCard {
-                        HStack(spacing: NoopMetrics.space3) {
-                            Image(systemName: "figure.strengthtraining.traditional")
-                                .foregroundStyle(DomainTheme.effort.color)
-                            VStack(alignment: .leading, spacing: 3) {
-                                Text(strengthSportName(entry.session.row.sport)).font(StrandFont.headline)
-                                Text(entry.manual == nil
-                                     ? "Exercise and set details are unavailable from Apple Health."
-                                     : "Your exercises and work sets are saved with this session.")
-                                    .font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
-                                    .fixedSize(horizontal: false, vertical: true)
-                            }
-                            Spacer(minLength: 8)
-                            Button(entry.manual == nil ? "Add details" : "Edit details") {
-                                genericSession = entry
-                            }
-                            .font(StrandFont.footnote).buttonStyle(.bordered)
-                        }
-                    }
+    private func genericSessionCard(_ entry: StrengthModel.GenericStrengthSession) -> some View {
+        NoopCard {
+            HStack(spacing: NoopMetrics.space3) {
+                Image(systemName: "figure.strengthtraining.traditional")
+                    .foregroundStyle(TrainingLane.strength.color)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(strengthSportName(entry.session.row.sport)).font(StrandFont.headline)
+                    Text(entry.manual == nil
+                         ? "Exercise and set details are unavailable from Apple Health."
+                         : "Your exercises and work sets are saved with this session.")
+                        .font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Text(Date(timeIntervalSince1970: TimeInterval(entry.session.row.startTs))
+                        .formatted(date: .abbreviated, time: .omitted))
+                        .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
                 }
+                Spacer(minLength: 8)
+                Button(entry.manual == nil ? "Add details" : "Edit details") {
+                    genericSession = entry
+                }
+                .font(StrandFont.footnote).buttonStyle(.bordered)
             }
         }
     }
@@ -363,37 +358,59 @@ struct StrengthView: View {
 
     // MARK: - This week
 
-    private var thisWeek: some View {
-        VStack(alignment: .leading, spacing: NoopMetrics.gap) {
-            weekNavBar
-            NoopCard {
-                // Three across: seven small facts to scan. See `tile(_:)` for why the shared
-                // Today tile could not simply be dropped in here at this size.
-                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: 3),
-                          spacing: 10) {
-                    tile(icon: "dumbbell.fill", label: String(localized: "Sessions"),
-                         value: "\(week.sessionCount)", tint: DomainTheme.effort.color)
-                    tile(icon: "square.3.layers.3d", label: String(localized: "Working sets"),
-                         value: "\(week.workingSetCount)", tint: DomainTheme.effort.color)
-                    tile(icon: "scalemass.fill", label: String(localized: "Volume"),
-                         value: volumeText(week.volumeLoadKg), tint: DomainTheme.effort.color)
-                    bodyweightTile
-                    strengthLoadTile
-                    effortTile
-                }
-                // Charge sits OUTSIDE the grid, as a full-width strip.
-                //
-                // Seven tiles in a three-column grid leaves the seventh stranded beside two empty
-                // cells, which reads as a layout that ran out rather than one that was chosen.
-                // `gridCellColumns` is the obvious fix and does nothing here — it belongs to SwiftUI's
-                // `Grid`, not to `LazyVGrid`, so it compiles, changes nothing, and looks like it
-                // worked. Moving the tile out is what actually spans the row.
-                //
-                // Charge is the right one to move: it is the week's CONTEXT rather than another
-                // training-volume figure, so reading it as a footer under the six is also truer to
-                // what it is.
-                chargeStrip
-            }
+    private var weekControl: some View {
+        TrainingWeekControl(overline: String(localized: "Training"), rangeText: weekRangeText,
+                            canGoBack: weekOffset > minWeekOffset, canGoForward: weekOffset < 0,
+                            step: { delta in stepWeek(delta) },
+                            ranges: StrengthModel.HistoryRange.allCases,
+                            selectedRange: $model.range,
+                            rangeLabel: { $0.label })
+    }
+
+    /// The week's strength load against the wearer's usual, read exactly as Training Load reads it.
+    private var loadHero: some View {
+        let lane = model.lane
+        return LoadHeroCard(lane: .strength, title: String(localized: "Strength load"),
+                            percent: lane?.trend?.percentChange, state: LoadPillState.of(lane),
+                            figure: lane.map { lane in
+                                let weighted = lane.sevenDayTotal.formatted(.number.precision(.fractionLength(1)))
+                                return "\(String(localized: "\(lane.sevenDayWorkingSets) working sets")) · \(String(localized: "\(weighted) weighted sets"))"
+                            },
+                            trend: model.laneRatios.compactMap(\.strength),
+                            coverage: lane.flatMap { $0.possibleCount > 0
+                                ? String(localized: "\($0.measuredCount) of \($0.possibleCount) working sets rated")
+                                : nil },
+                            caveat: lane.flatMap { lane in
+                                guard lane.possibleCount > 0,
+                                      Double(lane.measuredCount) / Double(lane.possibleCount) < TrainingLoad.trustedRatedShare
+                                else { return nil }
+                                return String(localized: "Only \(lane.measuredCount) of \(lane.possibleCount) sets carry an RPE, so most of this rests on the default weighting")
+                            })
+    }
+
+    private var weekFigures: some View {
+        var items = [
+            KPIItem(id: "sessions", icon: "dumbbell.fill", value: "\(week.sessionCount)",
+                    label: String(localized: "Sessions")),
+            KPIItem(id: "sets", icon: "square.3.layers.3d", value: "\(week.workingSetCount)",
+                    label: String(localized: "Working sets")),
+            KPIItem(id: "volume", icon: "scalemass.fill", value: volumeText(week.volumeLoadKg),
+                    label: String(localized: "Volume")),
+            KPIItem(id: "effort", icon: "heart.fill", value: weekEffort.map { String(format: "%.0f", $0) } ?? "—",
+                    label: String(localized: "Effort"), caption: String(localized: "this week")),
+        ]
+        // Only when there is some: a lifter who never trains with bodyweight should not carry an empty figure.
+        if model.weekBodyweightKg > 0 || model.weekUnpricedBodyweightSets > 0 {
+            items.append(KPIItem(id: "bodyweight", icon: "figure.strengthtraining.functional",
+                                 value: model.weekBodyweightKg > 0 ? volumeText(model.weekBodyweightKg) : "—",
+                                 label: String(localized: "Bodyweight"),
+                                 caption: model.weekUnpricedBodyweightSets > 0
+                                    ? String(localized: "\(model.weekUnpricedBodyweightSets) sets unpriced")
+                                    : String(localized: "\(model.weekBodyweightSets) sets")))
+        }
+        return VStack(alignment: .leading, spacing: NoopMetrics.space2) {
+            KPIStrip(lane: .strength, items: items)
+            chargeStrip
             if let progress = weekProgressText {
                 Label(progress, systemImage: "hourglass")
                     .font(StrandFont.caption)
@@ -403,215 +420,12 @@ struct StrengthView: View {
         }
     }
 
-    /// Week navigation, matching `TrendsView`'s digest stepper exactly — same clamping, same Monday
-    /// anchoring, so stepping a week means the same thing on both screens.
-    private var weekNavBar: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Training").strandOverline()
-                Text("This week").font(StrandFont.title2)
-                    .foregroundStyle(StrandPalette.textPrimary)
-            }
-            Spacer(minLength: 8)
-            rangePicker
-            HStack(spacing: 10) {
-                Button { stepWeek(-1) } label: { Image(systemName: "chevron.left") }
-                    .disabled(weekOffset <= minWeekOffset)
-                Text(weekRangeText)
-                    .font(StrandFont.footnote)
-                    .foregroundStyle(StrandPalette.textSecondary)
-                    .monospacedDigit()
-                Button { stepWeek(1) } label: { Image(systemName: "chevron.right") }
-                    .disabled(weekOffset >= 0)
-            }
-            .buttonStyle(.plain)
-            .foregroundStyle(StrandPalette.accent)
-        }
-    }
-
-    /// How far back the screen reads.
-    ///
-    /// It exists because the questions this screen gained cannot be answered inside a quarter: a record
-    /// set last spring, or a strength trend over a year, simply was not visible when the window was a
-    /// fixed 120 days. Reloading on a change rather than reading everything up front keeps the default
-    /// cheap for the people who never touch it.
-    private var rangePicker: some View {
-        Menu {
-            ForEach(StrengthModel.HistoryRange.allCases) { option in
-                Button {
-                    model.range = option
-                } label: {
-                    if model.range == option {
-                        Label(option.label, systemImage: "checkmark")
-                    } else {
-                        Text(option.label)
-                    }
-                }
-            }
-        } label: {
-            HStack(spacing: 4) {
-                Image(systemName: "calendar")
-                    .font(.system(size: 10, weight: .semibold))
-                Text(model.range.label)
-                    .font(StrandFont.caption)
-            }
-            .foregroundStyle(StrandPalette.textSecondary)
-            .padding(.horizontal, 9)
-            .padding(.vertical, 5)
-            .background(StrandPalette.surfaceInset,
-                        in: Capsule())
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(String(localized: "History window"))
-    }
-
-    /// One tile of the weekly grid — compact, and every one the same size.
-    ///
-    /// Three across on a phone, deliberately small: this block is seven facts to be scanned, not seven
-    /// cards to be read. Two earlier attempts were both worse for the same underlying reason — the
-    /// shared `TodayMetricTile` sizes itself around its CONTENT, so a tile carrying a sparkline stood
-    /// taller than one that did not, and widening the grid to stop the labels truncating made the whole
-    /// block twice the height it needs.
-    ///
-    /// So: the modern surface and the coloured icon chip are the design system's (`TodayCardSurface`,
-    /// the same one Today's tiles sit on), and the LAYOUT is local and fixed-height, which is what makes
-    /// the grid line up. The eight-week history the sparklines used to show lives where there is room
-    /// for it — the week stepper, and the exercise chart below.
-    private func tile(icon: String, label: String, value: String,
-                      tint: Color, caption: String? = nil,
-                      info: InfoTopic? = nil) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 0) {
-                ZStack {
-                    Circle().fill(tint.opacity(0.13))
-                    Image(systemName: icon)
-                        .font(.system(size: 10, weight: .semibold))
-                        .foregroundStyle(tint)
-                }
-                .frame(width: 22, height: 22)
-                .accessibilityHidden(true)
-                Spacer(minLength: 0)
-                if let info { infoButton(info) }
-            }
-            Spacer(minLength: 0)
-            Text(value)
-                .font(StrandFont.number(26))
-                .foregroundStyle(StrandPalette.textPrimary)
-                .lineLimit(1)
-                .minimumScaleFactor(0.55)
-            // `subhead`, not `caption`: on iOS the scale runs subhead (13) → caption (12) → footnote
-            // (11), and a tile label set in caption reads as a footnote to a number that is the point
-            // of the tile. The caption line below stays a step smaller, which is what keeps the two
-            // apart now that the label has grown.
-            Text(label)
-                .font(StrandFont.subhead)
-                .foregroundStyle(StrandPalette.textSecondary)
-                .lineLimit(1)
-                .minimumScaleFactor(0.65)
-            // The caption line is RESERVED even when empty, so a tile that has nothing to add is the
-            // same height as one that does. Without it the grid rows staggered by a line.
-            Text(caption ?? " ")
-                .font(StrandFont.caption)
-                .foregroundStyle(tint)
-                .lineLimit(1)
-                .minimumScaleFactor(0.7)
-        }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 9)
-        .frame(maxWidth: .infinity, minHeight: 112, maxHeight: 112, alignment: .leading)
-        .background(TodayCardSurface(tint: tint, cornerRadius: NoopMetrics.groupedRadius))
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(label): \(value)\(caption.map { ", " + $0 } ?? "")")
-    }
-
-    /// The week's bodyweight volume — the work a calisthenics day actually moved, which volume load
-    /// counts as zero.
-    ///
-    /// Shown only when there IS some: a lifter who never does bodyweight work should not carry a
-    /// permanently empty tile, and a dash here would read as missing data rather than as "not
-    /// applicable". When weigh-ins were missing for some of it, the caption says how many sets went
-    /// unpriced instead of quietly leaving them out.
-    @ViewBuilder
-    private var bodyweightTile: some View {
-        if model.weekBodyweightKg > 0 || model.weekUnpricedBodyweightSets > 0 {
-            tile(icon: "figure.strengthtraining.functional",
-                 label: String(localized: "Bodyweight"),
-                 value: model.weekBodyweightKg > 0 ? volumeText(model.weekBodyweightKg) : "—",
-                 tint: StrandPalette.metricCyan,
-                 caption: model.weekUnpricedBodyweightSets > 0
-                    ? String(localized: "\(model.weekUnpricedBodyweightSets) sets unpriced")
-                    : String(localized: "\(model.weekBodyweightSets) sets"),
-                 info: .bodyweight)
-        }
-    }
-
-    /// This week's strength load against the wearer's own recent level.
-    ///
-    /// Shows a SIGNED PERCENTAGE, not the acute:chronic ratio it is computed from. "+18 %" is a
-    /// sentence; "1.18" is a number that has to be looked up against 0.8–1.3 bands taken from
-    /// team-sport distance research that never covered set counts. The ratio is still there on
-    /// `LoadTrend` for anything that needs it.
-    private var strengthLoadTile: some View {
-        let load = model.strengthLoad
-        return tile(icon: "chart.bar.fill",
-                    label: String(localized: "Strength load"),
-                    value: load.map { signedPercent($0.percentChange) } ?? "—",
-                    tint: load.map { loadTint($0.percentChange) } ?? StrandPalette.textTertiary,
-                    caption: load.map { loadCaption($0.percentChange) }
-                        ?? String(localized: "needs 2 weeks"),
-                    info: .strengthLoad)
-    }
-
-    private func signedPercent(_ value: Double) -> String {
-        let magnitude = Int(abs(value).rounded())
-        // A change that rounds to zero has no direction; "+0 %" or "−0 %" would imply one.
-        guard magnitude > 0 else { return "0 %" }
-        return "\(value > 0 ? "+" : "−")\(magnitude) %"
-    }
-
-    /// Neither direction is coloured as good. More than usual is what a build phase looks like and
-    /// what an overreach looks like; NOOP cannot tell those apart from the load alone, and Charge is
-    /// where that question is actually answered.
-    private func loadTint(_ percent: Double) -> Color {
-        abs(percent) < 15 ? StrandPalette.textSecondary : StrandPalette.metricCyan
-    }
-
-    private func loadCaption(_ percent: Double) -> String {
-        if percent >= 15 { return String(localized: "above your usual") }
-        if percent <= -15 { return String(localized: "below your usual") }
-        return String(localized: "about your usual")
-    }
-
-    /// The week's cardiovascular Effort, stated beside the strength figure precisely so the two read as
-    /// SEPARATE things. Lifting volume never becomes Effort, and a screen that showed only one number
-    /// would invite exactly that conflation.
-    ///
-    /// It is called EFFORT, not "Cardio load", and that distinction was a real bug rather than a
-    /// wording preference. "Cardio load" on the Cardio screen is a PERCENTAGE against the wearer's own
-    /// recent level. This tile is a weekly Effort SUM — 208, on no such scale. Under one name they were
-    /// two different quantities in two different units, and moving between the screens showed
-    /// "Cardio load 208" and "Cardio load +18 %" as though something were broken. The Cardio
-    /// screen already calls this figure Effort; now both do.
-    @ViewBuilder
-    private var effortTile: some View {
-        tile(icon: "heart.fill",
-             label: String(localized: "Effort"),
-             value: weekEffort.map { String(format: "%.0f", $0) } ?? "—",
-             tint: StrandPalette.effortColor,
-             caption: String(localized: "this week"),
-             info: .cardioLoad)
-    }
-
-    /// Mean Charge for the week, named as Charge. The mockup called this "Recovery Capacity"; a fourth
-    /// word for a number the app already has would be one more thing to learn and nothing more to know.
-    @ViewBuilder
-    /// The week's average Charge, as a full-width strip under the tile grid. One line rather than a
-    /// 112-point tile: a single number in a full-width card is mostly empty space.
+    /// The week's average Charge, the one figure that reflects both the lifting and the cardio this body carried.
     private var chargeStrip: some View {
         HStack(spacing: 10) {
             ZStack {
-                Circle().fill(StrandPalette.chargeColor.opacity(0.13))
-                    .frame(width: 26, height: 26)
+                Circle().fill(StrandPalette.chargeColor.opacity(0.18))
+                    .frame(width: 30, height: 30)
                 Image(systemName: "battery.100percent")
                     .font(StrandFont.caption)
                     .foregroundStyle(StrandPalette.chargeColor)
@@ -627,18 +441,19 @@ struct StrengthView: View {
             Text(weekCharge.map { "\(Int($0.rounded()))" } ?? "—")
                 .font(StrandFont.number(24))
                 .foregroundStyle(StrandPalette.textPrimary)
-            Button { infoTopic = .charge } label: {
-                Image(systemName: "info.circle")
-                    .font(StrandFont.caption)
-                    .foregroundStyle(StrandPalette.textTertiary)
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("About Charge")
         }
-        .padding(NoopMetrics.space2)
+        .padding(NoopMetrics.space3)
         .frame(maxWidth: .infinity)
         .background(TodayCardSurface(tint: StrandPalette.chargeColor,
                                      cornerRadius: NoopMetrics.groupedRadius))
+        .accessibilityElement(children: .combine)
+    }
+
+    private var loadChart: some View {
+        LoadHistoryChart(lane: .strength, title: String(localized: "Strength load"),
+                         unit: String(localized: "weighted sets"),
+                         byDay: model.laneByDay, readingDay: model.laneReadingDay,
+                         usualWeek: model.lane?.relative.personalRange.map { $0.usualLowerBound...$0.usualUpperBound })
     }
 
     // MARK: - Muscle groups
@@ -1192,6 +1007,29 @@ struct StrengthView: View {
 
     // MARK: - Sessions
 
+    /// Logged sessions and envelopes still waiting for details, newest first in one list.
+    private enum SessionEntry: Identifiable {
+        case logged(StrengthSessionSummary)
+        case needsDetails(StrengthModel.GenericStrengthSession)
+        var id: String {
+            switch self {
+            case .logged(let summary): return "logged|\(summary.workoutId)"
+            case .needsDetails(let entry): return "generic|\(entry.id)"
+            }
+        }
+        var startTs: Int {
+            switch self {
+            case .logged(let summary): return summary.startTs
+            case .needsDetails(let entry): return entry.session.row.startTs
+            }
+        }
+    }
+
+    private var sessionEntries: [SessionEntry] {
+        (summaries.prefix(4).map(SessionEntry.logged) + model.genericSessions.prefix(6).map(SessionEntry.needsDetails))
+            .sorted { $0.startTs > $1.startTs }
+    }
+
     private var recentSessions: some View {
         VStack(alignment: .leading, spacing: NoopMetrics.gap) {
             HStack {
@@ -1203,7 +1041,12 @@ struct StrengthView: View {
                     .buttonStyle(.plain)
             }
             VStack(spacing: 8) {
-                ForEach(summaries.prefix(4), id: \.workoutId) { sessionRow($0) }
+                ForEach(sessionEntries) { entry in
+                    switch entry {
+                    case .logged(let summary): sessionRow(summary)
+                    case .needsDetails(let generic): genericSessionCard(generic)
+                    }
+                }
             }
         }
     }
@@ -1227,7 +1070,7 @@ struct StrengthView: View {
                 HStack {
                     Image(systemName: "dumbbell.fill")
                         .font(.system(size: 13))
-                        .foregroundStyle(DomainTheme.effort.color)
+                        .foregroundStyle(TrainingLane.strength.color)
                         .accessibilityHidden(true)
                     Text(s.title.isEmpty ? String(localized: "Strength session") : s.title)
                         .font(StrandFont.headline).foregroundStyle(StrandPalette.textPrimary)
@@ -1372,6 +1215,29 @@ struct StrengthView: View {
             }
         }
         .buttonStyle(.plain)
+    }
+
+    // MARK: - How it works
+
+    private var explainers: some View {
+        ExplainerRows(items: [
+            ExplainerItem(id: "load", symbol: "function", title: infoTitle(.strengthLoad),
+                          subtitle: String(localized: "Working sets weighted by how close they went to failure"),
+                          text: infoBody(.strengthLoad)),
+            ExplainerItem(id: "bodyweight", symbol: "figure.strengthtraining.functional",
+                          title: infoTitle(.bodyweight),
+                          subtitle: String(localized: "Pull-ups and push-ups priced at your own weight"),
+                          text: infoBody(.bodyweight)),
+            ExplainerItem(id: "effort", symbol: "heart.fill", title: infoTitle(.cardioLoad),
+                          subtitle: String(localized: "Why lifting and heart rate stay apart"),
+                          text: infoBody(.cardioLoad)),
+            ExplainerItem(id: "charge", symbol: "battery.100percent", title: infoTitle(.charge),
+                          subtitle: String(localized: "The recovery budget both share"),
+                          text: infoBody(.charge)),
+            ExplainerItem(id: "weeks", symbol: "calendar", title: String(localized: "Active weeks"),
+                          subtitle: String(localized: "How the history counts weeks"),
+                          text: String(localized: "Active weeks count calendar weeks with at least one session, from your first session in this range. The week start follows Settings › Training.")),
+        ])
     }
 
     // MARK: - Info sheets
@@ -1821,7 +1687,7 @@ struct StrengthView: View {
                        ?? "\(row.group.label) \(row.sets)" }
             .joined(separator: ", ")
         if !muscles.isEmpty { parts.append("working sets — " + muscles) }
-        if let load = model.strengthLoad {
+        if let load = model.lane?.trend {
             // The coach gets the same framing the tile shows: effort-weighted sets against this
             // person's own recent level, as a percentage. Handing it a bare ratio invited it to
             // quote 0.8–1.3 bands that were never validated on set counts.

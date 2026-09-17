@@ -38,7 +38,6 @@ struct CardioView: View {
                                   override: distanceSystemRaw)
     }
 
-    @State private var infoTopic: InfoTopic?
     @State private var openDetail: DetailTarget?
 
     struct DetailTarget: Identifiable, Equatable {
@@ -56,12 +55,17 @@ struct CardioView: View {
                 } else if model.sessions.isEmpty {
                     emptyState
                 } else {
-                    thisWeek
-                    intensityCard
+                    weekControl
+                    loadHero
+                    weekFigures
+                    loadChart
+                    intensityCard.id("intensity")
+                    activityTiles(proxy)
                     sportMix
-                    sportProgress
+                    sportProgress.id("progress")
                     bestsCard
                     recentSessions
+                    explainers
                 }
             }
             .padding(NoopMetrics.screenPadding)
@@ -73,7 +77,6 @@ struct CardioView: View {
                 if let context = coachContext { CoachCardButton(context: context) }
             }
         }
-        .sheet(item: $infoTopic) { topic in infoSheet(topic) }
         .sheet(item: $openDetail) { target in
             NavigationStack {
                 if let row = model.sessions.first(where: {
@@ -115,41 +118,59 @@ struct CardioView: View {
 
     // MARK: - This week
 
-    private var thisWeek: some View {
-        VStack(alignment: .leading, spacing: NoopMetrics.gap) {
-            weekNavBar
-            NoopCard {
-                VStack(alignment: .leading, spacing: NoopMetrics.space2) {
-                    LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: 3),
-                              spacing: 10) {
-                        tile(icon: "figure.run", label: String(localized: "Sessions"),
-                             value: "\(model.week.sessionCount)", tint: DomainTheme.effort.color)
-                        tile(icon: "clock.fill", label: String(localized: "Moving time"),
-                             value: durationText(model.week.minutes * 60),
-                             tint: DomainTheme.effort.color,
-                             caption: usualMinutesText)
-                        tile(icon: "point.topleft.down.to.point.bottomright.curvepath",
-                             label: String(localized: "Distance"),
-                             value: model.week.distanceM > 0
-                                ? UnitFormatter.distanceFromMeters(model.week.distanceM, system: units)
-                                : "—",
-                             tint: StrandPalette.metricCyan,
-                             caption: distanceCoverageText)
-                        loadTile
-                        tile(icon: "flame.fill", label: String(localized: "Calories"),
-                             value: model.week.energyKcal > 0
-                                ? grouped(model.week.energyKcal) : "—",
-                             tint: StrandPalette.metricAmber,
-                             caption: model.week.energyKcal > 0 ? "kcal" : nil)
-                        tile(icon: "heart.fill", label: String(localized: "Cardio load"),
-                             value: model.week.effort.map { String(format: "%.0f", $0) } ?? "—",
-                             tint: StrandPalette.effortColor,
-                             caption: String(localized: "this week"))
-                    }
-                    if let typical = model.typicalMinutes, model.week.minutes > 0 {
-                        weekAgainstUsual(typical)
-                    }
-                }
+    private var weekControl: some View {
+        TrainingWeekControl(overline: String(localized: "Endurance"), rangeText: weekRangeText,
+                            canGoBack: model.weekOffset > model.minWeekOffset,
+                            canGoForward: model.weekOffset < 0,
+                            step: { delta in step(delta) },
+                            ranges: CardioModel.HistoryRange.allCases,
+                            selectedRange: $model.range,
+                            rangeLabel: { $0.label })
+    }
+
+    /// The week's cardio load against the wearer's usual, read exactly as Training Load reads it.
+    private var loadHero: some View {
+        let lane = model.lane
+        return LoadHeroCard(lane: .cardio, title: String(localized: "Cardio load"),
+                            percent: lane?.trend?.percentChange, state: LoadPillState.of(lane),
+                            figure: lane.map(trimpText), trend: model.laneRatios.compactMap(\.cardio),
+                            coverage: lane.flatMap { $0.possibleCount > 0
+                                ? String(localized: "\($0.measuredCount) of \($0.possibleCount) sessions complete")
+                                : nil },
+                            caveat: loadCaveat)
+    }
+
+    private func trimpText(_ lane: TrainingLoadModel.Lane) -> String {
+        let total = String(localized: "\(Int(lane.sevenDayTotal.rounded())) TRIMP")
+        return lane.isLowerBound ? String(localized: "at least \(total)") : total
+    }
+
+    private var loadCaveat: String? {
+        guard let lane = model.lane, lane.possibleCount > 0 else { return nil }
+        if model.laneSeries?.measured == false {
+            return String(localized: "No usable heart-rate trace in this window, so cardiovascular load is not estimated")
+        }
+        guard Double(lane.measuredCount) / Double(lane.possibleCount) < TrainingLoad.trustedRatedShare else { return nil }
+        return String(localized: "Only \(lane.measuredCount) of \(lane.possibleCount) sessions are complete; the measured total is a lower bound")
+    }
+
+    private var weekFigures: some View {
+        VStack(spacing: NoopMetrics.space2) {
+            KPIStrip(lane: .cardio, items: [
+                KPIItem(id: "sessions", icon: "figure.run", value: "\(model.week.sessionCount)",
+                        label: String(localized: "Sessions")),
+                KPIItem(id: "time", icon: "clock.fill", value: durationText(model.week.minutes * 60),
+                        label: String(localized: "Moving time"), caption: usualMinutesText),
+                KPIItem(id: "distance", icon: "point.topleft.down.to.point.bottomright.curvepath",
+                        value: model.week.distanceM > 0
+                            ? UnitFormatter.distanceFromMeters(model.week.distanceM, system: units) : "—",
+                        label: String(localized: "Distance"), caption: distanceCoverageText),
+                KPIItem(id: "energy", icon: "flame.fill",
+                        value: model.week.energyKcal > 0 ? grouped(model.week.energyKcal) : "—",
+                        label: String(localized: "Calories"), caption: model.week.energyKcal > 0 ? "kcal" : nil),
+            ])
+            if let typical = model.typicalMinutes, model.week.minutes > 0 {
+                NoopCard(padding: NoopMetrics.space3) { weekAgainstUsual(typical) }
             }
         }
     }
@@ -158,21 +179,18 @@ struct CardioView: View {
     /// Strength screen uses for muscle volume, so "the shaded part is normal for you" is learned once.
     private func weekAgainstUsual(_ typical: ClosedRange<Double>) -> some View {
         let scale = max(model.week.minutes, typical.upperBound, 1)
-        return VStack(alignment: .leading, spacing: 5) {
-            Divider().overlay(StrandPalette.hairline)
-            HStack(spacing: 10) {
-                Text("vs your usual")
-                    .font(StrandFont.caption)
-                    .foregroundStyle(StrandPalette.textTertiary)
-                    .frame(width: 92, alignment: .leading)
-                TypicalRangeBar(value: model.week.minutes / scale,
-                                typical: (typical.lowerBound / scale)...(typical.upperBound / scale),
-                                color: DomainTheme.effort.color, height: 8)
-                Text(String(localized: "\(Int(typical.lowerBound.rounded()))–\(Int(typical.upperBound.rounded())) min"))
-                    .font(StrandFont.caption)
-                    .foregroundStyle(StrandPalette.textTertiary)
-                    .lineLimit(1)
-            }
+        return HStack(spacing: 10) {
+            Text("vs your usual")
+                .font(StrandFont.caption)
+                .foregroundStyle(StrandPalette.textTertiary)
+                .frame(width: 92, alignment: .leading)
+            TypicalRangeBar(value: model.week.minutes / scale,
+                            typical: (typical.lowerBound / scale)...(typical.upperBound / scale),
+                            color: TrainingLane.cardio.color, height: 8)
+            Text(String(localized: "\(Int(typical.lowerBound.rounded()))–\(Int(typical.upperBound.rounded())) min"))
+                .font(StrandFont.caption)
+                .foregroundStyle(StrandPalette.textTertiary)
+                .lineLimit(1)
         }
     }
 
@@ -187,144 +205,73 @@ struct CardioView: View {
         return String(localized: "\(model.week.sessionsWithDistance) of \(model.week.sessionCount) sessions")
     }
 
-    @ViewBuilder
-    private var loadTile: some View {
-        let load = model.load
-        tile(icon: "chart.bar.fill",
-             label: String(localized: "Load trend"),
-             value: load.map { signedPercent($0.percentChange) } ?? "—",
-             tint: load.map { loadTint($0.percentChange) } ?? StrandPalette.textTertiary,
-             caption: load.map { loadCaption($0.percentChange) } ?? String(localized: "needs 2 weeks"),
-             info: .cardioLoad)
-    }
-
-    private func signedPercent(_ value: Double) -> String {
-        let magnitude = Int(abs(value).rounded())
-        // A change that rounds to zero has no direction; "+0 %" or "−0 %" would imply one.
-        guard magnitude > 0 else { return "0 %" }
-        return "\(value > 0 ? "+" : "−")\(magnitude) %"
-    }
-
-    /// A load change is context, not a grade. A larger week can be intentional or excessive; Charge
-    /// and the athlete's own perception are what distinguish those cases.
-    private func loadTint(_ percent: Double) -> Color {
-        abs(percent) < 15 ? StrandPalette.textSecondary : StrandPalette.metricCyan
-    }
-
-    private func loadCaption(_ percent: Double) -> String {
-        if percent >= 15 { return String(localized: "above your usual") }
-        if percent <= -15 { return String(localized: "below your usual") }
-        return String(localized: "about your usual")
-    }
-
-    private var weekNavBar: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Endurance").strandOverline()
-                Text("This week").font(StrandFont.title2)
-                    .foregroundStyle(StrandPalette.textPrimary)
-            }
-            Spacer(minLength: 8)
-            rangePicker
-            HStack(spacing: 10) {
-                Button { step(-1) } label: { Image(systemName: "chevron.left") }
-                    .disabled(model.weekOffset <= model.minWeekOffset)
-                Text(weekRangeText)
-                    .font(StrandFont.footnote)
-                    .foregroundStyle(StrandPalette.textSecondary)
-                    .monospacedDigit()
-                Button { step(1) } label: { Image(systemName: "chevron.right") }
-                    .disabled(model.weekOffset >= 0)
-            }
-            .buttonStyle(.plain)
-            .foregroundStyle(StrandPalette.accent)
-        }
-    }
-
-    private var rangePicker: some View {
-        Menu {
-            ForEach(CardioModel.HistoryRange.allCases) { option in
-                Button {
-                    model.range = option
-                } label: {
-                    if model.range == option {
-                        Label(option.label, systemImage: "checkmark")
-                    } else {
-                        Text(option.label)
-                    }
-                }
-            }
-        } label: {
-            HStack(spacing: 4) {
-                Image(systemName: "calendar")
-                    .font(.system(size: 10, weight: .semibold))
-                Text(model.range.label).font(StrandFont.caption)
-            }
-            .foregroundStyle(StrandPalette.textSecondary)
-            .padding(.horizontal, 9)
-            .padding(.vertical, 5)
-            .background(StrandPalette.surfaceInset, in: Capsule())
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(String(localized: "History window"))
+    private var loadChart: some View {
+        LoadHistoryChart(lane: .cardio, title: String(localized: "Cardio load"), unit: "TRIMP",
+                         byDay: model.laneSeries?.byDay ?? [:], unknownDays: model.laneSeries?.unknownDays ?? [],
+                         readingDay: model.laneReadingDay,
+                         usualWeek: model.lane?.relative.personalRange.map { $0.usualLowerBound...$0.usualUpperBound })
     }
 
     private func step(_ delta: Int) {
         Task { await model.stepWeek(delta, repo: repo) }
     }
 
-    /// One tile of the weekly grid — compact and fixed-height, the twin of the Strength screen's. See
-    /// that one for why the shared `TodayMetricTile` is not used at this size.
-    private func tile(icon: String, label: String, value: String, tint: Color,
-                      caption: String? = nil, info: InfoTopic? = nil) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 0) {
-                ZStack {
-                    Circle().fill(tint.opacity(0.13))
-                    Image(systemName: icon)
-                        .font(.system(size: 10, weight: .semibold))
-                        .foregroundStyle(tint)
+    // MARK: - Activity and heart rate
+
+    @ViewBuilder private func activityTiles(_ proxy: ScrollViewProxy) -> some View {
+        let top = model.loadShares.first
+        if top != nil || model.weekAverageHr != nil {
+            LazyVGrid(columns: [GridItem(.flexible(), spacing: NoopMetrics.gap),
+                                GridItem(.flexible(), spacing: NoopMetrics.gap)],
+                      spacing: NoopMetrics.gap) {
+                if let top {
+                    SummaryTile(symbol: CardioView.symbol(for: top.modality), tint: TrainingLane.cardio.color,
+                                title: String(localized: "Most used activity"), headline: sportName(top.sport),
+                                detail: activityDetail(top),
+                                action: {
+                                    Task { await model.select(top.sport) }
+                                    withAnimation { proxy.scrollTo("progress", anchor: .top) }
+                                }) { EmptyView() }
                 }
-                .frame(width: 22, height: 22)
-                .accessibilityHidden(true)
-                Spacer(minLength: 0)
-                if let info {
-                    Button { infoTopic = info } label: {
-                        Image(systemName: "info.circle")
-                            .font(.system(size: 11))
-                            .foregroundStyle(StrandPalette.textTertiary)
+                if let hr = model.weekAverageHr {
+                    SummaryTile(symbol: "heart.fill", tint: StrandPalette.statusCritical,
+                                title: String(localized: "Average heart rate"),
+                                headline: String(localized: "\(Int(hr.rounded())) bpm"),
+                                detail: model.typicalAverageHr.map {
+                                    String(localized: "usual \(Int($0.rounded())) bpm")
+                                },
+                                action: { withAnimation { proxy.scrollTo("intensity", anchor: .top) } }) {
+                        EmptyView()
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("What this means")
                 }
             }
-            Spacer(minLength: 0)
-            Text(value)
-                .font(StrandFont.number(26))
-                .foregroundStyle(StrandPalette.textPrimary)
-                .lineLimit(1)
-                .minimumScaleFactor(0.55)
-            // `subhead`, not `caption`: on iOS the scale runs subhead (13) → caption (12) → footnote
-            // (11), and a tile label set in caption reads as a footnote to a number that is the point
-            // of the tile. The caption line below stays a step smaller, which is what keeps the two
-            // apart now that the label has grown.
-            Text(label)
-                .font(StrandFont.subhead)
-                .foregroundStyle(StrandPalette.textSecondary)
-                .lineLimit(1)
-                .minimumScaleFactor(0.65)
-            Text(caption ?? " ")
-                .font(StrandFont.caption)
-                .foregroundStyle(tint)
-                .lineLimit(1)
-                .minimumScaleFactor(0.7)
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 9)
-        .frame(maxWidth: .infinity, minHeight: 112, maxHeight: 112, alignment: .leading)
-        .background(TodayCardSurface(tint: tint, cornerRadius: NoopMetrics.groupedRadius))
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(label): \(value)\(caption.map { ", " + $0 } ?? "")")
+    }
+
+    /// The sport's share of the week's measured load, and its pace in the unit that sport is read in.
+    private func activityDetail(_ share: CardioSportLoadShare) -> String {
+        var parts = [String(localized: "\(Int((share.share * 100).rounded())) % of cardio load")]
+        if let pace = model.topSportPace {
+            switch share.modality.readout {
+            case .pace: parts.append(paceText(secPerKm: pace, modality: share.modality))
+            case .speed:
+                if let speed = UnitFormatter.speedFromKilometersPerHour(3600 / pace, system: units) {
+                    parts.append(speed)
+                }
+            case .none: break
+            }
+        }
+        return parts.joined(separator: " · ")
+    }
+
+    static func symbol(for modality: CardioModality) -> String {
+        switch modality {
+        case .foot:     return "figure.run"
+        case .cycling:  return "bicycle"
+        case .swimming: return "figure.pool.swim"
+        case .rowing:   return "figure.rower"
+        default:        return "figure.mixed.cardio"
+        }
     }
 
     // MARK: - Intensity distribution
@@ -342,7 +289,7 @@ struct CardioView: View {
             VStack(alignment: .leading, spacing: NoopMetrics.gap) {
                 SectionHeader("Intensity", overline: "Time in zone",
                               trailing: durationText(total * 60))
-                NoopCard(tint: StrandPalette.effortColor) {
+                NoopCard(tint: TrainingLane.cardio.color) {
                     VStack(alignment: .leading, spacing: 12) {
                         GeometryReader { geo in
                             // Five segments leave four 2-point gaps. Subtract them before distributing
@@ -366,10 +313,6 @@ struct CardioView: View {
                                 zoneStat(index + 1, minutes: minutes[index], total: total)
                             }
                         }
-                        Text(zoneProvenanceText(split))
-                            .font(StrandFont.footnote)
-                            .foregroundStyle(StrandPalette.textTertiary)
-                            .fixedSize(horizontal: false, vertical: true)
                     }
                 }
             }
@@ -650,18 +593,7 @@ struct CardioView: View {
     private var bestsCard: some View {
         if !model.bests.isEmpty, let sport = model.selectedSport {
             VStack(alignment: .leading, spacing: NoopMetrics.gap) {
-                HStack {
-                    SectionHeader("Your bests",
-                                  overline: LocalizedStringKey(sportName(sport)))
-                    Spacer(minLength: 8)
-                    Button { infoTopic = .bests } label: {
-                        Image(systemName: "info.circle")
-                            .font(.system(size: 11))
-                            .foregroundStyle(StrandPalette.textTertiary)
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("What this means")
-                }
+                SectionHeader("Your bests", overline: LocalizedStringKey(sportName(sport)))
                 NoopCard {
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 8) {
@@ -810,13 +742,7 @@ struct CardioView: View {
     }
 
     private func sportSymbol(_ session: CardioSessionMetrics) -> String {
-        switch session.modality {
-        case .foot:     return "figure.run"
-        case .cycling:  return "bicycle"
-        case .swimming: return "figure.pool.swim"
-        case .rowing:   return "figure.rower"
-        default:        return "figure.mixed.cardio"
-        }
+        CardioView.symbol(for: session.modality)
     }
 
     /// The stored row behind a derived session, for the existing detail screen.
@@ -852,47 +778,24 @@ struct CardioView: View {
         return "\(start.formatted(format)) – \(end.formatted(format))"
     }
 
-    // MARK: - Info
+    // MARK: - How it works
 
-    enum InfoTopic: String, Identifiable {
-        case cardioLoad, bests
-        var id: String { rawValue }
-    }
-
-    private func infoSheet(_ topic: InfoTopic) -> some View {
-        NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: NoopMetrics.space3) {
-                    Text(infoTitle(topic))
-                        .font(StrandFont.title2).foregroundStyle(StrandPalette.textPrimary)
-                    Text(infoBody(topic))
-                        .font(StrandFont.body).foregroundStyle(StrandPalette.textSecondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(NoopMetrics.screenPadding)
-            }
-            .background(StrandPalette.surfaceBase.ignoresSafeArea())
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) { Button("Done") { infoTopic = nil } }
-            }
+    private var explainers: some View {
+        var items = [
+            ExplainerItem(id: "load", symbol: "function", title: String(localized: "Cardio load"),
+                          subtitle: String(localized: "How your cardio load is calculated"),
+                          text: String(localized: "How much cardiovascular work the last 7 days asked of you, against your own level over the last 28 days. It is a percentage, not a score: +18 % means the recent week ran about a fifth above your usual.\n\nThe underlying signal is additive TRIMP, derived from heart rate and time in intensity zones. Moving time stays separate because sixty easy minutes and sixty threshold minutes are equal duration but very different cardiovascular loads.\n\nRest days count as zeros. Neither direction is good or bad on its own: a higher week can be a planned build or too much, and the load alone cannot tell those apart. Charge and your own session rating add that context. It stays blank until there are two weeks of history.")),
+            ExplainerItem(id: "bests", symbol: "trophy", title: String(localized: "Your bests"),
+                          subtitle: String(localized: "What counts as a best"),
+                          text: String(localized: "Measured bests for this sport: the farthest you went, the longest you were out, and your fastest AVERAGE pace within each band of session length.\n\nThe bands matter. A fast 3 km and a fast half marathon are different achievements, so they are kept apart rather than competing for one 'fastest' line.\n\nThese are averages over a whole session, never splits. NOOP stores one distance and one duration per session, so 'your fastest 5 km' inside a longer run is a claim the data cannot support and is deliberately not offered.")),
+        ]
+        if let split = model.zoneSplit, split.total > 0 {
+            items.append(ExplainerItem(id: "zones", symbol: "waveform.path.ecg",
+                                       title: String(localized: "Intensity"),
+                                       subtitle: String(localized: "Where the zone split comes from"),
+                                       text: zoneProvenanceText(split)))
         }
-    }
-
-    private func infoTitle(_ topic: InfoTopic) -> String {
-        switch topic {
-        case .cardioLoad: return String(localized: "Cardio load")
-        case .bests:      return String(localized: "Your bests")
-        }
-    }
-
-    private func infoBody(_ topic: InfoTopic) -> String {
-        switch topic {
-        case .cardioLoad:
-            return String(localized: "How much cardiovascular work the last 7 days asked of you, against your own level over the last 28 days. It is a percentage, not a score: +18 % means the recent week ran about a fifth above your usual.\n\nThe underlying signal is additive TRIMP, derived from heart rate and time in intensity zones. Moving time stays separate because sixty easy minutes and sixty threshold minutes are equal duration but very different cardiovascular loads.\n\nRest days count as zeros. Neither direction is good or bad on its own: a higher week can be a planned build or too much, and the load alone cannot tell those apart. Charge and your own session rating add that context. It stays blank until there are two weeks of history.")
-        case .bests:
-            return String(localized: "Measured bests for this sport: the farthest you went, the longest you were out, and your fastest AVERAGE pace within each band of session length.\n\nThe bands matter. A fast 3 km and a fast half marathon are different achievements, so they are kept apart rather than competing for one 'fastest' line.\n\nThese are averages over a whole session, never splits. NOOP stores one distance and one duration per session, so 'your fastest 5 km' inside a longer run is a claim the data cannot support and is deliberately not offered.")
-        }
+        return ExplainerRows(items: items)
     }
 
     // MARK: - Coach
@@ -904,7 +807,7 @@ struct CardioView: View {
         if model.week.distanceM > 0 {
             parts.append(String(format: "%.1f km", model.week.distanceM / 1000))
         }
-        if let load = model.load {
+        if let load = model.lane?.trend {
             parts.append(String(format: "cardio load %+.0f%% vs own 28-day level", load.percentChange))
         }
         if let sport = model.selectedSport, let line = model.paceTrend {
