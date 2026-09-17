@@ -1570,5 +1570,18 @@
   "NOOP uses the following third-party content under its own licence. A licence in one domain (code, data, media) is not treated as a licence in another.": "NOOP 在其自身授權下使用以下第三方內容。一個領域(程式碼、資料、媒體)的授權並不代表其他領域的授權。",
   "Third-party content NOOP uses under its own licence.": "NOOP 在其自身授權下使用的第三方內容。",
   "Workout title": "訓練標題",
-  "Workout title (optional)": "訓練標題(選填)"
+  "Workout title (optional)": "訓練標題(選填)",
+  "4W": "4週",
+  "12W": "12週",
+  "About usual": "與平常相當",
+  "Above usual": "高於平常",
+  "No comparison yet": "暫無對比",
+  "Opens the details": "打開詳情",
+  "Partly unmeasured": "部分未測量",
+  "Provisional": "初步",
+  "Usual high": "平常上限",
+  "Usual low": "平常下限",
+  "Your usual range appears after eight complete weeks.": "滿八個完整週後顯示你的平常範圍。",
+  "Your usual week": "你的平常一週",
+  "vs. your usual": "對比平常"
 }

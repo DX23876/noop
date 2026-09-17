@@ -1392,5 +1392,18 @@
   "NOOP uses the following third-party content under its own licence. A licence in one domain (code, data, media) is not treated as a licence in another.": "NOOP использует следующий сторонний контент на условиях его собственной лицензии. Лицензия в одной области (код, данные, медиа) не считается лицензией в другой.",
   "Third-party content NOOP uses under its own licence.": "Сторонний контент, который NOOP использует на условиях его собственной лицензии.",
   "Workout title": "Название тренировки",
-  "Workout title (optional)": "Название тренировки (необязательно)"
+  "Workout title (optional)": "Название тренировки (необязательно)",
+  "4W": "4Н",
+  "12W": "12Н",
+  "About usual": "Как обычно",
+  "Above usual": "Выше обычного",
+  "No comparison yet": "Сравнения пока нет",
+  "Opens the details": "Открывает подробности",
+  "Partly unmeasured": "Частично не измерено",
+  "Provisional": "Предварительно",
+  "Usual high": "Обычный максимум",
+  "Usual low": "Обычный минимум",
+  "Your usual range appears after eight complete weeks.": "Ваш обычный диапазон появится после восьми полных недель.",
+  "Your usual week": "Ваша обычная неделя",
+  "vs. your usual": "к вашему обычному"
 }

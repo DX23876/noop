@@ -2551,5 +2551,18 @@
   "NOOP uses the following third-party content under its own licence. A licence in one domain (code, data, media) is not treated as a licence in another.": "NOOP korzysta z poniższych treści innych firm na podstawie ich własnej licencji. Licencja w jednym obszarze (kod, dane, multimedia) nie jest traktowana jako licencja w innym.",
   "Third-party content NOOP uses under its own licence.": "Treści innych firm, z których NOOP korzysta na podstawie ich własnej licencji.",
   "Workout title": "Tytuł treningu",
-  "Workout title (optional)": "Tytuł treningu (opcjonalnie)"
+  "Workout title (optional)": "Tytuł treningu (opcjonalnie)",
+  "4W": "4T",
+  "12W": "12T",
+  "About usual": "Jak zwykle",
+  "Above usual": "Powyżej zwykłego",
+  "No comparison yet": "Brak porównania",
+  "Opens the details": "Otwiera szczegóły",
+  "Partly unmeasured": "Częściowo niezmierzone",
+  "Provisional": "Wstępnie",
+  "Usual high": "Zwykła górna granica",
+  "Usual low": "Zwykła dolna granica",
+  "Your usual range appears after eight complete weeks.": "Twój zwykły zakres pojawi się po ośmiu pełnych tygodniach.",
+  "Your usual week": "Twój zwykły tydzień",
+  "vs. your usual": "wobec zwykłego"
 }
