@@ -2578,5 +2578,17 @@
   "The recovery budget both share": "Wspólny budżet regeneracji",
   "Why lifting and heart rate stay apart": "Dlaczego siła i tętno są liczone osobno",
   "Working sets weighted by how close they went to failure": "Serie robocze ważone bliskością upadku mięśniowego",
-  "weighted sets": "serie ważone"
+  "weighted sets": "serie ważone",
+  "e.g. Run 5k without stopping": "np. Przebiec 5 km bez zatrzymywania się",
+  "e.g. Train three times a week": "np. Trenować trzy razy w tygodniu",
+  "e.g. Sleep 7.5 hours a night": "np. Spać 7,5 godziny na dobę",
+  "e.g. Get back to full-body strength work": "np. Wrócić do treningu siłowego całego ciała",
+  "e.g. 18 hard sets a week for legs": "np. 18 ciężkich serii na nogi tygodniowo",
+  "e.g. Get to 78 kg": "np. Osiągnąć 78 kg",
+  "e.g. Fewer high-stress days each week": "np. Mniej dni z dużym stresem w tygodniu",
+  "e.g. Wake up feeling more recovered": "np. Budzić się bardziej wypoczętym",
+  "e.g. Feel good on the hills again": "np. Znów dobrze czuć się na podbiegach",
+  "%.0f / %.0fs": "%.0f / %.0fs",
+  "%@ → %@": "%@ → %@",
+  "%@ workout, %@": "Trening %@, %@"
 }

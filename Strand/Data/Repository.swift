@@ -362,6 +362,43 @@ final class Repository: ObservableObject {
         return Self.rawWhoopSourceIds(activeDeviceId: deviceId, registeredWhoopIds: registeredWhoopIds)
     }
 
+    /// Every namespace the Workouts list reads a row out of, in read order, duplicates collapsed.
+    ///
+    /// Why this exists: the list unions many device ids while `deleteWorkout` deleted from exactly ONE,
+    /// the active strap. A row banked under any other namespace (a retained strap, a computed `-noop`
+    /// sibling, Apple Health, an imported lifting session or activity file) was therefore VISIBLE BUT
+    /// UNDELETABLE: the delete reported nothing, the reload re-read the row from the namespace the delete
+    /// never touched, and it came straight back. Reported as workouts that ignore the delete button
+    /// (#2278).
+    ///
+    /// Deriving both sides from one function is the point. Spelling the union out twice is what let them
+    /// disagree, and a future namespace added to the read alone would reintroduce exactly this bug.
+    nonisolated static func workoutNamespaces(rawIds: [String]) -> [String] {
+        deletableWorkoutNamespaces(rawIds: rawIds)
+            + [WorkoutSource.appleHealthSource, "lifting", HevySource.id, "activity-file"]
+    }
+
+    /// The subset of [workoutNamespaces] a DELETE may touch: the strap namespaces only.
+    ///
+    /// Imported history is read-only, and that is enforced everywhere else: the row menu offers only
+    /// "Duplicate as manual…" for an imported row, `bulkDeleteWorkouts` skips those classes outright, and
+    /// `mergeWorkouts` refuses them with "never rewrite imported history". A delete that swept the import
+    /// namespaces would reach underneath all three guards and destroy a wearer's imported Apple Health,
+    /// Hevy/Liftosaur or FIT/GPX/TCX row, which nothing in the UI ever offers to remove.
+    ///
+    /// That a cross-source twin is COLLAPSED into one row at display time does not license deleting the
+    /// imported half of the pair: the dedup is a presentation decision, and the surviving import is
+    /// exactly the history this repository promises not to rewrite.
+    ///
+    /// A `.manual` row, the only class the delete button is offered for, is written under a strap id, so
+    /// this set is what a delete actually needs.
+    nonisolated static func deletableWorkoutNamespaces(rawIds: [String]) -> [String] {
+        (rawIds + rawIds.map { $0.hasSuffix("-noop") ? $0 : $0 + "-noop" })
+            .reduce(into: [String]()) { acc, id in
+                if !acc.contains(id) { acc.append(id) }
+            }
+    }
+
     /// Pure ordering contract shared with Android's parity guard: current active source first, every other
     /// registered WHOOP in stable registry order, canonical history last; duplicates collapse.
     nonisolated static func rawWhoopSourceIds(activeDeviceId: String,
@@ -3433,25 +3470,18 @@ final class Repository: ObservableObject {
         // De-dup identical same-source rows that appear under both union ids by natural key (the cross-SOURCE
         // dedup below only collapses strap-vs-Apple twins, not a row present in two strap namespaces).
         var rows: [WorkoutRow] = []
-        let rawIds = rawPhysiologyReadIds(store: store)
-        for id in rawIds { rows += await pagedWorkoutRows(store: store, deviceId: id, from: lo, to: hi) }
-        for id in rawIds.map({ $0.hasSuffix("-noop") ? $0 : $0 + "-noop" }) {
+        // Every namespace in one list, shared with `deleteWorkout` so the two cannot disagree about where a
+        // row lives (#2278). File-imported lifting sessions (Hevy / Liftosaur exports) live under "lifting";
+        // API-synced Hevy sessions deliberately use their own source so an export and its API twin can be
+        // fused instead of one silently overwriting the other. #29: imported activity FILES (FIT / GPX /
+        // TCX) live under "activity-file", or a successful file import never appears here at all.
+        for id in Self.workoutNamespaces(rawIds: rawPhysiologyReadIds(store: store)) {
             rows += await pagedWorkoutRows(store: store, deviceId: id, from: lo, to: hi)
         }
-        rows += await pagedWorkoutRows(store: store, deviceId: "apple-health", from: lo, to: hi)
-        // File-imported lifting sessions (Hevy / Liftosaur exports) live under "lifting". API-synced
-        // Hevy sessions deliberately use their own source so an export and its API twin can be fused
-        // instead of one silently overwriting the other.
-        rows += await pagedWorkoutRows(store: store, deviceId: "lifting", from: lo, to: hi)
-        rows += await pagedWorkoutRows(store: store, deviceId: "hevy", from: lo, to: hi)
         // Native sessions remain normalized in the training tables. Their read-time envelope makes
         // them visible to Workouts and session fusion without persisting a duplicate workout row.
         let native = await pagedNativeWorkoutRows(store: store, from: lo, to: hi)
         rows += native.map(NativeTrainingProjection.workoutRow)
-        // #29: imported activity FILES (FIT / GPX / TCX) live under their own "activity-file" source — read
-        // them too, or a successful file import never appears in the Workouts list (Data Sources counts it,
-        // the load didn't). HR is reconciled from the strap trace at the end like every other row.
-        rows += await pagedWorkoutRows(store: store, deviceId: "activity-file", from: lo, to: hi)
         rows = Self.dedupWorkoutsByNaturalKey(rows)
         let lifecycleLinks = ((try? await store.trainingSessionLinks()) ?? []).filter { $0.origin == "native-lifecycle" }
         rows = Self.hidingLegacyStrengthRecordings(rows, links: lifecycleLinks)
@@ -3784,8 +3814,22 @@ final class Repository: ObservableObject {
     func deleteWorkout(_ row: WorkoutRow) async {
         if WorkoutSource.classify(row.source) == .detected { await dismissDetected(row); return }
         guard let store = await ensureStore() else { return }
-        _ = try? await store.deleteWorkouts(deviceId: deviceId, sport: row.sport,
-                                            from: row.startTs, to: row.startTs)
+        // Sweep every STRAP namespace, not just the active one. A manual row banked under a retained
+        // strap or a computed sibling is shown by `workoutRows` and was previously undeletable: the
+        // delete touched one namespace, the reload re-read the row from another, and it reappeared
+        // (#2278).
+        //
+        // Import namespaces are deliberately excluded, see `deletableWorkoutNamespaces`: imported
+        // history is read-only and no UI offers to remove it.
+        //
+        // Narrow by construction. The natural key is exact (`sport` plus a single `startTs`), so this
+        // removes the row the wearer tapped and its copies in the strap namespaces, nothing else. An
+        // overlapping-but-differently-keyed session is NOT touched; collapsing those is the dedup's job
+        // at display time, not a delete's.
+        for id in Self.deletableWorkoutNamespaces(rawIds: rawPhysiologyReadIds(store: store)) {
+            _ = try? await store.deleteWorkouts(deviceId: id, sport: row.sport,
+                                                from: row.startTs, to: row.startTs)
+        }
     }
 
     /// #64: merge two-or-more overlapping / adjacent MANUAL or DETECTED sessions into ONE manual session

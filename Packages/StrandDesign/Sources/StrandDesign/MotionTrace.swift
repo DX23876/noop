@@ -33,12 +33,27 @@ public struct MotionTrace: View {
 
     /// The peak magnitude used to normalise the fill height. A non-positive peak (all-zero / empty) maps
     /// everything to the baseline so the strip is flat rather than dividing by zero.
-    private var peak: Double { max(epochs.max() ?? 0, 0) }
+    ///
+    /// Computed ONCE where it is needed and threaded down, never read inside a per-epoch loop. As a
+    /// computed property it rescanned every epoch on each read, and it was read from inside the `map` in
+    /// `points(in:)` and the `filter` in `accessibilitySummary`, so a night cost a scan per epoch. With
+    /// 30-second epochs an 8-hour night is ~960 of them, about 1.8 million comparisons every time the
+    /// strip is laid out, and SwiftUI re-runs `body` on hover, animation and the 1 Hz HR tick (#2283).
+    ///
+    /// Android already hoists the same value (`SleepScreen.kt`), so this removes a divergence rather than
+    /// creating one.
+    static func peak(of epochs: [Double]) -> Double { max(epochs.max() ?? 0, 0) }
 
     public var body: some View {
         GeometryReader { geo in
             let w = geo.size.width
             let h = geo.size.height
+            // ONE scan, threaded into everything below, rather than a scan per epoch. See `peak(of:)`.
+            //
+            // Sits inside the GeometryReader, so it is recomputed per LAYOUT pass rather than per body
+            // evaluation. That distinction does not matter here (both are O(n) against the O(n^2) this
+            // replaces) and keeping it here avoids restructuring `body` around the ViewBuilder.
+            let peak = Self.peak(of: epochs)
             ZStack {
                 // Faint baseline so the strip reads as a grounded trace even on a calm night.
                 Path { p in
@@ -49,7 +64,7 @@ public struct MotionTrace: View {
 
                 // Filled area under the per-epoch magnitude, normalised to the night's own peak.
                 if epochs.count >= 2, peak > 0 {
-                    let pts = points(in: geo.size)
+                    let pts = Self.points(in: geo.size, epochs: epochs, peak: peak)
                     Path { p in
                         p.move(to: CGPoint(x: 0, y: h))
                         for pt in pts { p.addLine(to: pt) }
@@ -77,14 +92,14 @@ public struct MotionTrace: View {
             }
             .accessibilityElement()
             .accessibilityLabel(Text("Movement during sleep"))
-            .accessibilityValue(Text(accessibilitySummary))
+            .accessibilityValue(Text(Self.accessibilitySummary(epochs: epochs, peak: peak)))
         }
         .frame(height: height)
     }
 
     /// One screen point per epoch: x spread evenly across the width (matching the hypnogram's left→right
     /// time mapping), y the magnitude normalised to the night's peak (0 at the baseline, full at the top).
-    private func points(in size: CGSize) -> [CGPoint] {
+    static func points(in size: CGSize, epochs: [Double], peak: Double) -> [CGPoint] {
         let n = epochs.count
         guard n >= 2, peak > 0 else { return [] }
         let h = size.height
@@ -98,7 +113,7 @@ public struct MotionTrace: View {
 
     /// A coarse VoiceOver summary — the share of epochs with above-half-peak movement — since a per-epoch
     /// trace can't be voiced point by point. "Calm" when nothing crosses the threshold.
-    private var accessibilitySummary: String {
+    static func accessibilitySummary(epochs: [Double], peak: Double) -> String {
         guard peak > 0, !epochs.isEmpty else { return "no movement data" }
         let restless = epochs.filter { $0 >= peak * 0.5 }.count
         if restless == 0 { return "calm throughout" }

@@ -1443,5 +1443,17 @@
   "The recovery budget both share": "Le budget de récupération qu’ils partagent",
   "Why lifting and heart rate stay apart": "Pourquoi musculation et fréquence cardiaque restent séparées",
   "Working sets weighted by how close they went to failure": "Séries de travail pondérées par leur proximité de l’échec",
-  "weighted sets": "séries pondérées"
+  "weighted sets": "séries pondérées",
+  "e.g. Run 5k without stopping": "p. ex. Courir 5 km sans s'arrêter",
+  "e.g. Train three times a week": "p. ex. S'entraîner trois fois par semaine",
+  "e.g. Sleep 7.5 hours a night": "p. ex. Dormir 7,5 heures par nuit",
+  "e.g. Get back to full-body strength work": "p. ex. Reprendre la musculation full-body",
+  "e.g. 18 hard sets a week for legs": "p. ex. 18 séries intenses par semaine pour les jambes",
+  "e.g. Get to 78 kg": "p. ex. Atteindre 78 kg",
+  "e.g. Fewer high-stress days each week": "p. ex. Moins de jours très stressants par semaine",
+  "e.g. Wake up feeling more recovered": "p. ex. Se réveiller plus récupéré",
+  "e.g. Feel good on the hills again": "p. ex. Se sentir bien en côte à nouveau",
+  "%.0f / %.0fs": "%.0f / %.0fs",
+  "%@ → %@": "%@ → %@",
+  "%@ workout, %@": "entraînement %@, %@"
 }

@@ -1597,5 +1597,17 @@
   "The recovery budget both share": "兩者共享的恢復預算",
   "Why lifting and heart rate stay apart": "為什麼力量訓練與心率分開計算",
   "Working sets weighted by how close they went to failure": "按接近力竭程度加權的正式組",
-  "weighted sets": "加權組數"
+  "weighted sets": "加權組數",
+  "e.g. Run 5k without stopping": "例如:不停跑完5公里",
+  "e.g. Train three times a week": "例如:每週訓練三次",
+  "e.g. Sleep 7.5 hours a night": "例如:每晚睡7.5小時",
+  "e.g. Get back to full-body strength work": "例如:恢復全身力量訓練",
+  "e.g. 18 hard sets a week for legs": "例如:每週18組高強度腿部訓練",
+  "e.g. Get to 78 kg": "例如:達到78公斤",
+  "e.g. Fewer high-stress days each week": "例如:每週減少高壓力的天數",
+  "e.g. Wake up feeling more recovered": "例如:醒來時感覺恢復得更好",
+  "e.g. Feel good on the hills again": "例如:在爬坡時重新感覺良好",
+  "%.0f / %.0fs": "%.0f / %.0fs",
+  "%@ → %@": "%@ → %@",
+  "%@ workout, %@": "%@ 鍛鍊，%@"
 }
