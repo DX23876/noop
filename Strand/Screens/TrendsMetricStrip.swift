@@ -70,7 +70,7 @@ struct TrendsMetricStrip: View {
         case .hrv:                    return StrandPalette.metricPurple
         case .restingHr:              return StrandPalette.metricRose
         case .respiratory:            return StrandPalette.metricCyan
-        case .steps:                  return StrandPalette.metricCyan
+        case .steps, .stepsAverage30: return StrandPalette.metricCyan
         case .bloodOxygen:            return StrandPalette.metricCyan
         case .skinTemp, .calories:    return StrandPalette.metricAmber
         case .weight:                 return StrandPalette.metricRose
@@ -103,7 +103,7 @@ struct TrendsMetricStrip: View {
             return String(localized: "\(Int(m) / 60)h \(Int(m) % 60)m")
         case .calories:    return day?.activeKcalEst.map { "\(Int($0.rounded()))" } ?? "—"
         case .stress:      return day?.strain.map { "\(Int($0.rounded()))" } ?? "—"
-        case .fitnessAge, .vo2max, .vitality, .hydration, .weight, .coupled:
+        case .stepsAverage30, .fitnessAge, .vo2max, .vitality, .hydration, .weight, .coupled:
             // These need state this lightweight strip does not load (profile age, a hydration goal, a
             // weight-trend summary). Honest "—" rather than a guess; pick a different slot for these
             // today, or wire a dedicated resolver if a slot needs one later.

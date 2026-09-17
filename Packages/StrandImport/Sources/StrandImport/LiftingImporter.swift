@@ -168,11 +168,13 @@ public enum LiftingImporter {
             let setType = (row.cell("set_type", "type") ?? "").lowercased()
 
             // Weight: prefer kg; fall back to a lb column (convert). Bodyweight sets have no weight.
-            let weightKg: Double? = row.double("weight_kg", "weight", "weight_kgs")
-                ?? row.double("weight_lb", "weight_lbs", "weight_lbf").map { $0 * lbToKg }
-            // Crafted-import-crash guard: Int($0) traps on non-finite/out-of-range
-            // Doubles from a hostile CSV; bound reps to a sane finite range.
-            let reps = row.double("reps", "rep_count").flatMap { $0.isFinite && $0 >= 0 && $0 < 1e6 ? Int($0) : nil }
+            // Non-finite is rejected here for the same reason reps are bounded: `Double("1e9999")` is
+            // infinity, and an infinite top set would ride all the way out to the session note while
+            // poisoning the volume total. Kotlin's twin already dropped it at this point.
+            let weightKg: Double? = (row.double("weight_kg", "weight", "weight_kgs")
+                ?? row.double("weight_lb", "weight_lbs", "weight_lbf").map { $0 * lbToKg })
+                .flatMap { $0.isFinite ? $0 : nil }
+            let reps = boundedReps(row.double("reps", "rep_count"))
 
             let key = "\(title ?? "")|\(startRaw)"
             if byKey[key] == nil {
@@ -192,8 +194,44 @@ public enum LiftingImporter {
         return finish(order.compactMap { byKey[$0] }, skipped: skipped)
     }
 
+    /// Fold ONE workout object from the Hevy API into an accumulator, or nil when it carries no
+    /// usable start (no start means no window to attach a session to).
+    ///
+    /// Shared by `parseHevyAPI` and the workout-events lane, which receives the SAME `Workout` shape
+    /// wrapped in an `updated` event. Factored out so an edit arriving over events cannot fold
+    /// differently from the same workout arriving over a page.
+    static func hevyAccumulator(from w: [String: Any], zone: TimeZone) -> HevyAccumulator? {
+        guard let startStr = w["start_time"] as? String,
+              let start = parseDate(startStr, zone: zone) else { return nil }
+        let rawTitle = (w["title"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let acc = HevyAccumulator(start: start,
+                                  title: (rawTitle?.isEmpty == false) ? rawTitle : nil,
+                                  zone: zone)
+        // The accessor resolves this through the same `parseDate`, so the API and CSV paths cannot
+        // disagree about an end time.
+        acc.endRaw = w["end_time"] as? String
+        for e in (w["exercises"] as? [Any]) ?? [] {
+            guard let ex = e as? [String: Any] else { continue }
+            let title = (ex["title"] as? String) ?? ""
+            for st in (ex["sets"] as? [Any]) ?? [] {
+                guard let set = st as? [String: Any] else { continue }
+                acc.add(
+                    exercise: title,
+                    setIndex: jsonDouble(set["index"]).flatMap(safeInt),
+                    setType: ((set["type"] as? String) ?? "normal").lowercased(),
+                    weightKg: jsonDouble(set["weight_kg"]),
+                    reps: boundedReps(jsonDouble(set["reps"])),
+                    distanceM: jsonDouble(set["distance_meters"]),
+                    durationS: jsonDouble(set["duration_seconds"]),
+                    rpe: jsonDouble(set["rpe"])
+                )
+            }
+        }
+        return acc
+    }
+
     /// Mutable per-session tally while folding Hevy set rows.
-    private final class HevyAccumulator {
+    final class HevyAccumulator {
         let start: Date
         let title: String?
         /// Device timezone used to resolve the zoneless Hevy end-time, matching the start (#649).
@@ -262,6 +300,61 @@ public enum LiftingImporter {
     // MARK: - Liftosaur JSON
 
     /// Parse a Liftosaur JSON export into one session per history record.
+    /// Parse a Hevy **API** workouts page into the same sessions the CSV export yields.
+    ///
+    /// A third sibling of [parseHevy] and [parseLiftosaur], deliberately not a lane of its own: the
+    /// API describes the same workouts the CSV export does, so it must produce the same
+    /// `LiftingSession`, through the same accumulator, with the same warm-up exclusion and volume-load
+    /// arithmetic and the same `sourceId`. A parallel model would import one session twice under two
+    /// provenances, and would let the two drift about what a set is worth.
+    ///
+    /// Dates go through [parseDate] for the same reason. It honours an embedded ISO offset first and
+    /// only falls back to zoneless wall-clock, so the API's stamped offsets are respected and the
+    /// #649 device-zone interpretation stays available if the API ever omits one. `zone` is carried
+    /// through rather than assumed.
+    ///
+    /// The envelope is VERIFIED against Hevy's published OpenAPI spec (api.hevyapp.com/docs):
+    /// `GET /v1/workouts` returns `{ page, page_count, workouts[] }`; a workout carries `id`, `title`,
+    /// `description`, `start_time`, `end_time`; an exercise carries `title` and `sets[]`; a set
+    /// carries `type`, `weight_kg`, `reps` (and `distance_meters`, `duration_seconds`, `rpe`, which
+    /// this lane has nowhere to put).
+    ///
+    /// `type` is one of `normal`, `warmup`, `dropset`, `failure`. Only `warmup` is excluded from the
+    /// volume load — a dropset and a set taken to failure are working sets, and the shared
+    /// accumulator already treats them that way, which is why this path needs no rule of its own.
+    public static func parseHevyAPI(data: Data, zone: TimeZone = .current) -> LiftingImportResult {
+        let empty = LiftingImportResult(sessions: [], skipped: 0, earliest: nil, latest: nil)
+        guard let root = try? JSONSerialization.jsonObject(with: BOM.stripUTF8(data)) else { return empty }
+        let raw: [Any]
+        if let obj = root as? [String: Any], let list = obj["workouts"] as? [Any] {
+            raw = list
+        } else if let list = root as? [Any] {
+            raw = list
+        } else {
+            return empty
+        }
+
+        var accumulators: [HevyAccumulator] = []
+        var skipped = 0
+        for element in raw {
+            guard let w = element as? [String: Any],
+                  let acc = hevyAccumulator(from: w, zone: zone) else { skipped += 1; continue }
+            accumulators.append(acc)
+        }
+        // The shared tail, so a workout whose sets all folded away counts as skipped and the reported
+        // range is derived exactly as the CSV lane derives it.
+        return finish(accumulators, skipped: skipped)
+    }
+
+    /// Bound a rep count before `Int(_:)`, which TRAPS on a non-finite or out-of-range Double rather
+    /// than saturating. Both Hevy lanes route through this so they cannot drift apart, and so a
+    /// `{"reps": 1e9999}` in a response body is skipped rather than crashing the app — a network
+    /// payload deserves the guard more than a file the user picked does.
+    static func boundedReps(_ d: Double?) -> Int? {
+        guard let d, d.isFinite, d >= 0, d < 1e6 else { return nil }
+        return Int(d)
+    }
+
     public static func parseLiftosaur(data: Data) -> LiftingImportResult {
         // JSONSerialization rejects a leading UTF-8 BOM, so strip it (the shared CSV helper).
         guard let obj = try? JSONSerialization.jsonObject(with: BOM.stripUTF8(data)) else {
@@ -317,7 +410,7 @@ public enum LiftingImporter {
                 let weight = liftosaurWeightKg(set, entryUnit: entryUnit)
                 detailedSets.append(HevySet(index: setIndex, type: .normal, weightKg: weight,
                                             reps: r, distanceM: nil, durationS: nil,
-                                            rpe: liftosaurDouble(set["rpe"]), customMetric: nil))
+                                            rpe: jsonDouble(set["rpe"]), customMetric: nil))
                 if let w = weight, w > 0 {
                     top = max(top ?? 0, w)
                     volume += w * Double(r)
@@ -354,21 +447,30 @@ public enum LiftingImporter {
     private static func liftosaurWeightKg(_ set: [String: Any], entryUnit: String?) -> Double? {
         let raw = set["weight"] ?? set["weightValue"]
         if let obj = raw as? [String: Any] {
-            guard let v = liftosaurDouble(obj["value"]) else { return nil }
+            guard let v = jsonDouble(obj["value"]) else { return nil }
             let unit = (obj["unit"] as? String)?.lowercased() ?? entryUnit
             return unit == "lb" || unit == "lbs" ? v * lbToKg : v
         }
-        guard let v = liftosaurDouble(raw) else { return nil }
+        guard let v = jsonDouble(raw) else { return nil }
         return entryUnit == "lb" || entryUnit == "lbs" ? v * lbToKg : v
     }
 
     // MARK: - JSON scalar coercion
 
-    private static func liftosaurDouble(_ any: Any?) -> Double? {
-        if let d = any as? Double { return d }
-        if let n = any as? NSNumber { return n.doubleValue }
-        if let s = any as? String { return Double(s) }
-        return nil
+    /// A JSON number arrives as a `Double`, an `NSNumber` or a quoted string depending on the
+    /// encoder. Accept all three and reject anything else, so a nulled weight stays absent rather
+    /// than becoming zero volume. Shared by the Liftosaur, Hevy CSV and Hevy API lanes.
+    static func jsonDouble(_ any: Any?) -> Double? {
+        let raw: Double?
+        if let d = any as? Double { raw = d }
+        else if let n = any as? NSNumber { raw = n.doubleValue }
+        else if let s = any as? String { raw = Double(s) }
+        else { raw = nil }
+        // Reject a non-finite result rather than carrying it into the volume load: `Double("1e9999")`
+        // is `+infinity`, and an infinite volume would print as "0 kg" via the safeInt fallback while
+        // poisoning the session total. Kotlin's twin rejects at the same point.
+        guard let raw, raw.isFinite else { return nil }
+        return raw
     }
 
     private static func liftosaurInt(_ any: Any?) -> Int? {
@@ -391,7 +493,7 @@ public enum LiftingImporter {
     /// Liftosaur timestamps are epoch milliseconds (number or numeric string). A plain ISO string is
     /// tolerated as a fallback.
     private static func liftosaurDate(_ any: Any?) -> Date? {
-        if let ms = liftosaurDouble(any), ms > 0 {
+        if let ms = jsonDouble(any), ms > 0 {
             // Heuristic: a 13-digit value is ms; a 10-digit value is seconds.
             return ms > 1_000_000_000_000 ? Date(timeIntervalSince1970: ms / 1000)
                                            : Date(timeIntervalSince1970: ms)

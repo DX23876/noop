@@ -178,4 +178,50 @@ final class HrTraceTests: XCTestCase {
         XCTAssertNil(HrDisplay.resolve(bpm: nil, newestPointTs: nil, now: now).bpm)
         XCTAssertNil(HrDisplay.resolve(bpm: 0, newestPointTs: nil, now: now).bpm)
     }
+
+    // MARK: gaps
+
+    /// The gap rule, at the trace's own bucket width: a step of MORE than one bucket means the strap
+    /// recorded nothing in between, so the pen lifts. x is mapped by time, so the gap already occupied
+    /// its true width on screen; the line drawn across it was the invented part.
+    func testAGapSplitsTheTraceIntoRuns() {
+        // A 90-minute disconnect, which is the shape actually reported.
+        let pts = HrTrace.points(series([(0, 60), (60, 61), (5_460, 62), (5_520, 63)]), width: 100, height: 50)
+        XCTAssertEqual(pts.map { $0.startsRun }, [false, false, true, false])
+        XCTAssertEqual(HrTrace.runs(pts), [0...1, 2...3])
+    }
+
+    /// The threshold from both sides. A minute is the normal cadence, and a few skipped minutes are
+    /// ordinary background jitter rather than a disconnect, so neither breaks the line. Getting this
+    /// wrong the other way would shatter every trace into dots.
+    func testJitterIsNotAGapButSilencePastTheThresholdIs() {
+        func startsRun(_ stepSec: Int64) -> Bool {
+            HrTrace.points(series([(0, 60), (stepSec, 61)]), width: 100, height: 50)[1].startsRun
+        }
+        XCTAssertFalse(startsRun(HrTrace.bucketSec))
+        XCTAssertFalse(startsRun(3 * HrTrace.bucketSec))
+        XCTAssertFalse(startsRun(HrTrace.gapSec))
+        XCTAssertTrue(startsRun(HrTrace.gapSec + 1))
+    }
+
+    /// A reading marooned between two gaps is a run of one. It gets a dot rather than being dropped,
+    /// which is the same call the single-point series already makes.
+    func testAMaroonedReadingIsItsOwnRun() {
+        let pts = HrTrace.points(series([(0, 60), (5_400, 61), (10_800, 62)]), width: 100, height: 50)
+        XCTAssertEqual(HrTrace.runs(pts), [0...0, 1...1, 2...2])
+    }
+
+    /// The threshold is the widget's OWN definition of too-old rather than a number picked in the
+    /// renderer, so the line breaks exactly where the headline reading would already have been dropped.
+    /// Pinned, because the two drifting apart would be silent.
+    func testTheGapThresholdMatchesTheStaleCap() {
+        XCTAssertEqual(Int64(HrDisplay.staleCap), HrTrace.gapSec)
+    }
+
+    /// The common case is unchanged: a trace with no gaps is one run, and draws exactly as before.
+    func testAContiguousTraceIsOneRunAndAnEmptyOneHasNone() {
+        let pts = HrTrace.points(series([(0, 60), (60, 61), (120, 62)]), width: 100, height: 50)
+        XCTAssertEqual(HrTrace.runs(pts), [0...2])
+        XCTAssertEqual(HrTrace.runs([]), [])
+    }
 }

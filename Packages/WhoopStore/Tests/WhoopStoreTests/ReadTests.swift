@@ -144,11 +144,15 @@ final class ReadTests: XCTestCase {
         //   ts100 → bucket 0   → mean 60
         //   ts200, ts300 → bucket 200 → mean (61+62)/2 = 61.5
         let buckets = try await store.hrBuckets(deviceId: "dev1", from: 0, to: 1000, bucketSeconds: 200)
-        XCTAssertEqual(buckets, [HRBucket(ts: 0, bpm: 60, sampleSeconds: 1),
-                                 HRBucket(ts: 200, bpm: 61.5, sampleSeconds: 2)])
+        // #2032: bucket 200 is the case the readout used to get wrong. Its mean is 61.5 and its highest
+        // sample is 62, so a Max taken off the means understates the busiest moment. The extremes are
+        // asserted beside the mean here so a query that stopped carrying them fails rather than silently
+        // handing the card the mean again.
+        XCTAssertEqual(buckets, [HRBucket(ts: 0, bpm: 60, minBpm: 60, maxBpm: 60, sampleSeconds: 1),
+                                 HRBucket(ts: 200, bpm: 61.5, minBpm: 61, maxBpm: 62, sampleSeconds: 2)])
         // The decoy on "other" (ts200, bpm99) must never bleed into dev1's bucket.
         let other = try await store.hrBuckets(deviceId: "other", from: 0, to: 1000, bucketSeconds: 200)
-        XCTAssertEqual(other, [HRBucket(ts: 200, bpm: 99, sampleSeconds: 1)])
+        XCTAssertEqual(other, [HRBucket(ts: 200, bpm: 99, minBpm: 99, maxBpm: 99, sampleSeconds: 1)])
     }
 
     func testRrIntervalsReturnsBothTiedRows() async throws {

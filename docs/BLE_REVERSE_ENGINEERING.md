@@ -2,8 +2,9 @@
 
 How NOOP talks to a WHOOP strap directly over Bluetooth Low Energy — no WHOOP cloud and no account.
 This document explains how the strap's private GATT protocol was understood, how the
-frame format and checksums work, how WHOOP 4.0 ("Harvard") and WHOOP 5.0 ("puffin") differ, what each
-data stream contains, and how to extend the decoder for new packet types or sensors.
+frame format and checksums work, how WHOOP 4.0 ("Harvard") and WHOOP 5.0 ("puffin") differ, capture observations, and how to extend the decoder for new packet types or sensors.
+For current wire contracts, start with the [protocol reference](PROTOCOL.md); this page
+retains implementation history and measured observations rather than a second schema.
 
 > **Interoperability, not impersonation.** NOOP is a companion app for a strap *you own*. It reads the
 > data *your* device already records and stores it locally on *your* machine. Nothing here replicates,
@@ -25,11 +26,6 @@ projects, and the Swift code ports their findings:
 | **`johnmiddleton12/my-whoop`** | WHOOP 4.0 | The `61080001…` GATT service, the `0xAA` CRC8/CRC32 frame envelope, the command numbers, and the type-40/43/47 stream layouts. |
 | **`b-nnett/goose`** | WHOOP 5.0 | The `fd4b0001…` GATT service, the CRC16-Modbus header check, the static `CLIENT_HELLO` frame, and the "puffin" packet types. |
 
-Where a function or constant is a direct transcription, the source file says so (e.g.
-`crc16Modbus` in `Framing.swift` is noted as *"Ported verbatim from the Goose reverse-engineering"*,
-and `DeviceFamily.whoop5ClientHello` is transcribed from `GooseHello.clientHelloFrameHex`). Sensor
-scale factors and field offsets were additionally re-verified on a real WHOOP 4.0 strap (see the
-on-device verification notes embedded in `Resources/whoop_protocol.json`).
 
 ---
 
@@ -47,7 +43,7 @@ The reverse-engineering logic is split between a platform-pure Swift package and
 | `Packages/WhoopProtocol/Sources/WhoopProtocol/Streams.swift` / `HistoricalStreams.swift` | Parsed frames → durable rows (`HRSample`, `SpO2Sample`, …). |
 | `Packages/WhoopProtocol/Sources/WhoopProtocol/Resources/whoop_protocol.json` | The data-driven schema: packet types, enums, field offsets, sensor scales. |
 | `Strand/BLE/BLEManager.swift` | CoreBluetooth engine: scan → connect → **bond** → subscribe → reassemble → route. |
-| `Strand/BLE/Commands.swift` | The curated, **safe** command set (`WhoopCommand`) and the frame builder. |
+
 | `Strand/BLE/FrameRouter.swift` | Pure decode → live UI state (HR, events, double-tap, wrist on/off). |
 
 The `WhoopProtocol` package never imports CoreBluetooth — it exposes UUIDs as plain strings so the
@@ -60,9 +56,10 @@ macOS and iOS, not macOS-only.
 
 ## 1. The discovery approach
 
-WHOOP straps do not expose their physiological data through any standard BLE profile. They advertise a
-**hidden, vendor-specific GATT service** alongside the two standard ones, and the interesting data only
-flows after a quiet bonding step.
+WHOOP exposes live HR/R-R through the standard Heart Rate profile and uses
+vendor-specific GATT services for additional custom records, history and control.
+The earlier WHOOP 4 custom-channel flow below uses a bonding step; this does not
+make standard HR availability depend on the same custom handshake.
 
 ### The GATT layout (WHOOP 4.0)
 
@@ -86,21 +83,12 @@ which made it the reliable baseline while the custom channels were being mapped.
 `2A37` as the *reliable* HR/R-R source and lets the custom streams supply everything else (see
 `parseStandardHR` in `BLEManager.swift`).
 
-### The single confirmed-write bond
+### The earlier confirmed-write workflow
 
-The custom notify characteristics (`…0003/0004/0005`) stay silent until the link is bonded. The key
-discovery is that **one "with-response" (confirmed) write is enough** to trigger iOS/macOS just-works
-bonding — there is no PIN, no pairing UI. NOOP performs this with a benign `GET_BATTERY_LEVEL`
-(`didDiscoverCharacteristicsFor` in `BLEManager.swift`):
 
-```swift
-// THE BONDING TRICK: one confirmed write triggers just-works bonding.
-// GET_BATTERY_LEVEL is benign and what the Mac prototype uses.
-let bondFrame = WhoopCommand.getBatteryLevel.frame(seq: seq, payload: [0x00])
-peripheral.writeValue(Data(bondFrame), for: c, type: .withResponse)
-```
-
-When `didWriteValueFor` fires with no error, the link is bonded and the custom channels begin to flow.
+In the earlier client flow, successful `didWriteValueFor` completion triggered
+the next custom-channel handshake step. Write completion alone does not
+independently prove a persistent bond or successful data delivery.
 A subtlety learned the hard way: `didWriteValueFor` re-fires on **every** `.withResponse` write (the
 bond write, every historical request, every chunk ack), so the connect handshake is gated behind a
 `connectHandshakeDone` flag — re-running `HELLO`/`SET_CLOCK` mid-offload was found to make the strap
@@ -108,17 +96,15 @@ stop serving historical data.
 
 ### The connect handshake
 
-Once bonded, NOOP runs a WHOOP-faithful lifecycle exactly once
+The earlier WHOOP 4 client runs this connection sequence once
 (`didWriteValueFor` → handshake block):
 
-1. `GET_HELLO_HARVARD` (35) + `GET_ADVERTISING_NAME_HARVARD` (76) — greet the strap.
-2. `SET_CLOCK` (10) — set the strap RTC to UTC (8-byte `[seconds u32 LE][subseconds u32 LE]`).
-   A *wrong-length* SET_CLOCK is ack'd but not latched, which leaves the RTC lost and the strap
-   refuses to serve history — a real bug found and fixed here.
-3. `GET_CLOCK` (11) with an **empty** payload — establishes the device↔wall clock correlation.
-4. `SEND_R10_R11_REALTIME` (63) with `[0x00]` — **disables** the raw realtime flood (see §4).
-5. `GET_DATA_RANGE` (34) — read the strap's stored data window for the liveness watchdog.
-6. After a short settle, request the historical offload (`SEND_HISTORICAL_DATA`).
+
+2. `SET_CLOCK` (10) — the earlier default body is 8-byte `[seconds u32 LE][subseconds u32 LE]`.
+   A separate older WHOOP 4 observation requires a ninth zero byte. The reported
+   wrong-length/clock incident does not establish a universal ACK or history-refusal
+   rule; use the [generation-specific clock notes](PROTOCOL_WHOOP4.md#bond-handshake--connect-lifecycle-whoop-40).
+
 
 ---
 
@@ -145,6 +131,11 @@ against `my-whoop`'s `WhoopPacket.framed_packet` and is implemented in `Commands
 - **`crc8`** (poly `0x07`, table in `Framing.swift`) guards **only the two length bytes** — a cheap
   header integrity check that lets the reassembler trust the declared length.
 - **`crc32`** is standard zlib CRC-32 (reflected, poly `0xEDB88320`) over the inner bytes.
+- **Size rules.** A 4.0 frame must be **at least 11 bytes** — `type`, `seq`, `cmd`, and the envelope
+  including the CRC32 trailer; real zero-data metadata records sit exactly on this bound —
+  and must be **exactly `len + 4`** bytes. Equality, not "at least": a frame cut short and a frame
+  carrying trailing bytes past its own end are **both** rejected, even when the payload CRC32 over
+  the bytes the length field claims happens to check out.
 
 `type` is the packet type (see §5), `cmd` is the command/event number, `seq` is a rolling sequence
 byte (and, for historical records, doubles as the **record version** — see §3).
@@ -154,6 +145,10 @@ byte (and, for historical records, doubles as the **record version** — see §3
 BLE delivers frames in MTU-sized fragments. The `Reassembler` (`Framing.swift`) accumulates bytes,
 finds the `0xAA` SOF, reads the `len` field, and only emits a frame once `len + 4` bytes are present.
 `BLEManager.didUpdateValueFor` feeds every custom-channel notification through it before routing.
+
+The reassembler knows the same per-family minimum (11 bytes on 4.0, 13 on 5.0/MG): a `0xAA` whose
+declared total is smaller is dropped and the scan resyncs on the next SOF, counted in
+`belowMinimumLengthDrops` so the byte run leaves a trace instead of disappearing.
 
 ### WHOOP 5.0 envelope
 
@@ -172,15 +167,22 @@ total = declaredLength + 8
 ```
 
 The inner record (`[type][seq][cmd][data…]`) starts at **offset 8** instead of offset 4, and the
-payload CRC32 is unchanged from 4.0. The whole 4-vs-5 difference is funnelled through one switch:
-`DeviceFamily.headerCRCKind`.
+payload CRC32 is unchanged from 4.0. The header-check choice is selected through `DeviceFamily.headerCRCKind`; command
+bodies and record layouts have further generation-specific differences.
+
+NOOP accepts a 5.0/MG frame only at **13 bytes or more** (8 header bytes including the CRC16, at
+least the inner type byte, and the 4-byte CRC32 trailer) and exactly `declaredLength + 8` bytes, so
+truncation and trailing bytes are rejected. The 13-byte floor is empirical rather than structural:
+Goose's `v5Payload` accepts the self-consistent 12-byte, zero-payload envelope. The committed real
+fixtures include 20-byte command responses and 24-/32-byte frames, but no 12-byte boundary case;
+they establish valid traffic above the floor, not that 12 is invalid. Keeping 13 is a deliberate
+compatibility assumption that prevents a typeless frame's trailer from being treated as record data.
 
 ---
 
 ## 3. WHOOP 4 (Harvard) vs WHOOP 5 (puffin)
 
-`DeviceFamily` (`DeviceFamily.swift`) is the single enum that captures every hardware-generation
-difference. The family-aware `verifyFrame(_:family:)` and `parseFrame(_:family:)` overloads branch on
+`DeviceFamily` (`DeviceFamily.swift`) selects the transport family. The family-aware `verifyFrame(_:family:)` and `parseFrame(_:family:)` overloads branch on
 it; the `whoop4` path is byte-for-byte identical to the original no-family functions (back-compat).
 
 | Aspect | WHOOP 4.0 (`whoop4`, "Harvard") | WHOOP 5.0 (`whoop5`, "puffin") |
@@ -203,64 +205,27 @@ AA 01 08 00 00 01 E6 71 23 01 91 01 36 3E 5C 8D
 This is a fully-formed type-35 COMMAND frame with a valid CRC16-Modbus header and CRC32 trailer,
 exposed as `DeviceFamily.whoop5ClientHello`.
 
-### Bonding and the puffin session (hardware-verified)
+### Bonding and the puffin session
 
-Confirmed against a real WHOOP 5 strap using the Linux capture tooling in `Tools/linux-capture/` (a
-`bleak`/BlueZ capture feeding the `whoop-decode` CLI). The notes below supersede the earlier
-"unverified on MG hardware" caveats for the connect path.
-
-**The `fd4b…` service requires an encrypted link.** Unlike WHOOP 4.0 — whose custom characteristics
-are readable after a plain confirmed write — every `fd4b` operation (subscribing to a notify channel,
-writing to `fd4b0002`) needs the link to be **bonded** first. Without a bond the operation simply
-stalls while the stack waits for an encryption that never arrives. So the 5.0 session has a step the
-4.0 does not: establish a BLE bond *before* anything else.
-
-**The bond is "just works"** — no PIN, no passkey, no OOB. On Apple, CoreBluetooth performs it
-transparently the first time an encrypted characteristic is touched (no strap screen, nothing to
-confirm). On Linux it was reproduced with standard pairing: clear any stale bond, put the strap in
-pairing mode, then pair — `Pair()` completes in ~0.2 s and the bond persists, after which connecting
-needs no further pairing. WHOOP's own guidance is to pair only through the app and *not* via the OS
-Bluetooth menu; for interoperability with a strap **you own**, an OS-level just-works bond is
-nonetheless sufficient — no app-side step is required. (The strap holds one central at a time, so the
-phone must be disconnected first; the firmware logs a `BLE Bond failure` for a contended attempt.)
-
-**How NOOP's Apple app (macOS/iOS) triggers it (v1.5):** it writes `CLIENT_HELLO` to `fd4b0002` *with response*.
-That single confirmed write makes CoreBluetooth bring up the just-works bond *before* the puffin notify
-subscriptions are attempted — without it those subscriptions are rejected with *"Authentication is
-insufficient"* and the handshake hangs at "Finishing the secure pairing handshake…" forever (issue #17).
-
-**Once bonded, the session mirrors 4.0** on the new transport:
 
 1. Subscribe `fd4b0003/0004/0005/0007`.
 2. Write `CLIENT_HELLO` to `fd4b0002`. The strap replies with two `COMMAND_RESPONSE` (GET_HELLO, cmd
    145) frames carrying the device serial and a session token.
-3. Drive the strap with **the 4.0 command numbers, re-framed for puffin** (`puffinCommandFrame` in
-   `Framing.swift`). Verified on hardware: `SEND_HISTORICAL_DATA` (22) starts a full historical
-   offload — trim-cursor acks, `History burst success`, `Historical Dump Complete`, exactly the §5
-   4.0 mechanism; `GET_CLOCK` (11), `TOGGLE_REALTIME_HR` (3) and `SEND_R10_R11_REALTIME` (63) are all
-   accepted. The puffin command set is therefore the 4.0 set on the 5.0 transport, not a new one.
 
-**`CONSOLE_LOGS` (type 50) are plaintext firmware logs.** The 5.0 emits them freely, and they narrate
-the command flow in clear text (`HELLO: Send hello packet`, `Command Send Historical Data`, `History
-burst success. Trim: 0x00000010:0001b635 (16:112181)`, `Historical Dump Complete`, `PullStats:
-Data: 5, Events: 279, Bytes: 21292`). They are a useful cross-check when mapping the rest of the
-protocol.
 
 ### "Puffin" packet types
 
-WHOOP 5.0 introduces parallel packet types that carry the same semantics on the new transport. Rather
-than decode them separately, `canonicalTypeName` aliases them onto their 4.0 equivalents so they never
-fall through to "unknown":
+The client schema includes aliases for several packet types. These are implementation
+choices, not evidence that every alias has an equivalent producer on the strap:
 
 | Puffin type | Aliased to |
 |---|---|
 | 38 `PUFFIN_COMMAND_RESPONSE` | `COMMAND_RESPONSE` (36) |
 | 56 `PUFFIN_METADATA` | `METADATA` (49) |
 
-> WHOOP 5.0 framing, the hello, the puffin aliases, the bond/session handshake and the command set
-> are implemented and now hardware-verified (see "Bonding and the puffin session" above): the strap
-> bonds, accepts the 4.0 command numbers, and performs a full historical offload, all decoding
-> CRC-valid. The 5.0 **biometric field offsets** are now mapped from real captures too — live
+> The capture above verified framing, bonding, hello and selected commands, including a
+> CRC-valid historical offload. It did not verify every command or packet alias. The
+> [transport reference](PROTOCOL_TRANSPORT.md) distinguishes observed producers from schema names. The 5.0 **biometric field offsets** are now mapped from real captures too — live
 > `REALTIME_DATA` (§5) and the historical type-47 record (version 18, §5) both decode HR / R-R /
 > gravity, validated against ground truth. Capture with `Tools/linux-capture/whoop_capture.py
 > --history-only --history-ack` and decode with `whoop-decode`.
@@ -269,33 +234,18 @@ fall through to "unknown":
 
 ## 4. The realtime "R10/R11" raw stream (type 43)
 
-`REALTIME_RAW_DATA` (packet type **43**, internally "R10/R11") is the strap's high-rate raw sensor
-stream. On the WHOOP 4.0 firmware it streams **continuously and unprompted** at roughly 2 packets per
-second once the link is up — and each packet is large (~1.9 KB). Two variants have been mapped,
-distinguished by payload length (`PostHooks.swift` `raw_data` hook + the `variants` table in
-`whoop_protocol.json`):
 
 | Payload len | Kind | Contents |
 |---|---|---|
-| 1917 | `imu` | HR byte + R-R + **6 IMU axes** (accelX/Y/Z, gyroX/Y/Z), 100 signed-`i16` LE samples/axis @ ~100 Hz |
-| 1921 | `optical` | A single AC-coupled PPG waveform: ~419 `s24` LE samples @ ~437 Hz, stride 4 |
 
-The IMU variant is well-characterised and on-device-verified:
-
-- **Accel** scale `1/4096` g/LSB (sphere-fit `|g| ≈ 0.99`, residual 0.0%).
-- **Gyro** scale `2000/32768 = 0.06104` deg/s/LSB → full-scale ±2000 dps, verified with controlled
-  720° rotations.
-- Axes live at frame offsets `accelX@89, accelY@289, accelZ@489, gyroX@692, gyroY@892, gyroZ@1092`.
-- Roughly 36% of the frame (a header gap and a tail from offset 1292) is **still unmapped** and kept
-  raw — an honest gap, not an invented field.
 
 ### Why NOOP disables it on connect
 
-The type-43 flood is expensive on two axes the strap can't spare:
-
-- **BLE airtime** — at ~2 × 1.9 KB/s it dominates the connection and starves the historical offload.
-- **Strap flash** — keeping the raw stream on blocks dense biometric retention and disconnected
-  operation.
+In the earlier WHOOP 4 sessions described here, the ~2 × 1.9 KB/s stream
+consumed substantial BLE airtime during historical offload. Live delivery alone
+does not establish how data is retained in flash or whether disconnected recording
+continues. WHOOP 5/MG has separate [production, live-delivery and collection
+controls](PROTOCOL_CONFIGURATION.md#collection-storage-and-live-transport).
 
 The real control is **not** `STOP_RAW_DATA` (82), which doesn't affect this stream — it is
 `SEND_R10_R11_REALTIME` (63). Sending it with `[0x00]` on connect stops the flood (verified on-device:
@@ -360,10 +310,10 @@ record's **version is the `seq` byte** (`frame[5]`); the schema resolves it via 
 | 40/44/48 | `gravity_x/y/z` (f32) | Accel-derived gravity vector (g). |
 | 55 | `skin_contact` (u8) | 0 = off-wrist (capacitive). |
 | 56/60/64 | `gravity2_x/y/z` (f32) | Second accel/gravity triplet. |
-| 68 / 70 | `spo2_red` / `spo2_ir` (u16) | Raw ADC; SpO₂ % computed locally. |
-| 72 | `skin_temp_raw` (u16) | Raw ADC; °C computed locally. |
+| 68 / 70 | `spo2_red` / `spo2_ir` (u16) | Raw ADC; no calibrated SpO₂ % is established by these fields. |
+| 72 | `skin_temp_raw` (u16) | Raw ADC; physical calibration is separate. |
 | 74 / 76 / 78 | `ambient`, `led_drive_1/2` (u16) | Optical config. |
-| 80 | `resp_rate_raw` (u16) | Raw; respiratory rate computed locally. |
+| 80 | `resp_rate_raw` (u16) | Legacy raw respiration-related field; not independently a rate in breaths/min. |
 | 82 | `signal_quality` (u16) | DSP quality. |
 
 Versions 5/7/9 are generic HR/R-R-only records with no DSP sensor block; version 12 shares the v24
@@ -371,41 +321,24 @@ layout; **version 25** is a different WHOOP 4.0 firmware layout (84-byte, timest
 decoded in v1.95 — see "The WHOOP 4.0 type-47 record (version 25)" below).
 `extractHistoricalStreams` (`HistoricalStreams.swift`) turns these into the typed rows
 (`HRSample`, `SpO2Sample`, `SkinTempSample`, `RespSample`, `GravitySample`, …). The raw ADCs are kept
-as-is (`unit: "raw_adc"`) — SpO₂ %, skin temperature in °C, and respiratory rate are derived later in
-`StrandAnalytics`, on-device, never on a server.
+as-is (`unit: "raw_adc"`). These names do not independently establish physical
+calibration. Current NOOP keeps SpO₂ import-only and treats respiration estimation
+and temperature processing separately; see [current data boundaries](WHOOP5_DEEP_DATA.md#spo₂-and-respiration-interpretation-limits).
 
 ### Safe offload + trim
 
 The strap streams `HISTORY_START → type-47 records → METADATA (HISTORY_END) → … → HISTORY_COMPLETE`.
 Each `METADATA` chunk carries a **`trim_cursor`** (u32 at frame offset 17). NOOP persists the decoded +
 raw rows first, then sends `HISTORICAL_DATA_RESULT` (23) as a confirmed write echoing the chunk's
-`end_data` — only then may the strap forget that chunk. This makes the offload resumable: the durable
-`strap_trim` cursor means the next session resumes exactly where the last one stopped.
+`end_data`. The local `strap_trim` cursor records committed client progress. It does not guarantee
+that the strap resumes at exactly that position: unacknowledged records can repeat, and preparation
+can continue after a rewind failure. Retain duplicate handling and the full eight-byte ACK token;
+see [interruption and recovery](PROTOCOL_TRANSPORT.md#interruption-and-recovery).
 
-### Offload throughput is firmware-paced (~10 records/s), not link-bound
-
-The offload runs at a steady **~10 type-47 records per second**, and since the records are 1 Hz that is
-only **~10× real-time** (a full day ≈ 40 min, a night ≈ 30 min). This is a property of the strap
-firmware, **not** the BLE link. Measured on a real worn WHOOP 4 (`Tools/linux-capture/`), the rate did
-not move when either link parameter was forced upward:
-
-- **ATT MTU 23 → 247** — a 104-byte type-47 frame goes from 6 notification packets to 1. No change.
-  (BlueZ does not auto-negotiate the MTU; `whoop_sync.py` calls `_acquire_mtu()` to raise it — the
-  offload still streams at ~10/s.)
-- **Connection interval 50 ms → 7.5 ms** — via BlueZ `conn_min/max_interval` debugfs, the Linux
-  equivalent of Android's `requestConnectionPriority(CONNECTION_PRIORITY_HIGH)`. No change.
-
-The rate is rock-steady across the whole drain — the signature of firmware-side pacing of the per-record
-`HISTORY` stream, not transmission throughput or the per-chunk ack round-trip. **Implication:** matching
-the official app's far faster sync (24 h in 1–3 min) would require a different **bulk / flash-page
-transfer command**, not link tuning, and that command is not yet reverse-engineered. For unattended
-periodic sync ~10× real-time is fine (and resumable via the trim cursor if interrupted). It also means
-adding `requestConnectionPriority`/`requestMtu` to a client to speed *this* offload is not worthwhile.
-
-### WHOOP 5.0 historical offload (hardware-verified)
+### WHOOP 5.0 historical offload
 
 The ack is not just for resumability on WHOOP 5 — **it is what makes the offload progress at all.**
-Confirmed on a real worn WHOOP 5 (latest firmware) via `Tools/linux-capture/`:
+Confirmed in the cited worn WHOOP 5 capture via `Tools/linux-capture/`:
 
 - **Without acking**, the strap re-serves the *same* early chunk forever. Across 16 deterministic
   re-requests the `trim_cursor` stayed frozen at `112193` and **zero** type-47 records arrived — only
@@ -420,236 +353,68 @@ On WHOOP 5 the metadata fields sit at the 4.0 offsets **+4** (the envelope shift
 
 ### The WHOOP 5.0 type-47 record (version 18)
 
-The historical record's version byte is `frame[9]` on WHOOP 5 (the +4 image of the 4.0 `frame[5]`).
-Real WHOOP 5 hardware on the **latest firmware** emits **version 18 (124-byte)** — **not** the 4.0
-**v24** layout documented above, and **not** v24 shifted by +4. The repo schema does not contain v18;
-this device's firmware revision simply uses a different layout, and a naive "v24 + 4" decodes to
-garbage (HR `0`, gravity overflow). The fields below were read off real frames at their **absolute
-5.0 offsets** and cross-checked physiologically, never assumed (`decodeWhoop5Historical` in
-`Interpreter.swift`, parity test `Whoop5HistoricalTests.swift`):
+Use the [canonical R18 layout](PROTOCOL_SENSORS.md#r18-biometric-summary) for
+field offsets, widths, counters, thermal values and state bits. The record
+contains both interpreted fields and raw values without a physiological label.
 
-| Offset | Field | Validation |
-|---|---|---|
-| 9 | `hist_version` (u8) = 18 | discriminates the layout |
-| 11 | `record_index` (u32 LE) | a per-record counter: `+1` every record and **independent of `unix`** (it advances across gaps), so a lifetime record index, not a clock. Span ≈ record count on **two** straps. `@11` is only the low byte — read the full `u32` LE. |
-| 15 | `unix` (u32) | monotonic, +1 s |
-| 22 | `heart_rate` (u8) | **matched the 2A37-verified live HR exactly at all 96 overlapping timestamps** (mean \|Δ\| 0.00 bpm); note this is v24's `21`+1, **not** +4 |
-| 23 | `rr_count` (u8) | matches #valid R-R intervals 100 % (1141/1143) |
-| 24 + 2·i | `rr[i]` (u16, ms) | 60000/mean(R-R) ≈ HR for 88 % (rest are HR-averaging) |
-| 36 | `hr_quality_flags` (u8) | a **flag byte**, *not* the low half of a fixed-point HR. Over **18,650** real v18 records bit 4 is **never** set (0/18,650 — a genuine 8.8 fraction sets it ~50 % of the time, and it is the only bit never set), **95.02 %** of values land in `0x80`–`0x8F` (uniform would be 6.25 %) across just **40 distinct values**, and sd = **26.5** vs 73.9 for a uniform byte. **Bit 7 = validity**: with it clear (n=748) `rr_count == 0` in **70.32 %** of records vs **19.82 %** with it set, and the `@108/@109` sentinel fires in **69.65 %** vs 1.32 %. Remaining bits unpinned; carried raw. |
-| 37 | `heart_rate_alt` (u8, bpm) | a **duplicate** of `heart_rate@22` — equal in **99.575 %** of records (18,523/18,602), differing only by −6…+2, and it tracks HR only while `@36` bit 7 is set (99.74 % exact vs 94.12 % when clear). |
-| ~~36–37~~ | ~~`hr_fixed_8_8` (u16 LE) — bpm = `value/256`~~ | **Retired.** The "corr 0.989 with `heart_rate@22`" that justified this name was **circular**: the u16 is literally `hr@22` (at `@37`) plus the `@36` flag byte over 256, so the residual is a flat **+0.504 ± 0.189** — i.e. `@36/256`, not a sub-bpm fraction. On records where `@36` bit 7 is clear it produced absurd readings (a fixture decodes to **227 bpm**). |
-| 33 | `cardiac_flags` (u8) | a **beat-detection quality byte**, not cardiac. Over **18,650** v18 records (#845 census — @digitalerdude's public HCI capture plus a second strap): **bit 0 is byte-identical to `@81` bit 0** in 18,650/18,650, across two sessions 15 days apart on different hosts, so it is **not an independent signal**. Bits 1–3 are never set; bits 4–5 are **thermometer-coded** (bit 4 only ever set with bit 5; state `01` never occurs) — a 3-level field. High-nibble popcount is monotone against `P(rr_count == 0)`: **.180 / .207 / .301 / .427 / .612** for popcount 0→4, against a **.219** base rate. The name is POSITIONAL (it sits near the HR fields), not derived — the census says what the byte does, not what it is. |
-| 38 | `rr_packed` (u16) | a u16 beside the R-R fields; meaning still **not pinned**. |
-| 40 | `cardiac_status` (u8) | a **saturating 0–255 confidence score**, correlated **r = −0.80** with `@113` (#845 census). `whoop-local` names this `signal_quality` in its own code with no stated source or supporting analysis; the census independently supports something quality-shaped, but the name here stays positional until someone pins the scale. |
-| 41 | `dynamic_acceleration` (f32, g) | the strap's own **gravity-removed motion magnitude**, one scalar per second sitting immediately before the gravity triplet. Gated to `[0, 8] g` so a wrong offset stores nothing rather than garbage; reads 0.006–0.033 g across the resting oracle frames. Decoded on both platforms but **not persisted and not scored** — `step_motion_counter@57` and `activity_class@63` are what the motion paths actually consume. See the byte-43 note below. |
-| 45 / 49 / 53 | `gravity_x/y/z` (f32, g) | \|g\| ≈ 1.0 for 100 % of 500 records; v18 has **one** triplet (not v24's two) |
-| 57–58 | `step_motion_counter` (u16 LE @[57:59]) | a **cumulative** counter: climbs while moving, flat when still, low byte wraps at 256. **Steps = Σ wrap-aware diffs** `(cur-prev)&0xFFFF` — *not* the value summed per record (that over-counts massively — the WHOOP 5/MG step over-report). No per-record step count is in the record. |
-| 59 | `step_cadence` (u8) | a **cadence-like** byte between the counter and `@63`: never `0`, and lower when moving faster (still > walk > run in the data). Raw — no unit asserted. |
-| 63 | `motion_wear_quality` (u8) {0,1,2} | a 3-valued byte; kept **raw** (semantics not pinned from observation). Also read as an **activity class** (0 still / 1 walk / 2 run, #316); `whoop-local` decodes the same offset with the same `<= 2` gate, reached independently (#715). |
-| 69 | `temp_aux_1_raw` (i16 LE); °C = value/10 | a **secondary temperature channel**: tracks `skin_temp@73` (corr **0.92** on two straps) with the same on-wrist diurnal curve; deci-°C resolution. |
-| 71 | `temp_aux_2_raw` (i16 LE); °C = value/10 | a second **temperature channel**: tracks `skin_temp@73` (corr **0.97**), same diurnal behaviour. |
-| 73 | `skin_temp_raw` (u16); °C = raw / 100 | A **digital skin-temperature sensor**, identified **purely from the data**: the on-wrist warming/diurnal curve is a thermal signature nothing else in the record has. **Scale = `/100`** — the only divisor that yields a physiological worn skin temperature (median ≈ **34 °C** across two straps; `/128` reads a non-physiological ≈ 27 °C). Decoded in `decodeWhoop5Historical` (`Interpreter.swift`); flows to the decode-features store as `skin_temp_raw` + derived `skin_temp_c`. |
-| 75 | `status_word` (u16 LE) | a packed status word; **NOT a deep-sleep marker** — its low nibble is `0` across ~258k records and it occurs as often awake as asleep (the community "`80`=deep" reading is a misread). Raw. |
-| 77 | `status_word_1` (u16 LE) | raw; a near-static sibling of `status_word@75` (low nibble = channel index `1`). |
-| 79 | `status_word_2` (u16 LE) | raw; sibling of `@75`/`@77` (low nibble = `2`). |
-| 81 | `sleep_state` = `(byte >> 4) & 3` (+ low-nibble sub-flags) | bits 4-5 = the band sleep state: `0` wake / `1` still / `2` asleep / `3` up (deep/REM/light are off-band). Low-nibble sub-flags, observation-framed: **b0-1 `onwrist`** (on-wrist/validity flag) and **b2-3 `wake_quality`** (a 2-bit code observed nonzero **only in wake**); **b6-7 reserved** (`0` across all records). (Hypothesised from captures + a scored night on #132.) |
-| 82 | `aux_byte_82` (u8) | the raw carry of the byte decoded as **`spo2_candidate_82`** — a strap-computed SpO₂ % scalar, tri-mode, sleep-only (#103). Instrumentation only, never a shipped metric; see the note below and [`WHOOP5_DEEP_DATA.md`](WHOOP5_DEEP_DATA.md). |
-| 83–103 | reserved | observed **constant `0`** on two straps (zero-filled). |
-| 104 | (const) | observed **constant `1`** on two straps; carried raw, no metric. |
-| 106 / 107 | `optical_baseline_a` / `optical_baseline_b` (u8, u8) | two **independent u8** optical/ADC baseline channels — **not** one u16 LE. A u16 is structurally impossible here: across 18,599 consecutive-second pairs the **high byte changed while the low byte stayed frozen in 3,514 (18.89 %)**, and the corpus holds **zero** low-byte wrap events — a real u16 cannot step its high byte without a carry. The apparent u16 deltas are exactly `256·Δ@107 + Δ@106` (clustering at 0, ±1, ±255, ±256, ±257, ±513). Correlated but independent (corr **+0.73**; they move in **opposite** directions in 5.8 % of pairs where both move). **`0` — not `128` — marks off-wrist**: both bytes read 0 in exactly the 8 records that also carry `HR == 0`, while 128 occurs unremarkably while worn (`@106` in 10 records, `@107` in 103). Magnitudes are device-specific (102–255 / 119–247 on one strap vs 20–66 / 34–81 on another), so **no scale is asserted**. |
-| 108 / 109 | `optical_amp_a` / `optical_amp_b` (u8, u8) | a tightly-coupled **pair** (equal in 23.5 % of records, within ±2 in ~80 %). **`128` is a RECORD-level sentinel**, not per-channel: `amp_a == 128` in 757 records and `amp_b == 128` in 757 — the **same** 757, never one without the other. They do **not** rise with heart rate; that reading (~34 at HR 40–49 → ~58 at 80–89) was an **averaging artifact** of counting the 128 sentinel as a number — with sentinels excluded the trend is flat-to-declining (**32.45 → 29.52**). The real monotone trend is with **motion**: ~32.7 while still (`dyn_acc` < 0.02 g) → **37.4** at 0.05–0.2 g. The sentinel is a usable per-second **signal-quality** flag: it fires on 4.02 % of worn seconds and predicts the band's own beat-detection failure (`rr_count == 0`) at **79.44 % vs 19.40 %** — a **4.09×** lift that **survives holding motion constant** (4.11× within `dyn_acc` < 0.009 g), where shuffled and circular-shift nulls all sit at ~1.0×. **Not** SpO₂, blood pressure or a perfusion substrate — signal-quality/AGC is the supported reading and the wavelength identity is unknown. |
-| 113 | `unknown_f32_113` (f32 LE) | a **graded quality metric**, no longer unknown: it **floors at −5.2869** when signal quality is good, and across its range takes `P(rr_count == 0)` from **18.30 % to 78.00 %** — a 4.3× lift (#845 census). `0` = unset. Correlated **r = −0.80** with `@40`, so the two report the same condition on different scales. Carried raw; no physiological reading is asserted. |
+#### Unresolved physiological interpretations
 
-**Corpus caveat for the `@33` / `@40` / `@108`–`@109` / `@113` quality group.** Those figures come from the #845 census over one contiguous capture: **a single subject, one night, 5 h 10 m, 99.48 % band-scored asleep**, median `dyn_acc` 0.0073 g, with **no ambulation, no workout and no verified off-wrist period**. The cardiac-quality fields are therefore well exercised and the activity-side behaviour is barely exercised at all. Read the monotone relationships as established *for still, asleep wear* — not across wake, exercise or off-wrist, which this corpus cannot speak to. A second corpus is what would promote any of this beyond instrumentation.
-
-The strongest check on the HR offset: where a historical record and a live `REALTIME_DATA` (§5, 2A37
-ground-truth-verified) frame share a timestamp, the historical HR equalled the live HR at **96/96**
-samples — so HR@22 is anchored to hardware ground truth, not just internally consistent.
-
-A second, independent corroboration comes from **two straps on the same wearer**: a WHOOP 4 and a
-WHOOP 5 worn over the same window, both offloaded and decoded, agree at **corr 0.96** across ~28 000
-overlapping 1 Hz samples, with a **rest-only mean absolute error of 0.7 bpm** (they diverge only during
-exercise, as two independent PPG sensors do). That is a large-sample, cross-generation check on HR@22
-on top of the live-vs-historical match above.
-
-#### Byte 43 is not a respiration rate (#520)
-
-A third-party decoder reads a `u8` at payload offset 35 — **frame offset 43** — and labels it a raw
-respiration rate. It is not. Frame 43 is the third byte of the little-endian `dynamic_acceleration`
-float32 at 41, and the claim is disproved by the fixture frames already in the repo:
-
-| frame | byte 43 as "brpm" | f32@41 as g | \|g\| @45/49/53 |
-|---|---|---|---|
-| `whoop5_v18_real_worn` | 22 | 0.0092 | 1.0086 |
-| `whoop5_v18_real_one_rr` | 47 | 0.0107 | 1.0106 |
-| **`whoop5_v18_real_offwrist`** | **195** | 0.0060 | 0.9985 |
-| `whoop5_v18_real_ack_capture` | 108 | 0.0144 | 1.0074 |
-| `whoop5_v18_real_device2_hr57` | 6 | 0.0328 | 1.0029 |
-| `whoop5_v18_real_device2_hr63` | 9 | 0.0084 | 1.0096 |
-
-Two readings of bytes 41–44 are on offer, and they disagree about byte 43. The evidence, in order:
-
-1. **The 4-byte grid is fixed.** The f32s at 45/49/53 give \|g\| = 0.9985…1.0106 on every frame; three
-   values landing on unit magnitude together is not something a misaligned read produces.
-2. **Read as an f32 on that grid, 41–44 is physically coherent** — 0.006–0.033 g on all six frames,
-   the right size for a gravity-removed magnitude, and it stays coherent across worn, off-wrist and
-   two different straps. (Being on the grid doesn't by itself make it a float; the coherence is what
-   argues it is one.)
-3. **Read as a rate, byte 43 is impossible** — 6…195 "brpm", worst on the **off-wrist** frame: 195
-   breaths/min from a strap nobody is wearing, with `heart_rate@22` = 0.
-
-A byte belongs to one field. (2) and (3) can't both be right, and (3) is refuted by its own values.
-
-Note the tautology to avoid: byte 43 *is* byte 2 of that float by construction, so reproducing it from
-the float's exponent/mantissa bits proves nothing. The evidence is the gravity anchor plus the
-off-wrist value. `dynamic_acceleration` is now pinned in `decoder_oracle.json` on both platforms, so a
-future offset change here fails a test rather than silently reintroducing a fabricated vital sign.
-
-#### Byte 82: already decoded as `spo2_candidate_82`, blocked on a cross-device contradiction (#103)
-
-**This byte is not unmapped, and the open question is not what it is.** `Interpreter.swift` and
-`HistoricalStreams.kt` both decode `@82` as **`spo2_candidate_82`** — a strap-computed SpO₂ % scalar,
-tri-mode (70–100 a real %, bit-7 a saturation sentinel, other sub-70 a diagnostic code), populated only
-during sleep. It is instrumentation only: a guard test
-(`testHistoricalV18OpticalFieldsAreNotNamedPhysiologically`) stops it ever writing `spo2Pct`,
-`spo2_red` or `spo2_ir`, and nothing downstream reads it. The full analysis lives in
-[`WHOOP5_DEEP_DATA.md`](WHOOP5_DEEP_DATA.md); the `aux_byte_82` row above is the same byte carried raw
-alongside it.
-
-**The evidence is split, and that is the whole blocker.** An 8-night independent validation with real
-spread reaches **corr +0.99** (~0.4 %/night), tracks both a 92 % desaturation and a 98 % high, and is
-offset-specific — only `@82` tracks in a 74–92 scan. But on the original #103 capture device, two
-checked nights moved **opposite** to the app value (app 95.50→92.83 vs gated mean 93.62→93.80).
-Unresolved: device/firmware variance, or an extraction error on one side. Until that contradiction
-resolves, `@82` stays a candidate.
-
-**What clears the bar is multi-device correlation, not one more capture** — the nightly candidate
-tracking the app's own SpO₂ across many nights on several straps, *including* the device where the two
-nights currently disagree. `Tools/linux-capture/validate_spo2_candidate.py` is the harness for exactly
-that. A single asleep frame proves nothing here; the value range has been seen.
-
-**Independent corroboration (#715).** `whoop-local` reads the same byte the same way — sleep-only, and
-its decoder applies the identical `70…100` in-band gate, reached separately. That is a second source on
-the *identification*. It does not touch the contradiction above, which is about whether the values
-track a given wearer's app figures, not about what the field is. Note also that this project's decode is
-already attributed as decompile-sourced (`gen5.rs spo2_pct`), reimplemented here as a protocol fact —
-so whoop-local is corroboration, not the origin.
-
-WHOOP 5 v18 carries no raw respiration channel, and the decoders already say so: `respRateRawOff = 80`
-is set on the **4.0** `HIST_V24` layout only (§ the type-47 biometric record), and `AnalyticsEngine`
-notes "WHOOP5 v18 carries no raw resp ADC, so this is an on-device estimate" where it derives the rate
-from RSA instead.
-
-Skin temperature @73 **is** decoded (above); PPG / SpO₂ still live further in the 124-byte record but
-lack on-device ground truth, so that region is left raw rather than guessed (project rule: real
-captures, never invented offsets). The decoded fields feed the existing `extractHistoricalStreams`
-path unchanged, so WHOOP 5 historical HR / HRV / gravity / skin-temp land in the datastore like 4.0.
+Frame byte 43 belongs to the R18 float at frame 41; it is not a separate
+respiration-rate field. Byte 82 remains an uninterpreted raw value. Neither its
+range nor correlation with an export establishes calibrated SpO₂. Use the
+[canonical R18 layout](PROTOCOL_SENSORS.md#r18-biometric-summary).
 
 ### The WHOOP 5.0 type-47 record (version 26) — high-rate optical PPG
 
-The same WHOOP 5 also emits an **88-byte type-47 record with version byte 26**, distinct from the v18
-per-second summary: a high-rate **optical PPG** waveform — **24 little-endian i16 samples at bytes
-[27:75]**, one record per second (`unix` u32 LE @15, the same slot v18 uses), i.e. a **24 Hz** trace.
-(It is little-endian — the high byte of each sample is `0xFA..0xFF` / `0x00..0x01` — not big-endian.)
+WHOOP 5/MG emits an **88-byte type-47 record with version byte 26**. Use the
+[canonical R26 optical-window layout](PROTOCOL_SENSORS.md#r26-compact-optical-window)
+for decoding: a u32 base at frame 23 followed by 24 signed adjacent deltas at
+frame 27 reconstructs **25 samples**, subject to delta clipping. These are not
+24 independent absolute samples, and the record alone does not establish 24 Hz.
 
-It is identified as PPG, not IMU/motion, using the **heart rate as internal ground truth** — no external
-reference or app export needed:
+The two-byte field at frame 21 is a **burst counter**, not an optical channel
+selector. Frame 12 belongs to the record index. Neither field identifies a
+wavelength; do not infer a channel sweep or SpO₂ recoverability from it.
 
-- Autocorrelating the concatenated trace peaks at the HR: **lag 14 = 102.9 bpm** vs a v18-measured
-  101.7 bpm, with the half-period anti-correlation and 2-beat harmonic of a real pulse.
-- Independent trough-detection gives a **563 ms inter-beat interval (≈106 bpm)**, again matching HR.
-- The pulse stays HR-locked even in the **stillest** seconds, and its amplitude is not motion-driven
-  (`corr(amplitude, |Δgravity|) = +0.35` — mild motion artifact, not the signal) — so it is optical,
-  not a ballistocardiographic IMU reading.
-
-**Time-multiplexed optical channels.** Byte `frame[21]` is the channel index: the strap sweeps **26
-optical channels (values 1…26)**, one per ~40-frame (~39 s) block, revisiting a given channel only
-~20 min later — so a full 1→26 sweep is spread over hours and **no two channels are ever sampled
-simultaneously**. Each channel's waveform autocorrelates to the heart rate (lag 14 ≈ 103 bpm) with its
-own DC baseline. Which physical LED each index maps to is **not** verifiable from the data, so the raw
-index is surfaced (`ppg_channel`, gated to 1…26) with no colour claim. *(An earlier read at `frame[12]`
-— the "two channels `0x41`/`0x46`" — was a high-entropy counter byte mistaken for the channel during a
-short 2-burst capture; verified against a 22 h overnight corpus, `frame[12]` takes 67 distinct values
-while `frame[21]` takes exactly 26. The PPG **sample** decode (LE i16 @[27:75]) is unaffected and
-correct.) This 26-way time-multiplex is also why **SpO₂ is not recoverable offline** — it needs
-*simultaneous* red+IR, and no two channels are ever co-sampled.
-
-The full v26 byte map (88 bytes; CRC32 @84):
-
-| Bytes | Field | Status |
-|---|---|---|
-| 8 / 9 | type 47 / version 26 | — |
-| 10, 13, 14 | `0x80` / `0x84` / `0x01` | constant header |
-| 11 | per-record counter (+1/s) | sequence |
-| **12** | **`ppg_channel`** (`0x41` / `0x46`) | **mapped** — optical channel id |
-| **15** | **`unix`** u32 LE | **mapped** — real seconds (v18's slot) |
-| 19 | `0x000147AE` constant | config param |
-| 23–26 | high-entropy (DC / checksum?) | raw — no ground truth |
-| **27–74** | **`ppg_waveform`** 24× LE-i16 | **mapped** — 24 Hz PPG, HR-locked |
-| 75–83 | footer (random + `0x50`,`0x08` const) | raw — no ground truth |
-
-`decodeWhoop5HistoricalV26` exposes `ppg_waveform` (+ `ppg_sample_count`), `ppg_channel`, and `unix`. The
-samples are raw AC-coupled ADC counts — PPG has no absolute unit — so no scale is invented; the
-high-entropy `23–26` and the footer are left raw (no internal ground truth). Reproduce the proof with
-`Tools/linux-capture/analyze_v26_waveform.py`; parity tests `Whoop5PpgWaveformTests.swift`.
+Earlier capture analysis found a pulse-related pattern that remained present in
+still periods, with amplitude/motion correlation +0.35 in the examined capture.
+The published lag-to-bpm and trough-to-milliseconds results depended on the old
+24-sample timing assumption and must not be reused as validation of the corrected
+decoder. The existing `Tools/linux-capture/analyze_v26_waveform.py` is a historical
+analysis tool; check its decoding and timing assumptions before using its output.
+No recalculation or new capture validation is claimed here. Calibrated sample
+units and physical wavelength remain unresolved.
 
 ### The WHOOP 5.0 / MG type-47 records (versions 20 & 21) — bulk multi-channel sensor stream
 
-Newer 5/MG firmware also serves two **large** type-47 records alongside v18/v26: **version 20 (2140 B)**
-and **version 21 (1244 B)**, emitted as a **pair per second**. Older builds had no map for them, fell back
-to "unmapped layout", and stored nothing — so the offload completed but no data landed (issue #344). Both
-reuse the v18 record header, confirmed across the captured frames:
+The examined captures include **2,140-byte R20 optical records** and **1,244-byte
+R21 six-axis IMU records**, observed as a pair per second in that capture. A previous
+decoder fell back to an unmapped layout and stored no rows (issue #344). Use the
+[canonical R20 layout](PROTOCOL_SENSORS.md#r20-optical-blocks) and
+[R21 layout](PROTOCOL_SENSORS.md#r21-six-axis-imu) for decoding rather than a second
+copy of their offset tables.
 
-| Offset | Field | Notes |
-|---|---|---|
-| 9 | layout version | 20 (len 2140) / 21 (len 1244) |
-| 10 | `layout_marker` (u8) | `0x81` (v20) / `0x80` (v21), constant per version |
-| 11 | `record_index` (u32 LE) | monotonic +1/record — the same lifetime counter as v18 |
-| 15 | `unix` (u32 LE) | real seconds, +1 s/record (v18's slot) |
+Capture observations retained from that investigation:
 
-Integrity is the standard trailing **CRC32** over the payload (`frame[8 : len-4]`) — it validates on every
-captured frame of both versions, which is what lets the body offsets be trusted.
+- Both layouts had a valid trailing payload CRC32, a record index at 11 and time at
+  15. The observed markers were 81/80 hex. R20 marker bit 0 can also reflect
+  conditional fallback routing, so it is not constant by layout or a validity flag.
+- R21 was validated as six-axis IMU over 1,423 real buffers. A stationary fixture
+  gave median acceleration magnitude 1.006 g, with all 100 samples in the examined
+  gravity shell; raw baselines approximately 1820/720/3630 give 1.007 g at 1/4096.
+  The implementation tests include `Whoop5HistoricalV2021Tests.swift` and
+  `Whoop5RawImuTests.swift`.
+- R20 block counts were `[25,0,0,25,25]` in the examined corpus. **25 is the valid
+  count per slot, not a presence flag**: each populated block contains two slots
+  with 25 valid i32 samples and capacity for 50 each. Empty slots were zero-filled
+  in that capture; they are not measured zero readings.
+- The community offsets 47, 247, 1313, 1513, 1735 and 1935 match the six populated
+  R20 slots. R20 is optical, but wavelengths, detector geometry and physical units
+  remain unresolved. Matching offsets do not resolve those meanings.
 
-The bodies are blocks of fixed-length **sample channels**:
-
-- **v21 (1244 B):** a `(100, 100, 3)` descriptor near `@22`, then **six 100-sample i16 channels** in two
-  blocks — **accelerometer at `@28` / `@228` / `@428`** and **gyroscope at `@640` / `@840` / `@1040`**
-  (200 B apart; the second block's count sits at `@630` = 100). This is **6-axis IMU, not optical**: on a
-  stationary strap the three accel channels sphere-fit to a **~1 g gravity shell** (median |a| = 1.006 g,
-  100/100 samples in-shell on the real fixture) — a gravity vector, which a PPG channel cannot produce.
-  (The DC "baselines" ≈1820 / 720 / 3630 a stationary capture shows are exactly that gravity vector:
-  √(1820²+720²+3630²)/4096 = 1.007 g.) Validated as 6-axis IMU by `Whoop5RawImu` over 1423 real buffers.
-- **v20 (2140 B):** **five channel blocks**, each preceded by a **presence byte** (`0x19` = active,
-  `0x00` = empty/zero-filled). An active block holds **two 50-sample i32 channels**. Presence bytes at
-  `@0x1a / 0x1c0 / 0x366 / 0x50c / 0x6b2`; the ten channel slots start at
-  `@0x2f / 0xf7 / 0x1d5 / 0x29d / 0x37b / 0x443 / 0x521 / 0x5e9 / 0x6c7 / 0x78f`. i32 LE is the correct
-  width (only that alignment yields smooth waveforms; an empty block's 200-byte slots are all-zero across
-  every frame, matching its `0x00` presence byte). **v20 sensor identity is OPEN**: there is no labelled
-  or moving v20 capture in the tree, and the earlier "same sensor set as v21" claim was the only basis for
-  calling it optical — now that v21 is inertial, that inference no longer supports an optical reading. Do
-  not treat v20 as an SpO₂/BP optical substrate pending a labelled **moving** capture.
-
-  **Independently corroborated (#715).** `whoop-local` lists six 20-bit v20 channel offsets, derived
-  separately from this tree: frame `47, 247, 1313, 1513, 1735, 1935`. Those are exactly the six slots of
-  our **non-empty** blocks (0, 3 and 4 — the corpus shows block counts are always `[25, 0, 0, 25, 25]`),
-  out of the ten listed above. Two unrelated methods agreeing on which six slots carry data, and where,
-  is the strongest confirmation this layout has. Note what it does **not** settle: both projects agree on
-  the *structure*, and neither has a labelled capture, so the sensor-identity question above is untouched
-  — agreement about where the bytes are is not evidence about what produced them.
-
-`decodeWhoop5HistoricalV2021` exposes `layout_marker`, `record_index`, `unix`, and the channels as **raw
-i16 sample arrays with no scale applied at this layer**. For **v21** the channels are named `accel_x/y/z`
-and `gyro_x/y/z` per the gravity-shell evidence above (`Whoop5RawImu.decode` applies the physical scales —
-1/4096 g/LSB accel, 2000/32768 (°/s)/LSB gyro). For **v20** the channels stay neutrally named because its
-sensor identity is still open (needs a labelled/moving capture). Tests: `Whoop5HistoricalV2021Tests.swift`
-(incl. a real-frame gravity-shell assertion) and `Whoop5RawImuTests.swift`.
-
-> The v18 per-second record's own optical region (bytes [57:120]) carries **no simple summary of this
-> PPG** (no field tracks its DC or AC amplitude), and its SpO₂ / skin-temp channels have no internal
-> proxy — HR, R-R, gravity and PPG morphology don't determine blood-oxygen or temperature. Those remain
-> a raw region; positively mapping them needs an external reference (a worn pulse-oximeter / thermometer,
-> or the official app's readout for matching timestamps), so they are intentionally left undecoded.
+These corrections document the wire contract; they do not claim that legacy
+`decodeWhoop5HistoricalV2021` implementations or analysis scripts have been updated.
+Check their count handling and signed widths before consuming their arrays.
 
 > **Firmware-version caveat.** The 4.0 `v24` layout in `whoop_protocol.json` reflects one firmware
 > revision (the `my-whoop` reference device); a given strap may run older or newer firmware with a
@@ -672,12 +437,12 @@ real 84-byte records at their absolute offsets and cross-checked physiologically
 | 23–72 | optical PPG region | Raw AC-coupled optical ADCs. |
 | 73 / 75 / 77 | `gravity_x/y/z` (3× i16 LE) | Accel-derived gravity, scaled `/16384` ≈ 1 g; \|g\| ≈ 1.0 on real records. |
 
-Note there is **no per-second HR field** in this record: WHOOP 4.0 HR is PPG-derived, not stored — so
-the v25 win is the recovered **timestamp + motion**, which is exactly what the sleep stager (and hence
+No per-second HR field is mapped in this v25 record. WHOOP 4 v24 separately
+contains an HR field; v25's mapped contribution here is **timestamp + motion**,  which is exactly what the sleep stager (and hence
 recovery) needs. The decoded gravity/motion vector feeds `extractHistoricalStreams` unchanged, the same
 path the v24 record uses.
 
-### WHOOP 4 firmware-drift check — this device showed no drift (hardware-verified)
+### WHOOP 4 firmware-drift check — this device showed no drift
 
 The v18 surprise prompted the obvious question: does a *different* device on *different* firmware still
 emit the documented record? Tested on a real WHOOP 4 (firmware **41.17.6.0**) with the tool's WHOOP 4
@@ -748,102 +513,22 @@ as the 4.0 `event` post-hook fail closed.
 
 ## 6. Haptic preset discovery (GET_ALL_HAPTICS_PATTERN)
 
-The strap has a built-in table of haptic waveforms. `GET_ALL_HAPTICS_PATTERN` (command **80**) reports
-the device's preset patterns — **7 presets on the WHOOP 4.0 (Harvard)**, indexed `0–6`. That count is
-a claim about the STRAP's own table, not about NOOP: it would be read with `GET_ALL_HAPTICS_PATTERN`
-(80), and neither platform has ever sent that command, so we have never enumerated it (#926). What the
-app exposes is four `BuzzPattern` choices, all sharing patternId 2. They are fired
-with `RUN_HAPTICS_PATTERN` (command **79**):
+The legacy WHOOP 4 client uses command 79 with preset 2. WHOOP 5/MG uses
+command 19 with a 12-byte pattern body; command 79 is unsupported in the current
+WHOOP 5 command table. See [haptics and alarms](PROTOCOL_ALARMS.md) for the complete
+pattern fields, result handling and busy-state behavior.
 
-```text
-RUN_HAPTICS_PATTERN payload = [patternId, numLoops, 0, 0, 0]   // 5 bytes
-```
+### SET_CLOCK — family-specific payloads
 
-NOOP uses **`patternId = 2`** — the characteristic graduated "alarm" buzz, observed as the one the
-official app fires, for interoperability (`buzzStrapOnce`, `AppModel.buzz`). `numLoops` sets the
-length; `STOP_HAPTICS` (122) cancels an in-progress pattern. All notification patterns in NOOP map to
-this confirmed preset and vary only the repeat count, so behaviour is predictable on real hardware.
-
-Haptics tie into the firmware **alarm**: `SET_ALARM_TIME` (66) arms a UTC alarm that buzzes even if
-NOOP is closed (event `STRAP_DRIVEN_ALARM_EXECUTED`=57); always `SET_CLOCK` first so the RTC is
-UTC-correct.
-
-### WHOOP 5 / MG haptic — the "maverick" opcode (hardware-verified)
-
-The WHOOP 5 / MG does **not** honour `RUN_HAPTICS_PATTERN`=79 — a real-MG capture showed the strap
-rejecting 79 with `COMMAND_RESPONSE result=0x03`. The 5.0 firmware instead drives haptics with the
-**maverick** opcode **`0x13`** (`RUN_HAPTIC_PATTERN_MAVERICK`=19) — the exact command the official app
-sends, matched byte-for-byte (#48), and shipped in `BLEManager.send()`:
-
-```text
-puffin cmd 0x13, body = [0x01, effects…, loopControl u16 LE, overallLoop]
-NOOP's "notify" preset → effects 47, 152  →  body = [01 2F 98 00 00 00 00 00 00 00 00 00]  (12 bytes)
-```
-
-The 12-byte body makes the inner record 15 bytes, so the puffin framing **pads it to a 4-byte
-boundary** (`pad4`, → 16) before the declared length and CRC32 — without the pad the strap rejects the
-frame. The strap acknowledges acceptance with `COMMAND_RESPONSE` (type 36) echoing
-`RUN_HAPTIC_PATTERN_MAVERICK(19)`.
-
-**Verified on real hardware (2026-06-12):** a bonded WHOOP 5 buzzed on this exact frame and returned a
-CRC-valid COMMAND_RESPONSE for every send. Frame builders live in `Tools/linux-capture/whoop_frame.py`
-(`build_whoop5_buzz` / `build_whoop4_buzz`, unit-tested against the captured frame) and drive the
-`whoop_buzz.py` find-my-strap tool — see the linux-capture README.
-
-### SET_CLOCK — the payload length is firmware-specific (hardware-verified)
-
-`SET_CLOCK` (command **10**) sets the strap RTC. A strap left offline (no app) for months loses its
-clock: its RTC drifts/resets, and every frame it then emits — realtime *and* newly-written historical
-records — carries a bogus timestamp (we saw a real WHOOP 4 dated **1971**, its RTC counting up from
-~zero). The fix is to send the current unix time, exactly as the app does on each connect (it only
-re-sends when drift exceeds a threshold — `ClockPolicy` — to avoid gratuitous resets).
-
-The payload is `u32 unix-seconds LE` followed by zero subsecond bytes, but **the length is
-firmware-specific and load-bearing** — a wrong length is `COMMAND_RESPONSE`-ack'd but **not latched**:
-
-| Firmware | Body | Result |
-|---|---|---|
-| newer (app's default) | 8-byte `[u32 + 4 zero]` | latches on newer straps; on WHOOP 4 `41.17.6.0` → **no response at all** |
-| older WHOOP 4 `41.17.6.0` | **9-byte** `[u32 + 5 zero]` | **latches** — COMMAND_RESPONSE(cmd 10) + the event clock jumps to the set time |
-
-**Verified on real hardware (2026-06-12, WHOOP 4C fw 41.17.6.0):** the 8-byte form drew no response;
-the 9-byte form latched and the strap's event RTC jumped from 1971 to the correct 2026 time, ticking
-+1/sec. So `build_whoop4_set_clock` sends the 9-byte form; newer firmware may want 8.
-
-Read-back to confirm a latch: the strap's RTC is the u32 LE timestamp in any EVENT or REALTIME frame —
-**but the offset differs by type**: WHOOP 4.0 REALTIME(40) `@6`, EVENT(48) `@8`; WHOOP 5.0 (puffin, +4
-rule) REALTIME(40) `@10`, EVENT(48) `@12` (`frame_rtc` in `whoop_frame.py`). Stored historical records
-keep the timestamp they were written with, so offloading old history does **not** require fixing the
-clock first — only future recordings do. Tooling: `whoop_setclock.py` (read + conditional set) and the
-read-only `whoop_probe.py` — see the linux-capture README.
-
----
+Use the [WHOOP 4 clock profile](PROTOCOL_WHOOP4.md) or
+[WHOOP 5 clock contract](PROTOCOL_TRANSPORT.md#clock-and-identity-contracts).
+A command response alone does not establish a correct RTC value.
 
 ## 7. Sensor inventory
 
-Combining the type-47 DSP record (§5), the type-43 raw streams (§4), and the `EventNumber` enum, the
-WHOOP 4.0 strap exposes the following sensors and actuators. NOOP only consumes what the device already
-measures:
-
-| Sensor / actuator | How it surfaces in the protocol |
-|---|---|
-| **PPG optical** (green + red/IR LEDs, ambient) | type-47 `ppg_green` / `ppg_red_ir` / `ambient` / `led_drive_1/2`; type-43 optical variant (single AC-coupled green waveform @ ~437 Hz). Drives HR, SpO₂, respiratory rate. |
-| **3-axis accelerometer** | type-47 `gravity_x/y/z` (f32, g); type-43 IMU `accelX/Y/Z` (i16 @ ~100 Hz, `1/4096` g/LSB). |
-| **Gyroscope / IMU** | type-43 IMU `gyroX/Y/Z` (i16, `0.06104` deg/s/LSB, ±2000 dps). |
-| **Skin temperature** | type-47 `skin_temp_raw` (u16 ADC); event `TEMPERATURE_LEVEL`. |
-| **Capacitive double-tap** | event `DOUBLE_TAP` (14) → `FrameRouter` fires `onDoubleTap`. |
-| **Wrist detection** | events `WRIST_ON` (9) / `WRIST_OFF` (10); type-47 `skin_contact` (0 = off-wrist). |
-| **Haptic motor** | `RUN_HAPTICS_PATTERN` / `STOP_HAPTICS`; events `HAPTICS_FIRED` (60), `HAPTICS_TERMINATED` (100). |
-| **Battery / charge** | standard `2A19`; type-48 `BATTERY_LEVEL` (SoC/mV/charging ~every 8 min); events `CHARGING_ON/OFF`. |
-
-**Sensors the strap does NOT have** (and that NOOP therefore never fabricates): **no microphone, no
-speaker, no GPS, no display.** All feedback to the wearer is via the single haptic motor; all
-"location" or "audio" context, if any, comes from imported data, never the strap.
-
-The live physical inputs are wired through `FrameRouter.handle(frame:)`: `DOUBLE_TAP` and
-`WRIST_ON`/`WRIST_OFF` events update `LiveState` and can trigger user-configured Mac actions.
-
----
+Use the [sensor record reference](PROTOCOL_SENSORS.md) for optical, motion and
+summary fields, and the [ECG reference](PROTOCOL_ECG.md) for electrical samples.
+A record’s numeric layout does not by itself establish physical units or calibration.
 
 ## 8. Extending the decoder
 
@@ -895,71 +580,23 @@ contradicting bytes actually are before changing the decoder.
 
 ### A note on whoop5 offsets
 
-If you map the WHOOP 5.0 biometric fields, do it in `parseFrameWhoop5` (inner record at offset 8) and
-back it with real 5.0 captures. Until then the 5.0 path intentionally leaves the inner record as an
-unparsed region — describing the frame faithfully without inventing structure.
+Extend WHOOP 5 decoding through the family-specific path and use the
+[canonical record layouts](PROTOCOL_SENSORS.md). Supported layouts already decode
+fields; preserve unsupported layouts and unresolved fields raw. Back changes with
+fixtures of stated provenance, without treating synthetic vectors as device evidence.
 
 <a name="safety"></a>
 ### Safety rule
 
 `WhoopCommand` in `Commands.swift` is a **deliberately curated subset**. Destructive or dangerous
 commands — firmware load, force-trim, ship-mode, power-cycle, fuel-gauge reset, BLE DFU — are
-**excluded by design** so the in-app command sender can never brick or wipe a device. The one guarded
-exception is `rebootStrap` (a plain, non-destructive restart that keeps stored data), sent only from a
+**excluded by design** from the ordinary command sender. This allowlist is not a guarantee against data loss. The one guarded
+exception is `rebootStrap` (a restart request; complete persistence across restart is
+not established by this command contract), sent only from a
 user-initiated, confirmation-gated action — never automatically (#166). When extending the command
 set, keep it reversible and non-destructive.
 
 ---
-
-## Appendix: evaluated and rejected — the LINK_VALID handshake (#715)
-
-Recorded so it is not re-proposed. `whoop-local` ([a9eelsh](https://github.com/a9eelsh/whoop-local))
-implements a handshake in which the strap sends a `LINK_VALID` (command 1) and the client must answer
-with a `COMMAND_RESPONSE` (36) carrying `[originSeq, SUCCESS, "There it is."]`, stating that otherwise
-"the strap treats the link as invalid and withholds data."
-
-**As stated, that is contradicted by what NOOP does in the field.** Neither platform has ever had a
-`LINK_VALID` handler — not one reference in `Strand/BLE/` or `com.noop.ble` — and NOOP nonetheless
-completes historical offloads, live HR and sleep sync on WHOOP 5/MG for real users. If the strap
-withheld data from a client that never answers, *every* 5/MG user would get nothing; instead the
-5/MG reports we receive are about intermittent disconnects (#802) and state restoration (#613), not
-about a strap that never sends anything.
-
-The decode corpora point the same way — **~258k v18 records**, an **18,602-record** v18 span from a
-third strap's overnight stream, a **29,203-record** v20 corpus — though note those are cited here as
-corroboration, not proof: this project also has HCI-snoop tooling (`hci_extract.py`, #103), and a
-corpus extracted from a snoop of the *official* app would have been produced by a client that DID
-answer. The field-behaviour argument above does not depend on how any corpus was captured.
-
-What may still be true is narrower: their handshake sits alongside `TOGGLE_IMU_MODE` (106) and
-`TOGGLE_OPTICAL_MODE` (108), which arm the realtime R20/R21 raw streams — so if the exchange gates
-anything, it plausibly gates *those streams* rather than the offload.
-
-Our exposure to that is limited but not zero, and worth stating precisely. NOOP takes live HR from the
-standard `0x2A37` profile and disables the R10/R11 flood on connect (§4), and it never sends
-`TOGGLE_OPTICAL_MODE` (108) at all. But `captureRawAccel` **does** send `START_RAW_DATA` (81) +
-`TOGGLE_IMU_MODE` (106) — on demand, for a bounded window, never continuously. That path is now
-hardware-verified to yield decoded 100 Hz six-axis IMU after the two-byte 5/MG selector is used.
-It works without implementing a `LINK_VALID` response, so the proposed handshake is not required for
-this raw-IMU producer on the tested strap/firmware. This does not prove that every firmware treats
-`LINK_VALID` identically or that ignoring it can never affect link stability.
-
-**Two questions are genuinely open**, and a capture answers both without implementing anything:
-
-1. Does a WHOOP 5/MG ever send us a type-35 `COMMAND` with `cmd == 1`? The schema knows both
-   (`PacketType 35 = COMMAND`, `CommandNumber 1 = LINK_VALID`) but nothing routes it, so today it would
-   arrive and be dropped silently.
-2. If it does, does ignoring it affect *link stability* — as distinct from data flow? That is a
-   different claim from the one above and is not disproved by the corpus. It would be a candidate
-   contributor to the intermittent-disconnect reports (#802, #613), though those look unlike a link the
-   strap has declared invalid.
-
-**Provenance caveat, and it is the deciding one.** The whole path is decompile-sourced
-(`com/whoop/service/rearchitect/c.java`, `zi0/*`, `bj0/x.java`, `bj0/f.java`) and its payload is a
-**literal string lifted from the app**. This project reimplements decompile-sourced *facts* with
-attribution when they are treated as unvalidated candidates — `spo2_candidate_82` is the precedent —
-but an offset is a fact and a magic string is expression. Even if question 1 turns out yes, the reply
-should be derived from our own capture of what the strap accepts, not copied.
 
 ## Appendix: observed but undecoded (#791)
 
@@ -1020,30 +657,11 @@ consistently across the whole session:
 | `0x1a` GET_BATTERY_LEVEL | 0 | silent |
 | `0x23` GET_HELLO_HARVARD | 0 | silent |
 
-Consequences worth carrying forward:
-
-- **Battery is unreachable on this firmware.** Command 26 silent, command 98 answering `FAILURE`, no
-  `BATTERY_LEVEL(3)` events in 40 minutes, no `EXTENDED_BATTERY_INFORMATION(63)` events either, and the
-  standard `0x2A19` characteristic a constant-100 stub. All four sources are dead, so there is no
-  client-side path to the percent — not a decode bug to find.
-- **`0x62` answers while `0x1a` does not**, which is odd enough to be a lead: the extended-battery opcode is
-  reachable but fails, so it may want a sub-command or page selector in its request payload rather than the
-  `[0x00]` the probe sends.
-- The strap also had stretches — one 25-minute bonded session — where it answered *nothing* despite working
-  realtime and backfill streams, then became chatty later. State-dependent, cause unknown.
 
 ---
 
 ## Summary
 
-NOOP interoperates with a WHOOP strap you own by: scanning for its hidden custom GATT service,
-triggering just-works bonding with a single confirmed `GET_BATTERY_LEVEL` write, reassembling the
-`0xAA` CRC-framed messages, and decoding them with a data-driven schema. The expensive type-43 raw
-flood is switched off on connect (`SEND_R10_R11_REALTIME [0x00]`), leaving the periodically-offloaded
-type-47 14-day biometric store as the primary on-device data source. WHOOP 4.0 and 5.0 differ only in
-their GATT UUIDs, header checksum (CRC8 vs CRC16-Modbus), inner-record offset, and session start — all
-funnelled through `DeviceFamily`. The work stands on the shoulders of `johnmiddleton12/my-whoop`
-(4.0) and `b-nnett/goose` (5.0), with sensor scales and offsets re-verified on real hardware.
 
 > Reminder: not affiliated with WHOOP; not a medical device. All values are raw or locally-estimated
 > and are for personal, informational use only.

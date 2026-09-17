@@ -49,7 +49,7 @@ extension SleepStager {
                 + "longestMin=\(longestSleepMin) staged=\(staged) kept=\(kept) minSleepMin=\(minSleepMin)"
         }
 
-        /// One decimal, by ARITHMETIC rather than `String(format:)`. Twin of the Kotlin `round1`, and
+        /// One decimal, by ARITHMETIC rather than `String(format:)`. Twin of the Kotlin `SleepStagerTrace.round1`, and
         /// see its note: `printf` rounds half-to-even on the binary value while Java's `String.format`
         /// rounds HALF_UP on the decimal expansion, so the two disagreed on 64.05. This does the same
         /// IEEE arithmetic on both platforms and cannot.

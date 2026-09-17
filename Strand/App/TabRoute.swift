@@ -103,3 +103,37 @@ extension View {
         }
     }
 }
+
+/// The metric keys the hero rings and their Key-Metrics tiles route to, named rather than repeated as
+/// literals.
+///
+/// Both Apple Today shells render those rings and both used their own copies of the strings, so the
+/// pairing lived in three places at once including the test that was meant to guard it.
+///
+/// Not every ring uses one. A ring opens the RICHEST explanation its shell has, so Charge keeps its
+/// breakdown sheet wherever that sheet exists (the classic Today, and Android) and takes a route only on
+/// the Liquid Today, which has no breakdown to offer. Effort and Rest have no breakdown anywhere, so a
+/// route is the richest thing they have and every surface uses one. `TabRoute.metric`
+/// falls back to the Health screen on a key it does not recognise, which is the reason this is worth
+/// pinning: a rename leaves the ring tappable, animating, and landing on the wrong screen with nothing
+/// logged and nothing to notice.
+///
+/// Twin of Android's `HERO_CHARGE_METRIC_KEY` and friends, with ONE deliberate difference: Rest routes on
+/// `sleep_performance` here and on `rest` there, because the two platforms' detail screens resolve
+/// different key spaces. Making them agree would break the Android side, not fix anything here.
+///
+/// SCOPE, since the same three strings appear elsewhere meaning something else. These are CATALOG keys,
+/// resolved through `MetricCatalog`. The Liquid Key-Metrics tiles take them too, because that parameter
+/// resolves the tile's destination through the same catalog, which is the pairing the hero-ring test
+/// exists to guard. What does NOT belong here is the series key space: `exploreSeries(key:)`,
+/// `resolvedSeries(key:)`, `sparks[...]` and the classic hero's `provenanceKey` happen to spell two of
+/// these the same way while asking a different question. Android's `rest` against `sleep_performance` is
+/// the standing proof that two key spaces looking alike is not the same as being one.
+enum HeroRingMetric {
+    static let charge = "recovery"
+    static let effort = "strain"
+    static let rest = "sleep_performance"
+
+    /// Charge, Effort, Rest, in the order the hero row renders them.
+    static let all = [charge, effort, rest]
+}

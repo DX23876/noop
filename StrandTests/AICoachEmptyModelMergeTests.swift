@@ -84,6 +84,14 @@ final class AICoachEmptyModelMergeTests: XCTestCase {
     func testSendingWithNoModelAsksTheUserToPickOneInsteadOfCallingTheProvider() async {
         let engine = makeCustomEngine(deviceId: "test-send-no-model")
         XCTAssertEqual(engine.model, "", "precondition: no model selected")
+        // `send` refuses at egress while the Coach master switch is off (#2269), so turn it on here.
+        let defaults = UserDefaults.standard
+        let savedSwitch = defaults.object(forKey: CoachFeaturePrefs.enabledKey)
+        defaults.set(true, forKey: CoachFeaturePrefs.enabledKey)
+        defer {
+            if let savedSwitch { defaults.set(savedSwitch, forKey: CoachFeaturePrefs.enabledKey) }
+            else { defaults.removeObject(forKey: CoachFeaturePrefs.enabledKey) }
+        }
 
         // No fetch override and no base URL are needed: Custom's resolvedKey is "" (non-nil), so send()
         // clears the key gate and must stop at the model gate — before any network call is built.

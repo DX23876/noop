@@ -120,7 +120,13 @@ final class IntelligenceEngine: ObservableObject {
     // v6 admits the source-neutral native strength log into the canonical workout spine. Existing v5
     // installs must revisit the bounded workout window so a session first logged in NOOP contributes
     // exactly once after its Apple Health mirror is fused. Native sets and source rows are never erased.
-    static let currentAnalysisRecipeVersion = 6
+    // v7 (2026-09 upstream sync) changes which R-R beat is scored and at what value. A WHOOP 5 now prefers
+    // its native history over the standard 0x2A37 copy of the same beat, and restores the standard copy
+    // stored before #2195 from its spec conversion (2.34 % low) to the milliseconds the strap sent. The
+    // same pass carries #2042 (Charge re-scored with the night's skin-temperature deviation) and #2220
+    // (a pass no longer deletes and re-creates detected workouts). Legacy unlabelled rows keep scoring,
+    // so no night loses HRV or Charge to the update. Bounded 21-day pass; no raw row is rewritten.
+    static let currentAnalysisRecipeVersion = 7
     static let analysisRecipeCursor = "analysis:recipeVersion"
     static let analysisLastRunKey = "noop.analysisMaintenance.lastRun"
 
@@ -225,12 +231,16 @@ final class IntelligenceEngine: ObservableObject {
         var reason: AnalysisReason
         var affectedLower: Int?
         var affectedUpper: Int?
+        /// #2238: the caller's own name for the trace. Kept only while every coalesced request agrees, so
+        /// a merged pass never reports one caller's name for another's work.
+        var triggerLabel: String?
         var waiters: [CheckedContinuation<Void, Never>]
 
         mutating func merge(maxDays: Int, force: Bool, skipIfUnchanged: Bool,
                             allowDayReuse: Bool, reason: AnalysisReason,
-                            affectedUTCInterval: Range<Int>?,
+                            affectedUTCInterval: Range<Int>?, triggerLabel: String? = nil,
                             waiter: CheckedContinuation<Void, Never>? = nil) {
+            if self.triggerLabel != triggerLabel { self.triggerLabel = nil }
             self.maxDays = max(self.maxDays, maxDays)
             self.force = self.force || force
             // A coalesced pass may only use an optimisation when every request permits it.
@@ -1174,13 +1184,14 @@ final class IntelligenceEngine: ObservableObject {
     func analyzeRecent(maxDays: Int = 21, force: Bool = true, skipIfUnchanged: Bool = false,
                        allowDayReuse: Bool = IntelligenceEngine.dayReuseDefault,
                        reason: AnalysisReason = .semanticChange,
-                       affectedUTCInterval: Range<Int>? = nil) async {
+                       affectedUTCInterval: Range<Int>? = nil, triggerLabel: String? = nil) async {
         await withCheckedContinuation { waiter in
             if pendingAnalysis != nil {
                 pendingAnalysis!.merge(maxDays: maxDays, force: force,
                                        skipIfUnchanged: skipIfUnchanged,
                                        allowDayReuse: allowDayReuse, reason: reason,
-                                       affectedUTCInterval: affectedUTCInterval, waiter: waiter)
+                                       affectedUTCInterval: affectedUTCInterval,
+                                       triggerLabel: triggerLabel, waiter: waiter)
             } else {
                 pendingAnalysis = PendingAnalysis(
                     maxDays: maxDays, force: force,
@@ -1188,6 +1199,7 @@ final class IntelligenceEngine: ObservableObject {
                     reason: reason,
                     affectedLower: affectedUTCInterval?.lowerBound,
                     affectedUpper: affectedUTCInterval?.upperBound,
+                    triggerLabel: triggerLabel,
                     waiters: [waiter])
             }
             guard !analysisRunnerActive else { return }
@@ -1209,7 +1221,8 @@ final class IntelligenceEngine: ObservableObject {
                                                  let upper = request.affectedUpper,
                                                  lower < upper else { return nil }
                                            return lower..<upper
-                                       }())
+                                       }(),
+                                       triggerLabel: request.triggerLabel)
             computing = false
             request.waiters.forEach { $0.resume() }
         }
@@ -1227,13 +1240,13 @@ final class IntelligenceEngine: ObservableObject {
             pendingAnalysis = PendingAnalysis(maxDays: maxDays, force: true,
                                               skipIfUnchanged: false, allowDayReuse: false,
                                               reason: reason, affectedLower: nil, affectedUpper: nil,
-                                              waiters: [])
+                                              triggerLabel: nil, waiters: [])
         }
     }
 
     private func performAnalyzeRecent(maxDays: Int, force: Bool, skipIfUnchanged: Bool,
                                       allowDayReuse: Bool, reason: AnalysisReason,
-                                      affectedUTCInterval: Range<Int>?) async {
+                                      affectedUTCInterval: Range<Int>?, triggerLabel: String?) async {
         // Progress starts the moment the pass does and is cleared on EVERY exit — including the early
         // `return`s below (no store, missing metric config) and a thrown error. A progress card left on
         // screen by a pass that already gave up would be the same lie as the spinner it replaces.
@@ -1295,7 +1308,11 @@ final class IntelligenceEngine: ObservableObject {
         // import/edit/settings/recalibrate re-score — which changes scores WITHOUT changing the HR
         // fingerprint — always runs. Twin of the Android WhoopBleClient post-offload `newData` gate.
         if force, skipIfUnchanged, !wmKey.isEmpty, storedWatermark == wmKey {
-            diagnosticSink?("re-score: trigger=post-offload newData=no — skipped (nothing changed since last run)", nil)
+            // #2238: name the caller that actually skipped. This label was hardcoded while the post-offload
+            // path was the only one opting in; the resume opts in now, and a skip reported under someone
+            // else's name is the same wrong-caller trail #1538 lost three nights to.
+            let skipped = triggerLabel ?? "post-offload"
+            diagnosticSink?("re-score: trigger=\(skipped) newData=no — skipped (nothing changed since last run)", nil)
             return
         }
         // Attribute the re-score that is ABOUT TO RUN. `trigger=post-offload` was previously logged only on
@@ -1314,7 +1331,9 @@ final class IntelligenceEngine: ObservableObject {
         // `newData=no` means the fingerprint already equals the watermark the last run advanced: a re-score
         // driven by the trigger, not by data (#1005 background battery). Diagnostic only; the pass runs
         // either way. Twin of the Android WhoopBleClient / AppViewModel attribution.
-        let trigger = !force ? "idle" : (skipIfUnchanged ? "post-offload" : "forced")
+        // #2238: a caller that knows its own name says so. `skipIfUnchanged` was an exact witness for
+        // "post-offload" while that was the only caller opting in; the #1538 resume opts in too now.
+        let trigger = triggerLabel ?? (!force ? "idle" : (skipIfUnchanged ? "post-offload" : "forced"))
         let hadNew = wmKey.isEmpty || storedWatermark != wmKey
         diagnosticSink?("re-score: trigger=\(trigger) "
                         + "newData=\(hadNew ? "yes" : "no (nothing changed since last run)")", nil)
@@ -1399,6 +1418,9 @@ final class IntelligenceEngine: ObservableObject {
             diagnosticSink?(AnalyticsEngine.registryUnavailableLine(importedDeviceId: deviceId), nil)
         }
         let regActiveId = (try? registry.activeDeviceId()) ?? deviceId
+        // Rows under the canonical alias belong to whichever strap the alias inherited from. When the active
+        // strap is a WHOOP 5, the alias is read with the WHOOP 5 transport precedence too (#2046).
+        let activeWhoop5RR = (try? await store.isWhoop5RRSource(deviceId: regActiveId)) ?? false
 
         // Floor `now` to LOCAL midnight (#277) so each `dayStart` lands on a local-day boundary and the
         // day keys are LOCAL calendar days, consistent with the dashboard's local "today" lookup. A
@@ -1743,7 +1765,9 @@ final class IntelligenceEngine: ObservableObject {
                     skippedDayLines.append("sleep day=\(day) SKIPPED hrSamples=\(hr.count) (need ≥\(Self.minHrSamples))")
                     continue
                 }
-                let rr = (try? await store.rrIntervals(deviceId: owner, from: from, to: to, limit: Int.max)) ?? []
+                let rr = (try? await store.rrIntervals(
+                    deviceId: owner, from: from, to: to, limit: Int.max,
+                    unlabelledAliasOfWhoop5: activeWhoop5RR && owner == Repository.whoopSource)) ?? []
                 // `forScoring` drops an Oura ring's respiration rows: those are the ring's OWN per-window
                 // RATE (0x6A, milli-bpm, ~1 row per 5 min), stored as instrumentation, while the stager
                 // reads this stream as a ~1 Hz raw ADC waveform. Refusing by provenance keeps the
@@ -2535,10 +2559,10 @@ final class IntelligenceEngine: ObservableObject {
         var out: [Computed] = []
         var dailies: [DailyMetric] = []
         var cachedSleep: [CachedSleepSession] = []
-        var workoutRows: [WorkoutRow] = []
         // #510: backfilled fields for a REAL (non-detected) row a dropped bout collided with, grouped by
-        // the deviceId it must be upserted under (see the collision branch below) — never mixed into
-        // `workoutRows`, which is always written under `computedId`.
+        // the deviceId it must be upserted under (see the collision branch below). The detector remains an
+        // analytics/enrichment input, but the opt-in confirmation card is now the only creator of a new
+        // visible workout; legacy `sport="detected"` rows are preserved rather than reconciled here.
         var backfilledByDevice: [String: [WorkoutRow]] = [:]
         // Rest composite (0–100) per computed night, persisted as the `sleep_performance` metric
         // series so the dashboard's Rest score reflects the new composite, not raw efficiency.
@@ -2682,14 +2706,19 @@ final class IntelligenceEngine: ObservableObject {
             // result rather than accumulating — whereas skipping it for reused days would leave them on
             // whatever boundary the previous pass used.
             daily = DayCycleIntelligenceIntegration.applying(physiologicalSteps, to: daily)
-            let recovery = recomputeRecovery(daily, baselines2)
+            // #2042: score Charge from a daily that carries the night's skin-temperature deviation, so the
+            // score, the trace, the driver list and the persisted row all consume one temperature. A reused
+            // day has no fresh scan, so its persisted absolute stands in for `nightlySkin`.
+            daily = Self.recomputeRecoveryDaily(daily, nightlySkinTempC: night.nightlySkin ?? daily.skinTempC,
+                                               baselines: baselines2)
+            let recovery = daily.recovery
             // Charge term-breakdown trace (Group G): only when the Recovery test mode is on. Emits which
             // term moved Charge and which was nil and forced the renorm, tagged `.recovery`. The trace's
             // score is RecoveryScorer.recovery verbatim, so the `recovery` written above is unchanged.
             if recoveryTraceActive {
                 for line in recoveryTraceLines(daily, baselines2) { diagnosticSink?(line, .recovery) }
             }
-            let skinDev = recomputeSkinTempDev(night.nightlySkin, baselines2.skinTemp)
+            let skinDev = daily.skinTempDevC
             let source = DaySource.classify(day: daily.day, importedWhoopDays: importedWhoopDays,
                                             appleHealthDays: appleHealthDays)
             // SHARED CONTRACT enrichment: the ordered Charge driver list + the relative skin-temp marker,
@@ -2770,8 +2799,7 @@ final class IntelligenceEngine: ObservableObject {
                     hrRows: owned?.hrRows ?? 0, importedWhoop: importedWhoopDays.contains(daily.day),
                     importedApple: appleHealthDays.contains(daily.day)), .universal)
             }
-            dailies.append(daily.with(recovery: recovery, skinTempDevC: skinDev,
-                                      skinTempC: daily.skinTempC))
+            dailies.append(daily)
             if let rest = AnalyticsEngine.Rest.composite(daily: daily) {
                 restPoints.append(MetricPoint(day: daily.day, key: "sleep_performance", value: rest))
             }
@@ -2806,9 +2834,9 @@ final class IntelligenceEngine: ObservableObject {
                 restPoints.append(MetricPoint(day: daily.day, key: "rhr_primary_session_duration_s", value: cov.durationSec))
             }
             cachedSleep.append(contentsOf: night.cachedSleep)
-            // Persist the detected workouts the pipeline already computes (previously discarded).
-            // Skip any bout overlapping a real imported/manual workout so import+wear users don't
-            // double-count. sport = "detected"; energyKcal is the APPROXIMATE Keytel/BMR total.
+            // Keep the analytics detector as an enrichment input for real imported/manual workouts, but do
+            // not publish its generic bouts. The opt-in Today card is the single confirmation boundary for
+            // creating a visible workout; this pass neither creates nor reconciles `sport="detected"` rows.
             // #1545: where the detector lost every candidate workout on this day, emitted BEFORE the
             // per-bout loop so it is present even when that loop runs zero times — which is exactly the
             // report it exists for. The `effort bout` line below explains a bout that exists; a strap log
@@ -2859,15 +2887,9 @@ final class IntelligenceEngine: ObservableObject {
                     }
                     continue
                 }
-                workoutRows.append(WorkoutRow(startTs: s.start, endTs: s.end,
-                                              sport: "detected", source: computedId,
-                                              durationS: s.durationS, energyKcal: s.caloriesKcal,
-                                              avgHr: avgBpm, maxHr: s.peakHR,
-                                              strain: s.strain, distanceM: nil,
-                                              zonesJSON: nil, notes: nil, steps: nil))
                 if workoutsTraceActive {
                     diagnosticSink?(WorkoutsTrace.detectedBoutLine(
-                        verdict: "persisted", durMin: durMin, avgBpm: avgBpm), .workouts)
+                        verdict: "analyticsOnly", durMin: durMin, avgBpm: avgBpm), .workouts)
                 }
             }
         }
@@ -3429,25 +3451,10 @@ final class IntelligenceEngine: ObservableObject {
         } else {
             healRearmedThisCycle = false
         }
-        // Make re-detection idempotent across runs: clear the prior computed detected workouts in the
-        // scored window (a bout's startTs can drift as more HR arrives, which would otherwise orphan
-        // stale rows under the (deviceId,startTs,sport) key), then re-insert.
-        //
-        // SCOPED TO THE DAYS THIS PASS SCANNED (#launch-rescore). This delete used to cover the whole
-        // window on the assumption that every day in it had just been re-detected. With the per-day skip
-        // that assumption is false: a reused day re-inserts nothing, so a window-wide delete would strip
-        // its detected workouts PERMANENTLY. Deleting per scanned day is the same operation for a pass
-        // that scanned everything (the union of the days IS the window) and a no-op for the days it
-        // reused — which is exactly the intent the comment above always described.
-        for dayKey in scannedDays.sorted() {
-            guard let dayMid = Self.midnightForDayKey(dayKey, offsetSec: tzOffset) else { continue }
-            _ = try? await store.deleteWorkouts(deviceId: computedId, sport: "detected",
-                                                from: dayMid, to: min(dayMid + 86_400 - 1, now))
-        }
-        if !workoutRows.isEmpty { _ = try? await store.upsertWorkouts(workoutRows, deviceId: computedId) }
-        // #510: write back any real (manual/imported) rows a dropped detected bout backfilled, one
-        // upsert per owning deviceId (see the collision branch above for why these can't share the
-        // `computedId` batch above).
+        // #1735/#2187: never delete/reinsert legacy detected history during scoring. A disabled toggle,
+        // rescoring pass, missing stream or failed insert must not erase a workout the user already saw.
+        // #510: still write back any real (manual/imported) rows an analytics bout backfilled, one upsert
+        // per owning deviceId.
         for (devId, rows) in backfilledByDevice {
             _ = try? await store.upsertWorkouts(rows, deviceId: devId)
         }
@@ -3673,12 +3680,22 @@ final class IntelligenceEngine: ObservableObject {
         if !updated.isEmpty { _ = try? await store.upsertWorkouts(updated, deviceId: deviceId) }
     }
 
+    /// Pass 1 has no seeded skin baseline. Attach the deviation before scoring so the score,
+    /// explanation, trace and persisted row all consume the same temperature. Internal for regression tests.
+    static func recomputeRecoveryDaily(_ daily: DailyMetric, nightlySkinTempC: Double?,
+                                       baselines: AnalyticsEngine.ProfileBaselines) -> DailyMetric {
+        let skinDev = recomputeSkinTempDev(nightlySkinTempC, baselines.skinTemp)
+        let input = daily.with(recovery: daily.recovery, skinTempDevC: skinDev, skinTempC: nightlySkinTempC)
+        return input.with(recovery: recomputeRecovery(input, baselines), skinTempDevC: skinDev,
+                          skinTempC: nightlySkinTempC)
+    }
+
     /// Re-score ONLY the recovery composite for a day against a (re-seeded) baseline. Every other field
     /// in `daily` is baseline-independent and already final from pass 1. Returns nil until the HRV
     /// baseline is usable (RecoveryScorer gates on `hrvBaseline.usable`, i.e. ≥ minNightsSeed valid
     /// nights) , so the honest null-until-4-nights cold-start is free. Mirrors AnalyticsEngine's own
     /// recovery call + Android IntelligenceEngine.recomputeRecovery. (#78)
-    private func recomputeRecovery(_ daily: DailyMetric, _ baselines: AnalyticsEngine.ProfileBaselines) -> Double? {
+    private static func recomputeRecovery(_ daily: DailyMetric, _ baselines: AnalyticsEngine.ProfileBaselines) -> Double? {
         guard let hrvVal = daily.avgHrv, let rhrVal = daily.restingHr, let hrvBase = baselines.hrv else { return nil }
         // Charge enrichment: feed the Rest COMPOSITE (÷100) as the sleep-quality term instead of raw
         // efficiency, and fold in the night's skin-temp deviation. Both come from the persisted daily
@@ -3835,7 +3852,7 @@ final class IntelligenceEngine: ObservableObject {
     /// baseline, mirroring the avgHrv→recovery re-score. Nil when the night had no wear-gated mean or
     /// the skin-temp baseline isn't usable yet (< minNightsSeed) , honest cold-start. Rounded to 2 dp
     /// to match the imported/demo precision. APPROXIMATE.
-    private func recomputeSkinTempDev(_ nightly: Double?, _ base: BaselineState?) -> Double? {
+    private static func recomputeSkinTempDev(_ nightly: Double?, _ base: BaselineState?) -> Double? {
         guard let v = nightly, let b = base, b.usable else { return nil }
         return (Baselines.deviation(v, state: b).delta * 100.0).rounded() / 100.0
     }

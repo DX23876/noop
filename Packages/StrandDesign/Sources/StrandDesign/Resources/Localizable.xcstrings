@@ -215,7 +215,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%1$lld il y a des jours"
+            "value" : "il y a %lld jours"
           }
         },
         "pl" : {
@@ -407,7 +407,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Points %1$lld, moyenne %2$@, plage %3$@ à %4$@"
+            "value" : "%1$lld points, moyenne %2$@, plage %3$@ à %4$@"
           }
         },
         "pl" : {
@@ -471,7 +471,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Lectures %1$lld"
+            "value" : "%lld relevés"
           }
         },
         "pl" : {
@@ -635,7 +635,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%1$lldd il y a"
+            "value" : "il y a %lld j"
           }
         },
         "pl" : {
@@ -699,7 +699,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "il y a %lldh"
+            "value" : "il y a %lld h"
           }
         },
         "it" : {
@@ -763,7 +763,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%1$lldm il y a"
+            "value" : "il y a %lld min"
           }
         },
         "pl" : {
@@ -1547,7 +1547,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "TOUT"
+            "value" : "MAXIMAL"
           }
         },
         "pl" : {
@@ -1669,7 +1669,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "sommeil %1$@"
+            "value" : "%1$@ de sommeil"
           }
         },
         "pl" : {
@@ -2865,7 +2865,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Noir"
+            "value" : "Sombre"
           }
         },
         "pl" : {
@@ -3116,7 +3116,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "DÉPLACÉ"
+            "value" : "ÉPUISÉ"
           }
         },
         "pl" : {
@@ -4971,7 +4971,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "LUMIÈRE"
+            "value" : "LÉGER"
           }
         },
         "pl" : {
@@ -5331,7 +5331,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "MODÉRATE"
+            "value" : "MODÉRÉ"
           }
         },
         "pl" : {
@@ -6085,6 +6085,12 @@
             "state" : "translated",
             "value" : "選擇日期"
           }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pick a date"
+          }
         }
       }
     },
@@ -6169,7 +6175,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "PRIMAIRE"
+            "value" : "PRÉPARÉ"
           }
         },
         "pl" : {
@@ -6291,7 +6297,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "gamme %1$@ à %2$@"
+            "value" : "plage %1$@ à %2$@"
           }
         },
         "pl" : {
@@ -6531,7 +6537,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Calendrier de récupération, %1$lld jours, moyenne %2$lld, faible %3$lld, haute %4$lld"
+            "value" : "Calendrier de récupération, %1$lld jours, moyenne %2$lld, faible %3$lld, haut %4$lld"
           }
         },
         "pl" : {
@@ -8338,7 +8344,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "STRÈNE"
+            "value" : "SOUTENU"
           }
         },
         "pl" : {
@@ -9300,7 +9306,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tendance, points %1$lld, dernier %2$@, faible %3$@, haut %4$@"
+            "value" : "Tendance, %1$lld points, dernier %2$@, faible %3$@, haut %4$@"
           }
         },
         "pl" : {
@@ -10099,6 +10105,71 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "脛骨前肌"
+          }
+        }
+      }
+    },
+    "appearance.light" : {
+      "comment" : "The APPEARANCE mode, the light half of System / Light / Dark. It carries an explicit key because \"Light\" is also a sleep stage, and a catalogue key is its English string, so one entry served both and every locale translated the sleep one: Léger, Luz, Światło, 浅睡. Translate this as the opposite of Dark, never as a weight or a lamp.",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hell"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Light"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Claro"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Clair"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chiaro"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jasny"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Claro"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Светлая"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "浅色"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "淺色"
           }
         }
       }

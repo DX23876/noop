@@ -203,6 +203,9 @@ struct CoachSettingsView: View {
                 checkInOn = false
                 CoachCheckIn.setEnabled(false)
             }
+            // The daily brief's scheduled request, delivered notifications and widget text are AI output
+            // too; withdraw them rather than leave them on display after the switch went off. (#2269)
+            CoachBriefScheduler.applyMasterSwitch(enabled)
         }
         .navigationTitle("Coach settings")
         #if !os(macOS)

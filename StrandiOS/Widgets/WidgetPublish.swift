@@ -3,6 +3,26 @@ import Foundation
 import WidgetKit
 
 extension WidgetSnapshot {
+    /// The ACTIVE device's charge for the widget (#2075).
+    ///
+    /// `LiveState.batteryPct` is the WHOOP's, and `LiveState` is one object every live source writes
+    /// into, so publishing it unconditionally put the strap's charge on the widget while a ring was the
+    /// active device. Same rule as the Live Console, through the same seam.
+    ///
+    /// `@MainActor` like both publishers that call it: `AppModel.deviceRegistry` and `LiveState` are
+    /// main-actor isolated, so a nonisolated helper cannot read them.
+    @MainActor
+    static func activeBatteryPct(from model: AppModel) -> Int? {
+        LiveConsoleReadout.batteryPercent(
+            activeIsWhoop: LiveConsoleReadout.activeIsWhoop(
+                devices: model.deviceRegistry?.devices ?? [],
+                activeId: model.deviceRegistry?.activeDeviceId,
+            ),
+            whoopPct: model.live.batteryPct,
+            ringPct: model.live.ouraBatteryPct,
+        )
+    }
+
     /// Build a glance snapshot from the live app state and publish it to the shared App Group, then
     /// ask WidgetKit to refresh. Called when the app becomes active and after a Health sync.
     ///
@@ -78,10 +98,28 @@ extension WidgetSnapshot {
                 },
                 asOf: now)
         }
+        // #2040: today's stress curve. Self-gating on a cheap heart-rate fingerprint, so a publish that
+        // changed nothing costs one indexed COUNT and no rows. Only the FULL path scores it; the live
+        // fast path below reuses the previous snapshot and so carries the curve forward untouched.
+        let stress = await StressDayCurve.today(repo: model.repo)
+        // The widget's own point type is built HERE, at the one place that needs it: `StressPoint`
+        // lives in the iOS/widget shared sources, and the producer is now also read by the Today card,
+        // which is compiled for macOS too.
+        let stressPoints: [StressPoint]? = stress.map { scored in
+            scored.result.timeline.map {
+                // `startTs` is the wall-clock bucket start with the local shift already undone, so it
+                // is a true instant and formats correctly against the device's zone.
+                StressPoint(ts: Int64($0.startTs), level: $0.level, moving: $0.maskedForActivity)
+            }
+        }
+        // Loaded ONCE for the carry-forward below. Reaching for `load()` in each of the two arguments
+        // would decode the App Group blob twice on any publish that could not score, and this file
+        // already went to the trouble of removing one such decode from the live path.
+        let storedStress: WidgetSnapshot? = stress == nil ? load() : nil
         let snap = WidgetSnapshot(
             recovery: day?.recovery.map { Int($0.rounded()) },
             bpm: model.bpm ?? model.live.heartRate,
-            batteryPct: model.live.batteryPct.map { Int($0.rounded()) },
+            batteryPct: activeBatteryPct(from: model),
             bonded: model.live.bonded,
             updated: Date(),
             // Stored 0–100 axis for ring fill; display string carries the #313 scale.
@@ -91,7 +129,11 @@ extension WidgetSnapshot {
             restingHr: day?.restingHr,
             effortDisplay: effortDisplay,
             effortWhoop: effortScale == .whoop,
-            energy: energy
+            energy: energy,
+            // nil when the curve could not be scored at all, which must not blank a widget that already
+            // has one: carry the stored values forward instead of publishing an absence.
+            stressSeries: stressPoints ?? storedStress?.stressSeries,
+            stressDay: stress?.day ?? storedStress?.stressDay
         )
         saveAndReloadIfChanged(snap)
     }
@@ -115,7 +157,7 @@ extension WidgetSnapshot {
         // ONCE per tick instead of loading it again inside saveAndReloadIfChanged.
         let previous = snap
         snap.bpm = model.bpm ?? model.live.heartRate
-        snap.batteryPct = model.live.batteryPct.map { Int($0.rounded()) }
+        snap.batteryPct = Self.activeBatteryPct(from: model)
         snap.bonded = model.live.bonded
         snap.updated = now
         saveAndReloadIfChanged(snap, previous: previous)

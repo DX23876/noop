@@ -1,3 +1,4 @@
+import Dispatch
 import Foundation
 import GRDB
 import WhoopProtocol
@@ -8,6 +9,15 @@ import WhoopProtocol
 public struct HRBucket: Sendable, Equatable {
     public let ts: Int
     public let bpm: Double
+    /// The lowest and highest sample IN the bucket, not the bucket's mean.
+    ///
+    /// A chart plots `bpm`, which is what makes a day read as a curve rather than a spike field, but a
+    /// Min/Max readout taken from that series describes the calmest and busiest FIVE MINUTES rather than
+    /// the day. A forty-second interval is averaged against the four minutes around it before the reader
+    /// sees it, which is why a workout's max could exceed the day's (#2032). Same scan and grouping as
+    /// the mean, so carrying them costs nothing.
+    public let minBpm: Double
+    public let maxBpm: Double
     /// The WEAKEST signal confidence contributing to this bucket: 1.0 for measured `hrSample`
     /// rows, the stored autocorrelation `conf` for PPG-derived fallback rows. Lets a chart render
     /// a weak-optical stretch distinctly instead of identically to a clean measured beat. Defaults
@@ -17,9 +27,15 @@ public struct HRBucket: Sendable, Equatable {
     /// Number of distinct HR seconds represented by the mean. This prevents one sample in a
     /// five-minute bucket from masquerading as five minutes of WHOOP coverage.
     public let sampleSeconds: Int
-    public init(ts: Int, bpm: Double, conf: Double = 1.0, sampleSeconds: Int = 0) {
+    /// `minBpm` and `maxBpm` are required rather than defaulted. A default would let a caller build a
+    /// bucket whose extremes silently equal its mean, which is precisely the shape of the bug (#2032):
+    /// a number that looks like a reading and describes something else.
+    public init(ts: Int, bpm: Double, minBpm: Double, maxBpm: Double, conf: Double = 1.0,
+                sampleSeconds: Int = 0) {
         self.ts = ts
         self.bpm = bpm
+        self.minBpm = minBpm
+        self.maxBpm = maxBpm
         self.conf = conf
         self.sampleSeconds = sampleSeconds
     }
@@ -107,41 +123,32 @@ extension WhoopStore {
         }
     }
 
-    /// Total decoded sensor-row count across ALL sources. DIAGNOSTIC / storage reporting only.
+    /// Whether `deviceId` has ANY heart rate in the window, as a scalar EXISTS rather than a row.
     ///
-    /// NO LONGER THE ANALYZE GATE. It was, and it is honest about change (see the invariant below), but
-    /// it answers the question by walking every row of eleven tables — 15.3 M rows across 1.7 GB on a
-    /// real library, measured at 11 s per call — and the gate called it above every short-circuit, so an
-    /// idle tick that did no work still paid the full scan. `sensorWriteSeq()` (Cursors.swift) answers
-    /// the same question from one indexed row and cannot go blind after a delete-then-resync. Keep this
-    /// off the launch/analyze path; it is fine where a real total is actually wanted.
+    /// The day-owner resolver asks this once per candidate per day, so a 60-day steps-calibration window
+    /// on a two-strap install asks it 120 times per pass. It used to be answered by fetching a `LIMIT 1`
+    /// ROW from `hrSamples` and testing the array for emptiness, which materialises a row and an
+    /// `HRSample` for a question whose answer is one bit.
     ///
-    /// WHY NOT `hrFingerprint`: that one is scoped to a single `deviceId`, and its only caller passes the
-    /// engine's `deviceId` — a `let` seeded with the canonical "my-whoop" that is never re-pointed. The
-    /// WRITE side, however, follows the device registry (`BLEManager` re-points itself and the Collector to
-    /// the registry's active id at store open). On any install whose active device is a real strap, new
-    /// samples land under `whoop-<uuid>`, and imported Apple Health lands under "apple-health" — so a
-    /// "my-whoop"-scoped fingerprint STOPS MOVING while data keeps arriving. The gate that is meant to say
-    /// "new data landed" then reports "nothing changed" forever, and the re-score it guards silently stops
-    /// running. Counting every source cannot go blind that way: a source that owns no scored day only ever
-    /// causes an EXTRA pass, never a missed one — the safe direction for a change-detector.
-    ///
-    /// INVARIANT: count ONLY sensor-INPUT tables — never an `analyzeRecent` OUTPUT (dailyMetric /
-    /// sleepSession / workout / metricSeries), or the gate self-retriggers forever.
-    ///
-    /// Adopted from ryanbr's `analyze-loop-change-gate` branch (same name, same invariant, same table set);
-    /// `ppgHrSample` and `sleepStateSample` are added here because they postdate that branch and are written
-    /// by the very same decode-path `insert(_ streams:)` call, so they are inputs by the same test.
-    /// Un-scoped `COUNT(*)` (no WHERE) is the shape SQLite answers from the smallest index b-tree.
-    public nonisolated func syncedRowCount() async throws -> Int {
-        try await asyncRead { db in
-            var total = 0
-            for table in ["hrSample", "rrInterval", "event", "battery", "spo2Sample",
-                          "skinTempSample", "respSample", "gravitySample", "stepSample",
-                          "ppgHrSample", "sleepStateSample"] {
-                total += try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM \(table)") ?? 0
-            }
-            return total
+    /// BOTH tables, because `hrSamples` is a UNION and "has heart rate" has always meant either of them.
+    /// A WHOOP 4.0 v25 record stores no per-second HR at all — it is PPG-derived and lands in
+    /// `ppgHrSample` — so checking `hrSample` alone would have quietly stopped those days from owning
+    /// themselves. The union's `NOT EXISTS` de-dupe does not affect PRESENCE: a ppgHr row suppressed
+    /// because an hrSample shares its ts implies hrSample is non-empty, so "union non-empty" is exactly
+    /// "hrSample non-empty OR ppgHrSample non-empty". OR short-circuits, so the common case is one probe.
+    /// Twin of Kotlin's `WhoopDao.hasHrInWindow`.
+    public func hasHrInWindow(deviceId: String, from: Int, to: Int) async throws -> Bool {
+        // Counted HERE rather than at the call site, mirroring the Kotlin repository: the resolver this
+        // serves is `nonisolated static`, so it has nowhere to accumulate, and the steps loop that drives
+        // most of these runs inside a detached task. One call site each makes the count unambiguous.
+        // See `StoreProbeTally` (StrandAnalytics). Instrumentation only.
+        let probeStarted = DispatchTime.now().uptimeNanoseconds
+        defer { StoreProbeRecorder.record(.ownerHr, nanos: DispatchTime.now().uptimeNanoseconds &- probeStarted) }
+        return try syncRead { db in
+            try Bool.fetchOne(db, sql: """
+                SELECT EXISTS(SELECT 1 FROM hrSample WHERE deviceId = ? AND ts >= ? AND ts <= ?)
+                    OR EXISTS(SELECT 1 FROM ppgHrSample WHERE deviceId = ? AND ts >= ? AND ts <= ?)
+                """, arguments: [deviceId, from, to, deviceId, from, to]) ?? false
         }
     }
 
@@ -154,7 +161,10 @@ extension WhoopStore {
     /// stream moves and at no other time. Same COUNT/COALESCE(MAX) shape and the same `(deviceId, ts)`
     /// index as `hrFingerprint(deviceId:from:to:)` above, and never a row fetch.
     public func gravityFingerprint(deviceId: String, from: Int, to: Int) async throws -> (count: Int, maxTs: Int) {
-        try syncRead { db in
+        // Counted for the same reason as `hasHrInWindow` above; see `StoreProbeTally`.
+        let probeStarted = DispatchTime.now().uptimeNanoseconds
+        defer { StoreProbeRecorder.record(.gravityFp, nanos: DispatchTime.now().uptimeNanoseconds &- probeStarted) }
+        return try syncRead { db in
             guard let row = try Row.fetchOne(db, sql: """
                 SELECT COUNT(*) AS c, COALESCE(MAX(ts), 0) AS m FROM gravitySample
                 WHERE deviceId = ? AND ts >= ? AND ts <= ?
@@ -192,8 +202,9 @@ extension WhoopStore {
     /// changed. Fingerprint the complete scoring input instead. HR keeps its established count+timestamp
     /// fingerprint; the other streams use SQLite's monotonic rowid frontier, which catches old backfills
     /// without full-table COUNT scans over millions of dense motion/R-R rows.
-    /// `v2` intentionally changes the persisted watermark once on upgrade so every install gets one clean
-    /// rescore under the complete contract.
+    /// `v3` also witnesses authoritative WHOOP 5 RR promotions and registry-only source-policy changes.
+    /// The version changes the persisted watermark once so the normal recent window is recomputed.
+    /// Older persisted scores remain until explicitly rescored; raw legacy intervals stay on disk.
     public func analysisFingerprint() async throws -> String {
         try syncRead { db in
             guard let row = try Row.fetchOne(db, sql: """
@@ -202,6 +213,14 @@ extension WhoopStore {
                   (SELECT COALESCE(MAX(ts), 0) FROM hrSample) AS hm,
                   (SELECT COALESCE(MAX(rowid), 0) FROM ppgHrSample) AS p,
                   (SELECT COALESCE(MAX(rowid), 0) FROM rrInterval) AS r,
+                  (SELECT COUNT(*) FROM rrInterval WHERE srcChannel = 5
+                     AND (tsSuspect IS NULL OR tsSuspect <> 1)) AS w5,
+                  (SELECT COUNT(*) FROM rrInterval WHERE srcChannel = 7
+                     AND (tsSuspect IS NULL OR tsSuspect <> 1)) AS w7,
+                  (SELECT COUNT(*) FROM rrInterval WHERE srcChannel IN (5, 6, 7)) AS w5tagged,
+                  (SELECT COALESCE(GROUP_CONCAT(identity, ';'), '') FROM
+                    (SELECT QUOTE(id) || ':' || QUOTE(brand) || ':' || QUOTE(model) || ':' || QUOTE(status) AS identity
+                     FROM pairedDevice ORDER BY id)) AS registry,
                   (SELECT COALESCE(MAX(rowid), 0) FROM respSample) AS x,
                   (SELECT COALESCE(MAX(rowid), 0) FROM gravitySample) AS g,
                   (SELECT COALESCE(MAX(rowid), 0) FROM sleepStateSample) AS s,
@@ -216,7 +235,10 @@ extension WhoopStore {
                 let frontier: Int = row[key]
                 return key + String(frontier)
             }
-            return "v2|h\(hc):\(hm)|" + tails.joined(separator: "|")
+            let historyCount: Int = row["w5"]
+            let registry: String = row["registry"]
+            return "v3|h\(hc):\(hm)|" + tails.joined(separator: "|")
+                + "|w5\(historyCount)|w7\(row["w7"] as Int)|tagged\(row["w5tagged"] as Int)|registry\(registry)"
         }
     }
 
@@ -240,7 +262,7 @@ extension WhoopStore {
     ///   future-stamped beats are excluded), so the witness counts the beats that are actually scored.
     /// - `sleepStateSample`: appended from the SAME v18 record at the same `ts` as HR, so a re-offloaded
     ///   record whose HR row is dropped on conflict still lands a new band row that `analyzeDay` scores.
-    ///   Its letter is `b` (band), not `s` — `s1|` is the version prefix.
+    ///   Its letter is `b` (band), not `s`, which is reserved for the version prefix.
     /// - `respSample`, `spo2Sample`, `gravitySample`, `stepSample`, `skinTempSample`, `event`.
     ///
     /// Returned as an opaque string: it is only ever compared to itself in memory, so no cross-platform or
@@ -259,6 +281,13 @@ extension WhoopStore {
                   (SELECT COALESCE(MAX(ts), 0) FROM rrInterval WHERE deviceId = :d AND ts >= :f AND ts <= :t
                      AND (srcChannel IS NULL OR srcChannel <> :rrx)
                      AND (tsSuspect IS NULL OR tsSuspect <> 1)) AS rm,
+                  (SELECT COUNT(*) FROM rrInterval WHERE deviceId = :d AND ts >= :f AND ts <= :t
+                     AND srcChannel = 5 AND (tsSuspect IS NULL OR tsSuspect <> 1)) AS w5,
+                  (SELECT COUNT(*) FROM rrInterval WHERE deviceId = :d AND ts >= :f AND ts <= :t
+                     AND srcChannel = 7 AND (tsSuspect IS NULL OR tsSuspect <> 1)) AS w7,
+                  EXISTS(SELECT 1 FROM rrInterval WHERE deviceId = :d AND srcChannel IN (5, 6, 7)) AS w5owner,
+                  COALESCE((SELECT QUOTE(brand) || ':' || QUOTE(model) FROM pairedDevice
+                            WHERE id = :d), 'absent') AS registry,
                   (SELECT COUNT(*) FROM respSample WHERE deviceId = :d AND ts >= :f AND ts <= :t) AS xc,
                   (SELECT COALESCE(MAX(ts), 0) FROM respSample WHERE deviceId = :d AND ts >= :f AND ts <= :t) AS xm,
                   (SELECT COUNT(*) FROM spo2Sample WHERE deviceId = :d AND ts >= :f AND ts <= :t) AS oc,
@@ -280,7 +309,10 @@ extension WhoopStore {
                 let count: Int = row[key + "c"], maxTs: Int = row[key + "m"]
                 return "\(key)\(count):\(maxTs)"
             }
-            return "s1|" + parts.joined(separator: "|")
+            let historyCount: Int = row["w5"]
+            let registry: String = row["registry"]
+            let strictRR = try Self.isWhoop5RRSource(db: db, deviceId: deviceId)
+            return "s2|" + parts.joined(separator: "|") + "|w5\(historyCount)|w7\(row["w7"] as Int)|ownerTagged\(row["w5owner"] as Int)|registry\(registry)|rr5=\(strictRR)"
         }
     }
 
@@ -352,7 +384,7 @@ extension WhoopStore {
             // the bpm aggregate and the anti-join semantics are byte-identical. (ryanAtriumAi #988)
             try Row.fetchAll(db, sql: """
                 SELECT (ts / ?) * ? AS bucket, AVG(bpm) AS avgBpm, MIN(conf) AS minConf,
-                       COUNT(DISTINCT ts) AS sampleSeconds FROM (
+                       COUNT(DISTINCT ts) AS sampleSeconds, MIN(bpm) AS minBpm, MAX(bpm) AS maxBpm FROM (
                     SELECT ts, bpm, 1.0 AS conf FROM hrSample
                     WHERE deviceId = ? AND ts >= ? AND ts <= ?
                     UNION ALL
@@ -369,6 +401,7 @@ extension WhoopStore {
                                  deviceId, from, to,
                                  bucket])
                 .map { HRBucket(ts: $0["bucket"], bpm: $0["avgBpm"],
+                                minBpm: $0["minBpm"], maxBpm: $0["maxBpm"],
                                 conf: $0["minConf"] ?? 1.0,
                                 sampleSeconds: $0["sampleSeconds"] ?? 0) }
         }
@@ -378,7 +411,8 @@ extension WhoopStore {
     /// second's beats sorted by VALUE, which makes successive beats similar by construction and biases
     /// RMSSD — all successive differences — downward. Pre-v30 rows have `ord` NULL and SQLite sorts NULL
     /// first in ASC, so an all-NULL second ties and falls through to the old (rrMs, seq) order unchanged.
-    /// Byte-parity twin of Kotlin `WhoopDao.rrIntervals`; both are SQLite, so NULL ordering matches.
+    /// Several observations of one WHOOP beat are reconciled per beat, never per window; see
+    /// `RRTransportReconciler`.
     ///
     /// ONE optical channel (#1071). An Oura ring measures the same heartbeats on more than one tag, and
     /// every one of them is stored, so an unfiltered read returned roughly TWO complete copies of a night
@@ -388,8 +422,7 @@ extension WhoopStore {
     ///
     /// The predicate EXCLUDES the one channel proven redundant (`spo2Ibi`, 0x6E) rather than whitelisting
     /// the one preferred (`greenQuality`, 0x80), which matters for what it does NOT drop:
-    ///   - NULL is kept. Every WHOOP row is NULL by construction (one beat source), as is every row
-    ///     written before v32. A whitelist would delete every WHOOP night from scoring.
+    ///   - NULL is kept: every WHOOP 4 row and every row older than its provenance labels.
     ///   - `ibiAmplitude` (0x60/0x44) is kept. It does not fire on the Gen-3 hardware this was measured
     ///     on, so there is no evidence it duplicates green — and dropping a ring's ONLY beat source on an
     ///     untested assumption is the more expensive mistake. If a capture ever shows 0x60 and 0x80 firing
@@ -402,10 +435,25 @@ extension WhoopStore {
     /// Every R-R consumer reads through this one function, so the `hrv diag` trace moves with the scores
     /// rather than reporting a coverage nobody can reproduce.
     public nonisolated func rrIntervals(deviceId: String, from: Int, to: Int, limit: Int) async throws -> [RRInterval] {
+        try await rrIntervals(deviceId: deviceId, from: from, to: to, limit: limit,
+                              unlabelledAliasOfWhoop5: false)
+    }
+
+    /// A canonical alias of a WHOOP 5 may hold its rows under the alias id. Apply the WHOOP 5 precedence
+    /// when the alias has no confirmed identity; a known WHOOP 4 or another brand keeps its own order.
+    ///
+    /// No window is withheld. Upstream reads one transport for the whole requested interval and so
+    /// returns nothing for a night recorded before labels existed, which blanked HRV, respiratory rate and
+    /// Charge on update (#2101). Here every observation competes only with the others that cover the same
+    /// beat, in `RRTransportReconciler`, and a beat nothing better covers is kept.
+    public nonisolated func rrIntervals(deviceId: String, from: Int, to: Int, limit: Int,
+                                        unlabelledAliasOfWhoop5: Bool) async throws -> [RRInterval] {
         guard limit > 0 else { return [] }
         return try await asyncRead { db in
-            // A corrected/tagged re-decode can temporarily coexist with the legacy rows it replaces.
-            // Read enough candidates for the transport reconciler before applying the caller's cap.
+            let whoop5 = try Self.isWhoop5RRSource(db: db, deviceId: deviceId,
+                                                   unlabelledAliasOfWhoop5: unlabelledAliasOfWhoop5)
+            // Several observations of one beat can coexist on disk. Read enough candidates for the
+            // reconciler before applying the caller's cap.
             let candidateLimit = limit > Int.max / 4 ? Int.max : limit * 4
             let rows = try Row.fetchAll(db, sql: """
                 SELECT ts, rrMs, srcChannel, transport, ord, seq FROM rrInterval
@@ -420,7 +468,7 @@ extension WhoopStore {
                                transport: (row["transport"] as Int?).flatMap(RRTransport.init(rawValue:)),
                                ord: row["ord"] as Int?, seq: row["seq"])
                 }
-            return Array(RRTransportReconciler.reconcile(rows).prefix(limit))
+            return Array(RRTransportReconciler.reconcile(rows, whoop5: whoop5).prefix(limit))
         }
     }
 

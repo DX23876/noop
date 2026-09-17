@@ -108,30 +108,17 @@ struct TrendsView: View {
 
     nonisolated static func prepare(days: [DailyMetric], rest: [String: Double],
                                            range: Range, now: Date) -> [String: ResolvedMetric] {
-        let parser = DateFormatter()
-        parser.locale = Locale(identifier: "en_US_POSIX"); parser.timeZone = TimeZone(identifier: "UTC")
-        parser.dateFormat = "yyyy-MM-dd"
-        let dated = days.compactMap { row in parser.date(from: row.day).map { (row, $0) } }
         let accessors: [(String, (DailyMetric) -> Double?)] = [
             ("recovery", { $0.recovery }), ("hrv", { $0.avgHrv }),
             ("rhr", { $0.restingHr.map(Double.init) }), ("strain", { $0.strain }),
             ("rest", { rest[$0.day] })]
         var result: [String: ResolvedMetric] = [:]
         for (key, value) in accessors {
-            for r in range.widening {
-                let cutoff: String? = r.days.map {
-                    Repository.localDayKey(Calendar.current.date(byAdding: .day, value: -($0 - 1), to: now) ?? now)
-                }
-                let points = dated.compactMap { row, date -> TrendPoint? in
-                    guard cutoff.map({ row.day >= $0 }) ?? true, let v = value(row) else { return nil }
-                    return TrendPoint(date: date, value: v)
-                }
-                if !points.isEmpty || r == .all {
-                    result[key] = ResolvedMetric(points: points, effective: r, widened: r != range,
-                        caption: caption(count: points.count, eff: r, range: range))
-                    break
-                }
-            }
+            // The windowing lives in `HostedTrendData` so the Today host cards resolve EXACTLY as this
+            // tab does; a second implementation of the widening fallback would drift.
+            let r = HostedTrendData.resolve(days: days, selected: range, now: now, value: value)
+            result[key] = ResolvedMetric(points: r.points, effective: r.effective, widened: r.effective != range,
+                                         caption: caption(count: r.points.count, eff: r.effective, range: range))
         }
         return result
     }
@@ -151,11 +138,7 @@ struct TrendsView: View {
 
     /// A padded value range for a series so the line isn't flat against the axis.
     private func valueRange(_ pts: [TrendPoint], fallback: ClosedRange<Double>, pad: Double = 0.12) -> ClosedRange<Double> {
-        let vals = pts.map(\.value)
-        guard let lo = vals.min(), let hi = vals.max() else { return fallback }
-        if hi <= lo { return (lo - 1)...(hi + 1) }
-        let span = hi - lo
-        return (lo - span * pad)...(hi + span * pad)
+        HostedTrendData.valueRange(pts, fallback: fallback, pad: pad)
     }
 
     private func mean(_ pts: [TrendPoint]) -> Double? {

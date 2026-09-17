@@ -112,6 +112,12 @@ public final class OuraLiveSource: NSObject, ObservableObject {
     /// The live adopt outcome (see `AdoptPhase`). The wizard observes this to leave its Adopting step. Reset
     /// to `.idle` on every connect/stop/disconnect so a stale outcome never drives a transition.
     @Published public private(set) var adoptPhase: AdoptPhase = .idle
+    /// The most recent `feature status` read-back per feature id, keyed by `OuraFeatureStatus.feature`.
+    /// Updated on EVERY status frame received, independent of `loggedFeatureStatuses`'s once-per-
+    /// connection log dedup — Test Centre's enable/disable rows read this to show the ring's current
+    /// state, and a UI readout must never go stale just because the log line already printed once.
+    /// Cleared on `stop()` so a previously-paired ring's readings never bleed into a different one.
+    @Published public private(set) var featureStatuses: [Int: OuraFeatureStatus] = [:]
 
     // MARK: - BLE UUIDs (from the platform-pure OuraGatt facts)
 
@@ -139,8 +145,67 @@ public final class OuraLiveSource: NSObject, ObservableObject {
     /// so a misframed/garbage reply can never mint a bogus `oura-<serial>` identity (#771 honest-data guard).
     /// The captured Gen3 serial "2H3B2405003655" (14 chars) passes; the hardware id "BLB_03" (underscore) does
     /// not — but it is already routed to the generation path before this is reached.
-    private static func isPlausibleSerial(_ s: String) -> Bool {
+    nonisolated private static func isPlausibleSerial(_ s: String) -> Bool {
         (8...24).contains(s.count) && s.allSatisfy { $0.isLetter || $0.isNumber }
+    }
+
+    /// What the product-info reply log line (below) may show (#2092): a serial page identifies the
+    /// ring's owner, so only its SHAPE is logged, via `OuraSerialIdentity.logSafe` — the same 3-character
+    /// prefix `WhoopSerialIdentity.logSafe` uses for a WHOOP serial (#1303). A hardware-generation page
+    /// ("BLB_03", never `isPlausibleSerial`) identifies no one and is still logged in full; either way a
+    /// masked value still confirms the decode happened, which is all this line exists to do. Masks BOTH
+    /// halves — logging a masked `ascii` beside the unmasked `hex` would still leak the serial encoded.
+    /// `nonisolated static` and free of the log call itself, so it is testable without CoreBluetooth.
+    nonisolated static func logSafeProductInfo(hex: String, ascii: String,
+                                               decoded: String?) -> (hex: String, ascii: String) {
+        guard let decoded, isPlausibleSerial(decoded) else { return (hex, ascii) }
+        return ("<serial>", OuraSerialIdentity.logSafe(serial: decoded))
+    }
+
+    /// Re-encode outer frames for the raw diagnostics sidecar, dropping `productInfoResponseOps` —
+    /// a GetProductInfo reply's body IS the ring's serial/hardware string in plain ASCII, and the
+    /// sidecar's redaction pass only ever masks the JSON envelope's `deviceId`, never bytes inside a
+    /// frame body. Found via a #2075 reporter's attachment, whose `oura-raw.jsonl` carried a stable
+    /// 16-digit identifier this way, unredacted, into a public issue. Never touches decode: only what
+    /// `rawDump?.record` sees changes.
+    ///
+    /// `tail` (PR #2090 review, ryanbr): `frames` only covers what `OuraFraming.parseOuterFrames` fully
+    /// consumed — it silently drops an incomplete trailing frame (`guard i + total <= bytes.count else {
+    /// break }`), which is ORDINARY, not rare: the Reassembler exists precisely because notifications
+    /// split mid-frame. A caller reconstructing the sidecar from `frames` alone therefore loses that
+    /// unconsumed remainder — e.g. `41 02 AA BB 42 05 01 02` parses one complete frame and silently drops
+    /// `42 05 01 02`. For a sidecar whose whole purpose is exact wire bytes, that is a real loss, so a
+    /// caller that reconstructs from `frames` (rather than recording the original notification bytes
+    /// verbatim) must pass whatever `bytes` remained past the frames it parsed.
+    nonisolated static func rawDumpBytes(_ frames: [OuraOuterFrame], appending tail: [UInt8] = []) -> [UInt8] {
+        frames.filter { !productInfoResponseOps.contains($0.op) }
+              .flatMap { [$0.op, UInt8($0.body.count)] + $0.body }
+              + tail
+    }
+
+    /// Convenience for the whole-notification case (the "no secure frame" branch below, where `frames`
+    /// is already the full parse of `bytes`): computes the `tail` `rawDumpBytes` needs from `frames`
+    /// itself, rather than duplicating that arithmetic at the call site. Kept CoreBluetooth-free and
+    /// `nonisolated static` so it is testable directly, the same as `rawDumpBytes`.
+    ///
+    /// CORRECTION (PR #2090 review, ryanbr, self-caught 6 minutes after suggesting the tail in the first
+    /// place): appending the tail unconditionally would put the serial BACK. When the frame split across
+    /// notifications is itself a GetProductInfo reply, `parseOuterFrames` stops right at it, so the
+    /// unconsumed remainder starts with `0x19` and continues straight into the ASCII serial - exactly
+    /// what this whole PR exists to keep out. The refinement that gets both: append the remainder only
+    /// when its first byte is NOT a `productInfoResponseOps` op. An ordinary split frame (any other op)
+    /// keeps full fidelity; a split product-info frame drops its (however partial) tail along with the
+    /// rest of it, same as a complete one does.
+    nonisolated static func rawDumpBytes(fromNotification bytes: [UInt8], frames: [OuraOuterFrame]) -> [UInt8] {
+        let consumedLength = frames.reduce(0) { $0 + 2 + $1.body.count }
+        var tail: [UInt8] = []
+        if consumedLength < bytes.count {
+            let remainder = Array(bytes[consumedLength...])
+            if let leadOp = remainder.first, !productInfoResponseOps.contains(leadOp) {
+                tail = remainder
+            }
+        }
+        return rawDumpBytes(frames, appending: tail)
     }
 
     /// Local-time formatter for logging a decoded date/time next to a raw ring-tick cursor value, so a
@@ -262,6 +327,13 @@ public final class OuraLiveSource: NSObject, ObservableObject {
     /// Feature ids whose status we have already logged this session (SpO2 0x04 / real_steps 0x0b), so the
     /// read-only feature-status diagnostic prints once per feature, not on every reconnect.
     private var loggedFeatureStatuses: Set<Int> = []
+    /// Feature ids the EXPERIMENTAL feature-mode write (`writeFeatureMode`) most recently set to mode=0
+    /// this connection. `logFeatureStatus`'s all-zero "server-gated off" label predates that write
+    /// existing — it can no longer assume all-zero means the cloud never enabled the feature, since a
+    /// self-induced disable now produces the identical bit pattern. Real-hardware confirmed 2026-09-11:
+    /// disabling SpO2 flipped mode 1→0 and the very next read logged "cloud never enabled it", which was
+    /// false — we had just enabled-then-disabled it ourselves seconds earlier.
+    private var manuallyDisabledFeatures: Set<Int> = []
     /// Product-info replies already logged this session, keyed by op+body so the #771/#772 serial/hardware
     /// capture prints each DISTINCT reply once — get_serial and get_hardware both answer under op 0x19, so a
     /// per-op guard would swallow the second (observed on-device: only the serial reached the log). Distinct
@@ -330,6 +402,17 @@ public final class OuraLiveSource: NSObject, ObservableObject {
     /// ring sent, so after a full connect a hole in a decoded file can be pinned as a decode drop vs ring-side.
     /// No dedup (a re-serve is still evidence the ring re-sent it); the offline reframer collapses duplicates.
     private let rawDump: OuraRawDump?
+
+    // MARK: - 0x20 user-info write EXPERIMENT (default-off, Test Centre only)
+
+    /// The most recent `0x5c` `user_information` record this connection has seen, so a later one can be
+    /// reported as changed or unchanged rather than just printed. Never persisted, never scored.
+    private var lastUserInfoRecord: OuraUserInfoRecord?
+    /// The last `0x20` write this connection sent, if any: the field, the value bytes, and when. Set by
+    /// `writeUserInfo` and read only to caption the ack and the next `0x5c` — so the log can say which
+    /// record is the first one AFTER a write instead of leaving the reader to line up timestamps.
+    private var lastUserInfoWrite: (field: OuraUserInfoField, valueHex: String, at: Date)?
+
     /// Cached local-day formatter (the 0x50 stream is high-volume; avoid building one per record).
     private static let activityDayFormatter: DateFormatter = {
         let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"; return f   // local time zone by default
@@ -555,6 +638,19 @@ public final class OuraLiveSource: NSObject, ObservableObject {
     /// The cursor we resumed FROM at the start of the current fetch — passed into `drain.noteStoredRingTime`
     /// so a real stored sample OLDER than it flags a genuine ring reboot (clock reset / seek ignored).
     private var resumeCursorAtFetchStart: UInt32 = 0
+    /// The SyncTime anchor persisted from the END of the PREVIOUS connection to this ring (#2097), loaded
+    /// fresh at the start of THIS session — never an anchor this session itself adopts. Compared against
+    /// `currentSyncAnchor` in `commitResumeCursor` to tell a genuine ring reboot from a second BLE client
+    /// (e.g. the Oura app) having served the ring in between: `sawPreResumeData` alone cannot, since both
+    /// produce the same "stored sample older than the fetch cursor" signature. `nil` on a first-ever
+    /// connect to this ring, or when no previous session ever adopted an anchor — the comparison then
+    /// simply declines and today's "treat as reboot" behavior stands.
+    private var previousSyncAnchor: (ringTicks: UInt32, unixSeconds: Int64)?
+    /// The SyncTime anchor THIS session has adopted (freshest wins, mirroring `OuraDriver.adoptSyncTimeAnchor`),
+    /// persisted via `OuraSyncAnchorStore` for the NEXT connection to compare against as its own
+    /// `previousSyncAnchor`. `nil` until `adoptSyncTimeAnchor(deviceTimestamp:status:receivedAt:source:)`
+    /// first succeeds this session.
+    private var currentSyncAnchor: (ringTicks: UInt32, unixSeconds: Int64)?
     /// Wall-clock start of the current drain; `drain`'s deadline guard force-stops one running too long.
     private var drainStartedAt: Date?
     /// The cursor the LAST GetEvents request was issued at — the `start` of open_oura's progress test
@@ -579,10 +675,22 @@ public final class OuraLiveSource: NSObject, ObservableObject {
     /// One-shot delay before a self-chained drain pass (see `finishDrain`). Invalidated on teardown.
     private var chainedDrainTimer: Timer?
     /// Periodic re-fetch while connected, so an overnight-connected session (or one left open after a nap)
-    /// picks up freshly-banked sleep data without needing a reconnect. Mirrors BLEManager's ~15 min
-    /// periodic WHOOP history-offload floor.
+    /// picks up freshly-banked sleep data without needing a reconnect.
+    ///
+    /// MEASURED 2026-08-10 (capture `…-260810-1556`, 2h31m at 96.6% connected): this interval is not just a
+    /// backstop, it is the ACTUAL DATA CADENCE. Between fetches the ring delivered **nothing at all** —
+    /// seven arrival gaps of 893-928 s inside live sessions, clustering exactly on the old 900 s value,
+    /// while the app was awake (59-60 live-HR re-arms per gap), the link was up and the ring was worn. Only
+    /// **2.1%** of `0x80` "live HR" arrived within 15 s of its own second; the median record was **385 s**
+    /// old on arrival. So a user watching live HR was watching a 6-minute-old burst.
+    ///
+    /// 900 -> 300 s halves-and-then-some the worst-case staleness at a marginal cost: while live HR is on
+    /// the app already writes `dhr_enable`+`dhr_subscribe` every 15 s (462 commands/h measured), against
+    /// which the whole history-fetch machinery was 21 commands/h. The payload is unchanged either way — the
+    /// same records arrive, in smaller chunks — and `fetchHistoryIfIdle` is a no-op unless the driver is
+    /// idle-streaming, so a fetch never overlaps a drain.
     private var historyFetchTimer: Timer?
-    private let historyFetchInterval: TimeInterval = 900
+    private let historyFetchInterval: TimeInterval = 300
 
     /// Kick a history-fetch pass at the current cursor, but ONLY when the driver is idle-streaming (never
     /// overlaps a fetch already in flight - the driver's own phase is the guard, so this is safe to call
@@ -680,8 +788,13 @@ public final class OuraLiveSource: NSObject, ObservableObject {
         if let burst = hypnogramAssembler.flush() {
             persistHypnogramBurst(burst)
         }
-        let rebootFullPullPending = drain.sawPreResumeData
-        commitResumeCursor(drainCompleted: completed)
+        // Ask the cursor commit whether it actually reset for a reboot rather than reading
+        // `drain.sawPreResumeData` directly: that flag is also raised by a stale replay from a second BLE
+        // client's serve position, which the #2097 judge inside `commitResumeCursor` rejects as "not a
+        // reboot" and answers by keeping the cursor. Snapshotting the flag here (as this did until
+        // 2026-09-13) had the scheduler print "ring reboot detected - starting the honest full re-pull"
+        // two lines after "not a reboot (#2097)" and burn a chained pass that only re-read the kept cursor.
+        let rebootFullPullPending = commitResumeCursor(drainCompleted: completed)
         logActivityEstimateSummary()
         advance(.historyCursorAdvanced(cursor: historyCursor, moreData: false))
         if rebootFullPullPending || resumeBacklog {
@@ -700,7 +813,40 @@ public final class OuraLiveSource: NSObject, ObservableObject {
             chainedDrainTimer = t
         } else if completed {
             chainedDrainPasses = 0   // healthy full completion re-arms the cap for future backlogs
+            noteCompletedOffload()
         }
+    }
+
+    /// Stamp `LiveState.lastSyncedAt` after a drain that COMPLETED and actually banked something, so the
+    /// ring's freshly-offloaded history gets scored now instead of waiting on the 15-minute periodic tick.
+    ///
+    /// WHY THIS EXISTS: `AppModel` re-scores off a debounced `live.$lastSyncedAt` sink
+    /// (`refreshAfterCompletedBackfill` → `repo.refresh` + `intelligence.analyzeRecent`), but only
+    /// `BLEManager.exitBackfilling` (the WHOOP `HISTORY_COMPLETE` path) ever stamped it — the Oura drain
+    /// never did. Observed consequence (2026-08-02 capture): the morning's `analyzeRecent` ran at app
+    /// launch ~09:25, the ring delivered that night's hypnogram at 09:31:44, and nothing re-scored after,
+    /// so the night stayed `totalSleepMin=nil, matched=0` despite a complete 541-minute session sitting in
+    /// the DB. Relaunching did not help — it just re-ran the same premature pass. Reusing the WHOOP signal
+    /// (rather than adding a second refresh path) means the ring inherits the SAME `.debounce(2s)` +
+    /// `removeDuplicates()` coalescing that #755 added for slice storms.
+    ///
+    /// GATES, so this cannot become a refresh storm:
+    /// - `feedsLive` — the discovery-only wizard scanner must never touch `LiveState` at all.
+    /// - `drain.maxStoredRingTime > 0` — only a drain that BANKED a record counts. A reconnect that
+    ///   completes instantly at `bytes_left 0` with nothing new (the common case on repeated connects)
+    ///   banks nothing, so it does not stamp and does not trigger a re-score.
+    private func noteCompletedOffload() {
+        guard feedsLive, drain.maxStoredRingTime > 0 else { return }
+        let now = Date().timeIntervalSince1970
+        // Logged because a BLE-path change is only verifiable on real hardware: this line appearing AFTER
+        // the night's `sleep-phase record` lines, followed by a fresh `sleep day=` with a non-nil
+        // totalSleepMin, is exactly the sequence that was missing.
+        log("Oura: offload complete - marking synced so the new history is scored now (not at the next periodic tick)")
+        live.lastSyncedAt = now
+        // Mirrors BLEManager: persisted so "last offload completed" survives a relaunch. Before this, a
+        // ring-only install had no completed-offload timestamp at all and read "No completed offload yet"
+        // forever, however many nights it had actually synced.
+        UserDefaults.standard.set(now, forKey: "lastSyncedAt")
     }
 
     private func restartBatchQuietTimer() {
@@ -718,17 +864,31 @@ public final class OuraLiveSource: NSObject, ObservableObject {
 
     /// Commit the durable resume cursor at drain end. Only a cursor that (a) moved forward, (b) is below
     /// the plausibility ceiling, and (c) resolves to a real time under the CURRENT anchor is persisted;
-    /// a reboot (`sawPreResumeData`) resets to 0 so next connect does an honest full pull.
-    private func commitResumeCursor(drainCompleted: Bool) {
+    /// a reboot (`sawPreResumeData`) resets to 0 so next connect does an honest full pull — UNLESS the
+    /// ring's own SyncTime anchor proves its clock never paused across the gap (#2097:
+    /// `OuraHistoryDrain.anchorsAreContinuous`), in which case the stale replay is treated like ordinary
+    /// stale data instead (dropped; cursor follows the same forward-only-if-resolving rule as any other
+    /// drain) rather than forcing a full re-pull of the ring's entire history.
+    ///
+    /// Returns `true` only when the cursor WAS reset to 0 for a reboot — the one outcome that leaves a
+    /// full re-pull pending for `finishDrain` to chain. A stale replay the judge rejected returns `false`.
+    private func commitResumeCursor(drainCompleted: Bool) -> Bool {
         let how = drainCompleted ? "caught up (bytes_left 0)" : "stopped early"
         let resolves = drain.maxStoredRingTime > 0
             && (driver?.unixSeconds(forRingTimestamp: drain.maxStoredRingTime) != nil)
-        let newCursor = drain.resumeCursorAtDrainEnd(currentCursor: historyCursor, resolvesUnderAnchor: resolves)
-        if drain.sawPreResumeData {
+        let anchorConfirmsContinuity = drain.sawPreResumeData && syncAnchorsConfirmContinuity()
+        let newCursor = drain.resumeCursorAtDrainEnd(currentCursor: historyCursor, resolvesUnderAnchor: resolves,
+                                                      anchorConfirmsContinuity: anchorConfirmsContinuity)
+        if drain.sawPreResumeData, !anchorConfirmsContinuity {
             log("Oura: history \(how) but the ring served data older than cursor \(resumeCursorAtFetchStart) - clock reset/seek ignored; next connect does a full pull")
             historyCursor = 0
             OuraHistoryCursorStore.save(0, deviceId: deviceId)
-        } else if newCursor != historyCursor {
+            return true
+        }
+        if drain.sawPreResumeData {
+            log("Oura: history \(how) but the ring served data older than cursor \(resumeCursorAtFetchStart) - the ring's own SyncTime clock never paused across the gap, so this is a second BLE client's serve position, not a reboot (#2097); discarding the stale replay instead of a full re-pull")
+        }
+        if newCursor != historyCursor {
             historyCursor = newCursor
             OuraHistoryCursorStore.save(newCursor, deviceId: deviceId)
             log("Oura: history \(how) - resume cursor advanced to \(historyCursor) [\(describeCursor(historyCursor))]")
@@ -737,6 +897,18 @@ public final class OuraLiveSource: NSObject, ObservableObject {
         } else {
             log("Oura: history \(how) (resume cursor unchanged \(historyCursor) [\(describeCursor(historyCursor))])")
         }
+        return false
+    }
+
+    /// Whether this drain's `sawPreResumeData` flag should be trusted as a genuine ring reboot, or
+    /// whether the ring's own clock proves otherwise (#2097). Requires BOTH a previous-session anchor
+    /// (persisted by an earlier connect) and an anchor THIS session adopted; either missing means there
+    /// is nothing to compare, so this declines (`false`) and the existing reboot handling stands — the
+    /// safe default when the ring was never anchored before (first pairing) or never got anchored again
+    /// this session (e.g. the drain finished before any 0x13 SyncTime reply resolved).
+    private func syncAnchorsConfirmContinuity() -> Bool {
+        guard let previous = previousSyncAnchor, let current = currentSyncAnchor else { return false }
+        return OuraHistoryDrain.anchorsAreContinuous(previous: previous, current: current)
     }
 
     /// The 0x49 window in `windows` whose envelope ring-time is nearest `rt` and within `tolerance` ticks,
@@ -769,6 +941,20 @@ public final class OuraLiveSource: NSObject, ObservableObject {
     /// available). Logs the reconstructed window + stage minutes so a capture is self-evident.
     private func persistHypnogramBurst(_ burst: OuraHypnogramBurst) {
         guard let driver, burst.totalCodes > 0 else { return }
+        // STALE-REPLAY GATE (2026-09-13, Oura-app handoff on a Gen 3): a second BLE client on the same
+        // phone makes the ring re-serve from ITS position, and the #2097 judge rightly keeps our cursor —
+        // but by then every replayed record has been ingested. Time-series rows dedupe on their keys; a
+        // burst does not: the last two sleep-phase records of a night came back without their 0x49 window
+        // and were end-anchored at their write time into a 52-minute `[no-0x49-onset]` session whose codes
+        // were not the night's tail. A burst written BEFORE where this fetch resumed was already banked
+        // from its own drain, so it is refused here rather than handed to the persist closure's dedup
+        // (which only catches a fragment that happens to sit inside a stored row, and only with onset
+        // keying on). A genuine reboot is unaffected: its judge resets the cursor to 0 and the chained
+        // full pull re-serves the same records with no floor.
+        if OuraHistoryDrain.predatesResume(ringTime: burst.lastRingTimestamp, resumeCursorAtFetchStart: resumeCursorAtFetchStart) {
+            log("Oura: hypnogram burst (\(burst.totalCodes) codes, written at rt \(burst.lastRingTimestamp)) predates the resume cursor \(resumeCursorAtFetchStart) - a re-serve from a second BLE client's position (#2097), already banked from its own drain; not persisted")
+            return
+        }
         // HOLD-UNTIL-ANCHOR (same discipline as pendingAnchorEvents): the burst end IS the night's whole
         // time axis, so guessing it from wall-clock would persist real stage codes at fabricated times.
         // An unanchored burst is parked and re-tried when the 0x42 anchor lands; if the session ends
@@ -843,9 +1029,13 @@ public final class OuraLiveSource: NSObject, ObservableObject {
             // startTs on the ROUNDED onset (stable across the ring's re-serves) rather than the end-anchored
             // first-code time — so re-serves of one night share a PK and the displayed bedtime is the true
             // onset. The completeness guard in the persist closure then suppresses/replaces any duplicate.
+            // `safeKeyedStart` refuses the rekey when `sleepStart` didn't actually bind in the assembler's
+            // own clip (item 22, 2026-09-12: a mis-paired 0x49 window otherwise wrote a startTs 16 min
+            // AFTER its own endTs) — see its doc comment for why `onset <= mapped.startTs` is the exact test.
             let session: CachedSleepSession = {
-                guard onsetKeying(), let onset = sleepStart else { return mapped }
-                return mapped.withStartTs(SleepSessionDedup.keyedStart(onsetUnixSeconds: onset))
+                guard onsetKeying(), let onset = sleepStart,
+                      let keyed = SleepSessionDedup.safeKeyedStart(onset: onset, mapped: mapped) else { return mapped }
+                return mapped.withStartTs(keyed)
             }()
             let start = session.startTs
             // #1284 residual 3: log when this persist lands wholly inside — or overlapping — a session already
@@ -1338,6 +1528,8 @@ public final class OuraLiveSource: NSObject, ObservableObject {
         pendingSyncTime = nil
         loggedTierBKinds.removeAll()
         loggedFeatureStatuses.removeAll()
+        manuallyDisabledFeatures.removeAll()
+        featureStatuses.removeAll()
         loggedProductInfo.removeAll()
         greenIbiAmpCount = 0
         greenIbiAmpLengths.removeAll()
@@ -1382,6 +1574,86 @@ public final class OuraLiveSource: NSObject, ObservableObject {
             log("Oura: -> \(cmd.label)")
             peripheral.writeValue(Data(cmd.bytes), for: writeCharacteristic, type: .withoutResponse)
         }
+    }
+
+    // MARK: - 0x20 user-info write EXPERIMENT
+
+    /// Log every `0x5c` `user_information` record the ring sends. ALWAYS-ON: `0x5c` is rare (at most one
+    /// per full drain, and zero in some), so this costs nothing when nothing happens and is the only
+    /// readout the write experiment has. Nothing here persists, scores, or acts on the values.
+    ///
+    /// Field names are [open_oura-evt]'s INFERENCE (`_status: inferred`), so the raw four bytes are
+    /// printed first and the named split second — if the inference is wrong, the log still carries the
+    /// evidence to re-derive it.
+    private func observeUserInfoRecords(in bytes: [UInt8]) {
+        for rec in scanOuraUserInfoRecords(tlvBytes: bytes) {
+            let changed = lastUserInfoRecord.map { $0.raw != rec.raw } ?? false
+            let sinceWrite = lastUserInfoWrite.map {
+                " | FIRST 0x5c since our \($0.field.label)=\($0.valueHex) write \(Int(Date().timeIntervalSince($0.at)))s ago"
+            } ?? ""
+            log("Oura: 0x5c user_information raw=\(rec.rawHex) rt=\(rec.ringTimestamp)"
+                + (rec.isFirmwareDefault ? " (FIRMWARE DEFAULTS)" : " (NOT the firmware defaults)")
+                + (changed ? " CHANGED from \(lastUserInfoRecord?.rawHex ?? "?")" : "")
+                + " | inferred [open_oura-evt]: age=\(rec.ageYears) weight=\(rec.weightKg)kg"
+                + " sex=\(rec.sexCode) height=\(rec.heightCm)cm" + sinceWrite)
+            lastUserInfoRecord = rec
+            // One readout per write is the experiment; keep the marker so a SECOND 0x5c in the same
+            // connection is not also captioned as "the first since the write".
+            if !sinceWrite.isEmpty { lastUserInfoWrite = nil }
+        }
+    }
+
+    /// Send one `0x20` user-info write. EXPERIMENT ONLY — reachable exclusively from the Test Centre
+    /// action; nothing in the connect flow or `OuraDriver` calls it, and it is never sent automatically.
+    ///
+    /// Returns false (and writes nothing) if the link is not ready, so the caller can say so rather than
+    /// silently appearing to have written. The value bytes are logged verbatim: this is a write to the
+    /// ring's own config, and a strap log that does not say exactly what went out is useless afterwards.
+    @discardableResult
+    func writeUserInfo(field: OuraUserInfoField, value: [UInt8]) -> Bool {
+        guard peripheral != nil, writeCharacteristic != nil else {
+            log("Oura: 0x20 user-info write SKIPPED - no connected ring / write characteristic")
+            return false
+        }
+        guard let cmd = try? OuraUserInfoWrite.command(field, value: value) else {
+            log("Oura: 0x20 user-info write REFUSED - \(value.count)B value, field \(field.label) wants \(field.valueByteCount)B")
+            return false
+        }
+        let valueHex = value.map { String(format: "%02x", $0) }.joined()
+        let frameHex = cmd.bytes.map { String(format: "%02x", $0) }.joined()
+        log("Oura: 0x20 user-info WRITE field=\(field.label) value=\(valueHex) frame=\(frameHex)"
+            + " - EXPERIMENT; last 0x5c seen this connection: \(lastUserInfoRecord?.rawHex ?? "none")")
+        lastUserInfoWrite = (field: field, valueHex: valueHex, at: Date())
+        write([cmd])
+        return true
+    }
+
+    /// Send one `2f 03 22 <id> <mode>` feature-mode write. EXPERIMENT ONLY — reachable exclusively from
+    /// the Test Centre "OURA" section; nothing in the connect flow or `OuraDriver` calls it, and it is
+    /// never sent automatically. UNVALIDATED per OURA_PROTOCOL.md s7.5.
+    ///
+    /// Clears any already-logged status for this feature first, so the read-status probe this method
+    /// also sends is guaranteed to log a fresh line — the connect-time SpO2/real_steps auto-probe (or an
+    /// earlier manual call) may have already consumed `logFeatureStatus`'s once-per-connection dedup for
+    /// this exact feature id.
+    @discardableResult
+    func writeFeatureMode(feature: UInt8, mode: UInt8) -> Bool {
+        guard peripheral != nil, writeCharacteristic != nil else {
+            log("Oura: feature-mode write SKIPPED - no connected ring / write characteristic")
+            return false
+        }
+        let cmd = OuraCommands.setFeatureMode(feature, mode: mode)
+        let frameHex = cmd.bytes.map { String(format: "%02x", $0) }.joined()
+        log("Oura: feature-mode WRITE feature=0x\(String(feature, radix: 16)) mode=\(mode) frame=\(frameHex)"
+            + " - EXPERIMENT, unvalidated on NOOP hardware (OURA_PROTOCOL.md s7.5)")
+        loggedFeatureStatuses.remove(Int(feature))
+        if mode == 0x00 {
+            manuallyDisabledFeatures.insert(Int(feature))
+        } else {
+            manuallyDisabledFeatures.remove(Int(feature))
+        }
+        write([cmd, OuraCommands.featureReadStatus(feature)])
+        return true
     }
 
     /// Advance the driver with a transition and write whatever it asks for next.
@@ -1727,6 +1999,10 @@ public final class OuraLiveSource: NSObject, ObservableObject {
 
             case .battery(let bat):
                 batteryPct = bat.percent
+                // #2075: publish the ring's charge into the shared LiveState too, beside `ouraWearState`.
+                // Holding it only here left the Live Console with nothing but the WHOOP's `batteryPct`,
+                // so it showed the strap's charge under the ring's name.
+                if feedsLive { live.ouraBatteryPct = bat.percent }
                 onBattery(bat.percent)
                 log("Oura: battery \(bat.percent)%")
                 enqueue([e], ts: now)
@@ -1993,19 +2269,34 @@ public final class OuraLiveSource: NSObject, ObservableObject {
     /// cannot enable these offline (server ClientConfiguration gate), so a `subscription == 0` here is the
     /// honest "not a bug, it's a gate" reading. Never scored, never stored.
     private func logFeatureStatus(_ st: OuraFeatureStatus) {
+        featureStatuses[st.feature] = st
         guard loggedFeatureStatuses.insert(st.feature).inserted else { return }
         let name: String
         switch UInt8(truncatingIfNeeded: st.feature) {
         case OuraCommands.featureSpO2:      name = "SpO2 (0x04)"
         case OuraCommands.featureRealSteps: name = "real_steps (0x0b)"
         case OuraCommands.featureDaytimeHR: name = "daytime-HR (0x02)"
+        case OuraCommands.featureExerciseHR: name = "exercise-HR (0x03)"
+        case OuraCommands.featureCvaPpg:     name = "cva-ppg (0x0d)"
         default:                            name = "0x\(String(st.feature, radix: 16))"
         }
         // A gated/unavailable feature reports ALL-ZERO (mode/status/state); the streaming daytime-HR, by
         // contrast, reads mode=1 status=0x11 state=2. Flag the all-zero case as the honest "cloud never
         // enabled it" — NOT `subscription==0` alone, since daytime-HR is subscription=0 yet active.
+        //
+        // BUT all-zero is no longer proof of that: `writeFeatureMode` (s7.5) can now produce the exact
+        // same bit pattern locally. Real-hardware confirmed 2026-09-11 — disabling SpO2 flipped mode 1→0,
+        // and the unqualified "cloud never enabled it" claim below would have been false on that very
+        // read. Only make the cloud-gate claim when nothing local produced this state.
         let off = st.mode == 0 && st.status == 0 && st.state == 0
-        let gate = off ? " - INACTIVE (server-gated off; the cloud never enabled it, not emitted offline)" : ""
+        let gate: String
+        if off && manuallyDisabledFeatures.contains(st.feature) {
+            gate = " - OFF (matches the manual disable just sent this connection; not evidence of a cloud gate either way)"
+        } else if off {
+            gate = " - INACTIVE (server-gated off; the cloud never enabled it, not emitted offline)"
+        } else {
+            gate = ""
+        }
         // Name the enum fields so the log reads plainly (OURA_PROTOCOL.md s7.1 [ring4-ble]) — e.g. a gated
         // feature prints `mode=0 (off) … subscription=0 (off)`, the active daytime-HR `mode=1 (automatic)`.
         log("Oura: feature status \(name) mode=\(st.mode) (\(Self.featureModeName(st.mode))) status=\(st.status) state=\(st.state) subscription=\(st.subscription) (\(Self.subscriptionName(st.subscription)))\(gate)")
@@ -2292,6 +2583,7 @@ extension OuraLiveSource: @preconcurrency CBCentralManagerDelegate {
         pendingSyncTime = nil
         loggedTierBKinds.removeAll()
         loggedFeatureStatuses.removeAll()
+        manuallyDisabledFeatures.removeAll()
         loggedProductInfo.removeAll()
         greenIbiAmpCount = 0
         greenIbiAmpLengths.removeAll()
@@ -2324,6 +2616,11 @@ extension OuraLiveSource: @preconcurrency CBCentralManagerDelegate {
             log("Oura: persisted resume cursor \(loadedCursor) exceeds the plausibility ceiling (pre-fix garbage) - full pull")
             OuraHistoryCursorStore.save(0, deviceId: deviceId)
         }
+        // The anchor from whatever session last adopted one — loaded BEFORE this session gets a chance to
+        // adopt its own, so `commitResumeCursor` can compare the two (#2097). `currentSyncAnchor` starts
+        // nil each session; nothing carries a stale in-memory anchor into a fresh connect.
+        previousSyncAnchor = OuraSyncAnchorStore.read(deviceId: deviceId)
+        currentSyncAnchor = nil
         peripheral.discoverServices([Self.service])
     }
 
@@ -2378,6 +2675,7 @@ extension OuraLiveSource: @preconcurrency CBCentralManagerDelegate {
         pendingSyncTime = nil
         loggedTierBKinds.removeAll()
         loggedFeatureStatuses.removeAll()
+        manuallyDisabledFeatures.removeAll()
         loggedProductInfo.removeAll()
         greenIbiAmpCount = 0
         greenIbiAmpLengths.removeAll()
@@ -2508,6 +2806,20 @@ extension OuraLiveSource: @preconcurrency CBPeripheralDelegate {
            let resp = OuraFraming.parseSyncTimeResponse(syncFrame.body) {
             handleSyncTimeResponse(resp)
         }
+        // The `0x21` user-info reply (`21 02 <type> <result>`) to a `0x20` write — EXPERIMENT ONLY, and
+        // peeked the same non-destructive way as the 0x11/0x13/0x0D frames above (op 0x21 is below the
+        // event-tag range >= 0x41, so it round-trips through the TLV decoder as a harmless unknown-tag
+        // no-op). ALWAYS-ON rather than Test-Centre-gated: a 0x21 can only appear if this build wrote a
+        // 0x20, which nothing but an explicit Test Centre action does, so it costs nothing when nothing
+        // happens and is exactly the evidence that is missing otherwise. Reports only what the ring said
+        // — `result` is the ring accepting the WRITE, and says nothing about whether 0x5c moved.
+        if let ackFrame = frames.first(where: { $0.op == 0x21 }),
+           let ack = parseOuraUserInfoAck([ackFrame.op, UInt8(ackFrame.body.count)] + ackFrame.body) {
+            let sent = lastUserInfoWrite.map { " (we wrote \($0.field.label)=\($0.valueHex) \(Int(Date().timeIntervalSince($0.at)))s ago)" } ?? " (no 0x20 write recorded this connection)"
+            log("Oura: 0x20 user-info ACK field=\(ack.field.label) result=\(ack.result)"
+                + (ack.isSuccess ? " (accepted)" : " (REFUSED)") + sent
+                + " - ring accepted the write only; whether 0x5c changes is a separate read")
+        }
         // The `0x0D` GetBattery response is ALSO an outer frame (never a TLV record, s6.10), detected the
         // same non-destructive way as the 0x11 summary: its op is below the event-tag range (>= 0x41), so
         // it round-trips safely through the TLV decoder as an "unknown tag" no-op if left unfiltered. Routed
@@ -2525,12 +2837,16 @@ extension OuraLiveSource: @preconcurrency CBPeripheralDelegate {
             let hex = frame.body.map { String(format: "%02x", $0) }.joined(separator: " ")
             guard loggedProductInfo.insert("\(frame.op):\(hex)").inserted else { continue }
             let ascii = String(bytes: frame.body.map { (0x20...0x7e).contains($0) ? $0 : 0x2e }, encoding: .ascii) ?? ""
-            log("Oura: product-info reply op=0x\(String(format: "%02x", frame.op)) (\(frame.body.count)B) raw: \(hex) | ascii: \(ascii)")
+            // #2092: decode BEFORE logging (was after) so the log line can tell a serial page from a
+            // hardware page — decode itself is unchanged, only reordered.
+            let decoded = OuraDecoders.productInfoString(frame.body)
+            let safe = Self.logSafeProductInfo(hex: hex, ascii: ascii, decoded: decoded)
+            log("Oura: product-info reply op=0x\(String(format: "%02x", frame.op)) (\(frame.body.count)B) raw: \(safe.hex) | ascii: \(safe.ascii)")
             // The two GetProductInfo pages both arrive under op 0x19; tell them apart by content:
             //  • hardware page ("BLB_03") → resolves a generation → correct the model (#772).
             //  • serial page ("2H3B2405003655", no "_NN" gen marker) → the ring's STABLE identity → surface it
             //    so the app can re-point this device onto its `oura-<serial>` id (#771).
-            if let str = OuraDecoders.productInfoString(frame.body) {
+            if let str = decoded {
                 if let gen = OuraRingGen.from(hardwareId: str) {
                     if gen != ringGen {
                         log("Oura: generation from hardware id \(str) is \(gen.displayName) (was \(ringGen.displayName)) - correcting model")
@@ -2548,16 +2864,27 @@ extension OuraLiveSource: @preconcurrency CBPeripheralDelegate {
             }
             // Any non-secure outer frames in the same notification are TLV records; fall through to decode.
             // The 0x25 ack (if any) is consumed above, so it never reaches here.
-            let tlvBytes = frames.filter { $0.op != OuraFraming.secureSessionOp && $0.op != Self.setAuthKeyRespOp }
-                                 .flatMap { [$0.op, UInt8($0.body.count)] + $0.body }
+            let nonSecureFrames = frames.filter { $0.op != OuraFraming.secureSessionOp && $0.op != Self.setAuthKeyRespOp }
+            let tlvBytes = nonSecureFrames.flatMap { [$0.op, UInt8($0.body.count)] + $0.body }
             if !tlvBytes.isEmpty {
-                rawDump?.record(bytes: tlvBytes)
+                let dumpBytes = Self.rawDumpBytes(nonSecureFrames)
+                if !dumpBytes.isEmpty {
+                    rawDump?.record(bytes: dumpBytes)
+                }
+                observeUserInfoRecords(in: tlvBytes)
                 ingestHistory(driver.ingest(notification: tlvBytes, reassembler: reassembler))
             }
             return
         }
-        // No secure frame in this notification: treat the whole value as TLV record bytes.
-        rawDump?.record(bytes: bytes)
+        // No secure frame in this notification: treat the whole value as TLV record bytes. `frames` was
+        // parsed from this WHOLE notification (line ~2495), so `rawDumpBytes(fromNotification:frames:)`
+        // appends whatever incomplete trailing frame `parseOuterFrames` had to leave behind (PR #2090
+        // review) — otherwise the sidecar silently loses exactly the wire bytes it exists to preserve.
+        let dumpBytes = Self.rawDumpBytes(fromNotification: bytes, frames: frames)
+        if !dumpBytes.isEmpty {
+            rawDump?.record(bytes: dumpBytes)
+        }
+        observeUserInfoRecords(in: bytes)
         ingestHistory(driver.ingest(notification: bytes, reassembler: reassembler))
     }
 
@@ -2583,6 +2910,11 @@ extension OuraLiveSource: @preconcurrency CBPeripheralDelegate {
             loggedAnchor = true
             log("Oura: UTC anchor from SyncTime response (0x13) \(source) - device rt \(rt) [\(unit), raw \(raw), status \(status)] = its receipt time; no 0x42 needed this session")
         }
+        // The freshest pair this session has adopted (mirrors `driver.adoptSyncTimeAnchor` always
+        // overwriting), kept for `commitResumeCursor`'s continuity check and persisted so the NEXT
+        // connection can compare against it as its own `previousSyncAnchor` (#2097).
+        currentSyncAnchor = (ringTicks: rt, unixSeconds: receivedAt)
+        OuraSyncAnchorStore.save(ringTicks: rt, unixSeconds: receivedAt, deviceId: deviceId)
         drainPendingAnchorEvents()
         drainPendingHypnogramBursts()
         return true
@@ -2590,11 +2922,15 @@ extension OuraLiveSource: @preconcurrency CBPeripheralDelegate {
 
     /// Anchor from the 0x13 SyncTime response (ringverse BLE.md `13 05 <device_ts:4LE> <status:1>`):
     /// the ring's clock counter at the moment it processed our SyncTime, paired with the host wall-clock
-    /// at receipt. The tick unit is disambiguated against a known-earlier ring-time
-    /// (OuraDriver.syncTimeAnchorCandidate — raw ticks vs seconds×10, exactly one must be plausible).
+    /// at receipt. The tick unit is disambiguated against a known ring-time
+    /// (OuraDriver.syncTimeAnchorCandidate — raw ticks vs seconds×10: exactly one must be plausible, or,
+    /// on a ring under ~5 days of clock where both are, exactly one must sit within an hour of the floor).
     /// At connect the only reference is the resume cursor, which is 0 on a fresh pair and may be far
     /// staler than the ring's clock; rather than discard the reply, PARK it and retry once history starts
-    /// landing (2026-09-02/03 captures). Still adopts NOTHING on ambiguity — an honest missing anchor beats a guessed one.
+    /// landing (2026-09-02/03 captures). The retry's floor (`drain.maxSeenRingTime`) is fed by records that
+    /// land AFTER the reply, so it may sit a few ticks past it — the candidate rule allows that trail; the
+    /// old rule did not, and adopted ×10 on a young ring (#2239). Still adopts NOTHING on ambiguity — an
+    /// honest missing anchor beats a guessed one.
     private func handleSyncTimeResponse(_ resp: (deviceTimestamp: UInt32, status: UInt8)) {
         let now = Int64(Date().timeIntervalSince1970)
         if adoptSyncTimeAnchor(deviceTimestamp: resp.deviceTimestamp, status: resp.status,
@@ -2709,5 +3045,37 @@ enum OuraHistoryCursorStore {
     /// Store the advanced cursor for `deviceId`.
     static func save(_ cursor: UInt32, deviceId: String) {
         UserDefaults.standard.set(Int(cursor), forKey: key(deviceId: deviceId))
+    }
+}
+
+// MARK: - Oura SyncTime anchor persistence (#2097)
+
+/// Persists the Oura ring's `0x13 SyncTime` (ring-ticks, wall-clock) anchor pair across connects, so a
+/// later connection can check whether the ring's own clock ran continuously since the last one —
+/// distinguishing a genuine power-cycle from a second BLE client (e.g. the Oura app) having served the
+/// ring in between, which otherwise looks identical to `OuraHistoryDrain.sawPreResumeData`
+/// (`OuraHistoryDrain.anchorsAreContinuous` does the actual comparison; this type only persists the
+/// inputs). Not sensitive — an opaque clock pairing, not a credential — so plain `UserDefaults`, same
+/// reasoning as `OuraHistoryCursorStore`.
+enum OuraSyncAnchorStore {
+    private static func ticksKey(deviceId: String) -> String { "com.noop.oura.syncAnchorTicks.\(deviceId)" }
+    private static func secondsKey(deviceId: String) -> String { "com.noop.oura.syncAnchorSeconds.\(deviceId)" }
+
+    /// The persisted anchor for `deviceId`, or nil if none is stored yet (a ring never anchored before,
+    /// or an install that predates this feature).
+    static func read(deviceId: String) -> (ringTicks: UInt32, unixSeconds: Int64)? {
+        let defaults = UserDefaults.standard
+        guard let ticksRaw = defaults.object(forKey: ticksKey(deviceId: deviceId)) as? Int,
+              let secondsRaw = defaults.object(forKey: secondsKey(deviceId: deviceId)) as? Int else {
+            return nil
+        }
+        return (ringTicks: UInt32(clamping: ticksRaw), unixSeconds: Int64(secondsRaw))
+    }
+
+    /// Store the freshest anchor for `deviceId`.
+    static func save(ringTicks: UInt32, unixSeconds: Int64, deviceId: String) {
+        let defaults = UserDefaults.standard
+        defaults.set(Int(ringTicks), forKey: ticksKey(deviceId: deviceId))
+        defaults.set(Int(unixSeconds), forKey: secondsKey(deviceId: deviceId))
     }
 }

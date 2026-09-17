@@ -15,6 +15,23 @@ import AppKit
 public enum KnownWorkoutType: String, CaseIterable, Sendable {
     case running = "Running"
     case walking = "Walking"
+    case nordicWalking = "Nordic walking"
+    case ballet = "Ballet"
+    case billiards = "Billiards"
+    case breakdancing = "Breakdancing"
+    case cheerleading = "Cheerleading"
+    case darts = "Darts"
+    case discGolf = "Disc golf"
+    case hurlingCamogie = "Hurling/Camogie"
+    case jiuJitsu = "Jiu jitsu"
+    case judo = "Judo"
+    case kiteboarding = "Kiteboarding"
+    case motocross = "Motocross"
+    case muayThai = "Muay Thai"
+    case paintball = "Paintball"
+    case parkour = "Parkour"
+    case polo = "Polo"
+    case skydiving = "Skydiving"
     case hiking = "Hiking"
     case cycling = "Cycling"
     case openWaterSwim = "Open-water swim"
@@ -154,8 +171,12 @@ public enum KnownWorkoutType: String, CaseIterable, Sendable {
         case s.contains("baseball"):                        return .baseball
         case s.contains("volley"):                          return .volleyball
         case s.contains("martial") || s.contains("jiu") || s.contains("judo")
-            || s.contains("karate") || s.contains("mma"):   return .martialArts
-        case s.contains("dance"):                           return .dancing
+            || s.contains("karate") || s.contains("mma") || s.contains("muay"):
+                                                            return .martialArts
+        // "danc" rather than "dance": the common inflection is "dancing", which does not contain
+        // "dance", so the exact catalogue name was the only thing matching. Breakdancing and any
+        // free-typed "dancing" fell through to the generic icon.
+        case s.contains("danc") || s.contains("ballet"):    return .dancing
         case s.contains("golf"):                            return .golf
         case s.contains("climb"):                           return .climbing
         case s.contains("stretch") || s.contains("mobility") || s.contains("flex"):
@@ -206,6 +227,49 @@ public enum WorkoutTypeIconography {
             return .system("figure.run")
         case .walking:
             return .system("figure.walk")
+        // The WHOOP-parity sports. Each needs a glyph no other sport uses: the live-workout
+        // control draws them side by side, and testCatalogueSportsHaveUniqueWorkoutTypeIcons
+        // enforces it. Several of these are approximations rather than true depictions, marked
+        // below, and each carries a fallback for an OS without the preferred symbol.
+        // Nordic walking: poles make it a different gait from a plain walk.
+        case .nordicWalking:
+            return systemOrCustom("figure.walk.motion", fallbackSystem: "figure.walk")
+        case .ballet:
+            return systemOrCustom("figure.barre", fallbackSystem: "figure.dance")
+        // Billiards: the eight ball, for want of a cue-sport symbol.
+        case .billiards:
+            return systemOrCustom("8.circle.fill", fallbackSystem: "circle.fill")
+        case .breakdancing:
+            return systemOrCustom("figure.socialdance", fallbackSystem: "figure.dance")
+        case .cheerleading:
+            return systemOrCustom("megaphone.fill", fallbackSystem: "star.fill")
+        case .darts:
+            return systemOrCustom("target", fallbackSystem: "circle.circle")
+        // Disc golf: the basket flag; figure.disc.sports belongs to Frisbee.
+        case .discGolf:
+            return systemOrCustom("flag.fill", fallbackSystem: "figure.disc.sports")
+        case .hurlingCamogie:
+            return systemOrCustom("sportscourt.fill", fallbackSystem: "figure.hockey")
+        case .jiuJitsu:
+            return systemOrCustom("figure.wrestling", fallbackSystem: "figure.martial.arts")
+        case .judo:
+            return systemOrCustom("figure.taichi", fallbackSystem: "figure.martial.arts")
+        case .kiteboarding:
+            return systemOrCustom("wind", fallbackSystem: "figure.surfing")
+        case .motocross:
+            return systemOrCustom("fuelpump.fill", fallbackSystem: "steeringwheel")
+        // Muay Thai: a strike; the three obvious martial symbols are taken.
+        case .muayThai:
+            return systemOrCustom("hand.raised.fill", fallbackSystem: "figure.martial.arts")
+        case .paintball:
+            return systemOrCustom("scope", fallbackSystem: "target")
+        case .parkour:
+            return systemOrCustom("figure.play", fallbackSystem: "figure.run")
+        // Polo: figure.equestrian.sports belongs to Horseback riding.
+        case .polo:
+            return systemOrCustom("flag.2.crossed.fill", fallbackSystem: "figure.equestrian.sports")
+        case .skydiving:
+            return systemOrCustom("airplane.departure", fallbackSystem: "wind")
         case .hiking:
             return systemOrCustom("figure.hiking", .hikingStick)
         case .cycling:
@@ -335,6 +399,23 @@ public enum WorkoutTypeIconography {
         switch type {
         case .running:          return "system:figure.run"
         case .walking:          return "system:figure.walk"
+        case .nordicWalking:   return "system:figure.walk.motion"
+        case .ballet:          return "system:figure.barre"
+        case .billiards:       return "system:8.circle.fill"
+        case .breakdancing:    return "system:figure.socialdance"
+        case .cheerleading:    return "system:megaphone.fill"
+        case .darts:           return "system:target"
+        case .discGolf:        return "system:flag.fill"
+        case .hurlingCamogie:  return "system:sportscourt.fill"
+        case .jiuJitsu:        return "system:figure.wrestling"
+        case .judo:            return "system:figure.taichi"
+        case .kiteboarding:    return "system:wind"
+        case .motocross:       return "system:fuelpump.fill"
+        case .muayThai:        return "system:hand.raised.fill"
+        case .paintball:       return "system:scope"
+        case .parkour:         return "system:figure.play"
+        case .polo:            return "system:flag.2.crossed.fill"
+        case .skydiving:       return "system:airplane.departure"
         case .hiking:           return "system:figure.hiking"
         case .cycling:          return "system:figure.outdoor.cycle"
         case .openWaterSwim:    return "system:figure.open.water.swim"

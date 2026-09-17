@@ -68,7 +68,9 @@
   "v64-complete-strength-workout-domain",
   "v65-strength-physiology-lifecycle",
   "v66-strength-workout-summary-pauses",
-  "v67-training-exercise-canonical-identity"
+  "v67-training-exercise-canonical-identity",
+  "v68-rr-source-index",
+  "v69-lift-log"
  ],
  "divergenceReasons": {
   "android-orphan-synced-column": "REAL COLUMN DRIFT: `synced` exists on Android only. GRDB's v10 note is explicit that stepSample gets no `synced` column ('unused; see StreamStore'), and v12's ppgHrSample never had one either; the Room entities copied the flag from the older per-second entities. Nothing reads it on Android — the per-row upload flag belongs to an upload path that does not exist there — so it is dead width, not divergent data. Removing it needs a Room table rebuild.",
@@ -2337,7 +2339,16 @@
     "rrMs",
     "seq"
    ],
-   "indices": []
+   "indices": [
+    {
+     "name": "rrInterval_source_suspect",
+     "unique": false,
+     "columns": [
+      "srcChannel",
+      "tsSuspect"
+     ]
+    }
+   ]
   },
   "scoreInputProvenance": {
    "platform": "both",
@@ -4045,6 +4056,438 @@
      "unique": false,
      "columns": [
       "workoutStartTs"
+     ]
+    }
+   ]
+  },
+  "liftExercise": {
+   "platform": "both",
+   "columns": [
+    {
+     "name": "id",
+     "affinity": "TEXT",
+     "notNull": false,
+     "default": null,
+     "android": {
+      "notNull": true
+     },
+     "divergence": "sqlite-text-pk-nullable"
+    },
+    {
+     "name": "deviceId",
+     "affinity": "TEXT",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "name",
+     "affinity": "TEXT",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "primaryMuscle",
+     "affinity": "TEXT",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "secondaryMuscles",
+     "affinity": "TEXT",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "createdAt",
+     "affinity": "INTEGER",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "lastUsedTs",
+     "affinity": "INTEGER",
+     "notNull": false,
+     "default": null
+    }
+   ],
+   "primaryKey": [
+    "id"
+   ],
+   "indices": [
+    {
+     "name": "idx_liftExercise_natural",
+     "unique": true,
+     "columns": [
+      "deviceId",
+      "name"
+     ]
+    }
+   ]
+  },
+  "liftProgram": {
+   "platform": "both",
+   "columns": [
+    {
+     "name": "id",
+     "affinity": "TEXT",
+     "notNull": false,
+     "default": null,
+     "android": {
+      "notNull": true
+     },
+     "divergence": "sqlite-text-pk-nullable"
+    },
+    {
+     "name": "deviceId",
+     "affinity": "TEXT",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "name",
+     "affinity": "TEXT",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "note",
+     "affinity": "TEXT",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "createdAt",
+     "affinity": "INTEGER",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "updatedAt",
+     "affinity": "INTEGER",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "archived",
+     "affinity": "INTEGER",
+     "notNull": true,
+     "default": "0"
+    }
+   ],
+   "primaryKey": [
+    "id"
+   ],
+   "indices": [
+    {
+     "name": "idx_liftProgram_device_updatedAt",
+     "unique": false,
+     "columns": [
+      "deviceId",
+      "updatedAt"
+     ]
+    }
+   ]
+  },
+  "liftProgramItem": {
+   "platform": "both",
+   "columns": [
+    {
+     "name": "id",
+     "affinity": "TEXT",
+     "notNull": false,
+     "default": null,
+     "android": {
+      "notNull": true
+     },
+     "divergence": "sqlite-text-pk-nullable"
+    },
+    {
+     "name": "deviceId",
+     "affinity": "TEXT",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "programId",
+     "affinity": "TEXT",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "ord",
+     "affinity": "INTEGER",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "exercise",
+     "affinity": "TEXT",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "targetSets",
+     "affinity": "INTEGER",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "targetRepsLow",
+     "affinity": "INTEGER",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "targetRepsHigh",
+     "affinity": "INTEGER",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "targetRpe",
+     "affinity": "REAL",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "targetWeightKg",
+     "affinity": "REAL",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "restSec",
+     "affinity": "INTEGER",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "note",
+     "affinity": "TEXT",
+     "notNull": false,
+     "default": null
+    }
+   ],
+   "primaryKey": [
+    "id"
+   ],
+   "indices": [
+    {
+     "name": "idx_liftProgramItem_device",
+     "unique": false,
+     "columns": [
+      "deviceId"
+     ]
+    },
+    {
+     "name": "idx_liftProgramItem_program_ord",
+     "unique": false,
+     "columns": [
+      "programId",
+      "ord"
+     ]
+    }
+   ]
+  },
+  "liftSession": {
+   "platform": "both",
+   "columns": [
+    {
+     "name": "id",
+     "affinity": "TEXT",
+     "notNull": false,
+     "default": null,
+     "android": {
+      "notNull": true
+     },
+     "divergence": "sqlite-text-pk-nullable"
+    },
+    {
+     "name": "deviceId",
+     "affinity": "TEXT",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "startTs",
+     "affinity": "INTEGER",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "endTs",
+     "affinity": "INTEGER",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "sport",
+     "affinity": "TEXT",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "programId",
+     "affinity": "TEXT",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "programName",
+     "affinity": "TEXT",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "sessionRpe",
+     "affinity": "REAL",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "note",
+     "affinity": "TEXT",
+     "notNull": false,
+     "default": null
+    }
+   ],
+   "primaryKey": [
+    "id"
+   ],
+   "indices": [
+    {
+     "name": "idx_liftSession_natural",
+     "unique": true,
+     "columns": [
+      "deviceId",
+      "startTs",
+      "sport"
+     ]
+    }
+   ]
+  },
+  "liftSet": {
+   "platform": "both",
+   "columns": [
+    {
+     "name": "id",
+     "affinity": "TEXT",
+     "notNull": false,
+     "default": null,
+     "android": {
+      "notNull": true
+     },
+     "divergence": "sqlite-text-pk-nullable"
+    },
+    {
+     "name": "deviceId",
+     "affinity": "TEXT",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "sessionId",
+     "affinity": "TEXT",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "ord",
+     "affinity": "INTEGER",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "exercise",
+     "affinity": "TEXT",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "primaryMuscle",
+     "affinity": "TEXT",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "secondaryMuscles",
+     "affinity": "TEXT",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "setIndex",
+     "affinity": "INTEGER",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "weightKg",
+     "affinity": "REAL",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "reps",
+     "affinity": "INTEGER",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "rpe",
+     "affinity": "REAL",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "isWarmup",
+     "affinity": "INTEGER",
+     "notNull": true,
+     "default": "0"
+    },
+    {
+     "name": "startTs",
+     "affinity": "INTEGER",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "endTs",
+     "affinity": "INTEGER",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "restSec",
+     "affinity": "INTEGER",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "note",
+     "affinity": "TEXT",
+     "notNull": false,
+     "default": null
+    }
+   ],
+   "primaryKey": [
+    "id"
+   ],
+   "indices": [
+    {
+     "name": "idx_liftSet_device_exercise",
+     "unique": false,
+     "columns": [
+      "deviceId",
+      "exercise"
+     ]
+    },
+    {
+     "name": "idx_liftSet_session_ord",
+     "unique": false,
+     "columns": [
+      "sessionId",
+      "ord"
      ]
     }
    ]

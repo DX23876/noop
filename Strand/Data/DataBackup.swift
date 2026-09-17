@@ -138,7 +138,7 @@ enum DataBackup {
     private struct ExportIntegrityFailure: LocalizedError {
         let complaint: String
         var errorDescription: String? {
-            String(localized: "the NOOP database failed its integrity check (SQLite reports: \(complaint)). A backup of it would not restore. Export the WHOOP-format CSV (Settings → Export data) to save what's still readable.")
+            String(localized: "the NOOP database failed its integrity check (SQLite reports: \(DatabaseIntegrity.readableComplaint(complaint))). A backup of it would not restore. Export the WHOOP-format CSV (Settings → Export data) to save what's still readable.")
         }
     }
 
@@ -149,6 +149,14 @@ enum DataBackup {
     private struct BackupWriteIncomplete: LocalizedError {
         var errorDescription: String? {
             String(localized: "the backup file was written incompletely (its database entry is missing or truncated). Free up space or check the backup folder, then try again.")
+        }
+    }
+
+    /// Thrown when the written backup could not be READ BACK to check it, which is not the same thing as
+    /// finding it damaged and must not be reported as though it were. The file is left where it is.
+    private struct BackupWriteUnverified: LocalizedError {
+        var errorDescription: String? {
+            String(localized: "the backup file was written, but couldn't be read back to check it, so it has been left in place rather than deleted. Open it before you rely on it, or export again somewhere else.")
         }
     }
 
@@ -170,23 +178,66 @@ enum DataBackup {
         return .exportedOversize(dest, bytes: bytes, limit: maxBackupSQLiteBytes)
     }
 
+    /// The smallest a real database entry can be: SQLite's own file header is exactly this long, so
+    /// anything shorter cannot be a database whatever else it looks like.
+    static let minimumBackupEntryBytes: UInt32 = 100
+
+    /// Whether the `.noopbak` at `url` is a COMPLETE archive carrying a plausible database entry.
+    ///
+    /// #1014 (write-side): the SOURCE is verified before archiving, but the PRODUCED file can still be
+    /// torn by a full disk, a dying filesystem, or a cloud client that drops the tail mid-write, and such
+    /// a truncated `.noopbak` otherwise "restores" into an empty store, caught only by the import-side
+    /// quick_check much later, when the original may be long gone.
+    ///
+    /// Opening an `Archive` for reading parses the CENTRAL DIRECTORY, which lives at the end of a ZIP, so
+    /// a file cut short does not open at all. That is cheap (an index read, no extraction) and is what
+    /// makes this catch truncation rather than merely mis-content.
+    ///
+    /// Extracted from `writeVerifiedBackupZip` so it can be driven against hand-built archives: this
+    /// guard has protected every export since #1014 and, until now, had no test of its own. The Android
+    /// twin is `DataBackup.hasEndOfCentralDirectory` plus `backupStreamIsIntact`, which has to find the
+    /// end record itself because `ZipInputStream` never looks for one.
+    /// What a post-write check concluded about the file just produced.
+    ///
+    /// `unverifiable` exists so that failing to READ a backup is never mistaken for evidence against it.
+    /// The caller DELETES a `torn` file, and deleting on "we could not look" would let a transient read
+    /// failure destroy a backup that was perfectly good. Twin of the Android `BackupWriteVerdict`.
+    enum BackupWriteVerdict: Equatable { case intact, torn, unverifiable }
+
+    /// Re-read the `.noopbak` just written to `url` and say what it looks like.
+    ///
+    /// Unreadable is its own answer rather than a bad one: it says nothing about the CONTENT, and the
+    /// caller's response to `torn` is destructive. Past that gate a file that will not open as an
+    /// archive really is torn, because opening one only reads the central directory a complete ZIP has.
+    static func verifyWrittenBackup(at url: URL) -> BackupWriteVerdict {
+        guard FileManager.default.isReadableFile(atPath: url.path) else { return .unverifiable }
+        guard let written = try? Archive(url: url, accessMode: .read),
+              let dbEntry = written.first(where: { ($0.path as NSString).lastPathComponent == backupEntryName }),
+              dbEntry.uncompressedSize >= minimumBackupEntryBytes else { return .torn }
+        return .intact
+    }
+
+    /// Convenience over `verifyWrittenBackup(at:)` for callers that only care whether it passed.
+    static func writtenBackupIsIntact(at url: URL) -> Bool {
+        verifyWrittenBackup(at: url) == .intact
+    }
+
     private static func writeVerifiedBackupZip(dbURL: URL, to dest: URL, settingsJSON: Data?) throws {
         if let complaint = DatabaseIntegrity.quickCheckFailure(atPath: dbURL.path) {
             throw ExportIntegrityFailure(complaint: complaint)
         }
         try writeBackupZip(dbURL: dbURL, to: dest, settingsJSON: settingsJSON, manifestJSON: currentManifestJSON())
-        // #1014 (write-side): the SOURCE is verified above, but the PRODUCED file can still be torn by a
-        // full disk / dying filesystem / flaky cloud-sync mid-write, and such a truncated `.noopbak`
-        // otherwise "restores" into an empty store — caught only by the import-side quick_check much later.
-        // Re-open the file we just wrote (a cheap central-directory read, no extraction — and a torn file
-        // has no valid trailing central directory, so it won't even open) and confirm its DB entry is
-        // present and non-empty (a SQLite header alone is 100 bytes). Fail HERE if not, and don't leave a
-        // corrupt file behind masquerading as a good snapshot. Twin of the Android post-write check.
-        guard let written = try? Archive(url: dest, accessMode: .read),
-              let dbEntry = written.first(where: { ($0.path as NSString).lastPathComponent == backupEntryName }),
-              dbEntry.uncompressedSize >= 100 else {
+        switch verifyWrittenBackup(at: dest) {
+        case .intact:
+            break
+        case .torn:
+            // Never leave a corrupt file behind masquerading as a good snapshot.
             try? FileManager.default.removeItem(at: dest)
             throw BackupWriteIncomplete()
+        case .unverifiable:
+            // Failing to READ it back is not evidence against it, so it is LEFT IN PLACE. Deleting here
+            // would let a transient read failure destroy a backup that was perfectly good.
+            throw BackupWriteUnverified()
         }
     }
 
@@ -429,7 +480,7 @@ enum DataBackup {
             && (fm.fileExists(atPath: source.path + "-wal") || fm.fileExists(atPath: source.path + "-shm"))
         if !legacySidecarsPresent,
            let complaint = DatabaseIntegrity.quickCheckFailure(atPath: source.path) {
-            return .failure(String(localized: "This backup file is damaged and can't be restored (SQLite reports: \(complaint)). Your current data was left untouched. Try an earlier backup file."))
+            return .failure(String(localized: "This backup file is damaged and can't be restored (SQLite reports: \(DatabaseIntegrity.readableComplaint(complaint))). Your current data was left untouched. Try an earlier backup file."))
         }
 
         let dbURL = URL(fileURLWithPath: dbPath)
@@ -479,11 +530,11 @@ enum DataBackup {
                 removeIfPresent(dbURL)
                 if sidecar != dbURL, fm.fileExists(atPath: sidecar.path) {
                     try? fm.copyItem(at: sidecar, to: dbURL)
-                    return .failure(String(localized: "Import failed its post-restore integrity check (SQLite reports: \(complaint)). Your previous data was rolled back automatically and is unchanged."))
+                    return .failure(String(localized: "Import failed its post-restore integrity check (SQLite reports: \(DatabaseIntegrity.readableComplaint(complaint))). Your previous data was rolled back automatically and is unchanged."))
                 }
                 // Fresh install: there was no previous store to preserve, so removing the damaged
                 // file (done above) restores the exact pre-import state — an empty slate.
-                return .failure(String(localized: "Import failed its post-restore integrity check (SQLite reports: \(complaint)). The damaged file was removed; there was no previous data to roll back."))
+                return .failure(String(localized: "Import failed its post-restore integrity check (SQLite reports: \(DatabaseIntegrity.readableComplaint(complaint))). The damaged file was removed; there was no previous data to roll back."))
             }
 
             // Restore sidecars only for legacy plain-SQLite backups whose WAL wasn't

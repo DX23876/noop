@@ -300,3 +300,46 @@ final class ConnectionReadoutTests: XCTestCase {
         XCTAssertEqual(ConnectionReadout.lastFrameLabel(lastFrameUnix: nil, nowUnix: 1_002), "no frames yet")
     }
 }
+
+/// #2117: the R-R transport line, which states when beats were first banked and first labelled, and
+/// nothing about what can be scored (this fork scores unlabelled beats per beat).
+final class UniversalTraceRRTransportTests: XCTestCase {
+
+    /// A device that is not a WHOOP 5 says nothing at all, so a WHOOP 4 export is byte-unchanged.
+    func testANonWhoop5DeviceEmitsNothing() {
+        XCTAssertNil(UniversalTrace.rrTransportLine(strictWhoop5: false, firstRecordedUnix: 1_750_000_000,
+                                                    firstLabelledUnix: nil))
+    }
+
+    /// Beats on disk, none of them labelled: the whole history predates labelling. Stated as a fact, with
+    /// no claim that those beats are unscorable.
+    func testBeatsOnDiskButNoneLabelledIsStatedWithoutAScoringClaim() {
+        let line = UniversalTrace.rrTransportLine(strictWhoop5: true, firstRecordedUnix: 1_750_000_000,
+                                                  firstLabelledUnix: nil)
+        XCTAssertEqual(line, "rrTransport recorded=2025-06-15 15:06:40 labelled=none")
+        XCTAssertFalse(line!.contains("scorable"))
+    }
+
+    /// A strap that has never banked a beat is a different report from one with unlabelled history.
+    func testNoHistoryAtAll() {
+        XCTAssertEqual(UniversalTrace.rrTransportLine(strictWhoop5: true, firstRecordedUnix: nil,
+                                                      firstLabelledUnix: nil),
+                       "rrTransport recorded=none labelled=none")
+    }
+
+    /// The WHOLE line, byte for byte: field order, spacing and the shared date format.
+    func testTheWholeLineIsPinnedByteForByte() {
+        XCTAssertEqual(
+            UniversalTrace.rrTransportLine(strictWhoop5: true, firstRecordedUnix: 1_750_000_000,
+                                           firstLabelledUnix: 1_752_592_000),
+            "rrTransport recorded=2025-06-15 15:06:40 labelled=2025-07-15 15:06:40 unlabelledDays=30"
+        )
+    }
+
+    /// Labelled from the first beat: zero unlabelled days, said plainly.
+    func testAFullyLabelledHistorySaysSo() {
+        let line = UniversalTrace.rrTransportLine(strictWhoop5: true, firstRecordedUnix: 1_750_000_000,
+                                                  firstLabelledUnix: 1_750_000_000)
+        XCTAssertTrue(line!.hasSuffix("unlabelledDays=0"))
+    }
+}

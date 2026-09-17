@@ -281,12 +281,14 @@ final class Collector {
 
     /// Buffer one standard Heart-Rate-Measurement reading. No clock correlation needed —
     /// these carry a wall-clock `ts` directly. Auto-flushes ~every 30 readings (~30s).
-    func ingestStandardHR(hr: Int, rr: [Int], contact: StandardHRContact? = nil, at ts: Int) {
+    func ingestStandardHR(hr: Int, rr: [Int], contact: StandardHRContact? = nil,
+                          family: DeviceFamily? = nil, at ts: Int) {
         let acceptedHR = (30...220).contains(hr) ? 1 : 0
         let acceptedRR = rr.filter { (250...3000).contains($0) }
         if acceptedHR == 1 { stdHR.append(HRSample(ts: ts, bpm: hr)) }
+        let source: RRSourceChannel? = family == .whoop5 ? .whoop5Standard : nil
         stdRR.append(contentsOf: RrBatchTimestamps.spread(frameTs: ts, rrMs: acceptedRR).map {
-            RRInterval(ts: $0.ts, rrMs: $0.rrMs, transport: .standardHeartRate)
+            RRInterval(ts: $0.ts, rrMs: $0.rrMs, srcChannel: source, transport: .standardHeartRate)
         })
         // Only the CHANGES. Advanced here rather than at flush because the event travels in the buffer
         // until it persists: a failed insert re-inserts it at the front, so nothing has to be unwound.

@@ -4,11 +4,23 @@ import StrandDesign
 /// One truth table for every header battery control. A percentage that outlived its Bluetooth link is
 /// deliberately offline, never a current reading.
 enum StrapBatteryDisplayState: Equatable {
+    /// No link — say nothing about charge. A stale % is worse than no %.
     case offline
+    /// Linked, but no charge reading has landed yet. `charging` is still knowable on its own.
     case pending(charging: Bool)
+    /// A reading from the current link, clamped to 0…100.
     case charge(pct: Double, charging: Bool)
+    /// The strap is not the active device (#2208), so there is no charge of the active device to show.
+    ///
+    /// Distinct from [offline], which asserts a strap that IS active is not connected. Collapsing the two
+    /// put "strap not connected" on the header of a wearer whose ring was streaming. (#2216)
+    case notActiveDevice
 
-    static func resolve(connected: Bool, batteryPct: Double?, charging: Bool?) -> Self {
+    /// `activeIsWhoop` is required, not defaulted: `connected` is true the moment ANY source streams and
+    /// `batteryPct` is the strap's and never cleared, so without it an active ring drew the strap's charge.
+    /// A defaulted flag is one a future call site can forget, reinstating #2208 in a form that compiles.
+    static func resolve(activeIsWhoop: Bool, connected: Bool, batteryPct: Double?, charging: Bool?) -> Self {
+        guard activeIsWhoop else { return .notActiveDevice }
         guard connected else { return .offline }
         guard let batteryPct else { return .pending(charging: charging == true) }
         return .charge(pct: min(100, max(0, batteryPct)), charging: charging == true)
@@ -69,37 +81,44 @@ struct DashboardBatteryButton: View {
     var size: CGFloat = 36
 
     private var state: StrapBatteryDisplayState {
-        .resolve(connected: live.connected, batteryPct: live.batteryPct, charging: live.charging)
+        .resolve(activeIsWhoop: live.activeIsWhoop, connected: live.connected,
+                 batteryPct: live.batteryPct, charging: live.charging)
     }
 
     var body: some View {
-        NavigationLink(value: TabRoute.battery) {
-            // A reading shows the NUMBER beside the ring. The ring alone carried the level only as a
-            // colour and an arc — the percentage existed for VoiceOver but not for anyone looking at the
-            // screen, while Today's own row has shown "87% · ~3 days left" all along. Offline and
-            // not-yet-read stay a plain circle: there is no number to show, and a capsule sized for one
-            // would leave a gap.
-            HStack(spacing: 5) {
-                ring
-                if case .charge(let pct, _) = state {
-                    Text(StrapBatteryCopy.percentText(pct))
-                        .font(StrandFont.captionNumber)
-                        .foregroundStyle(StrandPalette.textSecondary)
-                        .lineLimit(1)
-                        .fixedSize()
+        // Not drawn when the strap is not the active device: every glyph would be a claim about a strap
+        // nobody is wearing. (#2208)
+        if case .notActiveDevice = state {
+            EmptyView()
+        } else {
+            NavigationLink(value: TabRoute.battery) {
+                // A reading shows the NUMBER beside the ring. The ring alone carried the level only as a
+                // colour and an arc — the percentage existed for VoiceOver but not for anyone looking at the
+                // screen, while Today's own row has shown "87% · ~3 days left" all along. Offline and
+                // not-yet-read stay a plain circle: there is no number to show, and a capsule sized for one
+                // would leave a gap.
+                HStack(spacing: 5) {
+                    ring
+                    if case .charge(let pct, _) = state {
+                        Text(StrapBatteryCopy.percentText(pct))
+                            .font(StrandFont.captionNumber)
+                            .foregroundStyle(StrandPalette.textSecondary)
+                            .lineLimit(1)
+                            .fixedSize()
+                    }
+                }
+                .padding(.trailing, isCharge ? 8 : 0)
+                .background {
+                    if isCharge {
+                        Capsule().fill(StrandPalette.surfaceInset)
+                            .overlay(Capsule().stroke(StrandPalette.hairline, lineWidth: 1))
+                    }
                 }
             }
-            .padding(.trailing, isCharge ? 8 : 0)
-            .background {
-                if isCharge {
-                    Capsule().fill(StrandPalette.surfaceInset)
-                        .overlay(Capsule().stroke(StrandPalette.hairline, lineWidth: 1))
-                }
-            }
+            .buttonStyle(.plain)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(accessibilityText)
         }
-        .buttonStyle(.plain)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(accessibilityText)
     }
 
     private var isCharge: Bool { if case .charge = state { return true }; return false }
@@ -109,7 +128,7 @@ struct DashboardBatteryButton: View {
             Circle().fill(StrandPalette.surfaceInset)
             Circle().stroke(StrandPalette.hairline, lineWidth: 1)
             switch state {
-            case .offline:
+            case .offline, .notActiveDevice:
                 Image(systemName: "battery.0").foregroundStyle(StrandPalette.textTertiary)
             case .pending(let charging):
                 Image(systemName: charging ? "bolt.fill" : "ellipsis")
@@ -132,6 +151,7 @@ struct DashboardBatteryButton: View {
 
     private var accessibilityText: String {
         switch state {
+        case .notActiveDevice: return ""   // not drawn; the label is unreachable and must not claim anything
         case .offline: return String(localized: "Strap battery, strap not connected")
         case .pending(let charging): return charging
             ? String(localized: "Strap battery charging, no reading yet")
@@ -155,7 +175,8 @@ struct BatteryDetailView: View {
     @EnvironmentObject private var router: NavRouter
 
     private var state: StrapBatteryDisplayState {
-        .resolve(connected: live.connected, batteryPct: live.batteryPct, charging: live.charging)
+        .resolve(activeIsWhoop: live.activeIsWhoop, connected: live.connected,
+                 batteryPct: live.batteryPct, charging: live.charging)
     }
 
     var body: some View {
@@ -206,7 +227,7 @@ struct BatteryDetailView: View {
 
     @ViewBuilder private var batteryGauge: some View {
         switch state {
-        case .offline:
+        case .offline, .notActiveDevice:
             Image(systemName: "battery.0")
                 .font(.system(size: 52, weight: .light)).foregroundStyle(StrandPalette.textTertiary)
         case .pending(let charging):
@@ -234,6 +255,7 @@ struct BatteryDetailView: View {
 
     private var statusText: String {
         switch state {
+        case .notActiveDevice: return String(localized: "Strap is not the active device")
         case .offline: return String(localized: "Strap not connected")
         case .pending(let charging): return charging ? String(localized: "Charging · waiting for a reading") : String(localized: "Waiting for a battery reading")
         case .charge(_, let charging): return charging ? String(localized: "Charging") : String(localized: "On battery")
@@ -242,6 +264,7 @@ struct BatteryDetailView: View {
 
     private var detailText: String? {
         switch state {
+        case .notActiveDevice: return nil
         case .offline: return String(localized: "Connect your device to request a current battery level.")
         case .pending: return String(localized: "NOOP requested a fresh reading. Some devices report it only after the connection is fully ready.")
         case .charge:

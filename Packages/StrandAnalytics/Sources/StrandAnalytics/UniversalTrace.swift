@@ -18,6 +18,28 @@ import Foundation
 
 public enum UniversalTrace {
 
+    /// The R-R transport line: when a WHOOP 5 banked its first beat at all, and its first beat on a
+    /// channel that labels its unit.
+    ///
+    /// #2117 context: upstream pinned a WHOOP 5 window to one labelled transport, so history banked before
+    /// labelling read back EMPTY and HRV / Charge went blank. This fork scores every beat, choosing per beat
+    /// by precedence (`RRTransportReconciler`), so the line asserts nothing about what can be scored. It
+    /// states the two facts a report needs to tell apart "the strap banked nothing" from "the history
+    /// predates labelling": the dates, and how many days of beats carry no unit label.
+    ///
+    /// Returns nil for a device that is not a WHOOP 5, so a WHOOP 4 export is unchanged.
+    public static func rrTransportLine(strictWhoop5: Bool,
+                                       firstRecordedUnix: Int?,
+                                       firstLabelledUnix: Int?) -> String? {
+        guard strictWhoop5 else { return nil }
+        guard let firstRecordedUnix else { return "rrTransport recorded=none labelled=none" }
+        let recorded = "recorded=\(ConnectionTrace.isoDate(firstRecordedUnix))"
+        guard let firstLabelledUnix else { return "rrTransport \(recorded) labelled=none" }
+        let unlabelledDays = max(0, Int((Double(firstLabelledUnix - firstRecordedUnix) / 86_400).rounded()))
+        return "rrTransport \(recorded) labelled=\(ConnectionTrace.isoDate(firstLabelledUnix)) "
+            + "unlabelledDays=\(unlabelledDays)"
+    }
+
     /// The universal strap-clock line: the strap's newest banked-record timestamp vs wall clock, with a
     /// FUTURE-DATE flag (the tell of a wandering / un-clocked RTC), the optional banked span in days, and the
     /// firmware record-layout version the strap hands over. One line, tagged `.universal` by the caller, so

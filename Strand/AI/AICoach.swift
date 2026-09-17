@@ -1559,6 +1559,9 @@ final class AICoachEngine: ObservableObject {
     func send(_ userText: String) async {
         let trimmed = userText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { errorText = AICoachError.emptyQuestion.errorDescription; return }
+        // The master switch, checked at the EGRESS rather than only on the routes in: a wearer can be
+        // STANDING on this screen when the switch goes off, and that path passes no tab. (#2269)
+        guard CoachBriefScheduler.coachMasterEnabled else { return }
         guard let key = resolvedKey else { errorText = AICoachError.noKey.errorDescription; return }
         // Catch an unset model here rather than letting it reach the provider: every server answers a
         // `"model": ""` body with an opaque 400 that gives the user nothing to act on.

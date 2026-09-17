@@ -34,10 +34,11 @@ public enum StandardHRContact: String, Equatable, Codable, Sendable {
     }
 }
 
-/// WHICH sensor channel produced an R-R interval (#1071).
+/// The sensor channel or transport that produced an R-R interval.
 ///
-/// A WHOOP strap has ONE beat source, so its rows carry no channel (nil) and nothing here changes for
-/// them. An Oura ring has more than one: the green-quality tag (0x80) and the SpO2 tag (0x6E) both
+/// WHOOP 5 exposes one beat train over multiple transports; codes 5–7 distinguish those observations.
+/// WHOOP 4 and unlabelled legacy rows keep nil. An Oura ring has more than one optical channel:
+/// the green-quality tag (0x80) and the SpO2 tag (0x6E) both
 /// decode to R-R and both were stored, so the table held roughly TWO complete copies of every night —
 /// not duplicate rows to de-duplicate, but the SAME heartbeats measured twice. Labelling the channel is
 /// what lets scoring read one copy while both stay on disk as each other's cross-check.
@@ -63,6 +64,14 @@ public enum RRSourceChannel: Int, Equatable, Codable, Sendable, CaseIterable {
     /// is the question the channel choice for scoring rests on, and no stored night could answer it.
     /// Labelling only — both are read exactly as before.
     case ibiBare = 4
+    /// WHOOP 5 v18 history, converted from wire ticks to milliseconds.
+    case whoop5Historical = 5
+    /// WHOOP 5 type-40 live transport, converted from wire ticks to milliseconds.
+    case whoop5Realtime = 6
+    /// WHOOP 5 standard BLE 0x2A37 live transport, already converted to milliseconds.
+    case whoop5Standard = 7
+
+    public var isWhoop5Transport: Bool { (5...7).contains(rawValue) }
 }
 
 /// Transport that delivered an R-R interval to the app.
@@ -82,7 +91,7 @@ public struct RRInterval: Equatable, Codable {
     public let ts: Int          // wall-clock unix seconds
     public let rrMs: Int
     /// The sensor channel this beat came from, or nil when the source does not distinguish one (every
-    /// WHOOP row, and every row written before the column existed). See `RRSourceChannel`.
+    /// WHOOP 4 row, and legacy unlabelled rows). See `RRSourceChannel`.
     public let srcChannel: RRSourceChannel?
     /// How this beat reached the app. nil means a legacy row written before transport provenance existed,
     /// or a source (such as Oura) for which the optical `srcChannel` already identifies the stream.
@@ -94,8 +103,8 @@ public struct RRInterval: Equatable, Codable {
     /// It is the one field that separates the two remaining explanations for a second carrying seven
     /// beats: contiguous ords mean ONE record's array carried them all, so the over-count is in the
     /// record's contents; repeated or non-monotonic ords mean SEPARATE deliveries each contributed to
-    /// that second, so the over-count is accumulation across offloads. WHOOP's wire format has no
-    /// channel field, so `srcChannel` can never answer this for a strap — `ord` is what is left.
+    /// that second, so the over-count is accumulation across offloads. WHOOP 5 transport labels
+    /// separate live/history origins, while `ord` preserves the array order within the selected origin.
     public let ord: Int?
     /// Storage identity for equal beats in the same second. Defaults to zero so wire decoders and
     /// callers that predate the widened database key remain source- and behaviour-compatible.
@@ -828,11 +837,16 @@ private func toWall(_ deviceTs: Int?, _ deviceClockRef: Int, _ wallClockRef: Int
 ///
 /// HR/R-R are taken ONLY from REALTIME_DATA (type 40). REALTIME_RAW_DATA (type 43) also
 /// carries an HR byte but streams alongside type-40 during raw collection, so routing both
-/// would double-count HR for the same instants. CRC-failed and non-ok frames are skipped.
+/// would double-count HR for the same instants. Frames whose integrity verdict is negative are
+/// skipped — no row is derived from a frame that is not intact.
 public func extractStreams(_ parsed: [ParsedFrame],
                            deviceClockRef: Int, wallClockRef: Int) -> Streams {
     var out = Streams()
     for r in parsed {
+        // `ok` is now the FULL verdict — header checksum, payload CRC32 and structural length — so it
+        // alone rejects everything the two-part check used to. The `crcOK` half is kept for the same
+        // reason as in `extractHistoricalStreams`: a parse result decoded from a capture written before
+        // the verdict widened carries the old constant `ok: true` beside a false `crcOK`.
         if !r.ok || r.crcOK == false { continue }
         let p = r.parsed
         switch r.typeName {
@@ -845,8 +859,9 @@ public func extractStreams(_ parsed: [ParsedFrame],
             if let ts = ts, let rrs = p["rr_intervals"]?.intArrayValue {
                 // #1118: the batch is spread across the time it describes — stamping every
                 // interval at the frame put ~1.5s of beats on 1s of clock. See RrBatchTimestamps.
+                let source = p["rr_source_channel"]?.intValue.flatMap(RRSourceChannel.init(rawValue:))
                 for placed in RrBatchTimestamps.spread(frameTs: ts, rrMs: rrs) {
-                    out.rr.append(RRInterval(ts: placed.ts, rrMs: placed.rrMs,
+                    out.rr.append(RRInterval(ts: placed.ts, rrMs: placed.rrMs, srcChannel: source,
                                              transport: .whoopRealtime))
                 }
             }

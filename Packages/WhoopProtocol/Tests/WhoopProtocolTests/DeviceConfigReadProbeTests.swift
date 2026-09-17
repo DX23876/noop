@@ -51,6 +51,24 @@ final class DeviceConfigReadProbeTests: XCTestCase {
 
     private var flagKeys: [String] { Whoop5Config.enableR22Sequence.map(\.name) }
 
+    func testObservedWhoop5FlagsAreReadWithoutExtendingTheWriteSequence() {
+        let keys = DeviceConfigReadProbe.knownFlagKeys(for: .whoop5)
+        var report = DeviceConfigReadProbeReport(family: .whoop5, knownFlagKeys: keys,
+                                                 candidateKeys: [])
+        while let step = report.nextStep() {
+            XCTAssertTrue(DeviceConfigReadProbe.isReadOnlyOpcode(step.opcode))
+            report.noteReply(.init(resultCode: 1, record: echoRecord(step.key, value: 0x31)), for: step)
+        }
+        let flagReads = report.readings.filter { $0.opcode == DeviceConfigReadProbe.getFeatureFlagValueCmd }
+        XCTAssertEqual(flagReads.count, 20, "the complete hardware enumeration contained twenty names")
+        XCTAssertEqual(Set(flagReads.map(\.key)), Set(keys))
+        XCTAssertEqual(report.steps, 21, "one read per flag plus the existing device-config discovery")
+        XCTAssertEqual(flagKeys.count, 16, "the write sequence must not inherit read-only discoveries")
+        XCTAssertEqual(DeviceConfigReadProbe.knownFlagKeys(for: .whoop4), flagKeys)
+        XCTAssertTrue(report.render().contains("includes names observed in strap enumeration"))
+        XCTAssertFalse(report.render().contains("names NOOP already writes; values never read before"))
+    }
+
     // MARK: - The read-only allowlist (the hard safety constraint)
 
     func testAllowlistAdmitsOnlyTheTwoReadVerbs() {
@@ -139,6 +157,73 @@ final class DeviceConfigReadProbeTests: XCTestCase {
         }
         XCTAssertTrue(r.isUnsupported)
         XCTAssertNil(r.value(for: "whatever"), "an UNSUPPORTED reply must never yield a value")
+    }
+
+    // These were gated to macOS because that is where the hardware run happened. The behaviour they
+    // pin is not macOS-specific, and gating them meant the guard-only test could not compile on the
+    // platform where the guard was missing: `Executed 0 tests` off macOS, against a probe that builds
+    // for iOS. A test that only runs where the bug is already fixed cannot catch the bug. (#2193)
+    func testEchoedFailureBytesAreNotReportedAsStoredValues() {
+        // The live WHOOP 5 oxygen-key reads returned FAILURE with the requested key and zeroes.
+        for result in [UInt8(0), 2, 3] {
+            let frame = whoop5Response(cmd: 121,
+                                      payload: payload(result: result,
+                                                       record: echoRecord("enable_spo2", value: 0)))
+            guard case .success(let reply) = DeviceConfigReadProbe.parse(frame: frame, family: .whoop5,
+                                                                       expecting: 121) else {
+                return XCTFail("the response is valid framing even when the read failed")
+            }
+            var report = DeviceConfigReadProbeReport(family: .whoop5, knownFlagKeys: [],
+                                                     candidateKeys: [])
+            report.noteReply(reply, for: .init(opcode: 121, key: "enable_spo2", group: .candidate))
+            XCTAssertEqual(reply.value(for: "enable_spo2"), 0, "the shared byte decoder remains unchanged")
+            XCTAssertNil(report.readings.first?.value)
+            if result == 3 {
+                XCTAssertEqual(report.verdict,
+                               "no read verb answered — GET_FF_VALUE(128) not asked; GET_DEVICE_CONFIG_VALUE(121) refused by firmware (UNSUPPORTED)")
+            } else {
+                XCTAssertEqual(report.verdict,
+                               "1 of 2 read verbs answered, but no reply reported success; no value is claimed")
+            }
+            XCTAssertFalse(report.render().contains("value=0x00"))
+        }
+    }
+
+    func testSuccessfulReplyWithoutAKeyValueHasADistinctVerdict() {
+        var report = DeviceConfigReadProbeReport(family: .whoop5, knownFlagKeys: [], candidateKeys: [])
+        report.noteReply(.init(resultCode: 1, record: [1, 0]),
+                         for: .init(opcode: 128, key: "enable_r22_packets", group: .discovery))
+        XCTAssertEqual(report.verdict,
+                       "1 of 2 read verbs answered, but no successful reply carried a verified key/value pair; no value is claimed")
+    }
+
+    func testReportDoesNotPresentAFailedReadAsAStoredValue() {
+        // Guard-only: uses nothing this change added, so dropping the result-code check fails an
+        // assertion here rather than the build. The FAILURE and SUCCESS frames carry identical records.
+        let record = echoRecord("enable_rocky2", value: 0)
+        func report(result: UInt8) -> DeviceConfigReadProbeReport {
+            let frame = whoop5Response(cmd: 128, payload: payload(result: result, record: record))
+            guard case .success(let reply) = DeviceConfigReadProbe.parse(frame: frame, family: .whoop5,
+                                                                       expecting: 128) else {
+                XCTFail("the response is valid framing even when the read failed")
+                return DeviceConfigReadProbeReport(family: .whoop5, knownFlagKeys: [], candidateKeys: [])
+            }
+            XCTAssertEqual(reply.value(for: "enable_rocky2"), 0,
+                           "the fixture must be the dangerous shape: key echoed, zero byte after the field")
+            var report = DeviceConfigReadProbeReport(family: .whoop5, knownFlagKeys: [], candidateKeys: [])
+            report.noteReply(reply, for: .init(opcode: 128, key: "enable_rocky2", group: .knownFlag))
+            return report
+        }
+
+        let failed = report(result: 0)
+        XCTAssertEqual(failed.readings.count, 1, "the rejected read is still recorded")
+        XCTAssertEqual(failed.readings.first?.resultCode, 0)
+        XCTAssertNil(failed.readings.first?.value, "a FAILURE reply must not be reported as a stored 0")
+        XCTAssertFalse(failed.render().contains("value="))
+
+        let succeeded = report(result: 1)
+        XCTAssertEqual(succeeded.readings.first?.value, 0, "a SUCCESS reply holding 0 is still a real 0")
+        XCTAssertTrue(succeeded.render().contains("value=0x00"))
     }
 
     func testNoValueIsClaimedWhenTheReplyDoesNotEchoTheKey() {
@@ -504,5 +589,39 @@ final class DeviceConfigReadProbeTests: XCTestCase {
 
         """
         XCTAssertEqual(report.render(), golden)
+    }
+
+    // MARK: - direct caller of the verifier (2.5): the useful path is unchanged
+
+    /// `DeviceConfigReadProbe.parse` gates on `verifyFrame` directly. The ordinary replies must still
+    /// decode under the tightened verifier, and the newly-rejected classes must come back as its own
+    /// `.crc` refusal instead of being read.
+    func testTheOrdinaryReplyStillDecodesUnderTheTightenedVerifier() {
+        let record = echoRecord("enable_r22_packets", value: 0x32, lead: [0x01])
+        let five = whoop5Response(cmd: 128, payload: payload(result: 1, record: record))
+        XCTAssertEqual(verifyFrame(five, family: .whoop5).reason, .none, "precondition: intact")
+        guard case .success(let r) = DeviceConfigReadProbe.parse(frame: five, family: .whoop5, expecting: 128) else {
+            return XCTFail("the 5/MG useful path must still decode")
+        }
+        XCTAssertEqual(r.value(for: "enable_r22_packets"), 0x32)
+
+        let four = whoop4Response(cmd: 121, payload: payload(result: 1, record: echoRecord("k", value: 0x31)))
+        XCTAssertEqual(verifyFrame(four, family: .whoop4).reason, .none)
+        guard case .success = DeviceConfigReadProbe.parse(frame: four, family: .whoop4, expecting: 121) else {
+            return XCTFail("the 4.0 useful path must still decode")
+        }
+    }
+
+    func testAReplyWithTrailingBytesIsRefusedNotRead() {
+        let frame = whoop4Response(cmd: 121, payload: payload(result: 1, record: echoRecord("k", value: 0x31))) + [0x00]
+        XCTAssertEqual(verifyFrame(frame, family: .whoop4).reason, .lengthMismatch)
+        XCTAssertEqual(DeviceConfigReadProbe.parse(frame: frame, family: .whoop4, expecting: 121), .failure(.crc))
+    }
+
+    func testAReplyWithABrokenHeaderChecksumIsRefusedNotRead() {
+        var frame = whoop4Response(cmd: 121, payload: payload(result: 1, record: echoRecord("k", value: 0x31)))
+        frame[3] ^= 0xFF
+        XCTAssertEqual(verifyFrame(frame, family: .whoop4).crc32OK, true, "the payload CRC32 still verifies")
+        XCTAssertEqual(DeviceConfigReadProbe.parse(frame: frame, family: .whoop4, expecting: 121), .failure(.crc))
     }
 }

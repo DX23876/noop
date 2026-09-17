@@ -39,14 +39,33 @@ public struct CachedSleepSession: Equatable, Codable, Sendable {
     /// of presenting the short total as fact. nil for imported nights and pre-migration rows (unknown, not
     /// flagged). Set per session to the DAY's value; only NOOP-computed nights populate it. Byte-parity twin.
     public let stagingSparse: Bool?
+    /// Which device's row this is, when the read that produced it knew.
+    ///
+    /// The Kotlin `SleepSession` entity has carried `deviceId` all along; this type never did, so a caller
+    /// holding a block had no way to say where it came from and had to ask the store which device owned it,
+    /// once per block. That probe is the expensive half of the Sleep screen's load.
+    ///
+    /// Optional, and defaulted, for two reasons. Seventy-six construction sites build these by hand, and a
+    /// required field would churn every one of them to state something most of them do not know. And the
+    /// honest value for a hand-built session IS absent: claiming a device it was never read from would be
+    /// worse than saying nothing. Readers treat nil as "ask", so provenance is a shortcut where the store
+    /// supplied it and never a silent wrong answer where it did not. `Codable` decodes a missing key to nil,
+    /// so persisted payloads written before this field stay readable.
+    ///
+    /// The WRITE never reads it. `upsertSleepSessions` takes its device as a separate argument, so
+    /// setting this on a session being stored cannot route the row into another device's namespace,
+    /// and a row always reads back stamped with the id it was actually written under.
+    public let deviceId: String?
     public init(startTs: Int, endTs: Int, efficiency: Double?, restingHr: Int?,
                 avgHrv: Double?, stagesJSON: String?, userEdited: Bool = false,
-                startTsAdjusted: Int? = nil, stagingSparse: Bool? = nil) {
+                startTsAdjusted: Int? = nil, stagingSparse: Bool? = nil,
+                deviceId: String? = nil) {
         self.startTs = startTs; self.endTs = endTs
         self.efficiency = efficiency; self.restingHr = restingHr
         self.avgHrv = avgHrv; self.stagesJSON = stagesJSON
         self.userEdited = userEdited
         self.startTsAdjusted = startTsAdjusted
+        self.deviceId = deviceId
         self.stagingSparse = stagingSparse
     }
 
@@ -56,7 +75,10 @@ public struct CachedSleepSession: Equatable, Codable, Sendable {
     public func withStartTs(_ newStartTs: Int) -> CachedSleepSession {
         CachedSleepSession(startTs: newStartTs, endTs: endTs, efficiency: efficiency, restingHr: restingHr,
                            avgHrv: avgHrv, stagesJSON: stagesJSON, userEdited: userEdited,
-                           startTsAdjusted: startTsAdjusted, stagingSparse: stagingSparse)
+                           startTsAdjusted: startTsAdjusted, stagingSparse: stagingSparse,
+                           // Carried: a re-keyed session is the same row from the same device, and
+                           // dropping it here would turn a known provenance back into a store probe.
+                           deviceId: deviceId)
     }
 }
 
@@ -543,6 +565,28 @@ extension WhoopStore {
         }
     }
 
+    /// One device's session BOUNDS in a window, as `startTs -> endTs`, in a single lean read.
+    ///
+    /// Deliberately not `sleepSessions(deviceId:from:to:limit:)`, which selects `stagesJSON` among other
+    /// columns: a caller that only needs to know which blocks a device owns would haul every night's
+    /// staging blob, once per candidate device, to read two integers from each. On a browsable history
+    /// that is the same rows re-read several times over.
+    ///
+    /// `(deviceId, startTs)` is the primary key, so a start maps to exactly one end and the dictionary
+    /// loses nothing. Unpaged on purpose: the window bounds the result, and a page limit sized from a
+    /// caller's own list would silently drop rows for a caller that passed a sparse subset of a wide span.
+    public func sleepSessionBounds(deviceId: String, from: Int, to: Int) async throws -> [Int: Int] {
+        try syncRead { db in
+            var out: [Int: Int] = [:]
+            let rows = try Row.fetchAll(db, sql: """
+                SELECT startTs, endTs FROM sleepSession
+                WHERE deviceId = ? AND startTs >= ? AND startTs <= ?
+                """, arguments: [deviceId, from, to])
+            for row in rows { out[row["startTs"]] = row["endTs"] }
+            return out
+        }
+    }
+
     /// Batched twin of `sessionMotion` for a SET of session starts: the persisted per-epoch motion series
     /// for each of `sessionStarts` that HAS one, in a SINGLE query, keyed by startTs. Same contract as the
     /// single-key accessor — a start whose column is NULL/absent (or an empty series) is simply omitted from
@@ -766,7 +810,10 @@ extension WhoopStore {
                                        efficiency: $0["efficiency"], restingHr: $0["restingHr"],
                                        avgHrv: $0["avgHrv"], stagesJSON: $0["stagesJSON"],
                                        userEdited: $0["userEdited"], startTsAdjusted: $0["startTsAdjusted"],
-                                       stagingSparse: $0["stagingSparse"])
+                                       stagingSparse: $0["stagingSparse"],
+                                       // The read knows the device it queried, so every block it hands
+                                       // back carries it and no caller has to ask the store again.
+                                       deviceId: deviceId)
                 }
         }
     }

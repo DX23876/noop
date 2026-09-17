@@ -1,9 +1,6 @@
-# CLAUDE.md — working on NOOP
+# CLAUDE.md
 
-Guidance for anyone (human or AI agent) submitting a pull request. This is the high-signal map;
-[`docs/CONTRIBUTING.md`](docs/CONTRIBUTING.md) is the full guide (BLE safety contract, design-system
-rules, add-a-metric/screen/command recipes), [`docs/BUILD.md`](docs/BUILD.md) covers signing/pairing,
-and [`docs/IOS.md`](docs/IOS.md) covers the iOS target. Read this first; follow the links for depth.
+Shared repository guidance lives in [AGENTS.md](AGENTS.md).
 
 **Working in the DX23876 Apple-only fork?** Read [`docs/FORK_GUIDE.md`](docs/FORK_GUIDE.md) for
 the fork's scope, sync rules, commit identity, and documentation workflow.

@@ -30,4 +30,4 @@ that covers it. "Builds and unit tests pass" alone is not enough for BLE work.
 
 ## Related issues
 
-<!-- Closes #N -->
+<!-- Refs #N -->

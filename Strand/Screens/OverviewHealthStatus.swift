@@ -41,7 +41,7 @@ enum OverviewHealthStatus {
                                            history: recentDays.map(\.skinTempDevC),
                                            populationRange: (-0.6)...0.6,
                                            cfg: VitalBands.skinTempDeviationCfg))
-        case .steps, .stress, .sleep, .fitnessAge, .vo2max, .vitality, .calories, .hydration,
+        case .steps, .stepsAverage30, .stress, .sleep, .fitnessAge, .vo2max, .vitality, .calories, .hydration,
              .coupled, .weight, .coach:
             return nil
         }

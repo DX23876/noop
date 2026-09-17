@@ -2,6 +2,7 @@ import Foundation
 import Combine
 import StrandAnalytics
 import WhoopProtocol
+import WhoopStore
 import OuraProtocol
 
 /// Observable snapshot of the live connection + biometric state, driven by FrameRouter
@@ -71,6 +72,22 @@ public final class LiveState: ObservableObject {
     /// separate short history to render an actually-moving R-R strip / rolling RMSSD. Appended (never
     /// replaced) by `setRRIntervals(_:)`; emptied by `clearBiometrics()`.
     @Published public private(set) var rrRecent: [Int] = []
+    /// The WHOOP strap's last reported charge. NOT the active device's.
+    ///
+    /// Two properties make this dangerous to read on its own, and both are deliberate. It is the
+    /// strap's alone, with no other source writing it. And it is never cleared: [clearBiometrics]
+    /// blanks the ring's charge beside it and leaves this, so a strap's last percentage outlives its
+    /// link on purpose, which is what lets a reconnect show a number before the first fresh reading.
+    ///
+    /// So `connected` does not qualify it. That flag goes true the moment ANY source streams, including
+    /// a ring's first live heart rate, at which point a stale strap percentage satisfies both halves of
+    /// the obvious gate. That is #2076 and #2208, the same bug found twice, across ten surfaces.
+    ///
+    /// Any readout naming the ACTIVE device must go through `LiveConsoleReadout.batteryPercent`, which
+    /// substitutes the ring's own charge. Any readout labelled as the strap's must pair this with
+    /// [activeIsWhoop] and show nothing when it is false: substituting there would put a ring's number
+    /// under a WHOOP heading. Which of the two a surface needs depends on what it claims to be showing,
+    /// and that is a question about the label rather than about this field.
     @Published public var batteryPct: Double? = nil
     /// Strap battery pack VOLTAGE (mV), decoded from the ~8-min BATTERY_LEVEL event (mv@21/@25) and the
     /// GET_EXTENDED_BATTERY_INFO response (#592). Shown on the Devices card as a "x.xx V" readout beside the
@@ -115,6 +132,31 @@ public final class LiveState: ObservableObject {
     /// beat only comes from a finger (`.worn`); "chg. detected"/"stopped" bracket `.charging`; a silent
     /// live-HR stream drops to `.off` (removed). Lets the Live view show On wrist / Off wrist.
     @Published public var ouraWearState: OuraWearState? = nil
+
+    /// The RING's own charge, when a ring is the live source. Separate from [batteryPct], which is the
+    /// WHOOP's, because `LiveState` is ONE object both sources write into: a bonded WHOOP beside a
+    /// streaming ring leaves the WHOOP's charge sitting in `batteryPct`, and a console that reads it
+    /// while a ring is the active device reports the wrong band's battery under the right band's name.
+    /// That is #2075, where a ring on 93% displayed the strap's 72%. Nil when no ring has reported.
+    @Published public var ouraBatteryPct: Int? = nil
+
+    /// Whether the ACTIVE device is a WHOOP, published so a readout can answer "whose charge is this"
+    /// without observing `AppModel`.
+    ///
+    /// It sits here because [batteryPct] does, and the two are only meaningful together. `batteryPct` is
+    /// the strap's and is never cleared, deliberately, so on its own it cannot say whether it describes
+    /// the device the wearer is currently looking at. Every surface that reads it needs this alongside,
+    /// and `Today` in particular cannot reach the device registry: it observes `BLEManager` rather than
+    /// `AppModel` on purpose, because `AppModel` publishes on the 1 Hz heart-rate tick and observing it
+    /// would re-render the whole screen every second.
+    ///
+    /// Written in ONE place, `SourceCoordinator.activeDeviceChanged`, from the same `activeDeviceId`
+    /// transition that decides which live source runs. Defaults to true, matching
+    /// `LiveConsoleReadout.activeIsWhoop`'s WHOOP-first default for an unresolvable row.
+    ///
+    /// Not cleared by [clearBiometrics]: which device is active is not a biometric and does not stop
+    /// being true when a link drops. (#2208)
+    @Published public var activeIsWhoop: Bool = true
 
     // MARK: - Battery runtime estimate (#713)
 
@@ -217,6 +259,46 @@ public final class LiveState: ObservableObject {
         }
     }
     @Published public private(set) var strapRange: StrapRange?
+
+    // MARK: - R-R transport snapshot (#2117)
+
+    /// When this device first banked an R-R beat, and first banked one on a unit-labelled channel.
+    ///
+    /// Banked here for the same reason `strapRange` is: the export assembler turns it into a UNIVERSAL
+    /// line that rides EVERY Test Centre report, so a wearer whose HRV went blank self-diagnoses without
+    /// having known to turn a mode on. Observability only, never gated, and cleared on disconnect so a
+    /// stale answer cannot outlive the link. nil until resolved for this session.
+    ///
+    /// The judgement lives in `UniversalTrace.rrTransportLine`, not here. This carries facts.
+    public struct RRTransport: Equatable, Sendable {
+        public var strictWhoop5: Bool
+        public var firstRecordedUnix: Int?
+        public var firstLabelledUnix: Int?
+        public init(strictWhoop5: Bool, firstRecordedUnix: Int?, firstLabelledUnix: Int?) {
+            self.strictWhoop5 = strictWhoop5
+            self.firstRecordedUnix = firstRecordedUnix
+            self.firstLabelledUnix = firstLabelledUnix
+        }
+    }
+    @Published public private(set) var rrTransport: RRTransport?
+
+    /// Bank the device's R-R transport facts. Two indexed MINs at the call site, so this is cheap enough
+    /// to refresh on connect rather than being cached across links.
+    public func setRRTransport(strictWhoop5: Bool, firstRecordedUnix: Int?, firstLabelledUnix: Int?) {
+        rrTransport = RRTransport(strictWhoop5: strictWhoop5, firstRecordedUnix: firstRecordedUnix,
+                                  firstLabelledUnix: firstLabelledUnix)
+    }
+
+    /// Clear the banked facts. Deliberately NOT called from `clearBiometrics` the way `clearStrapRange`
+    /// is, because the two describe different things: a strap range is the STRAP's own clock, which must
+    /// not outlive the link that reported it, while these describe what OUR database holds, which stays
+    /// true after a disconnect.
+    ///
+    /// That difference decides whether the line is present when it is wanted. The wearer this exists for
+    /// is the one who notices a blank HRV, opens Test Centre and exports, and the strap is quite possibly
+    /// not connected by then. Clearing on disconnect would drop the line from precisely that export.
+    /// Re-read on each connect, so a newly banked history is picked up.
+    public func clearRRTransport() { rrTransport = nil }
 
     /// Bank the strap's reported banked-record window (from GET_DATA_RANGE). Additive observability: the
     /// universal clock-drift export line reads this. `oldest` keeps the previously-known value when this
@@ -332,6 +414,16 @@ public final class LiveState: ObservableObject {
     /// offload (consecutive empty backfills). Lets the home state read "connected, history sync is
     /// experimental on 5.0" instead of a WHOOP-4-style "not recording"/sync-error. Reset on connect/disconnect.
     @Published public var historySyncExperimental: Bool = false
+
+    /// #689/#815 — the strap's ring-buffer page backlog, sampled ONCE from the connect-time
+    /// GET_DATA_RANGE reply and never re-polled mid-offload: the link is already firmware-paced, and #377
+    /// rules out re-polling just to feed a readout. So this is a figure AT CONNECT rather than a live one,
+    /// and the Today sync chip's copy says so — a static number under a "syncing" label otherwise reads as
+    /// a stalled live one. A bounded ring measure (write pointer − read pointer against the ring size),
+    /// never a percentage: the strap never reveals a total record count. Confirmed against real captures
+    /// on WHOOP 4.0 and 5.0/MG. nil before the first reply this session, or when the frame did not decode.
+    /// Twin of Android `LiveState.pagesBehindAtConnect`.
+    @Published public var pagesBehindAtConnect: Int? = nil
 
     /// #612 — true when the WHOOP-4/generic empty-offload streak (`EmptySyncTracker`, `BLEManager`) is
     /// currently SUSTAINED (3+ consecutive completed-but-empty offloads). Not 5/MG-specific and not
@@ -598,6 +690,7 @@ public final class LiveState: ObservableObject {
         clearStrapRange()                 // a stale clock-drift window must not outlive the link either
         lastFrameAtUnix = nil             // #987: a stale "last frame" freshness must not outlive it either
         ouraWearState = nil               // a stale worn/charging badge must not outlive the link either
+        ouraBatteryPct = nil              // nor a stale ring charge (#2075)
         // Perf: flush the durable log tail on disconnect (mirroring is batched in `append`), so a completed
         // session's tail is always persisted for a later scheduled export despite the per-line throttle.
         Self.persistTail(log)
@@ -1003,6 +1096,18 @@ public final class LiveState: ObservableObject {
         out = out.replacingOccurrences(
             of: "whoop-([A-Za-z0-9]{3})[A-Za-z0-9-]{3,}",
             with: "whoop-$1…", options: .regularExpression)
+        // #2092: an Oura device id (`oura-<serial>`) is the same #1303 gap for the OTHER brand — neither
+        // rule above catches it, since the prefix isn't "whoop-". Exact same shape (3-character prefix +
+        // `…`, matching `OuraSerialIdentity.logSafe`) and the same `-noop`-suffix-preserving pair, since
+        // `DeviceRegistryStore.computedSuffix` is brand-agnostic — an Oura device gets a `oura-<serial>
+        // -noop` sibling the same way a WHOOP strap does. Applied AFTER the WHOOP rules but that ordering
+        // is not load-bearing: the two prefixes never overlap. Kotlin twin in `redactStrapLogPii`.
+        out = out.replacingOccurrences(
+            of: "oura-([A-Za-z0-9]{3})[A-Za-z0-9-]{3,}(-noop)",
+            with: "oura-$1…$2", options: .regularExpression)
+        out = out.replacingOccurrences(
+            of: "oura-([A-Za-z0-9]{3})[A-Za-z0-9-]{3,}",
+            with: "oura-$1…", options: .regularExpression)
         // The account holder's NAME, as WHOOP writes it into the advertised local name. WHOOP names a
         // strap "<FirstName>'s Whoop" by default and the scan path logs that name on every discovery, so
         // the shareable log (#445) we ask people to attach to public issues carried a real person's name.
@@ -1059,5 +1164,46 @@ public final class LiveState: ObservableObject {
         // Previous processes first, so the body stays in chronological order and the log-parsing tools read
         // it unchanged — they just get the night that a wake-time restart used to erase.
         return header + Self.previousSessionsText() + log.joined(separator: "\n")
+    }
+}
+
+/// What the Live Console should read out, given WHICH device is active.
+///
+/// `LiveState` is one object that every live source writes into, so "is this field populated" is not the
+/// same question as "does this field describe the device on screen". A bonded WHOOP sitting beside a
+/// streaming Oura ring leaves every WHOOP-only field truthful-looking while the console is naming the
+/// ring, which is #2075: the ring's own 93% was decoded and held, and the strap's stale 72% was what got
+/// drawn under "Oura Ring 5".
+///
+/// Pure and shared so the Apple and Android consoles cannot answer it differently.
+public enum LiveConsoleReadout {
+
+    /// Whether the ACTIVE registry device is a WHOOP.
+    ///
+    /// Defaults to true when the registry has not opened or the active row is not resolvable, which is
+    /// the WHOOP-first tone the console's device name already takes. Delegates to `SourceIdentity`, the
+    /// one place that answers this, rather than adding a second spelling of it.
+    ///
+    /// That default is load-bearing rather than cosmetic. A WHOOP adopting its serial identity re-keys
+    /// the active row mid-session (#1303), so the id being asked about can briefly name a row that no
+    /// longer exists; answering "WHOOP" there keeps a working strap's console intact, which is the right
+    /// call because the device that just re-keyed IS a WHOOP.
+    public static func activeIsWhoop(devices: [PairedDevice], activeId: String?) -> Bool {
+        guard let activeId, let active = devices.first(where: { $0.id == activeId }) else { return true }
+        return SourceIdentity.isWhoop(active)
+    }
+
+    /// The charge to show for the ACTIVE device, or nil to show nothing.
+    ///
+    /// A non-WHOOP active device never falls back to the WHOOP's charge. Showing nothing is the honest
+    /// answer when a ring has not reported yet; showing the strap's number would be a confident lie, and
+    /// it is the exact shape of the reported bug.
+    public static func batteryPercent(activeIsWhoop: Bool, whoopPct: Double?, ringPct: Int?) -> Int? {
+        // ROUNDS, and deliberately. The surfaces this replaced disagreed: Devices and the widget rounded,
+        // the Live Console truncated, so a strap on 72.6% read 73 on one screen and 72 on another. One
+        // seam has to pick, and for a percentage rounding is the accurate one. `.rounded()` is
+        // half-away-from-zero and Kotlin's Math.round is half-up, identical over the 0...100 this sees.
+        if activeIsWhoop { return whoopPct.map { Int($0.rounded()) } }
+        return ringPct
     }
 }

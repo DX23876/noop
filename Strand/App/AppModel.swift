@@ -5,6 +5,7 @@ import WhoopStore
 import StrandAnalytics
 import StrandImport
 import StrandDesign
+import OuraProtocol
 #if os(iOS)
 import UserNotifications
 #endif
@@ -318,6 +319,16 @@ final class AppModel: ObservableObject {
             .sink { [weak self] _ in self?.ingestHR() }
             .store(in: &hrCancellables)
 
+        // #2117: bank the device's R-R transport facts whenever a link comes up. Shell-independent on
+        // purpose: the classic Today already reads these three for its own note, but the Liquid shell is
+        // the iOS default, and the wearer this explains is the one whose HRV silently went blank there.
+        // Two indexed MINs plus one registry read, once per connect, so it is cheap enough not to gate.
+        live.$connected.sink { [weak self] isConnected in
+            // The disconnect path clears via `clearBiometrics`, so only a link coming UP refreshes.
+            guard isConnected, let self else { return }
+            Task { await self.refreshRRTransportFacts() }
+        }.store(in: &hrCancellables)
+
         // Physical-input + wear hooks (fired live by FrameRouter).
         live.onDoubleTap = { [weak self] in self?.handleDoubleTap() }
         live.onWristChange = { [weak self] worn in self?.handleWristChange(worn) }
@@ -584,6 +595,36 @@ final class AppModel: ObservableObject {
         ble.setPauseCaptureOnPowerSave(on && PuffinExperiment.pauseHrvOnPowerSaveEnabled,
                                        thresholdPct: PuffinExperiment.powerSavingBatteryPct)
     }
+    /// #2117: resolve when this device first banked a beat and first banked a labelled one, and hand the
+    /// facts to `LiveState` so every Test Centre export carries the universal `rrTransport` line.
+    ///
+    /// Facts only. The judgement is `UniversalTrace.rrTransportLine`, shared byte for byte with Android.
+    /// Silent on failure: a diagnostic that cannot read its inputs says nothing rather than guessing, and
+    /// the line is simply absent from the export.
+    private func refreshRRTransportFacts() async {
+        // No store to ask: drop whatever was banked rather than leaving a previous answer standing. A
+        // diagnostic may only assert what it can attribute, and stale facts would be attributed to now.
+        guard let store = await repo.storeHandle() else {
+            live.clearRRTransport()
+            return
+        }
+        let owner = repo.deviceId
+        let strict = (try? await store.isWhoop5RRSource(deviceId: owner)) ?? false
+        // The two MINs are only ever read by a line the formatter suppresses unless this is strict, so a
+        // device the policy does not govern stops after the one registry read. That case is not
+        // hypothetical: a 4.0 in a reconnect burst (#1120) runs this repeatedly, and the timestamps would
+        // be fetched from the store queue the backfill is writing through, to be discarded every time.
+        guard strict else {
+            live.setRRTransport(strictWhoop5: false, firstRecordedUnix: nil, firstLabelledUnix: nil)
+            return
+        }
+        let firstRecorded = (try? await store.firstRecordedRRTimestamp(deviceId: owner)) ?? nil
+        let firstLabelled = (try? await store.firstLabelledWhoop5RRTimestamp(deviceId: owner)) ?? nil
+        // AppModel is @MainActor, so this resumes on the main actor: no hop needed.
+        live.setRRTransport(strictWhoop5: strict, firstRecordedUnix: firstRecorded,
+                            firstLabelledUnix: firstLabelled)
+    }
+
 
     /// Tiny and guarded: with no generic strap paired the active id is "my-whoop", so the coordinator
     /// observes WHOOP-active and stays a NO-OP , the existing `scan()`/`disconnect()` WHOOP flow is
@@ -655,6 +696,7 @@ final class AppModel: ObservableObject {
             registry?.setActive(serialId)
         }
         self.sourceCoordinator = coordinator
+        bindOuraFeatureStatusMirror()
         // #814 READ SPINE (HIGH-1): drive the read side off the registry's `activeDeviceId` for the WHOLE
         // session, exactly as SourceCoordinator drives the WRITE side off the SAME publisher. A Devices-
         // screen switch/remove/re-add calls `registry.setActive` DIRECTLY (NOT through `registerDevice`), so
@@ -759,10 +801,18 @@ final class AppModel: ObservableObject {
     /// next offload defers too — the app re-analysing on every open, with nothing having changed.
     func runDeferredRescoreIfOwed() async {
         guard RescoreBackgroundScheduler.isRescoreOwed else { return }
-        live.append(log: "re-score: resuming a pass an earlier attempt could not finish (#1538)")
+        // #2238: gate on the fingerprint only when the debt is PROVEN — a pass that completed and was merely
+        // outvoted by a token recorded mid-pass advanced the watermark, so "nothing changed" is a real
+        // answer and the only thing that lets a drain-every-few-minutes chain stop. An interrupted pass
+        // never advanced it and keeps the plan's forced re-derivation.
+        let fromCompletedPass = RescoreBackgroundScheduler.isOwedAfterCompletedPass
+        live.append(log: "re-score: resuming a pass an earlier attempt could not finish (#1538)"
+                    + (fromCompletedPass ? " — debt is from a completed pass, gating on the fingerprint (#2238)" : ""))
         let plan = IntelligenceEngine.deferredRescorePlan()
-        await intelligence.analyzeRecent(force: plan.force, skipIfUnchanged: plan.skipIfUnchanged,
-                                         allowDayReuse: plan.allowDayReuse, reason: plan.reason)
+        await intelligence.analyzeRecent(force: plan.force,
+                                         skipIfUnchanged: plan.skipIfUnchanged || fromCompletedPass,
+                                         allowDayReuse: plan.allowDayReuse, reason: plan.reason,
+                                         triggerLabel: fromCompletedPass ? "resume-gated" : "resume-forced")
         #if os(iOS)
         // The deferred pass is the one that finally produces today's score, and it runs with no UI
         // attached — so publish the snapshot here too, for the same reason the post-offload path does.
@@ -1406,6 +1456,27 @@ final class AppModel: ObservableObject {
     /// published properties above. Re-bound whenever the active Oura source changes.
     private var ouraAdoptCancellables = Set<AnyCancellable>()
 
+    /// The most recent `feature status` read-back per feature id (0x04 SpO2, 0x0b real-steps, 0x03
+    /// exercise-HR, 0x0d CVA-PPG), mirrored off the live Oura source so Test Centre's enable/disable
+    /// rows can show the ring's own current state instead of being log-only. Bound once, right after
+    /// `sourceCoordinator` is set (below) — unlike `ouraAdoptPhase` above, this isn't scoped to the
+    /// adopt wizard, so it needs to be live for any paired ring, not just one mid-adopt.
+    @Published private(set) var ouraFeatureStatuses: [Int: OuraFeatureStatus] = [:]
+    private var ouraFeatureStatusCancellable: AnyCancellable?
+
+    /// (Re)bind the feature-status mirror to whichever `OuraLiveSource` the coordinator has live, and
+    /// every later swap — same `flatMap`-over-`$ouraSource` shape as `bindOuraAdoptMirror` below.
+    private func bindOuraFeatureStatusMirror() {
+        guard let coordinator = sourceCoordinator else { return }
+        ouraFeatureStatusCancellable = coordinator.$ouraSource
+            .flatMap { source -> AnyPublisher<[Int: OuraFeatureStatus], Never> in
+                source?.$featureStatuses.eraseToAnyPublisher()
+                    ?? Just([:]).eraseToAnyPublisher()
+            }
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] in self?.ouraFeatureStatuses = $0 }
+    }
+
     /// Take over a factory-reset Oura ring: grant the coordinator explicit adopt consent for THIS ring (so
     /// its live session may run the one-time key install, s3.2), register it active (which starts that live
     /// session), then begin mirroring its adopt outcome for the wizard. The irreversible-consent gate has
@@ -1814,10 +1885,28 @@ final class AppModel: ObservableObject {
 
     // MARK: - Physical inputs / wear automation
 
+    /// Set by a running Lift Log session to CLAIM the strap's double-tap for the duration of that
+    /// session, so a set can be logged without picking the phone up — the one cue that works with the
+    /// phone face-down on a bench. Cleared when the session ends, handing the gesture straight back to
+    /// whatever the user has configured; nothing about their setting is read or written.
+    ///
+    /// A double tap rather than a single one because a strap takes knocks against bars and benches all
+    /// session, and two deliberate taps are not something a rack does by accident.
+    var strapDoubleTapOverride: (() -> Void)?
+
     private func handleDoubleTap() {
         let now = Date()
-        guard now.timeIntervalSince(lastDoubleTapAt) > 1.2 else { return }   // debounce repeats
+        let since = now.timeIntervalSince(lastDoubleTapAt)
+        guard since > 1.2 else {   // debounce repeats
+            live.append(log: String(format: "Double-tap ignored: %.1f s after the previous one (debounce 1.2 s)", since))
+            return
+        }
         lastDoubleTapAt = now
+        if let override = strapDoubleTapOverride {
+            live.append(log: "Double-tap → Lift Log: next")
+            override()
+            return
+        }
         live.append(log: "Double-tap → \(behavior.doubleTapAction.label)")
         runMacAction(behavior.doubleTapAction, shortcut: behavior.doubleTapShortcut)
     }

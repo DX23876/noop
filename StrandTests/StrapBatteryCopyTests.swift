@@ -59,16 +59,16 @@ final class StrapBatteryCopyTests: XCTestCase {
 
     func testResolveNeverPresentsAStalePercentAsCurrent() {
         // A percentage that outlived its Bluetooth link is offline, not a reading.
-        XCTAssertEqual(StrapBatteryDisplayState.resolve(connected: false, batteryPct: 88, charging: false),
+        XCTAssertEqual(StrapBatteryDisplayState.resolve(activeIsWhoop: true, connected: false, batteryPct: 88, charging: false),
                        .offline)
-        XCTAssertEqual(StrapBatteryDisplayState.resolve(connected: true, batteryPct: nil, charging: true),
+        XCTAssertEqual(StrapBatteryDisplayState.resolve(activeIsWhoop: true, connected: true, batteryPct: nil, charging: true),
                        .pending(charging: true))
-        XCTAssertEqual(StrapBatteryDisplayState.resolve(connected: true, batteryPct: 88, charging: false),
+        XCTAssertEqual(StrapBatteryDisplayState.resolve(activeIsWhoop: true, connected: true, batteryPct: 88, charging: false),
                        .charge(pct: 88, charging: false))
         // Out-of-range readings are clamped rather than drawn as an over-full ring.
-        XCTAssertEqual(StrapBatteryDisplayState.resolve(connected: true, batteryPct: 140, charging: false),
+        XCTAssertEqual(StrapBatteryDisplayState.resolve(activeIsWhoop: true, connected: true, batteryPct: 140, charging: false),
                        .charge(pct: 100, charging: false))
-        XCTAssertEqual(StrapBatteryDisplayState.resolve(connected: true, batteryPct: -5, charging: false),
+        XCTAssertEqual(StrapBatteryDisplayState.resolve(activeIsWhoop: true, connected: true, batteryPct: -5, charging: false),
                        .charge(pct: 0, charging: false))
     }
 

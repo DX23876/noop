@@ -300,6 +300,12 @@ struct RootTabView: View {
             case .coach:
                 // K3: Coach is now a top-level tab (tag 3) — switch to it directly instead of
                 // presenting it as a pillar sheet.
+                // Guarded on the Coach switch: a brief notification already in Notification Centre still
+                // routes here after the Coach was turned off, and should leave the wearer where they are.
+                guard coachFeatureEnabled else {
+                    router.requestedDestination = nil
+                    break
+                }
                 withAnimation(.timingCurve(0.22, 1, 0.36, 1, duration: 0.24)) { selectedTab = 4 }
                 router.requestedDestination = nil
             case .trends:

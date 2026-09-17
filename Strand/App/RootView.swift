@@ -244,6 +244,8 @@ struct RootView: View {
     private var todayDashboardStyle: TodayDashboardStyle {
         TodayDashboardStyle.resolve(todayDashboardStyleRaw) ?? .liquid
     }
+    /// The Coach master switch (`noop.coachEnabled`, shared by name with Android and iOS). Default ON.
+    @AppStorage(CoachFeaturePrefs.enabledKey) private var coachEnabled = false
     @State private var selection: NavItem? = .today
     /// Which sidebar groups are expanded (S1, #805). Default = the group owning the launch selection
     /// (`.today`). The single-item Today/Sleep sections always read expanded so their one row shows; the
@@ -445,9 +447,15 @@ struct RootView: View {
     /// user-search semantics (case-insensitive, diacritic-insensitive, locale-aware) in one call.
     /// ALL groups filter, including single-item Today/Sleep; a group with no hits disappears entirely.
     private func visibleItems(in group: NavGroup) -> [NavItem] {
+        // Coach is dropped here, at the RENDER site, rather than out of `NavGroup.all`. That catalogue is
+        // asserted complete -- every NavItem appears in it exactly once (the M5 routability test) -- so
+        // filtering the source would trade a hidden row for a failing invariant. Hiding it here keeps the
+        // catalogue honest and still leaves the destination routable, which matters because a saved
+        // `selection` or a deep link can still name `.coach` after the switch goes off.
+        let items = coachEnabled ? group.items : group.items.filter { $0 != .coach }
         let query = trimmedQuery
-        guard !query.isEmpty else { return group.items }
-        return group.items.filter { $0.localizedTitle.localizedStandardContains(query) }
+        guard !query.isEmpty else { return items }
+        return items.filter { $0.localizedTitle.localizedStandardContains(query) }
     }
 
     /// One selectable destination row (same Label styling the flat list used), tagged for selection.
@@ -622,7 +630,13 @@ private struct SidebarStatus: View {
                 Text(statusText)
                     .font(StrandFont.rounded(12, weight: .medium))
                     .foregroundStyle(StrandPalette.textPrimary)
-                Text(live.batteryPct.map { String(localized: "Battery \(Int($0))%") } ?? String(localized: "Strap not connected"))
+                // #2208: gated on BOTH the link and whose device it is. This read had NO gate at all, so
+                // it showed the strap's last charge with nothing connected: `batteryPct` is never cleared,
+                // which made the honest `nil` branch below unreachable on any install that had paired a
+                // strap once. "Strap not connected" was dead text.
+                Text(live.connected && live.activeIsWhoop
+                     ? live.batteryPct.map { String(localized: "Battery \(Int($0))%") } ?? String(localized: "Strap not connected")
+                     : String(localized: "Strap not connected"))
                     .font(StrandFont.rounded(11))
                     .foregroundStyle(StrandPalette.textTertiary)
             }

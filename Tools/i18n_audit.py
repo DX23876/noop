@@ -507,6 +507,32 @@ def android_strings_xml_gaps() -> dict[str, set[str]]:
     return gaps
 
 
+ANDROID_STRING_PATTERN = re.compile(r'<string name="([^"]+)"[^>]*>(.*?)</string>', re.S)
+
+
+def android_edge_whitespace() -> dict[str, list[str]]:
+    """Resource keys whose value starts or ends in whitespace, per locale directory.
+
+    AAPT2 trims leading and trailing whitespace from an unquoted string resource, so that
+    whitespace never reaches the device. Copy that leans on it renders two words run together
+    (the caption that read "scoredagainst your own calm hours today"). A resource that really
+    does need an edge space has to be wrapped in double quotes, which this check honours; the
+    reliable fix for a split sentence is to keep the joining space in the code instead.
+    """
+    out: dict[str, list[str]] = {}
+    for path in sorted((ROOT / "android/app/src/main/res").glob("values*/strings.xml")):
+        offenders = [
+            key
+            for key, value in (
+                (m.group(1), m.group(2)) for m in ANDROID_STRING_PATTERN.finditer(path.read_text(encoding="utf-8"))
+            )
+            if value != value.strip() and not value.strip().startswith('"')
+        ]
+        if offenders:
+            out[path.parent.name] = offenders
+    return out
+
+
 ANDROID_FORMAT_PATTERN = re.compile(r"%[1-9]\d*\$[-+0 #,(]*\d*(?:\.\d+)?([sdif])")
 
 
@@ -836,7 +862,14 @@ def apple_format_gaps(cat: dict, lang: str) -> list[str]:
         # Compare EVERY form independently against the key, never a folded concatenation: folding would
         # make the signature depend on how many plural categories the language HAS (ru/pl carry four,
         # zh one), so a correct translation would read as a format mismatch purely for having more forms.
-        values = [u.get("value", "") for u in _string_units(entry, lang)] or [""]
+        # An ABSENT localization is a coverage gap, reported by the missing/allowance counters, and
+        # must not be read as a format mismatch. `or [""]` used to make one look like the other: the
+        # empty signature differs from any key carrying a specifier. That never showed for the focus
+        # languages, which are held at zero missing, and it turned every ratcheted gap in it/ru/pl
+        # into a false format failure the moment this check was widened past them.
+        values = [u.get("value", "") for u in _string_units(entry, lang)]
+        if not values:
+            continue
         if any(signature(key) != signature(v) for v in values):
             mismatched.append(key)
     return mismatched
@@ -1104,6 +1137,15 @@ def ci_check(base_ref: str) -> int:
     else:
         print("--- Android: tree not present in this fork — skipped ---")
 
+    edge = android_edge_whitespace()
+    if edge:
+        failed = True
+        for locale_dir, keys in edge.items():
+            print(f"FAIL {locale_dir}/strings.xml has {len(keys)} string(s) whose edge whitespace "
+                  f"AAPT2 strips: {sorted(keys)[:30]}")
+    else:
+        print("  OK no string resource leans on edge whitespace")
+
     print("\n--- Apple: no NEW un-extracted UI copy, and complete focus locales ---")
     ios_literals, _source_gaps = scan_ios()
     ios_found = {(p, lit) for p, _line, lit in ios_literals}
@@ -1130,6 +1172,18 @@ def ci_check(base_ref: str) -> int:
                 1 for v in cat.get("strings", {}).values()
                 if v.get("shouldTranslate") is not False and not _is_translated(v, extra)
             )
+            # COVERAGE for these locales is ratcheted, because they carry inherited gaps that would
+            # red-check every open PR. FORMAT is not: a specifier the translation drops or invents is
+            # a runtime substitution bug, not a gap, and it is exactly as broken in Russian as in
+            # German. Checking it only for LANGS left zh, it, ru and pl free to ship a dropped `%@`
+            # through a green board, which is how `%lld app%@ on` and `%lld frame%@ captured this
+            # session.` kept a Russian mismatch each for as long as they existed. Zero tolerance
+            # here is affordable because the count across every catalogue and every locale is now 0.
+            extra_format_gaps = apple_format_gaps(cat, extra)
+            if extra_format_gaps:
+                failed = True
+                print(f"FAIL {catalog_path.relative_to(ROOT)} {extra}: "
+                      f"{len(extra_format_gaps)} format mismatch(es): {extra_format_gaps[:10]}")
         for lang in LANGS:
             missing = sum(
                 1 for v in cat.get("strings", {}).values()
@@ -1302,6 +1356,16 @@ def main() -> int:
                 print(f"  {rel}:{line_no}: {literal!r}")
             if len(findings) > 25:
                 print(f"  ... and {len(findings) - 25} more (use --full)")
+
+        print("\n=== Android: string resources leaning on stripped edge whitespace ===")
+        edge = android_edge_whitespace()
+        if not edge:
+            print("  none")
+        for locale_dir, keys in edge.items():
+            print(f"  {locale_dir}: {len(keys)} string(s)")
+            if args.full:
+                for k in sorted(keys):
+                    print(f"    {k}")
 
         print("\n=== Android: values-<locale>/strings.xml key gaps ===")
         gaps = android_strings_xml_gaps()
