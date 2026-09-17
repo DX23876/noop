@@ -40,6 +40,7 @@ private actor StoreOpenGate {
         // looping forever. (A normal GRDB backup carries grdb_migrations and is left untouched.)
         WhoopStore.quarantineIncompatibleDatabase(at: path)
         let pool = try DatabasePool(path: path, configuration: config)
+        try UpstreamMigrationBridge.adopt(pool)
         try WhoopStore.makeMigrator().migrate(pool)
         return pool
     }
@@ -80,6 +81,7 @@ public actor WhoopStore {
 
     private init(dbWriter: any DatabaseWriter) throws {
         self.dbWriter = dbWriter
+        try UpstreamMigrationBridge.adopt(dbWriter)
         try WhoopStore.makeMigrator().migrate(dbWriter)
     }
 

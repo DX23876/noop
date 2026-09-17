@@ -44,4 +44,27 @@ final class AnalysisRecipeDecisionTests: XCTestCase {
         // "migrating" backwards into a rescore that would overwrite better values with worse ones.
         XCTAssertEqual(IntelligenceEngine.analysisRecipeDecision(storedVersion: 8), .upToDate)
     }
+
+    // MARK: - A store switched over from upstream NOOP
+
+    /// Upstream 11.6/11.7 persisted nights with sleep but no HRV or Charge. Such a store has no cursor,
+    /// and anchoring it like a pre-coordinator install would freeze those blanks.
+    func testAStoreFromUpstreamMigratesInsteadOfAnchoring() {
+        XCTAssertEqual(IntelligenceEngine.analysisRecipeDecision(storedVersion: nil, openedFromUpstream: true),
+                       .migrate(from: 0, to: IntelligenceEngine.currentAnalysisRecipeVersion))
+        XCTAssertEqual(IntelligenceEngine.analysisRecipeDecision(storedVersion: nil, openedFromUpstream: false),
+                       .anchorCurrent)
+        // Once the fork has written its cursor, upstream origin no longer matters.
+        XCTAssertEqual(IntelligenceEngine.analysisRecipeDecision(
+            storedVersion: IntelligenceEngine.currentAnalysisRecipeVersion, openedFromUpstream: true), .upToDate)
+    }
+
+    func testTheUpstreamRepairWindowReachesTheEarliestBlankedNightWithinBounds() {
+        XCTAssertEqual(IntelligenceEngine.upstreamRepairWindowDays(earliestMissingDay: nil, today: "2026-09-17"), 21)
+        XCTAssertEqual(IntelligenceEngine.upstreamRepairWindowDays(earliestMissingDay: "2026-09-10", today: "2026-09-17"), 21)
+        XCTAssertEqual(IntelligenceEngine.upstreamRepairWindowDays(earliestMissingDay: "2026-08-21", today: "2026-09-17"), 28)
+        XCTAssertEqual(IntelligenceEngine.upstreamRepairWindowDays(earliestMissingDay: "2026-08-21", today: "2026-12-01"), 45)
+        // Across a DST change (Europe, 2026-10-25) the span counts calendar days.
+        XCTAssertEqual(IntelligenceEngine.upstreamRepairWindowDays(earliestMissingDay: "2026-10-01", today: "2026-10-31"), 31)
+    }
 }

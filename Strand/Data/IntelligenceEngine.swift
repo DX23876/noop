@@ -127,6 +127,27 @@ final class IntelligenceEngine: ObservableObject {
     // (a pass no longer deletes and re-creates detected workouts). Legacy unlabelled rows keep scoring,
     // so no night loses HRV or Charge to the update. Bounded 21-day pass; no raw row is rewritten.
     static let currentAnalysisRecipeVersion = 7
+
+    /// Upstream 11.6 (2026-09-11) shipped the strict WHOOP 5 R-R read; its first bounded pass reached 21
+    /// days back. No row before this day can have been blanked by it.
+    static let upstreamStrictRRWindowStart = "2026-08-21"
+
+    /// Days the repair pass for a store switched over from upstream must cover: back to the earliest
+    /// blanked night, never fewer than the standard 21 and never more than 45. Raw strap history is kept
+    /// for roughly 35 days, so a night older than that has nothing left to re-score from.
+    static func upstreamRepairWindowDays(earliestMissingDay: String?, today: String) -> Int {
+        // Day keys are calendar dates; counting them in UTC keeps a DST change from shifting the span.
+        let parser = DateFormatter()
+        parser.locale = Locale(identifier: "en_US_POSIX")
+        parser.timeZone = TimeZone(identifier: "UTC")
+        parser.dateFormat = "yyyy-MM-dd"
+        guard let earliestMissingDay, let from = parser.date(from: earliestMissingDay),
+              let to = parser.date(from: today) else { return 21 }
+        var utc = Calendar(identifier: .gregorian)
+        utc.timeZone = TimeZone(identifier: "UTC")!
+        let span = (utc.dateComponents([.day], from: from, to: to).day ?? 0) + 1
+        return min(45, max(21, span))
+    }
     static let analysisRecipeCursor = "analysis:recipeVersion"
     static let analysisLastRunKey = "noop.analysisMaintenance.lastRun"
 
@@ -148,8 +169,14 @@ final class IntelligenceEngine: ObservableObject {
         case migrate(from: Int, to: Int)
     }
 
-    static func analysisRecipeDecision(storedVersion: Int?) -> AnalysisRecipeDecision {
-        guard let storedVersion else { return .anchorCurrent }
+    /// `openedFromUpstream`: the store was created by upstream NOOP (see `UpstreamMigrationBridge`). It has
+    /// no cursor for the same reason a pre-coordinator install has none, but its rows were NOT scored by
+    /// this fork: upstream 11.6/11.7 persisted nights with sleep and no HRV or Charge. Anchoring would
+    /// freeze those blanks, so it migrates from 0 instead.
+    static func analysisRecipeDecision(storedVersion: Int?, openedFromUpstream: Bool = false) -> AnalysisRecipeDecision {
+        guard let storedVersion else {
+            return openedFromUpstream ? .migrate(from: 0, to: currentAnalysisRecipeVersion) : .anchorCurrent
+        }
         guard storedVersion < currentAnalysisRecipeVersion else { return .upToDate }
         return .migrate(from: storedVersion, to: currentAnalysisRecipeVersion)
     }
@@ -713,7 +740,9 @@ final class IntelligenceEngine: ObservableObject {
         analysisMaintenancePhase = .checking
         do {
             let stored = try await store.cursor(Self.analysisRecipeCursor)
-            switch Self.analysisRecipeDecision(storedVersion: stored) {
+            var fromUpstream = false
+            if stored == nil { fromUpstream = (try? await store.openedFromUpstreamMigrations()) ?? false }
+            switch Self.analysisRecipeDecision(storedVersion: stored, openedFromUpstream: fromUpstream) {
             case .anchorCurrent:
                 try await store.setCursor(Self.analysisRecipeCursor, Self.currentAnalysisRecipeVersion)
                 analysisRecipeVersion = Self.currentAnalysisRecipeVersion
@@ -725,9 +754,16 @@ final class IntelligenceEngine: ObservableObject {
                 return true
             case .migrate(let from, let to):
                 analysisRecipeVersion = from
+                var days = 21
+                if fromUpstream {
+                    let missing = try? await store.earliestSleptDayMissingHRV(
+                        deviceId: deviceId + "-noop", since: Self.upstreamStrictRRWindowStart)
+                    days = Self.upstreamRepairWindowDays(earliestMissingDay: missing ?? nil,
+                                                         today: Repository.localDayKey(Date()))
+                }
                 return await runAnalysisMaintenance(
                     phase: .migrating(from: from, to: to),
-                    markRecipeOnSuccess: true)
+                    markRecipeOnSuccess: true, maxDays: days)
             }
         } catch {
             analysisMaintenancePhase = .failed(error.localizedDescription)
@@ -766,12 +802,12 @@ final class IntelligenceEngine: ObservableObject {
     }
 
     private func runAnalysisMaintenance(phase: AnalysisMaintenancePhase,
-                                        markRecipeOnSuccess: Bool) async -> Bool {
+                                        markRecipeOnSuccess: Bool, maxDays: Int = 21) async -> Bool {
         if let analysisMaintenanceTask { return await analysisMaintenanceTask.value }
         analysisMaintenancePhase = phase
         let task = Task { @MainActor [weak self] in
             guard let self, let store = await self.repo.storeHandle() else { return false }
-            await self.analyzeRecent(maxDays: 21, force: true, allowDayReuse: false,
+            await self.analyzeRecent(maxDays: maxDays, force: true, allowDayReuse: false,
                                      reason: .semanticChange)
             guard !Task.isCancelled else { return false }
             // Publish the repaired daily snapshot before committing the migration cursor. If the

@@ -1,5 +1,6 @@
 import XCTest
 import Foundation
+import SQLite3
 import WhoopProtocol
 import WhoopStore
 import StrandAnalytics
@@ -89,6 +90,53 @@ final class IntelligenceRRSourceTests: XCTestCase {
             await engine.analyzeRecent(maxDays: 2, force: true)
             let after = try await store.dailyMetrics(deviceId: canonical + "-noop", from: input.day, to: input.day)
             XCTAssertEqual(try XCTUnwrap(after.first?.avgHrv), legacyHrv, accuracy: 0.0001)
+        }
+    }
+
+    /// End to end for a wearer switching from upstream 11.6/11.7: the store carries upstream's migration
+    /// history and no fork recipe cursor, and upstream persisted a night with sleep but no HRV or Charge.
+    /// The launch check must re-score it rather than anchor the blank as current.
+    func testAStoreFromUpstreamRepairsANightItPersistedWithoutHRV() async throws {
+        try await withPreferences {
+            // A real file, because the upstream marker is written below with SQLite directly: this target
+            // does not link GRDB. The marker is one of upstream's migration identifiers.
+            let path = FileManager.default.temporaryDirectory
+                .appendingPathComponent("upstream-origin-\(UUID().uuidString).sqlite").path
+            addTeardownBlock {
+                for suffix in ["", "-wal", "-shm"] { try? FileManager.default.removeItem(atPath: path + suffix) }
+            }
+            _ = try await WhoopStore(path: path)
+            var handle: OpaquePointer?
+            XCTAssertEqual(sqlite3_open(path, &handle), SQLITE_OK)
+            XCTAssertEqual(sqlite3_exec(handle,
+                "INSERT OR IGNORE INTO grdb_migrations(identifier) VALUES ('v43-coach-messages')", nil, nil, nil),
+                SQLITE_OK)
+            sqlite3_close(handle)
+            let store = try await WhoopStore(path: path)
+            let registry = DeviceRegistryStore(dbQueue: store.registryWriter)
+            try register(registry, canonicalModel: "5.0 MG")
+            let input = night()
+            try await seedBaseline(store, before: input.day)
+            _ = try await store.insert(Streams(hr: input.hr, rr: input.rr), deviceId: canonical)
+            // Upstream's scored shape for that night: sleep staged, HRV and Charge withheld.
+            _ = try await store.upsertDailyMetrics([DailyMetric(day: input.day, totalSleepMin: 480,
+                efficiency: 0.9, deepMin: 90, remMin: 90, lightMin: 300, disturbances: 0, restingHr: 60,
+                avgHrv: nil, recovery: nil, strain: nil, exerciseCount: nil)], deviceId: canonical + "-noop")
+            let noCursor = try await store.cursor(IntelligenceEngine.analysisRecipeCursor)
+            XCTAssertNil(noCursor)
+
+            let repo = Repository(deviceId: canonical)
+            repo.setStoreForTesting(store)
+            let engine = IntelligenceEngine(repo: repo, profile: ProfileStore(), deviceId: canonical)
+            let ok = await engine.prepareAnalysisRecipe()
+            XCTAssertTrue(ok)
+
+            let rows = try await store.dailyMetrics(deviceId: canonical + "-noop", from: input.day, to: input.day)
+            let repaired = try XCTUnwrap(rows.first)
+            XCTAssertNotNil(repaired.avgHrv, "the blanked night must be re-scored from its unlabelled beats")
+            XCTAssertNotNil(repaired.recovery, "Charge follows the restored HRV")
+            let cursor = try await store.cursor(IntelligenceEngine.analysisRecipeCursor)
+            XCTAssertEqual(cursor, IntelligenceEngine.currentAnalysisRecipeVersion)
         }
     }
 
