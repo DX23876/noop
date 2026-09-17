@@ -7,25 +7,77 @@ import SwiftUI
 // bindings, while cards, gauges, typography, and chrome share one maintainable source of truth.
 
 public enum NoopVisualStyle {
-    // Apple grouped-background hierarchy. These values mirror the public iOS system colours while
-    // remaining explicit dynamic tokens, so macOS, widgets, and watchOS resolve the same design language.
-    public static let canvas = Color(light: "#F2F2F7", dark: "#000000")
-    public static let surface = Color(light: "#FFFFFF", dark: "#1C1C1E")
-    public static let surfaceTop = Color(light: "#FFFFFF", dark: "#1C1C1E")
-    public static let surfaceBottom = Color(light: "#FFFFFF", dark: "#1C1C1E")
-    public static let inset = Color(light: "#F2F2F7", dark: "#2C2C2E")
+    // A cool slate hierarchy: near-black in Dark, paper in Light, both carrying a deliberate blue-cool
+    // cast rather than the neutral grey these tokens used to mirror from iOS.
+    //
+    // WHY THE VALUES MOVED. The previous set was the Apple system grey ramp verbatim (#000000 /
+    // #1C1C1E / #2C2C2E, border #38383A), which measured as follows and read as washed out for it:
+    // border carried only 1.45:1 against the surface, so dividers and card rims dissolved into the
+    // fill; `tertiaryText` reached 2.50:1 in Dark and 1.74:1 in Light; and `secondaryText` in Light
+    // sat at 3.44:1, under the 4.5:1 AA floor for body text. Surface saturation was 0.034 — grey in
+    // all but name. Every value below is chosen against `ChromeContrastTests`, which re-checks the
+    // same arithmetic, so a future edit cannot quietly walk any of it back.
+    //
+    // `surfaceTop`/`surfaceBottom` are now genuinely distinct. `NoopPanelSurface` has always drawn a
+    // LinearGradient between them and promised "a quiet vertical gradient" in its own doc comment,
+    // but all three tokens held the same hex, so the gradient rendered flat.
+    //
+    // This layer deliberately does NOT branch on `ChartStyle` — chart styles recolour data encodings,
+    // never chrome (see `Appearance.swift`). A cool cast is what lets one chrome carry all seven of
+    // them; a green or gold one would fight Aurora's frost and Forest's earth.
+    /// The raw hex behind every chrome token, kept as strings so `ChromeContrastTests` can parse the
+    /// very values the tokens are built from. A `Color` backed by a dynamic provider cannot be read
+    /// back, and a test that re-typed the literals would only be checking its own copy — the same
+    /// reason `StrandPalette.LaneColorTable` exists.
+    enum ChromeHex {
+        struct Pair {
+            let light: String
+            let dark: String
+        }
+        static let canvas = Pair(light: "#E7EBF3", dark: "#03050A")
+        static let surface = Pair(light: "#FFFFFF", dark: "#151B2A")
+        static let surfaceTop = Pair(light: "#FFFFFF", dark: "#181F30")
+        static let surfaceBottom = Pair(light: "#F9FAFD", dark: "#121724")
+        static let inset = Pair(light: "#E8ECF5", dark: "#212B3D")
+        static let border = Pair(light: "#98A3B6", dark: "#374861")
+        static let borderHighlight = Pair(light: "#FFFFFF", dark: "#4C5F83")
+        static let divider = Pair(light: "#98A3B6", dark: "#374861")
+        static let primaryText = Pair(light: "#0B0F18", dark: "#F4F7FC")
+        // Translucent, NOT opaque: cards and the Liquid hero are partly transparent, so secondary and
+        // tertiary copy composites over whatever is actually behind it. Only the opacity rose — enough
+        // to clear 4.5:1 over canvas, surface and inset alike.
+        static let secondaryText = Pair(light: "#28313FCC", dark: "#E6EDFAC4")
+        static let tertiaryText = Pair(light: "#28313FB8", dark: "#E6EDFA96")
+    }
 
-    public static let border = Color(light: "#C6C6C8", dark: "#38383A")
-    public static let borderHighlight = Color(light: "#FFFFFF", dark: "#48484A")
-    public static let divider = Color(light: "#C6C6C8", dark: "#38383A")
+    private static func token(_ pair: ChromeHex.Pair) -> Color {
+        Color(light: pair.light, dark: pair.dark)
+    }
 
-    public static let primaryText = Color(light: "#000000", dark: "#FFFFFF")
-    public static let secondaryText = Color(light: "#3C3C4399", dark: "#EBEBF599")
-    public static let tertiaryText = Color(light: "#3C3C434D", dark: "#EBEBF54D")
+    public static let canvas = token(ChromeHex.canvas)
+    public static let surface = token(ChromeHex.surface)
+    public static let surfaceTop = token(ChromeHex.surfaceTop)
+    public static let surfaceBottom = token(ChromeHex.surfaceBottom)
+    public static let inset = token(ChromeHex.inset)
+
+    public static let border = token(ChromeHex.border)
+    public static let borderHighlight = token(ChromeHex.borderHighlight)
+    public static let divider = token(ChromeHex.divider)
+
+    public static let primaryText = token(ChromeHex.primaryText)
+    public static let secondaryText = token(ChromeHex.secondaryText)
+    public static let tertiaryText = token(ChromeHex.tertiaryText)
 
     public static let mint = Color(light: "#149A78", dark: "#69DDB8")
     public static let mintDeep = Color(light: "#0D765C", dark: "#13A982")
     public static let mintGlow = Color(light: "#38C99E", dark: "#54E6BD")
+
+    /// The opacities `NoopPanelSurface` strokes its rim with, named rather than inlined so
+    /// `ChromeContrastTests` can check what is actually PAINTED and not merely the token behind it.
+    /// They used to be 0.72 / 0.52, which put the rendered card rim at 1.34:1 even once the `border`
+    /// token itself cleared 1.85:1 — the gate would have been asserting something the eye never got.
+    public static let panelRimHighlightOpacity: Double = 0.92
+    public static let panelRimBorderOpacity: Double = 0.80
 
     public static let cardRadius: CGFloat = 22
     public static let compactRadius: CGFloat = 16
@@ -92,7 +144,8 @@ public struct NoopPanelSurface: View {
             .overlay(
                 shape.strokeBorder(
                     LinearGradient(
-                        colors: [NoopVisualStyle.borderHighlight.opacity(0.72), NoopVisualStyle.border.opacity(0.52)],
+                        colors: [NoopVisualStyle.borderHighlight.opacity(NoopVisualStyle.panelRimHighlightOpacity),
+                                 NoopVisualStyle.border.opacity(NoopVisualStyle.panelRimBorderOpacity)],
                         startPoint: .top,
                         endPoint: .bottom
                     ),
