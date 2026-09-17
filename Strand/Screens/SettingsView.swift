@@ -719,30 +719,13 @@ struct SettingsView: View {
                 // standing value the whole app reads, while the Body page holds DATED measurements with
                 // their own history. Removing these rows outright would lose everyone who knows where
                 // they are — so this points at the fuller surface rather than replacing them with it.
-                NavigationLink {
+                SettingsNavRow(
+                    icon: (symbol: "figure.stand", id: "body"),
+                    title: "Body measurements…",
+                    subtitle: "Weight, body fat and tape measurements, each with the date it was taken"
+                ) {
                     BodyView()
-                } label: {
-                    HStack(spacing: 8) {
-                        Image(systemName: "figure.stand")
-                            .appleInspiredMenuIcon("body")
-                            .accessibilityHidden(true)
-                        VStack(alignment: .leading, spacing: 1) {
-                            Text("Body measurements…")
-                                .foregroundStyle(StrandPalette.textPrimary)
-                            Text("Weight, body fat and tape measurements, each with the date it was taken")
-                                .font(StrandFont.caption)
-                                .foregroundStyle(StrandPalette.textSecondary)
-                                .fixedSize(horizontal: false, vertical: true)
-                        }
-                        Spacer(minLength: 0)
-                        Image(systemName: "chevron.right")
-                            .font(StrandFont.caption)
-                            .foregroundStyle(StrandPalette.textTertiary)
-                            .accessibilityHidden(true)
-                    }
-                    .font(StrandFont.subhead)
                 }
-                .buttonStyle(LiquidPressStyle())
                 .accessibilityLabel("Open body measurements")
                 rowDivider
                 FormRow(label: "Max heart rate") {
@@ -1271,17 +1254,17 @@ struct SettingsView: View {
                         Text("Hidden").tag(TrainingMediaPresentation.hidden.rawValue)
                     }.labelsHidden().pickerStyle(.menu)
                 }
-                NavigationLink { ExerciseMediaManagementView() } label: {
-                    Label("Manage offline exercise media", systemImage: "arrow.down.circle")
-                        .font(StrandFont.subhead)
-                }
-                .buttonStyle(.plain).foregroundStyle(StrandPalette.accent)
                 rowDivider
-                NavigationLink { TrainingEquipmentSettingsView() } label: {
-                    Label("Available equipment", systemImage: "dumbbell")
-                        .font(StrandFont.subhead)
+                SettingsNavRow(icon: (symbol: "arrow.down.circle", id: "exerciseMedia"),
+                               title: "Manage offline exercise media",
+                               accessibilityLabel: "Manage offline exercise media") {
+                    ExerciseMediaManagementView()
                 }
-                .buttonStyle(.plain).foregroundStyle(StrandPalette.accent)
+                rowDivider
+                SettingsNavRow(icon: (symbol: "dumbbell", id: "training"),
+                               title: "Available equipment") {
+                    TrainingEquipmentSettingsView()
+                }
                 rowDivider
                 FormRow(label: "Week starts") {
                     Picker("Week starts", selection: $trainingWeekStartRaw) {
@@ -2061,20 +2044,9 @@ struct SettingsView: View {
             title: "Test Centre",
             blurb: "Turn on a test for the thing that's wrong, wear the strap, then tap Report. Your strap log, recalibrate, scheduled export and experimental probes all live here too."
         ) {
-            NavigationLink(destination: TestCentreView()) {
-                HStack {
-                    Text("Open Test Centre")
-                        .font(StrandFont.body)
-                        .foregroundStyle(StrandPalette.textPrimary)
-                    Spacer()
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(StrandPalette.textTertiary)
-                }
-                .contentShape(Rectangle())
+            SettingsNavRow(title: "Open Test Centre") {
+                TestCentreView()
             }
-            .buttonStyle(LiquidPressStyle())
-            .accessibilityLabel("Open Test Centre")
         }
     }
 
@@ -2341,16 +2313,9 @@ struct SettingsView: View {
                     .font(StrandFont.overline)
                     .tracking(StrandFont.overlineTracking)
                     .foregroundStyle(StrandPalette.textTertiary)
-                NavigationLink {
+                SettingsNavRow(icon: (symbol: "slider.horizontal.3", id: "dashboardEditor"),
+                               title: "Arrange dashboard") {
                     DashboardLayoutEditor(dashboard: dashboard)
-                } label: {
-                    HStack {
-                        Label("Arrange dashboard", systemImage: "slider.horizontal.3")
-                        Spacer()
-                        Image(systemName: "chevron.right").font(.caption).foregroundStyle(StrandPalette.textTertiary)
-                    }
-                    .font(StrandFont.subhead)
-                    .foregroundStyle(StrandPalette.textPrimary)
                 }
             }
         }
@@ -3161,25 +3126,11 @@ struct SettingsView: View {
 
                 // Reach the scheduled / folder-based Backup & Sync screen (back up to a chosen folder on
                 // demand or about once a day, restore from a snapshot in that folder).
-                NavigationLink {
+                SettingsNavRow(icon: (symbol: "externaldrive.fill.badge.icloud", id: "backupSync"),
+                               title: "Backup & Sync to a folder…",
+                               accessibilityLabel: "Open Backup and Sync to a folder") {
                     BackupSyncView()
-                } label: {
-                    HStack(spacing: 8) {
-                        Image(systemName: "externaldrive.fill.badge.icloud")
-                            .appleInspiredMenuIcon("backupSync")
-                            .accessibilityHidden(true)
-                        Text("Backup & Sync to a folder…")
-                            .foregroundStyle(StrandPalette.textPrimary)
-                        Spacer(minLength: 0)
-                        Image(systemName: "chevron.right")
-                            .font(StrandFont.caption)
-                            .foregroundStyle(StrandPalette.textTertiary)
-                            .accessibilityHidden(true)
-                    }
-                    .font(StrandFont.subhead)
                 }
-                .buttonStyle(LiquidPressStyle())
-                .accessibilityLabel("Open Backup and Sync to a folder")
             }
         }
     }
@@ -3388,62 +3339,24 @@ struct SettingsView: View {
                 // calibrates, the SpO₂ caveat). Its primary action opens the watch setup + Health
                 // permission flow. Renders the same on macOS and iOS (pure reference content); the setup
                 // sheet itself does the iOS-only HealthKit request.
-                NavigationLink {
+                SettingsNavRow(
+                    icon: (symbol: "applewatch", id: "appleHealth"),
+                    title: "About Apple Watch data",
+                    subtitle: "Use NOOP with just an Apple Watch. What it's great at, and where it's lighter than a strap."
+                ) {
                     AppleWatchAboutView(onStartSetup: { showAppleWatchSetup = true })
-                } label: {
-                    HStack(spacing: 10) {
-                        Image(systemName: "applewatch")
-                            .appleInspiredMenuIcon("appleHealth")
-                            .accessibilityHidden(true)
-                        VStack(alignment: .leading, spacing: 1) {
-                            Text("About Apple Watch data")
-                                .font(StrandFont.body)
-                                .foregroundStyle(StrandPalette.textPrimary)
-                            Text("Use NOOP with just an Apple Watch. What it's great at, and where it's lighter than a strap.")
-                                .font(StrandFont.footnote)
-                                .foregroundStyle(StrandPalette.textSecondary)
-                                .fixedSize(horizontal: false, vertical: true)
-                        }
-                        Spacer()
-                        Image(systemName: "chevron.right")
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundStyle(StrandPalette.textTertiary)
-                            .accessibilityHidden(true)
-                    }
-                    .contentShape(Rectangle())
                 }
-                .buttonStyle(LiquidPressStyle())
-                .accessibilityLabel("About Apple Watch data")
 
                 // Storage (#590) — on-device space breakdown (database, leftover import Inbox, stranded
                 // temp files) plus a one-tap clean-up. iOS is where "Documents & Data" can balloon after
                 // an Apple Health import; it compiles + reads fine on macOS too, so the link is unconditional.
-                NavigationLink {
+                SettingsNavRow(
+                    icon: (symbol: "internaldrive", id: "backupSync"),
+                    title: "Storage",
+                    subtitle: "Where NOOP's on-device space is going, and a one-tap clean-up."
+                ) {
                     StorageView()
-                } label: {
-                    HStack(spacing: 10) {
-                        Image(systemName: "internaldrive")
-                            .appleInspiredMenuIcon("backupSync")
-                            .accessibilityHidden(true)
-                        VStack(alignment: .leading, spacing: 1) {
-                            Text("Storage")
-                                .font(StrandFont.body)
-                                .foregroundStyle(StrandPalette.textPrimary)
-                            Text("Where NOOP's on-device space is going, and a one-tap clean-up.")
-                                .font(StrandFont.footnote)
-                                .foregroundStyle(StrandPalette.textSecondary)
-                                .fixedSize(horizontal: false, vertical: true)
-                        }
-                        Spacer()
-                        Image(systemName: "chevron.right")
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundStyle(StrandPalette.textTertiary)
-                            .accessibilityHidden(true)
-                    }
-                    .contentShape(Rectangle())
                 }
-                .buttonStyle(LiquidPressStyle())
-                .accessibilityLabel("Storage")
 
                 #if os(iOS)
                 // iOS reality & diagnostics — honest expectations for a sideloaded iPhone build, plus a
@@ -4551,6 +4464,65 @@ private struct FormRow<Control: View>: View {
                 .layoutPriority(1)
         }
         .frame(minHeight: 32)
+    }
+}
+
+/// The canonical "tap through to another screen" row inside a `SettingsSection`.
+///
+/// Every such row used to be written out by hand, and the eight copies had drifted into six shapes:
+/// three HStack spacings, three chevron fonts (two of them raw `.system(size:)` rather than a token),
+/// `Spacer()` versus `Spacer(minLength: 0)`, and a hit area that was only as wide as the label wherever
+/// `.contentShape` was forgotten. Two of them — Manage offline exercise media and Available equipment —
+/// had drifted furthest: a bare `Label` dropped into a `VStack` whose every other child fills the width,
+/// so it CENTRED itself, tinted icon *and* text with the accent, and offered no chevron. One component,
+/// so a ninth row cannot invent a seventh shape.
+private struct SettingsNavRow<Destination: View>: View {
+    /// Leading tile: the SF Symbol, and the `AppleInspiredColors` id that colours it. They travel as one
+    /// optional pair because a row either has a coloured identity tile or has none — the Test Centre door
+    /// deliberately has none, since its section header already carries that same symbol.
+    var icon: (symbol: String, id: String)?
+    let title: LocalizedStringKey
+    var subtitle: LocalizedStringKey?
+    /// Spoken label, for rows whose visible title does not read well on its own ("Storage" → "Storage").
+    /// `nil` speaks the title.
+    var accessibilityLabel: LocalizedStringKey?
+    @ViewBuilder var destination: () -> Destination
+
+    var body: some View {
+        NavigationLink {
+            destination()
+        } label: {
+            HStack(spacing: NoopMetrics.space3) {
+                if let icon {
+                    Image(systemName: icon.symbol)
+                        .appleInspiredMenuIcon(icon.id)
+                        .accessibilityHidden(true)
+                }
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(title)
+                        .font(StrandFont.body)
+                        .foregroundStyle(StrandPalette.textPrimary)
+                    if let subtitle {
+                        Text(subtitle)
+                            .font(StrandFont.footnote)
+                            .foregroundStyle(StrandPalette.textSecondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.right")
+                    .font(StrandFont.caption)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(StrandPalette.textTertiary)
+                    .accessibilityHidden(true)
+            }
+            // 44pt is the platform's minimum touch target, and `contentShape` is what makes the whole
+            // row that target rather than just the glyphs inside it.
+            .frame(minHeight: 44)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(LiquidPressStyle())
+        .accessibilityLabel(Text(accessibilityLabel ?? title))
     }
 }
 
