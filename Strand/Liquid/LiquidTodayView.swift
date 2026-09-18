@@ -564,7 +564,7 @@ struct LiquidTodayView: View {
     var body: some View {
         ScrollViewReader { proxy in
         ScrollView {
-            LazyVStack(spacing: 0) {
+            VStack(spacing: 0) {
                 // Zero-height scroll-to-top anchor (#198 follow-up): the target for an at-root Today re-tap.
                 Color.clear.frame(height: 0).id(Self.topAnchorID)
                 // Scroll-offset probe at the very top (before padding), so its minY in the scroll's
@@ -577,7 +577,7 @@ struct LiquidTodayView: View {
 
                 liquidRefreshIndicator   // grows in the revealed space; a vessel filling with the pull
 
-                LazyVStack(alignment: .leading, spacing: NoopMetrics.gap) {
+                VStack(alignment: .leading, spacing: NoopMetrics.gap) {
                     scene
                     // The coach entry is NOT here any more: a full-width row between the wordmark and the
                     // scores both dominated the screen and pushed Charge/Effort/Rest down the page. It is now
