@@ -15,9 +15,9 @@
 </p>
 
 <p align="center">
-  <img src="docs/assets/screenshots/v11.8.1/today-classic.png" width="248" alt="Today screen: Charge, Effort and Rest rings, a proposed session and the coach row">
-  <img src="docs/assets/screenshots/v11.8.1/training-load.png" width="248" alt="Training Load screen with the redesigned lane chart and colour-coded fitness/fatigue lines">
-  <img src="docs/assets/screenshots/v11.8.1/sleep-detail.png" width="248" alt="Sleep screen with the stage hypnogram and night detail tiles">
+  <img src="docs/assets/screenshots/v11.8.1/today-classic.png" width="248" alt="Today in the Classic layout: Effort, Charge and Rest for the day, a proposed session, and a Momentum note reading HRV 16% under baseline">
+  <img src="docs/assets/screenshots/v11.8.1/training-log.png" width="248" alt="Training: the built-in logger with a freestyle start, this week's schedule, and saved routines shown with their muscle maps">
+  <img src="docs/assets/screenshots/v11.8.1/sleep-detail.png" width="248" alt="Sleep: last night's asleep and wake times, then the stage breakdown as awake, light, deep and REM bands across the night">
 </p>
 <p align="center">
   <sub>Today, the redesigned Training Load, and Sleep — all computed on the device you're holding</sub>
@@ -48,7 +48,7 @@ reporting any of this back.
 <table>
 <tr>
 <td width="50%" valign="top">
-<img src="docs/assets/screenshots/v11.8.1/today-classic.png" width="100%" alt="Today screen with Charge, Effort and Rest rings">
+<img src="docs/assets/screenshots/v11.8.1/today-classic.png" width="100%" alt="Today in the Classic layout, with the day's Effort, Charge and Rest rings above a proposed session">
 </td>
 <td width="50%" valign="top">
 
@@ -64,7 +64,7 @@ day when you want it.
 </tr>
 <tr>
 <td width="50%" valign="top">
-<img src="docs/assets/screenshots/v11.8.1/sleep-detail.png" width="100%" alt="Sleep screen with hypnogram and night detail tiles">
+<img src="docs/assets/screenshots/v11.8.1/sleep-detail.png" width="100%" alt="Sleep: hours and restorative sleep, then the night split into awake, light, deep and REM, with a note that only part of the window was recorded">
 </td>
 <td width="50%" valign="top">
 
@@ -79,7 +79,7 @@ against your personal need, and sleep debt that decays instead of compounding fo
 </tr>
 <tr>
 <td width="50%" valign="top">
-<img src="docs/assets/screenshots/v11.8.1/training-load.png" width="100%" alt="Training Load screen with fitness and fatigue lines">
+<img src="docs/assets/screenshots/v11.8.1/training-load.png" width="100%" alt="Training Load: Strength and Cardio as separate lanes, each in its own unit, and a prompt asking whether two records are the same cycling session">
 </td>
 <td width="50%" valign="top">
 
@@ -95,7 +95,7 @@ enough history to back it.
 </tr>
 <tr>
 <td width="50%" valign="top">
-<img src="docs/assets/screenshots/v11.8.1/strength.png" width="100%" alt="Strength screen with exercise library and muscle map">
+<img src="docs/assets/screenshots/v11.8.1/strength.png" width="100%" alt="Strength: muscle analytics with a front and back body map showing how the last 28 days of strength work is distributed">
 </td>
 <td width="50%" valign="top">
 
@@ -111,7 +111,7 @@ history without duplicating overlapping sets.
 </tr>
 <tr>
 <td width="50%" valign="top">
-<img src="docs/assets/screenshots/v11.8.1/cardio.png" width="100%" alt="Cardio screen with a run's heart-rate zones and pace">
+<img src="docs/assets/screenshots/v11.8.1/cardio.png" width="100%" alt="Cardio: load in TRIMP with sessions, moving time, distance and calories, over a four-week load chart">
 </td>
 <td width="50%" valign="top">
 
@@ -126,7 +126,7 @@ mid-way through.
 </tr>
 <tr>
 <td width="50%" valign="top">
-<img src="docs/assets/screenshots/v11.8.1/body-energy.png" width="100%" alt="Body screen with weight trend and energy expenditure breakdown">
+<img src="docs/assets/screenshots/v11.8.1/energy.png" width="100%" alt="Energy: three independent estimates of what a day costs, disagreeing by 611 kcal, with the gap named as the honest answer">
 </td>
 <td width="50%" valign="top">
 
@@ -141,7 +141,7 @@ than silently trusting one device over another.
 </tr>
 <tr>
 <td width="50%" valign="top">
-<img src="docs/assets/screenshots/v11.8.1/coach-settings.png" width="100%" alt="Coach settings screen with connection, memory and privacy sections">
+<img src="docs/assets/screenshots/v11.8.1/coach-settings.png" width="100%" alt="Coach settings: the off-by-default switch, the provider and model, and the note that this is the only feature that leaves the phone">
 </td>
 <td width="50%" valign="top">
 
@@ -157,7 +157,7 @@ server) lets it recall what you've told it without re-explaining yourself every 
 </tr>
 <tr>
 <td width="50%" valign="top">
-<img src="docs/assets/screenshots/v11.8.1/goal-journey.png" width="100%" alt="Goal and Journey screen showing progress toward a running goal">
+<img src="docs/assets/screenshots/v11.8.1/goal-journey.png" width="100%" alt="Goal and Journey: a training-frequency goal and a body-weight goal, each with its pace, target and whether it is on track">
 </td>
 <td width="50%" valign="top">
 
@@ -172,7 +172,7 @@ facts (a real recovery uptrend, your longest run), never a streak counter that p
 </tr>
 <tr>
 <td width="50%" valign="top">
-<img src="docs/assets/screenshots/v11.8.1/data-sources.png" width="100%" alt="Data Sources screen with WHOOP, Apple Health and file import options">
+<img src="docs/assets/screenshots/v11.8.1/data-sources.png" width="100%" alt="Data Sources: a WHOOP export already imported with 120 days stored, plus Apple Health and the other import paths">
 </td>
 <td width="50%" valign="top">
 
@@ -187,7 +187,7 @@ sleeping better about backups.
 </tr>
 <tr>
 <td width="50%" valign="top">
-<img src="docs/assets/screenshots/v11.8.1/sync-settings.png" width="100%" alt="Settings screen showing the new Sync section with keep-screen-on and Sync Strap Shortcut options">
+<img src="docs/assets/screenshots/v11.8.1/sync-settings.png" width="100%" alt="Settings: the Sync section, with the option to hold the screen awake while NOOP pulls stored history from the strap">
 </td>
 <td width="50%" valign="top">
 
