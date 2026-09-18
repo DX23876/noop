@@ -171,7 +171,10 @@ facts (a real recovery uptrend, your longest run), never a streak counter that p
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top">
+<td width="50%" valign="top">
+<img src="docs/assets/screenshots/v11.8.1/data-sources.png" width="100%" alt="Data Sources screen with WHOOP, Apple Health and file import options">
+</td>
+<td width="50%" valign="top">
 
 ### Every path in stays on the device
 
@@ -183,7 +186,10 @@ sleeping better about backups.
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top">
+<td width="50%" valign="top">
+<img src="docs/assets/screenshots/v11.8.1/sync-settings.png" width="100%" alt="Settings screen showing the new Sync section with keep-screen-on and Sync Strap Shortcut options">
+</td>
+<td width="50%" valign="top">
 
 ### Widgets, Watch, and a strap that syncs itself
 
