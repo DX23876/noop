@@ -24,6 +24,26 @@ final class ActiveSessionControllerTests: XCTestCase {
         XCTAssertTrue(ActiveSessionController.isStale(fresh, now: start + 600 + 4 * 3_600 + 1))
     }
 
+    func testAForgottenSessionWithNoCompletedSetIsNotWorthAsking() {
+        // The prompt exists to protect logged work. A draft that never completed a set has none, and
+        // the engine would refuse to complete it, so asking would offer a Save that cannot succeed.
+        var empty = draft(startedAt: 1_000_000, updatedAt: 1_000_000)
+        empty.exercises = [NativeWorkoutExercise(exerciseId: "exdb:0001",
+                                                 sets: [NativeWorkoutSet(index: 0, reps: 8)])]
+        XCTAssertFalse(ActiveSessionController.holdsWorkWorthKeeping(empty))
+        XCTAssertThrowsError(try NativeWorkoutEngine.complete(draft: empty, endTs: 1_001_000)) { error in
+            XCTAssertEqual(error as? WorkoutMutationError, .noCompletedWork)
+        }
+
+        // One completed set is the whole difference: now there is something a Save would keep.
+        var logged = empty
+        logged.exercises = [NativeWorkoutExercise(exerciseId: "exdb:0001",
+                                                  sets: [NativeWorkoutSet(index: 0, reps: 8,
+                                                                          isCompleted: true)])]
+        XCTAssertTrue(ActiveSessionController.holdsWorkWorthKeeping(logged))
+        XCTAssertNoThrow(try NativeWorkoutEngine.complete(draft: logged, endTs: 1_001_000))
+    }
+
     func testARetrospectiveEntryIsNeverTreatedAsForgotten() {
         let start = 1_000_000
         let past = draft(startedAt: start, updatedAt: start, plannedEndTs: start + 3_600)

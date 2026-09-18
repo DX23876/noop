@@ -345,6 +345,17 @@ final class ActiveSessionController: ObservableObject {
         await loadContextIfNeeded()
         retireLegacyRecording(for: draft)
         if Self.isStale(draft, now: now) {
+            // Asking about a draft that logged nothing offers a Save that cannot work: the engine
+            // refuses an empty draft with `noCompletedWork`, and the `.save` branch below then keeps
+            // the draft so "nothing is lost" — which brought the same question back on every launch,
+            // with only the destructive answer able to end it. A draft with no completed set holds no
+            // record, just a start time and whatever exercise was lined up, so there is nothing to
+            // lose by ending it and nothing worth interrupting a launch for.
+            guard Self.holdsWorkWorthKeeping(draft) else {
+                let session = makeSession(draft)
+                if await session.discard() { strengthDiscarded() }
+                return
+            }
             staleDraft = draft
         } else {
             strength = makeSession(draft)
@@ -353,6 +364,16 @@ final class ActiveSessionController: ObservableObject {
 
     static func isStale(_ draft: WorkoutDraft, now: Int) -> Bool {
         draft.plannedEndTs == nil && now - lastActivity(of: draft) > staleAfterSeconds
+    }
+
+    /// Whether a forgotten draft holds anything saving could keep.
+    ///
+    /// Deliberately the SAME predicate the engine completes on, rather than a second count of sets
+    /// here: a draft this returns false for is exactly a draft `NativeWorkoutEngine.complete` would
+    /// throw `noCompletedWork` for, so the question can never be asked about a session that has no
+    /// answer but Discard.
+    static func holdsWorkWorthKeeping(_ draft: WorkoutDraft) -> Bool {
+        NativeWorkoutEngine.completionValidation(for: draft).canComplete
     }
 
     /// The best available "last touched" instant. `updatedAt` is a revision that is kept at or above the
