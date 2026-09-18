@@ -7,7 +7,7 @@ enum AppChangelog {
 
     /// Bump this when you add a release below. The "What's New" sheet shows automatically when the
     /// stored last-seen version is behind this. (Decoupled from the bundle version on purpose.)
-    static let currentVersion = "11.8.1"
+    static let currentVersion = "11.8.2"
 
     struct Release: Identifiable {
         let version: String
@@ -19,6 +19,15 @@ enum AppChangelog {
 
     /// Newest first.
     static let releases: [Release] = [
+        Release(
+            version: "11.8.2",
+            title: "Today draws again",
+            date: "September 2026",
+            items: [
+                "**Today comes back.** On the Liquid layout — the one NOOP uses unless you picked another — Today could open completely empty: the tab bar and nothing else, with nothing to tap. It draws again. Nothing about your data changed while it was blank; only the screen was missing.",
+                "**A forgotten session stops asking.** A strength session interrupted before its first completed set had nothing to save, but still asked what to do with it at every launch — and only Discard could end it. It is now closed quietly, and the question is kept for a session that actually logged something.",
+            ]
+        ),
         Release(
             version: "11.8.1",
             title: "A native training log, redesigned Training Load, and everything ryanbr/noop shipped since 10.1.2",
