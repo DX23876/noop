@@ -7,7 +7,7 @@
 <p align="center"><b>Your WHOOP data, on your own devices, with a coach that remembers.</b></p>
 
 <p align="center">
-  <img alt="Current release" src="https://img.shields.io/badge/current%20release-10.1.1-C8902F?style=flat-square">
+  <img alt="Current release" src="https://img.shields.io/badge/current%20release-11.8.1-C8902F?style=flat-square">
   <img alt="Platforms" src="https://img.shields.io/badge/iOS%2017%2B%20%C2%B7%20macOS%2013%2B-234F9E?style=flat-square">
   <img alt="Straps" src="https://img.shields.io/badge/WHOOP-4.0%20%C2%B7%205.0%2FMG-234F9E?style=flat-square">
   <img alt="Privacy" src="https://img.shields.io/badge/no%20account%20%C2%B7%20no%20cloud-6B737B?style=flat-square">
@@ -15,159 +15,204 @@
 </p>
 
 <p align="center">
-  <img src="docs/assets/banner.svg" alt="NOOP — your strap, your data, your machine" width="640">
-</p>
-
-<p align="center">
-  <img src="docs/assets/screenshots/today.png" width="248" alt="Today screen with a proposed session, the coach row, and the Charge, Effort and Rest rings">
-  <img src="docs/assets/screenshots/coach-brief.png" width="248" alt="The coach's daily brief, followed by the five data sources it was grounded in">
-  <img src="docs/assets/screenshots/coach-memory.png" width="248" alt="Memory settings: an on-device semantic index with rebuild and delete controls">
+  <img src="docs/assets/screenshots/v11.8.1/today-classic.png" width="248" alt="Today screen: Charge, Effort and Rest rings, a proposed session and the coach row">
+  <img src="docs/assets/screenshots/v11.8.1/training-load.png" width="248" alt="Training Load screen with the redesigned lane chart and colour-coded fitness/fatigue lines">
+  <img src="docs/assets/screenshots/v11.8.1/sleep-detail.png" width="248" alt="Sleep screen with the stage hypnogram and night detail tiles">
 </p>
 <p align="center">
-  <sub>Today · the daily brief and the sources behind it · memory that runs on the phone</sub>
+  <sub>Today, the redesigned Training Load, and Sleep — all computed on the device you're holding</sub>
 </p>
 
 ---
 
-<!--
-MAINTAINER NOTE — update this small release section for every beta or public release:
-1. Change the badge and heading version.
-2. Keep three or fewer concrete highlights.
-3. Move shipped items out of “In development” and link the matching release note.
--->
+## Why NOOP AI
 
-## What this fork adds
+A WHOOP strap is remarkable hardware locked to WHOOP's own app, subscription and cloud. NOOP AI
+talks to the strap directly over Bluetooth, computes Charge (recovery), Effort (strain), Rest,
+sleep staging, HRV and training load **on your iPhone or Mac**, and keeps every number there. No
+WHOOP account. No NOOP account either — there's nothing to sign into and nowhere to sign in to.
 
-NOOP AI stays close to [RyanBR's NOOP](https://github.com/ryanbr/noop) for the strap protocol,
-on-device analytics, storage and shared design system. The code below is the additional,
-Apple-first layer maintained in this fork:
+On top of that foundation, this fork adds a coach that can actually look at your data: an on-device
+semantic memory of what you've told it, 26 tools it can use only with your consent, and goal
+tracking that never quietly rewrites your plan for you. Bring your own API key (or run a fully
+local model) and the coach reads your Charge, sleep and training history to have an informed
+conversation — or don't configure one at all, and NOOP is a complete recovery and training app
+without it.
 
-### 🤖 A real coaching system, not just a chat box
+It ships the way it's built: an unsigned iOS build you sideload with your own Apple ID, and a
+Mac app you build or download directly. No App Store review, no App Store account, no telemetry
+reporting any of this back.
 
-A configurable identity and coaching style, streaming replies, model-specific history budgets and
-26 consent-gated tools that can read local summaries, explain readiness, draw charts, propose plans
-and write only the logs you explicitly request. Provider connections support Anthropic, OpenAI,
-Gemini, OpenRouter and custom OpenAI-compatible endpoints with your own key; tool calling is enabled
-where the selected provider and model support it. [Coach architecture →](docs/fork/COACH.md)
-
-### 🧠 Private long-term memory on the device
-
-Hybrid keyword and semantic retrieval over approved facts, your own chat turns and selected journal
-context. The Nomic embedding model runs locally on iPhone; raw sensor streams and numerical health
-histories are never embedded. Consent can be withdrawn at any time, and the derived index can be
-rebuilt or deleted. [SemanticMemory package →](Packages/SemanticMemory/)
-
-### 🎯 Goals, Journey and a plan you control
-
-One structured goal with feasibility and safety checks, progress based on actual evidence, milestones
-without invented streaks, and weekly proposals you can accept, decline, reschedule, swap or skip.
-A model proposal never silently becomes your schedule.
-
-### 🔐 Purpose-by-purpose data consent
-
-Essentials, Personal and Deep Insights presets make setup simple; Expert mode exposes the individual
-grants. Sensitive journal topics always require a separate decision, and unavailable grants remove
-the corresponding tools before a request is sent. [Privacy model →](docs/PRIVACY_SECURITY.md)
-
-### 🔔 Proactive coaching with a local history
-
-Optional daily briefs, check-ins and goal reviews live in the Coach; plan proposals and important
-body/goal signals also feed the in-app bell, so useful events remain visible even when iOS cannot
-show a notification banner.
-
-### 🧪 Review-first health workflows
-
-Lab reports can be read from a text PDF or on-device photo OCR, but only recognised marker candidates
-you confirm become Lab Book entries. Files, OCR text and unconfirmed values are not retained.
-
-### 🍎 Apple-first interface and distribution
-
-A redesigned Today experience, configurable Coach entry points, compact-iPhone chat handling,
-fork-added surfaces covering upstream's full Apple language matrix, and an unsigned AltStore/SideStore
-release that is signed only with the Apple ID you choose.
-
-The upstream base and the fork additions remain intentionally separated in code so upstream protocol,
-analytics and safety fixes can continue to be merged without rewriting the coaching layer.
-
-## Latest release — 10.1.1
-
-A launch-performance and analysis-correctness release for large, long-lived local databases.
-
-- **The first screen no longer waits for the archive.** NOOP publishes a bounded 120-day snapshot,
-  then runs plan, goal, HealthKit and historical maintenance work after the interface is usable.
-- **Changed inputs invalidate the right days.** R-R, PPG heart rate, respiration, motion, steps,
-  temperature, SpO₂, wrist/sleep state and edited sleep now participate alongside measured heart rate.
-- **Dense streams keep their newest samples.** The silent 200,000-row ceiling is gone, and the largest
-  repeated sleep/recovery array scans have been replaced with sorted slices and one-pass buckets.
-
-Read the full [10.1.1 release notes](docs/fork/releases/v10.1.1.md).
-
-Before it: [10.1.0](docs/fork/releases/v10.1.0.md) brought the fork onto the 10.x line with custom
-heart-rate zones, arithmetic-checked coach prescriptions and the complete upstream 10.1.0 base.
-
-## In development
-
-- **Android is not shipped by this fork.** The Android tree was removed after the fork moved to an
-  Apple-only release pipeline. RyanBR's upstream project remains the source for Android development.
-- **More practical alert history.** The inbox will keep evolving around events that actually happened,
-  rather than becoming a second copy of scheduled reminders.
-
-## A look inside
+## Feature tour
 
 <table>
-  <tr>
-    <td width="33%" valign="top">
-      <img src="docs/assets/screenshots/coach-settings.png" width="240" alt="Coach settings with the Enable AI Coach switch and sections for connection, goal, coaching, memory and privacy">
-      <br><sub><b>The coach, in one place.</b> Nothing reaches a provider until you switch it on, and sharing your metrics stays a separate decision after that.</sub>
-    </td>
-    <td width="33%" valign="top">
-      <img src="docs/assets/screenshots/coach-connection.png" width="240" alt="Connection and model settings: provider, coaching model, API key, background models and usage counters">
-      <br><sub><b>Your provider, your key, your model.</b> Cheaper background models for summaries are optional, and the token count is tallied on the device.</sub>
-    </td>
-    <td width="33%" valign="top">
-      <img src="docs/assets/screenshots/coach-entry.png" width="240" alt="Coaching settings for coach entry points, morning suggestion, proactive messages, daily check-in and plan reminders">
-      <br><sub><b>Where it may appear, and whether it may speak first.</b> Banner, header icon or floating button — and proactive messages can be silenced entirely.</sub>
-    </td>
-  </tr>
-  <tr>
-    <td valign="top">
-      <img src="docs/assets/screenshots/coach-identity.png" width="240" alt="Coach identity screen with the ready-made coaches Svea and Marv, a name field, picture choices and a tone picker">
-      <br><sub><b>Two ready-made coaches, or your own.</b> Name, picture and tone are yours to set; the picture never leaves the phone.</sub>
-    </td>
-    <td valign="top">
-      <img src="docs/assets/screenshots/goal-wizard.png" width="240" alt="Goal wizard asking what kind of goal, with running, training frequency, sleep, strength, body weight, stress, recovery and free-form options">
-      <br><sub><b>One goal at a time.</b> Picked from what your data can actually track, then checked for feasibility before it becomes a plan.</sub>
-    </td>
-    <td valign="top">
-      <img src="docs/assets/screenshots/coach-privacy.png" width="240" alt="Privacy and data screen with a data-sharing switch, per-purpose data access and the coach's instructions">
-      <br><sub><b>Grant by grant.</b> What the coach may read, log and remember — and the instructions it runs on, in plain text you can edit.</sub>
-    </td>
-  </tr>
-  <tr>
-    <td valign="top">
-      <img src="docs/assets/screenshots/activity-status.png" width="240" alt="Activity status sheet offering active, sick, injured or on break, with a validity period">
-      <br><sub><b>Sick, injured, on a break.</b> Say so once and the app stops proposing training until the period you chose runs out.</sub>
-    </td>
-    <td valign="top">
-      <img src="docs/assets/screenshots/today-detail.png" width="240" alt="Today screen scrolled to recent workouts, a live beat-by-beat heart rate card, and HRV, resting heart rate and respiratory rate">
-      <br><sub><b>Recent sessions and a live pulse.</b> Beat by beat while the strap is connected, with the night's vitals directly below.</sub>
-    </td>
-    <td valign="top">
-      <img src="docs/assets/screenshots/more-tab.png" width="240" alt="The More tab listing analysis, body and data screens">
-      <br><sub><b>Everything else.</b> Insights, journal, biomarkers, intervals and the import screens, one tap from the tab bar.</sub>
-    </td>
-  </tr>
+<tr>
+<td width="50%" valign="top">
+<img src="docs/assets/screenshots/v11.8.1/today-classic.png" width="100%" alt="Today screen with Charge, Effort and Rest rings">
+</td>
+<td width="50%" valign="top">
+
+### Today, your way
+
+Three presentations of the same day — Classic rings, a Liquid Design glass treatment, or a dense
+Overview grid — pick whichever reads best to you in Settings › Appearance. Recent workouts, a
+live beat-by-beat heart rate card while the strap is connected, and HRV / resting heart rate /
+respiratory rate sit right below the rings, with a proposed session and the coach's take on the
+day when you want it.
+
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
+<img src="docs/assets/screenshots/v11.8.1/sleep-detail.png" width="100%" alt="Sleep screen with hypnogram and night detail tiles">
+</td>
+<td width="50%" valign="top">
+
+### Sleep, read honestly
+
+A reconstructed hypnogram for last night, stepping back through every earlier night you've
+recorded. Stage minutes, efficiency, a "vs typical" tile grid for performance, consistency, hours
+against your personal need, and sleep debt that decays instead of compounding forever. A
+"may be incomplete" badge now reflects how short the night actually was, not just thin motion data.
+
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
+<img src="docs/assets/screenshots/v11.8.1/training-load.png" width="100%" alt="Training Load screen with fitness and fatigue lines">
+</td>
+<td width="50%" valign="top">
+
+### Training Load, Cardio and Strength — rebuilt
+
+Chronic load (fitness), acute load (fatigue) and the balance between them, as a proper long-horizon
+chart — rebuilt this release on one shared design kit with dedicated colour lanes so Training Load,
+Cardio and Strength read consistently at a glance. Cardiovascular load, strength load and
+whole-session load stay in their own units; nothing here invents an "× usual" claim before there's
+enough history to back it.
+
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
+<img src="docs/assets/screenshots/v11.8.1/strength.png" width="100%" alt="Strength screen with exercise library and muscle map">
+</td>
+<td width="50%" valign="top">
+
+### A native strength log — 1,324 exercises offline
+
+Log sets directly in NOOP: routines, supersets, unilateral work, RIR, rest timers and plate
+loading, with a body-based muscle picker over one shared exercise catalogue. Balance, Fatigue and
+Strength views share one detailed muscle map so working-set distribution, remaining stimulus and
+e1RM trends all read off the same taxonomy. FitNotes, Strong and Hevy imports join the same
+history without duplicating overlapping sets.
+
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
+<img src="docs/assets/screenshots/v11.8.1/cardio.png" width="100%" alt="Cardio screen with a run's heart-rate zones and pace">
+</td>
+<td width="50%" valign="top">
+
+### Cardio that keeps recording in the background
+
+Live cardio recording continues while NOOP is backgrounded, the running session shows on the Lock
+Screen and in the Dynamic Island, and starting a workout from Live, Workouts or a Quick Action
+always resumes the same session — no more losing track of which screen "owns" the workout you're
+mid-way through.
+
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
+<img src="docs/assets/screenshots/v11.8.1/body-energy.png" width="100%" alt="Body screen with weight trend and energy expenditure breakdown">
+</td>
+<td width="50%" valign="top">
+
+### Body weight and energy, honestly sourced
+
+Weight history and trends get their own card. Daily energy expenditure blends NEAT, a personal
+forecast curve and active-only calibration, is always source-aware (it says whether a number came
+from WHOOP, Apple Health, or an estimate), and offers an opt-in Apple Watch calibration step rather
+than silently trusting one device over another.
+
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
+<img src="docs/assets/screenshots/v11.8.1/coach-settings.png" width="100%" alt="Coach settings screen with connection, memory and privacy sections">
+</td>
+<td width="50%" valign="top">
+
+### A coach that can see your data — with your permission, tool by tool
+
+Bring your own API key (Anthropic, OpenAI, Gemini, OpenRouter or a custom OpenAI-compatible
+endpoint) or run a fully local model. The coach reads through 26 individually consent-gated tools —
+biometrics, sleep, workouts, stress, energy, goals — and can *propose* a session or a goal setup,
+never silently apply one. An on-device semantic memory (Nomic embeddings, nothing sent to a
+server) lets it recall what you've told it without re-explaining yourself every time.
+
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
+<img src="docs/assets/screenshots/v11.8.1/goal-journey.png" width="100%" alt="Goal and Journey screen showing progress toward a running goal">
+</td>
+<td width="50%" valign="top">
+
+### Goals with no invented percentages
+
+Up to five active goals — run, consistency, sleep, strength, weight or a custom one — checked for
+feasibility before they become a plan. The Journey page shows a measured percentage only when a
+real baseline and target exist; otherwise it says plainly what's actually known. Milestones are
+facts (a real recovery uptrend, your longest run), never a streak counter that punishes a sick day.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top">
+
+### Every path in stays on the device
+
+Direct Bluetooth to a WHOOP 4.0 or 5.0/MG, a WHOOP CSV export, Apple Health, FitNotes/Strong/Hevy
+strength imports, GPX/TCX/FIT routes, and an experimental Oura ring pairing — all parsed and
+merged locally. A `.noopbak` backup covers your whole history for moving to a new device or just
+sleeping better about backups.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top">
+
+### Widgets, Watch, and a strap that syncs itself
+
+Home Screen and Lock Screen widgets for the recovery ring, live heart rate and the coach's morning
+brief; a watchOS companion with complications; and — new this release — a Sync Strap Shortcut, a
+keep-screen-on option while syncing, and a sync Live Activity for the Lock Screen and Dynamic
+Island.
+
+</td>
+</tr>
 </table>
 
-<sub>Screenshots: 9.3.1 DX Beta on iPhone, English interface, light appearance.</sub>
+## Privacy, precisely
 
-## Download and install
+NOOP AI is offline-first. Your strap data, database, scores, history, goals, coach memory and
+plans stay on your device. The optional AI Coach contacts only the provider you configure, only
+when you ask it to; an experimental Oura history import and the manual/at-most-daily public-release
+check are the only other network paths, and neither uploads raw sensor streams or gives NOOP a
+server or account.
+
+More detail: [Privacy and security](docs/PRIVACY_SECURITY.md).
+
+## Install
 
 ### iPhone and iPad
 
-The iOS build is an **unsigned IPA on purpose**. Add the source below in AltStore or SideStore, then
-the sideloader signs the app locally with the Apple ID you choose. NOOP AI never receives your Apple ID
-or a signing certificate.
+The iOS build is an **unsigned IPA on purpose**. Add the source below in AltStore or SideStore,
+and the sideloader signs the app locally with the Apple ID you choose — NOOP AI never receives
+your Apple ID or a signing certificate.
 
 **Source URL:**
 
@@ -177,57 +222,30 @@ https://raw.githubusercontent.com/DX23876/noop/main/altstore-source.json
 
 - **AltStore:** Browse → **+** → paste the source URL → add NOOP AI.
 - **SideStore:** Sources → **+ Add Source** → paste the same URL → install NOOP AI.
-- Prefer a direct file? Download `NOOP-ios-unsigned-v10.1.1-dx.ipa` from the
-  [10.1.1 release](https://github.com/DX23876/noop/releases/tag/v10.1.1-dx). It includes the
+- Prefer a direct file? Download `NOOP-ios-unsigned-v11.8.1-dx.ipa` from the
+  [11.8.1 release](https://github.com/DX23876/noop/releases/tag/v11.8.1-dx). It includes the
   Home/Lock-Screen **widgets**, which AltStore/SideStore sign along with the app.
-- Need the **Apple Watch** app? The same release also contains
-  `NOOP-ios-full-unsigned-v10.1.1-dx.ipa`, which adds the Watch app and complication. It wants a
+- Need the **Apple Watch** app? The same release also carries
+  `NOOP-ios-full-unsigned-v11.8.1-dx.ipa`, which adds the Watch app and complication. It wants a
   signer or paid Developer team that can provision all of it together — sideloaders install an
   embedded watchOS bundle unreliably, and a failure there costs you the whole install, which is why
   the AltStore source stays on the watch-less IPA.
 
-See [the iOS install guide](docs/IOS.md) for the free-Apple-ID limits, widget notes, and build-from-source
-instructions.
+See [the iOS install guide](docs/IOS.md) for the free-Apple-ID limits, widget notes, and
+build-from-source instructions.
 
 ### Mac
 
-From 9.3.0 the release carries a packaged macOS build: download
-`NOOP-macos-v10.1.1-dx.zip` from the
-[10.1.1 release](https://github.com/DX23876/noop/releases/tag/v10.1.1-dx), unzip it, then
-**right-click → Open** the first time (it is ad-hoc signed, not notarised, so a double-click is blocked).
+Download `NOOP-macos-v11.8.1-dx.zip` from the
+[11.8.1 release](https://github.com/DX23876/noop/releases/tag/v11.8.1-dx), unzip it, then
+**right-click → Open** the first time (it is ad-hoc signed, not notarised, so a double-click is
+blocked).
 
-The bundle is universal — Apple Silicon and Intel. Ad-hoc signing is what lets macOS bind the Bluetooth
-permission to the app; after an update macOS may ask you to re-approve Bluetooth, because the code
-identity changes with every build.
+The bundle is universal — Apple Silicon and Intel. Ad-hoc signing is what lets macOS bind the
+Bluetooth permission to the app; after an update macOS may ask you to re-approve Bluetooth,
+because the code identity changes with every build.
 
-### Platform status
-
-| Platform | Status | Distribution |
-|---|---|---|
-| iOS / iPadOS | 10.1.1 | AltStore, SideStore, or build from source |
-| macOS | 10.1.1 | Packaged `.zip` in the release, or build with Xcode |
-| Android | Not shipped by this fork | Use RyanBR's upstream Android project |
-
-## The NOOP foundation retained
-
-| | |
-|---|---|
-| ⌚ **Own your strap data** | Connect directly to a WHOOP 4.0 or 5.0/MG over Bluetooth. No WHOOP account, subscription, or cloud relay. |
-| 📈 **Compute locally** | Charge, Effort, Rest, sleep, HRV, heart rate, recovery trends, and correlations are calculated and stored on your device. |
-| 🔒 **Keep control** | No telemetry, no NOOP account, and no NOOP server. Network access is limited to explicit features: your chosen Coach provider, an optional source-built Oura import, and the metadata-only public-release check (manual or, when enabled, at most daily). |
-| 📬 **See what happened** | Today and the bell keep daily signals, important status, and recent alerts visible without turning every event into noise. |
-
-## Privacy, precisely
-
-NOOP AI is offline-first. Your strap data, database, scores, history, goals, coach memory, and plans
-stay on your device. The optional AI Coach contacts only the provider you configure when you ask it
-to; a source-built Oura history lane can pull your own Oura data in; and the update checker reads
-only the latest public release metadata manually or, when enabled, at most daily. None of these paths uploads raw sensor
-streams or gives NOOP a server or account.
-
-More detail: [Privacy and security](docs/PRIVACY_SECURITY.md).
-
-## Build from source
+### Build from source
 
 You need a Mac with Xcode 26+ and [XcodeGen](https://github.com/yonaskolb/XcodeGen).
 
@@ -238,9 +256,33 @@ xcodegen generate
 open Strand.xcodeproj
 ```
 
-- Choose **NOOPiOS** and a physical iPhone to build iOS.
-- Choose **Strand** to build macOS.
-- For Android development, use [RyanBR's upstream project](https://github.com/ryanbr/noop).
+Choose **NOOPiOS** and a physical iPhone (or simulator) to build iOS, or **Strand** for macOS.
+
+### Platform status
+
+| Platform | Status | Distribution |
+|---|---|---|
+| iOS / iPadOS | 11.8.1 | AltStore, SideStore, or build from source |
+| macOS | 11.8.1 | Packaged `.zip` in the release, or build with Xcode |
+| Android | Not shipped by this fork | Use [ryanbr's upstream Android project](https://github.com/ryanbr/noop) |
+
+## Under the hood
+
+Core logic lives in cross-platform Swift packages, with each Apple platform as a thin app layer
+over them:
+
+| Layer | What lives here |
+|---|---|
+| Protocol | BLE frame parsing, CRC, command/event decoding — no CoreBluetooth, builds standalone |
+| Storage | GRDB/SQLite persistence, migrations, streams |
+| Analytics | HRV, recovery, strain, sleep, training load and correlation math — database-free, pure functions |
+| Coach | Chat shell + providers (shared lineage with `ryanbr/noop`), extended with semantic memory, tool-calling and goal tracking (fork-only) |
+| Import | WHOOP CSV, Apple Health, FitNotes/Strong/Hevy strength imports |
+| Design system | SwiftUI palette, components and charts shared by every screen |
+
+`ryanbr/noop`'s protocol reverse-engineering, analytics groundwork and design system are the base
+this fork builds on. Where the two diverge — Apple-only distribution, the extended coach, native
+training — is kept in its own layer so upstream fixes can keep merging in cleanly.
 
 ## Documentation
 
@@ -255,16 +297,18 @@ open Strand.xcodeproj
 ## About the project
 
 NOOP AI is a personal fork of [ryanbr/noop](https://github.com/ryanbr/noop). The upstream project
-deserves credit for the protocol, analytics, and design-system foundations; this fork develops the
-local coach and Apple-first sideload distribution independently. It is an unofficial, non-commercial
-interoperability project and is not affiliated with WHOOP.
+deserves credit for the protocol, analytics and design-system foundations, and continues to
+develop its own coach in parallel; this fork develops the extended coach (memory, tools, goals),
+native training and Apple-first sideload distribution independently. It is an unofficial,
+non-commercial interoperability project and is not affiliated with WHOOP.
 
 ## Disclaimer
 
-NOOP AI is not a medical device. Its health and training values are on-device estimates, not clinical
-advice or diagnosis. Use it as a personal tool and consult a qualified professional for medical decisions.
+NOOP AI is not a medical device. Its health and training values are on-device estimates, not
+clinical advice or diagnosis. Use it as a personal tool and consult a qualified professional for
+medical decisions.
 
 ## License
 
-Source-available under the [PolyForm Noncommercial License 1.0.0](LICENSE). See [NOTICE](NOTICE) and
-[ATTRIBUTION.md](ATTRIBUTION.md) for bundled dependency and upstream credits.
+Source-available under the [PolyForm Noncommercial License 1.0.0](LICENSE). See
+[NOTICE](NOTICE) and [ATTRIBUTION.md](ATTRIBUTION.md) for bundled dependency and upstream credits.
