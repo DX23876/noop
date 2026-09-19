@@ -127,8 +127,11 @@ struct EnergyHeroCard: View {
                 // grid below would be dead code.
                 EnergyHeroStat(stat: stat, singleLine: true)
                     .fixedSize(horizontal: true, vertical: false)
+                    // Measured at its natural width (fixedSize above, which is what ViewThatFits
+                    // reads), then allowed to fill an equal share of the row so the four cells sit
+                    // in columns rather than bunched against the left.
+                    .frame(maxWidth: .infinity)
             }
-            Spacer(minLength: 0)
         }
     }
 
@@ -151,7 +154,9 @@ struct EnergyHeroCard: View {
 
     private var statColumn: some View {
         VStack(alignment: .leading, spacing: 10) {
-            ForEach(Array(stats.enumerated()), id: \.offset) { _, stat in EnergyHeroStat(stat: stat) }
+            ForEach(Array(stats.enumerated()), id: \.offset) { _, stat in
+                EnergyHeroStat(stat: stat, alignment: .leading)
+            }
         }
     }
 
@@ -288,18 +293,27 @@ struct EnergyHeroStat: View {
 
     let stat: Model
     /// True in the four-across candidate, where the cell states its natural width and must not wrap
-    /// or stretch — see `EnergyHeroCard.statRow`.
+    /// — see `EnergyHeroCard.statRow`.
     var singleLine = false
+    /// Centred in the row and the grid, where each cell owns an equal column; leading in the single
+    /// column, where centred text would have nothing to be centred against and would read as ragged.
+    var alignment: HorizontalAlignment = .center
 
-    /// Icon and label on one line, the figure on its own.
+    /// Icon and label on one line, the figure and its share on the next.
     ///
     /// The reference layout puts the icon in a tile to the LEFT of the text, which works at four
     /// columns only on a wider canvas: a 402 pt phone leaves ~82 pt per column, and a 30 pt tile
     /// plus its gap takes 36 of them — "2.029 kcal" does not fit in what is left, and the first
     /// build of this card duly rendered "Daily mov…" over "116 k…". The figure is the reason the
     /// card exists, so it gets the full column width and the icon moves up beside its label.
+    ///
+    /// The share keeps a line of its own, and that is a width decision rather than a style one.
+    /// Beside the figure it makes a cell about 95 pt wide; four of those plus their dividers need
+    /// ~410 pt, and a 402 pt phone has 338 to give — so the row would fall to the 2×2 grid and the
+    /// card would end up TALLER than the line it saved. It is also what the reference layout does,
+    /// for the same arithmetic.
     var body: some View {
-        VStack(alignment: .leading, spacing: 2) {
+        VStack(alignment: alignment, spacing: 2) {
             HStack(spacing: 4) {
                 Image(systemName: stat.symbol)
                     .font(.system(size: 11, weight: .semibold))
@@ -313,6 +327,7 @@ struct EnergyHeroStat: View {
                     // candidate there is nothing to reserve — that layout exists precisely for
                     // the case where every label is short enough not to wrap.
                     .lineLimit(singleLine ? 1 : 2, reservesSpace: !singleLine)
+                    .multilineTextAlignment(alignment == .center ? .center : .leading)
             }
             Text(stat.valueText ?? "—")
                 .font(StrandFont.captionNumber)
@@ -328,6 +343,7 @@ struct EnergyHeroStat: View {
                     .lineLimit(1)
             }
         }
-        .frame(maxWidth: singleLine ? nil : .infinity, alignment: .leading)
+        .frame(maxWidth: singleLine ? nil : .infinity,
+               alignment: alignment == .center ? .center : .leading)
     }
 }
