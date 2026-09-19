@@ -208,6 +208,56 @@ public enum EnergyPlanning {
         return dailyDeltaKcal * 7 / kcalPerKg
     }
 
+    // MARK: - Thermic effect of food
+    //
+    // Digesting, absorbing and storing what was eaten costs energy, and it is not a small term:
+    // roughly a tenth of daily expenditure. Almost no tracker shows it, because almost no tracker
+    // knows what was eaten — NOOP does, from the food log, which is the only reason this can be
+    // computed here at all.
+    //
+    // It is deliberately NOT part of `DailyEnergySummary.totalBurnedSoFar`. That field means "what a
+    // device measured, plus what had to be modelled to fill the gaps", and digestion is neither: no
+    // wearable observes it. Mixing it in would quietly redefine the one number every screen, the
+    // widget and the coach already read. It belongs on the planning side, beside intake, where the
+    // question is energy BALANCE rather than energy burned.
+
+    /// Per-gram thermic cost as a fraction of the macronutrient's own energy. The published bands are
+    /// wide (protein is quoted anywhere from 20% to 30%); these are their conventional midpoints.
+    public static let thermicFractionProtein = 0.25
+    public static let thermicFractionCarbs = 0.08
+    public static let thermicFractionFat = 0.04
+
+    /// The mixed-diet figure, used when the log carries calories but no macronutrients. Roughly what
+    /// the per-macro model returns for an ordinary diet, which is the point: switching between them
+    /// must not move the number much.
+    public static let thermicFractionMixed = 0.10
+
+    /// Energy spent digesting a day's intake, in kcal.
+    ///
+    /// Macro-specific when the log has macronutrients, mixed-diet otherwise. The macro path is capped
+    /// at the logged calories: a log whose grams and calories disagree (rounding, a hand-typed entry,
+    /// an import that dropped one field) must not be able to invent a thermic cost larger than the
+    /// meal it came from.
+    ///
+    /// Nil when nothing was logged — an unlogged day has no known intake, and 0 would claim it did.
+    public static func thermicEffect(intakeKcal: Double?, proteinG: Double? = nil,
+                                     carbsG: Double? = nil, fatG: Double? = nil) -> Double? {
+        guard let intakeKcal, intakeKcal.isFinite, intakeKcal > 0 else { return nil }
+        func grams(_ value: Double?) -> Double? {
+            guard let value, value.isFinite, value >= 0 else { return nil }
+            return value
+        }
+        let protein = grams(proteinG), carbs = grams(carbsG), fat = grams(fatG)
+        guard protein != nil || carbs != nil || fat != nil else {
+            return intakeKcal * thermicFractionMixed
+        }
+        // 4/4/9 kcal per gram — the Atwater factors every food label is built on.
+        let fromMacros = (protein ?? 0) * 4 * thermicFractionProtein
+            + (carbs ?? 0) * 4 * thermicFractionCarbs
+            + (fat ?? 0) * 9 * thermicFractionFat
+        return min(fromMacros, intakeKcal * thermicFractionProtein)
+    }
+
     /// The wearer's OWN observed kcal per kilogram, from what they ate, what they burned and what
     /// their weight actually did. Shown beside the 7 700 convention once enough data exists.
     ///

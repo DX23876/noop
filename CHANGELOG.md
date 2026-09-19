@@ -125,6 +125,10 @@ rows, so opening the expanded history safely enriches older sessions as well.
   figure is also rebuilt on first read rather than only when the Energy screen is opened.
 - **Energy says how much came from your sessions.** The detail screen breaks the figure out and marks
   it when NOOP had to estimate a session rather than read it.
+- **The energy your food costs to digest is now shown.** Roughly a tenth of a day, more on a
+  high-protein diet, computed from what you logged. It appears beside intake on the planning page and
+  deliberately NOT in the day's burn: no wearable measures digestion, and a measurement should not
+  quietly become part calculation.
 
 Because energy is computed each time it is read, earlier days that had only steps will show higher
 totals than before. Nothing stored changed, and no rescore runs.

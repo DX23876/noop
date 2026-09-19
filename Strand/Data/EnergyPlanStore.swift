@@ -104,4 +104,33 @@ extension Repository {
         }
         return byDay
     }
+
+    /// Logged macronutrient grams per day, under the same "one source wins a day" rule as intake.
+    ///
+    /// Read for the thermic effect of food: protein costs roughly a quarter of its own energy to
+    /// process, fat almost nothing, and a day's split is therefore worth more than a flat percentage
+    /// of its calories. A day that logged calories but no macros simply has no entry here and falls
+    /// back to the mixed-diet figure.
+    func macrosByDay(from: String, to: String) async
+        -> [String: (protein: Double?, carbs: Double?, fat: Double?)] {
+        guard let store = await storeHandle() else { return [:] }
+        var byDay: [String: (protein: Double?, carbs: Double?, fat: Double?)] = [:]
+        for source in [Self.appleHealthSource, EnergyPlanStore.csvIntakeSource,
+                       EnergyPlanStore.manualIntakeSource] {
+            for (key, path) in [("protein_g", 0), ("carbs_g", 1), ("fat_g", 2)] {
+                let rows = (try? await store.metricSeries(deviceId: source, key: key,
+                                                          from: from, to: to)) ?? []
+                for row in rows where row.value > 0 {
+                    var entry = byDay[row.day] ?? (nil, nil, nil)
+                    switch path {
+                    case 0: entry.protein = row.value
+                    case 1: entry.carbs = row.value
+                    default: entry.fat = row.value
+                    }
+                    byDay[row.day] = entry
+                }
+            }
+        }
+        return byDay
+    }
 }

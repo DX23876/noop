@@ -181,4 +181,39 @@ final class EnergyPlanningTests: XCTestCase {
                                                          weightChangeKg: -1.8))
         XCTAssertEqual(EnergyPlanning.plausibleKcalPerKg, 4_000...15_000)
     }
+
+    // MARK: - Thermic effect of food
+
+    func testThermicEffectFallsBackToTheMixedDietFigureWithoutMacros() {
+        XCTAssertEqual(EnergyPlanning.thermicEffect(intakeKcal: 2_500) ?? 0,
+                       250, accuracy: 0.001)
+        // An unlogged day has no known intake, and zero would claim it did.
+        XCTAssertNil(EnergyPlanning.thermicEffect(intakeKcal: nil))
+        XCTAssertNil(EnergyPlanning.thermicEffect(intakeKcal: 0))
+        XCTAssertNil(EnergyPlanning.thermicEffect(intakeKcal: .nan))
+    }
+
+    func testThermicEffectFollowsTheMacroSplit() {
+        // Same calories, two diets: the protein-heavy one must cost more to digest, which is the only
+        // reason to read macros at all.
+        let protein = EnergyPlanning.thermicEffect(intakeKcal: 2_000, proteinG: 200, carbsG: 150,
+                                                   fatG: 66) ?? 0
+        let fat = EnergyPlanning.thermicEffect(intakeKcal: 2_000, proteinG: 60, carbsG: 150,
+                                               fatG: 120) ?? 0
+        XCTAssertGreaterThan(protein, fat)
+        let byHand: Double = 200 * 4 * 0.25 + 150 * 4 * 0.08 + 66 * 9 * 0.04
+        XCTAssertEqual(protein, byHand, accuracy: 0.01)
+        // A partial log still counts what it knows rather than falling back to the flat figure.
+        let proteinOnly: Double = 150 * 4 * 0.25
+        XCTAssertEqual(EnergyPlanning.thermicEffect(intakeKcal: 2_000, proteinG: 150) ?? 0,
+                       proteinOnly, accuracy: 0.01)
+    }
+
+    func testThermicEffectCannotExceedTheMealItCameFrom() {
+        // Grams and calories disagreeing is ordinary (rounding, a hand-typed entry, a lossy import).
+        // It must not be able to invent a digestion cost larger than the food.
+        let absurd = EnergyPlanning.thermicEffect(intakeKcal: 100, proteinG: 900) ?? 0
+        XCTAssertEqual(absurd, 100 * EnergyPlanning.thermicFractionProtein, accuracy: 0.001)
+    }
+
 }

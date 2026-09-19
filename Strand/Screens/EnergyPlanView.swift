@@ -356,6 +356,19 @@ struct EnergyPlanView: View {
                         .font(StrandFont.subhead).foregroundStyle(StrandPalette.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
+                if let thermic = model.thermicEffectKcal {
+                    Divider().background(StrandPalette.hairline)
+                    HStack {
+                        Text("Digesting your food").font(StrandFont.caption)
+                            .foregroundStyle(StrandPalette.textSecondary)
+                        Spacer()
+                        Text("≈\(Int(thermic.rounded())) kcal/day").font(StrandFont.caption)
+                            .foregroundStyle(StrandPalette.textPrimary).monospacedDigit()
+                    }
+                    Text("Processing what you eat costs energy too — about a tenth of the day, and more on a high-protein diet. It is not in the burn figures above: no wearable measures it, and mixing a calculation into a measurement would make both harder to trust. It belongs here, against your intake.")
+                        .font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
                 // NOOP ships no food diary on purpose — that is a separate app, and one that would need
                 // a server this project does not have. The intended path is a nutrition app the wearer
                 // already uses, synced through Apple Health, so nothing has to be retyped here. The

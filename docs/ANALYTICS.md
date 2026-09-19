@@ -761,6 +761,8 @@ Where a session arrived without energy of its own, the app prices it strongest-e
 
 `.loggedActivity` and `.stepsEstimate` are both `.calibrating`: a logged session measures an hour, not a day.
 
+The thermic effect of food (`EnergyPlanning.thermicEffect`) is deliberately **not** part of any of this. It is computed from logged intake — macro-specific where grams exist (25 % protein, 8 % carbohydrate, 4 % fat), 10 % of calories otherwise — and shown only on the planning page beside intake. No wearable measures digestion, and folding it into `totalBurnedSoFar` would change what that field means for every screen, the widget and the coach.
+
 Coverage (`EnergyCoverage.energy`) is the fraction of the elapsed local day the day's *actual* source represented: v4 context-bucket wall seconds, or — for an `appleSplit` day — `healthEnergyBucket.coverageSeconds` (max per bucket across sources, never summed; iOS only, see below). Confidence (`ScoreConfidence`) is `.solid` at ≥80% coverage (`solidCoverage`), `.building` at ≥40% (`buildingCoverage`), `.calibrating` below. Reporting both active and basal energy is not proof Apple covered the whole elapsed day, only that it covered whatever it saw. Where no coverage signal exists at all, `.appleSplit` keeps its previous `.solid`: an *absent* signal is not evidence of a *thin* one. Local-day seconds are calendar-derived (`Repository.energyDayContext`), not a fixed 86,400, so DST transitions don't skew basal accrual.
 
 ### The day forecast — `projectedTotalBurn` / `projectedRangeKcal`

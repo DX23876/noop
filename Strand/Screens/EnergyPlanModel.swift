@@ -22,6 +22,13 @@ final class EnergyPlanModel: ObservableObject {
     @Published private(set) var balance: AdaptiveExpenditureEstimate?
     @Published private(set) var metrics = BodyMetrics.empty
     @Published private(set) var intakeDays = 0
+    /// Mean daily energy spent DIGESTING what was logged, over the days that logged anything.
+    ///
+    /// It sits here rather than in `DailyEnergySummary` on purpose: no wearable observes digestion, so
+    /// folding it into the day's burn would change what that number means for every screen, the widget
+    /// and the coach. On this page the question is balance — what came in against what went out — and
+    /// there the term belongs.
+    @Published private(set) var thermicEffectKcal: Double?
     @Published private(set) var today = Repository.localDayKey(Date())
 
     @Published var activity: ActivityLevel = EnergyPlanStore.activityLevel {
@@ -52,7 +59,14 @@ final class EnergyPlanModel: ObservableObject {
 
         let from = Repository.localDayKey(
             Calendar.current.date(byAdding: .day, value: -Self.windowDays, to: Date()) ?? Date())
-        intakeDays = await repo.intakeByDay(from: from, to: today).count
+        let intake = await repo.intakeByDay(from: from, to: today)
+        intakeDays = intake.count
+        let macros = await repo.macrosByDay(from: from, to: today)
+        let thermic = intake.compactMap { day, kcal in
+            EnergyPlanning.thermicEffect(intakeKcal: kcal, proteinG: macros[day]?.protein,
+                                         carbsG: macros[day]?.carbs, fatG: macros[day]?.fat)
+        }
+        thermicEffectKcal = thermic.isEmpty ? nil : thermic.reduce(0, +) / Double(thermic.count)
         loaded = true
     }
 
