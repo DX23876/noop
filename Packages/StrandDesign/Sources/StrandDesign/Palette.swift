@@ -545,6 +545,14 @@ public enum StrandPalette {
     public static let energyResting = Color(light: "#B7791F", dark: "#F2B84B")
     public static let energyActive = Color(light: "#D94F2B", dark: "#FF7452")
     public static let energyHighlight = Color(light: "#D98A20", dark: "#FFB347")
+    /// The two halves of active burn on the Energy detail card: the walking-about kind and the
+    /// deliberate kind. They sit either side of `energyActive` in temperature rather than beside it,
+    /// because the card shows all three at once and two neighbouring corals would read as one bar.
+    public static let energyMovement = Color(light: "#C68A12", dark: "#FFC93C")
+    public static let energyTraining = Color(light: "#C0392B", dark: "#FF5A5F")
+    /// The dotted "what a normal day looks like" curve. Cool on purpose — it is the one line on that
+    /// chart that is not today, and every warm tone there is.
+    public static let energyReference = Color(light: "#2A7FA8", dark: "#4FC3F7")
     public static var energyTrack: Color { textTertiary.opacity(0.16) }
     public static var energyGradient: Gradient {
         Gradient(colors: [energyResting, energyHighlight, energyActive])

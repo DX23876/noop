@@ -45,6 +45,11 @@ public enum StrandFont {
     /// Native rounded title. Scales through the complete Dynamic Type curve.
     public static let title1 = Font.system(.title, design: .rounded).weight(.bold)
 
+    /// The one figure a detail screen exists for. A step above `title1` and monospaced, for the
+    /// single number a screen is opened to read — not for headings, which `title1` still owns.
+    public static let heroNumber = Font.system(.largeTitle, design: .rounded)
+        .weight(.bold).monospacedDigit()
+
     /// Native rounded secondary title.
     public static let title2 = Font.system(.title2, design: .rounded).weight(.semibold)
 

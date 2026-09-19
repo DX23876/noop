@@ -282,6 +282,11 @@ final class Repository: ObservableObject {
     /// once a day rather than on every screen that asks for energy. See `EnergySeries`.
     var repairedTodayEnergyOn: String?
 
+    /// Memo for `energyDayRate(day:profile:)`, keyed by local day. A finished day's five-minute grid
+    /// cannot change, and paging back through the Energy screen's day picker would otherwise re-read
+    /// and re-split the same 288 buckets on every swipe. Today is deliberately never stored.
+    var energyDayRateCache: [String: EnergyDayRate] = [:]
+
     /// Memo for `cardioLoads(for:)`, keyed by canonical session id and window. Pricing one session is an
     /// indexed heart-rate range read, and Training Load, Cardio and the workout detail all ask about
     /// overlapping windows; without this, every visit repeats the same reads.

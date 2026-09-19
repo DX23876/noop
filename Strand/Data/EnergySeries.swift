@@ -11,6 +11,46 @@ struct EnergyTimelinePoint: Identifiable, Equatable, Sendable {
     var id: Date { timestamp }
 }
 
+/// One logged session, clipped to the day it is drawn on, as the burn-rate chart shades it.
+struct EnergyTrainingBand: Identifiable, Hashable, Sendable {
+    let startTs: Int
+    let endTs: Int
+    let sport: String
+
+    var id: Int { startTs }
+    var start: Date { Date(timeIntervalSince1970: TimeInterval(startTs)) }
+    var end: Date { Date(timeIntervalSince1970: TimeInterval(endTs)) }
+}
+
+/// A day's burn rate, the sessions inside it, and the split of its active energy between the two.
+///
+/// One value rather than three, because the three are one answer: `trainingKcal` is the energy
+/// under `bands`, and `movementKcal` is what is left of active energy once they are accounted for.
+struct EnergyDayRate: Equatable, Sendable {
+    let day: String
+    let points: [EnergyBurnRate.Point]
+    let bands: [EnergyTrainingBand]
+    /// The share of the day's active energy that happened inside a session — a FRACTION, not a kcal
+    /// figure, and that is the whole point.
+    ///
+    /// The buckets know the SHAPE of the split; they do not own the day's magnitude. `EnergyEngine`
+    /// does, and it arrives at active energy by subtracting a profile basal rate from the day's
+    /// total, which is not the same arithmetic the bucket model used. Reporting the bucket sums
+    /// directly put "Daily movement 148 + Training 444" on a card whose "Active" said 463 — two
+    /// figures that must add up, visibly not adding up. Applying the fraction to the summary's own
+    /// active energy makes them add up by construction, whatever either model does later.
+    let trainingFraction: Double?
+
+    /// True when the day has a rate curve at all. False for an Apple-only, steps-only or
+    /// profile-only day: those have a total but no five-minute grid under it, and the card says so
+    /// rather than drawing an empty chart that reads as a day of no activity.
+    var hasBuckets: Bool { !points.isEmpty }
+
+    static func empty(day: String) -> EnergyDayRate {
+        .init(day: day, points: [], bands: [], trainingFraction: nil)
+    }
+}
+
 struct EnergyCalibrationViewState: Equatable {
     let status: EnergyCalibrationStatus
     let factor: Double?
@@ -257,6 +297,92 @@ extension Repository {
                                 activeKcal: active))
         }
         return points
+    }
+
+    // MARK: - Burn rate
+
+    /// Everything the burn-rate card needs for ONE day, read in one pass.
+    ///
+    /// Gathered together rather than offered as four calls because the four answers come from the
+    /// same two reads, and because they have to agree: the training figure is the energy under the
+    /// bands, so a view that fetched them separately could paint a total the bands do not account
+    /// for (see `EnergyBurnRate.activeSplit`).
+    func energyDayRate(day: String, profile: UserProfile) async -> EnergyDayRate {
+        if let cached = energyDayRateCache[day] { return cached }
+        guard let store = await storeHandle(),
+              let noon = WeightSeries.date(forDay: day) else { return .empty(day: day) }
+        let calendar = Calendar.current
+        let start = calendar.startOfDay(for: noon)
+        let startTs = Int(start.timeIntervalSince1970)
+        let end = calendar.date(byAdding: .day, value: 1, to: start) ?? start.addingTimeInterval(86_400)
+        let endTs = Int(end.timeIntervalSince1970)
+
+        let rows = (try? await store.whoopEnergyBuckets(deviceId: deviceId, day: day)) ?? []
+        // The Watch reference multiplier scales ACTIVE energy only, exactly as the cumulative
+        // timeline and the daily total apply it. A rate curve drawn from unscaled buckets under a
+        // headline that was scaled would disagree with itself by the calibration factor.
+        let calibration = await energyCalibrationState(store: store)
+        let activeFactor = calibration.status == .active ? (calibration.factor ?? 1) : 1
+        let slices = rows.map {
+            EnergyBurnRate.Slice(startSeconds: Double($0.bucketStart - startTs),
+                                 durationSeconds: Double($0.durationSeconds),
+                                 basalKcal: $0.basalKcal,
+                                 activeKcal: $0.activeKcal * activeFactor)
+        }
+
+        // Same window, same dedup rule as the Workouts screen (#687): a strap session and its
+        // imported Health twin are one session, and counting both would draw two bands over one
+        // workout and charge its energy twice.
+        let sessions = WorkoutSource.dedupCrossSource(
+            await rawWorkoutRows(from: startTs - 86_400, to: endTs))
+            .filter { $0.endTs > startTs && $0.startTs < endTs }
+            .sorted { $0.startTs < $1.startTs }
+        let bands = sessions.map { row in
+            EnergyTrainingBand(startTs: max(row.startTs, startTs), endTs: min(row.endTs, endTs),
+                               sport: row.sport)
+        }
+        let split = EnergyBurnRate.activeSplit(
+            slices: slices,
+            training: bands.map { .init(startSeconds: Double($0.startTs - startTs),
+                                        endSeconds: Double($0.endTs - startTs)) })
+        let splitTotal = split.training + split.movement
+        let fraction = splitTotal > 0 ? split.training / splitTotal : nil
+
+        let result = EnergyDayRate(day: day, points: EnergyBurnRate.measured(slices: slices),
+                                   bands: bands, trainingFraction: fraction)
+        // Only a finished day is memoized. Today is still accruing, and a cached morning would keep
+        // being handed back all afternoon.
+        if day != Self.localDayKey(Date()) { energyDayRateCache[day] = result }
+        return result
+    }
+
+    /// The median rate curve over the `windowDays` days BEFORE `day`, or nil when too few of them
+    /// qualify.
+    ///
+    /// The window ends at the day before the selected one, never at today: a "30-day average" shown
+    /// against a day in August must not contain the days that came after it.
+    func energyReferenceRate(before day: String, windowDays: Int,
+                             profile: UserProfile) async -> EnergyBurnRate.Reference? {
+        guard let store = await storeHandle(), let noon = WeightSeries.date(forDay: day) else { return nil }
+        let calendar = Calendar.current
+        guard let previous = calendar.date(byAdding: .day, value: -1, to: noon),
+              let first = calendar.date(byAdding: .day, value: -windowDays, to: noon) else { return nil }
+        let from = Self.localDayKey(first), to = Self.localDayKey(previous)
+        let hours = (try? await store.whoopEnergyHours(deviceId: deviceId, from: from, to: to)) ?? []
+        let daily = (try? await store.whoopDailyEnergy(deviceId: deviceId, from: from, to: to)) ?? []
+        let eligible = Set(daily.filter {
+            EnergyBurnRate.dayQualifies(modelVersion: $0.modelVersion,
+                                        representedSeconds: $0.representedSeconds)
+        }.map(\.day))
+        guard !eligible.isEmpty else { return nil }
+        var byDay: [String: [Double]] = [:]
+        for row in hours where eligible.contains(row.day) && (0...23).contains(row.hour) {
+            byDay[row.day, default: [Double](repeating: 0, count: 24)][row.hour] += row.activeKcal
+        }
+        return EnergyBurnRate.reference(
+            days: byDay.sorted { $0.key < $1.key }.map { .init(day: $0.key, activeKcalByHour: $0.value) },
+            windowDays: windowDays,
+            basalKcalPerDay: Calories.bmrKcalPerDay(profile: profile))
     }
 
     func energyCalibrationState() async -> EnergyCalibrationViewState {
@@ -540,8 +666,8 @@ extension Repository {
                                                        from: Self.localDayKey(firstDate),
                                                        to: Self.localDayKey(yesterday))) ?? []
         let eligibleDays = Set(daily.filter {
-            $0.modelVersion == WhoopDailyEnergyEstimate.modelVersion
-                && $0.representedSeconds >= Int(86_400 * EnergyEngine.solidCoverage)
+            EnergyBurnRate.dayQualifies(modelVersion: $0.modelVersion,
+                                        representedSeconds: $0.representedSeconds)
         }.map(\.day))
         guard !rows.isEmpty, !eligibleDays.isEmpty else { return nil }
         var byDay: [String: [Double]] = [:]
