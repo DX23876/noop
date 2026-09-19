@@ -1595,6 +1595,21 @@ final class Repository: ObservableObject {
         return await unionDailyMetrics(store: store, from: fromDay, to: toDay)
     }
 
+    /// Resting heart rate per local day, for pricing a session whose energy nobody recorded.
+    ///
+    /// Per DAY rather than "the current one", for the reason `CausalWeightResolver` exists: a session
+    /// last August belongs to the body that did it. And it is not a nicety — the resting rate sets
+    /// the activity gate the Keytel estimate is measured against, so the same 77-minute session at an
+    /// average of 103 bpm prices at 649 kcal against a resting rate of 45 and at 99 kcal against 70,
+    /// where the average falls below the gate entirely. A default would not be an approximation.
+    func restingHrByDay(fromDay: String, toDay: String) async -> [String: Double] {
+        var byDay: [String: Double] = [:]
+        for metric in await dailyMetrics(fromDay: fromDay, toDay: toDay) {
+            if let resting = metric.restingHr, resting > 0 { byDay[metric.day] = Double(resting) }
+        }
+        return byDay
+    }
+
     /// #856: the same dedup over an EXPLICIT id list, so a workout's zone minutes bin the rows its own
     /// recording strap banked rather than the day-level active ∪ canonical. Order is precedence.
     func hrSamples(deviceIds: [String], from: Int, to: Int, limit: Int = 8000) async -> [HRSample] {

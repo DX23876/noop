@@ -916,18 +916,13 @@ extension Repository {
             return ActivityContribution(startTs: row.startTs, endTs: row.endTs, kcal: kcal,
                                         source: source, isEstimated: estimated)
         }
-        if let recorded = row.energyKcal, recorded > 0 {
-            return contribution(recorded, estimated: false)
-        }
-        if let average = row.avgHr, average > 0,
-           let fromHR = Calories.estimateBoutCalories(averageHR: average, durationSeconds: seconds,
-                                                      profile: profile, hrmax: hrMax,
-                                                      restingHR: restingHR) {
-            return contribution(fromHR, estimated: true)
-        }
-        return ActivityMETCatalog.grossKcal(sport: row.sport, seconds: seconds,
-                                            weightKg: profile.weightKg)
-            .flatMap { contribution($0, estimated: true) }
+        // The precedence itself lives in `WorkoutEnergyEstimate`, which the Workouts screen also
+        // reads. Two copies of "recorded, else heart rate, else table" is two places for a day's
+        // energy and the same session's own tile to come to different answers.
+        return WorkoutEnergyEstimate.resolve(
+            recordedKcal: row.energyKcal, sport: row.sport, durationSeconds: seconds,
+            averageHR: row.avgHr, profile: profile, hrMax: hrMax, restingHR: restingHR)
+            .flatMap { contribution($0.kcal, estimated: $0.isEstimated) }
     }
 
     /// The app's workout lane for a stored `source` string, as the engine's own mirror of it.

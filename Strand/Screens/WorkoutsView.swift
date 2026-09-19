@@ -77,6 +77,10 @@ struct WorkoutsView: View {
     /// Daily active-calorie totals (day "yyyy-MM-dd" → kcal) for the 13-week heatmap, loaded alongside the
     /// rows. Empty until loaded / when there's no daily-calorie data (the heatmap then hides itself).
     @State private var dailyKcal: [String: Double] = [:]
+    /// Resting heart rate per local day, for pricing a session that recorded no energy of its own.
+    /// Loaded once per list load rather than per row — it is a database read, and the kcal column
+    /// renders for every visible session.
+    @State private var restingHrByDay: [String: Double] = [:]
 
     /// Local `yyyy-MM-dd` formatter for the heatmap's day keys + "today" anchor (matches the stored keys).
     private static let dayFormatter: DateFormatter = {
@@ -263,6 +267,13 @@ struct WorkoutsView: View {
             let metrics = await repo.dailyMetrics(fromDay: Self.dayFormatter.string(from: fromDate), toDay: toDay)
             dailyKcal = Dictionary(metrics.compactMap { m in m.activeKcalEst.map { (m.day, $0) } },
                                    uniquingKeysWith: max)
+            // Bounded by the OLDEST row on screen rather than by the heatmap's 100 days: a session
+            // from last spring is priced with last spring's resting rate, and the detail screen —
+            // which reads that one day directly — must not arrive at a different figure for it.
+            if let oldest = r.map(\.startTs).min() {
+                let from = Self.dayFormatter.string(from: Date(timeIntervalSince1970: TimeInterval(oldest)))
+                restingHrByDay = await repo.restingHrByDay(fromDay: min(from, toDay), toDay: toDay)
+            }
         }
         .onAppear {
             // Preview-seeded rows skip `.task`; still choose a range that has data.
@@ -1548,8 +1559,11 @@ struct WorkoutsView: View {
             cell(durationLabel(row.durationS), width: ColWidth.duration)
             cell(row.avgHr.map { "\($0)" } ?? "–", width: ColWidth.hr,
                  color: row.avgHr != nil ? StrandPalette.metricRose : nil)
-            cell(row.energyKcal.map { grouped($0) } ?? "–", width: ColWidth.kcal,
-                 color: row.energyKcal != nil ? StrandPalette.metricAmber : nil)
+            // Estimated where nothing recorded it, marked with the same tilde the detail tile uses.
+            // A dash here beside a figure on the detail screen was the reported confusion.
+            let energy = resolvedEnergy(row)
+            cell(WorkoutEnergyDisplay.text(energy) ?? "–", width: ColWidth.kcal,
+                 color: energy != nil ? StrandPalette.metricAmber : nil)
             cell(distanceLabel(row.distanceM), width: ColWidth.dist)
             // #796 - per-session Effort, on the user's scale, tinted the Effort colour when present.
             cell(Self.effortCellLabel(strain: row.strain, scale: effortScale), width: ColWidth.effort,
@@ -1692,7 +1706,9 @@ struct WorkoutsView: View {
     private func compactRowSubtitle(_ row: WorkoutRow) -> String {
         var parts: [String] = [dateLabel(row.startTs), timeRangeLabel(row.startTs, row.endTs)]
         if let d = durationLabelOrNil(row.durationS) { parts.append(d) }
-        if let k = row.energyKcal, k > 0 { parts.append(String(localized: "\(grouped(k)) kcal")) }
+        // Estimated where nothing recorded it, with the same tilde the table column and the detail
+        // tile use — this subtitle IS the calorie readout on a phone, and it was the empty one.
+        if let kcal = WorkoutEnergyDisplay.text(resolvedEnergy(row)) { parts.append("\(kcal) kcal") }
         if let d = row.distanceM, d > 0 { parts.append(distanceLabel(row.distanceM)) }
         if let hr = row.avgHr { parts.append(String(localized: "\(hr) bpm")) }
         return parts.joined(separator: " · ")
@@ -1939,6 +1955,13 @@ struct WorkoutsView: View {
     }
 
     private func oneDecimal(_ v: Double) -> String { String(format: "%.1f", v) }
+
+    /// This row's energy: what it recorded, else what its average heart rate implies, else what the
+    /// activity usually costs. Shared with the detail screen so one session cannot read two figures.
+    private func resolvedEnergy(_ row: WorkoutRow) -> WorkoutEnergyEstimate.Resolved? {
+        WorkoutEnergyDisplay.resolve(row, profile: Repository.analyticsProfile(profile),
+                                     hrMax: Double(profile.hrMax), restingHrByDay: restingHrByDay)
+    }
 
     private func grouped(_ v: Double) -> String {
         Self.intFmt.string(from: NSNumber(value: Int(v.rounded()))) ?? "\(Int(v.rounded()))"

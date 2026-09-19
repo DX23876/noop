@@ -69,6 +69,9 @@ struct WorkoutDetailView: View {
     /// import). nil = not an on-foot sport, or no step source had data for the window.
     private struct StepReadout { let count: Int; let fromStrap: Bool }
     @State private var steps: StepReadout?
+    /// This session's energy and where it came from. Resolved at display time and never written
+    /// back: an estimate that got stored would read as a measurement the next time anything asked.
+    @State private var energy: WorkoutEnergyEstimate.Resolved?
 
     var body: some View {
         ScreenScaffold(title: "\(WorkoutSource.displaySport(row.sport))",
@@ -159,7 +162,16 @@ struct WorkoutDetailView: View {
             }
         }
 
+        // The day's resting rate, not a default: it sets the activity gate the estimate is measured
+        // against, and the wrong one moves this session's figure by hundreds of kcal.
+        let day = Repository.localDayKey(Date(timeIntervalSince1970: TimeInterval(row.startTs)))
+        let restingByDay = await repo.restingHrByDay(fromDay: day, toDay: day)
+        let resolvedEnergy = WorkoutEnergyDisplay.resolve(
+            row, profile: Repository.analyticsProfile(profile), hrMax: Double(profile.hrMax),
+            restingHrByDay: restingByDay)
+
         await MainActor.run {
+            self.energy = resolvedEnergy
             self.route = routePoints
             self.hrPoints = points
             self.zoneMinutes = minutes
@@ -168,6 +180,13 @@ struct WorkoutDetailView: View {
             self.steps = stepReadout
             self.loaded = true
         }
+    }
+
+    /// "kcal" for a recorded figure; what it was estimated from otherwise. A caption that appears on
+    /// every session is a caption nobody reads, so the recorded case keeps the plain unit.
+    private var energyCaption: String? {
+        guard energy != nil else { return nil }
+        return WorkoutEnergyDisplay.caption(energy) ?? String(localized: "kcal")
     }
 
     // MARK: - Heart-rate recovery (#516)
@@ -257,10 +276,13 @@ struct WorkoutDetailView: View {
                      value: row.maxHr.map { "\($0)" } ?? "–",
                      caption: row.maxHr != nil ? "bpm" : nil,
                      accent: row.maxHr != nil ? StrandPalette.metricRose : StrandPalette.textTertiary)
+            // An empty tile beside a full heart-rate curve was the complaint: a native, Hevy or
+            // hand-entered session never records kcal, and the screen said nothing rather than
+            // saying what it could work out. The tilde and the caption keep it an estimate.
             StatTile(label: "Calories",
-                     value: row.energyKcal.map { grouped($0) } ?? "–",
-                     caption: row.energyKcal != nil ? "kcal" : nil,
-                     accent: row.energyKcal != nil ? StrandPalette.metricAmber : StrandPalette.textTertiary)
+                     value: WorkoutEnergyDisplay.text(energy) ?? "–",
+                     caption: energyCaption,
+                     accent: energy != nil ? StrandPalette.metricAmber : StrandPalette.textTertiary)
             if row.distanceM != nil {
                 StatTile(label: "Distance",
                          value: distanceLabel(row.distanceM),

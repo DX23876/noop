@@ -4975,13 +4975,33 @@ final class AICoachEngine: ObservableObject {
                 .map { "\($0.label) \($0.count)" }
                 .joined(separator: ", "))
         }
+        // The quoted sessions' own resting rates, for the ones that recorded no energy. Bounded by
+        // the sessions actually quoted, so this is one small read rather than a history-wide one.
+        let quoted = Array(rows.prefix(limit))
+        let profileStore = ProfileStore()
+        let analyticsProfile = Repository.analyticsProfile(profileStore)
+        var restingHrByDay: [String: Double] = [:]
+        if let oldest = quoted.map(\.startTs).min(), let newest = quoted.map(\.startTs).max() {
+            restingHrByDay = await repo.restingHrByDay(
+                fromDay: Repository.localDayKey(Date(timeIntervalSince1970: TimeInterval(oldest))),
+                toDay: Repository.localDayKey(Date(timeIntervalSince1970: TimeInterval(newest))))
+        }
+
         lines.append("Newest sessions:")
-        for w in rows.prefix(limit) {
+        for w in quoted {
             var parts = ["  \(dateString(w.startTs)) \(w.sport)"]
             if let dur = w.durationS { parts.append("\(Int((dur / 60).rounded())) min") }
             if let s = w.strain { parts.append("effort \(String(format: "%.1f", s))") }
             if let hr = w.avgHr { parts.append("avg HR \(hr)") }
-            if let kcal = w.energyKcal { parts.append("\(Int(kcal.rounded())) kcal") }
+            // Estimated where nothing recorded it — a lifting session the coach reads as costing
+            // nothing is worse than one it reads as costing roughly this much. The provenance goes
+            // with it: a bare figure in a prompt becomes a measurement the moment it is quoted back.
+            let energy = WorkoutEnergyDisplay.resolve(w, profile: analyticsProfile,
+                                                      hrMax: Double(profileStore.hrMax),
+                                                      restingHrByDay: restingHrByDay)
+            if let spoken = WorkoutEnergyDisplay.spoken(energy, averageHR: w.avgHr) {
+                parts.append(spoken)
+            }
             if let dist = w.distanceM {
                 parts.append(UnitFormatter.distanceFromMeters(dist, system: distanceSystem))
             }
