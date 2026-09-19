@@ -333,8 +333,12 @@ extension Repository {
         // Same window, same dedup rule as the Workouts screen (#687): a strap session and its
         // imported Health twin are one session, and counting both would draw two bands over one
         // workout and charge its energy twice.
+        // Two days of lead-in, not one: the window has to start before any session that REACHES this
+        // day, and a 24 h lead-in silently drops a session longer than a day — an ultra, a hike, or
+        // a mis-entered end time. `rawWorkoutRows` is an indexed range read, so the extra day costs
+        // nothing and the alternative is a band that is missing exactly when the day is unusual.
         let sessions = WorkoutSource.dedupCrossSource(
-            await rawWorkoutRows(from: startTs - 86_400, to: endTs))
+            await rawWorkoutRows(from: startTs - 2 * 86_400, to: endTs))
             .filter { $0.endTs > startTs && $0.startTs < endTs }
             .sorted { $0.startTs < $1.startTs }
         let bands = sessions.map { row in
