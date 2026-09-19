@@ -900,20 +900,56 @@ final class Repository: ObservableObject {
     /// Seeds the shipped catalogue once per content version. 1,300 definitions are not worth an upsert
     /// on every launch, and re-seeding on a version bump is what lets a corrected mapping reach a wearer
     /// who already holds the old rows. A wearer's own exercises are never touched: their ids differ.
+    /// Every definition the app ships, counted once. Starter and bundled entries may share an id, so
+    /// this is the size of their UNION — the number the store must hold once a seed has succeeded,
+    /// and the floor `prepareNativeTraining` checks against.
+    private static let shippedExerciseIdCount: Int = {
+        Set(TrainingStarterCatalog.exercises.map(\.id))
+            .union(BundledExerciseCatalog.exercises.map(\.id)).count
+    }()
+
     func prepareNativeTraining() async {
         guard let store = await ensureStore() else { return }
         let now = Int(Date().timeIntervalSince1970)
         let seededVersionKey = "training.catalog.seededContentVersion"
         let seededStarterKey = "training.catalog.seededStarterVersion"
-        if UserDefaults.standard.integer(forKey: seededVersionKey) < BundledExerciseCatalog.contentVersion {
-            try? await store.upsertTrainingExercises(
-                TrainingStarterCatalog.exercises + BundledExerciseCatalog.exercises, nowTs: now)
-            UserDefaults.standard.set(BundledExerciseCatalog.contentVersion, forKey: seededVersionKey)
-            UserDefaults.standard.set(TrainingStarterCatalog.contentVersion, forKey: seededStarterKey)
-        } else if UserDefaults.standard.integer(forKey: seededStarterKey) < TrainingStarterCatalog.contentVersion {
+        let seededVersion = UserDefaults.standard.integer(forKey: seededVersionKey)
+        // The count is only read when the version flag alone would say "done" — on a version bump the
+        // seed runs regardless, and the read would be a query asked for nothing.
+        let stored = seededVersion < BundledExerciseCatalog.contentVersion
+            ? nil : try? await store.trainingExerciseCount()
+
+        switch ExerciseCatalogSeed.decide(
+            seededContentVersion: seededVersion,
+            seededStarterVersion: UserDefaults.standard.integer(forKey: seededStarterKey),
+            storedCount: stored, shippedCount: Self.shippedExerciseIdCount) {
+        case .none:
+            return
+        case .full(let reason):
+            if case .incomplete(let stored, let expected) = reason {
+                // Always on, never behind Test Centre: this happens zero times in a healthy install,
+                // so it costs nothing when nothing is wrong, and it is exactly the line that was
+                // missing when someone reported an empty library.
+                NSLog("NativeTraining: exercise catalogue incomplete (\(stored) of \(expected) stored at content version \(seededVersion)) — re-seeding")
+            }
+            do {
+                try await store.upsertTrainingExercises(
+                    TrainingStarterCatalog.exercises + BundledExerciseCatalog.exercises, nowTs: now)
+                // Only NOW. The flag records a write that happened; writing it beside a write that
+                // threw is what left a wearer with an empty library and no way back.
+                UserDefaults.standard.set(BundledExerciseCatalog.contentVersion, forKey: seededVersionKey)
+                UserDefaults.standard.set(TrainingStarterCatalog.contentVersion, forKey: seededStarterKey)
+            } catch {
+                NSLog("NativeTraining: exercise catalogue seed FAILED — \(error). Retrying on next open.")
+            }
+        case .starterOnly:
             // Starter definitions changed on their own (e.g. gained media references).
-            try? await store.upsertTrainingExercises(TrainingStarterCatalog.exercises, nowTs: now)
-            UserDefaults.standard.set(TrainingStarterCatalog.contentVersion, forKey: seededStarterKey)
+            do {
+                try await store.upsertTrainingExercises(TrainingStarterCatalog.exercises, nowTs: now)
+                UserDefaults.standard.set(TrainingStarterCatalog.contentVersion, forKey: seededStarterKey)
+            } catch {
+                NSLog("NativeTraining: starter catalogue seed FAILED — \(error). Retrying on next open.")
+            }
         }
         // Unfinished drafts are no longer pruned after a week: they hold sets the wearer logged, and a
         // forgotten session is offered back to them (`ActiveSessionController.restoreIfNeeded`) instead.

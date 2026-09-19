@@ -269,4 +269,36 @@ final class NativeTrainingStoreTests: XCTestCase {
         XCTAssertEqual(third.map(\.startedAt), [100])
         XCTAssertEqual(Set((first + second + third).map(\.id)).count, 3)
     }
+
+    // MARK: - Catalogue seeding
+
+    private func makeStore() async throws -> WhoopStore {
+        let path = FileManager.default.temporaryDirectory
+            .appendingPathComponent("native-training-\(UUID().uuidString).sqlite").path
+        addTeardownBlock {
+            for suffix in ["", "-wal", "-shm"] { try? FileManager.default.removeItem(atPath: path + suffix) }
+        }
+        return try await WhoopStore(path: path)
+    }
+
+    private func exercise(_ id: String) -> TrainingExercise {
+        TrainingExercise(id: id, title: id.capitalized, mode: .weightReps)
+    }
+
+    func testTheCountIsWhatIsStoredWithoutDecodingIt() async throws {
+        let store = try await makeStore()
+        let empty = try await store.trainingExerciseCount()
+        XCTAssertEqual(empty, 0, "a fresh store holds no definitions")
+
+        try await store.upsertTrainingExercises([exercise("a"), exercise("b")], nowTs: 100)
+        let two = try await store.trainingExerciseCount()
+        XCTAssertEqual(two, 2)
+
+        // Upserting the same ids again must not inflate the count — the seed re-runs on a version
+        // bump, and a count that grew each time would never fall below its floor again.
+        try await store.upsertTrainingExercises([exercise("a"), exercise("b"), exercise("c")], nowTs: 200)
+        let three = try await store.trainingExerciseCount()
+        XCTAssertEqual(three, 3)
+    }
+
 }

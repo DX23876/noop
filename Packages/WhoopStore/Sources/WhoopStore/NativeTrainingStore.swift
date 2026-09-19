@@ -34,6 +34,18 @@ extension WhoopStore {
         }
     }
 
+    /// How many exercise definitions are stored, without decoding any of them.
+    ///
+    /// Exists for the seed's self-check: `prepareNativeTraining` has to know whether the shipped
+    /// catalogue actually landed, and loading ~1,300 rows and their JSON columns on every launch to
+    /// find out would cost far more than the seed it is guarding. `nonisolated` + `asyncRead` for the
+    /// reason the accessor documents — this runs on a launch path and must not queue behind a write.
+    public nonisolated func trainingExerciseCount() async throws -> Int {
+        try await asyncRead { db in
+            try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM trainingExerciseDefinition") ?? 0
+        }
+    }
+
     public func trainingExercises() async throws -> [TrainingExercise] {
         try syncRead { db in
             try Row.fetchAll(db, sql: "SELECT * FROM trainingExerciseDefinition ORDER BY title COLLATE NOCASE")
