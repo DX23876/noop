@@ -143,7 +143,10 @@ public enum ActivityShapeEngine {
                              expectedActiveByHour: expected)
     }
 
-    private static func median(_ values: [Double]) -> Double {
+    /// Package-internal rather than private: `EnergyBurnRate` combines its reference curve the same
+    /// way and for the same reason (one unusual day must not drag it). Two medians in one module is
+    /// two places for the even-count case to be got wrong.
+    static func median(_ values: [Double]) -> Double {
         guard !values.isEmpty else { return 0 }
         let sorted = values.sorted()
         let middle = sorted.count / 2
