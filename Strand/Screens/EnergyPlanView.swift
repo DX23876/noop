@@ -482,6 +482,7 @@ struct EnergyPlanView: View {
         case .strapWornTime: return String(localized: "Strap worn")
         case .mixed:         return String(localized: "Part measured")
         case .stepsEstimate: return String(localized: "Estimated from steps")
+        case .loggedActivity: return String(localized: "From logged sessions")
         case .profileOnly:   return String(localized: "Profile only")
         }
     }

@@ -2045,6 +2045,8 @@ final class AICoachEngine: ObservableObject {
         case .strapWornTime: source = "strap worn-time estimate"
         case .mixed:         source = "several locally arbitrated sources"
         case .stepsEstimate: source = "steps-based estimate"
+        case .loggedActivity:
+            source = "logged sessions plus a steps estimate for the hours they did not cover"
         case .profileOnly:   source = "profile-based basal estimate only"
         }
         lines.append("SOURCE: \(source)")

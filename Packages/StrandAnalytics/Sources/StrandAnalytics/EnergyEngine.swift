@@ -33,8 +33,11 @@ public enum EnergySource: String, Equatable, Sendable, Codable {
     case strapWornTime
     /// A mix — one source's measurement plus a modelled remainder, or two sources arbitrated.
     case mixed
-    /// No energy measurement at all; steps scaled by body weight over the profile BMR.
+    /// No energy measurement at all; steps priced over the profile BMR.
     case stepsEstimate
+    /// No energy measurement either, but the day carries LOGGED sessions whose energy is known. Their
+    /// kcal, plus whatever the step estimate can still say about the hours no session covered.
+    case loggedActivity
     /// Nothing but the profile. `totalBurned` is nil here; only `estimatedBMR24h` is meaningful.
     case profileOnly
 }
@@ -98,6 +101,15 @@ public struct DailyEnergySummary: Equatable, Sendable {
     public let basalBurnedSoFar: Double?
     /// Energy above resting that a wearable recorded. Nil without one.
     public let activeBurnedSoFar: Double?
+    /// How much of `activeBurnedSoFar` came from logged sessions, and whether any of it was modelled
+    /// rather than recorded. Nil when no session contributed — which is every measured day, since a
+    /// measured day's sessions are already inside the measurement.
+    ///
+    /// Surfaced for one reason: "does this count my workouts?" is answerable only by showing the part
+    /// that came from them. A total that silently includes them answers it no better than one that
+    /// silently excludes them.
+    public let loggedActivityKcal: Double?
+    public let loggedActivityIsEstimated: Bool
     /// The day's total expenditure. Nil when nothing measured it — never 0 as a stand-in.
     public let totalBurnedSoFar: Double?
     /// Where the day is heading, for the CURRENT day only. Always nil for a past day: a forecast for
@@ -126,6 +138,7 @@ public struct DailyEnergySummary: Equatable, Sendable {
 
     public init(day: String, estimatedBMR24h: Double?, basalBurnedSoFar: Double?, activeBurnedSoFar: Double?,
                 totalBurnedSoFar: Double?, projectedTotalBurn: Double?,
+                loggedActivityKcal: Double? = nil, loggedActivityIsEstimated: Bool = false,
                 projectedRangeKcal: ClosedRange<Double>? = nil, rawWhoopTotalKcal: Double? = nil,
                 uncertaintyFraction: Double? = nil,
                 unresolvedElevatedHRSeconds: Int = 0,
@@ -138,6 +151,8 @@ public struct DailyEnergySummary: Equatable, Sendable {
         self.estimatedBMR24h = estimatedBMR24h
         self.basalBurnedSoFar = basalBurnedSoFar
         self.activeBurnedSoFar = activeBurnedSoFar
+        self.loggedActivityKcal = loggedActivityKcal
+        self.loggedActivityIsEstimated = loggedActivityIsEstimated
         self.totalBurnedSoFar = totalBurnedSoFar
         self.projectedTotalBurn = projectedTotalBurn
         self.projectedRangeKcal = projectedRangeKcal
@@ -155,6 +170,65 @@ public struct DailyEnergySummary: Equatable, Sendable {
     }
 }
 
+/// One logged session offered to a day that no device measured the energy of.
+///
+/// It carries a WINDOW and a SOURCE rather than a bare number, and both are load-bearing:
+///
+///   • The window places the session. A session that straddles midnight belongs to two days, and the
+///     step estimate must not be charged again for hours a session already accounts for.
+///   • The source says WHICH QUANTITY the kcal figure is. Apple writes energy ABOVE resting;
+///     `Calories.estimateBoutCalories` — behind the strap, detected, manual and estimated rows —
+///     integrates the resting rate below its activity gate and is therefore a GROSS total. Adding the
+///     two as though they were one quantity is the trap this file's header describes for the day.
+public struct ActivityContribution: Equatable, Sendable {
+
+    /// Which lane a logged session arrived through. Mirrors the app's `WorkoutSource` one for one, so
+    /// the app's mapping is a compiler-checked switch rather than a string compare.
+    public enum Source: String, Equatable, Sendable, Codable, CaseIterable {
+        case whoop, apple, detected, manual, lifting, activityFile, hevy
+
+        /// Whether this lane's kcal figure still contains the resting energy of the bout.
+        ///
+        /// Exhaustive on purpose, with no `default`: a lane added later must state which quantity it
+        /// writes, and the compiler is the only reviewer guaranteed to ask.
+        public var includesRestingEnergy: Bool {
+            switch self {
+            case .apple: return false
+            case .whoop, .detected, .manual, .lifting, .activityFile, .hevy: return true
+            }
+        }
+    }
+
+    public let startTs: Int
+    public let endTs: Int
+    /// The session's energy exactly as its source wrote it — gross or net per `source`, never
+    /// pre-converted by the caller. One place converts, and it is `EnergyEngine`.
+    public let kcal: Double
+    public let source: Source
+    /// True when `kcal` was modelled by NOOP (average heart rate or a MET table) rather than reported
+    /// by the session itself. Surfaced so a screen can mark an estimate as one.
+    public let isEstimated: Bool
+
+    public init(startTs: Int, endTs: Int, kcal: Double, source: Source, isEstimated: Bool = false) {
+        self.startTs = startTs
+        self.endTs = endTs
+        self.kcal = kcal
+        self.source = source
+        self.isEstimated = isEstimated
+    }
+
+    /// The session's own length, which is the denominator a midnight split divides against.
+    public var durationSeconds: Double { Double(max(0, endTs - startTs)) }
+
+    /// Whether THIS contribution's kcal still contains the resting energy of its window.
+    ///
+    /// A figure NOOP modelled is gross whichever lane the session arrived through: both the MET table
+    /// and the Keytel rate price the WHOLE window rather than the part above resting. So an estimate
+    /// overrides its lane's convention — an Apple session that arrived without energy and was priced
+    /// here is not the net quantity Apple would have written.
+    public var includesRestingEnergy: Bool { isEstimated || source.includesRestingEnergy }
+}
+
 public enum EnergyEngine {
 
     /// Clock information supplied by the repository. Using real local-day seconds rather than a fixed
@@ -163,8 +237,14 @@ public enum EnergyEngine {
         public let isToday: Bool
         public let dayDurationSeconds: Double
         public let elapsedSeconds: Double
+        /// Unix seconds of this day's local midnight, when the caller knows it. Logged sessions carry
+        /// absolute timestamps, so without it the engine cannot tell which sessions fall inside the day
+        /// or which hours they covered. Nil is not an error: it means no session can be placed, and the
+        /// step estimate stands alone exactly as it did before sessions existed.
+        public let startTs: Int?
 
-        public init(isToday: Bool, dayDurationSeconds: Double, elapsedSeconds: Double) {
+        public init(isToday: Bool, dayDurationSeconds: Double, elapsedSeconds: Double,
+                    startTs: Int? = nil) {
             let duration = dayDurationSeconds.isFinite && dayDurationSeconds > 0
                 ? dayDurationSeconds : 86_400
             self.isToday = isToday
@@ -172,6 +252,7 @@ public enum EnergyEngine {
             self.elapsedSeconds = isToday
                 ? min(duration, max(0, elapsedSeconds.isFinite ? elapsedSeconds : 0))
                 : duration
+            self.startTs = startTs
         }
 
         public var elapsedFraction: Double {
@@ -210,6 +291,17 @@ public enum EnergyEngine {
         public let steps: Int?
         /// Hours of the day carrying any step count, out of 24. Nil when hourly steps aren't stored.
         public let hoursWithSteps: Int?
+        /// WHICH hours carried steps (0...23), when the hourly stream is available. `hoursWithSteps`
+        /// answers "how much of the day moved" for the coverage figure; this answers "which part of it"
+        /// so a session's hours can be taken out of the step estimate instead of guessed at.
+        public let stepHours: [Int]?
+        /// The wearer's measured step length for this day (`StepLengthTimeline`), in metres. Nil falls
+        /// back to `StrideLength.populationAverageM`, exactly as the bucket model's own step branch does.
+        public let strideM: Double?
+        /// Sessions the wearer logged. Read ONLY when nothing measured the day's energy — on a strap or
+        /// Apple day their energy is already inside the measurement, and adding it again would be the
+        /// double count this file exists to prevent.
+        public let loggedActivity: [ActivityContribution]
         public let unresolvedElevatedHRSeconds: Int
         public let modelWeightSource: String?
 
@@ -220,6 +312,8 @@ public enum EnergyEngine {
                     strapUncertaintyFraction: Double? = nil,
                     calibrationStatus: EnergyCalibrationStatus = .off,
                     steps: Int? = nil, hoursWithSteps: Int? = nil,
+                    stepHours: [Int]? = nil, strideM: Double? = nil,
+                    loggedActivity: [ActivityContribution] = [],
                     unresolvedElevatedHRSeconds: Int = 0,
                     modelWeightSource: String? = nil) {
             self.day = day
@@ -233,6 +327,9 @@ public enum EnergyEngine {
             self.calibrationStatus = calibrationStatus
             self.steps = steps
             self.hoursWithSteps = hoursWithSteps
+            self.stepHours = stepHours
+            self.strideM = strideM
+            self.loggedActivity = loggedActivity
             self.unresolvedElevatedHRSeconds = unresolvedElevatedHRSeconds
             self.modelWeightSource = modelWeightSource
         }
@@ -240,11 +337,14 @@ public enum EnergyEngine {
 
     // MARK: - Constants (named so they are auditable and testable)
 
-    /// kcal per step per kg of body weight — the fallback when no energy measurement exists at all.
-    /// ~0.0005 puts a 10 000-step day at ~400 kcal for an 80 kg adult, which is the commonly cited
-    /// ballpark. A deliberately crude model for a deliberately crude situation: it never runs when a
-    /// wearable contributed anything.
-    public static let kcalPerStepPerKg = 0.0005
+    /// The cadence a day's steps are assumed to have been walked at, in steps per minute.
+    ///
+    /// A day total says how many steps were taken, never how fast — and speed is what a MET curve
+    /// needs. 100 steps/min is ordinary adult walking, and pairing it with the wearer's own step
+    /// length is what makes the estimate personal: the same 10 000 steps price differently for a
+    /// 0.62 m stride than for a 0.85 m one. Named rather than inlined because it is an ASSUMPTION,
+    /// and an assumption that cannot be found is one nobody can revise.
+    public static let assumedWalkingCadence = 100.0
 
     /// Coverage at or above which a day is treated as fully known (`.solid`). Not 1.0: nobody wears a
     /// watch in the shower, and demanding perfection would mark every real day as partial.
@@ -287,6 +387,8 @@ public enum EnergyEngine {
             activeBurnedSoFar: result.active,
             totalBurnedSoFar: result.total,
             projectedTotalBurn: projected,
+            loggedActivityKcal: result.loggedActivityKcal,
+            loggedActivityIsEstimated: result.loggedActivityIsEstimated,
             projectedRangeKcal: projectedRange(projected: projected, uncertainty: uncertainty,
                                                coverage: coverage, context: context),
             rawWhoopTotalKcal: result.rawWhoopTotalKcal,
@@ -317,6 +419,8 @@ public enum EnergyEngine {
         let source: EnergySource
         let appliedCalibrationFactor: Double?
         let rawWhoopTotalKcal: Double?
+        var loggedActivityKcal: Double?
+        var loggedActivityIsEstimated: Bool = false
 
         init(basal: Double?, active: Double?, total: Double?, source: EnergySource,
              appliedCalibrationFactor: Double? = nil, rawWhoopTotalKcal: Double? = nil) {
@@ -380,16 +484,137 @@ public enum EnergyEngine {
             return BurnResult(basal: basal, active: active, total: active + basal, source: .mixed)
         }
 
-        // 4. No energy measurement anywhere: scale steps by body weight over the modelled basal rate.
-        if let steps = inputs.steps, steps > 0, let bmr24h, profile.weightKg > 0 {
-            let active = Double(steps) * kcalPerStepPerKg * profile.weightKg
-            let basal = bmr24h * elapsed
-            return BurnResult(basal: basal, active: active, total: basal + active, source: .stepsEstimate)
+        // 4. No device measured this day's energy. What is still known is what the wearer LOGGED and
+        //    how much they walked — and those two overlap, because a run is inside the step count as
+        //    well as inside the session. `activeWithoutMeasurement` is where that overlap is resolved;
+        //    nothing here adds two descriptions of the same hour.
+        if let bmr24h {
+            let sessions = sessionEnergy(inputs, bmr24h: bmr24h, context: context)
+            let active = activeWithoutMeasurement(inputs, profile: profile, sessions: sessions)
+            if active.kcal > 0 {
+                let basal = bmr24h * elapsed
+                // The source names what actually produced the number. Where the step estimate won on
+                // its own, saying `.loggedActivity` would credit a session that contributed nothing.
+                var result = BurnResult(basal: basal, active: active.kcal, total: basal + active.kcal,
+                                        source: active.fromSessions > 0 ? .loggedActivity
+                                                                        : .stepsEstimate)
+                if active.fromSessions > 0 {
+                    result.loggedActivityKcal = active.fromSessions
+                    result.loggedActivityIsEstimated = sessions.estimated
+                }
+                return result
+            }
         }
 
         // 5. Nothing. The BMR is still reported on the summary, but it is not a measured total and
         //    must not be presented as one.
         return BurnResult(basal: nil, active: nil, total: nil, source: .profileOnly)
+    }
+
+    // MARK: - A day nothing measured
+    //
+    // Two estimates describe such a day, and they describe overlapping time:
+    //
+    //   • the sessions the wearer logged, each with a window, and
+    //   • the day's step count, which contains those same sessions' steps.
+    //
+    // Summing them pays for a run twice; taking only the larger throws away the walk that happened
+    // beside the gym session. So the step estimate is charged only for the HOURS no session covered —
+    // and where the hourly stream cannot say which hours those were, the larger of the two is the only
+    // combination that cannot double count, which is what this falls back to.
+
+    /// A day's logged sessions, converted to energy ABOVE resting and placed in the day.
+    ///
+    /// Returns the hours they covered alongside the kcal, because the step estimate needs to know which
+    /// hours are already spoken for.
+    private static func sessionEnergy(_ inputs: DayInputs, bmr24h: Double, context: DayContext)
+        -> (kcal: Double, hours: Set<Int>, estimated: Bool) {
+        guard let dayStart = context.startTs, !inputs.loggedActivity.isEmpty else {
+            return (0, [], false)
+        }
+        // A session in the not-yet-lived part of today is not energy anyone has spent. Clipping at the
+        // elapsed edge keeps "so far" meaning so far, the same way every other figure on the card does.
+        let horizon = dayStart + Int(context.elapsedSeconds.rounded())
+        let basalRate = bmr24h / context.dayDurationSeconds
+        var kcal = 0.0
+        var hours: Set<Int> = []
+        var estimated = false
+        for session in inputs.loggedActivity {
+            let duration = session.durationSeconds
+            guard duration > 0, session.kcal.isFinite, session.kcal > 0 else { continue }
+            let start = max(session.startTs, dayStart)
+            let end = min(session.endTs, horizon)
+            guard end > start else { continue }
+            let inside = Double(end - start)
+            // A session that straddles midnight is split by TIME rather than assigned whole to the day
+            // it began in. Its energy really did accrue in both days, and a chart that credits all of it
+            // to one of them shows a spike on a day the wearer was asleep for most of the session.
+            let share = session.kcal * min(1, inside / duration)
+            // The source decides the quantity: a gross figure still contains the resting energy of the
+            // window it covers, and that same resting energy is already in this day's basal top-up.
+            kcal += session.includesRestingEnergy
+                ? max(0, share - basalRate * inside)
+                : share
+            estimated = estimated || session.isEstimated
+            for hour in hourSpan(fromOffset: start - dayStart, toOffset: end - dayStart) {
+                hours.insert(hour)
+            }
+        }
+        return (kcal, hours, estimated)
+    }
+
+    /// The day's active energy when nothing measured it: sessions plus the part of the step estimate
+    /// that falls outside them.
+    ///
+    /// Reports how much of the answer the SESSIONS produced, not just the sum, so nothing downstream
+    /// has to reconstruct that — and so a day the step estimate won outright cannot be labelled as
+    /// coming from a session that lost.
+    private static func activeWithoutMeasurement(
+        _ inputs: DayInputs, profile: UserProfile,
+        sessions: (kcal: Double, hours: Set<Int>, estimated: Bool)
+    ) -> (kcal: Double, fromSessions: Double) {
+        guard let steps = inputs.steps, steps > 0,
+              let stepped = stepActiveKcal(steps: steps, strideM: inputs.strideM,
+                                           weightKg: profile.weightKg) else {
+            return (sessions.kcal, sessions.kcal)
+        }
+        guard sessions.kcal > 0 else { return (stepped, 0) }
+        guard let stepHours = inputs.stepHours, !stepHours.isEmpty else {
+            // No hourly stream: the overlap is real but unmeasurable, so the larger of the two stands
+            // alone. This branch exists because the data is missing, not because max() is the model.
+            return sessions.kcal >= stepped ? (sessions.kcal, sessions.kcal) : (stepped, 0)
+        }
+        let distinct = Set(stepHours)
+        let outside = distinct.subtracting(sessions.hours).count
+        return (sessions.kcal + stepped * Double(outside) / Double(distinct.count), sessions.kcal)
+    }
+
+    /// Active energy implied by a day's step count, in kcal above resting.
+    ///
+    /// Steps become a speed through the wearer's OWN measured step length, and that speed is priced on
+    /// the same published MET curve the v6 bucket model uses (`WhoopEnergyModel.metForSpeed`). Sharing
+    /// that curve is the point: a second, independently tuned step table is exactly what the bucket
+    /// model's own comment says it replaced, after the two disagreed by up to 2.7 MET at one speed.
+    ///
+    /// `met - 1` is what makes the result ACTIVE energy. One MET is resting metabolism, and the caller
+    /// adds the day's basal separately; leaving it in would bill the same resting hours twice.
+    ///
+    /// Nil when the profile carries no body mass — energy scales with the mass being moved, and there
+    /// is no honest number without it.
+    public static func stepActiveKcal(steps: Int, strideM: Double?, weightKg: Double) -> Double? {
+        guard steps > 0, weightKg > 0, weightKg.isFinite else { return nil }
+        let metersPerStep = StrideLength.metersPerStep(strideM)
+        let speedKmh = assumedWalkingCadence * metersPerStep * 60 / 1_000
+        let hours = Double(steps) / assumedWalkingCadence / 60
+        return max(0, WhoopEnergyModel.metForSpeed(speedKmh) - 1) * weightKg * hours
+    }
+
+    /// Local hours (0...23) a window touches, given its offsets from the day's midnight. The end offset
+    /// is exclusive: a session ending exactly on the hour did not spend anything in the hour it ended.
+    private static func hourSpan(fromOffset: Int, toOffset: Int) -> ClosedRange<Int> {
+        let first = min(23, max(0, fromOffset / 3_600))
+        let last = min(23, max(first, (max(fromOffset, toOffset - 1)) / 3_600))
+        return first...last
     }
 
     /// Where the current day is heading:
@@ -486,6 +711,16 @@ public enum EnergyEngine {
         let covered = inputs.strapCoverageSeconds.flatMap { (0...100_000).contains($0) ? $0 : nil }
         let appleCovered = inputs.appleCoverageSeconds.flatMap { (0...100_000).contains($0) ? $0 : nil }
         let hours = inputs.hoursWithSteps.flatMap { (0...25).contains($0) ? $0 : nil }
+        let stepHours = inputs.stepHours.map { $0.filter { (0...23).contains($0) } }
+        let stride = inputs.strideM.flatMap {
+            $0.isFinite && StrideLength.plausibleRangeM.contains($0) ? $0 : nil
+        }
+        // A session with no window, a non-finite figure or an implausible one is dropped rather than
+        // clamped: unlike a slightly-off scalar there is no defensible value to pull it to, and a
+        // 40 000 kcal typo in a manual entry would otherwise become the day.
+        let sessions = inputs.loggedActivity.filter {
+            $0.endTs > $0.startTs && $0.kcal.isFinite && $0.kcal > 0 && $0.kcal <= 20_000
+        }
         let unresolved = min(100_000, max(0, inputs.unresolvedElevatedHRSeconds))
         let factor = inputs.strapCalibrationFactor.flatMap {
             $0.isFinite && EnergyCalibrationEngine.factorRange.contains($0) ? $0 : nil
@@ -506,6 +741,9 @@ public enum EnergyEngine {
                          calibrationStatus: calibrationStatus,
                          steps: steps,
                          hoursWithSteps: hours,
+                         stepHours: stepHours,
+                         strideM: stride,
+                         loggedActivity: sessions,
                          unresolvedElevatedHRSeconds: unresolved,
                          modelWeightSource: inputs.modelWeightSource)
     }
@@ -523,7 +761,11 @@ public enum EnergyEngine {
     /// marked down for a platform gap it didn't create — an ABSENT signal is not evidence of a THIN one.
     private static func confidence(source: EnergySource, coverage: EnergyCoverage) -> ScoreConfidence {
         switch source {
-        case .profileOnly, .stepsEstimate:
+        // `.loggedActivity` sits here with the other modelled days on purpose. A logged session is a
+        // measurement of an HOUR, not of a day: the other twenty-odd hours are exactly as estimated as
+        // they were before the wearer typed anything, and the card must not sound more certain because
+        // somebody kept a training diary.
+        case .profileOnly, .stepsEstimate, .loggedActivity:
             return .calibrating
         case .appleSplit:
             guard let overall = coverage.overall else { return .solid }

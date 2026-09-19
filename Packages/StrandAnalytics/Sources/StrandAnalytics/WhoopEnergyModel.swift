@@ -269,7 +269,10 @@ public enum WhoopEnergyModel {
         (8.0, 8.3), (9.7, 9.8), (11.3, 11.0), (12.9, 11.8), (14.5, 12.8), (16.1, 14.5),
     ]
 
-    private static func metForSpeed(_ kmh: Double) -> Double {
+    /// Package-internal rather than private: `EnergyEngine`'s step fallback prices a day with no
+    /// device energy on this SAME curve. Two step-to-energy tables in one module is the state this
+    /// table was introduced to end.
+    static func metForSpeed(_ kmh: Double) -> Double {
         guard let first = speedMETTable.first, let last = speedMETTable.last else { return 1.5 }
         if kmh <= first.kmh { return first.met }
         if kmh >= last.kmh { return last.met }

@@ -109,6 +109,29 @@ before advancing its cursor. Raw workouts, source metadata, heart-rate samples, 
 and session-RPE entries are preserved. Canonical links are idempotent and are built from retained source
 rows, so opening the expanded history safely enriches older sessions as well.
 
+**Energy counts the sessions you logged (Apple platforms)**
+
+- **A day nothing measured now counts your workouts.** Energy chose one source per day and, when no
+  device had recorded any, fell back to step count alone — so a day of lifting, cycling or rowing
+  contributed almost nothing, because those sessions produce few steps. Logged sessions now count on
+  such a day, from what they recorded, or from their average heart rate, or from the activity's
+  published energy cost when they recorded neither. A day a device DID measure is untouched: those
+  sessions are already inside the measurement, and adding them again would count them twice.
+- **Your step estimate is now yours.** It used a flat constant per step. It now prices steps through
+  your own measured step length on the same published speed-to-effort curve the strap model uses, so
+  the same 10 000 steps cost a tall walker and a short one different amounts, as they should.
+- **The card no longer blames a strap that simply hasn't synced.** "No device recorded energy today"
+  was shown to anyone whose strap had not offloaded yet, which is a different thing entirely. Today's
+  figure is also rebuilt on first read rather than only when the Energy screen is opened.
+- **Energy says how much came from your sessions.** The detail screen breaks the figure out and marks
+  it when NOOP had to estimate a session rather than read it.
+
+Because energy is computed each time it is read, earlier days that had only steps will show higher
+totals than before. Nothing stored changed, and no rescore runs.
+
+**Analysis migration required: no.** The day's total is derived at read time and is not persisted,
+used as a score input, or cached as a derived value.
+
 ---
 
 ## 11.1.0: A clock you choose, sleep without motion, and logs that report instead of assuming (all platforms)

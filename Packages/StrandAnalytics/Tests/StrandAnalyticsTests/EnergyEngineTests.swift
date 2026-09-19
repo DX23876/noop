@@ -5,9 +5,23 @@ final class EnergyEngineTests: XCTestCase {
     private let profile = UserProfile(weightKg: 80, heightCm: 180, age: 30, sex: "male")
     private var bmr: Double { Calories.bmrKcalPerDay(profile: profile) ?? 0 }
 
+    /// Local midnight of the day every session test places its windows against. The engine only ever
+    /// works in offsets from it, so the exact instant is irrelevant — having ONE makes the windows in
+    /// the tests below readable as clock times.
+    private let dayStart = 1_756_000_000
+
     private func context(elapsed fraction: Double = 1, duration: Double = 86_400,
-                         today: Bool = false) -> EnergyEngine.DayContext {
-        .init(isToday: today, dayDurationSeconds: duration, elapsedSeconds: duration * fraction)
+                         today: Bool = false, withStart: Bool = true) -> EnergyEngine.DayContext {
+        .init(isToday: today, dayDurationSeconds: duration, elapsedSeconds: duration * fraction,
+              startTs: withStart ? dayStart : nil)
+    }
+
+    /// A session window expressed in hours after local midnight.
+    private func session(fromHour: Double, toHour: Double, kcal: Double,
+                         source: ActivityContribution.Source = .apple,
+                         estimated: Bool = false) -> ActivityContribution {
+        .init(startTs: dayStart + Int(fromHour * 3_600), endTs: dayStart + Int(toHour * 3_600),
+              kcal: kcal, source: source, isEstimated: estimated)
     }
 
     private func inputs(appleActive: Double? = nil, appleBasal: Double? = nil,
@@ -16,14 +30,23 @@ final class EnergyEngineTests: XCTestCase {
                         calibration: Double? = nil,
                         uncertainty: Double? = nil,
                         calibrationStatus: EnergyCalibrationStatus = .off,
-                        steps: Int? = nil, hoursWithSteps: Int? = nil) -> EnergyEngine.DayInputs {
+                        steps: Int? = nil, hoursWithSteps: Int? = nil,
+                        stepHours: [Int]? = nil, strideM: Double? = nil,
+                        sessions: [ActivityContribution] = []) -> EnergyEngine.DayInputs {
         .init(day: "2026-08-21", appleActiveKcal: appleActive,
               appleBasalKcal: appleBasal, appleCoverageSeconds: appleCoverage,
               strapTotalKcal: strap,
               strapCoverageSeconds: coverage, strapCalibrationFactor: calibration,
               strapUncertaintyFraction: uncertainty, calibrationStatus: calibrationStatus,
-              steps: steps, hoursWithSteps: hoursWithSteps)
+              steps: steps, hoursWithSteps: hoursWithSteps,
+              stepHours: stepHours, strideM: strideM, loggedActivity: sessions)
     }
+
+    /// What `stepActiveKcal` must produce for the canonical 10 000-step, 80 kg, unmeasured-stride day:
+    /// 100 steps/min × 0.75 m = 4.5 km/h, which the shared curve prices at 3.3125 MET, over the
+    /// 100 minutes those steps took. Written out rather than recomputed from the engine's own
+    /// constants so a change to any of them fails here instead of agreeing with itself.
+    private let tenThousandStepKcal = (3.3125 - 1) * 80 * (10_000.0 / 100 / 60)
 
     func testNoDataKeepsTotalUnknownButExposesBmrReference() {
         let summary = EnergyEngine.summarize(inputs(), profile: profile)
@@ -356,12 +379,173 @@ final class EnergyEngineTests: XCTestCase {
         let summary = EnergyEngine.summarize(
             inputs(steps: 10_000, hoursWithSteps: 12), profile: profile,
             context: context(elapsed: 0.5, today: true))
-        let active = 10_000.0 * EnergyEngine.kcalPerStepPerKg * 80
-        XCTAssertEqual(summary.activeBurnedSoFar ?? 0, active, accuracy: 1)
-        XCTAssertEqual(summary.totalBurnedSoFar ?? 0, bmr * 0.5 + active, accuracy: 1)
+        XCTAssertEqual(summary.source, .stepsEstimate)
+        XCTAssertEqual(summary.activeBurnedSoFar ?? 0, tenThousandStepKcal, accuracy: 0.5)
+        XCTAssertEqual(summary.totalBurnedSoFar ?? 0, bmr * 0.5 + tenThousandStepKcal, accuracy: 1)
         XCTAssertEqual(summary.coverage.movement, 0.5)
         XCTAssertNil(summary.coverage.overall)
         XCTAssertEqual(summary.confidence, .calibrating)
+    }
+
+    /// The step estimate has to MOVE with the wearer, or the measured step length it now reads is
+    /// decoration. A longer stride covers more ground per step, so the same count must cost more.
+    func testMeasuredStrideRepricesTheSameStepCount() {
+        let short = EnergyEngine.stepActiveKcal(steps: 10_000, strideM: 0.60, weightKg: 80) ?? 0
+        let assumed = EnergyEngine.stepActiveKcal(steps: 10_000, strideM: nil, weightKg: 80) ?? 0
+        let long = EnergyEngine.stepActiveKcal(steps: 10_000, strideM: 0.95, weightKg: 80) ?? 0
+        XCTAssertLessThan(short, assumed)
+        XCTAssertLessThan(assumed, long)
+        // An implausible reading is not a stride; it falls back to the population figure rather than
+        // pricing a 3 m step.
+        XCTAssertEqual(EnergyEngine.stepActiveKcal(steps: 10_000, strideM: 3, weightKg: 80) ?? 0,
+                       assumed, accuracy: 0.001)
+        XCTAssertNil(EnergyEngine.stepActiveKcal(steps: 10_000, strideM: 0.75, weightKg: 0))
+    }
+
+    // MARK: - Logged sessions on a day no device measured
+
+    func testLoggedSessionIsCountedWhenNothingMeasuredTheDay() {
+        let summary = EnergyEngine.summarize(
+            inputs(sessions: [session(fromHour: 9, toHour: 10, kcal: 400)]),
+            profile: profile, context: context(elapsed: 1, today: false))
+        XCTAssertEqual(summary.source, .loggedActivity)
+        XCTAssertEqual(summary.activeBurnedSoFar ?? 0, 400, accuracy: 0.001)
+        XCTAssertEqual(summary.totalBurnedSoFar ?? 0, bmr + 400, accuracy: 0.001)
+        // A logged hour is not a measured day: the card must not sound more certain for it.
+        XCTAssertEqual(summary.confidence, .calibrating)
+    }
+
+    /// The strap/manual figure includes the bout's own resting energy, and the day already bills that
+    /// through its basal top-up. Apple's does not. Same session, two sources, one hour apart in cost.
+    func testGrossSessionLosesItsRestingShareAndNetSessionDoesNot() {
+        let gross = EnergyEngine.summarize(
+            inputs(sessions: [session(fromHour: 9, toHour: 10, kcal: 400, source: .whoop)]),
+            profile: profile, context: context())
+        let net = EnergyEngine.summarize(
+            inputs(sessions: [session(fromHour: 9, toHour: 10, kcal: 400, source: .apple)]),
+            profile: profile, context: context())
+        XCTAssertEqual(gross.activeBurnedSoFar ?? 0, 400 - bmr / 24, accuracy: 0.001)
+        XCTAssertEqual(net.activeBurnedSoFar ?? 0, 400, accuracy: 0.001)
+    }
+
+    /// An estimate NOOP produced is gross even in a lane that normally writes net energy: the table and
+    /// the Keytel rate both price the whole window. The lane's convention describes what that lane
+    /// WRITES, not what this app computes when the lane wrote nothing.
+    func testAnEstimateIsGrossEvenInANetLane() {
+        let summary = EnergyEngine.summarize(
+            inputs(sessions: [session(fromHour: 9, toHour: 10, kcal: 400, source: .apple,
+                                      estimated: true)]),
+            profile: profile, context: context())
+        XCTAssertEqual(summary.activeBurnedSoFar ?? 0, 400 - bmr / 24, accuracy: 0.001)
+    }
+
+    /// The overlap rule: a run is inside the step count as well as inside the session, so the step
+    /// estimate is charged only for the hours no session covered.
+    func testSessionHoursAreRemovedFromTheStepEstimate() {
+        let hours = Array(8...19)   // twelve hours carrying steps
+        let summary = EnergyEngine.summarize(
+            inputs(steps: 10_000, hoursWithSteps: hours.count, stepHours: hours,
+                   sessions: [session(fromHour: 9, toHour: 10, kcal: 400)]),
+            profile: profile, context: context())
+        XCTAssertEqual(summary.activeBurnedSoFar ?? 0,
+                       400 + tenThousandStepKcal * 11 / 12, accuracy: 0.5)
+    }
+
+    func testWithoutHourlyStepsTheLargerEstimateStandsRatherThanTheSum() {
+        let big = EnergyEngine.summarize(
+            inputs(steps: 10_000, sessions: [session(fromHour: 9, toHour: 10, kcal: 900)]),
+            profile: profile, context: context())
+        XCTAssertEqual(big.activeBurnedSoFar ?? 0, 900, accuracy: 0.001)
+        XCTAssertEqual(big.source, .loggedActivity)
+        let small = EnergyEngine.summarize(
+            inputs(steps: 10_000, sessions: [session(fromHour: 9, toHour: 10, kcal: 50)]),
+            profile: profile, context: context())
+        XCTAssertEqual(small.activeBurnedSoFar ?? 0, tenThousandStepKcal, accuracy: 0.5)
+        // The step estimate won outright here, so the day may not be labelled as coming from a session
+        // that contributed nothing to it.
+        XCTAssertEqual(small.source, .stepsEstimate)
+        XCTAssertNil(small.loggedActivityKcal)
+    }
+
+    /// "Does this count my workouts?" is answerable only by showing the part that came from them.
+    func testTheSessionShareIsReportedSeparately() {
+        let hours = Array(8...19)
+        let recorded = EnergyEngine.summarize(
+            inputs(steps: 10_000, hoursWithSteps: hours.count, stepHours: hours,
+                   sessions: [session(fromHour: 9, toHour: 10, kcal: 400)]),
+            profile: profile, context: context())
+        XCTAssertEqual(recorded.loggedActivityKcal ?? 0, 400, accuracy: 0.001)
+        XCTAssertFalse(recorded.loggedActivityIsEstimated)
+        XCTAssertLessThan(recorded.loggedActivityKcal ?? 0, recorded.activeBurnedSoFar ?? 0)
+
+        let modelled = EnergyEngine.summarize(
+            inputs(sessions: [session(fromHour: 9, toHour: 10, kcal: 400, source: .hevy,
+                                      estimated: true)]),
+            profile: profile, context: context())
+        XCTAssertTrue(modelled.loggedActivityIsEstimated)
+
+        // A measured day's sessions are inside the measurement, so there is no separate share to show.
+        let measured = EnergyEngine.summarize(
+            inputs(appleActive: 600, appleBasal: 1_800,
+                   sessions: [session(fromHour: 9, toHour: 10, kcal: 400)]),
+            profile: profile, context: context())
+        XCTAssertNil(measured.loggedActivityKcal)
+    }
+
+    /// A session that straddles midnight accrued its energy in both days, and each day may have only
+    /// the share that happened inside it.
+    func testSessionStraddlingMidnightIsSplitByTime() {
+        let summary = EnergyEngine.summarize(
+            inputs(sessions: [session(fromHour: -1, toHour: 1, kcal: 400)]),
+            profile: profile, context: context())
+        XCTAssertEqual(summary.activeBurnedSoFar ?? 0, 200, accuracy: 0.001)
+    }
+
+    /// "So far" has to mean so far. A session logged for later today is not energy anyone has spent.
+    func testSessionBeyondTheElapsedEdgeIsNotCountedYet() {
+        let summary = EnergyEngine.summarize(
+            inputs(steps: 4_000, sessions: [session(fromHour: 18, toHour: 19, kcal: 400)]),
+            profile: profile, context: context(elapsed: 0.5, today: true))
+        XCTAssertEqual(summary.source, .stepsEstimate)
+        XCTAssertEqual(summary.activeBurnedSoFar ?? 0,
+                       EnergyEngine.stepActiveKcal(steps: 4_000, strideM: nil, weightKg: 80) ?? 0,
+                       accuracy: 0.001)
+    }
+
+    /// Without the day's absolute start no session can be placed in it. The engine says so by falling
+    /// back to what it can still defend rather than guessing at the window.
+    func testSessionsAreIgnoredWithoutADayStart() {
+        let summary = EnergyEngine.summarize(
+            inputs(steps: 4_000, sessions: [session(fromHour: 9, toHour: 10, kcal: 400)]),
+            profile: profile, context: context(withStart: false))
+        XCTAssertEqual(summary.source, .stepsEstimate)
+    }
+
+    /// The rule that keeps every other branch honest applies here too: where a device DID measure the
+    /// day, the sessions are already inside that measurement.
+    func testSessionsDoNotTouchAMeasuredDay() {
+        let strap = EnergyEngine.summarize(
+            inputs(strap: 2_000, coverage: 43_200,
+                   sessions: [session(fromHour: 9, toHour: 10, kcal: 400)]),
+            profile: profile, context: context())
+        XCTAssertEqual(strap.source, .strapWornTime)
+        let apple = EnergyEngine.summarize(
+            inputs(appleActive: 600, appleBasal: 1_800,
+                   sessions: [session(fromHour: 9, toHour: 10, kcal: 400)]),
+            profile: profile, context: context())
+        XCTAssertEqual(apple.source, .appleSplit)
+        XCTAssertEqual(apple.activeBurnedSoFar ?? 0, 600, accuracy: 0.001)
+    }
+
+    func testMalformedSessionsAreDroppedRatherThanClamped() {
+        let summary = EnergyEngine.summarize(
+            inputs(sessions: [session(fromHour: 9, toHour: 10, kcal: .nan),
+                              session(fromHour: 9, toHour: 10, kcal: 40_000),
+                              session(fromHour: 10, toHour: 10, kcal: 300),
+                              session(fromHour: 11, toHour: 10, kcal: 300)]),
+            profile: profile, context: context())
+        XCTAssertEqual(summary.source, .profileOnly)
+        XCTAssertNil(summary.totalBurnedSoFar)
     }
 
     func testRealDayDurationControlsCoverageAndBasalAccrual() {

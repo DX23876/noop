@@ -16,6 +16,23 @@ import StrandDesign
 
 struct EnergyCard: View {
     let summary: DailyEnergySummary
+    /// Whether a strap is paired at all, and when one last completed a sync. Together they are the
+    /// difference between "nothing measured today" and "the strap has not handed today over yet" —
+    /// two states the card used to report with one sentence, which was a lie to anyone wearing a strap.
+    let strapPaired: Bool
+    let lastStrapSync: Date?
+
+    /// The pair is resolved from the app's live state by DEFAULT rather than threaded through the
+    /// three call sites, because all three sit in view hierarchies that deliberately do not observe
+    /// `LiveState`: it publishes at ~1 Hz while a strap streams, and Today explicitly avoids an
+    /// `@EnvironmentObject live` for exactly that reason. Reading a snapshot here subscribes to
+    /// nothing. Tests and previews pass the pair explicitly.
+    init(summary: DailyEnergySummary, strapSync: (paired: Bool, lastSync: Date?)? = nil) {
+        self.summary = summary
+        let resolved = strapSync ?? AppModel.shared?.strapSyncSnapshot
+        self.strapPaired = resolved?.paired ?? false
+        self.lastStrapSync = resolved?.lastSync
+    }
 
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
@@ -136,9 +153,17 @@ struct EnergyCard: View {
     private var qualityNote: LocalizedStringKey? {
         switch summary.source {
         case .profileOnly:
-            return "No wearable data for today yet — this is your estimated basal rate, not a measurement."
+            return Self.unmeasuredNote(
+                base: "No wearable data for today yet — this is your estimated basal rate, not a measurement.",
+                strapPaired: strapPaired, lastStrapSync: lastStrapSync, day: summary.day)
         case .stepsEstimate:
-            return "Estimated from steps: no device recorded energy today."
+            return Self.unmeasuredNote(
+                base: "Estimated from steps: no device recorded energy today.",
+                strapPaired: strapPaired, lastStrapSync: lastStrapSync, day: summary.day)
+        case .loggedActivity:
+            return Self.unmeasuredNote(
+                base: "Estimated from your logged sessions and steps: no device recorded energy today.",
+                strapPaired: strapPaired, lastStrapSync: lastStrapSync, day: summary.day)
         case .appleSplit, .strapWornTime, .mixed:
             switch summary.confidence {
             case .solid:       return nil
@@ -146,6 +171,28 @@ struct EnergyCard: View {
             case .calibrating: return "Mostly estimated — very little of today was recorded."
             }
         }
+    }
+
+    /// The caption for a day nothing measured — and the one place that decides whether NOOP may blame
+    /// the absence on there being no device.
+    ///
+    /// "No device recorded energy today" is a claim about the world. It is true for someone with no
+    /// strap; it is false for someone wearing one that simply has not offloaded yet, and telling them
+    /// their strap recorded nothing sends them looking for a fault that does not exist. Where a strap
+    /// IS paired and has not synced since this day began, the card says that instead — the thing it
+    /// can actually attribute.
+    ///
+    /// Static and parameterised so the wording is testable without a view, a strap or a clock.
+    static func unmeasuredNote(base: LocalizedStringKey, strapPaired: Bool, lastStrapSync: Date?,
+                               day: String, now: Date = Date(),
+                               calendar: Calendar = .current) -> LocalizedStringKey {
+        guard strapPaired else { return base }
+        // Only today can be waiting on a sync. A past day with no energy is finished being measured.
+        guard day == Repository.localDayKey(now) else { return base }
+        guard let lastStrapSync, lastStrapSync >= calendar.startOfDay(for: now) else {
+            return "Your strap hasn't synced today yet — this is an estimate until it does."
+        }
+        return base
     }
 
     private func kcal(_ value: Double?) -> String? {
@@ -455,6 +502,20 @@ struct EnergyDetailView: View {
 
     @ViewBuilder private func provenanceRows(_ s: DailyEnergySummary) -> some View {
         row("Source", sourceLabel(s.source))
+        if let sessions = s.loggedActivityKcal, sessions > 0 {
+            // The row that answers the question this whole path exists for. Without it, a day whose
+            // sessions WERE counted looks exactly like a day whose sessions were ignored, and the only
+            // way to tell is to do the arithmetic by hand.
+            let kcal = "\(Int(sessions.rounded()).formatted(.number.grouping(.automatic))) kcal"
+            row("From logged sessions",
+                s.loggedActivityIsEstimated
+                    ? "\(kcal) · \(String(localized: "estimated"))" : kcal)
+            if s.loggedActivityIsEstimated {
+                Text("At least one session had no energy recorded, so NOOP estimated it from its average heart rate, or from the activity's published energy cost when there was none.")
+                    .font(StrandFont.caption)
+                    .foregroundStyle(StrandPalette.textSecondary)
+            }
+        }
         if let energy = s.coverage.energy { row("Energy coverage", percent(energy)) }
         if let movement = s.coverage.movement { row("Hours with movement", percent(movement)) }
         if let bmr = s.estimatedBMR24h {
@@ -572,7 +633,7 @@ struct EnergyDetailView: View {
         switch s.source {
         case .strapWornTime: source = "WHOOP"
         case .appleSplit:    source = "Apple Health"
-        case .mixed, .stepsEstimate, .profileOnly: return nil
+        case .mixed, .stepsEstimate, .loggedActivity, .profileOnly: return nil
         }
         var line = "\(source) · \(percent(energy)) \(String(localized: "captured"))"
         if let uncertainty = s.uncertaintyFraction {
@@ -587,6 +648,7 @@ struct EnergyDetailView: View {
         case .strapWornTime: return String(localized: "Strap, worn-time estimate")
         case .mixed:         return String(localized: "Several sources")
         case .stepsEstimate: return String(localized: "Steps estimate")
+        case .loggedActivity: return String(localized: "Logged sessions + steps")
         case .profileOnly:   return String(localized: "Profile only")
         }
     }

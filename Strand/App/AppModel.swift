@@ -1418,6 +1418,15 @@ final class AppModel: ObservableObject {
     /// End the WHOOP present-scan (idempotent). Call on leaving the wizard's pick step / on dismiss.
     func stopWhoopScan() { ble.stopWhoopScan() }
 
+    /// The two facts the Energy card needs to tell "no device recorded today" apart from "the strap
+    /// has not handed today over yet": whether anything is paired at all, and when a strap last
+    /// completed a sync. Read as a snapshot rather than observed — `LiveState` publishes at ~1 Hz
+    /// while a strap streams, and no screen should re-render at that rate for a caption.
+    var strapSyncSnapshot: (paired: Bool, lastSync: Date?) {
+        (paired: !(deviceRegistry?.devices.isEmpty ?? true),
+         lastSync: live.lastSyncedAt.map { Date(timeIntervalSince1970: $0) })
+    }
+
     /// Register a paired device and (optionally) make it the active one. The Add-a-device wizard's
     /// single write path: `add` upserts the row, and when `makeActive` is true `setActive` promotes it
     /// (the SourceCoordinator reacts to the active-device change and connects). No-op if the registry

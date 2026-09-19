@@ -775,6 +775,39 @@ public enum Calories {
         return (totalKcal, totalKcal * 4.184)
     }
 
+    /// Gross bout energy from a stored AVERAGE heart rate, for a session whose sample series is not
+    /// worth reading.
+    ///
+    /// Same Keytel rate and same activity gate as `estimateBoutCalories`, evaluated once at the mean
+    /// instead of per sample. It is the weaker of the two and deliberately so: a session's average
+    /// flattens the intervals inside it, and Keytel is not linear in heart rate, so a hard interval
+    /// workout comes out low here. It exists for the callers that already HOLD an average — the
+    /// workout list reconciles one onto every row — and for whom reading the window again would mean
+    /// a per-session query on a path that already has a documented cost problem.
+    ///
+    /// Gross, like its sibling: below the activity gate the whole window is priced at the resting
+    /// rate, above it at the exercise rate, and neither subtracts the resting share.
+    public static func estimateBoutCalories(averageHR: Int, durationSeconds: Double,
+                                            profile: UserProfile,
+                                            hrmax: Double?, restingHR: Double?) -> Double? {
+        guard durationSeconds > 0, durationSeconds.isFinite, averageHR > 0 else { return nil }
+        let weightKg = profile.weightKg > 0 ? profile.weightKg : 70.0
+        let heightCm = profile.heightCm > 0 ? profile.heightCm : 170.0
+        let age = profile.age > 0 ? profile.age : 30.0
+        let coeffs = resolveCoeffs(profile.sex)
+        let effHRmax = hrmax ?? 220.0
+        let effResting = restingHR ?? 60.0
+        let activeThreshold = effResting + activeHRRFraction * (effHRmax - effResting)
+        let bpm = Double(averageHR)
+        guard bpm >= activeThreshold else {
+            return restingKcalPerS(coeffs, weightKg: weightKg, heightCm: heightCm, age: age)
+                * durationSeconds
+        }
+        let vo2max = vo2maxFor(hrmax: effHRmax, restingHR: restingHR)
+        return activeKcalPerS(coeffs, hr: bpm, hrmax: effHRmax, weightKg: weightKg, age: age,
+                              vo2max: vo2max) * durationSeconds
+    }
+
     /// APPROXIMATE whole-day resting + active energy estimate from the full day's HR samples.
     /// Resting BMR is integrated once over capped, supported sample intervals, independent of HR cadence.
     /// Supported high-HR intervals then add only the Keytel energy ABOVE that resting floor.

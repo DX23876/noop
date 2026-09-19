@@ -278,6 +278,10 @@ final class Repository: ObservableObject {
     struct StrainProfile: Sendable { let hrMax: Double; let sex: String }
     var strainProfile: StrainProfile?
 
+    /// The day `energySummaries` last tried to rebuild today's WHOOP energy row on, so the repair runs
+    /// once a day rather than on every screen that asks for energy. See `EnergySeries`.
+    var repairedTodayEnergyOn: String?
+
     /// Memo for `cardioLoads(for:)`, keyed by canonical session id and window. Pricing one session is an
     /// indexed heart-rate range read, and Training Load, Cardio and the workout detail all ask about
     /// overlapping windows; without this, every visit repeats the same reads.
