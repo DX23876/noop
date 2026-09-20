@@ -397,12 +397,14 @@ struct WeightDetailView: View {
     }
 
     /// Keep `ProfileStore.weightKg` — which HR zones and the calorie model read — on the newest
-    /// measurement. Assigned only when it actually changed, so the iOS `profile.$weightKg` publisher
-    /// (which writes back to Health) does not fire a second, redundant write for the one this screen
-    /// just made itself.
+    /// measurement.
+    ///
+    /// The rule itself moved to `Repository.reconcileProfileWeight`, because running it only here
+    /// meant the profile caught up only when someone opened this screen. This call stays so a
+    /// weigh-in made on this screen is reflected before the reload below, without waiting for the
+    /// app-level observers.
     private func syncProfileWeight() async {
-        guard let latest = await repo.latestWeightKg(), latest > 10 else { return }
-        if abs(profile.weightKg - latest) > 0.005 { profile.weightKg = latest }
+        await repo.reconcileProfileWeight(profile)
     }
 }
 

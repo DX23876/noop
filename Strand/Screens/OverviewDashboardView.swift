@@ -384,8 +384,9 @@ struct OverviewDashboardView: View {
             .map { Int($0.value.rounded()) }
         next.hydrationTotalML = await hydrationA
         next.todayEnergySummary = (await energySummariesA).last(where: { $0.day == selectedDayKey })
-        next.resolvedWeightKg = WeightSeries.displayWeight(summary: await weightSummaryA,
-                                                       profileWeightKg: profile.weightKg).kg
+        // Measurement, not trend — see `WeightSeries.currentWeight`.
+        next.resolvedWeightKg = WeightSeries.currentWeight(summary: await weightSummaryA,
+                                                          profileWeightKg: profile.weightKg).kg
 
         // These two feed OPTIONAL sections that are hidden by default, so they are read only when their
         // section is actually shown. They used to run on every load "so flipping a toggle doesn't need

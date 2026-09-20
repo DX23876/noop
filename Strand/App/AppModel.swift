@@ -261,6 +261,18 @@ final class AppModel: ObservableObject {
     /// session. Mirrors how `SourceCoordinator` drives the WRITE side off the same publisher. Retained for
     /// the app's lifetime (the registry outlives the session); `removeDuplicates` collapses redundant emits.
     private var readSpineCancellable: AnyCancellable?
+    /// Turns an edit of the PROFILE weight into a weigh-in dated today, so the three ways to set a
+    /// weight — Apple Health, the profile field, the weight screen — all land in one series.
+    ///
+    /// One observer rather than a hook in Settings and another in the onboarding wizard: both write
+    /// the same `@Published` scalar, and a per-screen hook is the wiring the next screen forgets.
+    ///
+    /// Debounced, because the profile field is a STEPPER: "209 → 212" is six emissions, and without
+    /// this each would be a database write, a series refresh and an Apple Health write.
+    /// `setTodayWeight` then no-ops when the value already matches, which is also what stops the
+    /// reconciler (series → profile) and this observer (profile → series) writing to each other.
+    private var profileWeightCancellable: AnyCancellable?
+
     /// Keeps Repository's physical WHOOP source union in memory. This prevents visible presentation
     /// requests from synchronously waiting on the registry database while analysis uses its readers.
     private var readSourceListCancellable: AnyCancellable?
@@ -521,6 +533,12 @@ final class AppModel: ObservableObject {
             await self.repo.migrateProfileBodyScalarsIfNeeded(
                 weightKg: self.profile.weightKg, heightCm: self.profile.heightCm,
                 waistCm: self.profile.waistCm)
+            // Then pull the profile scalar onto the newest weigh-in the store holds. On macOS this is
+            // the only place it happens at all; on iOS it covers the launch where the last sync
+            // predates this run. Ordered AFTER the migration above so a first launch retires the old
+            // scalar at its own date before this moves it.
+            await self.repo.reconcileProfileWeight(self.profile)
+            self.observeProfileWeight()
             // Analytics migrations are keyed to their own persisted recipe, never to the app/build
             // version. On an ordinary Xcode reinstall this is a one-row read and no historical work.
             await self.intelligence.prepareAnalysisRecipe()
@@ -1417,6 +1435,22 @@ final class AppModel: ObservableObject {
 
     /// End the WHOOP present-scan (idempotent). Call on leaving the wizard's pick step / on dismiss.
     func stopWhoopScan() { ble.stopWhoopScan() }
+
+    /// Start the profile-weight → weigh-in bridge. Idempotent; see `profileWeightCancellable`.
+    ///
+    /// `dropFirst()` skips the value the publisher replays at subscribe time — that is the stored
+    /// scalar, not an edit, and banking a weigh-in for it would date last month's number today.
+    private func observeProfileWeight() {
+        guard profileWeightCancellable == nil else { return }
+        profileWeightCancellable = profile.$weightKg
+            .dropFirst()
+            .removeDuplicates()
+            .debounce(for: .seconds(1.5), scheduler: RunLoop.main)
+            .sink { [weak self] kg in
+                guard let self else { return }
+                Task { @MainActor in await self.repo.setTodayWeight(kg: kg) }
+            }
+    }
 
     /// The two facts the Energy card needs to tell "no device recorded today" apart from "the strap
     /// has not handed today over yet": whether anything is paired at all, and when a strap last

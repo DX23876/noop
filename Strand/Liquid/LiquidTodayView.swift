@@ -2532,8 +2532,12 @@ struct LiquidTodayView: View {
         )
         // Weight comes from the canonical resolver, which unions NOOP weigh-ins over Apple Health per day.
         let weightSeries = await weightSeriesA
-        next.resolvedWeightKg = WeightSeries.displayWeight(summary: await weightSummaryA,
-                                                      profileWeightKg: profile.weightKg)
+        // The MEASUREMENT, not the trend: this tile has no room for the "TREND" label the weight
+        // screen carries, and a trend lags the scale by design — the two disagreeing on one body was
+        // the reported bug. `currentWeight` drops only that tier.
+        let currentWeight = WeightSeries.currentWeight(summary: await weightSummaryA,
+                                                       profileWeightKg: profile.weightKg)
+        next.resolvedWeightKg = (kg: currentWeight.kg, tier: currentWeight.tier)
         let energySummaries = await energyA
         next.energySummariesByDay = Dictionary(energySummaries.map { ($0.day, $0) },
                                           uniquingKeysWith: { _, latest in latest })

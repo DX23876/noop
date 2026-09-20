@@ -239,16 +239,6 @@ final class ProfileStore: ObservableObject {
     /// Remove the profile photo (reverts the header / Settings to the default icon).
     func clearAvatar() { avatarImageData = nil }
 
-    /// "Health always wins" (user decision, supersedes the old one-time seed-if-unset behavior): every
-    /// successful HealthKit sync overwrites the profile weight with the freshest Health reading, not just
-    /// once when the field was never set. Still ignores unrealistic readings (<10 kg). Known tradeoff: a
-    /// manual edit not yet written back to Health (e.g. app killed mid-write) can be reverted by the next
-    /// sync — accepted explicitly per the user's choice, not engineered around (see docs/fork/decisions.md).
-    func applyHealthWeight(kg: Double) {
-        guard kg > 10 else { return }
-        weightKg = kg
-    }
-
     /// The manual override to feed into `StepsEstimateEngine.calibrate(_:manualOverride:)`:
     /// nil when 0 (auto-fit), the positive value otherwise.
     var stepsManualOverride: Double? { stepsManualCoefficient > 0 ? stepsManualCoefficient : nil }

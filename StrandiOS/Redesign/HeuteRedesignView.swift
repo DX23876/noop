@@ -315,8 +315,11 @@ struct HeuteRedesignView: View {
         let weightSeries = await repo.weightDailyValues(days: 91)
         // Headline is the smoothed TREND (what the weight goal is measured on), falling back to the
         // last real weigh-in while the fold is still cold-starting, then to the profile value.
-        let resolvedWeight = WeightSeries.displayWeight(summary: await repo.weightTrendSummary(days: 91),
-                                                        profileWeightKg: profile.weightKg)
+        // Measurement, not trend — see `WeightSeries.currentWeight`. The snapshot this feeds carries
+        // (kg, tier); the reading's date is dropped here because this surface has no caption slot for it.
+        let currentWeight = WeightSeries.currentWeight(summary: await repo.weightTrendSummary(days: 91),
+                                                       profileWeightKg: profile.weightKg)
+        let resolvedWeight = (kg: currentWeight.kg, tier: currentWeight.tier)
         let weightSpark = weightSeries.map(\.value)
 
         // Hydration: the day's logged fluid total (ml), or nil when nothing was logged — a real `0` is

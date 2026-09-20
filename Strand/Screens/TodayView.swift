@@ -3088,7 +3088,8 @@ struct TodayView: View {
         case .weight:
             // Same three-tier resolution the classic Weight tile uses: trend when reliable, else the
             // latest measurement, else the profile fallback — never a bare "—" once a profile weight exists.
-            let resolved = WeightSeries.displayWeight(summary: weightSummary, profileWeightKg: profile.weightKg)
+            let resolved = WeightSeries.currentWeight(summary: weightSummary,
+                                                      profileWeightKg: profile.weightKg)
             return UnitFormatter.massFromKilograms(resolved.kg, system: unitSystem)
         case .coach:
             // #1862: likewise a launcher row. Empty rather than "—" for the same reason — there is no
@@ -5415,9 +5416,11 @@ struct TodayView: View {
         return unit.isEmpty ? n : "\(n) \(unit)"
     }
 
-    /// The Weight tile shows the settled trend, then the latest measurement, then the profile fallback.
+    /// The Weight tile shows the latest measurement, then the profile fallback. NOT the trend: a
+    /// trend lags the scale on purpose, and a tile cannot say so in the space it has.
     private func weightTile() -> (value: String, caption: String) {
-        let resolved = WeightSeries.displayWeight(summary: weightSummary, profileWeightKg: profile.weightKg)
+        let resolved = WeightSeries.currentWeight(summary: weightSummary,
+                                                  profileWeightKg: profile.weightKg)
         let caption: String
         switch resolved.tier {
         case .trend: caption = String(localized: "trend")

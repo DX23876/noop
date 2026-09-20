@@ -9,8 +9,8 @@ import StrandAnalytics
 ///     reuse semantic diff (first miss, day=2026-09-04): weight: 211.0 → 209.55
 ///
 /// One morning weigh-in, synced in from Apple Health, re-derived three weeks of sleep staging. The
-/// route was `applyHealthWeight` → `profile.weightKg` → the PASS-GLOBAL `semanticSignature` → all 21
-/// days missing at once. Weight reaches exactly two persisted values — the day's `activeKcalEst` and
+/// route was the Health→profile overwrite → `profile.weightKg` → the PASS-GLOBAL
+/// `semanticSignature` → all 21 days missing at once. Weight reaches exactly two persisted values — the day's `activeKcalEst` and
 /// the kcal of already-detected workouts — and none of the staging, HRV, Rest, Charge or Effort that
 /// was being recomputed for it.
 ///
@@ -73,7 +73,8 @@ final class WeightByDayTests: XCTestCase {
 
     /// No weigh-in history at all: every day gets the profile value, so the pass behaves exactly as it
     /// did before this change. A wearer who never weighs in must not be made worse off — and for them
-    /// nothing invalidates either, because with no Health readings `applyHealthWeight` never fires.
+    /// nothing invalidates either: with no readings at all, `reconcileProfileWeight` never moves the
+    /// scalar, so the fallback these days take is itself constant.
     func testWithoutObservationsEveryDayTakesTheProfileWeight() {
         let window = days("2026-09-04", "2026-09-03", "2026-09-02")
         let out = IntelligenceEngine.weightByDay(days: window, observations: [], fallbackKg: fallback)
@@ -110,6 +111,26 @@ final class WeightByDayTests: XCTestCase {
         let out = try IntelligenceEngine.weightByDay(
             days: window, observations: [obs("2026-09-02", 95.0)], fallbackKg: fallback)
         XCTAssertEqual(Set(out.keys), Set(window))
+    }
+
+    /// THE property the reconciler rests on. Once the history covers the window, the profile scalar
+    /// is not an input at all — so moving it cannot move a single day's signature.
+    ///
+    /// This became load-bearing when the profile stopped being edited by hand only: it is now pulled
+    /// onto the newest weigh-in automatically (`Repository.reconcileProfileWeight`), which happens
+    /// after every Health sync. If a covered day still read the scalar, that sync would re-derive the
+    /// window — the exact failure this file's header describes, restored through a different door.
+    func testWithHistoryCoveringTheWindowTheProfileWeightIsNotAnInput() throws {
+        let window = days("2026-09-04", "2026-09-03", "2026-09-02", "2026-09-01")
+        let observations = [try obs("2026-08-30", 95.0), try obs("2026-09-03", 94.0)]
+        let low = IntelligenceEngine.weightByDay(days: window, observations: observations,
+                                                  fallbackKg: 60.0)
+        let high = IntelligenceEngine.weightByDay(days: window, observations: observations,
+                                                  fallbackKg: 240.0)
+        for day in window {
+            XCTAssertEqual(try XCTUnwrap(low[day]).bitPattern, try XCTUnwrap(high[day]).bitPattern,
+                           "\(day) moved with the profile scalar — a Health sync would re-derive it")
+        }
     }
 
     /// An unparseable key cannot resolve and must not crash the pass; it takes the fallback like any

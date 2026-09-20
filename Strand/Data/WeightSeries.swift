@@ -157,6 +157,22 @@ extension WeightSeries {
         }
         return (profileWeightKg, .profile)
     }
+
+    /// The newest MEASUREMENT, for a surface with no room to say it is showing something else.
+    ///
+    /// The sibling of `displayWeight`, minus its trend tier — and the difference is the point. The
+    /// trend is the right number to judge a goal on and the wrong number for a tile: it lags the
+    /// scale by design, so a tile showing it reads as a stale reading, and a tile has no space for
+    /// the "TREND" label the detail screen puts beside it. Reported as a dashboard tile disagreeing
+    /// with the weight screen when neither was wrong — they were answering different questions.
+    ///
+    /// Carries WHEN it was taken so a caller can caption an old reading rather than passing it off
+    /// as today's, and the same `> 10 kg` floor against a stray 0 sample.
+    static func currentWeight(summary: WeightTrendSummary?,
+                              profileWeightKg: Double) -> (kg: Double, at: Date?, tier: WeightDisplayTier) {
+        if let s = summary, s.latestKg > 10 { return (s.latestKg, s.latestAt, .measured) }
+        return (profileWeightKg, nil, .profile)
+    }
 }
 
 // MARK: - Repository access
@@ -209,6 +225,33 @@ extension Repository {
         await weightSeries(days: GoalMeasure.weightWindowDays).last?.value
     }
 
+    /// Pull `ProfileStore.weightKg` onto the newest measurement the app knows about.
+    ///
+    /// The profile scalar is read by HR zones, the calorie model and the coach, so it has to agree
+    /// with the weight screen — and it did not. Two reasons, both fixed by having ONE place do this:
+    ///
+    ///   • It ran only from `WeightDetailView`, so the profile caught up only when that screen was
+    ///     opened. Reported as "Apple Health's new weight shows in the detail view, the profile keeps
+    ///     the old one".
+    ///   • The iOS sync path fed the profile from `latestImportedWeightKg`, the newest reading INSIDE
+    ///     the window just synced. A weigh-in older than that window is nil there, so a fortnight-old
+    ///     reading never reached the profile at all. This asks the canonical series instead, which has
+    ///     no window.
+    ///
+    /// Safe in both directions: the value always came either from Health (suppressed by the
+    /// `lastImported` echo arm) or from a NOOP weigh-in that already wrote itself to Health under its
+    /// own day (suppressed by `lastSelfWritten`) — see `HealthKitBridge.shouldWriteProfileWeight`.
+    /// Assigns only on a real difference so the publisher does not fire for a no-op.
+    ///
+    /// - Returns: true when the profile was actually moved.
+    @discardableResult
+    func reconcileProfileWeight(_ profile: ProfileStore) async -> Bool {
+        guard let latest = await latestWeightKg(), latest > 10 else { return false }
+        guard abs(profile.weightKg - latest) > 0.005 else { return false }
+        profile.weightKg = latest
+        return true
+    }
+
     // MARK: - Writes
 
     /// Record a weigh-in. `at` is the instant it was taken, which may be in the past — someone
@@ -233,6 +276,32 @@ extension Repository {
         await refresh()
         WeightLogNotification(kg: kg, day: row.day).post()
         return row
+    }
+
+    /// Set TODAY's weight from a place that edits ONE value rather than logging an event — the
+    /// profile field in Settings, and the onboarding wizard.
+    ///
+    /// Replaces today's own NOOP entry instead of appending, which is the difference that makes the
+    /// profile field usable at all: it is a stepper, so "209 → 212" is six taps, and `logWeight`
+    /// would bank six weigh-ins and six Health writes for one correction.
+    ///
+    /// No-ops when the stored value already agrees. That is what keeps the loop shut: the reconciler
+    /// sets the profile scalar FROM this series, which fires the same observer that calls this, and
+    /// without the guard the two would write to each other forever.
+    ///
+    /// - Returns: true when something was actually written.
+    @discardableResult
+    func setTodayWeight(kg: Double, source: WeightSource = .manual) async -> Bool {
+        guard kg > 10, let store = await storeHandle() else { return false }
+        let today = Self.localDayKey(Date())
+        let mine = (try? await store.bodyWeights(deviceId: WhoopStore.noopWeightSourceId,
+                                                 from: today, to: today)) ?? []
+        if let existing = mine.max(by: { $0.takenAt < $1.takenAt }),
+           abs(existing.weightKg - kg) <= 0.005 {
+            return false
+        }
+        for row in mine { _ = try? await store.deleteBodyWeight(id: row.id) }
+        return await logWeight(kg: kg, source: source) != nil
     }
 
     /// Edit an existing weigh-in in place, keeping its id. A changed instant may move it to another

@@ -399,8 +399,9 @@ struct TrendsDashboardView: View {
         let storedStress = await stressStoredA
         next.stressToday = await runUnescalated { StressModel(days: scopedDays, stored: storedStress)?.score }
         next.hydrationTotalML = await hydrationA
-        next.resolvedWeightKg = WeightSeries.displayWeight(summary: await weightSummaryA,
-                                                       profileWeightKg: profile.weightKg).kg
+        // Measurement, not trend — see `WeightSeries.currentWeight`.
+        next.resolvedWeightKg = WeightSeries.currentWeight(summary: await weightSummaryA,
+                                                          profileWeightKg: profile.weightKg).kg
 
         // Workouts feed `.activity` (shown by default) and the optional `.workoutsList`; skip the read
         // entirely when neither is visible. The per-workout HR fetch behind the sparkline is narrower

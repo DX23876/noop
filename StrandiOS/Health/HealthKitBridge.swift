@@ -2162,8 +2162,9 @@ final class HealthKitBridge: ObservableObject {
     ///
     /// Two echoes have to be rejected, and they arrive from opposite directions:
     ///
-    ///   • `lastImported` — the "Health always wins" overwrite (`applyHealthWeight`) sets the profile
-    ///     from the freshest Health reading, which fires the very publisher that would write it back.
+    ///   • `lastImported` — the "Health always wins" reconcile (`Repository.reconcileProfileWeight`)
+    ///     sets the profile from the freshest reading, which fires the very publisher that would
+    ///     write it back.
     ///   • `lastSelfWritten` — a weigh-in logged in NOOP writes itself to Health under ITS OWN day and
     ///     then updates the profile, firing the same publisher. Without this arm that echo would write
     ///     a SECOND sample dated TODAY, so entering last Tuesday's weigh-in would also plant today's

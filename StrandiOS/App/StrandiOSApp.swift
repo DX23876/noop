@@ -189,10 +189,16 @@ struct StrandiOSApp: App {
                 // changes are process-wide on Apple and are applied after the documented reopen.
                 .environment(\.locale, AppLanguage.activeLocale)
                 .chartStyle(chartStyleRaw)
-                // "Health always wins" (user decision): every successful sync overwrites the profile
-                // weight with the freshest Health reading, not just once when unset.
-                .onReceive(health.$latestImportedWeightKg) { kg in
-                    if let kg { model.profile.applyHealthWeight(kg: kg) }
+                // "Health always wins" (user decision): every successful sync pulls the profile onto
+                // the freshest reading, not just once when unset.
+                //
+                // Driven off the sync COMPLETING, not off `latestImportedWeightKg`. That value is the
+                // newest weight inside the window just synced, so a weigh-in older than the window —
+                // a fortnight, ordinarily — was nil and the profile never moved. The reconciler asks
+                // the canonical series, which has no window. `latestImportedWeightKg` keeps its other
+                // job: the echo reference that stops this write bouncing back into Health.
+                .onReceive(health.$lastSync.compactMap { $0 }) { _ in
+                    Task { await model.repo.reconcileProfileWeight(model.profile) }
                 }
                 .onReceive(health.$lastSync.compactMap { $0 }) { _ in
                     // Health sync has just refreshed the time-aligned Watch reference buckets. Refit
@@ -219,7 +225,13 @@ struct StrandiOSApp: App {
                 // is exactly the wiring someone forgets on the next write path.
                 .onReceive(NotificationCenter.default.publisher(for: .noopWeightLogged)) { note in
                     guard let logged = WeightLogNotification(note) else { return }
-                    Task { try? await health.writeWeight(kg: logged.kg, day: logged.day) }
+                    Task {
+                        try? await health.writeWeight(kg: logged.kg, day: logged.day)
+                        // …and the profile follows the series, wherever the weigh-in was made. A
+                        // back-dated entry moves nothing: the reconciler takes the NEWEST reading,
+                        // not the one just written.
+                        await model.repo.reconcileProfileWeight(model.profile)
+                    }
                 }
                 .noopAccent(accentRaw, customHex: accentCustomHex)
                 // Dynamic Type now scales the prose/label roles (StrandFont). Cap the upper end so the
