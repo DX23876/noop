@@ -32,15 +32,10 @@ struct EnergyPlanView: View {
     @FocusState private var intakeFieldFocused: Bool
     @State private var onboarding = false
 
-    private enum Page: String, CaseIterable, Identifiable {
+    /// Which route's workings are shown below the corridor. Chosen by tapping that route's row —
+    /// the labels and `CaseIterable` went with the segmented control that used to offer it.
+    private enum Page {
         case calculated, measured
-        var id: String { rawValue }
-        var label: String {
-            switch self {
-            case .calculated: return String(localized: "Calculated")
-            case .measured:   return String(localized: "From your data")
-            }
-        }
     }
 
     private enum InfoTopic: String, Identifiable {
@@ -65,15 +60,17 @@ struct EnergyPlanView: View {
                     .foregroundStyle(StrandPalette.metricCyan)
                 }
                 corridorCard
-                Picker("Page", selection: $page) {
-                    ForEach(Page.allCases) { Text($0.label).tag($0) }
-                }
-                .pickerStyle(.segmented)
+                // Today's balance sits directly under the corridor because it is the only thing on
+                // this page that is actionable TODAY. Everything below it is reference: how each of
+                // the three routes arrives at its number, looked up on the day someone doubts one.
+                todayBalanceCard
+                // No segmented control any more. The corridor's own rows choose what is shown below
+                // — the switch was a second, unlabelled copy of the same three-way choice, and it
+                // hid whichever half of the answer you were not looking at.
                 switch page {
                 case .calculated: calculatedPage
                 case .measured:   measuredPage
                 }
-                todayBalanceCard
                 planCard
                 DemoScrollBottomAnchor()
             }
@@ -119,7 +116,7 @@ struct EnergyPlanView: View {
         return NoopCard {
             VStack(alignment: .leading, spacing: NoopMetrics.space2) {
                 HStack {
-                    SectionHeader("What a day costs", overline: "Three answers")
+                    SectionHeader("How much you burn a day", overline: "Three routes")
                     Spacer()
                     Button { infoTopic = .corridor } label: {
                         Image(systemName: "info.circle").foregroundStyle(StrandPalette.textTertiary)
@@ -128,22 +125,22 @@ struct EnergyPlanView: View {
                 }
                 CorridorBar(entries: corridorEntries(corridor))
                 corridorRow(String(localized: "Formula"), corridor.formulaKcal,
-                            note: String(localized: "predicted"),
-                            icon: "function", tint: StrandPalette.metricAmber)
-                corridorRow(String(localized: "Your wearable"), corridor.measuredKcal,
+                            note: String(localized: "from your height, weight and age"),
+                            icon: "function", tint: StrandPalette.metricAmber, page: .calculated)
+                corridorRow(String(localized: "Your band"), corridor.measuredKcal,
                             note: qualityNote,
                             icon: "sensor.tag.radiowaves.forward.fill",
-                            tint: StrandPalette.metricCyan)
-                corridorRow(String(localized: "Intake and weight"), corridor.balanceKcal,
+                            tint: StrandPalette.metricCyan, page: .measured)
+                corridorRow(String(localized: "Food and scale"), corridor.balanceKcal,
                             note: balanceNote,
-                            icon: "scalemass.fill", tint: StrandPalette.metricPurple)
+                            icon: "scalemass.fill", tint: StrandPalette.metricPurple, page: .measured)
                 if let spread = corridor.spreadKcal {
                     Divider().background(StrandPalette.hairline)
-                    Text("They disagree by \(Int(spread.rounded())) kcal a day. That gap is the honest answer — not any single number in it.")
+                    Text("The three land \(Int(spread.rounded())) kcal apart. Work with that range, not with one number.")
                         .font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)
                 } else {
-                    Text("Only one figure is available so far, so there is nothing to compare it against yet.")
+                    Text("Only one route has data so far. Give the others a couple of weeks.")
                         .font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
@@ -167,8 +164,23 @@ struct EnergyPlanView: View {
         return entries
     }
 
+    /// One route, and the way into what it rests on.
+    ///
+    /// Tapping it opens the section that explains that route rather than scrolling for it. This is
+    /// what replaced the segmented control: the choice was already on screen three times over, in
+    /// the bar, in these rows and in the switch, and only the switch decided anything.
     private func corridorRow(_ label: String, _ value: Double?, note: String?,
-                             icon: String, tint: Color) -> some View {
+                             icon: String, tint: Color, page target: Page) -> some View {
+        Button {
+            page = target
+        } label: {
+            corridorRowLabel(label, value, note: note, icon: icon, tint: tint)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func corridorRowLabel(_ label: String, _ value: Double?, note: String?,
+                                  icon: String, tint: Color) -> some View {
         HStack(alignment: .firstTextBaseline) {
             // The dot colour matches this route's marker on the bar above, so the two read as one
             // object rather than as a picture with a table under it.
@@ -189,7 +201,12 @@ struct EnergyPlanView: View {
             Text(value.map { "\(Int($0.rounded())) kcal" } ?? "—")
                 .font(StrandFont.number(20))
                 .foregroundStyle(value == nil ? StrandPalette.textTertiary : StrandPalette.textPrimary)
+            Image(systemName: "chevron.right")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(StrandPalette.textTertiary)
+                .accessibilityHidden(true)
         }
+        .contentShape(Rectangle())
     }
 
     /// Names what the wearable figure actually rests on, rather than letting a modelled average pass
@@ -201,15 +218,15 @@ struct EnergyPlanView: View {
         case .mixed:
             return String(localized: "part measured, part modelled — \(model.burn.measuredDays) of \(model.burn.totalDays) days")
         case .mostlyModelled:
-            return String(localized: "mostly modelled — only \(model.burn.measuredDays) of \(model.burn.totalDays) days were measured")
+            return String(localized: "mostly modelled — only \(model.burn.measuredDays) of \(model.burn.totalDays) days measured")
         }
     }
 
     private var balanceNote: String? {
         guard let balance = model.balance else {
-            return String(localized: "needs about two weeks of intake and regular weigh-ins")
+            return String(localized: "needs ~2 weeks of food logs and weigh-ins")
         }
-        return String(localized: "over \(balance.windowDays) days, \(balance.intakeDays) with intake logged")
+        return String(localized: "\(balance.intakeDays) days logged out of \(balance.windowDays)")
     }
 
     // MARK: - Page A
@@ -253,7 +270,7 @@ struct EnergyPlanView: View {
                     }
                 }
                 .pickerStyle(.menu)
-                Text("These steps are conventions, not measurements — nobody's life has a multiplier of exactly \(model.activity.factor.formatted()). They are what the literature and every calorie calculator use, which is why the number below is a prediction rather than a reading.")
+                Text("These steps are conventions, not measurements — nobody's day is exactly ×\(model.activity.factor.formatted()). Which is why the figure below is a prediction, not a reading.")
                     .font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
 
@@ -321,14 +338,14 @@ struct EnergyPlanView: View {
         NoopCard {
             VStack(alignment: .leading, spacing: NoopMetrics.space2) {
                 HStack {
-                    SectionHeader("From what was recorded", overline: "Your data")
+                    SectionHeader("What your band recorded", overline: "Your data")
                     Spacer()
                     Button { infoTopic = .quality } label: {
                         Image(systemName: "info.circle").foregroundStyle(StrandPalette.textTertiary)
                     }
                     .buttonStyle(.plain)
                 }
-                Text("Measured burn").font(StrandFont.subhead)
+                Text("Average burn").font(StrandFont.subhead)
                     .foregroundStyle(StrandPalette.textPrimary)
                 Text(model.burn.measuredMeanKcal.map { kcalPerDay($0) }
                      ?? String(localized: "Not enough measured days"))
@@ -353,24 +370,24 @@ struct EnergyPlanView: View {
                     Text("Between \(Int(balance.lowerBoundKcal.rounded())) and \(Int(balance.upperBoundKcal.rounded())), from \(balance.intakeDays) days of intake and \(balance.weightReadings) weigh-ins.")
                         .font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)
-                    Text("Self-reported intake runs low — commonly by 10 to 30 percent. An under-reported diary makes this figure look low too, which then makes the wearable look like it is overestimating. The asymmetry is worth knowing before reading the gap above as a device error.")
+                    Text("Most people log 10–30 % less than they eat, which drags this figure down and makes the band look like it is overcounting. Worth checking your diary before you blame the band.")
                         .font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)
                 } else {
-                    Text("Needs about two weeks of intake and regular weigh-ins. \(model.intakeDays) days are available so far.")
+                    Text("Needs about two weeks of food logs and regular weigh-ins. You have \(model.intakeDays) so far.")
                         .font(StrandFont.subhead).foregroundStyle(StrandPalette.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 if let thermic = model.thermicEffectKcal {
                     Divider().background(StrandPalette.hairline)
                     HStack {
-                        Text("Digesting your food").font(StrandFont.caption)
+                        Text("Digesting food").font(StrandFont.caption)
                             .foregroundStyle(StrandPalette.textSecondary)
                         Spacer()
                         Text("≈\(Int(thermic.rounded())) kcal/day").font(StrandFont.caption)
                             .foregroundStyle(StrandPalette.textPrimary).monospacedDigit()
                     }
-                    Text("Processing what you eat costs energy too — about a tenth of the day, and more on a high-protein diet. It is not in the burn figures above: no wearable measures it, and mixing a calculation into a measurement would make both harder to trust. It belongs here, against your intake.")
+                    Text("Digesting food burns energy too — roughly a tenth of what you eat, more on a high-protein day. No band measures it, so it is counted here against your food rather than in the burn figures above.")
                         .font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
@@ -379,14 +396,14 @@ struct EnergyPlanView: View {
                 // already uses, synced through Apple Health, so nothing has to be retyped here. The
                 // manual entry below stays as a fallback for a day Health did not receive, not as the
                 // way this is meant to be used.
-                Label("Calories and macros are read from Apple Health, so anything you log in another app counts here automatically.",
+                Label("Calories and macros come from Apple Health — whatever you log in another app counts here on its own.",
                       systemImage: "heart.text.square.fill")
                     .font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
                 Button {
                     enteringIntake = true
                 } label: {
-                    Label("Enter a day by hand", systemImage: "square.and.pencil")
+                    Label("Add a day by hand", systemImage: "square.and.pencil")
                         .font(StrandFont.caption)
                 }
                 .buttonStyle(.plain)
@@ -422,14 +439,14 @@ struct EnergyPlanView: View {
     private var todayBalanceCard: some View {
         NoopCard {
             VStack(alignment: .leading, spacing: NoopMetrics.space2) {
-                SectionHeader("Today", overline: "Balance")
+                SectionHeader("Where today lands", overline: "Today")
                 intakeRow
                 if let balance = model.todayBalance {
                     Divider().background(StrandPalette.hairline)
                     verdictRow(balance)
-                    row("Projected burn", kcal(balance.projectedBurnKcal))
+                    row("Burn, projected", kcal(balance.projectedBurnKcal))
                     if balance.thermicKcal > 0 {
-                        row("Digesting your food", kcal(balance.thermicKcal))
+                        row("Digesting food", kcal(balance.thermicKcal))
                     }
                     if let target = model.targetDailyKcal {
                         row("Your target", signed(target))
@@ -441,12 +458,12 @@ struct EnergyPlanView: View {
                 } else if let burn = model.todayProjectedBurnKcal {
                     Divider().background(StrandPalette.hairline)
                     row("Projected burn", kcal(burn))
-                    Text("Enter what you have eaten and this says whether today lands in a deficit, at maintenance or in a surplus.")
+                    Text("Add what you have eaten to see where today lands.")
                         .font(StrandFont.caption)
                         .foregroundStyle(StrandPalette.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)
                 } else {
-                    Text("Today has no burn forecast yet, so there is nothing to weigh an intake against. It appears once the day has enough recorded to project from.")
+                    Text("No burn forecast yet — the day is still too young to project from. Check back in a few hours.")
                         .font(StrandFont.caption)
                         .foregroundStyle(StrandPalette.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -512,9 +529,18 @@ struct EnergyPlanView: View {
 
     @ViewBuilder private func verdictRow(_ balance: EnergyPlanning.DailyBalance) -> some View {
         HStack(alignment: .firstTextBaseline) {
-            Text(verdictTitle(balance.verdict))
-                .font(StrandFont.headline)
-                .foregroundStyle(verdictColor(balance.verdict))
+            VStack(alignment: .leading, spacing: 1) {
+                Text(verdictTitle(balance.verdict))
+                    .font(StrandFont.headline)
+                    .foregroundStyle(verdictColor(balance.verdict))
+                // The band belongs under the verdict it qualifies, not in the footnote three lines
+                // down where it read as a second, unrelated sentence.
+                if balance.verdict != .tooEarly {
+                    Text("Maintenance is ±\(Int(balance.maintenanceBandKcal.rounded())) kcal")
+                        .font(StrandFont.caption)
+                        .foregroundStyle(StrandPalette.textTertiary)
+                }
+            }
             Spacer(minLength: 8)
             if balance.verdict != .tooEarly {
                 Text(signed(balance.balanceKcal))
@@ -526,10 +552,10 @@ struct EnergyPlanView: View {
 
     private func verdictTitle(_ verdict: EnergyPlanning.DailyBalance.Verdict) -> LocalizedStringKey {
         switch verdict {
-        case .deficit:     return "On course for a deficit"
-        case .maintenance: return "On course to hold steady"
-        case .surplus:     return "On course for a surplus"
-        case .tooEarly:    return "Too early to call"
+        case .deficit:     return "Heading for a deficit"
+        case .maintenance: return "Holding steady"
+        case .surplus:     return "Heading for a surplus"
+        case .tooEarly:    return "Still open"
         }
     }
 
@@ -551,9 +577,11 @@ struct EnergyPlanView: View {
         // rather than a hyphen — the two sit four lines apart and were visibly different characters.
         let low = signed(range.lowerBound), high = signed(range.upperBound)
         if balance.verdict == .tooEarly {
-            return "Today could still end anywhere between \(low) and \(high), which is either side of even. Ask again later."
+            return "Today could still end between \(low) and \(high). Check back later."
         }
-        return "A forecast, not a reading: between \(low) and \(high) depending on how the rest of the day goes. Holding steady counts as within \(Int(balance.maintenanceBandKcal.rounded())) kcal."
+        // The maintenance band is already on the verdict row; repeating it here made a two-clause
+        // sentence out of one fact.
+        return "Projected, not measured — you will land between \(low) and \(high)."
     }
 
     /// A label with its figure, the shape the rest of this page's rows already use.
@@ -607,11 +635,11 @@ struct EnergyPlanView: View {
                         .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
                 }
                 if let observed = model.observedKcalPerKg {
-                    Text("Using your own observed cost of \(Int(observed.rounded())) kcal per kilogram, measured from what you ate, burned and weighed. The usual 7 700 figure is the Wishnofsky convention from 1958 and runs optimistic over months, because it ignores the adaptation that comes with sustained loss.")
+                    Text("Using your own \(Int(observed.rounded())) kcal per kilogram, worked out from what you ate, burned and weighed. The usual 7,700 is a 1958 convention and runs optimistic over months.")
                         .font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)
                 } else {
-                    Text("Using the Wishnofsky convention of 7 700 kcal per kilogram — a 1958 approximation that runs optimistic over months. Once enough intake and weight data exists, your own observed figure replaces it here.")
+                    Text("Using the standard 7,700 kcal per kilogram — a 1958 convention that runs optimistic over months. Your own figure replaces it once you have logged enough food and weigh-ins.")
                         .font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
