@@ -47,12 +47,34 @@ final class StrandDesignTests: XCTestCase {
         XCTAssertEqual(above.b, hundred.b, accuracy: 0.001)
     }
 
-    func testRecoveryStateWords() {
-        XCTAssertEqual(StrandPalette.recoveryState(10), "DEPLETED")
-        XCTAssertEqual(StrandPalette.recoveryState(40), "LOW")
-        XCTAssertEqual(StrandPalette.recoveryState(60), "MODERATE")
-        XCTAssertEqual(StrandPalette.recoveryState(80), "PRIMED")
-        XCTAssertEqual(StrandPalette.recoveryState(95), "PEAK")
+    /// The band a Charge score falls in, at every boundary.
+    ///
+    /// This used to assert the English words `recoveryState` returns. Those words are LOCALIZED from
+    /// the package catalog, so the test passed or failed on the locale the test host happened to
+    /// resolve — green in CI, red on a German Mac, and about the translation either way rather than
+    /// about the thing that can actually be got wrong. What is worth pinning is where each band
+    /// starts and ends: the cases are `..<`, so a score exactly on a boundary belongs to the band
+    /// ABOVE it, and an off-by-one there would silently retitle a whole range of scores.
+    func testChargeBandBoundaries() {
+        XCTAssertEqual(ChargeBand.of(score: 0), .depleted)
+        XCTAssertEqual(ChargeBand.of(score: 24.99), .depleted)
+        XCTAssertEqual(ChargeBand.of(score: 25), .low)
+        XCTAssertEqual(ChargeBand.of(score: 49.99), .low)
+        XCTAssertEqual(ChargeBand.of(score: 50), .moderate)
+        XCTAssertEqual(ChargeBand.of(score: 69.99), .moderate)
+        XCTAssertEqual(ChargeBand.of(score: 70), .primed)
+        XCTAssertEqual(ChargeBand.of(score: 87.99), .primed)
+        XCTAssertEqual(ChargeBand.of(score: 88), .peak)
+        XCTAssertEqual(ChargeBand.of(score: 100), .peak)
+    }
+
+    /// Each band says something, and says something DIFFERENT — in whatever language is loaded. A
+    /// missing catalog entry returns its key, which is still distinct, so this catches the real
+    /// failure it can catch: two bands collapsing onto one word.
+    func testEveryChargeBandHasItsOwnWord() {
+        let words = [ChargeBand.depleted, .low, .moderate, .primed, .peak].map(\.word)
+        XCTAssertEqual(Set(words).count, words.count, "two Charge bands share a word: \(words)")
+        XCTAssertFalse(words.contains(where: \.isEmpty))
     }
 
     func testStrainColorScaleAndEndpoints() {
