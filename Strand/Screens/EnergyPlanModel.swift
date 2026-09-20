@@ -31,6 +31,16 @@ final class EnergyPlanModel: ObservableObject {
     @Published private(set) var thermicEffectKcal: Double?
     @Published private(set) var today = Repository.localDayKey(Date())
 
+    /// Today's balance: what was eaten against what the day is on course to cost. Nil until both
+    /// halves exist — an intake figure and a burn forecast.
+    @Published private(set) var todayBalance: EnergyPlanning.DailyBalance?
+    /// What today's intake currently reads, from Health, a CSV import or typed in here. Nil means
+    /// nothing has been logged for today, which the card says rather than guessing.
+    @Published private(set) var todayIntakeKcal: Double?
+    /// Today's projected total burn, so the card can show the denominator even before an intake
+    /// figure exists.
+    @Published private(set) var todayProjectedBurnKcal: Double?
+
     @Published var activity: ActivityLevel = EnergyPlanStore.activityLevel {
         didSet { EnergyPlanStore.activityLevel = activity }
     }
@@ -67,7 +77,48 @@ final class EnergyPlanModel: ObservableObject {
                                          carbsG: macros[day]?.carbs, fatG: macros[day]?.fat)
         }
         thermicEffectKcal = thermic.isEmpty ? nil : thermic.reduce(0, +) / Double(thermic.count)
+
+        await loadTodayBalance(repo: repo, profile: profile, intake: intake, macros: macros)
         loaded = true
+    }
+
+    /// Today's own numbers, kept apart from the 30-day averages above because they answer a
+    /// different question: those describe a fortnight, this one describes the day in progress.
+    ///
+    /// The comparison is against the day's FORECAST, not against what has been burned so far. At two
+    /// in the afternoon the burn-so-far is half a day and the food is most of one, so every
+    /// afternoon would read as a surplus — a verdict that says more about the clock than the diet.
+    private func loadTodayBalance(repo: Repository, profile: UserProfile,
+                                  intake: [String: Double],
+                                  macros: [String: (protein: Double?, carbs: Double?, fat: Double?)]) async {
+        todayIntakeKcal = intake[today]
+        let summary = await repo.todayEnergy(profile: profile)
+        todayProjectedBurnKcal = summary?.projectedTotalBurn
+        todayBalance = EnergyPlanning.dailyBalance(
+            intakeKcal: intake[today],
+            thermicKcal: EnergyPlanning.thermicEffect(intakeKcal: intake[today],
+                                                      proteinG: macros[today]?.protein,
+                                                      carbsG: macros[today]?.carbs,
+                                                      fatG: macros[today]?.fat),
+            projectedBurnKcal: summary?.projectedTotalBurn,
+            projectedBurnRange: summary?.projectedRangeKcal)
+    }
+
+    /// Records what was eaten today and recomputes the verdict, without reloading the whole page.
+    func recordTodayIntake(_ kcal: Double, repo: Repository, profile: UserProfile) async {
+        guard await repo.recordIntake(kcal: kcal, on: today) else { return }
+        let from = Repository.localDayKey(
+            Calendar.current.date(byAdding: .day, value: -Self.windowDays, to: Date()) ?? Date())
+        let intake = await repo.intakeByDay(from: from, to: today)
+        intakeDays = intake.count
+        await loadTodayBalance(repo: repo, profile: profile, intake: intake,
+                               macros: await repo.macrosByDay(from: from, to: today))
+    }
+
+    /// The daily deficit or surplus the wearer's own target rate implies, or nil when they hold.
+    var targetDailyKcal: Double? {
+        guard targetKgPerWeek != 0 else { return nil }
+        return EnergyPlanning.dailyEnergyDelta(targetKgPerWeek: targetKgPerWeek)
     }
 
     // MARK: - The formula page

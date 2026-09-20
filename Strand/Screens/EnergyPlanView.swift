@@ -26,6 +26,10 @@ struct EnergyPlanView: View {
     @State private var infoTopic: InfoTopic?
     @State private var switching: BasalFormula?
     @State private var enteringIntake = false
+    /// What is being typed into today's intake field, as text: an empty field is not zero calories,
+    /// and a `Double` binding cannot tell the two apart.
+    @State private var todayIntakeDraft = ""
+    @FocusState private var intakeFieldFocused: Bool
     @State private var onboarding = false
 
     private enum Page: String, CaseIterable, Identifiable {
@@ -69,6 +73,7 @@ struct EnergyPlanView: View {
                 case .calculated: calculatedPage
                 case .measured:   measuredPage
                 }
+                todayBalanceCard
                 planCard
                 DemoScrollBottomAnchor()
             }
@@ -405,6 +410,174 @@ struct EnergyPlanView: View {
     }
 
     // MARK: - The plan
+
+
+    // MARK: - Today's balance
+
+    /// Eaten today against what today is on course to cost.
+    ///
+    /// The page below this one answers the same question over a fortnight of intake and weigh-ins,
+    /// which is the right horizon for whether a plan is working and the wrong one for someone who
+    /// just logged lunch. This card is the day.
+    private var todayBalanceCard: some View {
+        NoopCard {
+            VStack(alignment: .leading, spacing: NoopMetrics.space2) {
+                SectionHeader("Today", overline: "Balance")
+                intakeRow
+                if let balance = model.todayBalance {
+                    Divider().background(StrandPalette.hairline)
+                    verdictRow(balance)
+                    row("Projected burn", kcal(balance.projectedBurnKcal))
+                    if balance.thermicKcal > 0 {
+                        row("Digesting your food", kcal(balance.thermicKcal))
+                    }
+                    if let target = model.targetDailyKcal {
+                        row("Your target", signed(target))
+                    }
+                    Text(balanceFootnote(balance))
+                        .font(StrandFont.caption)
+                        .foregroundStyle(StrandPalette.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                } else if let burn = model.todayProjectedBurnKcal {
+                    Divider().background(StrandPalette.hairline)
+                    row("Projected burn", kcal(burn))
+                    Text("Enter what you have eaten and this says whether today lands in a deficit, at maintenance or in a surplus.")
+                        .font(StrandFont.caption)
+                        .foregroundStyle(StrandPalette.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                } else {
+                    Text("Today has no burn forecast yet, so there is nothing to weigh an intake against. It appears once the day has enough recorded to project from.")
+                        .font(StrandFont.caption)
+                        .foregroundStyle(StrandPalette.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+        }
+    }
+
+    /// The entry lives here rather than only in the log below: this is the number someone types
+    /// daily, and making them scroll past the verdict to reach the field is the friction the whole
+    /// card exists to remove. It writes to the same manual source the log does.
+    private var intakeRow: some View {
+        HStack {
+            Text("Eaten today").font(StrandFont.subhead)
+                .foregroundStyle(StrandPalette.textSecondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+            Spacer(minLength: 8)
+            HStack(spacing: 6) {
+                // Placeholder "0" rather than "kcal": the unit is printed beside the field, and a
+                // field whose placeholder repeats it reads as two labels and no input.
+                TextField("0", text: $todayIntakeDraft)
+                    .multilineTextAlignment(.trailing)
+                    .font(StrandFont.bodyNumber)
+                    .foregroundStyle(StrandPalette.textPrimary)
+                    .textFieldStyle(.plain)
+                    .frame(width: 72)
+                    .focused($intakeFieldFocused)
+                    #if os(iOS)
+                    .keyboardType(.numberPad)
+                    #endif
+                    .onSubmit { submitIntake() }
+                Text(verbatim: "kcal").font(StrandFont.caption)
+                    .foregroundStyle(StrandPalette.textTertiary)
+                    // Without this the unit is compressed into "k / c / al" when the label and the
+                    // save button claim the row's width first.
+                    .fixedSize()
+            }
+            .layoutPriority(1)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(StrandPalette.surfaceInset,
+                        in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+            Button("Save") { submitIntake() }
+                .buttonStyle(.borderless)
+                .disabled(Double(todayIntakeDraft.trimmingCharacters(in: .whitespaces)) == nil)
+        }
+        .onChangeCompat(of: model.todayIntakeKcal) { _ in syncIntakeDraft() }
+        .onAppear { syncIntakeDraft() }
+    }
+
+    private func syncIntakeDraft() {
+        guard !intakeFieldFocused else { return }
+        todayIntakeDraft = model.todayIntakeKcal.map { String(Int($0.rounded())) } ?? ""
+    }
+
+    private func submitIntake() {
+        guard let value = Double(todayIntakeDraft.trimmingCharacters(in: .whitespaces)),
+              value > 0 else { return }
+        intakeFieldFocused = false
+        Task { await model.recordTodayIntake(value, repo: repo, profile: analyticsProfile) }
+    }
+
+    @ViewBuilder private func verdictRow(_ balance: EnergyPlanning.DailyBalance) -> some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text(verdictTitle(balance.verdict))
+                .font(StrandFont.headline)
+                .foregroundStyle(verdictColor(balance.verdict))
+            Spacer(minLength: 8)
+            if balance.verdict != .tooEarly {
+                Text(signed(balance.balanceKcal))
+                    .font(StrandFont.bodyNumber)
+                    .foregroundStyle(StrandPalette.textPrimary)
+            }
+        }
+    }
+
+    private func verdictTitle(_ verdict: EnergyPlanning.DailyBalance.Verdict) -> LocalizedStringKey {
+        switch verdict {
+        case .deficit:     return "On course for a deficit"
+        case .maintenance: return "On course to hold steady"
+        case .surplus:     return "On course for a surplus"
+        case .tooEarly:    return "Too early to call"
+        }
+    }
+
+    private func verdictColor(_ verdict: EnergyPlanning.DailyBalance.Verdict) -> Color {
+        switch verdict {
+        case .deficit, .surplus: return StrandPalette.textPrimary
+        case .maintenance:       return StrandPalette.statusPositive
+        case .tooEarly:          return StrandPalette.textSecondary
+        }
+    }
+
+    /// Says that the second number is a forecast, and how wide it still is. Without this the card
+    /// would state a deficit to the kilocalorie off a figure that has hours left to move.
+    private func balanceFootnote(_ balance: EnergyPlanning.DailyBalance) -> LocalizedStringKey {
+        guard let range = balance.range else {
+            return "Measured against what today is on course to burn, not what it has burned so far."
+        }
+        // Through `signed`, so the bounds carry the same true minus sign as the headline figure
+        // rather than a hyphen — the two sit four lines apart and were visibly different characters.
+        let low = signed(range.lowerBound), high = signed(range.upperBound)
+        if balance.verdict == .tooEarly {
+            return "Today could still end anywhere between \(low) and \(high), which is either side of even. Ask again later."
+        }
+        return "A forecast, not a reading: between \(low) and \(high) depending on how the rest of the day goes. Holding steady counts as within \(Int(balance.maintenanceBandKcal.rounded())) kcal."
+    }
+
+    /// A label with its figure, the shape the rest of this page's rows already use.
+    private func row(_ label: LocalizedStringKey, _ value: String) -> some View {
+        HStack {
+            Text(label).font(StrandFont.caption)
+                .foregroundStyle(StrandPalette.textSecondary)
+            Spacer(minLength: 8)
+            Text(value).font(StrandFont.caption)
+                .foregroundStyle(StrandPalette.textPrimary)
+                .monospacedDigit()
+        }
+    }
+
+    private func kcal(_ value: Double) -> String {
+        "\(Int(value.rounded()).formatted(.number.grouping(.automatic))) kcal"
+    }
+
+    /// "−700 kcal" / "+220 kcal" — a balance without its sign is not a balance.
+    private func signed(_ value: Double) -> String {
+        let rounded = Int(value.rounded())
+        let sign = rounded < 0 ? "\u{2212}" : "+"
+        return "\(sign)\(abs(rounded).formatted(.number.grouping(.automatic))) kcal"
+    }
 
     private var planCard: some View {
         NoopCard {

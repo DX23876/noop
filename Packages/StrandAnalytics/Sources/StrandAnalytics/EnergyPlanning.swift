@@ -271,4 +271,87 @@ public enum EnergyPlanning {
         guard value.isFinite, plausibleKcalPerKg.contains(value) else { return nil }
         return value
     }
+
+    // MARK: - Today's balance
+
+    /// Where a day is heading: eaten against what it is on course to cost.
+    ///
+    /// Asked for as "u enter ur daily consumed calories and then the app tells u if ur in a deficit,
+    /// maintenance or gaining". The planning page could already answer it over a fortnight of intake
+    /// and weigh-ins; it could not answer it for today, which is when someone who just logged lunch
+    /// wants to know.
+    public struct DailyBalance: Equatable, Sendable {
+        public enum Verdict: Equatable, Sendable {
+            case deficit
+            case maintenance
+            case surplus
+            /// The forecast still allows both directions. Saying "deficit" now and "surplus" by
+            /// evening is worse than saying nothing yet.
+            case tooEarly
+        }
+
+        public let intakeKcal: Double
+        /// What the day is on course to burn — a FORECAST, not what has been burned so far. Against
+        /// burn-so-far, every afternoon reads as a deficit.
+        public let projectedBurnKcal: Double
+        /// Digesting the food, which is real expenditure even though no wearable measures it. Kept
+        /// separate so the card can show it rather than hide it inside a total.
+        public let thermicKcal: Double
+        public var expenditureKcal: Double { projectedBurnKcal + thermicKcal }
+        /// Negative is a deficit. Intake minus everything the day costs.
+        public let balanceKcal: Double
+        /// The same balance across the forecast's own range, when it has one. Wider burn means a
+        /// more negative balance, so the bounds are the burn bounds swapped.
+        public let range: ClosedRange<Double>?
+        /// Half-width of the band that counts as holding steady.
+        public let maintenanceBandKcal: Double
+        public let verdict: Verdict
+    }
+
+    /// How far from the day's cost still counts as maintenance. A fraction rather than a fixed
+    /// number of calories: ±100 kcal means something different at 2,000 than at 4,000, and this
+    /// sits in the same order as the model uncertainty the card already prints.
+    public static let maintenanceBandFraction = 0.05
+
+    /// Today's balance, or nil without both an intake figure and a burn forecast.
+    ///
+    /// Nil rather than a verdict from one half: "you are in a deficit" computed against a burn
+    /// nobody projected would be a sentence with no second number in it.
+    public static func dailyBalance(intakeKcal: Double?,
+                                    thermicKcal: Double?,
+                                    projectedBurnKcal: Double?,
+                                    projectedBurnRange: ClosedRange<Double>? = nil,
+                                    maintenanceFraction: Double = maintenanceBandFraction)
+        -> DailyBalance? {
+        guard let intakeKcal, intakeKcal.isFinite, intakeKcal > 0,
+              let projectedBurnKcal, projectedBurnKcal.isFinite, projectedBurnKcal > 0
+        else { return nil }
+        let thermic = (thermicKcal?.isFinite ?? false) ? max(0, thermicKcal ?? 0) : 0
+        let expenditure = projectedBurnKcal + thermic
+        let balance = intakeKcal - expenditure
+        let band = max(0, expenditure * maintenanceFraction)
+
+        // A higher burn is a more negative balance, so the forecast's lower bound produces the
+        // balance's UPPER one.
+        let range: ClosedRange<Double>? = projectedBurnRange.map {
+            let low = intakeKcal - ($0.upperBound + thermic)
+            let high = intakeKcal - ($0.lowerBound + thermic)
+            return min(low, high)...max(low, high)
+        }
+
+        let verdict: DailyBalance.Verdict
+        if let range, range.lowerBound < 0, range.upperBound > 0 {
+            verdict = .tooEarly
+        } else if balance < -band {
+            verdict = .deficit
+        } else if balance > band {
+            verdict = .surplus
+        } else {
+            verdict = .maintenance
+        }
+
+        return DailyBalance(intakeKcal: intakeKcal, projectedBurnKcal: projectedBurnKcal,
+                            thermicKcal: thermic, balanceKcal: balance, range: range,
+                            maintenanceBandKcal: band, verdict: verdict)
+    }
 }

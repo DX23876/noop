@@ -216,4 +216,58 @@ final class EnergyPlanningTests: XCTestCase {
         XCTAssertEqual(absurd, 100 * EnergyPlanning.thermicFractionProtein, accuracy: 0.001)
     }
 
+    // MARK: - Today's balance
+
+    private func balance(intake: Double? = 2_000, thermic: Double? = 200,
+                         burn: Double? = 2_500, range: ClosedRange<Double>? = nil)
+        -> EnergyPlanning.DailyBalance? {
+        EnergyPlanning.dailyBalance(intakeKcal: intake, thermicKcal: thermic,
+                                    projectedBurnKcal: burn, projectedBurnRange: range)
+    }
+
+    func testDigestionCountsOnTheSpendingSide() {
+        // The thermic effect is deliberately kept OUT of the measured burn — no wearable measures
+        // digestion. A balance is a calculation either way, and leaving it out would understate
+        // every deficit by roughly a tenth of the intake.
+        let withThermic = balance(intake: 2_000, thermic: 200, burn: 2_500)
+        XCTAssertEqual(withThermic?.expenditureKcal, 2_700)
+        XCTAssertEqual(withThermic?.balanceKcal, -700)
+        XCTAssertEqual(balance(intake: 2_000, thermic: nil, burn: 2_500)?.balanceKcal, -500)
+    }
+
+    func testTheVerdictUsesABandProportionalToTheDay() {
+        // 5 % of 2,700 is 135, so ±135 kcal is holding steady rather than a direction.
+        XCTAssertEqual(balance(intake: 2_650, burn: 2_500)?.verdict, .maintenance)
+        XCTAssertEqual(balance(intake: 2_560, burn: 2_500)?.verdict, .deficit)
+        XCTAssertEqual(balance(intake: 2_840, burn: 2_500)?.verdict, .surplus)
+        XCTAssertEqual(balance(intake: 2_650, burn: 2_500)?.maintenanceBandKcal ?? 0, 135,
+                       accuracy: 0.001)
+    }
+
+    func testAForecastThatStillAllowsBothDirectionsGivesNoVerdict() {
+        // Midday: the day could end at 2,000 or at 3,000 burned, so "deficit" would be a coin toss
+        // that flips by evening.
+        let undecided = balance(intake: 2_400, thermic: 200, burn: 2_500, range: 2_000...3_000)
+        XCTAssertEqual(undecided?.verdict, .tooEarly)
+        // Once the whole range lands on one side, it says so.
+        let settled = balance(intake: 2_400, thermic: 200, burn: 2_900, range: 2_800...3_000)
+        XCTAssertEqual(settled?.verdict, .deficit)
+    }
+
+    func testTheBalanceRangeIsTheBurnRangeInverted() {
+        // A bigger burn is a more negative balance; getting this backwards would put the optimistic
+        // end where the pessimistic one belongs.
+        let b = balance(intake: 2_400, thermic: 200, burn: 2_500, range: 2_000...3_000)
+        XCTAssertEqual(b?.range?.lowerBound ?? 0, 2_400 - 3_200, accuracy: 0.001)
+        XCTAssertEqual(b?.range?.upperBound ?? 0, 2_400 - 2_200, accuracy: 0.001)
+    }
+
+    func testHalfTheInputsGiveNoVerdictAtAll() {
+        // "You are in a deficit", computed against a burn nobody projected, is a sentence with one
+        // number in it.
+        XCTAssertNil(balance(intake: nil))
+        XCTAssertNil(balance(burn: nil))
+        XCTAssertNil(balance(intake: 0))
+        XCTAssertNil(balance(intake: .nan))
+    }
 }
