@@ -3031,10 +3031,16 @@ struct TodayView: View {
             // back to the spo2_candidate sparkline tail (WHOOP `spo2_candidate_82` or Oura ceiling@100
             // `0x6F`, device-conditional — see IntelligenceEngine) so the card shows a strap-estimate
             // (unverified) number instead of "—".
-            let calibrated = (d?.spo2Pct ?? lastVitalsDay?.spo2Pct ?? lastSpo2Day?.spo2Pct)
-            if let v = calibrated { return String(format: "%.0f%%", locale: AppLanguage.activeLocale, v) }
-            if PuffinExperiment.spo2CandidateDisplayEnabled, let tail = sparks["spo2_candidate"]?.last {
-                return String(format: "%.0f%%", locale: AppLanguage.activeLocale, tail)
+            // Recency first (`Spo2Display`): the carry has no staleness bound, so letting any
+            // calibrated value win pinned this card to a months-old import and suppressed every
+            // fresh estimate. Today's reading still beats today's estimate.
+            let resolved = Spo2Display.resolve(
+                todayPct: d?.spo2Pct,
+                candidatePct: sparks["spo2_candidate"]?.last,
+                candidateEnabled: PuffinExperiment.spo2CandidateDisplayEnabled,
+                carriedPct: lastVitalsDay?.spo2Pct ?? lastSpo2Day?.spo2Pct)
+            if let resolved {
+                return String(format: "%.0f%%", locale: AppLanguage.activeLocale, resolved.percent)
             }
             return "—"
         case .skinTemp:
@@ -4245,10 +4251,18 @@ struct TodayView: View {
             // broken.
             let spo2CandidateOn = PuffinExperiment.spo2CandidateDisplayEnabled
             let candidateTail = spo2CandidateOn ? sparks["spo2_candidate"]?.last : nil
-            let spo2Value = spo2.value == "—" && candidateTail != nil
+            // The candidate displaced a "—" before, which meant a CARRIED reading of any age kept it
+            // hidden: an import ending in June suppressed every estimate after it. `Spo2Display` owns
+            // the order — today's reading, else today's estimate, else the carry — and is asked here
+            // only about the first two, because the carry's presentation (its own date stamp) belongs
+            // to `carriedVital` above and is not something this decision should re-derive.
+            let resolved = Spo2Display.resolve(todayPct: d?.spo2Pct, candidatePct: candidateTail,
+                                               candidateEnabled: spo2CandidateOn, carriedPct: nil)
+            let showCandidate = resolved?.provenance == .candidate
+            let spo2Value = showCandidate
                 ? String(format: "%.0f%%", locale: AppLanguage.activeLocale, candidateTail!)
                 : spo2.value
-            let spo2Caption: String = spo2.value == "—" && candidateTail != nil
+            let spo2Caption: String = showCandidate
                 ? String(localized: "strap estimate (unverified)")
                 : (spo2.value == "—" && spo2CandidateOn
                    ? String(localized: "toggle ON · no estimate yet")
@@ -4268,7 +4282,7 @@ struct TodayView: View {
                 // picker keeps applying — upstream reads `sparks` directly, which would pin this one
                 // tile to the full 14-day superset while every sibling honours the picker.
                 sparkline: keyMetricsDetailed
-                    ? windowedSpark(spo2.value == "—" && candidateTail != nil ? "spo2_candidate" : "spo2")
+                    ? windowedSpark(showCandidate ? "spo2_candidate" : "spo2")
                     : nil,
                 sparkColor: StrandPalette.metricCyan
             )

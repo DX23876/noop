@@ -1466,12 +1466,17 @@ struct LiquidTodayView: View {
             // candidate fallback and experimental gating included — so the card and the tile cannot
             // disagree about the same day's number. The tile's key/route handling is deliberately NOT
             // copied; see below for why the two are not interchangeable.
-            let spo2Real = displayDay?.spo2Pct ?? vitalsDay?.spo2Pct
-            let spo2CandidateOn = PuffinExperiment.spo2CandidateDisplayEnabled
-            let spo2Candidate = spo2Real == nil && spo2CandidateOn
-                ? spo2CandidateByDay[cachedDisplayDay?.day ?? selectedDayKey]
-                : nil
-            let spo2 = spo2Real ?? spo2Candidate
+            // Recency first: today's reading, else today's estimate, else the carry. The carry has no
+            // staleness bound on purpose, so the old "any calibrated value wins" pinned the tile to a
+            // months-old import and hid every fresh estimate. One rule, in `Spo2Display`, because
+            // four surfaces resolve this and four copies is four ways to disagree.
+            let spo2Resolved = Spo2Display.resolve(
+                todayPct: displayDay?.spo2Pct,
+                candidatePct: spo2CandidateByDay[cachedDisplayDay?.day ?? selectedDayKey],
+                candidateEnabled: PuffinExperiment.spo2CandidateDisplayEnabled,
+                carriedPct: vitalsDay?.spo2Pct)
+            let spo2Candidate = spo2Resolved?.provenance == .candidate ? spo2Resolved?.percent : nil
+            let spo2 = spo2Resolved?.percent
             // ALWAYS routes to "spo2", never "spo2_candidate". The Key Metrics tile switches that string,
             // but there it is a SPARKLINE SERIES key (ktile feeds it to windowedSpark; navigation goes
             // through its separate detailMetric argument). Here the string is a NAVIGATION route resolved
@@ -2135,11 +2140,14 @@ struct LiquidTodayView: View {
         case .restingHr:
             ktile(String(localized: "Rest HR"), icon: metric.customizationIcon, intText(rhr), "bpm", StrandPalette.metricRose, fracOver(rhr, 100), key: "rhr")
         case .bloodOxygen:
-            let spo2Real = displayDay?.spo2Pct ?? vitalsDay?.spo2Pct
-            let candidate = spo2Real == nil && PuffinExperiment.spo2CandidateDisplayEnabled
-                ? spo2CandidateByDay[cachedDisplayDay?.day ?? selectedDayKey]
-                : nil
-            let spo2 = spo2Real ?? candidate
+            // Same order as the card above — see `Spo2Display`.
+            let resolved = Spo2Display.resolve(
+                todayPct: displayDay?.spo2Pct,
+                candidatePct: spo2CandidateByDay[cachedDisplayDay?.day ?? selectedDayKey],
+                candidateEnabled: PuffinExperiment.spo2CandidateDisplayEnabled,
+                carriedPct: vitalsDay?.spo2Pct)
+            let candidate = resolved?.provenance == .candidate ? resolved?.percent : nil
+            let spo2 = resolved?.percent
             ktile("SpO₂", icon: metric.customizationIcon, intText(spo2), "%",
                   StrandPalette.metricCyan, fracOver(spo2, 100),
                   key: candidate == nil ? "spo2" : "spo2_candidate",

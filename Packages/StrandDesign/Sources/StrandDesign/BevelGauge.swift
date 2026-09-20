@@ -166,16 +166,32 @@ public struct BevelGauge: View {
         }
     }
 
+    /// The widest the centre text may be: the ring's inner opening, less a hair so a glyph does not
+    /// touch the stroke. Everything in `centerLabel` is bounded by it.
+    private var centerWidth: CGFloat { max(24, diameter - lineWidth * 2 - 10) }
+
     private var centerLabel: some View {
         VStack(spacing: 2) {
+            // Bounded and shrink-to-fit. `0.30 · diameter` sizes a two- or three-character score, and
+            // every ring in the app carries one — except this one, which a weight detail hands
+            // "209.7 kg". With no width limit that wrapped ACROSS the arc: the number over the top of
+            // the ring, "kg" on a second line over the dial, and the caption and state word colliding
+            // under it. A shrink is the right answer rather than a shorter string, because the caller
+            // cannot know how wide its own number will be until someone steps on a scale.
             Text(numberText)
                 .font(StrandFont.rounded(diameter * 0.30, weight: .bold))
                 .foregroundStyle(StrandPalette.textPrimary)
                 .contentTransition(.numericText())
+                .lineLimit(1)
+                .minimumScaleFactor(0.45)
+                .frame(maxWidth: centerWidth)
             if let captionText {
                 Text(captionText)
                     .font(StrandFont.rounded(diameter * 0.085, weight: .medium))
                     .foregroundStyle(StrandPalette.textTertiary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+                    .frame(maxWidth: centerWidth)
             }
             if let stateText {
                 // Scale the state word WITH the gauge, like the number (0.30·d) and caption (0.085·d).
